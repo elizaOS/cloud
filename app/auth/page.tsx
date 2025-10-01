@@ -1,7 +1,0 @@
-export default function Auth() {
-  return (
-    <div className="">
-      <h1>Auth</h1>
-    </div>
-  );
-}
