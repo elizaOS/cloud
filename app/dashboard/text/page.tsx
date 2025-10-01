@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import { requireAuth } from '@/lib/auth';
 import { listConversationsByUser, getConversationWithMessages } from '@/lib/queries/conversations';
-import { TextPageClient } from './text-page-client';
+import { TextPageClient } from '../../../components/chat/text-page-client';
 
 export const metadata: Metadata = {
   title: "Text & Chat Generation",

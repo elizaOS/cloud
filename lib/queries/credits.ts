@@ -12,44 +12,44 @@ export async function deductCredits(
     throw new Error('Amount must be positive');
   }
 
-  const result = await db.transaction(async (tx) => {
-    const org = await tx.query.organizations.findFirst({
-      where: eq(schema.organizations.id, organizationId),
-    });
-
-    if (!org) {
-      throw new Error('Organization not found');
-    }
-
-    const newBalance = org.credit_balance - amount;
-
-    if (newBalance < 0) {
-      throw new Error('Insufficient credits');
-    }
-
-    await tx
-      .update(schema.organizations)
-      .set({
-        credit_balance: newBalance,
-        updated_at: new Date(),
-      })
-      .where(eq(schema.organizations.id, organizationId));
-
-    const [transaction] = await tx
-      .insert(schema.creditTransactions)
-      .values({
-        organization_id: organizationId,
-        user_id: userId,
-        amount: -amount,
-        type: 'usage',
-        description: description || 'API usage',
-      })
-      .returning();
-
-    return { success: true, newBalance, transaction };
+  const org = await db.query.organizations.findFirst({
+    where: eq(schema.organizations.id, organizationId),
   });
 
-  return result;
+  if (!org) {
+    throw new Error('Organization not found');
+  }
+
+  const newBalance = org.credit_balance - amount;
+
+  if (newBalance < 0) {
+    return {
+      success: false,
+      newBalance: org.credit_balance,
+      transaction: null as any,
+    };
+  }
+
+  await db
+    .update(schema.organizations)
+    .set({
+      credit_balance: newBalance,
+      updated_at: new Date(),
+    })
+    .where(eq(schema.organizations.id, organizationId));
+
+  const [transaction] = await db
+    .insert(schema.creditTransactions)
+    .values({
+      organization_id: organizationId,
+      user_id: userId,
+      amount: -amount,
+      type: 'usage',
+      description: description || 'API usage',
+    })
+    .returning();
+
+  return { success: true, newBalance, transaction };
 }
 
 export async function addCredits(
@@ -64,41 +64,37 @@ export async function addCredits(
     throw new Error('Amount must be positive');
   }
 
-  const result = await db.transaction(async (tx) => {
-    const org = await tx.query.organizations.findFirst({
-      where: eq(schema.organizations.id, organizationId),
-    });
-
-    if (!org) {
-      throw new Error('Organization not found');
-    }
-
-    const newBalance = org.credit_balance + amount;
-
-    await tx
-      .update(schema.organizations)
-      .set({
-        credit_balance: newBalance,
-        updated_at: new Date(),
-      })
-      .where(eq(schema.organizations.id, organizationId));
-
-    const [transaction] = await tx
-      .insert(schema.creditTransactions)
-      .values({
-        organization_id: organizationId,
-        user_id: userId,
-        amount,
-        type,
-        description: description || `Credit ${type}`,
-        stripe_payment_intent_id: stripePaymentIntentId,
-      })
-      .returning();
-
-    return { success: true, newBalance, transaction };
+  const org = await db.query.organizations.findFirst({
+    where: eq(schema.organizations.id, organizationId),
   });
 
-  return result;
+  if (!org) {
+    throw new Error('Organization not found');
+  }
+
+  const newBalance = org.credit_balance + amount;
+
+  await db
+    .update(schema.organizations)
+    .set({
+      credit_balance: newBalance,
+      updated_at: new Date(),
+    })
+    .where(eq(schema.organizations.id, organizationId));
+
+  const [transaction] = await db
+    .insert(schema.creditTransactions)
+    .values({
+      organization_id: organizationId,
+      user_id: userId,
+      amount,
+      type,
+      description: description || `Credit ${type}`,
+      stripe_payment_intent_id: stripePaymentIntentId,
+    })
+    .returning();
+
+  return { success: true, newBalance, transaction };
 }
 
 export async function getCreditTransactionsByOrganization(
