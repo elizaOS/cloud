@@ -12,6 +12,7 @@ import {
   uniqueIndex,
   uuid,
 } from 'drizzle-orm/pg-core';
+import { relations } from 'drizzle-orm';
 
 export const organizations = pgTable(
   'organizations',
@@ -369,3 +370,14 @@ export const conversationMessages = pgTable(
     created_idx: index('conv_messages_created_idx').on(table.created_at),
   })
 );
+
+export const organizationsRelations = relations(organizations, ({ many }) => ({
+  users: many(users),
+}));
+
+export const usersRelations = relations(users, ({ one }) => ({
+  organization: one(organizations, {
+    fields: [users.organization_id],
+    references: [organizations.id],
+  }),
+}));

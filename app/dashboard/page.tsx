@@ -1,15 +1,16 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { 
-  ChatBubbleIcon, 
-  ImageIcon, 
-  TokensIcon, 
+import {
+  ChatBubbleIcon,
+  ImageIcon,
+  TokensIcon,
   LayersIcon,
   BarChartIcon,
   PersonIcon,
 } from "@radix-ui/react-icons";
 import { Server, HardDrive, Sparkles, Zap, ArrowRight } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
+import { getCurrentUser } from "@/lib/auth";
 
 export const metadata: Metadata = {
   title: "Dashboard",
@@ -91,7 +92,9 @@ const settingsActions = [
   },
 ];
 
-export default function DashboardPage() {
+export default async function DashboardPage() {
+  await getCurrentUser();
+
   return (
     <div className="flex flex-col gap-4 max-w-7xl mx-auto h-full">
       {/* Hero Section */}
