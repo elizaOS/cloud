@@ -29,7 +29,7 @@ export default function DashboardLayout({
 
         {/* Main Content Area */}
         <main className="flex-1 overflow-y-auto bg-background">
-          <div className="h-full px-4 py-6 md:px-6 md:py-8">{children}</div>
+          <div className="h-full px-4 py-4 md:px-6 md:py-6">{children}</div>
         </main>
       </div>
     </div>
