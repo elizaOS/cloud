@@ -6,6 +6,7 @@
 
 import { Menu } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import UserMenu from './user-menu';
 
 interface HeaderProps {
   sidebarOpen: boolean;
@@ -32,6 +33,7 @@ export default function Header({ sidebarOpen, onToggleSidebar, children }: Heade
       {/* Right side content */}
       <div className="flex items-center gap-4">
         {children}
+        <UserMenu />
       </div>
     </header>
   );
