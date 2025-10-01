@@ -27,6 +27,7 @@ export function ChatInterfaceWithPersistence({
   const [activeConversationId, setActiveConversationId] = useState<string | null>(conversation?.id || null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const isFirstRender = useRef(true);
+  const messageTimestamps = useRef<Map<string, Date>>(new Map());
 
   const { messages, sendMessage, status, setMessages } = useChat({
     id: selectedModel,
@@ -52,6 +53,10 @@ export function ChatInterfaceWithPersistence({
       setActiveConversationId(conversationId);
 
       if (initialMessages.length > 0) {
+        initialMessages.forEach(msg => {
+          messageTimestamps.current.set(msg.id, new Date(msg.created_at));
+        });
+
         const formattedMessages: UIMessage[] = initialMessages.map(msg => ({
           id: msg.id,
           role: msg.role as 'user' | 'assistant',
@@ -64,19 +69,32 @@ export function ChatInterfaceWithPersistence({
 
     if (hasConversationChanged) {
       setActiveConversationId(conversationId);
+      messageTimestamps.current.clear();
 
       if (initialMessages.length > 0) {
+        initialMessages.forEach(msg => {
+          messageTimestamps.current.set(msg.id, new Date(msg.created_at));
+        });
+
         const formattedMessages: UIMessage[] = initialMessages.map(msg => ({
           id: msg.id,
           role: msg.role as 'user' | 'assistant',
           parts: [{ type: 'text', text: msg.content }],
         }));
         setMessages(formattedMessages);
-      } else if (conversationId === null) {
+      } else {
         setMessages([]);
       }
     }
   }, [conversation?.id, initialMessages, setMessages, activeConversationId]);
+
+  useEffect(() => {
+    messages.forEach(msg => {
+      if (!messageTimestamps.current.has(msg.id)) {
+        messageTimestamps.current.set(msg.id, new Date());
+      }
+    });
+  }, [messages]);
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -260,7 +278,7 @@ export function ChatInterfaceWithPersistence({
                   : 'border-border text-muted-foreground'
                 }`}>
                 <Clock className="h-3 w-3" />
-                <span>{formatTimestamp(Date.now())}</span>
+                <span>{formatTimestamp(messageTimestamps.current.get(message.id)?.getTime() || Date.now())}</span>
               </div>
             </div>
 
