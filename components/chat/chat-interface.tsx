@@ -1,8 +1,10 @@
 "use client";
 
 import { useChat } from "@ai-sdk/react";
-import { Send, Loader2, Bot, User, Settings } from "lucide-react";
+import { Send, Loader2, Bot, User, Settings, Clock } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
+import { Skeleton } from "@/components/ui/skeleton";
 import { useRef, useEffect, useState } from "react";
 
 interface Model {
@@ -17,7 +19,7 @@ export function ChatInterface() {
   const [models, setModels] = useState<Model[]>([]);
   const [showModelSelector, setShowModelSelector] = useState(false);
   const [error, setError] = useState<string | null>(null);
-
+  
   const { messages, sendMessage, status } = useChat({
     id: selectedModel, // Create new chat instance when model changes
   });
@@ -59,24 +61,45 @@ export function ChatInterface() {
     setInput("");
   };
 
+
+  const formatTimestamp = (timestamp: number): string => {
+    const date = new Date(timestamp);
+    const now = new Date();
+    const diffMs = now.getTime() - date.getTime();
+    const diffMins = Math.floor(diffMs / 60000);
+    
+    if (diffMins < 1) return 'Just now';
+    if (diffMins < 60) return `${diffMins}m ago`;
+    if (diffMins < 1440) return `${Math.floor(diffMins / 60)}h ago`;
+    return date.toLocaleDateString();
+  };
+
   return (
     <div className="flex flex-col h-[calc(100vh-16rem)] border rounded-lg bg-card">
       {/* Header with Model Selector */}
-      <div className="border-b p-3 flex items-center justify-between">
-        <div className="flex items-center gap-2">
-          <Bot className="h-4 w-4 text-muted-foreground" />
-          <span className="text-sm font-medium">AI Assistant</span>
+      <div className="border-b p-4 flex items-center justify-between bg-gradient-to-r from-background to-muted/20">
+        <div className="flex items-center gap-3">
+          <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-purple-500 to-blue-600 flex items-center justify-center">
+            <Bot className="h-5 w-5 text-white" />
+          </div>
+          <div>
+            <h3 className="text-sm font-semibold">AI Assistant</h3>
+            <p className="text-xs text-muted-foreground">Powered by ElizaOS</p>
+          </div>
         </div>
-
+        
         <div className="relative">
           <Button
-            variant="ghost"
+            variant="outline"
             size="sm"
             onClick={() => setShowModelSelector(!showModelSelector)}
-            className="gap-2"
+            className="gap-2 shadow-sm"
           >
             <Settings className="h-4 w-4" />
-            <span className="text-xs">{selectedModel}</span>
+            <span className="text-xs font-medium">{selectedModel}</span>
+            <Badge variant="secondary" className="ml-1 text-xs">
+              {messages.length}
+            </Badge>
           </Button>
 
           {showModelSelector && models.length > 0 && (
@@ -131,53 +154,73 @@ export function ChatInterface() {
           </div>
         )}
 
-        {messages.map((message) => (
-          <div
-            key={message.id}
-            className={`flex gap-3 ${
-              message.role === "user" ? "justify-end" : "justify-start"
-            }`}
-          >
-            {message.role === "assistant" && (
-              <div className="flex-shrink-0 w-8 h-8 rounded-full bg-primary flex items-center justify-center">
-                <Bot className="h-5 w-5 text-primary-foreground" />
-              </div>
-            )}
-
+        {messages.map((message, index) => {
+          return (
             <div
-              className={`rounded-lg px-4 py-2 max-w-[80%] ${
-                message.role === "user"
-                  ? "bg-primary text-primary-foreground"
-                  : "bg-muted"
-              }`}
+              key={message.id}
+              className={`flex gap-3 ${
+                message.role === "user" ? "justify-end" : "justify-start"
+              } animate-in fade-in slide-in-from-bottom-4 duration-500`}
+              style={{ animationDelay: `${index * 50}ms` }}
             >
-              <div className="text-sm whitespace-pre-wrap">
-                {message.parts.map((part, i) => {
-                  switch (part.type) {
-                    case "text":
-                      return <div key={`${message.id}-${i}`}>{part.text}</div>;
-                    default:
-                      return null;
-                  }
-                })}
-              </div>
-            </div>
-
-            {message.role === "user" && (
-              <div className="flex-shrink-0 w-8 h-8 rounded-full bg-secondary flex items-center justify-center">
-                <User className="h-5 w-5 text-secondary-foreground" />
+            {message.role === "assistant" && (
+              <div className="flex-shrink-0 w-9 h-9 rounded-full bg-gradient-to-br from-purple-500 to-blue-600 flex items-center justify-center shadow-sm transition-transform hover:scale-110">
+                <Bot className="h-5 w-5 text-white" />
               </div>
             )}
-          </div>
-        ))}
+
+              <div
+                className={`rounded-2xl px-4 py-3 max-w-[80%] shadow-sm transform transition-all hover:scale-[1.02] hover:shadow-md ${
+                  message.role === "user"
+                    ? "bg-gradient-to-br from-primary to-primary/90 text-primary-foreground"
+                    : "bg-card border"
+                }`}
+              >
+                <div className="text-sm whitespace-pre-wrap mb-2">
+                  {message.parts.map((part, i) => {
+                    switch (part.type) {
+                      case "text":
+                        return <div key={`${message.id}-${i}`}>{part.text}</div>;
+                      default:
+                        return null;
+                    }
+                  })}
+                </div>
+                
+                {/* Message Footer with timestamp */}
+                <div className={`flex items-center gap-2 text-xs mt-2 pt-2 border-t ${
+                  message.role === "user" 
+                    ? "border-primary-foreground/20 text-primary-foreground/80" 
+                    : "border-border text-muted-foreground"
+                }`}>
+                  <Clock className="h-3 w-3" />
+                  <span>{formatTimestamp(Date.now())}</span>
+                </div>
+              </div>
+
+              {message.role === "user" && (
+                <div className="flex-shrink-0 w-9 h-9 rounded-full bg-gradient-to-br from-green-500 to-emerald-600 flex items-center justify-center shadow-sm transition-transform hover:scale-110">
+                  <User className="h-5 w-5 text-white" />
+                </div>
+              )}
+            </div>
+          );
+        })}
 
         {isLoading && (
-          <div className="flex gap-3 justify-start">
-            <div className="flex-shrink-0 w-8 h-8 rounded-full bg-primary flex items-center justify-center">
-              <Bot className="h-5 w-5 text-primary-foreground" />
+          <div className="flex gap-3 justify-start animate-in fade-in slide-in-from-bottom-4 duration-500">
+            <div className="flex-shrink-0 w-9 h-9 rounded-full bg-gradient-to-br from-purple-500 to-blue-600 flex items-center justify-center shadow-sm">
+              <Bot className="h-5 w-5 text-white animate-pulse" />
             </div>
-            <div className="rounded-lg px-4 py-2 bg-muted">
-              <Loader2 className="h-4 w-4 animate-spin" />
+            <div className="rounded-2xl px-4 py-3 bg-card border shadow-sm space-y-2 max-w-[80%]">
+              <Skeleton className="h-4 w-full" />
+              <Skeleton className="h-4 w-5/6" />
+              <Skeleton className="h-4 w-4/6" />
+              <div className="flex gap-2 mt-3 pt-2 border-t">
+                <Skeleton className="h-3 w-16" />
+                <Skeleton className="h-3 w-20" />
+                <Skeleton className="h-3 w-16" />
+              </div>
             </div>
           </div>
         )}
@@ -186,23 +229,31 @@ export function ChatInterface() {
       </div>
 
       {/* Input Area */}
-      <form onSubmit={handleSubmit} className="border-t p-4">
+      <form onSubmit={handleSubmit} className="border-t p-4 bg-gradient-to-r from-background to-muted/20">
         <div className="flex gap-2">
-          <input
-            value={input}
-            onChange={(e) => setInput(e.currentTarget.value)}
-            placeholder="Type your message..."
-            disabled={isLoading}
-            className="flex-1 rounded-md border bg-background px-4 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-ring disabled:opacity-50"
-          />
-          <Button type="submit" disabled={isLoading || !input.trim()}>
+          <div className="flex-1 relative">
+            <input
+              value={input}
+              onChange={(e) => setInput(e.currentTarget.value)}
+              placeholder="Type your message..."
+              disabled={isLoading}
+              className="w-full rounded-xl border bg-background px-4 py-3 text-sm shadow-sm focus:outline-none focus:ring-2 focus:ring-ring disabled:opacity-50 transition-all"
+            />
+          </div>
+          <Button 
+            type="submit" 
+            disabled={isLoading || !input.trim()}
+            className="rounded-xl shadow-sm hover:shadow-md transition-all"
+            size="lg"
+          >
             {isLoading ? (
-              <Loader2 className="h-4 w-4 animate-spin" />
+              <Loader2 className="h-5 w-5 animate-spin" />
             ) : (
-              <Send className="h-4 w-4" />
+              <Send className="h-5 w-5" />
             )}
           </Button>
         </div>
+        
       </form>
     </div>
   );

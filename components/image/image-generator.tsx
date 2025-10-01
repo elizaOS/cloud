@@ -1,8 +1,10 @@
 "use client";
 
 import { useState } from "react";
-import { Loader2, Sparkles, Download } from "lucide-react";
+import { Loader2, Sparkles, Download, Wand2, Image as ImageIcon } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
+import { Skeleton } from "@/components/ui/skeleton";
 
 export function ImageGenerator() {
   const [prompt, setPrompt] = useState("");
@@ -63,101 +65,150 @@ export function ImageGenerator() {
   };
 
   return (
-    <div className="space-y-6">
-      {/* Prompt Input */}
-      <form onSubmit={handleGenerate} className="space-y-4">
-        <div>
-          <label
-            htmlFor="prompt"
-            className="block text-sm font-medium mb-2"
-          >
-            Image Description
-          </label>
-          <textarea
-            id="prompt"
-            value={prompt}
-            onChange={(e) => setPrompt(e.currentTarget.value)}
-            placeholder="Describe the image you want to generate... (e.g., 'A futuristic city with flying cars at sunset')"
-            disabled={isLoading}
-            rows={4}
-            className="w-full rounded-md border bg-background px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-ring disabled:opacity-50 resize-none"
-          />
-        </div>
+    <div className="space-y-6 w-full">
+      {/* Prompt Input Card */}
+      <div className="rounded-xl border bg-gradient-to-br from-card to-muted/20 p-6 shadow-sm w-full">
+        <form onSubmit={handleGenerate} className="space-y-4">
+          <div>
+            <div className="mb-3">
+              <label
+                htmlFor="prompt"
+                className="flex items-center gap-2 text-sm font-semibold"
+              >
+                <Wand2 className="h-4 w-4 text-primary" />
+                Image Description
+              </label>
+            </div>
+            <textarea
+              id="prompt"
+              value={prompt}
+              onChange={(e) => setPrompt(e.currentTarget.value)}
+              placeholder="Describe the image you want to generate... (e.g., 'A futuristic city with flying cars at sunset, cyberpunk style, ultra detailed')"
+              disabled={isLoading}
+              rows={5}
+              className="w-full rounded-xl border bg-background px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-ring disabled:opacity-50 resize-none shadow-sm transition-all"
+            />
+            {prompt && (
+              <p className="mt-2 text-xs text-muted-foreground">
+                {prompt.length} characters
+              </p>
+            )}
+          </div>
 
-        <Button
-          type="submit"
-          disabled={isLoading || !prompt.trim()}
-          className="w-full"
-        >
-          {isLoading ? (
-            <>
-              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-              Generating...
-            </>
-          ) : (
-            <>
-              <Sparkles className="mr-2 h-4 w-4" />
-              Generate Image
-            </>
-          )}
-        </Button>
-      </form>
+          <Button
+            type="submit"
+            disabled={isLoading || !prompt.trim()}
+            className="w-full rounded-xl shadow-sm hover:shadow-md transition-all"
+            size="lg"
+          >
+            {isLoading ? (
+              <>
+                <Loader2 className="mr-2 h-5 w-5 animate-spin" />
+                Generating your masterpiece...
+              </>
+            ) : (
+              <>
+                <Sparkles className="mr-2 h-5 w-5" />
+                Generate Image
+              </>
+            )}
+          </Button>
+        </form>
+      </div>
 
       {/* Error Message */}
       {error && (
-        <div className="rounded-lg border border-destructive bg-destructive/10 p-4">
-          <p className="text-sm text-destructive">{error}</p>
+        <div className="rounded-xl border border-destructive bg-destructive/10 p-4 animate-in fade-in slide-in-from-top-4 duration-300">
+          <p className="text-sm text-destructive font-medium">{error}</p>
         </div>
       )}
 
       {/* Generated Image */}
       {imageUrl && (
-        <div className="space-y-4">
+        <div className="space-y-4 animate-in fade-in slide-in-from-bottom-4 duration-700 w-full">
           {generatedText && (
-            <div className="rounded-lg border bg-card p-4">
-              <p className="text-sm text-muted-foreground">{generatedText}</p>
+            <div className="rounded-xl border bg-gradient-to-br from-card to-muted/20 p-4 shadow-sm">
+              <p className="text-sm text-muted-foreground italic text-center">&quot;{generatedText}&quot;</p>
             </div>
           )}
           
-          <div className="relative rounded-lg border bg-card overflow-hidden">
+          <div className="group relative rounded-2xl border bg-card overflow-hidden shadow-lg hover:shadow-2xl transition-all duration-300 mx-auto max-w-2xl">
+            <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300 z-10" />
             <img
               src={imageUrl}
               alt={prompt}
-              className="w-full h-auto"
+              className="w-full h-auto transform group-hover:scale-105 transition-transform duration-500"
             />
+            <div className="absolute bottom-0 left-0 right-0 p-6 text-white z-20 opacity-0 group-hover:opacity-100 transition-opacity duration-300">
+              <p className="text-sm font-medium line-clamp-2">{prompt}</p>
+            </div>
           </div>
 
-          <div className="flex gap-2">
+          <div className="flex gap-3 max-w-2xl mx-auto">
             <Button
               variant="outline"
               onClick={handleDownload}
-              className="flex-1"
+              className="flex-1 rounded-xl shadow-sm hover:shadow-md transition-all"
+              size="lg"
             >
               <Download className="mr-2 h-4 w-4" />
-              Download
+              Download Image
             </Button>
             <Button
-              variant="outline"
               onClick={() => {
                 setImageUrl(null);
                 setGeneratedText("");
               }}
-              className="flex-1"
+              className="flex-1 rounded-xl shadow-sm hover:shadow-md transition-all"
+              size="lg"
             >
+              <Sparkles className="mr-2 h-4 w-4" />
               Generate Another
             </Button>
+          </div>
+        </div>
+      )}
+      
+      {/* Loading State with Skeleton */}
+      {isLoading && !imageUrl && (
+        <div className="space-y-4 animate-in fade-in duration-500 w-full">
+          <div className="rounded-2xl border bg-card overflow-hidden shadow-lg max-w-2xl mx-auto">
+            <Skeleton className="w-full aspect-square" />
+          </div>
+          <div className="flex gap-3 max-w-2xl mx-auto">
+            <Skeleton className="h-12 flex-1 rounded-xl" />
+            <Skeleton className="h-12 flex-1 rounded-xl" />
+          </div>
+          <div className="text-center">
+            <p className="text-sm text-muted-foreground flex items-center justify-center gap-2">
+              <Loader2 className="h-4 w-4 animate-spin" />
+              Creating your image...
+            </p>
           </div>
         </div>
       )}
 
       {/* Empty State */}
       {!imageUrl && !isLoading && (
-        <div className="rounded-lg border border-dashed p-12 text-center">
-          <Sparkles className="mx-auto h-12 w-12 text-muted-foreground mb-4" />
-          <h3 className="text-lg font-semibold mb-2">No image generated yet</h3>
-          <p className="text-sm text-muted-foreground max-w-md mx-auto">
-            Enter a description above and click &quot;Generate Image&quot; to create stunning AI-generated artwork.
+        <div className="rounded-2xl border-2 border-dashed p-16 text-center bg-gradient-to-br from-muted/20 to-transparent hover:border-primary/50 transition-all duration-300">
+          <div className="inline-flex items-center justify-center w-20 h-20 rounded-full bg-gradient-to-br from-purple-500/20 to-blue-600/20 mb-6">
+            <ImageIcon className="h-10 w-10 text-primary" />
+          </div>
+          <h3 className="text-xl font-bold mb-3 bg-gradient-to-r from-purple-600 to-blue-600 bg-clip-text text-transparent">
+            Ready to Create Magic
+          </h3>
+          <p className="text-sm text-muted-foreground max-w-md mx-auto leading-relaxed">
+            Describe your vision in detail above and watch as AI brings it to life. 
+            The more specific you are, the better the results!
           </p>
+          <div className="mt-6 flex items-center justify-center gap-2">
+            <Badge variant="outline" className="text-xs">
+              1024x1024
+            </Badge>
+            <Badge variant="outline" className="text-xs">
+              High Quality
+            </Badge>
+          </div>
         </div>
       )}
     </div>

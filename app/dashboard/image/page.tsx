@@ -8,15 +8,15 @@ export const metadata: Metadata = {
 
 export default function ImagePage() {
   return (
-    <div className="flex flex-col gap-6">
-      <div>
-        <h1 className="text-3xl font-bold">Images</h1>
-        <p className="text-muted-foreground mt-2">
-          Generate stunning AI-powered images and artwork
-        </p>
-      </div>
+    <div className="flex flex-col items-center justify-start min-h-full w-full">
+      <div className="w-full max-w-4xl mx-auto space-y-6">
+        <div className="text-center">
+          <h1 className="text-3xl font-bold">Images</h1>
+          <p className="text-muted-foreground mt-2">
+            Generate stunning AI-powered images and artwork
+          </p>
+        </div>
 
-      <div className="max-w-4xl">
         <ImageGenerator />
       </div>
     </div>

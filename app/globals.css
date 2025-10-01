@@ -120,3 +120,43 @@
     @apply bg-background text-foreground;
   }
 }
+
+@layer utilities {
+  @keyframes slide-in-from-bottom {
+    from {
+      transform: translateY(1rem);
+      opacity: 0;
+    }
+    to {
+      transform: translateY(0);
+      opacity: 1;
+    }
+  }
+  
+  @keyframes slide-in-from-top {
+    from {
+      transform: translateY(-1rem);
+      opacity: 0;
+    }
+    to {
+      transform: translateY(0);
+      opacity: 1;
+    }
+  }
+  
+  .animate-in {
+    animation-fill-mode: both;
+  }
+  
+  .slide-in-from-bottom-4 {
+    animation-name: slide-in-from-bottom;
+  }
+  
+  .slide-in-from-top-4 {
+    animation-name: slide-in-from-top;
+  }
+  
+  .fade-in {
+    animation-timing-function: ease-out;
+  }
+}
