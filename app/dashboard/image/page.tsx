@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { ImageGenerator } from "@/components/image/image-generator";
 
 export const metadata: Metadata = {
   title: "Image Generation",
@@ -11,15 +12,12 @@ export default function ImagePage() {
       <div>
         <h1 className="text-3xl font-bold">Images</h1>
         <p className="text-muted-foreground mt-2">
-          Generate AI images and artwork
+          Generate stunning AI-powered images and artwork with DALL-E 3
         </p>
       </div>
 
-      <div className="rounded-lg border bg-card p-6">
-        <h2 className="text-xl font-semibold mb-4">Image Generation Studio</h2>
-        <p className="text-muted-foreground">
-          Image generation interface coming soon...
-        </p>
+      <div className="max-w-4xl">
+        <ImageGenerator />
       </div>
     </div>
   );
