@@ -28,9 +28,28 @@ export type NewModelPricing = InferInsertModel<typeof schema.modelPricing>;
 export type ProviderHealth = InferSelectModel<typeof schema.providerHealth>;
 export type NewProviderHealth = InferInsertModel<typeof schema.providerHealth>;
 
+export type Conversation = InferSelectModel<typeof schema.conversations>;
+export type NewConversation = InferInsertModel<typeof schema.conversations>;
+
+export type ConversationMessage = InferSelectModel<typeof schema.conversationMessages>;
+export type NewConversationMessage = InferInsertModel<typeof schema.conversationMessages>;
+
 export type UserWithOrganization = User & {
   organization: Organization;
 };
+
+export type ConversationWithMessages = Conversation & {
+  messages: ConversationMessage[];
+};
+
+export interface ConversationSettings {
+  temperature?: number;
+  maxTokens?: number;
+  topP?: number;
+  frequencyPenalty?: number;
+  presencePenalty?: number;
+  systemPrompt?: string;
+}
 
 export interface UsageMetadata {
   ip_address?: string;
