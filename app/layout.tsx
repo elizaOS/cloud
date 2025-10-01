@@ -15,8 +15,60 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "ElizaOS Platform",
-  description: "AI Agent Development Platform",
+  title: {
+    default: "ElizaOS Platform - AI Agent Development Platform",
+    template: "%s | ElizaOS Platform",
+  },
+  description:
+    "Complete AI agent development platform with inference, hosting, storage, and rapid deployment. Build, deploy, and scale intelligent agents with ease.",
+  keywords: [
+    "AI",
+    "agents",
+    "ElizaOS",
+    "platform",
+    "development",
+    "hosting",
+    "machine learning",
+    "artificial intelligence",
+    "LLM",
+    "deployment",
+  ],
+  authors: [{ name: "ElizaOS Team" }],
+  creator: "ElizaOS",
+  publisher: "ElizaOS",
+  metadataBase: new URL(
+    process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000"
+  ),
+  alternates: {
+    canonical: "/",
+  },
+  openGraph: {
+    title: "ElizaOS Platform - AI Agent Development Platform",
+    description:
+      "Complete AI agent development platform with inference, hosting, storage, and rapid deployment",
+    url: "/",
+    siteName: "ElizaOS Platform",
+    type: "website",
+    locale: "en_US",
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: "ElizaOS Platform",
+    description:
+      "Complete AI agent development platform with inference, hosting, storage, and rapid deployment",
+    creator: "@elizaos",
+  },
+  robots: {
+    index: true,
+    follow: true,
+    googleBot: {
+      index: true,
+      follow: true,
+      "max-video-preview": -1,
+      "max-image-preview": "large",
+      "max-snippet": -1,
+    },
+  },
 };
 
 export default function RootLayout({

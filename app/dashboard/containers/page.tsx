@@ -1,3 +1,11 @@
+import type { Metadata } from "next";
+
+export const metadata: Metadata = {
+  title: "Containers",
+  description: "Deploy and manage containerized AI applications with our infrastructure platform",
+  keywords: ["containers", "deployment", "docker", "kubernetes", "infrastructure"],
+};
+
 export default function ContainersPage() {
   return (
     <div className="flex flex-col gap-6">

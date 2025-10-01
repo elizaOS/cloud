@@ -1,3 +1,10 @@
+import type { Metadata } from "next";
+
+export const metadata: Metadata = {
+  title: "API Keys",
+  description: "Manage your API keys and authentication credentials for ElizaOS platform",
+};
+
 export default function ApiKeysPage() {
   return (
     <div className="flex flex-col gap-6">

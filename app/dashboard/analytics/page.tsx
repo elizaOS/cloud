@@ -1,3 +1,11 @@
+import type { Metadata } from "next";
+
+export const metadata: Metadata = {
+  title: "Analytics",
+  description: "View detailed usage statistics, performance metrics, and insights for your AI agents",
+  keywords: ["analytics", "statistics", "metrics", "insights", "performance"],
+};
+
 export default function AnalyticsPage() {
   return (
     <div className="flex flex-col gap-6">

@@ -1,3 +1,10 @@
+import type { Metadata } from "next";
+
+export const metadata: Metadata = {
+  title: "Account Settings",
+  description: "Manage your account preferences, profile, and security settings",
+};
+
 export default function AccountPage() {
   return (
     <div className="flex flex-col gap-6">

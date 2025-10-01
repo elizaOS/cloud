@@ -1,3 +1,10 @@
+import type { Metadata } from "next";
+
+export const metadata: Metadata = {
+  title: "Text & Chat Generation",
+  description: "Generate AI-powered text and engage in intelligent conversations with advanced language models",
+};
+
 export default function TextPage() {
   return (
     <div className="flex flex-col gap-6">

@@ -1,3 +1,10 @@
+import type { Metadata } from "next";
+
+export const metadata: Metadata = {
+  title: "Dashboard",
+  description: "View your AI agent dashboard, analytics, and quick actions",
+};
+
 export default function DashboardPage() {
   return (
     <div className="flex flex-col gap-6">
