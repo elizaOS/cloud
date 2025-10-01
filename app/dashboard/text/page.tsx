@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { ChatInterface } from "@/components/chat/chat-interface";
 
 export const metadata: Metadata = {
   title: "Text & Chat Generation",
@@ -11,16 +12,11 @@ export default function TextPage() {
       <div>
         <h1 className="text-3xl font-bold">Text & Chat</h1>
         <p className="text-muted-foreground mt-2">
-          Generate text and engage in AI conversations
+          Generate text and engage in AI conversations powered by ElizaOS
         </p>
       </div>
 
-      <div className="rounded-lg border bg-card p-6">
-        <h2 className="text-xl font-semibold mb-4">Text Generation Studio</h2>
-        <p className="text-muted-foreground">
-          Text generation interface coming soon...
-        </p>
-      </div>
+      <ChatInterface />
     </div>
   );
 }
