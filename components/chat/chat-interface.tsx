@@ -1,15 +1,44 @@
 "use client";
 
 import { useChat } from "@ai-sdk/react";
-import { Send, Loader2, Bot, User } from "lucide-react";
+import { Send, Loader2, Bot, User, Settings } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useRef, useEffect, useState } from "react";
 
+interface Model {
+  id: string;
+  name: string;
+  provider?: string;
+}
+
 export function ChatInterface() {
   const [input, setInput] = useState("");
-  const { messages, sendMessage, status } = useChat();
+  const [selectedModel, setSelectedModel] = useState("gpt-4o");
+  const [models, setModels] = useState<Model[]>([]);
+  const [showModelSelector, setShowModelSelector] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  const { messages, sendMessage, status } = useChat({
+    id: selectedModel, // Create new chat instance when model changes
+  });
 
   const messagesEndRef = useRef<HTMLDivElement>(null);
+
+  // Fetch available models
+  useEffect(() => {
+    const fetchModels = async () => {
+      try {
+        const response = await fetch("/api/models");
+        const data = await response.json();
+        if (data.models) {
+          setModels(data.models);
+        }
+      } catch (error) {
+        console.error("Failed to fetch models:", error);
+      }
+    };
+    fetchModels();
+  }, []);
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -23,16 +52,74 @@ export function ChatInterface() {
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    if (input.trim()) {
-      sendMessage({ text: input });
-      setInput("");
-    }
+    if (!input.trim()) return;
+
+    setError(null);
+    sendMessage({ text: input });
+    setInput("");
   };
 
   return (
     <div className="flex flex-col h-[calc(100vh-16rem)] border rounded-lg bg-card">
+      {/* Header with Model Selector */}
+      <div className="border-b p-3 flex items-center justify-between">
+        <div className="flex items-center gap-2">
+          <Bot className="h-4 w-4 text-muted-foreground" />
+          <span className="text-sm font-medium">AI Assistant</span>
+        </div>
+
+        <div className="relative">
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={() => setShowModelSelector(!showModelSelector)}
+            className="gap-2"
+          >
+            <Settings className="h-4 w-4" />
+            <span className="text-xs">{selectedModel}</span>
+          </Button>
+
+          {showModelSelector && models.length > 0 && (
+            <div className="absolute right-0 top-full mt-1 w-64 rounded-lg border bg-popover shadow-lg z-50">
+              <div className="p-2 border-b">
+                <p className="text-xs font-semibold text-muted-foreground">
+                  Select Model
+                </p>
+              </div>
+              <div className="max-h-64 overflow-y-auto p-2">
+                {models.map((model) => (
+                  <button
+                    key={model.id}
+                    onClick={() => {
+                      setSelectedModel(model.id);
+                      setShowModelSelector(false);
+                    }}
+                    className={`w-full text-left px-3 py-2 rounded text-sm hover:bg-accent transition-colors ${
+                      selectedModel === model.id ? "bg-accent" : ""
+                    }`}
+                  >
+                    <div className="font-medium">{model.name}</div>
+                    {model.provider && (
+                      <div className="text-xs text-muted-foreground">
+                        {model.provider}
+                      </div>
+                    )}
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
+        </div>
+      </div>
+
       {/* Messages Area */}
       <div className="flex-1 overflow-y-auto p-4 space-y-4">
+        {error && (
+          <div className="rounded-lg border border-destructive bg-destructive/10 p-3">
+            <p className="text-sm text-destructive">{error}</p>
+          </div>
+        )}
+
         {messages.length === 0 && (
           <div className="flex flex-col items-center justify-center h-full text-center">
             <Bot className="h-12 w-12 text-muted-foreground mb-4" />

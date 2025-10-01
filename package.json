@@ -9,6 +9,7 @@
     "lint": "eslint"
   },
   "dependencies": {
+    "@ai-sdk/gateway": "^1.0.32",
     "@ai-sdk/react": "^2.0.59",
     "@cloudflare/containers": "^0.0.28",
     "@neondatabase/serverless": "^1.0.2",
