@@ -12,7 +12,7 @@ export default function ImagePage() {
       <div>
         <h1 className="text-3xl font-bold">Images</h1>
         <p className="text-muted-foreground mt-2">
-          Generate stunning AI-powered images and artwork with DALL-E 3
+          Generate stunning AI-powered images and artwork
         </p>
       </div>
 
