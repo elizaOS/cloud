@@ -103,11 +103,7 @@ export async function updateConversation(
 
 export async function deleteConversation(id: string): Promise<void> {
   await db
-    .update(schema.conversations)
-    .set({
-      status: 'deleted',
-      updated_at: new Date(),
-    })
+    .delete(schema.conversations)
     .where(eq(schema.conversations.id, id));
 }
 
@@ -126,32 +122,28 @@ export async function archiveConversation(id: string): Promise<Conversation | un
 export async function addMessageToConversation(
   data: NewConversationMessage
 ): Promise<ConversationMessage> {
-  const result = await db.transaction(async (tx) => {
-    const [message] = await tx
-      .insert(schema.conversationMessages)
-      .values(data)
-      .returning();
+  const [message] = await db
+    .insert(schema.conversationMessages)
+    .values(data)
+    .returning();
 
-    const conversation = await tx.query.conversations.findFirst({
-      where: eq(schema.conversations.id, data.conversation_id),
-    });
-
-    if (conversation) {
-      await tx
-        .update(schema.conversations)
-        .set({
-          message_count: conversation.message_count + 1,
-          last_message_at: new Date(),
-          total_cost: conversation.total_cost + (data.cost || 0),
-          updated_at: new Date(),
-        })
-        .where(eq(schema.conversations.id, data.conversation_id));
-    }
-
-    return message;
+  const conversation = await db.query.conversations.findFirst({
+    where: eq(schema.conversations.id, data.conversation_id),
   });
 
-  return result;
+  if (conversation) {
+    await db
+      .update(schema.conversations)
+      .set({
+        message_count: conversation.message_count + 1,
+        last_message_at: new Date(),
+        total_cost: conversation.total_cost + (data.cost || 0),
+        updated_at: new Date(),
+      })
+      .where(eq(schema.conversations.id, data.conversation_id));
+  }
+
+  return message;
 }
 
 export async function getMessageById(id: string): Promise<ConversationMessage | undefined> {

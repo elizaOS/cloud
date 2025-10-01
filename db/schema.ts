@@ -375,9 +375,29 @@ export const organizationsRelations = relations(organizations, ({ many }) => ({
   users: many(users),
 }));
 
-export const usersRelations = relations(users, ({ one }) => ({
+export const usersRelations = relations(users, ({ one, many }) => ({
   organization: one(organizations, {
     fields: [users.organization_id],
     references: [organizations.id],
+  }),
+  conversations: many(conversations),
+}));
+
+export const conversationsRelations = relations(conversations, ({ many, one }) => ({
+  messages: many(conversationMessages),
+  user: one(users, {
+    fields: [conversations.user_id],
+    references: [users.id],
+  }),
+  organization: one(organizations, {
+    fields: [conversations.organization_id],
+    references: [organizations.id],
+  }),
+}));
+
+export const conversationMessagesRelations = relations(conversationMessages, ({ one }) => ({
+  conversation: one(conversations, {
+    fields: [conversationMessages.conversation_id],
+    references: [conversations.id],
   }),
 }));

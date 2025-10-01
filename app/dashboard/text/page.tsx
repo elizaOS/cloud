@@ -1,23 +1,42 @@
 import type { Metadata } from "next";
-import { ChatInterface } from "@/components/chat/chat-interface";
+import { requireAuth } from '@/lib/auth';
+import { listConversationsByUser, getConversationWithMessages } from '@/lib/queries/conversations';
+import { TextPageClient } from './text-page-client';
 
 export const metadata: Metadata = {
   title: "Text & Chat Generation",
   description: "Generate AI-powered text and engage in intelligent conversations with advanced language models",
 };
 
-export default function TextPage() {
-  return (
-    <div className="flex flex-col gap-6">
-      <div>
-        <h1 className="text-3xl font-bold">Text & Chat</h1>
-        <p className="text-muted-foreground mt-2">
-          Generate text and engage in AI conversations powered by ElizaOS
-        </p>
-      </div>
+export default async function TextPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ conversationId?: string }>;
+}) {
+  const user = await requireAuth();
+  const params = await searchParams;
 
-      <ChatInterface />
-    </div>
+  const conversations = await listConversationsByUser(user.id, {
+    status: 'active',
+    limit: 50,
+  });
+
+  let currentConversation = null;
+  let messages: any[] = [];
+
+  if (params.conversationId) {
+    const conv = await getConversationWithMessages(params.conversationId);
+    if (conv) {
+      currentConversation = conv;
+      messages = conv.messages || [];
+    }
+  }
+
+  return (
+    <TextPageClient
+      conversations={conversations}
+      currentConversation={currentConversation}
+      initialMessages={messages}
+    />
   );
 }
-
