@@ -1,7 +1,8 @@
 'use client';
 
-import { useState } from 'react';
-import { Plus, MessageSquare, Trash2, Edit2, Check, X } from 'lucide-react';
+import { useState, useEffect, useRef } from 'react';
+import { Plus, MessageSquare, Trash2, Edit2 } from 'lucide-react';
+import { useRouter } from 'next/navigation';
 import { Button } from '@/components/ui/button';
 import { ConversationInput } from './conversation-input';
 import { ConversationScrollArea } from './conversation-scroll-area';
@@ -26,6 +27,10 @@ export function ConversationList({
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editTitle, setEditTitle] = useState('');
   const [isCreating, setIsCreating] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
+  const [deletingId, setDeletingId] = useState<string | null>(null);
+  const editInputRef = useRef<HTMLDivElement>(null);
+  const router = useRouter();
 
   const handleCreate = async () => {
     setIsCreating(true);
@@ -45,24 +50,75 @@ export function ConversationList({
   };
 
   const handleSaveEdit = async (id: string) => {
-    await updateConversationTitleAction(id, editTitle);
-    setEditingId(null);
-  };
-
-  const handleCancelEdit = () => {
+    if (editTitle.trim()) {
+      setIsSaving(true);
+      try {
+        await updateConversationTitleAction(id, editTitle.trim());
+      } catch (error) {
+        console.error('Failed to update conversation title:', error);
+      } finally {
+        setIsSaving(false);
+      }
+    }
     setEditingId(null);
     setEditTitle('');
   };
 
+  const handleCancelEdit = () => {
+    if (!isSaving) {
+      setEditingId(null);
+      setEditTitle('');
+    }
+  };
+
   const handleDelete = async (id: string) => {
     if (confirm('Are you sure you want to delete this conversation?')) {
-      await deleteConversationAction(id);
-      if (id === currentConversationId && conversations.length > 1) {
-        const nextConv = conversations.find(c => c.id !== id);
-        if (nextConv) onSelectConversation(nextConv.id);
+      setDeletingId(id);
+      try {
+        await deleteConversationAction(id);
+        if (id === currentConversationId) {
+          const nextConv = conversations.find(c => c.id !== id);
+          if (nextConv) {
+            onSelectConversation(nextConv.id);
+          } else {
+            router.push('/dashboard/text');
+          }
+        }
+      } catch (error) {
+        console.error('Failed to delete conversation:', error);
+      } finally {
+        setDeletingId(null);
       }
     }
   };
+
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (editingId && !isSaving && editInputRef.current && !editInputRef.current.contains(event.target as Node)) {
+        handleSaveEdit(editingId);
+      }
+    };
+
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (editingId && !isSaving) {
+        if (event.key === 'Enter') {
+          event.preventDefault();
+          handleSaveEdit(editingId);
+        } else if (event.key === 'Escape') {
+          event.preventDefault();
+          handleCancelEdit();
+        }
+      }
+    };
+
+    document.addEventListener('mousedown', handleClickOutside);
+    document.addEventListener('keydown', handleKeyDown);
+
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+      document.removeEventListener('keydown', handleKeyDown);
+    };
+  }, [editingId, editTitle, isSaving]);
 
   return (
     <div className="flex flex-col h-full border-r bg-muted/30">
@@ -90,30 +146,30 @@ export function ConversationList({
               }`}
               onClick={() => onSelectConversation(conversation.id)}
             >
-              {editingId === conversation.id ? (
-                <div className="flex items-center gap-2" onClick={(e: React.MouseEvent) => e.stopPropagation()}>
+              {isSaving && editingId === conversation.id ? (
+                <div className="flex items-center gap-2 py-1">
+                  <MessageSquare className="h-4 w-4 flex-shrink-0 text-muted-foreground" />
+                  <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                    <div className="flex gap-1">
+                      <span className="animate-bounce" style={{ animationDelay: '0ms' }}>.</span>
+                      <span className="animate-bounce" style={{ animationDelay: '150ms' }}>.</span>
+                      <span className="animate-bounce" style={{ animationDelay: '300ms' }}>.</span>
+                    </div>
+                    <span>Saving changes</span>
+                  </div>
+                </div>
+              ) : editingId === conversation.id ? (
+                <div
+                  ref={editInputRef}
+                  className="flex items-center gap-2"
+                  onClick={(e: React.MouseEvent) => e.stopPropagation()}
+                >
                   <ConversationInput
                     value={editTitle}
                     onChange={(e) => setEditTitle(e.target.value)}
-                    className="h-7 text-sm"
+                    className="h-7 text-sm flex-1"
                     autoFocus
                   />
-                  <Button
-                    size="icon"
-                    variant="ghost"
-                    className="h-7 w-7"
-                    onClick={() => handleSaveEdit(conversation.id)}
-                  >
-                    <Check className="h-4 w-4" />
-                  </Button>
-                  <Button
-                    size="icon"
-                    variant="ghost"
-                    className="h-7 w-7"
-                    onClick={handleCancelEdit}
-                  >
-                    <X className="h-4 w-4" />
-                  </Button>
                 </div>
               ) : (
                 <>
@@ -138,6 +194,7 @@ export function ConversationList({
                         e.stopPropagation();
                         handleStartEdit(conversation);
                       }}
+                      disabled={deletingId === conversation.id}
                     >
                       <Edit2 className="h-3 w-3" />
                     </Button>
@@ -149,8 +206,17 @@ export function ConversationList({
                         e.stopPropagation();
                         handleDelete(conversation.id);
                       }}
+                      disabled={deletingId === conversation.id}
                     >
-                      <Trash2 className="h-3 w-3" />
+                      {deletingId === conversation.id ? (
+                        <div className="flex gap-0.5">
+                          <span className="animate-bounce text-[8px]" style={{ animationDelay: '0ms' }}>.</span>
+                          <span className="animate-bounce text-[8px]" style={{ animationDelay: '150ms' }}>.</span>
+                          <span className="animate-bounce text-[8px]" style={{ animationDelay: '300ms' }}>.</span>
+                        </div>
+                      ) : (
+                        <Trash2 className="h-3 w-3" />
+                      )}
                     </Button>
                   </div>
                 </>

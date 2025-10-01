@@ -1,5 +1,6 @@
 import { db, schema, eq } from '@/lib/db';
 import type { User, NewUser, UserWithOrganization } from '@/lib/types';
+import { redirect } from 'next/navigation';
 
 export async function getUserById(id: string): Promise<User | undefined> {
   return await db.query.users.findFirst({
@@ -23,7 +24,7 @@ export async function getUserWithOrganization(
     },
   });
 
-  if (!user) return undefined;
+  if (!user) return redirect('/login');
 
   return user as UserWithOrganization;
 }
@@ -38,7 +39,7 @@ export async function getUserByEmailWithOrganization(
     },
   });
 
-  if (!user) return undefined;
+  if (!user) return redirect('/login');
 
   return user as UserWithOrganization;
 }
@@ -67,4 +68,24 @@ export async function listUsersByOrganization(organizationId: string): Promise<U
   return await db.query.users.findMany({
     where: eq(schema.users.organization_id, organizationId),
   });
+}
+
+export async function deleteUser(id: string): Promise<void> {
+  const user = await getUserById(id);
+
+  if (!user) {
+    throw new Error(`User ${id} not found`);
+  }
+
+  const organizationId = user.organization_id;
+
+  await db.delete(schema.users).where(eq(schema.users.id, id));
+
+  const remainingUsers = await db.query.users.findMany({
+    where: eq(schema.users.organization_id, organizationId),
+  });
+
+  if (remainingUsers.length === 0) {
+    await db.delete(schema.organizations).where(eq(schema.organizations.id, organizationId));
+  }
 }

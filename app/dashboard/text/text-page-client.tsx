@@ -1,5 +1,6 @@
 'use client';
 
+import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import type { Conversation, ConversationMessage } from '@/lib/types';
 import { ConversationList } from '@/components/chat/conversation-list';
@@ -12,14 +13,30 @@ interface TextPageClientProps {
 }
 
 export function TextPageClient({
-  conversations,
-  currentConversation,
+  conversations: initialConversations,
+  currentConversation: initialCurrentConversation,
   initialMessages,
 }: TextPageClientProps) {
   const router = useRouter();
+  const [conversations, setConversations] = useState<Conversation[]>(initialConversations);
+  const [currentConversation, setCurrentConversation] = useState<Conversation | null>(initialCurrentConversation);
+
+  useEffect(() => {
+    setConversations(initialConversations);
+  }, [initialConversations]);
+
+  useEffect(() => {
+    setCurrentConversation(initialCurrentConversation);
+  }, [initialCurrentConversation]);
 
   const handleSelectConversation = (id: string) => {
     router.push(`/dashboard/text?conversationId=${id}`);
+  };
+
+  const handleConversationCreated = (conversation: Conversation) => {
+    setConversations(prev => [conversation, ...prev]);
+    setCurrentConversation(conversation);
+    router.push(`/dashboard/text?conversationId=${conversation.id}`);
   };
 
   return (
@@ -44,6 +61,7 @@ export function TextPageClient({
           <ChatInterfaceWithPersistence
             conversation={currentConversation}
             initialMessages={initialMessages}
+            onConversationCreated={handleConversationCreated}
           />
         </div>
       </div>
