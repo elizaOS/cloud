@@ -52,6 +52,7 @@ export const users = pgTable(
   'users',
   {
     id: uuid('id').defaultRandom().primaryKey(),
+    workos_user_id: text('workos_user_id').unique(),
     email: text('email').notNull().unique(),
     password_hash: text('password_hash'),
     email_verified: boolean('email_verified').notNull().default(false),
@@ -69,6 +70,7 @@ export const users = pgTable(
     email_idx: index('users_email_idx').on(table.email),
     organization_idx: index('users_organization_idx').on(table.organization_id),
     is_active_idx: index('users_is_active_idx').on(table.is_active),
+    workos_user_id_idx: index('users_workos_user_id_idx').on(table.workos_user_id),
   })
 );
 

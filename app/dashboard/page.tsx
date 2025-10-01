@@ -10,7 +10,6 @@ import {
 } from "@radix-ui/react-icons";
 import { Server, HardDrive, Sparkles, Zap, ArrowRight } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
-import { getCurrentUser } from "@/lib/auth";
 
 export const metadata: Metadata = {
   title: "Dashboard",
@@ -92,9 +91,7 @@ const settingsActions = [
   },
 ];
 
-export default async function DashboardPage() {
-  await getCurrentUser();
-
+export default function DashboardPage() {
   return (
     <div className="flex flex-col gap-4 max-w-7xl mx-auto h-full">
       {/* Hero Section */}

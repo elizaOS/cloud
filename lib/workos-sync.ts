@@ -3,6 +3,7 @@ import { createUser, getUserByEmail, updateUser } from '@/lib/queries/users';
 import type { UserWithOrganization } from '@/lib/types';
 
 interface WorkOSUser {
+  id: string;
   email: string;
   firstName?: string | null;
   lastName?: string | null;
@@ -80,6 +81,7 @@ export async function syncWorkOSUser(
   });
 
   user = await createUser({
+    workos_user_id: workosUser.id,
     email,
     name,
     organization_id: org.id,
