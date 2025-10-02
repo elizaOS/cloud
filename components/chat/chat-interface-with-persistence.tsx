@@ -7,6 +7,7 @@ import { Send, Loader2, Bot, User, Clock, Settings } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { createConversationAction } from '@/app/actions/conversations';
+import { cn } from '@/lib/utils';
 
 interface ChatInterfaceWithPersistenceProps {
   conversation?: Conversation | null;
@@ -140,7 +141,7 @@ export function ChatInterfaceWithPersistence({
 
     sendMessage({
       text: messageText,
-      metadata: { conversationId }
+      metadata: { conversationId },
     });
   };
 
@@ -155,7 +156,7 @@ export function ChatInterfaceWithPersistence({
     const timeStr = date.toLocaleTimeString('en-US', {
       hour: 'numeric',
       minute: '2-digit',
-      hour12: true
+      hour12: true,
     });
 
     const isToday = date.toDateString() === now.toDateString();
@@ -174,21 +175,21 @@ export function ChatInterfaceWithPersistence({
     const dateStr = date.toLocaleDateString('en-US', {
       month: 'short',
       day: 'numeric',
-      ...(isSameYear ? {} : { year: 'numeric' })
+      ...(isSameYear ? {} : { year: 'numeric' }),
     });
 
     return `${dateStr}, ${timeStr}`;
   };
 
   return (
-    <div className="flex flex-col h-full">
-      <div className="border-b p-4 flex items-center justify-between bg-gradient-to-r from-background to-muted/20">
+    <div className="flex h-full min-h-0 w-full flex-col bg-background/60">
+      <div className="flex flex-col gap-4 border-b bg-card/80 px-6 py-4 backdrop-blur-sm sm:flex-row sm:items-center sm:justify-between">
         <div className="flex items-center gap-3">
-          <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-purple-500 to-blue-600 flex items-center justify-center">
-            <Bot className="h-5 w-5 text-white" />
+          <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-gradient-to-br from-primary to-primary/80 text-primary-foreground shadow-sm">
+            <Bot className="h-5 w-5" />
           </div>
-          <div>
-            <h3 className="text-sm font-semibold">
+          <div className="space-y-1">
+            <h3 className="text-base font-semibold text-foreground">
               {conversation?.title || 'New Conversation'}
             </h3>
             <p className="text-xs text-muted-foreground">Powered by ElizaOS</p>
@@ -200,38 +201,41 @@ export function ChatInterfaceWithPersistence({
             variant="outline"
             size="sm"
             onClick={() => setShowModelSelector(!showModelSelector)}
-            className="gap-2 shadow-sm"
+            className="flex items-center gap-2 rounded-full border-border/60 bg-background/80 px-4 py-2 text-xs font-medium shadow-sm transition hover:bg-background"
           >
             <Settings className="h-4 w-4" />
-            <span className="text-xs font-medium">{selectedModel}</span>
-            <Badge variant="secondary" className="ml-1 text-xs">
+            <span className="truncate">{selectedModel}</span>
+            <Badge variant="secondary" className="rounded-full px-2 py-0 text-[10px]">
               {messages.length}
             </Badge>
           </Button>
 
           {showModelSelector && availableModels.length > 0 && (
-            <div className="absolute right-0 top-full mt-1 w-64 rounded-lg border bg-popover shadow-lg z-50">
-              <div className="p-2 border-b">
-                <p className="text-xs font-semibold text-muted-foreground">
-                  Select Model
+            <div className="absolute right-0 top-full z-50 mt-2 w-72 overflow-hidden rounded-xl border border-border/60 bg-popover shadow-xl">
+              <div className="border-b bg-muted/40 px-4 py-3">
+                <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                  Select model
                 </p>
               </div>
-              <div className="max-h-64 overflow-y-auto p-2">
+              <div className="max-h-64 overflow-y-auto px-2 py-2">
                 {availableModels.map((model) => (
                   <button
                     key={model.id}
+                    type="button"
                     onClick={() => {
                       setSelectedModel(model.id);
                       setShowModelSelector(false);
                     }}
-                    className={`w-full text-left px-3 py-2 rounded text-sm hover:bg-accent transition-colors ${selectedModel === model.id ? 'bg-accent' : ''
-                      }`}
+                    className={cn(
+                      'w-full rounded-lg px-3 py-2 text-left text-sm transition-colors',
+                      selectedModel === model.id
+                        ? 'bg-muted text-foreground'
+                        : 'hover:bg-muted/60'
+                    )}
                   >
                     <div className="font-medium">{model.name}</div>
                     {model.provider && (
-                      <div className="text-xs text-muted-foreground">
-                        {model.provider}
-                      </div>
+                      <div className="text-xs text-muted-foreground">{model.provider}</div>
                     )}
                   </button>
                 ))}
@@ -241,112 +245,113 @@ export function ChatInterfaceWithPersistence({
         </div>
       </div>
 
-      <div className="flex-1 overflow-y-auto p-4 space-y-4">
+      <div className="flex-1 min-h-0 overflow-y-auto px-6 py-6">
         {!conversation && messages.length === 0 && (
-          <div className="flex flex-col items-center justify-center h-full text-center">
-            <Bot className="h-12 w-12 text-muted-foreground mb-4" />
-            <h3 className="text-lg font-semibold mb-2">Start a new conversation</h3>
-            <p className="text-sm text-muted-foreground max-w-md">
-              Type your message below to begin. A new conversation will be created automatically.
-            </p>
+          <div className="flex h-full flex-col items-center justify-center gap-3 text-center text-muted-foreground">
+            <Bot className="h-12 w-12 text-muted-foreground/80" />
+            <div className="space-y-1">
+              <h3 className="text-lg font-semibold text-foreground">Start a new conversation</h3>
+              <p className="text-sm text-muted-foreground">
+                Type your message below to begin. A new conversation will be created automatically.
+              </p>
+            </div>
           </div>
         )}
 
         {conversation && messages.length === 0 && (
-          <div className="flex flex-col items-center justify-center h-full text-center">
-            <Bot className="h-12 w-12 text-muted-foreground mb-4" />
-            <h3 className="text-lg font-semibold mb-2">Start a conversation</h3>
-            <p className="text-sm text-muted-foreground max-w-md">
-              Ask me anything about AI, development, or how ElizaOS can help you
-              build intelligent agents.
-            </p>
+          <div className="flex h-full flex-col items-center justify-center gap-3 text-center text-muted-foreground">
+            <Bot className="h-12 w-12 text-muted-foreground/80" />
+            <div className="space-y-1">
+              <h3 className="text-lg font-semibold text-foreground">Start a conversation</h3>
+              <p className="text-sm text-muted-foreground">
+                Ask anything about AI, development, or how ElizaOS can help you build intelligent agents.
+              </p>
+            </div>
           </div>
         )}
 
-        {messages.map((message, index) => (
-          <div
-            key={message.id}
-            className={`flex gap-3 ${message.role === 'user' ? 'justify-end' : 'justify-start'
-              } animate-in fade-in slide-in-from-bottom-4 duration-500`}
-            style={{ animationDelay: `${index * 50}ms` }}
-          >
-            {message.role === 'assistant' && (
-              <div className="flex-shrink-0 w-9 h-9 rounded-full bg-gradient-to-br from-purple-500 to-blue-600 flex items-center justify-center shadow-sm transition-transform hover:scale-110">
-                <Bot className="h-5 w-5 text-white" />
-              </div>
-            )}
-
+        <div className="flex flex-col gap-4">
+          {messages.map((message) => (
             <div
-              className={`rounded-2xl px-4 py-3 max-w-[80%] shadow-sm transform transition-all hover:scale-[1.02] hover:shadow-md ${message.role === 'user'
-                ? 'bg-gradient-to-br from-primary to-primary/90 text-primary-foreground'
-                : 'bg-card border'
-                }`}
+              key={message.id}
+              className={cn('flex gap-3', message.role === 'user' ? 'justify-end' : 'justify-start')}
             >
-              <div className="text-sm whitespace-pre-wrap mb-2">
-                {message.parts.map((part, i) => {
-                  switch (part.type) {
-                    case 'text':
-                      return <div key={`${message.id}-${i}`}>{part.text}</div>;
-                    default:
-                      return null;
-                  }
-                })}
-              </div>
-
-              <div className={`flex items-center gap-2 text-xs mt-2 pt-2 border-t ${message.role === 'user'
-                ? 'border-primary-foreground/20 text-primary-foreground/80'
-                : 'border-border text-muted-foreground'
-                }`}>
-                <Clock className="h-3 w-3" />
-                <span>{formatTimestamp(messageTimestamps.current.get(message.id)?.getTime() || Date.now())}</span>
-              </div>
-            </div>
-
-            {message.role === 'user' && (
-              <div className="flex-shrink-0 w-9 h-9 rounded-full bg-gradient-to-br from-green-500 to-emerald-600 flex items-center justify-center shadow-sm transition-transform hover:scale-110">
-                <User className="h-5 w-5 text-white" />
-              </div>
-            )}
-          </div>
-        ))}
-
-        {isWaitingForResponse && (
-          <div className="flex gap-3 justify-start animate-in fade-in slide-in-from-bottom-4 duration-200">
-            <div className="flex-shrink-0 w-9 h-9 rounded-full bg-gradient-to-br from-purple-500 to-blue-600 flex items-center justify-center shadow-sm">
-              <Bot className="h-5 w-5 text-white animate-pulse" />
-            </div>
-            <div className="rounded-2xl px-4 py-3 bg-card border shadow-sm max-w-[80%]">
-              <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                <div className="flex gap-1">
-                  <span className="animate-bounce" style={{ animationDelay: '0ms' }}>.</span>
-                  <span className="animate-bounce" style={{ animationDelay: '150ms' }}>.</span>
-                  <span className="animate-bounce" style={{ animationDelay: '300ms' }}>.</span>
+              {message.role === 'assistant' && (
+                <div className="flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-full border border-border bg-muted text-muted-foreground shadow-sm">
+                  <Bot className="h-5 w-5" />
                 </div>
-                <span>Eliza Agent is thinking</span>
+              )}
+
+              <div
+                className={cn(
+                  'max-w-[min(760px,82%)] rounded-2xl border px-4 py-3 text-sm leading-relaxed shadow-sm',
+                  message.role === 'user'
+                    ? 'border-primary/40 bg-primary text-primary-foreground'
+                    : 'border-border bg-background'
+                )}
+              >
+                <div className="whitespace-pre-wrap">
+                  {message.parts.map((part, i) => {
+                    switch (part.type) {
+                      case 'text':
+                        return <div key={`${message.id}-${i}`}>{part.text}</div>;
+                      default:
+                        return null;
+                    }
+                  })}
+                </div>
+
+                <div
+                  className={cn(
+                    'mt-3 flex items-center gap-2 text-xs',
+                    message.role === 'user'
+                      ? 'text-primary-foreground/80'
+                      : 'text-muted-foreground'
+                  )}
+                >
+                  <Clock className="h-3 w-3" />
+                  <span>{formatTimestamp(messageTimestamps.current.get(message.id)?.getTime() || Date.now())}</span>
+                </div>
+              </div>
+
+              {message.role === 'user' && (
+                <div className="flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-full border border-primary/30 bg-primary/10 text-primary shadow-sm">
+                  <User className="h-5 w-5" />
+                </div>
+              )}
+            </div>
+          ))}
+
+          {isWaitingForResponse && (
+            <div className="flex items-start gap-3">
+              <div className="flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-full border border-border bg-muted text-muted-foreground shadow-sm">
+                <Loader2 className="h-4 w-4 animate-spin" />
+              </div>
+              <div className="max-w-[min(760px,82%)] rounded-2xl border border-border bg-background px-4 py-3 text-sm text-muted-foreground shadow-sm">
+                Eliza Agent is thinking
               </div>
             </div>
-          </div>
-        )}
+          )}
+        </div>
 
         <div ref={messagesEndRef} />
       </div>
 
-      <form onSubmit={handleSubmit} className="border-t p-4 bg-gradient-to-r from-background to-muted/20">
+      <form onSubmit={handleSubmit} className="border-t bg-card/80 px-6 py-4 backdrop-blur-sm">
         <div className="flex gap-2">
-          <div className="flex-1 relative">
+          <div className="relative flex-1">
             <input
               value={input}
               onChange={(e) => setInput(e.currentTarget.value)}
-              placeholder={conversation ? "Type your message..." : "Type your message to start a new conversation..."}
+              placeholder={conversation ? 'Type your message…' : 'Type your message to start a new conversation…'}
               disabled={isLoading}
-              className="w-full rounded-xl border bg-background px-4 py-3 text-sm shadow-sm focus:outline-none focus:ring-2 focus:ring-ring disabled:opacity-50 transition-all"
+              className="h-11 w-full rounded-xl border border-border bg-background px-4 text-sm shadow-sm transition focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20 disabled:cursor-not-allowed disabled:opacity-60"
             />
           </div>
           <Button
             type="submit"
             disabled={isLoading || !input.trim()}
-            className="rounded-xl shadow-sm hover:shadow-md transition-all"
-            size="lg"
+            className="h-11 rounded-xl px-5 font-medium shadow-sm transition hover:shadow-md"
           >
             {isLoading ? (
               <Loader2 className="h-5 w-5 animate-spin" />

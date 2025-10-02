@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect, useRef } from 'react';
-import { Plus, MessageSquare, Trash2, Edit2 } from 'lucide-react';
+import { Plus, MessageSquare, Trash2, Edit2, Loader2 } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { Button } from '@/components/ui/button';
 import { ConversationInput } from './conversation-input';
@@ -12,6 +12,7 @@ import {
   updateConversationTitleAction,
   deleteConversationAction,
 } from '@/app/actions/conversations';
+import { cn } from '@/lib/utils';
 
 interface ConversationListProps {
   conversations: Conversation[];
@@ -121,113 +122,116 @@ export function ConversationList({
   }, [editingId, editTitle, isSaving]);
 
   return (
-    <div className="flex flex-col h-full border bg-muted/30 rounded-md">
-      <div className="p-4 border-b">
+    <div className="flex h-full min-h-0 w-full flex-col">
+      <div className="border-b px-4 pb-4 pt-5">
         <Button
           onClick={handleCreate}
           disabled={isCreating}
-          className="w-full"
-          size="sm"
+          className="w-full justify-center gap-2 rounded-xl shadow-sm transition-shadow hover:shadow"
         >
-          <Plus className="h-4 w-4 mr-2" />
+          {isCreating ? (
+            <Loader2 className="h-4 w-4 animate-spin" />
+          ) : (
+            <Plus className="h-4 w-4" />
+          )}
           New Chat
         </Button>
       </div>
 
       <ConversationScrollArea className="flex-1">
-        <div className="p-2 space-y-1">
-          {conversations.map((conversation) => (
-            <div
-              key={conversation.id}
-              className={`group relative rounded-lg p-3 cursor-pointer transition-colors ${conversation.id === currentConversationId
-                ? 'bg-primary/10 border border-primary/20'
-                : 'hover:bg-accent'
-                }`}
-              onClick={() => onSelectConversation(conversation.id)}
-            >
-              {isSaving && editingId === conversation.id ? (
-                <div className="flex items-center gap-2 py-1">
-                  <MessageSquare className="h-4 w-4 flex-shrink-0 text-muted-foreground" />
-                  <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                    <div className="flex gap-1">
-                      <span className="animate-bounce" style={{ animationDelay: '0ms' }}>.</span>
-                      <span className="animate-bounce" style={{ animationDelay: '150ms' }}>.</span>
-                      <span className="animate-bounce" style={{ animationDelay: '300ms' }}>.</span>
-                    </div>
+        <div className="space-y-2 px-3 pb-4 pt-3">
+          {conversations.map((conversation) => {
+            const isActive = conversation.id === currentConversationId;
+
+            return (
+              <div
+                key={conversation.id}
+                className={cn(
+                  'group relative flex cursor-pointer flex-col gap-3 rounded-2xl border border-transparent bg-background/70 p-3 transition-colors duration-150',
+                  isActive
+                    ? 'border-primary/30 bg-primary/[0.08] shadow-sm'
+                    : 'hover:border-border/60 hover:bg-muted/70'
+                )}
+                onClick={() => onSelectConversation(conversation.id)}
+              >
+                {isSaving && editingId === conversation.id ? (
+                  <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                    <Loader2 className="h-4 w-4 animate-spin" />
                     <span>Saving changes</span>
                   </div>
-                </div>
-              ) : editingId === conversation.id ? (
-                <div
-                  ref={editInputRef}
-                  className="flex items-center gap-2"
-                  onClick={(e: React.MouseEvent) => e.stopPropagation()}
-                >
-                  <ConversationInput
-                    value={editTitle}
-                    onChange={(e) => setEditTitle(e.target.value)}
-                    className="h-7 text-sm flex-1"
-                    autoFocus
-                  />
-                </div>
-              ) : (
-                <>
-                  <div className="flex items-start gap-2">
-                    <MessageSquare className="h-4 w-4 mt-0.5 flex-shrink-0" />
-                    <div className="flex-1 min-w-0">
-                      <p className="text-sm font-medium truncate">
-                        {conversation.title}
-                      </p>
-                      <p className="text-xs text-muted-foreground">
-                        {conversation.message_count} messages
-                      </p>
+                ) : editingId === conversation.id ? (
+                  <div
+                    ref={editInputRef}
+                    className="flex items-center gap-2"
+                    onClick={(e: React.MouseEvent) => e.stopPropagation()}
+                  >
+                    <ConversationInput
+                      value={editTitle}
+                      onChange={(e) => setEditTitle(e.target.value)}
+                      className="h-8 rounded-lg border-border bg-background text-sm"
+                      autoFocus
+                    />
+                  </div>
+                ) : (
+                  <>
+                    <div className="flex items-start gap-3">
+                      <div className={cn(
+                        'flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-xl border border-transparent bg-muted text-muted-foreground',
+                        isActive && 'border-primary/40 bg-primary/10 text-primary'
+                      )}>
+                        <MessageSquare className="h-4 w-4" />
+                      </div>
+                      <div className="min-w-0 flex-1">
+                        <p className="truncate text-sm font-medium text-foreground">
+                          {conversation.title}
+                        </p>
+                        <p className="text-xs text-muted-foreground">
+                          {conversation.message_count} messages
+                        </p>
+                      </div>
                     </div>
-                  </div>
 
-                  <div className="absolute right-2 top-2 opacity-0 group-hover:opacity-100 transition-opacity flex gap-1">
-                    <Button
-                      size="icon"
-                      variant="ghost"
-                      className="h-7 w-7"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        handleStartEdit(conversation);
-                      }}
-                      disabled={deletingId === conversation.id}
-                    >
-                      <Edit2 className="h-3 w-3" />
-                    </Button>
-                    <Button
-                      size="icon"
-                      variant="ghost"
-                      className="h-7 w-7 text-destructive"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        handleDelete(conversation.id);
-                      }}
-                      disabled={deletingId === conversation.id}
-                    >
-                      {deletingId === conversation.id ? (
-                        <div className="flex gap-0.5">
-                          <span className="animate-bounce text-[8px]" style={{ animationDelay: '0ms' }}>.</span>
-                          <span className="animate-bounce text-[8px]" style={{ animationDelay: '150ms' }}>.</span>
-                          <span className="animate-bounce text-[8px]" style={{ animationDelay: '300ms' }}>.</span>
-                        </div>
-                      ) : (
-                        <Trash2 className="h-3 w-3" />
-                      )}
-                    </Button>
-                  </div>
-                </>
-              )}
-            </div>
-          ))}
+                    <div className="flex items-center justify-end gap-1 opacity-0 transition-opacity duration-150 group-hover:opacity-100">
+                      <Button
+                        size="icon"
+                        variant="ghost"
+                        className="h-8 w-8 rounded-full"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleStartEdit(conversation);
+                        }}
+                        disabled={deletingId === conversation.id}
+                      >
+                        <Edit2 className="h-3.5 w-3.5" />
+                      </Button>
+                      <Button
+                        size="icon"
+                        variant="ghost"
+                        className="h-8 w-8 rounded-full text-destructive"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleDelete(conversation.id);
+                        }}
+                        disabled={deletingId === conversation.id}
+                      >
+                        {deletingId === conversation.id ? (
+                          <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                        ) : (
+                          <Trash2 className="h-3.5 w-3.5" />
+                        )}
+                      </Button>
+                    </div>
+                  </>
+                )}
+              </div>
+            );
+          })}
 
           {conversations.length === 0 && (
-            <div className="text-center py-8 text-muted-foreground">
-              <MessageSquare className="h-8 w-8 mx-auto mb-2 opacity-50" />
-              <p className="text-sm">No conversations yet</p>
-              <p className="text-xs">Click "New Chat" to start</p>
+            <div className="rounded-xl border border-dashed border-muted-foreground/40 px-4 py-10 text-center text-muted-foreground">
+              <MessageSquare className="mx-auto mb-3 h-8 w-8 opacity-60" />
+              <p className="text-sm font-medium text-foreground">No conversations yet</p>
+              <p className="text-xs">Start a new chat to see it appear here.</p>
             </div>
           )}
         </div>

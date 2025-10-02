@@ -40,30 +40,34 @@ export function TextPageClient({
   };
 
   return (
-    <div className="flex flex-col gap-4 h-[calc(100vh-12rem)]">
-      <div>
-        <h1 className="text-3xl font-bold">Text & Chat</h1>
-        <p className="text-muted-foreground mt-2">
-          Generate text and engage in AI conversations
-        </p>
-      </div>
-
-      <div className="flex gap-4 flex-1 min-h-0">
-        <div className="w-64 flex-shrink-0">
-          <ConversationList
-            conversations={conversations}
-            currentConversationId={currentConversation?.id}
-            onSelectConversation={handleSelectConversation}
-          />
+    <div className="flex h-full min-h-0 flex-col gap-6 overflow-hidden">
+      <header className="rounded-2xl border bg-card/70 px-6 py-5 shadow-sm">
+        <div className="flex flex-col gap-2">
+          <h1 className="text-3xl font-semibold tracking-tight">Text &amp; Chat</h1>
+          <p className="max-w-2xl text-sm text-muted-foreground">
+            Craft prompts, iterate with AI partners, and keep conversations organized in one focused workspace.
+          </p>
         </div>
+      </header>
 
-        <div className="flex-1 border rounded-lg bg-card">
+      <div className="grid flex-1 min-h-0 gap-6 overflow-hidden md:grid-cols-[minmax(260px,320px)_minmax(0,1fr)] xl:grid-cols-[320px_minmax(0,1fr)]">
+        <aside className="flex min-h-0 flex-col">
+          <div className="flex h-full min-h-0 overflow-hidden rounded-2xl border bg-background/70 shadow-sm">
+            <ConversationList
+              conversations={conversations}
+              currentConversationId={currentConversation?.id}
+              onSelectConversation={handleSelectConversation}
+            />
+          </div>
+        </aside>
+
+        <section className="relative flex h-full min-h-0 w-full overflow-hidden rounded-2xl border bg-card shadow-sm">
           <ChatInterfaceWithPersistence
             conversation={currentConversation}
             initialMessages={initialMessages}
             onConversationCreated={handleConversationCreated}
           />
-        </div>
+        </section>
       </div>
     </div>
   );
