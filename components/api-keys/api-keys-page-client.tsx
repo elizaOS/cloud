@@ -137,6 +137,41 @@ export function ApiKeysPageClient({ keys, summary }: ApiKeysPageClientProps) {
         });
     };
 
+    const handleDisableKey = async (id: string) => {
+        const key = keys.find((k) => k.id === id);
+        const isCurrentlyActive = key?.status === "active";
+        const action = isCurrentlyActive ? "disable" : "enable";
+
+        if (!confirm(`Are you sure you want to ${action} this API key?`)) {
+            return;
+        }
+
+        try {
+            const response = await fetch(`/api/api-keys/${id}`, {
+                method: "PATCH",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({
+                    is_active: !isCurrentlyActive,
+                }),
+            });
+
+            if (!response.ok) {
+                const data = await response.json();
+                throw new Error(data.error || `Failed to ${action} API key`);
+            }
+
+            toast.success(`API key ${action}d`, {
+                description: `The API key has been ${action}d successfully.`,
+            });
+            router.refresh();
+        } catch (error) {
+            console.error(`Error ${action}ing API key:`, error);
+            toast.error(`Failed to ${action} API key`, {
+                description: error instanceof Error ? error.message : "An unexpected error occurred.",
+            });
+        }
+    };
+
     const handleDeleteKey = async (id: string) => {
         if (!confirm("Are you sure you want to delete this API key? This action cannot be undone.")) {
             return;
@@ -386,6 +421,7 @@ export function ApiKeysPageClient({ keys, summary }: ApiKeysPageClientProps) {
                                 const key = keys.find((k) => k.id === id);
                                 if (key) handleCopyKey(key.keyPrefix);
                             }}
+                            onDisableKey={handleDisableKey}
                             onDeleteKey={handleDeleteKey}
                             onRegenerateKey={handleRegenerateKey}
                         />

@@ -201,7 +201,7 @@ export function ApiKeysTable({
                                         <DropdownMenuSeparator />
                                         <DropdownMenuItem onClick={() => onDisableKey?.(key.id)}>
                                             <ShieldOff className="mr-2 h-4 w-4" />
-                                            Disable key
+                                            {key.status === "active" ? "Disable key" : "Enable key"}
                                         </DropdownMenuItem>
                                         <DropdownMenuItem
                                             className="text-destructive focus:text-destructive"
