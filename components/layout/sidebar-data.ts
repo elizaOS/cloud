@@ -11,7 +11,7 @@ import {
   ImageIcon,
   LayersIcon,
 } from '@radix-ui/react-icons';
-import { Server, HardDrive, Settings } from 'lucide-react';
+import { Server, HardDrive, Settings, Video } from 'lucide-react';
 import { ComponentType } from 'react';
 
 export interface SidebarItem {
@@ -53,6 +53,12 @@ export const sidebarSections: SidebarSection[] = [
         label: 'Images',
         href: '/dashboard/image',
         icon: ImageIcon,
+      },
+      {
+        id: 'video-generation',
+        label: 'Videos',
+        href: '/dashboard/video',
+        icon: Video,
       },
       {
         id: 'gallery',

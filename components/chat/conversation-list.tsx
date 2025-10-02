@@ -121,7 +121,7 @@ export function ConversationList({
   }, [editingId, editTitle, isSaving]);
 
   return (
-    <div className="flex flex-col h-full border-r bg-muted/30">
+    <div className="flex flex-col h-full border bg-muted/30 rounded-md">
       <div className="p-4 border-b">
         <Button
           onClick={handleCreate}
@@ -139,11 +139,10 @@ export function ConversationList({
           {conversations.map((conversation) => (
             <div
               key={conversation.id}
-              className={`group relative rounded-lg p-3 cursor-pointer transition-colors ${
-                conversation.id === currentConversationId
-                  ? 'bg-primary/10 border border-primary/20'
-                  : 'hover:bg-accent'
-              }`}
+              className={`group relative rounded-lg p-3 cursor-pointer transition-colors ${conversation.id === currentConversationId
+                ? 'bg-primary/10 border border-primary/20'
+                : 'hover:bg-accent'
+                }`}
               onClick={() => onSelectConversation(conversation.id)}
             >
               {isSaving && editingId === conversation.id ? (

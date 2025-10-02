@@ -278,8 +278,8 @@ export function ChatInterfaceWithPersistence({
 
             <div
               className={`rounded-2xl px-4 py-3 max-w-[80%] shadow-sm transform transition-all hover:scale-[1.02] hover:shadow-md ${message.role === 'user'
-                  ? 'bg-gradient-to-br from-primary to-primary/90 text-primary-foreground'
-                  : 'bg-card border'
+                ? 'bg-gradient-to-br from-primary to-primary/90 text-primary-foreground'
+                : 'bg-card border'
                 }`}
             >
               <div className="text-sm whitespace-pre-wrap mb-2">
@@ -294,8 +294,8 @@ export function ChatInterfaceWithPersistence({
               </div>
 
               <div className={`flex items-center gap-2 text-xs mt-2 pt-2 border-t ${message.role === 'user'
-                  ? 'border-primary-foreground/20 text-primary-foreground/80'
-                  : 'border-border text-muted-foreground'
+                ? 'border-primary-foreground/20 text-primary-foreground/80'
+                : 'border-border text-muted-foreground'
                 }`}>
                 <Clock className="h-3 w-3" />
                 <span>{formatTimestamp(messageTimestamps.current.get(message.id)?.getTime() || Date.now())}</span>
