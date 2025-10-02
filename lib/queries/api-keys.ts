@@ -7,9 +7,10 @@ export function generateApiKey(): {
   hash: string;
   prefix: string;
 } {
-  const key = `sk_${crypto.randomBytes(32).toString('hex')}`;
+  const randomBytes = crypto.randomBytes(32).toString('hex');
+  const key = `eliza_${randomBytes}`;
   const hash = crypto.createHash('sha256').update(key).digest('hex');
-  const prefix = key.substring(0, 10);
+  const prefix = key.substring(0, 12);
 
   return { key, hash, prefix };
 }
@@ -68,7 +69,7 @@ export async function getApiKeyById(id: string): Promise<ApiKey | undefined> {
 
 export async function updateApiKey(
   id: string,
-  data: Partial<Omit<NewApiKey, 'key' | 'key_hash' | 'key_prefix'>>
+  data: Partial<NewApiKey>
 ): Promise<ApiKey | undefined> {
   const [updated] = await db
     .update(schema.apiKeys)

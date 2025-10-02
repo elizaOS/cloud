@@ -14,6 +14,7 @@ import {
     Copy,
     Eye,
     MoreHorizontal,
+    RefreshCw,
     ShieldOff,
     Trash2,
 } from "lucide-react";
@@ -26,6 +27,7 @@ interface ApiKeysTableProps {
     onRevealKey?: (id: string) => void;
     onDisableKey?: (id: string) => void;
     onDeleteKey?: (id: string) => void;
+    onRegenerateKey?: (id: string) => void;
 }
 
 function getStatusStyles(status: ApiKeyDisplay["status"]) {
@@ -68,6 +70,7 @@ export function ApiKeysTable({
     onRevealKey,
     onDisableKey,
     onDeleteKey,
+    onRegenerateKey,
 }: ApiKeysTableProps) {
     if (keys.length === 0) {
         return null;
@@ -123,10 +126,10 @@ export function ApiKeysTable({
                                         variant="ghost"
                                         size="sm"
                                         className="h-8 px-2"
-                                        onClick={() => onRevealKey?.(key.id)}
+                                        onClick={() => onRegenerateKey?.(key.id)}
                                     >
-                                        <Eye className="mr-1 h-3.5 w-3.5" />
-                                        Reveal
+                                        <RefreshCw className="mr-1 h-3.5 w-3.5" />
+                                        Regenerate
                                     </Button>
                                 </div>
                             </div>
@@ -187,13 +190,13 @@ export function ApiKeysTable({
                                     <DropdownMenuContent align="end" className="w-44">
                                         <DropdownMenuLabel>Manage key</DropdownMenuLabel>
                                         <DropdownMenuSeparator />
-                                        <DropdownMenuItem onClick={() => onRevealKey?.(key.id)}>
-                                            <Eye className="mr-2 h-4 w-4" />
-                                            Reveal secret
-                                        </DropdownMenuItem>
                                         <DropdownMenuItem onClick={() => onCopyKey?.(key.id)}>
                                             <Copy className="mr-2 h-4 w-4" />
-                                            Copy key
+                                            Copy prefix
+                                        </DropdownMenuItem>
+                                        <DropdownMenuItem onClick={() => onRegenerateKey?.(key.id)}>
+                                            <RefreshCw className="mr-2 h-4 w-4" />
+                                            Regenerate key
                                         </DropdownMenuItem>
                                         <DropdownMenuSeparator />
                                         <DropdownMenuItem onClick={() => onDisableKey?.(key.id)}>

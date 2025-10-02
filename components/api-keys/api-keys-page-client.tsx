@@ -1,7 +1,9 @@
 'use client';
 
 import { useMemo, useState } from "react";
-import { KeyRound, Plus } from "lucide-react";
+import { KeyRound, Plus, Copy } from "lucide-react";
+import { useRouter } from "next/navigation";
+import { toast } from "sonner";
 
 import { ApiKeyEmptyState } from "./api-key-empty-state";
 import { ApiKeysSummary } from "./api-keys-summary";
@@ -68,8 +70,17 @@ const permissionGroups = [
 ] as const;
 
 export function ApiKeysPageClient({ keys, summary }: ApiKeysPageClientProps) {
+    const router = useRouter();
     const [createDialogOpen, setCreateDialogOpen] = useState(false);
     const [rateLimitPreset, setRateLimitPreset] = useState<(typeof rateLimitPresets)[number]["value"]>("standard");
+    const [isCreating, setIsCreating] = useState(false);
+    const [selectedPermissions, setSelectedPermissions] = useState<string[]>([]);
+    const [formData, setFormData] = useState({
+        name: "",
+        description: "",
+        rate_limit: 1000,
+    });
+    const [createdKey, setCreatedKey] = useState<{ plainKey: string; name: string } | null>(null);
 
     const hasKeys = keys.length > 0;
 
@@ -78,6 +89,109 @@ export function ApiKeysPageClient({ keys, summary }: ApiKeysPageClientProps) {
             group.permissions.slice(0, 2).map((permission) => permission.label)
         );
     }, []);
+
+    const handleCreateKey = async () => {
+        setIsCreating(true);
+        try {
+            const rateLimit = rateLimitPreset === "standard" ? 1000 : rateLimitPreset === "high" ? 5000 : formData.rate_limit;
+
+            const response = await fetch("/api/api-keys", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({
+                    name: formData.name,
+                    description: formData.description,
+                    permissions: selectedPermissions,
+                    rate_limit: rateLimit,
+                }),
+            });
+
+            const data = await response.json();
+
+            if (!response.ok) {
+                throw new Error(data.error || "Failed to create API key");
+            }
+
+            setCreatedKey({ plainKey: data.plainKey, name: data.apiKey.name });
+            setFormData({ name: "", description: "", rate_limit: 1000 });
+            setSelectedPermissions([]);
+            setRateLimitPreset("standard");
+            toast.success("API key created successfully", {
+                description: `${data.apiKey.name} has been created and is ready to use.`,
+            });
+            router.refresh();
+        } catch (error) {
+            console.error("Error creating API key:", error);
+            toast.error("Failed to create API key", {
+                description: error instanceof Error ? error.message : "An unexpected error occurred.",
+            });
+        } finally {
+            setIsCreating(false);
+        }
+    };
+
+    const handleCopyKey = (plainKey: string) => {
+        navigator.clipboard.writeText(plainKey);
+        toast.success("Copied to clipboard", {
+            description: "API key prefix has been copied to your clipboard.",
+        });
+    };
+
+    const handleDeleteKey = async (id: string) => {
+        if (!confirm("Are you sure you want to delete this API key? This action cannot be undone.")) {
+            return;
+        }
+
+        try {
+            const response = await fetch(`/api/api-keys/${id}`, {
+                method: "DELETE",
+            });
+
+            if (!response.ok) {
+                const data = await response.json();
+                throw new Error(data.error || "Failed to delete API key");
+            }
+
+            toast.success("API key deleted", {
+                description: "The API key has been permanently deleted.",
+            });
+            router.refresh();
+        } catch (error) {
+            console.error("Error deleting API key:", error);
+            toast.error("Failed to delete API key", {
+                description: error instanceof Error ? error.message : "An unexpected error occurred.",
+            });
+        }
+    };
+
+    const handleRegenerateKey = async (id: string) => {
+        if (!confirm("Are you sure you want to regenerate this API key? The old key will stop working immediately.")) {
+            return;
+        }
+
+        try {
+            const response = await fetch(`/api/api-keys/${id}/regenerate`, {
+                method: "POST",
+            });
+
+            const data = await response.json();
+
+            if (!response.ok) {
+                throw new Error(data.error || "Failed to regenerate API key");
+            }
+
+            setCreatedKey({ plainKey: data.plainKey, name: data.apiKey.name });
+            toast.success("API key regenerated", {
+                description: `${data.apiKey.name} has been regenerated. The old key is no longer valid.`,
+            });
+            router.refresh();
+        } catch (error) {
+            console.error("Error regenerating API key:", error);
+            toast.error("Failed to regenerate API key", {
+                description: error instanceof Error ? error.message : "An unexpected error occurred.",
+            });
+        }
+    };
 
     return (
         <div className="flex flex-col gap-8">
@@ -119,6 +233,8 @@ export function ApiKeysPageClient({ keys, summary }: ApiKeysPageClientProps) {
                                 <Input
                                     id="api-key-name"
                                     placeholder="Production integration"
+                                    value={formData.name}
+                                    onChange={(e) => setFormData({ ...formData, name: e.target.value })}
                                     autoFocus
                                 />
                                 <p className="text-xs text-muted-foreground">
@@ -132,6 +248,8 @@ export function ApiKeysPageClient({ keys, summary }: ApiKeysPageClientProps) {
                                 <Textarea
                                     id="api-key-description"
                                     placeholder="Used by our backend services for customer facing features"
+                                    value={formData.description}
+                                    onChange={(e) => setFormData({ ...formData, description: e.target.value })}
                                     rows={3}
                                 />
                             </div>
@@ -145,17 +263,27 @@ export function ApiKeysPageClient({ keys, summary }: ApiKeysPageClientProps) {
                                                 {group.title}
                                             </p>
                                             <div className="flex flex-wrap gap-2">
-                                                {group.permissions.map((permission) => (
-                                                    <Button
-                                                        key={permission.id}
-                                                        type="button"
-                                                        variant="outline"
-                                                        size="sm"
-                                                        className="rounded-full border-dashed text-xs"
-                                                    >
-                                                        {permission.label}
-                                                    </Button>
-                                                ))}
+                                                {group.permissions.map((permission) => {
+                                                    const isSelected = selectedPermissions.includes(permission.id);
+                                                    return (
+                                                        <Button
+                                                            key={permission.id}
+                                                            type="button"
+                                                            variant={isSelected ? "default" : "outline"}
+                                                            size="sm"
+                                                            className="rounded-full text-xs"
+                                                            onClick={() => {
+                                                                setSelectedPermissions((prev) =>
+                                                                    isSelected
+                                                                        ? prev.filter((p) => p !== permission.id)
+                                                                        : [...prev, permission.id]
+                                                                );
+                                                            }}
+                                                        >
+                                                            {permission.label}
+                                                        </Button>
+                                                    );
+                                                })}
                                             </div>
                                         </div>
                                     ))}
@@ -188,6 +316,8 @@ export function ApiKeysPageClient({ keys, summary }: ApiKeysPageClientProps) {
                                             id="api-key-rate-custom"
                                             type="number"
                                             placeholder="Enter custom rate limit"
+                                            value={rateLimitPreset === "custom" ? formData.rate_limit : ""}
+                                            onChange={(e) => setFormData({ ...formData, rate_limit: parseInt(e.target.value) || 100 })}
                                             min={100}
                                             step={100}
                                         />
@@ -196,10 +326,12 @@ export function ApiKeysPageClient({ keys, summary }: ApiKeysPageClientProps) {
                             </div>
                         </div>
                         <DialogFooter className="gap-2">
-                            <Button variant="outline" onClick={() => setCreateDialogOpen(false)}>
+                            <Button variant="outline" onClick={() => setCreateDialogOpen(false)} disabled={isCreating}>
                                 Cancel
                             </Button>
-                            <Button disabled>Create key</Button>
+                            <Button onClick={handleCreateKey} disabled={isCreating || !formData.name.trim()}>
+                                {isCreating ? "Creating..." : "Create key"}
+                            </Button>
                         </DialogFooter>
                     </DialogContent>
                 </Dialog>
@@ -207,10 +339,56 @@ export function ApiKeysPageClient({ keys, summary }: ApiKeysPageClientProps) {
 
             <ApiKeysSummary summary={summary} />
 
+            {createdKey && (
+                <Dialog open={!!createdKey} onOpenChange={() => setCreatedKey(null)}>
+                    <DialogContent className="max-w-2xl">
+                        <DialogHeader>
+                            <DialogTitle>API key created successfully</DialogTitle>
+                            <DialogDescription>
+                                Make sure to copy your API key now. You won&apos;t be able to see it again!
+                            </DialogDescription>
+                        </DialogHeader>
+                        <div className="space-y-4">
+                            <div className="grid gap-2">
+                                <Label>Key name</Label>
+                                <div className="font-mono text-sm font-semibold">{createdKey.name}</div>
+                            </div>
+                            <div className="grid gap-2">
+                                <Label>API Key</Label>
+                                <div className="flex gap-2">
+                                    <Input
+                                        value={createdKey.plainKey}
+                                        readOnly
+                                        className="font-mono text-sm"
+                                    />
+                                    <Button
+                                        variant="outline"
+                                        onClick={() => handleCopyKey(createdKey.plainKey)}
+                                    >
+                                        <Copy className="h-4 w-4" />
+                                    </Button>
+                                </div>
+                            </div>
+                        </div>
+                        <DialogFooter>
+                            <Button onClick={() => { setCreatedKey(null); setCreateDialogOpen(false); }}>Done</Button>
+                        </DialogFooter>
+                    </DialogContent>
+                </Dialog>
+            )}
+
             <div className="grid gap-6 lg:grid-cols-[2fr_1fr]">
                 <div className="space-y-6">
                     {hasKeys ? (
-                        <ApiKeysTable keys={keys} />
+                        <ApiKeysTable
+                            keys={keys}
+                            onCopyKey={(id) => {
+                                const key = keys.find((k) => k.id === id);
+                                if (key) handleCopyKey(key.keyPrefix);
+                            }}
+                            onDeleteKey={handleDeleteKey}
+                            onRegenerateKey={handleRegenerateKey}
+                        />
                     ) : (
                         <ApiKeyEmptyState onCreateKey={() => setCreateDialogOpen(true)} />
                     )}

@@ -1,8 +1,10 @@
 import type { Metadata } from "next";
-
+import { requireAuth } from "@/lib/auth";
+import { listApiKeys } from "@/lib/queries/api-keys";
 import { ApiKeysPage as ApiKeysPageView } from "@/components/api-keys/api-keys-page";
 import type {
   ApiKeyDisplay,
+  ApiKeyStatus,
   ApiKeysSummaryData,
 } from "@/components/api-keys/types";
 
@@ -12,47 +14,41 @@ export const metadata: Metadata = {
     "Manage your API keys and authentication credentials for ElizaOS platform",
 };
 
-const placeholderKeys: ApiKeyDisplay[] = [
-  {
-    id: "demo-1",
-    name: "Production backend",
-    description: "Used by the public API services",
-    keyPrefix: "eliza_prod_",
-    status: "active" as const,
-    lastUsedAt: new Date().toISOString(),
-    createdAt: new Date(Date.now() - 1000 * 60 * 60 * 24 * 14).toISOString(),
-    permissions: ["Text generation", "Image generation", "Usage"],
-    usageCount: 18245,
+function getApiKeyStatus(isActive: boolean, expiresAt: Date | null): ApiKeyStatus {
+  if (!isActive) return "inactive";
+  if (expiresAt && new Date(expiresAt) < new Date()) return "expired";
+  return "active";
+}
+
+export default async function ApiKeysPage() {
+  const user = await requireAuth();
+  const keys = await listApiKeys(user.organization_id);
+
+  const displayKeys: ApiKeyDisplay[] = keys.map((key) => ({
+    id: key.id,
+    name: key.name,
+    description: key.description,
+    keyPrefix: key.key_prefix,
+    status: getApiKeyStatus(key.is_active, key.expires_at),
+    lastUsedAt: key.last_used_at?.toISOString() ?? null,
+    createdAt: key.created_at.toISOString(),
+    permissions: key.permissions,
+    usageCount: key.usage_count,
+    rateLimit: key.rate_limit,
+    expiresAt: key.expires_at?.toISOString() ?? null,
+  }));
+
+  const summary: ApiKeysSummaryData = {
+    totalKeys: displayKeys.length,
+    activeKeys: displayKeys.filter((key) => key.status === "active").length,
+    monthlyUsage: displayKeys.reduce(
+      (accumulator, key) => accumulator + key.usageCount,
+      0
+    ),
     rateLimit: 1000,
-    expiresAt: null,
-  },
-  {
-    id: "demo-2",
-    name: "Staging integration",
-    description: "Internal staging environment",
-    keyPrefix: "eliza_stg_",
-    status: "inactive" as const,
-    lastUsedAt: null,
-    createdAt: new Date(Date.now() - 1000 * 60 * 60 * 24 * 45).toISOString(),
-    permissions: ["Text generation", "Usage"],
-    usageCount: 420,
-    rateLimit: 500,
-    expiresAt: null,
-  },
-];
+    lastGeneratedAt: displayKeys[0]?.createdAt ?? null,
+  };
 
-const placeholderSummary: ApiKeysSummaryData = {
-  totalKeys: placeholderKeys.length,
-  activeKeys: placeholderKeys.filter((key) => key.status === "active").length,
-  monthlyUsage: placeholderKeys.reduce(
-    (accumulator, key) => accumulator + key.usageCount,
-    0
-  ),
-  rateLimit: 1000,
-  lastGeneratedAt: placeholderKeys[0]?.createdAt ?? null,
-};
-
-export default function ApiKeysPage() {
-  return <ApiKeysPageView keys={placeholderKeys} summary={placeholderSummary} />;
+  return <ApiKeysPageView keys={displayKeys} summary={summary} />;
 }
 
