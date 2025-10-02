@@ -4,12 +4,12 @@ import { redirect } from 'next/navigation';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import LandingHeader from '@/components/layout/landing-header';
-import { 
-  Zap, 
-  Cloud, 
-  Code, 
-  Rocket, 
-  Shield, 
+import {
+  Zap,
+  Cloud,
+  Code,
+  Rocket,
+  Shield,
   Database,
   Cpu,
   Globe,
@@ -21,7 +21,7 @@ import {
 export default async function Home() {
   // Check if user is already signed in
   const { user } = await withAuth();
-  
+
   // If signed in, redirect to dashboard
   if (user) {
     redirect('/dashboard');
