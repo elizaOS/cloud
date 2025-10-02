@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import { Plus, MessageSquare, Trash2, Edit2 } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { Button } from '@/components/ui/button';
@@ -49,7 +49,7 @@ export function ConversationList({
     setEditTitle(conversation.title);
   };
 
-  const handleSaveEdit = async (id: string) => {
+  const handleSaveEdit = useCallback(async (id: string) => {
     if (editTitle.trim()) {
       setIsSaving(true);
       try {
@@ -62,14 +62,14 @@ export function ConversationList({
     }
     setEditingId(null);
     setEditTitle('');
-  };
+  }, [editTitle]);
 
-  const handleCancelEdit = () => {
+  const handleCancelEdit = useCallback(() => {
     if (!isSaving) {
       setEditingId(null);
       setEditTitle('');
     }
-  };
+  }, [isSaving]);
 
   const handleDelete = async (id: string) => {
     if (confirm('Are you sure you want to delete this conversation?')) {
@@ -118,7 +118,7 @@ export function ConversationList({
       document.removeEventListener('mousedown', handleClickOutside);
       document.removeEventListener('keydown', handleKeyDown);
     };
-  }, [editingId, editTitle, isSaving]);
+  }, [editingId, editTitle, isSaving, handleSaveEdit, handleCancelEdit]);
 
   return (
     <div className="flex flex-col h-full border-r bg-muted/30">
@@ -228,7 +228,7 @@ export function ConversationList({
             <div className="text-center py-8 text-muted-foreground">
               <MessageSquare className="h-8 w-8 mx-auto mb-2 opacity-50" />
               <p className="text-sm">No conversations yet</p>
-              <p className="text-xs">Click "New Chat" to start</p>
+              <p className="text-xs">Click &quot;New Chat&quot; to start</p>
             </div>
           )}
         </div>

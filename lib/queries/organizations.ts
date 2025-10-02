@@ -1,4 +1,4 @@
-import { db, schema, eq, sql } from '@/lib/db';
+import { db, schema, eq } from '@/lib/db';
 import type { Organization, NewOrganization } from '@/lib/types';
 
 export async function getOrganizationById(id: string): Promise<Organization | undefined> {
