@@ -8,17 +8,19 @@
 import { useAuth } from '@workos-inc/authkit-nextjs/components';
 import { getSignInUrl, getSignUpUrl } from '@workos-inc/authkit-nextjs';
 import { Button } from '@/components/ui/button';
-import { LogOut, User, Loader2 } from 'lucide-react';
+import { Badge } from '@/components/ui/badge';
+import { LogOut, User, Loader2, Coins } from 'lucide-react';
 import { useEffect, useState } from 'react';
-import { handleSignOut } from '@/app/actions/auth';
+import { handleSignOut, getCreditBalance } from '@/app/actions/auth';
 
 export default function UserMenu() {
   const { user, loading } = useAuth();
   const [signInUrl, setSignInUrl] = useState<string | null>(null);
   const [signUpUrl, setSignUpUrl] = useState<string | null>(null);
+  const [creditBalance, setCreditBalance] = useState<number | null>(null);
+  const [loadingCredits, setLoadingCredits] = useState(false);
 
   useEffect(() => {
-    // Get sign in/up URLs on mount
     async function getAuthUrls() {
       const [signIn, signUp] = await Promise.all([
         getSignInUrl(),
@@ -30,6 +32,33 @@ export default function UserMenu() {
     if (!user && !loading) {
       getAuthUrls();
     }
+  }, [user, loading]);
+
+  useEffect(() => {
+    let interval: NodeJS.Timeout;
+
+    async function fetchCreditBalance() {
+      if (!user || loading) return;
+
+      setLoadingCredits(true);
+      try {
+        const balance = await getCreditBalance();
+        setCreditBalance(balance);
+      } catch (error) {
+        console.error('Failed to fetch credit balance:', error);
+      } finally {
+        setLoadingCredits(false);
+      }
+    }
+
+    if (user && !loading) {
+      fetchCreditBalance();
+      interval = setInterval(fetchCreditBalance, 5000);
+    }
+
+    return () => {
+      if (interval) clearInterval(interval);
+    };
   }, [user, loading]);
 
   // Loading state
@@ -67,11 +96,29 @@ export default function UserMenu() {
   // Signed in state
   return (
     <div className="flex items-center gap-3">
+      {/* Credit Balance */}
+      <div className="flex items-center gap-2">
+        {loadingCredits && creditBalance === null ? (
+          <div className="flex items-center gap-2 px-3 py-1.5 rounded-md bg-muted">
+            <Loader2 className="h-3 w-3 animate-spin text-muted-foreground" />
+            <span className="text-xs text-muted-foreground">Loading...</span>
+          </div>
+        ) : (
+          <Badge variant="secondary" className="gap-1.5 px-3 py-1.5">
+            <Coins className="h-3.5 w-3.5" />
+            <span className="font-semibold">
+              {creditBalance !== null ? creditBalance.toLocaleString() : '0'}
+            </span>
+            <span className="text-xs opacity-80">credits</span>
+          </Badge>
+        )}
+      </div>
+
       {/* User info */}
       <div className="flex items-center gap-2 text-sm">
         <User className="h-4 w-4 text-muted-foreground" />
         <span className="hidden sm:inline-block font-medium">
-          {user.firstName 
+          {user.firstName
             ? `${user.firstName}${user.lastName ? ` ${user.lastName}` : ''}`
             : user.email
           }
@@ -79,9 +126,9 @@ export default function UserMenu() {
       </div>
 
       {/* Logout button */}
-      <Button 
+      <Button
         onClick={onSignOut}
-        variant="outline" 
+        variant="outline"
         size="sm"
         className="gap-2"
       >

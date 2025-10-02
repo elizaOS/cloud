@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import Image from "next/image";
 import { Loader2, Sparkles, Download, Wand2, Image as ImageIcon } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -134,10 +135,13 @@ export function ImageGenerator() {
           
           <div className="group relative rounded-2xl border bg-card overflow-hidden shadow-lg hover:shadow-2xl transition-all duration-300 mx-auto max-w-2xl">
             <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300 z-10" />
-            <img
+            <Image
               src={imageUrl}
               alt={prompt}
+              width={1024}
+              height={1024}
               className="w-full h-auto transform group-hover:scale-105 transition-transform duration-500"
+              unoptimized
             />
             <div className="absolute bottom-0 left-0 right-0 p-6 text-white z-20 opacity-0 group-hover:opacity-100 transition-opacity duration-300">
               <p className="text-sm font-medium line-clamp-2">{prompt}</p>

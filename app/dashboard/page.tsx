@@ -1,9 +1,9 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { 
-  ChatBubbleIcon, 
-  ImageIcon, 
-  TokensIcon, 
+import {
+  ChatBubbleIcon,
+  ImageIcon,
+  TokensIcon,
   LayersIcon,
   BarChartIcon,
   PersonIcon,
