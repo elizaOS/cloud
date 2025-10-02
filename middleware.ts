@@ -6,8 +6,7 @@ export default authkitMiddleware({
     unauthenticatedPaths: [
       '/',
       '/api/models',
-      '/api/login',
-      '/api/callback',
+      '/api/fal/proxy',
       '/auth/error',
     ],
   },
