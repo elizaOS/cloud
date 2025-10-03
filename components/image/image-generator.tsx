@@ -12,6 +12,7 @@ export function ImageGenerator() {
   const [generatedText, setGeneratedText] = useState<string>("");
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [showForm, setShowForm] = useState(true);
 
   const handleGenerate = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -48,6 +49,13 @@ export function ImageGenerator() {
     } finally {
       setIsLoading(false);
     }
+  };
+
+  const handleReset = () => {
+    setImageUrl(null);
+    setGeneratedText("");
+    setShowForm(true);
+    setError(null);
   };
 
   const handleDownload = () => {

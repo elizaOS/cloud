@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import { Plus, MessageSquare, Trash2, Edit2, Loader2 } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { Button } from '@/components/ui/button';
@@ -50,7 +50,7 @@ export function ConversationList({
     setEditTitle(conversation.title);
   };
 
-  const handleSaveEdit = async (id: string) => {
+  const handleSaveEdit = useCallback(async (id: string) => {
     if (editTitle.trim()) {
       setIsSaving(true);
       try {
@@ -63,14 +63,14 @@ export function ConversationList({
     }
     setEditingId(null);
     setEditTitle('');
-  };
+  }, [editTitle]);
 
-  const handleCancelEdit = () => {
+  const handleCancelEdit = useCallback(() => {
     if (!isSaving) {
       setEditingId(null);
       setEditTitle('');
     }
-  };
+  }, [isSaving]);
 
   const handleDelete = async (id: string) => {
     if (confirm('Are you sure you want to delete this conversation?')) {
@@ -119,7 +119,7 @@ export function ConversationList({
       document.removeEventListener('mousedown', handleClickOutside);
       document.removeEventListener('keydown', handleKeyDown);
     };
-  }, [editingId, editTitle, isSaving]);
+  }, [editingId, editTitle, isSaving, handleSaveEdit, handleCancelEdit]);
 
   return (
     <div className="flex h-full min-h-0 w-full flex-col">

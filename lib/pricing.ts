@@ -44,19 +44,20 @@ function getFallbackPricing(
   inputTokens: number,
   outputTokens: number
 ): CostBreakdown {
+  // Pricing per 1k tokens (to match database pricing format)
   const pricingMap: Record<string, { input: number; output: number }> = {
-    'gpt-4o': { input: 2.50, output: 10.00 },
-    'gpt-4o-mini': { input: 0.15, output: 0.60 },
-    'gpt-4-turbo': { input: 10.00, output: 30.00 },
-    'gpt-3.5-turbo': { input: 0.50, output: 1.50 },
-    'claude-3-5-sonnet-20241022': { input: 3.00, output: 15.00 },
-    'claude-3-5-haiku-20241022': { input: 1.00, output: 5.00 },
+    'gpt-4o': { input: 0.0025, output: 0.01 },
+    'gpt-4o-mini': { input: 0.00015, output: 0.0006 },
+    'gpt-4-turbo': { input: 0.01, output: 0.03 },
+    'gpt-3.5-turbo': { input: 0.0005, output: 0.0015 },
+    'claude-3-5-sonnet-20241022': { input: 0.003, output: 0.015 },
+    'claude-3-5-haiku-20241022': { input: 0.001, output: 0.005 },
   };
 
-  const pricing = pricingMap[model] || { input: 2.50, output: 10.00 };
+  const pricing = pricingMap[model] || { input: 0.0025, output: 0.01 };
 
-  const inputCost = Math.ceil((inputTokens / 1000000) * pricing.input * 100);
-  const outputCost = Math.ceil((outputTokens / 1000000) * pricing.output * 100);
+  const inputCost = Math.ceil((inputTokens / 1000) * pricing.input * 100);
+  const outputCost = Math.ceil((outputTokens / 1000) * pricing.output * 100);
 
   return {
     inputCost,
