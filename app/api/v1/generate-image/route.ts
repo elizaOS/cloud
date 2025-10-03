@@ -1,6 +1,7 @@
 import { streamText } from "ai";
 import { requireAuthOrApiKey } from '@/lib/auth';
 import { createUsageRecord } from '@/lib/queries/usage';
+import { deductCredits } from '@/lib/queries/credits';
 import type { NextRequest } from 'next/server';
 
 export const maxDuration = 30;
@@ -70,6 +71,18 @@ export async function POST(req: NextRequest) {
       );
     }
 
+    const imageCost = 100;
+    const deductionResult = await deductCredits(
+      user.organization_id,
+      imageCost,
+      'Image generation: google/gemini-2.5-flash-image-preview',
+      user.id
+    );
+
+    if (!deductionResult.success) {
+      console.error('[IMAGE GENERATION] Failed to deduct credits - insufficient balance');
+    }
+
     await createUsageRecord({
       organization_id: user.organization_id,
       user_id: user.id,
@@ -79,10 +92,12 @@ export async function POST(req: NextRequest) {
       provider: 'google',
       input_tokens: 0,
       output_tokens: 0,
-      input_cost: 0,
+      input_cost: imageCost,
       output_cost: 0,
       is_successful: true,
     });
+
+    console.log(`[IMAGE GENERATION] Credits deducted: ${imageCost}, New balance: ${deductionResult.newBalance}`);
 
     return Response.json({
       image: imageBase64,
