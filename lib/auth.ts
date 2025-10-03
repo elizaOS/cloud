@@ -1,9 +1,12 @@
 import { withAuth } from '@workos-inc/authkit-nextjs';
-import { getUserByEmailWithOrganization } from '@/lib/queries/users';
-import type { UserWithOrganization } from '@/lib/types';
+import { getUserByEmailWithOrganization, getUserWithOrganization } from '@/lib/queries/users';
+import { validateApiKey, incrementApiKeyUsage } from '@/lib/queries/api-keys';
+import { getOrganizationById } from '@/lib/queries/organizations';
+import type { UserWithOrganization, ApiKey } from '@/lib/types';
 import { cache } from 'react';
 import { unstable_cache } from 'next/cache';
 import { redirect } from 'next/navigation';
+import type { NextRequest } from 'next/server';
 
 const getUserFromDB = unstable_cache(
   async (email: string) => {
@@ -83,4 +86,78 @@ export async function requireRole(
   }
 
   return user;
+}
+
+export type AuthResult = {
+  user: UserWithOrganization;
+  apiKey?: ApiKey;
+  authMethod: 'session' | 'api_key';
+};
+
+export async function getUserFromApiKey(apiKey: ApiKey): Promise<UserWithOrganization | null> {
+  try {
+    const user = await getUserWithOrganization(apiKey.user_id);
+    if (!user) {
+      return null;
+    }
+    return user;
+  } catch (error) {
+    console.error('[AUTH] Error getting user from API key:', error);
+    return null;
+  }
+}
+
+export async function requireAuthOrApiKey(request: NextRequest): Promise<AuthResult> {
+  const authHeader = request.headers.get('authorization');
+
+  if (authHeader?.startsWith('Bearer ')) {
+    const apiKeyValue = authHeader.substring(7);
+
+    if (!apiKeyValue || apiKeyValue.trim().length === 0) {
+      throw new Error('Invalid API key format');
+    }
+
+    const apiKey = await validateApiKey(apiKeyValue);
+
+    if (!apiKey) {
+      throw new Error('Invalid or expired API key');
+    }
+
+    if (!apiKey.is_active) {
+      throw new Error('API key is inactive');
+    }
+
+    if (apiKey.expires_at && new Date(apiKey.expires_at) < new Date()) {
+      throw new Error('API key has expired');
+    }
+
+    const user = await getUserFromApiKey(apiKey);
+
+    if (!user) {
+      throw new Error('User associated with API key not found');
+    }
+
+    if (!user.is_active) {
+      throw new Error('User account is inactive');
+    }
+
+    if (!user.organization.is_active) {
+      throw new Error('Organization is inactive');
+    }
+
+    await incrementApiKeyUsage(apiKey.id);
+
+    return {
+      user,
+      apiKey,
+      authMethod: 'api_key',
+    };
+  }
+
+  const user = await requireAuth();
+
+  return {
+    user,
+    authMethod: 'session',
+  };
 }

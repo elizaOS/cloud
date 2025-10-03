@@ -1,7 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { fal } from "@fal-ai/client";
 import type { QueueStatus } from "@fal-ai/client";
-import { requireAuth } from "@/lib/auth";
+import { requireAuthOrApiKey } from "@/lib/auth";
+import { createUsageRecord } from '@/lib/queries/usage';
 
 fal.config({
   proxyUrl: "/api/fal/proxy",
@@ -40,7 +41,7 @@ const VALID_MODELS = [
 
 export async function POST(request: NextRequest) {
   try {
-    const user = await requireAuth();
+    const { user, apiKey } = await requireAuthOrApiKey(request);
 
     if (!process.env.FAL_KEY) {
       console.error("[VIDEO GENERATION] FAL_KEY is not configured");
@@ -97,6 +98,20 @@ export async function POST(request: NextRequest) {
 
     console.log(`[VIDEO GENERATION] Success for user ${user.id}, requestId: ${result.requestId}`);
 
+    await createUsageRecord({
+      organization_id: user.organization_id,
+      user_id: user.id,
+      api_key_id: apiKey?.id || null,
+      type: 'video',
+      model: model,
+      provider: 'fal',
+      input_tokens: 0,
+      output_tokens: 0,
+      input_cost: 0,
+      output_cost: 0,
+      is_successful: true,
+    });
+
     return NextResponse.json(
       {
         video: data.video,
@@ -113,6 +128,26 @@ export async function POST(request: NextRequest) {
     const errorMessage = error instanceof Error ? error.message : "Unknown error occurred";
 
     console.log("[VIDEO GENERATION] Returning fallback video due to error");
+
+    try {
+      const { user: fallbackUser, apiKey: fallbackApiKey } = await requireAuthOrApiKey(request);
+      await createUsageRecord({
+        organization_id: fallbackUser.organization_id,
+        user_id: fallbackUser.id,
+        api_key_id: fallbackApiKey?.id || null,
+        type: 'video',
+        model: 'fal-ai/veo3',
+        provider: 'fal',
+        input_tokens: 0,
+        output_tokens: 0,
+        input_cost: 0,
+        output_cost: 0,
+        is_successful: false,
+        error_message: errorMessage,
+      });
+    } catch (authError) {
+      console.error('[VIDEO GENERATION] Auth error during fallback logging:', authError);
+    }
 
     return NextResponse.json(
       {

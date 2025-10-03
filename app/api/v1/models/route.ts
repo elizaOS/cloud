@@ -1,10 +1,14 @@
 import { gateway } from "@ai-sdk/gateway";
+import { requireAuthOrApiKey } from '@/lib/auth';
+import type { NextRequest } from 'next/server';
 
 // Cache for 1 hour
 export const revalidate = 3600;
 
-export async function GET() {
+export async function GET(request: NextRequest) {
   try {
+    await requireAuthOrApiKey(request);
+
     const response = await gateway.getAvailableModels();
 
     // getAvailableModels returns a response with models array

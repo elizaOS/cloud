@@ -1,15 +1,16 @@
 import { streamText, type UIMessage, convertToModelMessages } from "ai";
-import { requireAuth } from '@/lib/auth';
+import { requireAuthOrApiKey } from '@/lib/auth';
 import { addMessageToConversation, getNextSequenceNumber } from '@/lib/queries/conversations';
 import { deductCredits } from '@/lib/queries/credits';
 import { createUsageRecord } from '@/lib/queries/usage';
 import { calculateCost, getProviderFromModel } from '@/lib/pricing';
+import type { NextRequest } from 'next/server';
 
 export const maxDuration = 60;
 
-export async function POST(req: Request) {
+export async function POST(req: NextRequest) {
   try {
-    const user = await requireAuth();
+    const { user, apiKey } = await requireAuthOrApiKey(req);
     const body = await req.json();
     const { messages, id }: { messages: UIMessage[]; id?: string } = body;
 
@@ -74,6 +75,7 @@ export async function POST(req: Request) {
           await createUsageRecord({
             organization_id: user.organization_id,
             user_id: user.id,
+            api_key_id: apiKey?.id || null,
             type: 'chat',
             model: selectedModel,
             provider: provider,
@@ -93,6 +95,7 @@ export async function POST(req: Request) {
               await createUsageRecord({
                 organization_id: user.organization_id,
                 user_id: user.id,
+                api_key_id: apiKey?.id || null,
                 type: 'chat',
                 model: selectedModel,
                 provider: provider,
