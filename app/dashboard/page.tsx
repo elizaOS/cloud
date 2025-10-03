@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { Activity, ChartSpline, ShieldCheck, Sparkles } from "lucide-react";
+import { Activity, ChartSpline, ShieldCheck, Sparkles, Image, Video, MessageSquare, CheckCircle, XCircle, Clock } from "lucide-react";
 
 import { DashboardHero } from "@/components/dashboard/dashboard-hero";
 import { UsageOverview, type UsageMetric } from "@/components/dashboard/usage-overview";
@@ -70,60 +70,56 @@ function generateUsageAlerts(data: Awaited<ReturnType<typeof getDashboardData>>)
 function generateActivityFeed(data: Awaited<ReturnType<typeof getDashboardData>>): ActivityFeedItem[] {
   const activities: ActivityFeedItem[] = [];
 
-  data.creditTransactions.slice(0, 4).forEach((txn, idx) => {
-    const isRecent = idx === 0;
-    const timeAgo = isRecent ? "Just now" : new Date(txn.created_at).toLocaleString();
+  data.recentGenerations.forEach((gen) => {
+    const typeIcon = gen.type === 'image' ? Image : gen.type === 'video' ? Video : MessageSquare;
 
-    if (txn.type === 'purchase') {
-      activities.push({
-        id: txn.id,
-        title: "Credits purchased",
-        description: txn.description,
-        icon: ChartSpline,
-        status: "success",
-        timestamp: timeAgo,
-        metadata: "billing",
-      });
-    } else if (txn.type === 'usage' && Math.abs(txn.amount) > 100) {
-      activities.push({
-        id: txn.id,
-        title: "High credit usage detected",
-        description: txn.description,
-        icon: ChartSpline,
-        status: "warning",
-        timestamp: timeAgo,
-        metadata: "usage",
-      });
-    }
-  });
+    let status: ActivityFeedItem['status'] = 'info';
+    let statusText = gen.status;
 
-  data.providerHealth.forEach(provider => {
-    if (provider.status === 'degraded') {
-      activities.push({
-        id: `activity-${provider.provider}`,
-        title: `${provider.provider} provider degraded`,
-        description: `Response time increased to ${provider.responseTime}ms`,
-        icon: Activity,
-        status: "warning",
-        timestamp: new Date(provider.lastChecked).toLocaleString(),
-        metadata: "infrastructure",
-      });
+    if (gen.status === 'completed') {
+      status = 'success';
+    } else if (gen.status === 'failed') {
+      status = 'error';
+    } else if (gen.status === 'pending') {
+      status = 'info';
     }
+
+    const timeAgo = gen.completed_at
+      ? new Date(gen.completed_at).toLocaleString()
+      : new Date(gen.created_at).toLocaleString();
+
+    const promptPreview = gen.prompt.length > 60
+      ? gen.prompt.substring(0, 60) + '...'
+      : gen.prompt;
+
+    const description = gen.error
+      ? `Error: ${gen.error}`
+      : `${gen.model} · ${gen.credits} credits · "${promptPreview}"`;
+
+    activities.push({
+      id: gen.id,
+      title: `${gen.type.charAt(0).toUpperCase() + gen.type.slice(1)} generation ${statusText}`,
+      description: description,
+      icon: typeIcon,
+      status: status,
+      timestamp: timeAgo,
+      metadata: gen.provider,
+    });
   });
 
   if (activities.length === 0) {
     activities.push({
       id: "activity-default",
-      title: "System running smoothly",
-      description: "No recent alerts or significant events.",
+      title: "No generations yet",
+      description: "Start generating images, videos, or chat completions to see activity here.",
       icon: Sparkles,
-      status: "success",
+      status: "info",
       timestamp: "Now",
       metadata: "system",
     });
   }
 
-  return activities.slice(0, 4);
+  return activities;
 }
 
 export default async function DashboardPage() {
@@ -269,12 +265,14 @@ export default async function DashboardPage() {
           <div className="flex flex-col gap-6 xl:col-span-4">
             <ActivityFeed
               items={activityItems}
+              title="Recent generations"
+              description="Latest image, video, and chat generations across your organization."
               className="h-full"
               footerAction={
                 <div className="flex w-full justify-end">
                   <Button variant="ghost" size="sm" asChild>
-                    <Link href="/dashboard/analytics">
-                      View analytics
+                    <Link href="/dashboard/gallery">
+                      View all generations
                       <Sparkles className="ml-2 h-3.5 w-3.5" />
                     </Link>
                   </Button>
