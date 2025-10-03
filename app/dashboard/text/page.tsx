@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { requireAuth } from '@/lib/auth';
 import { listConversationsByUser, getConversationWithMessages } from '@/lib/queries/conversations';
 import { TextPageClient } from '../../../components/chat/text-page-client';
+import type { ConversationMessage } from '@/lib/types';
 
 export const metadata: Metadata = {
   title: "Text & Chat Generation",
@@ -22,7 +23,7 @@ export default async function TextPage({
   });
 
   let currentConversation = null;
-  let messages: any[] = [];
+  let messages: ConversationMessage[] = [];
 
   if (params.conversationId) {
     const conv = await getConversationWithMessages(params.conversationId);

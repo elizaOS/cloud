@@ -32,7 +32,7 @@ export async function updateConversationTitleAction(
   conversationId: string,
   title: string
 ) {
-  const user = await requireAuth();
+  await requireAuth();
 
   const conversation = await updateConversation(conversationId, {
     title,
@@ -47,7 +47,7 @@ export async function updateConversationTitleAction(
 }
 
 export async function deleteConversationAction(conversationId: string) {
-  const user = await requireAuth();
+  await requireAuth();
 
   await deleteConversation(conversationId);
 
@@ -67,7 +67,7 @@ export async function listUserConversationsAction() {
 }
 
 export async function getConversationAction(conversationId: string) {
-  const user = await requireAuth();
+  await requireAuth();
 
   const conversation = await getConversationWithMessages(conversationId);
 

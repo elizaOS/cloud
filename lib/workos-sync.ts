@@ -13,7 +13,7 @@ function generateSlugFromEmail(email: string): string {
   const username = email.split('@')[0];
   const sanitized = username.toLowerCase().replace(/[^a-z0-9]/g, '-');
   const random = Math.random().toString(36).substring(2, 8);
-  const timestamp = Date.now().toString(36).substring(-4);
+  const timestamp = Date.now().toString(36).slice(-4);
   return `${sanitized}-${timestamp}${random}`;
 }
 

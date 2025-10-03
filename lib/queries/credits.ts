@@ -1,6 +1,5 @@
 import { db, schema, eq, desc } from '@/lib/db';
-import type { CreditTransaction, NewCreditTransaction } from '@/lib/types';
-import { updateCreditBalance } from './organizations';
+import type { CreditTransaction } from '@/lib/types';
 
 export async function deductCredits(
   organizationId: string,
@@ -26,7 +25,7 @@ export async function deductCredits(
     return {
       success: false,
       newBalance: org.credit_balance,
-      transaction: null as any,
+      transaction: {} as CreditTransaction,
     };
   }
 
