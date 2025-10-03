@@ -181,10 +181,10 @@ export function ChatInterfaceWithPersistence({
   };
 
   return (
-    <div className="flex flex-col h-full">
-      <div className="border-b p-4 flex items-center justify-between bg-gradient-to-r from-background to-muted/20">
+    <div className="flex flex-col h-full border rounded-xl bg-card shadow-sm overflow-hidden">
+      <div className="border-b px-6 py-4 flex items-center justify-between bg-gradient-to-r from-background to-muted/20">
         <div className="flex items-center gap-3">
-          <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-purple-500 to-blue-600 flex items-center justify-center">
+          <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-purple-500 to-blue-600 flex items-center justify-center shadow-md">
             <Bot className="h-5 w-5 text-white" />
           </div>
           <div>
@@ -200,19 +200,19 @@ export function ChatInterfaceWithPersistence({
             variant="outline"
             size="sm"
             onClick={() => setShowModelSelector(!showModelSelector)}
-            className="gap-2 shadow-sm"
+            className="gap-2 shadow-sm rounded-lg border-muted-foreground/20"
           >
             <Settings className="h-4 w-4" />
             <span className="text-xs font-medium">{selectedModel}</span>
-            <Badge variant="secondary" className="ml-1 text-xs">
+            <Badge variant="secondary" className="ml-1 text-xs rounded-md">
               {messages.length}
             </Badge>
           </Button>
 
           {showModelSelector && availableModels.length > 0 && (
-            <div className="absolute right-0 top-full mt-1 w-64 rounded-lg border bg-popover shadow-lg z-50">
-              <div className="p-2 border-b">
-                <p className="text-xs font-semibold text-muted-foreground">
+            <div className="absolute right-0 top-full mt-2 w-64 rounded-xl border bg-popover shadow-xl z-50 overflow-hidden">
+              <div className="px-3 py-2 border-b bg-muted/30">
+                <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">
                   Select Model
                 </p>
               </div>
@@ -224,12 +224,12 @@ export function ChatInterfaceWithPersistence({
                       setSelectedModel(model.id);
                       setShowModelSelector(false);
                     }}
-                    className={`w-full text-left px-3 py-2 rounded text-sm hover:bg-accent transition-colors ${selectedModel === model.id ? 'bg-accent' : ''
+                    className={`w-full text-left px-3 py-2.5 rounded-lg text-sm hover:bg-accent transition-all ${selectedModel === model.id ? 'bg-accent border border-primary/20' : ''
                       }`}
                   >
                     <div className="font-medium">{model.name}</div>
                     {model.provider && (
-                      <div className="text-xs text-muted-foreground">
+                      <div className="text-xs text-muted-foreground mt-0.5">
                         {model.provider}
                       </div>
                     )}
@@ -241,7 +241,7 @@ export function ChatInterfaceWithPersistence({
         </div>
       </div>
 
-      <div className="flex-1 overflow-y-auto p-4 space-y-4">
+      <div className="flex-1 overflow-y-auto px-6 py-6 space-y-4 bg-gradient-to-b from-background/50 to-muted/10">
         {!conversation && messages.length === 0 && (
           <div className="flex flex-col items-center justify-center h-full text-center">
             <Bot className="h-12 w-12 text-muted-foreground mb-4" />
@@ -266,23 +266,23 @@ export function ChatInterfaceWithPersistence({
         {messages.map((message, index) => (
           <div
             key={message.id}
-            className={`flex gap-3 ${message.role === 'user' ? 'justify-end' : 'justify-start'
+            className={`flex gap-4 ${message.role === 'user' ? 'justify-end' : 'justify-start'
               } animate-in fade-in slide-in-from-bottom-4 duration-500`}
             style={{ animationDelay: `${index * 50}ms` }}
           >
             {message.role === 'assistant' && (
-              <div className="flex-shrink-0 w-9 h-9 rounded-full bg-gradient-to-br from-purple-500 to-blue-600 flex items-center justify-center shadow-sm transition-transform hover:scale-110">
+              <div className="flex-shrink-0 w-10 h-10 rounded-xl bg-gradient-to-br from-purple-500 to-blue-600 flex items-center justify-center shadow-md transition-transform hover:scale-105">
                 <Bot className="h-5 w-5 text-white" />
               </div>
             )}
 
             <div
-              className={`rounded-2xl px-4 py-3 max-w-[80%] shadow-sm transform transition-all hover:scale-[1.02] hover:shadow-md ${message.role === 'user'
-                  ? 'bg-gradient-to-br from-primary to-primary/90 text-primary-foreground'
-                  : 'bg-card border'
+              className={`rounded-2xl px-5 py-4 max-w-[75%] shadow-sm transform transition-all ${message.role === 'user'
+                  ? 'bg-gradient-to-br from-primary to-primary/90 text-primary-foreground shadow-md hover:shadow-lg'
+                  : 'bg-card border border-muted-foreground/10 hover:border-muted-foreground/20 hover:shadow-md'
                 }`}
             >
-              <div className="text-sm whitespace-pre-wrap mb-2">
+              <div className="text-sm leading-relaxed whitespace-pre-wrap">
                 {message.parts.map((part, i) => {
                   switch (part.type) {
                     case 'text':
@@ -293,9 +293,9 @@ export function ChatInterfaceWithPersistence({
                 })}
               </div>
 
-              <div className={`flex items-center gap-2 text-xs mt-2 pt-2 border-t ${message.role === 'user'
-                  ? 'border-primary-foreground/20 text-primary-foreground/80'
-                  : 'border-border text-muted-foreground'
+              <div className={`flex items-center gap-1.5 text-[11px] mt-3 pt-2.5 border-t ${message.role === 'user'
+                  ? 'border-primary-foreground/15 text-primary-foreground/70'
+                  : 'border-muted-foreground/10 text-muted-foreground/70'
                 }`}>
                 <Clock className="h-3 w-3" />
                 <span>{formatTimestamp(messageTimestamps.current.get(message.id)?.getTime() || Date.now())}</span>
@@ -303,7 +303,7 @@ export function ChatInterfaceWithPersistence({
             </div>
 
             {message.role === 'user' && (
-              <div className="flex-shrink-0 w-9 h-9 rounded-full bg-gradient-to-br from-green-500 to-emerald-600 flex items-center justify-center shadow-sm transition-transform hover:scale-110">
+              <div className="flex-shrink-0 w-10 h-10 rounded-xl bg-gradient-to-br from-green-500 to-emerald-600 flex items-center justify-center shadow-md transition-transform hover:scale-105">
                 <User className="h-5 w-5 text-white" />
               </div>
             )}
@@ -311,11 +311,11 @@ export function ChatInterfaceWithPersistence({
         ))}
 
         {isWaitingForResponse && (
-          <div className="flex gap-3 justify-start animate-in fade-in slide-in-from-bottom-4 duration-200">
-            <div className="flex-shrink-0 w-9 h-9 rounded-full bg-gradient-to-br from-purple-500 to-blue-600 flex items-center justify-center shadow-sm">
+          <div className="flex gap-4 justify-start animate-in fade-in slide-in-from-bottom-4 duration-200">
+            <div className="flex-shrink-0 w-10 h-10 rounded-xl bg-gradient-to-br from-purple-500 to-blue-600 flex items-center justify-center shadow-md">
               <Bot className="h-5 w-5 text-white animate-pulse" />
             </div>
-            <div className="rounded-2xl px-4 py-3 bg-card border shadow-sm max-w-[80%]">
+            <div className="rounded-2xl px-5 py-4 bg-card border border-muted-foreground/10 shadow-sm max-w-[75%]">
               <div className="flex items-center gap-2 text-sm text-muted-foreground">
                 <div className="flex gap-1">
                   <span className="animate-bounce" style={{ animationDelay: '0ms' }}>.</span>
@@ -331,21 +331,21 @@ export function ChatInterfaceWithPersistence({
         <div ref={messagesEndRef} />
       </div>
 
-      <form onSubmit={handleSubmit} className="border-t p-4 bg-gradient-to-r from-background to-muted/20">
-        <div className="flex gap-2">
+      <form onSubmit={handleSubmit} className="border-t px-6 py-4 bg-gradient-to-r from-background to-muted/20">
+        <div className="flex gap-3">
           <div className="flex-1 relative">
             <input
               value={input}
               onChange={(e) => setInput(e.currentTarget.value)}
               placeholder={conversation ? "Type your message..." : "Type your message to start a new conversation..."}
               disabled={isLoading}
-              className="w-full rounded-xl border bg-background px-4 py-3 text-sm shadow-sm focus:outline-none focus:ring-2 focus:ring-ring disabled:opacity-50 transition-all"
+              className="w-full rounded-xl border border-muted-foreground/20 bg-background px-5 py-3.5 text-sm shadow-sm focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary/40 disabled:opacity-50 transition-all placeholder:text-muted-foreground/60"
             />
           </div>
           <Button
             type="submit"
             disabled={isLoading || !input.trim()}
-            className="rounded-xl shadow-sm hover:shadow-md transition-all"
+            className="rounded-xl shadow-sm hover:shadow-md transition-all px-5"
             size="lg"
           >
             {isLoading ? (

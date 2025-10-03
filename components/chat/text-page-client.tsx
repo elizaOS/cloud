@@ -48,7 +48,7 @@ export function TextPageClient({
         </p>
       </div>
 
-      <div className="flex gap-4 flex-1 min-h-0">
+      <div className="flex gap-6 flex-1 min-h-0">
         <div className="w-64 flex-shrink-0">
           <ConversationList
             conversations={conversations}
@@ -57,7 +57,7 @@ export function TextPageClient({
           />
         </div>
 
-        <div className="flex-1 border rounded-lg bg-card">
+        <div className="flex-1 overflow-hidden">
           <ChatInterfaceWithPersistence
             conversation={currentConversation}
             initialMessages={initialMessages}

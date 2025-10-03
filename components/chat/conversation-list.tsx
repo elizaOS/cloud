@@ -121,12 +121,12 @@ export function ConversationList({
   }, [editingId, editTitle, isSaving, handleSaveEdit, handleCancelEdit]);
 
   return (
-    <div className="flex flex-col h-full border-r bg-muted/30">
-      <div className="p-4 border-b">
+    <div className="flex flex-col h-full border rounded-xl bg-card shadow-sm overflow-hidden">
+      <div className="px-4 py-4 border-b bg-gradient-to-b from-background to-muted/20">
         <Button
           onClick={handleCreate}
           disabled={isCreating}
-          className="w-full"
+          className="w-full rounded-lg shadow-sm"
           size="sm"
         >
           <Plus className="h-4 w-4 mr-2" />
@@ -135,14 +135,14 @@ export function ConversationList({
       </div>
 
       <ConversationScrollArea className="flex-1">
-        <div className="p-2 space-y-1">
+        <div className="p-3 space-y-2">
           {conversations.map((conversation) => (
             <div
               key={conversation.id}
-              className={`group relative rounded-lg p-3 cursor-pointer transition-colors ${
+              className={`group relative rounded-xl p-3 cursor-pointer transition-all ${
                 conversation.id === currentConversationId
-                  ? 'bg-primary/10 border border-primary/20'
-                  : 'hover:bg-accent'
+                  ? 'bg-primary/10 border border-primary/30 shadow-sm'
+                  : 'hover:bg-accent/50 border border-transparent'
               }`}
               onClick={() => onSelectConversation(conversation.id)}
             >
@@ -167,16 +167,18 @@ export function ConversationList({
                   <ConversationInput
                     value={editTitle}
                     onChange={(e) => setEditTitle(e.target.value)}
-                    className="h-7 text-sm flex-1"
+                    className="h-8 text-sm flex-1 rounded-lg"
                     autoFocus
                   />
                 </div>
               ) : (
                 <>
-                  <div className="flex items-start gap-2">
-                    <MessageSquare className="h-4 w-4 mt-0.5 flex-shrink-0" />
+                  <div className="flex items-start gap-3">
+                    <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-purple-500/10 to-blue-600/10 flex items-center justify-center flex-shrink-0">
+                      <MessageSquare className="h-4 w-4 text-primary" />
+                    </div>
                     <div className="flex-1 min-w-0">
-                      <p className="text-sm font-medium truncate">
+                      <p className="text-sm font-medium truncate mb-1">
                         {conversation.title}
                       </p>
                       <p className="text-xs text-muted-foreground">
@@ -185,11 +187,11 @@ export function ConversationList({
                     </div>
                   </div>
 
-                  <div className="absolute right-2 top-2 opacity-0 group-hover:opacity-100 transition-opacity flex gap-1">
+                  <div className="absolute right-2 top-2 opacity-0 group-hover:opacity-100 transition-opacity flex gap-1 bg-background/80 backdrop-blur-sm rounded-lg p-1 shadow-sm">
                     <Button
                       size="icon"
                       variant="ghost"
-                      className="h-7 w-7"
+                      className="h-7 w-7 rounded-md hover:bg-accent"
                       onClick={(e) => {
                         e.stopPropagation();
                         handleStartEdit(conversation);
@@ -201,7 +203,7 @@ export function ConversationList({
                     <Button
                       size="icon"
                       variant="ghost"
-                      className="h-7 w-7 text-destructive"
+                      className="h-7 w-7 rounded-md text-destructive hover:bg-destructive/10"
                       onClick={(e) => {
                         e.stopPropagation();
                         handleDelete(conversation.id);
@@ -225,9 +227,11 @@ export function ConversationList({
           ))}
 
           {conversations.length === 0 && (
-            <div className="text-center py-8 text-muted-foreground">
-              <MessageSquare className="h-8 w-8 mx-auto mb-2 opacity-50" />
-              <p className="text-sm">No conversations yet</p>
+            <div className="text-center py-12 px-4 text-muted-foreground">
+              <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-purple-500/10 to-blue-600/10 flex items-center justify-center mx-auto mb-3">
+                <MessageSquare className="h-8 w-8 text-muted-foreground/50" />
+              </div>
+              <p className="text-sm font-medium mb-1">No conversations yet</p>
               <p className="text-xs">Click &quot;New Chat&quot; to start</p>
             </div>
           )}
