@@ -4,6 +4,7 @@ import type { QueueStatus } from "@fal-ai/client";
 import { requireAuthOrApiKey } from "@/lib/auth";
 import { createUsageRecord } from '@/lib/queries/usage';
 import { deductCredits } from '@/lib/queries/credits';
+import { createGeneration, updateGeneration } from '@/lib/queries/generations';
 
 fal.config({
   proxyUrl: "/api/fal/proxy",
@@ -41,6 +42,7 @@ const VALID_MODELS = [
 ];
 
 export async function POST(request: NextRequest) {
+  let generationId: string | undefined;
   try {
     const { user, apiKey } = await requireAuthOrApiKey(request);
 
@@ -71,6 +73,21 @@ export async function POST(request: NextRequest) {
         { status: 400 }
       );
     }
+
+    const generation = await createGeneration({
+      organization_id: user.organization_id,
+      user_id: user.id,
+      api_key_id: apiKey?.id || null,
+      type: 'video',
+      model: model,
+      provider: 'fal',
+      prompt: prompt.trim(),
+      status: 'pending',
+      credits: 500,
+      cost: 500,
+    });
+
+    generationId = generation.id;
 
     console.log(`[VIDEO GENERATION] Starting generation for user ${user.id}, model: ${model}`);
 
@@ -111,7 +128,7 @@ export async function POST(request: NextRequest) {
       console.error('[VIDEO GENERATION] Failed to deduct credits - insufficient balance');
     }
 
-    await createUsageRecord({
+    const usageRecord = await createUsageRecord({
       organization_id: user.organization_id,
       user_id: user.id,
       api_key_id: apiKey?.id || null,
@@ -124,6 +141,28 @@ export async function POST(request: NextRequest) {
       output_cost: 0,
       is_successful: true,
     });
+
+    if (generationId) {
+      await updateGeneration(generationId, {
+        status: 'completed',
+        storage_url: data.video.url,
+        mime_type: data.video.content_type || 'video/mp4',
+        file_size: data.video.file_size ? BigInt(data.video.file_size) : null,
+        dimensions: {
+          width: data.video.width,
+          height: data.video.height,
+        },
+        usage_record_id: usageRecord.id,
+        completed_at: new Date(),
+        result: {
+          video: data.video,
+          seed: data.seed,
+          has_nsfw_concepts: data.has_nsfw_concepts,
+          timings: data.timings,
+          requestId: result.requestId,
+        },
+      });
+    }
 
     console.log(`[VIDEO GENERATION] Credits deducted: ${videoCost}, New balance: ${deductionResult.newBalance}`);
 
@@ -159,7 +198,7 @@ export async function POST(request: NextRequest) {
         console.error('[VIDEO GENERATION] Failed to deduct fallback credits - insufficient balance');
       }
 
-      await createUsageRecord({
+      const fallbackUsageRecord = await createUsageRecord({
         organization_id: fallbackUser.organization_id,
         user_id: fallbackUser.id,
         api_key_id: fallbackApiKey?.id || null,
@@ -173,6 +212,33 @@ export async function POST(request: NextRequest) {
         is_successful: false,
         error_message: errorMessage,
       });
+
+      if (generationId) {
+        await updateGeneration(generationId, {
+          status: 'failed',
+          error: errorMessage,
+          storage_url: "https://v3.fal.media/files/zebra/P8u5qLXJrXF--Xm1Kix6j_output.mp4",
+          mime_type: 'video/mp4',
+          dimensions: {
+            width: 1920,
+            height: 1080,
+          },
+          credits: fallbackCost,
+          cost: fallbackCost,
+          usage_record_id: fallbackUsageRecord.id,
+          completed_at: new Date(),
+          result: {
+            isFallback: true,
+            originalError: errorMessage,
+            video: {
+              url: "https://v3.fal.media/files/zebra/P8u5qLXJrXF--Xm1Kix6j_output.mp4",
+              content_type: "video/mp4",
+              width: 1920,
+              height: 1080,
+            },
+          },
+        });
+      }
 
       console.log(`[VIDEO GENERATION] Fallback credits deducted: ${fallbackCost}, New balance: ${fallbackDeduction.newBalance}`);
     } catch (authError) {

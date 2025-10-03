@@ -1,209 +1,291 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import {
-  ChatBubbleIcon,
-  ImageIcon,
-  TokensIcon,
-  LayersIcon,
-  BarChartIcon,
-  PersonIcon,
-} from "@radix-ui/react-icons";
-import { Server, HardDrive, Sparkles, Zap, ArrowRight } from "lucide-react";
-import { Badge } from "@/components/ui/badge";
+import { Activity, ChartSpline, ShieldCheck, Sparkles } from "lucide-react";
+
+import { DashboardHero } from "@/components/dashboard/dashboard-hero";
+import { UsageOverview, type UsageMetric } from "@/components/dashboard/usage-overview";
+import { ActivityFeed, type ActivityFeedItem } from "@/components/dashboard/activity-feed";
+import { UsagePerformance } from "@/components/dashboard/usage-performance";
+import { ModelUsageCard, type ModelUsageEntry } from "@/components/dashboard/model-usage-card";
+import { CreditActivity, type CreditActivityProps } from "@/components/dashboard/credit-activity";
+import { PlanLimitsCard } from "@/components/dashboard/plan-limits-card";
+import { ProviderHealthCard, type ProviderHealthItem } from "@/components/dashboard/provider-health-card";
+import { UsageAlertsCard, type UsageAlertItem } from "@/components/dashboard/usage-alerts-card";
+import { Button } from "@/components/ui/button";
+import { getDashboardData } from "@/lib/actions/dashboard";
 
 export const metadata: Metadata = {
   title: "Dashboard",
   description: "View your AI agent dashboard, analytics, and quick actions",
 };
 
-const quickActions = [
-  {
-    title: "Text & Chat",
-    description: "Generate text and engage in AI conversations",
-    href: "/dashboard/text",
-    icon: ChatBubbleIcon,
-    gradient: "from-blue-500 to-cyan-500",
-    iconBg: "bg-blue-500/10",
-  },
-  {
-    title: "Image Generation",
-    description: "Create stunning AI-powered images",
-    href: "/dashboard/image",
-    icon: ImageIcon,
-    gradient: "from-purple-500 to-pink-500",
-    iconBg: "bg-purple-500/10",
-  },
-  {
-    title: "Gallery",
-    description: "View and manage your generated content",
-    href: "/dashboard/gallery",
-    icon: LayersIcon,
-    gradient: "from-green-500 to-emerald-500",
-    iconBg: "bg-green-500/10",
-  },
-];
+function generateUsageAlerts(data: Awaited<ReturnType<typeof getDashboardData>>): UsageAlertItem[] {
+  const alerts: UsageAlertItem[] = [];
 
-const infrastructureActions = [
-  {
-    title: "Containers",
-    description: "Deploy and manage containerized applications",
-    href: "/dashboard/containers",
-    icon: Server,
-    isNew: true,
-    gradient: "from-orange-500 to-red-500",
-    iconBg: "bg-orange-500/10",
-  },
-  {
-    title: "Storage",
-    description: "Manage your cloud storage and data",
-    href: "/dashboard/storage",
-    icon: HardDrive,
-    isNew: true,
-    gradient: "from-indigo-500 to-purple-500",
-    iconBg: "bg-indigo-500/10",
-  },
-];
+  const degradedProviders = data.providerHealth.filter(p => p.status === 'degraded');
+  degradedProviders.forEach(provider => {
+    alerts.push({
+      id: `alert-${provider.provider.toLowerCase()}-degraded`,
+      title: `${provider.provider} provider degraded`,
+      description: `Response time at ${provider.responseTime}ms with ${(provider.errorRate * 100).toFixed(1)}% error rate. Monitor performance and consider routing to alternative providers.`,
+      severity: "warning",
+      actionLabel: "View provider detail",
+    });
+  });
 
-const settingsActions = [
-  {
-    title: "Account",
-    description: "Manage your profile and preferences",
-    href: "/dashboard/account",
-    icon: PersonIcon,
-    gradient: "from-slate-500 to-gray-500",
-    iconBg: "bg-slate-500/10",
-  },
-  {
-    title: "API Keys",
-    description: "Manage your API authentication",
-    href: "/dashboard/api-keys",
-    icon: TokensIcon,
-    gradient: "from-yellow-500 to-amber-500",
-    iconBg: "bg-yellow-500/10",
-  },
-  {
-    title: "Analytics",
-    description: "View usage statistics and insights",
-    href: "/dashboard/analytics",
-    icon: BarChartIcon,
-    gradient: "from-teal-500 to-cyan-500",
-    iconBg: "bg-teal-500/10",
-  },
-];
+  const daysRemaining = Math.floor(data.organization.creditBalance / (data.usage.dailyBurnCredits || 1));
+  if (daysRemaining < 90 && daysRemaining > 0) {
+    alerts.push({
+      id: "alert-budget-horizon",
+      title: `Projected budget runway: ${daysRemaining} days`,
+      description: `Daily burn of ${data.usage.dailyBurnCredits.toLocaleString()} credits. Consider reviewing usage patterns and optimizing API calls.`,
+      severity: daysRemaining < 30 ? "warning" : "info",
+      actionLabel: "Open spend report",
+    });
+  }
 
-export default function DashboardPage() {
-  return (
-    <div className="flex flex-col gap-4 max-w-7xl mx-auto h-full">
-      {/* Hero Section */}
-      <div className="text-center space-y-2">
-        <div className="inline-flex items-center justify-center w-12 h-12 rounded-xl bg-gradient-to-br from-purple-500 to-blue-600">
-          <Sparkles className="h-6 w-6 text-white" />
-        </div>
-        <h1 className="text-3xl font-bold bg-gradient-to-r from-purple-600 to-blue-600 bg-clip-text text-transparent">
-          Welcome to ElizaOS Cloud
-        </h1>
-        <p className="text-muted-foreground text-sm max-w-2xl mx-auto">
-          Your complete AI agent development platform
-        </p>
-      </div>
+  if (data.organization.creditBalance < 10000) {
+    alerts.push({
+      id: "alert-low-credits",
+      title: "Credit balance running low",
+      description: `Current balance: ${data.organization.creditBalance.toLocaleString()} credits. Consider purchasing more credits to avoid service interruption.`,
+      severity: "warning",
+      actionLabel: "Purchase credits",
+    });
+  }
 
-      {/* Quick Actions */}
-      <section className="space-y-3">
-        <div className="flex items-center gap-2">
-          <Zap className="h-4 w-4 text-primary" />
-          <h2 className="text-lg font-semibold">Generation Studio</h2>
-        </div>
-        <div className="grid gap-3 md:grid-cols-2 lg:grid-cols-3">
-          {quickActions.map((action, index) => {
-            const Icon = action.icon;
-            return (
-              <Link
-                key={action.href}
-                href={action.href}
-                className="group relative rounded-xl border bg-card p-4 shadow-sm hover:shadow-lg transition-all duration-300 animate-in fade-in slide-in-from-bottom-4"
-                style={{ animationDelay: `${index * 100}ms` }}
-              >
-                <div className="flex items-start justify-between mb-3">
-                  <div className={`rounded-lg p-2.5 ${action.iconBg}`}>
-                    <Icon className={`h-5 w-5 bg-gradient-to-br ${action.gradient} bg-clip-text text-transparent`} />
-                  </div>
-                  <ArrowRight className="h-4 w-4 text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity" />
-                </div>
-                <h3 className="font-semibold mb-1">{action.title}</h3>
-                <p className="text-xs text-muted-foreground">
-                  {action.description}
-                </p>
-              </Link>
-            );
-          })}
-        </div>
-      </section>
+  if (alerts.length === 0) {
+    alerts.push({
+      id: "alert-all-good",
+      title: "All systems operational",
+      description: "Your infrastructure is running smoothly. All providers are healthy and credit balance is sufficient.",
+      severity: "info",
+      actionLabel: "View analytics",
+    });
+  }
 
-      {/* Infrastructure */}
-      <section className="space-y-3">
-        <h2 className="text-lg font-semibold">Infrastructure</h2>
-        <div className="grid gap-3 md:grid-cols-2">
-          {infrastructureActions.map((action, index) => {
-            const Icon = action.icon;
-            return (
-              <Link
-                key={action.href}
-                href={action.href}
-                className="group relative rounded-xl border bg-card p-4 shadow-sm hover:shadow-lg transition-all duration-300 animate-in fade-in slide-in-from-bottom-4"
-                style={{ animationDelay: `${(index + 3) * 100}ms` }}
-              >
-                <div className="flex items-start justify-between mb-3">
-                  <div className={`rounded-lg p-2.5 ${action.iconBg}`}>
-                    <Icon className={`h-5 w-5 bg-gradient-to-br ${action.gradient} bg-clip-text text-transparent`} />
-                  </div>
-                  <div className="flex items-center gap-2">
-                    {action.isNew && (
-                      <Badge variant="default" className="text-xs">
-                        NEW
-                      </Badge>
-                    )}
-                    <ArrowRight className="h-4 w-4 text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity" />
-                  </div>
-                </div>
-                <h3 className="font-semibold mb-1">{action.title}</h3>
-                <p className="text-xs text-muted-foreground">
-                  {action.description}
-                </p>
-              </Link>
-            );
-          })}
-        </div>
-      </section>
-
-      {/* Settings */}
-      <section className="space-y-3">
-        <h2 className="text-lg font-semibold">Settings & Analytics</h2>
-        <div className="grid gap-3 md:grid-cols-3">
-          {settingsActions.map((action, index) => {
-            const Icon = action.icon;
-            return (
-              <Link
-                key={action.href}
-                href={action.href}
-                className="group relative rounded-xl border bg-card p-4 shadow-sm hover:shadow-lg transition-all duration-300 animate-in fade-in slide-in-from-bottom-4"
-                style={{ animationDelay: `${(index + 5) * 100}ms` }}
-              >
-                <div className="flex items-start justify-between mb-3">
-                  <div className={`rounded-lg p-2.5 ${action.iconBg}`}>
-                    <Icon className={`h-5 w-5 bg-gradient-to-br ${action.gradient} bg-clip-text text-transparent`} />
-                  </div>
-                  <ArrowRight className="h-4 w-4 text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity" />
-                </div>
-                <h3 className="font-semibold mb-1">{action.title}</h3>
-                <p className="text-xs text-muted-foreground">
-                  {action.description}
-                </p>
-              </Link>
-            );
-          })}
-        </div>
-      </section>
-    </div>
-  );
+  return alerts;
 }
 
+function generateActivityFeed(data: Awaited<ReturnType<typeof getDashboardData>>): ActivityFeedItem[] {
+  const activities: ActivityFeedItem[] = [];
+
+  data.creditTransactions.slice(0, 4).forEach((txn, idx) => {
+    const isRecent = idx === 0;
+    const timeAgo = isRecent ? "Just now" : new Date(txn.created_at).toLocaleString();
+
+    if (txn.type === 'purchase') {
+      activities.push({
+        id: txn.id,
+        title: "Credits purchased",
+        description: txn.description,
+        icon: ChartSpline,
+        status: "success",
+        timestamp: timeAgo,
+        metadata: "billing",
+      });
+    } else if (txn.type === 'usage' && Math.abs(txn.amount) > 100) {
+      activities.push({
+        id: txn.id,
+        title: "High credit usage detected",
+        description: txn.description,
+        icon: ChartSpline,
+        status: "warning",
+        timestamp: timeAgo,
+        metadata: "usage",
+      });
+    }
+  });
+
+  data.providerHealth.forEach(provider => {
+    if (provider.status === 'degraded') {
+      activities.push({
+        id: `activity-${provider.provider}`,
+        title: `${provider.provider} provider degraded`,
+        description: `Response time increased to ${provider.responseTime}ms`,
+        icon: Activity,
+        status: "warning",
+        timestamp: new Date(provider.lastChecked).toLocaleString(),
+        metadata: "infrastructure",
+      });
+    }
+  });
+
+  if (activities.length === 0) {
+    activities.push({
+      id: "activity-default",
+      title: "System running smoothly",
+      description: "No recent alerts or significant events.",
+      icon: Sparkles,
+      status: "success",
+      timestamp: "Now",
+      metadata: "system",
+    });
+  }
+
+  return activities.slice(0, 4);
+}
+
+export default async function DashboardPage() {
+  const data = await getDashboardData();
+
+  const heroStats = [
+    {
+      label: "Total generations",
+      value: data.stats.totalGenerations.toLocaleString(),
+      hint: `${data.stats.imageGenerations} images, ${data.stats.videoGenerations} videos`,
+    },
+    {
+      label: "API calls (24h)",
+      value: data.stats.apiCalls24h.toLocaleString(),
+      hint: `${data.usage.successfulRequests} successful`,
+    },
+    {
+      label: "Image generations",
+      value: data.stats.imageGenerations.toLocaleString(),
+      hint: "All time",
+    },
+    {
+      label: "Video renders",
+      value: data.stats.videoGenerations.toLocaleString(),
+      hint: "All time",
+    },
+  ];
+
+  const usageMetrics: UsageMetric[] = [
+    {
+      label: "Credits remaining",
+      value: data.organization.creditBalance.toLocaleString(),
+      description: "Current organization credit balance",
+      icon: "fuel",
+      accent: "border-primary/60 bg-primary/10",
+      trend: {
+        direction: "neutral",
+        label: `${data.usage.dailyBurnCredits.toLocaleString()} daily burn`,
+      },
+    },
+    {
+      label: "Daily spend",
+      value: `${data.usage.dailyBurnCredits.toLocaleString()} cr`,
+      description: "Credits spent in last 24 hours",
+      icon: "creditCard",
+      accent: "border-emerald-500/60 bg-emerald-500/10",
+      trend: {
+        direction: data.usage.burnChange > 0 ? "up" : data.usage.burnChange < 0 ? "down" : "neutral",
+        label: `${data.usage.burnChange >= 0 ? '+' : ''}${data.usage.burnChange.toFixed(1)}% vs last week avg`,
+      },
+    },
+    {
+      label: "Success rate",
+      value: `${(data.usage.successRate * 100).toFixed(1)}%`,
+      description: "API operations success rate",
+      icon: "shieldCheck",
+      accent: "border-blue-500/60 bg-blue-500/10",
+      trend: {
+        direction: data.usage.successRate >= 0.99 ? "up" : data.usage.successRate >= 0.95 ? "neutral" : "down",
+        label: `${data.usage.failedRequests} failed requests`,
+      },
+    },
+  ];
+
+  const usageFootnote = (
+    <span>
+      Track your credit usage and spending patterns. Manage billing settings in the{" "}
+      <Link href="/dashboard/account" className="text-primary underline-offset-2 hover:underline">
+        account console
+      </Link>
+      .
+    </span>
+  );
+
+  const usagePerformanceStats = {
+    totalRequests: data.usage.totalRequests,
+    successfulRequests: data.usage.successfulRequests,
+    failedRequests: data.usage.failedRequests,
+    totalCost: data.usage.totalCost,
+    totalInputTokens: data.usage.totalInputTokens,
+    totalOutputTokens: data.usage.totalOutputTokens,
+  };
+
+  const usageAlerts = generateUsageAlerts(data);
+
+  const modelUsageItems: ModelUsageEntry[] = data.modelUsage.slice(0, 6);
+
+  const creditTransactions: CreditActivityProps["transactions"] = data.creditTransactions.map(t => ({
+    id: t.id,
+    amount: t.amount,
+    type: t.type as 'purchase' | 'usage' | 'adjustment' | 'refund',
+    description: t.description,
+    created_at: t.created_at,
+    actor: t.user_id ? undefined : undefined,
+  }));
+
+  const planLimits = {
+    subscriptionTier: data.organization.subscriptionTier,
+    maxApiRequests: data.organization.maxApiRequests,
+    maxTokensPerRequest: data.organization.maxTokensPerRequest,
+    allowedProviders: data.organization.allowedProviders,
+    allowedModels: data.organization.allowedModels,
+    autoTopUp: false,
+    nextReset: undefined,
+  };
+
+  const providerHealth: ProviderHealthItem[] = data.providerHealth.map(p => ({
+    provider: p.provider,
+    status: p.status as 'healthy' | 'degraded' | 'down',
+    responseTime: p.responseTime,
+    errorRate: p.errorRate,
+    lastChecked: p.lastChecked,
+  }));
+
+  const activityItems = generateActivityFeed(data);
+
+  return (
+    <main className="mx-auto w-full max-w-[1320px] px-4 pb-12 pt-8 lg:px-8">
+      <div className="flex flex-col gap-8 lg:gap-10">
+        <DashboardHero
+          userName={data.user.name.split(' ')[0] || 'User'}
+          organizationName={data.organization.name}
+          creditBalance={data.organization.creditBalance}
+          stats={heroStats}
+          primaryAction={{ label: "Manage account", href: "/dashboard/account" }}
+          secondaryAction={{ label: "View analytics", href: "/dashboard/analytics" }}
+          className="rounded-3xl border border-border/60 bg-background/90 shadow-sm"
+        />
+
+        <section className="grid gap-6 xl:grid-cols-12">
+          <div className="flex flex-col gap-6 xl:col-span-8">
+            <div className="grid gap-6 xl:grid-cols-5">
+              <UsageOverview metrics={usageMetrics} footnote={usageFootnote} className="xl:col-span-3" />
+              <UsageAlertsCard alerts={usageAlerts} className="xl:col-span-2" />
+            </div>
+            <div className="grid gap-6 sm:grid-cols-2">
+              <PlanLimitsCard {...planLimits} />
+              <ProviderHealthCard items={providerHealth} />
+            </div>
+            <UsagePerformance stats={usagePerformanceStats} className="h-full" />
+          </div>
+
+          <div className="flex flex-col gap-6 xl:col-span-4">
+            <ActivityFeed
+              items={activityItems}
+              className="h-full"
+              footerAction={
+                <div className="flex w-full justify-end">
+                  <Button variant="ghost" size="sm" asChild>
+                    <Link href="/dashboard/analytics">
+                      View analytics
+                      <Sparkles className="ml-2 h-3.5 w-3.5" />
+                    </Link>
+                  </Button>
+                </div>
+              }
+            />
+            <ModelUsageCard items={modelUsageItems} className="h-full" />
+            <CreditActivity transactions={creditTransactions} className="h-full" />
+          </div>
+        </section>
+      </div>
+    </main>
+  );
+}
