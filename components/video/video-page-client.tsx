@@ -274,7 +274,7 @@ export function VideoPageClient({
       });
 
       try {
-        const response = await fetch("/api/generate-video", {
+        const response = await fetch("/api/v1/generate-video", {
           method: "POST",
           headers: {
             "Content-Type": "application/json",

@@ -95,7 +95,7 @@ export function ApiKeysPageClient({ keys, summary }: ApiKeysPageClientProps) {
         try {
             const rateLimit = rateLimitPreset === "standard" ? 1000 : rateLimitPreset === "high" ? 5000 : formData.rate_limit;
 
-            const response = await fetch("/api/api-keys", {
+            const response = await fetch("/api/v1/api-keys", {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({
@@ -147,7 +147,7 @@ export function ApiKeysPageClient({ keys, summary }: ApiKeysPageClientProps) {
         }
 
         try {
-            const response = await fetch(`/api/api-keys/${id}`, {
+            const response = await fetch(`/api/v1/api-keys/${id}`, {
                 method: "PATCH",
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({
@@ -178,7 +178,7 @@ export function ApiKeysPageClient({ keys, summary }: ApiKeysPageClientProps) {
         }
 
         try {
-            const response = await fetch(`/api/api-keys/${id}`, {
+            const response = await fetch(`/api/v1/api-keys/${id}`, {
                 method: "DELETE",
             });
 
@@ -205,7 +205,7 @@ export function ApiKeysPageClient({ keys, summary }: ApiKeysPageClientProps) {
         }
 
         try {
-            const response = await fetch(`/api/api-keys/${id}/regenerate`, {
+            const response = await fetch(`/api/v1/api-keys/${id}/regenerate`, {
                 method: "POST",
             });
 

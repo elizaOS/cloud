@@ -19,7 +19,7 @@ export function ChatInterface() {
   const [models, setModels] = useState<Model[]>([]);
   const [showModelSelector, setShowModelSelector] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  
+
   const { messages, sendMessage, status } = useChat({
     id: selectedModel, // Create new chat instance when model changes
   });
@@ -30,7 +30,7 @@ export function ChatInterface() {
   useEffect(() => {
     const fetchModels = async () => {
       try {
-        const response = await fetch("/api/models");
+        const response = await fetch("/api/v1/models");
         const data = await response.json();
         if (data.models) {
           setModels(data.models);
@@ -67,7 +67,7 @@ export function ChatInterface() {
     const now = new Date();
     const diffMs = now.getTime() - date.getTime();
     const diffMins = Math.floor(diffMs / 60000);
-    
+
     if (diffMins < 1) return 'Just now';
     if (diffMins < 60) return `${diffMins}m ago`;
     if (diffMins < 1440) return `${Math.floor(diffMins / 60)}h ago`;
@@ -87,7 +87,7 @@ export function ChatInterface() {
             <p className="text-xs text-muted-foreground">Powered by ElizaOS</p>
           </div>
         </div>
-        
+
         <div className="relative">
           <Button
             variant="outline"
@@ -117,9 +117,8 @@ export function ChatInterface() {
                       setSelectedModel(model.id);
                       setShowModelSelector(false);
                     }}
-                    className={`w-full text-left px-3 py-2 rounded text-sm hover:bg-accent transition-colors ${
-                      selectedModel === model.id ? "bg-accent" : ""
-                    }`}
+                    className={`w-full text-left px-3 py-2 rounded text-sm hover:bg-accent transition-colors ${selectedModel === model.id ? "bg-accent" : ""
+                      }`}
                   >
                     <div className="font-medium">{model.name}</div>
                     {model.provider && (
@@ -158,23 +157,21 @@ export function ChatInterface() {
           return (
             <div
               key={message.id}
-              className={`flex gap-3 ${
-                message.role === "user" ? "justify-end" : "justify-start"
-              } animate-in fade-in slide-in-from-bottom-4 duration-500`}
+              className={`flex gap-3 ${message.role === "user" ? "justify-end" : "justify-start"
+                } animate-in fade-in slide-in-from-bottom-4 duration-500`}
               style={{ animationDelay: `${index * 50}ms` }}
             >
-            {message.role === "assistant" && (
-              <div className="flex-shrink-0 w-9 h-9 rounded-full bg-gradient-to-br from-purple-500 to-blue-600 flex items-center justify-center shadow-sm transition-transform hover:scale-110">
-                <Bot className="h-5 w-5 text-white" />
-              </div>
-            )}
+              {message.role === "assistant" && (
+                <div className="flex-shrink-0 w-9 h-9 rounded-full bg-gradient-to-br from-purple-500 to-blue-600 flex items-center justify-center shadow-sm transition-transform hover:scale-110">
+                  <Bot className="h-5 w-5 text-white" />
+                </div>
+              )}
 
               <div
-                className={`rounded-2xl px-4 py-3 max-w-[80%] shadow-sm transform transition-all hover:scale-[1.02] hover:shadow-md ${
-                  message.role === "user"
+                className={`rounded-2xl px-4 py-3 max-w-[80%] shadow-sm transform transition-all hover:scale-[1.02] hover:shadow-md ${message.role === "user"
                     ? "bg-gradient-to-br from-primary to-primary/90 text-primary-foreground"
                     : "bg-card border"
-                }`}
+                  }`}
               >
                 <div className="text-sm whitespace-pre-wrap mb-2">
                   {message.parts.map((part, i) => {
@@ -186,13 +183,12 @@ export function ChatInterface() {
                     }
                   })}
                 </div>
-                
+
                 {/* Message Footer with timestamp */}
-                <div className={`flex items-center gap-2 text-xs mt-2 pt-2 border-t ${
-                  message.role === "user" 
-                    ? "border-primary-foreground/20 text-primary-foreground/80" 
+                <div className={`flex items-center gap-2 text-xs mt-2 pt-2 border-t ${message.role === "user"
+                    ? "border-primary-foreground/20 text-primary-foreground/80"
                     : "border-border text-muted-foreground"
-                }`}>
+                  }`}>
                   <Clock className="h-3 w-3" />
                   <span>{formatTimestamp(Date.now())}</span>
                 </div>
@@ -240,8 +236,8 @@ export function ChatInterface() {
               className="w-full rounded-xl border bg-background px-4 py-3 text-sm shadow-sm focus:outline-none focus:ring-2 focus:ring-ring disabled:opacity-50 transition-all"
             />
           </div>
-          <Button 
-            type="submit" 
+          <Button
+            type="submit"
             disabled={isLoading || !input.trim()}
             className="rounded-xl shadow-sm hover:shadow-md transition-all"
             size="lg"
@@ -253,7 +249,7 @@ export function ChatInterface() {
             )}
           </Button>
         </div>
-        
+
       </form>
     </div>
   );

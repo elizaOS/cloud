@@ -35,7 +35,7 @@ export function ChatInterfaceWithPersistence({
   });
 
   useEffect(() => {
-    fetch('/api/models')
+    fetch('/api/v1/models')
       .then(res => res.json())
       .then(data => {
         if (data.models) {

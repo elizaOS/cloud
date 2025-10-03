@@ -21,7 +21,7 @@ export function ImageGenerator() {
     setError(null);
 
     try {
-      const response = await fetch("/api/generate-image", {
+      const response = await fetch("/api/v1/generate-image", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
