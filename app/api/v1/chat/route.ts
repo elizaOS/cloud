@@ -3,14 +3,13 @@ import { requireAuthOrApiKey } from '@/lib/auth';
 import { addMessageToConversation, getNextSequenceNumber } from '@/lib/queries/conversations';
 import { deductCredits } from '@/lib/queries/credits';
 import { createUsageRecord } from '@/lib/queries/usage';
-import { createGeneration, updateGeneration } from '@/lib/queries/generations';
+import { createGeneration } from '@/lib/queries/generations';
 import { calculateCost, getProviderFromModel } from '@/lib/pricing';
 import type { NextRequest } from 'next/server';
 
 export const maxDuration = 60;
 
 export async function POST(req: NextRequest) {
-  let generationId: string | undefined;
   try {
     const { user, apiKey } = await requireAuthOrApiKey(req);
     const body = await req.json();
@@ -21,29 +20,13 @@ export async function POST(req: NextRequest) {
     const lastMessage = messages[messages.length - 1];
     const conversationId = lastMessage?.metadata ? (lastMessage.metadata as { conversationId?: string }).conversationId : undefined;
 
-    if (apiKey) {
-      const userPrompt = messages[messages.length - 1]?.parts.map(p => p.type === 'text' ? p.text : '').join('') || '';
-      const generation = await createGeneration({
-        organization_id: user.organization_id,
-        user_id: user.id,
-        api_key_id: apiKey.id,
-        type: 'chat',
-        model: selectedModel,
-        provider: provider,
-        prompt: userPrompt,
-        status: 'pending',
-      });
-
-      generationId = generation.id;
-    }
-
     const result = streamText({
       model: selectedModel,
       system: `You are a helpful AI assistant powered by ElizaOS. You provide clear, accurate, and helpful responses.
       You are knowledgeable about AI agents, development, and technology.`,
       messages: convertToModelMessages(messages),
       onFinish: async ({ text, usage }) => {
-        if (!conversationId || !usage) return;
+        if (!usage) return;
 
         try {
           const userMessage = messages[messages.length - 1];
@@ -66,29 +49,31 @@ export async function POST(req: NextRequest) {
             console.error('[CHAT API] Failed to deduct credits - insufficient balance');
           }
 
-          const userSequence = await getNextSequenceNumber(conversationId);
+          if (conversationId) {
+            const userSequence = await getNextSequenceNumber(conversationId);
 
-          await addMessageToConversation({
-            conversation_id: conversationId,
-            role: 'user',
-            content: userMessage.parts.map(p => p.type === 'text' ? p.text : '').join(''),
-            sequence_number: userSequence,
-            model: selectedModel,
-            tokens: usage.inputTokens,
-            cost: inputCost,
-          });
+            await addMessageToConversation({
+              conversation_id: conversationId,
+              role: 'user',
+              content: userMessage.parts.map(p => p.type === 'text' ? p.text : '').join(''),
+              sequence_number: userSequence,
+              model: selectedModel,
+              tokens: usage.inputTokens,
+              cost: inputCost,
+            });
 
-          const assistantSequence = await getNextSequenceNumber(conversationId);
+            const assistantSequence = await getNextSequenceNumber(conversationId);
 
-          await addMessageToConversation({
-            conversation_id: conversationId,
-            role: 'assistant',
-            content: text,
-            sequence_number: assistantSequence,
-            model: selectedModel,
-            tokens: usage.outputTokens,
-            cost: outputCost,
-          });
+            await addMessageToConversation({
+              conversation_id: conversationId,
+              role: 'assistant',
+              content: text,
+              sequence_number: assistantSequence,
+              model: selectedModel,
+              tokens: usage.outputTokens,
+              cost: outputCost,
+            });
+          }
 
           const usageRecord = await createUsageRecord({
             organization_id: user.organization_id,
@@ -104,8 +89,16 @@ export async function POST(req: NextRequest) {
             is_successful: true,
           });
 
-          if (apiKey && generationId) {
-            await updateGeneration(generationId, {
+          if (apiKey) {
+            const userPrompt = messages[messages.length - 1]?.parts.map(p => p.type === 'text' ? p.text : '').join('') || '';
+            await createGeneration({
+              organization_id: user.organization_id,
+              user_id: user.id,
+              api_key_id: apiKey.id,
+              type: 'chat',
+              model: selectedModel,
+              provider: provider,
+              prompt: userPrompt,
               status: 'completed',
               content: text,
               tokens: (usage.inputTokens || 0) + (usage.outputTokens || 0),
@@ -126,7 +119,7 @@ export async function POST(req: NextRequest) {
         } catch (error) {
           console.error('[CHAT API] Error persisting messages or deducting credits:', error);
 
-          if (conversationId && usage) {
+          if (usage) {
             try {
               const errorUsageRecord = await createUsageRecord({
                 organization_id: user.organization_id,
@@ -143,8 +136,16 @@ export async function POST(req: NextRequest) {
                 error_message: error instanceof Error ? error.message : 'Unknown error',
               });
 
-              if (apiKey && generationId) {
-                await updateGeneration(generationId, {
+              if (apiKey) {
+                const userPrompt = messages[messages.length - 1]?.parts.map(p => p.type === 'text' ? p.text : '').join('') || '';
+                await createGeneration({
+                  organization_id: user.organization_id,
+                  user_id: user.id,
+                  api_key_id: apiKey.id,
+                  type: 'chat',
+                  model: selectedModel,
+                  provider: provider,
+                  prompt: userPrompt,
                   status: 'failed',
                   error: error instanceof Error ? error.message : 'Unknown error',
                   usage_record_id: errorUsageRecord.id,
@@ -162,19 +163,6 @@ export async function POST(req: NextRequest) {
     return result.toUIMessageStreamResponse();
   } catch (error) {
     console.error('[CHAT API] Error:', error);
-
-    if (generationId) {
-      try {
-        await updateGeneration(generationId, {
-          status: 'failed',
-          error: error instanceof Error ? error.message : 'Failed to process chat',
-          completed_at: new Date(),
-        });
-      } catch (updateError) {
-        console.error('[CHAT API] Failed to update generation record:', updateError);
-      }
-    }
-
     return new Response(
       JSON.stringify({ error: 'Failed to process chat' }),
       { status: 500, headers: { 'Content-Type': 'application/json' } }

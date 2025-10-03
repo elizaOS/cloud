@@ -4,7 +4,7 @@ import { requireAuth } from '@/lib/auth';
 import { getUsageStatsByOrganization, getUsageByModel } from '@/lib/queries/usage';
 import { getCreditTransactionsByOrganization } from '@/lib/queries/credits';
 import { listProviderHealth } from '@/lib/queries/provider-health';
-import { getGenerationStats } from '@/lib/queries/generations';
+import { getGenerationStats, listGenerationsByOrganization } from '@/lib/queries/generations';
 
 export async function getDashboardData() {
   const user = await requireAuth();
@@ -23,6 +23,7 @@ export async function getDashboardData() {
     providerHealth,
     generationStats,
     generationStats24h,
+    recentGenerations,
   ] = await Promise.all([
     getUsageStatsByOrganization(organizationId),
     getUsageStatsByOrganization(organizationId, { startDate: yesterday }),
@@ -32,6 +33,7 @@ export async function getDashboardData() {
     listProviderHealth(),
     getGenerationStats(organizationId),
     getGenerationStats(organizationId, { startDate: yesterday }),
+    listGenerationsByOrganization(organizationId, { limit: 20 }),
   ]);
 
   const totalGenerations = generationStats.totalGenerations;
@@ -103,6 +105,19 @@ export async function getDashboardData() {
       responseTime: p.response_time || 0,
       errorRate: p.error_rate ? parseFloat(p.error_rate) : 0,
       lastChecked: p.last_checked,
+    })),
+    recentGenerations: recentGenerations.map(g => ({
+      id: g.id,
+      type: g.type,
+      model: g.model,
+      provider: g.provider,
+      prompt: g.prompt,
+      status: g.status,
+      credits: g.credits,
+      cost: g.cost,
+      error: g.error,
+      created_at: g.created_at,
+      completed_at: g.completed_at,
     })),
   };
 }
