@@ -9,7 +9,7 @@ export const maxDuration = 30;
 
 export async function POST(req: NextRequest) {
   try {
-    const { user, apiKey, authMethod } = await requireAuthOrApiKey(req);
+    const { user, apiKey } = await requireAuthOrApiKey(req);
     const { prompt }: { prompt: string } = await req.json();
 
     if (!prompt || typeof prompt !== 'string' || prompt.trim().length === 0) {

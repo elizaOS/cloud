@@ -1,6 +1,5 @@
 import { db, schema, eq } from '@/lib/db';
 import type { User, NewUser, UserWithOrganization } from '@/lib/types';
-import { redirect } from 'next/navigation';
 
 export async function getUserById(id: string): Promise<User | undefined> {
   return await db.query.users.findFirst({

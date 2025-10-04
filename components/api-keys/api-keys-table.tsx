@@ -12,7 +12,6 @@ import { cn } from "@/lib/utils";
 import {
     CalendarClock,
     Copy,
-    Eye,
     MoreHorizontal,
     RefreshCw,
     ShieldOff,
@@ -24,7 +23,6 @@ import type { ApiKeyDisplay } from "./types";
 interface ApiKeysTableProps {
     keys: ApiKeyDisplay[];
     onCopyKey?: (id: string) => void;
-    onRevealKey?: (id: string) => void;
     onDisableKey?: (id: string) => void;
     onDeleteKey?: (id: string) => void;
     onRegenerateKey?: (id: string) => void;
@@ -59,7 +57,7 @@ function formatDate(value?: string | null) {
             day: "numeric",
             year: "numeric",
         });
-    } catch (error) {
+    } catch {
         return "—";
     }
 }
@@ -67,7 +65,6 @@ function formatDate(value?: string | null) {
 export function ApiKeysTable({
     keys,
     onCopyKey,
-    onRevealKey,
     onDisableKey,
     onDeleteKey,
     onRegenerateKey,
