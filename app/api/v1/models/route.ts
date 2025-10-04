@@ -1,9 +1,9 @@
 import { gateway } from "@ai-sdk/gateway";
-import { requireAuthOrApiKey } from '@/lib/auth';
-import type { NextRequest } from 'next/server';
+import { requireAuthOrApiKey } from "@/lib/auth";
+import type { NextRequest } from "next/server";
 
 // This route requires authentication and must be dynamic
-export const dynamic = 'force-dynamic';
+export const dynamic = "force-dynamic";
 
 export async function GET(request: NextRequest) {
   try {
@@ -20,14 +20,14 @@ export async function GET(request: NextRequest) {
           id: model.id,
           name: model.name || model.id,
           ...(model.provider && { provider: model.provider }),
-        })
+        }),
       ),
     });
   } catch (error) {
     console.error("Error fetching models:", error);
     return Response.json(
       { error: "Failed to fetch available models" },
-      { status: 500 }
+      { status: 500 },
     );
   }
 }

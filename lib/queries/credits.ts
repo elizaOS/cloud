@@ -1,14 +1,18 @@
-import { db, schema, eq, desc } from '@/lib/db';
-import type { CreditTransaction } from '@/lib/types';
+import { db, schema, eq, desc } from "@/lib/db";
+import type { CreditTransaction } from "@/lib/types";
 
 export async function deductCredits(
   organizationId: string,
   amount: number,
   description?: string,
-  userId?: string
-): Promise<{ success: boolean; newBalance: number; transaction: CreditTransaction }> {
+  userId?: string,
+): Promise<{
+  success: boolean;
+  newBalance: number;
+  transaction: CreditTransaction;
+}> {
   if (amount <= 0) {
-    throw new Error('Amount must be positive');
+    throw new Error("Amount must be positive");
   }
 
   const org = await db.query.organizations.findFirst({
@@ -16,7 +20,7 @@ export async function deductCredits(
   });
 
   if (!org) {
-    throw new Error('Organization not found');
+    throw new Error("Organization not found");
   }
 
   const newBalance = org.credit_balance - amount;
@@ -43,8 +47,8 @@ export async function deductCredits(
       organization_id: organizationId,
       user_id: userId,
       amount: -amount,
-      type: 'usage',
-      description: description || 'API usage',
+      type: "usage",
+      description: description || "API usage",
     })
     .returning();
 
@@ -54,13 +58,17 @@ export async function deductCredits(
 export async function addCredits(
   organizationId: string,
   amount: number,
-  type: 'purchase' | 'adjustment' | 'refund',
+  type: "purchase" | "adjustment" | "refund",
   description?: string,
   userId?: string,
-  stripePaymentIntentId?: string
-): Promise<{ success: boolean; newBalance: number; transaction: CreditTransaction }> {
+  stripePaymentIntentId?: string,
+): Promise<{
+  success: boolean;
+  newBalance: number;
+  transaction: CreditTransaction;
+}> {
   if (amount <= 0) {
-    throw new Error('Amount must be positive');
+    throw new Error("Amount must be positive");
   }
 
   const org = await db.query.organizations.findFirst({
@@ -68,7 +76,7 @@ export async function addCredits(
   });
 
   if (!org) {
-    throw new Error('Organization not found');
+    throw new Error("Organization not found");
   }
 
   const newBalance = org.credit_balance + amount;
@@ -101,7 +109,7 @@ export async function getCreditTransactionsByOrganization(
   options?: {
     limit?: number;
     offset?: number;
-  }
+  },
 ): Promise<CreditTransaction[]> {
   const { limit = 100, offset = 0 } = options || {};
 
@@ -114,7 +122,7 @@ export async function getCreditTransactionsByOrganization(
 }
 
 export async function getCreditTransactionById(
-  id: string
+  id: string,
 ): Promise<CreditTransaction | undefined> {
   return await db.query.creditTransactions.findFirst({
     where: eq(schema.creditTransactions.id, id),

@@ -1,10 +1,10 @@
-'use client';
+"use client";
 
-import { useState, useEffect } from 'react';
-import { useRouter } from 'next/navigation';
-import type { Conversation, ConversationMessage } from '@/lib/types';
-import { ConversationList } from '@/components/chat/conversation-list';
-import { ChatInterfaceWithPersistence } from '@/components/chat/chat-interface-with-persistence';
+import { useState, useEffect } from "react";
+import { useRouter } from "next/navigation";
+import type { Conversation, ConversationMessage } from "@/lib/types";
+import { ConversationList } from "@/components/chat/conversation-list";
+import { ChatInterfaceWithPersistence } from "@/components/chat/chat-interface-with-persistence";
 
 interface TextPageClientProps {
   conversations: Conversation[];
@@ -18,8 +18,10 @@ export function TextPageClient({
   initialMessages,
 }: TextPageClientProps) {
   const router = useRouter();
-  const [conversations, setConversations] = useState<Conversation[]>(initialConversations);
-  const [currentConversation, setCurrentConversation] = useState<Conversation | null>(initialCurrentConversation);
+  const [conversations, setConversations] =
+    useState<Conversation[]>(initialConversations);
+  const [currentConversation, setCurrentConversation] =
+    useState<Conversation | null>(initialCurrentConversation);
 
   useEffect(() => {
     setConversations(initialConversations);
@@ -34,7 +36,7 @@ export function TextPageClient({
   };
 
   const handleConversationCreated = (conversation: Conversation) => {
-    setConversations(prev => [conversation, ...prev]);
+    setConversations((prev) => [conversation, ...prev]);
     setCurrentConversation(conversation);
     router.push(`/dashboard/text?conversationId=${conversation.id}`);
   };
@@ -43,9 +45,12 @@ export function TextPageClient({
     <div className="flex h-full min-h-0 flex-col gap-6 overflow-hidden">
       <header className="rounded-2xl border bg-card/70 px-6 py-5 shadow-sm">
         <div className="flex flex-col gap-2">
-          <h1 className="text-3xl font-semibold tracking-tight">Text &amp; Chat</h1>
+          <h1 className="text-3xl font-semibold tracking-tight">
+            Text &amp; Chat
+          </h1>
           <p className="max-w-2xl text-sm text-muted-foreground">
-            Craft prompts, iterate with AI partners, and keep conversations organized in one focused workspace.
+            Craft prompts, iterate with AI partners, and keep conversations
+            organized in one focused workspace.
           </p>
         </div>
       </header>

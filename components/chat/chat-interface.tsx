@@ -61,14 +61,13 @@ export function ChatInterface() {
     setInput("");
   };
 
-
   const formatTimestamp = (timestamp: number): string => {
     const date = new Date(timestamp);
     const now = new Date();
     const diffMs = now.getTime() - date.getTime();
     const diffMins = Math.floor(diffMs / 60000);
 
-    if (diffMins < 1) return 'Just now';
+    if (diffMins < 1) return "Just now";
     if (diffMins < 60) return `${diffMins}m ago`;
     if (diffMins < 1440) return `${Math.floor(diffMins / 60)}h ago`;
     return date.toLocaleDateString();
@@ -117,8 +116,9 @@ export function ChatInterface() {
                       setSelectedModel(model.id);
                       setShowModelSelector(false);
                     }}
-                    className={`w-full text-left px-3 py-2 rounded text-sm hover:bg-accent transition-colors ${selectedModel === model.id ? "bg-accent" : ""
-                      }`}
+                    className={`w-full text-left px-3 py-2 rounded text-sm hover:bg-accent transition-colors ${
+                      selectedModel === model.id ? "bg-accent" : ""
+                    }`}
                   >
                     <div className="font-medium">{model.name}</div>
                     {model.provider && (
@@ -157,8 +157,9 @@ export function ChatInterface() {
           return (
             <div
               key={message.id}
-              className={`flex gap-3 ${message.role === "user" ? "justify-end" : "justify-start"
-                } animate-in fade-in slide-in-from-bottom-4 duration-500`}
+              className={`flex gap-3 ${
+                message.role === "user" ? "justify-end" : "justify-start"
+              } animate-in fade-in slide-in-from-bottom-4 duration-500`}
               style={{ animationDelay: `${index * 50}ms` }}
             >
               {message.role === "assistant" && (
@@ -168,16 +169,19 @@ export function ChatInterface() {
               )}
 
               <div
-                className={`rounded-2xl px-4 py-3 max-w-[80%] shadow-sm transform transition-all hover:scale-[1.02] hover:shadow-md ${message.role === "user"
+                className={`rounded-2xl px-4 py-3 max-w-[80%] shadow-sm transform transition-all hover:scale-[1.02] hover:shadow-md ${
+                  message.role === "user"
                     ? "bg-gradient-to-br from-primary to-primary/90 text-primary-foreground"
                     : "bg-card border"
-                  }`}
+                }`}
               >
                 <div className="text-sm whitespace-pre-wrap mb-2">
                   {message.parts.map((part, i) => {
                     switch (part.type) {
                       case "text":
-                        return <div key={`${message.id}-${i}`}>{part.text}</div>;
+                        return (
+                          <div key={`${message.id}-${i}`}>{part.text}</div>
+                        );
                       default:
                         return null;
                     }
@@ -185,10 +189,13 @@ export function ChatInterface() {
                 </div>
 
                 {/* Message Footer with timestamp */}
-                <div className={`flex items-center gap-2 text-xs mt-2 pt-2 border-t ${message.role === "user"
-                    ? "border-primary-foreground/20 text-primary-foreground/80"
-                    : "border-border text-muted-foreground"
-                  }`}>
+                <div
+                  className={`flex items-center gap-2 text-xs mt-2 pt-2 border-t ${
+                    message.role === "user"
+                      ? "border-primary-foreground/20 text-primary-foreground/80"
+                      : "border-border text-muted-foreground"
+                  }`}
+                >
                   <Clock className="h-3 w-3" />
                   <span>{formatTimestamp(Date.now())}</span>
                 </div>
@@ -225,7 +232,10 @@ export function ChatInterface() {
       </div>
 
       {/* Input Area */}
-      <form onSubmit={handleSubmit} className="border-t p-4 bg-gradient-to-r from-background to-muted/20">
+      <form
+        onSubmit={handleSubmit}
+        className="border-t p-4 bg-gradient-to-r from-background to-muted/20"
+      >
         <div className="flex gap-2">
           <div className="flex-1 relative">
             <input
@@ -249,7 +259,6 @@ export function ChatInterface() {
             )}
           </Button>
         </div>
-
       </form>
     </div>
   );

@@ -39,7 +39,7 @@ export const metadata: Metadata = {
   creator: "ElizaOS",
   publisher: "ElizaOS",
   metadataBase: new URL(
-    process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000"
+    process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000",
   ),
   alternates: {
     canonical: "/",

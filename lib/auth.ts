@@ -1,21 +1,24 @@
-import { withAuth } from '@workos-inc/authkit-nextjs';
-import { getUserByEmailWithOrganization, getUserWithOrganization } from '@/lib/queries/users';
-import { validateApiKey, incrementApiKeyUsage } from '@/lib/queries/api-keys';
-import type { UserWithOrganization, ApiKey } from '@/lib/types';
-import { cache } from 'react';
-import { unstable_cache } from 'next/cache';
-import { redirect } from 'next/navigation';
-import type { NextRequest } from 'next/server';
+import { withAuth } from "@workos-inc/authkit-nextjs";
+import {
+  getUserByEmailWithOrganization,
+  getUserWithOrganization,
+} from "@/lib/queries/users";
+import { validateApiKey, incrementApiKeyUsage } from "@/lib/queries/api-keys";
+import type { UserWithOrganization, ApiKey } from "@/lib/types";
+import { cache } from "react";
+import { unstable_cache } from "next/cache";
+import { redirect } from "next/navigation";
+import type { NextRequest } from "next/server";
 
 const getUserFromDB = unstable_cache(
   async (email: string) => {
     return await getUserByEmailWithOrganization(email);
   },
-  ['user-by-email'],
+  ["user-by-email"],
   {
     revalidate: 300,
-    tags: ['user-auth'],
-  }
+    tags: ["user-auth"],
+  },
 );
 
 export const getCurrentUser = cache(
@@ -29,53 +32,53 @@ export const getCurrentUser = cache(
     const user = await getUserFromDB(workosUser.email);
 
     if (!user) {
-      return redirect('/login');
+      return redirect("/login");
     }
 
     return user;
-  }
+  },
 );
 
 export async function requireAuth(): Promise<UserWithOrganization> {
   const user = await getCurrentUser();
 
   if (!user) {
-    return redirect('/login');
+    return redirect("/login");
   }
 
   if (!user.is_active) {
-    throw new Error('Forbidden: User account is inactive');
+    throw new Error("Forbidden: User account is inactive");
   }
 
   return user;
 }
 
 export async function requireOrganization(
-  organizationId: string
+  organizationId: string,
 ): Promise<UserWithOrganization> {
   const user = await requireAuth();
 
   if (user.organization_id !== organizationId) {
     throw new Error(
-      `Forbidden: User does not have access to organization ${organizationId}`
+      `Forbidden: User does not have access to organization ${organizationId}`,
     );
   }
 
   if (!user.organization.is_active) {
-    throw new Error('Forbidden: Organization is inactive');
+    throw new Error("Forbidden: Organization is inactive");
   }
 
   return user;
 }
 
 export async function requireRole(
-  allowedRoles: string[]
+  allowedRoles: string[],
 ): Promise<UserWithOrganization> {
   const user = await requireAuth();
 
   if (!allowedRoles.includes(user.role)) {
     throw new Error(
-      `Forbidden: User role '${user.role}' not in allowed roles: ${allowedRoles.join(', ')}`
+      `Forbidden: User role '${user.role}' not in allowed roles: ${allowedRoles.join(", ")}`,
     );
   }
 
@@ -85,10 +88,12 @@ export async function requireRole(
 export type AuthResult = {
   user: UserWithOrganization;
   apiKey?: ApiKey;
-  authMethod: 'session' | 'api_key';
+  authMethod: "session" | "api_key";
 };
 
-export async function getUserFromApiKey(apiKey: ApiKey): Promise<UserWithOrganization | null> {
+export async function getUserFromApiKey(
+  apiKey: ApiKey,
+): Promise<UserWithOrganization | null> {
   const user = await getUserWithOrganization(apiKey.user_id);
   if (!user) {
     return null;
@@ -96,42 +101,44 @@ export async function getUserFromApiKey(apiKey: ApiKey): Promise<UserWithOrganiz
   return user;
 }
 
-export async function requireAuthOrApiKey(request: NextRequest): Promise<AuthResult> {
-  const authHeader = request.headers.get('authorization');
+export async function requireAuthOrApiKey(
+  request: NextRequest,
+): Promise<AuthResult> {
+  const authHeader = request.headers.get("authorization");
 
-  if (authHeader?.startsWith('Bearer ')) {
+  if (authHeader?.startsWith("Bearer ")) {
     const apiKeyValue = authHeader.substring(7);
 
     if (!apiKeyValue || apiKeyValue.trim().length === 0) {
-      throw new Error('Invalid API key format');
+      throw new Error("Invalid API key format");
     }
 
     const apiKey = await validateApiKey(apiKeyValue);
 
     if (!apiKey) {
-      throw new Error('Invalid or expired API key');
+      throw new Error("Invalid or expired API key");
     }
 
     if (!apiKey.is_active) {
-      throw new Error('API key is inactive');
+      throw new Error("API key is inactive");
     }
 
     if (apiKey.expires_at && new Date(apiKey.expires_at) < new Date()) {
-      throw new Error('API key has expired');
+      throw new Error("API key has expired");
     }
 
     const user = await getUserFromApiKey(apiKey);
 
     if (!user) {
-      throw new Error('User associated with API key not found');
+      throw new Error("User associated with API key not found");
     }
 
     if (!user.is_active) {
-      throw new Error('User account is inactive');
+      throw new Error("User account is inactive");
     }
 
     if (!user.organization.is_active) {
-      throw new Error('Organization is inactive');
+      throw new Error("Organization is inactive");
     }
 
     await incrementApiKeyUsage(apiKey.id);
@@ -139,7 +146,7 @@ export async function requireAuthOrApiKey(request: NextRequest): Promise<AuthRes
     return {
       user,
       apiKey,
-      authMethod: 'api_key',
+      authMethod: "api_key",
     };
   }
 
@@ -147,6 +154,6 @@ export async function requireAuthOrApiKey(request: NextRequest): Promise<AuthRes
 
   return {
     user,
-    authMethod: 'session',
+    authMethod: "session",
   };
 }

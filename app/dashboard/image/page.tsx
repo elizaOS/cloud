@@ -3,7 +3,8 @@ import { ImageGenerator } from "@/components/image/image-generator";
 
 export const metadata: Metadata = {
   title: "Image Generation",
-  description: "Create stunning AI-generated images and artwork with advanced image generation models",
+  description:
+    "Create stunning AI-generated images and artwork with advanced image generation models",
 };
 
 export default function ImagePage() {
@@ -15,7 +16,8 @@ export default function ImagePage() {
             AI Image Generation
           </h1>
           <p className="text-muted-foreground mt-2">
-            Generate stunning AI-powered images and artwork from text descriptions
+            Generate stunning AI-powered images and artwork from text
+            descriptions
           </p>
         </div>
 
@@ -24,4 +26,3 @@ export default function ImagePage() {
     </div>
   );
 }
-

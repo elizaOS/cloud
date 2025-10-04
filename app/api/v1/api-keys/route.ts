@@ -1,6 +1,6 @@
-import { NextRequest, NextResponse } from 'next/server';
-import { requireAuth } from '@/lib/auth';
-import { createApiKey, listApiKeys } from '@/lib/queries/api-keys';
+import { NextRequest, NextResponse } from "next/server";
+import { requireAuth } from "@/lib/auth";
+import { createApiKey, listApiKeys } from "@/lib/queries/api-keys";
 
 export async function GET() {
   try {
@@ -10,8 +10,11 @@ export async function GET() {
 
     return NextResponse.json({ keys });
   } catch (error) {
-    console.error('Error fetching API keys:', error);
-    return NextResponse.json({ error: 'Failed to fetch API keys' }, { status: 500 });
+    console.error("Error fetching API keys:", error);
+    return NextResponse.json(
+      { error: "Failed to fetch API keys" },
+      { status: 500 },
+    );
   }
 }
 
@@ -22,8 +25,8 @@ export async function POST(request: NextRequest) {
     const body = await request.json();
     const { name, description, permissions, rate_limit, expires_at } = body;
 
-    if (!name || typeof name !== 'string' || name.trim().length === 0) {
-      return NextResponse.json({ error: 'Name is required' }, { status: 400 });
+    if (!name || typeof name !== "string" || name.trim().length === 0) {
+      return NextResponse.json({ error: "Name is required" }, { status: 400 });
     }
 
     const { apiKey, plainKey } = await createApiKey({
@@ -51,10 +54,13 @@ export async function POST(request: NextRequest) {
         },
         plainKey,
       },
-      { status: 201 }
+      { status: 201 },
     );
   } catch (error) {
-    console.error('Error creating API key:', error);
-    return NextResponse.json({ error: 'Failed to create API key' }, { status: 500 });
+    console.error("Error creating API key:", error);
+    return NextResponse.json(
+      { error: "Failed to create API key" },
+      { status: 500 },
+    );
   }
 }

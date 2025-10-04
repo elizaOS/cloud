@@ -1,17 +1,17 @@
-import { authkitMiddleware } from '@workos-inc/authkit-nextjs';
+import { authkitMiddleware } from "@workos-inc/authkit-nextjs";
 
 export default authkitMiddleware({
   middlewareAuth: {
     enabled: true,
     unauthenticatedPaths: [
-      '/',
-      '/api/models',
-      '/api/fal/proxy',
-      '/auth/error',
-      '/api/v1/generate-image',
-      '/api/v1/generate-video',
-      '/api/v1/chat',
-      '/api/v1/models',
+      "/",
+      "/api/models",
+      "/api/fal/proxy",
+      "/auth/error",
+      "/api/v1/generate-image",
+      "/api/v1/generate-video",
+      "/api/v1/chat",
+      "/api/v1/models",
     ],
   },
 });
@@ -25,6 +25,6 @@ export const config = {
      * - favicon.ico (favicon file)
      * - public folder
      */
-    '/((?!_next/static|_next/image|favicon.ico|.*\\.(?:svg|png|jpg|jpeg|gif|webp)$).*)',
+    "/((?!_next/static|_next/image|favicon.ico|.*\\.(?:svg|png|jpg|jpeg|gif|webp)$).*)",
   ],
 };

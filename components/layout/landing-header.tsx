@@ -3,19 +3,22 @@
  * Header for the unauthenticated landing page
  */
 
-'use client';
+"use client";
 
-import Link from 'next/link';
-import { Button } from '@/components/ui/button';
-import { ThemeToggle } from '@/components/theme/theme-toggle';
-import { Sparkles } from 'lucide-react';
+import Link from "next/link";
+import { Button } from "@/components/ui/button";
+import { ThemeToggle } from "@/components/theme/theme-toggle";
+import { Sparkles } from "lucide-react";
 
 interface LandingHeaderProps {
   signInUrl: string;
   signUpUrl: string;
 }
 
-export default function LandingHeader({ signInUrl, signUpUrl }: LandingHeaderProps) {
+export default function LandingHeader({
+  signInUrl,
+  signUpUrl,
+}: LandingHeaderProps) {
   return (
     <header className="border-b">
       <div className="container mx-auto flex h-16 items-center justify-between px-4 md:px-6">
@@ -36,4 +39,3 @@ export default function LandingHeader({ signInUrl, signUpUrl }: LandingHeaderPro
     </header>
   );
 }
-
