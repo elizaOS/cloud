@@ -21,24 +21,19 @@ const getUserFromDB = unstable_cache(
 
 export const getCurrentUser = cache(
   async (): Promise<UserWithOrganization | null> => {
-    try {
-      const { user: workosUser } = await withAuth();
+    const { user: workosUser } = await withAuth();
 
-      if (!workosUser) {
-        return null;
-      }
-
-      const user = await getUserFromDB(workosUser.email);
-
-      if (!user) {
-        return redirect('/login');
-      }
-
-      return user;
-    } catch (error) {
-      console.error('[AUTH] Error getting current user:', error);
+    if (!workosUser) {
       return null;
     }
+
+    const user = await getUserFromDB(workosUser.email);
+
+    if (!user) {
+      return redirect('/login');
+    }
+
+    return user;
   }
 );
 
@@ -95,16 +90,11 @@ export type AuthResult = {
 };
 
 export async function getUserFromApiKey(apiKey: ApiKey): Promise<UserWithOrganization | null> {
-  try {
-    const user = await getUserWithOrganization(apiKey.user_id);
-    if (!user) {
-      return null;
-    }
-    return user;
-  } catch (error) {
-    console.error('[AUTH] Error getting user from API key:', error);
+  const user = await getUserWithOrganization(apiKey.user_id);
+  if (!user) {
     return null;
   }
+  return user;
 }
 
 export async function requireAuthOrApiKey(request: NextRequest): Promise<AuthResult> {
