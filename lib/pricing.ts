@@ -1,5 +1,30 @@
 import { db, schema, eq, and } from '@/lib/db';
 
+// =============================================================================
+// PRICING & CONFIGURATION CONSTANTS
+// =============================================================================
+
+/**
+ * API Key Configuration
+ */
+export const API_KEY_PREFIX_LENGTH = 12;
+
+/**
+ * Credit Costs (in credits, not dollars)
+ */
+export const IMAGE_GENERATION_COST = 100;
+export const VIDEO_GENERATION_COST = 500;
+export const VIDEO_GENERATION_FALLBACK_COST = 250;
+
+/**
+ * Credit Limits
+ */
+export const MONTHLY_CREDIT_CAP = 240;
+
+// =============================================================================
+// COST CALCULATION INTERFACES & FUNCTIONS
+// =============================================================================
+
 export interface CostBreakdown {
   inputCost: number;
   outputCost: number;

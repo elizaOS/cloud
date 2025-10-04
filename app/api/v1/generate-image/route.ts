@@ -2,6 +2,7 @@ import { streamText } from "ai";
 import { requireAuthOrApiKey } from '@/lib/auth';
 import { createUsageRecord } from '@/lib/queries/usage';
 import { deductCredits } from '@/lib/queries/credits';
+import { IMAGE_GENERATION_COST } from '@/lib/pricing';
 import type { NextRequest } from 'next/server';
 
 export const maxDuration = 30;
@@ -71,10 +72,9 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    const imageCost = 100;
     const deductionResult = await deductCredits(
       user.organization_id,
-      imageCost,
+      IMAGE_GENERATION_COST,
       'Image generation: google/gemini-2.5-flash-image-preview',
       user.id
     );
@@ -92,12 +92,12 @@ export async function POST(req: NextRequest) {
       provider: 'google',
       input_tokens: 0,
       output_tokens: 0,
-      input_cost: imageCost,
+      input_cost: IMAGE_GENERATION_COST,
       output_cost: 0,
       is_successful: true,
     });
 
-    console.log(`[IMAGE GENERATION] Credits deducted: ${imageCost}, New balance: ${deductionResult.newBalance}`);
+    console.log(`[IMAGE GENERATION] Credits deducted: ${IMAGE_GENERATION_COST}, New balance: ${deductionResult.newBalance}`);
 
     return Response.json({
       image: imageBase64,
