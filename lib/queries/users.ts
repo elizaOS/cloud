@@ -24,9 +24,7 @@ export async function getUserWithOrganization(
     },
   });
 
-  if (!user) return redirect('/login');
-
-  return user as UserWithOrganization;
+  return user as UserWithOrganization | undefined;
 }
 
 export async function getUserByEmailWithOrganization(
@@ -39,9 +37,7 @@ export async function getUserByEmailWithOrganization(
     },
   });
 
-  if (!user) return redirect('/login');
-
-  return user as UserWithOrganization;
+  return user as UserWithOrganization | undefined;
 }
 
 export async function createUser(data: NewUser): Promise<User> {
