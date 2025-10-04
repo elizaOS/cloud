@@ -1,5 +1,6 @@
 "use client";
 
+import Image from "next/image";
 import { Download, Sparkles } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
@@ -16,7 +17,7 @@ export function ImageDisplay({
   prompt,
   generatedText,
   onDownload,
-  onGenerateAnother
+  onGenerateAnother,
 }: ImageDisplayProps) {
   return (
     <div className="space-y-6 animate-in fade-in slide-in-from-bottom-6 duration-700">
@@ -29,11 +30,13 @@ export function ImageDisplay({
       )}
 
       <div className="relative rounded-2xl border-2 bg-card overflow-hidden shadow-xl hover:shadow-2xl transition-shadow duration-300">
-        <div className="aspect-square w-full bg-muted/10">
-          <img
+        <div className="aspect-square w-full bg-muted/10 relative">
+          <Image
             src={imageUrl}
             alt={prompt}
-            className="w-full h-full object-contain"
+            fill
+            className="object-contain"
+            unoptimized
           />
         </div>
         <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/80 via-black/40 to-transparent p-6 pt-12">

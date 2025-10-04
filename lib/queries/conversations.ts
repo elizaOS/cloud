@@ -1,13 +1,15 @@
-import { db, schema, eq, and, desc, asc } from '@/lib/db';
+import { db, schema, eq, and, desc, asc } from "@/lib/db";
 import type {
   Conversation,
   NewConversation,
   ConversationMessage,
   NewConversationMessage,
   ConversationWithMessages,
-} from '@/lib/types';
+} from "@/lib/types";
 
-export async function createConversation(data: NewConversation): Promise<Conversation> {
+export async function createConversation(
+  data: NewConversation,
+): Promise<Conversation> {
   const [conversation] = await db
     .insert(schema.conversations)
     .values(data)
@@ -15,14 +17,16 @@ export async function createConversation(data: NewConversation): Promise<Convers
   return conversation;
 }
 
-export async function getConversationById(id: string): Promise<Conversation | undefined> {
+export async function getConversationById(
+  id: string,
+): Promise<Conversation | undefined> {
   return await db.query.conversations.findFirst({
     where: eq(schema.conversations.id, id),
   });
 }
 
 export async function getConversationWithMessages(
-  id: string
+  id: string,
 ): Promise<ConversationWithMessages | undefined> {
   const conversation = await db.query.conversations.findFirst({
     where: eq(schema.conversations.id, id),
@@ -44,7 +48,7 @@ export async function listConversationsByUser(
     limit?: number;
     offset?: number;
     status?: string;
-  }
+  },
 ): Promise<Conversation[]> {
   const { limit = 50, offset = 0, status } = options || {};
 
@@ -68,7 +72,7 @@ export async function listConversationsByOrganization(
     limit?: number;
     offset?: number;
     status?: string;
-  }
+  },
 ): Promise<Conversation[]> {
   const { limit = 50, offset = 0, status } = options || {};
 
@@ -88,7 +92,7 @@ export async function listConversationsByOrganization(
 
 export async function updateConversation(
   id: string,
-  data: Partial<NewConversation>
+  data: Partial<NewConversation>,
 ): Promise<Conversation | undefined> {
   const [updated] = await db
     .update(schema.conversations)
@@ -102,16 +106,16 @@ export async function updateConversation(
 }
 
 export async function deleteConversation(id: string): Promise<void> {
-  await db
-    .delete(schema.conversations)
-    .where(eq(schema.conversations.id, id));
+  await db.delete(schema.conversations).where(eq(schema.conversations.id, id));
 }
 
-export async function archiveConversation(id: string): Promise<Conversation | undefined> {
+export async function archiveConversation(
+  id: string,
+): Promise<Conversation | undefined> {
   const [archived] = await db
     .update(schema.conversations)
     .set({
-      status: 'archived',
+      status: "archived",
       updated_at: new Date(),
     })
     .where(eq(schema.conversations.id, id))
@@ -120,7 +124,7 @@ export async function archiveConversation(id: string): Promise<Conversation | un
 }
 
 export async function addMessageToConversation(
-  data: NewConversationMessage
+  data: NewConversationMessage,
 ): Promise<ConversationMessage> {
   const [message] = await db
     .insert(schema.conversationMessages)
@@ -146,7 +150,9 @@ export async function addMessageToConversation(
   return message;
 }
 
-export async function getMessageById(id: string): Promise<ConversationMessage | undefined> {
+export async function getMessageById(
+  id: string,
+): Promise<ConversationMessage | undefined> {
   return await db.query.conversationMessages.findFirst({
     where: eq(schema.conversationMessages.id, id),
   });
@@ -157,7 +163,7 @@ export async function listMessagesByConversation(
   options?: {
     limit?: number;
     offset?: number;
-  }
+  },
 ): Promise<ConversationMessage[]> {
   const { limit = 100, offset = 0 } = options || {};
 
@@ -169,7 +175,9 @@ export async function listMessagesByConversation(
   });
 }
 
-export async function getNextSequenceNumber(conversationId: string): Promise<number> {
+export async function getNextSequenceNumber(
+  conversationId: string,
+): Promise<number> {
   const lastMessage = await db.query.conversationMessages.findFirst({
     where: eq(schema.conversationMessages.conversation_id, conversationId),
     orderBy: desc(schema.conversationMessages.sequence_number),
@@ -180,7 +188,7 @@ export async function getNextSequenceNumber(conversationId: string): Promise<num
 
 export async function updateConversationCost(
   conversationId: string,
-  additionalCost: number
+  additionalCost: number,
 ): Promise<void> {
   const conversation = await db.query.conversations.findFirst({
     where: eq(schema.conversations.id, conversationId),

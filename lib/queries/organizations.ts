@@ -1,19 +1,25 @@
-import { db, schema, eq } from '@/lib/db';
-import type { Organization, NewOrganization } from '@/lib/types';
+import { db, schema, eq } from "@/lib/db";
+import type { Organization, NewOrganization } from "@/lib/types";
 
-export async function getOrganizationById(id: string): Promise<Organization | undefined> {
+export async function getOrganizationById(
+  id: string,
+): Promise<Organization | undefined> {
   return await db.query.organizations.findFirst({
     where: eq(schema.organizations.id, id),
   });
 }
 
-export async function getOrganizationBySlug(slug: string): Promise<Organization | undefined> {
+export async function getOrganizationBySlug(
+  slug: string,
+): Promise<Organization | undefined> {
   return await db.query.organizations.findFirst({
     where: eq(schema.organizations.slug, slug),
   });
 }
 
-export async function createOrganization(data: NewOrganization): Promise<Organization> {
+export async function createOrganization(
+  data: NewOrganization,
+): Promise<Organization> {
   const [organization] = await db
     .insert(schema.organizations)
     .values(data)
@@ -23,7 +29,7 @@ export async function createOrganization(data: NewOrganization): Promise<Organiz
 
 export async function updateOrganization(
   id: string,
-  data: Partial<NewOrganization>
+  data: Partial<NewOrganization>,
 ): Promise<Organization | undefined> {
   const [updated] = await db
     .update(schema.organizations)
@@ -38,7 +44,7 @@ export async function updateOrganization(
 
 export async function updateCreditBalance(
   organizationId: string,
-  amount: number
+  amount: number,
 ): Promise<{ success: boolean; newBalance: number }> {
   const result = await db.transaction(async (tx) => {
     const org = await tx.query.organizations.findFirst({
@@ -46,13 +52,13 @@ export async function updateCreditBalance(
     });
 
     if (!org) {
-      throw new Error('Organization not found');
+      throw new Error("Organization not found");
     }
 
     const newBalance = org.credit_balance + amount;
 
     if (newBalance < 0) {
-      throw new Error('Insufficient credits');
+      throw new Error("Insufficient credits");
     }
 
     await tx

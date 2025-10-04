@@ -36,24 +36,28 @@ Eliza Cloud V2 is a full-stack AI agent development platform that provides:
 ## ✨ Key Features
 
 ### 🤖 AI Generation Studio
+
 - **Text & Chat**: Engage with multiple AI models (GPT-4, Claude, etc.) in a beautiful chat interface
 - **Image Creation**: Generate high-quality images from text descriptions using Google Gemini 2.5 Flash
 - **Model Selection**: Switch between different AI models on the fly
 - **Real-time Streaming**: See AI responses appear in real-time
 
 ### 🎨 User Experience
+
 - **Modern Dashboard**: Clean, intuitive interface with sidebar navigation
 - **Dark/Light Mode**: Full theme support with system preference detection
 - **Responsive Design**: Works seamlessly on desktop, tablet, and mobile
 - **Beautiful Animations**: Smooth transitions and loading states
 
 ### 🔐 Security & Infrastructure
+
 - **Enterprise Auth**: WorkOS AuthKit with SSO support
 - **Protected Routes**: Middleware-based authentication for secure pages
 - **Type Safety**: Full TypeScript coverage for reliability
 - **Container Support**: Deploy custom containers with Cloudflare
 
 ### 📊 Management & Analytics
+
 - **Usage Analytics**: Track your AI usage and costs
 - **API Key Management**: Secure API key storage and rotation
 - **Gallery**: Browse and manage generated content
@@ -123,22 +127,26 @@ graph LR
 ## 🛠 Tech Stack
 
 ### Core Framework
+
 - **Next.js 15.5.4**: React framework with App Router and Turbopack
 - **React 19.1.0**: UI library with latest features
 - **TypeScript 5**: Type-safe development
 
 ### Database & ORM
+
 - **Neon Serverless PostgreSQL**: Serverless, auto-scaling PostgreSQL
 - **Drizzle ORM 0.44.5**: TypeScript ORM for SQL databases
 - **Drizzle Kit 0.31.5**: Database migrations and schema management
 
 ### Authentication
+
 - **WorkOS AuthKit 2.9.0**: Enterprise-grade authentication
   - SSO support
   - OAuth providers
   - User management
 
 ### AI & Machine Learning
+
 - **AI SDK 5.0.59**: Vercel AI SDK for streaming AI responses
 - **AI SDK Gateway 1.0.32**: Unified interface for multiple AI providers
 - **AI SDK React 2.0.59**: React hooks for AI chat and streaming
@@ -149,6 +157,7 @@ graph LR
   - Open-source models via compatible providers
 
 ### Styling & UI
+
 - **Tailwind CSS v4**: Utility-first CSS framework with modern features
 - **Radix UI**: Accessible, unstyled UI components
 - **Lucide React**: Beautiful icon library with 1000+ icons
@@ -158,9 +167,11 @@ graph LR
 - **Sonner**: Toast notifications
 
 ### Analytics & Monitoring
+
 - **Vercel Analytics**: Real-time web analytics and performance monitoring
 
 ### Infrastructure
+
 - **Cloudflare Containers**: Container deployment and orchestration
 - **Neon Branching**: Database branching for preview environments
 
@@ -228,7 +239,8 @@ NEXT_PUBLIC_WORKOS_REDIRECT_URI=http://localhost:3000/api/auth/callback
 AI_GATEWAY_API_KEY=your_ai_gateway_api_key
 ```
 
-**Important**: 
+**Important**:
+
 - Generate a secure `WORKOS_COOKIE_PASSWORD` (minimum 32 characters)
 - Configure `AI_GATEWAY_API_KEY` to access multiple AI models
 - For production, update `NEXT_PUBLIC_WORKOS_REDIRECT_URI` to your production domain
@@ -285,6 +297,7 @@ npm run lint         # Run ESLint
 ### Hot Module Replacement
 
 With Turbopack, changes are reflected instantly without full page reloads:
+
 - Edit React components → instant update
 - Modify styles → instant update
 - Change API routes → automatic restart
@@ -309,6 +322,7 @@ The platform includes a comprehensive dashboard with the following pages:
 **Location**: `/app/api/chat/route.ts` and `/components/chat/chat-interface.tsx`
 
 **Features**:
+
 - Multi-model support (GPT-4, Claude, etc.)
 - Real-time streaming responses
 - Chat history management
@@ -316,8 +330,9 @@ The platform includes a comprehensive dashboard with the following pages:
 - Dynamic model list from AI Gateway
 
 **Usage**:
+
 ```typescript
-import { useChat } from '@ai-sdk/react';
+import { useChat } from "@ai-sdk/react";
 
 const { messages, sendMessage, status } = useChat({
   id: selectedModel,
@@ -325,6 +340,7 @@ const { messages, sendMessage, status } = useChat({
 ```
 
 **How it works**:
+
 1. User types a message in the chat interface
 2. Frontend calls `/api/chat` with the message and selected model
 3. API uses AI SDK to stream responses from the chosen model
@@ -336,6 +352,7 @@ const { messages, sendMessage, status } = useChat({
 **Location**: `/app/api/generate-image/route.ts` and `/components/image/image-generator.tsx`
 
 **Features**:
+
 - Text-to-image generation using Google Gemini 2.5 Flash
 - Multimodal output (both text and image)
 - Base64 image encoding for instant display
@@ -343,15 +360,17 @@ const { messages, sendMessage, status } = useChat({
 - High-quality image generation (1024x1024)
 
 **Usage**:
+
 ```typescript
-const response = await fetch('/api/generate-image', {
-  method: 'POST',
-  body: JSON.stringify({ prompt: 'Your description' }),
+const response = await fetch("/api/generate-image", {
+  method: "POST",
+  body: JSON.stringify({ prompt: "Your description" }),
 });
 const { image, text } = await response.json();
 ```
 
 **How it works**:
+
 1. User provides a detailed image description
 2. API calls Gemini 2.5 Flash with multimodal capabilities
 3. Model generates both an image and descriptive text
@@ -363,17 +382,20 @@ const { image, text } = await response.json();
 **Location**: `/app/api/models/route.ts`
 
 **How it works**:
+
 - Fetches available models from AI SDK Gateway
 - Caches results for 1 hour (revalidate: 3600)
 - Provides unified interface for multiple AI providers
 - Supports dynamic model discovery
 
 **API Endpoint**:
+
 ```bash
 GET /api/models
 ```
 
 **Response**:
+
 ```json
 {
   "models": [
@@ -388,14 +410,16 @@ GET /api/models
 **Location**: Middleware and `/app/api/auth/callback/route.ts`
 
 **How it works**:
+
 - **Middleware Protection**: `middleware.ts` intercepts all requests
 - **Session Management**: WorkOS handles secure session cookies
 - **OAuth Flow**: Supports multiple identity providers
 - **Callback Handler**: `/api/auth/callback` processes authentication results
 
 **Usage**:
+
 ```typescript
-import { getSignInUrl, signOut, getUser } from '@workos-inc/authkit-nextjs';
+import { getSignInUrl, signOut, getUser } from "@workos-inc/authkit-nextjs";
 
 // Get current user in Server Components
 const user = await getUser();
@@ -408,12 +432,13 @@ await signOut();
 ```
 
 **Configuration**:
+
 ```typescript
 // middleware.ts
 export default authkitMiddleware({
   middlewareAuth: {
     enabled: true,
-    unauthenticatedPaths: ['/', '/api/models'],
+    unauthenticatedPaths: ["/", "/api/models"],
   },
 });
 ```
@@ -428,12 +453,14 @@ export default authkitMiddleware({
 **Location**: `/db/`
 
 **How it works**:
+
 - **Drizzle ORM**: Type-safe database client
 - **Neon Serverless**: Auto-scaling PostgreSQL via HTTP
 - **Schema Definition**: Type-safe table schemas in `db/schema.ts`
 - **Migration System**: Version-controlled database changes
 
 **Schema Example** (Current):
+
 ```typescript
 export const todo = pgTable("todo", {
   id: integer("id").primaryKey(),
@@ -443,26 +470,26 @@ export const todo = pgTable("todo", {
 ```
 
 **Usage**:
+
 ```typescript
-import { db } from '@/db/drizzle';
-import { todo } from '@/db/schema';
+import { db } from "@/db/drizzle";
+import { todo } from "@/db/schema";
 
 // Query data
 const todos = await db.select().from(todo);
 
 // Insert data
 await db.insert(todo).values({
-  text: 'Learn Drizzle ORM',
+  text: "Learn Drizzle ORM",
   done: false,
 });
 
 // Update data
-await db.update(todo)
-  .set({ done: true })
-  .where(eq(todo.id, 1));
+await db.update(todo).set({ done: true }).where(eq(todo.id, 1));
 ```
 
 **Connection Details**:
+
 - Uses `@neondatabase/serverless` for HTTP-based queries
 - Serverless-friendly (no persistent connections)
 - Automatic connection pooling
@@ -473,6 +500,7 @@ await db.update(todo)
 **Location**: `/components/theme/` and `/app/layout.tsx`
 
 **Features**:
+
 - Dark and light mode support
 - System preference detection
 - Persistent theme selection (localStorage)
@@ -480,6 +508,7 @@ await db.update(todo)
 - Theme toggle component in header
 
 **How it works**:
+
 ```typescript
 import { ThemeProvider } from '@/components/theme/theme-provider';
 
@@ -495,6 +524,7 @@ import { ThemeProvider } from '@/components/theme/theme-provider';
 ```
 
 **Usage**:
+
 - Theme toggle button in navigation
 - Automatically respects system preferences
 - User selection persists across sessions
@@ -504,6 +534,7 @@ import { ThemeProvider } from '@/components/theme/theme-provider';
 **Location**: `/components/ui/` and `/lib/utils.ts`
 
 **Available Components**:
+
 - **Button**: Multiple variants and sizes
 - **Card**: Container component with header/content sections
 - **Badge**: Status and label indicators
@@ -511,6 +542,7 @@ import { ThemeProvider } from '@/components/theme/theme-provider';
 - All components built with Radix UI primitives
 
 **Utility Functions**:
+
 ```typescript
 import { cn } from '@/lib/utils';
 
@@ -523,6 +555,7 @@ className={cn(
 ```
 
 **Features**:
+
 - Full TypeScript support
 - Accessible by default (Radix UI)
 - Customizable with Tailwind CSS
@@ -533,6 +566,7 @@ className={cn(
 **Location**: `/app/layout.tsx`
 
 **How it works**:
+
 - **Automatic Tracking**: Page views and Web Vitals
 - **Privacy-Friendly**: GDPR compliant
 - **Real-time Dashboard**: Available in Vercel dashboard
@@ -569,6 +603,7 @@ This opens a visual database browser at `https://local.drizzle.studio`
 ### Adding New Tables
 
 1. Edit `db/schema.ts`:
+
 ```typescript
 export const users = pgTable("users", {
   id: serial("id").primaryKey(),
@@ -579,6 +614,7 @@ export const users = pgTable("users", {
 ```
 
 2. Generate migration:
+
 ```bash
 npx drizzle-kit generate:pg
 ```
@@ -586,6 +622,7 @@ npx drizzle-kit generate:pg
 3. Review the migration in `db/migrations/`
 
 4. Apply the migration:
+
 ```bash
 npx drizzle-kit migrate
 ```
@@ -614,6 +651,7 @@ npx drizzle-kit migrate
 ### Protecting Routes
 
 **Option 1: Protect Everything (Default)**
+
 ```typescript
 // middleware.ts
 export default authkitMiddleware();
@@ -621,59 +659,57 @@ export default authkitMiddleware();
 ```
 
 **Option 2: Protect Specific Routes**
+
 ```typescript
 // middleware.ts
 export default authkitMiddleware();
 
-export const config = { 
-  matcher: [
-    '/dashboard/:path*',
-    '/admin/:path*',
-    '/api/protected/:path*'
-  ] 
+export const config = {
+  matcher: ["/dashboard/:path*", "/admin/:path*", "/api/protected/:path*"],
 };
 ```
 
 **Option 3: Public by Default**
+
 ```typescript
 // middleware.ts
 export default authkitMiddleware();
 
-export const config = { 
-  matcher: [
-    '/((?!api/public|_next/static|_next/image|favicon.ico).*)'
-  ] 
+export const config = {
+  matcher: ["/((?!api/public|_next/static|_next/image|favicon.ico).*)"],
 };
 ```
 
 ### Getting User Information
 
 **In Server Components**:
+
 ```typescript
 import { getUser } from '@workos-inc/authkit-nextjs';
 
 export default async function ProfilePage() {
   const user = await getUser();
-  
+
   if (!user) {
     return <div>Not authenticated</div>;
   }
-  
+
   return <div>Hello, {user.firstName}!</div>;
 }
 ```
 
 **In API Routes**:
+
 ```typescript
-import { getUser } from '@workos-inc/authkit-nextjs';
+import { getUser } from "@workos-inc/authkit-nextjs";
 
 export async function GET() {
   const user = await getUser();
-  
+
   if (!user) {
-    return new Response('Unauthorized', { status: 401 });
+    return new Response("Unauthorized", { status: 401 });
   }
-  
+
   // Process request...
 }
 ```
@@ -681,10 +717,10 @@ export async function GET() {
 ### Sign Out
 
 ```typescript
-import { signOut } from '@workos-inc/authkit-nextjs';
+import { signOut } from "@workos-inc/authkit-nextjs";
 
 async function handleSignOut() {
-  'use server';
+  "use server";
   await signOut();
 }
 ```
@@ -694,6 +730,7 @@ async function handleSignOut() {
 ### Deploying to Vercel (Recommended)
 
 1. **Push to GitHub**:
+
 ```bash
 git add .
 git commit -m "Initial commit"
@@ -747,6 +784,7 @@ npx drizzle-kit migrate
 ```
 
 **Recommended Approach**:
+
 - Use Vercel's "Ignored Build Step" feature
 - Run migrations in a separate step before deployment
 - Or use a database migration service
@@ -760,6 +798,7 @@ npx drizzle-kit migrate
 **Error**: `Connection refused` or `SSL required`
 
 **Solutions**:
+
 - Verify `DATABASE_URL` includes `?sslmode=require`
 - Check Neon dashboard for correct connection string
 - Ensure your IP is not blocked by database firewall
@@ -769,6 +808,7 @@ npx drizzle-kit migrate
 **Error**: Continuous redirect between app and WorkOS
 
 **Solutions**:
+
 - Verify `NEXT_PUBLIC_WORKOS_REDIRECT_URI` matches exactly in WorkOS dashboard
 - Check that callback route exists: `/app/api/auth/callback/route.ts`
 - Clear cookies and try again
@@ -779,6 +819,7 @@ npx drizzle-kit migrate
 **Error**: `undefined` values in runtime
 
 **Solutions**:
+
 - Restart dev server after changing `.env.local`
 - Ensure file is named exactly `.env.local` (not `.env`)
 - Public variables must start with `NEXT_PUBLIC_`
@@ -789,6 +830,7 @@ npx drizzle-kit migrate
 **Error**: Build fails with Turbopack
 
 **Solutions**:
+
 ```bash
 # Try standard build
 npm run build -- --no-turbo
@@ -801,6 +843,7 @@ npm run build -- --no-turbo
 **Error**: TypeScript errors with database queries
 
 **Solutions**:
+
 ```bash
 # Regenerate Drizzle types
 npx drizzle-kit generate:pg
@@ -814,6 +857,7 @@ npx drizzle-kit generate:pg
 **Error**: Model not found or unavailable in chat interface
 
 **Solutions**:
+
 - Verify `AI_GATEWAY_API_KEY` is set correctly
 - Check AI Gateway dashboard for model access
 - Ensure model ID matches exactly (case-sensitive)
@@ -824,6 +868,7 @@ npx drizzle-kit generate:pg
 **Error**: "No image was generated" or timeout
 
 **Solutions**:
+
 - Verify Google Gemini API access in AI Gateway
 - Check prompt is clear and descriptive (avoid vague descriptions)
 - Ensure `maxDuration` is set to 30 seconds in route
@@ -835,6 +880,7 @@ npx drizzle-kit generate:pg
 **Error**: Messages don't appear in real-time
 
 **Solutions**:
+
 - Ensure API route exports `maxDuration` constant
 - Verify AI SDK version compatibility (5.0.59+)
 - Check browser console for network errors
@@ -847,16 +893,18 @@ npx drizzle-kit generate:pg
 - Review [Drizzle ORM Docs](https://orm.drizzle.team/docs)
 - Visit [WorkOS Documentation](https://workos.com/docs)
 - Read [Vercel AI SDK Docs](https://sdk.vercel.ai/docs)
-- Join the ElizaOS community
+- Join the elizaOS community
 
 ## 📚 Additional Resources
 
 ### Core Framework
+
 - [Next.js 15 Documentation](https://nextjs.org/docs)
 - [React 19 Documentation](https://react.dev)
 - [TypeScript Handbook](https://www.typescriptlang.org/docs)
 
 ### AI & Machine Learning
+
 - [Vercel AI SDK Documentation](https://sdk.vercel.ai/docs)
 - [AI SDK Gateway Guide](https://sdk.vercel.ai/docs/ai-sdk-core/providers-and-models)
 - [Google Gemini API](https://ai.google.dev/docs)
@@ -864,21 +912,25 @@ npx drizzle-kit generate:pg
 - [Anthropic Claude API](https://docs.anthropic.com)
 
 ### Database & ORM
+
 - [Drizzle ORM Documentation](https://orm.drizzle.team)
 - [Neon Serverless PostgreSQL](https://neon.tech/docs)
 - [Drizzle Kit Guide](https://orm.drizzle.team/kit-docs/overview)
 
 ### Authentication & Security
+
 - [WorkOS AuthKit Guide](https://workos.com/docs/authkit)
 - [Next.js Middleware](https://nextjs.org/docs/app/building-your-application/routing/middleware)
 
 ### UI & Styling
+
 - [Tailwind CSS v4 Documentation](https://tailwindcss.com/docs)
 - [Radix UI Primitives](https://www.radix-ui.com/primitives)
 - [Lucide Icons](https://lucide.dev)
 - [next-themes Documentation](https://github.com/pacocoursey/next-themes)
 
 ### Infrastructure & Deployment
+
 - [Vercel Deployment Guide](https://vercel.com/docs)
 - [Vercel Analytics](https://vercel.com/analytics)
 - [Cloudflare Containers](https://developers.cloudflare.com/workers/)
@@ -889,5 +941,4 @@ See the LICENSE file in the repository root.
 
 ---
 
-**Built with ❤️ for the ElizaOS ecosystem**
-
+**Built with ❤️ for the elizaOS ecosystem**

@@ -18,11 +18,13 @@ export async function POST(req: NextRequest) {
     const selectedModel = id || "gpt-4o";
     const provider = getProviderFromModel(selectedModel);
     const lastMessage = messages[messages.length - 1];
-    const conversationId = lastMessage?.metadata ? (lastMessage.metadata as { conversationId?: string }).conversationId : undefined;
+    const conversationId = lastMessage?.metadata
+      ? (lastMessage.metadata as { conversationId?: string }).conversationId
+      : undefined;
 
     const result = streamText({
       model: selectedModel,
-      system: `You are a helpful AI assistant powered by ElizaOS. You provide clear, accurate, and helpful responses.
+      system: `You are a helpful AI assistant powered by elizaOS. You provide clear, accurate, and helpful responses.
       You are knowledgeable about AI agents, development, and technology.`,
       messages: convertToModelMessages(messages),
       onFinish: async ({ text, usage }) => {
@@ -35,18 +37,20 @@ export async function POST(req: NextRequest) {
             selectedModel,
             provider,
             usage.inputTokens || 0,
-            usage.outputTokens || 0
+            usage.outputTokens || 0,
           );
 
           const deductionResult = await deductCredits(
             user.organization_id,
             totalCost,
             `Chat completion: ${selectedModel}`,
-            user.id
+            user.id,
           );
 
           if (!deductionResult.success) {
-            console.error('[CHAT API] Failed to deduct credits - insufficient balance');
+            console.error(
+              "[CHAT API] Failed to deduct credits - insufficient balance",
+            );
           }
 
           if (conversationId) {
@@ -79,7 +83,7 @@ export async function POST(req: NextRequest) {
             organization_id: user.organization_id,
             user_id: user.id,
             api_key_id: apiKey?.id || null,
-            type: 'chat',
+            type: "chat",
             model: selectedModel,
             provider: provider,
             input_tokens: usage.inputTokens,
@@ -117,7 +121,10 @@ export async function POST(req: NextRequest) {
 
           console.log(`[CHAT API] Credits deducted: ${totalCost} (Input: ${inputCost}, Output: ${outputCost}), New balance: ${deductionResult.newBalance}`);
         } catch (error) {
-          console.error('[CHAT API] Error persisting messages or deducting credits:', error);
+          console.error(
+            "[CHAT API] Error persisting messages or deducting credits:",
+            error,
+          );
 
           if (usage) {
             try {
@@ -125,7 +132,7 @@ export async function POST(req: NextRequest) {
                 organization_id: user.organization_id,
                 user_id: user.id,
                 api_key_id: apiKey?.id || null,
-                type: 'chat',
+                type: "chat",
                 model: selectedModel,
                 provider: provider,
                 input_tokens: usage.inputTokens || 0,
@@ -133,7 +140,8 @@ export async function POST(req: NextRequest) {
                 input_cost: 0,
                 output_cost: 0,
                 is_successful: false,
-                error_message: error instanceof Error ? error.message : 'Unknown error',
+                error_message:
+                  error instanceof Error ? error.message : "Unknown error",
               });
 
               if (apiKey) {
@@ -153,7 +161,10 @@ export async function POST(req: NextRequest) {
                 });
               }
             } catch (usageError) {
-              console.error('[CHAT API] Error creating usage record:', usageError);
+              console.error(
+                "[CHAT API] Error creating usage record:",
+                usageError,
+              );
             }
           }
         }
@@ -162,10 +173,10 @@ export async function POST(req: NextRequest) {
 
     return result.toUIMessageStreamResponse();
   } catch (error) {
-    console.error('[CHAT API] Error:', error);
-    return new Response(
-      JSON.stringify({ error: 'Failed to process chat' }),
-      { status: 500, headers: { 'Content-Type': 'application/json' } }
-    );
+    console.error("[CHAT API] Error:", error);
+    return new Response(JSON.stringify({ error: "Failed to process chat" }), {
+      status: 500,
+      headers: { "Content-Type": "application/json" },
+    });
   }
 }

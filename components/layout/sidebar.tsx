@@ -2,15 +2,15 @@
  * Main Sidebar Navigation Component
  */
 
-'use client';
+"use client";
 
-import Link from 'next/link';
-import { useState, useEffect } from 'react';
-import { X } from 'lucide-react';
-import { cn } from '@/lib/utils';
-import { ThemeToggle } from '@/components/theme/theme-toggle';
-import { SidebarNavigationSection } from './sidebar-section';
-import { sidebarSections } from './sidebar-data';
+import Link from "next/link";
+import { useState, useEffect } from "react";
+import { X } from "lucide-react";
+import { cn } from "@/lib/utils";
+import { ThemeToggle } from "@/components/theme/theme-toggle";
+import { SidebarNavigationSection } from "./sidebar-section";
+import { sidebarSections } from "./sidebar-data";
 
 interface SidebarProps {
   className?: string;
@@ -18,7 +18,11 @@ interface SidebarProps {
   onToggle?: () => void;
 }
 
-export default function Sidebar({ className, isOpen = false, onToggle }: SidebarProps) {
+export default function Sidebar({
+  className,
+  isOpen = false,
+  onToggle,
+}: SidebarProps) {
   const [isMobile, setIsMobile] = useState(false);
 
   useEffect(() => {
@@ -27,8 +31,8 @@ export default function Sidebar({ className, isOpen = false, onToggle }: Sidebar
     };
 
     checkScreenSize();
-    window.addEventListener('resize', checkScreenSize);
-    return () => window.removeEventListener('resize', checkScreenSize);
+    window.addEventListener("resize", checkScreenSize);
+    return () => window.removeEventListener("resize", checkScreenSize);
   }, []);
 
   return (
@@ -44,10 +48,10 @@ export default function Sidebar({ className, isOpen = false, onToggle }: Sidebar
       {/* Sidebar Container */}
       <aside
         className={cn(
-          'flex h-full flex-col border-r bg-sidebar transition-transform duration-300 ease-in-out',
+          "flex h-full flex-col border-r bg-sidebar transition-transform duration-300 ease-in-out",
           isMobile
-            ? `fixed inset-y-0 left-0 z-50 w-64 ${isOpen ? 'translate-x-0' : '-translate-x-full'}`
-            : 'relative w-64',
+            ? `fixed inset-y-0 left-0 z-50 w-64 ${isOpen ? "translate-x-0" : "-translate-x-full"}`
+            : "relative w-64",
           className,
         )}
       >
@@ -58,9 +62,7 @@ export default function Sidebar({ className, isOpen = false, onToggle }: Sidebar
             className="flex items-center space-x-2 transition-opacity hover:opacity-80"
           >
             <div className="h-8 w-8 rounded-lg bg-gradient-to-br from-purple-500 to-blue-600"></div>
-            <span className="text-lg font-semibold">
-              ElizaOS
-            </span>
+            <span className="text-lg font-semibold">elizaOS</span>
           </Link>
 
           {/* Mobile Close Button */}
@@ -95,4 +97,3 @@ export default function Sidebar({ className, isOpen = false, onToggle }: Sidebar
     </>
   );
 }
-

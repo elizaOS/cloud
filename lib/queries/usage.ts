@@ -1,12 +1,19 @@
-import { db, schema, eq, and, desc, sql } from '@/lib/db';
-import type { UsageRecord, NewUsageRecord } from '@/lib/types';
+import { db, schema, eq, and, desc, sql } from "@/lib/db";
+import type { UsageRecord, NewUsageRecord } from "@/lib/types";
 
-export async function createUsageRecord(data: NewUsageRecord): Promise<UsageRecord> {
-  const [record] = await db.insert(schema.usageRecords).values(data).returning();
+export async function createUsageRecord(
+  data: NewUsageRecord,
+): Promise<UsageRecord> {
+  const [record] = await db
+    .insert(schema.usageRecords)
+    .values(data)
+    .returning();
   return record;
 }
 
-export async function getUsageRecordById(id: string): Promise<UsageRecord | undefined> {
+export async function getUsageRecordById(
+  id: string,
+): Promise<UsageRecord | undefined> {
   return await db.query.usageRecords.findFirst({
     where: eq(schema.usageRecords.id, id),
   });
@@ -19,7 +26,7 @@ export async function listUsageRecordsByOrganization(
     offset?: number;
     startDate?: Date;
     endDate?: Date;
-  }
+  },
 ): Promise<UsageRecord[]> {
   const { limit = 100, offset = 0, startDate, endDate } = options || {};
 
@@ -46,7 +53,7 @@ export async function getUsageStatsByOrganization(
   options?: {
     startDate?: Date;
     endDate?: Date;
-  }
+  },
 ): Promise<{
   totalRequests: number;
   totalInputTokens: number;
@@ -79,14 +86,16 @@ export async function getUsageStatsByOrganization(
     .from(schema.usageRecords)
     .where(and(...conditions));
 
-  return result[0] || {
-    totalRequests: 0,
-    totalInputTokens: 0,
-    totalOutputTokens: 0,
-    totalCost: 0,
-    successfulRequests: 0,
-    failedRequests: 0,
-  };
+  return (
+    result[0] || {
+      totalRequests: 0,
+      totalInputTokens: 0,
+      totalOutputTokens: 0,
+      totalCost: 0,
+      successfulRequests: 0,
+      failedRequests: 0,
+    }
+  );
 }
 
 export async function getUsageByModel(
@@ -94,7 +103,7 @@ export async function getUsageByModel(
   options?: {
     startDate?: Date;
     endDate?: Date;
-  }
+  },
 ): Promise<
   Array<{
     model: string | null;

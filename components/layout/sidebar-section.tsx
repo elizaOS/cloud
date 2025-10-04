@@ -2,16 +2,18 @@
  * Sidebar Navigation Section Component
  */
 
-'use client';
+"use client";
 
-import { SidebarNavigationItem } from './sidebar-item';
-import type { SidebarSection } from './sidebar-data';
+import { SidebarNavigationItem } from "./sidebar-item";
+import type { SidebarSection } from "./sidebar-data";
 
 interface SidebarNavigationSectionProps {
   section: SidebarSection;
 }
 
-export function SidebarNavigationSection({ section }: SidebarNavigationSectionProps) {
+export function SidebarNavigationSection({
+  section,
+}: SidebarNavigationSectionProps) {
   return (
     <div>
       {section.title && (
@@ -27,4 +29,3 @@ export function SidebarNavigationSection({ section }: SidebarNavigationSectionPr
     </div>
   );
 }
-
