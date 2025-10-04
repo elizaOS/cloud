@@ -893,7 +893,7 @@ npx drizzle-kit generate:pg
 - Review [Drizzle ORM Docs](https://orm.drizzle.team/docs)
 - Visit [WorkOS Documentation](https://workos.com/docs)
 - Read [Vercel AI SDK Docs](https://sdk.vercel.ai/docs)
-- Join the ElizaOS community
+- Join the elizaOS community
 
 ## 📚 Additional Resources
 
@@ -941,4 +941,4 @@ See the LICENSE file in the repository root.
 
 ---
 
-**Built with ❤️ for the ElizaOS ecosystem**
+**Built with ❤️ for the elizaOS ecosystem**

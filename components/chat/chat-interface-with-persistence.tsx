@@ -200,7 +200,7 @@ export function ChatInterfaceWithPersistence({
             <h3 className="text-base font-semibold text-foreground">
               {conversation?.title || "New Conversation"}
             </h3>
-            <p className="text-xs text-muted-foreground">Powered by ElizaOS</p>
+            <p className="text-xs text-muted-foreground">Powered by elizaOS</p>
           </div>
         </div>
 
@@ -282,7 +282,7 @@ export function ChatInterfaceWithPersistence({
                 Start a conversation
               </h3>
               <p className="text-sm text-muted-foreground">
-                Ask anything about AI, development, or how ElizaOS can help you
+                Ask anything about AI, development, or how elizaOS can help you
                 build intelligent agents.
               </p>
             </div>

@@ -62,7 +62,7 @@ export default function Sidebar({
             className="flex items-center space-x-2 transition-opacity hover:opacity-80"
           >
             <div className="h-8 w-8 rounded-lg bg-gradient-to-br from-purple-500 to-blue-600"></div>
-            <span className="text-lg font-semibold">ElizaOS</span>
+            <span className="text-lg font-semibold">elizaOS</span>
           </Link>
 
           {/* Mobile Close Button */}

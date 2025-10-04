@@ -83,7 +83,7 @@ export function ChatInterface() {
           </div>
           <div>
             <h3 className="text-sm font-semibold">AI Assistant</h3>
-            <p className="text-xs text-muted-foreground">Powered by ElizaOS</p>
+            <p className="text-xs text-muted-foreground">Powered by elizaOS</p>
           </div>
         </div>
 
@@ -147,7 +147,7 @@ export function ChatInterface() {
             <Bot className="h-12 w-12 text-muted-foreground mb-4" />
             <h3 className="text-lg font-semibold mb-2">Start a conversation</h3>
             <p className="text-sm text-muted-foreground max-w-md">
-              Ask me anything about AI, development, or how ElizaOS can help you
+              Ask me anything about AI, development, or how elizaOS can help you
               build intelligent agents.
             </p>
           </div>

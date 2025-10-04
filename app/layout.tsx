@@ -18,15 +18,15 @@ const geistMono = Geist_Mono({
 
 export const metadata: Metadata = {
   title: {
-    default: "ElizaOS Platform - AI Agent Development Platform",
-    template: "%s | ElizaOS Platform",
+    default: "elizaOS Platform - AI Agent Development Platform",
+    template: "%s | elizaOS Platform",
   },
   description:
     "Complete AI agent development platform with inference, hosting, storage, and rapid deployment. Build, deploy, and scale intelligent agents with ease.",
   keywords: [
     "AI",
     "agents",
-    "ElizaOS",
+    "elizaOS",
     "platform",
     "development",
     "hosting",
@@ -35,9 +35,9 @@ export const metadata: Metadata = {
     "LLM",
     "deployment",
   ],
-  authors: [{ name: "ElizaOS Team" }],
-  creator: "ElizaOS",
-  publisher: "ElizaOS",
+  authors: [{ name: "elizaOS Team" }],
+  creator: "elizaOS",
+  publisher: "elizaOS",
   metadataBase: new URL(
     process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000",
   ),
@@ -45,17 +45,17 @@ export const metadata: Metadata = {
     canonical: "/",
   },
   openGraph: {
-    title: "ElizaOS Platform - AI Agent Development Platform",
+    title: "elizaOS Platform - AI Agent Development Platform",
     description:
       "Complete AI agent development platform with inference, hosting, storage, and rapid deployment",
     url: "/",
-    siteName: "ElizaOS Platform",
+    siteName: "elizaOS Platform",
     type: "website",
     locale: "en_US",
   },
   twitter: {
     card: "summary_large_image",
-    title: "ElizaOS Platform",
+    title: "elizaOS Platform",
     description:
       "Complete AI agent development platform with inference, hosting, storage, and rapid deployment",
     creator: "@elizaos",

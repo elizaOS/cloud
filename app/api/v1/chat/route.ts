@@ -26,7 +26,7 @@ export async function POST(req: NextRequest) {
 
     const result = streamText({
       model: selectedModel,
-      system: `You are a helpful AI assistant powered by ElizaOS. You provide clear, accurate, and helpful responses.
+      system: `You are a helpful AI assistant powered by elizaOS. You provide clear, accurate, and helpful responses.
       You are knowledgeable about AI agents, development, and technology.`,
       messages: convertToModelMessages(messages),
       onFinish: async ({ text, usage }) => {

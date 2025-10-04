@@ -11,7 +11,7 @@ import type {
 export const metadata: Metadata = {
   title: "API Keys",
   description:
-    "Manage your API keys and authentication credentials for ElizaOS platform",
+    "Manage your API keys and authentication credentials for elizaOS platform",
 };
 
 function getApiKeyStatus(

@@ -100,7 +100,7 @@ export default function DashboardPage() {
           <Sparkles className="h-6 w-6 text-white" />
         </div>
         <h1 className="text-3xl font-bold bg-gradient-to-r from-purple-600 to-blue-600 bg-clip-text text-transparent">
-          Welcome to ElizaOS Cloud
+          Welcome to elizaOS Cloud
         </h1>
         <p className="text-muted-foreground text-sm max-w-2xl mx-auto">
           Your complete AI agent development platform
