@@ -4,6 +4,7 @@ import type { QueueStatus } from "@fal-ai/client";
 import { requireAuthOrApiKey } from "@/lib/auth";
 import { createUsageRecord } from '@/lib/queries/usage';
 import { deductCredits } from '@/lib/queries/credits';
+import { VIDEO_GENERATION_COST, VIDEO_GENERATION_FALLBACK_COST } from '@/lib/pricing';
 
 fal.config({
   proxyUrl: "/api/fal/proxy",
@@ -99,10 +100,9 @@ export async function POST(request: NextRequest) {
 
     console.log(`[VIDEO GENERATION] Success for user ${user.id}, requestId: ${result.requestId}`);
 
-    const videoCost = 500;
     const deductionResult = await deductCredits(
       user.organization_id,
-      videoCost,
+      VIDEO_GENERATION_COST,
       `Video generation: ${model}`,
       user.id
     );
@@ -120,12 +120,12 @@ export async function POST(request: NextRequest) {
       provider: 'fal',
       input_tokens: 0,
       output_tokens: 0,
-      input_cost: videoCost,
+      input_cost: VIDEO_GENERATION_COST,
       output_cost: 0,
       is_successful: true,
     });
 
-    console.log(`[VIDEO GENERATION] Credits deducted: ${videoCost}, New balance: ${deductionResult.newBalance}`);
+    console.log(`[VIDEO GENERATION] Credits deducted: ${VIDEO_GENERATION_COST}, New balance: ${deductionResult.newBalance}`);
 
     return NextResponse.json(
       {
@@ -147,10 +147,9 @@ export async function POST(request: NextRequest) {
     try {
       const { user: fallbackUser, apiKey: fallbackApiKey } = await requireAuthOrApiKey(request);
 
-      const fallbackCost = 250;
       const fallbackDeduction = await deductCredits(
         fallbackUser.organization_id,
-        fallbackCost,
+        VIDEO_GENERATION_FALLBACK_COST,
         'Video generation (fallback): fal-ai/veo3',
         fallbackUser.id
       );
@@ -168,13 +167,13 @@ export async function POST(request: NextRequest) {
         provider: 'fal',
         input_tokens: 0,
         output_tokens: 0,
-        input_cost: fallbackCost,
+        input_cost: VIDEO_GENERATION_FALLBACK_COST,
         output_cost: 0,
         is_successful: false,
         error_message: errorMessage,
       });
 
-      console.log(`[VIDEO GENERATION] Fallback credits deducted: ${fallbackCost}, New balance: ${fallbackDeduction.newBalance}`);
+      console.log(`[VIDEO GENERATION] Fallback credits deducted: ${VIDEO_GENERATION_FALLBACK_COST}, New balance: ${fallbackDeduction.newBalance}`);
     } catch (authError) {
       console.error('[VIDEO GENERATION] Auth error during fallback logging:', authError);
     }

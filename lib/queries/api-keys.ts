@@ -1,6 +1,7 @@
 import crypto from 'crypto';
 import { db, schema, eq, and } from '@/lib/db';
 import type { ApiKey, NewApiKey } from '@/lib/types';
+import { API_KEY_PREFIX_LENGTH } from '@/lib/pricing';
 
 export function generateApiKey(): {
   key: string;
@@ -10,7 +11,7 @@ export function generateApiKey(): {
   const randomBytes = crypto.randomBytes(32).toString('hex');
   const key = `eliza_${randomBytes}`;
   const hash = crypto.createHash('sha256').update(key).digest('hex');
-  const prefix = key.substring(0, 12);
+  const prefix = key.substring(0, API_KEY_PREFIX_LENGTH);
 
   return { key, hash, prefix };
 }

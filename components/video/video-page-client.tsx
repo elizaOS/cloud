@@ -15,6 +15,7 @@ import {
 } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
 import { cn } from "@/lib/utils";
+import { MONTHLY_CREDIT_CAP } from "@/lib/pricing";
 import { ArrowUpRight, BookOpen, CheckCircle2, Clock4, History, Loader2 } from "lucide-react";
 
 import { VideoGenerationForm } from "./video-generation-form";
@@ -138,11 +139,10 @@ export function VideoPageClient({
   const [formError, setFormError] = useState<string | null>(null);
   const [statusMessage, setStatusMessage] = useState<string | null>(null);
 
-  const monthlyCreditCap = 240;
   const creditsUsed = usageStats.monthlyCredits;
   const creditProgress = Math.min(
     100,
-    Math.round((creditsUsed / monthlyCreditCap) * 100),
+    Math.round((creditsUsed / MONTHLY_CREDIT_CAP) * 100),
   );
 
   const selectedPreset = useMemo(() => {
@@ -189,7 +189,7 @@ export function VideoPageClient({
         return {
           ...prev,
           totalRenders: nextTotal,
-          monthlyCredits: Math.min(prev.monthlyCredits + 1, monthlyCreditCap),
+          monthlyCredits: Math.min(prev.monthlyCredits + 1, MONTHLY_CREDIT_CAP),
           lastGeneration: new Date().toISOString(),
           averageDuration: Number.isFinite(nextAverage)
             ? nextAverage
@@ -197,7 +197,7 @@ export function VideoPageClient({
         };
       });
     },
-    [monthlyCreditCap],
+    [],
   );
 
   const simulateMockCompletion = useCallback(
@@ -466,14 +466,14 @@ export function VideoPageClient({
                 <p className="mt-2 text-2xl font-semibold text-foreground">
                   {creditsUsed}
                 </p>
-                <p className="text-xs text-muted-foreground">of {monthlyCreditCap}</p>
+                <p className="text-xs text-muted-foreground">of {MONTHLY_CREDIT_CAP}</p>
               </div>
               <div className="rounded-2xl border border-border/60 bg-background/70 p-4">
                 <p className="text-xs uppercase tracking-wide text-muted-foreground">
                   Remaining renders
                 </p>
                 <p className="mt-2 text-2xl font-semibold text-foreground">
-                  {Math.max(monthlyCreditCap - creditsUsed, 0)}
+                  {Math.max(MONTHLY_CREDIT_CAP - creditsUsed, 0)}
                 </p>
                 <p className="text-xs text-muted-foreground">Estimated based on current mix</p>
               </div>
