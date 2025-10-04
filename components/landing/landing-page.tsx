@@ -87,7 +87,7 @@ export function LandingPage({ signInUrl, signUpUrl }: LandingPageProps) {
         <div>
           <p className="text-neutral-800 dark:text-neutral-200 text-xs md:text-sm font-normal mb-8">
             <strong className="text-lg block mb-2">Sign Up & Configure Your Agent</strong>
-            Create your ElizaOS Cloud account and configure your AI agent with our intuitive
+            Create your elizaOS Cloud account and configure your AI agent with our intuitive
             CLI or web interface. Set your preferred LLM provider (GPT-4, Claude, or open-source),
             choose plugins for blockchain, social media, or custom integrations, and define your
             agent&apos;s personality and capabilities.
@@ -95,7 +95,7 @@ export function LandingPage({ signInUrl, signUpUrl }: LandingPageProps) {
           <div className="grid grid-cols-2 gap-4">
             <div className="bg-gradient-to-br from-primary/10 to-primary/5 p-4 rounded-lg">
               <Code className="h-6 w-6 mb-2 text-primary" />
-              <p className="text-xs font-medium">ElizaOS CLI</p>
+              <p className="text-xs font-medium">elizaOS CLI</p>
             </div>
             <div className="bg-gradient-to-br from-primary/10 to-primary/5 p-4 rounded-lg">
               <Settings className="h-6 w-6 mb-2 text-primary" />
@@ -134,7 +134,7 @@ export function LandingPage({ signInUrl, signUpUrl }: LandingPageProps) {
       content: (
         <div>
           <p className="text-neutral-800 dark:text-neutral-200 text-xs md:text-sm font-normal mb-8">
-            <strong className="text-lg block mb-2">Deploy to ElizaOS Cloud</strong>
+            <strong className="text-lg block mb-2">Deploy to elizaOS Cloud</strong>
             Push your agent to production with a single command: <code className="bg-muted px-2 py-1 rounded">elizaos deploy</code>.
             Our cloud platform handles automatic scaling, load balancing, 99.9% uptime, monitoring,
             and maintenance. Your agent runs 24/7 with managed infrastructure, vector databases,
@@ -306,7 +306,7 @@ export function LandingPage({ signInUrl, signUpUrl }: LandingPageProps) {
             Built on Industry-Leading Technology
           </h3>
           <p className="text-center text-muted-foreground max-w-2xl mx-auto">
-            ElizaOS Cloud integrates seamlessly with the tools and platforms you already use
+            elizaOS Cloud integrates seamlessly with the tools and platforms you already use
           </p>
         </div>
         
@@ -378,7 +378,7 @@ export function LandingPage({ signInUrl, signUpUrl }: LandingPageProps) {
         <div className="relative z-10">
           <Timeline 
             data={timelineData}
-            title="How ElizaOS Cloud Works"
+            title="How elizaOS Cloud Works"
             description="Deploy your AI agents to production in three simple steps. From local development to global scale in minutes."
           />
         </div>
@@ -480,7 +480,7 @@ export function LandingPage({ signInUrl, signUpUrl }: LandingPageProps) {
                 <div className="h-8 w-8 rounded-lg bg-gradient-to-br from-violet-600 via-purple-600 to-pink-600 flex items-center justify-center">
                   <Server className="h-5 w-5 text-white" />
                 </div>
-                <h3 className="text-white font-bold text-xl">ElizaOS Cloud</h3>
+                <h3 className="text-white font-bold text-xl">elizaOS Cloud</h3>
               </div>
               <p className="text-gray-400 text-sm leading-relaxed mb-6">
                 The complete platform for building, deploying, and scaling autonomous AI agents. From local development to global production.
@@ -550,7 +550,7 @@ export function LandingPage({ signInUrl, signUpUrl }: LandingPageProps) {
           {/* Bottom Bar */}
           <div className="border-t border-white/10 pt-8 flex flex-col md:flex-row justify-between items-center gap-4">
             <p className="text-sm text-gray-400">
-              &copy; 2025 ElizaOS Cloud. All rights reserved.
+              &copy; 2025 elizaOS Cloud. All rights reserved.
             </p>
             <div className="flex items-center gap-6 text-sm text-gray-400">
               <span className="flex items-center gap-2">

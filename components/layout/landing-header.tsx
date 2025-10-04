@@ -24,7 +24,7 @@ export default function LandingHeader({
       <div className="container mx-auto flex h-16 items-center justify-between px-4 md:px-6">
         <div className="flex items-center gap-2">
           <Sparkles className="h-6 w-6" />
-          <span className="text-xl font-bold">ElizaOS Cloud</span>
+          <span className="text-xl font-bold">elizaOS Cloud</span>
         </div>
         <div className="flex items-center gap-2">
           <ThemeToggle />
