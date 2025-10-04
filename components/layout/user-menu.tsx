@@ -3,15 +3,15 @@
  * Displays authentication state and user actions
  */
 
-'use client';
+"use client";
 
-import { useAuth } from '@workos-inc/authkit-nextjs/components';
-import { getSignInUrl, getSignUpUrl } from '@workos-inc/authkit-nextjs';
-import { Button } from '@/components/ui/button';
-import { Badge } from '@/components/ui/badge';
-import { LogOut, User, Loader2, Coins } from 'lucide-react';
-import { useEffect, useState } from 'react';
-import { handleSignOut, getCreditBalance } from '@/app/actions/auth';
+import { useAuth } from "@workos-inc/authkit-nextjs/components";
+import { getSignInUrl, getSignUpUrl } from "@workos-inc/authkit-nextjs";
+import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
+import { LogOut, User, Loader2, Coins } from "lucide-react";
+import { useEffect, useState } from "react";
+import { handleSignOut, getCreditBalance } from "@/app/actions/auth";
 
 export default function UserMenu() {
   const { user, loading } = useAuth();
@@ -45,7 +45,7 @@ export default function UserMenu() {
         const balance = await getCreditBalance();
         setCreditBalance(balance);
       } catch (error) {
-        console.error('Failed to fetch credit balance:', error);
+        console.error("Failed to fetch credit balance:", error);
       } finally {
         setLoadingCredits(false);
       }
@@ -107,7 +107,7 @@ export default function UserMenu() {
           <Badge variant="secondary" className="gap-1.5 px-3 py-1.5">
             <Coins className="h-3.5 w-3.5" />
             <span className="font-semibold">
-              {creditBalance !== null ? creditBalance.toLocaleString() : '0'}
+              {creditBalance !== null ? creditBalance.toLocaleString() : "0"}
             </span>
             <span className="text-xs opacity-80">credits</span>
           </Badge>
@@ -119,23 +119,16 @@ export default function UserMenu() {
         <User className="h-4 w-4 text-muted-foreground" />
         <span className="hidden sm:inline-block font-medium">
           {user.firstName
-            ? `${user.firstName}${user.lastName ? ` ${user.lastName}` : ''}`
-            : user.email
-          }
+            ? `${user.firstName}${user.lastName ? ` ${user.lastName}` : ""}`
+            : user.email}
         </span>
       </div>
 
       {/* Logout button */}
-      <Button
-        onClick={onSignOut}
-        variant="outline"
-        size="sm"
-        className="gap-2"
-      >
+      <Button onClick={onSignOut} variant="outline" size="sm" className="gap-2">
         <LogOut className="h-4 w-4" />
         <span className="hidden sm:inline-block">Sign out</span>
       </Button>
     </div>
   );
 }
-

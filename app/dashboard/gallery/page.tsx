@@ -2,7 +2,8 @@ import type { Metadata } from "next";
 
 export const metadata: Metadata = {
   title: "Gallery",
-  description: "View and manage all your AI-generated content including images, text, and other assets",
+  description:
+    "View and manage all your AI-generated content including images, text, and other assets",
 };
 
 export default function GalleryPage() {
@@ -24,4 +25,3 @@ export default function GalleryPage() {
     </div>
   );
 }
-

@@ -10,9 +10,9 @@ import {
   ChatBubbleIcon,
   ImageIcon,
   LayersIcon,
-} from '@radix-ui/react-icons';
-import { Server, HardDrive } from 'lucide-react';
-import { ComponentType } from 'react';
+} from "@radix-ui/react-icons";
+import { Server, HardDrive, Video } from "lucide-react";
+import { ComponentType } from "react";
 
 export interface SidebarItem {
   id: string;
@@ -32,77 +32,82 @@ export const sidebarSections: SidebarSection[] = [
   {
     items: [
       {
-        id: 'dashboard',
-        label: 'Dashboard',
-        href: '/dashboard',
+        id: "dashboard",
+        label: "Dashboard",
+        href: "/dashboard",
         icon: HomeIcon,
       },
     ],
   },
   {
-    title: 'Generation Studio',
+    title: "Generation Studio",
     items: [
       {
-        id: 'text-generation',
-        label: 'Text & Chat',
-        href: '/dashboard/text',
+        id: "text-generation",
+        label: "Text & Chat",
+        href: "/dashboard/text",
         icon: ChatBubbleIcon,
       },
       {
-        id: 'image-generation',
-        label: 'Images',
-        href: '/dashboard/image',
+        id: "image-generation",
+        label: "Images",
+        href: "/dashboard/image",
         icon: ImageIcon,
       },
       {
-        id: 'gallery',
-        label: 'Gallery',
-        href: '/dashboard/gallery',
+        id: "video-generation",
+        label: "Videos",
+        href: "/dashboard/video",
+        icon: Video,
+      },
+      {
+        id: "gallery",
+        label: "Gallery",
+        href: "/dashboard/gallery",
         icon: LayersIcon,
       },
     ],
   },
   {
-    title: 'Infrastructure',
+    title: "Infrastructure",
     items: [
       {
-        id: 'containers',
-        label: 'Containers',
-        href: '/dashboard/containers',
+        id: "containers",
+        label: "Containers",
+        href: "/dashboard/containers",
         icon: Server,
         isNew: true,
       },
       {
-        id: 'storage',
-        label: 'Storage',
-        href: '/dashboard/storage',
+        id: "storage",
+        label: "Storage",
+        href: "/dashboard/storage",
         icon: HardDrive,
         isNew: true,
       },
     ],
   },
   {
-    title: 'Settings',
+    title: "Settings",
     items: [
       {
-        id: 'account',
-        label: 'Account',
-        href: '/dashboard/account',
+        id: "account",
+        label: "Account",
+        href: "/dashboard/account",
         icon: PersonIcon,
       },
       {
-        id: 'api-keys',
-        label: 'API Keys',
-        href: '/dashboard/api-keys',
+        id: "api-keys",
+        label: "API Keys",
+        href: "/dashboard/api-keys",
         icon: TokensIcon,
       },
       {
-        id: 'analytics',
-        label: 'Analytics',
-        href: '/dashboard/analytics',
+        id: "analytics",
+        label: "Analytics",
+        href: "/dashboard/analytics",
         icon: BarChartIcon,
       },
     ],
   },
 ];
-

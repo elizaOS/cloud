@@ -125,7 +125,9 @@ export default function DashboardPage() {
               >
                 <div className="flex items-start justify-between mb-3">
                   <div className={`rounded-lg p-2.5 ${action.iconBg}`}>
-                    <Icon className={`h-5 w-5 bg-gradient-to-br ${action.gradient} bg-clip-text text-transparent`} />
+                    <Icon
+                      className={`h-5 w-5 bg-gradient-to-br ${action.gradient} bg-clip-text text-transparent`}
+                    />
                   </div>
                   <ArrowRight className="h-4 w-4 text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity" />
                 </div>
@@ -154,7 +156,9 @@ export default function DashboardPage() {
               >
                 <div className="flex items-start justify-between mb-3">
                   <div className={`rounded-lg p-2.5 ${action.iconBg}`}>
-                    <Icon className={`h-5 w-5 bg-gradient-to-br ${action.gradient} bg-clip-text text-transparent`} />
+                    <Icon
+                      className={`h-5 w-5 bg-gradient-to-br ${action.gradient} bg-clip-text text-transparent`}
+                    />
                   </div>
                   <div className="flex items-center gap-2">
                     {action.isNew && (
@@ -190,7 +194,9 @@ export default function DashboardPage() {
               >
                 <div className="flex items-start justify-between mb-3">
                   <div className={`rounded-lg p-2.5 ${action.iconBg}`}>
-                    <Icon className={`h-5 w-5 bg-gradient-to-br ${action.gradient} bg-clip-text text-transparent`} />
+                    <Icon
+                      className={`h-5 w-5 bg-gradient-to-br ${action.gradient} bg-clip-text text-transparent`}
+                    />
                   </div>
                   <ArrowRight className="h-4 w-4 text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity" />
                 </div>
@@ -206,4 +212,3 @@ export default function DashboardPage() {
     </div>
   );
 }
-

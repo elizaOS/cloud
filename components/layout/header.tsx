@@ -2,11 +2,11 @@
  * Header Component
  */
 
-'use client';
+"use client";
 
-import { Menu } from 'lucide-react';
-import { Button } from '@/components/ui/button';
-import UserMenu from './user-menu';
+import { Menu } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import UserMenu from "./user-menu";
 
 interface HeaderProps {
   onToggleSidebar: () => void;
@@ -37,4 +37,3 @@ export default function Header({ onToggleSidebar, children }: HeaderProps) {
     </header>
   );
 }
-

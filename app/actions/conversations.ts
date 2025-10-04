@@ -1,14 +1,14 @@
-'use server';
+"use server";
 
-import { revalidatePath } from 'next/cache';
-import { requireAuth } from '@/lib/auth';
+import { revalidatePath } from "next/cache";
+import { requireAuth } from "@/lib/auth";
 import {
   createConversation,
   updateConversation,
   deleteConversation,
   listConversationsByUser,
   getConversationWithMessages,
-} from '@/lib/queries/conversations';
+} from "@/lib/queries/conversations";
 
 export async function createConversationAction(data: {
   title: string;
@@ -21,16 +21,16 @@ export async function createConversationAction(data: {
     model: data.model,
     organization_id: user.organization_id,
     user_id: user.id,
-    status: 'active',
+    status: "active",
   });
 
-  revalidatePath('/dashboard/text');
+  revalidatePath("/dashboard/text");
   return { success: true, conversation };
 }
 
 export async function updateConversationTitleAction(
   conversationId: string,
-  title: string
+  title: string,
 ) {
   await requireAuth();
 
@@ -39,10 +39,10 @@ export async function updateConversationTitleAction(
   });
 
   if (!conversation) {
-    return { success: false, error: 'Conversation not found' };
+    return { success: false, error: "Conversation not found" };
   }
 
-  revalidatePath('/dashboard/text');
+  revalidatePath("/dashboard/text");
   return { success: true, conversation };
 }
 
@@ -51,7 +51,7 @@ export async function deleteConversationAction(conversationId: string) {
 
   await deleteConversation(conversationId);
 
-  revalidatePath('/dashboard/text');
+  revalidatePath("/dashboard/text");
   return { success: true };
 }
 
@@ -59,7 +59,7 @@ export async function listUserConversationsAction() {
   const user = await requireAuth();
 
   const conversations = await listConversationsByUser(user.id, {
-    status: 'active',
+    status: "active",
     limit: 50,
   });
 
@@ -72,7 +72,7 @@ export async function getConversationAction(conversationId: string) {
   const conversation = await getConversationWithMessages(conversationId);
 
   if (!conversation) {
-    return { success: false, error: 'Conversation not found' };
+    return { success: false, error: "Conversation not found" };
   }
 
   return { success: true, conversation };
