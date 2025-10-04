@@ -1,7 +1,6 @@
 import { withAuth } from '@workos-inc/authkit-nextjs';
 import { getUserByEmailWithOrganization, getUserWithOrganization } from '@/lib/queries/users';
 import { validateApiKey, incrementApiKeyUsage } from '@/lib/queries/api-keys';
-import { getOrganizationById } from '@/lib/queries/organizations';
 import type { UserWithOrganization, ApiKey } from '@/lib/types';
 import { cache } from 'react';
 import { unstable_cache } from 'next/cache';

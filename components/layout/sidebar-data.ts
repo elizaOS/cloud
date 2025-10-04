@@ -11,7 +11,7 @@ import {
   ImageIcon,
   LayersIcon,
 } from '@radix-ui/react-icons';
-import { Server, HardDrive, Settings, Video } from 'lucide-react';
+import { Server, HardDrive, Video } from 'lucide-react';
 import { ComponentType } from 'react';
 
 export interface SidebarItem {
