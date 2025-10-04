@@ -1,25 +1,29 @@
-import crypto from 'crypto';
-import { db, schema, eq, and } from '@/lib/db';
-import type { ApiKey, NewApiKey } from '@/lib/types';
+import crypto from "crypto";
+import { db, schema, eq, and } from "@/lib/db";
+import type { ApiKey, NewApiKey } from "@/lib/types";
+import { API_KEY_PREFIX_LENGTH } from "@/lib/pricing";
 
 export function generateApiKey(): {
   key: string;
   hash: string;
   prefix: string;
 } {
-  const randomBytes = crypto.randomBytes(32).toString('hex');
+  const randomBytes = crypto.randomBytes(32).toString("hex");
   const key = `eliza_${randomBytes}`;
-  const hash = crypto.createHash('sha256').update(key).digest('hex');
-  const prefix = key.substring(0, 12);
+  const hash = crypto.createHash("sha256").update(key).digest("hex");
+  const prefix = key.substring(0, API_KEY_PREFIX_LENGTH);
 
   return { key, hash, prefix };
 }
 
 export async function validateApiKey(key: string): Promise<ApiKey | null> {
-  const hash = crypto.createHash('sha256').update(key).digest('hex');
+  const hash = crypto.createHash("sha256").update(key).digest("hex");
 
   const apiKey = await db.query.apiKeys.findFirst({
-    where: and(eq(schema.apiKeys.key_hash, hash), eq(schema.apiKeys.is_active, true)),
+    where: and(
+      eq(schema.apiKeys.key_hash, hash),
+      eq(schema.apiKeys.is_active, true),
+    ),
   });
 
   if (!apiKey) {
@@ -33,7 +37,9 @@ export async function validateApiKey(key: string): Promise<ApiKey | null> {
   return apiKey;
 }
 
-export async function createApiKey(data: Omit<NewApiKey, 'key' | 'key_hash' | 'key_prefix'>): Promise<{
+export async function createApiKey(
+  data: Omit<NewApiKey, "key" | "key_hash" | "key_prefix">,
+): Promise<{
   apiKey: ApiKey;
   plainKey: string;
 }> {
@@ -69,7 +75,7 @@ export async function getApiKeyById(id: string): Promise<ApiKey | undefined> {
 
 export async function updateApiKey(
   id: string,
-  data: Partial<NewApiKey>
+  data: Partial<NewApiKey>,
 ): Promise<ApiKey | undefined> {
   const [updated] = await db
     .update(schema.apiKeys)

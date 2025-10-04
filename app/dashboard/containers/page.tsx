@@ -2,8 +2,15 @@ import type { Metadata } from "next";
 
 export const metadata: Metadata = {
   title: "Containers",
-  description: "Deploy and manage containerized AI applications with our infrastructure platform",
-  keywords: ["containers", "deployment", "docker", "kubernetes", "infrastructure"],
+  description:
+    "Deploy and manage containerized AI applications with our infrastructure platform",
+  keywords: [
+    "containers",
+    "deployment",
+    "docker",
+    "kubernetes",
+    "infrastructure",
+  ],
 };
 
 export default function ContainersPage() {
@@ -28,4 +35,3 @@ export default function ContainersPage() {
     </div>
   );
 }
-

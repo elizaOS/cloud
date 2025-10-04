@@ -12,7 +12,6 @@ export function ImageGenerator() {
   const [generatedText, setGeneratedText] = useState<string>("");
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [showForm, setShowForm] = useState(true);
 
   const handleGenerate = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -36,7 +35,7 @@ export function ImageGenerator() {
         throw new Error(data.error || "Failed to generate image");
       }
 
-      const imageData = data.image.startsWith('data:')
+      const imageData = data.image.startsWith("data:")
         ? data.image
         : `data:image/png;base64,${data.image}`;
       setImageUrl(imageData);
@@ -51,17 +50,10 @@ export function ImageGenerator() {
     }
   };
 
-  const handleReset = () => {
-    setImageUrl(null);
-    setGeneratedText("");
-    setShowForm(true);
-    setError(null);
-  };
-
   const handleDownload = () => {
     if (!imageUrl) return;
 
-    const link = document.createElement('a');
+    const link = document.createElement("a");
     link.href = imageUrl;
     link.download = `eliza-generated-${Date.now()}.png`;
     document.body.appendChild(link);

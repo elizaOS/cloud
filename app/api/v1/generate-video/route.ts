@@ -5,6 +5,10 @@ import { requireAuthOrApiKey } from "@/lib/auth";
 import { createUsageRecord } from '@/lib/queries/usage';
 import { deductCredits } from '@/lib/queries/credits';
 import { createGeneration, updateGeneration } from '@/lib/queries/generations';
+import {
+  VIDEO_GENERATION_COST,
+  VIDEO_GENERATION_FALLBACK_COST,
+} from "@/lib/pricing";
 
 fal.config({
   proxyUrl: "/api/fal/proxy",
@@ -50,7 +54,7 @@ export async function POST(request: NextRequest) {
       console.error("[VIDEO GENERATION] FAL_KEY is not configured");
       return NextResponse.json(
         { error: "Video generation service is not configured" },
-        { status: 503 }
+        { status: 503 },
       );
     }
 
@@ -60,7 +64,7 @@ export async function POST(request: NextRequest) {
     if (!prompt || typeof prompt !== "string" || prompt.trim().length === 0) {
       return NextResponse.json(
         { error: "Prompt is required and must be a non-empty string" },
-        { status: 400 }
+        { status: 400 },
       );
     }
 
@@ -68,9 +72,9 @@ export async function POST(request: NextRequest) {
       return NextResponse.json(
         {
           error: "Invalid model specified",
-          validModels: VALID_MODELS
+          validModels: VALID_MODELS,
         },
-        { status: 400 }
+        { status: 400 },
       );
     }
 
@@ -83,8 +87,8 @@ export async function POST(request: NextRequest) {
       provider: 'fal',
       prompt: prompt.trim(),
       status: 'pending',
-      credits: 500,
-      cost: 500,
+      credits: VIDEO_GENERATION_COST,
+      cost: VIDEO_GENERATION_COST,
     });
 
     generationId = generation.id;
@@ -98,8 +102,12 @@ export async function POST(request: NextRequest) {
       logs: true,
       onQueueUpdate: (update: QueueStatus) => {
         if (update.status === "IN_PROGRESS") {
-          const logMessages = update.logs?.map((log: { message: string }) => log.message).join(", ");
-          console.log(`[VIDEO GENERATION] Progress: ${logMessages || "Processing..."}`);
+          const logMessages = update.logs
+            ?.map((log: { message: string }) => log.message)
+            .join(", ");
+          console.log(
+            `[VIDEO GENERATION] Progress: ${logMessages || "Processing..."}`,
+          );
         }
       },
     });
@@ -110,34 +118,37 @@ export async function POST(request: NextRequest) {
       console.error("[VIDEO GENERATION] No video URL in response:", data);
       return NextResponse.json(
         { error: "No video URL was returned from the generation service" },
-        { status: 500 }
+        { status: 500 },
       );
     }
 
-    console.log(`[VIDEO GENERATION] Success for user ${user.id}, requestId: ${result.requestId}`);
+    console.log(
+      `[VIDEO GENERATION] Success for user ${user.id}, requestId: ${result.requestId}`,
+    );
 
-    const videoCost = 500;
     const deductionResult = await deductCredits(
       user.organization_id,
-      videoCost,
+      VIDEO_GENERATION_COST,
       `Video generation: ${model}`,
-      user.id
+      user.id,
     );
 
     if (!deductionResult.success) {
-      console.error('[VIDEO GENERATION] Failed to deduct credits - insufficient balance');
+      console.error(
+        "[VIDEO GENERATION] Failed to deduct credits - insufficient balance",
+      );
     }
 
     const usageRecord = await createUsageRecord({
       organization_id: user.organization_id,
       user_id: user.id,
       api_key_id: apiKey?.id || null,
-      type: 'video',
+      type: "video",
       model: model,
-      provider: 'fal',
+      provider: "fal",
       input_tokens: 0,
       output_tokens: 0,
-      input_cost: videoCost,
+      input_cost: VIDEO_GENERATION_COST,
       output_cost: 0,
       is_successful: true,
     });
@@ -164,7 +175,7 @@ export async function POST(request: NextRequest) {
       });
     }
 
-    console.log(`[VIDEO GENERATION] Credits deducted: ${videoCost}, New balance: ${deductionResult.newBalance}`);
+    console.log(`[VIDEO GENERATION] Credits deducted: ${VIDEO_GENERATION_COST}, New balance: ${deductionResult.newBalance}`);
 
     return NextResponse.json(
       {
@@ -174,40 +185,43 @@ export async function POST(request: NextRequest) {
         timings: data.timings,
         requestId: result.requestId,
       },
-      { status: 200 }
+      { status: 200 },
     );
   } catch (error) {
     console.error("[VIDEO GENERATION] Error:", error);
 
-    const errorMessage = error instanceof Error ? error.message : "Unknown error occurred";
+    const errorMessage =
+      error instanceof Error ? error.message : "Unknown error occurred";
 
     console.log("[VIDEO GENERATION] Returning fallback video due to error");
 
     try {
-      const { user: fallbackUser, apiKey: fallbackApiKey } = await requireAuthOrApiKey(request);
+      const { user: fallbackUser, apiKey: fallbackApiKey } =
+        await requireAuthOrApiKey(request);
 
-      const fallbackCost = 250;
       const fallbackDeduction = await deductCredits(
         fallbackUser.organization_id,
-        fallbackCost,
-        'Video generation (fallback): fal-ai/veo3',
-        fallbackUser.id
+        VIDEO_GENERATION_FALLBACK_COST,
+        "Video generation (fallback): fal-ai/veo3",
+        fallbackUser.id,
       );
 
       if (!fallbackDeduction.success) {
-        console.error('[VIDEO GENERATION] Failed to deduct fallback credits - insufficient balance');
+        console.error(
+          "[VIDEO GENERATION] Failed to deduct fallback credits - insufficient balance",
+        );
       }
 
       const fallbackUsageRecord = await createUsageRecord({
         organization_id: fallbackUser.organization_id,
         user_id: fallbackUser.id,
         api_key_id: fallbackApiKey?.id || null,
-        type: 'video',
-        model: 'fal-ai/veo3',
-        provider: 'fal',
+        type: "video",
+        model: "fal-ai/veo3",
+        provider: "fal",
         input_tokens: 0,
         output_tokens: 0,
-        input_cost: fallbackCost,
+        input_cost: VIDEO_GENERATION_FALLBACK_COST,
         output_cost: 0,
         is_successful: false,
         error_message: errorMessage,
@@ -223,8 +237,8 @@ export async function POST(request: NextRequest) {
             width: 1920,
             height: 1080,
           },
-          credits: fallbackCost,
-          cost: fallbackCost,
+          credits: VIDEO_GENERATION_FALLBACK_COST,
+          cost: VIDEO_GENERATION_FALLBACK_COST,
           usage_record_id: fallbackUsageRecord.id,
           completed_at: new Date(),
           result: {
@@ -240,9 +254,12 @@ export async function POST(request: NextRequest) {
         });
       }
 
-      console.log(`[VIDEO GENERATION] Fallback credits deducted: ${fallbackCost}, New balance: ${fallbackDeduction.newBalance}`);
+      console.log(`[VIDEO GENERATION] Fallback credits deducted: ${VIDEO_GENERATION_FALLBACK_COST}, New balance: ${fallbackDeduction.newBalance}`);
     } catch (authError) {
-      console.error('[VIDEO GENERATION] Auth error during fallback logging:', authError);
+      console.error(
+        "[VIDEO GENERATION] Auth error during fallback logging:",
+        authError,
+      );
     }
 
     return NextResponse.json(
@@ -260,7 +277,7 @@ export async function POST(request: NextRequest) {
         isFallback: true,
         originalError: errorMessage,
       },
-      { status: 200 }
+      { status: 200 },
     );
   }
 }

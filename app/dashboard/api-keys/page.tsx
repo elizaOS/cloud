@@ -11,10 +11,13 @@ import type {
 export const metadata: Metadata = {
   title: "API Keys",
   description:
-    "Manage your API keys and authentication credentials for ElizaOS platform",
+    "Manage your API keys and authentication credentials for elizaOS platform",
 };
 
-function getApiKeyStatus(isActive: boolean, expiresAt: Date | null): ApiKeyStatus {
+function getApiKeyStatus(
+  isActive: boolean,
+  expiresAt: Date | null,
+): ApiKeyStatus {
   if (!isActive) return "inactive";
   if (expiresAt && new Date(expiresAt) < new Date()) return "expired";
   return "active";
@@ -43,7 +46,7 @@ export default async function ApiKeysPage() {
     activeKeys: displayKeys.filter((key) => key.status === "active").length,
     monthlyUsage: displayKeys.reduce(
       (accumulator, key) => accumulator + key.usageCount,
-      0
+      0,
     ),
     rateLimit: 1000,
     lastGeneratedAt: displayKeys[0]?.createdAt ?? null,
@@ -51,4 +54,3 @@ export default async function ApiKeysPage() {
 
   return <ApiKeysPageView keys={displayKeys} summary={summary} />;
 }
-

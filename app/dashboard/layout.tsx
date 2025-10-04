@@ -1,8 +1,8 @@
-'use client';
+"use client";
 
-import { useState } from 'react';
-import Sidebar from '@/components/layout/sidebar';
-import Header from '@/components/layout/header';
+import { useState } from "react";
+import Sidebar from "@/components/layout/sidebar";
+import Header from "@/components/layout/header";
 
 export default function DashboardLayout({
   children,
@@ -22,9 +22,7 @@ export default function DashboardLayout({
       {/* Main Content */}
       <div className="flex flex-1 flex-col overflow-hidden">
         {/* Header */}
-        <Header
-          onToggleSidebar={() => setSidebarOpen(!sidebarOpen)}
-        />
+        <Header onToggleSidebar={() => setSidebarOpen(!sidebarOpen)} />
 
         {/* Main Content Area */}
         <main className="flex-1 overflow-y-auto bg-background">
@@ -34,4 +32,3 @@ export default function DashboardLayout({
     </div>
   );
 }
-
