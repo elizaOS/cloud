@@ -1,17 +1,18 @@
-'use client';
+"use client";
 
-import { useState, useEffect, useRef, useCallback } from 'react';
-import { Plus, MessageSquare, Trash2, Edit2 } from 'lucide-react';
-import { useRouter } from 'next/navigation';
-import { Button } from '@/components/ui/button';
-import { ConversationInput } from './conversation-input';
-import { ConversationScrollArea } from './conversation-scroll-area';
-import type { Conversation } from '@/lib/types';
+import { useState, useEffect, useRef, useCallback } from "react";
+import { Plus, MessageSquare, Trash2, Edit2, Loader2 } from "lucide-react";
+import { useRouter } from "next/navigation";
+import { Button } from "@/components/ui/button";
+import { ConversationInput } from "./conversation-input";
+import { ConversationScrollArea } from "./conversation-scroll-area";
+import type { Conversation } from "@/lib/types";
 import {
   createConversationAction,
   updateConversationTitleAction,
   deleteConversationAction,
-} from '@/app/actions/conversations';
+} from "@/app/actions/conversations";
+import { cn } from "@/lib/utils";
 
 interface ConversationListProps {
   conversations: Conversation[];
@@ -25,7 +26,7 @@ export function ConversationList({
   onSelectConversation,
 }: ConversationListProps) {
   const [editingId, setEditingId] = useState<string | null>(null);
-  const [editTitle, setEditTitle] = useState('');
+  const [editTitle, setEditTitle] = useState("");
   const [isCreating, setIsCreating] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [deletingId, setDeletingId] = useState<string | null>(null);
@@ -35,8 +36,8 @@ export function ConversationList({
   const handleCreate = async () => {
     setIsCreating(true);
     const result = await createConversationAction({
-      title: 'New Conversation',
-      model: 'gpt-4o',
+      title: "New Conversation",
+      model: "gpt-4o",
     });
     if (result.success && result.conversation) {
       onSelectConversation(result.conversation.id);
@@ -49,43 +50,46 @@ export function ConversationList({
     setEditTitle(conversation.title);
   };
 
-  const handleSaveEdit = useCallback(async (id: string) => {
-    if (editTitle.trim()) {
-      setIsSaving(true);
-      try {
-        await updateConversationTitleAction(id, editTitle.trim());
-      } catch (error) {
-        console.error('Failed to update conversation title:', error);
-      } finally {
-        setIsSaving(false);
+  const handleSaveEdit = useCallback(
+    async (id: string) => {
+      if (editTitle.trim()) {
+        setIsSaving(true);
+        try {
+          await updateConversationTitleAction(id, editTitle.trim());
+        } catch (error) {
+          console.error("Failed to update conversation title:", error);
+        } finally {
+          setIsSaving(false);
+        }
       }
-    }
-    setEditingId(null);
-    setEditTitle('');
-  }, [editTitle]);
+      setEditingId(null);
+      setEditTitle("");
+    },
+    [editTitle],
+  );
 
   const handleCancelEdit = useCallback(() => {
     if (!isSaving) {
       setEditingId(null);
-      setEditTitle('');
+      setEditTitle("");
     }
   }, [isSaving]);
 
   const handleDelete = async (id: string) => {
-    if (confirm('Are you sure you want to delete this conversation?')) {
+    if (confirm("Are you sure you want to delete this conversation?")) {
       setDeletingId(id);
       try {
         await deleteConversationAction(id);
         if (id === currentConversationId) {
-          const nextConv = conversations.find(c => c.id !== id);
+          const nextConv = conversations.find((c) => c.id !== id);
           if (nextConv) {
             onSelectConversation(nextConv.id);
           } else {
-            router.push('/dashboard/text');
+            router.push("/dashboard/text");
           }
         }
       } catch (error) {
-        console.error('Failed to delete conversation:', error);
+        console.error("Failed to delete conversation:", error);
       } finally {
         setDeletingId(null);
       }
@@ -94,145 +98,153 @@ export function ConversationList({
 
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
-      if (editingId && !isSaving && editInputRef.current && !editInputRef.current.contains(event.target as Node)) {
+      if (
+        editingId &&
+        !isSaving &&
+        editInputRef.current &&
+        !editInputRef.current.contains(event.target as Node)
+      ) {
         handleSaveEdit(editingId);
       }
     };
 
     const handleKeyDown = (event: KeyboardEvent) => {
       if (editingId && !isSaving) {
-        if (event.key === 'Enter') {
+        if (event.key === "Enter") {
           event.preventDefault();
           handleSaveEdit(editingId);
-        } else if (event.key === 'Escape') {
+        } else if (event.key === "Escape") {
           event.preventDefault();
           handleCancelEdit();
         }
       }
     };
 
-    document.addEventListener('mousedown', handleClickOutside);
-    document.addEventListener('keydown', handleKeyDown);
+    document.addEventListener("mousedown", handleClickOutside);
+    document.addEventListener("keydown", handleKeyDown);
 
     return () => {
-      document.removeEventListener('mousedown', handleClickOutside);
-      document.removeEventListener('keydown', handleKeyDown);
+      document.removeEventListener("mousedown", handleClickOutside);
+      document.removeEventListener("keydown", handleKeyDown);
     };
   }, [editingId, editTitle, isSaving, handleSaveEdit, handleCancelEdit]);
 
   return (
-    <div className="flex flex-col h-full border rounded-xl bg-card shadow-sm overflow-hidden">
-      <div className="px-4 py-4 border-b bg-gradient-to-b from-background to-muted/20">
+    <div className="flex h-full min-h-0 w-full flex-col">
+      <div className="border-b px-4 pb-4 pt-5">
         <Button
           onClick={handleCreate}
           disabled={isCreating}
-          className="w-full rounded-lg shadow-sm"
-          size="sm"
+          className="w-full justify-center gap-2 rounded-xl shadow-sm transition-shadow hover:shadow"
         >
-          <Plus className="h-4 w-4 mr-2" />
+          {isCreating ? (
+            <Loader2 className="h-4 w-4 animate-spin" />
+          ) : (
+            <Plus className="h-4 w-4" />
+          )}
           New Chat
         </Button>
       </div>
 
       <ConversationScrollArea className="flex-1">
-        <div className="p-3 space-y-2">
-          {conversations.map((conversation) => (
-            <div
-              key={conversation.id}
-              className={`group relative rounded-xl p-3 cursor-pointer transition-all ${
-                conversation.id === currentConversationId
-                  ? 'bg-primary/10 border border-primary/30 shadow-sm'
-                  : 'hover:bg-accent/50 border border-transparent'
-              }`}
-              onClick={() => onSelectConversation(conversation.id)}
-            >
-              {isSaving && editingId === conversation.id ? (
-                <div className="flex items-center gap-2 py-1">
-                  <MessageSquare className="h-4 w-4 flex-shrink-0 text-muted-foreground" />
-                  <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                    <div className="flex gap-1">
-                      <span className="animate-bounce" style={{ animationDelay: '0ms' }}>.</span>
-                      <span className="animate-bounce" style={{ animationDelay: '150ms' }}>.</span>
-                      <span className="animate-bounce" style={{ animationDelay: '300ms' }}>.</span>
-                    </div>
+        <div className="space-y-2 px-3 pb-4 pt-3">
+          {conversations.map((conversation) => {
+            const isActive = conversation.id === currentConversationId;
+
+            return (
+              <div
+                key={conversation.id}
+                className={cn(
+                  "group relative flex cursor-pointer flex-col gap-3 rounded-2xl border border-transparent bg-background/70 p-3 transition-colors duration-150",
+                  isActive
+                    ? "border-primary/30 bg-primary/[0.08] shadow-sm"
+                    : "hover:border-border/60 hover:bg-muted/70",
+                )}
+                onClick={() => onSelectConversation(conversation.id)}
+              >
+                {isSaving && editingId === conversation.id ? (
+                  <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                    <Loader2 className="h-4 w-4 animate-spin" />
                     <span>Saving changes</span>
                   </div>
-                </div>
-              ) : editingId === conversation.id ? (
-                <div
-                  ref={editInputRef}
-                  className="flex items-center gap-2"
-                  onClick={(e: React.MouseEvent) => e.stopPropagation()}
-                >
-                  <ConversationInput
-                    value={editTitle}
-                    onChange={(e) => setEditTitle(e.target.value)}
-                    className="h-8 text-sm flex-1 rounded-lg"
-                    autoFocus
-                  />
-                </div>
-              ) : (
-                <>
-                  <div className="flex items-start gap-3">
-                    <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-purple-500/10 to-blue-600/10 flex items-center justify-center flex-shrink-0">
-                      <MessageSquare className="h-4 w-4 text-primary" />
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <p className="text-sm font-medium truncate mb-1">
-                        {conversation.title}
-                      </p>
-                      <p className="text-xs text-muted-foreground">
-                        {conversation.message_count} messages
-                      </p>
-                    </div>
+                ) : editingId === conversation.id ? (
+                  <div
+                    ref={editInputRef}
+                    className="flex items-center gap-2"
+                    onClick={(e: React.MouseEvent) => e.stopPropagation()}
+                  >
+                    <ConversationInput
+                      value={editTitle}
+                      onChange={(e) => setEditTitle(e.target.value)}
+                      className="h-8 rounded-lg border-border bg-background text-sm"
+                      autoFocus
+                    />
                   </div>
+                ) : (
+                  <>
+                    <div className="flex items-start gap-3">
+                      <div
+                        className={cn(
+                          "flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-xl border border-transparent bg-muted text-muted-foreground",
+                          isActive &&
+                            "border-primary/40 bg-primary/10 text-primary",
+                        )}
+                      >
+                        <MessageSquare className="h-4 w-4" />
+                      </div>
+                      <div className="min-w-0 flex-1">
+                        <p className="truncate text-sm font-medium text-foreground">
+                          {conversation.title}
+                        </p>
+                        <p className="text-xs text-muted-foreground">
+                          {conversation.message_count} messages
+                        </p>
+                      </div>
+                    </div>
 
-                  <div className="absolute right-2 top-2 opacity-0 group-hover:opacity-100 transition-opacity flex gap-1 bg-background/80 backdrop-blur-sm rounded-lg p-1 shadow-sm">
-                    <Button
-                      size="icon"
-                      variant="ghost"
-                      className="h-7 w-7 rounded-md hover:bg-accent"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        handleStartEdit(conversation);
-                      }}
-                      disabled={deletingId === conversation.id}
-                    >
-                      <Edit2 className="h-3 w-3" />
-                    </Button>
-                    <Button
-                      size="icon"
-                      variant="ghost"
-                      className="h-7 w-7 rounded-md text-destructive hover:bg-destructive/10"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        handleDelete(conversation.id);
-                      }}
-                      disabled={deletingId === conversation.id}
-                    >
-                      {deletingId === conversation.id ? (
-                        <div className="flex gap-0.5">
-                          <span className="animate-bounce text-[8px]" style={{ animationDelay: '0ms' }}>.</span>
-                          <span className="animate-bounce text-[8px]" style={{ animationDelay: '150ms' }}>.</span>
-                          <span className="animate-bounce text-[8px]" style={{ animationDelay: '300ms' }}>.</span>
-                        </div>
-                      ) : (
-                        <Trash2 className="h-3 w-3" />
-                      )}
-                    </Button>
-                  </div>
-                </>
-              )}
-            </div>
-          ))}
+                    <div className="flex items-center justify-end gap-1 opacity-0 transition-opacity duration-150 group-hover:opacity-100">
+                      <Button
+                        size="icon"
+                        variant="ghost"
+                        className="h-8 w-8 rounded-full"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleStartEdit(conversation);
+                        }}
+                        disabled={deletingId === conversation.id}
+                      >
+                        <Edit2 className="h-3.5 w-3.5" />
+                      </Button>
+                      <Button
+                        size="icon"
+                        variant="ghost"
+                        className="h-8 w-8 rounded-full text-destructive"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleDelete(conversation.id);
+                        }}
+                        disabled={deletingId === conversation.id}
+                      >
+                        {deletingId === conversation.id ? (
+                          <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                        ) : (
+                          <Trash2 className="h-3.5 w-3.5" />
+                        )}
+                      </Button>
+                    </div>
+                  </>
+                )}
+              </div>
+            );
+          })}
 
           {conversations.length === 0 && (
-            <div className="text-center py-12 px-4 text-muted-foreground">
-              <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-purple-500/10 to-blue-600/10 flex items-center justify-center mx-auto mb-3">
-                <MessageSquare className="h-8 w-8 text-muted-foreground/50" />
-              </div>
-              <p className="text-sm font-medium mb-1">No conversations yet</p>
-              <p className="text-xs">Click &quot;New Chat&quot; to start</p>
+            <div className="rounded-xl border border-dashed border-muted-foreground/40 px-4 py-10 text-center text-muted-foreground">
+              <MessageSquare className="mx-auto mb-3 h-8 w-8 opacity-60" />
+              <p className="text-sm font-medium text-foreground">
+                No conversations yet
+              </p>
+              <p className="text-xs">Start a new chat to see it appear here.</p>
             </div>
           )}
         </div>

@@ -1,8 +1,14 @@
-import Link from 'next/link';
-import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { AlertCircle } from 'lucide-react';
-import { getSignInUrl } from '@workos-inc/authkit-nextjs';
+import Link from "next/link";
+import { Button } from "@/components/ui/button";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
+import { AlertCircle } from "lucide-react";
+import { getSignInUrl } from "@workos-inc/authkit-nextjs";
 
 export default async function AuthErrorPage({
   searchParams,
@@ -11,18 +17,21 @@ export default async function AuthErrorPage({
 }) {
   const signInUrl = await getSignInUrl();
   const params = await searchParams;
-  const reason = params.reason || 'unknown';
+  const reason = params.reason || "unknown";
 
-  const errorMessages: Record<string, { title: string; description: string }> = {
-    sync_failed: {
-      title: 'Authentication Sync Failed',
-      description: 'We could not sync your account information. Please try signing in again.',
-    },
-    unknown: {
-      title: 'Authentication Error',
-      description: 'An unexpected error occurred during authentication. Please try again.',
-    },
-  };
+  const errorMessages: Record<string, { title: string; description: string }> =
+    {
+      sync_failed: {
+        title: "Authentication Sync Failed",
+        description:
+          "We could not sync your account information. Please try signing in again.",
+      },
+      unknown: {
+        title: "Authentication Error",
+        description:
+          "An unexpected error occurred during authentication. Please try again.",
+      },
+    };
 
   const error = errorMessages[reason] || errorMessages.unknown;
 

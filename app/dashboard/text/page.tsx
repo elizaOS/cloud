@@ -1,12 +1,16 @@
 import type { Metadata } from "next";
-import { requireAuth } from '@/lib/auth';
-import { listConversationsByUser, getConversationWithMessages } from '@/lib/queries/conversations';
-import { TextPageClient } from '../../../components/chat/text-page-client';
-import type { ConversationMessage } from '@/lib/types';
+import { requireAuth } from "@/lib/auth";
+import {
+  listConversationsByUser,
+  getConversationWithMessages,
+} from "@/lib/queries/conversations";
+import { TextPageClient } from "../../../components/chat/text-page-client";
+import type { ConversationMessage } from "@/lib/types";
 
 export const metadata: Metadata = {
   title: "Text & Chat Generation",
-  description: "Generate AI-powered text and engage in intelligent conversations with advanced language models",
+  description:
+    "Generate AI-powered text and engage in intelligent conversations with advanced language models",
 };
 
 export default async function TextPage({
@@ -18,7 +22,7 @@ export default async function TextPage({
   const params = await searchParams;
 
   const conversations = await listConversationsByUser(user.id, {
-    status: 'active',
+    status: "active",
     limit: 50,
   });
 

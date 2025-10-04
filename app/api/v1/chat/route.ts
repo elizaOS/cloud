@@ -1,22 +1,28 @@
 import { streamText, type UIMessage, convertToModelMessages } from "ai";
-import { requireAuth } from '@/lib/auth';
-import { addMessageToConversation, getNextSequenceNumber } from '@/lib/queries/conversations';
-import { deductCredits } from '@/lib/queries/credits';
-import { createUsageRecord } from '@/lib/queries/usage';
-import { calculateCost, getProviderFromModel } from '@/lib/pricing';
+import { requireAuthOrApiKey } from "@/lib/auth";
+import {
+  addMessageToConversation,
+  getNextSequenceNumber,
+} from "@/lib/queries/conversations";
+import { deductCredits } from "@/lib/queries/credits";
+import { createUsageRecord } from "@/lib/queries/usage";
+import { calculateCost, getProviderFromModel } from "@/lib/pricing";
+import type { NextRequest } from "next/server";
 
 export const maxDuration = 60;
 
-export async function POST(req: Request) {
+export async function POST(req: NextRequest) {
   try {
-    const user = await requireAuth();
+    const { user, apiKey } = await requireAuthOrApiKey(req);
     const body = await req.json();
     const { messages, id }: { messages: UIMessage[]; id?: string } = body;
 
     const selectedModel = id || "gpt-4o";
     const provider = getProviderFromModel(selectedModel);
     const lastMessage = messages[messages.length - 1];
-    const conversationId = lastMessage?.metadata ? (lastMessage.metadata as { conversationId?: string }).conversationId : undefined;
+    const conversationId = lastMessage?.metadata
+      ? (lastMessage.metadata as { conversationId?: string }).conversationId
+      : undefined;
 
     const result = streamText({
       model: selectedModel,
@@ -33,26 +39,30 @@ export async function POST(req: Request) {
             selectedModel,
             provider,
             usage.inputTokens || 0,
-            usage.outputTokens || 0
+            usage.outputTokens || 0,
           );
 
           const deductionResult = await deductCredits(
             user.organization_id,
             totalCost,
             `Chat completion: ${selectedModel}`,
-            user.id
+            user.id,
           );
 
           if (!deductionResult.success) {
-            console.error('[CHAT API] Failed to deduct credits - insufficient balance');
+            console.error(
+              "[CHAT API] Failed to deduct credits - insufficient balance",
+            );
           }
 
           const userSequence = await getNextSequenceNumber(conversationId);
 
           await addMessageToConversation({
             conversation_id: conversationId,
-            role: 'user',
-            content: userMessage.parts.map(p => p.type === 'text' ? p.text : '').join(''),
+            role: "user",
+            content: userMessage.parts
+              .map((p) => (p.type === "text" ? p.text : ""))
+              .join(""),
             sequence_number: userSequence,
             model: selectedModel,
             tokens: usage.inputTokens,
@@ -63,7 +73,7 @@ export async function POST(req: Request) {
 
           await addMessageToConversation({
             conversation_id: conversationId,
-            role: 'assistant',
+            role: "assistant",
             content: text,
             sequence_number: assistantSequence,
             model: selectedModel,
@@ -74,7 +84,8 @@ export async function POST(req: Request) {
           await createUsageRecord({
             organization_id: user.organization_id,
             user_id: user.id,
-            type: 'chat',
+            api_key_id: apiKey?.id || null,
+            type: "chat",
             model: selectedModel,
             provider: provider,
             input_tokens: usage.inputTokens,
@@ -84,16 +95,22 @@ export async function POST(req: Request) {
             is_successful: true,
           });
 
-          console.log(`[CHAT API] Credits deducted: ${totalCost} (Input: ${inputCost}, Output: ${outputCost}), New balance: ${deductionResult.newBalance}`);
+          console.log(
+            `[CHAT API] Credits deducted: ${totalCost} (Input: ${inputCost}, Output: ${outputCost}), New balance: ${deductionResult.newBalance}`,
+          );
         } catch (error) {
-          console.error('[CHAT API] Error persisting messages or deducting credits:', error);
+          console.error(
+            "[CHAT API] Error persisting messages or deducting credits:",
+            error,
+          );
 
           if (conversationId && usage) {
             try {
               await createUsageRecord({
                 organization_id: user.organization_id,
                 user_id: user.id,
-                type: 'chat',
+                api_key_id: apiKey?.id || null,
+                type: "chat",
                 model: selectedModel,
                 provider: provider,
                 input_tokens: usage.inputTokens || 0,
@@ -101,10 +118,14 @@ export async function POST(req: Request) {
                 input_cost: 0,
                 output_cost: 0,
                 is_successful: false,
-                error_message: error instanceof Error ? error.message : 'Unknown error',
+                error_message:
+                  error instanceof Error ? error.message : "Unknown error",
               });
             } catch (usageError) {
-              console.error('[CHAT API] Error creating usage record:', usageError);
+              console.error(
+                "[CHAT API] Error creating usage record:",
+                usageError,
+              );
             }
           }
         }
@@ -113,10 +134,10 @@ export async function POST(req: Request) {
 
     return result.toUIMessageStreamResponse();
   } catch (error) {
-    console.error('[CHAT API] Error:', error);
-    return new Response(
-      JSON.stringify({ error: 'Failed to process chat' }),
-      { status: 500, headers: { 'Content-Type': 'application/json' } }
-    );
+    console.error("[CHAT API] Error:", error);
+    return new Response(JSON.stringify({ error: "Failed to process chat" }), {
+      status: 500,
+      headers: { "Content-Type": "application/json" },
+    });
   }
 }
