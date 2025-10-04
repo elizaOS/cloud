@@ -10,7 +10,12 @@ interface PromptInputProps {
   isLoading: boolean;
 }
 
-export function PromptInput({ prompt, onPromptChange, onSubmit, isLoading }: PromptInputProps) {
+export function PromptInput({
+  prompt,
+  onPromptChange,
+  onSubmit,
+  isLoading,
+}: PromptInputProps) {
   return (
     <div className="rounded-2xl border bg-gradient-to-br from-card to-muted/20 p-8 shadow-sm">
       <form onSubmit={onSubmit} className="space-y-6">

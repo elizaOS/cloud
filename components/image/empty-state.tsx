@@ -16,8 +16,8 @@ export function EmptyState() {
             Ready to Create Magic
           </h3>
           <p className="text-sm text-muted-foreground leading-relaxed">
-            Describe your vision in detail above and watch as AI brings it to life.
-            The more specific you are, the better the results!
+            Describe your vision in detail above and watch as AI brings it to
+            life. The more specific you are, the better the results!
           </p>
         </div>
 

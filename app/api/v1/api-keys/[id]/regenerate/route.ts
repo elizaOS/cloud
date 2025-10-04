@@ -1,10 +1,14 @@
-import { NextRequest, NextResponse } from 'next/server';
-import { requireAuth } from '@/lib/auth';
-import { getApiKeyById, updateApiKey, generateApiKey } from '@/lib/queries/api-keys';
+import { NextRequest, NextResponse } from "next/server";
+import { requireAuth } from "@/lib/auth";
+import {
+  getApiKeyById,
+  updateApiKey,
+  generateApiKey,
+} from "@/lib/queries/api-keys";
 
 export async function POST(
   request: NextRequest,
-  { params }: { params: Promise<{ id: string }> }
+  { params }: { params: Promise<{ id: string }> },
 ) {
   try {
     const user = await requireAuth();
@@ -13,11 +17,11 @@ export async function POST(
     const existingKey = await getApiKeyById(id);
 
     if (!existingKey) {
-      return NextResponse.json({ error: 'API key not found' }, { status: 404 });
+      return NextResponse.json({ error: "API key not found" }, { status: 404 });
     }
 
     if (existingKey.organization_id !== user.organization_id) {
-      return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     }
 
     const { key: newKey, hash: newHash, prefix: newPrefix } = generateApiKey();
@@ -30,7 +34,10 @@ export async function POST(
     });
 
     if (!updatedKey) {
-      return NextResponse.json({ error: 'Failed to regenerate API key' }, { status: 500 });
+      return NextResponse.json(
+        { error: "Failed to regenerate API key" },
+        { status: 500 },
+      );
     }
 
     return NextResponse.json(
@@ -47,10 +54,13 @@ export async function POST(
         },
         plainKey: newKey,
       },
-      { status: 200 }
+      { status: 200 },
     );
   } catch (error) {
-    console.error('Error regenerating API key:', error);
-    return NextResponse.json({ error: 'Failed to regenerate API key' }, { status: 500 });
+    console.error("Error regenerating API key:", error);
+    return NextResponse.json(
+      { error: "Failed to regenerate API key" },
+      { status: 500 },
+    );
   }
 }

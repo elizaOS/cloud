@@ -1,8 +1,8 @@
-import { handleAuth } from '@workos-inc/authkit-nextjs';
-import { syncWorkOSUser } from '@/lib/workos-sync';
+import { handleAuth } from "@workos-inc/authkit-nextjs";
+import { syncWorkOSUser } from "@/lib/workos-sync";
 
 export const GET = handleAuth({
-  returnPathname: '/dashboard',
+  returnPathname: "/dashboard",
   async onSuccess(data) {
     try {
       await syncWorkOSUser({
@@ -12,7 +12,7 @@ export const GET = handleAuth({
         lastName: data.user.lastName,
       });
     } catch (error) {
-      console.error('[CALLBACK] Failed to sync user:', error);
+      console.error("[CALLBACK] Failed to sync user:", error);
     }
   },
 });

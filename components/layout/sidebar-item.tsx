@@ -2,12 +2,12 @@
  * Sidebar Navigation Item Component
  */
 
-'use client';
+"use client";
 
-import Link from 'next/link';
-import { usePathname } from 'next/navigation';
-import { cn } from '@/lib/utils';
-import type { SidebarItem } from './sidebar-data';
+import Link from "next/link";
+import { usePathname } from "next/navigation";
+import { cn } from "@/lib/utils";
+import type { SidebarItem } from "./sidebar-data";
 
 interface SidebarNavigationItemProps {
   item: SidebarItem;
@@ -15,18 +15,17 @@ interface SidebarNavigationItemProps {
 
 export function SidebarNavigationItem({ item }: SidebarNavigationItemProps) {
   const pathname = usePathname();
-  const isActive = pathname === item.href || pathname.startsWith(`${item.href}/`);
+  const isActive =
+    pathname === item.href || pathname.startsWith(`${item.href}/`);
   const Icon = item.icon;
 
   return (
     <Link
       href={item.href}
       className={cn(
-        'flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition-colors',
-        'hover:bg-accent hover:text-accent-foreground',
-        isActive
-          ? 'bg-accent text-accent-foreground'
-          : 'text-muted-foreground'
+        "flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition-colors",
+        "hover:bg-accent hover:text-accent-foreground",
+        isActive ? "bg-accent text-accent-foreground" : "text-muted-foreground",
       )}
     >
       <Icon className="h-4 w-4" />
@@ -44,4 +43,3 @@ export function SidebarNavigationItem({ item }: SidebarNavigationItemProps) {
     </Link>
   );
 }
-

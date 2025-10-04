@@ -17,7 +17,7 @@ export function ImageDisplay({
   prompt,
   generatedText,
   onDownload,
-  onGenerateAnother
+  onGenerateAnother,
 }: ImageDisplayProps) {
   return (
     <div className="space-y-6 animate-in fade-in slide-in-from-bottom-6 duration-700">

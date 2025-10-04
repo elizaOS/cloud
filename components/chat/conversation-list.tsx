@@ -1,18 +1,18 @@
-'use client';
+"use client";
 
-import { useState, useEffect, useRef, useCallback } from 'react';
-import { Plus, MessageSquare, Trash2, Edit2, Loader2 } from 'lucide-react';
-import { useRouter } from 'next/navigation';
-import { Button } from '@/components/ui/button';
-import { ConversationInput } from './conversation-input';
-import { ConversationScrollArea } from './conversation-scroll-area';
-import type { Conversation } from '@/lib/types';
+import { useState, useEffect, useRef, useCallback } from "react";
+import { Plus, MessageSquare, Trash2, Edit2, Loader2 } from "lucide-react";
+import { useRouter } from "next/navigation";
+import { Button } from "@/components/ui/button";
+import { ConversationInput } from "./conversation-input";
+import { ConversationScrollArea } from "./conversation-scroll-area";
+import type { Conversation } from "@/lib/types";
 import {
   createConversationAction,
   updateConversationTitleAction,
   deleteConversationAction,
-} from '@/app/actions/conversations';
-import { cn } from '@/lib/utils';
+} from "@/app/actions/conversations";
+import { cn } from "@/lib/utils";
 
 interface ConversationListProps {
   conversations: Conversation[];
@@ -26,7 +26,7 @@ export function ConversationList({
   onSelectConversation,
 }: ConversationListProps) {
   const [editingId, setEditingId] = useState<string | null>(null);
-  const [editTitle, setEditTitle] = useState('');
+  const [editTitle, setEditTitle] = useState("");
   const [isCreating, setIsCreating] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [deletingId, setDeletingId] = useState<string | null>(null);
@@ -36,8 +36,8 @@ export function ConversationList({
   const handleCreate = async () => {
     setIsCreating(true);
     const result = await createConversationAction({
-      title: 'New Conversation',
-      model: 'gpt-4o',
+      title: "New Conversation",
+      model: "gpt-4o",
     });
     if (result.success && result.conversation) {
       onSelectConversation(result.conversation.id);
@@ -50,43 +50,46 @@ export function ConversationList({
     setEditTitle(conversation.title);
   };
 
-  const handleSaveEdit = useCallback(async (id: string) => {
-    if (editTitle.trim()) {
-      setIsSaving(true);
-      try {
-        await updateConversationTitleAction(id, editTitle.trim());
-      } catch (error) {
-        console.error('Failed to update conversation title:', error);
-      } finally {
-        setIsSaving(false);
+  const handleSaveEdit = useCallback(
+    async (id: string) => {
+      if (editTitle.trim()) {
+        setIsSaving(true);
+        try {
+          await updateConversationTitleAction(id, editTitle.trim());
+        } catch (error) {
+          console.error("Failed to update conversation title:", error);
+        } finally {
+          setIsSaving(false);
+        }
       }
-    }
-    setEditingId(null);
-    setEditTitle('');
-  }, [editTitle]);
+      setEditingId(null);
+      setEditTitle("");
+    },
+    [editTitle],
+  );
 
   const handleCancelEdit = useCallback(() => {
     if (!isSaving) {
       setEditingId(null);
-      setEditTitle('');
+      setEditTitle("");
     }
   }, [isSaving]);
 
   const handleDelete = async (id: string) => {
-    if (confirm('Are you sure you want to delete this conversation?')) {
+    if (confirm("Are you sure you want to delete this conversation?")) {
       setDeletingId(id);
       try {
         await deleteConversationAction(id);
         if (id === currentConversationId) {
-          const nextConv = conversations.find(c => c.id !== id);
+          const nextConv = conversations.find((c) => c.id !== id);
           if (nextConv) {
             onSelectConversation(nextConv.id);
           } else {
-            router.push('/dashboard/text');
+            router.push("/dashboard/text");
           }
         }
       } catch (error) {
-        console.error('Failed to delete conversation:', error);
+        console.error("Failed to delete conversation:", error);
       } finally {
         setDeletingId(null);
       }
@@ -95,29 +98,34 @@ export function ConversationList({
 
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
-      if (editingId && !isSaving && editInputRef.current && !editInputRef.current.contains(event.target as Node)) {
+      if (
+        editingId &&
+        !isSaving &&
+        editInputRef.current &&
+        !editInputRef.current.contains(event.target as Node)
+      ) {
         handleSaveEdit(editingId);
       }
     };
 
     const handleKeyDown = (event: KeyboardEvent) => {
       if (editingId && !isSaving) {
-        if (event.key === 'Enter') {
+        if (event.key === "Enter") {
           event.preventDefault();
           handleSaveEdit(editingId);
-        } else if (event.key === 'Escape') {
+        } else if (event.key === "Escape") {
           event.preventDefault();
           handleCancelEdit();
         }
       }
     };
 
-    document.addEventListener('mousedown', handleClickOutside);
-    document.addEventListener('keydown', handleKeyDown);
+    document.addEventListener("mousedown", handleClickOutside);
+    document.addEventListener("keydown", handleKeyDown);
 
     return () => {
-      document.removeEventListener('mousedown', handleClickOutside);
-      document.removeEventListener('keydown', handleKeyDown);
+      document.removeEventListener("mousedown", handleClickOutside);
+      document.removeEventListener("keydown", handleKeyDown);
     };
   }, [editingId, editTitle, isSaving, handleSaveEdit, handleCancelEdit]);
 
@@ -147,10 +155,10 @@ export function ConversationList({
               <div
                 key={conversation.id}
                 className={cn(
-                  'group relative flex cursor-pointer flex-col gap-3 rounded-2xl border border-transparent bg-background/70 p-3 transition-colors duration-150',
+                  "group relative flex cursor-pointer flex-col gap-3 rounded-2xl border border-transparent bg-background/70 p-3 transition-colors duration-150",
                   isActive
-                    ? 'border-primary/30 bg-primary/[0.08] shadow-sm'
-                    : 'hover:border-border/60 hover:bg-muted/70'
+                    ? "border-primary/30 bg-primary/[0.08] shadow-sm"
+                    : "hover:border-border/60 hover:bg-muted/70",
                 )}
                 onClick={() => onSelectConversation(conversation.id)}
               >
@@ -175,10 +183,13 @@ export function ConversationList({
                 ) : (
                   <>
                     <div className="flex items-start gap-3">
-                      <div className={cn(
-                        'flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-xl border border-transparent bg-muted text-muted-foreground',
-                        isActive && 'border-primary/40 bg-primary/10 text-primary'
-                      )}>
+                      <div
+                        className={cn(
+                          "flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-xl border border-transparent bg-muted text-muted-foreground",
+                          isActive &&
+                            "border-primary/40 bg-primary/10 text-primary",
+                        )}
+                      >
                         <MessageSquare className="h-4 w-4" />
                       </div>
                       <div className="min-w-0 flex-1">
@@ -230,7 +241,9 @@ export function ConversationList({
           {conversations.length === 0 && (
             <div className="rounded-xl border border-dashed border-muted-foreground/40 px-4 py-10 text-center text-muted-foreground">
               <MessageSquare className="mx-auto mb-3 h-8 w-8 opacity-60" />
-              <p className="text-sm font-medium text-foreground">No conversations yet</p>
+              <p className="text-sm font-medium text-foreground">
+                No conversations yet
+              </p>
               <p className="text-xs">Start a new chat to see it appear here.</p>
             </div>
           )}

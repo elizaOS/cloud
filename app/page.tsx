@@ -1,9 +1,19 @@
-import Link from 'next/link';
-import { getSignInUrl, getSignUpUrl, withAuth } from '@workos-inc/authkit-nextjs';
-import { redirect } from 'next/navigation';
-import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import LandingHeader from '@/components/layout/landing-header';
+import Link from "next/link";
+import {
+  getSignInUrl,
+  getSignUpUrl,
+  withAuth,
+} from "@workos-inc/authkit-nextjs";
+import { redirect } from "next/navigation";
+import { Button } from "@/components/ui/button";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
+import LandingHeader from "@/components/layout/landing-header";
 import {
   Zap,
   Cloud,
@@ -15,8 +25,8 @@ import {
   Globe,
   ArrowRight,
   Brain,
-  Server
-} from 'lucide-react';
+  Server,
+} from "lucide-react";
 
 export default async function Home() {
   // Check if user is already signed in
@@ -24,7 +34,7 @@ export default async function Home() {
 
   // If signed in, redirect to dashboard
   if (user) {
-    redirect('/dashboard');
+    redirect("/dashboard");
   }
 
   // Get auth URLs for sign in/up
@@ -51,8 +61,9 @@ export default async function Home() {
             </span>
           </h1>
           <p className="mb-8 text-lg text-muted-foreground md:text-xl">
-            Complete AI agent development platform with inference, hosting, storage, and rapid deployment. 
-            Build powerful autonomous agents with ease.
+            Complete AI agent development platform with inference, hosting,
+            storage, and rapid deployment. Build powerful autonomous agents with
+            ease.
           </p>
           <div className="flex flex-col items-center justify-center gap-4 sm:flex-row">
             <Button size="lg" asChild className="gap-2">
@@ -76,7 +87,8 @@ export default async function Home() {
               Everything You Need to Build AI Agents
             </h2>
             <p className="text-lg text-muted-foreground">
-              A complete platform for developing, deploying, and managing AI agents at scale
+              A complete platform for developing, deploying, and managing AI
+              agents at scale
             </p>
           </div>
 
@@ -86,8 +98,8 @@ export default async function Home() {
                 <Brain className="mb-2 h-8 w-8 text-primary" />
                 <CardTitle>Advanced AI Models</CardTitle>
                 <CardDescription>
-                  Access to cutting-edge LLMs including GPT-4, Claude, and open-source models. 
-                  Built-in inference with automatic scaling.
+                  Access to cutting-edge LLMs including GPT-4, Claude, and
+                  open-source models. Built-in inference with automatic scaling.
                 </CardDescription>
               </CardHeader>
             </Card>
@@ -97,8 +109,8 @@ export default async function Home() {
                 <Rocket className="mb-2 h-8 w-8 text-primary" />
                 <CardTitle>Rapid Deployment</CardTitle>
                 <CardDescription>
-                  Deploy your AI agents in seconds. From development to production with a single command. 
-                  Zero DevOps required.
+                  Deploy your AI agents in seconds. From development to
+                  production with a single command. Zero DevOps required.
                 </CardDescription>
               </CardHeader>
             </Card>
@@ -108,8 +120,9 @@ export default async function Home() {
                 <Cloud className="mb-2 h-8 w-8 text-primary" />
                 <CardTitle>Cloud-Native Hosting</CardTitle>
                 <CardDescription>
-                  Fully managed infrastructure with automatic scaling, load balancing, and 99.9% uptime SLA. 
-                  Focus on building, not operations.
+                  Fully managed infrastructure with automatic scaling, load
+                  balancing, and 99.9% uptime SLA. Focus on building, not
+                  operations.
                 </CardDescription>
               </CardHeader>
             </Card>
@@ -119,8 +132,9 @@ export default async function Home() {
                 <Database className="mb-2 h-8 w-8 text-primary" />
                 <CardTitle>Persistent Storage</CardTitle>
                 <CardDescription>
-                  Built-in vector databases, memory management, and state persistence. 
-                  Your agents remember conversations and learn over time.
+                  Built-in vector databases, memory management, and state
+                  persistence. Your agents remember conversations and learn over
+                  time.
                 </CardDescription>
               </CardHeader>
             </Card>
@@ -130,8 +144,8 @@ export default async function Home() {
                 <Shield className="mb-2 h-8 w-8 text-primary" />
                 <CardTitle>Enterprise Security</CardTitle>
                 <CardDescription>
-                  End-to-end encryption, SOC 2 compliance, and granular access controls. 
-                  Your data and agents are always secure.
+                  End-to-end encryption, SOC 2 compliance, and granular access
+                  controls. Your data and agents are always secure.
                 </CardDescription>
               </CardHeader>
             </Card>
@@ -141,7 +155,7 @@ export default async function Home() {
                 <Code className="mb-2 h-8 w-8 text-primary" />
                 <CardTitle>Developer Experience</CardTitle>
                 <CardDescription>
-                  Intuitive CLI, TypeScript SDK, and extensive documentation. 
+                  Intuitive CLI, TypeScript SDK, and extensive documentation.
                   Build with the tools and languages you already know.
                 </CardDescription>
               </CardHeader>
@@ -152,8 +166,8 @@ export default async function Home() {
                 <Cpu className="mb-2 h-8 w-8 text-primary" />
                 <CardTitle>Container Support</CardTitle>
                 <CardDescription>
-                  Deploy custom containers with your own dependencies and runtime. 
-                  Full control over your agent environment.
+                  Deploy custom containers with your own dependencies and
+                  runtime. Full control over your agent environment.
                 </CardDescription>
               </CardHeader>
             </Card>
@@ -163,8 +177,8 @@ export default async function Home() {
                 <Zap className="mb-2 h-8 w-8 text-primary" />
                 <CardTitle>Real-Time Analytics</CardTitle>
                 <CardDescription>
-                  Monitor agent performance, track usage metrics, and optimize costs. 
-                  Comprehensive insights into your AI operations.
+                  Monitor agent performance, track usage metrics, and optimize
+                  costs. Comprehensive insights into your AI operations.
                 </CardDescription>
               </CardHeader>
             </Card>
@@ -174,8 +188,8 @@ export default async function Home() {
                 <Globe className="mb-2 h-8 w-8 text-primary" />
                 <CardTitle>Multi-Platform Support</CardTitle>
                 <CardDescription>
-                  Deploy agents to Discord, Telegram, Twitter, and more. 
-                  One codebase, multiple platforms.
+                  Deploy agents to Discord, Telegram, Twitter, and more. One
+                  codebase, multiple platforms.
                 </CardDescription>
               </CardHeader>
             </Card>
@@ -198,36 +212,45 @@ export default async function Home() {
           <div className="grid gap-8 md:grid-cols-2">
             <Card>
               <CardHeader>
-                <CardTitle className="text-2xl">Customer Support Agents</CardTitle>
+                <CardTitle className="text-2xl">
+                  Customer Support Agents
+                </CardTitle>
               </CardHeader>
               <CardContent>
                 <p className="text-muted-foreground">
-                  Build intelligent chatbots that understand context, remember conversations, 
-                  and provide personalized support 24/7. Reduce support costs while improving customer satisfaction.
+                  Build intelligent chatbots that understand context, remember
+                  conversations, and provide personalized support 24/7. Reduce
+                  support costs while improving customer satisfaction.
                 </p>
               </CardContent>
             </Card>
 
             <Card>
               <CardHeader>
-                <CardTitle className="text-2xl">Autonomous Trading Bots</CardTitle>
+                <CardTitle className="text-2xl">
+                  Autonomous Trading Bots
+                </CardTitle>
               </CardHeader>
               <CardContent>
                 <p className="text-muted-foreground">
-                  Create sophisticated agents that analyze market data, execute trades, 
-                  and manage portfolios. Built-in blockchain integrations for DeFi and crypto trading.
+                  Create sophisticated agents that analyze market data, execute
+                  trades, and manage portfolios. Built-in blockchain
+                  integrations for DeFi and crypto trading.
                 </p>
               </CardContent>
             </Card>
 
             <Card>
               <CardHeader>
-                <CardTitle className="text-2xl">Content Creation Agents</CardTitle>
+                <CardTitle className="text-2xl">
+                  Content Creation Agents
+                </CardTitle>
               </CardHeader>
               <CardContent>
                 <p className="text-muted-foreground">
-                  Deploy agents that generate social media content, write articles, create images, 
-                  and manage your online presence. Maintain consistent brand voice across platforms.
+                  Deploy agents that generate social media content, write
+                  articles, create images, and manage your online presence.
+                  Maintain consistent brand voice across platforms.
                 </p>
               </CardContent>
             </Card>
@@ -238,8 +261,9 @@ export default async function Home() {
               </CardHeader>
               <CardContent>
                 <p className="text-muted-foreground">
-                  Build agents that gather information, analyze data, generate reports, 
-                  and provide insights. Automate research workflows and knowledge management.
+                  Build agents that gather information, analyze data, generate
+                  reports, and provide insights. Automate research workflows and
+                  knowledge management.
                 </p>
               </CardContent>
             </Card>
