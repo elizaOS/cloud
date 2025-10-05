@@ -39,7 +39,7 @@ export default async function AccountPage() {
               Welcome back, <span className="font-semibold">{user.name || user.email}</span>! 
             </p>
             <p className="text-xs text-muted-foreground mt-1">
-              You're part of <span className="font-medium">{user.organization.name}</span> organization
+              You&apos;re part of <span className="font-medium">{user.organization.name}</span> organization
             </p>
           </div>
         </div>
