@@ -1,7 +1,6 @@
 import {
   bigint,
   boolean,
-  check,
   decimal,
   index,
   integer,
@@ -65,7 +64,6 @@ export const users = pgTable(
     id: uuid("id").defaultRandom().primaryKey(),
     workos_user_id: text("workos_user_id").unique(),
     email: text("email").notNull().unique(),
-    password_hash: text("password_hash"),
     email_verified: boolean("email_verified").notNull().default(false),
     name: text("name"),
     organization_id: uuid("organization_id")
