@@ -5,6 +5,7 @@ import { headers } from "next/headers";
 import { db } from "@/db/drizzle";
 import * as schema from "@/db/schema";
 import { eq } from "drizzle-orm";
+import { revalidateTag } from "next/cache";
 
 export async function POST(req: NextRequest) {
   const body = await req.text();
@@ -90,6 +91,8 @@ export async function POST(req: NextRequest) {
             userId,
             paymentIntentId,
           );
+
+          revalidateTag("user-auth");
 
           console.log(
             `✓ Added ${credits} credits to organization ${organizationId} (payment intent: ${paymentIntentId})`,
