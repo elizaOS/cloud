@@ -1,13 +1,15 @@
 import { streamText } from "ai";
-import { requireAuthOrApiKey } from "@/lib/auth";
-import { createUsageRecord } from "@/lib/queries/usage";
-import { deductCredits } from "@/lib/queries/credits";
+import { requireAuthOrApiKey } from '@/lib/auth';
+import { createUsageRecord } from '@/lib/queries/usage';
+import { deductCredits } from '@/lib/queries/credits';
+import { createGeneration, updateGeneration } from '@/lib/queries/generations';
 import { IMAGE_GENERATION_COST } from "@/lib/pricing";
-import type { NextRequest } from "next/server";
+import type { NextRequest } from 'next/server';
 
 export const maxDuration = 30;
 
 export async function POST(req: NextRequest) {
+  let generationId: string | undefined;
   try {
     const { user, apiKey } = await requireAuthOrApiKey(req);
     const { prompt }: { prompt: string } = await req.json();
@@ -18,6 +20,21 @@ export async function POST(req: NextRequest) {
         { status: 400 },
       );
     }
+
+    const generation = await createGeneration({
+      organization_id: user.organization_id,
+      user_id: user.id,
+      api_key_id: apiKey?.id || null,
+      type: 'image',
+      model: 'google/gemini-2.5-flash-image-preview',
+      provider: 'google',
+      prompt: prompt,
+      status: 'pending',
+      credits: IMAGE_GENERATION_COST,
+      cost: IMAGE_GENERATION_COST,
+    });
+
+    generationId = generation.id;
 
     const result = streamText({
       model: "google/gemini-2.5-flash-image-preview",
@@ -51,7 +68,7 @@ export async function POST(req: NextRequest) {
     }
 
     if (!imageBase64) {
-      await createUsageRecord({
+      const usageRecord = await createUsageRecord({
         organization_id: user.organization_id,
         user_id: user.id,
         api_key_id: apiKey?.id || null,
@@ -65,6 +82,15 @@ export async function POST(req: NextRequest) {
         is_successful: false,
         error_message: "No image was generated",
       });
+
+      if (generationId) {
+        await updateGeneration(generationId, {
+          status: 'failed',
+          error: 'No image was generated',
+          usage_record_id: usageRecord.id,
+          completed_at: new Date(),
+        });
+      }
 
       return Response.json(
         { error: "No image was generated" },
@@ -85,7 +111,7 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    await createUsageRecord({
+    const usageRecord = await createUsageRecord({
       organization_id: user.organization_id,
       user_id: user.id,
       api_key_id: apiKey?.id || null,
@@ -99,9 +125,25 @@ export async function POST(req: NextRequest) {
       is_successful: true,
     });
 
-    console.log(
-      `[IMAGE GENERATION] Credits deducted: ${IMAGE_GENERATION_COST}, New balance: ${deductionResult.newBalance}`,
-    );
+    const mimeTypeMatch = imageBase64.match(/^data:([^;]+);base64,/);
+    const mimeType = mimeTypeMatch ? mimeTypeMatch[1] : 'image/png';
+
+    if (generationId) {
+      await updateGeneration(generationId, {
+        status: 'completed',
+        content: imageBase64,
+        storage_url: imageBase64,
+        mime_type: mimeType,
+        usage_record_id: usageRecord.id,
+        completed_at: new Date(),
+        result: {
+          image: imageBase64,
+          text: textResponse,
+        },
+      });
+    }
+
+    console.log(`[IMAGE GENERATION] Credits deducted: ${IMAGE_GENERATION_COST}, New balance: ${deductionResult.newBalance}`);
 
     return Response.json({
       image: imageBase64,
@@ -109,9 +151,21 @@ export async function POST(req: NextRequest) {
       finishReason: await result.finishReason,
     });
   } catch (error) {
-    console.error("[IMAGE GENERATION] Error:", error);
-    const errorMessage =
-      error instanceof Error ? error.message : "Image generation failed";
+    console.error('[IMAGE GENERATION] Error:', error);
+    const errorMessage = error instanceof Error ? error.message : 'Image generation failed';
+
+    if (generationId) {
+      try {
+        await updateGeneration(generationId, {
+          status: 'failed',
+          error: errorMessage,
+          completed_at: new Date(),
+        });
+      } catch (updateError) {
+        console.error('[IMAGE GENERATION] Failed to update generation record:', updateError);
+      }
+    }
+
     return Response.json(
       { error: errorMessage },
       {

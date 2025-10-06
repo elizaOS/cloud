@@ -1,6 +1,7 @@
 "use client";
 
 import { useChat } from "@ai-sdk/react";
+import { DefaultChatTransport } from "ai";
 import { Send, Loader2, Bot, User, Settings, Clock } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -22,6 +23,9 @@ export function ChatInterface() {
 
   const { messages, sendMessage, status } = useChat({
     id: selectedModel, // Create new chat instance when model changes
+    transport: new DefaultChatTransport({
+      api: "/api/v1/chat",
+    }),
   });
 
   const messagesEndRef = useRef<HTMLDivElement>(null);

@@ -1,28 +1,28 @@
-import { drizzle } from "drizzle-orm/neon-http";
-import { neon } from "@neondatabase/serverless";
+import { drizzle } from "drizzle-orm/neon-serverless";
+import { Pool } from "@neondatabase/serverless";
 import * as schema from "./sass/schema";
-import type { NeonHttpDatabase } from "drizzle-orm/neon-http";
+import type { NeonDatabase } from "drizzle-orm/neon-serverless";
 
-let _db: NeonHttpDatabase<typeof schema> | null = null;
+let _db: NeonDatabase<typeof schema> | null = null;
 
 function getDb() {
   if (!_db) {
     const databaseUrl = process.env.DATABASE_URL;
-    
+
     if (!databaseUrl) {
       throw new Error(
         "DATABASE_URL environment variable is not set. Make sure you have a .env.local file with DATABASE_URL defined."
       );
     }
 
-    const sql = neon(databaseUrl);
-    _db = drizzle(sql, { schema });
+    const pool = new Pool({ connectionString: databaseUrl });
+    _db = drizzle(pool, { schema });
   }
-  
+
   return _db;
 }
 
-export const db = new Proxy({} as NeonHttpDatabase<typeof schema>, {
+export const db = new Proxy({} as NeonDatabase<typeof schema>, {
   get: (_, prop) => {
     const database = getDb();
     const value = database[prop as keyof typeof database];
