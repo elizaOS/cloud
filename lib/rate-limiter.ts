@@ -8,12 +8,9 @@ class RateLimiter {
   private cleanupInterval: NodeJS.Timeout;
 
   constructor() {
-    this.cleanupInterval = setInterval(
-      () => {
-        this.cleanup();
-      },
-      60 * 1000,
-    );
+    this.cleanupInterval = setInterval(() => {
+      this.cleanup();
+    }, 60 * 1000);
   }
 
   private cleanup(): void {
@@ -25,7 +22,11 @@ class RateLimiter {
     }
   }
 
-  check(key: string, limit: number, windowMs: number): {
+  check(
+    key: string,
+    limit: number,
+    windowMs: number,
+  ): {
     allowed: boolean;
     remaining: number;
     resetAt: number;
@@ -44,7 +45,11 @@ class RateLimiter {
     }
 
     entry.count += 1;
-    return { allowed: true, remaining: limit - entry.count, resetAt: entry.resetAt };
+    return {
+      allowed: true,
+      remaining: limit - entry.count,
+      resetAt: entry.resetAt,
+    };
   }
 
   destroy(): void {

@@ -11,7 +11,7 @@ function getDb() {
 
     if (!databaseUrl) {
       throw new Error(
-        "DATABASE_URL environment variable is not set. Make sure you have a .env.local file with DATABASE_URL defined."
+        "DATABASE_URL environment variable is not set. Make sure you have a .env.local file with DATABASE_URL defined.",
       );
     }
 

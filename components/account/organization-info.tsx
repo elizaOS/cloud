@@ -1,6 +1,12 @@
 "use client";
 
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Building2, CreditCard, Calendar } from "lucide-react";
 import type { Organization } from "@/lib/types";
@@ -30,9 +36,7 @@ export function OrganizationInfo({ organization }: OrganizationInfoProps) {
           <Building2 className="h-5 w-5" />
           Organization
         </CardTitle>
-        <CardDescription>
-          Information about your organization
-        </CardDescription>
+        <CardDescription>Information about your organization</CardDescription>
       </CardHeader>
       <CardContent>
         <div className="space-y-4">
@@ -59,7 +63,9 @@ export function OrganizationInfo({ organization }: OrganizationInfoProps) {
 
             <div className="space-y-1">
               <p className="text-sm text-muted-foreground">Status</p>
-              <Badge variant={organization.is_active ? "default" : "destructive"}>
+              <Badge
+                variant={organization.is_active ? "default" : "destructive"}
+              >
                 {organization.is_active ? "Active" : "Inactive"}
               </Badge>
             </div>
@@ -84,4 +90,3 @@ export function OrganizationInfo({ organization }: OrganizationInfoProps) {
     </Card>
   );
 }
-

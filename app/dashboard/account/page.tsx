@@ -8,7 +8,8 @@ import { Sparkles } from "lucide-react";
 
 export const metadata: Metadata = {
   title: "Account Settings",
-  description: "Manage your account preferences, profile, and security settings",
+  description:
+    "Manage your account preferences, profile, and security settings",
 };
 
 export default async function AccountPage() {
@@ -36,10 +37,13 @@ export default async function AccountPage() {
         <div className="flex items-start gap-3">
           <div className="flex-1">
             <p className="text-sm">
-              Welcome back, <span className="font-semibold">{user.name || user.email}</span>! 
+              Welcome back,{" "}
+              <span className="font-semibold">{user.name || user.email}</span>!
             </p>
             <p className="text-xs text-muted-foreground mt-1">
-              You&apos;re part of <span className="font-medium">{user.organization.name}</span> organization
+              You&apos;re part of{" "}
+              <span className="font-medium">{user.organization.name}</span>{" "}
+              organization
             </p>
           </div>
         </div>

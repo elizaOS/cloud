@@ -1,6 +1,12 @@
 "use client";
 
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Shield, Key, Bell, Lock, ExternalLink } from "lucide-react";
@@ -48,7 +54,9 @@ export function SecurityPreferences() {
               </div>
               <div className="space-y-1">
                 <div className="flex items-center gap-2">
-                  <p className="font-medium text-sm">Two-Factor Authentication</p>
+                  <p className="font-medium text-sm">
+                    Two-Factor Authentication
+                  </p>
                   <Badge variant="outline" className="text-xs">
                     Coming Soon
                   </Badge>
@@ -71,7 +79,9 @@ export function SecurityPreferences() {
               </div>
               <div className="space-y-1">
                 <div className="flex items-center gap-2">
-                  <p className="font-medium text-sm">Notification Preferences</p>
+                  <p className="font-medium text-sm">
+                    Notification Preferences
+                  </p>
                   <Badge variant="outline" className="text-xs">
                     Coming Soon
                   </Badge>
@@ -96,17 +106,20 @@ export function SecurityPreferences() {
           {/* Danger Zone */}
           <div className="space-y-3">
             <div className="flex items-center gap-2">
-              <p className="text-sm font-medium text-destructive">Danger Zone</p>
+              <p className="text-sm font-medium text-destructive">
+                Danger Zone
+              </p>
             </div>
-            
+
             <div className="p-4 rounded-lg border border-destructive/50 bg-destructive/5">
               <div className="space-y-2">
                 <p className="font-medium text-sm">Delete Account</p>
                 <p className="text-xs text-muted-foreground">
-                  Permanently delete your account and all associated data. This action cannot be undone.
+                  Permanently delete your account and all associated data. This
+                  action cannot be undone.
                 </p>
-                <Button 
-                  variant="destructive" 
+                <Button
+                  variant="destructive"
                   size="sm"
                   disabled
                   className="mt-2"
@@ -121,4 +134,3 @@ export function SecurityPreferences() {
     </Card>
   );
 }
-

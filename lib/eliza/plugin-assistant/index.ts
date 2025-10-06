@@ -15,12 +15,18 @@ import { v4 } from "uuid";
 import { recentMessagesProvider } from "./providers/recentMessages";
 
 // Track usage per message for credit deduction
-const messageUsageMap = new Map<string, { inputTokens: number; outputTokens: number; model: string }>();
+const messageUsageMap = new Map<
+  string,
+  { inputTokens: number; outputTokens: number; model: string }
+>();
 
 interface MessageReceivedHandlerParams {
   runtime: IAgentRuntime;
   message: Memory;
-  callback: (result: { text?: string; usage?: { inputTokens: number; outputTokens: number; model: string } }) => Promise<Memory[]>;
+  callback: (result: {
+    text?: string;
+    usage?: { inputTokens: number; outputTokens: number; model: string };
+  }) => Promise<Memory[]>;
 }
 
 /**
@@ -247,14 +253,14 @@ const messageReceivedHandler = async ({
 
     // Save response and trigger callback
     await runtime.createMemory(responseMemory, "messages");
-    
+
     // Store usage in map for retrieval by API endpoint
     messageUsageMap.set(messageKey, {
       inputTokens: estimatedInputTokens,
       outputTokens: estimatedOutputTokens,
       model: modelUsed,
     });
-    
+
     // Trigger callback if provided (returns empty array as we already saved the message)
     if (callback) {
       await callback({
@@ -331,7 +337,9 @@ export const assistantPlugin: Plugin = {
 export default assistantPlugin;
 
 // Export helper to retrieve usage data
-export function getMessageUsage(messageId: string): { inputTokens: number; outputTokens: number; model: string } | undefined {
+export function getMessageUsage(
+  messageId: string,
+): { inputTokens: number; outputTokens: number; model: string } | undefined {
   const usage = messageUsageMap.get(messageId);
   if (usage) {
     // Clean up after retrieval to prevent memory leaks
@@ -339,4 +347,3 @@ export function getMessageUsage(messageId: string): { inputTokens: number; outpu
   }
   return usage;
 }
-

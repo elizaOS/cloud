@@ -50,10 +50,10 @@ export default async function BillingPage({
         <Info className="h-4 w-4" />
         <AlertTitle>How Credits Work</AlertTitle>
         <AlertDescription>
-          Credits are used to power all AI operations including text
-          generation, image creation, and video rendering. Purchase credits in
-          bulk to get better rates. Credits never expire and are shared across
-          your organization.
+          Credits are used to power all AI operations including text generation,
+          image creation, and video rendering. Purchase credits in bulk to get
+          better rates. Credits never expire and are shared across your
+          organization.
         </AlertDescription>
       </Alert>
 

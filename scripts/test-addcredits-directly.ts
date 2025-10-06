@@ -30,7 +30,7 @@ async function testAddCredits() {
       "purchase",
       `Test credit pack purchase - ${credits.toLocaleString()} credits`,
       userId,
-      paymentIntentId
+      paymentIntentId,
     );
 
     console.log("\n✅ SUCCESS!");
@@ -38,11 +38,11 @@ async function testAddCredits() {
     console.log(`New Balance: ${result.newBalance.toLocaleString()}`);
     console.log(`Transaction ID: ${result.transaction.id}`);
     console.log(
-      `Transaction Amount: ${result.transaction.amount.toLocaleString()}`
+      `Transaction Amount: ${result.transaction.amount.toLocaleString()}`,
     );
     console.log(`Transaction Type: ${result.transaction.type}`);
     console.log(
-      `Stripe Payment Intent ID: ${result.transaction.stripe_payment_intent_id}`
+      `Stripe Payment Intent ID: ${result.transaction.stripe_payment_intent_id}`,
     );
 
     console.log("\n📊 Verifying in Database...");
@@ -58,7 +58,7 @@ async function testAddCredits() {
 
     if (org) {
       console.log(
-        `✓ Organization credit balance: ${org.credit_balance.toLocaleString()}`
+        `✓ Organization credit balance: ${org.credit_balance.toLocaleString()}`,
       );
     } else {
       console.log(`❌ Could not find organization`);
@@ -67,7 +67,7 @@ async function testAddCredits() {
     const txn = await db.query.creditTransactions.findFirst({
       where: eq(
         schema.creditTransactions.stripe_payment_intent_id,
-        paymentIntentId
+        paymentIntentId,
       ),
     });
 

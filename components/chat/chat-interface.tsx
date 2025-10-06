@@ -184,7 +184,11 @@ export function ChatInterface() {
                     switch (part.type) {
                       case "text":
                         return (
-                          <div key={`${message.id ?? `msg-${index}`}-part-${i}`}>{part.text}</div>
+                          <div
+                            key={`${message.id ?? `msg-${index}`}-part-${i}`}
+                          >
+                            {part.text}
+                          </div>
                         );
                       default:
                         return null;

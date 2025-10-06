@@ -114,4 +114,3 @@ export async function uploadAvatar(formData: FormData) {
     };
   }
 }
-

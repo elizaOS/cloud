@@ -38,12 +38,12 @@ export const metadata: Metadata = {
 };
 
 function generateUsageAlerts(
-  data: Awaited<ReturnType<typeof getDashboardData>>
+  data: Awaited<ReturnType<typeof getDashboardData>>,
 ): UsageAlertItem[] {
   const alerts: UsageAlertItem[] = [];
 
   const degradedProviders = data.providerHealth.filter(
-    (p) => p.status === "degraded"
+    (p) => p.status === "degraded",
   );
   for (const provider of degradedProviders) {
     alerts.push({
@@ -56,7 +56,7 @@ function generateUsageAlerts(
   }
 
   const daysRemaining = Math.floor(
-    data.organization.creditBalance / (data.usage.dailyBurnCredits || 1)
+    data.organization.creditBalance / (data.usage.dailyBurnCredits || 1),
   );
   if (daysRemaining < 90 && daysRemaining > 0) {
     alerts.push({
@@ -93,7 +93,7 @@ function generateUsageAlerts(
 }
 
 function generateActivityFeed(
-  data: Awaited<ReturnType<typeof getDashboardData>>
+  data: Awaited<ReturnType<typeof getDashboardData>>,
 ): ActivityFeedItem[] {
   const activities: ActivityFeedItem[] = [];
 

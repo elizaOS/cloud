@@ -46,7 +46,12 @@ export async function GET() {
         error:
           error instanceof Error ? error.message : "Failed to fetch user data",
       },
-      { status: error instanceof Error && error.message.includes("Forbidden") ? 403 : 500 },
+      {
+        status:
+          error instanceof Error && error.message.includes("Forbidden")
+            ? 403
+            : 500,
+      },
     );
   }
 }
@@ -116,8 +121,12 @@ export async function PATCH(request: NextRequest) {
         error:
           error instanceof Error ? error.message : "Failed to update profile",
       },
-      { status: error instanceof Error && error.message.includes("Forbidden") ? 403 : 500 },
+      {
+        status:
+          error instanceof Error && error.message.includes("Forbidden")
+            ? 403
+            : 500,
+      },
     );
   }
 }
-

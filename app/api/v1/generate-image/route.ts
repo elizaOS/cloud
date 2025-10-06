@@ -1,10 +1,10 @@
 import { streamText } from "ai";
-import { requireAuthOrApiKey } from '@/lib/auth';
-import { createUsageRecord } from '@/lib/queries/usage';
-import { deductCredits } from '@/lib/queries/credits';
-import { createGeneration, updateGeneration } from '@/lib/queries/generations';
+import { requireAuthOrApiKey } from "@/lib/auth";
+import { createUsageRecord } from "@/lib/queries/usage";
+import { deductCredits } from "@/lib/queries/credits";
+import { createGeneration, updateGeneration } from "@/lib/queries/generations";
 import { IMAGE_GENERATION_COST } from "@/lib/pricing";
-import type { NextRequest } from 'next/server';
+import type { NextRequest } from "next/server";
 
 export const maxDuration = 30;
 
@@ -25,11 +25,11 @@ export async function POST(req: NextRequest) {
       organization_id: user.organization_id,
       user_id: user.id,
       api_key_id: apiKey?.id || null,
-      type: 'image',
-      model: 'google/gemini-2.5-flash-image-preview',
-      provider: 'google',
+      type: "image",
+      model: "google/gemini-2.5-flash-image-preview",
+      provider: "google",
       prompt: prompt,
-      status: 'pending',
+      status: "pending",
       credits: IMAGE_GENERATION_COST,
       cost: IMAGE_GENERATION_COST,
     });
@@ -85,8 +85,8 @@ export async function POST(req: NextRequest) {
 
       if (generationId) {
         await updateGeneration(generationId, {
-          status: 'failed',
-          error: 'No image was generated',
+          status: "failed",
+          error: "No image was generated",
           usage_record_id: usageRecord.id,
           completed_at: new Date(),
         });
@@ -126,11 +126,11 @@ export async function POST(req: NextRequest) {
     });
 
     const mimeTypeMatch = imageBase64.match(/^data:([^;]+);base64,/);
-    const mimeType = mimeTypeMatch ? mimeTypeMatch[1] : 'image/png';
+    const mimeType = mimeTypeMatch ? mimeTypeMatch[1] : "image/png";
 
     if (generationId) {
       await updateGeneration(generationId, {
-        status: 'completed',
+        status: "completed",
         content: imageBase64,
         storage_url: imageBase64,
         mime_type: mimeType,
@@ -143,7 +143,9 @@ export async function POST(req: NextRequest) {
       });
     }
 
-    console.log(`[IMAGE GENERATION] Credits deducted: ${IMAGE_GENERATION_COST}, New balance: ${deductionResult.newBalance}`);
+    console.log(
+      `[IMAGE GENERATION] Credits deducted: ${IMAGE_GENERATION_COST}, New balance: ${deductionResult.newBalance}`,
+    );
 
     return Response.json({
       image: imageBase64,
@@ -151,18 +153,22 @@ export async function POST(req: NextRequest) {
       finishReason: await result.finishReason,
     });
   } catch (error) {
-    console.error('[IMAGE GENERATION] Error:', error);
-    const errorMessage = error instanceof Error ? error.message : 'Image generation failed';
+    console.error("[IMAGE GENERATION] Error:", error);
+    const errorMessage =
+      error instanceof Error ? error.message : "Image generation failed";
 
     if (generationId) {
       try {
         await updateGeneration(generationId, {
-          status: 'failed',
+          status: "failed",
           error: errorMessage,
           completed_at: new Date(),
         });
       } catch (updateError) {
-        console.error('[IMAGE GENERATION] Failed to update generation record:', updateError);
+        console.error(
+          "[IMAGE GENERATION] Failed to update generation record:",
+          updateError,
+        );
       }
     }
 

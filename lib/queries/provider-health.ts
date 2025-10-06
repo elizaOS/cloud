@@ -1,5 +1,5 @@
-import { db, schema, eq, desc } from '@/lib/db';
-import type { ProviderHealth, NewProviderHealth } from '@/lib/types';
+import { db, schema, eq, desc } from "@/lib/db";
+import type { ProviderHealth, NewProviderHealth } from "@/lib/types";
 
 export async function listProviderHealth(): Promise<ProviderHealth[]> {
   return await db.query.providerHealth.findMany({
@@ -7,14 +7,16 @@ export async function listProviderHealth(): Promise<ProviderHealth[]> {
   });
 }
 
-export async function getProviderHealthByName(provider: string): Promise<ProviderHealth | undefined> {
+export async function getProviderHealthByName(
+  provider: string,
+): Promise<ProviderHealth | undefined> {
   return await db.query.providerHealth.findFirst({
     where: eq(schema.providerHealth.provider, provider),
   });
 }
 
 export async function createOrUpdateProviderHealth(
-  data: NewProviderHealth
+  data: NewProviderHealth,
 ): Promise<ProviderHealth> {
   const existing = await getProviderHealthByName(data.provider);
 
@@ -41,7 +43,7 @@ export async function updateProviderHealthStatus(
   provider: string,
   status: string,
   responseTime?: number,
-  errorRate?: number
+  errorRate?: number,
 ): Promise<ProviderHealth | undefined> {
   const [updated] = await db
     .update(schema.providerHealth)

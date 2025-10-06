@@ -98,15 +98,13 @@ export const InfiniteMovingCards = ({
                   {item.title}
                 </span>
               </div>
-              
+
               {/* Main content */}
               <div>
                 <h4 className="text-base font-semibold text-foreground mb-1">
                   {item.quote}
                 </h4>
-                <p className="text-sm text-muted-foreground">
-                  {item.name}
-                </p>
+                <p className="text-sm text-muted-foreground">{item.name}</p>
               </div>
             </div>
           </li>

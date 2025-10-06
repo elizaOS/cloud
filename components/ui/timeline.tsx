@@ -1,9 +1,5 @@
 "use client";
-import {
-  useScroll,
-  useTransform,
-  motion,
-} from "motion/react";
+import { useScroll, useTransform, motion } from "motion/react";
 import React, { useEffect, useRef, useState } from "react";
 
 interface TimelineEntry {
@@ -11,11 +7,11 @@ interface TimelineEntry {
   content: React.ReactNode;
 }
 
-export const Timeline = ({ 
-  data, 
+export const Timeline = ({
+  data,
   title = "Changelog from my journey",
-  description = "I've been working on Aceternity for the past 2 years. Here's a timeline of my journey."
-}: { 
+  description = "I've been working on Aceternity for the past 2 years. Here's a timeline of my journey.",
+}: {
   data: TimelineEntry[];
   title?: string;
   description?: string;

@@ -16,7 +16,7 @@ export async function POST(req: NextRequest) {
   if (!signature) {
     return NextResponse.json(
       { error: "No signature provided" },
-      { status: 400 }
+      { status: 400 },
     );
   }
 
@@ -25,7 +25,7 @@ export async function POST(req: NextRequest) {
     console.error("STRIPE_WEBHOOK_SECRET is not set");
     return NextResponse.json(
       { error: "Webhook configuration error" },
-      { status: 500 }
+      { status: 500 },
     );
   }
 
@@ -37,7 +37,7 @@ export async function POST(req: NextRequest) {
     console.error("Webhook signature verification failed:", err);
     return NextResponse.json(
       { error: "Webhook signature verification failed" },
-      { status: 400 }
+      { status: 400 },
     );
   }
 
@@ -57,14 +57,14 @@ export async function POST(req: NextRequest) {
 
           if (!organizationId || !credits || credits <= 0) {
             console.warn(
-              `Invalid metadata in checkout session ${session.id}: organizationId=${organizationId}, credits=${credits}`
+              `Invalid metadata in checkout session ${session.id}: organizationId=${organizationId}, credits=${credits}`,
             );
             break;
           }
 
           if (!paymentIntentId) {
             console.warn(
-              `No payment intent ID in checkout session ${session.id}`
+              `No payment intent ID in checkout session ${session.id}`,
             );
             break;
           }
@@ -73,17 +73,17 @@ export async function POST(req: NextRequest) {
             await db.query.creditTransactions.findFirst({
               where: eq(
                 schema.creditTransactions.stripe_payment_intent_id,
-                paymentIntentId
+                paymentIntentId,
               ),
             });
 
           if (existingTransaction) {
             console.log(
-              `⚠️ Duplicate webhook event detected. Payment intent ${paymentIntentId} already processed (transaction ${existingTransaction.id})`
+              `⚠️ Duplicate webhook event detected. Payment intent ${paymentIntentId} already processed (transaction ${existingTransaction.id})`,
             );
             return NextResponse.json(
               { received: true, duplicate: true },
-              { status: 200 }
+              { status: 200 },
             );
           }
 
@@ -93,13 +93,13 @@ export async function POST(req: NextRequest) {
             "purchase",
             `Credit pack purchase - ${credits.toLocaleString()} credits`,
             userId,
-            paymentIntentId
+            paymentIntentId,
           );
 
           revalidateTag("user-auth");
 
           console.log(
-            `✓ Added ${credits} credits to organization ${organizationId} (payment intent: ${paymentIntentId})`
+            `✓ Added ${credits} credits to organization ${organizationId} (payment intent: ${paymentIntentId})`,
           );
         }
         break;
@@ -125,7 +125,7 @@ export async function POST(req: NextRequest) {
   } catch (error) {
     console.error(
       `[Stripe Webhook] Error processing event ${event.type} (${event.id}):`,
-      error
+      error,
     );
 
     const errorMessage =
@@ -145,7 +145,7 @@ export async function POST(req: NextRequest) {
         event_id: event.id,
         event_type: event.type,
       },
-      { status: 500 }
+      { status: 500 },
     );
   }
 }
