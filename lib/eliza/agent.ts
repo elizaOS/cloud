@@ -1,15 +1,17 @@
 import type { Character } from "@elizaos/core";
 import { openaiPlugin } from "@elizaos/plugin-openai";
-import { plugin as sqlPlugin } from "@elizaos/plugin-sql";
+// NOTE: plugin-sql is provided via a pre-initialized adapter in agent-runtime
 
 /**
  * A simple Eliza character for demonstrating serverless implementation
  */
 const character: Character = {
+  id: "b850bc30-45f8-0041-a00a-83df46d8555d", // existing agent id in DB
   name: "Eliza",
   plugins: [],
   settings: {
     POSTGRES_URL: process.env.DATABASE_URL!,
+    DATABASE_URL: process.env.DATABASE_URL!,
     OPENAI_API_KEY: process.env.OPENAI_API_KEY!,
   },
   system:
@@ -79,7 +81,8 @@ const character: Character = {
 
 const agent = {
   character,
-  plugins: [openaiPlugin, sqlPlugin],
+  // Model only; SQL adapter is injected in runtime and responses are generated directly
+  plugins: [openaiPlugin],
   providers: [],
   actions: [],
 };

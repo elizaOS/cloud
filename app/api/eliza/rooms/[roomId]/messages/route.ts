@@ -3,7 +3,7 @@ import { agentRuntime } from "@/lib/eliza/agent-runtime";
 import type { UUID } from "@elizaos/core";
 
 // POST /api/eliza/rooms/[roomId]/messages - Send a message
-export async function POST(request: Request, ctx: { params: { roomId: string } }) {
+export async function POST(request: Request, ctx: { params: Promise<{ roomId: string }> }) {
   try {
     const { roomId } = await ctx.params;
     const body = await request.json();
@@ -86,7 +86,7 @@ export async function POST(request: Request, ctx: { params: { roomId: string } }
 }
 
 // GET /api/eliza/rooms/[roomId]/messages - Get messages (for polling)
-export async function GET(request: Request, ctx: { params: { roomId: string } }) {
+export async function GET(request: Request, ctx: { params: Promise<{ roomId: string }> }) {
   try {
     const { roomId } = await ctx.params;
     const { searchParams } = new URL(request.url);
@@ -109,31 +109,35 @@ export async function GET(request: Request, ctx: { params: { roomId: string } })
     });
 
     // Filter messages by timestamp if provided (for polling)
-    const afterTimestampNum = afterTimestamp ? parseInt(afterTimestamp) : 0;
-    const filteredMessages = afterTimestamp
+    const parsed = afterTimestamp ? Number(afterTimestamp) : 0;
+    const afterTimestampNum = Number.isFinite(parsed) && parsed > 0 ? parsed : 0;
+    const isValidAfter = afterTimestampNum > 0;
+    const filteredMessages = isValidAfter
       ? messages.filter((msg) => {
           const msgTime = (msg as { createdAt: number }).createdAt;
           return msgTime > afterTimestampNum;
         })
       : messages;
 
-    const simple = filteredMessages.map((msg) => {
-      let parsedContent: unknown = msg.content;
-      try {
-        if (typeof msg.content === "string")
-          parsedContent = JSON.parse(msg.content);
-      } catch {
-        parsedContent = msg.content;
-      }
-      return {
-        id: msg.id,
-        entityId: msg.entityId,
-        agentId: msg.agentId,
-        content: parsedContent,
-        createdAt: (msg as { createdAt: number }).createdAt,
-        isAgent: msg.entityId === msg.agentId,
-      };
-    });
+    const simple = filteredMessages
+      .map((msg) => {
+        let parsedContent: unknown = msg.content;
+        try {
+          if (typeof msg.content === "string")
+            parsedContent = JSON.parse(msg.content);
+        } catch {
+          parsedContent = msg.content;
+        }
+        return {
+          id: msg.id,
+          entityId: msg.entityId,
+          agentId: msg.agentId,
+          content: parsedContent,
+          createdAt: (msg as { createdAt: number }).createdAt,
+          isAgent: msg.entityId === msg.agentId,
+        };
+      })
+      .sort((a, b) => a.createdAt - b.createdAt);
 
     return NextResponse.json(
       {

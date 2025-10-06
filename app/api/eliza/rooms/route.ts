@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { agentRuntime } from "@/lib/eliza/agent-runtime";
 import { v4 as uuidv4 } from "uuid";
-import { stringToUuid, UUID } from "@elizaos/core";
+import { stringToUuid, UUID, ChannelType } from "@elizaos/core";
 
 // GET /api/eliza/rooms - Get user's rooms
 export async function GET(request: NextRequest) {
@@ -70,11 +70,40 @@ export async function POST(request: NextRequest) {
     await runtime.ensureRoomExists({
       id: roomId as UUID,
       source: "web",
-      type: "DM",
+      type: ChannelType.DM,
       channelId: roomId,
       serverId: "eliza-server",
       worldId: stringToUuid("eliza-world") as UUID,
       agentId: runtime.agentId,
+    });
+
+    // Ensure the user entity is connected to the room so it shows up in participants queries
+    const userEntityId = stringToUuid(entityId) as UUID;
+
+    // Pre-create the entity with a top-level metadata.name to satisfy DB constraints
+    try {
+      await runtime.createEntity({
+        id: userEntityId,
+        agentId: runtime.agentId as UUID,
+        names: [entityId],
+        metadata: { name: entityId, web: { userName: entityId } },
+      });
+    } catch (e) {
+      const msg = e instanceof Error ? e.message.toLowerCase() : String(e).toLowerCase();
+      if (!msg.includes("duplicate key") && !msg.includes("unique constraint")) {
+        throw e;
+      }
+    }
+
+    await runtime.ensureConnection({
+      entityId: userEntityId,
+      roomId: roomId as UUID,
+      worldId: stringToUuid("eliza-world") as UUID,
+      source: "web",
+      type: ChannelType.DM,
+      channelId: roomId,
+      serverId: "eliza-server",
+      userName: entityId,
     });
 
     console.log("[Eliza Rooms API] Created room:", roomId, "for entity:", entityId);
