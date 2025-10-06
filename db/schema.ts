@@ -23,15 +23,10 @@ export const organizations = pgTable(
     webhook_url: text("webhook_url"),
     webhook_secret: text("webhook_secret"),
     stripe_customer_id: text("stripe_customer_id"),
-    stripe_subscription_id: text("stripe_subscription_id"),
-    stripe_product_id: text("stripe_product_id"),
-    stripe_price_id: text("stripe_price_id"),
-    subscription_status: text("subscription_status"),
     billing_email: text("billing_email"),
     tax_id_type: text("tax_id_type"),
     tax_id_value: text("tax_id_value"),
     billing_address: jsonb("billing_address").$type<Record<string, unknown>>(),
-    subscription_tier: text("subscription_tier").default("free"),
     max_api_requests: integer("max_api_requests").default(1000),
     max_tokens_per_request: integer("max_tokens_per_request"),
     allowed_models: jsonb("allowed_models")
@@ -198,6 +193,34 @@ export const creditTransactions = pgTable(
     created_at_idx: index("credit_transactions_created_at_idx").on(
       table.created_at,
     ),
+  }),
+);
+
+export const creditPacks = pgTable(
+  "credit_packs",
+  {
+    id: uuid("id").defaultRandom().primaryKey(),
+    name: text("name").notNull(),
+    description: text("description"),
+    credits: integer("credits").notNull(),
+    price_cents: integer("price_cents").notNull(),
+    stripe_price_id: text("stripe_price_id").notNull().unique(),
+    stripe_product_id: text("stripe_product_id").notNull(),
+    is_active: boolean("is_active").notNull().default(true),
+    sort_order: integer("sort_order").default(0),
+    metadata: jsonb("metadata")
+      .$type<Record<string, unknown>>()
+      .default({})
+      .notNull(),
+    created_at: timestamp("created_at").notNull().defaultNow(),
+    updated_at: timestamp("updated_at").notNull().defaultNow(),
+  },
+  (table) => ({
+    stripe_price_idx: index("credit_packs_stripe_price_idx").on(
+      table.stripe_price_id,
+    ),
+    active_idx: index("credit_packs_active_idx").on(table.is_active),
+    sort_idx: index("credit_packs_sort_idx").on(table.sort_order),
   }),
 );
 

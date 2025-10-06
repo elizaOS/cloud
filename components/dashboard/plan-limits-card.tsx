@@ -18,7 +18,6 @@ export interface PlanLimitsCardProps {
 const nf = new Intl.NumberFormat("en-US");
 
 export function PlanLimitsCard({
-  subscriptionTier,
   maxApiRequests,
   maxTokensPerRequest,
   allowedProviders,
@@ -27,19 +26,12 @@ export function PlanLimitsCard({
   nextReset,
   className,
 }: PlanLimitsCardProps) {
-  const tierBadgeVariant = subscriptionTier.toLowerCase() === "free" ? "outline" : "default";
-
   return (
     <Card className={cn("h-full border-border/60 bg-background/85 shadow-sm", className)}>
       <CardHeader className="space-y-2">
-        <div className="flex items-center justify-between">
-          <CardTitle className="text-sm font-semibold tracking-tight">Plan limits</CardTitle>
-          <Badge variant={tierBadgeVariant} className="rounded-full text-[11px] uppercase">
-            {subscriptionTier}
-          </Badge>
-        </div>
+        <CardTitle className="text-sm font-semibold tracking-tight">Usage Limits</CardTitle>
         <p className="text-xs text-muted-foreground">
-          Stay within your contract limits and monitor what your team can access.
+          Monitor your usage limits and what your team can access.
         </p>
       </CardHeader>
       <CardContent className="space-y-4">

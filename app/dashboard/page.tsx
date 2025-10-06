@@ -217,7 +217,6 @@ export default async function DashboardPage() {
   }));
 
   const planLimits = {
-    subscriptionTier: data.organization.subscriptionTier,
     maxApiRequests: data.organization.maxApiRequests,
     maxTokensPerRequest: data.organization.maxTokensPerRequest,
     allowedProviders: data.organization.allowedProviders,
