@@ -1,6 +1,7 @@
 import { streamText, type UIMessage, convertToModelMessages } from "ai";
+import { gateway } from "@ai-sdk/gateway";
 import { requireAuthOrApiKey } from '@/lib/auth';
-import { addMessageToConversation, getNextSequenceNumber } from '@/lib/queries/conversations';
+import { addMessageWithSequence } from '@/lib/queries/conversations';
 import { deductCredits } from '@/lib/queries/credits';
 import { createUsageRecord } from '@/lib/queries/usage';
 import { createGeneration } from '@/lib/queries/generations';
@@ -23,151 +24,147 @@ export async function POST(req: NextRequest) {
       : undefined;
 
     const result = streamText({
-      model: selectedModel,
+      model: gateway.languageModel(selectedModel),
       system: `You are a helpful AI assistant powered by elizaOS. You provide clear, accurate, and helpful responses.
       You are knowledgeable about AI agents, development, and technology.`,
       messages: convertToModelMessages(messages),
-      onFinish: async ({ text, usage }) => {
-        if (!usage) return;
+      onFinish: ({ text, usage }) => {
+        (async () => {
+          if (!usage) return;
 
-        try {
-          const userMessage = messages[messages.length - 1];
+          try {
+            const userMessage = messages[messages.length - 1];
 
-          const { inputCost, outputCost, totalCost } = await calculateCost(
-            selectedModel,
-            provider,
-            usage.inputTokens || 0,
-            usage.outputTokens || 0,
-          );
-
-          const deductionResult = await deductCredits(
-            user.organization_id,
-            totalCost,
-            `Chat completion: ${selectedModel}`,
-            user.id,
-          );
-
-          if (!deductionResult.success) {
-            console.error(
-              "[CHAT API] Failed to deduct credits - insufficient balance",
+            const { inputCost, outputCost, totalCost } = await calculateCost(
+              selectedModel,
+              provider,
+              usage.inputTokens || 0,
+              usage.outputTokens || 0,
             );
-          }
 
-          if (conversationId) {
-            const userSequence = await getNextSequenceNumber(conversationId);
-
-            await addMessageToConversation({
-              conversation_id: conversationId,
-              role: 'user',
-              content: userMessage.parts.map(p => p.type === 'text' ? p.text : '').join(''),
-              sequence_number: userSequence,
-              model: selectedModel,
-              tokens: usage.inputTokens,
-              cost: inputCost,
-            });
-
-            const assistantSequence = await getNextSequenceNumber(conversationId);
-
-            await addMessageToConversation({
-              conversation_id: conversationId,
-              role: 'assistant',
-              content: text,
-              sequence_number: assistantSequence,
-              model: selectedModel,
-              tokens: usage.outputTokens,
-              cost: outputCost,
-            });
-          }
-
-          const usageRecord = await createUsageRecord({
-            organization_id: user.organization_id,
-            user_id: user.id,
-            api_key_id: apiKey?.id || null,
-            type: "chat",
-            model: selectedModel,
-            provider: provider,
-            input_tokens: usage.inputTokens,
-            output_tokens: usage.outputTokens,
-            input_cost: inputCost,
-            output_cost: outputCost,
-            is_successful: true,
-          });
-
-          if (apiKey) {
-            const userPrompt = messages[messages.length - 1]?.parts.map(p => p.type === 'text' ? p.text : '').join('') || '';
-            await createGeneration({
-              organization_id: user.organization_id,
-              user_id: user.id,
-              api_key_id: apiKey.id,
-              type: 'chat',
-              model: selectedModel,
-              provider: provider,
-              prompt: userPrompt,
-              status: 'completed',
-              content: text,
-              tokens: (usage.inputTokens || 0) + (usage.outputTokens || 0),
-              cost: totalCost,
-              credits: totalCost,
-              usage_record_id: usageRecord.id,
-              completed_at: new Date(),
-              result: {
-                text: text,
-                inputTokens: usage.inputTokens,
-                outputTokens: usage.outputTokens,
-                totalTokens: (usage.inputTokens || 0) + (usage.outputTokens || 0),
-              },
-            });
-          }
-
-          console.log(`[CHAT API] Credits deducted: ${totalCost} (Input: ${inputCost}, Output: ${outputCost}), New balance: ${deductionResult.newBalance}`);
-        } catch (error) {
-          console.error(
-            "[CHAT API] Error persisting messages or deducting credits:",
-            error,
-          );
-
-          if (usage) {
-            try {
-              const errorUsageRecord = await createUsageRecord({
-                organization_id: user.organization_id,
-                user_id: user.id,
-                api_key_id: apiKey?.id || null,
-                type: "chat",
+            if (conversationId) {
+              await addMessageWithSequence(conversationId, {
+                role: 'user',
+                content: userMessage.parts.map(p => p.type === 'text' ? p.text : '').join(''),
                 model: selectedModel,
-                provider: provider,
-                input_tokens: usage.inputTokens || 0,
-                output_tokens: usage.outputTokens || 0,
-                input_cost: 0,
-                output_cost: 0,
-                is_successful: false,
-                error_message:
-                  error instanceof Error ? error.message : "Unknown error",
+                tokens: usage.inputTokens,
+                cost: inputCost,
               });
 
-              if (apiKey) {
-                const userPrompt = messages[messages.length - 1]?.parts.map(p => p.type === 'text' ? p.text : '').join('') || '';
-                await createGeneration({
-                  organization_id: user.organization_id,
-                  user_id: user.id,
-                  api_key_id: apiKey.id,
-                  type: 'chat',
-                  model: selectedModel,
-                  provider: provider,
-                  prompt: userPrompt,
-                  status: 'failed',
-                  error: error instanceof Error ? error.message : 'Unknown error',
-                  usage_record_id: errorUsageRecord.id,
-                  completed_at: new Date(),
-                });
-              }
-            } catch (usageError) {
+              await addMessageWithSequence(conversationId, {
+                role: 'assistant',
+                content: text,
+                model: selectedModel,
+                tokens: usage.outputTokens,
+                cost: outputCost,
+              });
+            }
+
+            const deductionResult = await deductCredits(
+              user.organization_id,
+              totalCost,
+              `Chat completion: ${selectedModel}`,
+              user.id,
+            );
+
+            if (!deductionResult.success) {
               console.error(
-                "[CHAT API] Error creating usage record:",
-                usageError,
+                "[CHAT API] Failed to deduct credits - insufficient balance",
               );
             }
+
+            const usageRecord = await createUsageRecord({
+              organization_id: user.organization_id,
+              user_id: user.id,
+              api_key_id: apiKey?.id || null,
+              type: "chat",
+              model: selectedModel,
+              provider: provider,
+              input_tokens: usage.inputTokens,
+              output_tokens: usage.outputTokens,
+              input_cost: inputCost,
+              output_cost: outputCost,
+              is_successful: true,
+            });
+
+            if (apiKey) {
+              const userPrompt = messages[messages.length - 1]?.parts.map(p => p.type === 'text' ? p.text : '').join('') || '';
+              await createGeneration({
+                organization_id: user.organization_id,
+                user_id: user.id,
+                api_key_id: apiKey.id,
+                type: 'chat',
+                model: selectedModel,
+                provider: provider,
+                prompt: userPrompt,
+                status: 'completed',
+                content: text,
+                tokens: (usage.inputTokens || 0) + (usage.outputTokens || 0),
+                cost: totalCost,
+                credits: totalCost,
+                usage_record_id: usageRecord.id,
+                completed_at: new Date(),
+                result: {
+                  text: text,
+                  inputTokens: usage.inputTokens,
+                  outputTokens: usage.outputTokens,
+                  totalTokens: (usage.inputTokens || 0) + (usage.outputTokens || 0),
+                },
+              });
+            }
+
+            console.log(`[CHAT API] Credits deducted: ${totalCost} (Input: ${inputCost}, Output: ${outputCost}), New balance: ${deductionResult.newBalance}`);
+          } catch (error) {
+            console.error(
+              "[CHAT API] Error persisting messages or deducting credits:",
+              error,
+            );
+
+            if (usage) {
+              try {
+                const errorUsageRecord = await createUsageRecord({
+                  organization_id: user.organization_id,
+                  user_id: user.id,
+                  api_key_id: apiKey?.id || null,
+                  type: "chat",
+                  model: selectedModel,
+                  provider: provider,
+                  input_tokens: usage.inputTokens || 0,
+                  output_tokens: usage.outputTokens || 0,
+                  input_cost: 0,
+                  output_cost: 0,
+                  is_successful: false,
+                  error_message:
+                    error instanceof Error ? error.message : "Unknown error",
+                });
+
+                if (apiKey) {
+                  const userPrompt = messages[messages.length - 1]?.parts.map(p => p.type === 'text' ? p.text : '').join('') || '';
+                  await createGeneration({
+                    organization_id: user.organization_id,
+                    user_id: user.id,
+                    api_key_id: apiKey.id,
+                    type: 'chat',
+                    model: selectedModel,
+                    provider: provider,
+                    prompt: userPrompt,
+                    status: 'failed',
+                    error: error instanceof Error ? error.message : 'Unknown error',
+                    usage_record_id: errorUsageRecord.id,
+                    completed_at: new Date(),
+                  });
+                }
+              } catch (usageError) {
+                console.error(
+                  "[CHAT API] Error creating usage record:",
+                  usageError,
+                );
+              }
+            }
           }
-        }
+        })().catch(err => {
+          console.error("[CHAT API] Background operation failed:", err);
+        });
       },
     });
 
