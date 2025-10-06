@@ -2,7 +2,7 @@
 
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Building2, CreditCard, Package, Calendar } from "lucide-react";
+import { Building2, CreditCard, Calendar } from "lucide-react";
 import type { Organization } from "@/lib/types";
 
 interface OrganizationInfoProps {
@@ -23,17 +23,6 @@ export function OrganizationInfo({ organization }: OrganizationInfoProps) {
     return new Intl.NumberFormat("en-US").format(credits);
   };
 
-  const getTierBadgeVariant = (tier: string | null) => {
-    switch (tier) {
-      case "pro":
-        return "default";
-      case "enterprise":
-        return "secondary";
-      default:
-        return "outline";
-    }
-  };
-
   return (
     <Card>
       <CardHeader>
@@ -42,7 +31,7 @@ export function OrganizationInfo({ organization }: OrganizationInfoProps) {
           Organization
         </CardTitle>
         <CardDescription>
-          Information about your organization and subscription
+          Information about your organization
         </CardDescription>
       </CardHeader>
       <CardContent>
@@ -56,16 +45,6 @@ export function OrganizationInfo({ organization }: OrganizationInfoProps) {
             <div className="space-y-1">
               <p className="text-sm text-muted-foreground">Slug</p>
               <p className="font-mono text-sm">{organization.slug}</p>
-            </div>
-
-            <div className="space-y-1">
-              <p className="text-sm text-muted-foreground flex items-center gap-2">
-                <Package className="h-4 w-4" />
-                Subscription Tier
-              </p>
-              <Badge variant={getTierBadgeVariant(organization.subscription_tier)}>
-                {organization.subscription_tier || "free"}
-              </Badge>
             </div>
 
             <div className="space-y-1">
@@ -98,13 +77,6 @@ export function OrganizationInfo({ organization }: OrganizationInfoProps) {
             <div className="pt-4 border-t space-y-1">
               <p className="text-sm text-muted-foreground">Billing Email</p>
               <p className="text-sm">{organization.billing_email}</p>
-            </div>
-          )}
-
-          {organization.subscription_status && (
-            <div className="space-y-1">
-              <p className="text-sm text-muted-foreground">Subscription Status</p>
-              <Badge variant="outline">{organization.subscription_status}</Badge>
             </div>
           )}
         </div>

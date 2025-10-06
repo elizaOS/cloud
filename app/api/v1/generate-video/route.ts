@@ -2,8 +2,9 @@ import { NextRequest, NextResponse } from "next/server";
 import { fal } from "@fal-ai/client";
 import type { QueueStatus } from "@fal-ai/client";
 import { requireAuthOrApiKey } from "@/lib/auth";
-import { createUsageRecord } from "@/lib/queries/usage";
-import { deductCredits } from "@/lib/queries/credits";
+import { createUsageRecord } from '@/lib/queries/usage';
+import { deductCredits } from '@/lib/queries/credits';
+import { createGeneration, updateGeneration } from '@/lib/queries/generations';
 import {
   VIDEO_GENERATION_COST,
   VIDEO_GENERATION_FALLBACK_COST,
@@ -45,6 +46,7 @@ const VALID_MODELS = [
 ];
 
 export async function POST(request: NextRequest) {
+  let generationId: string | undefined;
   try {
     const { user, apiKey } = await requireAuthOrApiKey(request);
 
@@ -76,9 +78,22 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    console.log(
-      `[VIDEO GENERATION] Starting generation for user ${user.id}, model: ${model}`,
-    );
+    const generation = await createGeneration({
+      organization_id: user.organization_id,
+      user_id: user.id,
+      api_key_id: apiKey?.id || null,
+      type: 'video',
+      model: model,
+      provider: 'fal',
+      prompt: prompt.trim(),
+      status: 'pending',
+      credits: VIDEO_GENERATION_COST,
+      cost: VIDEO_GENERATION_COST,
+    });
+
+    generationId = generation.id;
+
+    console.log(`[VIDEO GENERATION] Starting generation for user ${user.id}, model: ${model}`);
 
     const result = await fal.subscribe(model, {
       input: {
@@ -124,7 +139,7 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    await createUsageRecord({
+    const usageRecord = await createUsageRecord({
       organization_id: user.organization_id,
       user_id: user.id,
       api_key_id: apiKey?.id || null,
@@ -138,9 +153,29 @@ export async function POST(request: NextRequest) {
       is_successful: true,
     });
 
-    console.log(
-      `[VIDEO GENERATION] Credits deducted: ${VIDEO_GENERATION_COST}, New balance: ${deductionResult.newBalance}`,
-    );
+    if (generationId) {
+      await updateGeneration(generationId, {
+        status: 'completed',
+        storage_url: data.video.url,
+        mime_type: data.video.content_type || 'video/mp4',
+        file_size: data.video.file_size ? BigInt(data.video.file_size) : null,
+        dimensions: {
+          width: data.video.width,
+          height: data.video.height,
+        },
+        usage_record_id: usageRecord.id,
+        completed_at: new Date(),
+        result: {
+          video: data.video,
+          seed: data.seed,
+          has_nsfw_concepts: data.has_nsfw_concepts,
+          timings: data.timings,
+          requestId: result.requestId,
+        },
+      });
+    }
+
+    console.log(`[VIDEO GENERATION] Credits deducted: ${VIDEO_GENERATION_COST}, New balance: ${deductionResult.newBalance}`);
 
     return NextResponse.json(
       {
@@ -177,7 +212,7 @@ export async function POST(request: NextRequest) {
         );
       }
 
-      await createUsageRecord({
+      const fallbackUsageRecord = await createUsageRecord({
         organization_id: fallbackUser.organization_id,
         user_id: fallbackUser.id,
         api_key_id: fallbackApiKey?.id || null,
@@ -192,9 +227,34 @@ export async function POST(request: NextRequest) {
         error_message: errorMessage,
       });
 
-      console.log(
-        `[VIDEO GENERATION] Fallback credits deducted: ${VIDEO_GENERATION_FALLBACK_COST}, New balance: ${fallbackDeduction.newBalance}`,
-      );
+      if (generationId) {
+        await updateGeneration(generationId, {
+          status: 'failed',
+          error: errorMessage,
+          storage_url: "https://v3.fal.media/files/zebra/P8u5qLXJrXF--Xm1Kix6j_output.mp4",
+          mime_type: 'video/mp4',
+          dimensions: {
+            width: 1920,
+            height: 1080,
+          },
+          credits: VIDEO_GENERATION_FALLBACK_COST,
+          cost: VIDEO_GENERATION_FALLBACK_COST,
+          usage_record_id: fallbackUsageRecord.id,
+          completed_at: new Date(),
+          result: {
+            isFallback: true,
+            originalError: errorMessage,
+            video: {
+              url: "https://v3.fal.media/files/zebra/P8u5qLXJrXF--Xm1Kix6j_output.mp4",
+              content_type: "video/mp4",
+              width: 1920,
+              height: 1080,
+            },
+          },
+        });
+      }
+
+      console.log(`[VIDEO GENERATION] Fallback credits deducted: ${VIDEO_GENERATION_FALLBACK_COST}, New balance: ${fallbackDeduction.newBalance}`);
     } catch (authError) {
       console.error(
         "[VIDEO GENERATION] Auth error during fallback logging:",

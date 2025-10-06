@@ -11,7 +11,7 @@ import {
   ImageIcon,
   LayersIcon,
 } from "@radix-ui/react-icons";
-import { Server, HardDrive, Video } from "lucide-react";
+import { Server, HardDrive, Video, CreditCard } from "lucide-react";
 import { ComponentType } from "react";
 
 export interface SidebarItem {
@@ -95,6 +95,12 @@ export const sidebarSections: SidebarSection[] = [
         label: "Account",
         href: "/dashboard/account",
         icon: PersonIcon,
+      },
+      {
+        id: "billing",
+        label: "Billing",
+        href: "/dashboard/billing",
+        icon: CreditCard,
       },
       {
         id: "api-keys",
