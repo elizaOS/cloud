@@ -1,5 +1,5 @@
 import { db } from "@/db/drizzle";
-import * as schema from "@/db/schema";
+import * as schema from "@/db/sass/schema";
 
 export { db, schema };
 
