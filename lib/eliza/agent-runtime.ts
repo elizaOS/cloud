@@ -3,10 +3,10 @@ import { v4 as uuidv4 } from "uuid";
 import {
   AgentRuntime,
   ChannelType,
+  EventType,
   Memory,
   elizaLogger,
   stringToUuid,
-  ModelType,
   type UUID,
   type Agent,
   type Logger,
@@ -313,7 +313,7 @@ class AgentRuntimeManager {
     return this.runtime;
   }
 
-  // Helper method to handle messages
+  // Helper method to handle messages using the full ElizaOS event pipeline
   public async handleMessage(
     roomId: string,
     entityId: string,
@@ -349,60 +349,22 @@ class AgentRuntimeManager {
       },
     };
 
-    // Persist user message
-    await runtime.createMemory(userMessage, "messages");
-
-    // Compose simple prompt from recent messages
-    const history = await runtime.getMemories({
-      tableName: "messages",
-      roomId: roomId as UUID,
-      count: 12,
-      unique: false,
+    // Use the full ElizaOS event pipeline (like OTC agent)
+    // This triggers the plugin's messageReceivedHandler which will:
+    // 1. Use providers to gather context
+    // 2. Compose state with composeState()
+    // 3. Call useModel() with full context
+    // 4. Process any actions
+    // 5. Create and save the response memory
+    await runtime.emitEvent(EventType.MESSAGE_RECEIVED, {
+      runtime,
+      message: userMessage,
+      callback: async () => {
+        // Response is already saved by the plugin's messageReceivedHandler
+        elizaLogger.debug("#Eliza", "Message processed via event pipeline");
+        return [];
+      },
     });
-    const ordered = history.sort((a, b) => {
-      const ta = (a as unknown as { createdAt?: number }).createdAt ?? 0;
-      const tb = (b as unknown as { createdAt?: number }).createdAt ?? 0;
-      return ta - tb;
-    });
-    const convo = ordered
-      .map((m) => {
-        const isAgent = m.entityId === runtime.agentId;
-        const text = typeof m.content === "string"
-          ? m.content
-          : (m.content as { text?: string } | undefined)?.text || "";
-        return `${isAgent ? "Assistant" : "User"}: ${text}`;
-      })
-      .join("\n");
-    const system = agent.character?.system ||
-      "You are Eliza, a helpful and concise AI assistant. Answer clearly and helpfully.";
-    const prompt = `${system}\n\n${convo}\nAssistant:`;
-
-    // Generate response
-    let responseText = "";
-    try {
-      const out = (await runtime.useModel<string>(ModelType.TEXT_LARGE, {
-        prompt,
-        temperature: 0.6,
-      } as unknown as Record<string, unknown>)) as string;
-      responseText = (out || "").toString();
-    } catch (e) {
-      elizaLogger.error("#Eliza", "Generation failed", e);
-    }
-
-    if (responseText.trim().length > 0) {
-      const agentMessage: Memory = {
-        id: uuidv4() as UUID,
-        roomId: roomId as UUID,
-        entityId: runtime.agentId as UUID,
-        agentId: runtime.agentId as UUID,
-        createdAt: Date.now(),
-        content: {
-          text: responseText,
-          type: "agent",
-        },
-      };
-      await runtime.createMemory(agentMessage, "messages");
-    }
 
     return userMessage;
   }
