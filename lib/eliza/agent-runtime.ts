@@ -318,7 +318,10 @@ class AgentRuntimeManager {
     roomId: string,
     entityId: string,
     content: { text?: string; attachments?: unknown[] },
-  ): Promise<Memory> {
+  ): Promise<{
+    message: Memory;
+    usage?: { inputTokens: number; outputTokens: number; model: string };
+  }> {
     const runtime = await this.getRuntime();
 
     // Ensure room and entity connection (follows Eliza's ensureConnection pattern)
@@ -349,6 +352,9 @@ class AgentRuntimeManager {
       },
     };
 
+    // Track usage from callback
+    let usage: { inputTokens: number; outputTokens: number; model: string } | undefined;
+
     // Use the full ElizaOS event pipeline (like OTC agent)
     // This triggers the plugin's messageReceivedHandler which will:
     // 1. Use providers to gather context
@@ -359,14 +365,17 @@ class AgentRuntimeManager {
     await runtime.emitEvent(EventType.MESSAGE_RECEIVED, {
       runtime,
       message: userMessage,
-      callback: async () => {
+      callback: async (result: { text?: string; usage?: { inputTokens: number; outputTokens: number; model: string } }) => {
         // Response is already saved by the plugin's messageReceivedHandler
         elizaLogger.debug("#Eliza", "Message processed via event pipeline");
+        if (result.usage) {
+          usage = result.usage;
+        }
         return [];
       },
     });
 
-    return userMessage;
+    return { message: userMessage, usage };
   }
 }
 
