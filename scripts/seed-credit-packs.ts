@@ -9,27 +9,27 @@ const creditPacks = [
     name: "Small Pack",
     description: "Perfect for testing and small projects",
     credits: 50000,
-    price_cents: 4999, // $49.99
-    stripe_price_id: "price_REPLACE_WITH_ACTUAL_STRIPE_PRICE_ID_1",
-    stripe_product_id: "prod_REPLACE_WITH_ACTUAL_STRIPE_PRODUCT_ID_1",
+    price_cents: 4999,
+    stripe_price_id: process.env.STRIPE_SMALL_PACK_PRICE_ID!,
+    stripe_product_id: process.env.STRIPE_SMALL_PACK_PRODUCT_ID!,
     sort_order: 1,
   },
   {
     name: "Medium Pack",
     description: "Best value for regular usage",
     credits: 150000,
-    price_cents: 12999, // $129.99
-    stripe_price_id: "price_REPLACE_WITH_ACTUAL_STRIPE_PRICE_ID_2",
-    stripe_product_id: "prod_REPLACE_WITH_ACTUAL_STRIPE_PRODUCT_ID_2",
+    price_cents: 12999,
+    stripe_price_id: process.env.STRIPE_MEDIUM_PACK_PRICE_ID!,
+    stripe_product_id: process.env.STRIPE_MEDIUM_PACK_PRODUCT_ID!,
     sort_order: 2,
   },
   {
     name: "Large Pack",
     description: "Maximum savings for power users",
     credits: 500000,
-    price_cents: 39999, // $399.99
-    stripe_price_id: "price_REPLACE_WITH_ACTUAL_STRIPE_PRICE_ID_3",
-    stripe_product_id: "prod_REPLACE_WITH_ACTUAL_STRIPE_PRODUCT_ID_3",
+    price_cents: 39999,
+    stripe_price_id: process.env.STRIPE_LARGE_PACK_PRICE_ID!,
+    stripe_product_id: process.env.STRIPE_LARGE_PACK_PRODUCT_ID!,
     sort_order: 3,
   },
 ];

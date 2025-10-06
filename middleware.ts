@@ -12,6 +12,7 @@ export default authkitMiddleware({
       "/api/v1/generate-video",
       "/api/v1/chat",
       "/api/v1/models",
+      "/api/stripe/webhook",
     ],
   },
 });
