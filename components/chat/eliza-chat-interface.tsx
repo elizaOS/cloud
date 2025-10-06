@@ -34,6 +34,7 @@ export function ElizaChatInterface() {
   const scrollAreaRef = useRef<HTMLDivElement>(null);
   const pollIntervalRef = useRef<NodeJS.Timeout | null>(null);
   const roomsIntervalRef = useRef<NodeJS.Timeout | null>(null);
+  const thinkingTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
   // Generate a unique entity ID for this session
   const entityId = useRef<string>("");
@@ -172,10 +173,25 @@ export function ElizaChatInterface() {
           const data = await response.json();
           if (data.messages && data.messages.length > 0) {
             setMessages((prev) => {
-              // Remove temp/thinking placeholders
-              const cleaned = prev.filter(
-                (m) => !m.id.startsWith("temp-") && !m.id.startsWith("thinking-"),
+              // Check if any new message is from the agent
+              const hasAgentResponse = (data.messages as Message[]).some(
+                (msg) => msg.isAgent,
               );
+
+              // Only remove thinking placeholder if we have an agent response
+              const cleaned = prev.filter((m) => {
+                if (m.id.startsWith("temp-")) return false; // Always remove temp user messages
+                if (m.id.startsWith("thinking-") && hasAgentResponse) {
+                  // Clear the thinking timeout since we got a response
+                  if (thinkingTimeoutRef.current) {
+                    clearTimeout(thinkingTimeoutRef.current);
+                    thinkingTimeoutRef.current = null;
+                  }
+                  return false; // Remove thinking only if agent responded
+                }
+                return true;
+              });
+
               const byId = new Map<string, Message>();
               for (const m of cleaned) byId.set(m.id, m);
               for (const incoming of data.messages as Message[]) {
@@ -192,8 +208,11 @@ export function ElizaChatInterface() {
       }
     };
 
-    // Poll every 2 seconds
-    pollIntervalRef.current = setInterval(pollMessages, 2000);
+    // Check if there's a thinking message - if so, poll faster
+    const hasThinkingMessage = messages.some((m) => m.id.startsWith("thinking-"));
+    const pollInterval = hasThinkingMessage ? 500 : 2000; // 500ms when thinking, 2s otherwise
+
+    pollIntervalRef.current = setInterval(pollMessages, pollInterval);
 
     return () => {
       if (pollIntervalRef.current) {
@@ -219,19 +238,26 @@ export function ElizaChatInterface() {
 
     // Add optimistic user message and thinking placeholder in one atomic update
     const clientMessageId = `temp-${Date.now()}`;
+    const now = Date.now();
     const tempUserMessage: Message = {
       id: clientMessageId,
       content: { text: messageText, clientMessageId },
       isAgent: false,
-      createdAt: Date.now(),
+      createdAt: now,
     };
     const thinkingMessage: Message = {
-      id: `thinking-${Date.now()}`,
+      id: `thinking-${now}`,
       content: { text: "" },
       isAgent: true,
-      createdAt: Date.now() + 1,
+      createdAt: now + 999999, // Very high timestamp to ensure it always appears last
     };
     setMessages((prev) => [...prev, tempUserMessage, thinkingMessage]);
+
+    // Safety timeout: remove thinking indicator after 30 seconds if no response
+    thinkingTimeoutRef.current = setTimeout(() => {
+      setMessages((prev) => prev.filter((m) => !m.id.startsWith("thinking-")));
+      console.warn("[Chat] Thinking indicator timeout - agent took too long to respond");
+    }, 30000);
 
     try {
       const response = await fetch(`/api/eliza/rooms/${roomId}/messages`, {
@@ -249,12 +275,59 @@ export function ElizaChatInterface() {
         throw new Error("Failed to send message");
       }
 
-      // Remove optimistic placeholders; real messages will come via polling
+      // Remove only the temp user message; keep thinking indicator until real response arrives via polling
       setMessages((prev) =>
-        prev.filter(
-          (msg) => msg.id !== tempUserMessage.id && !msg.id.startsWith("thinking-"),
-        ),
+        prev.filter((msg) => msg.id !== tempUserMessage.id),
       );
+
+      // Trigger immediate poll to catch response faster
+      setTimeout(async () => {
+        try {
+          const lastTimestamp =
+            messages.length > 0
+              ? Math.max(...messages.map((m) => m.createdAt))
+              : 0;
+          const pollResponse = await fetch(
+            `/api/eliza/rooms/${roomId}/messages?afterTimestamp=${lastTimestamp}`,
+          );
+          if (pollResponse.ok) {
+            const data = await pollResponse.json();
+            if (data.messages && data.messages.length > 0) {
+              setMessages((prev) => {
+                // Check if any new message is from the agent
+                const hasAgentResponse = (data.messages as Message[]).some(
+                  (msg) => msg.isAgent,
+                );
+
+                // Only remove thinking placeholder if we have an agent response
+                const cleaned = prev.filter((m) => {
+                  if (m.id.startsWith("temp-")) return false;
+                  if (m.id.startsWith("thinking-") && hasAgentResponse) {
+                    // Clear the thinking timeout since we got a response
+                    if (thinkingTimeoutRef.current) {
+                      clearTimeout(thinkingTimeoutRef.current);
+                      thinkingTimeoutRef.current = null;
+                    }
+                    return false;
+                  }
+                  return true;
+                });
+
+                const byId = new Map<string, Message>();
+                for (const m of cleaned) byId.set(m.id, m);
+                for (const incoming of data.messages as Message[]) {
+                  byId.set(incoming.id, incoming);
+                }
+                const merged = Array.from(byId.values());
+                merged.sort((a, b) => a.createdAt - b.createdAt);
+                return merged;
+              });
+            }
+          }
+        } catch (pollErr) {
+          console.error("Error in immediate poll:", pollErr);
+        }
+      }, 100); // Poll after 100ms
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to send message");
       console.error("Error sending message:", err);
@@ -262,6 +335,11 @@ export function ElizaChatInterface() {
       setMessages((prev) =>
         prev.filter((msg) => msg.id !== tempUserMessage.id && !msg.id.startsWith("thinking-")),
       );
+      // Clear thinking timeout on error
+      if (thinkingTimeoutRef.current) {
+        clearTimeout(thinkingTimeoutRef.current);
+        thinkingTimeoutRef.current = null;
+      }
     } finally {
       setIsLoading(false);
       loadRooms();
