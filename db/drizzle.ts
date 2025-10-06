@@ -1,11 +1,14 @@
-import { drizzle } from "drizzle-orm/neon-serverless";
-import { Pool } from "@neondatabase/serverless";
-import * as schema from "./sass/schema";
+import { drizzle as drizzlePg } from "drizzle-orm/node-postgres";
+import { drizzle as drizzleNeon } from "drizzle-orm/neon-serverless";
 import type { NeonDatabase } from "drizzle-orm/neon-serverless";
+import type { NodePgDatabase } from "drizzle-orm/node-postgres";
+import * as schema from "./sass/schema";
 
-let _db: NeonDatabase<typeof schema> | null = null;
+type DatabaseType = NeonDatabase<typeof schema> | NodePgDatabase<typeof schema>;
 
-function getDb() {
+let _db: DatabaseType | null = null;
+
+function getDb(): DatabaseType {
   if (!_db) {
     const databaseUrl = process.env.DATABASE_URL;
 
@@ -15,14 +18,26 @@ function getDb() {
       );
     }
 
-    const pool = new Pool({ connectionString: databaseUrl });
-    _db = drizzle(pool, { schema });
+    const isLocalDatabase =
+      databaseUrl.includes("localhost") || databaseUrl.includes("127.0.0.1");
+
+    if (isLocalDatabase) {
+      // eslint-disable-next-line @typescript-eslint/no-require-imports
+      const { Pool } = require("pg");
+      const pool = new Pool({ connectionString: databaseUrl });
+      _db = drizzlePg(pool, { schema });
+    } else {
+      // eslint-disable-next-line @typescript-eslint/no-require-imports
+      const { Pool } = require("@neondatabase/serverless");
+      const pool = new Pool({ connectionString: databaseUrl });
+      _db = drizzleNeon(pool, { schema });
+    }
   }
 
   return _db;
 }
 
-export const db = new Proxy({} as NeonDatabase<typeof schema>, {
+export const db = new Proxy({} as DatabaseType, {
   get: (_, prop) => {
     const database = getDb();
     const value = database[prop as keyof typeof database];
