@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useRef } from "react";
 import { useChat, type UIMessage } from "@ai-sdk/react";
+import { DefaultChatTransport } from "ai";
 import type { Conversation, ConversationMessage } from "@/lib/types";
 import { Send, Loader2, Bot, User, Clock, Settings } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -38,6 +39,9 @@ export function ChatInterfaceWithPersistence({
 
   const { messages, sendMessage, status, setMessages } = useChat({
     id: selectedModel,
+    transport: new DefaultChatTransport({
+      api: "/api/v1/chat",
+    }),
   });
 
   useEffect(() => {
