@@ -61,7 +61,6 @@ export async function getDashboardData() {
     organization: {
       name: user.organization.name,
       creditBalance: user.organization.credit_balance,
-      subscriptionTier: user.organization.subscription_tier || 'Free',
       maxApiRequests: user.organization.max_api_requests || null,
       maxTokensPerRequest: user.organization.max_tokens_per_request || null,
       allowedProviders: user.organization.allowed_providers || [],

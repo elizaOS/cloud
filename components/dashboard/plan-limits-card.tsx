@@ -5,7 +5,6 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { cn } from "@/lib/utils";
 
 export interface PlanLimitsCardProps {
-  subscriptionTier: string;
   maxApiRequests?: number | null;
   maxTokensPerRequest?: number | null;
   allowedProviders: string[];
