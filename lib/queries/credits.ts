@@ -33,26 +33,28 @@ export async function deductCredits(
     };
   }
 
-  await db
-    .update(schema.organizations)
-    .set({
-      credit_balance: newBalance,
-      updated_at: new Date(),
-    })
-    .where(eq(schema.organizations.id, organizationId));
+  return await db.transaction(async (tx) => {
+    await tx
+      .update(schema.organizations)
+      .set({
+        credit_balance: newBalance,
+        updated_at: new Date(),
+      })
+      .where(eq(schema.organizations.id, organizationId));
 
-  const [transaction] = await db
-    .insert(schema.creditTransactions)
-    .values({
-      organization_id: organizationId,
-      user_id: userId,
-      amount: -amount,
-      type: "usage",
-      description: description || "API usage",
-    })
-    .returning();
+    const [transaction] = await tx
+      .insert(schema.creditTransactions)
+      .values({
+        organization_id: organizationId,
+        user_id: userId,
+        amount: -amount,
+        type: "usage",
+        description: description || "API usage",
+      })
+      .returning();
 
-  return { success: true, newBalance, transaction };
+    return { success: true, newBalance, transaction };
+  });
 }
 
 export async function addCredits(
@@ -81,27 +83,29 @@ export async function addCredits(
 
   const newBalance = org.credit_balance + amount;
 
-  await db
-    .update(schema.organizations)
-    .set({
-      credit_balance: newBalance,
-      updated_at: new Date(),
-    })
-    .where(eq(schema.organizations.id, organizationId));
+  return await db.transaction(async (tx) => {
+    await tx
+      .update(schema.organizations)
+      .set({
+        credit_balance: newBalance,
+        updated_at: new Date(),
+      })
+      .where(eq(schema.organizations.id, organizationId));
 
-  const [transaction] = await db
-    .insert(schema.creditTransactions)
-    .values({
-      organization_id: organizationId,
-      user_id: userId,
-      amount,
-      type,
-      description: description || `Credit ${type}`,
-      stripe_payment_intent_id: stripePaymentIntentId,
-    })
-    .returning();
+    const [transaction] = await tx
+      .insert(schema.creditTransactions)
+      .values({
+        organization_id: organizationId,
+        user_id: userId,
+        amount,
+        type,
+        description: description || `Credit ${type}`,
+        stripe_payment_intent_id: stripePaymentIntentId,
+      })
+      .returning();
 
-  return { success: true, newBalance, transaction };
+    return { success: true, newBalance, transaction };
+  });
 }
 
 export async function getCreditTransactionsByOrganization(
