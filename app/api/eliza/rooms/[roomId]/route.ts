@@ -3,9 +3,9 @@ import { agentRuntime } from "@/lib/eliza/agent-runtime";
 import type { UUID } from "@elizaos/core";
 
 // GET /api/eliza/rooms/[roomId] - Get room details and messages
-export async function GET(request: Request, { params }: { params: { roomId: string } }) {
+export async function GET(request: Request, ctx: { params: Promise<{ roomId: string }> }) {
   try {
-    const { roomId } = params;
+    const { roomId } = await ctx.params;
     const { searchParams } = new URL(request.url);
     const limit = searchParams.get("limit");
 
@@ -24,23 +24,25 @@ export async function GET(request: Request, { params }: { params: { roomId: stri
       unique: false,
     });
     
-    const simple = rawMessages.map((msg) => {
-      let parsedContent: unknown = msg.content;
-      try {
-        if (typeof msg.content === "string")
-          parsedContent = JSON.parse(msg.content);
-      } catch {
-        parsedContent = msg.content;
-      }
-      return {
-        id: msg.id,
-        entityId: msg.entityId,
-        agentId: msg.agentId,
-        content: parsedContent,
-        createdAt: (msg as { createdAt: number }).createdAt,
-        isAgent: msg.entityId === msg.agentId,
-      };
-    });
+    const simple = rawMessages
+      .map((msg) => {
+        let parsedContent: unknown = msg.content;
+        try {
+          if (typeof msg.content === "string")
+            parsedContent = JSON.parse(msg.content);
+        } catch {
+          parsedContent = msg.content;
+        }
+        return {
+          id: msg.id,
+          entityId: msg.entityId,
+          agentId: msg.agentId,
+          content: parsedContent,
+          createdAt: (msg as { createdAt: number }).createdAt,
+          isAgent: msg.entityId === msg.agentId,
+        };
+      })
+      .sort((a, b) => a.createdAt - b.createdAt);
 
     return NextResponse.json(
       {
