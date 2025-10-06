@@ -5,7 +5,7 @@ config({ path: ".env.local" });
 
 async function testAddCredits() {
   console.log("🧪 Testing addCredits Function Directly\n");
-  console.log("=" .repeat(70));
+  console.log("=".repeat(70));
 
   // Use the actual organization ID from the latest webhook
   const organizationId = "4f1a5f91-dca1-4192-8e4e-d8006d1579d4";
@@ -30,24 +30,26 @@ async function testAddCredits() {
       "purchase",
       `Test credit pack purchase - ${credits.toLocaleString()} credits`,
       userId,
-      paymentIntentId,
+      paymentIntentId
     );
 
     console.log("\n✅ SUCCESS!");
     console.log("-".repeat(70));
     console.log(`New Balance: ${result.newBalance.toLocaleString()}`);
     console.log(`Transaction ID: ${result.transaction.id}`);
-    console.log(`Transaction Amount: ${result.transaction.amount.toLocaleString()}`);
+    console.log(
+      `Transaction Amount: ${result.transaction.amount.toLocaleString()}`
+    );
     console.log(`Transaction Type: ${result.transaction.type}`);
     console.log(
-      `Stripe Payment Intent ID: ${result.transaction.stripe_payment_intent_id}`,
+      `Stripe Payment Intent ID: ${result.transaction.stripe_payment_intent_id}`
     );
 
     console.log("\n📊 Verifying in Database...");
     console.log("-".repeat(70));
 
     const { db } = await import("../db/drizzle");
-    const schema = await import("../db/schema");
+    const schema = await import("../db/sass/schema");
     const { eq } = await import("drizzle-orm");
 
     const org = await db.query.organizations.findFirst({
@@ -55,7 +57,9 @@ async function testAddCredits() {
     });
 
     if (org) {
-      console.log(`✓ Organization credit balance: ${org.credit_balance.toLocaleString()}`);
+      console.log(
+        `✓ Organization credit balance: ${org.credit_balance.toLocaleString()}`
+      );
     } else {
       console.log(`❌ Could not find organization`);
     }
@@ -63,7 +67,7 @@ async function testAddCredits() {
     const txn = await db.query.creditTransactions.findFirst({
       where: eq(
         schema.creditTransactions.stripe_payment_intent_id,
-        paymentIntentId,
+        paymentIntentId
       ),
     });
 

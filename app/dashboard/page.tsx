@@ -1,16 +1,34 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { Activity, ChartSpline, ShieldCheck, Sparkles, Image, Video, MessageSquare, CheckCircle, XCircle, Clock } from "lucide-react";
+import { Sparkles, Image, Video, MessageSquare } from "lucide-react";
 
 import { DashboardHero } from "@/components/dashboard/dashboard-hero";
-import { UsageOverview, type UsageMetric } from "@/components/dashboard/usage-overview";
-import { ActivityFeed, type ActivityFeedItem } from "@/components/dashboard/activity-feed";
+import {
+  UsageOverview,
+  type UsageMetric,
+} from "@/components/dashboard/usage-overview";
+import {
+  ActivityFeed,
+  type ActivityFeedItem,
+} from "@/components/dashboard/activity-feed";
 import { UsagePerformance } from "@/components/dashboard/usage-performance";
-import { ModelUsageCard, type ModelUsageEntry } from "@/components/dashboard/model-usage-card";
-import { CreditActivity, type CreditActivityProps } from "@/components/dashboard/credit-activity";
+import {
+  ModelUsageCard,
+  type ModelUsageEntry,
+} from "@/components/dashboard/model-usage-card";
+import {
+  CreditActivity,
+  type CreditActivityProps,
+} from "@/components/dashboard/credit-activity";
 import { PlanLimitsCard } from "@/components/dashboard/plan-limits-card";
-import { ProviderHealthCard, type ProviderHealthItem } from "@/components/dashboard/provider-health-card";
-import { UsageAlertsCard, type UsageAlertItem } from "@/components/dashboard/usage-alerts-card";
+import {
+  ProviderHealthCard,
+  type ProviderHealthItem,
+} from "@/components/dashboard/provider-health-card";
+import {
+  UsageAlertsCard,
+  type UsageAlertItem,
+} from "@/components/dashboard/usage-alerts-card";
 import { Button } from "@/components/ui/button";
 import { getDashboardData } from "@/lib/actions/dashboard";
 
@@ -19,11 +37,15 @@ export const metadata: Metadata = {
   description: "View your AI agent dashboard, analytics, and quick actions",
 };
 
-function generateUsageAlerts(data: Awaited<ReturnType<typeof getDashboardData>>): UsageAlertItem[] {
+function generateUsageAlerts(
+  data: Awaited<ReturnType<typeof getDashboardData>>
+): UsageAlertItem[] {
   const alerts: UsageAlertItem[] = [];
 
-  const degradedProviders = data.providerHealth.filter(p => p.status === 'degraded');
-  degradedProviders.forEach(provider => {
+  const degradedProviders = data.providerHealth.filter(
+    (p) => p.status === "degraded"
+  );
+  for (const provider of degradedProviders) {
     alerts.push({
       id: `alert-${provider.provider.toLowerCase()}-degraded`,
       title: `${provider.provider} provider degraded`,
@@ -31,9 +53,11 @@ function generateUsageAlerts(data: Awaited<ReturnType<typeof getDashboardData>>)
       severity: "warning",
       actionLabel: "View provider detail",
     });
-  });
+  }
 
-  const daysRemaining = Math.floor(data.organization.creditBalance / (data.usage.dailyBurnCredits || 1));
+  const daysRemaining = Math.floor(
+    data.organization.creditBalance / (data.usage.dailyBurnCredits || 1)
+  );
   if (daysRemaining < 90 && daysRemaining > 0) {
     alerts.push({
       id: "alert-budget-horizon",
@@ -58,7 +82,8 @@ function generateUsageAlerts(data: Awaited<ReturnType<typeof getDashboardData>>)
     alerts.push({
       id: "alert-all-good",
       title: "All systems operational",
-      description: "Your infrastructure is running smoothly. All providers are healthy and credit balance is sufficient.",
+      description:
+        "Your infrastructure is running smoothly. All providers are healthy and credit balance is sufficient.",
       severity: "info",
       actionLabel: "View analytics",
     });
@@ -67,30 +92,36 @@ function generateUsageAlerts(data: Awaited<ReturnType<typeof getDashboardData>>)
   return alerts;
 }
 
-function generateActivityFeed(data: Awaited<ReturnType<typeof getDashboardData>>): ActivityFeedItem[] {
+function generateActivityFeed(
+  data: Awaited<ReturnType<typeof getDashboardData>>
+): ActivityFeedItem[] {
   const activities: ActivityFeedItem[] = [];
 
-  data.recentGenerations.forEach((gen) => {
-    const typeIcon = gen.type === 'image' ? Image : gen.type === 'video' ? Video : MessageSquare;
+  for (const gen of data.recentGenerations) {
+    const typeIcon =
+      gen.type === "image"
+        ? Image
+        : gen.type === "video"
+          ? Video
+          : MessageSquare;
 
-    let status: ActivityFeedItem['status'] = 'info';
-    let statusText = gen.status;
+    let status: ActivityFeedItem["status"] = "info";
+    const statusText = gen.status;
 
-    if (gen.status === 'completed') {
-      status = 'success';
-    } else if (gen.status === 'failed') {
-      status = 'error';
-    } else if (gen.status === 'pending') {
-      status = 'info';
+    if (gen.status === "completed") {
+      status = "success";
+    } else if (gen.status === "failed") {
+      status = "error";
+    } else if (gen.status === "pending") {
+      status = "info";
     }
 
     const timeAgo = gen.completed_at
       ? new Date(gen.completed_at).toLocaleString()
       : new Date(gen.created_at).toLocaleString();
 
-    const promptPreview = gen.prompt.length > 60
-      ? gen.prompt.substring(0, 60) + '...'
-      : gen.prompt;
+    const promptPreview =
+      gen.prompt.length > 60 ? `${gen.prompt.substring(0, 60)}...` : gen.prompt;
 
     const description = gen.error
       ? `Error: ${gen.error}`
@@ -98,20 +129,21 @@ function generateActivityFeed(data: Awaited<ReturnType<typeof getDashboardData>>
 
     activities.push({
       id: gen.id,
-      title: `${gen.type.charAt(0).toUpperCase() + gen.type.slice(1)} generation ${statusText}`,
+      title: `${gen.type.charAt(0).toUpperCase()}${gen.type.slice(1)} generation ${statusText}`,
       description: description,
       icon: typeIcon,
       status: status,
       timestamp: timeAgo,
       metadata: gen.provider,
     });
-  });
+  }
 
   if (activities.length === 0) {
     activities.push({
       id: "activity-default",
       title: "No generations yet",
-      description: "Start generating images, videos, or chat completions to see activity here.",
+      description:
+        "Start generating images, videos, or chat completions to see activity here.",
       icon: Sparkles,
       status: "info",
       timestamp: "Now",
@@ -167,8 +199,13 @@ export default async function DashboardPage() {
       icon: "creditCard",
       accent: "border-emerald-500/60 bg-emerald-500/10",
       trend: {
-        direction: data.usage.burnChange > 0 ? "up" : data.usage.burnChange < 0 ? "down" : "neutral",
-        label: `${data.usage.burnChange >= 0 ? '+' : ''}${data.usage.burnChange.toFixed(1)}% vs last week avg`,
+        direction:
+          data.usage.burnChange > 0
+            ? "up"
+            : data.usage.burnChange < 0
+              ? "down"
+              : "neutral",
+        label: `${data.usage.burnChange >= 0 ? "+" : ""}${data.usage.burnChange.toFixed(1)}% vs last week avg`,
       },
     },
     {
@@ -178,7 +215,12 @@ export default async function DashboardPage() {
       icon: "shieldCheck",
       accent: "border-blue-500/60 bg-blue-500/10",
       trend: {
-        direction: data.usage.successRate >= 0.99 ? "up" : data.usage.successRate >= 0.95 ? "neutral" : "down",
+        direction:
+          data.usage.successRate >= 0.99
+            ? "up"
+            : data.usage.successRate >= 0.95
+              ? "neutral"
+              : "down",
         label: `${data.usage.failedRequests} failed requests`,
       },
     },
@@ -186,8 +228,12 @@ export default async function DashboardPage() {
 
   const usageFootnote = (
     <span>
-      Track your credit usage and spending patterns. Manage billing settings in the{" "}
-      <Link href="/dashboard/account" className="text-primary underline-offset-2 hover:underline">
+      Track your credit usage and spending patterns. Manage billing settings in
+      the{" "}
+      <Link
+        href="/dashboard/account"
+        className="text-primary underline-offset-2 hover:underline"
+      >
         account console
       </Link>
       .
@@ -207,14 +253,15 @@ export default async function DashboardPage() {
 
   const modelUsageItems: ModelUsageEntry[] = data.modelUsage.slice(0, 6);
 
-  const creditTransactions: CreditActivityProps["transactions"] = data.creditTransactions.map(t => ({
-    id: t.id,
-    amount: t.amount,
-    type: t.type as 'purchase' | 'usage' | 'adjustment' | 'refund',
-    description: t.description,
-    created_at: t.created_at,
-    actor: t.user_id ? undefined : undefined,
-  }));
+  const creditTransactions: CreditActivityProps["transactions"] =
+    data.creditTransactions.map((t) => ({
+      id: t.id,
+      amount: t.amount,
+      type: t.type as "purchase" | "usage" | "adjustment" | "refund",
+      description: t.description,
+      created_at: t.created_at,
+      actor: t.user_id ? undefined : undefined,
+    }));
 
   const planLimits = {
     maxApiRequests: data.organization.maxApiRequests,
@@ -225,9 +272,9 @@ export default async function DashboardPage() {
     nextReset: undefined,
   };
 
-  const providerHealth: ProviderHealthItem[] = data.providerHealth.map(p => ({
+  const providerHealth: ProviderHealthItem[] = data.providerHealth.map((p) => ({
     provider: p.provider,
-    status: p.status as 'healthy' | 'degraded' | 'down',
+    status: p.status as "healthy" | "degraded" | "down",
     responseTime: p.responseTime,
     errorRate: p.errorRate,
     lastChecked: p.lastChecked,
@@ -239,26 +286,39 @@ export default async function DashboardPage() {
     <main className="mx-auto w-full max-w-[1320px] px-4 pb-12 pt-8 lg:px-8">
       <div className="flex flex-col gap-8 lg:gap-10">
         <DashboardHero
-          userName={data.user.name.split(' ')[0] || 'User'}
+          userName={data.user.name.split(" ")[0] || "User"}
           organizationName={data.organization.name}
           creditBalance={data.organization.creditBalance}
           stats={heroStats}
-          primaryAction={{ label: "Manage account", href: "/dashboard/account" }}
-          secondaryAction={{ label: "View analytics", href: "/dashboard/analytics" }}
+          primaryAction={{
+            label: "Manage account",
+            href: "/dashboard/account",
+          }}
+          secondaryAction={{
+            label: "View analytics",
+            href: "/dashboard/analytics",
+          }}
           className="rounded-3xl border border-border/60 bg-background/90 shadow-sm"
         />
 
         <section className="grid gap-6 xl:grid-cols-12">
           <div className="flex flex-col gap-6 xl:col-span-8">
             <div className="grid gap-6 xl:grid-cols-5">
-              <UsageOverview metrics={usageMetrics} footnote={usageFootnote} className="xl:col-span-3" />
+              <UsageOverview
+                metrics={usageMetrics}
+                footnote={usageFootnote}
+                className="xl:col-span-3"
+              />
               <UsageAlertsCard alerts={usageAlerts} className="xl:col-span-2" />
             </div>
             <div className="grid gap-6 sm:grid-cols-2">
               <PlanLimitsCard {...planLimits} />
               <ProviderHealthCard items={providerHealth} />
             </div>
-            <UsagePerformance stats={usagePerformanceStats} className="h-full" />
+            <UsagePerformance
+              stats={usagePerformanceStats}
+              className="h-full"
+            />
           </div>
 
           <div className="flex flex-col gap-6 xl:col-span-4">
@@ -279,7 +339,10 @@ export default async function DashboardPage() {
               }
             />
             <ModelUsageCard items={modelUsageItems} className="h-full" />
-            <CreditActivity transactions={creditTransactions} className="h-full" />
+            <CreditActivity
+              transactions={creditTransactions}
+              className="h-full"
+            />
           </div>
         </section>
       </div>
