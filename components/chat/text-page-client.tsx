@@ -5,6 +5,8 @@ import { useRouter } from "next/navigation";
 import type { Conversation, ConversationMessage } from "@/lib/types";
 import { ConversationList } from "@/components/chat/conversation-list";
 import { ChatInterfaceWithPersistence } from "@/components/chat/chat-interface-with-persistence";
+import { ElizaChatInterface } from "@/components/chat/eliza-chat-interface";
+import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
 interface TextPageClientProps {
   conversations: Conversation[];
@@ -18,6 +20,7 @@ export function TextPageClient({
   initialMessages,
 }: TextPageClientProps) {
   const router = useRouter();
+  const [chatMode, setChatMode] = useState<"ai-sdk" | "eliza">("ai-sdk");
   const [conversations, setConversations] =
     useState<Conversation[]>(initialConversations);
   const [currentConversation, setCurrentConversation] =
@@ -44,36 +47,51 @@ export function TextPageClient({
   return (
     <div className="flex h-full min-h-0 flex-col gap-6 overflow-hidden">
       <header className="rounded-2xl border bg-card/70 px-6 py-5 shadow-sm">
-        <div className="flex flex-col gap-2">
-          <h1 className="text-3xl font-semibold tracking-tight">
-            Text &amp; Chat
-          </h1>
-          <p className="max-w-2xl text-sm text-muted-foreground">
-            Craft prompts, iterate with AI partners, and keep conversations
-            organized in one focused workspace.
-          </p>
+        <div className="flex items-start justify-between gap-4">
+          <div className="flex flex-col gap-2">
+            <h1 className="text-3xl font-semibold tracking-tight">
+              Text &amp; Chat
+            </h1>
+            <p className="max-w-2xl text-sm text-muted-foreground">
+              {chatMode === "ai-sdk"
+                ? "Craft prompts, iterate with AI partners, and keep conversations organized in one focused workspace."
+                : "Chat with Eliza using the full ElizaOS runtime with persistent memory and room-based conversations."}
+            </p>
+          </div>
+          <Tabs value={chatMode} onValueChange={(v) => setChatMode(v as "ai-sdk" | "eliza")}>
+            <TabsList>
+              <TabsTrigger value="ai-sdk">AI SDK</TabsTrigger>
+              <TabsTrigger value="eliza">Eliza</TabsTrigger>
+            </TabsList>
+          </Tabs>
         </div>
       </header>
 
-      <div className="grid flex-1 min-h-0 gap-6 overflow-hidden md:grid-cols-[minmax(260px,320px)_minmax(0,1fr)] xl:grid-cols-[320px_minmax(0,1fr)]">
-        <aside className="flex min-h-0 flex-col">
-          <div className="flex h-full min-h-0 overflow-hidden rounded-2xl border bg-background/70 shadow-sm">
-            <ConversationList
-              conversations={conversations}
-              currentConversationId={currentConversation?.id}
-              onSelectConversation={handleSelectConversation}
-            />
-          </div>
-        </aside>
+      {chatMode === "ai-sdk" ? (
+        <div className="grid flex-1 min-h-0 gap-6 overflow-hidden md:grid-cols-[minmax(260px,320px)_minmax(0,1fr)] xl:grid-cols-[320px_minmax(0,1fr)]">
+          <aside className="flex min-h-0 flex-col">
+            <div className="flex h-full min-h-0 overflow-hidden rounded-2xl border bg-background/70 shadow-sm">
+              <ConversationList
+                conversations={conversations}
+                currentConversationId={currentConversation?.id}
+                onSelectConversation={handleSelectConversation}
+              />
+            </div>
+          </aside>
 
-        <section className="relative flex h-full min-h-0 w-full overflow-hidden rounded-2xl border bg-card shadow-sm">
-          <ChatInterfaceWithPersistence
-            conversation={currentConversation}
-            initialMessages={initialMessages}
-            onConversationCreated={handleConversationCreated}
-          />
-        </section>
-      </div>
+          <section className="relative flex h-full min-h-0 w-full overflow-hidden rounded-2xl border bg-card shadow-sm">
+            <ChatInterfaceWithPersistence
+              conversation={currentConversation}
+              initialMessages={initialMessages}
+              onConversationCreated={handleConversationCreated}
+            />
+          </section>
+        </div>
+      ) : (
+        <div className="flex flex-1 min-h-0 overflow-hidden rounded-2xl border bg-card shadow-sm">
+          <ElizaChatInterface />
+        </div>
+      )}
     </div>
   );
 }
