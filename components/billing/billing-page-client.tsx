@@ -3,11 +3,6 @@
 import { useState } from "react";
 import { CreditPackCard } from "./credit-pack-card";
 import { toast } from "sonner";
-import { loadStripe } from "@stripe/stripe-js";
-
-const stripePromise = loadStripe(
-  process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY!,
-);
 
 interface CreditPack {
   id: string;
@@ -47,18 +42,13 @@ export function BillingPageClient({
         throw new Error("Failed to create checkout session");
       }
 
-      const { sessionId } = await response.json();
+      const { url } = await response.json();
 
-      const stripe = await stripePromise;
-      if (!stripe) {
-        throw new Error("Stripe failed to load");
+      if (!url) {
+        throw new Error("No checkout URL returned");
       }
 
-      const { error } = await stripe.redirectToCheckout({ sessionId });
-
-      if (error) {
-        throw error;
-      }
+      window.location.href = url;
     } catch (error) {
       console.error("Purchase error:", error);
       toast.error("Failed to initiate purchase. Please try again.");

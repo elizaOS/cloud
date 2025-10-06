@@ -193,6 +193,9 @@ export const creditTransactions = pgTable(
     created_at_idx: index("credit_transactions_created_at_idx").on(
       table.created_at,
     ),
+    stripe_payment_intent_idx: uniqueIndex(
+      "credit_transactions_stripe_payment_intent_idx",
+    ).on(table.stripe_payment_intent_id),
   }),
 );
 
@@ -207,7 +210,7 @@ export const creditPacks = pgTable(
     stripe_price_id: text("stripe_price_id").notNull().unique(),
     stripe_product_id: text("stripe_product_id").notNull(),
     is_active: boolean("is_active").notNull().default(true),
-    sort_order: integer("sort_order").default(0),
+    sort_order: integer("sort_order").notNull().default(0),
     metadata: jsonb("metadata")
       .$type<Record<string, unknown>>()
       .default({})
