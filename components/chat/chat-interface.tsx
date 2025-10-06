@@ -160,7 +160,7 @@ export function ChatInterface() {
         {messages.map((message, index) => {
           return (
             <div
-              key={message.id}
+              key={message.id ?? `msg-${index}`}
               className={`flex gap-3 ${
                 message.role === "user" ? "justify-end" : "justify-start"
               } animate-in fade-in slide-in-from-bottom-4 duration-500`}
@@ -184,7 +184,7 @@ export function ChatInterface() {
                     switch (part.type) {
                       case "text":
                         return (
-                          <div key={`${message.id}-${i}`}>{part.text}</div>
+                          <div key={`${message.id ?? `msg-${index}`}-part-${i}`}>{part.text}</div>
                         );
                       default:
                         return null;
