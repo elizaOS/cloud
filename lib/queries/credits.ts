@@ -1,4 +1,4 @@
-import { db, schema, eq, desc } from "@/lib/db";
+import { db, schema, eq, desc, sql } from "@/lib/db";
 import type { CreditTransaction } from "@/lib/types";
 
 export async function deductCredits(
@@ -15,25 +15,36 @@ export async function deductCredits(
     throw new Error("Amount must be positive");
   }
 
-  const org = await db.query.organizations.findFirst({
-    where: eq(schema.organizations.id, organizationId),
-  });
-
-  if (!org) {
-    throw new Error("Organization not found");
+  if (!Number.isFinite(amount)) {
+    throw new Error("Amount must be a finite number");
   }
 
-  const newBalance = org.credit_balance - amount;
-
-  if (newBalance < 0) {
-    return {
-      success: false,
-      newBalance: org.credit_balance,
-      transaction: {} as CreditTransaction,
-    };
-  }
+  const roundedAmount = Math.ceil(amount);
 
   return await db.transaction(async (tx) => {
+    const [org] = await tx
+      .select({
+        id: schema.organizations.id,
+        credit_balance: schema.organizations.credit_balance,
+      })
+      .from(schema.organizations)
+      .where(eq(schema.organizations.id, organizationId))
+      .for('update');
+
+    if (!org) {
+      throw new Error("Organization not found");
+    }
+
+    const newBalance = org.credit_balance - roundedAmount;
+
+    if (newBalance < 0) {
+      return {
+        success: false,
+        newBalance: org.credit_balance,
+        transaction: {} as CreditTransaction,
+      };
+    }
+
     await tx
       .update(schema.organizations)
       .set({
@@ -47,7 +58,7 @@ export async function deductCredits(
       .values({
         organization_id: organizationId,
         user_id: userId,
-        amount: -amount,
+        amount: -roundedAmount,
         type: "usage",
         description: description || "API usage",
       })
@@ -73,17 +84,28 @@ export async function addCredits(
     throw new Error("Amount must be positive");
   }
 
-  const org = await db.query.organizations.findFirst({
-    where: eq(schema.organizations.id, organizationId),
-  });
-
-  if (!org) {
-    throw new Error("Organization not found");
+  if (!Number.isFinite(amount)) {
+    throw new Error("Amount must be a finite number");
   }
 
-  const newBalance = org.credit_balance + amount;
+  const roundedAmount = Math.ceil(amount);
 
   return await db.transaction(async (tx) => {
+    const [org] = await tx
+      .select({
+        id: schema.organizations.id,
+        credit_balance: schema.organizations.credit_balance,
+      })
+      .from(schema.organizations)
+      .where(eq(schema.organizations.id, organizationId))
+      .for('update');
+
+    if (!org) {
+      throw new Error("Organization not found");
+    }
+
+    const newBalance = org.credit_balance + roundedAmount;
+
     await tx
       .update(schema.organizations)
       .set({
@@ -97,7 +119,7 @@ export async function addCredits(
       .values({
         organization_id: organizationId,
         user_id: userId,
-        amount,
+        amount: roundedAmount,
         type,
         description: description || `Credit ${type}`,
         stripe_payment_intent_id: stripePaymentIntentId,
@@ -131,4 +153,21 @@ export async function getCreditTransactionById(
   return await db.query.creditTransactions.findFirst({
     where: eq(schema.creditTransactions.id, id),
   });
+}
+
+export async function getCreditBalance(
+  organizationId: string,
+): Promise<number> {
+  const org = await db.query.organizations.findFirst({
+    where: eq(schema.organizations.id, organizationId),
+    columns: {
+      credit_balance: true,
+    },
+  });
+
+  if (!org) {
+    throw new Error("Organization not found");
+  }
+
+  return org.credit_balance;
 }
