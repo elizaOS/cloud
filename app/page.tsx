@@ -1,4 +1,8 @@
-import { getSignInUrl, getSignUpUrl, withAuth } from "@workos-inc/authkit-nextjs";
+import {
+  getSignInUrl,
+  getSignUpUrl,
+  withAuth,
+} from "@workos-inc/authkit-nextjs";
 import { redirect } from "next/navigation";
 import { LandingPage } from "@/components/landing/landing-page";
 

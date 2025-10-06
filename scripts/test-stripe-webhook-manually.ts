@@ -5,7 +5,7 @@ config({ path: ".env.local" });
 
 async function testStripeWebhook() {
   console.log("🧪 Testing Stripe Webhook Configuration\n");
-  console.log("=" .repeat(70));
+  console.log("=".repeat(70));
 
   // Check if Stripe is configured
   console.log("\n1️⃣ Checking Stripe Configuration:");
@@ -15,13 +15,17 @@ async function testStripeWebhook() {
     console.log("❌ STRIPE_SECRET_KEY not found in .env.local");
     return;
   }
-  console.log(`✓ STRIPE_SECRET_KEY found: ${process.env.STRIPE_SECRET_KEY.substring(0, 20)}...`);
+  console.log(
+    `✓ STRIPE_SECRET_KEY found: ${process.env.STRIPE_SECRET_KEY.substring(0, 20)}...`,
+  );
 
   if (!process.env.STRIPE_WEBHOOK_SECRET) {
     console.log("⚠️  STRIPE_WEBHOOK_SECRET not found in .env.local");
     console.log("   Webhooks will NOT work without this!");
   } else {
-    console.log(`✓ STRIPE_WEBHOOK_SECRET found: ${process.env.STRIPE_WEBHOOK_SECRET.substring(0, 15)}...`);
+    console.log(
+      `✓ STRIPE_WEBHOOK_SECRET found: ${process.env.STRIPE_WEBHOOK_SECRET.substring(0, 15)}...`,
+    );
   }
 
   // Check if we can reach Stripe
@@ -31,7 +35,9 @@ async function testStripeWebhook() {
   try {
     const account = await stripe.accounts.retrieve();
     console.log(`✓ Connected to Stripe account: ${account.id}`);
-    console.log(`  Business Name: ${account.business_profile?.name || "(not set)"}`);
+    console.log(
+      `  Business Name: ${account.business_profile?.name || "(not set)"}`,
+    );
     console.log(`  Country: ${account.country}`);
   } catch (error: any) {
     console.log(`❌ Failed to connect to Stripe: ${error.message}`);
@@ -48,7 +54,9 @@ async function testStripeWebhook() {
     if (webhooks.data.length === 0) {
       console.log("⚠️  No webhook endpoints configured in Stripe!");
       console.log("   You need to either:");
-      console.log("   a) Run: stripe listen --forward-to localhost:3000/api/stripe/webhook");
+      console.log(
+        "   a) Run: stripe listen --forward-to localhost:3000/api/stripe/webhook",
+      );
       console.log("   b) Configure webhook endpoint in Stripe Dashboard");
     } else {
       console.log(`Found ${webhooks.data.length} webhook endpoint(s):`);
@@ -79,10 +87,14 @@ async function testStripeWebhook() {
         console.log(`  ID: ${session.id}`);
         console.log(`  Status: ${session.status}`);
         console.log(`  Payment Status: ${session.payment_status}`);
-        console.log(`  Amount: $${((session.amount_total || 0) / 100).toFixed(2)}`);
+        console.log(
+          `  Amount: $${((session.amount_total || 0) / 100).toFixed(2)}`,
+        );
         console.log(`  Customer: ${session.customer || "(none)"}`);
         console.log(`  Payment Intent: ${session.payment_intent || "(none)"}`);
-        console.log(`  Created: ${new Date(session.created * 1000).toISOString()}`);
+        console.log(
+          `  Created: ${new Date(session.created * 1000).toISOString()}`,
+        );
         console.log(`  Metadata:`, JSON.stringify(session.metadata, null, 4));
       });
     }
@@ -106,7 +118,9 @@ async function testStripeWebhook() {
         console.log(`  Status: ${intent.status}`);
         console.log(`  Amount: $${((intent.amount || 0) / 100).toFixed(2)}`);
         console.log(`  Customer: ${intent.customer || "(none)"}`);
-        console.log(`  Created: ${new Date(intent.created * 1000).toISOString()}`);
+        console.log(
+          `  Created: ${new Date(intent.created * 1000).toISOString()}`,
+        );
       });
     }
   } catch (error: any) {

@@ -41,7 +41,8 @@ STRIPE_SECRET_KEY=sk_test_YOUR_SECRET_KEY_HERE
 NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY=pk_test_YOUR_PUBLISHABLE_KEY_HERE
 ```
 
-⚠️ **Important**: 
+⚠️ **Important**:
+
 - Use **test mode** keys for development (`sk_test_...` and `pk_test_...`)
 - Use **live mode** keys for production (`sk_live_...` and `pk_live_...`)
 - Never commit these keys to version control
@@ -58,12 +59,12 @@ You need to create three credit pack products in Stripe. Follow these steps for 
 2. Click **"Add product"**
 3. Fill in the following details:
 
-   | Field | Value |
-   |-------|-------|
-   | **Name** | Small Credit Pack |
-   | **Description** | 50,000 credits for AI generations. Perfect for testing and small projects. |
-   | **Pricing model** | One time |
-   | **Price** | $49.99 USD |
+   | Field             | Value                                                                      |
+   | ----------------- | -------------------------------------------------------------------------- |
+   | **Name**          | Small Credit Pack                                                          |
+   | **Description**   | 50,000 credits for AI generations. Perfect for testing and small projects. |
+   | **Pricing model** | One time                                                                   |
+   | **Price**         | $49.99 USD                                                                 |
 
 4. Click **"Save product"**
 5. **Copy the Price ID** (starts with `price_`) - you'll need this for the seed script
@@ -73,23 +74,23 @@ You need to create three credit pack products in Stripe. Follow these steps for 
 
 Repeat the above steps with these values:
 
-| Field | Value |
-|-------|-------|
-| **Name** | Medium Credit Pack |
-| **Description** | 150,000 credits for AI generations. Best value for regular usage. |
-| **Pricing model** | One time |
-| **Price** | $129.99 USD |
+| Field             | Value                                                             |
+| ----------------- | ----------------------------------------------------------------- |
+| **Name**          | Medium Credit Pack                                                |
+| **Description**   | 150,000 credits for AI generations. Best value for regular usage. |
+| **Pricing model** | One time                                                          |
+| **Price**         | $129.99 USD                                                       |
 
 ### Large Credit Pack
 
 Repeat the above steps with these values:
 
-| Field | Value |
-|-------|-------|
-| **Name** | Large Credit Pack |
-| **Description** | 500,000 credits for AI generations. Maximum savings for power users. |
-| **Pricing model** | One time |
-| **Price** | $399.99 USD |
+| Field             | Value                                                                |
+| ----------------- | -------------------------------------------------------------------- |
+| **Name**          | Large Credit Pack                                                    |
+| **Description**   | 500,000 credits for AI generations. Maximum savings for power users. |
+| **Pricing model** | One time                                                             |
+| **Price**         | $399.99 USD                                                          |
 
 ---
 
@@ -138,6 +139,7 @@ npm run seed:credit-packs
 ```
 
 You should see output like:
+
 ```
 🌱 Seeding credit packs...
 ✓ Created: Small Pack (uuid-here)
@@ -158,17 +160,20 @@ Webhooks allow Stripe to notify your application when payments are completed.
 #### Step 1: Install Stripe CLI
 
 **macOS:**
+
 ```bash
 brew install stripe/stripe-cli/stripe
 ```
 
 **Linux:**
+
 ```bash
 # Download the latest Linux tar.gz file from:
 # https://github.com/stripe/stripe-cli/releases/latest
 ```
 
 **Windows:**
+
 ```bash
 # Download the latest Windows .zip file from:
 # https://github.com/stripe/stripe-cli/releases/latest
@@ -189,6 +194,7 @@ stripe listen --forward-to localhost:3000/api/stripe/webhook
 ```
 
 You'll see output like:
+
 ```
 > Ready! Your webhook signing secret is whsec_1234567890abcdef...
 ```
@@ -252,6 +258,7 @@ stripe listen --forward-to localhost:3000/api/stripe/webhook
 ### Step 2: Navigate to Billing Page
 
 Open your browser and go to:
+
 ```
 http://localhost:3000/dashboard/billing
 ```
@@ -265,12 +272,12 @@ http://localhost:3000/dashboard/billing
 
 Use Stripe test card details:
 
-| Field | Value |
-|-------|-------|
-| **Card Number** | 4242 4242 4242 4242 |
+| Field           | Value                         |
+| --------------- | ----------------------------- |
+| **Card Number** | 4242 4242 4242 4242           |
 | **Expiry Date** | Any future date (e.g., 12/34) |
-| **CVC** | Any 3 digits (e.g., 123) |
-| **ZIP Code** | Any 5 digits (e.g., 12345) |
+| **CVC**         | Any 3 digits (e.g., 123)      |
+| **ZIP Code**    | Any 5 digits (e.g., 12345)    |
 
 ### Step 5: Verify Success
 
@@ -293,9 +300,9 @@ Check your database to confirm:
 SELECT * FROM credit_packs WHERE is_active = true;
 
 -- Check credit transactions
-SELECT * FROM credit_transactions 
-WHERE type = 'purchase' 
-ORDER BY created_at DESC 
+SELECT * FROM credit_transactions
+WHERE type = 'purchase'
+ORDER BY created_at DESC
 LIMIT 1;
 
 -- Check organization balance
@@ -316,6 +323,7 @@ When you're ready to launch to production:
 ### Step 2: Create Live Products
 
 Repeat the [Create Products and Prices](#create-products-and-prices) steps in **Live mode** with the same:
+
 - Product names
 - Descriptions
 - Prices
@@ -357,17 +365,18 @@ Follow the [Production Webhook Setup](#for-production) steps to create a webhook
 
 ### Test Cards for Different Outcomes
 
-| Scenario | Card Number | Expected Result |
-|----------|-------------|-----------------|
-| **Successful Payment** | 4242 4242 4242 4242 | Payment succeeds, credits added |
-| **Declined Payment** | 4000 0000 0000 0002 | Payment declined, no credits added |
-| **Requires Authentication** | 4000 0025 0000 3155 | 3D Secure authentication required |
-| **Insufficient Funds** | 4000 0000 0000 9995 | Insufficient funds error |
-| **Processing Error** | 4000 0000 0000 0127 | Processing error |
+| Scenario                    | Card Number         | Expected Result                    |
+| --------------------------- | ------------------- | ---------------------------------- |
+| **Successful Payment**      | 4242 4242 4242 4242 | Payment succeeds, credits added    |
+| **Declined Payment**        | 4000 0000 0000 0002 | Payment declined, no credits added |
+| **Requires Authentication** | 4000 0025 0000 3155 | 3D Secure authentication required  |
+| **Insufficient Funds**      | 4000 0000 0000 9995 | Insufficient funds error           |
+| **Processing Error**        | 4000 0000 0000 0127 | Processing error                   |
 
 ### Monitor Webhook Events
 
 In Stripe Dashboard:
+
 1. Go to **Developers** → **Webhooks**
 2. Click on your webhook endpoint
 3. View the **Logs** tab to see all webhook events and their responses
@@ -381,6 +390,7 @@ In Stripe Dashboard:
 **Cause**: Mismatch between `STRIPE_WEBHOOK_SECRET` in your code and the actual webhook secret.
 
 **Solution**:
+
 1. For local dev, check the Stripe CLI output and copy the exact `whsec_` value
 2. For production, check your webhook endpoint in Stripe Dashboard and copy the signing secret
 3. Restart your server after updating `.env.local`
@@ -390,6 +400,7 @@ In Stripe Dashboard:
 **Cause**: Webhook not reaching your server or processing error.
 
 **Solution**:
+
 1. Check Stripe CLI output for incoming webhook events (local dev)
 2. Check Stripe Dashboard → Webhooks → Event logs for webhook delivery status
 3. Check your server logs for errors in the webhook handler
@@ -401,6 +412,7 @@ In Stripe Dashboard:
 **Cause**: Invalid or missing `NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY`.
 
 **Solution**:
+
 1. Verify the key is set in `.env.local`
 2. Ensure the key starts with `pk_test_` (test mode) or `pk_live_` (live mode)
 3. Restart your dev server
@@ -418,17 +430,20 @@ The webhook handler should be idempotent. Check if there's already a transaction
 ## Additional Resources
 
 ### Stripe Documentation
+
 - [Checkout Sessions](https://docs.stripe.com/api/checkout/sessions)
 - [Webhooks Guide](https://docs.stripe.com/webhooks)
 - [Testing Guide](https://docs.stripe.com/testing)
 - [API Versioning](https://docs.stripe.com/api/versioning)
 
 ### Stripe Tools
+
 - [Stripe Dashboard](https://dashboard.stripe.com)
 - [Stripe CLI Documentation](https://docs.stripe.com/stripe-cli)
 - [Stripe Status Page](https://status.stripe.com)
 
 ### Support
+
 - Stripe Support: [https://support.stripe.com](https://support.stripe.com)
 - Stripe Community: [https://github.com/stripe](https://github.com/stripe)
 

@@ -50,7 +50,7 @@ export const BentoGridItem = ({
         proximity={64}
         inactiveZone={0.01}
       />
-      
+
       {/* Card Content - border radius slightly smaller to fit inside the outer container */}
       <div className="relative flex flex-col justify-between space-y-4 rounded-[0.625rem] border border-neutral-200 bg-white p-4 h-full transition duration-200 hover:shadow-xl dark:border-white/[0.2] dark:bg-black dark:shadow-none">
         {header}

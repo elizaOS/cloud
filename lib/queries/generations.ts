@@ -1,14 +1,19 @@
-import { db, schema, eq, and, desc, sql } from '@/lib/db';
-import type { Generation, NewGeneration } from '@/lib/types';
+import { db, schema, eq, and, desc, sql } from "@/lib/db";
+import type { Generation, NewGeneration } from "@/lib/types";
 
-export async function createGeneration(data: NewGeneration): Promise<Generation> {
-  const [generation] = await db.insert(schema.generations).values(data).returning();
+export async function createGeneration(
+  data: NewGeneration,
+): Promise<Generation> {
+  const [generation] = await db
+    .insert(schema.generations)
+    .values(data)
+    .returning();
   return generation;
 }
 
 export async function updateGeneration(
   id: string,
-  data: Partial<Omit<Generation, 'id' | 'created_at'>>
+  data: Partial<Omit<Generation, "id" | "created_at">>,
 ): Promise<Generation | undefined> {
   const [generation] = await db
     .update(schema.generations)
@@ -18,7 +23,9 @@ export async function updateGeneration(
   return generation;
 }
 
-export async function getGenerationById(id: string): Promise<Generation | undefined> {
+export async function getGenerationById(
+  id: string,
+): Promise<Generation | undefined> {
   return await db.query.generations.findFirst({
     where: eq(schema.generations.id, id),
   });
@@ -33,9 +40,16 @@ export async function listGenerationsByOrganization(
     status?: string;
     startDate?: Date;
     endDate?: Date;
-  }
+  },
 ): Promise<Generation[]> {
-  const { limit = 100, offset = 0, type, status, startDate, endDate } = options || {};
+  const {
+    limit = 100,
+    offset = 0,
+    type,
+    status,
+    startDate,
+    endDate,
+  } = options || {};
 
   const conditions = [eq(schema.generations.organization_id, organizationId)];
 
@@ -70,7 +84,7 @@ export async function listGenerationsByUser(
     offset?: number;
     type?: string;
     status?: string;
-  }
+  },
 ): Promise<Generation[]> {
   const { limit = 100, offset = 0, type, status } = options || {};
 
@@ -99,7 +113,7 @@ export async function listGenerationsByApiKey(
     offset?: number;
     type?: string;
     status?: string;
-  }
+  },
 ): Promise<Generation[]> {
   const { limit = 100, offset = 0, type, status } = options || {};
 
@@ -126,7 +140,7 @@ export async function getGenerationStats(
   options?: {
     startDate?: Date;
     endDate?: Date;
-  }
+  },
 ): Promise<{
   totalGenerations: number;
   completedGenerations: number;

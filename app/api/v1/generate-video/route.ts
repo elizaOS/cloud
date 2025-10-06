@@ -2,9 +2,9 @@ import { NextRequest, NextResponse } from "next/server";
 import { fal } from "@fal-ai/client";
 import type { QueueStatus } from "@fal-ai/client";
 import { requireAuthOrApiKey } from "@/lib/auth";
-import { createUsageRecord } from '@/lib/queries/usage';
-import { deductCredits } from '@/lib/queries/credits';
-import { createGeneration, updateGeneration } from '@/lib/queries/generations';
+import { createUsageRecord } from "@/lib/queries/usage";
+import { deductCredits } from "@/lib/queries/credits";
+import { createGeneration, updateGeneration } from "@/lib/queries/generations";
 import {
   VIDEO_GENERATION_COST,
   VIDEO_GENERATION_FALLBACK_COST,
@@ -82,18 +82,20 @@ export async function POST(request: NextRequest) {
       organization_id: user.organization_id,
       user_id: user.id,
       api_key_id: apiKey?.id || null,
-      type: 'video',
+      type: "video",
       model: model,
-      provider: 'fal',
+      provider: "fal",
       prompt: prompt.trim(),
-      status: 'pending',
+      status: "pending",
       credits: VIDEO_GENERATION_COST,
       cost: VIDEO_GENERATION_COST,
     });
 
     generationId = generation.id;
 
-    console.log(`[VIDEO GENERATION] Starting generation for user ${user.id}, model: ${model}`);
+    console.log(
+      `[VIDEO GENERATION] Starting generation for user ${user.id}, model: ${model}`,
+    );
 
     const result = await fal.subscribe(model, {
       input: {
@@ -155,9 +157,9 @@ export async function POST(request: NextRequest) {
 
     if (generationId) {
       await updateGeneration(generationId, {
-        status: 'completed',
+        status: "completed",
         storage_url: data.video.url,
-        mime_type: data.video.content_type || 'video/mp4',
+        mime_type: data.video.content_type || "video/mp4",
         file_size: data.video.file_size ? BigInt(data.video.file_size) : null,
         dimensions: {
           width: data.video.width,
@@ -175,7 +177,9 @@ export async function POST(request: NextRequest) {
       });
     }
 
-    console.log(`[VIDEO GENERATION] Credits deducted: ${VIDEO_GENERATION_COST}, New balance: ${deductionResult.newBalance}`);
+    console.log(
+      `[VIDEO GENERATION] Credits deducted: ${VIDEO_GENERATION_COST}, New balance: ${deductionResult.newBalance}`,
+    );
 
     return NextResponse.json(
       {
@@ -229,10 +233,11 @@ export async function POST(request: NextRequest) {
 
       if (generationId) {
         await updateGeneration(generationId, {
-          status: 'failed',
+          status: "failed",
           error: errorMessage,
-          storage_url: "https://v3.fal.media/files/zebra/P8u5qLXJrXF--Xm1Kix6j_output.mp4",
-          mime_type: 'video/mp4',
+          storage_url:
+            "https://v3.fal.media/files/zebra/P8u5qLXJrXF--Xm1Kix6j_output.mp4",
+          mime_type: "video/mp4",
           dimensions: {
             width: 1920,
             height: 1080,
@@ -254,7 +259,9 @@ export async function POST(request: NextRequest) {
         });
       }
 
-      console.log(`[VIDEO GENERATION] Fallback credits deducted: ${VIDEO_GENERATION_FALLBACK_COST}, New balance: ${fallbackDeduction.newBalance}`);
+      console.log(
+        `[VIDEO GENERATION] Fallback credits deducted: ${VIDEO_GENERATION_FALLBACK_COST}, New balance: ${fallbackDeduction.newBalance}`,
+      );
     } catch (authError) {
       console.error(
         "[VIDEO GENERATION] Auth error during fallback logging:",

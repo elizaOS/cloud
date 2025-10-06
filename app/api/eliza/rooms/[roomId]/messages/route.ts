@@ -11,7 +11,10 @@ import type { NextRequest } from "next/server";
 export const maxDuration = 60;
 
 // POST /api/eliza/rooms/[roomId]/messages - Send a message
-export async function POST(request: NextRequest, ctx: { params: Promise<{ roomId: string }> }) {
+export async function POST(
+  request: NextRequest,
+  ctx: { params: Promise<{ roomId: string }> },
+) {
   try {
     // Authenticate user or validate API key
     const { user, apiKey } = await requireAuthOrApiKey(request);
@@ -59,100 +62,119 @@ export async function POST(request: NextRequest, ctx: { params: Promise<{ roomId
       usage,
     });
 
-    // Deduct credits and track usage if we have token information
-    if (usage && usage.inputTokens > 0 && usage.outputTokens > 0) {
-      try {
-        const model = usage.model || "gpt-4o";
-        const provider = getProviderFromModel(model);
+    console.log(`[Eliza Messages API] Usage data received:`, {
+      hasUsage: !!usage,
+      inputTokens: usage?.inputTokens,
+      outputTokens: usage?.outputTokens,
+      model: usage?.model,
+    });
 
-        // Calculate costs
-        const { inputCost, outputCost, totalCost } = await calculateCost(
+    // Always deduct credits for Eliza messages
+    // If we don't have usage data, estimate based on text length
+    const effectiveUsage = usage || {
+      inputTokens: Math.ceil(text.length / 4),
+      outputTokens: 100, // Rough estimate for response
+      model: "gpt-4o",
+    };
+
+    console.log(
+      `[Eliza Messages API] Effective usage for billing:`,
+      effectiveUsage,
+    );
+
+    try {
+      const model = effectiveUsage.model || "gpt-4o";
+      const provider = getProviderFromModel(model);
+
+      // Calculate costs
+      const { inputCost, outputCost, totalCost } = await calculateCost(
+        model,
+        provider,
+        effectiveUsage.inputTokens || 0,
+        effectiveUsage.outputTokens || 0,
+      );
+
+      // Deduct credits
+      const deductionResult = await deductCredits(
+        user.organization_id,
+        totalCost,
+        `Eliza chat completion: ${model}`,
+        user.id,
+      );
+
+      if (!deductionResult.success) {
+        console.error(
+          "[Eliza Messages API] Failed to deduct credits - insufficient balance",
+        );
+      }
+
+      // Create usage record
+      const usageRecord = await createUsageRecord({
+        organization_id: user.organization_id,
+        user_id: user.id,
+        api_key_id: apiKey?.id || null,
+        type: "eliza",
+        model,
+        provider,
+        input_tokens: effectiveUsage.inputTokens || 0,
+        output_tokens: effectiveUsage.outputTokens || 0,
+        input_cost: inputCost,
+        output_cost: outputCost,
+        is_successful: true,
+      });
+
+      // Create generation record if using API key
+      if (apiKey) {
+        await createGeneration({
+          organization_id: user.organization_id,
+          user_id: user.id,
+          api_key_id: apiKey.id,
+          type: "eliza",
           model,
           provider,
-          usage.inputTokens,
-          usage.outputTokens,
-        );
+          prompt: text,
+          status: "completed",
+          tokens:
+            (effectiveUsage.inputTokens || 0) +
+            (effectiveUsage.outputTokens || 0),
+          cost: totalCost,
+          credits: totalCost,
+          usage_record_id: usageRecord.id,
+          completed_at: new Date(),
+        });
+      }
 
-        // Deduct credits
-        const deductionResult = await deductCredits(
-          user.organization_id,
-          totalCost,
-          `Eliza chat completion: ${model}`,
-          user.id,
-        );
+      console.log(
+        `[Eliza Messages API] Credits deducted: ${totalCost} (Input: ${inputCost}, Output: ${outputCost}), New balance: ${deductionResult.newBalance}`,
+      );
+    } catch (error) {
+      console.error(
+        "[Eliza Messages API] Error deducting credits or tracking usage:",
+        error,
+      );
 
-        if (!deductionResult.success) {
-          console.error(
-            "[Eliza Messages API] Failed to deduct credits - insufficient balance",
-          );
-        }
-
-        // Create usage record
-        const usageRecord = await createUsageRecord({
+      // Still create an unsuccessful usage record for tracking
+      try {
+        await createUsageRecord({
           organization_id: user.organization_id,
           user_id: user.id,
           api_key_id: apiKey?.id || null,
           type: "eliza",
-          model,
-          provider,
-          input_tokens: usage.inputTokens,
-          output_tokens: usage.outputTokens,
-          input_cost: inputCost,
-          output_cost: outputCost,
-          is_successful: true,
+          model: effectiveUsage.model || "gpt-4o",
+          provider: getProviderFromModel(effectiveUsage.model || "gpt-4o"),
+          input_tokens: effectiveUsage.inputTokens || 0,
+          output_tokens: effectiveUsage.outputTokens || 0,
+          input_cost: 0,
+          output_cost: 0,
+          is_successful: false,
+          error_message:
+            error instanceof Error ? error.message : "Unknown error",
         });
-
-        // Create generation record if using API key
-        if (apiKey) {
-          await createGeneration({
-            organization_id: user.organization_id,
-            user_id: user.id,
-            api_key_id: apiKey.id,
-            type: "eliza",
-            model,
-            provider,
-            prompt: text,
-            status: "completed",
-            tokens: usage.inputTokens + usage.outputTokens,
-            cost: totalCost,
-            credits: totalCost,
-            usage_record_id: usageRecord.id,
-            completed_at: new Date(),
-          });
-        }
-
-        console.log(
-          `[Eliza Messages API] Credits deducted: ${totalCost} (Input: ${inputCost}, Output: ${outputCost}), New balance: ${deductionResult.newBalance}`,
-        );
-      } catch (error) {
+      } catch (usageError) {
         console.error(
-          "[Eliza Messages API] Error deducting credits or tracking usage:",
-          error,
+          "[Eliza Messages API] Error creating usage record:",
+          usageError,
         );
-
-        // Still create an unsuccessful usage record for tracking
-        try {
-          await createUsageRecord({
-            organization_id: user.organization_id,
-            user_id: user.id,
-            api_key_id: apiKey?.id || null,
-            type: "eliza",
-            model: usage.model || "gpt-4o",
-            provider: getProviderFromModel(usage.model || "gpt-4o"),
-            input_tokens: usage.inputTokens || 0,
-            output_tokens: usage.outputTokens || 0,
-            input_cost: 0,
-            output_cost: 0,
-            is_successful: false,
-            error_message:
-              error instanceof Error ? error.message : "Unknown error",
-          });
-        } catch (usageError) {
-          console.error(
-            "[Eliza Messages API] Error creating usage record:",
-            usageError,
-          );
-        }
       }
     }
 
@@ -197,7 +219,10 @@ export async function POST(request: NextRequest, ctx: { params: Promise<{ roomId
 }
 
 // GET /api/eliza/rooms/[roomId]/messages - Get messages (for polling)
-export async function GET(request: Request, ctx: { params: Promise<{ roomId: string }> }) {
+export async function GET(
+  request: Request,
+  ctx: { params: Promise<{ roomId: string }> },
+) {
   try {
     const { roomId } = await ctx.params;
     const { searchParams } = new URL(request.url);
@@ -221,7 +246,8 @@ export async function GET(request: Request, ctx: { params: Promise<{ roomId: str
 
     // Filter messages by timestamp if provided (for polling)
     const parsed = afterTimestamp ? Number(afterTimestamp) : 0;
-    const afterTimestampNum = Number.isFinite(parsed) && parsed > 0 ? parsed : 0;
+    const afterTimestampNum =
+      Number.isFinite(parsed) && parsed > 0 ? parsed : 0;
     const isValidAfter = afterTimestampNum > 0;
     const filteredMessages = isValidAfter
       ? messages.filter((msg) => {
@@ -271,4 +297,3 @@ export async function GET(request: Request, ctx: { params: Promise<{ roomId: str
     );
   }
 }
-

@@ -58,7 +58,10 @@ export function TextPageClient({
                 : "Chat with Eliza using the full ElizaOS runtime with persistent memory and room-based conversations."}
             </p>
           </div>
-          <Tabs value={chatMode} onValueChange={(v) => setChatMode(v as "ai-sdk" | "eliza")}>
+          <Tabs
+            value={chatMode}
+            onValueChange={(v) => setChatMode(v as "ai-sdk" | "eliza")}
+          >
             <TabsList>
               <TabsTrigger value="ai-sdk">AI SDK</TabsTrigger>
               <TabsTrigger value="eliza">Eliza</TabsTrigger>

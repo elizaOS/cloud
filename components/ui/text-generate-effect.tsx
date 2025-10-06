@@ -26,7 +26,7 @@ export const TextGenerateEffect = ({
       {
         duration: duration ? duration : 1,
         delay: stagger(0.2),
-      }
+      },
     );
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [scope.current]);

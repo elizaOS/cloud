@@ -1,8 +1,4 @@
-import {
-  type IAgentRuntime,
-  type Memory,
-  type Provider,
-} from "@elizaos/core";
+import { type IAgentRuntime, type Memory, type Provider } from "@elizaos/core";
 
 export const recentMessagesProvider: Provider = {
   name: "RECENT_MESSAGES",
@@ -49,4 +45,3 @@ export const recentMessagesProvider: Provider = {
     };
   },
 };
-

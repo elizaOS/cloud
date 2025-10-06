@@ -89,8 +89,12 @@ export async function POST(request: NextRequest) {
         metadata: { name: entityId, web: { userName: entityId } },
       });
     } catch (e) {
-      const msg = e instanceof Error ? e.message.toLowerCase() : String(e).toLowerCase();
-      if (!msg.includes("duplicate key") && !msg.includes("unique constraint")) {
+      const msg =
+        e instanceof Error ? e.message.toLowerCase() : String(e).toLowerCase();
+      if (
+        !msg.includes("duplicate key") &&
+        !msg.includes("unique constraint")
+      ) {
         throw e;
       }
     }
@@ -106,28 +110,40 @@ export async function POST(request: NextRequest) {
       userName: entityId,
     });
 
-    console.log("[Eliza Rooms API] Created room:", roomId, "for entity:", entityId);
+    console.log(
+      "[Eliza Rooms API] Created room:",
+      roomId,
+      "for entity:",
+      entityId,
+    );
 
     // Send initial greeting message
     try {
       console.log("[Eliza Rooms API] Sending initial greeting");
-      
-      const greetingText = "Hello! I'm Eliza, your friendly AI assistant. How can I help you today?";
-      
-      await runtime.createMemory({
-        id: uuidv4() as UUID,
-        roomId: roomId as UUID,
-        entityId: runtime.agentId,
-        agentId: runtime.agentId,
-        content: {
-          text: greetingText,
-          type: "agent",
+
+      const greetingText =
+        "Hello! I'm Eliza, your friendly AI assistant. How can I help you today?";
+
+      await runtime.createMemory(
+        {
+          id: uuidv4() as UUID,
+          roomId: roomId as UUID,
+          entityId: runtime.agentId,
+          agentId: runtime.agentId,
+          content: {
+            text: greetingText,
+            type: "agent",
+          },
+          createdAt: Date.now(),
         },
-        createdAt: Date.now(),
-      }, "messages");
+        "messages",
+      );
       console.log("[Eliza Rooms API] Initial greeting message saved to room");
     } catch (initErr) {
-      console.error("[Eliza Rooms API] Failed to create initial greeting:", initErr);
+      console.error(
+        "[Eliza Rooms API] Failed to create initial greeting:",
+        initErr,
+      );
     }
 
     return NextResponse.json({
@@ -151,4 +167,3 @@ export async function POST(request: NextRequest) {
     );
   }
 }
-

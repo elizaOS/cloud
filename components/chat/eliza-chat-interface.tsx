@@ -66,7 +66,10 @@ export function ElizaChatInterface() {
                 );
                 if (resp.ok) {
                   const js = await resp.json();
-                  const msgs = (js.messages || []) as { content: { text?: string }; createdAt: number }[];
+                  const msgs = (js.messages || []) as {
+                    content: { text?: string };
+                    createdAt: number;
+                  }[];
                   const last = msgs[msgs.length - 1];
                   return {
                     id: r.id,
@@ -133,9 +136,10 @@ export function ElizaChatInterface() {
 
   // Create or restore a room on mount, and start rooms polling
   useEffect(() => {
-    const savedRoom = typeof window !== "undefined"
-      ? window.localStorage.getItem("elizaRoomId")
-      : null;
+    const savedRoom =
+      typeof window !== "undefined"
+        ? window.localStorage.getItem("elizaRoomId")
+        : null;
     if (savedRoom) {
       setRoomId(savedRoom);
       loadMessages(savedRoom);
@@ -209,7 +213,9 @@ export function ElizaChatInterface() {
     };
 
     // Check if there's a thinking message - if so, poll faster
-    const hasThinkingMessage = messages.some((m) => m.id.startsWith("thinking-"));
+    const hasThinkingMessage = messages.some((m) =>
+      m.id.startsWith("thinking-"),
+    );
     const pollInterval = hasThinkingMessage ? 500 : 2000; // 500ms when thinking, 2s otherwise
 
     pollIntervalRef.current = setInterval(pollMessages, pollInterval);
@@ -256,7 +262,9 @@ export function ElizaChatInterface() {
     // Safety timeout: remove thinking indicator after 30 seconds if no response
     thinkingTimeoutRef.current = setTimeout(() => {
       setMessages((prev) => prev.filter((m) => !m.id.startsWith("thinking-")));
-      console.warn("[Chat] Thinking indicator timeout - agent took too long to respond");
+      console.warn(
+        "[Chat] Thinking indicator timeout - agent took too long to respond",
+      );
     }, 30000);
 
     try {
@@ -333,7 +341,10 @@ export function ElizaChatInterface() {
       console.error("Error sending message:", err);
       // Remove temp and thinking messages on error
       setMessages((prev) =>
-        prev.filter((msg) => msg.id !== tempUserMessage.id && !msg.id.startsWith("thinking-")),
+        prev.filter(
+          (msg) =>
+            msg.id !== tempUserMessage.id && !msg.id.startsWith("thinking-"),
+        ),
       );
       // Clear thinking timeout on error
       if (thinkingTimeoutRef.current) {
@@ -367,7 +378,9 @@ export function ElizaChatInterface() {
           </div>
           <div>
             <p className="text-base font-semibold">Initializing Eliza...</p>
-            <p className="text-sm text-muted-foreground mt-1">Setting up your conversation space</p>
+            <p className="text-sm text-muted-foreground mt-1">
+              Setting up your conversation space
+            </p>
           </div>
         </div>
       </div>
@@ -384,7 +397,9 @@ export function ElizaChatInterface() {
               <MessageSquare className="h-4 w-4 text-muted-foreground" />
               <p className="text-sm font-semibold">Conversations</p>
             </div>
-            <Button size="sm" variant="ghost" onClick={createRoom}>New</Button>
+            <Button size="sm" variant="ghost" onClick={createRoom}>
+              New
+            </Button>
           </div>
           <Button
             size="sm"
@@ -437,7 +452,9 @@ export function ElizaChatInterface() {
                 ))}
                 {rooms.length === 0 && !isLoadingRooms && (
                   <div className="px-3 py-8 text-center">
-                    <p className="text-xs text-muted-foreground">No conversations yet</p>
+                    <p className="text-xs text-muted-foreground">
+                      No conversations yet
+                    </p>
                   </div>
                 )}
               </>
@@ -476,10 +493,12 @@ export function ElizaChatInterface() {
             {messages.length === 0 && !error && (
               <div className="flex flex-col items-center justify-center h-full text-center">
                 <Bot className="h-12 w-12 text-muted-foreground mb-4" />
-                <h3 className="text-lg font-semibold mb-2">Start a conversation</h3>
+                <h3 className="text-lg font-semibold mb-2">
+                  Start a conversation
+                </h3>
                 <p className="text-sm text-muted-foreground max-w-md">
-                  Ask me anything about AI, development, or how elizaOS can help you
-                  build intelligent agents.
+                  Ask me anything about AI, development, or how elizaOS can help
+                  you build intelligent agents.
                 </p>
               </div>
             )}
@@ -496,7 +515,9 @@ export function ElizaChatInterface() {
                 >
                   {message.isAgent && (
                     <div className="flex-shrink-0 w-9 h-9 rounded-full bg-gradient-to-br from-purple-500 to-blue-600 flex items-center justify-center shadow-sm transition-transform hover:scale-110">
-                      <Bot className={`h-5 w-5 text-white ${isThinking ? "animate-pulse" : ""}`} />
+                      <Bot
+                        className={`h-5 w-5 text-white ${isThinking ? "animate-pulse" : ""}`}
+                      />
                     </div>
                   )}
 
@@ -510,7 +531,9 @@ export function ElizaChatInterface() {
                     {isThinking ? (
                       <div className="flex items-center gap-3">
                         <Loader2 className="h-4 w-4 animate-spin" />
-                        <p className="text-sm text-muted-foreground">Eliza is thinking...</p>
+                        <p className="text-sm text-muted-foreground">
+                          Eliza is thinking...
+                        </p>
                       </div>
                     ) : (
                       <>
@@ -539,7 +562,6 @@ export function ElizaChatInterface() {
                 </div>
               );
             })}
-
           </div>
         </ScrollArea>
 
@@ -585,4 +607,3 @@ export function ElizaChatInterface() {
     </div>
   );
 }
-

@@ -1,6 +1,12 @@
 "use client";
 
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Info, CheckCircle2, XCircle, Calendar } from "lucide-react";
 import type { UserWithOrganization } from "@/lib/types";
@@ -37,23 +43,33 @@ export function AccountDetails({ user }: AccountDetailsProps) {
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div className="space-y-1">
               <p className="text-sm text-muted-foreground">Account ID</p>
-              <p className="font-mono text-xs text-muted-foreground">{user.id}</p>
+              <p className="font-mono text-xs text-muted-foreground">
+                {user.id}
+              </p>
             </div>
 
             <div className="space-y-1">
-              <p className="text-sm text-muted-foreground">Email Verification</p>
+              <p className="text-sm text-muted-foreground">
+                Email Verification
+              </p>
               <div className="flex items-center gap-2">
                 {user.email_verified ? (
                   <>
                     <CheckCircle2 className="h-4 w-4 text-green-500" />
-                    <Badge variant="outline" className="border-green-500/50 text-green-700 dark:text-green-400">
+                    <Badge
+                      variant="outline"
+                      className="border-green-500/50 text-green-700 dark:text-green-400"
+                    >
                       Verified
                     </Badge>
                   </>
                 ) : (
                   <>
                     <XCircle className="h-4 w-4 text-yellow-500" />
-                    <Badge variant="outline" className="border-yellow-500/50 text-yellow-700 dark:text-yellow-400">
+                    <Badge
+                      variant="outline"
+                      className="border-yellow-500/50 text-yellow-700 dark:text-yellow-400"
+                    >
                       Not Verified
                     </Badge>
                   </>
@@ -94,8 +110,12 @@ export function AccountDetails({ user }: AccountDetailsProps) {
 
           {user.workos_user_id && (
             <div className="pt-4 border-t space-y-1">
-              <p className="text-sm text-muted-foreground">Authentication Provider</p>
-              <p className="text-xs font-mono text-muted-foreground">WorkOS ID: {user.workos_user_id}</p>
+              <p className="text-sm text-muted-foreground">
+                Authentication Provider
+              </p>
+              <p className="text-xs font-mono text-muted-foreground">
+                WorkOS ID: {user.workos_user_id}
+              </p>
             </div>
           )}
         </div>
@@ -103,4 +123,3 @@ export function AccountDetails({ user }: AccountDetailsProps) {
     </Card>
   );
 }
-

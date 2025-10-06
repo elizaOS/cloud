@@ -2,7 +2,7 @@ import { rateLimiter, RATE_LIMITS } from "../lib/rate-limiter";
 
 async function testRateLimiter() {
   console.log("🧪 Testing Rate Limiter\n");
-  console.log("=" .repeat(60));
+  console.log("=".repeat(60));
 
   const testOrgId = "test-org-123";
   const key = `checkout:${testOrgId}`;
@@ -68,9 +68,7 @@ async function testRateLimiter() {
   console.log("\n5️⃣ Test: Production configuration");
   console.log("-".repeat(60));
   console.log("Checkout session limits:");
-  console.log(
-    `  - Limit: ${RATE_LIMITS.CHECKOUT_SESSION.limit} requests`,
-  );
+  console.log(`  - Limit: ${RATE_LIMITS.CHECKOUT_SESSION.limit} requests`);
   console.log(
     `  - Window: ${RATE_LIMITS.CHECKOUT_SESSION.windowMs / 1000 / 60} minutes`,
   );
@@ -80,7 +78,9 @@ async function testRateLimiter() {
     RATE_LIMITS.CHECKOUT_SESSION.limit,
     RATE_LIMITS.CHECKOUT_SESSION.windowMs,
   );
-  console.log(`  - First request: ${prodTest.allowed ? "✓ ALLOWED" : "✗ DENIED"}`);
+  console.log(
+    `  - First request: ${prodTest.allowed ? "✓ ALLOWED" : "✗ DENIED"}`,
+  );
   console.log(`  - Remaining: ${prodTest.remaining}`);
 
   console.log("\n" + "=".repeat(60));
@@ -94,13 +94,13 @@ async function testRateLimiter() {
   console.log("  - Production config: 10 requests/hour ✓");
 
   console.log("\n💡 Rate limiter behavior:");
-  console.log(
-    "  - Each organization can create 10 checkout sessions per hour",
-  );
+  console.log("  - Each organization can create 10 checkout sessions per hour");
   console.log(
     "  - Exceeded requests return 429 status with Retry-After header",
   );
-  console.log("  - Rate limits stored in memory (consider Redis for production scale)");
+  console.log(
+    "  - Rate limits stored in memory (consider Redis for production scale)",
+  );
 }
 
 testRateLimiter()

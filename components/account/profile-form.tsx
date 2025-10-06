@@ -6,7 +6,13 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { updateProfile, uploadAvatar } from "@/app/actions/users";
 import { Loader2, Upload, User, Mail, Shield } from "lucide-react";
@@ -57,7 +63,8 @@ export function ProfileForm({ user }: ProfileFormProps) {
         toast.error(result.error || "Failed to upload avatar");
       }
     } catch (err) {
-      const message = err instanceof Error ? err.message : "Failed to upload avatar";
+      const message =
+        err instanceof Error ? err.message : "Failed to upload avatar";
       setError(message);
       toast.error(message);
     } finally {
@@ -85,7 +92,8 @@ export function ProfileForm({ user }: ProfileFormProps) {
           toast.error(result.error || "Failed to update profile");
         }
       } catch (err) {
-        const message = err instanceof Error ? err.message : "An unexpected error occurred";
+        const message =
+          err instanceof Error ? err.message : "An unexpected error occurred";
         setError(message);
         toast.error(message);
       }
@@ -108,7 +116,10 @@ export function ProfileForm({ user }: ProfileFormProps) {
           {/* Avatar Section */}
           <div className="flex flex-col sm:flex-row items-start sm:items-center gap-4 pb-6 border-b">
             <Avatar className="h-20 w-20 ring-2 ring-border">
-              <AvatarImage src={user.avatar || undefined} alt={user.name || user.email} />
+              <AvatarImage
+                src={user.avatar || undefined}
+                alt={user.name || user.email}
+              />
               <AvatarFallback className="text-lg">
                 {getInitials(user.name, user.email)}
               </AvatarFallback>
@@ -134,7 +145,9 @@ export function ProfileForm({ user }: ProfileFormProps) {
                   variant="outline"
                   size="sm"
                   disabled={isUploadingAvatar}
-                  onClick={() => document.getElementById("avatar-upload")?.click()}
+                  onClick={() =>
+                    document.getElementById("avatar-upload")?.click()
+                  }
                 >
                   {isUploadingAvatar ? (
                     <>
@@ -183,7 +196,8 @@ export function ProfileForm({ user }: ProfileFormProps) {
                 className="bg-muted"
               />
               <p className="text-xs text-muted-foreground">
-                Email cannot be changed. Please contact support if you need to update this.
+                Email cannot be changed. Please contact support if you need to
+                update this.
               </p>
             </div>
 
@@ -258,4 +272,3 @@ export function ProfileForm({ user }: ProfileFormProps) {
     </Card>
   );
 }
-

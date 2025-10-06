@@ -3,7 +3,10 @@ import { agentRuntime } from "@/lib/eliza/agent-runtime";
 import type { UUID } from "@elizaos/core";
 
 // GET /api/eliza/rooms/[roomId] - Get room details and messages
-export async function GET(request: Request, ctx: { params: Promise<{ roomId: string }> }) {
+export async function GET(
+  request: Request,
+  ctx: { params: Promise<{ roomId: string }> },
+) {
   try {
     const { roomId } = await ctx.params;
     const { searchParams } = new URL(request.url);
@@ -23,7 +26,7 @@ export async function GET(request: Request, ctx: { params: Promise<{ roomId: str
       count: limit ? parseInt(limit) : 50,
       unique: false,
     });
-    
+
     const simple = rawMessages
       .map((msg) => {
         let parsedContent: unknown = msg.content;
@@ -64,4 +67,3 @@ export async function GET(request: Request, ctx: { params: Promise<{ roomId: str
     );
   }
 }
-

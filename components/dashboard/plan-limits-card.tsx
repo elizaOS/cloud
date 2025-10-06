@@ -26,9 +26,16 @@ export function PlanLimitsCard({
   className,
 }: PlanLimitsCardProps) {
   return (
-    <Card className={cn("h-full border-border/60 bg-background/85 shadow-sm", className)}>
+    <Card
+      className={cn(
+        "h-full border-border/60 bg-background/85 shadow-sm",
+        className,
+      )}
+    >
       <CardHeader className="space-y-2">
-        <CardTitle className="text-sm font-semibold tracking-tight">Usage Limits</CardTitle>
+        <CardTitle className="text-sm font-semibold tracking-tight">
+          Usage Limits
+        </CardTitle>
         <p className="text-xs text-muted-foreground">
           Monitor your usage limits and what your team can access.
         </p>
@@ -43,7 +50,9 @@ export function PlanLimitsCard({
               {maxApiRequests != null ? (
                 <>
                   {nf.format(maxApiRequests)}
-                  <span className="ml-1 text-xs font-normal text-muted-foreground">per month</span>
+                  <span className="ml-1 text-xs font-normal text-muted-foreground">
+                    per month
+                  </span>
                 </>
               ) : (
                 "Unlimited"
@@ -56,7 +65,9 @@ export function PlanLimitsCard({
               Max tokens / request
             </span>
             <span className="text-sm font-semibold">
-              {maxTokensPerRequest != null ? nf.format(maxTokensPerRequest) : "Unlimited"}
+              {maxTokensPerRequest != null
+                ? nf.format(maxTokensPerRequest)
+                : "Unlimited"}
             </span>
           </div>
         </div>
@@ -64,16 +75,25 @@ export function PlanLimitsCard({
         <div className="grid gap-2 text-xs text-muted-foreground">
           <div className="flex items-center justify-between">
             <span>Allowed providers</span>
-            <span className="font-medium text-foreground">{allowedProviders.length}</span>
+            <span className="font-medium text-foreground">
+              {allowedProviders.length}
+            </span>
           </div>
           <div className="flex flex-wrap gap-1">
             {allowedProviders.slice(0, 4).map((provider) => (
-              <Badge key={provider} variant="outline" className="rounded-full border-border/60 text-[10px]">
+              <Badge
+                key={provider}
+                variant="outline"
+                className="rounded-full border-border/60 text-[10px]"
+              >
                 {provider}
               </Badge>
             ))}
             {allowedProviders.length > 4 ? (
-              <Badge variant="outline" className="rounded-full border-border/60 text-[10px]">
+              <Badge
+                variant="outline"
+                className="rounded-full border-border/60 text-[10px]"
+              >
                 +{allowedProviders.length - 4}
               </Badge>
             ) : null}
@@ -83,16 +103,25 @@ export function PlanLimitsCard({
         <div className="grid gap-2 text-xs text-muted-foreground">
           <div className="flex items-center justify-between">
             <span>Allowed models</span>
-            <span className="font-medium text-foreground">{allowedModels.length}</span>
+            <span className="font-medium text-foreground">
+              {allowedModels.length}
+            </span>
           </div>
           <div className="flex flex-wrap gap-1">
             {allowedModels.slice(0, 5).map((model) => (
-              <Badge key={model} variant="secondary" className="rounded-full bg-muted/60 text-[10px]">
+              <Badge
+                key={model}
+                variant="secondary"
+                className="rounded-full bg-muted/60 text-[10px]"
+              >
                 {model}
               </Badge>
             ))}
             {allowedModels.length > 5 ? (
-              <Badge variant="secondary" className="rounded-full bg-muted/60 text-[10px]">
+              <Badge
+                variant="secondary"
+                className="rounded-full bg-muted/60 text-[10px]"
+              >
                 +{allowedModels.length - 5}
               </Badge>
             ) : null}
@@ -111,7 +140,9 @@ export function PlanLimitsCard({
             </span>
           </div>
           {nextReset ? (
-            <span className="text-[11px] uppercase tracking-wide text-muted-foreground/80">resets {nextReset}</span>
+            <span className="text-[11px] uppercase tracking-wide text-muted-foreground/80">
+              resets {nextReset}
+            </span>
           ) : null}
         </div>
       </CardContent>
