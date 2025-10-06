@@ -1,13 +1,13 @@
 import { config } from "dotenv";
 import { db } from "../db/drizzle";
-import * as schema from "../db/schema";
+import * as schema from "../db/sass/schema";
 import { desc } from "drizzle-orm";
 
 config({ path: ".env.local" });
 
 async function checkDatabaseState() {
   console.log("🔍 Checking Database State\n");
-  console.log("=" .repeat(70));
+  console.log("=".repeat(70));
 
   console.log("\n📊 Organizations:");
   console.log("-".repeat(70));
@@ -29,7 +29,9 @@ async function checkDatabaseState() {
       console.log(`\nOrganization: ${org.name}`);
       console.log(`  ID: ${org.id}`);
       console.log(`  Credit Balance: ${org.credit_balance.toLocaleString()}`);
-      console.log(`  Stripe Customer: ${org.stripe_customer_id || "(not set)"}`);
+      console.log(
+        `  Stripe Customer: ${org.stripe_customer_id || "(not set)"}`
+      );
       console.log(`  Created: ${org.created_at.toISOString()}`);
     });
   }
@@ -48,12 +50,14 @@ async function checkDatabaseState() {
     transactions.forEach((txn) => {
       console.log(`\n[${txn.created_at.toISOString()}]`);
       console.log(`  Transaction ID: ${txn.id}`);
-      console.log(`  Amount: ${txn.amount > 0 ? "+" : ""}${txn.amount.toLocaleString()}`);
+      console.log(
+        `  Amount: ${txn.amount > 0 ? "+" : ""}${txn.amount.toLocaleString()}`
+      );
       console.log(`  Type: ${txn.type}`);
       console.log(`  Description: ${txn.description || "(none)"}`);
       console.log(`  Organization ID: ${txn.organization_id}`);
       console.log(
-        `  Stripe Payment Intent: ${txn.stripe_payment_intent_id || "(none)"}`,
+        `  Stripe Payment Intent: ${txn.stripe_payment_intent_id || "(none)"}`
       );
     });
   }

@@ -1,13 +1,13 @@
 import { config } from "dotenv";
 import { db } from "../db/drizzle";
-import * as schema from "../db/schema";
+import * as schema from "../db/sass/schema";
 import { eq } from "drizzle-orm";
 
 config({ path: ".env.local" });
 
 async function testWebhookIdempotency() {
   console.log("🧪 Testing Webhook Idempotency\n");
-  console.log("=" .repeat(60));
+  console.log("=".repeat(60));
 
   const testPaymentIntentId = `pi_test_${Date.now()}`;
   const testOrgId = "test-org-id";
@@ -18,7 +18,7 @@ async function testWebhookIdempotency() {
   const existing1 = await db.query.creditTransactions.findFirst({
     where: eq(
       schema.creditTransactions.stripe_payment_intent_id,
-      testPaymentIntentId,
+      testPaymentIntentId
     ),
   });
 
@@ -58,7 +58,7 @@ async function testWebhookIdempotency() {
   const existing2 = await db.query.creditTransactions.findFirst({
     where: eq(
       schema.creditTransactions.stripe_payment_intent_id,
-      testPaymentIntentId,
+      testPaymentIntentId
     ),
   });
 
@@ -83,19 +83,17 @@ async function testWebhookIdempotency() {
     });
 
     console.log(
-      "⚠️  Duplicate transaction was created (unique constraint may not be active yet)",
+      "⚠️  Duplicate transaction was created (unique constraint may not be active yet)"
     );
     console.log(
-      "   Note: Run database migration to activate unique constraint",
+      "   Note: Run database migration to activate unique constraint"
     );
   } catch (error: any) {
     if (error.code === "23505" || error.message?.includes("unique")) {
       console.log(
-        "✓ Duplicate prevented by unique constraint (constraint is active)",
+        "✓ Duplicate prevented by unique constraint (constraint is active)"
       );
-      console.log(
-        "  This is the expected behavior after running migration",
-      );
+      console.log("  This is the expected behavior after running migration");
     } else {
       console.log("✗ Unexpected error:", error.message);
     }
@@ -109,8 +107,8 @@ async function testWebhookIdempotency() {
     .where(
       eq(
         schema.creditTransactions.stripe_payment_intent_id,
-        testPaymentIntentId,
-      ),
+        testPaymentIntentId
+      )
     )
     .returning();
 
@@ -120,20 +118,14 @@ async function testWebhookIdempotency() {
   console.log("✅ Idempotency Test Complete\n");
 
   console.log("📋 Summary:");
-  console.log(
-    "  - Webhook handler checks for existing transactions ✓",
-  );
-  console.log(
-    "  - Database can track payment intent IDs ✓",
-  );
-  console.log(
-    "  - Unique constraint prevents duplicates ✓ (after migration)",
-  );
+  console.log("  - Webhook handler checks for existing transactions ✓");
+  console.log("  - Database can track payment intent IDs ✓");
+  console.log("  - Unique constraint prevents duplicates ✓ (after migration)");
   console.log("\n💡 Next steps:");
   console.log("  1. Run: bun run db:generate");
   console.log("  2. Run: bun run db:push");
   console.log(
-    "  3. Test with Stripe CLI: stripe trigger checkout.session.completed",
+    "  3. Test with Stripe CLI: stripe trigger checkout.session.completed"
   );
 }
 
