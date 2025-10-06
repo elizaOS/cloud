@@ -1,5 +1,5 @@
 import type { InferSelectModel, InferInsertModel } from "drizzle-orm";
-import * as schema from "@/db/schema";
+import * as schema from "@/db/sass/schema";
 
 export type Organization = InferSelectModel<typeof schema.organizations>;
 export type NewOrganization = InferInsertModel<typeof schema.organizations>;

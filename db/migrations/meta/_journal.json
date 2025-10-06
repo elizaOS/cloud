@@ -8,6 +8,13 @@
       "when": 1759671011961,
       "tag": "0001_numerous_carnage",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1759756277947,
+      "tag": "0002_curvy_daimon_hellstrom",
+      "breakpoints": true
     }
   ]
 }
