@@ -1,4 +1,4 @@
-import { db, schema, eq, desc, sql } from "@/lib/db";
+import { db, schema, eq, desc } from "@/lib/db";
 import type { CreditTransaction } from "@/lib/types";
 
 export async function deductCredits(
