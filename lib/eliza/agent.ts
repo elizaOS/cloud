@@ -1,5 +1,6 @@
 import type { Character } from "@elizaos/core";
 import { openaiPlugin } from "@elizaos/plugin-openai";
+import { assistantPlugin } from "./plugin-assistant";
 // NOTE: plugin-sql is provided via a pre-initialized adapter in agent-runtime
 
 /**
@@ -81,10 +82,10 @@ const character: Character = {
 
 const agent = {
   character,
-  // Model only; SQL adapter is injected in runtime and responses are generated directly
-  plugins: [openaiPlugin],
-  providers: [],
-  actions: [],
+  // Now using full plugin architecture with events, providers, and actions
+  plugins: [openaiPlugin, assistantPlugin],
+  providers: [assistantPlugin.providers].flat(),
+  actions: [assistantPlugin.actions].flat(),
 };
 
 export default agent;
