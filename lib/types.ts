@@ -20,6 +20,9 @@ export type NewCreditTransaction = InferInsertModel<
   typeof schema.creditTransactions
 >;
 
+export type CreditPack = InferSelectModel<typeof schema.creditPacks>;
+export type NewCreditPack = InferInsertModel<typeof schema.creditPacks>;
+
 export type Generation = InferSelectModel<typeof schema.generations>;
 export type NewGeneration = InferInsertModel<typeof schema.generations>;
 
