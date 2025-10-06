@@ -34,7 +34,6 @@ export async function GET() {
           name: user.organization.name,
           slug: user.organization.slug,
           credit_balance: user.organization.credit_balance,
-          subscription_tier: user.organization.subscription_tier,
         },
       },
     });

@@ -1,13 +1,11 @@
 import { streamText, type UIMessage, convertToModelMessages } from "ai";
-import { requireAuthOrApiKey } from "@/lib/auth";
-import {
-  addMessageToConversation,
-  getNextSequenceNumber,
-} from "@/lib/queries/conversations";
-import { deductCredits } from "@/lib/queries/credits";
-import { createUsageRecord } from "@/lib/queries/usage";
-import { calculateCost, getProviderFromModel } from "@/lib/pricing";
-import type { NextRequest } from "next/server";
+import { requireAuthOrApiKey } from '@/lib/auth';
+import { addMessageToConversation, getNextSequenceNumber } from '@/lib/queries/conversations';
+import { deductCredits } from '@/lib/queries/credits';
+import { createUsageRecord } from '@/lib/queries/usage';
+import { createGeneration } from '@/lib/queries/generations';
+import { calculateCost, getProviderFromModel } from '@/lib/pricing';
+import type { NextRequest } from 'next/server';
 
 export const maxDuration = 60;
 
@@ -30,7 +28,7 @@ export async function POST(req: NextRequest) {
       You are knowledgeable about AI agents, development, and technology.`,
       messages: convertToModelMessages(messages),
       onFinish: async ({ text, usage }) => {
-        if (!conversationId || !usage) return;
+        if (!usage) return;
 
         try {
           const userMessage = messages[messages.length - 1];
@@ -55,33 +53,33 @@ export async function POST(req: NextRequest) {
             );
           }
 
-          const userSequence = await getNextSequenceNumber(conversationId);
+          if (conversationId) {
+            const userSequence = await getNextSequenceNumber(conversationId);
 
-          await addMessageToConversation({
-            conversation_id: conversationId,
-            role: "user",
-            content: userMessage.parts
-              .map((p) => (p.type === "text" ? p.text : ""))
-              .join(""),
-            sequence_number: userSequence,
-            model: selectedModel,
-            tokens: usage.inputTokens,
-            cost: inputCost,
-          });
+            await addMessageToConversation({
+              conversation_id: conversationId,
+              role: 'user',
+              content: userMessage.parts.map(p => p.type === 'text' ? p.text : '').join(''),
+              sequence_number: userSequence,
+              model: selectedModel,
+              tokens: usage.inputTokens,
+              cost: inputCost,
+            });
 
-          const assistantSequence = await getNextSequenceNumber(conversationId);
+            const assistantSequence = await getNextSequenceNumber(conversationId);
 
-          await addMessageToConversation({
-            conversation_id: conversationId,
-            role: "assistant",
-            content: text,
-            sequence_number: assistantSequence,
-            model: selectedModel,
-            tokens: usage.outputTokens,
-            cost: outputCost,
-          });
+            await addMessageToConversation({
+              conversation_id: conversationId,
+              role: 'assistant',
+              content: text,
+              sequence_number: assistantSequence,
+              model: selectedModel,
+              tokens: usage.outputTokens,
+              cost: outputCost,
+            });
+          }
 
-          await createUsageRecord({
+          const usageRecord = await createUsageRecord({
             organization_id: user.organization_id,
             user_id: user.id,
             api_key_id: apiKey?.id || null,
@@ -95,18 +93,42 @@ export async function POST(req: NextRequest) {
             is_successful: true,
           });
 
-          console.log(
-            `[CHAT API] Credits deducted: ${totalCost} (Input: ${inputCost}, Output: ${outputCost}), New balance: ${deductionResult.newBalance}`,
-          );
+          if (apiKey) {
+            const userPrompt = messages[messages.length - 1]?.parts.map(p => p.type === 'text' ? p.text : '').join('') || '';
+            await createGeneration({
+              organization_id: user.organization_id,
+              user_id: user.id,
+              api_key_id: apiKey.id,
+              type: 'chat',
+              model: selectedModel,
+              provider: provider,
+              prompt: userPrompt,
+              status: 'completed',
+              content: text,
+              tokens: (usage.inputTokens || 0) + (usage.outputTokens || 0),
+              cost: totalCost,
+              credits: totalCost,
+              usage_record_id: usageRecord.id,
+              completed_at: new Date(),
+              result: {
+                text: text,
+                inputTokens: usage.inputTokens,
+                outputTokens: usage.outputTokens,
+                totalTokens: (usage.inputTokens || 0) + (usage.outputTokens || 0),
+              },
+            });
+          }
+
+          console.log(`[CHAT API] Credits deducted: ${totalCost} (Input: ${inputCost}, Output: ${outputCost}), New balance: ${deductionResult.newBalance}`);
         } catch (error) {
           console.error(
             "[CHAT API] Error persisting messages or deducting credits:",
             error,
           );
 
-          if (conversationId && usage) {
+          if (usage) {
             try {
-              await createUsageRecord({
+              const errorUsageRecord = await createUsageRecord({
                 organization_id: user.organization_id,
                 user_id: user.id,
                 api_key_id: apiKey?.id || null,
@@ -121,6 +143,23 @@ export async function POST(req: NextRequest) {
                 error_message:
                   error instanceof Error ? error.message : "Unknown error",
               });
+
+              if (apiKey) {
+                const userPrompt = messages[messages.length - 1]?.parts.map(p => p.type === 'text' ? p.text : '').join('') || '';
+                await createGeneration({
+                  organization_id: user.organization_id,
+                  user_id: user.id,
+                  api_key_id: apiKey.id,
+                  type: 'chat',
+                  model: selectedModel,
+                  provider: provider,
+                  prompt: userPrompt,
+                  status: 'failed',
+                  error: error instanceof Error ? error.message : 'Unknown error',
+                  usage_record_id: errorUsageRecord.id,
+                  completed_at: new Date(),
+                });
+              }
             } catch (usageError) {
               console.error(
                 "[CHAT API] Error creating usage record:",

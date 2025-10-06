@@ -79,7 +79,6 @@ export async function syncWorkOSUser(
     name: name || email,
     slug: orgSlug,
     credit_balance: 10000,
-    subscription_tier: "free",
     is_active: true,
     allowed_models: [],
     allowed_providers: [],
