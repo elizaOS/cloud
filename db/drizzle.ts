@@ -1,6 +1,6 @@
 import { drizzle } from "drizzle-orm/neon-serverless";
 import { Pool } from "@neondatabase/serverless";
-import * as schema from "./schema";
+import * as schema from "./sass/schema";
 import type { NeonDatabase } from "drizzle-orm/neon-serverless";
 
 let _db: NeonDatabase<typeof schema> | null = null;
@@ -30,4 +30,4 @@ export const db = new Proxy({} as NeonDatabase<typeof schema>, {
   },
 });
 
-export * from "./schema";
+export * from "./sass/schema";
