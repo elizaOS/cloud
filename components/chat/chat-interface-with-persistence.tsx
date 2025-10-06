@@ -40,7 +40,7 @@ export function ChatInterfaceWithPersistence({
 
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
-  const { messages, sendMessage, status, setMessages } = useChat({
+  const { messages, sendMessage, setMessages } = useChat({
     id: selectedModel,
     transport: new DefaultChatTransport({
       api: "/api/v1/chat",
@@ -116,7 +116,7 @@ export function ChatInterfaceWithPersistence({
         setMessages([]);
       }
     }
-  }, [conversation?.id, initialMessages]);
+  }, [conversation?.id, initialMessages, activeConversationId, setMessages]);
 
   useEffect(() => {
     messages.forEach((msg) => {
