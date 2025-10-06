@@ -1,9 +1,9 @@
-import { NextRequest, NextResponse } from "next/server";
+import { type NextRequest, NextResponse } from "next/server";
 import { requireAuth } from "@/lib/auth";
 import { stripe } from "@/lib/stripe";
 import { getCreditPackById } from "@/lib/queries/credit-packs";
 import { db } from "@/db/drizzle";
-import * as schema from "@/db/schema";
+import * as schema from "@/db/sass/schema";
 import { eq } from "drizzle-orm";
 import { rateLimiter, RATE_LIMITS } from "@/lib/rate-limiter";
 
@@ -15,7 +15,7 @@ export async function POST(req: NextRequest) {
     const rateLimitResult = rateLimiter.check(
       rateLimitKey,
       RATE_LIMITS.CHECKOUT_SESSION.limit,
-      RATE_LIMITS.CHECKOUT_SESSION.windowMs,
+      RATE_LIMITS.CHECKOUT_SESSION.windowMs
     );
 
     if (!rateLimitResult.allowed) {
@@ -30,13 +30,13 @@ export async function POST(req: NextRequest) {
           status: 429,
           headers: {
             "Retry-After": Math.ceil(
-              (rateLimitResult.resetAt - Date.now()) / 1000,
+              (rateLimitResult.resetAt - Date.now()) / 1000
             ).toString(),
             "X-RateLimit-Limit": RATE_LIMITS.CHECKOUT_SESSION.limit.toString(),
             "X-RateLimit-Remaining": "0",
             "X-RateLimit-Reset": rateLimitResult.resetAt.toString(),
           },
-        },
+        }
       );
     }
 
@@ -45,7 +45,7 @@ export async function POST(req: NextRequest) {
     if (!creditPackId) {
       return NextResponse.json(
         { error: "Credit pack ID is required" },
-        { status: 400 },
+        { status: 400 }
       );
     }
 
@@ -53,7 +53,7 @@ export async function POST(req: NextRequest) {
     if (!creditPack || !creditPack.is_active) {
       return NextResponse.json(
         { error: "Invalid or inactive credit pack" },
-        { status: 404 },
+        { status: 404 }
       );
     }
 
@@ -110,13 +110,13 @@ export async function POST(req: NextRequest) {
           "X-RateLimit-Remaining": rateLimitResult.remaining.toString(),
           "X-RateLimit-Reset": rateLimitResult.resetAt.toString(),
         },
-      },
+      }
     );
   } catch (error) {
     console.error("Error creating checkout session:", error);
     return NextResponse.json(
       { error: "Failed to create checkout session" },
-      { status: 500 },
+      { status: 500 }
     );
   }
 }
