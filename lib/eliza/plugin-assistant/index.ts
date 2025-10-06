@@ -14,10 +14,13 @@ import {
 import { v4 } from "uuid";
 import { recentMessagesProvider } from "./providers/recentMessages";
 
+// Track usage per message for credit deduction
+const messageUsageMap = new Map<string, { inputTokens: number; outputTokens: number; model: string }>();
+
 interface MessageReceivedHandlerParams {
   runtime: IAgentRuntime;
   message: Memory;
-  callback: (result: { text?: string }) => Promise<Memory[]>;
+  callback: (result: { text?: string; usage?: { inputTokens: number; outputTokens: number; model: string } }) => Promise<Memory[]>;
 }
 
 /**
@@ -118,6 +121,13 @@ async function clearLatestResponseId(
 }
 
 /**
+ * Estimate token count from text (rough approximation: ~4 chars per token)
+ */
+function estimateTokens(text: string): number {
+  return Math.ceil(text.length / 4);
+}
+
+/**
  * Handles incoming messages using the full ElizaOS pipeline
  */
 const messageReceivedHandler = async ({
@@ -138,6 +148,10 @@ const messageReceivedHandler = async ({
   // Generate a unique run ID for tracking
   const runId = asUUID(v4());
   const startTime = Date.now();
+
+  // Track usage for this message - we'll estimate based on text length
+  const messageKey = message.id || v4();
+  const modelUsed = "gpt-4o"; // Default model used by ElizaOS
 
   // Emit run started event
   await runtime.emitEvent(EventType.RUN_STARTED, {
@@ -171,6 +185,9 @@ const messageReceivedHandler = async ({
 
     console.log("*** PROMPT ***\n", prompt);
 
+    // Estimate input tokens from prompt
+    const estimatedInputTokens = estimateTokens(prompt);
+
     let responseContent: string = "";
 
     // Retry if missing required fields
@@ -196,6 +213,9 @@ const messageReceivedHandler = async ({
       }
       retries++;
     }
+
+    // Estimate output tokens from response
+    const estimatedOutputTokens = estimateTokens(responseContent);
 
     // Check if this is still the latest response ID for this room
     const currentResponseId = await getLatestResponseId(
@@ -228,10 +248,22 @@ const messageReceivedHandler = async ({
     // Save response and trigger callback
     await runtime.createMemory(responseMemory, "messages");
     
+    // Store usage in map for retrieval by API endpoint
+    messageUsageMap.set(messageKey, {
+      inputTokens: estimatedInputTokens,
+      outputTokens: estimatedOutputTokens,
+      model: modelUsed,
+    });
+    
     // Trigger callback if provided (returns empty array as we already saved the message)
     if (callback) {
       await callback({
         text: responseContent,
+        usage: {
+          inputTokens: estimatedInputTokens,
+          outputTokens: estimatedOutputTokens,
+          model: modelUsed,
+        },
       });
     }
 
@@ -297,4 +329,14 @@ export const assistantPlugin: Plugin = {
 };
 
 export default assistantPlugin;
+
+// Export helper to retrieve usage data
+export function getMessageUsage(messageId: string): { inputTokens: number; outputTokens: number; model: string } | undefined {
+  const usage = messageUsageMap.get(messageId);
+  if (usage) {
+    // Clean up after retrieval to prevent memory leaks
+    messageUsageMap.delete(messageId);
+  }
+  return usage;
+}
 

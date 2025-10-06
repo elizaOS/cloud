@@ -1,10 +1,21 @@
 import { NextResponse } from "next/server";
 import { agentRuntime } from "@/lib/eliza/agent-runtime";
 import type { UUID } from "@elizaos/core";
+import { requireAuthOrApiKey } from "@/lib/auth";
+import { deductCredits } from "@/lib/queries/credits";
+import { createUsageRecord } from "@/lib/queries/usage";
+import { createGeneration } from "@/lib/queries/generations";
+import { calculateCost, getProviderFromModel } from "@/lib/pricing";
+import type { NextRequest } from "next/server";
+
+export const maxDuration = 60;
 
 // POST /api/eliza/rooms/[roomId]/messages - Send a message
-export async function POST(request: Request, ctx: { params: Promise<{ roomId: string }> }) {
+export async function POST(request: NextRequest, ctx: { params: Promise<{ roomId: string }> }) {
   try {
+    // Authenticate user or validate API key
+    const { user, apiKey } = await requireAuthOrApiKey(request);
+
     const { roomId } = await ctx.params;
     const body = await request.json();
     const { entityId, text, attachments } = body;
@@ -33,17 +44,117 @@ export async function POST(request: Request, ctx: { params: Promise<{ roomId: st
       );
     }
 
-    // Handle the message
-    const message = await agentRuntime.handleMessage(roomId, entityId, {
+    // Handle the message and get usage information
+    const result = await agentRuntime.handleMessage(roomId, entityId, {
       text,
       attachments: attachments || [],
     });
+
+    const { message, usage } = result;
 
     console.log(`[Eliza Messages API] Message sent successfully`, {
       roomId,
       entityId,
       messageId: message.id,
+      usage,
     });
+
+    // Deduct credits and track usage if we have token information
+    if (usage && usage.inputTokens > 0 && usage.outputTokens > 0) {
+      try {
+        const model = usage.model || "gpt-4o";
+        const provider = getProviderFromModel(model);
+
+        // Calculate costs
+        const { inputCost, outputCost, totalCost } = await calculateCost(
+          model,
+          provider,
+          usage.inputTokens,
+          usage.outputTokens,
+        );
+
+        // Deduct credits
+        const deductionResult = await deductCredits(
+          user.organization_id,
+          totalCost,
+          `Eliza chat completion: ${model}`,
+          user.id,
+        );
+
+        if (!deductionResult.success) {
+          console.error(
+            "[Eliza Messages API] Failed to deduct credits - insufficient balance",
+          );
+        }
+
+        // Create usage record
+        const usageRecord = await createUsageRecord({
+          organization_id: user.organization_id,
+          user_id: user.id,
+          api_key_id: apiKey?.id || null,
+          type: "eliza",
+          model,
+          provider,
+          input_tokens: usage.inputTokens,
+          output_tokens: usage.outputTokens,
+          input_cost: inputCost,
+          output_cost: outputCost,
+          is_successful: true,
+        });
+
+        // Create generation record if using API key
+        if (apiKey) {
+          await createGeneration({
+            organization_id: user.organization_id,
+            user_id: user.id,
+            api_key_id: apiKey.id,
+            type: "eliza",
+            model,
+            provider,
+            prompt: text,
+            status: "completed",
+            tokens: usage.inputTokens + usage.outputTokens,
+            cost: totalCost,
+            credits: totalCost,
+            usage_record_id: usageRecord.id,
+            completed_at: new Date(),
+          });
+        }
+
+        console.log(
+          `[Eliza Messages API] Credits deducted: ${totalCost} (Input: ${inputCost}, Output: ${outputCost}), New balance: ${deductionResult.newBalance}`,
+        );
+      } catch (error) {
+        console.error(
+          "[Eliza Messages API] Error deducting credits or tracking usage:",
+          error,
+        );
+
+        // Still create an unsuccessful usage record for tracking
+        try {
+          await createUsageRecord({
+            organization_id: user.organization_id,
+            user_id: user.id,
+            api_key_id: apiKey?.id || null,
+            type: "eliza",
+            model: usage.model || "gpt-4o",
+            provider: getProviderFromModel(usage.model || "gpt-4o"),
+            input_tokens: usage.inputTokens || 0,
+            output_tokens: usage.outputTokens || 0,
+            input_cost: 0,
+            output_cost: 0,
+            is_successful: false,
+            error_message:
+              error instanceof Error ? error.message : "Unknown error",
+          });
+        } catch (usageError) {
+          console.error(
+            "[Eliza Messages API] Error creating usage record:",
+            usageError,
+          );
+        }
+      }
+    }
 
     // Return the created message
     return NextResponse.json({
