@@ -11,6 +11,7 @@ import {
 } from "@/components/ui/card";
 import { CheckCircle, ArrowRight } from "lucide-react";
 import { requireAuth } from "@/lib/auth";
+import { CreditBalanceDisplay } from "@/components/billing/success-client";
 
 export const metadata: Metadata = {
   title: "Purchase Successful",
@@ -18,7 +19,7 @@ export const metadata: Metadata = {
 };
 
 export default async function BillingSuccessPage() {
-  const user = await requireAuth();
+  await requireAuth();
 
   return (
     <div className="flex items-center justify-center min-h-[80vh]">
@@ -34,15 +35,7 @@ export default async function BillingSuccessPage() {
         </CardHeader>
 
         <CardContent className="text-center space-y-4">
-          <div className="rounded-lg border bg-muted/50 p-4">
-            <div className="text-sm text-muted-foreground">
-              Current Balance
-            </div>
-            <div className="text-3xl font-bold mt-1">
-              {user.organization.credit_balance.toLocaleString()}
-            </div>
-            <div className="text-sm text-muted-foreground">credits</div>
-          </div>
+          <CreditBalanceDisplay />
 
           <p className="text-sm text-muted-foreground">
             You can now use your credits for text generation, image creation,
@@ -50,7 +43,7 @@ export default async function BillingSuccessPage() {
           </p>
         </CardContent>
 
-        <CardFooter className="flex gap-2">
+        <CardFooter className="flex flex-col gap-2">
           <Button asChild variant="outline" className="w-full">
             <Link href="/dashboard/billing">View Billing</Link>
           </Button>
