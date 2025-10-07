@@ -15,7 +15,7 @@ import {
 } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
 import { cn } from "@/lib/utils";
-import { MONTHLY_CREDIT_CAP } from "@/lib/pricing";
+import { MONTHLY_CREDIT_CAP } from "@/lib/pricing-constants";
 import {
   ArrowUpRight,
   BookOpen,
