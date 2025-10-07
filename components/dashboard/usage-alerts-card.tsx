@@ -3,7 +3,8 @@ import type { ReactNode } from "react";
 import { AlertTriangle, CheckCircle2, Info } from "lucide-react";
 
 import { Badge } from "@/components/ui/badge";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
+import { Separator } from "@/components/ui/separator";
 import { cn } from "@/lib/utils";
 
 export type UsageAlertSeverity = "critical" | "warning" | "info";
@@ -73,11 +74,11 @@ export function UsageAlertsCard({
   return (
     <Card
       className={cn(
-        "h-full border-border/60 bg-background/85 shadow-sm",
+        "h-full border-border/50 bg-card/95 backdrop-blur-sm shadow-md",
         className,
       )}
     >
-      <CardHeader className="space-y-2">
+      <CardHeader className="space-y-1">
         <div className="flex items-center justify-between">
           <CardTitle className="text-sm font-semibold tracking-tight">
             Usage signals
@@ -89,60 +90,62 @@ export function UsageAlertsCard({
             {alerts.length} active
           </Badge>
         </div>
-        <p className="text-xs text-muted-foreground">
+        <CardDescription className="text-xs">
           Key items from spend automations, quota monitors, and provider health.
-        </p>
+        </CardDescription>
       </CardHeader>
-      <CardContent className="space-y-3">
+      <Separator />
+      <CardContent className="space-y-3 pt-6">
         {alerts.length === 0 ? (
-          <div className="flex items-center justify-between rounded-xl border border-border/60 bg-background/95 px-4 py-6">
-            <div className="flex items-center gap-3">
-              <CheckCircle2 className="h-4 w-4 text-emerald-500" />
-              <div>
-                <p className="text-sm font-semibold text-foreground">
-                  All clear
-                </p>
-                <p className="text-xs text-muted-foreground">
-                  No outstanding usage-related actions.
-                </p>
-              </div>
+          <div className="flex items-center gap-3 rounded-xl border border-border/50 bg-gradient-to-br from-muted/30 to-emerald-500/10 px-4 py-6">
+            <CheckCircle2 className="h-5 w-5 text-emerald-500" />
+            <div>
+              <p className="text-sm font-semibold text-foreground">
+                All clear
+              </p>
+              <p className="text-xs text-muted-foreground">
+                No outstanding usage-related actions.
+              </p>
             </div>
           </div>
         ) : (
           <div className="space-y-3">
-            {alerts.map((alert) => (
-              <div
-                key={alert.id}
-                className="rounded-xl border border-border/60 bg-background/95 px-4 py-3"
-              >
-                <div className="flex items-start justify-between gap-3">
-                  <div className="flex items-start gap-3">
-                    {getSeverityIcon(alert.severity)}
-                    <div className="space-y-1">
-                      <p className="text-sm font-semibold text-foreground">
-                        {alert.title}
-                      </p>
-                      {alert.description ? (
-                        <p className="text-xs leading-relaxed text-muted-foreground">
-                          {alert.description}
+            {alerts.map((alert, index) => (
+              <div key={alert.id}>
+                <div className="rounded-xl border border-border/50 bg-muted/30 px-4 py-3 transition-all hover:border-primary/40">
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="flex items-start gap-3">
+                      {getSeverityIcon(alert.severity)}
+                      <div className="space-y-1.5">
+                        <p className="text-sm font-semibold text-foreground">
+                          {alert.title}
                         </p>
-                      ) : null}
-                      {alert.actionLabel ? (
-                        <button className="text-xs font-medium text-primary underline-offset-2 hover:underline">
-                          {alert.actionLabel}
-                        </button>
-                      ) : null}
+                        {alert.description ? (
+                          <p className="text-xs leading-relaxed text-muted-foreground">
+                            {alert.description}
+                          </p>
+                        ) : null}
+                        {alert.actionLabel ? (
+                          <button className="text-xs font-medium text-primary underline-offset-2 hover:underline">
+                            {alert.actionLabel}
+                          </button>
+                        ) : null}
+                      </div>
                     </div>
+                    {getSeverityPill(alert.severity)}
                   </div>
-                  {getSeverityPill(alert.severity)}
                 </div>
+                {index < alerts.length - 1 && <Separator className="my-3" />}
               </div>
             ))}
           </div>
         )}
 
         {footer ? (
-          <div className="pt-1 text-xs text-muted-foreground/80">{footer}</div>
+          <>
+            <Separator />
+            <div className="pt-2 text-xs text-muted-foreground/80">{footer}</div>
+          </>
         ) : null}
       </CardContent>
     </Card>
