@@ -403,6 +403,39 @@ export function ImageGeneratorAdvanced() {
             )}
 
             {currentImage ? (
+              <>
+              {currentImages.length > 1 && (
+                <div className="mb-4 grid grid-cols-2 md:grid-cols-4 gap-3">
+                  {currentImages.map((img, idx) => (
+                    <button
+                      key={img.id}
+                      onClick={() => {
+                        setCurrentImageIndex(idx);
+                        setCurrentImage(img);
+                        if (carouselApi) {
+                          carouselApi.scrollTo(idx);
+                        }
+                      }}
+                      className={`group relative block overflow-hidden rounded-md border ${
+                        idx === currentImageIndex ? "border-primary ring-2 ring-primary/40" : "border-border"
+                      }`}
+                      aria-label={`Select image ${idx + 1}`}
+                      type="button"
+                    >
+                      <div className="relative aspect-square w-full bg-muted/10">
+                        <Image
+                          src={img.url}
+                          alt={img.prompt}
+                          fill
+                          className="object-cover group-hover:scale-105 transition-transform duration-300"
+                          unoptimized
+                        />
+                      </div>
+                    </button>
+                  ))}
+                </div>
+              )}
+
               <Card className="border-2 overflow-hidden">
                 <CardContent className="p-0">
                   {currentImages.length > 1 ? (
@@ -500,6 +533,9 @@ export function ImageGeneratorAdvanced() {
                   </div>
                 </CardContent>
               </Card>
+
+              
+              </>
             ) : isLoading ? (
               <div className="animate-in fade-in duration-500">
                 <EnhancedLoading />
