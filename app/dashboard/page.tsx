@@ -31,6 +31,7 @@ import {
   type UsageAlertItem,
 } from "@/components/dashboard/usage-alerts-card";
 import { Button } from "@/components/ui/button";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { getDashboardData } from "@/lib/actions/dashboard";
 
 export const metadata: Metadata = {
@@ -285,8 +286,8 @@ export default async function DashboardPage() {
 
   return (
     <DashboardPageWrapper userName={data.user.name.split(" ")[0] || "User"}>
-      <main className="mx-auto w-full max-w-[1320px] px-4 pb-12 pt-8 lg:px-8">
-        <div className="flex flex-col gap-8 lg:gap-10">
+      <main className="mx-auto w-full max-w-[1400px] px-4 pb-12 pt-8 lg:px-8">
+        <div className="flex flex-col gap-6">
           <DashboardHero
             userName={data.user.name.split(" ")[0] || "User"}
             organizationName={data.organization.name}
@@ -303,52 +304,67 @@ export default async function DashboardPage() {
             className="rounded-3xl border border-border/60 bg-background/90 shadow-sm"
           />
 
-        <section className="grid gap-6 xl:grid-cols-12">
-          <div className="flex flex-col gap-6 xl:col-span-8">
-            <div className="grid gap-6 xl:grid-cols-5">
-              <UsageOverview
-                metrics={usageMetrics}
-                footnote={usageFootnote}
-                className="xl:col-span-3"
-              />
-              <UsageAlertsCard alerts={usageAlerts} className="xl:col-span-2" />
-            </div>
-            <div className="grid gap-6 sm:grid-cols-2">
-              <PlanLimitsCard {...planLimits} />
-              <ProviderHealthCard items={providerHealth} />
-            </div>
-            <UsagePerformance
-              stats={usagePerformanceStats}
-              className="h-full"
-            />
-          </div>
+          <Tabs defaultValue="overview" className="w-full">
+            <TabsList className="grid w-full max-w-md grid-cols-3">
+              <TabsTrigger value="overview">Overview</TabsTrigger>
+              <TabsTrigger value="activity">Activity</TabsTrigger>
+              <TabsTrigger value="limits">Limits & Health</TabsTrigger>
+            </TabsList>
 
-          <div className="flex flex-col gap-6 xl:col-span-4">
-            <ActivityFeed
-              items={activityItems}
-              title="Recent generations"
-              description="Latest image, video, and chat generations across your organization."
-              className="h-full"
-              footerAction={
-                <div className="flex w-full justify-end">
-                  <Button variant="ghost" size="sm" asChild>
-                    <Link href="/dashboard/gallery">
-                      View all generations
-                      <Sparkles className="ml-2 h-3.5 w-3.5" />
-                    </Link>
-                  </Button>
+            <TabsContent value="overview" className="mt-6 space-y-6">
+              <div className="grid gap-6 lg:grid-cols-3">
+                <UsageOverview
+                  metrics={usageMetrics}
+                  footnote={usageFootnote}
+                  className="lg:col-span-2"
+                />
+                <UsageAlertsCard alerts={usageAlerts} />
+              </div>
+
+              <div className="grid gap-6 lg:grid-cols-2">
+                <UsagePerformance stats={usagePerformanceStats} />
+                <div className="grid gap-6">
+                  <PlanLimitsCard {...planLimits} />
                 </div>
-              }
-            />
-            <ModelUsageCard items={modelUsageItems} className="h-full" />
-            <CreditActivity
-              transactions={creditTransactions}
-              className="h-full"
-            />
-          </div>
-        </section>
-      </div>
-    </main>
+              </div>
+            </TabsContent>
+
+            <TabsContent value="activity" className="mt-6 space-y-6">
+              <div className="grid gap-6 lg:grid-cols-12">
+                <div className="lg:col-span-7">
+                  <ActivityFeed
+                    items={activityItems}
+                    title="Recent generations"
+                    description="Latest image, video, and chat generations across your organization."
+                    footerAction={
+                      <div className="flex w-full justify-end">
+                        <Button variant="ghost" size="sm" asChild>
+                          <Link href="/dashboard/gallery">
+                            View all generations
+                            <Sparkles className="ml-2 h-3.5 w-3.5" />
+                          </Link>
+                        </Button>
+                      </div>
+                    }
+                  />
+                </div>
+                <div className="flex flex-col gap-6 lg:col-span-5">
+                  <ModelUsageCard items={modelUsageItems} />
+                  <CreditActivity transactions={creditTransactions} />
+                </div>
+              </div>
+            </TabsContent>
+
+            <TabsContent value="limits" className="mt-6 space-y-6">
+              <div className="grid gap-6 md:grid-cols-2">
+                <PlanLimitsCard {...planLimits} />
+                <ProviderHealthCard items={providerHealth} />
+              </div>
+              <UsageAlertsCard alerts={usageAlerts} />
+            </TabsContent>
+          </Tabs>
+        </div>
+      </main>
     </DashboardPageWrapper>
   );
 }
