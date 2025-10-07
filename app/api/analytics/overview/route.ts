@@ -22,7 +22,7 @@ export async function GET(req: NextRequest) {
 
     const now = new Date();
     let startDate: Date;
-    let endDate: Date = now;
+    const endDate: Date = now;
     let granularity: TimeGranularity;
 
     switch (timeRange) {
