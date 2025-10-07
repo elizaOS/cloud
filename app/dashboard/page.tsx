@@ -3,6 +3,7 @@ import Link from "next/link";
 import { Sparkles, Image, Video, MessageSquare } from "lucide-react";
 
 import { DashboardHero } from "@/components/dashboard/dashboard-hero";
+import { DashboardPageWrapper } from "@/components/dashboard/dashboard-page-wrapper";
 import {
   UsageOverview,
   type UsageMetric,
@@ -283,23 +284,24 @@ export default async function DashboardPage() {
   const activityItems = generateActivityFeed(data);
 
   return (
-    <main className="mx-auto w-full max-w-[1320px] px-4 pb-12 pt-8 lg:px-8">
-      <div className="flex flex-col gap-8 lg:gap-10">
-        <DashboardHero
-          userName={data.user.name.split(" ")[0] || "User"}
-          organizationName={data.organization.name}
-          creditBalance={data.organization.creditBalance}
-          stats={heroStats}
-          primaryAction={{
-            label: "Manage account",
-            href: "/dashboard/account",
-          }}
-          secondaryAction={{
-            label: "View analytics",
-            href: "/dashboard/analytics",
-          }}
-          className="rounded-3xl border border-border/60 bg-background/90 shadow-sm"
-        />
+    <DashboardPageWrapper userName={data.user.name.split(" ")[0] || "User"}>
+      <main className="mx-auto w-full max-w-[1320px] px-4 pb-12 pt-8 lg:px-8">
+        <div className="flex flex-col gap-8 lg:gap-10">
+          <DashboardHero
+            userName={data.user.name.split(" ")[0] || "User"}
+            organizationName={data.organization.name}
+            creditBalance={data.organization.creditBalance}
+            stats={heroStats}
+            primaryAction={{
+              label: "Manage account",
+              href: "/dashboard/account",
+            }}
+            secondaryAction={{
+              label: "View analytics",
+              href: "/dashboard/analytics",
+            }}
+            className="rounded-3xl border border-border/60 bg-background/90 shadow-sm"
+          />
 
         <section className="grid gap-6 xl:grid-cols-12">
           <div className="flex flex-col gap-6 xl:col-span-8">
@@ -347,5 +349,6 @@ export default async function DashboardPage() {
         </section>
       </div>
     </main>
+    </DashboardPageWrapper>
   );
 }

@@ -195,3 +195,31 @@ export async function getGenerationStats(
     byType: byTypeResult,
   };
 }
+
+export async function getUserGenerationStats(
+  userId: string,
+): Promise<{
+  totalImages: number;
+  totalVideos: number;
+  totalSize: number;
+}> {
+  const conditions = [
+    eq(schema.generations.user_id, userId),
+    eq(schema.generations.status, "completed"),
+  ];
+
+  const result = await db
+    .select({
+      totalImages: sql<number>`count(*) filter (where ${schema.generations.type} = 'image' and ${schema.generations.storage_url} is not null)::int`,
+      totalVideos: sql<number>`count(*) filter (where ${schema.generations.type} = 'video' and ${schema.generations.storage_url} is not null)::int`,
+      totalSize: sql<string>`coalesce(sum(${schema.generations.file_size}), 0)::text`,
+    })
+    .from(schema.generations)
+    .where(and(...conditions));
+
+  return {
+    totalImages: result[0]?.totalImages || 0,
+    totalVideos: result[0]?.totalVideos || 0,
+    totalSize: parseInt(result[0]?.totalSize || "0", 10),
+  };
+}
