@@ -131,10 +131,10 @@ export default async function AnalyticsPage(props: AnalyticsPageProps) {
       delta:
         requestTrend !== undefined
           ? {
-              value: formatDelta(requestDelta) ?? "0%",
-              trend: requestTrend,
-              label: previousLabel,
-            }
+            value: formatDelta(requestDelta) ?? "0%",
+            trend: requestTrend,
+            label: previousLabel,
+          }
           : undefined,
       icon: Activity,
       accent: "violet" as const,
@@ -146,10 +146,10 @@ export default async function AnalyticsPage(props: AnalyticsPageProps) {
       delta:
         costTrend !== undefined
           ? {
-              value: formatDelta(costDelta) ?? "0%",
-              trend: costTrend,
-              label: previousLabel,
-            }
+            value: formatDelta(costDelta) ?? "0%",
+            trend: costTrend,
+            label: previousLabel,
+          }
           : undefined,
       icon: Coins,
       accent: "amber" as const,
@@ -161,10 +161,10 @@ export default async function AnalyticsPage(props: AnalyticsPageProps) {
       delta:
         successTrend !== undefined
           ? {
-              value: formatDelta(successRateDelta, 2) ?? "0%",
-              trend: successTrend,
-              label: previousLabel,
-            }
+            value: formatDelta(successRateDelta, 2) ?? "0%",
+            trend: successTrend,
+            label: previousLabel,
+          }
           : undefined,
       icon: ShieldCheck,
       accent: "emerald" as const,
@@ -176,10 +176,10 @@ export default async function AnalyticsPage(props: AnalyticsPageProps) {
       delta:
         tokensTrend !== undefined
           ? {
-              value: formatDelta(tokensDelta) ?? "0%",
-              trend: tokensTrend,
-              label: previousLabel,
-            }
+            value: formatDelta(tokensDelta) ?? "0%",
+            trend: tokensTrend,
+            label: previousLabel,
+          }
           : undefined,
       icon: BarChart3,
       accent: "sky" as const,

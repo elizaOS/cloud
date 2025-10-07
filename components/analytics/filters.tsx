@@ -103,7 +103,7 @@ export function AnalyticsFilters() {
               className={cn(
                 "rounded-full border border-border/60 bg-background/60 text-xs font-medium transition-colors",
                 isActive &&
-                  "border-primary/60 bg-primary/10 text-primary hover:bg-primary/15",
+                "border-primary/60 bg-primary/10 text-primary hover:bg-primary/15",
               )}
               onClick={() => {
                 const now = new Date();
