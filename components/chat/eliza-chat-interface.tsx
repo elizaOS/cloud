@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Loader2, Send, Bot, User, Clock, MessageSquare } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
+import { ElizaAvatar } from "./eliza-avatar";
 
 interface Message {
   id: string;
@@ -22,10 +23,17 @@ interface RoomItem {
   lastTime?: number;
 }
 
+interface AgentInfo {
+  id?: string;
+  name?: string;
+  avatarUrl?: string;
+}
+
 export function ElizaChatInterface() {
   const [roomId, setRoomId] = useState<string | null>(null);
   const [messages, setMessages] = useState<Message[]>([]);
   const [rooms, setRooms] = useState<RoomItem[]>([]);
+  const [agentInfo, setAgentInfo] = useState<AgentInfo | null>(null);
   const [inputText, setInputText] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const [isInitializing, setIsInitializing] = useState(false);
@@ -97,6 +105,9 @@ export function ElizaChatInterface() {
       if (response.ok) {
         const data = await response.json();
         setMessages(data.messages || []);
+        if (data.agent) {
+          setAgentInfo(data.agent);
+        }
       }
     } catch (err) {
       console.error("Error loading messages:", err);
@@ -373,9 +384,12 @@ export function ElizaChatInterface() {
     return (
       <div className="flex h-full w-full items-center justify-center">
         <div className="text-center space-y-3">
-          <div className="w-16 h-16 rounded-full bg-gradient-to-br from-purple-500 to-blue-600 flex items-center justify-center mx-auto shadow-lg">
-            <Bot className="h-8 w-8 text-white animate-pulse" />
-          </div>
+          <ElizaAvatar
+            avatarUrl="https://raw.githubusercontent.com/elizaOS/eliza-avatars/refs/heads/master/Eliza/portrait.png"
+            className="w-16 h-16 mx-auto shadow-lg"
+            iconClassName="h-8 w-8"
+            animate={true}
+          />
           <div>
             <p className="text-base font-semibold">Initializing Eliza...</p>
             <p className="text-sm text-muted-foreground mt-1">
@@ -492,7 +506,13 @@ export function ElizaChatInterface() {
 
             {messages.length === 0 && !error && (
               <div className="flex flex-col items-center justify-center h-full text-center">
-                <Bot className="h-12 w-12 text-muted-foreground mb-4" />
+                <ElizaAvatar
+                  avatarUrl={agentInfo?.avatarUrl}
+                  name={agentInfo?.name}
+                  className="h-12 w-12 mb-4"
+                  fallbackClassName="bg-muted"
+                  iconClassName="h-6 w-6 text-muted-foreground"
+                />
                 <h3 className="text-lg font-semibold mb-2">
                   Start a conversation
                 </h3>
@@ -514,11 +534,13 @@ export function ElizaChatInterface() {
                   style={{ animationDelay: `${index * 50}ms` }}
                 >
                   {message.isAgent && (
-                    <div className="flex-shrink-0 w-9 h-9 rounded-full bg-gradient-to-br from-purple-500 to-blue-600 flex items-center justify-center shadow-sm transition-transform hover:scale-110">
-                      <Bot
-                        className={`h-5 w-5 text-white ${isThinking ? "animate-pulse" : ""}`}
-                      />
-                    </div>
+                    <ElizaAvatar
+                      avatarUrl={agentInfo?.avatarUrl}
+                      name={agentInfo?.name}
+                      className="flex-shrink-0 w-9 h-9 shadow-sm transition-transform hover:scale-110"
+                      iconClassName="h-5 w-5"
+                      animate={isThinking}
+                    />
                   )}
 
                   <div

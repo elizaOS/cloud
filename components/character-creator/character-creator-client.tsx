@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useCallback } from "react";
+import { useState, useCallback, useEffect } from "react";
 import { AiAssistant } from "./ai-assistant";
 import { JsonEditor } from "./json-editor";
 import { CharacterForm } from "./character-form";
@@ -18,6 +18,7 @@ import { toast } from "sonner";
 import { createCharacter, updateCharacter } from "@/app/actions/characters";
 import type { ElizaCharacter } from "@/lib/types";
 import { PanelLeftClose, PanelLeftOpen } from "lucide-react";
+import { useSetPageHeader } from "@/components/layout/page-header-context";
 
 interface CharacterCreatorClientProps {
   initialCharacters: ElizaCharacter[];
@@ -86,35 +87,33 @@ export function CharacterCreatorClient({
     toast.success("New character created");
   }, []);
 
-  return (
-    <div className="flex h-full flex-col gap-4">
-      {/* Header */}
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-4">
-          <h1 className="text-2xl font-bold">Character Creator</h1>
-          <Select
-            value={selectedId || "new"}
-            onValueChange={(value) => {
-              if (value === "new") {
-                handleNewCharacter();
-              } else {
-                handleLoadCharacter(value);
-              }
-            }}
-          >
-            <SelectTrigger className="w-[250px]">
-              <SelectValue placeholder="Select a character..." />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="new">+ New Character</SelectItem>
-              {initialCharacters.map((char) => (
-                <SelectItem key={char.id} value={char.id!}>
-                  {char.name}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        </div>
+  useSetPageHeader({
+    title: "Character Creator",
+    description: "Create and customize AI agent characters with personality, knowledge, and style",
+    actions: (
+      <div className="flex items-center gap-3">
+        <Select
+          value={selectedId || "new"}
+          onValueChange={(value) => {
+            if (value === "new") {
+              handleNewCharacter();
+            } else {
+              handleLoadCharacter(value);
+            }
+          }}
+        >
+          <SelectTrigger className="w-[200px]">
+            <SelectValue placeholder="Select a character..." />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="new">+ New Character</SelectItem>
+            {initialCharacters.map((char) => (
+              <SelectItem key={char.id} value={char.id!}>
+                {char.name}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
         <Button
           variant="outline"
           size="sm"
@@ -133,7 +132,11 @@ export function CharacterCreatorClient({
           )}
         </Button>
       </div>
+    ),
+  }, [selectedId, showAssistant, initialCharacters, handleNewCharacter, handleLoadCharacter]);
 
+  return (
+    <div className="flex h-full flex-col gap-4">
       {/* Main Content */}
       <div className="grid flex-1 gap-4 overflow-hidden lg:grid-cols-2">
         {/* Left Column - AI Assistant or Form */}

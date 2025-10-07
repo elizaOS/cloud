@@ -47,12 +47,21 @@ export async function GET(
       })
       .sort((a, b) => a.createdAt - b.createdAt);
 
+    // Get agent info including avatar
+    const agent = await runtime.getAgent(runtime.agentId);
+    const avatarUrl = agent?.settings?.avatarUrl as string | undefined;
+
     return NextResponse.json(
       {
         success: true,
         roomId,
         messages: simple,
         count: simple.length,
+        agent: {
+          id: agent?.id,
+          name: agent?.name,
+          avatarUrl,
+        },
       },
       { headers: { "Cache-Control": "no-store" } },
     );
