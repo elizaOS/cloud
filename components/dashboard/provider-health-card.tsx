@@ -54,7 +54,7 @@ export function ProviderHealthCard({
 
   return (
     <Card
-      className={cn("border-border/60 bg-background/85 shadow-sm", className)}
+      className={cn("border-border/50 bg-card/95 backdrop-blur-sm shadow-md", className)}
     >
       <CardHeader>
         <div className="flex items-center gap-3">
@@ -79,7 +79,7 @@ export function ProviderHealthCard({
           <div className="space-y-3">
             {top.map((p, index) => (
               <div key={p.provider}>
-                <div className="flex items-center justify-between rounded-xl border border-border/60 bg-background/90 px-4 py-3 transition-all hover:border-primary/40 hover:bg-muted/20">
+                <div className="flex items-center justify-between rounded-xl border border-border/50 bg-muted/30 px-4 py-3 transition-all hover:border-primary/40 hover:bg-muted/40">
                   <div className="flex items-center gap-3">
                     {p.status === "healthy" ? (
                       <CheckCircle2 className="h-4 w-4 text-emerald-500" />

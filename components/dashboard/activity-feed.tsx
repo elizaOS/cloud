@@ -55,7 +55,7 @@ export function ActivityFeed({
 
   return (
     <Card
-      className={cn("flex flex-col border-border/60 bg-background/85 shadow-sm", className)}
+      className={cn("flex flex-col border-border/50 bg-card/95 backdrop-blur-sm shadow-md", className)}
     >
       <CardHeader className="space-y-1">
         <CardTitle className="text-sm font-semibold tracking-tight">
@@ -76,11 +76,11 @@ export function ActivityFeed({
                   <div key={item.id}>
                     <div className="flex gap-3 py-3">
                       <div className="relative mt-1">
-                        <div className="flex h-9 w-9 items-center justify-center rounded-2xl border border-border/60 bg-muted/40 transition-all hover:border-primary/40 hover:bg-muted/60">
+                        <div className="flex h-9 w-9 items-center justify-center rounded-2xl border border-border/50 bg-muted/50 transition-all hover:border-primary/40 hover:bg-muted/70">
                           <Icon className="h-4 w-4 text-foreground" />
                         </div>
                         {index < items.length - 1 && (
-                          <div className="absolute left-1/2 top-12 h-full w-px -translate-x-1/2 bg-border/60" />
+                          <div className="absolute left-1/2 top-12 h-full w-px -translate-x-1/2 bg-border/50" />
                         )}
                       </div>
                       <div className="flex-1 space-y-2 pb-4">

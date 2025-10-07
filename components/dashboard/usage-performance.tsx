@@ -55,7 +55,7 @@ export function UsagePerformance({
 
   return (
     <Card
-      className={cn("border-border/60 bg-background/85 shadow-sm", className)}
+      className={cn("border-border/50 bg-card/95 backdrop-blur-sm shadow-md", className)}
     >
       <CardHeader>
         <div className="flex items-center justify-between">
@@ -80,7 +80,7 @@ export function UsagePerformance({
       <Separator />
       <CardContent className="pt-6">
         <div className="flex flex-col gap-4">
-          <div className="grid gap-4 rounded-xl border border-border/60 bg-gradient-to-br from-background to-muted/20 p-5 sm:grid-cols-3">
+          <div className="grid gap-4 rounded-xl border border-border/50 bg-gradient-to-br from-muted/20 to-muted/40 p-5 sm:grid-cols-3">
             <div className="space-y-2">
               <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
                 Success rate
@@ -130,7 +130,7 @@ export function UsagePerformance({
           </div>
 
           <div className="grid gap-3 sm:grid-cols-2">
-            <Card className="border-border/60 bg-muted/20">
+            <Card className="border-border/50 bg-muted/30">
               <CardContent className="p-4">
                 <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
                   Total requests
@@ -140,7 +140,7 @@ export function UsagePerformance({
                 </p>
               </CardContent>
             </Card>
-            <Card className="border-border/60 bg-muted/20">
+            <Card className="border-border/50 bg-muted/30">
               <CardContent className="p-4">
                 <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
                   Total cost (credits)

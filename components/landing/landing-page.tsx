@@ -85,7 +85,7 @@ export function LandingPage({ signInUrl, signUpUrl }: LandingPageProps) {
       title: "Step 1",
       content: (
         <div>
-          <p className="text-neutral-800 dark:text-neutral-200 text-xs md:text-sm font-normal mb-8">
+          <p className="text-neutral-900 dark:text-neutral-100 text-xs md:text-sm font-normal mb-8">
             <strong className="text-lg block mb-2">
               Sign Up & Configure Your Agent
             </strong>
@@ -112,7 +112,7 @@ export function LandingPage({ signInUrl, signUpUrl }: LandingPageProps) {
       title: "Step 2",
       content: (
         <div>
-          <p className="text-neutral-800 dark:text-neutral-200 text-xs md:text-sm font-normal mb-8">
+          <p className="text-neutral-900 dark:text-neutral-100 text-xs md:text-sm font-normal mb-8">
             <strong className="text-lg block mb-2">Build & Test Locally</strong>
             Develop your agent locally with hot-reload capabilities using our
             powerful runtime. Test your actions, providers, and services in a
@@ -137,7 +137,7 @@ export function LandingPage({ signInUrl, signUpUrl }: LandingPageProps) {
       title: "Step 3",
       content: (
         <div>
-          <p className="text-neutral-800 dark:text-neutral-200 text-xs md:text-sm font-normal mb-8">
+          <p className="text-neutral-900 dark:text-neutral-100 text-xs md:text-sm font-normal mb-8">
             <strong className="text-lg block mb-2">
               Deploy to elizaOS Cloud
             </strong>
@@ -282,7 +282,7 @@ export function LandingPage({ signInUrl, signUpUrl }: LandingPageProps) {
             <h1 className="mb-6 text-4xl font-bold tracking-tight md:text-6xl lg:text-7xl">
               Build, Deploy & Scale
               <br />
-              <span className="bg-gradient-to-r from-primary to-primary/60 bg-clip-text text-transparent">
+              <span className="bg-gradient-to-r from-primary via-primary/90 to-primary/70 bg-clip-text text-transparent">
                 Intelligent AI Agents
               </span>
             </h1>
@@ -313,7 +313,7 @@ export function LandingPage({ signInUrl, signUpUrl }: LandingPageProps) {
       {/* Tech Stack Marquee */}
       <section className="py-20 bg-gradient-to-b from-background via-muted/20 to-background border-y">
         <div className="container mx-auto px-4 md:px-6 mb-12">
-          <h3 className="text-center text-2xl md:text-3xl font-bold mb-3 bg-gradient-to-r from-foreground to-foreground/60 bg-clip-text text-transparent">
+          <h3 className="text-center text-2xl md:text-3xl font-bold mb-3 bg-gradient-to-r from-foreground via-foreground/90 to-foreground/70 bg-clip-text text-transparent">
             Built on Industry-Leading Technology
           </h3>
           <p className="text-center text-muted-foreground max-w-2xl mx-auto">
@@ -498,7 +498,7 @@ export function LandingPage({ signInUrl, signUpUrl }: LandingPageProps) {
                 </div>
                 <h3 className="text-white font-bold text-xl">elizaOS Cloud</h3>
               </div>
-              <p className="text-gray-400 text-sm leading-relaxed mb-6">
+              <p className="text-gray-300 text-sm leading-relaxed mb-6">
                 The complete platform for building, deploying, and scaling
                 autonomous AI agents. From local development to global
                 production.
@@ -511,7 +511,7 @@ export function LandingPage({ signInUrl, signUpUrl }: LandingPageProps) {
                   className="h-9 w-9 rounded-lg bg-white/5 hover:bg-white/10 border border-white/10 flex items-center justify-center transition-colors"
                 >
                   <svg
-                    className="h-4 w-4 text-gray-400"
+                    className="h-4 w-4 text-gray-300"
                     fill="currentColor"
                     viewBox="0 0 24 24"
                   >
@@ -528,7 +528,7 @@ export function LandingPage({ signInUrl, signUpUrl }: LandingPageProps) {
                   className="h-9 w-9 rounded-lg bg-white/5 hover:bg-white/10 border border-white/10 flex items-center justify-center transition-colors"
                 >
                   <svg
-                    className="h-4 w-4 text-gray-400"
+                    className="h-4 w-4 text-gray-300"
                     fill="currentColor"
                     viewBox="0 0 24 24"
                   >
@@ -541,7 +541,7 @@ export function LandingPage({ signInUrl, signUpUrl }: LandingPageProps) {
                   className="h-9 w-9 rounded-lg bg-white/5 hover:bg-white/10 border border-white/10 flex items-center justify-center transition-colors"
                 >
                   <svg
-                    className="h-4 w-4 text-gray-400"
+                    className="h-4 w-4 text-gray-300"
                     fill="currentColor"
                     viewBox="0 0 24 24"
                   >
@@ -558,7 +558,7 @@ export function LandingPage({ signInUrl, signUpUrl }: LandingPageProps) {
                 <li>
                   <Link
                     href="/features"
-                    className="text-sm text-gray-400 hover:text-white transition-colors"
+                    className="text-sm text-gray-300 hover:text-white transition-colors"
                   >
                     Features
                   </Link>
@@ -566,7 +566,7 @@ export function LandingPage({ signInUrl, signUpUrl }: LandingPageProps) {
                 <li>
                   <Link
                     href="/pricing"
-                    className="text-sm text-gray-400 hover:text-white transition-colors"
+                    className="text-sm text-gray-300 hover:text-white transition-colors"
                   >
                     Pricing
                   </Link>
@@ -574,7 +574,7 @@ export function LandingPage({ signInUrl, signUpUrl }: LandingPageProps) {
                 <li>
                   <Link
                     href="/changelog"
-                    className="text-sm text-gray-400 hover:text-white transition-colors"
+                    className="text-sm text-gray-300 hover:text-white transition-colors"
                   >
                     Changelog
                   </Link>
@@ -583,7 +583,7 @@ export function LandingPage({ signInUrl, signUpUrl }: LandingPageProps) {
                   <Link
                     href="https://docs.eliza.os"
                     target="_blank"
-                    className="text-sm text-gray-400 hover:text-white transition-colors"
+                    className="text-sm text-gray-300 hover:text-white transition-colors"
                   >
                     Documentation
                   </Link>
@@ -599,7 +599,7 @@ export function LandingPage({ signInUrl, signUpUrl }: LandingPageProps) {
                 <li>
                   <Link
                     href="/guides"
-                    className="text-sm text-gray-400 hover:text-white transition-colors"
+                    className="text-sm text-gray-300 hover:text-white transition-colors"
                   >
                     Guides
                   </Link>
@@ -607,7 +607,7 @@ export function LandingPage({ signInUrl, signUpUrl }: LandingPageProps) {
                 <li>
                   <Link
                     href="/examples"
-                    className="text-sm text-gray-400 hover:text-white transition-colors"
+                    className="text-sm text-gray-300 hover:text-white transition-colors"
                   >
                     Examples
                   </Link>
@@ -615,7 +615,7 @@ export function LandingPage({ signInUrl, signUpUrl }: LandingPageProps) {
                 <li>
                   <Link
                     href="/api"
-                    className="text-sm text-gray-400 hover:text-white transition-colors"
+                    className="text-sm text-gray-300 hover:text-white transition-colors"
                   >
                     API Reference
                   </Link>
@@ -623,7 +623,7 @@ export function LandingPage({ signInUrl, signUpUrl }: LandingPageProps) {
                 <li>
                   <Link
                     href="/community"
-                    className="text-sm text-gray-400 hover:text-white transition-colors"
+                    className="text-sm text-gray-300 hover:text-white transition-colors"
                   >
                     Community
                   </Link>
@@ -637,7 +637,7 @@ export function LandingPage({ signInUrl, signUpUrl }: LandingPageProps) {
                 <li>
                   <Link
                     href="/about"
-                    className="text-sm text-gray-400 hover:text-white transition-colors"
+                    className="text-sm text-gray-300 hover:text-white transition-colors"
                   >
                     About
                   </Link>
@@ -645,7 +645,7 @@ export function LandingPage({ signInUrl, signUpUrl }: LandingPageProps) {
                 <li>
                   <Link
                     href="/blog"
-                    className="text-sm text-gray-400 hover:text-white transition-colors"
+                    className="text-sm text-gray-300 hover:text-white transition-colors"
                   >
                     Blog
                   </Link>
@@ -653,7 +653,7 @@ export function LandingPage({ signInUrl, signUpUrl }: LandingPageProps) {
                 <li>
                   <Link
                     href="/careers"
-                    className="text-sm text-gray-400 hover:text-white transition-colors"
+                    className="text-sm text-gray-300 hover:text-white transition-colors"
                   >
                     Careers
                   </Link>
@@ -661,7 +661,7 @@ export function LandingPage({ signInUrl, signUpUrl }: LandingPageProps) {
                 <li>
                   <Link
                     href="/contact"
-                    className="text-sm text-gray-400 hover:text-white transition-colors"
+                    className="text-sm text-gray-300 hover:text-white transition-colors"
                   >
                     Contact
                   </Link>
@@ -675,7 +675,7 @@ export function LandingPage({ signInUrl, signUpUrl }: LandingPageProps) {
                 <li>
                   <Link
                     href="/privacy"
-                    className="text-sm text-gray-400 hover:text-white transition-colors"
+                    className="text-sm text-gray-300 hover:text-white transition-colors"
                   >
                     Privacy
                   </Link>
@@ -683,7 +683,7 @@ export function LandingPage({ signInUrl, signUpUrl }: LandingPageProps) {
                 <li>
                   <Link
                     href="/terms"
-                    className="text-sm text-gray-400 hover:text-white transition-colors"
+                    className="text-sm text-gray-300 hover:text-white transition-colors"
                   >
                     Terms
                   </Link>
@@ -691,7 +691,7 @@ export function LandingPage({ signInUrl, signUpUrl }: LandingPageProps) {
                 <li>
                   <Link
                     href="/security"
-                    className="text-sm text-gray-400 hover:text-white transition-colors"
+                    className="text-sm text-gray-300 hover:text-white transition-colors"
                   >
                     Security
                   </Link>
@@ -699,7 +699,7 @@ export function LandingPage({ signInUrl, signUpUrl }: LandingPageProps) {
                 <li>
                   <Link
                     href="/status"
-                    className="text-sm text-gray-400 hover:text-white transition-colors"
+                    className="text-sm text-gray-300 hover:text-white transition-colors"
                   >
                     Status
                   </Link>
@@ -710,10 +710,10 @@ export function LandingPage({ signInUrl, signUpUrl }: LandingPageProps) {
 
           {/* Bottom Bar */}
           <div className="border-t border-white/10 pt-8 flex flex-col md:flex-row justify-between items-center gap-4">
-            <p className="text-sm text-gray-400">
+            <p className="text-sm text-gray-300">
               &copy; 2025 elizaOS Cloud. All rights reserved.
             </p>
-            <div className="flex items-center gap-6 text-sm text-gray-400">
+            <div className="flex items-center gap-6 text-sm text-gray-300">
               <span className="flex items-center gap-2">
                 <span className="relative flex h-2 w-2">
                   <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-green-400 opacity-75"></span>

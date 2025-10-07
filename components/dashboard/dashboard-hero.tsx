@@ -48,7 +48,7 @@ export function DashboardHero({
   return (
     <Card
       className={cn(
-        "relative overflow-hidden border-border/60 bg-gradient-to-br from-background via-background/90 to-muted/60 shadow-sm",
+        "relative overflow-hidden border-border/50 bg-gradient-to-br from-card/95 via-card/90 to-muted/50 backdrop-blur-sm shadow-md",
         className,
       )}
     >
@@ -111,7 +111,7 @@ export function DashboardHero({
           {stats.map((stat) => (
             <Card
               key={stat.label}
-              className="group border-border/50 bg-background/80 shadow-sm transition-all hover:border-primary/40 hover:bg-background/90 hover:shadow-md"
+              className="group border-border/40 bg-muted/30 backdrop-blur-sm shadow-sm transition-all hover:border-primary/40 hover:bg-muted/40 hover:shadow-md"
             >
               <CardContent className="p-4">
                 <div className="flex items-center justify-between gap-2">
