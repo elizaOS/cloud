@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
-import { Geist, Geist_Mono } from "next/font/google";
+import { Roboto_Mono } from "next/font/google";
+import localFont from "next/font/local";
 import "./globals.css";
 import { Analytics } from "@vercel/analytics/next";
 import { ThemeProvider } from "@/components/theme/theme-provider";
@@ -7,14 +8,15 @@ import { AuthKitProvider } from "@workos-inc/authkit-nextjs/components";
 import { Toaster } from "sonner";
 import NextTopLoader from "nextjs-toploader";
 
-const geistSans = Geist({
-  variable: "--font-geist-sans",
+const robotoMono = Roboto_Mono({
+  variable: "--font-roboto-mono",
   subsets: ["latin"],
 });
 
-const geistMono = Geist_Mono({
-  variable: "--font-geist-mono",
-  subsets: ["latin"],
+const rebelsFont = localFont({
+  src: "../public/fonts/Rebels-Fett.woff2",
+  variable: "--font-rebels",
+  display: "swap",
 });
 
 export const metadata: Metadata = {
@@ -81,9 +83,18 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en" suppressHydrationWarning>
+      <head>
+        <link
+          rel="preload"
+          href="/fonts/Rebels-Fett.woff2"
+          as="font"
+          type="font/woff2"
+          crossOrigin="anonymous"
+        />
+      </head>
       <AuthKitProvider>
         <body
-          className={`${geistSans.variable} ${geistMono.variable} antialiased`}
+          className={`${rebelsFont.variable} ${robotoMono.variable} antialiased`}
         >
           <ThemeProvider
             attribute="class"

@@ -48,22 +48,22 @@ export function DashboardHero({
   return (
     <Card
       className={cn(
-        "relative overflow-hidden border-border/50 bg-gradient-to-br from-card/95 via-card/90 to-muted/50 backdrop-blur-sm shadow-md",
+        "relative overflow-hidden border-border/50 backdrop-blur-sm shadow-md",
         className,
       )}
     >
-      <CardHeader className="relative z-10 pb-4">
+      <CardHeader className="relative z-10 pb-4 rounded-t bg-card !h-auto !grid-rows-none">
         <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
           <div className="space-y-3">
             <Badge variant="secondary" className="w-fit rounded-full border border-border/60 bg-background/80 px-3 py-1">
               <Sparkles className="mr-1.5 h-3.5 w-3.5 text-primary" />
               <span>Good to see you, {userName}</span>
             </Badge>
-            <div className="space-y-2">
-              <CardTitle className="text-3xl font-semibold tracking-tight md:text-4xl">
+            <div className="space-y-2 p-4">
+              <CardTitle className="!text-3xl font-semibold tracking-tight !text-foreground md:!text-4xl">
                 Build, deploy, and monitor your AI agents
               </CardTitle>
-              <CardDescription className="max-w-2xl text-sm md:text-base">
+              <CardDescription className="max-w-2xl !text-sm !text-muted-foreground md:!text-base">
                 Stay on top of credits, observe generation activity, and jump
                 into the tools you use the most—all from one streamlined
                 dashboard.
@@ -104,18 +104,18 @@ export function DashboardHero({
         </div>
       </CardHeader>
 
-      <Separator className="relative z-10" />
+      <Separator className="relative z-10 bg-border" />
 
-      <CardContent className="relative z-10 pt-6">
+      <CardContent className="relative z-10 pt-6 rounded-b">
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
           {stats.map((stat) => (
             <Card
               key={stat.label}
-              className="group border-border/40 bg-muted/30 backdrop-blur-sm shadow-sm transition-all hover:border-primary/40 hover:bg-muted/40 hover:shadow-md"
+              className="group border-border/40 bg-muted/50 backdrop-blur-sm shadow-sm transition-all hover:border-primary/40 hover:bg-muted/60 hover:shadow-md"
             >
               <CardContent className="p-4">
                 <div className="flex items-center justify-between gap-2">
-                  <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                  <p className="text-xs font-semibold uppercase tracking-wide !text-muted-foreground">
                     {stat.label}
                   </p>
                   {stat.badge ? (
@@ -128,13 +128,13 @@ export function DashboardHero({
                   ) : null}
                 </div>
                 <div className="mt-3 flex items-baseline gap-2">
-                  <p className="text-2xl font-semibold text-foreground">
+                  <p className="text-2xl font-semibold !text-foreground">
                     {stat.value}
                   </p>
                   <TrendingUp className="h-4 w-4 text-emerald-500 opacity-0 transition-opacity group-hover:opacity-100" />
                 </div>
                 {stat.hint ? (
-                  <p className="mt-1 text-xs text-muted-foreground">{stat.hint}</p>
+                  <p className="mt-1 text-xs !text-muted-foreground">{stat.hint}</p>
                 ) : null}
               </CardContent>
             </Card>
