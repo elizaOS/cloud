@@ -9,7 +9,6 @@ import { AnalyticsFilters } from "@/components/analytics/filters";
 import { ExportButton } from "@/components/analytics/export-button";
 import { CostInsightsCard } from "@/components/analytics/cost-insights-card";
 import { KeyMetricsGrid } from "@/components/analytics/key-metrics-grid";
-import { TopUsersTable } from "@/components/analytics/top-users-table";
 import { ProviderBreakdown } from "@/components/analytics/provider-breakdown";
 import { ModelBreakdown } from "@/components/analytics/model-breakdown";
 import { ProjectionsChart } from "@/components/analytics/projections-chart";

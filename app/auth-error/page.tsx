@@ -2,11 +2,7 @@ import { AlertTriangle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import Link from "next/link";
 
-export default function AuthErrorPage({
-  searchParams,
-}: {
-  searchParams: Promise<{ message?: string; details?: string }>;
-}) {
+export default function AuthErrorPage() {
   return (
     <div className="flex min-h-screen items-center justify-center bg-background p-4">
       <div className="w-full max-w-md space-y-6">
@@ -27,7 +23,7 @@ export default function AuthErrorPage({
               Error Details:
             </p>
             <p className="mt-2 text-sm text-muted-foreground">
-              Your authentication with WorkOS was successful, but we couldn't
+              Your authentication with WorkOS was successful, but we couldn&apos;t
               sync your account to our database. This is likely a temporary
               issue.
             </p>
