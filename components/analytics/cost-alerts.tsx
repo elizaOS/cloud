@@ -1,5 +1,6 @@
-import { AlertTriangle, TrendingDown } from "lucide-react";
-import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import type { ReactNode } from "react";
+import { AlertTriangle, Info, TrendingDown } from "lucide-react";
+import { cn } from "@/lib/utils";
 
 interface CostAlertsProps {
   costTrending: {
@@ -47,27 +48,55 @@ export function CostAlerts({ costTrending, creditBalance }: CostAlertsProps) {
 
   if (alerts.length === 0) {
     return (
-      <Alert>
-        <TrendingDown className="h-4 w-4" />
-        <AlertTitle>All Good</AlertTitle>
-        <AlertDescription>
-          Your usage is within normal parameters. No alerts at this time.
-        </AlertDescription>
-      </Alert>
+      <div className="rounded-xl border border-emerald-600/30 bg-emerald-500/10 p-5 text-sm text-emerald-700 dark:border-emerald-400/30 dark:bg-emerald-500/20 dark:text-emerald-100">
+        <div className="flex items-start gap-4">
+          <TrendingDown className="h-5 w-5 shrink-0" />
+          <div className="space-y-2">
+            <p className="font-semibold">All good</p>
+            <p className="text-sm text-emerald-900/80 dark:text-emerald-50/80">
+              Usage is tracking within healthy thresholds. You&apos;re trending below the projected monthly spend.
+            </p>
+          </div>
+        </div>
+      </div>
     );
   }
 
+  const toneClasses: Record<"warning" | "error" | "info", string> = {
+    warning:
+      "border-amber-500/30 bg-amber-500/10 text-amber-700 dark:border-amber-500/30 dark:bg-amber-500/15 dark:text-amber-100",
+    error:
+      "border-rose-500/40 bg-rose-500/10 text-rose-700 dark:border-rose-500/30 dark:bg-rose-500/20 dark:text-rose-100",
+    info:
+      "border-sky-500/40 bg-sky-500/10 text-sky-700 dark:border-sky-500/30 dark:bg-sky-500/20 dark:text-sky-100",
+  };
+
+  const iconMap: Record<"warning" | "error" | "info", ReactNode> = {
+    warning: <AlertTriangle className="h-5 w-5 shrink-0" />,
+    error: <AlertTriangle className="h-5 w-5 shrink-0" />,
+    info: <Info className="h-5 w-5 shrink-0" />,
+  };
+
   return (
-    <div className="space-y-3">
-      {alerts.map((alert, i) => (
-        <Alert
-          key={i}
-          variant={alert.type === "error" ? "destructive" : "default"}
+    <div className="grid gap-4">
+      {alerts.map((alert, index) => (
+        <div
+          key={`${alert.title}-${index}`}
+          className={cn(
+            "rounded-xl border bg-background/80 p-5 text-sm shadow-sm",
+            toneClasses[alert.type],
+          )}
         >
-          <AlertTriangle className="h-4 w-4" />
-          <AlertTitle>{alert.title}</AlertTitle>
-          <AlertDescription>{alert.description}</AlertDescription>
-        </Alert>
+          <div className="flex items-start gap-4">
+            {iconMap[alert.type]}
+            <div className="space-y-2">
+              <p className="font-semibold leading-tight">{alert.title}</p>
+              <p className="text-sm text-muted-foreground">
+                {alert.description}
+              </p>
+            </div>
+          </div>
+        </div>
       ))}
     </div>
   );
