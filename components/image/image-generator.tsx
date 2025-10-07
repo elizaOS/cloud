@@ -6,12 +6,23 @@ import { ImageDisplay } from "./image-display";
 import { EmptyState } from "./empty-state";
 import { LoadingState } from "./loading-state";
 
+export type AspectRatio = "1:1" | "16:9" | "9:16" | "4:3" | "3:4" | "21:9" | "9:21";
+export type StylePreset = "none" | "photographic" | "digital-art" | "comic-book" | "fantasy-art" | "analog-film" | "neon-punk" | "isometric" | "low-poly" | "origami" | "line-art" | "cinematic" | "3d-model";
+
+interface GeneratedImage {
+  image: string;
+  url?: string;
+  text: string;
+}
+
 export function ImageGenerator() {
   const [prompt, setPrompt] = useState("");
-  const [imageUrl, setImageUrl] = useState<string | null>(null);
-  const [generatedText, setGeneratedText] = useState<string>("");
+  const [images, setImages] = useState<GeneratedImage[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [numImages, setNumImages] = useState(1);
+  const [aspectRatio, setAspectRatio] = useState<AspectRatio>("1:1");
+  const [stylePreset, setStylePreset] = useState<StylePreset>("none");
 
   const handleGenerate = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -26,7 +37,12 @@ export function ImageGenerator() {
         headers: {
           "Content-Type": "application/json",
         },
-        body: JSON.stringify({ prompt }),
+        body: JSON.stringify({ 
+          prompt,
+          numImages,
+          aspectRatio,
+          stylePreset: stylePreset !== "none" ? stylePreset : undefined,
+        }),
       });
 
       const data = await response.json();
@@ -35,13 +51,14 @@ export function ImageGenerator() {
         throw new Error(data.error || "Failed to generate image");
       }
 
-      const imageData = data.image.startsWith("data:")
-        ? data.image
-        : `data:image/png;base64,${data.image}`;
-      setImageUrl(imageData);
-
-      if (data.text) {
-        setGeneratedText(data.text);
+      // Handle multiple images response
+      if (data.images && Array.isArray(data.images)) {
+        const processedImages = data.images.map((img: GeneratedImage) => ({
+          image: img.image.startsWith("data:") ? img.image : `data:image/png;base64,${img.image}`,
+          url: img.url,
+          text: img.text || "",
+        }));
+        setImages(processedImages);
       }
     } catch (err) {
       setError(err instanceof Error ? err.message : "An error occurred");
@@ -50,20 +67,17 @@ export function ImageGenerator() {
     }
   };
 
-  const handleDownload = () => {
-    if (!imageUrl) return;
-
+  const handleDownload = (imageData: string, index: number) => {
     const link = document.createElement("a");
-    link.href = imageUrl;
-    link.download = `eliza-generated-${Date.now()}.png`;
+    link.href = imageData;
+    link.download = `eliza-generated-${Date.now()}-${index + 1}.png`;
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
   };
 
   const handleGenerateAnother = () => {
-    setImageUrl(null);
-    setGeneratedText("");
+    setImages([]);
   };
 
   return (
@@ -73,6 +87,12 @@ export function ImageGenerator() {
         onPromptChange={setPrompt}
         onSubmit={handleGenerate}
         isLoading={isLoading}
+        numImages={numImages}
+        onNumImagesChange={setNumImages}
+        aspectRatio={aspectRatio}
+        onAspectRatioChange={setAspectRatio}
+        stylePreset={stylePreset}
+        onStylePresetChange={setStylePreset}
       />
 
       {error && (
@@ -81,19 +101,27 @@ export function ImageGenerator() {
         </div>
       )}
 
-      {isLoading && !imageUrl && <LoadingState />}
+      {isLoading && images.length === 0 && <LoadingState />}
 
-      {imageUrl && (
-        <ImageDisplay
-          imageUrl={imageUrl}
-          prompt={prompt}
-          generatedText={generatedText}
-          onDownload={handleDownload}
-          onGenerateAnother={handleGenerateAnother}
-        />
+      {images.length > 0 && (
+        <div className="space-y-6">
+          <div className={`grid gap-6 ${images.length === 1 ? 'grid-cols-1' : 'grid-cols-1 md:grid-cols-2'}`}>
+            {images.map((img, index) => (
+              <ImageDisplay
+                key={index}
+                imageUrl={img.image}
+                prompt={prompt}
+                generatedText={img.text}
+                onDownload={() => handleDownload(img.image, index)}
+                onGenerateAnother={handleGenerateAnother}
+                showGenerateAnother={index === images.length - 1}
+              />
+            ))}
+          </div>
+        </div>
       )}
 
-      {!imageUrl && !isLoading && <EmptyState />}
+      {images.length === 0 && !isLoading && <EmptyState />}
     </div>
   );
 }

@@ -10,6 +10,7 @@ interface ImageDisplayProps {
   generatedText?: string;
   onDownload: () => void;
   onGenerateAnother: () => void;
+  showGenerateAnother?: boolean;
 }
 
 export function ImageDisplay({
@@ -18,6 +19,7 @@ export function ImageDisplay({
   generatedText,
   onDownload,
   onGenerateAnother,
+  showGenerateAnother = true,
 }: ImageDisplayProps) {
   return (
     <div className="space-y-6 animate-in fade-in slide-in-from-bottom-6 duration-700">
@@ -46,7 +48,7 @@ export function ImageDisplay({
         </div>
       </div>
 
-      <div className="grid grid-cols-2 gap-4">
+      <div className={`grid gap-4 ${showGenerateAnother ? 'grid-cols-2' : 'grid-cols-1'}`}>
         <Button
           variant="outline"
           onClick={onDownload}
@@ -56,14 +58,16 @@ export function ImageDisplay({
           <Download className="mr-2 h-4 w-4" />
           Download
         </Button>
-        <Button
-          onClick={onGenerateAnother}
-          className="rounded-xl h-12 text-base font-medium shadow-md hover:shadow-lg transition-all"
-          size="lg"
-        >
-          <Sparkles className="mr-2 h-4 w-4" />
-          Generate Another
-        </Button>
+        {showGenerateAnother && (
+          <Button
+            onClick={onGenerateAnother}
+            className="rounded-xl h-12 text-base font-medium shadow-md hover:shadow-lg transition-all"
+            size="lg"
+          >
+            <Sparkles className="mr-2 h-4 w-4" />
+            Generate Another
+          </Button>
+        )}
       </div>
     </div>
   );
