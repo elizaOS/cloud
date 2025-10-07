@@ -1,14 +1,21 @@
 import type { Metadata } from "next";
 import { format } from "date-fns";
-import { getAnalyticsData } from "@/lib/actions/analytics";
+import {
+  getEnhancedAnalyticsData,
+  getProjectionsData,
+} from "@/lib/actions/analytics-enhanced";
 import { UsageChart } from "@/components/analytics/usage-chart";
 import { AnalyticsFilters } from "@/components/analytics/filters";
 import { ExportButton } from "@/components/analytics/export-button";
 import { CostInsightsCard } from "@/components/analytics/cost-insights-card";
 import { KeyMetricsGrid } from "@/components/analytics/key-metrics-grid";
 import { TopUsersTable } from "@/components/analytics/top-users-table";
+import { ProviderBreakdown } from "@/components/analytics/provider-breakdown";
+import { ModelBreakdown } from "@/components/analytics/model-breakdown";
+import { ProjectionsChart } from "@/components/analytics/projections-chart";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { requireAuth } from "@/lib/auth";
 import {
   Activity,
@@ -16,6 +23,7 @@ import {
   CalendarRange,
   Coins,
   ShieldCheck,
+  TrendingUp,
 } from "lucide-react";
 
 export const metadata: Metadata = {
@@ -30,6 +38,7 @@ interface AnalyticsPageProps {
     startDate?: string;
     endDate?: string;
     granularity?: "hour" | "day" | "week" | "month";
+    timeRange?: "daily" | "weekly" | "monthly";
   }>;
 }
 
@@ -44,9 +53,13 @@ export default async function AnalyticsPage(props: AnalyticsPageProps) {
       : undefined,
     endDate: searchParams.endDate ? new Date(searchParams.endDate) : undefined,
     granularity: searchParams.granularity || ("day" as const),
+    timeRange: searchParams.timeRange || ("weekly" as const),
   };
 
-  const data = await getAnalyticsData(filters);
+  const [data, projectionsData] = await Promise.all([
+    getEnhancedAnalyticsData(filters),
+    getProjectionsData(7),
+  ]);
 
   const rangeLabel = `${format(data.filters.startDate, "MMM d, yyyy")} → ${format(data.filters.endDate, "MMM d, yyyy")}`;
   const granularityLabel =
@@ -70,36 +83,6 @@ export default async function AnalyticsPage(props: AnalyticsPageProps) {
       ? totalTokens / data.overallStats.totalRequests
       : 0;
 
-  const latest = data.timeSeriesData.at(-1);
-  const previous = data.timeSeriesData.at(-2);
-
-  const percentChange = (current: number, previousValue?: number) => {
-    if (previousValue === undefined) return undefined;
-    if (previousValue === 0) {
-      return current === 0 ? 0 : 100;
-    }
-    return ((current - previousValue) / Math.abs(previousValue)) * 100;
-  };
-
-  const requestDelta = percentChange(
-    latest?.totalRequests ?? 0,
-    previous?.totalRequests,
-  );
-  const costDelta = percentChange(
-    latest?.totalCost ?? 0,
-    previous?.totalCost,
-  );
-  const successRateDelta = percentChange(
-    (latest?.successRate ?? 0) * 100,
-    previous ? previous.successRate * 100 : undefined,
-  );
-  const tokensDelta = percentChange(
-    (latest?.inputTokens ?? 0) + (latest?.outputTokens ?? 0),
-    previous
-      ? previous.inputTokens + previous.outputTokens
-      : undefined,
-  );
-
   const formatDelta = (value: number | undefined, digits = 1) => {
     if (value === undefined || Number.isNaN(value)) return undefined;
     const rounded = Number(value.toFixed(digits));
@@ -114,14 +97,12 @@ export default async function AnalyticsPage(props: AnalyticsPageProps) {
     return "neutral" as const;
   };
 
-  const previousLabel = previous
-    ? `vs previous ${granularityLabel.toLowerCase()}`
-    : undefined;
-
-  const requestTrend = resolveTrend(requestDelta);
-  const costTrend = resolveTrend(costDelta);
-  const successTrend = resolveTrend(successRateDelta);
-  const tokensTrend = resolveTrend(tokensDelta);
+  const trendDelta = {
+    requests: data.trends.requestsChange,
+    cost: data.trends.costChange,
+    successRate: data.trends.successRateChange,
+    tokens: data.trends.tokensChange,
+  };
 
   const metrics = [
     {
@@ -129,11 +110,11 @@ export default async function AnalyticsPage(props: AnalyticsPageProps) {
       value: data.overallStats.totalRequests.toLocaleString(),
       helper: `${granularityLabel} cadence • ${rangeLabel}`,
       delta:
-        requestTrend !== undefined
+        trendDelta.requests !== 0
           ? {
-            value: formatDelta(requestDelta) ?? "0%",
-            trend: requestTrend,
-            label: previousLabel,
+            value: formatDelta(trendDelta.requests) ?? "0%",
+            trend: resolveTrend(trendDelta.requests),
+            label: `vs previous period`,
           }
           : undefined,
       icon: Activity,
@@ -144,11 +125,11 @@ export default async function AnalyticsPage(props: AnalyticsPageProps) {
       value: `${data.overallStats.totalCost.toLocaleString()} credits`,
       helper: `≈ ${averageCostPerRequest.toFixed(2)} credits per request`,
       delta:
-        costTrend !== undefined
+        trendDelta.cost !== 0
           ? {
-            value: formatDelta(costDelta) ?? "0%",
-            trend: costTrend,
-            label: previousLabel,
+            value: formatDelta(trendDelta.cost) ?? "0%",
+            trend: resolveTrend(trendDelta.cost),
+            label: `vs previous period`,
           }
           : undefined,
       icon: Coins,
@@ -159,11 +140,11 @@ export default async function AnalyticsPage(props: AnalyticsPageProps) {
       value: `${(data.overallStats.successRate * 100).toFixed(1)}%`,
       helper: `Ratio of successful completions across ${data.timeSeriesData.length.toLocaleString()} data points`,
       delta:
-        successTrend !== undefined
+        trendDelta.successRate !== 0
           ? {
-            value: formatDelta(successRateDelta, 2) ?? "0%",
-            trend: successTrend,
-            label: previousLabel,
+            value: formatDelta(trendDelta.successRate, 2) ?? "0%",
+            trend: resolveTrend(trendDelta.successRate),
+            label: `vs previous period`,
           }
           : undefined,
       icon: ShieldCheck,
@@ -174,11 +155,11 @@ export default async function AnalyticsPage(props: AnalyticsPageProps) {
       value: totalTokens.toLocaleString(),
       helper: `≈ ${averageTokensPerRequest.toFixed(1)} tokens per request`,
       delta:
-        tokensTrend !== undefined
+        trendDelta.tokens !== 0
           ? {
-            value: formatDelta(tokensDelta) ?? "0%",
-            trend: tokensTrend,
-            label: previousLabel,
+            value: formatDelta(trendDelta.tokens) ?? "0%",
+            trend: resolveTrend(trendDelta.tokens),
+            label: `vs previous period`,
           }
           : undefined,
       icon: BarChart3,
@@ -209,20 +190,12 @@ export default async function AnalyticsPage(props: AnalyticsPageProps) {
             </Badge>
           </div>
         </div>
-        <div className="flex flex-wrap items-center gap-3">
-          <ExportButton
-            startDate={data.filters.startDate}
-            endDate={data.filters.endDate}
-            granularity={data.filters.granularity}
-            format="csv"
-          />
-          <ExportButton
-            startDate={data.filters.startDate}
-            endDate={data.filters.endDate}
-            granularity={data.filters.granularity}
-            format="json"
-          />
-        </div>
+        <ExportButton
+          startDate={data.filters.startDate}
+          endDate={data.filters.endDate}
+          granularity={data.filters.granularity}
+          variant="dropdown"
+        />
       </section>
 
       <section className="space-y-8 lg:space-y-10">
@@ -265,8 +238,29 @@ export default async function AnalyticsPage(props: AnalyticsPageProps) {
         />
       </section>
 
-      <section className="pb-4 lg:pb-6">
-        <TopUsersTable users={data.userBreakdown} />
+      <section className="space-y-8 lg:space-y-10">
+        <Tabs defaultValue="breakdown" className="w-full">
+          <TabsList className="grid w-full max-w-md grid-cols-2">
+            <TabsTrigger value="breakdown">Breakdown</TabsTrigger>
+            <TabsTrigger value="projections">
+              <TrendingUp className="mr-2 h-4 w-4" />
+              Projections
+            </TabsTrigger>
+          </TabsList>
+
+          <TabsContent value="breakdown" className="space-y-8 lg:space-y-10 mb-4">
+            <div className="grid gap-8 lg:grid-cols-2 lg:gap-10">
+              <ProviderBreakdown providers={data.providerBreakdown} />
+              <ModelBreakdown models={data.modelBreakdown} />
+            </div>
+
+            {/* <TopUsersTable users={data.userBreakdown} /> */}
+          </TabsContent>
+
+          <TabsContent value="projections" className="space-y-8 lg:space-y-10">
+            <ProjectionsChart data={projectionsData} />
+          </TabsContent>
+        </Tabs>
       </section>
     </div>
   );
