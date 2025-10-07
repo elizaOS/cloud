@@ -1,13 +1,22 @@
 "use client";
 
-import { Loader2, Sparkles, Wand2 } from "lucide-react";
+import { Loader2, Sparkles, Wand2, Image as ImageIcon, Ratio, Palette } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Label } from "@/components/ui/label";
+import type { AspectRatio, StylePreset } from "./image-generator";
 
 interface PromptInputProps {
   prompt: string;
   onPromptChange: (prompt: string) => void;
   onSubmit: (e: React.FormEvent) => void;
   isLoading: boolean;
+  numImages: number;
+  onNumImagesChange: (num: number) => void;
+  aspectRatio: AspectRatio;
+  onAspectRatioChange: (ratio: AspectRatio) => void;
+  stylePreset: StylePreset;
+  onStylePresetChange: (preset: StylePreset) => void;
 }
 
 export function PromptInput({
@@ -15,10 +24,102 @@ export function PromptInput({
   onPromptChange,
   onSubmit,
   isLoading,
+  numImages,
+  onNumImagesChange,
+  aspectRatio,
+  onAspectRatioChange,
+  stylePreset,
+  onStylePresetChange,
 }: PromptInputProps) {
   return (
     <div className="rounded-2xl border bg-gradient-to-br from-card to-muted/20 p-8 shadow-sm">
       <form onSubmit={onSubmit} className="space-y-6">
+        {/* Image Options Row */}
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          {/* Number of Images */}
+          <div className="space-y-2">
+            <Label htmlFor="num-images" className="flex items-center gap-2 text-sm font-semibold">
+              <ImageIcon className="h-4 w-4 text-primary" />
+              Images
+            </Label>
+            <Select 
+              value={numImages.toString()} 
+              onValueChange={(value) => onNumImagesChange(parseInt(value))}
+              disabled={isLoading}
+            >
+              <SelectTrigger id="num-images" className="w-full">
+                <SelectValue placeholder="Select number" />
+              </SelectTrigger>
+              <SelectContent>
+                {[1, 2, 3, 4].map((num) => (
+                  <SelectItem key={num} value={num.toString()}>
+                    {num} {num === 1 ? 'Image' : 'Images'}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+
+          {/* Aspect Ratio */}
+          <div className="space-y-2">
+            <Label htmlFor="aspect-ratio" className="flex items-center gap-2 text-sm font-semibold">
+              <Ratio className="h-4 w-4 text-primary" />
+              Ratio
+            </Label>
+            <Select 
+              value={aspectRatio} 
+              onValueChange={(value) => onAspectRatioChange(value as AspectRatio)}
+              disabled={isLoading}
+            >
+              <SelectTrigger id="aspect-ratio" className="w-full">
+                <SelectValue placeholder="Select ratio" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="1:1">1:1 (Square)</SelectItem>
+                <SelectItem value="16:9">16:9 (Landscape)</SelectItem>
+                <SelectItem value="9:16">9:16 (Portrait)</SelectItem>
+                <SelectItem value="4:3">4:3</SelectItem>
+                <SelectItem value="3:4">3:4</SelectItem>
+                <SelectItem value="21:9">21:9 (Ultra Wide)</SelectItem>
+                <SelectItem value="9:21">9:21 (Ultra Tall)</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+
+          {/* Style Preset */}
+          <div className="space-y-2">
+            <Label htmlFor="style-preset" className="flex items-center gap-2 text-sm font-semibold">
+              <Palette className="h-4 w-4 text-primary" />
+              Style Preset
+            </Label>
+            <Select 
+              value={stylePreset} 
+              onValueChange={(value) => onStylePresetChange(value as StylePreset)}
+              disabled={isLoading}
+            >
+              <SelectTrigger id="style-preset" className="w-full">
+                <SelectValue placeholder="Select style" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="none">None</SelectItem>
+                <SelectItem value="photographic">Photographic</SelectItem>
+                <SelectItem value="digital-art">Digital Art</SelectItem>
+                <SelectItem value="comic-book">Comic Book</SelectItem>
+                <SelectItem value="fantasy-art">Fantasy Art</SelectItem>
+                <SelectItem value="analog-film">Analog Film</SelectItem>
+                <SelectItem value="neon-punk">Neon Punk</SelectItem>
+                <SelectItem value="isometric">Isometric</SelectItem>
+                <SelectItem value="low-poly">Low Poly</SelectItem>
+                <SelectItem value="origami">Origami</SelectItem>
+                <SelectItem value="line-art">Line Art</SelectItem>
+                <SelectItem value="cinematic">Cinematic</SelectItem>
+                <SelectItem value="3d-model">3D Model</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+        </div>
+
+        {/* Prompt Input */}
         <div className="space-y-4">
           <div className="flex items-center justify-between">
             <label
