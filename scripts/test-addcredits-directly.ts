@@ -76,11 +76,11 @@ async function testAddCredits() {
     } else {
       console.log(`❌ Transaction not found in database`);
     }
-  } catch (error: any) {
+  } catch (error) {
     console.error("\n❌ ERROR!");
     console.error("-".repeat(70));
     console.error(`Error Type: ${error.constructor.name}`);
-    console.error(`Error Message: ${error.message}`);
+    console.error(`Error Message: ${error instanceof Error ? error.message : String(error)}`);
     console.error(`Error Code: ${error.code || "(none)"}`);
     if (error.stack) {
       console.error(`\nStack Trace:`);

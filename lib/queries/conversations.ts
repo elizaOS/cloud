@@ -123,31 +123,74 @@ export async function archiveConversation(
   return archived;
 }
 
+export async function addMessageWithSequence(
+  conversationId: string,
+  data: Omit<NewConversationMessage, "sequence_number" | "conversation_id">,
+): Promise<ConversationMessage> {
+  return await db.transaction(async (tx) => {
+    const lastMessage = await tx.query.conversationMessages.findFirst({
+      where: eq(schema.conversationMessages.conversation_id, conversationId),
+      orderBy: desc(schema.conversationMessages.sequence_number),
+    });
+
+    const nextSequence = lastMessage ? lastMessage.sequence_number + 1 : 1;
+
+    const [message] = await tx
+      .insert(schema.conversationMessages)
+      .values({
+        ...data,
+        conversation_id: conversationId,
+        sequence_number: nextSequence,
+      })
+      .returning();
+
+    const conversation = await tx.query.conversations.findFirst({
+      where: eq(schema.conversations.id, conversationId),
+    });
+
+    if (conversation) {
+      await tx
+        .update(schema.conversations)
+        .set({
+          message_count: conversation.message_count + 1,
+          last_message_at: new Date(),
+          total_cost: conversation.total_cost + (data.cost || 0),
+          updated_at: new Date(),
+        })
+        .where(eq(schema.conversations.id, conversationId));
+    }
+
+    return message;
+  });
+}
+
 export async function addMessageToConversation(
   data: NewConversationMessage,
 ): Promise<ConversationMessage> {
-  const [message] = await db
-    .insert(schema.conversationMessages)
-    .values(data)
-    .returning();
+  return await db.transaction(async (tx) => {
+    const [message] = await tx
+      .insert(schema.conversationMessages)
+      .values(data)
+      .returning();
 
-  const conversation = await db.query.conversations.findFirst({
-    where: eq(schema.conversations.id, data.conversation_id),
+    const conversation = await tx.query.conversations.findFirst({
+      where: eq(schema.conversations.id, data.conversation_id),
+    });
+
+    if (conversation) {
+      await tx
+        .update(schema.conversations)
+        .set({
+          message_count: conversation.message_count + 1,
+          last_message_at: new Date(),
+          total_cost: conversation.total_cost + (data.cost || 0),
+          updated_at: new Date(),
+        })
+        .where(eq(schema.conversations.id, data.conversation_id));
+    }
+
+    return message;
   });
-
-  if (conversation) {
-    await db
-      .update(schema.conversations)
-      .set({
-        message_count: conversation.message_count + 1,
-        last_message_at: new Date(),
-        total_cost: conversation.total_cost + (data.cost || 0),
-        updated_at: new Date(),
-      })
-      .where(eq(schema.conversations.id, data.conversation_id));
-  }
-
-  return message;
 }
 
 export async function getMessageById(
