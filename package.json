@@ -15,6 +15,12 @@
     "db:migrate": "drizzle-kit migrate",
     "db:push": "drizzle-kit push",
     "db:studio": "drizzle-kit studio",
+    "db:local:start": "docker-compose up -d",
+    "db:local:stop": "docker-compose down",
+    "db:local:reset": "docker-compose down -v && docker-compose up -d",
+    "db:local:setup": "npm run db:local:start && sleep 3 && tsx scripts/setup-local-db.ts",
+    "db:local:logs": "docker-compose logs -f postgres",
+    "db:local:seed": "tsx scripts/seed-local-dev.ts",
     "seed:credit-packs": "tsx scripts/seed-credit-packs.ts"
   },
   "dependencies": {
