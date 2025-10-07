@@ -9,8 +9,14 @@ import { listUserMedia, getUserMediaStats } from "@/app/actions/gallery";
 import type { GalleryItem } from "@/app/actions/gallery";
 import { ImageIcon, VideoIcon, LayoutGridIcon } from "lucide-react";
 import { toast } from "sonner";
+import { useSetPageHeader } from "@/components/layout/page-header-context";
 
 export function GalleryPageClient() {
+  useSetPageHeader({
+    title: "Gallery",
+    description: "View and manage your AI-generated images and videos",
+  });
+
   const [activeTab, setActiveTab] = useState<"all" | "image" | "video">("all");
   const [items, setItems] = useState<GalleryItem[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -62,13 +68,6 @@ export function GalleryPageClient() {
 
   return (
     <div className="flex flex-col gap-6">
-      <div>
-        <h1 className="text-3xl font-bold">Gallery</h1>
-        <p className="text-muted-foreground mt-2">
-          View and manage your AI-generated images and videos
-        </p>
-      </div>
-
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
         {isLoadingStats ? (
           <>
@@ -164,4 +163,3 @@ export function GalleryPageClient() {
     </div>
   );
 }
-

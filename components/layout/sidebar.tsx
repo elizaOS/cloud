@@ -5,12 +5,14 @@
 "use client";
 
 import Link from "next/link";
+import Image from "next/image";
 import { useState, useEffect } from "react";
 import { X } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { ThemeToggle } from "@/components/theme/theme-toggle";
 import { SidebarNavigationSection } from "./sidebar-section";
 import { sidebarSections } from "./sidebar-data";
+import { useThemeLogo } from "./use-theme-logo";
 
 interface SidebarProps {
   className?: string;
@@ -24,6 +26,7 @@ export default function Sidebar({
   onToggle,
 }: SidebarProps) {
   const [isMobile, setIsMobile] = useState(false);
+  const logoSrc = useThemeLogo();
 
   useEffect(() => {
     const checkScreenSize = () => {
@@ -59,10 +62,17 @@ export default function Sidebar({
         <div className="flex h-16 items-center justify-between border-b px-4">
           <Link
             href="/dashboard"
-            className="flex items-center space-x-2 transition-opacity hover:opacity-80"
+            className="flex items-center transition-opacity hover:opacity-80"
           >
-            <div className="h-8 w-8 rounded-lg bg-gradient-to-br from-purple-500 to-blue-600"></div>
-            <span className="text-lg font-semibold">elizaOS</span>
+            <Image
+              src={logoSrc}
+              alt="elizaOS"
+              width={120}
+              height={40}
+              className="h-8 w-auto"
+              priority
+              key={logoSrc}
+            />
           </Link>
 
           {/* Mobile Close Button */}
