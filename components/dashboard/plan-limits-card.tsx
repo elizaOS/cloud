@@ -29,7 +29,7 @@ export function PlanLimitsCard({
   return (
     <Card
       className={cn(
-        "h-full border-border/60 bg-background/85 shadow-sm",
+        "h-full border-border/50 bg-card/95 backdrop-blur-sm shadow-md",
         className,
       )}
     >
@@ -43,7 +43,7 @@ export function PlanLimitsCard({
       </CardHeader>
       <Separator />
       <CardContent className="space-y-4 pt-6">
-        <div className="grid gap-3 rounded-xl border border-border/60 bg-gradient-to-br from-background to-muted/20 p-4">
+        <div className="grid gap-3 rounded-xl border border-border/50 bg-gradient-to-br from-muted/20 to-muted/40 p-4">
           <div className="flex items-center justify-between text-sm text-foreground">
             <span className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
               API request budget
@@ -140,7 +140,7 @@ export function PlanLimitsCard({
 
         <Separator />
 
-        <div className="flex items-center justify-between rounded-xl border border-border/60 bg-gradient-to-br from-background to-muted/20 px-3 py-2.5">
+        <div className="flex items-center justify-between rounded-xl border border-border/50 bg-gradient-to-br from-muted/20 to-muted/40 px-3 py-2.5">
           <div className="flex items-center gap-2">
             {autoTopUp ? (
               <ShieldCheck className="h-4 w-4 text-emerald-500" />

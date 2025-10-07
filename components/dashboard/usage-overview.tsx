@@ -56,7 +56,7 @@ export function UsageOverview({
         ))}
       </div>
       {footnote ? (
-        <div className="rounded-xl border border-border/60 bg-muted/20 px-4 py-3 text-xs text-muted-foreground">
+        <div className="rounded-xl border border-border/50 bg-muted/30 px-4 py-3 text-xs text-muted-foreground">
           {footnote}
         </div>
       ) : null}

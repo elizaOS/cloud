@@ -32,7 +32,7 @@ export function CreditActivity({
 
   return (
     <Card
-      className={cn("border-border/60 bg-background/85 shadow-sm", className)}
+      className={cn("border-border/50 bg-card/95 backdrop-blur-sm shadow-md", className)}
     >
       <CardHeader className="space-y-1">
         <CardTitle className="text-sm font-semibold tracking-tight">
@@ -52,7 +52,7 @@ export function CreditActivity({
               const isCredit = transaction.amount > 0;
               return (
                 <div key={transaction.id}>
-                  <div className="flex items-start justify-between rounded-xl border border-border/60 bg-background/90 px-4 py-3 transition-all hover:border-primary/40 hover:bg-muted/20">
+                  <div className="flex items-start justify-between rounded-xl border border-border/50 bg-muted/30 px-4 py-3 transition-all hover:border-primary/40 hover:bg-muted/40">
                     <div className="flex flex-1 flex-col gap-2">
                       <div className="flex items-center gap-2">
                         <span className="text-sm font-medium text-foreground">

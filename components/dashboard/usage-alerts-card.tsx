@@ -74,7 +74,7 @@ export function UsageAlertsCard({
   return (
     <Card
       className={cn(
-        "h-full border-border/60 bg-background/85 shadow-sm",
+        "h-full border-border/50 bg-card/95 backdrop-blur-sm shadow-md",
         className,
       )}
     >
@@ -97,7 +97,7 @@ export function UsageAlertsCard({
       <Separator />
       <CardContent className="space-y-3 pt-6">
         {alerts.length === 0 ? (
-          <div className="flex items-center gap-3 rounded-xl border border-border/60 bg-gradient-to-br from-background to-emerald-500/5 px-4 py-6">
+          <div className="flex items-center gap-3 rounded-xl border border-border/50 bg-gradient-to-br from-muted/30 to-emerald-500/10 px-4 py-6">
             <CheckCircle2 className="h-5 w-5 text-emerald-500" />
             <div>
               <p className="text-sm font-semibold text-foreground">
@@ -112,7 +112,7 @@ export function UsageAlertsCard({
           <div className="space-y-3">
             {alerts.map((alert, index) => (
               <div key={alert.id}>
-                <div className="rounded-xl border border-border/60 bg-background/95 px-4 py-3 transition-all hover:border-primary/40">
+                <div className="rounded-xl border border-border/50 bg-muted/30 px-4 py-3 transition-all hover:border-primary/40">
                   <div className="flex items-start justify-between gap-3">
                     <div className="flex items-start gap-3">
                       {getSeverityIcon(alert.severity)}
