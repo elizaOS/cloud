@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
@@ -8,6 +8,14 @@ import { Slider } from "@/components/ui/slider";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
+import {
+  Carousel,
+  CarouselContent,
+  CarouselItem,
+  CarouselNext,
+  CarouselPrevious,
+  type CarouselApi,
+} from "@/components/ui/carousel";
 import { 
   Wand2, 
   Sparkles, 
@@ -62,6 +70,10 @@ export function ImageGeneratorAdvanced() {
     guidanceScale: 7.5,
   });
   const [currentImage, setCurrentImage] = useState<GeneratedImage | null>(null);
+  const [currentImages, setCurrentImages] = useState<GeneratedImage[]>([]);
+  const [currentImageIndex, setCurrentImageIndex] = useState<number>(0);
+  const [numImages, setNumImages] = useState<number>(1);
+  const [carouselApi, setCarouselApi] = useState<CarouselApi | undefined>(undefined);
   const [imageHistory, setImageHistory] = useState<GeneratedImage[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -81,7 +93,8 @@ export function ImageGeneratorAdvanced() {
         },
         body: JSON.stringify({ 
           prompt,
-          ...settings 
+          ...settings,
+          numImages,
         }),
       });
 
@@ -91,20 +104,57 @@ export function ImageGeneratorAdvanced() {
         throw new Error(data.error || "Failed to generate image");
       }
 
-      const imageData = data.image.startsWith("data:")
-        ? data.image
-        : `data:image/png;base64,${data.image}`;
+      // Handle multiple images array response
+      if (Array.isArray(data.images) && data.images.length > 0) {
+        const generatedBatch: GeneratedImage[] = data.images.map(
+          (
+            img: { image?: string; url?: string }
+            , index: number
+          ) => {
+            const base64OrData = img.image && img.image.startsWith("data:")
+              ? img.image
+              : img?.image
+              ? `data:image/png;base64,${img.image}`
+              : "";
+            const finalUrl = img.url ?? base64OrData;
+            return {
+              id: `${Date.now()}-${index}`,
+              url: finalUrl,
+              prompt,
+              timestamp: new Date(),
+              settings: { ...settings },
+            };
+          }
+        ).filter((g: GeneratedImage) => Boolean(g.url));
 
-      const newImage: GeneratedImage = {
-        id: Date.now().toString(),
-        url: imageData,
-        prompt,
-        timestamp: new Date(),
-        settings: { ...settings },
-      };
+        if (generatedBatch.length > 0) {
+          setCurrentImages(generatedBatch);
+          setCurrentImage(generatedBatch[0]);
+          setCurrentImageIndex(0);
+          setImageHistory((prev) => [
+            ...generatedBatch,
+            ...prev,
+          ].slice(0, 12));
+        }
+      } else if (data.image) {
+        // Backward compatibility: single image response
+        const imageData = data.image.startsWith("data:")
+          ? data.image
+          : `data:image/png;base64,${data.image}`;
 
-      setCurrentImage(newImage);
-      setImageHistory(prev => [newImage, ...prev].slice(0, 12)); // Keep last 12 images
+        const newImage: GeneratedImage = {
+          id: Date.now().toString(),
+          url: imageData,
+          prompt,
+          timestamp: new Date(),
+          settings: { ...settings },
+        };
+
+        setCurrentImages([newImage]);
+        setCurrentImage(newImage);
+        setCurrentImageIndex(0);
+        setImageHistory((prev) => [newImage, ...prev].slice(0, 12));
+      }
     } catch (err) {
       setError(err instanceof Error ? err.message : "An error occurred");
     } finally {
@@ -128,6 +178,21 @@ export function ImageGeneratorAdvanced() {
   const selectSizePreset = (width: number, height: number) => {
     setSettings(prev => ({ ...prev, width, height }));
   };
+
+  useEffect(() => {
+    if (!carouselApi) return;
+    const onSelect = () => {
+      const idx = carouselApi.selectedScrollSnap();
+      setCurrentImageIndex(idx);
+      const img = currentImages[idx];
+      if (img) setCurrentImage(img);
+    };
+    carouselApi.on("select", onSelect);
+    onSelect();
+    return () => {
+      carouselApi.off("select", onSelect);
+    };
+  }, [carouselApi, currentImages]);
 
   return (
     <div className="flex flex-col lg:flex-row gap-6 w-full h-full">
@@ -266,6 +331,25 @@ export function ImageGeneratorAdvanced() {
                     Higher = more prompt adherence
                   </p>
                 </div>
+
+                {/* Images */}
+                <div className="space-y-2">
+                  <div className="flex items-center justify-between">
+                    <Label className="text-xs text-muted-foreground">Images</Label>
+                    <span className="text-xs font-medium">{numImages}</span>
+                  </div>
+                  <Slider
+                    value={[numImages]}
+                    onValueChange={([value]) => setNumImages(value)}
+                    min={1}
+                    max={4}
+                    step={1}
+                    className="w-full"
+                  />
+                  <p className="text-[10px] text-muted-foreground">
+                    Generate up to 4 images at once
+                  </p>
+                </div>
               </div>
             </div>
 
@@ -321,15 +405,39 @@ export function ImageGeneratorAdvanced() {
             {currentImage ? (
               <Card className="border-2 overflow-hidden">
                 <CardContent className="p-0">
-                  <div className="relative aspect-square w-full bg-muted/10">
-                    <Image
-                      src={currentImage.url}
-                      alt={currentImage.prompt}
-                      fill
-                      className="object-contain"
-                      unoptimized
-                    />
-                  </div>
+                  {currentImages.length > 1 ? (
+                    <div className="relative w-full bg-muted/10">
+                      <Carousel setApi={setCarouselApi} className="w-full">
+                        <CarouselContent>
+                          {currentImages.map((img) => (
+                            <CarouselItem key={img.id}>
+                              <div className="relative aspect-square w-full bg-muted/10">
+                                <Image
+                                  src={img.url}
+                                  alt={img.prompt}
+                                  fill
+                                  className="object-contain"
+                                  unoptimized
+                                />
+                              </div>
+                            </CarouselItem>
+                          ))}
+                        </CarouselContent>
+                        <CarouselPrevious className="left-4 top-1/2 -translate-y-1/2" />
+                        <CarouselNext className="right-4 top-1/2 -translate-y-1/2" />
+                      </Carousel>
+                    </div>
+                  ) : (
+                    <div className="relative aspect-square w-full bg-muted/10">
+                      <Image
+                        src={currentImage.url}
+                        alt={currentImage.prompt}
+                        fill
+                        className="object-contain"
+                        unoptimized
+                      />
+                    </div>
+                  )}
                   
                   <div className="p-6 space-y-4">
                     <div className="space-y-2">
@@ -346,6 +454,11 @@ export function ImageGeneratorAdvanced() {
                         <Badge variant="secondary" className="text-xs">
                           CFG {currentImage.settings.guidanceScale}
                         </Badge>
+                        {currentImages.length > 1 && (
+                          <Badge variant="secondary" className="text-xs">
+                            {currentImageIndex + 1}/{currentImages.length}
+                          </Badge>
+                        )}
                       </div>
                     </div>
 
@@ -353,7 +466,7 @@ export function ImageGeneratorAdvanced() {
                       <Button
                         variant="outline"
                         size="sm"
-                        onClick={() => handleDownload(currentImage)}
+                        onClick={() => handleDownload(currentImages[currentImageIndex] ?? currentImage)}
                         className="gap-2"
                       >
                         <Download className="h-4 w-4" />
