@@ -17,12 +17,10 @@ import {
   Download, 
   History,
   Maximize2,
-  Copy,
   Heart,
   Share2
 } from "lucide-react";
 import Image from "next/image";
-import { cn } from "@/lib/utils";
 import { EnhancedLoading } from "./enhanced-loading";
 
 interface ImageGenerationSettings {
