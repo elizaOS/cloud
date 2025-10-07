@@ -24,6 +24,7 @@ import {
   History,
   Loader2,
 } from "lucide-react";
+import { useSetPageHeader } from "@/components/layout/page-header-context";
 
 import { VideoGenerationForm } from "./video-generation-form";
 import { VideoPreview } from "./video-preview";
@@ -153,6 +154,12 @@ export function VideoPageClient({
   const [isGenerating, setIsGenerating] = useState<boolean>(false);
   const [formError, setFormError] = useState<string | null>(null);
   const [statusMessage, setStatusMessage] = useState<string | null>(null);
+
+  useSetPageHeader({
+    title: "Video Generation Studio",
+    description:
+      "Generate stunning clips, iterate on creative directions, and keep an eye on usage — all in one streamlined workspace.",
+  });
 
   const creditsUsed = usageStats.monthlyCredits;
   const creditProgress = Math.min(
@@ -395,74 +402,6 @@ export function VideoPageClient({
 
   return (
     <div className="flex flex-col gap-8">
-      <section className="flex flex-col gap-6 rounded-3xl border border-border/60 bg-background/80 p-6 shadow-sm">
-        <div className="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
-          <div className="space-y-2">
-            <Badge
-              variant="outline"
-              className="w-fit rounded-full border-primary/40 bg-primary/5 px-3 py-1 text-xs uppercase tracking-wide text-primary"
-            >
-              Video studio
-            </Badge>
-            <div className="space-y-2">
-              <h1 className="text-3xl font-semibold tracking-tight text-foreground md:text-4xl">
-                Bring motion to your ideas
-              </h1>
-              <p className="max-w-3xl text-sm text-muted-foreground md:text-base">
-                Generate stunning clips, iterate on creative directions, and
-                keep an eye on usage — all in one streamlined workspace tailored
-                for video experimentation.
-              </p>
-            </div>
-          </div>
-          <div className="flex flex-col gap-2 sm:flex-row">
-            <Button
-              variant="outline"
-              className="rounded-xl border-border/70 bg-background"
-              asChild
-            >
-              <Link
-                href="https://fal.ai/models/flux"
-                target="_blank"
-                rel="noreferrer"
-              >
-                <BookOpen className="mr-2 h-4 w-4" />
-                View docs
-              </Link>
-            </Button>
-            <Button className="rounded-xl" asChild>
-              <Link href="mailto:team@eliza.ai?subject=Video%20Studio%20Access">
-                <ArrowUpRight className="mr-2 h-4 w-4" />
-                Request early access
-              </Link>
-            </Button>
-          </div>
-        </div>
-        <div className="hidden h-px border-t border-border/60 md:block" />
-        <div className="grid gap-4 text-sm text-muted-foreground md:grid-cols-3">
-          <div>
-            <p className="text-xs uppercase tracking-wide">Last render</p>
-            <p className="mt-1 text-base font-medium text-foreground">
-              {usageStats.lastGeneration
-                ? new Date(usageStats.lastGeneration).toLocaleString()
-                : "No activity yet"}
-            </p>
-          </div>
-          <div>
-            <p className="text-xs uppercase tracking-wide">Total renders</p>
-            <p className="mt-1 text-base font-medium text-foreground">
-              {usageStats.totalRenders.toLocaleString()}
-            </p>
-          </div>
-          <div>
-            <p className="text-xs uppercase tracking-wide">Avg. duration</p>
-            <p className="mt-1 text-base font-medium text-foreground">
-              {usageStats.averageDuration.toFixed(1)}s
-            </p>
-          </div>
-        </div>
-      </section>
-
       <section className="grid gap-6 xl:grid-cols-[minmax(0,1.1fr)_minmax(0,1fr)]">
         <VideoGenerationForm
           prompt={prompt}

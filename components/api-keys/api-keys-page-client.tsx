@@ -1,9 +1,10 @@
 "use client";
 
-import { useMemo, useState } from "react";
-import { KeyRound, Plus, Copy } from "lucide-react";
+import { useEffect, useMemo, useState } from "react";
+import { Plus, Copy } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
+import { useSetPageHeader } from "@/components/layout/page-header-context";
 
 import { ApiKeyEmptyState } from "./api-key-empty-state";
 import { ApiKeysSummary } from "./api-keys-summary";
@@ -18,7 +19,6 @@ import {
   DialogFooter,
   DialogHeader,
   DialogTitle,
-  DialogTrigger,
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -87,6 +87,21 @@ export function ApiKeysPageClient({ keys, summary }: ApiKeysPageClientProps) {
   } | null>(null);
 
   const hasKeys = keys.length > 0;
+
+  useSetPageHeader({
+    title: "API Keys",
+    description: "Securely manage programmatic access to the Eliza Cloud platform",
+    actions: (
+      <Button
+        size="sm"
+        className="gap-2"
+        onClick={() => setCreateDialogOpen(true)}
+      >
+        <Plus className="h-4 w-4" />
+        Create API Key
+      </Button>
+    ),
+  });
 
   const permissionsPreview = useMemo(() => {
     return permissionGroups.flatMap((group) =>
@@ -259,31 +274,7 @@ export function ApiKeysPageClient({ keys, summary }: ApiKeysPageClientProps) {
 
   return (
     <div className="flex flex-col gap-8">
-      <header className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
-        <div>
-          <div className="flex items-center gap-3">
-            <span className="flex h-10 w-10 items-center justify-center rounded-full bg-primary/10 text-primary">
-              <KeyRound className="h-5 w-5" />
-            </span>
-            <div>
-              <h1 className="text-3xl font-bold">API Keys</h1>
-              <p className="text-sm text-muted-foreground">
-                Securely manage programmatic access to the Eliza Cloud platform.
-              </p>
-            </div>
-          </div>
-        </div>
-
-        <Dialog open={createDialogOpen} onOpenChange={setCreateDialogOpen}>
-          <DialogTrigger asChild>
-            <Button
-              size="lg"
-              className="gap-2 self-start rounded-full px-6 shadow-sm shadow-primary/20"
-            >
-              <Plus className="h-4 w-4" />
-              Create API Key
-            </Button>
-          </DialogTrigger>
+      <Dialog open={createDialogOpen} onOpenChange={setCreateDialogOpen}>
           <DialogContent className="max-w-2xl">
             <DialogHeader>
               <DialogTitle>Create API key</DialogTitle>
@@ -424,7 +415,6 @@ export function ApiKeysPageClient({ keys, summary }: ApiKeysPageClientProps) {
             </DialogFooter>
           </DialogContent>
         </Dialog>
-      </header>
 
       <ApiKeysSummary summary={summary} />
 
