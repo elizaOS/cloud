@@ -50,6 +50,7 @@
     "@tsparticles/react": "^3.0.0",
     "@tsparticles/slim": "^3.9.1",
     "@vercel/analytics": "^1.5.0",
+    "@vercel/blob": "^2.0.0",
     "@workos-inc/authkit-nextjs": "^2.9.0",
     "ai": "^5.0.60",
     "class-variance-authority": "^0.7.1",
