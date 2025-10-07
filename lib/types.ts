@@ -68,3 +68,43 @@ export interface UsageMetadata {
   request_id?: string;
   [key: string]: unknown;
 }
+
+export type UserCharacter = InferSelectModel<typeof schema.userCharacters>;
+export type NewUserCharacter = InferInsertModel<typeof schema.userCharacters>;
+
+export type TemplateType =
+  | string
+  | ((options: { state: Record<string, unknown> }) => string);
+
+export interface ElizaCharacter {
+  id?: string;
+  name: string;
+  username?: string;
+  system?: string;
+  templates?: {
+    [key: string]: TemplateType;
+  };
+  bio: string | string[];
+  messageExamples?: Array<
+    Array<{
+      name: string;
+      content: {
+        text: string;
+        action?: string;
+        [key: string]: unknown;
+      };
+    }>
+  >;
+  postExamples?: string[];
+  topics?: string[];
+  adjectives?: string[];
+  knowledge?: (string | { path: string; shared?: boolean })[];
+  plugins?: string[];
+  settings?: Record<string, string | boolean | number | Record<string, unknown>>;
+  secrets?: Record<string, string | boolean | number>;
+  style?: {
+    all?: string[];
+    chat?: string[];
+    post?: string[];
+  };
+}
