@@ -16,5 +16,12 @@
 - Never use `any` or `unknown` types
 - Always provide explicit type definitions
 
+## AI/ML Libraries
+- Prefer to use Vercel AI SDK wherever possible for AI-related functionality
+- Use AI SDK elements for AI-related UI elements whenever possible (e.g., message components, reasoning displays, artifacts, etc.)
+
+## Documentation
+- Use Context7 MCP for library documentation whenever needed
+
 ## General
 - Continuously update cursor rules based on interactions and preferences
