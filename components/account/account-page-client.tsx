@@ -5,10 +5,10 @@ import { ProfileForm } from "./profile-form";
 import { OrganizationInfo } from "./organization-info";
 import { AccountDetails } from "./account-details";
 import { SecurityPreferences } from "./security-preferences";
-import type { User } from "@/lib/types";
+import type { UserWithOrganization } from "@/lib/types";
 
 interface AccountPageClientProps {
-  user: User;
+  user: UserWithOrganization;
 }
 
 export function AccountPageClient({ user }: AccountPageClientProps) {

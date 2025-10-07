@@ -1,9 +1,10 @@
 import Link from "next/link";
-import { Sparkles, ArrowUpRight, CreditCard, Building2 } from "lucide-react";
+import { Sparkles, ArrowUpRight, CreditCard, Building2, TrendingUp } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Card, CardContent } from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
+import { Separator } from "@/components/ui/separator";
 import { cn } from "@/lib/utils";
 
 interface HeroStat {
@@ -47,36 +48,36 @@ export function DashboardHero({
   return (
     <Card
       className={cn(
-        "relative overflow-hidden border-border/60 bg-gradient-to-br from-background via-background/90 to-muted/60 shadow-sm",
+        "relative overflow-hidden border-border/50 bg-gradient-to-br from-card/95 via-card/90 to-muted/50 backdrop-blur-sm shadow-md",
         className,
       )}
     >
-      <CardContent className="relative z-10 flex flex-col gap-6 p-6 sm:p-8">
+      <CardHeader className="relative z-10 pb-4">
         <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
           <div className="space-y-3">
-            <div className="inline-flex items-center gap-2 rounded-full border border-border/60 bg-background/80 px-3 py-1 text-xs text-muted-foreground">
-              <Sparkles className="h-3.5 w-3.5 text-primary" />
+            <Badge variant="secondary" className="w-fit rounded-full border border-border/60 bg-background/80 px-3 py-1">
+              <Sparkles className="mr-1.5 h-3.5 w-3.5 text-primary" />
               <span>Good to see you, {userName}</span>
-            </div>
+            </Badge>
             <div className="space-y-2">
-              <h1 className="text-3xl font-semibold tracking-tight text-foreground md:text-4xl">
+              <CardTitle className="text-3xl font-semibold tracking-tight md:text-4xl">
                 Build, deploy, and monitor your AI agents
-              </h1>
-              <p className="max-w-2xl text-sm text-muted-foreground md:text-base">
+              </CardTitle>
+              <CardDescription className="max-w-2xl text-sm md:text-base">
                 Stay on top of credits, observe generation activity, and jump
                 into the tools you use the most—all from one streamlined
                 dashboard.
-              </p>
+              </CardDescription>
             </div>
-            <div className="flex flex-wrap items-center gap-3 text-sm text-muted-foreground">
-              <span className="inline-flex items-center gap-1 rounded-full bg-primary/10 px-3 py-1 text-primary">
+            <div className="flex flex-wrap items-center gap-3 text-sm">
+              <Badge variant="default" className="gap-1.5 rounded-full bg-primary/10 text-primary hover:bg-primary/20">
                 <Building2 className="h-4 w-4" />
                 {organizationName}
-              </span>
-              <span className="inline-flex items-center gap-2 rounded-full border border-border/50 bg-background/70 px-3 py-1 font-medium text-foreground">
+              </Badge>
+              <Badge variant="outline" className="gap-2 rounded-full border-border/50 bg-background/70 font-medium">
                 <CreditCard className="h-4 w-4 text-primary" />
                 {creditBalance.toLocaleString()} credits
-              </span>
+              </Badge>
             </div>
           </div>
 
@@ -101,33 +102,42 @@ export function DashboardHero({
             ) : null}
           </div>
         </div>
+      </CardHeader>
 
-        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+      <Separator className="relative z-10" />
+
+      <CardContent className="relative z-10 pt-6">
+        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
           {stats.map((stat) => (
-            <div
+            <Card
               key={stat.label}
-              className="group rounded-2xl border border-border/50 bg-background/80 px-4 py-3 shadow-sm transition hover:border-primary/40 hover:bg-background/90"
+              className="group border-border/40 bg-muted/30 backdrop-blur-sm shadow-sm transition-all hover:border-primary/40 hover:bg-muted/40 hover:shadow-md"
             >
-              <div className="flex items-center justify-between gap-2">
-                <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-                  {stat.label}
-                </p>
-                {stat.badge ? (
-                  <Badge
-                    variant="outline"
-                    className="rounded-full border-border/50 text-[11px]"
-                  >
-                    {stat.badge}
-                  </Badge>
+              <CardContent className="p-4">
+                <div className="flex items-center justify-between gap-2">
+                  <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                    {stat.label}
+                  </p>
+                  {stat.badge ? (
+                    <Badge
+                      variant="outline"
+                      className="rounded-full border-border/50 text-[11px]"
+                    >
+                      {stat.badge}
+                    </Badge>
+                  ) : null}
+                </div>
+                <div className="mt-3 flex items-baseline gap-2">
+                  <p className="text-2xl font-semibold text-foreground">
+                    {stat.value}
+                  </p>
+                  <TrendingUp className="h-4 w-4 text-emerald-500 opacity-0 transition-opacity group-hover:opacity-100" />
+                </div>
+                {stat.hint ? (
+                  <p className="mt-1 text-xs text-muted-foreground">{stat.hint}</p>
                 ) : null}
-              </div>
-              <p className="mt-2 text-2xl font-semibold text-foreground">
-                {stat.value}
-              </p>
-              {stat.hint ? (
-                <p className="text-xs text-muted-foreground">{stat.hint}</p>
-              ) : null}
-            </div>
+              </CardContent>
+            </Card>
           ))}
         </div>
       </CardContent>

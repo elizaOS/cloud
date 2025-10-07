@@ -1,7 +1,8 @@
 import { Activity, AlertTriangle, CheckCircle2 } from "lucide-react";
 
 import { Badge } from "@/components/ui/badge";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
+import { Separator } from "@/components/ui/separator";
 import { cn } from "@/lib/utils";
 
 export interface ProviderHealthItem {
@@ -53,54 +54,55 @@ export function ProviderHealthCard({
 
   return (
     <Card
-      className={cn("border-border/60 bg-background/85 shadow-sm", className)}
+      className={cn("border-border/50 bg-card/95 backdrop-blur-sm shadow-md", className)}
     >
-      <CardHeader className="flex flex-row items-center justify-between space-y-0">
+      <CardHeader>
         <div className="flex items-center gap-3">
           {icon}
-          <div>
+          <div className="space-y-1">
             <CardTitle className="text-sm font-semibold tracking-tight">
               Provider health
             </CardTitle>
-            <p className="text-xs text-muted-foreground">
+            <CardDescription className="text-xs">
               Live status checks for key providers.
-            </p>
+            </CardDescription>
           </div>
         </div>
       </CardHeader>
-      <CardContent className="space-y-3">
+      <Separator />
+      <CardContent className="pt-6">
         {top.length === 0 ? (
-          <p className="text-sm text-muted-foreground">
+          <p className="py-8 text-center text-sm text-muted-foreground">
             No providers to display.
           </p>
         ) : (
           <div className="space-y-3">
-            {top.map((p) => (
-              <div
-                key={p.provider}
-                className="flex items-center justify-between rounded-xl border border-border/60 bg-background/90 px-4 py-3"
-              >
-                <div className="flex items-center gap-3">
-                  {p.status === "healthy" ? (
-                    <CheckCircle2 className="h-4 w-4 text-emerald-500" />
-                  ) : p.status === "degraded" ? (
-                    <AlertTriangle className="h-4 w-4 text-amber-500" />
-                  ) : (
-                    <AlertTriangle className="h-4 w-4 text-rose-500" />
-                  )}
-                  <div className="flex flex-col">
-                    <span className="text-sm font-medium text-foreground">
-                      {p.provider}
-                    </span>
-                    <span className="text-[11px] uppercase tracking-wide text-muted-foreground/80">
-                      {p.responseTime ? `${p.responseTime} ms` : "—"}
-                      {p.errorRate != null
-                        ? ` • ${(p.errorRate * 100).toFixed(1)}% err`
-                        : ""}
-                    </span>
+            {top.map((p, index) => (
+              <div key={p.provider}>
+                <div className="flex items-center justify-between rounded-xl border border-border/50 bg-muted/30 px-4 py-3 transition-all hover:border-primary/40 hover:bg-muted/40">
+                  <div className="flex items-center gap-3">
+                    {p.status === "healthy" ? (
+                      <CheckCircle2 className="h-4 w-4 text-emerald-500" />
+                    ) : p.status === "degraded" ? (
+                      <AlertTriangle className="h-4 w-4 text-amber-500" />
+                    ) : (
+                      <AlertTriangle className="h-4 w-4 text-rose-500" />
+                    )}
+                    <div className="flex flex-col gap-1">
+                      <span className="text-sm font-medium text-foreground">
+                        {p.provider}
+                      </span>
+                      <span className="text-[11px] uppercase tracking-wide text-muted-foreground/80">
+                        {p.responseTime ? `${p.responseTime} ms` : "—"}
+                        {p.errorRate != null
+                          ? ` • ${(p.errorRate * 100).toFixed(1)}% err`
+                          : ""}
+                      </span>
+                    </div>
                   </div>
+                  {statusBadge(p.status)}
                 </div>
-                {statusBadge(p.status)}
+                {index < top.length - 1 && <Separator className="my-3" />}
               </div>
             ))}
           </div>
