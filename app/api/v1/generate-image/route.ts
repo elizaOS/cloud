@@ -4,6 +4,7 @@ import { createUsageRecord } from "@/lib/queries/usage";
 import { deductCredits } from "@/lib/queries/credits";
 import { createGeneration, updateGeneration } from "@/lib/queries/generations";
 import { IMAGE_GENERATION_COST } from "@/lib/pricing";
+import { uploadBase64Image } from "@/lib/blob";
 import type { NextRequest } from "next/server";
 
 export const maxDuration = 30;
@@ -128,17 +129,42 @@ export async function POST(req: NextRequest) {
     const mimeTypeMatch = imageBase64.match(/^data:([^;]+);base64,/);
     const mimeType = mimeTypeMatch ? mimeTypeMatch[1] : "image/png";
 
+    // Upload to Vercel Blob
+    let blobUrl = imageBase64;
+    let fileSize: bigint | null = null;
+    try {
+      const fileExtension = mimeType.split("/")[1] || "png";
+      const blobResult = await uploadBase64Image(imageBase64, {
+        filename: `${generationId}.${fileExtension}`,
+        folder: "images",
+        userId: user.id,
+      });
+      blobUrl = blobResult.url;
+      fileSize = blobResult.size ? BigInt(blobResult.size) : null;
+      console.log(
+        `[IMAGE GENERATION] Uploaded to Vercel Blob: ${blobUrl} (${blobResult.size} bytes)`,
+      );
+    } catch (blobError) {
+      console.error(
+        "[IMAGE GENERATION] Failed to upload to Vercel Blob:",
+        blobError,
+      );
+      // Continue with base64 as fallback
+    }
+
     if (generationId) {
       await updateGeneration(generationId, {
         status: "completed",
         content: imageBase64,
-        storage_url: imageBase64,
+        storage_url: blobUrl,
         mime_type: mimeType,
+        file_size: fileSize,
         usage_record_id: usageRecord.id,
         completed_at: new Date(),
         result: {
           image: imageBase64,
           text: textResponse,
+          blobUrl: blobUrl !== imageBase64 ? blobUrl : undefined,
         },
       });
     }
@@ -149,6 +175,7 @@ export async function POST(req: NextRequest) {
 
     return Response.json({
       image: imageBase64,
+      url: blobUrl !== imageBase64 ? blobUrl : undefined,
       text: textResponse,
       finishReason: await result.finishReason,
     });

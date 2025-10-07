@@ -9,6 +9,7 @@ import {
   VIDEO_GENERATION_COST,
   VIDEO_GENERATION_FALLBACK_COST,
 } from "@/lib/pricing";
+import { uploadFromUrl } from "@/lib/blob";
 
 fal.config({
   proxyUrl: "/api/fal/proxy",
@@ -128,6 +129,35 @@ export async function POST(request: NextRequest) {
       `[VIDEO GENERATION] Success for user ${user.id}, requestId: ${result.requestId}`,
     );
 
+    // Upload video to Vercel Blob
+    let blobUrl = data.video.url;
+    let blobFileSize: bigint | null = data.video.file_size
+      ? BigInt(data.video.file_size)
+      : null;
+    try {
+      const fileExtension =
+        data.video.content_type?.split("/")[1] ||
+        data.video.file_name?.split(".").pop() ||
+        "mp4";
+      const blobResult = await uploadFromUrl(data.video.url, {
+        filename: `${generationId}.${fileExtension}`,
+        contentType: data.video.content_type || "video/mp4",
+        folder: "videos",
+        userId: user.id,
+      });
+      blobUrl = blobResult.url;
+      blobFileSize = blobResult.size ? BigInt(blobResult.size) : null;
+      console.log(
+        `[VIDEO GENERATION] Uploaded to Vercel Blob: ${blobUrl} (${blobResult.size} bytes)`,
+      );
+    } catch (blobError) {
+      console.error(
+        "[VIDEO GENERATION] Failed to upload to Vercel Blob:",
+        blobError,
+      );
+      // Continue with original URL as fallback
+    }
+
     const deductionResult = await deductCredits(
       user.organization_id,
       VIDEO_GENERATION_COST,
@@ -158,9 +188,9 @@ export async function POST(request: NextRequest) {
     if (generationId) {
       await updateGeneration(generationId, {
         status: "completed",
-        storage_url: data.video.url,
+        storage_url: blobUrl,
         mime_type: data.video.content_type || "video/mp4",
-        file_size: data.video.file_size ? BigInt(data.video.file_size) : null,
+        file_size: blobFileSize,
         dimensions: {
           width: data.video.width,
           height: data.video.height,
@@ -168,11 +198,16 @@ export async function POST(request: NextRequest) {
         usage_record_id: usageRecord.id,
         completed_at: new Date(),
         result: {
-          video: data.video,
+          video: {
+            ...data.video,
+            url: blobUrl,
+          },
+          originalUrl: data.video.url,
           seed: data.seed,
           has_nsfw_concepts: data.has_nsfw_concepts,
           timings: data.timings,
           requestId: result.requestId,
+          blobUrl: blobUrl !== data.video.url ? blobUrl : undefined,
         },
       });
     }
@@ -183,7 +218,11 @@ export async function POST(request: NextRequest) {
 
     return NextResponse.json(
       {
-        video: data.video,
+        video: {
+          ...data.video,
+          url: blobUrl,
+        },
+        originalUrl: data.video.url,
         seed: data.seed,
         has_nsfw_concepts: data.has_nsfw_concepts,
         timings: data.timings,

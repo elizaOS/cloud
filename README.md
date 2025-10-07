@@ -39,8 +39,10 @@ Eliza Cloud V2 is a full-stack AI agent development platform that provides:
 
 - **Text & Chat**: Engage with multiple AI models (GPT-4, Claude, etc.) in a beautiful chat interface
 - **Image Creation**: Generate high-quality images from text descriptions using Google Gemini 2.5 Flash
+- **Video Generation**: Create AI-powered videos using Fal.ai models (Veo3, Kling, MiniMax Hailuo)
 - **Model Selection**: Switch between different AI models on the fly
 - **Real-time Streaming**: See AI responses appear in real-time
+- **Cloud Storage**: Automatic upload to Vercel Blob for persistent media storage
 
 ### 🎨 User Experience
 
@@ -60,7 +62,7 @@ Eliza Cloud V2 is a full-stack AI agent development platform that provides:
 
 - **Usage Analytics**: Track your AI usage and costs
 - **API Key Management**: Secure API key storage and rotation
-- **Gallery**: Browse and manage generated content
+- **Media Gallery**: Browse, download, and manage generated images and videos with Vercel Blob storage
 - **Account Settings**: Customize your profile and preferences
 
 ## 🏗 Architecture
@@ -237,12 +239,20 @@ NEXT_PUBLIC_WORKOS_REDIRECT_URI=http://localhost:3000/api/auth/callback
 
 # AI Gateway
 AI_GATEWAY_API_KEY=your_ai_gateway_api_key
+
+# Vercel Blob Storage (for Gallery feature)
+BLOB_READ_WRITE_TOKEN=your_vercel_blob_token
+
+# Fal.ai (for Video Generation)
+FAL_KEY=your_fal_api_key
 ```
 
 **Important**:
 
 - Generate a secure `WORKOS_COOKIE_PASSWORD` (minimum 32 characters)
 - Configure `AI_GATEWAY_API_KEY` to access multiple AI models
+- Set up `BLOB_READ_WRITE_TOKEN` from Vercel Blob for media storage (see [Vercel Blob Setup](#vercel-blob-storage))
+- Add `FAL_KEY` from Fal.ai for video generation capabilities
 - For production, update `NEXT_PUBLIC_WORKOS_REDIRECT_URI` to your production domain
 
 ### 4. Database Setup
@@ -572,6 +582,126 @@ className={cn(
 - **Real-time Dashboard**: Available in Vercel dashboard
 - **Zero Configuration**: Works out of the box when deployed to Vercel
 - **Performance Monitoring**: Core Web Vitals tracking
+
+### 9. Gallery & Media Storage (Vercel Blob)
+
+**Location**: `/app/dashboard/gallery/`, `/lib/blob.ts`, `/app/actions/gallery.ts`
+
+**How it works**:
+
+The Gallery feature provides a centralized location to view, manage, and download all AI-generated images and videos. Media files are automatically uploaded to Vercel Blob for reliable, scalable cloud storage.
+
+**Features**:
+
+- **Automatic Upload**: Images and videos are automatically uploaded to Vercel Blob after generation
+- **Media Grid Display**: Beautiful grid layout with image previews and video thumbnails
+- **Filter by Type**: View all media, or filter by images or videos only
+- **Media Details**: View full-size media with generation details (prompt, model, dimensions, file size)
+- **Download**: Download any media file to your local device
+- **Delete**: Remove media from both the database and Vercel Blob storage
+- **Usage Statistics**: Track total images, videos, and storage used
+
+**Vercel Blob Storage**:
+
+Vercel Blob is used for persistent storage of generated media with the following benefits:
+
+- **Global CDN**: Fast delivery from 19 regional hubs worldwide
+- **Public Access**: Direct URL access with unguessable paths
+- **Cost-Efficient**: 3x more cost-efficient than Fast Data Transfer
+- **No Upload Fees**: Only pay for downloads (outbound traffic)
+- **Automatic Caching**: Browser and edge caching for optimal performance
+- **File Organization**: Hierarchical folder structure (`images/userId/timestamp-filename`)
+
+**Setup**:
+
+1. Create a Vercel Blob store in your Vercel account:
+   - Go to the [Vercel Dashboard](https://vercel.com/dashboard)
+   - Navigate to Storage → Create → Blob
+   - Select your preferred region (closest to your users)
+   - Copy the `BLOB_READ_WRITE_TOKEN`
+
+2. Add the token to your `.env.local`:
+   ```env
+   BLOB_READ_WRITE_TOKEN=vercel_blob_rw_...
+   ```
+
+3. Deploy your application - the Gallery will automatically start uploading media to Vercel Blob
+
+**API Endpoints**:
+
+```bash
+# List user's media
+GET /api/v1/gallery?type=image&limit=100&offset=0
+
+# Response
+{
+  "items": [
+    {
+      "id": "uuid",
+      "type": "image",
+      "url": "https://...blob.vercel-storage.com/...",
+      "prompt": "A beautiful sunset",
+      "model": "google/gemini-2.5-flash-image-preview",
+      "createdAt": "2025-01-01T00:00:00.000Z",
+      "dimensions": { "width": 1024, "height": 1024 },
+      "fileSize": "2048576"
+    }
+  ],
+  "count": 1,
+  "hasMore": false
+}
+```
+
+**Server Actions**:
+
+```typescript
+import { listUserMedia, deleteMedia, getUserMediaStats } from '@/app/actions/gallery';
+
+// List media
+const items = await listUserMedia({ type: 'image', limit: 50 });
+
+// Delete media
+await deleteMedia(generationId);
+
+// Get statistics
+const stats = await getUserMediaStats();
+// { totalImages: 10, totalVideos: 5, totalSize: 52428800 }
+```
+
+**Blob Utility Functions**:
+
+```typescript
+import { uploadBase64Image, uploadFromUrl, deleteBlob } from '@/lib/blob';
+
+// Upload base64 image
+const result = await uploadBase64Image(base64Data, {
+  filename: 'myimage.png',
+  folder: 'images',
+  userId: user.id,
+});
+
+// Upload from URL (for videos)
+const result = await uploadFromUrl('https://example.com/video.mp4', {
+  filename: 'myvideo.mp4',
+  contentType: 'video/mp4',
+  folder: 'videos',
+  userId: user.id,
+});
+
+// Delete blob
+await deleteBlob(blobUrl);
+```
+
+**Storage Pricing**:
+
+- **Storage**: Measured as GB-month average (snapshot every 15 minutes)
+- **Operations**: 
+  - Simple operations: `head()` and cache MISS reads
+  - Advanced operations: `put()`, `copy()`, `list()` (uploads are free)
+  - Delete operations: Free (no billing charge)
+- **Data Transfer**: Only downloads (outbound) are charged
+
+For detailed pricing, see [Vercel Blob Pricing](https://vercel.com/docs/storage/vercel-blob/pricing).
 
 ## 🗄 Database Management
 
