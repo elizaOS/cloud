@@ -72,9 +72,12 @@ export function generateJSON(
 }
 
 export async function generateExcel(
-  data: Array<Record<string, unknown>>,
-  columns: Array<ExportColumn>,
-  options?: ExportOptions
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  ..._args: [
+    data: Array<Record<string, unknown>>,
+    columns: Array<ExportColumn>,
+    options?: ExportOptions
+  ]
 ): Promise<Buffer> {
   throw new Error(
     "Excel export requires 'xlsx' package. Install with: bun add xlsx"
@@ -82,10 +85,13 @@ export async function generateExcel(
 }
 
 export async function generatePDF(
-  data: Array<Record<string, unknown>>,
-  columns: Array<ExportColumn>,
-  title: string,
-  options?: ExportOptions
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  ..._args: [
+    data: Array<Record<string, unknown>>,
+    columns: Array<ExportColumn>,
+    title: string,
+    options?: ExportOptions
+  ]
 ): Promise<Buffer> {
   throw new Error(
     "PDF export requires 'pdfkit' package. Install with: bun add pdfkit @types/pdfkit"
