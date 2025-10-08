@@ -9,6 +9,7 @@ import {
 } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { ScrollArea } from "@/components/ui/scroll-area";
+import { Button } from "@/components/ui/button";
 import {
   Collapsible,
   CollapsibleContent,
@@ -22,7 +23,6 @@ import {
   InfoIcon,
 } from "lucide-react";
 import { toast } from "@/lib/utils/toast-adapter";
-import { cn } from "@/lib/utils";
 import type { OpenAPISpec, OpenAPISchema } from "@/lib/swagger/openapi-generator";
 
 interface SchemaViewerProps {
@@ -36,10 +36,10 @@ export function SchemaViewer({ spec }: SchemaViewerProps) {
 
   if (!spec) {
     return (
-      <Card className="border-gray-200 dark:border-transparent">
-        <CardContent className="text-center py-12">
-          <DatabaseIcon className="h-12 w-12 mx-auto mb-4 text-gray-400" />
-          <p className="text-gray-500 dark:text-gray-400">Loading schemas...</p>
+      <Card className="border-border/60 bg-background/60">
+        <CardContent className="py-12 text-center">
+          <DatabaseIcon className="mx-auto mb-4 h-12 w-12 text-muted-foreground/60" />
+          <p className="text-sm text-muted-foreground">Loading schemas...</p>
         </CardContent>
       </Card>
     );
@@ -64,20 +64,21 @@ export function SchemaViewer({ spec }: SchemaViewerProps) {
   };
 
   const getTypeColor = (type: string) => {
+    const base = "rounded-full px-2.5 py-1 text-xs font-medium ring-1 ring-inset";
     switch (type) {
       case "string":
-        return "bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-300";
+        return `${base} bg-emerald-500/10 text-emerald-600 ring-emerald-500/30 dark:text-emerald-300`;
       case "number":
       case "integer":
-        return "bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-300";
+        return `${base} bg-blue-500/10 text-blue-600 ring-blue-500/30 dark:text-blue-300`;
       case "boolean":
-        return "bg-purple-100 text-purple-800 dark:bg-purple-900 dark:text-purple-300";
+        return `${base} bg-violet-500/10 text-violet-600 ring-violet-500/30 dark:text-violet-300`;
       case "array":
-        return "bg-orange-100 text-orange-800 dark:bg-orange-900 dark:text-orange-300";
+        return `${base} bg-amber-500/10 text-amber-600 ring-amber-500/30 dark:text-amber-300`;
       case "object":
-        return "bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-300";
+        return `${base} bg-cyan-500/10 text-cyan-600 ring-cyan-500/30 dark:text-cyan-300`;
       default:
-        return "bg-gray-100 text-gray-800 dark:bg-gray-900 dark:text-gray-300";
+        return `${base} bg-muted text-muted-foreground`;
     }
   };
 
@@ -91,7 +92,7 @@ export function SchemaViewer({ spec }: SchemaViewerProps) {
     return (
       <div
         key={name}
-        className="border-l-2 border-gray-200 dark:border-gray-700 pl-4 mb-3"
+        className="mb-3 border-l-2 border-border/60 pl-4"
       >
         <div className="flex items-center gap-2 mb-2">
           <code className="font-mono font-semibold text-sm">{name}</code>
@@ -101,9 +102,7 @@ export function SchemaViewer({ spec }: SchemaViewerProps) {
             </Badge>
           )}
           {schema.type && (
-            <Badge className={cn("text-xs", getTypeColor(schema.type))}>
-              {schema.type}
-            </Badge>
+            <span className={getTypeColor(schema.type)}>{schema.type}</span>
           )}
           {schema.format && (
             <Badge variant="outline" className="text-xs">
@@ -113,17 +112,17 @@ export function SchemaViewer({ spec }: SchemaViewerProps) {
         </div>
 
         {schema.description && (
-          <p className="text-sm text-gray-600 dark:text-gray-400 mb-2">
+          <p className="mb-2 text-sm text-muted-foreground">
             {schema.description}
           </p>
         )}
 
         {schema.example !== undefined && (
           <div className="mb-2">
-            <div className="text-xs font-medium text-gray-500 dark:text-gray-400 mb-1">
+            <div className="mb-1 text-xs font-medium text-muted-foreground">
               Example:
             </div>
-            <code className="text-xs bg-gray-100 dark:bg-gray-800 px-2 py-1 rounded">
+            <code className="rounded bg-muted px-2 py-1 text-xs">
               {String(JSON.stringify(schema.example))}
             </code>
           </div>
@@ -131,7 +130,7 @@ export function SchemaViewer({ spec }: SchemaViewerProps) {
 
         {schema.enum && (
           <div className="mb-2">
-            <div className="text-xs font-medium text-gray-500 dark:text-gray-400 mb-1">
+            <div className="mb-1 text-xs font-medium text-muted-foreground">
               Enum values:
             </div>
             <div className="flex flex-wrap gap-1">
@@ -146,7 +145,7 @@ export function SchemaViewer({ spec }: SchemaViewerProps) {
 
         {schema.type === "array" && schema.items && (
           <div className="ml-4">
-            <div className="text-xs font-medium text-gray-500 dark:text-gray-400 mb-2">
+            <div className="mb-2 text-xs font-medium text-muted-foreground">
               Array items:
             </div>
             {renderProperty("items", schema.items, level + 1)}
@@ -155,7 +154,7 @@ export function SchemaViewer({ spec }: SchemaViewerProps) {
 
         {schema.type === "object" && schema.properties && (
           <div className="ml-4">
-            <div className="text-xs font-medium text-gray-500 dark:text-gray-400 mb-2">
+            <div className="mb-2 text-xs font-medium text-muted-foreground">
               Properties:
             </div>
             {Object.entries(schema.properties).map(([propName, propSchema]) =>
@@ -171,10 +170,10 @@ export function SchemaViewer({ spec }: SchemaViewerProps) {
     const isExpanded = expandedSchemas.has(name);
 
     return (
-      <Card key={name} className="mb-4 border-gray-200 dark:border-transparent">
+      <Card key={name} className="mb-4 border-border/60 bg-background/60">
         <Collapsible open={isExpanded} onOpenChange={() => toggleSchema(name)}>
           <CollapsibleTrigger className="w-full">
-            <CardHeader className="cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors">
+            <CardHeader className="cursor-pointer transition-colors hover:bg-muted/50">
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-2">
                   {isExpanded ? (
@@ -184,23 +183,25 @@ export function SchemaViewer({ spec }: SchemaViewerProps) {
                   )}
                   <CardTitle className="text-lg">{name}</CardTitle>
                   {schema.type && (
-                    <Badge className={getTypeColor(schema.type)}>
+                    <span className={getTypeColor(schema.type)}>
                       {schema.type}
-                    </Badge>
+                    </span>
                   )}
                 </div>
-                <button
-                  className="p-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors"
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="rounded-full"
                   onClick={(e) => {
                     e.stopPropagation();
                     copySchema(name, schema);
                   }}
                 >
                   <CopyIcon className="h-4 w-4" />
-                </button>
+                </Button>
               </div>
               {schema.description && (
-                <p className="text-sm text-gray-600 dark:text-gray-400 text-left">
+                <p className="text-left text-sm text-muted-foreground">
                   {schema.description}
                 </p>
               )}
@@ -211,7 +212,7 @@ export function SchemaViewer({ spec }: SchemaViewerProps) {
             <CardContent>
               {schema.type === "object" && schema.properties ? (
                 <div className="space-y-4">
-                  <div className="text-sm font-medium text-gray-700 dark:text-gray-300">
+                  <div className="text-sm font-medium text-foreground">
                     Properties:
                   </div>
                   {Object.entries(schema.properties).map(
@@ -221,7 +222,7 @@ export function SchemaViewer({ spec }: SchemaViewerProps) {
 
                   {schema.required && schema.required.length > 0 && (
                     <div className="mt-4">
-                      <div className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                      <div className="mb-2 text-sm font-medium text-foreground">
                         Required fields:
                       </div>
                       <div className="flex flex-wrap gap-1">
@@ -242,10 +243,10 @@ export function SchemaViewer({ spec }: SchemaViewerProps) {
                 <div className="space-y-2">
                   {schema.example !== undefined && (
                     <div>
-                      <div className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                      <div className="mb-2 text-sm font-medium text-foreground">
                         Example:
                       </div>
-                      <pre className="text-sm bg-gray-100 dark:bg-gray-900 p-3 rounded overflow-x-auto">
+                      <pre className="overflow-x-auto rounded bg-muted p-3 text-xs font-mono text-muted-foreground">
                         <code>{String(JSON.stringify(schema.example, null, 2))}</code>
                       </pre>
                     </div>
@@ -253,7 +254,7 @@ export function SchemaViewer({ spec }: SchemaViewerProps) {
 
                   {schema.enum && (
                     <div>
-                      <div className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                      <div className="mb-2 text-sm font-medium text-foreground">
                         Possible values:
                       </div>
                       <div className="flex flex-wrap gap-1">
@@ -282,43 +283,47 @@ export function SchemaViewer({ spec }: SchemaViewerProps) {
       <div className="flex items-center justify-between">
         <div>
           <h2 className="text-2xl font-semibold">API Schemas</h2>
-          <p className="text-gray-600 dark:text-gray-400 mt-1">
+          <p className="mt-1 text-sm text-muted-foreground">
             Data structures and type definitions used by the API
           </p>
         </div>
-        <Badge variant="outline">{schemaEntries.length} schemas</Badge>
+        <Badge variant="outline" className="rounded-full">
+          {schemaEntries.length} schemas
+        </Badge>
       </div>
 
       {schemaEntries.length > 0 && (
         <div className="flex gap-2">
-          <button
-            className="px-3 py-2 text-sm border border-gray-300 dark:border-gray-600 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors"
+          <Button
+            variant="outline"
+            size="sm"
             onClick={() => setExpandedSchemas(new Set(Object.keys(schemas)))}
           >
             Expand All
-          </button>
-          <button
-            className="px-3 py-2 text-sm border border-gray-300 dark:border-gray-600 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors"
+          </Button>
+          <Button
+            variant="ghost"
+            size="sm"
             onClick={() => setExpandedSchemas(new Set())}
           >
             Collapse All
-          </button>
+          </Button>
         </div>
       )}
 
-      <ScrollArea className="h-[600px]">
+      <ScrollArea className="h-[600px] rounded-xl border border-border/60 bg-background/40 p-4">
         {schemaEntries.length > 0 ? (
           <div className="space-y-4">
             {schemaEntries.map(([name, schema]) => renderSchema(name, schema))}
           </div>
         ) : (
-          <Card className="border-gray-200 dark:border-transparent">
-            <CardContent className="text-center py-12">
-              <InfoIcon className="h-12 w-12 mx-auto mb-4 text-gray-400" />
-              <h3 className="text-lg font-medium text-gray-900 dark:text-gray-100 mb-2">
+          <Card className="border-border/60 bg-background/60">
+            <CardContent className="py-12 text-center">
+              <InfoIcon className="mx-auto mb-4 h-12 w-12 text-muted-foreground/60" />
+              <h3 className="mb-2 text-lg font-medium text-foreground">
                 No schemas defined
               </h3>
-              <p className="text-gray-600 dark:text-gray-400">
+              <p className="text-sm text-muted-foreground">
                 This API specification doesn&apos;t include any schema definitions.
               </p>
             </CardContent>

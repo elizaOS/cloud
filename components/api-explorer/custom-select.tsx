@@ -65,25 +65,25 @@ export function CustomSelect({
         onClick={handleToggle}
         className={cn(
           "flex h-10 w-full items-center justify-between rounded-md border px-3 py-2 text-sm transition-colors",
-          "bg-white dark:bg-gray-800 border-gray-200 dark:border-gray-700",
-          "text-gray-900 dark:text-gray-100",
-          "hover:bg-gray-50 dark:hover:bg-gray-700",
-          "focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 dark:focus:ring-offset-gray-800",
+          "border-border bg-background/80",
+          "text-foreground",
+          "hover:bg-muted",
+          "focus:outline-none focus:ring-2 focus:ring-primary/40 focus:ring-offset-2",
           "disabled:cursor-not-allowed disabled:opacity-50",
         )}
       >
         <span
           className={cn(
             selectedLabel
-              ? "text-gray-900 dark:text-gray-100"
-              : "text-gray-500 dark:text-gray-400",
+              ? "text-foreground"
+              : "text-muted-foreground",
           )}
         >
           {selectedLabel || placeholder}
         </span>
         <ChevronDownIcon
           className={cn(
-            "h-4 w-4 text-gray-500 dark:text-gray-400 transition-transform duration-200",
+            "h-4 w-4 text-muted-foreground transition-transform duration-200",
             isOpen && "rotate-180",
           )}
         />
@@ -93,7 +93,7 @@ export function CustomSelect({
         <div
           className={cn(
             "absolute z-50 mt-1 w-full overflow-hidden rounded-md border shadow-lg",
-            "bg-white dark:bg-gray-800 border-gray-200 dark:border-gray-700",
+            "border-border bg-background",
             "animate-in fade-in-0 zoom-in-95",
           )}
         >
@@ -108,11 +108,11 @@ export function CustomSelect({
                   className={cn(
                     "w-full flex items-center rounded-sm px-2 py-1.5 text-sm transition-colors",
                     "text-left cursor-pointer select-none outline-none",
-                    "text-gray-900 dark:text-gray-100",
-                    "hover:bg-gray-100 dark:hover:bg-gray-700",
-                    "focus:bg-gray-100 dark:focus:bg-gray-700",
+                    "text-foreground",
+                    "hover:bg-muted",
+                    "focus:bg-muted",
                     isSelected &&
-                      "bg-blue-50 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400 font-medium",
+                    "bg-primary/10 text-primary",
                   )}
                 >
                   {option.label}

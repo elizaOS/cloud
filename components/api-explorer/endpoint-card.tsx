@@ -8,6 +8,7 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import { type ApiEndpoint } from "@/lib/swagger/endpoint-discovery";
 import { ShieldIcon } from "lucide-react";
 
@@ -25,7 +26,7 @@ export function EndpointCard({
   getCategoryIcon,
 }: EndpointCardProps) {
   return (
-    <Card className="cursor-pointer hover:shadow-md transition-shadow border-gray-200 dark:border-transparent">
+    <Card className="cursor-pointer border-border/60 bg-background/60 transition-all hover:-translate-y-0.5 hover:shadow-lg">
       <CardHeader className="pb-4">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2">
@@ -43,41 +44,40 @@ export function EndpointCard({
             )}
           </div>
         </div>
-        <CardDescription>{endpoint.description}</CardDescription>
+        <CardDescription className="text-sm text-muted-foreground">
+          {endpoint.description}
+        </CardDescription>
       </CardHeader>
 
       <CardContent>
         <div className="space-y-4">
           <div className="flex items-center gap-2">
-            <Badge className={getMethodColor(endpoint.method)} variant="outline">
+            <span className={getMethodColor(endpoint.method)}>
               {endpoint.method}
-            </Badge>
-            <code className="text-sm font-mono bg-gray-100 dark:bg-gray-800 px-2 py-1 rounded flex-1">
+            </span>
+            <code className="flex-1 rounded-lg bg-muted px-2 py-1 font-mono text-xs">
               {endpoint.path}
             </code>
           </div>
 
-          <div className="flex flex-wrap gap-1">
+          <div className="flex flex-wrap gap-1.5">
             {endpoint.tags.map((tag) => (
-              <Badge key={tag} variant="secondary" className="text-xs">
+              <Badge key={tag} variant="secondary" className="rounded-full text-xs">
                 {tag}
               </Badge>
             ))}
           </div>
 
           {endpoint.rateLimit && (
-            <div className="text-xs text-gray-500 dark:text-gray-400">
+            <div className="text-xs text-muted-foreground">
               Rate limit: {endpoint.rateLimit.requests} requests per{" "}
               {endpoint.rateLimit.window}
             </div>
           )}
 
-          <button
-            onClick={() => onSelect(endpoint)}
-            className="w-full px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors text-sm font-medium"
-          >
+          <Button className="w-full" onClick={() => onSelect(endpoint)}>
             Test Endpoint
-          </button>
+          </Button>
         </div>
       </CardContent>
     </Card>
