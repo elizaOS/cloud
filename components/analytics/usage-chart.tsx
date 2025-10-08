@@ -79,7 +79,9 @@ export function UsageChart({ data, granularity }: UsageChartProps) {
           successRate: Number((point.successRate * 100).toFixed(2)),
         };
       }),
-    [data, granularity],
+    // formatDate depends on granularity, so both are needed
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [data, granularity, formatDate],
   );
 
   const latestPoint = chartData.at(-1);

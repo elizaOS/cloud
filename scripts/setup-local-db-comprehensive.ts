@@ -37,7 +37,7 @@ async function cleanupDocker() {
   try {
     await execAsync("docker-compose down -v 2>&1");
     log("✓ Docker resources cleaned up");
-  } catch (e) {
+  } catch {
     log("No existing resources to clean up");
   }
 
@@ -54,7 +54,7 @@ async function cleanupDocker() {
 async function startDocker() {
   log("Starting Docker containers...");
   try {
-    const { stdout } = await execAsync("docker-compose up -d");
+    await execAsync("docker-compose up -d");
     log("✓ Docker containers started");
     return true;
   } catch (e) {
@@ -115,7 +115,7 @@ async function runMigrations() {
     const oldEnv = process.env.DATABASE_URL;
     process.env.DATABASE_URL = LOCAL_DATABASE_URL;
 
-    const { stdout, stderr } = await execAsync("bun run db:push");
+    await execAsync("bun run db:push");
 
     process.env.DATABASE_URL = oldEnv;
 
