@@ -46,7 +46,6 @@ export function ChatInterfaceWithPersistence({
       api: "/api/v1/chat",
     }),
     onError: (error: Error) => {
-      console.error("[Chat] Error:", error);
       setErrorMessage(
         error.message || "Failed to send message. Please try again.",
       );
@@ -73,7 +72,7 @@ export function ChatInterfaceWithPersistence({
           setAvailableModels(data.models);
         }
       })
-      .catch((err) => console.error("Failed to fetch models:", err));
+      .catch(() => {});
   }, []);
 
   useEffect(() => {

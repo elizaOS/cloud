@@ -6,6 +6,7 @@ import { deductCredits } from "@/lib/queries/credits";
 import { createUsageRecord } from "@/lib/queries/usage";
 import { createGeneration } from "@/lib/queries/generations";
 import { calculateCost, getProviderFromModel } from "@/lib/pricing";
+import { logger } from "@/lib/utils/logger";
 import type { NextRequest } from "next/server";
 
 export const maxDuration = 60;
@@ -70,7 +71,7 @@ export async function POST(req: NextRequest) {
             );
 
             if (!deductionResult.success) {
-              console.error(
+              logger.error(
                 "[CHAT API] Failed to deduct credits - insufficient balance",
               );
             }
@@ -119,11 +120,11 @@ export async function POST(req: NextRequest) {
               });
             }
 
-            console.log(
+            logger.debug(
               `[CHAT API] Credits deducted: ${totalCost} (Input: ${inputCost}, Output: ${outputCost}), New balance: ${deductionResult.newBalance}`,
             );
           } catch (error) {
-            console.error(
+            logger.error(
               "[CHAT API] Error persisting messages or deducting credits:",
               error,
             );
@@ -167,7 +168,7 @@ export async function POST(req: NextRequest) {
                   });
                 }
               } catch (usageError) {
-                console.error(
+                logger.error(
                   "[CHAT API] Error creating usage record:",
                   usageError,
                 );
@@ -175,14 +176,14 @@ export async function POST(req: NextRequest) {
             }
           }
         })().catch((err) => {
-          console.error("[CHAT API] Background operation failed:", err);
+          logger.error("[CHAT API] Background operation failed:", err);
         });
       },
     });
 
     return result.toUIMessageStreamResponse();
   } catch (error) {
-    console.error("[CHAT API] Error:", error);
+    logger.error("[CHAT API] Error:", error);
     return new Response(JSON.stringify({ error: "Failed to process chat" }), {
       status: 500,
       headers: { "Content-Type": "application/json" },
