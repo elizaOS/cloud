@@ -11,6 +11,7 @@ import {
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
+import { Button } from "@/components/ui/button";
 import { CustomSelect } from "./custom-select";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Badge } from "@/components/ui/badge";
@@ -27,6 +28,7 @@ import {
 import { type ApiEndpoint } from "@/lib/swagger/endpoint-discovery";
 import { getApiBaseUrl } from "@/lib/config/client-env";
 import { toast } from "@/lib/utils/toast-adapter";
+import { cn } from "@/lib/utils";
 
 interface ApiTesterProps {
   endpoint: ApiEndpoint;
@@ -210,8 +212,8 @@ export function ApiTester({
         error: fetchResponse.ok
           ? undefined
           : ((responseData as { error?: { message?: string }; message?: string })?.error?.message ||
-              (responseData as { message?: string })?.message ||
-              "Request failed"),
+            (responseData as { message?: string })?.message ||
+            "Request failed"),
         headers: responseHeaders,
         responseTime,
         timestamp: new Date().toISOString(),
@@ -341,7 +343,7 @@ export function ApiTester({
           </Badge>
         </Label>
 
-        <p className="text-sm text-gray-600 dark:text-gray-400">
+        <p className="text-sm text-muted-foreground">
           {param.description}
         </p>
 
@@ -385,10 +387,10 @@ export function ApiTester({
               typeof value === "string"
                 ? value
                 : JSON.stringify(
-                    value || param.defaultValue || param.example,
-                    null,
-                    2,
-                  )
+                  value || param.defaultValue || param.example,
+                  null,
+                  2,
+                )
             }
             onChange={(e) => handleParameterChange(param.name, e.target.value)}
             placeholder={JSON.stringify(
@@ -414,11 +416,12 @@ export function ApiTester({
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center gap-3">
-        <button
+      <div className="flex flex-col gap-3 sm:flex-row">
+        <Button
           onClick={executeTest}
           disabled={isLoading}
-          className="flex-1 flex items-center justify-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:bg-gray-400 disabled:cursor-not-allowed transition-colors"
+          className="flex-1 gap-2"
+          size="lg"
         >
           {isLoading ? (
             <LoaderIcon className="h-4 w-4 animate-spin" />
@@ -426,26 +429,28 @@ export function ApiTester({
             <PlayIcon className="h-4 w-4" />
           )}
           {isLoading ? "Testing..." : "Send Request"}
-        </button>
+        </Button>
 
-        <button
+        <Button
+          variant="outline"
           onClick={copyCurlCommand}
-          className="flex items-center gap-2 px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors"
+          className="gap-2 sm:w-auto"
         >
           <CodeIcon className="h-4 w-4" />
           Copy cURL
-        </button>
+        </Button>
 
-        <button
+        <Button
+          variant="ghost"
           onClick={initializeParameters}
-          className="px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors"
+          className="sm:w-auto"
         >
           Reset
-        </button>
+        </Button>
       </div>
 
       <Tabs value={activeTab} onValueChange={setActiveTab}>
-        <TabsList>
+        <TabsList className="mb-4 w-full justify-start">
           <TabsTrigger value="parameters">Parameters</TabsTrigger>
           <TabsTrigger value="response">
             Response
@@ -463,7 +468,7 @@ export function ApiTester({
 
         <TabsContent value="parameters" className="space-y-6">
           {endpoint.parameters?.path && endpoint.parameters.path.length > 0 && (
-            <Card className="border-gray-200 dark:border-transparent">
+            <Card className="border-border/60 bg-background/60">
               <CardHeader>
                 <CardTitle className="text-lg">Path Parameters</CardTitle>
                 <CardDescription>
@@ -482,7 +487,7 @@ export function ApiTester({
 
           {endpoint.parameters?.query &&
             endpoint.parameters.query.length > 0 && (
-              <Card className="border-gray-200 dark:border-transparent">
+              <Card className="border-border/60 bg-background/60">
                 <CardHeader>
                   <CardTitle className="text-lg">Query Parameters</CardTitle>
                   <CardDescription>
@@ -500,7 +505,7 @@ export function ApiTester({
             )}
 
           {endpoint.parameters?.body && endpoint.parameters.body.length > 0 && (
-            <Card className="border-gray-200 dark:border-transparent">
+            <Card className="border-border/60 bg-background/60">
               <CardHeader>
                 <CardTitle className="text-lg">Request Body</CardTitle>
                 <CardDescription>
@@ -520,9 +525,9 @@ export function ApiTester({
           {!endpoint.parameters?.path?.length &&
             !endpoint.parameters?.query?.length &&
             !endpoint.parameters?.body?.length && (
-              <Card className="border-gray-200 dark:border-transparent">
-                <CardContent className="text-center py-8">
-                  <p className="text-gray-500 dark:text-gray-400">
+              <Card className="border-border/60 bg-background/60">
+                <CardContent className="py-8 text-center">
+                  <p className="text-sm text-muted-foreground">
                     This endpoint doesn&apos;t require any parameters.
                   </p>
                 </CardContent>
@@ -533,7 +538,7 @@ export function ApiTester({
         <TabsContent value="response">
           {response ? (
             <div className="space-y-4">
-              <Card className="border-gray-200 dark:border-transparent">
+              <Card className="border-border/60 bg-background/60">
                 <CardHeader>
                   <div className="flex items-center justify-between">
                     <CardTitle className="flex items-center gap-2">
@@ -546,11 +551,18 @@ export function ApiTester({
                     </CardTitle>
                     <div className="flex items-center gap-2">
                       <Badge
-                        variant={response.success ? "default" : "destructive"}
+                        className={cn(
+                          "rounded-full px-2.5 py-1 text-xs font-medium",
+                          response.success
+                            ? "bg-emerald-500/10 text-emerald-600 ring-1 ring-inset ring-emerald-500/30 dark:text-emerald-300"
+                            : "bg-rose-500/10 text-rose-600 ring-1 ring-inset ring-rose-500/30 dark:text-rose-300",
+                        )}
                       >
                         {response.status} {response.statusText}
                       </Badge>
-                      <Badge variant="outline">{response.responseTime}ms</Badge>
+                      <Badge variant="outline" className="rounded-full">
+                        {response.responseTime}ms
+                      </Badge>
                     </div>
                   </div>
                 </CardHeader>
@@ -567,15 +579,17 @@ export function ApiTester({
               </Card>
 
               {response.data !== undefined && (
-                <Card className="border-gray-200 dark:border-transparent">
+                <Card className="border-border/60 bg-background/60">
                   <CardHeader>
                     <div className="flex items-center justify-between">
                       <CardTitle>Response Body</CardTitle>
-                      <button
-                        className="flex items-center gap-2 px-3 py-1 text-sm border border-gray-300 dark:border-gray-600 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors"
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        className="gap-2"
                         onClick={() => {
                           navigator.clipboard.writeText(
-                            JSON.stringify(response.data, null, 2),
+                            formatResponseData(response.data),
                           );
                           toast({
                             message: "Response copied to clipboard",
@@ -585,46 +599,45 @@ export function ApiTester({
                       >
                         <CopyIcon className="h-4 w-4" />
                         Copy
-                      </button>
+                      </Button>
                     </div>
                   </CardHeader>
                   <CardContent>
-                    <ScrollArea className="h-[400px] w-full">
-                      <pre className="text-sm bg-gray-100 dark:bg-gray-900 p-4 rounded overflow-x-auto">
-                        <code>{JSON.stringify(response.data, null, 2)}</code>
+                    <ScrollArea className="h-[400px] w-full rounded-lg border border-border/60 bg-muted/30">
+                      <pre className="overflow-x-auto whitespace-pre-wrap break-words p-4 text-xs font-mono text-muted-foreground">
+                        <code>{formatResponseData(response.data)}</code>
                       </pre>
                     </ScrollArea>
                   </CardContent>
                 </Card>
               )}
 
-              <Card className="border-gray-200 dark:border-transparent">
+              <Card className="border-border/60 bg-background/60">
                 <CardHeader>
                   <CardTitle>Response Headers</CardTitle>
                 </CardHeader>
                 <CardContent>
-                  <div className="space-y-2">
-                    {Object.entries(response.headers).map(([key, value]) => (
-                      <div
-                        key={key}
-                        className="flex items-center gap-2 text-sm"
-                      >
-                        <code className="font-mono text-blue-600 dark:text-blue-400">
-                          {key}:
-                        </code>
-                        <code className="font-mono text-gray-800 dark:text-gray-200">
-                          {value}
-                        </code>
-                      </div>
-                    ))}
-                  </div>
+                  <ScrollArea className="max-h-64 rounded-lg border border-border/60">
+                    <dl className="divide-y divide-border/60 text-sm">
+                      {Object.entries(response.headers).map(([key, value]) => (
+                        <div key={key} className="flex flex-col gap-1 px-4 py-3">
+                          <dt className="font-mono text-xs uppercase tracking-wide text-muted-foreground">
+                            {key}
+                          </dt>
+                          <dd className="font-mono text-sm text-foreground break-words">
+                            {value}
+                          </dd>
+                        </div>
+                      ))}
+                    </dl>
+                  </ScrollArea>
                 </CardContent>
               </Card>
             </div>
           ) : (
-            <Card className="border-gray-200 dark:border-transparent">
-              <CardContent className="text-center py-12">
-                <p className="text-gray-500 dark:text-gray-400">
+            <Card className="border-border/60 bg-background/60">
+              <CardContent className="py-12 text-center">
+                <p className="text-sm text-muted-foreground">
                   No response yet. Send a request to see the results.
                 </p>
               </CardContent>
@@ -633,30 +646,55 @@ export function ApiTester({
         </TabsContent>
 
         <TabsContent value="curl">
-          <Card className="border-gray-200 dark:border-transparent">
+          <Card className="border-border/60 bg-background/60">
             <CardHeader>
               <div className="flex items-center justify-between">
                 <CardTitle>cURL Command</CardTitle>
-                <button
-                  className="flex items-center gap-2 px-3 py-1 text-sm border border-gray-300 dark:border-gray-600 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors"
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="gap-2"
                   onClick={copyCurlCommand}
                 >
                   <CopyIcon className="h-4 w-4" />
                   Copy
-                </button>
+                </Button>
               </div>
               <CardDescription>
                 Copy this command to test the API from your terminal
               </CardDescription>
             </CardHeader>
             <CardContent>
-              <pre className="text-sm bg-gray-900 text-white p-4 rounded overflow-x-auto">
-                <code>{generateCurlCommand()}</code>
-              </pre>
+              <ScrollArea className="rounded-lg border border-border/60 bg-muted/40">
+                <pre className="overflow-x-auto p-4 text-xs font-mono text-muted-foreground">
+                  <code>{generateCurlCommand()}</code>
+                </pre>
+              </ScrollArea>
             </CardContent>
           </Card>
         </TabsContent>
       </Tabs>
     </div>
   );
+}
+
+function formatResponseData(data: unknown): string {
+  if (data === null || data === undefined) {
+    return "";
+  }
+
+  if (typeof data === "string") {
+    try {
+      const parsed = JSON.parse(data);
+      return JSON.stringify(parsed, null, 2);
+    } catch {
+      return data;
+    }
+  }
+
+  try {
+    return JSON.stringify(data, null, 2);
+  } catch {
+    return String(data);
+  }
 }

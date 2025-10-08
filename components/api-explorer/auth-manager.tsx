@@ -10,6 +10,7 @@ import {
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import {
   EyeIcon,
   EyeOffIcon,
@@ -116,7 +117,7 @@ export function AuthManager({ authToken, onTokenChange }: AuthManagerProps) {
   };
 
   return (
-    <Card className="w-full border-gray-200 dark:border-transparent">
+    <Card className="w-full border-border/60 bg-background/60">
       <CardHeader className="pb-4">
         <CardTitle className="flex items-center gap-2 text-lg">
           <KeyIcon className="h-5 w-5" />
@@ -137,9 +138,11 @@ export function AuthManager({ authToken, onTokenChange }: AuthManagerProps) {
                 placeholder="Enter API key (eliza_... or sk-...)"
                 className="pr-10"
               />
-              <button
+              <Button
                 type="button"
-                className="absolute right-0 top-0 h-full px-3 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-r-lg transition-colors"
+                variant="ghost"
+                size="sm"
+                className="absolute right-0 top-0 h-full rounded-l-none rounded-r-md px-3"
                 onClick={() => setShowToken(!showToken)}
               >
                 {showToken ? (
@@ -147,16 +150,13 @@ export function AuthManager({ authToken, onTokenChange }: AuthManagerProps) {
                 ) : (
                   <EyeIcon className="h-4 w-4" />
                 )}
-              </button>
+              </Button>
             </div>
 
             {authToken && (
-              <button
-                className="px-3 py-2 text-sm border border-gray-300 dark:border-gray-600 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors"
-                onClick={clearToken}
-              >
+              <Button variant="outline" onClick={clearToken}>
                 Clear
-              </button>
+              </Button>
             )}
           </div>
         </div>
@@ -184,7 +184,7 @@ export function AuthManager({ authToken, onTokenChange }: AuthManagerProps) {
             </div>
 
             {apiKeyInfo.valid && apiKeyInfo.format && (
-              <div className="text-sm text-gray-600 dark:text-gray-400">
+              <div className="text-sm text-muted-foreground">
                 Format:{" "}
                 {apiKeyInfo.format === "eliza"
                   ? "ElizaOS API Key"
@@ -196,7 +196,7 @@ export function AuthManager({ authToken, onTokenChange }: AuthManagerProps) {
           </div>
         )}
 
-        <div className="flex items-start gap-2 text-xs text-gray-500 dark:text-gray-400">
+        <div className="flex items-start gap-2 text-xs text-muted-foreground">
           <InfoIcon className="h-3 w-3 mt-0.5 flex-shrink-0" />
           <p>
             Enter an API key (starts with eliza_ or sk-) to test authenticated
@@ -205,7 +205,7 @@ export function AuthManager({ authToken, onTokenChange }: AuthManagerProps) {
         </div>
 
         {isValidating && (
-          <div className="text-sm text-gray-500 dark:text-gray-400">
+          <div className="text-sm text-muted-foreground">
             Validating token...
           </div>
         )}
