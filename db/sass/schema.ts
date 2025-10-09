@@ -595,6 +595,7 @@ export const containers = pgTable(
     }),
     cloudflare_worker_id: text("cloudflare_worker_id"),
     cloudflare_container_id: text("cloudflare_container_id"),
+    cloudflare_url: text("cloudflare_url"),
     status: text("status").notNull().default("pending"),
     image_tag: text("image_tag"),
     dockerfile_path: text("dockerfile_path"),

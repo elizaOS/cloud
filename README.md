@@ -855,6 +855,58 @@ async function handleSignOut() {
 }
 ```
 
+## 🐳 Container Deployment
+
+### ElizaOS CLI Integration
+
+The platform supports deploying ElizaOS projects directly via the `elizaos deploy` command. Users get an API key from the dashboard and can deploy their agents to Cloudflare Workers with a single command.
+
+**How It Works:**
+
+1. **User gets API key** from `/dashboard/api-keys`
+2. **User runs** `elizaos deploy --api-key eliza_xxxxx`
+3. **CLI builds** Docker image locally
+4. **CLI exports** image to tarball
+5. **CLI uploads** tarball to cloud API (`/api/v1/containers/upload-image`)
+6. **Cloud uploads** image to Cloudflare Container Registry
+7. **Cloud deploys** container to Cloudflare Workers
+8. **User manages** containers in dashboard
+
+**CLI Usage:**
+```bash
+# Get API key from dashboard first
+export ELIZAOS_API_KEY=eliza_xxxxxxxxxxxxx
+
+# Deploy your ElizaOS project
+cd my-elizaos-project
+elizaos deploy
+
+# With custom options
+elizaos deploy \
+  --name my-agent \
+  --port 8080 \
+  --max-instances 3 \
+  --env "OPENAI_API_KEY=sk-xxx"
+```
+
+**API Endpoints:**
+- `POST /api/v1/containers/upload-image` - Upload Docker image
+- `POST /api/v1/containers` - Create container deployment
+- `GET /api/v1/containers` - List containers
+- `GET /api/v1/containers/{id}` - Get container status
+- `DELETE /api/v1/containers/{id}` - Delete container
+
+**Dashboard:**
+- View all deployed containers at `/dashboard/containers`
+- Monitor deployment status (pending → building → deploying → running)
+- View Worker URLs and logs
+- Manage container lifecycle
+
+**Requirements:**
+- Cloudflare account with Workers enabled
+- Set `CLOUDFLARE_ACCOUNT_ID` and `CLOUDFLARE_API_TOKEN` in `.env.local`
+- Docker installed on user's machine (for CLI)
+
 ## 🚢 Deployment
 
 ### Deploying to Vercel (Recommended)

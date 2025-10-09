@@ -6,6 +6,13 @@ import {
   type NewContainer,
 } from "@/lib/queries/containers";
 import { getCloudflareService } from "@/lib/services/cloudflare";
+import { deductCredits } from "@/lib/queries/credits";
+import { createUsageRecord } from "@/lib/queries/usage";
+import {
+  CONTAINER_PRICING,
+  getMaxContainersForOrg,
+  calculateDeploymentCost,
+} from "@/lib/constants/pricing";
 import { z } from "zod";
 
 export const dynamic = "force-dynamic";
@@ -31,9 +38,20 @@ export async function GET(request: NextRequest) {
 
     const containers = await listContainers(user.organization_id);
 
+    // Include quota information in response
+    const maxContainers = getMaxContainersForOrg(
+      user.organization.credit_balance,
+      user.organization.settings as Record<string, unknown> | undefined,
+    );
+
     return NextResponse.json({
       success: true,
       data: containers,
+      quota: {
+        current: containers.length,
+        max: maxContainers,
+        remaining: Math.max(0, maxContainers - containers.length),
+      },
     });
   } catch (error) {
     console.error("Error fetching containers:", error);
@@ -74,6 +92,50 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    // Check container quota for organization
+    const maxContainers = getMaxContainersForOrg(
+      user.organization.credit_balance,
+      user.organization.settings as Record<string, unknown> | undefined,
+    );
+
+    if (existingContainers.length >= maxContainers) {
+      return NextResponse.json(
+        {
+          success: false,
+          error: `Container limit reached (${maxContainers}). Delete unused containers or upgrade your plan.`,
+          limit: maxContainers,
+          current: existingContainers.length,
+        },
+        { status: 403 }, // Forbidden
+      );
+    }
+
+    // Calculate deployment cost
+    const deploymentCost = calculateDeploymentCost({
+      maxInstances: validatedData.max_instances,
+      includeUpload: false, // Upload cost already deducted separately
+    });
+
+    // Deduct credits for deployment
+    const creditResult = await deductCredits(
+      user.organization_id,
+      deploymentCost,
+      `Container deployment: ${validatedData.name}`,
+      user.id,
+    );
+
+    if (!creditResult.success) {
+      return NextResponse.json(
+        {
+          success: false,
+          error: `Insufficient credits for deployment. Required: ${deploymentCost}, Available: ${creditResult.newBalance}`,
+          requiredCredits: deploymentCost,
+          availableCredits: creditResult.newBalance,
+        },
+        { status: 402 }, // Payment Required
+      );
+    }
+
     // Create container record
     const containerData: NewContainer = {
       name: validatedData.name,
@@ -92,8 +154,29 @@ export async function POST(request: NextRequest) {
 
     const container = await createContainer(containerData);
 
+    // Create usage record for deployment
+    await createUsageRecord({
+      organization_id: user.organization_id,
+      user_id: user.id,
+      api_key_id: apiKey?.id || null,
+      type: "container_deployment",
+      provider: "cloudflare",
+      input_cost: deploymentCost,
+      output_cost: 0,
+      is_successful: true,
+      metadata: {
+        container_id: container.id,
+        container_name: validatedData.name,
+        max_instances: validatedData.max_instances,
+        port: validatedData.port,
+      },
+    });
+
     // Start async deployment process (in real implementation, this would be a background job)
-    deployContainerAsync(container.id, validatedData).catch((error) => {
+    deployContainerAsync(container.id, validatedData, {
+      organizationId: user.organization_id,
+      userId: user.id,
+    }).catch((error) => {
       console.error("Async deployment failed:", error);
     });
 
@@ -103,6 +186,8 @@ export async function POST(request: NextRequest) {
         data: container,
         message:
           "Container deployment initiated. Check status for deployment progress.",
+        creditsDeducted: deploymentCost,
+        creditsRemaining: creditResult.newBalance,
       },
       { status: 201 },
     );
@@ -138,6 +223,10 @@ export async function POST(request: NextRequest) {
 async function deployContainerAsync(
   containerId: string,
   config: z.infer<typeof createContainerSchema>,
+  context?: {
+    organizationId: string;
+    userId: string;
+  },
 ): Promise<void> {
   const { updateContainerStatus } = await import("@/lib/queries/containers");
 
@@ -151,23 +240,51 @@ async function deployContainerAsync(
     // Deploy to Cloudflare
     await updateContainerStatus(containerId, "deploying");
 
-    const deployment = await cloudflare.deployContainer({
-      name: config.name,
-      imageTag: config.image_tag || "latest",
-      port: config.port,
-      maxInstances: config.max_instances,
-      environmentVars: config.environment_vars,
-      healthCheckPath: config.health_check_path,
-    });
+    const deployment = await cloudflare.deployContainer(
+      {
+        name: config.name,
+        imageTag: config.image_tag || "latest",
+        port: config.port,
+        maxInstances: config.max_instances,
+        environmentVars: config.environment_vars,
+        healthCheckPath: config.health_check_path,
+      },
+      config.image_tag, // Pass uploaded imageId as second parameter
+    );
 
     // Update container with deployment info
     await updateContainerStatus(containerId, "running", {
       cloudflareWorkerId: deployment.workerId,
       cloudflareContainerId: deployment.containerId,
+      cloudflareUrl: deployment.url,
       deploymentLog: `Deployed successfully to ${deployment.url}`,
     });
   } catch (error) {
     console.error("Deployment failed:", error);
+
+    // Refund credits on deployment failure (if context available)
+    if (context) {
+      try {
+        const { addCredits } = await import("@/lib/queries/credits");
+        const refundAmount = calculateDeploymentCost({
+          maxInstances: config.max_instances,
+          includeUpload: false,
+        });
+
+        await addCredits(
+          context.organizationId,
+          refundAmount,
+          "refund",
+          `Deployment failed refund: ${config.name}`,
+          context.userId,
+        );
+
+        console.log(`Refunded ${refundAmount} credits for failed deployment`);
+      } catch (refundError) {
+        console.error("Failed to refund credits:", refundError);
+      }
+    }
+
     await updateContainerStatus(containerId, "failed", {
       errorMessage:
         error instanceof Error ? error.message : "Unknown deployment error",
