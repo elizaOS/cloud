@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { requireAuth, requireAuthOrApiKey } from "@/lib/auth";
+import { requireAuthOrApiKey } from "@/lib/auth";
 import {
   listContainers,
   createContainer,
