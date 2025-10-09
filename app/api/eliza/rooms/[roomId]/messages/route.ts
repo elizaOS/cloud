@@ -214,10 +214,13 @@ export async function POST(
 
 // GET /api/eliza/rooms/[roomId]/messages - Get messages (for polling)
 export async function GET(
-  request: Request,
+  request: NextRequest,
   ctx: { params: Promise<{ roomId: string }> },
 ) {
   try {
+    // Authenticate user or validate API key
+    await requireAuthOrApiKey(request);
+
     const { roomId } = await ctx.params;
     const { searchParams } = new URL(request.url);
     const limit = searchParams.get("limit");

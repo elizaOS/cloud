@@ -377,7 +377,7 @@ class AgentRuntimeManager {
   }> {
     const runtime = await this.getRuntime();
 
-    // Ensure room and entity connection (follows Eliza's ensureConnection pattern)
+    // Ensure room and entity connection
     const entityUuid = stringToUuid(entityId) as UUID;
     await runtime.ensureConnection({
       entityId: entityUuid,
@@ -390,7 +390,7 @@ class AgentRuntimeManager {
       userName: entityId,
     });
 
-    // Create user message
+    // Create and save user message
     const userMessage: Memory = {
       id: uuidv4() as UUID,
       roomId: roomId as UUID,
@@ -410,18 +410,16 @@ class AgentRuntimeManager {
       },
     };
 
-    // Track usage from callback
+    // Save user message to database
+    await runtime.createMemory(userMessage, "messages");
+
+    // Track usage and response
     let usage:
       | { inputTokens: number; outputTokens: number; model: string }
       | undefined;
+    let responseText: string | undefined;
 
-    // Use the full ElizaOS event pipeline (like OTC agent)
-    // This triggers the plugin's messageReceivedHandler which will:
-    // 1. Use providers to gather context
-    // 2. Compose state with composeState()
-    // 3. Call useModel() with full context
-    // 4. Process any actions
-    // 5. Create and save the response memory
+    // Process message through event pipeline to generate response
     await runtime.emitEvent(EventType.MESSAGE_RECEIVED, {
       runtime,
       message: userMessage,
@@ -429,14 +427,39 @@ class AgentRuntimeManager {
         text?: string;
         usage?: { inputTokens: number; outputTokens: number; model: string };
       }) => {
-        // Response is already saved by the plugin's messageReceivedHandler
-        elizaLogger.debug("#Eliza", "Message processed via event pipeline");
+        elizaLogger.debug("#Eliza", "Message processed, generating response");
+        if (result.text) {
+          responseText = result.text;
+        }
         if (result.usage) {
           usage = result.usage;
         }
         return [];
       },
     });
+
+    // Explicitly create and save agent response if we have text
+    if (responseText) {
+      const agentResponse: Memory = {
+        id: uuidv4() as UUID,
+        roomId: roomId as UUID,
+        entityId: runtime.agentId as UUID,
+        agentId: runtime.agentId as UUID,
+        createdAt: Date.now(),
+        content: {
+          text: responseText,
+          type: "agent",
+        },
+      };
+
+      await runtime.createMemory(agentResponse, "messages");
+      elizaLogger.debug("#Eliza", "Agent response saved to messages table");
+    } else {
+      elizaLogger.warn(
+        "#Eliza",
+        "No response text generated from event pipeline",
+      );
+    }
 
     return { message: userMessage, usage };
   }

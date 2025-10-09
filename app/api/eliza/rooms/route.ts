@@ -3,10 +3,14 @@ import { agentRuntime } from "@/lib/eliza/agent-runtime";
 import { v4 as uuidv4 } from "uuid";
 import { stringToUuid, UUID, ChannelType } from "@elizaos/core";
 import { logger } from "@/lib/utils/logger";
+import { requireAuthOrApiKey } from "@/lib/auth";
 
 // GET /api/eliza/rooms - Get user's rooms
 export async function GET(request: NextRequest) {
   try {
+    // Authenticate user or validate API key
+    await requireAuthOrApiKey(request);
+
     const { searchParams } = new URL(request.url);
     const entityId = searchParams.get("entityId");
 
@@ -52,6 +56,9 @@ export async function GET(request: NextRequest) {
 // POST /api/eliza/rooms - Create new room
 export async function POST(request: NextRequest) {
   try {
+    // Authenticate user or validate API key
+    await requireAuthOrApiKey(request);
+
     const body = await request.json();
     const { entityId } = body;
     logger.debug("[Eliza Rooms API] Creating room for entity:", entityId);
