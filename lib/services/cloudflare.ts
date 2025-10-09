@@ -256,7 +256,6 @@ export default {
    */
   async getContainerLogs(
     workerId: string,
-    limit: number = 100,
   ): Promise<string[]> {
     const response = await fetch(
       `${this.baseUrl}/accounts/${this.config.accountId}/workers/scripts/${workerId}/tails`,
