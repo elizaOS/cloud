@@ -40,8 +40,14 @@ import { ApiTester } from "@/components/api-explorer/api-tester";
 import { AuthManager } from "@/components/api-explorer/auth-manager";
 import { SchemaViewer } from "@/components/api-explorer/schema-viewer";
 import { cn } from "@/lib/utils";
+import { useSetPageHeader } from "@/components/layout/page-header-context";
 
 export default function ApiExplorerPage() {
+  useSetPageHeader({
+    title: "API Explorer",
+    description: "Interactive API documentation and testing interface for Eliza Cloud V2",
+  });
+
   const [selectedEndpoint, setSelectedEndpoint] = useState<ApiEndpoint | null>(
     null,
   );
@@ -108,27 +114,7 @@ export default function ApiExplorerPage() {
   };
 
   return (
-    <div className="flex w-full flex-col gap-10 px-4 pb-8 lg:px-8">
-      <div className="space-y-6">
-        <div className="space-y-2">
-          <h1 className="text-3xl font-semibold tracking-tight">API Explorer</h1>
-          <p className="max-w-3xl text-sm text-muted-foreground">
-            Interactive API documentation and testing interface for Eliza Cloud V2
-          </p>
-        </div>
-
-        <div className="flex flex-wrap gap-3 text-xs font-medium text-muted-foreground">
-          <span className="flex items-center gap-2 rounded-full border border-border/60 bg-muted/60 px-3 py-1">
-            <BookIcon className="h-3.5 w-3.5" />
-            {API_ENDPOINTS.length} endpoints
-          </span>
-          <span className="flex items-center gap-2 rounded-full border border-border/60 bg-muted/60 px-3 py-1">
-            <DatabaseIcon className="h-3.5 w-3.5" />
-            {categories.length - 1} categories
-          </span>
-        </div>
-      </div>
-
+    <div className="flex w-full flex-col gap-6 px-4 pb-8 lg:px-8">
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-4 lg:gap-8">
         <div className="lg:col-span-1">
           <Card className="border-border/70 bg-background/60 shadow-sm">
