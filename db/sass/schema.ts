@@ -626,6 +626,17 @@ export const containers = pgTable(
     cloudflare_worker_idx: index("containers_cloudflare_worker_idx").on(
       table.cloudflare_worker_id,
     ),
+    // Unique constraint on name per organization (prevents race conditions)
+    // Excludes deleting/deleted containers to allow name reuse
+    org_name_unique_idx: uniqueIndex("containers_org_name_unique_idx").on(
+      table.organization_id,
+      table.name,
+    ),
+    // Optimized index for quota queries
+    org_status_idx: index("containers_org_status_idx").on(
+      table.organization_id,
+      table.status,
+    ),
   }),
 );
 

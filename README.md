@@ -765,6 +765,75 @@ npx drizzle-kit migrate
 - Use transactions for data migrations
 - Keep schema.ts as the single source of truth
 
+### Race Condition Prevention
+
+The platform implements atomic operations to prevent race conditions in critical operations:
+
+#### Container Quota Enforcement
+
+**Problem**: Multiple concurrent requests could bypass quota limits when checked with application-level logic:
+
+```typescript
+// ❌ VULNERABLE: Race condition
+const containers = await listContainers(orgId);
+if (containers.length >= maxAllowed) {
+  return error("Quota exceeded");
+}
+// Another request could create a container here before we insert
+await createContainer(data);
+```
+
+**Solution**: Atomic transaction with database-level locking:
+
+```typescript
+// ✅ SAFE: Atomic operation
+await db.transaction(async (tx) => {
+  // 1. Lock organization row with FOR UPDATE
+  const org = await tx.select().from(organizations)
+    .where(eq(organizations.id, orgId))
+    .for("update");
+  
+  // 2. Count containers while holding lock
+  const count = await tx.select().from(containers)
+    .where(eq(containers.organization_id, orgId));
+  
+  // 3. Check quota
+  if (count >= maxAllowed) throw new QuotaExceededError();
+  
+  // 4. Create container (unique constraint prevents duplicates)
+  return await tx.insert(containers).values(data);
+});
+```
+
+**Key Features**:
+- `FOR UPDATE` lock prevents concurrent quota checks
+- Unique constraint on `(organization_id, name)` prevents duplicate names
+- Transaction ensures atomicity (all-or-nothing)
+- Proper error handling for quota and duplicate name violations
+
+**Usage**:
+
+```typescript
+import { createContainerWithQuotaCheck } from "@/lib/queries/container-quota";
+
+try {
+  const container = await createContainerWithQuotaCheck(data);
+} catch (error) {
+  if (error instanceof QuotaExceededError) {
+    // Handle quota exceeded
+  } else if (error.message.includes("unique constraint")) {
+    // Handle duplicate name
+  }
+}
+```
+
+**Database Constraints**:
+- Unique index: `containers_org_name_unique_idx` on `(organization_id, name)`
+- Check constraint: Valid status values only
+- Optimized index: `containers_org_status_idx` for fast quota queries
+
+See `lib/queries/container-quota.ts` for implementation details.
+
 ## 🔐 Authentication
 
 ### How Authentication Works
