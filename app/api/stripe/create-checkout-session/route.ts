@@ -1,10 +1,7 @@
 import { type NextRequest, NextResponse } from "next/server";
 import { requireAuth } from "@/lib/auth";
 import { stripe } from "@/lib/stripe";
-import { getCreditPackById } from "@/lib/queries/credit-packs";
-import { db } from "@/db/drizzle";
-import * as schema from "@/db/sass/schema";
-import { eq } from "drizzle-orm";
+import { creditsService, organizationsService } from "@/lib/services";
 import { rateLimiter, RATE_LIMITS } from "@/lib/rate-limiter";
 
 export async function POST(req: NextRequest) {
@@ -49,7 +46,7 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    const creditPack = await getCreditPackById(creditPackId);
+    const creditPack = await creditsService.getCreditPackById(creditPackId);
     if (!creditPack || !creditPack.is_active) {
       return NextResponse.json(
         { error: "Invalid or inactive credit pack" },
@@ -71,13 +68,10 @@ export async function POST(req: NextRequest) {
       customerId = customer.id;
 
       // Save customer ID to database
-      await db
-        .update(schema.organizations)
-        .set({
-          stripe_customer_id: customerId,
-          updated_at: new Date(),
-        })
-        .where(eq(schema.organizations.id, user.organization_id));
+      await organizationsService.update(user.organization_id, {
+        stripe_customer_id: customerId,
+        updated_at: new Date(),
+      });
     }
 
     // Create Checkout Session

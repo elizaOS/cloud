@@ -1,9 +1,6 @@
 import type { Metadata } from "next";
 import { requireAuth } from "@/lib/auth";
-import {
-  listConversationsByUser,
-  getConversationWithMessages,
-} from "@/lib/queries/conversations";
+import { conversationsService } from "@/lib/services";
 import { TextPageClient } from "../../../components/chat/text-page-client";
 import type { ConversationMessage } from "@/lib/types";
 
@@ -21,16 +18,14 @@ export default async function TextPage({
   const user = await requireAuth();
   const params = await searchParams;
 
-  const conversations = await listConversationsByUser(user.id, {
-    status: "active",
-    limit: 50,
-  });
+  const conversations = await conversationsService.listByUser(user.id, 50);
 
   let currentConversation = null;
   let messages: ConversationMessage[] = [];
 
   if (params.conversationId) {
-    const conv = await getConversationWithMessages(params.conversationId);
+    const conv =
+      await conversationsService.getWithMessages(params.conversationId);
     if (conv) {
       currentConversation = conv;
       messages = conv.messages || [];

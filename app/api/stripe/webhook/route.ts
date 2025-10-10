@@ -1,10 +1,7 @@
 import { type NextRequest, NextResponse } from "next/server";
 import { stripe } from "@/lib/stripe";
-import { addCredits } from "@/lib/queries/credits";
+import { creditsService } from "@/lib/services";
 import { headers } from "next/headers";
-import { db } from "@/db/drizzle";
-import * as schema from "@/db/sass/schema";
-import { eq } from "drizzle-orm";
 import { revalidateTag } from "next/cache";
 import type Stripe from "stripe";
 
@@ -69,13 +66,11 @@ export async function POST(req: NextRequest) {
             break;
           }
 
+          // Check for duplicate transaction
           const existingTransaction =
-            await db.query.creditTransactions.findFirst({
-              where: eq(
-                schema.creditTransactions.stripe_payment_intent_id,
-                paymentIntentId,
-              ),
-            });
+            await creditsService.getTransactionByStripePaymentIntent(
+              paymentIntentId,
+            );
 
           if (existingTransaction) {
             console.log(
@@ -87,12 +82,16 @@ export async function POST(req: NextRequest) {
             );
           }
 
-          await addCredits(
+          // Add credits
+          await creditsService.addCredits(
             organizationId,
             credits,
-            "purchase",
             `Credit pack purchase - ${credits.toLocaleString()} credits`,
-            userId,
+            {
+              user_id: userId,
+              payment_intent_id: paymentIntentId,
+              session_id: session.id,
+            },
             paymentIntentId,
           );
 

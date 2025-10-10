@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireAuthOrApiKey } from "@/lib/auth";
-import { listGenerationsByUser } from "@/lib/queries/generations";
+import { generationsService } from "@/lib/services";
 
 export const dynamic = "force-dynamic";
 
@@ -17,32 +17,40 @@ export async function GET(request: NextRequest) {
     const limit = parseInt(searchParams.get("limit") || "100");
     const offset = parseInt(searchParams.get("offset") || "0");
 
-    const generations = await listGenerationsByUser(user.id, {
-      type: type || undefined,
-      status: "completed",
-      limit: Math.min(limit, 1000),
-      offset,
-    });
+    // Get all generations for the user, then filter by type and status
+    const allGenerations = await generationsService.listByOrganizationAndStatus(
+      user.organization_id,
+      "completed",
+    );
 
-    const items = generations
-      .filter((gen) => gen.storage_url)
-      .map((gen) => ({
-        id: gen.id,
-        type: gen.type,
-        url: gen.storage_url,
-        thumbnailUrl: gen.thumbnail_url,
-        prompt: gen.prompt,
-        negativePrompt: gen.negative_prompt,
-        model: gen.model,
-        provider: gen.provider,
-        status: gen.status,
-        createdAt: gen.created_at.toISOString(),
-        completedAt: gen.completed_at?.toISOString(),
-        dimensions: gen.dimensions,
-        mimeType: gen.mime_type,
-        fileSize: gen.file_size?.toString(),
-        metadata: gen.metadata,
-      }));
+    let filtered = allGenerations.filter(
+      (gen) => gen.storage_url && gen.user_id === user.id,
+    );
+
+    if (type) {
+      filtered = filtered.filter((gen) => gen.type === type);
+    }
+
+    // Apply offset and limit
+    const generations = filtered.slice(offset, offset + Math.min(limit, 1000));
+
+    const items = generations.map((gen) => ({
+      id: gen.id,
+      type: gen.type,
+      url: gen.storage_url,
+      thumbnailUrl: gen.thumbnail_url,
+      prompt: gen.prompt,
+      negativePrompt: gen.negative_prompt,
+      model: gen.model,
+      provider: gen.provider,
+      status: gen.status,
+      createdAt: gen.created_at.toISOString(),
+      completedAt: gen.completed_at?.toISOString(),
+      dimensions: gen.dimensions,
+      mimeType: gen.mime_type,
+      fileSize: gen.file_size?.toString(),
+      metadata: gen.metadata,
+    }));
 
     return NextResponse.json(
       {
@@ -50,7 +58,7 @@ export async function GET(request: NextRequest) {
         count: items.length,
         offset,
         limit,
-        hasMore: items.length === limit,
+        hasMore: filtered.length > offset + limit,
       },
       { status: 200 },
     );
@@ -72,4 +80,3 @@ export async function GET(request: NextRequest) {
     );
   }
 }
-

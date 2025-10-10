@@ -1,8 +1,10 @@
 import { streamText } from "ai";
 import { requireAuthOrApiKey } from "@/lib/auth";
-import { createUsageRecord } from "@/lib/queries/usage";
-import { deductCredits } from "@/lib/queries/credits";
-import { createGeneration, updateGeneration } from "@/lib/queries/generations";
+import {
+  usageService,
+  creditsService,
+  generationsService,
+} from "@/lib/services";
 import { IMAGE_GENERATION_COST } from "@/lib/pricing";
 import { uploadBase64Image } from "@/lib/blob";
 import type { NextRequest } from "next/server";
@@ -40,7 +42,7 @@ export async function POST(req: NextRequest) {
     // Calculate total cost based on number of images
     const totalCost = IMAGE_GENERATION_COST * numImages;
 
-    const generation = await createGeneration({
+    const generation = await generationsService.create({
       organization_id: user.organization_id,
       user_id: user.id,
       api_key_id: apiKey?.id || null,
@@ -145,7 +147,7 @@ export async function POST(req: NextRequest) {
     const successfulResults = results.filter((r): r is NonNullable<typeof r> => r !== null);
 
     if (successfulResults.length === 0) {
-      const usageRecord = await createUsageRecord({
+      const usageRecord = await usageService.create({
         organization_id: user.organization_id,
         user_id: user.id,
         api_key_id: apiKey?.id || null,
@@ -161,7 +163,7 @@ export async function POST(req: NextRequest) {
       });
 
       if (generationId) {
-        await updateGeneration(generationId, {
+        await generationsService.update(generationId, {
           status: "failed",
           error: "No images were generated",
           usage_record_id: usageRecord.id,
@@ -177,11 +179,11 @@ export async function POST(req: NextRequest) {
 
     // Deduct credits for actual number of successful images
     const actualCost = IMAGE_GENERATION_COST * successfulResults.length;
-    const deductionResult = await deductCredits(
+    const deductionResult = await creditsService.deductCredits(
       user.organization_id,
       actualCost,
       `Image generation (${successfulResults.length}x): google/gemini-2.5-flash-image-preview`,
-      user.id,
+      { user_id: user.id },
     );
 
     if (!deductionResult.success) {
@@ -190,7 +192,7 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    const usageRecord = await createUsageRecord({
+    const usageRecord = await usageService.create({
       organization_id: user.organization_id,
       user_id: user.id,
       api_key_id: apiKey?.id || null,
@@ -258,7 +260,7 @@ export async function POST(req: NextRequest) {
     }));
 
     if (generationId) {
-      await updateGeneration(generationId, {
+      await generationsService.update(generationId, {
         status: "completed",
         content: uploadResults[0].imageBase64,
         storage_url: uploadResults[0].blobUrl,
@@ -290,7 +292,7 @@ export async function POST(req: NextRequest) {
 
     if (generationId) {
       try {
-        await updateGeneration(generationId, {
+        await generationsService.update(generationId, {
           status: "failed",
           error: errorMessage,
           completed_at: new Date(),

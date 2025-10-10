@@ -1,5 +1,5 @@
 import { config } from "dotenv";
-import { addCredits } from "../lib/queries/credits";
+import { creditsService } from "../lib/services";
 
 config({ path: ".env.local" });
 
@@ -24,12 +24,11 @@ async function testAddCredits() {
   console.log("-".repeat(70));
 
   try {
-    const result = await addCredits(
+    const result = await creditsService.addCredits(
       organizationId,
       credits,
-      "purchase",
       `Test credit pack purchase - ${credits.toLocaleString()} credits`,
-      userId,
+      { user_id: userId },
       paymentIntentId,
     );
 
@@ -48,8 +47,8 @@ async function testAddCredits() {
     console.log("\n📊 Verifying in Database...");
     console.log("-".repeat(70));
 
-    const { db } = await import("../db/drizzle");
-    const schema = await import("../db/sass/schema");
+    const { db } = await import("../db/client");
+    const schema = await import("../db/schemas");
     const { eq } = await import("drizzle-orm");
 
     const org = await db.query.organizations.findFirst({

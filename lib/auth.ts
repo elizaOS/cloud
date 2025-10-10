@@ -1,18 +1,14 @@
 import { withAuth } from "@workos-inc/authkit-nextjs";
-import {
-  getUserByEmailWithOrganization,
-  getUserWithOrganization,
-} from "@/lib/queries/users";
-import { validateApiKey, incrementApiKeyUsage } from "@/lib/queries/api-keys";
+import { usersService, apiKeysService } from "@/lib/services";
 import type { UserWithOrganization, ApiKey } from "@/lib/types";
 import { cache } from "react";
 import { unstable_cache } from "next/cache";
 import { redirect } from "next/navigation";
 import type { NextRequest } from "next/server";
 
-const getUserFromDB = unstable_cache(
+const getCachedUserByEmail = unstable_cache(
   async (email: string) => {
-    return await getUserByEmailWithOrganization(email);
+    return await usersService.getByEmailWithOrganization(email);
   },
   ["user-by-email"],
   {
@@ -29,7 +25,7 @@ export const getCurrentUser = cache(
       return null;
     }
 
-    const user = await getUserFromDB(workosUser.email);
+    const user = await getCachedUserByEmail(workosUser.email);
 
     if (!user) {
       return redirect("/login");
@@ -94,7 +90,7 @@ export type AuthResult = {
 export async function getUserFromApiKey(
   apiKey: ApiKey,
 ): Promise<UserWithOrganization | null> {
-  const user = await getUserWithOrganization(apiKey.user_id);
+  const user = await usersService.getWithOrganization(apiKey.user_id);
   if (!user) {
     return null;
   }
@@ -113,7 +109,7 @@ export async function requireAuthOrApiKey(
       throw new Error("Invalid API key format");
     }
 
-    const apiKey = await validateApiKey(apiKeyValue);
+    const apiKey = await apiKeysService.validateApiKey(apiKeyValue);
 
     if (!apiKey) {
       throw new Error("Invalid or expired API key");
@@ -141,7 +137,7 @@ export async function requireAuthOrApiKey(
       throw new Error("Organization is inactive");
     }
 
-    await incrementApiKeyUsage(apiKey.id);
+    await apiKeysService.incrementUsage(apiKey.id);
 
     return {
       user,

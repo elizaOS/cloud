@@ -1,9 +1,4 @@
-import {
-  createOrganization,
-  getOrganizationBySlug,
-  getOrganizationById,
-} from "@/lib/queries/organizations";
-import { createUser, getUserByEmail, updateUser } from "@/lib/queries/users";
+import { organizationsService, usersService } from "@/lib/services";
 import type { UserWithOrganization } from "@/lib/types";
 
 interface WorkOSUser {
@@ -30,20 +25,20 @@ export async function syncWorkOSUser(
       ? `${workosUser.firstName} ${workosUser.lastName}`.trim()
       : workosUser.firstName || workosUser.email;
 
-  let user = await getUserByEmail(email);
+  let user = await usersService.getByEmail(email);
 
   if (user) {
     const shouldUpdate = user.name !== name;
 
     if (shouldUpdate) {
       user =
-        (await updateUser(user.id, {
+        (await usersService.update(user.id, {
           name,
           updated_at: new Date(),
         })) || user;
     }
 
-    const org = await getOrganizationById(user.organization_id);
+    const org = await organizationsService.getById(user.organization_id);
 
     if (!org) {
       throw new Error(
@@ -58,14 +53,14 @@ export async function syncWorkOSUser(
   }
 
   let orgSlug = generateSlugFromEmail(email);
-  let org = await getOrganizationBySlug(orgSlug);
+  let org = await organizationsService.getBySlug(orgSlug);
 
   let attempts = 0;
   const MAX_ATTEMPTS = 5;
 
   while (org && attempts < MAX_ATTEMPTS) {
     orgSlug = generateSlugFromEmail(email);
-    org = await getOrganizationBySlug(orgSlug);
+    org = await organizationsService.getBySlug(orgSlug);
     attempts++;
   }
 
@@ -75,7 +70,7 @@ export async function syncWorkOSUser(
     );
   }
 
-  org = await createOrganization({
+  org = await organizationsService.create({
     name: name || email,
     slug: orgSlug,
     credit_balance: 10000,
@@ -88,7 +83,7 @@ export async function syncWorkOSUser(
     },
   });
 
-  user = await createUser({
+  user = await usersService.create({
     workos_user_id: workosUser.id,
     email,
     name,

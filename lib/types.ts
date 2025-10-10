@@ -1,58 +1,55 @@
-import type { InferSelectModel, InferInsertModel } from "drizzle-orm";
-import * as schema from "@/db/sass/schema";
+// Re-export all types from repositories for convenience
+export type {
+  Organization,
+  NewOrganization,
+} from "@/db/repositories/organizations";
 
-export type Organization = InferSelectModel<typeof schema.organizations>;
-export type NewOrganization = InferInsertModel<typeof schema.organizations>;
+export type {
+  User,
+  NewUser,
+  UserWithOrganization,
+} from "@/db/repositories/users";
 
-export type User = InferSelectModel<typeof schema.users>;
-export type NewUser = InferInsertModel<typeof schema.users>;
+export type {
+  ApiKey,
+  NewApiKey,
+} from "@/db/repositories/api-keys";
 
-export type ApiKey = InferSelectModel<typeof schema.apiKeys>;
-export type NewApiKey = InferInsertModel<typeof schema.apiKeys>;
+export type {
+  UsageRecord,
+  NewUsageRecord,
+  UsageStats,
+} from "@/db/repositories/usage-records";
 
-export type UsageRecord = InferSelectModel<typeof schema.usageRecords>;
-export type NewUsageRecord = InferInsertModel<typeof schema.usageRecords>;
+export type {
+  CreditTransaction,
+  NewCreditTransaction,
+} from "@/db/repositories/credit-transactions";
 
-export type CreditTransaction = InferSelectModel<
-  typeof schema.creditTransactions
->;
-export type NewCreditTransaction = InferInsertModel<
-  typeof schema.creditTransactions
->;
+export type {
+  CreditPack,
+  NewCreditPack,
+} from "@/db/repositories/credit-packs";
 
-export type CreditPack = InferSelectModel<typeof schema.creditPacks>;
-export type NewCreditPack = InferInsertModel<typeof schema.creditPacks>;
+export type {
+  Generation,
+  NewGeneration,
+} from "@/db/repositories/generations";
 
-export type Generation = InferSelectModel<typeof schema.generations>;
-export type NewGeneration = InferInsertModel<typeof schema.generations>;
+export type {
+  Conversation,
+  NewConversation,
+  ConversationMessage,
+  NewConversationMessage,
+  ConversationWithMessages,
+} from "@/db/repositories/conversations";
 
-export type Job = InferSelectModel<typeof schema.jobs>;
-export type NewJob = InferInsertModel<typeof schema.jobs>;
+export type {
+  UserCharacter,
+  NewUserCharacter,
+} from "@/db/repositories/user-characters";
 
-export type ModelPricing = InferSelectModel<typeof schema.modelPricing>;
-export type NewModelPricing = InferInsertModel<typeof schema.modelPricing>;
-
-export type ProviderHealth = InferSelectModel<typeof schema.providerHealth>;
-export type NewProviderHealth = InferInsertModel<typeof schema.providerHealth>;
-
-export type Conversation = InferSelectModel<typeof schema.conversations>;
-export type NewConversation = InferInsertModel<typeof schema.conversations>;
-
-export type ConversationMessage = InferSelectModel<
-  typeof schema.conversationMessages
->;
-export type NewConversationMessage = InferInsertModel<
-  typeof schema.conversationMessages
->;
-
-export type UserWithOrganization = User & {
-  organization: Organization;
-};
-
-export type ConversationWithMessages = Conversation & {
-  messages: ConversationMessage[];
-};
-
+// Additional utility types
 export interface ConversationSettings {
   temperature?: number;
   maxTokens?: number;
@@ -68,9 +65,6 @@ export interface UsageMetadata {
   request_id?: string;
   [key: string]: unknown;
 }
-
-export type UserCharacter = InferSelectModel<typeof schema.userCharacters>;
-export type NewUserCharacter = InferInsertModel<typeof schema.userCharacters>;
 
 export type TemplateType =
   | string

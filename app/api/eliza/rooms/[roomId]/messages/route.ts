@@ -2,9 +2,11 @@ import { NextResponse } from "next/server";
 import { agentRuntime } from "@/lib/eliza/agent-runtime";
 import type { UUID } from "@elizaos/core";
 import { requireAuthOrApiKey } from "@/lib/auth";
-import { deductCredits } from "@/lib/queries/credits";
-import { createUsageRecord } from "@/lib/queries/usage";
-import { createGeneration } from "@/lib/queries/generations";
+import {
+  creditsService,
+  usageService,
+  generationsService,
+} from "@/lib/services";
 import { calculateCost, getProviderFromModel } from "@/lib/pricing";
 import type { NextRequest } from "next/server";
 
@@ -95,11 +97,11 @@ export async function POST(
       );
 
       // Deduct credits
-      const deductionResult = await deductCredits(
+      const deductionResult = await creditsService.deductCredits(
         user.organization_id,
         totalCost,
         `Eliza chat completion: ${model}`,
-        user.id,
+        { user_id: user.id },
       );
 
       if (!deductionResult.success) {
@@ -109,7 +111,7 @@ export async function POST(
       }
 
       // Create usage record
-      const usageRecord = await createUsageRecord({
+      const usageRecord = await usageService.create({
         organization_id: user.organization_id,
         user_id: user.id,
         api_key_id: apiKey?.id || null,
@@ -125,7 +127,7 @@ export async function POST(
 
       // Create generation record if using API key
       if (apiKey) {
-        await createGeneration({
+        await generationsService.create({
           organization_id: user.organization_id,
           user_id: user.id,
           api_key_id: apiKey.id,
@@ -155,7 +157,7 @@ export async function POST(
 
       // Still create an unsuccessful usage record for tracking
       try {
-        await createUsageRecord({
+        await usageService.create({
           organization_id: user.organization_id,
           user_id: user.id,
           api_key_id: apiKey?.id || null,

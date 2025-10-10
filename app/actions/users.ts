@@ -2,7 +2,7 @@
 
 import { revalidatePath, revalidateTag } from "next/cache";
 import { requireAuth } from "@/lib/auth";
-import { updateUser } from "@/lib/queries/users";
+import { usersService } from "@/lib/services";
 import { z } from "zod";
 
 const updateProfileSchema = z.object({
@@ -23,7 +23,7 @@ export async function updateProfile(formData: FormData) {
     const validated = updateProfileSchema.parse(data);
 
     // Update user
-    await updateUser(user.id, {
+    await usersService.update(user.id, {
       name: validated.name,
       avatar: validated.avatar || null,
     });
@@ -90,7 +90,7 @@ export async function uploadAvatar(formData: FormData) {
     // In production, you'd upload to S3, Cloudflare R2, etc.
     const avatarUrl = `https://api.dicebear.com/7.x/initials/svg?seed=${encodeURIComponent(user.name || user.email)}`;
 
-    await updateUser(user.id, {
+    await usersService.update(user.id, {
       avatar: avatarUrl,
     });
 

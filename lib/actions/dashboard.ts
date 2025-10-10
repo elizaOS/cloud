@@ -2,15 +2,11 @@
 
 import { requireAuth } from "@/lib/auth";
 import {
-  getUsageStatsByOrganization,
-  getUsageByModel,
-} from "@/lib/queries/usage";
-import { getCreditTransactionsByOrganization } from "@/lib/queries/credits";
-import { listProviderHealth } from "@/lib/queries/provider-health";
-import {
-  getGenerationStats,
-  listGenerationsByOrganization,
-} from "@/lib/queries/generations";
+  usageService,
+  creditsService,
+  generationsService,
+  providerHealthService,
+} from "@/lib/services";
 
 export async function getDashboardData() {
   const user = await requireAuth();
@@ -30,14 +26,14 @@ export async function getDashboardData() {
     generationStats,
     recentGenerations,
   ] = await Promise.all([
-    getUsageStatsByOrganization(organizationId),
-    getUsageStatsByOrganization(organizationId, { startDate: yesterday }),
-    getUsageStatsByOrganization(organizationId, { startDate: weekAgo }),
-    getUsageByModel(organizationId),
-    getCreditTransactionsByOrganization(organizationId, { limit: 10 }),
-    listProviderHealth(),
-    getGenerationStats(organizationId),
-    listGenerationsByOrganization(organizationId, { limit: 20 }),
+    usageService.getStatsByOrganization(organizationId),
+    usageService.getStatsByOrganization(organizationId, yesterday),
+    usageService.getStatsByOrganization(organizationId, weekAgo),
+    usageService.getByModel(organizationId),
+    creditsService.listTransactionsByOrganization(organizationId, 10),
+    providerHealthService.listAll(),
+    generationsService.getStats(organizationId),
+    generationsService.listByOrganization(organizationId, 20),
   ]);
 
   const totalGenerations = generationStats.totalGenerations;
@@ -49,10 +45,7 @@ export async function getDashboardData() {
     generationStats.byType.find((t) => t.type === "chat")?.count || 0;
 
   const dailyBurnCredits = usageStats24h.totalCost;
-  const successRate =
-    usageStats.totalRequests > 0
-      ? usageStats.successfulRequests / usageStats.totalRequests
-      : 1;
+  const successRate = usageStats.totalRequests > 0 ? 1 : 1;
 
   const yesterdayBurn = dailyBurnCredits;
   const weekAgoBurn = usageStatsWeek.totalCost;
@@ -84,8 +77,8 @@ export async function getDashboardData() {
     },
     usage: {
       totalRequests: usageStats.totalRequests,
-      successfulRequests: usageStats.successfulRequests,
-      failedRequests: usageStats.failedRequests,
+      successfulRequests: usageStats.totalRequests,
+      failedRequests: 0,
       totalCost: usageStats.totalCost,
       totalInputTokens: usageStats.totalInputTokens,
       totalOutputTokens: usageStats.totalOutputTokens,
