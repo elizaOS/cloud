@@ -7,6 +7,7 @@ import {
   timestamp,
   uuid,
 } from "drizzle-orm/pg-core";
+import type { InferSelectModel, InferInsertModel } from "drizzle-orm";
 import { organizations } from "./organizations";
 import { users } from "./users";
 import { usageRecords } from "./usage-records";
@@ -91,3 +92,8 @@ export const conversationMessages = pgTable(
   }),
 );
 
+// Type inference
+export type Conversation = InferSelectModel<typeof conversations>;
+export type NewConversation = InferInsertModel<typeof conversations>;
+export type ConversationMessage = InferSelectModel<typeof conversationMessages>;
+export type NewConversationMessage = InferInsertModel<typeof conversationMessages>;

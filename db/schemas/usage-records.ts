@@ -8,6 +8,7 @@ import {
   timestamp,
   uuid,
 } from "drizzle-orm/pg-core";
+import type { InferSelectModel, InferInsertModel } from "drizzle-orm";
 import { organizations } from "./organizations";
 import { users } from "./users";
 import { apiKeys } from "./api-keys";
@@ -61,3 +62,6 @@ export const usageRecords = pgTable(
   }),
 );
 
+// Type inference
+export type UsageRecord = InferSelectModel<typeof usageRecords>;
+export type NewUsageRecord = InferInsertModel<typeof usageRecords>;

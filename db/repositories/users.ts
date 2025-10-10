@@ -1,13 +1,12 @@
-import { eq, type InferSelectModel, type InferInsertModel } from "drizzle-orm";
+import { eq } from "drizzle-orm";
 import { db } from "../client";
-import { users } from "../schemas/users";
-import { organizations } from "../schemas/organizations";
+import { users, type User, type NewUser } from "../schemas/users";
+import { type Organization } from "../schemas/organizations";
 
-export type User = InferSelectModel<typeof users>;
-export type NewUser = InferInsertModel<typeof users>;
+export type { User, NewUser };
 
 export interface UserWithOrganization extends User {
-  organization: InferSelectModel<typeof organizations>;
+  organization: Organization;
 }
 
 export class UsersRepository {

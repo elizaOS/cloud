@@ -8,6 +8,7 @@ import {
   timestamp,
   uuid,
 } from "drizzle-orm/pg-core";
+import type { InferSelectModel, InferInsertModel } from "drizzle-orm";
 
 export const providerHealth = pgTable(
   "provider_health",
@@ -31,3 +32,6 @@ export const providerHealth = pgTable(
   }),
 );
 
+// Type inference
+export type ProviderHealth = InferSelectModel<typeof providerHealth>;
+export type NewProviderHealth = InferInsertModel<typeof providerHealth>;

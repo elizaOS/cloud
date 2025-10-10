@@ -8,6 +8,7 @@ import {
   timestamp,
   uuid,
 } from "drizzle-orm/pg-core";
+import type { InferSelectModel, InferInsertModel } from "drizzle-orm";
 
 export const creditPacks = pgTable(
   "credit_packs",
@@ -37,3 +38,6 @@ export const creditPacks = pgTable(
   }),
 );
 
+// Type inference
+export type CreditPack = InferSelectModel<typeof creditPacks>;
+export type NewCreditPack = InferInsertModel<typeof creditPacks>;

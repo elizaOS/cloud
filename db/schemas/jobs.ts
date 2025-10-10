@@ -7,6 +7,7 @@ import {
   timestamp,
   uuid,
 } from "drizzle-orm/pg-core";
+import type { InferSelectModel, InferInsertModel } from "drizzle-orm";
 import { organizations } from "./organizations";
 import { users } from "./users";
 import { apiKeys } from "./api-keys";
@@ -46,3 +47,6 @@ export const jobs = pgTable(
   }),
 );
 
+// Type inference
+export type Job = InferSelectModel<typeof jobs>;
+export type NewJob = InferInsertModel<typeof jobs>;
