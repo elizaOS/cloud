@@ -2,9 +2,11 @@ import { NextRequest, NextResponse } from "next/server";
 import { fal } from "@fal-ai/client";
 import type { QueueStatus } from "@fal-ai/client";
 import { requireAuthOrApiKey } from "@/lib/auth";
-import { createUsageRecord } from "@/lib/queries/usage";
-import { deductCredits } from "@/lib/queries/credits";
-import { createGeneration, updateGeneration } from "@/lib/queries/generations";
+import {
+  usageService,
+  creditsService,
+  generationsService,
+} from "@/lib/services";
 import {
   VIDEO_GENERATION_COST,
   VIDEO_GENERATION_FALLBACK_COST,
@@ -79,7 +81,7 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const generation = await createGeneration({
+    const generation = await generationsService.create({
       organization_id: user.organization_id,
       user_id: user.id,
       api_key_id: apiKey?.id || null,
@@ -158,11 +160,11 @@ export async function POST(request: NextRequest) {
       // Continue with original URL as fallback
     }
 
-    const deductionResult = await deductCredits(
+    const deductionResult = await creditsService.deductCredits(
       user.organization_id,
       VIDEO_GENERATION_COST,
       `Video generation: ${model}`,
-      user.id,
+      { user_id: user.id },
     );
 
     if (!deductionResult.success) {
@@ -171,7 +173,7 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const usageRecord = await createUsageRecord({
+    const usageRecord = await usageService.create({
       organization_id: user.organization_id,
       user_id: user.id,
       api_key_id: apiKey?.id || null,
@@ -186,7 +188,7 @@ export async function POST(request: NextRequest) {
     });
 
     if (generationId) {
-      await updateGeneration(generationId, {
+      await generationsService.update(generationId, {
         status: "completed",
         storage_url: blobUrl,
         mime_type: data.video.content_type || "video/mp4",
@@ -242,11 +244,11 @@ export async function POST(request: NextRequest) {
       const { user: fallbackUser, apiKey: fallbackApiKey } =
         await requireAuthOrApiKey(request);
 
-      const fallbackDeduction = await deductCredits(
+      const fallbackDeduction = await creditsService.deductCredits(
         fallbackUser.organization_id,
         VIDEO_GENERATION_FALLBACK_COST,
         "Video generation (fallback): fal-ai/veo3",
-        fallbackUser.id,
+        { user_id: fallbackUser.id },
       );
 
       if (!fallbackDeduction.success) {
@@ -255,7 +257,7 @@ export async function POST(request: NextRequest) {
         );
       }
 
-      const fallbackUsageRecord = await createUsageRecord({
+      const fallbackUsageRecord = await usageService.create({
         organization_id: fallbackUser.organization_id,
         user_id: fallbackUser.id,
         api_key_id: fallbackApiKey?.id || null,
@@ -271,7 +273,7 @@ export async function POST(request: NextRequest) {
       });
 
       if (generationId) {
-        await updateGeneration(generationId, {
+        await generationsService.update(generationId, {
           status: "failed",
           error: errorMessage,
           storage_url:

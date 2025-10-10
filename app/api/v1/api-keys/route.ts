@@ -1,12 +1,12 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireAuth } from "@/lib/auth";
-import { createApiKey, listApiKeys } from "@/lib/queries/api-keys";
+import { apiKeysService } from "@/lib/services";
 
 export async function GET() {
   try {
     const user = await requireAuth();
 
-    const keys = await listApiKeys(user.organization_id);
+    const keys = await apiKeysService.listByOrganization(user.organization_id);
 
     return NextResponse.json({ keys });
   } catch (error) {
@@ -29,7 +29,7 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "Name is required" }, { status: 400 });
     }
 
-    const { apiKey, plainKey } = await createApiKey({
+    const { apiKey, plainKey } = await apiKeysService.create({
       name: name.trim(),
       description: description?.trim() || null,
       organization_id: user.organization_id,

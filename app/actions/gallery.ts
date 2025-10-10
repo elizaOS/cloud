@@ -1,12 +1,8 @@
 "use server";
 
 import { requireAuth } from "@/lib/auth";
-import {
-  listGenerationsByUser,
-  getUserGenerationStats as dbGetUserGenerationStats,
-} from "@/lib/queries/generations";
+import { generationsService } from "@/lib/services";
 import { deleteBlob } from "@/lib/blob";
-import { updateGeneration } from "@/lib/queries/generations";
 import { revalidatePath } from "next/cache";
 
 export interface GalleryItem {
@@ -38,29 +34,42 @@ export async function listUserMedia(options?: {
 }): Promise<GalleryItem[]> {
   const user = await requireAuth();
 
-  const generations = await listGenerationsByUser(user.id, {
-    limit: options?.limit || 100,
-    offset: options?.offset || 0,
-    type: options?.type,
-    status: "completed",
-  });
+  const generations = await generationsService.listByOrganizationAndStatus(
+    user.organization_id,
+    "completed",
+  );
 
-  return generations
-    .filter((gen) => gen.storage_url)
-    .map((gen) => ({
-      id: gen.id,
-      type: gen.type as "image" | "video",
-      url: gen.storage_url!,
-      thumbnailUrl: gen.thumbnail_url || undefined,
-      prompt: gen.prompt,
-      model: gen.model,
-      status: gen.status,
-      createdAt: gen.created_at,
-      completedAt: gen.completed_at || undefined,
-      dimensions: gen.dimensions || undefined,
-      mimeType: gen.mime_type || undefined,
-      fileSize: gen.file_size || undefined,
-    }));
+  // Filter by type and user if needed
+  let filtered = generations.filter(
+    (gen) => gen.storage_url && gen.user_id === user.id,
+  );
+
+  if (options?.type) {
+    filtered = filtered.filter((gen) => gen.type === options.type);
+  }
+
+  // Apply offset and limit
+  if (options?.offset) {
+    filtered = filtered.slice(options.offset);
+  }
+  if (options?.limit) {
+    filtered = filtered.slice(0, options.limit);
+  }
+
+  return filtered.map((gen) => ({
+    id: gen.id,
+    type: gen.type as "image" | "video",
+    url: gen.storage_url!,
+    thumbnailUrl: gen.thumbnail_url || undefined,
+    prompt: gen.prompt,
+    model: gen.model,
+    status: gen.status,
+    createdAt: gen.created_at,
+    completedAt: gen.completed_at || undefined,
+    dimensions: gen.dimensions || undefined,
+    mimeType: gen.mime_type || undefined,
+    fileSize: gen.file_size || undefined,
+  }));
 }
 
 /**
@@ -69,13 +78,10 @@ export async function listUserMedia(options?: {
 export async function deleteMedia(generationId: string): Promise<boolean> {
   const user = await requireAuth();
 
-  // Get the generation to verify ownership and get the blob URL
-  const generations = await listGenerationsByUser(user.id, {
-    limit: 1,
-  });
-  const generation = generations.find((g) => g.id === generationId);
+  // Get the generation to verify ownership
+  const generation = await generationsService.getById(generationId);
 
-  if (!generation) {
+  if (!generation || generation.user_id !== user.id) {
     throw new Error("Media not found or access denied");
   }
 
@@ -93,10 +99,7 @@ export async function deleteMedia(generationId: string): Promise<boolean> {
   }
 
   // Update the generation record to mark as deleted
-  await updateGeneration(generationId, {
-    status: "deleted",
-    updated_at: new Date(),
-  });
+  await generationsService.updateStatus(generationId, "deleted");
 
   revalidatePath("/dashboard/gallery");
   return true;
@@ -112,7 +115,28 @@ export async function getUserMediaStats(): Promise<{
 }> {
   const user = await requireAuth();
 
-  // Use optimized database query instead of fetching all records
-  return await dbGetUserGenerationStats(user.id);
-}
+  // Get all completed generations for the user
+  const generations = await generationsService.listByOrganizationAndStatus(
+    user.organization_id,
+    "completed",
+  );
 
+  const userGenerations = generations.filter(
+    (gen) => gen.user_id === user.id && gen.storage_url,
+  );
+
+  const totalImages = userGenerations.filter((gen) => gen.type === "image")
+    .length;
+  const totalVideos = userGenerations.filter((gen) => gen.type === "video")
+    .length;
+  const totalSize = userGenerations.reduce(
+    (acc, gen) => acc + Number(gen.file_size || 0),
+    0,
+  );
+
+  return {
+    totalImages,
+    totalVideos,
+    totalSize,
+  };
+}

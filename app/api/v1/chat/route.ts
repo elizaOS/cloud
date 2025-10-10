@@ -1,12 +1,11 @@
 import { streamText, type UIMessage, convertToModelMessages } from "ai";
 import { requireAuthOrApiKey } from "@/lib/auth";
 import {
-  addMessageToConversation,
-  getNextSequenceNumber,
-} from "@/lib/queries/conversations";
-import { deductCredits } from "@/lib/queries/credits";
-import { createUsageRecord } from "@/lib/queries/usage";
-import { createGeneration } from "@/lib/queries/generations";
+  conversationsService,
+  creditsService,
+  usageService,
+  generationsService,
+} from "@/lib/services";
 import { calculateCost, getProviderFromModel } from "@/lib/pricing";
 import type { NextRequest } from "next/server";
 
@@ -43,11 +42,14 @@ export async function POST(req: NextRequest) {
             usage.outputTokens || 0,
           );
 
-          const deductionResult = await deductCredits(
+          const deductionResult = await creditsService.deductCredits(
             user.organization_id,
             totalCost,
             `Chat completion: ${selectedModel}`,
-            user.id,
+            {
+              user_id: user.id,
+              model: selectedModel,
+            },
           );
 
           if (!deductionResult.success) {
@@ -57,35 +59,38 @@ export async function POST(req: NextRequest) {
           }
 
           if (conversationId) {
-            const userSequence = await getNextSequenceNumber(conversationId);
+            const userSequence = await conversationsService.getNextSequenceNumber(conversationId);
 
-            await addMessageToConversation({
-              conversation_id: conversationId,
-              role: "user",
-              content: userMessage.parts
+            await conversationsService.addMessage(
+              conversationId,
+              "user",
+              userMessage.parts
                 .map((p) => (p.type === "text" ? p.text : ""))
                 .join(""),
-              sequence_number: userSequence,
-              model: selectedModel,
-              tokens: usage.inputTokens,
-              cost: inputCost,
-            });
+              userSequence,
+              {
+                model: selectedModel,
+                tokens: usage.inputTokens,
+                cost: inputCost,
+              },
+            );
 
-            const assistantSequence =
-              await getNextSequenceNumber(conversationId);
+            const assistantSequence = await conversationsService.getNextSequenceNumber(conversationId);
 
-            await addMessageToConversation({
-              conversation_id: conversationId,
-              role: "assistant",
-              content: text,
-              sequence_number: assistantSequence,
-              model: selectedModel,
-              tokens: usage.outputTokens,
-              cost: outputCost,
-            });
+            await conversationsService.addMessage(
+              conversationId,
+              "assistant",
+              text,
+              assistantSequence,
+              {
+                model: selectedModel,
+                tokens: usage.outputTokens,
+                cost: outputCost,
+              },
+            );
           }
 
-          const usageRecord = await createUsageRecord({
+          const usageRecord = await usageService.create({
             organization_id: user.organization_id,
             user_id: user.id,
             api_key_id: apiKey?.id || null,
@@ -104,7 +109,7 @@ export async function POST(req: NextRequest) {
               messages[messages.length - 1]?.parts
                 .map((p) => (p.type === "text" ? p.text : ""))
                 .join("") || "";
-            await createGeneration({
+            await generationsService.create({
               organization_id: user.organization_id,
               user_id: user.id,
               api_key_id: apiKey.id,
@@ -140,7 +145,7 @@ export async function POST(req: NextRequest) {
 
           if (usage) {
             try {
-              const errorUsageRecord = await createUsageRecord({
+              const errorUsageRecord = await usageService.create({
                 organization_id: user.organization_id,
                 user_id: user.id,
                 api_key_id: apiKey?.id || null,
@@ -161,7 +166,7 @@ export async function POST(req: NextRequest) {
                   messages[messages.length - 1]?.parts
                     .map((p) => (p.type === "text" ? p.text : ""))
                     .join("") || "";
-                await createGeneration({
+                await generationsService.create({
                   organization_id: user.organization_id,
                   user_id: user.id,
                   api_key_id: apiKey.id,
