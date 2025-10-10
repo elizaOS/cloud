@@ -7,14 +7,11 @@ import {
   sum,
   count,
   sql,
-  type InferSelectModel,
-  type InferInsertModel,
 } from "drizzle-orm";
 import { db } from "../client";
-import { usageRecords } from "../schemas/usage-records";
+import { usageRecords, type UsageRecord, type NewUsageRecord } from "../schemas/usage-records";
 
-export type UsageRecord = InferSelectModel<typeof usageRecords>;
-export type NewUsageRecord = InferInsertModel<typeof usageRecords>;
+export type { UsageRecord, NewUsageRecord };
 
 export interface UsageStats {
   totalRequests: number;

@@ -1,22 +1,18 @@
 import {
   eq,
   desc,
-  and,
-  type InferSelectModel,
-  type InferInsertModel,
 } from "drizzle-orm";
 import { db } from "../client";
 import {
   conversations,
   conversationMessages,
+  type Conversation,
+  type NewConversation,
+  type ConversationMessage,
+  type NewConversationMessage,
 } from "../schemas/conversations";
 
-export type Conversation = InferSelectModel<typeof conversations>;
-export type NewConversation = InferInsertModel<typeof conversations>;
-export type ConversationMessage = InferSelectModel<typeof conversationMessages>;
-export type NewConversationMessage = InferInsertModel<
-  typeof conversationMessages
->;
+export type { Conversation, NewConversation, ConversationMessage, NewConversationMessage };
 
 export interface ConversationWithMessages extends Conversation {
   messages: ConversationMessage[];

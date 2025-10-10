@@ -1,15 +1,11 @@
 import {
   eq,
   desc,
-  and,
-  type InferSelectModel,
-  type InferInsertModel,
 } from "drizzle-orm";
 import { db } from "../client";
-import { userCharacters } from "../schemas/user-characters";
+import { userCharacters, type UserCharacter, type NewUserCharacter } from "../schemas/user-characters";
 
-export type UserCharacter = InferSelectModel<typeof userCharacters>;
-export type NewUserCharacter = InferInsertModel<typeof userCharacters>;
+export type { UserCharacter, NewUserCharacter };
 
 export class UserCharactersRepository {
   async findById(id: string): Promise<UserCharacter | undefined> {

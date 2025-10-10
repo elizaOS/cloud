@@ -1,53 +1,71 @@
-// Re-export all types from repositories for convenience
+// Re-export all types from schemas for convenience
+// Schemas are the single source of truth for type inference using InferSelectModel and InferInsertModel
 export type {
   Organization,
   NewOrganization,
-} from "@/db/repositories/organizations";
+} from "@/db/schemas/organizations";
 
 export type {
   User,
   NewUser,
-  UserWithOrganization,
-} from "@/db/repositories/users";
+} from "@/db/schemas/users";
 
 export type {
   ApiKey,
   NewApiKey,
-} from "@/db/repositories/api-keys";
+} from "@/db/schemas/api-keys";
 
 export type {
   UsageRecord,
   NewUsageRecord,
-  UsageStats,
-} from "@/db/repositories/usage-records";
+} from "@/db/schemas/usage-records";
 
 export type {
   CreditTransaction,
   NewCreditTransaction,
-} from "@/db/repositories/credit-transactions";
+} from "@/db/schemas/credit-transactions";
 
 export type {
   CreditPack,
   NewCreditPack,
-} from "@/db/repositories/credit-packs";
+} from "@/db/schemas/credit-packs";
 
 export type {
   Generation,
   NewGeneration,
-} from "@/db/repositories/generations";
+} from "@/db/schemas/generations";
 
 export type {
   Conversation,
   NewConversation,
   ConversationMessage,
   NewConversationMessage,
-  ConversationWithMessages,
-} from "@/db/repositories/conversations";
+} from "@/db/schemas/conversations";
 
 export type {
   UserCharacter,
   NewUserCharacter,
-} from "@/db/repositories/user-characters";
+} from "@/db/schemas/user-characters";
+
+export type {
+  Job,
+  NewJob,
+} from "@/db/schemas/jobs";
+
+export type {
+  ModelPricing,
+  NewModelPricing,
+} from "@/db/schemas/model-pricing";
+
+export type {
+  ProviderHealth,
+  NewProviderHealth,
+} from "@/db/schemas/provider-health";
+
+// Repository-specific composite types
+export type { UserWithOrganization } from "@/db/repositories/users";
+export type { ConversationWithMessages } from "@/db/repositories/conversations";
+export type { UsageStats } from "@/db/repositories/usage-records";
 
 // Additional utility types
 export interface ConversationSettings {

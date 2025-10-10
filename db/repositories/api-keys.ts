@@ -1,9 +1,8 @@
-import { eq, and, type InferSelectModel, type InferInsertModel } from "drizzle-orm";
+import { eq, and } from "drizzle-orm";
 import { db } from "../client";
-import { apiKeys } from "../schemas/api-keys";
+import { apiKeys, type ApiKey, type NewApiKey } from "../schemas/api-keys";
 
-export type ApiKey = InferSelectModel<typeof apiKeys>;
-export type NewApiKey = InferInsertModel<typeof apiKeys>;
+export type { ApiKey, NewApiKey };
 
 export class ApiKeysRepository {
   async findById(id: string): Promise<ApiKey | undefined> {

@@ -1,9 +1,8 @@
-import { eq, and, type InferSelectModel, type InferInsertModel } from "drizzle-orm";
+import { eq, and } from "drizzle-orm";
 import { db } from "../client";
-import { modelPricing } from "../schemas/model-pricing";
+import { modelPricing, type ModelPricing, type NewModelPricing } from "../schemas/model-pricing";
 
-export type ModelPricing = InferSelectModel<typeof modelPricing>;
-export type NewModelPricing = InferInsertModel<typeof modelPricing>;
+export type { ModelPricing, NewModelPricing };
 
 export class ModelPricingRepository {
   async findByModelAndProvider(

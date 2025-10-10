@@ -8,6 +8,7 @@ import {
   uniqueIndex,
   uuid,
 } from "drizzle-orm/pg-core";
+import type { InferSelectModel, InferInsertModel } from "drizzle-orm";
 import { organizations } from "./organizations";
 import { users } from "./users";
 
@@ -46,3 +47,6 @@ export const creditTransactions = pgTable(
   }),
 );
 
+// Type inference
+export type CreditTransaction = InferSelectModel<typeof creditTransactions>;
+export type NewCreditTransaction = InferInsertModel<typeof creditTransactions>;

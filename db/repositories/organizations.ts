@@ -1,9 +1,8 @@
-import { eq, type InferSelectModel, type InferInsertModel } from "drizzle-orm";
+import { eq } from "drizzle-orm";
 import { db } from "../client";
-import { organizations } from "../schemas/organizations";
+import { organizations, type Organization, type NewOrganization } from "../schemas/organizations";
 
-export type Organization = InferSelectModel<typeof organizations>;
-export type NewOrganization = InferInsertModel<typeof organizations>;
+export type { Organization, NewOrganization };
 
 export class OrganizationsRepository {
   async findById(id: string): Promise<Organization | undefined> {

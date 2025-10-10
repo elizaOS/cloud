@@ -5,14 +5,11 @@ import {
   sql,
   count,
   sum,
-  type InferSelectModel,
-  type InferInsertModel,
 } from "drizzle-orm";
 import { db } from "../client";
-import { generations } from "../schemas/generations";
+import { generations, type Generation, type NewGeneration } from "../schemas/generations";
 
-export type Generation = InferSelectModel<typeof generations>;
-export type NewGeneration = InferInsertModel<typeof generations>;
+export type { Generation, NewGeneration };
 
 export class GenerationsRepository {
   async findById(id: string): Promise<Generation | undefined> {

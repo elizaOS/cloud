@@ -1,9 +1,8 @@
-import { eq, desc, type InferSelectModel, type InferInsertModel } from "drizzle-orm";
+import { eq, desc } from "drizzle-orm";
 import { db } from "../client";
-import { providerHealth } from "../schemas/provider-health";
+import { providerHealth, type ProviderHealth, type NewProviderHealth } from "../schemas/provider-health";
 
-export type ProviderHealth = InferSelectModel<typeof providerHealth>;
-export type NewProviderHealth = InferInsertModel<typeof providerHealth>;
+export type { ProviderHealth, NewProviderHealth };
 
 export class ProviderHealthRepository {
   async listAll(): Promise<ProviderHealth[]> {

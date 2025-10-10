@@ -2,14 +2,11 @@ import {
   eq,
   desc,
   and,
-  type InferSelectModel,
-  type InferInsertModel,
 } from "drizzle-orm";
 import { db } from "../client";
-import { creditTransactions } from "../schemas/credit-transactions";
+import { creditTransactions, type CreditTransaction, type NewCreditTransaction } from "../schemas/credit-transactions";
 
-export type CreditTransaction = InferSelectModel<typeof creditTransactions>;
-export type NewCreditTransaction = InferInsertModel<typeof creditTransactions>;
+export type { CreditTransaction, NewCreditTransaction };
 
 export class CreditTransactionsRepository {
   async findById(id: string): Promise<CreditTransaction | undefined> {
