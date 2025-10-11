@@ -16,6 +16,9 @@ export interface DeploymentConfig {
   maxInstances: number;
   environmentVars?: Record<string, string>;
   healthCheckPath?: string;
+  useBootstrapper?: boolean;
+  artifactUrl?: string;
+  artifactChecksum?: string;
 }
 
 export interface DeploymentResult {
@@ -23,12 +26,6 @@ export interface DeploymentResult {
   containerId: string;
   url: string;
   status: string;
-}
-
-export interface ImageUploadResult {
-  imageId: string;
-  digest: string;
-  size: number;
 }
 
 export class CloudflareService {
@@ -40,65 +37,17 @@ export class CloudflareService {
   }
 
   /**
-   * Upload Docker image to Cloudflare
-   * Accepts image tarball and uploads it to Cloudflare's container registry
-   */
-  async uploadImage(
-    imageName: string,
-    imageTarball: Buffer,
-  ): Promise<ImageUploadResult> {
-    try {
-      console.log(`📤 Uploading image ${imageName} to Cloudflare (${(imageTarball.length / 1024 / 1024).toFixed(2)} MB)...`);
-
-      // Cloudflare Container Registry API endpoint
-      // Note: Buffer is compatible with fetch body in Node.js/Next.js runtime
-      const response = await fetch(
-        `${this.baseUrl}/accounts/${this.config.accountId}/images/v1`,
-        {
-          method: "POST",
-          headers: {
-            Authorization: `Bearer ${this.config.apiToken}`,
-            "Content-Type": "application/x-tar",
-            "X-Image-Name": imageName,
-          },
-          // @ts-expect-error - Buffer is valid in Node.js fetch but TypeScript types don't reflect it
-          body: imageTarball,
-        },
-      );
-
-      if (!response.ok) {
-        const error = await response.text();
-        throw new Error(`Image upload failed: ${error}`);
-      }
-
-      const data = await response.json();
-
-      console.log(`✅ Image uploaded successfully: ${data.result.digest}`);
-
-      return {
-        imageId: data.result.id || imageName,
-        digest: data.result.digest,
-        size: imageTarball.length,
-      };
-    } catch (error) {
-      console.error("Image upload failed:", error);
-      throw new Error(
-        `Failed to upload image: ${error instanceof Error ? error.message : "Unknown error"}`,
-      );
-    }
-  }
-
-  /**
    * Deploy a container to Cloudflare Workers
-   * Now supports deployed images from Cloudflare registry
+   * Uses bootstrapper architecture for efficient deployments
    */
   async deployContainer(
     config: DeploymentConfig,
-    imageId?: string,
   ): Promise<DeploymentResult> {
     try {
-      // Use imageId if provided (from upload), otherwise use imageTag
-      const finalImageTag = imageId || config.imageTag;
+      // Use bootstrapper image for artifact-based deployments
+      const finalImageTag = config.useBootstrapper 
+        ? "elizaos/bootstrapper:latest"  // This should be configurable
+        : config.imageTag;
 
       // Step 1: Create Worker script
       const worker = await this.createWorkerScript({

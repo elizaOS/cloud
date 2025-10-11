@@ -930,15 +930,15 @@ async function handleSignOut() {
 
 The platform supports deploying ElizaOS projects directly via the `elizaos deploy` command. Users get an API key from the dashboard and can deploy their agents to Cloudflare Workers with a single command.
 
-**How It Works:**
+**How It Works (Bootstrapper Architecture):**
 
 1. **User gets API key** from `/dashboard/api-keys`
 2. **User runs** `elizaos deploy --api-key eliza_xxxxx`
-3. **CLI builds** Docker image locally
-4. **CLI exports** image to tarball
-5. **CLI uploads** tarball to cloud API (`/api/v1/containers/upload-image`)
-6. **Cloud uploads** image to Cloudflare Container Registry
-7. **Cloud deploys** container to Cloudflare Workers
+3. **CLI creates** compressed artifact (tar.gz) of project code
+4. **CLI uploads** artifact to cloud API (`/api/v1/artifacts/upload`)
+5. **Cloud stores** artifact in Cloudflare R2 storage
+6. **Cloud deploys** minimal bootstrapper container with artifact URL
+7. **Container fetches** artifact at startup and runs the project
 8. **User manages** containers in dashboard
 
 **CLI Usage:**
@@ -959,7 +959,12 @@ elizaos deploy \
 ```
 
 **API Endpoints:**
-- `POST /api/v1/containers/upload-image` - Upload Docker image
+
+**Artifact Management:**
+- `POST /api/v1/artifacts/upload` - Upload project artifact
+- `GET /api/v1/artifacts` - List artifacts for a project
+
+**Container Management:**
 - `POST /api/v1/containers` - Create container deployment
 - `GET /api/v1/containers` - List containers
 - `GET /api/v1/containers/{id}` - Get container status

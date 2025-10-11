@@ -20,12 +20,18 @@ export const dynamic = "force-dynamic";
 const createContainerSchema = z.object({
   name: z.string().min(1).max(100),
   description: z.string().optional(),
-  image_tag: z.string().optional(),
-  dockerfile_path: z.string().optional(),
   port: z.number().int().min(1).max(65535).default(3000),
   max_instances: z.number().int().min(1).max(10).default(1),
   environment_vars: z.record(z.string(), z.string()).optional(),
   health_check_path: z.string().default("/health"),
+  
+  // Bootstrapper architecture fields
+  use_bootstrapper: z.boolean().optional().default(true), // Default to bootstrapper
+  artifact_url: z.string().optional(),
+  artifact_checksum: z.string().optional(),
+  
+  // Optional: Allow custom image tag for self-hosted bootstrapper images
+  image_tag: z.string().optional().default("elizaos/bootstrapper:latest"),
 });
 
 /**
@@ -69,20 +75,25 @@ export async function POST(request: NextRequest) {
     // Validate request body
     const validatedData = createContainerSchema.parse(body);
 
-    // Prepare container data
+    // Prepare container data for bootstrapper architecture
     const containerData: NewContainer = {
       name: validatedData.name,
       description: validatedData.description,
       organization_id: user.organization_id,
       user_id: user.id,
       api_key_id: apiKey?.id || null,
-      image_tag: validatedData.image_tag,
-      dockerfile_path: validatedData.dockerfile_path,
+      image_tag: validatedData.image_tag || "elizaos/bootstrapper:latest",
       port: validatedData.port,
       max_instances: validatedData.max_instances,
       environment_vars: validatedData.environment_vars || {},
       health_check_path: validatedData.health_check_path,
       status: "pending",
+      // Store bootstrapper-specific fields in metadata
+      metadata: {
+        use_bootstrapper: validatedData.use_bootstrapper !== false,
+        artifact_url: validatedData.artifact_url,
+        artifact_checksum: validatedData.artifact_checksum,
+      },
     };
 
     // Atomically check quota and create container
@@ -244,6 +255,9 @@ async function deployContainerAsync(
       maxInstances: config.max_instances,
       environmentVars: config.environment_vars,
       healthCheckPath: config.health_check_path,
+      useBootstrapper: config.use_bootstrapper,
+      artifactUrl: config.artifact_url,
+      artifactChecksum: config.artifact_checksum,
     });
 
     // Update container with deployment info
