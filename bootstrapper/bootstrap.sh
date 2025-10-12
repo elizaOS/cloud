@@ -10,10 +10,64 @@ START_CMD="${START_CMD:-bun run start}"
 SKIP_BUILD="${SKIP_BUILD:-false}"
 PORT="${PORT:-3000}"
 
-# Validate required environment variables
+# SECURITY: Validate required environment variables and format
 if [ -z "$R2_ARTIFACT_URL" ]; then
     echo "❌ Error: R2_ARTIFACT_URL is required"
     exit 1
+fi
+
+# SECURITY: Validate URL format to prevent injection attacks
+# Must start with https:// and contain no dangerous shell metacharacters
+case "$R2_ARTIFACT_URL" in
+    https://*)
+        # Check for dangerous shell metacharacters
+        if echo "$R2_ARTIFACT_URL" | grep -q '[;&|`$(){}]'; then
+            echo "❌ Error: R2_ARTIFACT_URL contains invalid characters"
+            exit 1
+        fi
+        ;;
+    *)
+        echo "❌ Error: R2_ARTIFACT_URL must start with https://"
+        exit 1
+        ;;
+esac
+
+# SECURITY: Validate START_CMD to prevent command injection
+# Only allow alphanumeric, spaces, hyphens, underscores, and forward slashes
+if ! echo "$START_CMD" | grep -qE '^[a-zA-Z0-9 /_.-]+$'; then
+    echo "❌ Error: START_CMD contains invalid characters"
+    echo "   Allowed: alphanumeric, spaces, hyphens, underscores, forward slashes"
+    echo "   Got: $START_CMD"
+    exit 1
+fi
+
+# SECURITY: Validate PORT is a valid number
+if ! echo "$PORT" | grep -qE '^[0-9]+$'; then
+    echo "❌ Error: PORT must be a number"
+    exit 1
+fi
+
+if [ "$PORT" -lt 1 ] || [ "$PORT" -gt 65535 ]; then
+    echo "❌ Error: PORT must be between 1 and 65535"
+    exit 1
+fi
+
+# SECURITY: Validate SKIP_BUILD is boolean
+case "$SKIP_BUILD" in
+    true|false|TRUE|FALSE)
+        ;;
+    *)
+        echo "❌ Error: SKIP_BUILD must be 'true' or 'false'"
+        exit 1
+        ;;
+esac
+
+# SECURITY: Validate checksum format if provided (SHA256 is 64 hex characters)
+if [ -n "$R2_ARTIFACT_CHECKSUM" ]; then
+    if ! echo "$R2_ARTIFACT_CHECKSUM" | grep -qE '^[a-fA-F0-9]{64}$'; then
+        echo "❌ Error: R2_ARTIFACT_CHECKSUM must be a valid SHA256 hash (64 hex characters)"
+        exit 1
+    fi
 fi
 
 echo "📦 Configuration:"
@@ -153,7 +207,12 @@ echo ""
 # Export PORT for the application
 export PORT
 
-# Run the start command
+# SECURITY: Execute start command safely
+# Use sh -c with proper quoting to prevent injection
 cd /app/project
-exec $START_CMD
+
+# Split START_CMD into command and args for safer execution
+# This prevents shell injection while allowing legitimate commands
+set -- $START_CMD
+exec "$@"
 

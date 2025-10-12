@@ -5,7 +5,7 @@
 
 import { db } from "@/db/drizzle";
 import { containers } from "@/db/sass/schema";
-import { eq } from "drizzle-orm";
+import { eq, and } from "drizzle-orm";
 
 export interface HealthCheckResult {
   containerId: string;
@@ -94,51 +94,91 @@ export async function updateContainerHealth(
   healthResult: HealthCheckResult
 ): Promise<void> {
   try {
-    // First, get current container status to avoid race conditions
-    const [currentContainer] = await db
-      .select({ status: containers.status })
-      .from(containers)
-      .where(eq(containers.id, containerId))
-      .limit(1);
-
-    if (!currentContainer) {
-      console.warn("Container not found for health check", { containerId });
-      return;
-    }
-
-    // Prepare update data
-    const updateData: {
-      last_health_check: Date;
-      updated_at: Date;
-      status?: string;
-      error_message?: string | null;
-    } = {
+    // RACE CONDITION FIX: Use atomic conditional UPDATE instead of check-then-act
+    // This prevents race conditions by including expected status in WHERE clause
+    
+    const baseUpdate = {
       last_health_check: healthResult.checkedAt,
       updated_at: new Date(),
     };
 
-    // Only mark as failed if container is currently running and health check failed
-    // Don't change status during building/deploying phases
-    if (!healthResult.healthy && currentContainer.status === "running") {
-      updateData.status = "failed";
-      updateData.error_message = healthResult.error || "Health check failed";
-    } else if (healthResult.healthy && currentContainer.status === "failed") {
-      // If health check passes and container was marked failed, restore to running
-      updateData.status = "running";
-      updateData.error_message = null;
+    if (!healthResult.healthy) {
+      // Atomically mark as failed ONLY if currently running
+      // The WHERE clause ensures we only update if status hasn't changed
+      const [updatedContainer] = await db
+        .update(containers)
+        .set({
+          ...baseUpdate,
+          status: "failed",
+          error_message: healthResult.error || "Health check failed",
+        })
+        .where(
+          and(
+            eq(containers.id, containerId),
+            eq(containers.status, "running") // Only update if still running
+          )
+        )
+        .returning({ id: containers.id });
+      
+      // If no rows were updated, container status has changed (not a race condition)
+      if (!updatedContainer) {
+        // Just update health check timestamp without changing status
+        await db
+          .update(containers)
+          .set(baseUpdate)
+          .where(eq(containers.id, containerId));
+        
+        console.log("Container health check failed, but status changed (not running anymore)", {
+          containerId,
+          healthy: false,
+        });
+        return;
+      }
+      
+      console.log("Container health status updated to failed", {
+        containerId,
+        healthy: false,
+        previousStatus: "running",
+        newStatus: "failed",
+      });
+    } else {
+      // Health check passed - atomically restore to running ONLY if currently failed
+      const [updatedContainer] = await db
+        .update(containers)
+        .set({
+          ...baseUpdate,
+          status: "running",
+          error_message: null,
+        })
+        .where(
+          and(
+            eq(containers.id, containerId),
+            eq(containers.status, "failed") // Only restore if currently failed
+          )
+        )
+        .returning({ id: containers.id });
+      
+      if (!updatedContainer) {
+        // Just update health check timestamp for non-failed containers
+        await db
+          .update(containers)
+          .set(baseUpdate)
+          .where(eq(containers.id, containerId));
+        
+        console.log("Container health check passed, status unchanged", {
+          containerId,
+          healthy: true,
+        });
+        return;
+      }
+      
+      console.log("Container health status restored to running", {
+        containerId,
+        healthy: true,
+        previousStatus: "failed",
+        newStatus: "running",
+      });
     }
-
-    await db
-      .update(containers)
-      .set(updateData)
-      .where(eq(containers.id, containerId));
-
-    console.log("Container health status updated", {
-      containerId,
-      healthy: healthResult.healthy,
-      currentStatus: currentContainer.status,
-      newStatus: updateData.status || currentContainer.status,
-    });
   } catch (error) {
     console.error(
       "Failed to update container health status",
