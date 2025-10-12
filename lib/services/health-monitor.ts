@@ -87,28 +87,58 @@ export async function checkContainerHealth(
 
 /**
  * Update container health status in database
+ * Only updates status to 'failed' if container is currently 'running'
+ * This prevents overwriting transitional states like 'building' or 'deploying'
  */
 export async function updateContainerHealth(
   containerId: string,
   healthResult: HealthCheckResult
 ): Promise<void> {
   try {
+    // First, get current container status to avoid race conditions
+    const [currentContainer] = await db
+      .select({ status: containers.status })
+      .from(containers)
+      .where(eq(containers.id, containerId))
+      .limit(1);
+
+    if (!currentContainer) {
+      logger.warn("Container not found for health check", { containerId });
+      return;
+    }
+
+    // Prepare update data
+    const updateData: {
+      last_health_check: Date;
+      updated_at: Date;
+      status?: string;
+      error_message?: string | null;
+    } = {
+      last_health_check: healthResult.checkedAt,
+      updated_at: new Date(),
+    };
+
+    // Only mark as failed if container is currently running and health check failed
+    // Don't change status during building/deploying phases
+    if (!healthResult.healthy && currentContainer.status === "running") {
+      updateData.status = "failed";
+      updateData.error_message = healthResult.error || "Health check failed";
+    } else if (healthResult.healthy && currentContainer.status === "failed") {
+      // If health check passes and container was marked failed, restore to running
+      updateData.status = "running";
+      updateData.error_message = null;
+    }
+
     await db
       .update(containers)
-      .set({
-        last_health_check: healthResult.checkedAt,
-        // Update status to 'unhealthy' if check failed, keep current status if healthy
-        status: healthResult.healthy
-          ? undefined // Don't change status
-          : "failed", // Mark as failed if unhealthy
-        error_message: healthResult.error || null,
-        updated_at: new Date(),
-      })
+      .set(updateData)
       .where(eq(containers.id, containerId));
 
     logger.debug("Container health status updated", {
       containerId,
       healthy: healthResult.healthy,
+      currentStatus: currentContainer.status,
+      newStatus: updateData.status || currentContainer.status,
     });
   } catch (error) {
     logger.error(

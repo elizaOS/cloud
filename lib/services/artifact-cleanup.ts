@@ -143,10 +143,35 @@ export async function cleanupProjectArtifacts(
       });
     }
 
-    // Delete artifacts
+    // Delete artifacts - but skip those in use by running containers
     for (const artifact of artifactsToDelete) {
       try {
-        // Delete from R2
+        // Safety check: Don't delete artifacts in use by running containers
+        const { containers } = await import("@/db/sass/schema");
+        const { sql } = await import("drizzle-orm");
+        
+        const containersUsingArtifact = await db
+          .select({ id: containers.id, name: containers.name, status: containers.status })
+          .from(containers)
+          .where(
+            and(
+              eq(containers.organization_id, organizationId),
+              sql`${containers.metadata}->>'artifact_url' = ${artifact.r2_url}`,
+              // Only check non-terminal states
+              sql`${containers.status} NOT IN ('failed', 'deleted', 'deleting')`,
+            )
+          );
+
+        if (containersUsingArtifact.length > 0) {
+          logger.warn("Skipping artifact deletion - in use by containers", {
+            artifactId: artifact.id,
+            version: artifact.version,
+            containersUsing: containersUsingArtifact.map(c => ({ id: c.id, name: c.name, status: c.status })),
+          });
+          continue; // Skip this artifact
+        }
+
+        // Safe to delete - artifact is not in use
         const r2Success = await deleteArtifactFromR2(artifact.r2_key);
         
         if (r2Success) {
