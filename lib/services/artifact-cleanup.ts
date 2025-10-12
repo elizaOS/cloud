@@ -142,30 +142,47 @@ export async function cleanupProjectArtifacts(
       });
     }
 
+    // OPTIMIZATION: Query all containers once upfront to avoid N+1 pattern
+    const { containers } = await import("@/db/sass/schema");
+    const { sql, notInArray } = await import("drizzle-orm");
+    
+    const activeContainers = await db
+      .select({ 
+        id: containers.id, 
+        name: containers.name, 
+        status: containers.status,
+        artifact_url: sql<string>`${containers.metadata}->>'artifact_url'`.as('artifact_url')
+      })
+      .from(containers)
+      .where(
+        and(
+          eq(containers.organization_id, organizationId),
+          // Only check non-terminal states
+          notInArray(containers.status, ['failed', 'deleted', 'deleting'])
+        )
+      );
+
+    // Build a Set of artifact URLs currently in use for O(1) lookup
+    const artifactUrlsInUse = new Set(
+      activeContainers
+        .map(c => c.artifact_url)
+        .filter((url): url is string => url !== null && url !== undefined)
+    );
+
+    console.log(`Found ${activeContainers.length} active containers using ${artifactUrlsInUse.size} unique artifacts`);
+
     // Delete artifacts - but skip those in use by running containers
     for (const artifact of artifactsToDelete) {
       try {
-        // Safety check: Don't delete artifacts in use by running containers
-        const { containers } = await import("@/db/sass/schema");
-        const { sql } = await import("drizzle-orm");
-        
-        const containersUsingArtifact = await db
-          .select({ id: containers.id, name: containers.name, status: containers.status })
-          .from(containers)
-          .where(
-            and(
-              eq(containers.organization_id, organizationId),
-              sql`${containers.metadata}->>'artifact_url' = ${artifact.r2_url}`,
-              // Only check non-terminal states
-              sql`${containers.status} NOT IN ('failed', 'deleted', 'deleting')`,
-            )
+        // Safety check: Don't delete artifacts in use by running containers (O(1) lookup)
+        if (artifactUrlsInUse.has(artifact.r2_url)) {
+          const containersUsing = activeContainers.filter(
+            c => c.artifact_url === artifact.r2_url
           );
-
-        if (containersUsingArtifact.length > 0) {
           console.warn("Skipping artifact deletion - in use by containers", {
             artifactId: artifact.id,
             version: artifact.version,
-            containersUsing: containersUsingArtifact.map(c => ({ id: c.id, name: c.name, status: c.status })),
+            containersUsing: containersUsing.map(c => ({ id: c.id, name: c.name, status: c.status })),
           });
           continue; // Skip this artifact
         }

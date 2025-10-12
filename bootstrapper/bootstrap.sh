@@ -5,12 +5,7 @@ echo "🚀 ElizaOS Bootstrapper starting..."
 
 # Configuration from environment
 R2_ARTIFACT_URL="${R2_ARTIFACT_URL:-}"
-R2_ACCESS_KEY_ID="${R2_ACCESS_KEY_ID:-}"
-R2_SECRET_ACCESS_KEY="${R2_SECRET_ACCESS_KEY:-}"
-R2_SESSION_TOKEN="${R2_SESSION_TOKEN:-}"
 R2_ARTIFACT_CHECKSUM="${R2_ARTIFACT_CHECKSUM:-}"
-R2_BUCKET_NAME="${R2_BUCKET_NAME:-eliza-artifacts}"
-R2_ENDPOINT="${R2_ENDPOINT:-}"
 START_CMD="${START_CMD:-bun run start}"
 SKIP_BUILD="${SKIP_BUILD:-false}"
 PORT="${PORT:-3000}"
@@ -21,14 +16,8 @@ if [ -z "$R2_ARTIFACT_URL" ]; then
     exit 1
 fi
 
-if [ -z "$R2_ACCESS_KEY_ID" ] || [ -z "$R2_SECRET_ACCESS_KEY" ]; then
-    echo "❌ Error: R2 credentials are required"
-    exit 1
-fi
-
 echo "📦 Configuration:"
-echo "  - Artifact URL: ${R2_ARTIFACT_URL}"
-echo "  - Endpoint: ${R2_ENDPOINT}"
+echo "  - Artifact URL: (presigned URL - hidden for security)"
 echo "  - Port: ${PORT}"
 echo "  - Start command: ${START_CMD}"
 echo "  - Skip build: ${SKIP_BUILD}"
@@ -38,35 +27,23 @@ echo "📥 Downloading artifact from R2..."
 
 ARTIFACT_FILE="/tmp/artifact.tar.gz"
 
-# Use AWS CLI environment variables for authentication
-export AWS_ACCESS_KEY_ID="$R2_ACCESS_KEY_ID"
-export AWS_SECRET_ACCESS_KEY="$R2_SECRET_ACCESS_KEY"
-export AWS_SESSION_TOKEN="$R2_SESSION_TOKEN"
-export AWS_DEFAULT_REGION="auto"
+# SECURITY: Use presigned URL directly - no credentials needed
+# The URL already contains authentication via query parameters
+echo "  Downloading artifact using presigned URL..."
 
-# Download using curl with AWS SigV4
-# Extract the S3 path from the full URL
-ARTIFACT_KEY=$(echo "$R2_ARTIFACT_URL" | sed -E "s|.*$R2_BUCKET_NAME/||")
-
-# Construct R2 endpoint URL
-if [ -z "$R2_ENDPOINT" ]; then
-    echo "❌ Error: R2_ENDPOINT is required"
-    exit 1
-fi
-
-DOWNLOAD_URL="${R2_ENDPOINT}/${R2_BUCKET_NAME}/${ARTIFACT_KEY}"
-
-echo "  Downloading from: ${DOWNLOAD_URL}"
-
-# Download with temporary credentials
-# Note: This uses the session token in the header
+# Download using curl with presigned URL (simple GET request)
+# The presigned URL contains all authentication in the URL itself
 curl -f -L \
-    -H "X-Amz-Security-Token: ${R2_SESSION_TOKEN}" \
-    --aws-sigv4 "aws:amz:auto:s3" \
-    --user "${R2_ACCESS_KEY_ID}:${R2_SECRET_ACCESS_KEY}" \
-    "${DOWNLOAD_URL}" \
+    --max-time 300 \
+    --retry 3 \
+    --retry-delay 5 \
+    "${R2_ARTIFACT_URL}" \
     -o "${ARTIFACT_FILE}" || {
         echo "❌ Failed to download artifact"
+        echo "   This could be due to:"
+        echo "   - Network connectivity issues"
+        echo "   - Expired presigned URL (valid for 1 hour)"
+        echo "   - Invalid or inaccessible artifact"
         exit 1
     }
 
