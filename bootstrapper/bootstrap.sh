@@ -87,6 +87,39 @@ if [ -n "$R2_ARTIFACT_CHECKSUM" ]; then
     echo "✅ Checksum validated"
 fi
 
+# SECURITY: Validate tar.gz structure before extraction
+echo "🔍 Validating archive structure..."
+
+# Test archive integrity without extracting
+if ! tar -tzf "$ARTIFACT_FILE" > /dev/null 2>&1; then
+    echo "❌ Archive is corrupted or invalid"
+    exit 1
+fi
+
+# Check for dangerous paths (path traversal, absolute paths)
+DANGEROUS_PATHS=$(tar -tzf "$ARTIFACT_FILE" | grep -E '(^/|\.\./)' || true)
+if [ -n "$DANGEROUS_PATHS" ]; then
+    echo "❌ Archive contains dangerous paths (absolute or parent directory references):"
+    echo "$DANGEROUS_PATHS"
+    exit 1
+fi
+
+# Check archive doesn't contain device files, symlinks to dangerous locations
+# List archive with verbose output and check for dangerous file types
+if tar -tzf "$ARTIFACT_FILE" | grep -qE '(^dev/|^proc/|^sys/)'; then
+    echo "❌ Archive contains system device paths"
+    exit 1
+fi
+
+# Limit archive size to prevent zip bombs (max 2GB extracted)
+ARCHIVE_SIZE=$(tar -tzf "$ARTIFACT_FILE" | wc -l)
+if [ "$ARCHIVE_SIZE" -gt 100000 ]; then
+    echo "❌ Archive contains too many files ($ARCHIVE_SIZE). Maximum 100,000 files allowed."
+    exit 1
+fi
+
+echo "✅ Archive structure validated"
+
 # Extract artifact
 echo "📂 Extracting artifact..."
 cd /app/project

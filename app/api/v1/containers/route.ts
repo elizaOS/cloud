@@ -11,7 +11,7 @@ import {
 } from "@/lib/queries/container-quota";
 import { deductCredits, addCredits } from "@/lib/queries/credits";
 import { createUsageRecord } from "@/lib/queries/usage";
-import { calculateDeploymentCost } from "@/lib/constants/pricing";
+import { calculateDeploymentCost, CONTAINER_LIMITS } from "@/lib/constants/pricing";
 import { getCloudflareService } from "@/lib/services/cloudflare";
 import { isFeatureConfigured } from "@/lib/config/env-validator";
 import { withRateLimit, RateLimitPresets } from "@/lib/middleware/rate-limit";
@@ -88,6 +88,124 @@ async function handleCreateContainer(request: NextRequest) {
 
     // Validate request body
     const validatedData = createContainerSchema.parse(body);
+
+    // Validate environment variables count and size
+    if (validatedData.environment_vars) {
+      const envVarCount = Object.keys(validatedData.environment_vars).length;
+      if (envVarCount > CONTAINER_LIMITS.MAX_ENV_VARS) {
+        return NextResponse.json(
+          {
+            success: false,
+            error: `Too many environment variables. Maximum ${CONTAINER_LIMITS.MAX_ENV_VARS} allowed, got ${envVarCount}`,
+            details: {
+              limit: CONTAINER_LIMITS.MAX_ENV_VARS,
+              provided: envVarCount,
+            },
+          },
+          { status: 400 }
+        );
+      }
+
+      // Validate each env var name and value size
+      for (const [key, value] of Object.entries(validatedData.environment_vars)) {
+        // Validate key format
+        if (!/^[A-Za-z_][A-Za-z0-9_]*$/.test(key)) {
+          return NextResponse.json(
+            {
+              success: false,
+              error: `Invalid environment variable name: '${key}'. Must start with letter/underscore and contain only alphanumeric and underscores.`,
+            },
+            { status: 400 }
+          );
+        }
+
+        // Validate value size
+        const valueSize = Buffer.byteLength(value, "utf8");
+        if (valueSize > CONTAINER_LIMITS.MAX_ENV_VAR_SIZE) {
+          return NextResponse.json(
+            {
+              success: false,
+              error: `Environment variable '${key}' value exceeds maximum size of ${CONTAINER_LIMITS.MAX_ENV_VAR_SIZE} bytes (got ${valueSize} bytes)`,
+            },
+            { status: 400 }
+          );
+        }
+      }
+    }
+
+    // CRITICAL: Validate bootstrapper requirements
+    // If using bootstrapper, artifact_url and artifact_checksum are REQUIRED
+    if (validatedData.use_bootstrapper !== false) {
+      if (!validatedData.artifact_url) {
+        return NextResponse.json(
+          {
+            success: false,
+            error: "artifact_url is required when using bootstrapper deployment (use_bootstrapper=true)",
+            details: {
+              field: "artifact_url",
+              hint: "Upload your artifact first via POST /api/v1/artifacts/upload",
+            },
+          },
+          { status: 400 }
+        );
+      }
+
+      if (!validatedData.artifact_checksum) {
+        return NextResponse.json(
+          {
+            success: false,
+            error: "artifact_checksum is required when using bootstrapper deployment (use_bootstrapper=true)",
+            details: {
+              field: "artifact_checksum",
+              hint: "Provide the SHA256 checksum of your artifact for integrity validation",
+            },
+          },
+          { status: 400 }
+        );
+      }
+
+      // Validate artifact_url format (must be a valid URL)
+      try {
+        const artifactUrlObj = new URL(validatedData.artifact_url);
+        if (!artifactUrlObj.protocol.startsWith("http")) {
+          return NextResponse.json(
+            {
+              success: false,
+              error: `Invalid artifact_url protocol: ${artifactUrlObj.protocol}. Must be http or https.`,
+            },
+            { status: 400 }
+          );
+        }
+      } catch (urlError) {
+        return NextResponse.json(
+          {
+            success: false,
+            error: "artifact_url must be a valid URL",
+            details: {
+              provided: validatedData.artifact_url,
+              error: urlError instanceof Error ? urlError.message : "Invalid URL format",
+            },
+          },
+          { status: 400 }
+        );
+      }
+
+      // Validate artifact_checksum format (must be 64-char hex string for SHA256)
+      const checksumPattern = /^[a-f0-9]{64}$/i;
+      if (!checksumPattern.test(validatedData.artifact_checksum)) {
+        return NextResponse.json(
+          {
+            success: false,
+            error: "artifact_checksum must be a valid SHA256 hash (64 hexadecimal characters)",
+            details: {
+              provided: validatedData.artifact_checksum,
+              expected: "64-character hexadecimal string",
+            },
+          },
+          { status: 400 }
+        );
+      }
+    }
 
     // Prepare container data for bootstrapper architecture
     const containerData: NewContainer = {
@@ -179,7 +297,7 @@ async function handleCreateContainer(request: NextRequest) {
         message:
           "Container deployment initiated. Check status for deployment progress.",
         creditsDeducted: deploymentCost,
-        newCreditBalance: creditResult.newBalance,
+        creditsRemaining: creditResult.newBalance,
       },
       { status: 201 },
     );
@@ -310,31 +428,76 @@ async function deployContainerAsync(
       deploymentLog: `Deployment failed: ${errorMessage}${isTimeout ? " (timeout)" : ""}`,
     });
 
-    // Refund credits and cleanup failed container
-    try {
-      // Refund credits for failed deployment
-      await addCredits(
-        organizationId,
-        deploymentCost,
-        "refund",
-        `Refund for failed container deployment: ${config.name}${isTimeout ? " (timeout)" : ""}`,
-      );
-      console.log(`✅ Refunded ${deploymentCost} credits for failed deployment of container ${containerId}`);
-    } catch (refundError) {
-      console.error("❌ Failed to refund credits for failed deployment:", refundError);
-      // Log but don't throw - the deployment failure is already handled
+    // CRITICAL: Refund credits and cleanup failed container
+    // This MUST succeed to prevent charging users for failed deployments
+    let refundSuccessful = false;
+    let rollbackSuccessful = false;
+
+    // Attempt refund with retries
+    for (let attempt = 1; attempt <= 3; attempt++) {
+      try {
+        await addCredits(
+          organizationId,
+          deploymentCost,
+          "refund",
+          `Refund for failed container deployment: ${config.name}${isTimeout ? " (timeout)" : ""}`,
+        );
+        console.log(`✅ Refunded ${deploymentCost} credits for failed deployment of container ${containerId}`);
+        refundSuccessful = true;
+        break;
+      } catch (refundError) {
+        console.error(`❌ Refund attempt ${attempt}/3 failed:`, refundError);
+        if (attempt === 3) {
+          // CRITICAL: Log to monitoring system for manual intervention
+          console.error(
+            `🚨 CRITICAL: Failed to refund ${deploymentCost} credits to org ${organizationId} for container ${containerId}. MANUAL INTERVENTION REQUIRED.`,
+            { containerId, organizationId, deploymentCost, error: refundError }
+          );
+          // In production, this should trigger an alert/notification
+          // TODO: Add alert to monitoring system (e.g., Sentry, DataDog)
+        } else {
+          // Wait before retry with exponential backoff
+          await new Promise(resolve => setTimeout(resolve, 1000 * Math.pow(2, attempt - 1)));
+        }
+      }
     }
 
-    // Attempt to rollback: Delete failed container record for clean state
-    // This prevents database pollution with broken containers
-    try {
-      await deleteContainer(containerId, organizationId);
-      console.log(`✅ Rolled back failed container ${containerId} (deleted from database)`);
-    } catch (rollbackError) {
-      console.error(`❌ Failed to rollback container ${containerId}:`, rollbackError);
-      // Log but don't throw - container is already marked failed
-      // Admin can manually clean up via dashboard if needed
+    // Attempt rollback with retries
+    for (let attempt = 1; attempt <= 3; attempt++) {
+      try {
+        await deleteContainer(containerId, organizationId);
+        console.log(`✅ Rolled back failed container ${containerId} (deleted from database)`);
+        rollbackSuccessful = true;
+        break;
+      } catch (rollbackError) {
+        console.error(`❌ Rollback attempt ${attempt}/3 failed:`, rollbackError);
+        if (attempt === 3) {
+          console.error(
+            `⚠️  Failed to delete failed container ${containerId}. Container marked as 'failed' but not removed.`,
+            { containerId, organizationId, error: rollbackError }
+          );
+          // This is less critical than refund - admin can clean up later
+        } else {
+          await new Promise(resolve => setTimeout(resolve, 1000 * Math.pow(2, attempt - 1)));
+        }
+      }
     }
+
+    // If refund failed, this is a critical issue that needs immediate attention
+    if (!refundSuccessful) {
+      // Update container with refund failure flag for manual processing
+      await updateContainerStatus(containerId, "failed", {
+        errorMessage: `${errorMessage} | REFUND FAILED - MANUAL INTERVENTION REQUIRED`,
+        deploymentLog: `${errorMessage}${isTimeout ? " (timeout)" : ""} | Refund failed - admin must manually credit ${deploymentCost} credits to org ${organizationId}`,
+      });
+    }
+
+    // Log final cleanup status for monitoring
+    console.log(`Deployment cleanup completed for container ${containerId}:`, {
+      refundSuccessful,
+      rollbackSuccessful,
+      requiresManualIntervention: !refundSuccessful,
+    });
   }
 }
 

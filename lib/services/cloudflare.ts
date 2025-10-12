@@ -10,6 +10,58 @@ import {
 } from "@/lib/errors/deployment-errors";
 import { logger } from "@/lib/logger";
 
+/**
+ * Sanitize sensitive data for logging
+ * Masks API keys, tokens, and credentials to prevent leaks
+ */
+function sanitizeForLogging<T>(data: T): T {
+  if (!data || typeof data !== "object") {
+    return data;
+  }
+
+  const sensitiveKeys = [
+    "apiKey",
+    "api_key",
+    "apiToken",
+    "api_token",
+    "accessKeyId",
+    "access_key_id",
+    "secretAccessKey",
+    "secret_access_key",
+    "sessionToken",
+    "session_token",
+    "password",
+    "secret",
+    "token",
+    "authorization",
+    "R2_ACCESS_KEY_ID",
+    "R2_SECRET_ACCESS_KEY",
+    "R2_SESSION_TOKEN",
+  ];
+
+  const sanitized = (Array.isArray(data) ? [...data] : { ...data }) as Record<string, unknown>;
+
+  for (const key in sanitized) {
+    const lowerKey = key.toLowerCase();
+    
+    // Check if this is a sensitive key
+    if (sensitiveKeys.some(sk => lowerKey.includes(sk.toLowerCase()))) {
+      const value = sanitized[key];
+      if (typeof value === "string" && value.length > 0) {
+        // Show first 4 chars and mask the rest
+        sanitized[key] = value.length > 8 
+          ? `${value.substring(0, 4)}${"*".repeat(Math.min(value.length - 4, 20))}`
+          : "***REDACTED***";
+      }
+    } else if (typeof sanitized[key] === "object" && sanitized[key] !== null) {
+      // Recursively sanitize nested objects
+      sanitized[key] = sanitizeForLogging(sanitized[key]);
+    }
+  }
+
+  return sanitized as T;
+}
+
 export interface CloudflareConfig {
   accountId: string;
   apiToken: string;
@@ -56,12 +108,13 @@ export class CloudflareService {
     });
 
     try {
-      deployLogger.info("Starting Cloudflare container deployment", {
+      deployLogger.info("Starting Cloudflare container deployment", sanitizeForLogging({
         name: config.name,
         port: config.port,
         maxInstances: config.maxInstances,
         useBootstrapper: config.useBootstrapper,
-      });
+        artifactUrl: config.artifactUrl,
+      }));
 
       // Use bootstrapper image for artifact-based deployments
       const finalImageTag = config.useBootstrapper 
@@ -103,7 +156,7 @@ export class CloudflareService {
       deployLogger.error(
         "Cloudflare deployment failed",
         error instanceof Error ? error : new Error(String(error)),
-        { config }
+        sanitizeForLogging({ config })
       );
       throw new Error(
         `Deployment failed: ${error instanceof Error ? error.message : "Unknown error"}`,
@@ -235,65 +288,17 @@ export default {
       // Import R2 credentials service
       const { createArtifactDownloadCredentials } = await import("./r2-credentials");
       
-      // Extract artifact details from URL with validation
-      // URL format: https://.../artifacts/{org}/{project}/{version}/{artifactId}.tar.gz
-      let organizationId: string;
-      let projectId: string;
-      let version: string;
-      let artifactId: string;
+      // Parse artifact URL with robust validation
+      const { organizationId, projectId, version, artifactId } = parseArtifactUrl(config.artifactUrl);
 
-      try {
-        const url = new URL(config.artifactUrl);
-        const pathParts = url.pathname.split("/").filter(Boolean);
-        
-        // Validate URL structure: must have at least 5 parts (artifacts, org, project, version, filename)
-        if (pathParts.length < 5) {
-          throw new Error(
-            `Invalid artifact URL structure. Expected format: .../artifacts/{org}/{project}/{version}/{file}.tar.gz`
-          );
-        }
-
-        // Find the artifacts directory in the path
-        const artifactsIndex = pathParts.indexOf("artifacts");
-        if (artifactsIndex === -1 || artifactsIndex + 4 >= pathParts.length) {
-          throw new Error(
-            `Artifact URL must contain 'artifacts' directory followed by org/project/version/file`
-          );
-        }
-
-        organizationId = pathParts[artifactsIndex + 1];
-        projectId = pathParts[artifactsIndex + 2];
-        version = pathParts[artifactsIndex + 3];
-        const artifactFileName = pathParts[artifactsIndex + 4];
-
-        // Validate filename ends with .tar.gz
-        if (!artifactFileName.endsWith(".tar.gz")) {
-          throw new Error(`Artifact filename must end with .tar.gz, got: ${artifactFileName}`);
-        }
-
-        artifactId = artifactFileName.replace(".tar.gz", "");
-
-        // Validate all parts are non-empty
-        if (!organizationId || !projectId || !version || !artifactId) {
-          throw new Error("Artifact URL contains empty path components");
-        }
-      } catch (error) {
-        const errorMsg = error instanceof Error ? error.message : "Invalid artifact URL";
-        throw new CloudflareApiError(
-          `Failed to parse artifact URL: ${errorMsg}`,
-          config.artifactUrl,
-          "PARSE",
-          { url: config.artifactUrl }
-        );
-      }
-
-      // Generate temporary download credentials (read-only, 6 hours for container startup)
+      // Generate temporary download credentials (read-only, 1 hour for container startup)
+      // Reduced from 6 hours to minimize exposure window
       const downloadCreds = await createArtifactDownloadCredentials({
         organizationId,
         projectId,
         version,
         artifactId,
-        ttlSeconds: 21600, // 6 hours - enough time for container startup
+        ttlSeconds: 3600, // 1 hour - sufficient for container startup and retries
       });
 
       // Inject artifact environment variables for bootstrapper
@@ -448,6 +453,96 @@ export default {
 
     const data = await response.json();
     return data.result?.logs || [];
+  }
+}
+
+/**
+ * Parse artifact URL and extract metadata
+ * Expected format: https://.../artifacts/{org}/{project}/{version}/{artifactId}.tar.gz
+ * 
+ * @throws {CloudflareApiError} If URL format is invalid
+ */
+function parseArtifactUrl(artifactUrl: string): {
+  organizationId: string;
+  projectId: string;
+  version: string;
+  artifactId: string;
+} {
+  try {
+    const url = new URL(artifactUrl);
+    const pathParts = url.pathname.split("/").filter(Boolean);
+
+    // Validate minimum path structure
+    if (pathParts.length < 5) {
+      throw new Error(
+        `Insufficient path components. Expected: artifacts/{org}/{project}/{version}/{file}.tar.gz, got ${pathParts.length} parts`
+      );
+    }
+
+    // Find artifacts directory index
+    const artifactsIndex = pathParts.indexOf("artifacts");
+    if (artifactsIndex === -1) {
+      throw new Error(
+        `Missing 'artifacts' directory in path. URL must contain '/artifacts/' segment.`
+      );
+    }
+
+    // Validate we have enough parts after artifacts/
+    const remainingParts = pathParts.length - artifactsIndex - 1;
+    if (remainingParts < 4) {
+      throw new Error(
+        `Incomplete artifact path after 'artifacts/'. Expected 4 components (org/project/version/file), got ${remainingParts}`
+      );
+    }
+
+    // Extract components
+    const organizationId = pathParts[artifactsIndex + 1];
+    const projectId = pathParts[artifactsIndex + 2];
+    const version = pathParts[artifactsIndex + 3];
+    const artifactFileName = pathParts[artifactsIndex + 4];
+
+    // Validate artifact filename
+    if (!artifactFileName.endsWith(".tar.gz")) {
+      throw new Error(
+        `Invalid artifact filename '${artifactFileName}'. Must end with .tar.gz`
+      );
+    }
+
+    const artifactId = artifactFileName.replace(".tar.gz", "");
+
+    // Validate all components are non-empty and safe
+    const components = { organizationId, projectId, version, artifactId };
+    for (const [key, value] of Object.entries(components)) {
+      if (!value || value.trim() === "") {
+        throw new Error(`${key} cannot be empty`);
+      }
+
+      // Validate no path traversal attempts
+      if (value.includes("..") || value.includes("/") || value.includes("\\")) {
+        throw new Error(
+          `${key} contains invalid characters. Path traversal attempts are not allowed.`
+        );
+      }
+
+      // Validate reasonable length (prevent DOS)
+      if (value.length > 200) {
+        throw new Error(`${key} exceeds maximum length of 200 characters`);
+      }
+    }
+
+    return components;
+  } catch (error) {
+    const errorMsg = error instanceof Error ? error.message : "Unknown parsing error";
+    throw new CloudflareApiError(
+      `Failed to parse artifact URL: ${errorMsg}`,
+      artifactUrl,
+      "PARSE",
+      { 
+        url: artifactUrl,
+        parseError: errorMsg,
+        hint: "Expected format: https://.../artifacts/{org}/{project}/{version}/{file}.tar.gz"
+      }
+    );
   }
 }
 
