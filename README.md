@@ -1322,4 +1322,308 @@ See the LICENSE file in the repository root.
 
 ---
 
+## 🔍 Production Readiness Review
+
+### Executive Summary
+
+**Overall Score: 6.5/10** - Functional but requires critical fixes before production deployment
+
+**Date:** October 12, 2025  
+**Scope:** Complete fullstack (eliza-cloud-v2 + CLI)  
+**Status:** ⚠️ **REQUIRES FIXES** - 3 critical blockers identified
+
+---
+
+### 🔴 CRITICAL Issues (Must Fix Before Deploy)
+
+#### 1. Duplicate Migration Files (P0 BLOCKER)
+**Location:** `/db/migrations/`  
+**Issue:** Two migration files with index `0004`:
+- `0004_add_containers_table.sql` (manual migration)
+- `0004_black_night_thrasher.sql` (Drizzle generated)
+
+**Impact:** Database migrations will fail or apply incorrectly  
+**Fix Required:** Consolidate into single migration, update journal, regenerate snapshots
+
+#### 2. Environment Validation Never Runs (P0 BLOCKER)
+**Location:** `lib/config/startup.ts`  
+**Issue:** `initializeApplication()` function exists but is never called  
+**Impact:** App starts with invalid config, fails at runtime instead of startup  
+**Fix Required:** Create `instrumentation.ts` to call on Next.js startup
+
+#### 3. console.log Instead of Structured Logger (P0 PRODUCTION ISSUE)
+**Location:** Throughout API routes (30+ instances)  
+**Files Affected:**
+- `app/api/v1/containers/route.ts` (8 instances)
+- `app/api/v1/generate-video/route.ts` (12 instances)
+- `app/api/eliza/rooms/[roomId]/messages/route.ts` (6 instances)
+- `lib/services/cloudflare.ts` (2 instances)
+
+**Impact:** 
+- Cannot aggregate logs in production
+- Missing structured metadata for debugging
+- No log levels for filtering
+- Cannot integrate with monitoring services
+
+**Fix Required:** Replace all `console.*` with `logger.*` from `lib/logger.ts`
+
+---
+
+### 🟡 HIGH Priority Issues
+
+#### 4. Package Manager Inconsistency
+**Location:** `README.md`  
+**Issue:** Documentation uses `npm` commands but `.cursorrules` mandates `bun`  
+**Violations:** 8 instances in README  
+**Fix Required:** Replace all `npm install`, `npm run` with `bun install`, `bun run`
+
+#### 5. Dead Code in Video Page
+**Location:** `app/dashboard/video/page.tsx` (lines 61-116)  
+**Issue:** Hardcoded mock video data (3 fake videos with Unsplash URLs)  
+**Impact:** Misleading UI, dead code in production  
+**Fix Required:** Remove mock data, connect to real generations or hide page
+
+#### 6. Stub Dashboard Pages
+**Location:**
+- `components/analytics/analytics-page-client.tsx` - "coming soon"
+- `components/storage/storage-page-client.tsx` - "coming soon"
+
+**Impact:** Broken user experience, incomplete features  
+**Fix Required:** Either implement features or remove from navigation
+
+#### 7. Database Connection Pool Not Configured
+**Location:** `db/drizzle.ts`  
+**Issue:** No connection limits, pooling config, or connection lifecycle  
+**Impact:** Risk of connection exhaustion under load  
+**Fix Required:** Configure Neon Pool with max connections, idle timeout
+
+---
+
+### 🟠 MEDIUM Priority Issues
+
+#### 8. Duplicate Library Files
+**Dead Code:**
+- `lib/rate-limiter.ts` (69 lines) - duplicate of `lib/middleware/rate-limit.ts`
+- `lib/pricing.ts` (105 lines) - duplicate of `lib/constants/pricing.ts`
+
+**Fix Required:** Delete duplicates, update imports if any
+
+#### 9. Documentation Policy Violations
+**Issue:** Multiple `.md` files created instead of updating README  
+**Violates:** Workspace rule "Documentation lives only in README.md"  
+**Files:**
+- `docs/API_REFERENCE.md`
+- `docs/DEPLOYMENT_TROUBLESHOOTING.md`
+- `docs/ENV_SETUP_GUIDE.md`
+- `docs/DEPLOYMENT.md`
+- `docs/ENV_VARIABLES.md`
+- `docs/STRIPE_SETUP.md`
+- `docs/character-creator.md`
+- `docs/ARTIFACT_SECURITY_IMPLEMENTATION.md`
+- `docs/SECURITY_REVIEW_ARTIFACT_TOKENS.md`
+- `docs/R2_CLOUDFLARE_CREDENTIALS.md`
+
+**Fix Required:** Consolidate into README.md sections with proper anchors
+
+#### 10. Missing Migration Field
+**Location:** `db/migrations/0004_add_containers_table.sql`  
+**Issue:** Missing `cloudflare_url` field present in newer `0004_black_night_thrasher.sql`  
+**Impact:** Schema drift between migrations  
+**Fix Required:** Add field to consolidated migration
+
+---
+
+### ⚪ LOW Priority Issues
+
+#### 11. Memory Leak Risk
+**Location:** `lib/eliza/plugin-assistant/index.ts:340`  
+**Issue:** `messageUsageMap` stores data that may not be cleaned up if `getMessageUsage()` not called  
+**Fix Required:** Add TTL-based cleanup or WeakMap
+
+#### 12. No Startup Hooks
+**Issue:** Next.js `instrumentation.ts` file missing  
+**Impact:** Cannot run validation or setup on app startup  
+**Fix Required:** Create instrumentation file for production monitoring
+
+#### 13. Bootstrapper Not Published
+**Location:** `bootstrapper/`  
+**Issue:** Docker image built but not pushed to registry  
+**Impact:** Deployments will fail if image doesn't exist  
+**Fix Required:** Build and push to Docker Hub or GHCR
+
+#### 14. Missing Stripe Webhook Test Coverage
+**Issue:** No verification that `stripe_payment_intent_id` unique index prevents duplicate payments  
+**Impact:** Risk of double-charging customers  
+**Fix Required:** Add idempotency verification (may already work)
+
+---
+
+### 🗑️ Dead Code Identified
+
+1. **Mock Video Data** - `app/dashboard/video/page.tsx:61-116` (56 lines)
+2. **Duplicate rate-limiter.ts** - `lib/rate-limiter.ts` (69 lines)
+3. **Duplicate pricing.ts** - `lib/pricing.ts` (105 lines)
+4. **Stub Analytics Page** - `components/analytics/analytics-page-client.tsx` (21 lines)
+5. **Stub Storage Page** - `components/storage/storage-page-client.tsx` (28 lines)
+
+**Total Dead/Stub Code:** ~279 lines across 5 files
+
+---
+
+### 🔒 Security Review
+
+#### ✅ Security Strengths
+- WorkOS enterprise authentication
+- API key hashing with bcrypt
+- Presigned URLs for R2 (no exposed credentials)
+- Temporary credentials with TTL
+- SQL injection prevention (Drizzle ORM)
+- CSRF protection (Next.js built-in)
+- Rate limiting on critical endpoints
+- Organization-level data isolation
+- Atomic transactions for quota/credit operations
+
+#### ⚠️ Security Concerns
+1. **No secrets scanning** - No pre-commit hook to prevent secret commits
+2. **API keys in logs** - console.log may expose partial keys in logs
+3. **No rate limiting on some endpoints** - Only critical ones protected
+4. **Missing input sanitization** - Some user inputs not validated
+5. **No Content Security Policy** - Missing CSP headers
+
+**Security Score: 7.5/10** - Good foundation, minor improvements needed
+
+---
+
+### 🏗️ Architecture Sanity Check
+
+#### ✅ Architecture Strengths
+1. **Clean separation** - API, lib, components well organized
+2. **Bootstrapper pattern** - Elegant artifact-based deployment
+3. **Atomic operations** - Quota/credit race conditions prevented
+4. **Service layer** - Good abstraction (Cloudflare, R2, Health Monitor)
+5. **Type safety** - TypeScript throughout with minimal `any` usage
+6. **Error handling** - Custom error classes, retry logic, timeouts
+7. **Database design** - Proper indexes, foreign keys, constraints
+
+#### ⚠️ Architecture Concerns
+1. **No background job queue** - Using `async().catch()` pattern
+2. **In-memory rate limiting** - Won't work across multiple instances
+3. **No caching layer** - Redis or similar not implemented
+4. **Singleton DB connection** - No connection pooling configured
+5. **No circuit breakers** - Could cascade failures from Cloudflare
+
+**Architecture Score: 7/10** - Solid foundation, scalability concerns
+
+---
+
+### 📊 Production Readiness Breakdown
+
+| Category | Score | Status | Issues |
+|----------|-------|--------|--------|
+| **Code Quality** | 7/10 | ⚠️ | console.log, dead code, stubs |
+| **Security** | 7.5/10 | ✅ | Good auth, minor improvements |
+| **Database** | 6/10 | ⚠️ | Migration conflicts, no pool config |
+| **Testing** | N/A | - | Per user request |
+| **Error Handling** | 8/10 | ✅ | Comprehensive, needs logger |
+| **Documentation** | 6/10 | ⚠️ | Policy violations, npm vs bun |
+| **Monitoring** | 5/10 | ⚠️ | Health checks exist, no APM |
+| **Scalability** | 6/10 | ⚠️ | In-memory rate limit, no queue |
+| **Performance** | 7/10 | ✅ | Good indexes, need pool config |
+
+**Overall: 6.5/10** - Requires critical fixes
+
+---
+
+### ✅ What's Production Ready NOW
+
+1. **Authentication System** - WorkOS integration complete
+2. **API Key Management** - Secure generation, validation, revocation
+3. **Credit System** - Atomic transactions, refunds, audit trail
+4. **R2 Storage** - Presigned URLs, temporary credentials, cleanup
+5. **Cloudflare Deployment** - Bootstrapper architecture, retry logic
+6. **Quota Enforcement** - Race-condition safe with DB locks
+7. **Error Types** - Comprehensive error classes
+8. **Database Schema** - Well-designed with proper constraints (except migrations)
+9. **Type Safety** - Minimal `any` usage, strong typing
+10. **Security** - Good authentication, authorization, input validation
+
+---
+
+### ❌ What's NOT Ready
+
+1. **Migration System** - Conflicting files will break deployments
+2. **Startup Validation** - Missing, app starts with bad config
+3. **Logging** - console.log everywhere, can't debug production
+4. **Documentation** - Violates workspace policy
+5. **Stub Features** - Analytics/Storage pages incomplete
+6. **Connection Pooling** - Not configured for production load
+7. **Background Jobs** - No queue system for async operations
+8. **Multi-instance Support** - Rate limiter won't work
+9. **Mock Data** - Fake videos in production code
+10. **Package Manager** - Inconsistent npm vs bun
+
+---
+
+### 🎯 Deployment Recommendation
+
+**Can Deploy:** ❌ **NO** - Fix 3 critical issues first  
+**Timeline:** ~6-8 hours to fix critical issues  
+**Risk Level:** **HIGH** if deployed as-is
+
+**Must Fix Before Deploy:**
+1. Resolve migration conflict (1 hour)
+2. Hook up startup validation (30 min)
+3. Replace console.log with logger (2-3 hours)
+
+**Should Fix Before Deploy:**
+4. Configure DB connection pool (1 hour)
+5. Remove dead/stub code (1 hour)
+6. Fix README npm→bun (15 min)
+
+**After Deploy:**
+7. Implement Analytics/Storage or remove
+8. Add background job queue
+9. Migrate to Redis for rate limiting
+10. Consolidate documentation
+
+---
+
+### 🚀 Next Steps
+
+#### Immediate (Before ANY Deployment)
+```bash
+# 1. Fix migration conflict
+cd eliza-cloud-v2/db/migrations
+# Delete 0004_add_containers_table.sql, keep 0004_black_night_thrasher.sql
+# Update _journal.json
+
+# 2. Add instrumentation
+cat > instrumentation.ts << 'EOF'
+export async function register() {
+  if (process.env.NEXT_RUNTIME === 'nodejs') {
+    const { initializeApplication } = await import('./lib/config/startup');
+    initializeApplication();
+  }
+}
+EOF
+
+# 3. Replace console.log (review each file)
+# Use structured logger for production debugging
+```
+
+#### Week 1
+- Build bootstrapper image
+- Fix all console.log instances
+- Configure DB connection pool
+- Remove stub pages or implement
+- Consolidate documentation
+
+#### Week 2
+- Add Redis for distributed rate limiting
+- Implement background job queue
+- Add monitoring/APM integration
+- Load testing and optimization
+
+---
+
 **Built with ❤️ for the elizaOS ecosystem**
