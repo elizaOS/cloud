@@ -16,12 +16,14 @@ export interface QuotaCheckResult {
  * could bypass quota limits.
  *
  * @param data - Container data to create
+ * @param externalTx - Optional external transaction (for nesting in credit deduction)
  * @returns The created container or throws an error
  */
 export async function createContainerWithQuotaCheck(
   data: NewContainer,
+  externalTx?: Parameters<Parameters<typeof db.transaction>[0]>[0],
 ): Promise<typeof containers.$inferSelect> {
-  return await db.transaction(async (tx) => {
+  const executeInTransaction = async (tx: NonNullable<typeof externalTx>) => {
     // 1. Lock the organization row to prevent concurrent quota checks
     const [org] = await tx
       .select({
@@ -75,7 +77,14 @@ export async function createContainerWithQuotaCheck(
       .returning();
 
     return container;
-  });
+  };
+
+  // Use external transaction if provided, otherwise create new one
+  if (externalTx) {
+    return await executeInTransaction(externalTx);
+  } else {
+    return await db.transaction(executeInTransaction);
+  }
 }
 
 /**
