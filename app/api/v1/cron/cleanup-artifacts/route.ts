@@ -12,13 +12,26 @@ export const dynamic = "force-dynamic";
  */
 export async function POST(request: NextRequest) {
   try {
-    // Verify cron secret
+    // SECURITY: Verify cron secret - MANDATORY in production
     const authHeader = request.headers.get("authorization");
     const cronSecret = process.env.CRON_SECRET;
 
-    if (cronSecret && authHeader !== `Bearer ${cronSecret}`) {
+    // CRITICAL: CRON_SECRET must be set - fail closed, not open
+    if (!cronSecret) {
+      console.error("CRON_SECRET not configured - rejecting request for security");
+      return NextResponse.json(
+        {
+          success: false,
+          error: "Server configuration error: CRON_SECRET not set",
+        },
+        { status: 500 }
+      );
+    }
+
+    if (authHeader !== `Bearer ${cronSecret}`) {
       console.warn("Unauthorized cron request", {
         ip: request.headers.get("x-forwarded-for"),
+        timestamp: new Date().toISOString(),
       });
       return NextResponse.json(
         {

@@ -1,5 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireAuthOrApiKey } from "@/lib/auth";
+import { db } from "@/db/drizzle";
+import { organizations, creditTransactions } from "@/db/sass/schema";
+import { eq } from "drizzle-orm";
 import {
   listContainers,
   type NewContainer,
@@ -9,7 +12,7 @@ import {
   createContainerWithQuotaCheck,
   QuotaExceededError,
 } from "@/lib/queries/container-quota";
-import { deductCredits, addCredits } from "@/lib/queries/credits";
+import { addCredits } from "@/lib/queries/credits";
 import { createUsageRecord } from "@/lib/queries/usage";
 import { calculateDeploymentCost, CONTAINER_LIMITS } from "@/lib/constants/pricing";
 import { getCloudflareService } from "@/lib/services/cloudflare";
@@ -29,7 +32,8 @@ const createContainerSchema = z.object({
   
   // Bootstrapper architecture fields
   use_bootstrapper: z.boolean().optional().default(true), // Default to bootstrapper
-  artifact_url: z.string().optional(),
+  artifact_url: z.string().optional(), // Presigned download URL (expires in 1 hour)
+  artifact_id: z.string().optional(), // Artifact ID for reference tracking
   artifact_checksum: z.string().optional(),
   
   // Optional: Allow custom image tag for self-hosted bootstrapper images
@@ -221,45 +225,93 @@ async function handleCreateContainer(request: NextRequest) {
       health_check_path: validatedData.health_check_path,
       status: "pending",
       // Store bootstrapper-specific fields in metadata
+      // CRITICAL: Store artifact_id for reliable reference tracking
       metadata: {
         use_bootstrapper: validatedData.use_bootstrapper !== false,
-        artifact_url: validatedData.artifact_url,
+        artifact_id: validatedData.artifact_id, // Primary reference for cleanup
+        artifact_url: validatedData.artifact_url, // Presigned URL (expires)
         artifact_checksum: validatedData.artifact_checksum,
       },
     };
 
-    // Atomically check quota and create container
-    // This prevents race conditions where multiple concurrent requests
-    // could bypass quota limits or create duplicate names
-    const container = await createContainerWithQuotaCheck(containerData);
-
-    // Calculate deployment cost
+    // Calculate deployment cost upfront
     const deploymentCost = calculateDeploymentCost({
       maxInstances: validatedData.max_instances,
       includeUpload: false, // Upload is charged separately
     });
 
-    // Deduct credits for deployment
-    const creditResult = await deductCredits(
-      user.organization_id,
-      deploymentCost,
-      `Container deployment: ${validatedData.name}`,
-      user.id,
-    );
+    // CRITICAL: Wrap container creation AND credit deduction in a single transaction
+    // This prevents race condition where container exists but credits fail to deduct
+    let container;
+    let creditResult;
+    
+    try {
+      const result = await db.transaction(async (tx) => {
+        // Step 1: Create container within transaction
+        const newContainer = await createContainerWithQuotaCheck(containerData, tx);
+        
+        // Step 2: Check credits within the same transaction
+        const org = await tx.query.organizations.findFirst({
+          where: eq(organizations.id, user.organization_id),
+        });
 
-    if (!creditResult.success) {
-      // Delete the container record since we can't charge for it
-      await deleteContainer(container.id, user.organization_id);
+        if (!org) {
+          throw new Error("Organization not found");
+        }
 
-      return NextResponse.json(
-        {
-          success: false,
-          error: `Insufficient credits. Required: ${deploymentCost}, Available: ${creditResult.newBalance}`,
-          requiredCredits: deploymentCost,
-          availableCredits: creditResult.newBalance,
-        },
-        { status: 402 }, // Payment Required
-      );
+        if (org.credit_balance < deploymentCost) {
+          // Transaction will rollback, container won't be created
+          throw new Error(`Insufficient credits. Required: ${deploymentCost}, Available: ${org.credit_balance}`);
+        }
+
+        const newBalance = org.credit_balance - deploymentCost;
+
+        // Step 3: Deduct credits within transaction
+        await tx
+          .update(organizations)
+          .set({
+            credit_balance: newBalance,
+            updated_at: new Date(),
+          })
+          .where(eq(organizations.id, user.organization_id));
+
+        // Step 4: Create credit transaction record
+        const [creditTx] = await tx
+          .insert(creditTransactions)
+          .values({
+            organization_id: user.organization_id,
+            user_id: user.id,
+            amount: -deploymentCost,
+            type: "usage",
+            description: `Container deployment: ${validatedData.name}`,
+          })
+          .returning();
+
+        return {
+          container: newContainer,
+          creditResult: { success: true, newBalance, transaction: creditTx },
+        };
+      });
+
+      container = result.container;
+      creditResult = result.creditResult;
+      
+    } catch (error) {
+      // Transaction rolled back - no orphaned container or credit inconsistency
+      const errorMessage = error instanceof Error ? error.message : "Unknown error";
+      
+      if (errorMessage.includes("Insufficient credits")) {
+        return NextResponse.json(
+          {
+            success: false,
+            error: errorMessage,
+            requiredCredits: deploymentCost,
+          },
+          { status: 402 }, // Payment Required
+        );
+      }
+      
+      throw error; // Re-throw for outer error handler
     }
 
     // Create usage record for audit trail
