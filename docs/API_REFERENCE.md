@@ -112,7 +112,7 @@ Deploy a new container.
   },
   "message": "Container deployment initiated",
   "creditsDeducted": 1000,
-  "newCreditBalance": 9000
+  "creditsRemaining": 9000
 }
 ```
 

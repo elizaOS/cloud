@@ -6,7 +6,6 @@
 import { db } from "@/db/drizzle";
 import { artifacts } from "@/db/sass/schema";
 import { and, eq, desc } from "drizzle-orm";
-import { logger } from "@/lib/logger";
 import { S3Client, DeleteObjectCommand } from "@aws-sdk/client-s3";
 
 export interface ArtifactRetentionPolicy {
@@ -60,12 +59,12 @@ export async function deleteArtifactFromR2(r2Key: string): Promise<boolean> {
     });
 
     await client.send(command);
-    logger.info("Artifact deleted from R2", { r2Key });
+    console.log("Artifact deleted from R2", { r2Key });
     return true;
   } catch (error) {
-    logger.error(
+    console.error(
       "Failed to delete artifact from R2",
-      error instanceof Error ? error : new Error(String(error)),
+      error instanceof Error ? error.message : String(error),
       { r2Key }
     );
     return false;
@@ -85,7 +84,7 @@ export async function cleanupProjectArtifacts(
   let errors = 0;
 
   try {
-    logger.info("Starting artifact cleanup", {
+    console.log("Starting artifact cleanup", {
       organizationId,
       projectId,
       policy: finalPolicy,
@@ -103,7 +102,7 @@ export async function cleanupProjectArtifacts(
       )
       .orderBy(desc(artifacts.created_at));
 
-    logger.info(`Found ${allArtifacts.length} artifacts for project`, {
+    console.log(`Found ${allArtifacts.length} artifacts for project`, {
       projectId,
     });
 
@@ -137,7 +136,7 @@ export async function cleanupProjectArtifacts(
       const toRemoveFromDeletion =
         finalPolicy.minVersionsToKeep - remainingCount;
       artifactsToDelete.splice(0, toRemoveFromDeletion);
-      logger.warn("Retention policy prevented deletion of minimum versions", {
+      console.warn("Retention policy prevented deletion of minimum versions", {
         minVersionsToKeep: finalPolicy.minVersionsToKeep,
         adjusted: toRemoveFromDeletion,
       });
@@ -163,7 +162,7 @@ export async function cleanupProjectArtifacts(
           );
 
         if (containersUsingArtifact.length > 0) {
-          logger.warn("Skipping artifact deletion - in use by containers", {
+          console.warn("Skipping artifact deletion - in use by containers", {
             artifactId: artifact.id,
             version: artifact.version,
             containersUsing: containersUsingArtifact.map(c => ({ id: c.id, name: c.name, status: c.status })),
@@ -178,7 +177,7 @@ export async function cleanupProjectArtifacts(
           // Delete from database
           await db.delete(artifacts).where(eq(artifacts.id, artifact.id));
           deleted++;
-          logger.debug("Artifact cleaned up", {
+          console.log("Artifact cleaned up", {
             artifactId: artifact.id,
             version: artifact.version,
             size: artifact.size,
@@ -188,15 +187,15 @@ export async function cleanupProjectArtifacts(
         }
       } catch (error) {
         errors++;
-        logger.error(
+        console.error(
           "Failed to delete artifact",
-          error instanceof Error ? error : new Error(String(error)),
+          error instanceof Error ? error.message : String(error),
           { artifactId: artifact.id }
         );
       }
     }
 
-    logger.info("Artifact cleanup completed", {
+    console.log("Artifact cleanup completed", {
       organizationId,
       projectId,
       deleted,
@@ -206,9 +205,9 @@ export async function cleanupProjectArtifacts(
 
     return { deleted, errors };
   } catch (error) {
-    logger.error(
+    console.error(
       "Artifact cleanup failed",
-      error instanceof Error ? error : new Error(String(error)),
+      error instanceof Error ? error.message : String(error),
       { organizationId, projectId }
     );
     throw error;
@@ -223,7 +222,7 @@ export async function cleanupAllArtifacts(
   policy: Partial<ArtifactRetentionPolicy> = {}
 ): Promise<{ totalDeleted: number; totalErrors: number }> {
   try {
-    logger.info("Starting global artifact cleanup");
+    console.log("Starting global artifact cleanup");
 
     // Get unique organization/project combinations
     const projectGroups = await db
@@ -233,7 +232,7 @@ export async function cleanupAllArtifacts(
       })
       .from(artifacts);
 
-    logger.info(`Found ${projectGroups.length} project(s) with artifacts`);
+    console.log(`Found ${projectGroups.length} project(s) with artifacts`);
 
     let totalDeleted = 0;
     let totalErrors = 0;
@@ -249,16 +248,16 @@ export async function cleanupAllArtifacts(
       totalErrors += result.errors;
     }
 
-    logger.info("Global artifact cleanup completed", {
+    console.log("Global artifact cleanup completed", {
       totalDeleted,
       totalErrors,
     });
 
     return { totalDeleted, totalErrors };
   } catch (error) {
-    logger.error(
+    console.error(
       "Global artifact cleanup failed",
-      error instanceof Error ? error : new Error(String(error))
+      error instanceof Error ? error.message : String(error)
     );
     throw error;
   }

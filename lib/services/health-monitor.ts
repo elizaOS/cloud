@@ -6,7 +6,6 @@
 import { db } from "@/db/drizzle";
 import { containers } from "@/db/sass/schema";
 import { eq } from "drizzle-orm";
-import { logger } from "@/lib/logger";
 
 export interface HealthCheckResult {
   containerId: string;
@@ -43,7 +42,7 @@ export async function checkContainerHealth(
   const fullUrl = `${containerUrl}${healthCheckPath}`;
 
   try {
-    logger.debug("Performing health check", { url: fullUrl });
+    console.log("Performing health check", { url: fullUrl });
 
     const controller = new AbortController();
     const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
@@ -73,7 +72,7 @@ export async function checkContainerHealth(
     const errorMessage =
       error instanceof Error ? error.message : "Unknown error";
 
-    logger.warn("Health check failed", { url: fullUrl, error: errorMessage });
+    console.warn("Health check failed", { url: fullUrl, error: errorMessage });
 
     return {
       containerId: "", // Set by caller
@@ -103,7 +102,7 @@ export async function updateContainerHealth(
       .limit(1);
 
     if (!currentContainer) {
-      logger.warn("Container not found for health check", { containerId });
+      console.warn("Container not found for health check", { containerId });
       return;
     }
 
@@ -134,16 +133,16 @@ export async function updateContainerHealth(
       .set(updateData)
       .where(eq(containers.id, containerId));
 
-    logger.debug("Container health status updated", {
+    console.log("Container health status updated", {
       containerId,
       healthy: healthResult.healthy,
       currentStatus: currentContainer.status,
       newStatus: updateData.status || currentContainer.status,
     });
   } catch (error) {
-    logger.error(
+    console.error(
       "Failed to update container health status",
-      error instanceof Error ? error : new Error(String(error)),
+      error instanceof Error ? error.message : String(error),
       { containerId }
     );
   }
@@ -159,7 +158,7 @@ export async function monitorAllContainers(
   const finalConfig = { ...DEFAULT_CONFIG, ...config };
 
   try {
-    logger.info("Starting health check for all containers");
+    console.log("Starting health check for all containers");
 
     // Get all running containers
     const runningContainers = await db
@@ -167,14 +166,14 @@ export async function monitorAllContainers(
       .from(containers)
       .where(eq(containers.status, "running"));
 
-    logger.info(`Found ${runningContainers.length} running containers to check`);
+    console.log(`Found ${runningContainers.length} running containers to check`);
 
     const results: HealthCheckResult[] = [];
 
     // Check each container
     for (const container of runningContainers) {
       if (!container.cloudflare_url) {
-        logger.warn("Container has no URL, skipping health check", {
+        console.warn("Container has no URL, skipping health check", {
           containerId: container.id,
         });
         continue;
@@ -193,7 +192,7 @@ export async function monitorAllContainers(
       await updateContainerHealth(container.id, result);
 
       if (!result.healthy) {
-        logger.warn("Container health check failed", {
+        console.warn("Container health check failed", {
           containerId: container.id,
           url: container.cloudflare_url,
           error: result.error,
@@ -204,7 +203,7 @@ export async function monitorAllContainers(
     const healthyCount = results.filter((r) => r.healthy).length;
     const unhealthyCount = results.length - healthyCount;
 
-    logger.info("Health check completed", {
+    console.log("Health check completed", {
       total: results.length,
       healthy: healthyCount,
       unhealthy: unhealthyCount,
@@ -212,9 +211,9 @@ export async function monitorAllContainers(
 
     return results;
   } catch (error) {
-    logger.error(
+    console.error(
       "Container health monitoring failed",
-      error instanceof Error ? error : new Error(String(error))
+      error instanceof Error ? error.message : String(error)
     );
     throw error;
   }
@@ -247,9 +246,9 @@ export async function getContainerHealthStatus(
 
     return result;
   } catch (error) {
-    logger.error(
+    console.error(
       "Failed to get container health status",
-      error instanceof Error ? error : new Error(String(error)),
+      error instanceof Error ? error.message : String(error),
       { containerId }
     );
     return null;
@@ -263,7 +262,7 @@ export async function getContainerHealthStatus(
 export function startHealthMonitoring(
   intervalMs: number = 60000
 ): NodeJS.Timeout {
-  logger.info("Starting continuous health monitoring", {
+  console.log("Starting continuous health monitoring", {
     intervalMs,
   });
 
@@ -271,18 +270,18 @@ export function startHealthMonitoring(
     try {
       await monitorAllContainers();
     } catch (error) {
-      logger.error(
+      console.error(
         "Health monitoring cycle failed",
-        error instanceof Error ? error : new Error(String(error))
+        error instanceof Error ? error.message : String(error)
       );
     }
   }, intervalMs);
 
   // Also run immediately on startup
   monitorAllContainers().catch((error) => {
-    logger.error(
+    console.error(
       "Initial health check failed",
-      error instanceof Error ? error : new Error(String(error))
+      error instanceof Error ? error.message : String(error)
     );
   });
 
@@ -294,6 +293,6 @@ export function startHealthMonitoring(
  */
 export function stopHealthMonitoring(interval: NodeJS.Timeout): void {
   clearInterval(interval);
-  logger.info("Health monitoring stopped");
+  console.log("Health monitoring stopped");
 }
 
