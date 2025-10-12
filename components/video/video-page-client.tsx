@@ -1,6 +1,5 @@
 "use client";
 
-import Link from "next/link";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
 import { Badge } from "@/components/ui/badge";
@@ -17,8 +16,6 @@ import { Progress } from "@/components/ui/progress";
 import { cn } from "@/lib/utils";
 import { MONTHLY_CREDIT_CAP } from "@/lib/pricing";
 import {
-  ArrowUpRight,
-  BookOpen,
   CheckCircle2,
   Clock4,
   History,

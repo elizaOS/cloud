@@ -577,3 +577,117 @@ export const userCharactersRelations = relations(
     }),
   }),
 );
+
+// Artifacts table for storing deployment artifacts
+export const artifacts = pgTable(
+  "artifacts",
+  {
+    id: text("id").primaryKey(),
+    organization_id: text("organization_id").notNull(),
+    project_id: text("project_id").notNull(),
+    version: text("version").notNull(),
+    checksum: text("checksum").notNull(),
+    size: integer("size").notNull(),
+    r2_key: text("r2_key").notNull(),
+    r2_url: text("r2_url").notNull(),
+    metadata: jsonb("metadata").default({}),
+    created_by: text("created_by").notNull(),
+    created_at: timestamp("created_at").defaultNow().notNull(),
+  },
+  (table) => ({
+    // Index for fetching artifacts by organization and project
+    orgProjectIdx: index("idx_artifacts_org_project").on(
+      table.organization_id,
+      table.project_id
+    ),
+    // Index for fetching latest version
+    projectVersionIdx: index("idx_artifacts_project_version").on(
+      table.project_id,
+      table.version
+    ),
+    // Unique constraint on org + project + version
+    uniqueVersion: uniqueIndex("uniq_artifact_version").on(
+      table.organization_id,
+      table.project_id,
+      table.version
+    ),
+  })
+);
+
+
+export const containers = pgTable(
+  "containers",
+  {
+    id: uuid("id").defaultRandom().primaryKey(),
+    name: text("name").notNull(),
+    description: text("description"),
+    organization_id: uuid("organization_id")
+      .notNull()
+      .references(() => organizations.id, { onDelete: "cascade" }),
+    user_id: uuid("user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    api_key_id: uuid("api_key_id").references(() => apiKeys.id, {
+      onDelete: "set null",
+    }),
+    cloudflare_worker_id: text("cloudflare_worker_id"),
+    cloudflare_container_id: text("cloudflare_container_id"),
+    cloudflare_url: text("cloudflare_url"),
+    status: text("status").notNull().default("pending"),
+    image_tag: text("image_tag"),
+    dockerfile_path: text("dockerfile_path"),
+    environment_vars: jsonb("environment_vars")
+      .$type<Record<string, string>>()
+      .default({})
+      .notNull(),
+    max_instances: integer("max_instances").default(1).notNull(),
+    port: integer("port").default(3000).notNull(),
+    health_check_path: text("health_check_path").default("/health"),
+    last_deployed_at: timestamp("last_deployed_at"),
+    last_health_check: timestamp("last_health_check"),
+    deployment_log: text("deployment_log"),
+    error_message: text("error_message"),
+    metadata: jsonb("metadata")
+      .$type<Record<string, unknown>>()
+      .default({})
+      .notNull(),
+    created_at: timestamp("created_at").notNull().defaultNow(),
+    updated_at: timestamp("updated_at").notNull().defaultNow(),
+  },
+  (table) => ({
+    organization_idx: index("containers_organization_idx").on(
+      table.organization_id,
+    ),
+    user_idx: index("containers_user_idx").on(table.user_id),
+    status_idx: index("containers_status_idx").on(table.status),
+    cloudflare_worker_idx: index("containers_cloudflare_worker_idx").on(
+      table.cloudflare_worker_id,
+    ),
+    // Unique constraint on name per organization (prevents race conditions)
+    // Excludes deleting/deleted containers to allow name reuse
+    org_name_unique_idx: uniqueIndex("containers_org_name_unique_idx").on(
+      table.organization_id,
+      table.name,
+    ),
+    // Optimized index for quota queries
+    org_status_idx: index("containers_org_status_idx").on(
+      table.organization_id,
+      table.status,
+    ),
+  }),
+);
+
+export const containersRelations = relations(containers, ({ one }) => ({
+  user: one(users, {
+    fields: [containers.user_id],
+    references: [users.id],
+  }),
+  organization: one(organizations, {
+    fields: [containers.organization_id],
+    references: [organizations.id],
+  }),
+  apiKey: one(apiKeys, {
+    fields: [containers.api_key_id],
+    references: [apiKeys.id],
+  }),
+}));
