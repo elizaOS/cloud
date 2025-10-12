@@ -1,6 +1,7 @@
 /**
  * Cloudflare R2 Temporary Access Credentials Service
  * Uses Cloudflare's native temp-access-credentials API for secure, scoped access
+ * Implements proper AWS SigV4 signing for R2 operations
  * 
  * @see https://developers.cloudflare.com/r2/api/s3/tokens/
  */
@@ -10,6 +11,14 @@ interface R2TemporaryCredentials {
   secretAccessKey: string;
   sessionToken: string;
   expiresAt: string;
+}
+
+interface PresignedUrlOptions {
+  bucket: string;
+  key: string;
+  expiresIn?: number; // seconds, default 3600
+  method?: "GET" | "PUT";
+  contentType?: string;
 }
 
 interface CreateR2TempCredentialsParams {
@@ -33,14 +42,17 @@ export async function createR2TempCredentials(
     permissions = "read",
   } = params;
 
+  // Import consolidation helper
+  const { getCloudflareAccountId, getCloudflareAuthHeaders } = await import("@/lib/config/env-consolidation");
+
   // Validate environment variables
-  const accountId = process.env.R2_ACCOUNT_ID;
+  const accountId = getCloudflareAccountId();
   const parentAccessKeyId = process.env.R2_ACCESS_KEY_ID;
   const parentSecretAccessKey = process.env.R2_SECRET_ACCESS_KEY;
 
   if (!accountId || !parentAccessKeyId || !parentSecretAccessKey) {
     throw new Error(
-      "Missing R2 credentials. Set R2_ACCOUNT_ID, R2_ACCESS_KEY_ID, and R2_SECRET_ACCESS_KEY"
+      "Missing R2 credentials. Set CLOUDFLARE_ACCOUNT_ID, R2_ACCESS_KEY_ID, and R2_SECRET_ACCESS_KEY"
     );
   }
 
@@ -57,21 +69,12 @@ export async function createR2TempCredentials(
   const endpoint = `https://api.cloudflare.com/client/v4/accounts/${accountId}/r2/temp-access-credentials`;
 
   try {
-    // Use API token if available, otherwise fall back to email + key
+    // Use consolidated auth headers
+    const authHeaders = getCloudflareAuthHeaders();
     const headers: Record<string, string> = {
       "Content-Type": "application/json",
+      ...authHeaders,
     };
-
-    if (process.env.CLOUDFLARE_API_TOKEN) {
-      headers["Authorization"] = `Bearer ${process.env.CLOUDFLARE_API_TOKEN}`;
-    } else if (process.env.CLOUDFLARE_EMAIL && process.env.CLOUDFLARE_API_KEY) {
-      headers["X-Auth-Email"] = process.env.CLOUDFLARE_EMAIL;
-      headers["X-Auth-Key"] = process.env.CLOUDFLARE_API_KEY;
-    } else {
-      throw new Error(
-        "Missing Cloudflare credentials. Set CLOUDFLARE_API_TOKEN or CLOUDFLARE_EMAIL + CLOUDFLARE_API_KEY"
-      );
-    }
 
     const response = await fetch(endpoint, {
       method: "POST",
@@ -162,27 +165,88 @@ export async function createArtifactDownloadCredentials(params: {
 }
 
 /**
- * Generate a presigned URL for upload using temporary credentials
+ * Generate a presigned URL for R2 operations using AWS SigV4
+ * This creates a URL that can be used directly without additional signing
  */
-export function getUploadInstructions(
+export async function generatePresignedUrl(
+  credentials: R2TemporaryCredentials,
+  options: PresignedUrlOptions
+): Promise<string> {
+  const { bucket, key, expiresIn = 3600, method = "GET", contentType } = options;
+  
+  const accountId = process.env.R2_ACCOUNT_ID;
+  if (!accountId) {
+    throw new Error("R2_ACCOUNT_ID is required");
+  }
+
+  const endpoint = process.env.R2_ENDPOINT || `https://${accountId}.r2.cloudflarestorage.com`;
+  const region = "auto"; // R2 uses 'auto' as region
+
+  // Use AWS SDK S3 client for presigned URL generation
+  const { S3Client, GetObjectCommand, PutObjectCommand } = await import("@aws-sdk/client-s3");
+  const { getSignedUrl } = await import("@aws-sdk/s3-request-presigner");
+
+  const s3Client = new S3Client({
+    region,
+    endpoint,
+    credentials: {
+      accessKeyId: credentials.accessKeyId,
+      secretAccessKey: credentials.secretAccessKey,
+      sessionToken: credentials.sessionToken,
+    },
+  });
+
+  try {
+    const command =
+      method === "PUT"
+        ? new PutObjectCommand({
+            Bucket: bucket,
+            Key: key,
+            ContentType: contentType || "application/gzip",
+          })
+        : new GetObjectCommand({
+            Bucket: bucket,
+            Key: key,
+          });
+
+    const presignedUrl = await getSignedUrl(s3Client, command, {
+      expiresIn,
+    });
+
+    return presignedUrl;
+  } catch (error) {
+    throw new Error(
+      `Failed to generate presigned URL: ${error instanceof Error ? error.message : "Unknown error"}`
+    );
+  }
+}
+
+/**
+ * Generate upload instructions with presigned URL
+ * Deprecated: Use generatePresignedUrl directly
+ */
+export async function getUploadInstructions(
   credentials: R2TemporaryCredentials,
   r2Key: string
-): {
+): Promise<{
   url: string;
   headers: Record<string, string>;
   method: "PUT";
-} {
+}> {
   const bucketName = process.env.R2_BUCKET_NAME || "eliza-artifacts";
-  const accountId = process.env.R2_ACCOUNT_ID;
-  const endpoint = process.env.R2_ENDPOINT || `https://${accountId}.r2.cloudflarestorage.com`;
+  
+  const presignedUrl = await generatePresignedUrl(credentials, {
+    bucket: bucketName,
+    key: r2Key,
+    method: "PUT",
+    expiresIn: 600, // 10 minutes for upload
+  });
 
   return {
-    url: `${endpoint}/${bucketName}/${r2Key}`,
+    url: presignedUrl,
     method: "PUT",
     headers: {
       "Content-Type": "application/gzip",
-      "X-Amz-Security-Token": credentials.sessionToken,
-      // Client must add AWS Signature V4 headers using the credentials
     },
   };
 }
