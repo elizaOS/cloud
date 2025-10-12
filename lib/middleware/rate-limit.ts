@@ -18,8 +18,29 @@ interface RateLimitEntry {
 }
 
 // In-memory store for rate limiting
-// In production, use Redis for distributed rate limiting
+// ⚠️  WARNING: This implementation uses in-memory storage and will NOT work correctly
+// in multi-instance deployments. Each instance will have its own rate limit counter,
+// allowing users to bypass limits by hitting different instances.
+// 
+// PRODUCTION REQUIREMENTS:
+// - Use Redis for distributed rate limiting (recommended: ioredis + rate-limiter-flexible)
+// - Or use database-backed rate limiting with proper locking
+// - Configure rate limit key to include instance-agnostic identifier
+//
+// TODO: Migrate to Redis-backed rate limiting for production multi-instance deployments
 const rateLimitStore = new Map<string, RateLimitEntry>();
+
+// Log warning on first use
+let hasLoggedWarning = false;
+function logRateLimitWarning() {
+  if (!hasLoggedWarning && process.env.NODE_ENV === "production") {
+    console.warn(
+      "⚠️  WARNING: Using in-memory rate limiting. This will not work correctly in multi-instance deployments. " +
+      "Configure Redis-backed rate limiting for production. See lib/middleware/rate-limit.ts"
+    );
+    hasLoggedWarning = true;
+  }
+}
 
 /**
  * Clean up expired entries periodically
@@ -56,6 +77,8 @@ export function checkRateLimit(
   resetAt: number;
   retryAfter?: number;
 } {
+  logRateLimitWarning();
+  
   const keyGenerator = config.keyGenerator || getDefaultKey;
   const key = keyGenerator(request);
   const now = Date.now();

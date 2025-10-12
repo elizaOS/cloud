@@ -262,33 +262,3 @@ export async function generatePresignedUrl(
   }
 }
 
-/**
- * Generate upload instructions with presigned URL
- * Deprecated: Use generatePresignedUrl directly
- */
-export async function getUploadInstructions(
-  credentials: R2TemporaryCredentials,
-  r2Key: string
-): Promise<{
-  url: string;
-  headers: Record<string, string>;
-  method: "PUT";
-}> {
-  const bucketName = process.env.R2_BUCKET_NAME || "eliza-artifacts";
-  
-  const presignedUrl = await generatePresignedUrl(credentials, {
-    bucket: bucketName,
-    key: r2Key,
-    method: "PUT",
-    expiresIn: 600, // 10 minutes for upload
-  });
-
-  return {
-    url: presignedUrl,
-    method: "PUT",
-    headers: {
-      "Content-Type": "application/gzip",
-    },
-  };
-}
-
