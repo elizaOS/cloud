@@ -21,9 +21,10 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
-import { Trash2, ExternalLink } from "lucide-react";
+import { Trash2, ExternalLink, FileText } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
+import Link from "next/link";
 
 interface Container {
   id: string;
@@ -158,6 +159,11 @@ export function ContainersTable({ containers }: ContainersTableProps) {
                 </TableCell>
                 <TableCell className="text-right">
                   <div className="flex justify-end gap-2">
+                    <Link href={`/dashboard/containers/${container.id}`}>
+                      <Button variant="ghost" size="sm" title="View details, logs & history">
+                        <FileText className="h-4 w-4" />
+                      </Button>
+                    </Link>
                     {container.cloudflare_worker_id && (
                       <Button
                         variant="ghost"
@@ -168,6 +174,7 @@ export function ContainersTable({ containers }: ContainersTableProps) {
                             "_blank",
                           );
                         }}
+                        title="Open container URL"
                       >
                         <ExternalLink className="h-4 w-4" />
                       </Button>
@@ -177,6 +184,7 @@ export function ContainersTable({ containers }: ContainersTableProps) {
                       size="sm"
                       onClick={() => setDeleteId(container.id)}
                       disabled={isDeleting}
+                      title="Delete container"
                     >
                       <Trash2 className="h-4 w-4 text-red-500" />
                     </Button>

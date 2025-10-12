@@ -4,7 +4,6 @@
  */
 
 import { NextRequest, NextResponse } from "next/server";
-import { logger } from "@/lib/logger";
 
 interface RateLimitConfig {
   windowMs: number; // Time window in milliseconds
@@ -102,7 +101,7 @@ export function checkRateLimit(
   const retryAfter = allowed ? undefined : Math.ceil((entry.resetAt - now) / 1000);
 
   if (!allowed) {
-    logger.warn("Rate limit exceeded", {
+    console.warn("Rate limit exceeded", {
       key,
       count: entry.count,
       max: config.maxRequests,
@@ -237,7 +236,7 @@ export async function checkCostBasedRateLimit(
   const retryAfter = allowed ? undefined : Math.ceil((entry.resetAt - now) / 1000);
 
   if (!allowed) {
-    logger.warn("Cost-based rate limit exceeded", {
+    console.warn("Cost-based rate limit exceeded", {
       key,
       cost,
       totalCost: entry.totalCost,
