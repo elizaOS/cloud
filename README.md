@@ -1,6 +1,6 @@
 # Eliza Cloud V2
 
-A modern AI agent development platform built with Next.js 15, featuring multi-model text generation, AI image creation, enterprise authentication, and production-ready cloud infrastructure.
+A comprehensive AI agent development platform built with Next.js 15, featuring multi-model AI generation (text, image, video), full ElizaOS runtime integration, enterprise authentication, credit-based billing, and production-ready cloud infrastructure.
 
 ## 📋 Table of Contents
 
@@ -11,107 +11,244 @@ A modern AI agent development platform built with Next.js 15, featuring multi-mo
 - [Prerequisites](#prerequisites)
 - [Quick Start](#quick-start)
 - [Development](#development)
-- [Services & Components](#services--components)
-- [Database Management](#database-management)
-- [Authentication](#authentication)
-- [Security](#security)
+- [Platform Features](#platform-features)
+- [Database Architecture](#database-architecture)
+- [API Reference](#api-reference)
 - [Deployment](#deployment)
 - [Troubleshooting](#troubleshooting)
 - [Additional Resources](#additional-resources)
 
 ## 🎯 Overview
 
-Eliza Cloud V2 is a full-stack AI agent development platform that provides:
+Eliza Cloud V2 is a full-stack AI-as-a-Service platform that combines:
 
-- **User Authentication**: Secure authentication powered by WorkOS AuthKit with SSO support
-- **AI Text Generation**: Multi-model chat interface with support for GPT-4, Claude, and more
-- **AI Image Generation**: Advanced image creation using Google Gemini 2.5 Flash with multimodal capabilities
-- **Model Gateway**: Unified API for accessing multiple AI models through AI SDK Gateway
-- **Database Integration**: Serverless PostgreSQL with Neon and Drizzle ORM for state management
-- **Container Deployment**: Support for deploying custom containers via Cloudflare Containers
-- **Modern UI**: Beautiful, responsive interface built with React 19, Next.js 15, and Tailwind CSS v4
-- **Theme Support**: Dark and light mode with persistent user preferences
-- **Production Ready**: Configured for deployment on Vercel with real-time analytics
-- **Type Safety**: Full TypeScript support throughout the stack
+- **Multi-Modal AI Generation**: Text chat, image creation, and video generation
+- **ElizaOS Integration**: Full-featured autonomous agent runtime with memory, rooms, and plugins
+- **SaaS Platform**: User management, API keys, credit-based billing, usage tracking
+- **Container Deployment**: Deploy ElizaOS projects via `elizaos deploy` CLI to Cloudflare Workers
+- **Enterprise Features**: WorkOS authentication, Stripe billing, artifact storage, health monitoring
 
 ## ✨ Key Features
 
 ### 🤖 AI Generation Studio
 
-- **Text & Chat**: Engage with multiple AI models (GPT-4, Claude, etc.) in a beautiful chat interface
-- **Image Creation**: Generate high-quality images from text descriptions using Google Gemini 2.5 Flash
-- **Video Generation**: Create AI-powered videos using Fal.ai models (Veo3, Kling, MiniMax Hailuo)
-- **Model Selection**: Switch between different AI models on the fly
-- **Real-time Streaming**: See AI responses appear in real-time
-- **Cloud Storage**: Automatic upload to Vercel Blob for persistent media storage
+- **Text & Chat**: 
+  - Multi-model support (GPT-4, Claude, Gemini, etc.) via AI SDK Gateway
+  - Real-time streaming responses
+  - Conversation persistence with full history
+  - Model selection and configuration
 
-### 🎨 User Experience
+- **Image Creation**: 
+  - Google Gemini 2.5 Flash multimodal generation
+  - High-quality images (1024x1024)
+  - Automatic Vercel Blob storage
+  - Base64 preview + downloadable files
 
-- **Modern Dashboard**: Clean, intuitive interface with sidebar navigation
-- **Dark/Light Mode**: Full theme support with system preference detection
-- **Responsive Design**: Works seamlessly on desktop, tablet, and mobile
-- **Beautiful Animations**: Smooth transitions and loading states
+- **Video Generation**: 
+  - Multiple Fal.ai models: Veo3, Kling v2.1, MiniMax Hailuo
+  - Long-form video support (up to 5 minutes)
+  - Automatic Vercel Blob upload
+  - Fallback handling with error recovery
 
-### 🔐 Security & Infrastructure
+### 🧠 ElizaOS Runtime Integration
 
-- **Enterprise Auth**: WorkOS AuthKit with SSO support
-- **Protected Routes**: Middleware-based authentication for secure pages
-- **Type Safety**: Full TypeScript coverage for reliability
-- **Container Support**: Deploy custom containers with Cloudflare
+- **Full Agent Runtime**: 
+  - AgentRuntime from `@elizaos/core` with PostgreSQL database
+  - Memory system with vector embeddings (384-3072 dimensions)
+  - Rooms, participants, relationships, and entities
+  - Plugin system with custom providers and actions
+
+- **Character Creator**: 
+  - AI-assisted character definition builder
+  - Progressive JSON generation with live preview
+  - Import/export ElizaOS-compatible character files
+  - Support for all character fields (bio, style, plugins, knowledge, etc.)
+
+- **Agent Chat Interface**: 
+  - Chat with deployed ElizaOS agents via rooms
+  - Message persistence and history
+  - Real-time WebSocket updates (future)
+  - Multi-agent conversations
+
+### 💳 SaaS Platform Features
+
+- **Credit System**: 
+  - Purchase credits via Stripe integration
+  - Automatic deduction for AI operations
+  - Usage tracking per organization/user
+  - Credit packs with volume pricing
+
+- **API Key Management**: 
+  - Generate API keys for programmatic access
+  - Key rotation and regeneration
+  - Rate limiting per key
+  - Usage statistics and audit logs
+
+- **Container Deployments**: 
+  - Deploy ElizaOS projects via `elizaos deploy` CLI
+  - Bootstrapper architecture for artifact-based deployments
+  - R2 storage for deployment artifacts
+  - Cloudflare Workers runtime
+  - Health checks and monitoring
 
 ### 📊 Management & Analytics
 
-- **Usage Analytics**: Track your AI usage and costs
-- **API Key Management**: Secure API key storage and rotation
-- **Media Gallery**: Browse, download, and manage generated images and videos with Vercel Blob storage
-- **Account Settings**: Customize your profile and preferences
+- **Dashboard**: 
+  - Usage overview with charts (Recharts)
+  - Provider health monitoring
+  - Credit activity timeline
+  - Model usage breakdown
+
+- **Gallery**: 
+  - View all generated images and videos
+  - Filter by type (image/video)
+  - Download or delete media
+  - Storage usage statistics
+
+- **Analytics**: 
+  - Usage records by model, provider, type
+  - Cost breakdown and trends
+  - Error tracking and success rates
+
+### 🔐 Security & Infrastructure
+
+- **Enterprise Auth**: 
+  - WorkOS AuthKit with SSO support
+  - Organization and user management
+  - WorkOS sync for user profiles
+  - Role-based access (admin, member)
+
+- **Billing Integration**: 
+  - Stripe Checkout for credit purchases
+  - Webhook processing with idempotency
+  - Tax ID collection for businesses
+  - Invoice generation
+
+- **Type Safety**: 
+  - Full TypeScript coverage
+  - Zod validation for API requests
+  - Drizzle ORM with type-safe queries
 
 ## 🏗 Architecture
+
+### Directory Structure
 
 ```
 eliza-cloud-v2/
 ├── app/                      # Next.js App Router
 │   ├── api/                  # API routes
-│   │   ├── auth/            # Authentication endpoints
-│   │   │   └── callback/    # OAuth callback handler
-│   │   ├── chat/            # AI chat/text generation
-│   │   ├── generate-image/  # AI image generation
-│   │   └── models/          # Available AI models list
+│   │   ├── v1/              # Versioned API
+│   │   │   ├── chat/        # AI text generation
+│   │   │   ├── generate-image/  # Image generation
+│   │   │   ├── generate-video/  # Video generation
+│   │   │   ├── gallery/     # Media gallery
+│   │   │   ├── containers/  # Container management
+│   │   │   ├── artifacts/   # Artifact upload/download
+│   │   │   ├── api-keys/    # API key CRUD
+│   │   │   ├── character-assistant/  # Character creator AI
+│   │   │   ├── user/        # User info
+│   │   │   └── models/      # Available AI models
+│   │   ├── eliza/           # ElizaOS agent API
+│   │   │   └── rooms/       # Agent rooms and messages
+│   │   ├── stripe/          # Stripe webhooks and checkout
+│   │   └── fal/             # Fal.ai proxy
 │   ├── dashboard/           # Protected dashboard pages
-│   │   ├── text/            # Text & chat interface
+│   │   ├── text/            # Text chat interface
 │   │   ├── image/           # Image generation studio
-│   │   ├── gallery/         # Generated content gallery
-│   │   ├── containers/      # Container management
-│   │   ├── storage/         # Cloud storage management
+│   │   ├── video/           # Video generation studio
+│   │   ├── gallery/         # Generated media gallery
+│   │   ├── containers/      # Container management UI
 │   │   ├── api-keys/        # API key management
+│   │   ├── billing/         # Credits and billing
 │   │   ├── analytics/       # Usage analytics
-│   │   ├── account/         # User account settings
-│   │   └── layout.tsx       # Dashboard layout with sidebar
+│   │   ├── account/         # Account settings
+│   │   ├── character-creator/  # Character builder
+│   │   ├── eliza/           # ElizaOS agent chat
+│   │   └── storage/         # Storage management
 │   ├── actions/             # Server actions
+│   │   ├── auth.ts          # Auth actions
+│   │   ├── gallery.ts       # Gallery actions
+│   │   ├── characters.ts    # Character CRUD
+│   │   ├── conversations.ts # Conversation management
+│   │   └── users.ts         # User actions
 │   ├── layout.tsx           # Root layout with analytics
 │   ├── page.tsx             # Landing page
-│   └── globals.css          # Global styles
+│   └── globals.css          # Global styles (Tailwind)
 ├── components/              # React components
-│   ├── chat/                # Chat interface components
-│   ├── image/               # Image generation components
-│   ├── layout/              # Layout components (header, sidebar)
+│   ├── chat/                # Chat interfaces
+│   ├── image/               # Image generation UI
+│   ├── video/               # Video generation UI
+│   ├── gallery/             # Gallery grid and display
+│   ├── containers/          # Container tables
+│   ├── api-keys/            # API key management UI
+│   ├── billing/             # Credit packs and billing
+│   ├── character-creator/   # Character builder UI
+│   ├── dashboard/           # Dashboard metrics and cards
+│   ├── layout/              # Header, sidebar, navigation
 │   ├── theme/               # Theme provider and toggle
-│   └── ui/                  # Reusable UI components
+│   ├── ui/                  # Reusable UI components (45+ components)
+│   └── ai-elements/         # AI-specific UI components
 ├── db/                      # Database layer
-│   ├── schema.ts            # Drizzle schema definitions
-│   ├── drizzle.ts           # Database client setup
-│   └── migrations/          # Database migration files
+│   ├── sass/                # SaaS platform schema
+│   │   └── schema.ts        # Organizations, users, API keys, credits, etc.
+│   ├── eliza/               # ElizaOS runtime schema
+│   │   └── schema.ts        # Agents, memories, rooms, embeddings, etc.
+│   ├── drizzle.ts           # Database client
+│   └── migrations/          # Migration SQL files
 ├── lib/                     # Shared utilities
-│   └── utils.ts             # Helper functions (cn, etc.)
-├── public/                  # Static assets
+│   ├── queries/             # Database queries (12 files)
+│   │   ├── api-keys.ts      # API key operations
+│   │   ├── credits.ts       # Credit transactions
+│   │   ├── containers.ts    # Container CRUD
+│   │   ├── container-quota.ts  # Quota enforcement
+│   │   ├── generations.ts   # Media generation records
+│   │   ├── usage.ts         # Usage tracking
+│   │   └── ...
+│   ├── services/            # Business logic services
+│   │   ├── cloudflare.ts    # Cloudflare Workers API
+│   │   ├── r2-credentials.ts  # R2 temporary credentials
+│   │   ├── health-monitor.ts  # Provider health checks
+│   │   └── artifact-cleanup.ts  # Cleanup cron jobs
+│   ├── eliza/               # ElizaOS integration
+│   │   ├── agent-runtime.ts # AgentRuntime wrapper
+│   │   ├── agent.ts         # Agent management
+│   │   └── plugin-assistant/  # Custom ElizaOS plugin
+│   ├── config/              # Configuration
+│   │   ├── env-validator.ts # Environment validation
+│   │   ├── env-consolidation.ts  # Config helpers
+│   │   └── startup.ts       # Startup checks
+│   ├── errors/              # Custom error classes
+│   ├── middleware/          # Middleware utilities
+│   ├── auth.ts              # Auth helpers
+│   ├── blob.ts              # Vercel Blob utilities
+│   ├── stripe.ts            # Stripe client
+│   ├── pricing.ts           # Cost calculations
+│   ├── rate-limiter.ts      # Rate limiting
+│   ├── utils.ts             # General utilities
+│   └── types.ts             # Shared TypeScript types
+├── bootstrapper/            # Container bootstrapper
+│   ├── Dockerfile           # Bootstrapper image
+│   ├── bootstrap.sh         # Artifact download and run
+│   ├── build.sh             # Build script
+│   └── README.md            # Bootstrapper docs
+├── docs/                    # Detailed documentation
+│   ├── API_REFERENCE.md
+│   ├── DEPLOYMENT.md
+│   ├── STRIPE_SETUP.md
+│   ├── R2_CLOUDFLARE_CREDENTIALS.md
+│   └── ...
+├── scripts/                 # Utility scripts
+│   ├── seed-credit-packs.ts
+│   └── ...
 ├── middleware.ts            # Next.js middleware (auth)
-└── drizzle.config.ts        # Drizzle Kit configuration
+├── drizzle.config.ts        # Drizzle Kit config
+└── package.json             # Dependencies
 ```
 
 ### Request Flow
 
 ```mermaid
-graph LR
+graph TD
     A[Client Request] --> B[Next.js Middleware]
     B --> C{Auth Required?}
     C -->|Yes| D[WorkOS AuthKit]
@@ -119,106 +256,146 @@ graph LR
     D -->|Authenticated| E
     D -->|Unauthenticated| F[Redirect to Login]
     E --> G{Request Type}
-    G -->|AI Request| H[AI SDK Gateway]
-    G -->|Data Request| I[Drizzle ORM]
-    H --> J[LLM Providers]
-    I --> K[Neon PostgreSQL]
-    J --> L[Response to Client]
-    K --> L
+    G -->|AI Chat| H[AI SDK Gateway]
+    G -->|Image/Video| I[Gemini/Fal.ai]
+    G -->|Data| J[Drizzle ORM]
+    G -->|Container| K[Cloudflare API]
+    G -->|ElizaOS| L[AgentRuntime]
+    H --> M[Response]
+    I --> M
+    J --> N[PostgreSQL]
+    K --> M
+    L --> N
+    N --> M
 ```
+
+### Dual Database Architecture
+
+The platform uses two separate database schemas:
+
+1. **SaaS Database** (`db/sass/schema.ts`): Platform infrastructure
+   - Organizations, users, authentication
+   - API keys, usage tracking
+   - Credit system, billing, Stripe integration
+   - Containers, artifacts, deployments
+   - Generations (image/video records)
+   - Conversations (platform-level chat)
+
+2. **ElizaOS Database** (`db/eliza/schema.ts`): Agent runtime
+   - Agents (character definitions)
+   - Memories with vector embeddings
+   - Rooms and participants
+   - Entities and relationships
+   - Components and tasks
+   - Message servers and channels
 
 ## 🛠 Tech Stack
 
 ### Core Framework
 
-- **Next.js 15.5.4**: React framework with App Router and Turbopack
-- **React 19.1.0**: UI library with latest features
-- **TypeScript 5**: Type-safe development
+- **Next.js 15.5.4**: React framework with App Router, Turbopack, and Server Actions
+- **React 19.2.0**: Latest UI library with server components
+- **TypeScript 5**: Full type safety
 
 ### Database & ORM
 
-- **Neon Serverless PostgreSQL**: Serverless, auto-scaling PostgreSQL
-- **Drizzle ORM 0.44.5**: TypeScript ORM for SQL databases
-- **Drizzle Kit 0.31.5**: Database migrations and schema management
+- **Neon Serverless PostgreSQL**: Auto-scaling serverless database
+- **Drizzle ORM 0.44.6**: Type-safe SQL ORM
+- **Drizzle Kit 0.31.5**: Migrations and schema management
+- **pgvector**: Vector similarity search for embeddings
 
-### Authentication
+### Authentication & Billing
 
-- **WorkOS AuthKit 2.9.0**: Enterprise-grade authentication
-  - SSO support
-  - OAuth providers
-  - User management
+- **WorkOS AuthKit 2.9.0**: Enterprise SSO and user management
+- **Stripe 19.1.0**: Payment processing and subscriptions
+- **@stripe/stripe-js 8.0.0**: Client-side Stripe integration
 
 ### AI & Machine Learning
 
-- **AI SDK 5.0.59**: Vercel AI SDK for streaming AI responses
-- **AI SDK Gateway 1.0.32**: Unified interface for multiple AI providers
-- **AI SDK React 2.0.59**: React hooks for AI chat and streaming
-- **Model Support**:
-  - GPT-4, GPT-4 Turbo, GPT-3.5 (OpenAI)
-  - Claude 3 Opus, Sonnet, Haiku (Anthropic)
-  - Gemini 2.5 Flash (Google) - Text and Image generation
-  - Open-source models via compatible providers
+- **AI SDK 5.0.60**: Vercel AI SDK for streaming
+- **@ai-sdk/gateway 1.0.33**: Multi-provider AI routing
+- **@ai-sdk/openai 2.0.43**: OpenAI provider
+- **@ai-sdk/react 2.0.60**: React hooks for AI
+- **@fal-ai/client 1.6.2**: Fal.ai video generation
+- **@elizaos/core 1.6.1**: ElizaOS agent runtime
+- **@elizaos/plugin-openai 1.5.15**: OpenAI plugin for ElizaOS
+- **@elizaos/plugin-sql 1.6.1**: SQL database plugin for ElizaOS
+
+### Storage & Infrastructure
+
+- **Vercel Blob 2.0.0**: Media storage (images/videos)
+- **@aws-sdk/client-s3 3.908.0**: R2 artifact storage
+- **@cloudflare/containers 0.0.28**: Cloudflare Workers deployment
 
 ### Styling & UI
 
-- **Tailwind CSS v4**: Utility-first CSS framework with modern features
-- **Radix UI**: Accessible, unstyled UI components
-- **Lucide React**: Beautiful icon library with 1000+ icons
-- **class-variance-authority**: Type-safe component variants
-- **tw-animate-css**: Animation utilities
-- **next-themes**: Theme management with dark/light mode
-- **Sonner**: Toast notifications
+- **Tailwind CSS 4.1.14**: Utility-first CSS framework
+- **Radix UI**: 20+ accessible, unstyled UI primitives
+- **Lucide React 0.545.0**: Icon library (1000+ icons)
+- **class-variance-authority 0.7.1**: Component variants
+- **next-themes 0.4.6**: Dark/light mode support
+- **motion 12.23.22**: Animation library
+- **Sonner 2.0.7**: Toast notifications
+- **Recharts 2.15.4**: Charts for analytics
 
-### Analytics & Monitoring
+### Development Tools
 
-- **Vercel Analytics**: Real-time web analytics and performance monitoring
-
-### Infrastructure
-
-- **Cloudflare Containers**: Container deployment and orchestration
-- **Neon Branching**: Database branching for preview environments
+- **ESLint 9.37.0**: Code linting
+- **Prettier 3.6.2**: Code formatting
+- **tsx 4.19.2**: TypeScript execution
+- **Zod 4.1.11**: Schema validation
 
 ## 📦 Prerequisites
 
-Before you begin, ensure you have the following installed:
+### Required Software
 
 - **Node.js**: v20 or higher
-- **npm**: v10 or higher (comes with Node.js)
+- **npm**: v10 or higher
 - **Git**: For version control
 
-### Required Accounts
+### Required Services
 
-1. **Neon Database**: [neon.tech](https://neon.tech)
+1. **Neon Database** ([neon.tech](https://neon.tech))
    - Create a new project
    - Copy the connection string
 
-2. **WorkOS**: [workos.com](https://workos.com)
-   - Create an organization
-   - Set up an application
+2. **WorkOS** ([workos.com](https://workos.com))
+   - Create an organization and application
+   - Configure redirect URI: `http://localhost:3000/api/auth/callback`
    - Note your Client ID and API Key
-   - Configure redirect URI (e.g., `http://localhost:3000/api/auth/callback`)
 
-3. **AI Gateway**: AI SDK Gateway or compatible provider
-   - Set up your AI Gateway API key
-   - Configure model access for OpenAI, Anthropic, Google, etc.
+3. **OpenAI or AI Gateway** (at least one)
+   - OpenAI API key for direct access, OR
+   - AI Gateway API key for multi-provider access
 
-4. **Vercel** (for deployment): [vercel.com](https://vercel.com)
+### Optional Services
+
+4. **Vercel Blob** ([vercel.com](https://vercel.com/storage))
+   - Required for Gallery feature
+   - Create a Blob store and copy token
+
+5. **Fal.ai** ([fal.ai](https://fal.ai))
+   - Required for video generation
+   - Create account and get API key
+
+6. **Cloudflare** ([cloudflare.com](https://cloudflare.com))
+   - Required for container deployments
+   - Account ID, API token, R2 credentials
+
+7. **Stripe** ([stripe.com](https://stripe.com))
+   - Required for billing/credits
+   - Secret key and webhook secret
 
 ## 🚀 Quick Start
 
-### 1. Clone the Repository
+### 1. Clone and Install
 
 ```bash
 cd eliza-cloud-v2
-```
-
-### 2. Install Dependencies
-
-```bash
 npm install
 ```
 
-### 3. Environment Setup
+### 2. Environment Setup
 
 Copy the example environment file:
 
@@ -226,50 +403,60 @@ Copy the example environment file:
 cp example.env.local .env.local
 ```
 
-Edit `.env.local` and add your credentials:
+Edit `.env.local` with your credentials (see [example.env.local](example.env.local) for all options).
+
+**Minimum required variables:**
 
 ```env
 # Database
-DATABASE_URL=postgresql://user:password@host/database?sslmode=require
+DATABASE_URL=postgresql://user:password@host:5432/database?sslmode=require
 
 # WorkOS Authentication
-WORKOS_CLIENT_ID=your_workos_client_id
-WORKOS_API_KEY=your_workos_api_key
-WORKOS_COOKIE_PASSWORD=your_secure_random_string_min_32_chars
+WORKOS_CLIENT_ID=client_your_id_here
+WORKOS_API_KEY=sk_your_key_here
+WORKOS_COOKIE_PASSWORD=generate_a_random_32+_character_string
 NEXT_PUBLIC_WORKOS_REDIRECT_URI=http://localhost:3000/api/auth/callback
 
-# AI Gateway
-AI_GATEWAY_API_KEY=your_ai_gateway_api_key
-
-# Vercel Blob Storage (for Gallery feature)
-BLOB_READ_WRITE_TOKEN=your_vercel_blob_token
-
-# Fal.ai (for Video Generation)
-FAL_KEY=your_fal_api_key
+# AI (at least one)
+OPENAI_API_KEY=sk-your_openai_key
+# OR
+AI_GATEWAY_API_KEY=your_gateway_key
 ```
 
-**Important**:
-
-- Generate a secure `WORKOS_COOKIE_PASSWORD` (minimum 32 characters)
-- Configure `AI_GATEWAY_API_KEY` to access multiple AI models
-- Set up `BLOB_READ_WRITE_TOKEN` from Vercel Blob for media storage (see [Vercel Blob Setup](#vercel-blob-storage))
-- Add `FAL_KEY` from Fal.ai for video generation capabilities
-- For production, update `NEXT_PUBLIC_WORKOS_REDIRECT_URI` to your production domain
-
-### 4. Database Setup
-
-Run database migrations:
+**Generate secure passwords:**
 
 ```bash
-npx drizzle-kit push:pg
+# Generate WORKOS_COOKIE_PASSWORD (min 32 chars)
+openssl rand -base64 32
+
+# Generate CRON_SECRET
+openssl rand -hex 32
 ```
 
-Or for a more controlled migration:
+### 3. Database Setup
+
+Run migrations to create all tables:
 
 ```bash
-npx drizzle-kit generate:pg
-npx drizzle-kit migrate
+npm run db:push
 ```
+
+For production, use migration files:
+
+```bash
+npm run db:generate
+npm run db:migrate
+```
+
+### 4. Seed Credit Packs (Optional)
+
+If using Stripe billing:
+
+```bash
+npm run seed:credit-packs
+```
+
+This creates credit pack products in Stripe.
 
 ### 5. Start Development Server
 
@@ -277,7 +464,13 @@ npx drizzle-kit migrate
 npm run dev
 ```
 
-Visit [http://localhost:3000](http://localhost:3000) to see your application.
+Visit [http://localhost:3000](http://localhost:3000).
+
+### 6. First Login
+
+1. Click "Sign In" → WorkOS will create your user
+2. You'll be redirected to the dashboard
+3. Your organization starts with 10,000 credits
 
 ## 💻 Development
 
@@ -285,708 +478,799 @@ Visit [http://localhost:3000](http://localhost:3000) to see your application.
 
 ```bash
 # Development
-npm run dev          # Start dev server with Turbopack (fast HMR)
+npm run dev              # Start dev server with Turbopack
+npm run build            # Production build with Turbopack
+npm start                # Start production server
 
-# Building
-npm run build        # Create production build
-
-# Production
-npm start            # Start production server (requires build first)
+# Database
+npm run db:generate      # Generate migrations
+npm run db:migrate       # Run migrations
+npm run db:push          # Push schema changes (dev only)
+npm run db:studio        # Open Drizzle Studio
 
 # Code Quality
-npm run lint         # Run ESLint
+npm run lint             # Run ESLint
+npm run lint:fix         # Auto-fix ESLint issues
+npm run format           # Format with Prettier
+npm run format:check     # Check formatting
+npm run check-types      # TypeScript type checking
+
+# Utilities
+npm run seed:credit-packs   # Seed Stripe credit packs
+npm run bootstrapper:build  # Build container bootstrapper
 ```
 
 ### Development Workflow
 
-1. **Start the dev server**: `npm run dev`
-2. **Make changes**: Edit files in `app/`, `db/`, or `lib/`
-3. **See changes instantly**: Turbopack provides instant feedback
-4. **Test authentication**: Navigate to protected routes to trigger auth flow
-5. **Check database**: Use Drizzle Studio or your database client
+1. **Start dev server**: `npm run dev`
+2. **Make changes**: Edit files in `app/`, `components/`, `lib/`
+3. **Instant feedback**: Turbopack provides sub-second HMR
+4. **Test features**: Navigate to `/dashboard` routes
+5. **Check types**: `npm run check-types`
+6. **Database changes**: Edit `db/*/schema.ts` → `npm run db:push`
 
-### Hot Module Replacement
+### Project Structure Guidelines
 
-With Turbopack, changes are reflected instantly without full page reloads:
+- **`app/`**: Routes, API handlers, server actions
+- **`components/`**: Reusable React components
+- **`lib/`**: Business logic, database queries, services
+- **`db/`**: Database schemas and migrations
+- **Server Components**: Default for all components
+- **Client Components**: Only when needed (`'use client'`)
 
-- Edit React components → instant update
-- Modify styles → instant update
-- Change API routes → automatic restart
+## 🔧 Platform Features
 
-## 🔧 Services & Components
+### 1. AI Text Generation
 
-### Dashboard Overview
-
-The platform includes a comprehensive dashboard with the following pages:
-
-- **Text & Chat** (`/dashboard/text`): Multi-model AI chat interface
-- **Image Generation** (`/dashboard/image`): AI-powered image creation
-- **Gallery** (`/dashboard/gallery`): View and manage generated content
-- **Containers** (`/dashboard/containers`): Deploy and manage containerized applications
-- **Storage** (`/dashboard/storage`): Cloud storage management
-- **API Keys** (`/dashboard/api-keys`): Manage API authentication
-- **Analytics** (`/dashboard/analytics`): Usage statistics and insights
-- **Account** (`/dashboard/account`): Profile and preferences
-
-### 1. AI Text Generation Service
-
-**Location**: `/app/api/chat/route.ts` and `/components/chat/chat-interface.tsx`
+**Location**: `/dashboard/text` and `/app/api/v1/chat/route.ts`
 
 **Features**:
-
-- Multi-model support (GPT-4, Claude, etc.)
-- Real-time streaming responses
-- Chat history management
-- Model selection interface
-- Dynamic model list from AI Gateway
+- Multi-model support (GPT-4, Claude, Gemini, etc.)
+- Real-time streaming responses with `useChat` hook
+- Conversation persistence with full history
+- Model selection dropdown
+- Token usage and cost tracking
 
 **Usage**:
 
 ```typescript
 import { useChat } from "@ai-sdk/react";
 
-const { messages, sendMessage, status } = useChat({
-  id: selectedModel,
+const { messages, input, handleSubmit, isLoading } = useChat({
+  api: "/api/v1/chat",
+  body: { model: "gpt-4o" }
 });
 ```
 
-**How it works**:
+**Cost**: Token-based pricing from `lib/pricing.ts`
 
-1. User types a message in the chat interface
-2. Frontend calls `/api/chat` with the message and selected model
-3. API uses AI SDK to stream responses from the chosen model
-4. Messages display in real-time with typing indicators
-5. Full conversation history maintained
+### 2. AI Image Generation
 
-### 2. AI Image Generation Service
-
-**Location**: `/app/api/generate-image/route.ts` and `/components/image/image-generator.tsx`
+**Location**: `/dashboard/image` and `/app/api/v1/generate-image/route.ts`
 
 **Features**:
-
-- Text-to-image generation using Google Gemini 2.5 Flash
-- Multimodal output (both text and image)
-- Base64 image encoding for instant display
+- Google Gemini 2.5 Flash multimodal generation
+- High-quality 1024x1024 images
+- Automatic Vercel Blob upload
+- Base64 preview for instant display
 - Download functionality
-- High-quality image generation (1024x1024)
 
-**Usage**:
-
-```typescript
-const response = await fetch("/api/generate-image", {
-  method: "POST",
-  body: JSON.stringify({ prompt: "Your description" }),
-});
-const { image, text } = await response.json();
-```
-
-**How it works**:
-
-1. User provides a detailed image description
-2. API calls Gemini 2.5 Flash with multimodal capabilities
-3. Model generates both an image and descriptive text
-4. Image returned as base64 for instant display
-5. User can download or generate new variations
-
-### 3. Model Gateway Service
-
-**Location**: `/app/api/models/route.ts`
-
-**How it works**:
-
-- Fetches available models from AI SDK Gateway
-- Caches results for 1 hour (revalidate: 3600)
-- Provides unified interface for multiple AI providers
-- Supports dynamic model discovery
-
-**API Endpoint**:
+**API**:
 
 ```bash
-GET /api/models
-```
+POST /api/v1/generate-image
+Content-Type: application/json
+Authorization: Bearer eliza_your_api_key
 
-**Response**:
-
-```json
 {
-  "models": [
-    { "id": "gpt-4o", "name": "GPT-4 Optimized", "provider": "openai" },
-    { "id": "claude-3-opus", "name": "Claude 3 Opus", "provider": "anthropic" }
-  ]
+  "prompt": "A serene landscape with mountains and lake at sunset"
 }
 ```
 
-### 4. Authentication Service (WorkOS AuthKit)
+**Cost**: 100 credits per image
 
-**Location**: Middleware and `/app/api/auth/callback/route.ts`
+### 3. AI Video Generation
 
-**How it works**:
-
-- **Middleware Protection**: `middleware.ts` intercepts all requests
-- **Session Management**: WorkOS handles secure session cookies
-- **OAuth Flow**: Supports multiple identity providers
-- **Callback Handler**: `/api/auth/callback` processes authentication results
-
-**Usage**:
-
-```typescript
-import { getSignInUrl, signOut, getUser } from "@workos-inc/authkit-nextjs";
-
-// Get current user in Server Components
-const user = await getUser();
-
-// Get sign-in URL
-const signInUrl = await getSignInUrl();
-
-// Sign out
-await signOut();
-```
-
-**Configuration**:
-
-```typescript
-// middleware.ts
-export default authkitMiddleware({
-  middlewareAuth: {
-    enabled: true,
-    unauthenticatedPaths: ["/", "/api/models"],
-  },
-});
-```
-
-- Landing page (`/`) and model list API are public
-- All dashboard routes are protected automatically
-- Middleware runs on all routes except static assets and images
-- Custom matcher pattern excludes `_next/static`, `_next/image`, and image files
-
-### 5. Database Service (Neon + Drizzle)
-
-**Location**: `/db/`
-
-**How it works**:
-
-- **Drizzle ORM**: Type-safe database client
-- **Neon Serverless**: Auto-scaling PostgreSQL via HTTP
-- **Schema Definition**: Type-safe table schemas in `db/schema.ts`
-- **Migration System**: Version-controlled database changes
-
-**Schema Example** (Current):
-
-```typescript
-export const todo = pgTable("todo", {
-  id: integer("id").primaryKey(),
-  text: text("text").notNull(),
-  done: boolean("done").default(false).notNull(),
-});
-```
-
-**Usage**:
-
-```typescript
-import { db } from "@/db/drizzle";
-import { todo } from "@/db/schema";
-
-// Query data
-const todos = await db.select().from(todo);
-
-// Insert data
-await db.insert(todo).values({
-  text: "Learn Drizzle ORM",
-  done: false,
-});
-
-// Update data
-await db.update(todo).set({ done: true }).where(eq(todo.id, 1));
-```
-
-**Connection Details**:
-
-- Uses `@neondatabase/serverless` for HTTP-based queries
-- Serverless-friendly (no persistent connections)
-- Automatic connection pooling
-- Edge-compatible
-
-### 6. Theme Service
-
-**Location**: `/components/theme/` and `/app/layout.tsx`
+**Location**: `/dashboard/video` and `/app/api/v1/generate-video/route.ts`
 
 **Features**:
+- Multiple Fal.ai models:
+  - `fal-ai/veo3` (Google Veo 3)
+  - `fal-ai/veo3/fast` (faster version)
+  - `fal-ai/kling-video/v2.1/pro/text-to-video` (Kling Pro)
+  - `fal-ai/minimax/hailuo-02/pro/text-to-video` (MiniMax)
+- Automatic Vercel Blob upload
+- Progress tracking with queue updates
+- Fallback video on errors
 
-- Dark and light mode support
-- System preference detection
-- Persistent theme selection (localStorage)
-- Smooth theme transitions
-- Theme toggle component in header
+**API**:
 
-**How it works**:
+```bash
+POST /api/v1/generate-video
+Content-Type: application/json
+Authorization: Bearer eliza_your_api_key
 
-```typescript
-import { ThemeProvider } from '@/components/theme/theme-provider';
-
-// In root layout
-<ThemeProvider
-  attribute="class"
-  defaultTheme="system"
-  enableSystem
-  disableTransitionOnChange
->
-  {children}
-</ThemeProvider>
+{
+  "prompt": "A cinematic shot of a spaceship flying through stars",
+  "model": "fal-ai/veo3"
+}
 ```
 
-**Usage**:
+**Cost**: 500 credits per video (250 for fallback)
 
-- Theme toggle button in navigation
-- Automatically respects system preferences
-- User selection persists across sessions
+### 4. Gallery & Media Storage
 
-### 7. UI Components
-
-**Location**: `/components/ui/` and `/lib/utils.ts`
-
-**Available Components**:
-
-- **Button**: Multiple variants and sizes
-- **Card**: Container component with header/content sections
-- **Badge**: Status and label indicators
-- **Skeleton**: Loading placeholders
-- All components built with Radix UI primitives
-
-**Utility Functions**:
-
-```typescript
-import { cn } from '@/lib/utils';
-
-// Merge classes conditionally
-className={cn(
-  "base-class",
-  isActive && "active-class",
-  props.className
-)}
-```
+**Location**: `/dashboard/gallery`
 
 **Features**:
+- View all generated images and videos
+- Filter by type (image, video, all)
+- Grid layout with thumbnails
+- Full-size preview with details
+- Download media files
+- Delete from both DB and Vercel Blob
+- Storage usage statistics
 
-- Full TypeScript support
-- Accessible by default (Radix UI)
-- Customizable with Tailwind CSS
-- Responsive design patterns
-
-### 8. Analytics Service (Vercel Analytics)
-
-**Location**: `/app/layout.tsx`
-
-**How it works**:
-
-- **Automatic Tracking**: Page views and Web Vitals
-- **Privacy-Friendly**: GDPR compliant
-- **Real-time Dashboard**: Available in Vercel dashboard
-- **Zero Configuration**: Works out of the box when deployed to Vercel
-- **Performance Monitoring**: Core Web Vitals tracking
-
-### 9. Gallery & Media Storage (Vercel Blob)
-
-**Location**: `/app/dashboard/gallery/`, `/lib/blob.ts`, `/app/actions/gallery.ts`
-
-**How it works**:
-
-The Gallery feature provides a centralized location to view, manage, and download all AI-generated images and videos. Media files are automatically uploaded to Vercel Blob for reliable, scalable cloud storage.
-
-**Features**:
-
-- **Automatic Upload**: Images and videos are automatically uploaded to Vercel Blob after generation
-- **Media Grid Display**: Beautiful grid layout with image previews and video thumbnails
-- **Filter by Type**: View all media, or filter by images or videos only
-- **Media Details**: View full-size media with generation details (prompt, model, dimensions, file size)
-- **Download**: Download any media file to your local device
-- **Delete**: Remove media from both the database and Vercel Blob storage
-- **Usage Statistics**: Track total images, videos, and storage used
-
-**Vercel Blob Storage**:
-
-Vercel Blob is used for persistent storage of generated media with the following benefits:
-
-- **Global CDN**: Fast delivery from 19 regional hubs worldwide
-- **Public Access**: Direct URL access with unguessable paths
-- **Cost-Efficient**: 3x more cost-efficient than Fast Data Transfer
-- **No Upload Fees**: Only pay for downloads (outbound traffic)
-- **Automatic Caching**: Browser and edge caching for optimal performance
-- **File Organization**: Hierarchical folder structure (`images/userId/timestamp-filename`)
+**Vercel Blob Benefits**:
+- Global CDN delivery (19 edge regions)
+- Public access with unguessable URLs
+- Automatic caching
+- No upload fees (only downloads charged)
+- Hierarchical folder structure
 
 **Setup**:
 
-1. Create a Vercel Blob store in your Vercel account:
-   - Go to the [Vercel Dashboard](https://vercel.com/dashboard)
-   - Navigate to Storage → Create → Blob
-   - Select your preferred region (closest to your users)
-   - Copy the `BLOB_READ_WRITE_TOKEN`
+```bash
+# 1. Create Blob store in Vercel Dashboard
+# 2. Copy BLOB_READ_WRITE_TOKEN to .env.local
+BLOB_READ_WRITE_TOKEN=vercel_blob_rw_your_token
+```
 
-2. Add the token to your `.env.local`:
-   ```env
-   BLOB_READ_WRITE_TOKEN=vercel_blob_rw_...
-   ```
+### 5. Container Deployments
 
-3. Deploy your application - the Gallery will automatically start uploading media to Vercel Blob
+**Location**: `/dashboard/containers` and `/app/api/v1/containers/route.ts`
 
-**API Endpoints**:
+**Features**:
+- Deploy ElizaOS projects via `elizaos deploy` CLI
+- Bootstrapper architecture for artifact-based deployments
+- Cloudflare Workers runtime
+- Health checks and monitoring
+- Quota enforcement (prevents race conditions)
+- Environment variable injection
+
+**How It Works**:
+
+1. User gets API key from `/dashboard/api-keys`
+2. User runs `elizaos deploy --api-key eliza_xxxxx`
+3. CLI uploads project artifact to R2 storage
+4. Cloud API deploys bootstrapper container
+5. Bootstrapper fetches artifact and runs project
+6. Container accessible via Cloudflare URL
+
+**Bootstrapper Architecture**:
+
+```dockerfile
+FROM node:20-alpine
+COPY bootstrap.sh /bootstrap.sh
+RUN chmod +x /bootstrap.sh
+ENTRYPOINT ["/bootstrap.sh"]
+```
+
+The bootstrapper:
+- Downloads artifact from R2 using temporary credentials
+- Extracts tarball
+- Installs dependencies
+- Runs the project
+
+**API**:
 
 ```bash
-# List user's media
-GET /api/v1/gallery?type=image&limit=100&offset=0
+POST /api/v1/containers
+Content-Type: application/json
+Authorization: Bearer eliza_your_api_key
 
-# Response
 {
-  "items": [
-    {
-      "id": "uuid",
-      "type": "image",
-      "url": "https://...blob.vercel-storage.com/...",
-      "prompt": "A beautiful sunset",
-      "model": "google/gemini-2.5-flash-image-preview",
-      "createdAt": "2025-01-01T00:00:00.000Z",
-      "dimensions": { "width": 1024, "height": 1024 },
-      "fileSize": "2048576"
-    }
-  ],
-  "count": 1,
-  "hasMore": false
+  "name": "my-agent",
+  "port": 3000,
+  "max_instances": 1,
+  "environment_vars": {
+    "NODE_ENV": "production"
+  },
+  "artifact_url": "https://r2.../artifact.tar.gz",
+  "artifact_checksum": "sha256:abcd..."
 }
 ```
 
-**Server Actions**:
+**Requirements**:
+- Cloudflare account with Workers
+- R2 storage configured
+- Environment variables set (see `docs/DEPLOYMENT.md`)
+
+### 6. ElizaOS Agent Integration
+
+**Location**: `/dashboard/eliza` and `lib/eliza/`
+
+**Features**:
+- Full `AgentRuntime` from `@elizaos/core`
+- PostgreSQL-backed memory system
+- Vector embeddings (384-3072 dimensions)
+- Rooms for conversations
+- Participants and relationships
+- Custom plugins and providers
+
+**Database Schema**:
+- `agents`: Character definitions
+- `memories`: Conversation history
+- `embeddings`: Vector similarity search
+- `rooms`: Conversation contexts
+- `entities`: Users and participants
+- `relationships`: Entity connections
+
+**API**:
+
+```bash
+# Create room
+POST /api/eliza/rooms
+{
+  "agentId": "uuid",
+  "name": "Chat Room"
+}
+
+# Send message
+POST /api/eliza/rooms/{roomId}/messages
+{
+  "content": "Hello, agent!",
+  "authorId": "user-uuid"
+}
+```
+
+### 7. Character Creator
+
+**Location**: `/dashboard/character-creator` and `/app/api/v1/character-assistant/route.ts`
+
+**Features**:
+- AI-assisted character building using GPT-4o-mini
+- Progressive JSON generation
+- Live preview of character definition
+- Import/export ElizaOS-compatible JSON
+- Support for all character fields:
+  - name, username, bio, system prompt
+  - messageExamples, postExamples
+  - topics, adjectives, style
+  - plugins, knowledge, settings
+
+**Workflow**:
+1. User describes character in natural language
+2. AI generates JSON incrementally
+3. User sees live preview
+4. AI suggests improvements
+5. Export as ElizaOS character file
+
+**Example**:
+
+```json
+{
+  "name": "Alex",
+  "bio": ["A friendly AI assistant", "Specializes in technical support"],
+  "adjectives": ["helpful", "knowledgeable", "patient"],
+  "system": "You are a helpful technical support agent...",
+  "style": {
+    "chat": ["Be concise", "Use bullet points"],
+    "post": ["Be professional", "Include examples"]
+  },
+  "plugins": ["@elizaos/plugin-sql", "@elizaos/plugin-openai"]
+}
+```
+
+### 8. API Key Management
+
+**Location**: `/dashboard/api-keys` and `/app/api/v1/api-keys/route.ts`
+
+**Features**:
+- Generate API keys for programmatic access
+- Key rotation and regeneration
+- Rate limiting per key (default 1000 req/day)
+- Usage tracking and statistics
+- Expires_at support for time-limited keys
+
+**Key Format**: `eliza_<random_32_chars>`
+
+**API**:
+
+```bash
+# Create API key
+POST /api/v1/api-keys
+{
+  "name": "Production API Key",
+  "description": "Main production key",
+  "rate_limit": 10000
+}
+
+# Regenerate key
+POST /api/v1/api-keys/{id}/regenerate
+
+# Delete key
+DELETE /api/v1/api-keys/{id}
+```
+
+**Using API Keys**:
+
+```bash
+curl https://your-app.com/api/v1/chat \
+  -H "Authorization: Bearer eliza_your_key_here" \
+  -H "Content-Type: application/json" \
+  -d '{"messages": [{"role": "user", "content": "Hello"}]}'
+```
+
+### 9. Credit System & Billing
+
+**Location**: `/dashboard/billing` and `lib/queries/credits.ts`
+
+**Features**:
+- Credit-based pricing model
+- Stripe integration for purchases
+- Credit packs with volume discounts
+- Automatic deduction on usage
+- Transaction history
+- Organization-level balance
+
+**Credit Costs**:
+- **Text Chat**: Token-based (varies by model)
+- **Image Generation**: 100 credits
+- **Video Generation**: 500 credits
+- **Container Deployment**: Based on instance hours
+
+**Stripe Integration**:
+- Credit pack products defined in Stripe
+- Checkout session for purchases
+- Webhook processing for fulfillment
+- Idempotency for duplicate webhooks
+
+**Credit Packs** (example):
 
 ```typescript
-import { listUserMedia, deleteMedia, getUserMediaStats } from '@/app/actions/gallery';
-
-// List media
-const items = await listUserMedia({ type: 'image', limit: 50 });
-
-// Delete media
-await deleteMedia(generationId);
-
-// Get statistics
-const stats = await getUserMediaStats();
-// { totalImages: 10, totalVideos: 5, totalSize: 52428800 }
+[
+  { name: "Starter", credits: 10000, price: 9.99 },
+  { name: "Pro", credits: 50000, price: 39.99 },
+  { name: "Enterprise", credits: 200000, price: 129.99 }
+]
 ```
 
-**Blob Utility Functions**:
+**Setup**:
 
-```typescript
-import { uploadBase64Image, uploadFromUrl, deleteBlob } from '@/lib/blob';
+See `docs/STRIPE_SETUP.md` for detailed Stripe configuration.
 
-// Upload base64 image
-const result = await uploadBase64Image(base64Data, {
-  filename: 'myimage.png',
-  folder: 'images',
-  userId: user.id,
-});
+### 10. Analytics & Monitoring
 
-// Upload from URL (for videos)
-const result = await uploadFromUrl('https://example.com/video.mp4', {
-  filename: 'myvideo.mp4',
-  contentType: 'video/mp4',
-  folder: 'videos',
-  userId: user.id,
-});
+**Location**: `/dashboard/analytics` and `lib/queries/usage.ts`
 
-// Delete blob
-await deleteBlob(blobUrl);
-```
+**Features**:
+- Usage records per request (tokens, cost, model)
+- Provider health monitoring
+- Model usage breakdown (Recharts)
+- Credit activity timeline
+- Error rate tracking
+- Response time monitoring
 
-**Storage Pricing**:
+**Metrics Tracked**:
+- Input/output tokens
+- Cost per request
+- Duration (ms)
+- Success/failure status
+- IP address and user agent
+- Model and provider used
 
-- **Storage**: Measured as GB-month average (snapshot every 15 minutes)
-- **Operations**: 
-  - Simple operations: `head()` and cache MISS reads
-  - Advanced operations: `put()`, `copy()`, `list()` (uploads are free)
-  - Delete operations: Free (no billing charge)
-- **Data Transfer**: Only downloads (outbound) are charged
+**Provider Health**:
+- Automatic health checks for AI providers
+- Status: healthy, degraded, unhealthy
+- Response time percentiles
+- Error rate calculation
 
-For detailed pricing, see [Vercel Blob Pricing](https://vercel.com/docs/storage/vercel-blob/pricing).
+## 🗄 Database Architecture
 
-## 🗄 Database Management
+### SaaS Schema (`db/sass/schema.ts`)
 
-### Creating Migrations
+**Core Tables**:
 
-When you modify the schema in `db/schema.ts`:
+- **organizations**: Multi-tenant organization data
+  - credit_balance, stripe_customer_id
+  - allowed_models, allowed_providers
+  - webhook_url for notifications
+
+- **users**: User accounts linked to organizations
+  - workos_user_id for SSO
+  - role: admin, member
+  - is_active for deactivation
+
+- **api_keys**: API authentication
+  - key_hash for secure storage
+  - rate_limit, usage_count
+  - permissions array
+
+- **credit_transactions**: Credit ledger
+  - amount (positive or negative)
+  - type: purchase, deduction, refund, adjustment
+  - stripe_payment_intent_id for reconciliation
+
+- **credit_packs**: Purchasable credit packages
+  - stripe_price_id, stripe_product_id
+  - sort_order for display
+
+- **usage_records**: Per-request usage tracking
+  - input_tokens, output_tokens
+  - input_cost, output_cost
+  - model, provider, type
+  - is_successful, error_message
+
+- **generations**: Image/video generation records
+  - type: image, video
+  - status: pending, completed, failed
+  - storage_url (Vercel Blob)
+  - dimensions, file_size, mime_type
+
+- **containers**: Cloudflare container deployments
+  - cloudflare_worker_id, cloudflare_url
+  - status: pending, building, deploying, running, failed
+  - environment_vars, max_instances, port
+  - Unique constraint on (organization_id, name)
+
+- **artifacts**: Deployment artifact storage
+  - r2_key, r2_url (Cloudflare R2)
+  - checksum, size, version
+  - Unique constraint on (organization_id, project_id, version)
+
+- **conversations**: Platform-level chat history
+  - title, model, settings
+  - message_count, total_cost
+
+- **conversation_messages**: Messages in conversations
+  - role: user, assistant, system
+  - sequence_number for ordering
+  - tokens, cost, processing_time
+
+- **user_characters**: User-created ElizaOS characters
+  - character_data (full JSON)
+  - is_template, is_public
+  - Stored separately from agents
+
+- **model_pricing**: Dynamic pricing per model
+  - input_cost_per_1k, output_cost_per_1k
+  - effective_from, effective_until
+  - is_active for versioning
+
+- **provider_health**: AI provider status
+  - status: healthy, degraded, unhealthy
+  - response_time, error_rate
+  - last_checked timestamp
+
+- **jobs**: Background job queue
+  - type, status: pending, in_progress, completed, failed
+  - attempts, max_attempts
+  - webhook_url for callbacks
+
+### ElizaOS Schema (`db/eliza/schema.ts`)
+
+**Agent Runtime Tables**:
+
+- **agents**: Character definitions
+  - name, username, bio, system
+  - messageExamples, postExamples
+  - topics, adjectives, style
+  - plugins, knowledge, settings
+
+- **memories**: Conversation history
+  - type (message, document, fragment)
+  - content (JSONB)
+  - unique flag for deduplication
+  - metadata with document references
+
+- **embeddings**: Vector similarity search
+  - Multiple dimension columns:
+    - dim384, dim512, dim768 (small-large)
+    - dim1024, dim1536, dim3072 (XL-XXXL)
+  - memory_id foreign key
+
+- **rooms**: Conversation contexts
+  - source (discord, telegram, web, etc.)
+  - type (DM, group, channel)
+  - world_id optional reference
+  - channel_id for platform mapping
+
+- **participants**: Room membership
+  - entity_id, room_id, agent_id
+  - room_state for custom data
+
+- **entities**: Users and participants
+  - names array for aliases
+  - metadata JSONB
+
+- **relationships**: Entity connections
+  - source_entity_id, target_entity_id
+  - agent_id scope
+  - tags array
+  - Unique constraint prevents duplicates
+
+- **components**: ECS-style data
+  - entity_id, room_id, world_id
+  - type, data JSONB
+
+- **worlds**: High-level grouping
+  - agent_id, name, server_id
+
+- **tasks**: Scheduled agent tasks
+  - name, description, tags
+  - metadata JSONB
+
+- **cache**: Key-value cache
+  - key, agent_id composite primary key
+  - expires_at for TTL
+
+- **logs**: Audit trail
+  - entity_id, room_id, type
+  - body JSONB
+
+- **message_servers**: Central messaging (future)
+  - source_type, source_id
+  - For multi-platform agents
+
+- **channels**: Message channels
+  - message_server_id
+  - type (text, voice, DM, etc.)
+
+- **central_messages**: Cross-platform messages
+  - channel_id, author_id
+  - in_reply_to_root_message_id for threads
+
+### Database Migrations
+
+**Generate migration**:
 
 ```bash
-# Generate migration files
-npx drizzle-kit generate:pg
-
-# Apply migrations
-npx drizzle-kit migrate
-
-# Or push directly (dev only)
-npx drizzle-kit push:pg
+npm run db:generate
 ```
 
-### Drizzle Studio
+This creates SQL migration files in `db/migrations/`.
 
-Explore your database with Drizzle Studio:
+**Apply migration**:
 
 ```bash
-npx drizzle-kit studio
+npm run db:migrate
 ```
 
-This opens a visual database browser at `https://local.drizzle.studio`
-
-### Adding New Tables
-
-1. Edit `db/schema.ts`:
-
-```typescript
-export const users = pgTable("users", {
-  id: serial("id").primaryKey(),
-  email: text("email").notNull().unique(),
-  name: text("name"),
-  createdAt: timestamp("created_at").defaultNow(),
-});
-```
-
-2. Generate migration:
+**Push schema (dev only)**:
 
 ```bash
-npx drizzle-kit generate:pg
+npm run db:push
 ```
 
-3. Review the migration in `db/migrations/`
-
-4. Apply the migration:
-
-```bash
-npx drizzle-kit migrate
-```
-
-### Database Best Practices
-
-- Always use migrations in production (never `push:pg`)
-- Test migrations on a staging database first
-- Back up your database before running migrations
-- Use transactions for data migrations
-- Keep schema.ts as the single source of truth
+⚠️ **Never use `db:push` in production** - always use migrations.
 
 ### Race Condition Prevention
 
-The platform implements atomic operations to prevent race conditions in critical operations:
+The platform implements atomic operations to prevent quota bypass:
 
-#### Container Quota Enforcement
-
-**Problem**: Multiple concurrent requests could bypass quota limits when checked with application-level logic:
+**Example**: Container quota enforcement
 
 ```typescript
-// ❌ VULNERABLE: Race condition
-const containers = await listContainers(orgId);
-if (containers.length >= maxAllowed) {
-  return error("Quota exceeded");
-}
-// Another request could create a container here before we insert
-await createContainer(data);
-```
-
-**Solution**: Atomic transaction with database-level locking:
-
-```typescript
-// ✅ SAFE: Atomic operation
 await db.transaction(async (tx) => {
-  // 1. Lock organization row with FOR UPDATE
-  const org = await tx.select().from(organizations)
+  // 1. Lock organization row
+  const org = await tx.select()
+    .from(organizations)
     .where(eq(organizations.id, orgId))
     .for("update");
   
   // 2. Count containers while holding lock
-  const count = await tx.select().from(containers)
+  const count = await tx.select()
+    .from(containers)
     .where(eq(containers.organization_id, orgId));
   
   // 3. Check quota
   if (count >= maxAllowed) throw new QuotaExceededError();
   
-  // 4. Create container (unique constraint prevents duplicates)
+  // 4. Create container
   return await tx.insert(containers).values(data);
 });
 ```
 
-**Key Features**:
-- `FOR UPDATE` lock prevents concurrent quota checks
-- Unique constraint on `(organization_id, name)` prevents duplicate names
-- Transaction ensures atomicity (all-or-nothing)
-- Proper error handling for quota and duplicate name violations
+See `lib/queries/container-quota.ts` for full implementation.
 
-**Usage**:
+## 🔌 API Reference
 
-```typescript
-import { createContainerWithQuotaCheck } from "@/lib/queries/container-quota";
+### Authentication
 
-try {
-  const container = await createContainerWithQuotaCheck(data);
-} catch (error) {
-  if (error instanceof QuotaExceededError) {
-    // Handle quota exceeded
-  } else if (error.message.includes("unique constraint")) {
-    // Handle duplicate name
-  }
-}
-```
+All API routes support two authentication methods:
 
-**Database Constraints**:
-- Unique index: `containers_org_name_unique_idx` on `(organization_id, name)`
-- Check constraint: Valid status values only
-- Optimized index: `containers_org_status_idx` for fast quota queries
+1. **Session Cookie** (WorkOS): Automatic for logged-in users
+2. **API Key Header**: `Authorization: Bearer eliza_your_key`
 
-See `lib/queries/container-quota.ts` for implementation details.
+### Base URL
 
-## 🔐 Authentication
+- Development: `http://localhost:3000`
+- Production: `https://your-domain.com`
 
-### How Authentication Works
+### Endpoints
 
-1. **User visits protected route**
-2. **Middleware intercepts** request (`middleware.ts`)
-3. **Checks for valid session** cookie
-4. **If no session**: Redirects to WorkOS sign-in page
-5. **User authenticates** with chosen provider
-6. **WorkOS redirects** to `/api/auth/callback`
-7. **Callback handler** validates and creates session
-8. **User redirected** to original destination
+#### AI Generation
 
-### Protecting Routes
-
-**Option 1: Protect Everything (Default)**
-
-```typescript
-// middleware.ts
-export default authkitMiddleware();
-// All routes are protected
-```
-
-**Option 2: Protect Specific Routes**
-
-```typescript
-// middleware.ts
-export default authkitMiddleware();
-
-export const config = {
-  matcher: ["/dashboard/:path*", "/admin/:path*", "/api/protected/:path*"],
-};
-```
-
-**Option 3: Public by Default**
-
-```typescript
-// middleware.ts
-export default authkitMiddleware();
-
-export const config = {
-  matcher: ["/((?!api/public|_next/static|_next/image|favicon.ico).*)"],
-};
-```
-
-### Getting User Information
-
-**In Server Components**:
-
-```typescript
-import { getUser } from '@workos-inc/authkit-nextjs';
-
-export default async function ProfilePage() {
-  const user = await getUser();
-
-  if (!user) {
-    return <div>Not authenticated</div>;
-  }
-
-  return <div>Hello, {user.firstName}!</div>;
-}
-```
-
-**In API Routes**:
-
-```typescript
-import { getUser } from "@workos-inc/authkit-nextjs";
-
-export async function GET() {
-  const user = await getUser();
-
-  if (!user) {
-    return new Response("Unauthorized", { status: 401 });
-  }
-
-  // Process request...
-}
-```
-
-### Sign Out
-
-```typescript
-import { signOut } from "@workos-inc/authkit-nextjs";
-
-async function handleSignOut() {
-  "use server";
-  await signOut();
-}
-```
-
-## 🐳 Container Deployment
-
-### ElizaOS CLI Integration
-
-The platform supports deploying ElizaOS projects directly via the `elizaos deploy` command. Users get an API key from the dashboard and can deploy their agents to Cloudflare Workers with a single command.
-
-**How It Works (Bootstrapper Architecture):**
-
-1. **User gets API key** from `/dashboard/api-keys`
-2. **User runs** `elizaos deploy --api-key eliza_xxxxx`
-3. **CLI creates** compressed artifact (tar.gz) of project code
-4. **CLI uploads** artifact to cloud API (`/api/v1/artifacts/upload`)
-5. **Cloud stores** artifact in Cloudflare R2 storage
-6. **Cloud deploys** minimal bootstrapper container with artifact URL
-7. **Container fetches** artifact at startup and runs the project
-8. **User manages** containers in dashboard
-
-**CLI Usage:**
 ```bash
-# Get API key from dashboard first
-export ELIZAOS_API_KEY=eliza_xxxxxxxxxxxxx
+# Text Chat
+POST /api/v1/chat
+{
+  "messages": [{"role": "user", "content": "Hello"}],
+  "model": "gpt-4o"
+}
 
-# Deploy your ElizaOS project
-cd my-elizaos-project
-elizaos deploy
+# Image Generation
+POST /api/v1/generate-image
+{
+  "prompt": "A beautiful sunset over mountains"
+}
 
-# With custom options
-elizaos deploy \
-  --name my-agent \
-  --port 8080 \
-  --max-instances 3 \
-  --env "OPENAI_API_KEY=sk-xxx"
+# Video Generation
+POST /api/v1/generate-video
+{
+  "prompt": "Cinematic shot of spaceship",
+  "model": "fal-ai/veo3"
+}
+
+# Available Models
+GET /api/v1/models
 ```
 
-**API Endpoints:**
+#### Gallery
 
-**Artifact Management:**
-- `POST /api/v1/artifacts/upload` - Upload project artifact
-- `GET /api/v1/artifacts` - List artifacts for a project
+```bash
+# List Media
+GET /api/v1/gallery?type=image&limit=50&offset=0
 
-**Container Management:**
-- `POST /api/v1/containers` - Create container deployment
-- `GET /api/v1/containers` - List containers
-- `GET /api/v1/containers/{id}` - Get container status
-- `DELETE /api/v1/containers/{id}` - Delete container
+# Response:
+{
+  "items": [...],
+  "count": 10,
+  "hasMore": false
+}
+```
 
-**Dashboard:**
-- View all deployed containers at `/dashboard/containers`
-- Monitor deployment status (pending → building → deploying → running)
-- View Worker URLs and logs
-- Manage container lifecycle
+#### Containers
 
-**Requirements:**
-- Cloudflare account with Workers enabled
-- Set `CLOUDFLARE_ACCOUNT_ID` and `CLOUDFLARE_API_TOKEN` in `.env.local`
-- Docker installed on user's machine (for CLI)
+```bash
+# List Containers
+GET /api/v1/containers
+
+# Create Container
+POST /api/v1/containers
+{
+  "name": "my-agent",
+  "port": 3000,
+  "artifact_url": "https://...",
+  "environment_vars": {...}
+}
+
+# Get Container
+GET /api/v1/containers/{id}
+
+# Delete Container
+DELETE /api/v1/containers/{id}
+
+# Check Quota
+GET /api/v1/containers/quota
+```
+
+#### Artifacts
+
+```bash
+# Upload Artifact
+POST /api/v1/artifacts/upload
+{
+  "project_id": "my-project",
+  "version": "1.0.0",
+  "checksum": "sha256:...",
+  "size": 1048576
+}
+
+# List Artifacts
+GET /api/v1/artifacts?project_id=my-project
+
+# Get Stats
+GET /api/v1/artifacts/stats
+```
+
+#### API Keys
+
+```bash
+# Create Key
+POST /api/v1/api-keys
+{
+  "name": "Production",
+  "rate_limit": 10000
+}
+
+# List Keys
+GET /api/v1/api-keys
+
+# Regenerate Key
+POST /api/v1/api-keys/{id}/regenerate
+
+# Delete Key
+DELETE /api/v1/api-keys/{id}
+```
+
+#### User Info
+
+```bash
+# Get Current User
+GET /api/v1/user
+
+# Response:
+{
+  "id": "uuid",
+  "email": "user@example.com",
+  "name": "John Doe",
+  "organization": {...},
+  "credit_balance": 5000
+}
+```
+
+#### ElizaOS Agents
+
+```bash
+# Create Room
+POST /api/eliza/rooms
+{
+  "agentId": "uuid",
+  "name": "Chat"
+}
+
+# Get Room Messages
+GET /api/eliza/rooms/{roomId}/messages
+
+# Send Message
+POST /api/eliza/rooms/{roomId}/messages
+{
+  "content": "Hello!",
+  "authorId": "user-uuid"
+}
+```
+
+### Rate Limiting
+
+- **Default**: 1000 requests/day per API key
+- **Container Deployments**: 5 per 5 minutes
+- **Billing Endpoints**: 100 per hour
+
+Rate limits return:
+
+```json
+{
+  "error": "Rate limit exceeded",
+  "retryAfter": 3600
+}
+```
+
+### Error Responses
+
+```json
+{
+  "success": false,
+  "error": "Error message",
+  "details": {...}
+}
+```
+
+HTTP Status Codes:
+- `400`: Bad Request (validation error)
+- `401`: Unauthorized (missing/invalid auth)
+- `403`: Forbidden (insufficient permissions)
+- `404`: Not Found
+- `429`: Too Many Requests (rate limited)
+- `500`: Internal Server Error
+- `503`: Service Unavailable (feature not configured)
 
 ## 🚢 Deployment
 
 ### Deploying to Vercel (Recommended)
 
-1. **Push to GitHub**:
+**1. Push to GitHub**:
 
 ```bash
 git add .
@@ -994,183 +1278,61 @@ git commit -m "Initial commit"
 git push origin main
 ```
 
-2. **Import to Vercel**:
-   - Go to [vercel.com/new](https://vercel.com/new)
-   - Import your repository
-   - Configure environment variables (copy from `.env.local`)
+**2. Import to Vercel**:
 
-3. **Environment Variables**:
-   Add all variables from your `.env.local`:
-   - `DATABASE_URL`
-   - `WORKOS_CLIENT_ID`
-   - `WORKOS_API_KEY`
-   - `WORKOS_COOKIE_PASSWORD`
-   - `NEXT_PUBLIC_WORKOS_REDIRECT_URI` (use production URL)
-   - `AI_GATEWAY_API_KEY`
+- Go to [vercel.com/new](https://vercel.com/new)
+- Import your repository
+- Vercel auto-detects Next.js
 
-4. **Update WorkOS Redirect URI**:
-   - Add your Vercel URL to WorkOS redirect URIs
-   - Format: `https://your-app.vercel.app/api/auth/callback`
+**3. Configure Environment Variables**:
 
-5. **Deploy**:
-   - Click "Deploy"
-   - Vercel automatically runs migrations and builds
+Add all variables from `.env.local` in Vercel dashboard:
 
-### Deploying to Cloudflare
+- `DATABASE_URL`
+- `WORKOS_CLIENT_ID`, `WORKOS_API_KEY`, `WORKOS_COOKIE_PASSWORD`
+- `NEXT_PUBLIC_WORKOS_REDIRECT_URI` (use production URL)
+- `OPENAI_API_KEY` or `AI_GATEWAY_API_KEY`
+- `BLOB_READ_WRITE_TOKEN`
+- `FAL_KEY`
+- `STRIPE_SECRET_KEY`, `STRIPE_WEBHOOK_SECRET`
+- `CLOUDFLARE_ACCOUNT_ID`, `CLOUDFLARE_API_TOKEN`
+- `R2_ACCESS_KEY_ID`, `R2_SECRET_ACCESS_KEY`, `R2_BUCKET_NAME`, `R2_ENDPOINT`
+- `CRON_SECRET`
 
-The project includes Cloudflare Containers support:
+**4. Update WorkOS Redirect URI**:
 
-```bash
-# Install Cloudflare CLI
-npm install -g wrangler
+- Add production callback URL to WorkOS dashboard
+- Format: `https://your-app.vercel.app/api/auth/callback`
 
-# Login
-wrangler login
+**5. Deploy**:
 
-# Deploy
-wrangler deploy
-```
+- Click "Deploy"
+- Vercel automatically builds and deploys
+- Database migrations run on build
+
+**6. Configure Stripe Webhook**:
+
+- Add webhook endpoint in Stripe dashboard
+- URL: `https://your-app.vercel.app/api/stripe/webhook`
+- Select events: `checkout.session.completed`, `payment_intent.succeeded`
 
 ### Database Migrations in Production
 
-Vercel automatically runs build commands, but for manual migration:
+Vercel runs migrations automatically via build script. For manual migration:
 
 ```bash
-# SSH into your environment or run in CI/CD
-npx drizzle-kit migrate
+# Connect to production database
+DATABASE_URL=postgres://prod-url npm run db:migrate
 ```
 
-**Recommended Approach**:
+### Monitoring
 
-- Use Vercel's "Ignored Build Step" feature
-- Run migrations in a separate step before deployment
-- Or use a database migration service
+- **Vercel Analytics**: Built-in (automatically enabled)
+- **Logs**: View in Vercel dashboard
+- **Error Tracking**: Console logs captured
+- **Provider Health**: Check `/dashboard/analytics`
 
 ## 🐛 Troubleshooting
-
-### Deployment Issues
-
-#### 1. Container Deployment Fails
-
-**Error**: "Container deployment failed" or "Deployment timeout"
-
-**Solutions**:
-
-- **Check Cloudflare credentials**: Verify `CLOUDFLARE_ACCOUNT_ID` and `CLOUDFLARE_API_TOKEN` are correct
-- **Verify R2 configuration**: Ensure all R2 environment variables are set correctly:
-  - `R2_ACCOUNT_ID` (usually same as `CLOUDFLARE_ACCOUNT_ID`)
-  - `R2_ACCESS_KEY_ID`
-  - `R2_SECRET_ACCESS_KEY`
-  - `R2_ENDPOINT`
-  - `R2_BUCKET_NAME`
-- **Check API quotas**: Run `elizaos deploy` with `--verbose` to see quota status
-- **View deployment logs**: Check the container deployment log in the dashboard
-- **Verify bootstrapper image**: Ensure `elizaos/bootstrapper:latest` exists and is accessible
-
-**Debug Steps**:
-```bash
-# Check container status via API
-curl https://your-app.com/api/v1/containers/{container-id} \
-  -H "Authorization: Bearer YOUR_API_KEY"
-
-# Check health endpoint
-curl https://your-app.com/api/v1/containers/{container-id}/health \
-  -H "Authorization: Bearer YOUR_API_KEY"
-
-# View artifact stats
-curl https://your-app.com/api/v1/artifacts/stats \
-  -H "Authorization: Bearer YOUR_API_KEY"
-```
-
-#### 2. Artifact Upload Fails
-
-**Error**: "Failed to upload artifact" or "Artifact upload timeout"
-
-**Solutions**:
-
-- **Check artifact size**: Maximum size is 500MB. Reduce project size if needed
-- **Verify R2 credentials**: Test R2 access using the AWS CLI:
-  ```bash
-  aws s3 ls --endpoint-url=$R2_ENDPOINT s3://eliza-artifacts/
-  ```
-- **Check network connection**: Ensure your network allows S3 API calls
-- **Verify presigned URL**: Check that URLs are being generated correctly
-- **Increase timeout**: Large artifacts may need more time to upload
-
-**Debug Steps**:
-```bash
-# Test R2 access directly
-aws s3 cp test.txt s3://eliza-artifacts/test/ \
-  --endpoint-url=$R2_ENDPOINT
-
-# Check artifact database records
-# Run in psql or Drizzle Studio
-SELECT id, project_id, version, size, created_at 
-FROM artifacts 
-WHERE organization_id = 'your-org-id'
-ORDER BY created_at DESC
-LIMIT 10;
-```
-
-#### 3. Bootstrapper Container Fails to Start
-
-**Error**: Container status stuck in "building" or "deploying"
-
-**Solutions**:
-
-- **Verify artifact is accessible**: Check that the artifact exists in R2
-- **Check R2 credentials expiration**: Temporary credentials expire after 1 hour
-- **Verify bootstrapper image**: Ensure the image is built and published:
-  ```bash
-  cd eliza-cloud-v2/bootstrapper
-  ./build.sh v1.0.0
-  docker push elizaos/bootstrapper:latest
-  ```
-- **Check container logs**: View Cloudflare Worker logs for error details
-- **Verify environment variables**: Ensure all required env vars are passed to container
-- **Test locally**: Run bootstrapper locally with same configuration:
-  ```bash
-  docker run -it --rm \
-    -e R2_ARTIFACT_URL="..." \
-    -e R2_ACCESS_KEY_ID="..." \
-    -e R2_SECRET_ACCESS_KEY="..." \
-    -e R2_SESSION_TOKEN="..." \
-    -e R2_ENDPOINT="..." \
-    elizaos/bootstrapper:latest
-  ```
-
-#### 4. "Insufficient Credits" Error
-
-**Error**: "Insufficient credits. Required: X, Available: Y"
-
-**Solutions**:
-
-- **Purchase credits**: Visit `/dashboard/credits` to buy more credits
-- **Check credit balance**: View current balance in the dashboard
-- **Review pricing**: Deployment costs are based on container instances and duration
-- **Contact support**: If you believe this is an error
-
-#### 5. "Quota Exceeded" Error
-
-**Error**: "Container limit reached (N). Delete unused containers or contact support."
-
-**Solutions**:
-
-- **Delete unused containers**: Remove stopped or failed containers
-- **Upgrade plan**: Contact sales for higher quotas
-- **Review container usage**: Check which containers are actually needed
-
-#### 6. Health Checks Failing
-
-**Error**: Container marked as "failed" after deployment
-
-**Solutions**:
-
-- **Check health endpoint**: Verify your app responds to `GET /health`
-- **Review health check path**: Default is `/health`, configure if different
-- **Check application logs**: The app may be crashing on startup
-- **Verify PORT environment variable**: Ensure app listens on the correct port
-- **Test locally**: Run your ElizaOS project locally to verify it works
 
 ### Common Issues
 
@@ -1179,102 +1341,100 @@ LIMIT 10;
 **Error**: `Connection refused` or `SSL required`
 
 **Solutions**:
-
 - Verify `DATABASE_URL` includes `?sslmode=require`
 - Check Neon dashboard for correct connection string
-- Ensure your IP is not blocked by database firewall
+- Ensure database is not paused (serverless auto-pause)
 
 #### 2. Authentication Loops
 
 **Error**: Continuous redirect between app and WorkOS
 
 **Solutions**:
-
 - Verify `NEXT_PUBLIC_WORKOS_REDIRECT_URI` matches exactly in WorkOS dashboard
-- Check that callback route exists: `/app/api/auth/callback/route.ts`
-- Clear cookies and try again
-- Verify `WORKOS_COOKIE_PASSWORD` is at least 32 characters
+- Check callback route exists: `/app/callback/route.ts`
+- Clear browser cookies
+- Ensure `WORKOS_COOKIE_PASSWORD` is at least 32 characters
 
 #### 3. Environment Variables Not Loading
 
 **Error**: `undefined` values in runtime
 
 **Solutions**:
-
 - Restart dev server after changing `.env.local`
 - Ensure file is named exactly `.env.local` (not `.env`)
 - Public variables must start with `NEXT_PUBLIC_`
-- In production, verify all variables are set in Vercel dashboard
+- In production, verify all variables set in Vercel dashboard
 
-#### 4. Build Errors with Turbopack
+#### 4. Container Deployment Fails
 
-**Error**: Build fails with Turbopack
-
-**Solutions**:
-
-```bash
-# Try standard build
-npm run build -- --no-turbo
-
-# Or update package.json scripts to remove --turbopack
-```
-
-#### 5. Type Errors with Drizzle
-
-**Error**: TypeScript errors with database queries
+**Error**: "Container deployment failed" or "Deployment timeout"
 
 **Solutions**:
+- Check `CLOUDFLARE_ACCOUNT_ID` and `CLOUDFLARE_API_TOKEN` are correct
+- Verify R2 credentials:
+  - `R2_ACCESS_KEY_ID`, `R2_SECRET_ACCESS_KEY`
+  - `R2_ENDPOINT` format: `https://account_id.r2.cloudflarestorage.com`
+  - `R2_BUCKET_NAME` exists in Cloudflare
+- Check quota: `GET /api/v1/containers/quota`
+- View logs in Cloudflare Workers dashboard
 
-```bash
-# Regenerate Drizzle types
-npx drizzle-kit generate:pg
+See `docs/DEPLOYMENT_TROUBLESHOOTING.md` for detailed troubleshooting.
 
-# Restart TypeScript server in your editor
-# VS Code: Cmd+Shift+P -> "TypeScript: Restart TS Server"
-```
+#### 5. Artifact Upload Fails
 
-#### 6. AI Model Not Available
-
-**Error**: Model not found or unavailable in chat interface
-
-**Solutions**:
-
-- Verify `AI_GATEWAY_API_KEY` is set correctly
-- Check AI Gateway dashboard for model access
-- Ensure model ID matches exactly (case-sensitive)
-- Try fetching `/api/models` to see available models
-
-#### 7. Image Generation Fails
-
-**Error**: "No image was generated" or timeout
+**Error**: "Failed to upload artifact" or "Artifact upload timeout"
 
 **Solutions**:
+- Check artifact size (max 500MB)
+- Verify R2 credentials with AWS CLI:
+  ```bash
+  aws s3 ls --endpoint-url=$R2_ENDPOINT s3://eliza-artifacts/
+  ```
+- Check network allows S3 API calls
+- Increase timeout for large files
 
-- Verify Google Gemini API access in AI Gateway
-- Check prompt is clear and descriptive (avoid vague descriptions)
-- Ensure `maxDuration` is set to 30 seconds in route
-- Try a simpler prompt first to test connectivity
-- Check AI Gateway quota/rate limits
+#### 6. Image/Video Generation Fails
 
-#### 8. Streaming Responses Not Working
-
-**Error**: Messages don't appear in real-time
+**Error**: "No image/video was generated" or timeout
 
 **Solutions**:
+- **Image**: Verify Google Gemini access in AI Gateway or OpenAI API key
+- **Video**: Check `FAL_KEY` is set correctly
+- Try simpler prompts first
+- Check rate limits in provider dashboard
+- View error in `/dashboard/analytics`
 
-- Ensure API route exports `maxDuration` constant
-- Verify AI SDK version compatibility (5.0.59+)
-- Check browser console for network errors
-- Disable browser extensions that block streaming
-- Verify AI Gateway supports streaming for selected model
+#### 7. Credits Not Deducting
+
+**Error**: Usage not tracking or credits not deducted
+
+**Solutions**:
+- Check `credit_transactions` table for records
+- Verify organization `credit_balance` column
+- Check for database transaction errors in logs
+- Ensure `calculateCost()` is being called
+
+#### 8. Stripe Webhook Not Working
+
+**Error**: Credits not added after purchase
+
+**Solutions**:
+- Verify `STRIPE_WEBHOOK_SECRET` matches Stripe dashboard
+- Check webhook endpoint URL is correct
+- View webhook events in Stripe dashboard → Developers → Webhooks
+- Test locally with Stripe CLI:
+  ```bash
+  stripe listen --forward-to localhost:3000/api/stripe/webhook
+  ```
 
 ### Getting Help
 
-- Check [Next.js Documentation](https://nextjs.org/docs)
-- Review [Drizzle ORM Docs](https://orm.drizzle.team/docs)
-- Visit [WorkOS Documentation](https://workos.com/docs)
-- Read [Vercel AI SDK Docs](https://sdk.vercel.ai/docs)
-- Join the elizaOS community
+- Check detailed docs in `/docs` folder
+- [Next.js Documentation](https://nextjs.org/docs)
+- [Drizzle ORM Docs](https://orm.drizzle.team/docs)
+- [WorkOS Documentation](https://workos.com/docs)
+- [Vercel AI SDK Docs](https://sdk.vercel.ai/docs)
+- [ElizaOS Documentation](https://github.com/elizaos/eliza)
 
 ## 📚 Additional Resources
 
@@ -1283,6 +1443,14 @@ npx drizzle-kit generate:pg
 - [Next.js 15 Documentation](https://nextjs.org/docs)
 - [React 19 Documentation](https://react.dev)
 - [TypeScript Handbook](https://www.typescriptlang.org/docs)
+- [Turbopack](https://turbo.build/pack)
+
+### Database & ORM
+
+- [Drizzle ORM Documentation](https://orm.drizzle.team)
+- [Neon Serverless PostgreSQL](https://neon.tech/docs)
+- [Drizzle Kit Guide](https://orm.drizzle.team/kit-docs/overview)
+- [pgvector](https://github.com/pgvector/pgvector)
 
 ### AI & Machine Learning
 
@@ -1291,17 +1459,23 @@ npx drizzle-kit generate:pg
 - [Google Gemini API](https://ai.google.dev/docs)
 - [OpenAI API Documentation](https://platform.openai.com/docs)
 - [Anthropic Claude API](https://docs.anthropic.com)
+- [Fal.ai Documentation](https://fal.ai/docs)
+- [ElizaOS Repository](https://github.com/elizaos/eliza)
 
-### Database & ORM
-
-- [Drizzle ORM Documentation](https://orm.drizzle.team)
-- [Neon Serverless PostgreSQL](https://neon.tech/docs)
-- [Drizzle Kit Guide](https://orm.drizzle.team/kit-docs/overview)
-
-### Authentication & Security
+### Authentication & Billing
 
 - [WorkOS AuthKit Guide](https://workos.com/docs/authkit)
-- [Next.js Middleware](https://nextjs.org/docs/app/building-your-application/routing/middleware)
+- [Stripe API Documentation](https://stripe.com/docs/api)
+- [Stripe Checkout](https://stripe.com/docs/payments/checkout)
+- [Stripe Webhooks](https://stripe.com/docs/webhooks)
+
+### Storage & Infrastructure
+
+- [Vercel Blob](https://vercel.com/docs/storage/vercel-blob)
+- [Vercel Blob Pricing](https://vercel.com/docs/storage/vercel-blob/pricing)
+- [Cloudflare Workers](https://developers.cloudflare.com/workers/)
+- [Cloudflare R2](https://developers.cloudflare.com/r2/)
+- [AWS SDK for JavaScript](https://docs.aws.amazon.com/sdk-for-javascript/)
 
 ### UI & Styling
 
@@ -1309,12 +1483,13 @@ npx drizzle-kit generate:pg
 - [Radix UI Primitives](https://www.radix-ui.com/primitives)
 - [Lucide Icons](https://lucide.dev)
 - [next-themes Documentation](https://github.com/pacocoursey/next-themes)
+- [Recharts](https://recharts.org/)
 
-### Infrastructure & Deployment
+### Development Tools
 
-- [Vercel Deployment Guide](https://vercel.com/docs)
-- [Vercel Analytics](https://vercel.com/analytics)
-- [Cloudflare Containers](https://developers.cloudflare.com/workers/)
+- [ESLint](https://eslint.org/docs)
+- [Prettier](https://prettier.io/docs)
+- [Zod](https://zod.dev/)
 
 ## 📄 License
 
@@ -1322,308 +1497,4 @@ See the LICENSE file in the repository root.
 
 ---
 
-## 🔍 Production Readiness Review
-
-### Executive Summary
-
-**Overall Score: 6.5/10** - Functional but requires critical fixes before production deployment
-
-**Date:** October 12, 2025  
-**Scope:** Complete fullstack (eliza-cloud-v2 + CLI)  
-**Status:** ⚠️ **REQUIRES FIXES** - 3 critical blockers identified
-
----
-
-### 🔴 CRITICAL Issues (Must Fix Before Deploy)
-
-#### 1. Duplicate Migration Files (P0 BLOCKER)
-**Location:** `/db/migrations/`  
-**Issue:** Two migration files with index `0004`:
-- `0004_add_containers_table.sql` (manual migration)
-- `0004_black_night_thrasher.sql` (Drizzle generated)
-
-**Impact:** Database migrations will fail or apply incorrectly  
-**Fix Required:** Consolidate into single migration, update journal, regenerate snapshots
-
-#### 2. Environment Validation Never Runs (P0 BLOCKER)
-**Location:** `lib/config/startup.ts`  
-**Issue:** `initializeApplication()` function exists but is never called  
-**Impact:** App starts with invalid config, fails at runtime instead of startup  
-**Fix Required:** Create `instrumentation.ts` to call on Next.js startup
-
-#### 3. console.log Instead of Structured Logger (P0 PRODUCTION ISSUE)
-**Location:** Throughout API routes (30+ instances)  
-**Files Affected:**
-- `app/api/v1/containers/route.ts` (8 instances)
-- `app/api/v1/generate-video/route.ts` (12 instances)
-- `app/api/eliza/rooms/[roomId]/messages/route.ts` (6 instances)
-- `lib/services/cloudflare.ts` (2 instances)
-
-**Impact:** 
-- Cannot aggregate logs in production
-- Missing structured metadata for debugging
-- No log levels for filtering
-- Cannot integrate with monitoring services
-
-**Fix Required:** Replace all `console.*` with `logger.*` from `lib/logger.ts`
-
----
-
-### 🟡 HIGH Priority Issues
-
-#### 4. Package Manager Inconsistency
-**Location:** `README.md`  
-**Issue:** Documentation uses `npm` commands but `.cursorrules` mandates `bun`  
-**Violations:** 8 instances in README  
-**Fix Required:** Replace all `npm install`, `npm run` with `bun install`, `bun run`
-
-#### 5. Dead Code in Video Page
-**Location:** `app/dashboard/video/page.tsx` (lines 61-116)  
-**Issue:** Hardcoded mock video data (3 fake videos with Unsplash URLs)  
-**Impact:** Misleading UI, dead code in production  
-**Fix Required:** Remove mock data, connect to real generations or hide page
-
-#### 6. Stub Dashboard Pages
-**Location:**
-- `components/analytics/analytics-page-client.tsx` - "coming soon"
-- `components/storage/storage-page-client.tsx` - "coming soon"
-
-**Impact:** Broken user experience, incomplete features  
-**Fix Required:** Either implement features or remove from navigation
-
-#### 7. Database Connection Pool Not Configured
-**Location:** `db/drizzle.ts`  
-**Issue:** No connection limits, pooling config, or connection lifecycle  
-**Impact:** Risk of connection exhaustion under load  
-**Fix Required:** Configure Neon Pool with max connections, idle timeout
-
----
-
-### 🟠 MEDIUM Priority Issues
-
-#### 8. Duplicate Library Files
-**Dead Code:**
-- `lib/rate-limiter.ts` (69 lines) - duplicate of `lib/middleware/rate-limit.ts`
-- `lib/pricing.ts` (105 lines) - duplicate of `lib/constants/pricing.ts`
-
-**Fix Required:** Delete duplicates, update imports if any
-
-#### 9. Documentation Policy Violations
-**Issue:** Multiple `.md` files created instead of updating README  
-**Violates:** Workspace rule "Documentation lives only in README.md"  
-**Files:**
-- `docs/API_REFERENCE.md`
-- `docs/DEPLOYMENT_TROUBLESHOOTING.md`
-- `docs/ENV_SETUP_GUIDE.md`
-- `docs/DEPLOYMENT.md`
-- `docs/ENV_VARIABLES.md`
-- `docs/STRIPE_SETUP.md`
-- `docs/character-creator.md`
-- `docs/ARTIFACT_SECURITY_IMPLEMENTATION.md`
-- `docs/SECURITY_REVIEW_ARTIFACT_TOKENS.md`
-- `docs/R2_CLOUDFLARE_CREDENTIALS.md`
-
-**Fix Required:** Consolidate into README.md sections with proper anchors
-
-#### 10. Missing Migration Field
-**Location:** `db/migrations/0004_add_containers_table.sql`  
-**Issue:** Missing `cloudflare_url` field present in newer `0004_black_night_thrasher.sql`  
-**Impact:** Schema drift between migrations  
-**Fix Required:** Add field to consolidated migration
-
----
-
-### ⚪ LOW Priority Issues
-
-#### 11. Memory Leak Risk
-**Location:** `lib/eliza/plugin-assistant/index.ts:340`  
-**Issue:** `messageUsageMap` stores data that may not be cleaned up if `getMessageUsage()` not called  
-**Fix Required:** Add TTL-based cleanup or WeakMap
-
-#### 12. No Startup Hooks
-**Issue:** Next.js `instrumentation.ts` file missing  
-**Impact:** Cannot run validation or setup on app startup  
-**Fix Required:** Create instrumentation file for production monitoring
-
-#### 13. Bootstrapper Not Published
-**Location:** `bootstrapper/`  
-**Issue:** Docker image built but not pushed to registry  
-**Impact:** Deployments will fail if image doesn't exist  
-**Fix Required:** Build and push to Docker Hub or GHCR
-
-#### 14. Missing Stripe Webhook Test Coverage
-**Issue:** No verification that `stripe_payment_intent_id` unique index prevents duplicate payments  
-**Impact:** Risk of double-charging customers  
-**Fix Required:** Add idempotency verification (may already work)
-
----
-
-### 🗑️ Dead Code Identified
-
-1. **Mock Video Data** - `app/dashboard/video/page.tsx:61-116` (56 lines)
-2. **Duplicate rate-limiter.ts** - `lib/rate-limiter.ts` (69 lines)
-3. **Duplicate pricing.ts** - `lib/pricing.ts` (105 lines)
-4. **Stub Analytics Page** - `components/analytics/analytics-page-client.tsx` (21 lines)
-5. **Stub Storage Page** - `components/storage/storage-page-client.tsx` (28 lines)
-
-**Total Dead/Stub Code:** ~279 lines across 5 files
-
----
-
-### 🔒 Security Review
-
-#### ✅ Security Strengths
-- WorkOS enterprise authentication
-- API key hashing with bcrypt
-- Presigned URLs for R2 (no exposed credentials)
-- Temporary credentials with TTL
-- SQL injection prevention (Drizzle ORM)
-- CSRF protection (Next.js built-in)
-- Rate limiting on critical endpoints
-- Organization-level data isolation
-- Atomic transactions for quota/credit operations
-
-#### ⚠️ Security Concerns
-1. **No secrets scanning** - No pre-commit hook to prevent secret commits
-2. **API keys in logs** - console.log may expose partial keys in logs
-3. **No rate limiting on some endpoints** - Only critical ones protected
-4. **Missing input sanitization** - Some user inputs not validated
-5. **No Content Security Policy** - Missing CSP headers
-
-**Security Score: 7.5/10** - Good foundation, minor improvements needed
-
----
-
-### 🏗️ Architecture Sanity Check
-
-#### ✅ Architecture Strengths
-1. **Clean separation** - API, lib, components well organized
-2. **Bootstrapper pattern** - Elegant artifact-based deployment
-3. **Atomic operations** - Quota/credit race conditions prevented
-4. **Service layer** - Good abstraction (Cloudflare, R2, Health Monitor)
-5. **Type safety** - TypeScript throughout with minimal `any` usage
-6. **Error handling** - Custom error classes, retry logic, timeouts
-7. **Database design** - Proper indexes, foreign keys, constraints
-
-#### ⚠️ Architecture Concerns
-1. **No background job queue** - Using `async().catch()` pattern
-2. **In-memory rate limiting** - Won't work across multiple instances
-3. **No caching layer** - Redis or similar not implemented
-4. **Singleton DB connection** - No connection pooling configured
-5. **No circuit breakers** - Could cascade failures from Cloudflare
-
-**Architecture Score: 7/10** - Solid foundation, scalability concerns
-
----
-
-### 📊 Production Readiness Breakdown
-
-| Category | Score | Status | Issues |
-|----------|-------|--------|--------|
-| **Code Quality** | 7/10 | ⚠️ | console.log, dead code, stubs |
-| **Security** | 7.5/10 | ✅ | Good auth, minor improvements |
-| **Database** | 6/10 | ⚠️ | Migration conflicts, no pool config |
-| **Testing** | N/A | - | Per user request |
-| **Error Handling** | 8/10 | ✅ | Comprehensive, needs logger |
-| **Documentation** | 6/10 | ⚠️ | Policy violations, npm vs bun |
-| **Monitoring** | 5/10 | ⚠️ | Health checks exist, no APM |
-| **Scalability** | 6/10 | ⚠️ | In-memory rate limit, no queue |
-| **Performance** | 7/10 | ✅ | Good indexes, need pool config |
-
-**Overall: 6.5/10** - Requires critical fixes
-
----
-
-### ✅ What's Production Ready NOW
-
-1. **Authentication System** - WorkOS integration complete
-2. **API Key Management** - Secure generation, validation, revocation
-3. **Credit System** - Atomic transactions, refunds, audit trail
-4. **R2 Storage** - Presigned URLs, temporary credentials, cleanup
-5. **Cloudflare Deployment** - Bootstrapper architecture, retry logic
-6. **Quota Enforcement** - Race-condition safe with DB locks
-7. **Error Types** - Comprehensive error classes
-8. **Database Schema** - Well-designed with proper constraints (except migrations)
-9. **Type Safety** - Minimal `any` usage, strong typing
-10. **Security** - Good authentication, authorization, input validation
-
----
-
-### ❌ What's NOT Ready
-
-1. **Migration System** - Conflicting files will break deployments
-2. **Startup Validation** - Missing, app starts with bad config
-3. **Logging** - console.log everywhere, can't debug production
-4. **Documentation** - Violates workspace policy
-5. **Stub Features** - Analytics/Storage pages incomplete
-6. **Connection Pooling** - Not configured for production load
-7. **Background Jobs** - No queue system for async operations
-8. **Multi-instance Support** - Rate limiter won't work
-9. **Mock Data** - Fake videos in production code
-10. **Package Manager** - Inconsistent npm vs bun
-
----
-
-### 🎯 Deployment Recommendation
-
-**Can Deploy:** ❌ **NO** - Fix 3 critical issues first  
-**Timeline:** ~6-8 hours to fix critical issues  
-**Risk Level:** **HIGH** if deployed as-is
-
-**Must Fix Before Deploy:**
-1. Resolve migration conflict (1 hour)
-2. Hook up startup validation (30 min)
-3. Replace console.log with logger (2-3 hours)
-
-**Should Fix Before Deploy:**
-4. Configure DB connection pool (1 hour)
-5. Remove dead/stub code (1 hour)
-6. Fix README npm→bun (15 min)
-
-**After Deploy:**
-7. Implement Analytics/Storage or remove
-8. Add background job queue
-9. Migrate to Redis for rate limiting
-10. Consolidate documentation
-
----
-
-### 🚀 Next Steps
-
-#### Immediate (Before ANY Deployment)
-```bash
-# 1. Fix migration conflict
-cd eliza-cloud-v2/db/migrations
-# Delete 0004_add_containers_table.sql, keep 0004_black_night_thrasher.sql
-# Update _journal.json
-
-# 2. Add instrumentation
-cat > instrumentation.ts << 'EOF'
-export async function register() {
-  if (process.env.NEXT_RUNTIME === 'nodejs') {
-    const { initializeApplication } = await import('./lib/config/startup');
-    initializeApplication();
-  }
-}
-EOF
-
-# 3. Replace console.log (review each file)
-# Use structured logger for production debugging
-```
-
-#### Week 1
-- Build bootstrapper image
-- Fix all console.log instances
-- Configure DB connection pool
-- Remove stub pages or implement
-- Consolidate documentation
-
-#### Week 2
-- Add Redis for distributed rate limiting
-- Implement background job queue
-- Add monitoring/APM integration
-- Load testing and optimization
-
----
-
-**Built with ❤️ for the elizaOS ecosystem**
+**Built with ❤️ for the ElizaOS ecosystem**
