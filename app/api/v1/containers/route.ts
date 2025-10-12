@@ -248,6 +248,8 @@ async function deployContainerAsync(
     // Deploy to Cloudflare
     await updateContainerStatus(containerId, "deploying");
 
+    // Note: Artifact download credentials are generated and injected
+    // by the CloudflareService.deployContainerBinding() method
     const deployment = await cloudflare.deployContainer({
       name: config.name,
       imageTag: config.image_tag || "latest",
