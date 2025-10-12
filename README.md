@@ -14,6 +14,7 @@ A modern AI agent development platform built with Next.js 15, featuring multi-mo
 - [Services & Components](#services--components)
 - [Database Management](#database-management)
 - [Authentication](#authentication)
+- [Security](#security)
 - [Deployment](#deployment)
 - [Troubleshooting](#troubleshooting)
 - [Additional Resources](#additional-resources)
