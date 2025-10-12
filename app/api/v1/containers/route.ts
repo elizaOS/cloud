@@ -13,6 +13,8 @@ import { deductCredits, addCredits } from "@/lib/queries/credits";
 import { createUsageRecord } from "@/lib/queries/usage";
 import { calculateDeploymentCost } from "@/lib/constants/pricing";
 import { getCloudflareService } from "@/lib/services/cloudflare";
+import { isFeatureConfigured } from "@/lib/config/env-validator";
+import { withRateLimit, RateLimitPresets } from "@/lib/middleware/rate-limit";
 import { z } from "zod";
 
 export const dynamic = "force-dynamic";
@@ -66,9 +68,21 @@ export async function GET(request: NextRequest) {
 /**
  * POST /api/v1/containers
  * Create and deploy a new container
+ * Rate limited: 5 deployments per 5 minutes
  */
-export async function POST(request: NextRequest) {
+async function handleCreateContainer(request: NextRequest) {
   try {
+    // Check if container feature is configured
+    if (!isFeatureConfigured("containers")) {
+      return NextResponse.json(
+        {
+          success: false,
+          error: "Container deployments are not configured. Please set CLOUDFLARE_ACCOUNT_ID, CLOUDFLARE_API_TOKEN, and R2 credentials.",
+        },
+        { status: 503 }
+      );
+    }
+
     const { user, apiKey } = await requireAuthOrApiKey(request);
     const body = await request.json();
 
@@ -225,6 +239,9 @@ export async function POST(request: NextRequest) {
     );
   }
 }
+
+// Export rate-limited handler for POST
+export const POST = withRateLimit(handleCreateContainer, RateLimitPresets.CRITICAL);
 
 /**
  * Background deployment function

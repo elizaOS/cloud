@@ -15,7 +15,8 @@
     "db:migrate": "drizzle-kit migrate",
     "db:push": "drizzle-kit push",
     "db:studio": "drizzle-kit studio",
-    "seed:credit-packs": "tsx scripts/seed-credit-packs.ts"
+    "seed:credit-packs": "tsx scripts/seed-credit-packs.ts",
+    "bootstrapper:build": "cd bootstrapper && ./build.sh"
   },
   "dependencies": {
     "@ai-sdk/gateway": "^1.0.33",

@@ -3,17 +3,24 @@ import { requireAuthOrApiKey } from "@/lib/auth";
 import { db } from "@/db/drizzle";
 import { artifacts } from "@/db/sass/schema";
 import { nanoid } from "nanoid";
-import { createArtifactUploadCredentials, createArtifactDownloadCredentials } from "@/lib/services/r2-credentials";
+import { 
+  createArtifactUploadCredentials, 
+  createArtifactDownloadCredentials,
+  generatePresignedUrl 
+} from "@/lib/services/r2-credentials";
+import { withRateLimit, RateLimitPresets } from "@/lib/middleware/rate-limit";
 
 export const dynamic = "force-dynamic";
 
 const R2_BUCKET = process.env.R2_BUCKET_NAME || "eliza-artifacts";
+const R2_ENDPOINT = process.env.R2_ENDPOINT || `https://${process.env.R2_ACCOUNT_ID}.r2.cloudflarestorage.com`;
 
 /**
  * POST /api/v1/artifacts/upload
  * Request a presigned URL for uploading an artifact
+ * Rate limited: 10 requests per minute
  */
-export async function POST(request: NextRequest) {
+async function handleArtifactUpload(request: NextRequest) {
   try {
     const { user } = await requireAuthOrApiKey(request);
     const body = await request.json();
@@ -68,6 +75,24 @@ export async function POST(request: NextRequest) {
       }),
     ]);
 
+    // Generate presigned URLs for direct upload/download
+    const bucketName = R2_BUCKET;
+    const [uploadPresignedUrl, downloadPresignedUrl] = await Promise.all([
+      generatePresignedUrl(uploadCredentials, {
+        bucket: bucketName,
+        key: r2Key,
+        method: "PUT",
+        expiresIn: 600,
+        contentType: "application/gzip",
+      }),
+      generatePresignedUrl(downloadCredentials, {
+        bucket: bucketName,
+        key: r2Key,
+        method: "GET",
+        expiresIn: 3600,
+      }),
+    ]);
+
     // Only insert into database after credentials are successfully generated
     // This prevents orphaned database records if credential generation fails
     await db.insert(artifacts).values({
@@ -84,32 +109,35 @@ export async function POST(request: NextRequest) {
       created_at: new Date(),
     });
 
-    // Construct R2 URLs
-    const accountId = process.env.R2_ACCOUNT_ID;
-    const endpoint = process.env.R2_ENDPOINT || `https://${accountId}.r2.cloudflarestorage.com`;
-    const uploadUrl = `${endpoint}/${R2_BUCKET}/${r2Key}`;
-
+    // Return presigned URLs - CLI can use these directly without AWS signing
     return NextResponse.json({
       success: true,
       data: {
         artifactId,
-        // Upload credentials and URL
+        // Presigned upload URL (valid for 10 minutes)
         upload: {
-          url: uploadUrl,
+          url: uploadPresignedUrl,
           method: "PUT",
-          accessKeyId: uploadCredentials.accessKeyId,
-          secretAccessKey: uploadCredentials.secretAccessKey,
-          sessionToken: uploadCredentials.sessionToken,
           expiresAt: uploadCredentials.expiresAt,
         },
-        // Download credentials (for container bootstrapping)
+        // Presigned download URL (valid for 1 hour, for container bootstrapping)
         download: {
-          url: uploadUrl, // Same URL, different credentials
+          url: downloadPresignedUrl,
           method: "GET",
-          accessKeyId: downloadCredentials.accessKeyId,
-          secretAccessKey: downloadCredentials.secretAccessKey,
-          sessionToken: downloadCredentials.sessionToken,
           expiresAt: downloadCredentials.expiresAt,
+        },
+        // Raw credentials for CLI-side signing if needed
+        credentials: {
+          upload: {
+            accessKeyId: uploadCredentials.accessKeyId,
+            secretAccessKey: uploadCredentials.secretAccessKey,
+            sessionToken: uploadCredentials.sessionToken,
+          },
+          download: {
+            accessKeyId: downloadCredentials.accessKeyId,
+            secretAccessKey: downloadCredentials.secretAccessKey,
+            sessionToken: downloadCredentials.sessionToken,
+          },
         },
         // Artifact metadata
         artifact: {
@@ -117,6 +145,8 @@ export async function POST(request: NextRequest) {
           version,
           checksum,
           size,
+          r2Key,
+          r2Url: `${R2_ENDPOINT}/${R2_BUCKET}/${r2Key}`,
         },
       },
     });
@@ -131,3 +161,6 @@ export async function POST(request: NextRequest) {
     );
   }
 }
+
+// Export rate-limited handler
+export const POST = withRateLimit(handleArtifactUpload, RateLimitPresets.STRICT);
