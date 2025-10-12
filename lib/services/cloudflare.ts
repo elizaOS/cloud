@@ -277,32 +277,13 @@ export default {
       ...(config.environmentVars || {}),
     };
 
-    // If using bootstrapper architecture, inject artifact download credentials
+    // If using bootstrapper architecture, inject artifact download URL
+    // SECURITY: Use presigned URL instead of raw credentials to reduce attack surface
     if (config.useBootstrapper && config.artifactUrl) {
-      // Import R2 credentials service
-      const { createArtifactDownloadCredentials } = await import("./r2-credentials");
-      
-      // Parse artifact URL with robust validation
-      const { organizationId, projectId, version, artifactId } = parseArtifactUrl(config.artifactUrl);
-
-      // Generate temporary download credentials (read-only, 1 hour for container startup)
-      // Reduced from 6 hours to minimize exposure window
-      const downloadCreds = await createArtifactDownloadCredentials({
-        organizationId,
-        projectId,
-        version,
-        artifactId,
-        ttlSeconds: 3600, // 1 hour - sufficient for container startup and retries
-      });
-
-      // Inject artifact environment variables for bootstrapper
+      // The artifact URL is already a presigned URL with authentication baked in
+      // No need to pass raw credentials - bootstrapper will use the presigned URL directly
       environment.R2_ARTIFACT_URL = config.artifactUrl;
-      environment.R2_ACCESS_KEY_ID = downloadCreds.accessKeyId;
-      environment.R2_SECRET_ACCESS_KEY = downloadCreds.secretAccessKey;
-      environment.R2_SESSION_TOKEN = downloadCreds.sessionToken;
       environment.R2_ARTIFACT_CHECKSUM = config.artifactChecksum || "";
-      environment.R2_BUCKET_NAME = process.env.R2_BUCKET_NAME || "eliza-artifacts";
-      environment.R2_ENDPOINT = process.env.R2_ENDPOINT || "";
     }
 
     const bindingConfig = {
@@ -447,96 +428,6 @@ export default {
 
     const data = await response.json();
     return data.result?.logs || [];
-  }
-}
-
-/**
- * Parse artifact URL and extract metadata
- * Expected format: https://.../artifacts/{org}/{project}/{version}/{artifactId}.tar.gz
- * 
- * @throws {CloudflareApiError} If URL format is invalid
- */
-function parseArtifactUrl(artifactUrl: string): {
-  organizationId: string;
-  projectId: string;
-  version: string;
-  artifactId: string;
-} {
-  try {
-    const url = new URL(artifactUrl);
-    const pathParts = url.pathname.split("/").filter(Boolean);
-
-    // Validate minimum path structure
-    if (pathParts.length < 5) {
-      throw new Error(
-        `Insufficient path components. Expected: artifacts/{org}/{project}/{version}/{file}.tar.gz, got ${pathParts.length} parts`
-      );
-    }
-
-    // Find artifacts directory index
-    const artifactsIndex = pathParts.indexOf("artifacts");
-    if (artifactsIndex === -1) {
-      throw new Error(
-        `Missing 'artifacts' directory in path. URL must contain '/artifacts/' segment.`
-      );
-    }
-
-    // Validate we have enough parts after artifacts/
-    const remainingParts = pathParts.length - artifactsIndex - 1;
-    if (remainingParts < 4) {
-      throw new Error(
-        `Incomplete artifact path after 'artifacts/'. Expected 4 components (org/project/version/file), got ${remainingParts}`
-      );
-    }
-
-    // Extract components
-    const organizationId = pathParts[artifactsIndex + 1];
-    const projectId = pathParts[artifactsIndex + 2];
-    const version = pathParts[artifactsIndex + 3];
-    const artifactFileName = pathParts[artifactsIndex + 4];
-
-    // Validate artifact filename
-    if (!artifactFileName.endsWith(".tar.gz")) {
-      throw new Error(
-        `Invalid artifact filename '${artifactFileName}'. Must end with .tar.gz`
-      );
-    }
-
-    const artifactId = artifactFileName.replace(".tar.gz", "");
-
-    // Validate all components are non-empty and safe
-    const components = { organizationId, projectId, version, artifactId };
-    for (const [key, value] of Object.entries(components)) {
-      if (!value || value.trim() === "") {
-        throw new Error(`${key} cannot be empty`);
-      }
-
-      // Validate no path traversal attempts
-      if (value.includes("..") || value.includes("/") || value.includes("\\")) {
-        throw new Error(
-          `${key} contains invalid characters. Path traversal attempts are not allowed.`
-        );
-      }
-
-      // Validate reasonable length (prevent DOS)
-      if (value.length > 200) {
-        throw new Error(`${key} exceeds maximum length of 200 characters`);
-      }
-    }
-
-    return components;
-  } catch (error) {
-    const errorMsg = error instanceof Error ? error.message : "Unknown parsing error";
-    throw new CloudflareApiError(
-      `Failed to parse artifact URL: ${errorMsg}`,
-      artifactUrl,
-      "PARSE",
-      { 
-        url: artifactUrl,
-        parseError: errorMsg,
-        hint: "Expected format: https://.../artifacts/{org}/{project}/{version}/{file}.tar.gz"
-      }
-    );
   }
 }
 
