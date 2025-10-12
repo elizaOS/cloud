@@ -49,24 +49,24 @@ export async function POST(request: NextRequest) {
     // Create R2 key
     const r2Key = `artifacts/${user.organization_id}/${projectId}/${version}/${artifactId}.tar.gz`;
 
-    // Generate Cloudflare temporary credentials FIRST (scoped, write-only)
+    // Generate both credentials in parallel (independent operations)
     // This validates that we can create credentials before writing to DB
-    const uploadCredentials = await createArtifactUploadCredentials({
-      organizationId: user.organization_id,
-      projectId,
-      version,
-      artifactId,
-      ttlSeconds: 600, // 10 minutes
-    });
-
-    // Generate Cloudflare temporary credentials for DOWNLOAD (scoped, read-only)
-    const downloadCredentials = await createArtifactDownloadCredentials({
-      organizationId: user.organization_id,
-      projectId,
-      version,
-      artifactId,
-      ttlSeconds: 3600, // 1 hour (containers may take time to start)
-    });
+    const [uploadCredentials, downloadCredentials] = await Promise.all([
+      createArtifactUploadCredentials({
+        organizationId: user.organization_id,
+        projectId,
+        version,
+        artifactId,
+        ttlSeconds: 600, // 10 minutes (write-only)
+      }),
+      createArtifactDownloadCredentials({
+        organizationId: user.organization_id,
+        projectId,
+        version,
+        artifactId,
+        ttlSeconds: 3600, // 1 hour (read-only, for containers)
+      }),
+    ]);
 
     // Only insert into database after credentials are successfully generated
     // This prevents orphaned database records if credential generation fails
