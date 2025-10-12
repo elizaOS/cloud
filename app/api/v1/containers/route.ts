@@ -266,6 +266,7 @@ async function deployContainerAsync(
     await updateContainerStatus(containerId, "running", {
       cloudflareWorkerId: deployment.workerId,
       cloudflareContainerId: deployment.containerId,
+      cloudflareUrl: deployment.url,
       deploymentLog: `Deployed successfully to ${deployment.url}`,
     });
   } catch (error) {
