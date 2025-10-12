@@ -3,27 +3,9 @@ import { requireAuthOrApiKey } from "@/lib/auth";
 import { db } from "@/db/drizzle";
 import { artifacts } from "@/db/sass/schema";
 import { nanoid } from "nanoid";
-import { S3Client, PutObjectCommand } from "@aws-sdk/client-s3";
-import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
+import { createArtifactUploadCredentials, createArtifactDownloadCredentials } from "@/lib/services/r2-credentials";
 
 export const dynamic = "force-dynamic";
-
-// Validate R2 configuration
-if (!process.env.R2_ACCESS_KEY_ID || !process.env.R2_SECRET_ACCESS_KEY) {
-  console.error("R2 credentials not configured");
-}
-
-// Initialize R2 client (S3-compatible)
-const r2Client = process.env.R2_ACCESS_KEY_ID && process.env.R2_SECRET_ACCESS_KEY
-  ? new S3Client({
-      region: "auto",
-      endpoint: process.env.R2_ENDPOINT || `https://${process.env.R2_ACCOUNT_ID}.r2.cloudflarestorage.com`,
-      credentials: {
-        accessKeyId: process.env.R2_ACCESS_KEY_ID,
-        secretAccessKey: process.env.R2_SECRET_ACCESS_KEY,
-      },
-    })
-  : null;
 
 const R2_BUCKET = process.env.R2_BUCKET_NAME || "eliza-artifacts";
 
@@ -33,17 +15,6 @@ const R2_BUCKET = process.env.R2_BUCKET_NAME || "eliza-artifacts";
  */
 export async function POST(request: NextRequest) {
   try {
-    // Check R2 configuration
-    if (!r2Client) {
-      return NextResponse.json(
-        {
-          success: false,
-          error: "R2 storage not configured. Please contact support.",
-        },
-        { status: 503 }
-      );
-    }
-
     const { user } = await requireAuthOrApiKey(request);
     const body = await request.json();
 
@@ -78,24 +49,7 @@ export async function POST(request: NextRequest) {
     // Create R2 key
     const r2Key = `artifacts/${user.organization_id}/${projectId}/${version}/${artifactId}.tar.gz`;
 
-    // Generate presigned URL for upload (valid for 10 minutes)
-    const putCommand = new PutObjectCommand({
-      Bucket: R2_BUCKET,
-      Key: r2Key,
-      ContentType: "application/gzip",
-      Metadata: {
-        organizationId: user.organization_id,
-        projectId,
-        version,
-        checksum,
-        userId: user.id,
-        ...metadata,
-      },
-    });
-
-    const uploadUrl = await getSignedUrl(r2Client, putCommand, { expiresIn: 600 });
-
-    // Store artifact metadata in database
+    // Store artifact metadata in database FIRST
     await db.insert(artifacts).values({
       id: artifactId,
       organization_id: user.organization_id,
@@ -110,25 +64,58 @@ export async function POST(request: NextRequest) {
       created_at: new Date(),
     });
 
-    // Generate one-time scoped token for container to download artifact
-    // This would typically use Cloudflare API to create a temporary token
-    // For now, we'll use a signed URL approach
-    const artifactUrl = `https://${process.env.R2_PUBLIC_DOMAIN || 'artifacts.elizacloud.ai'}/${r2Key}`;
+    // Generate Cloudflare temporary credentials for UPLOAD (scoped, write-only)
+    const uploadCredentials = await createArtifactUploadCredentials({
+      organizationId: user.organization_id,
+      projectId,
+      version,
+      artifactId,
+      ttlSeconds: 600, // 10 minutes
+    });
 
-    // Create a temporary access token (in production, this would be a CF API token)
-    const tempToken = nanoid(32);
+    // Generate Cloudflare temporary credentials for DOWNLOAD (scoped, read-only)
+    const downloadCredentials = await createArtifactDownloadCredentials({
+      organizationId: user.organization_id,
+      projectId,
+      version,
+      artifactId,
+      ttlSeconds: 3600, // 1 hour (containers may take time to start)
+    });
 
-    // Store the temp token in cache/database with expiry
-    // For now, we'll include it in the response
+    // Construct R2 URLs
+    const accountId = process.env.R2_ACCOUNT_ID;
+    const endpoint = process.env.R2_ENDPOINT || `https://${accountId}.r2.cloudflarestorage.com`;
+    const uploadUrl = `${endpoint}/${R2_BUCKET}/${r2Key}`;
 
     return NextResponse.json({
       success: true,
       data: {
         artifactId,
-        uploadUrl,
-        artifactUrl,
-        token: tempToken,
-        expiresAt: new Date(Date.now() + 600 * 1000).toISOString(),
+        // Upload credentials and URL
+        upload: {
+          url: uploadUrl,
+          method: "PUT",
+          accessKeyId: uploadCredentials.accessKeyId,
+          secretAccessKey: uploadCredentials.secretAccessKey,
+          sessionToken: uploadCredentials.sessionToken,
+          expiresAt: uploadCredentials.expiresAt,
+        },
+        // Download credentials (for container bootstrapping)
+        download: {
+          url: uploadUrl, // Same URL, different credentials
+          method: "GET",
+          accessKeyId: downloadCredentials.accessKeyId,
+          secretAccessKey: downloadCredentials.secretAccessKey,
+          sessionToken: downloadCredentials.sessionToken,
+          expiresAt: downloadCredentials.expiresAt,
+        },
+        // Artifact metadata
+        artifact: {
+          id: artifactId,
+          version,
+          checksum,
+          size,
+        },
       },
     });
   } catch (error) {
