@@ -33,7 +33,7 @@ const createContainerSchema = z.object({
   artifact_checksum: z.string().optional(),
   
   // Optional: Allow custom image tag for self-hosted bootstrapper images
-  image_tag: z.string().optional().default("elizaos/bootstrapper:latest"),
+  image_tag: z.string().optional().default(process.env.BOOTSTRAPPER_IMAGE_TAG || "elizaos/bootstrapper:latest"),
 });
 
 /**
@@ -96,7 +96,7 @@ async function handleCreateContainer(request: NextRequest) {
       organization_id: user.organization_id,
       user_id: user.id,
       api_key_id: apiKey?.id || null,
-      image_tag: validatedData.image_tag || "elizaos/bootstrapper:latest",
+      image_tag: validatedData.image_tag || process.env.BOOTSTRAPPER_IMAGE_TAG || "elizaos/bootstrapper:latest",
       port: validatedData.port,
       max_instances: validatedData.max_instances,
       environment_vars: validatedData.environment_vars || {},
@@ -254,6 +254,7 @@ async function deployContainerAsync(
   organizationId: string,
 ): Promise<void> {
   const { updateContainerStatus } = await import("@/lib/queries/containers");
+  const { TimeoutError, withTimeout } = await import("@/lib/errors/deployment-errors");
 
   try {
     // Update status to building
@@ -267,17 +268,24 @@ async function deployContainerAsync(
 
     // Note: Artifact download credentials are generated and injected
     // by the CloudflareService.deployContainerBinding() method
-    const deployment = await cloudflare.deployContainer({
-      name: config.name,
-      imageTag: config.image_tag || "latest",
-      port: config.port,
-      maxInstances: config.max_instances,
-      environmentVars: config.environment_vars,
-      healthCheckPath: config.health_check_path,
-      useBootstrapper: config.use_bootstrapper,
-      artifactUrl: config.artifact_url,
-      artifactChecksum: config.artifact_checksum,
-    });
+    
+    // Add timeout to prevent deployments from hanging indefinitely
+    const DEPLOYMENT_TIMEOUT_MS = 10 * 60 * 1000; // 10 minutes
+    const deployment = await withTimeout(
+      async () => cloudflare.deployContainer({
+        name: config.name,
+        imageTag: config.image_tag || "latest",
+        port: config.port,
+        maxInstances: config.max_instances,
+        environmentVars: config.environment_vars,
+        healthCheckPath: config.health_check_path,
+        useBootstrapper: config.use_bootstrapper,
+        artifactUrl: config.artifact_url,
+        artifactChecksum: config.artifact_checksum,
+      }),
+      DEPLOYMENT_TIMEOUT_MS,
+      "deployContainer"
+    );
 
     // Update container with deployment info
     await updateContainerStatus(containerId, "running", {
@@ -286,28 +294,46 @@ async function deployContainerAsync(
       cloudflareUrl: deployment.url,
       deploymentLog: `Deployed successfully to ${deployment.url}`,
     });
+
+    console.log(`✅ Container ${containerId} deployed successfully to ${deployment.url}`);
   } catch (error) {
     console.error("Deployment failed:", error);
 
+    const errorMessage = error instanceof Error ? error.message : "Unknown deployment error";
+    const isTimeout = error instanceof TimeoutError;
+
     // Update container status to failed
     await updateContainerStatus(containerId, "failed", {
-      errorMessage:
-        error instanceof Error ? error.message : "Unknown deployment error",
-      deploymentLog: `Deployment failed: ${error instanceof Error ? error.message : "Unknown error"}`,
+      errorMessage: isTimeout 
+        ? "Deployment timed out after 10 minutes. This may indicate a configuration issue or infrastructure problem."
+        : errorMessage,
+      deploymentLog: `Deployment failed: ${errorMessage}${isTimeout ? " (timeout)" : ""}`,
     });
 
-    // Refund credits since deployment failed
+    // Refund credits and cleanup failed container
     try {
+      // Refund credits for failed deployment
       await addCredits(
         organizationId,
         deploymentCost,
         "refund",
-        `Refund for failed container deployment: ${config.name}`,
+        `Refund for failed container deployment: ${config.name}${isTimeout ? " (timeout)" : ""}`,
       );
-      console.log(`Refunded ${deploymentCost} credits for failed deployment of container ${containerId}`);
+      console.log(`✅ Refunded ${deploymentCost} credits for failed deployment of container ${containerId}`);
     } catch (refundError) {
-      console.error("Failed to refund credits for failed deployment:", refundError);
+      console.error("❌ Failed to refund credits for failed deployment:", refundError);
       // Log but don't throw - the deployment failure is already handled
+    }
+
+    // Attempt to rollback: Delete failed container record for clean state
+    // This prevents database pollution with broken containers
+    try {
+      await deleteContainer(containerId, organizationId);
+      console.log(`✅ Rolled back failed container ${containerId} (deleted from database)`);
+    } catch (rollbackError) {
+      console.error(`❌ Failed to rollback container ${containerId}:`, rollbackError);
+      // Log but don't throw - container is already marked failed
+      // Admin can manually clean up via dashboard if needed
     }
   }
 }
