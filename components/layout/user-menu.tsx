@@ -18,7 +18,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
-import { LogOut, User, Loader2, Coins, Settings, UserCircle } from "lucide-react";
+import { LogOut, Loader2, Coins, Settings, UserCircle } from "lucide-react";
 import { useEffect, useState } from "react";
 import { handleSignOut, getCreditBalance } from "@/app/actions/auth";
 import { useRouter } from "next/navigation";

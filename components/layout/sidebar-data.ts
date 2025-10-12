@@ -95,7 +95,7 @@ export const sidebarSections: SidebarSection[] = [
         label: "Containers",
         href: "/dashboard/containers",
         icon: Server,
-        isNew: false,
+        isNew: true,
       },
       {
         id: "storage",
