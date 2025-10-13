@@ -1,32 +1,31 @@
-import { gateway } from "@ai-sdk/gateway";
 import { requireAuthOrApiKey } from "@/lib/auth";
+import { getProvider } from "@/lib/providers";
+import type { OpenAIModelsResponse } from "@/lib/providers/types";
 import type { NextRequest } from "next/server";
 
-// This route requires authentication and must be dynamic
 export const dynamic = "force-dynamic";
+
+// Using shared OpenAIModelsResponse type
 
 export async function GET(request: NextRequest) {
   try {
     await requireAuthOrApiKey(request);
 
-    const response = await gateway.getAvailableModels();
+    const provider = getProvider();
+    const response = await provider.listModels();
+    const data: OpenAIModelsResponse = await response.json();
 
-    // getAvailableModels returns a response with models array
-    const modelsList = response.models || [];
-
-    return Response.json({
-      models: modelsList.map(
-        (model: { id: string; name?: string; provider?: string }) => ({
-          id: model.id,
-          name: model.name || model.id,
-          ...(model.provider && { provider: model.provider }),
-        }),
-      ),
-    });
+    // Return OpenAI-compatible format
+    return Response.json(data);
   } catch (error) {
     console.error("Error fetching models:", error);
     return Response.json(
-      { error: "Failed to fetch available models" },
+      {
+        error: {
+          message: "Failed to fetch available models",
+          type: "api_error",
+        },
+      },
       { status: 500 },
     );
   }
