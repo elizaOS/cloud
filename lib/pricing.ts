@@ -84,9 +84,78 @@ function getFallbackPricing(
 }
 
 export function getProviderFromModel(model: string): string {
+  // Handle provider-prefixed format: "openai/gpt-4o-mini" or "anthropic/claude-3"
+  if (model.includes("/")) {
+    const [provider] = model.split("/");
+    return provider;
+  }
+  
+  // Handle non-prefixed format: "gpt-4o-mini"
   if (model.startsWith("gpt-")) return "openai";
   if (model.startsWith("claude-")) return "anthropic";
   if (model.startsWith("gemini-")) return "google";
   if (model.startsWith("llama")) return "meta";
   return "openai";
+}
+
+/**
+ * Normalize model name by removing provider prefix if present
+ * "openai/gpt-4o-mini" -> "gpt-4o-mini"
+ */
+export function normalizeModelName(model: string): string {
+  if (model.includes("/")) {
+    const [, modelName] = model.split("/");
+    return modelName;
+  }
+  return model;
+}
+
+/**
+ * Estimate token count from text (rough approximation)
+ * Average: 1 token ≈ 4 characters
+ */
+export function estimateTokens(text: string): number {
+  return Math.ceil(text.length / 4);
+}
+
+/**
+ * Estimate cost for a chat request before making the API call
+ * Used for pre-flight credit checking
+ * 
+ * Note: content can be string or multimodal (arrays with text/images)
+ */
+export async function estimateRequestCost(
+  model: string,
+  messages: Array<{ role: string; content: string | object }>,
+): Promise<number> {
+  const provider = getProviderFromModel(model);
+  const normalizedModel = normalizeModelName(model);
+  
+  // Estimate input tokens from messages
+  // Handle both string content and multimodal content
+  const messageText = messages.map(m => {
+    if (typeof m.content === 'string') {
+      return m.content;
+    } else if (m.content && typeof m.content === 'object') {
+      // For multimodal content, stringify and estimate
+      // This is a rough approximation
+      return JSON.stringify(m.content);
+    }
+    return '';
+  }).join(" ");
+  
+  const estimatedInputTokens = estimateTokens(messageText);
+  
+  // Estimate output tokens (conservative estimate: 500 tokens)
+  const estimatedOutputTokens = 500;
+  
+  const { totalCost } = await calculateCost(
+    normalizedModel,
+    provider,
+    estimatedInputTokens,
+    estimatedOutputTokens,
+  );
+  
+  // Add 50% buffer for safety (increased from 20% to handle usage spikes)
+  return Math.ceil(totalCost * 1.5);
 }
