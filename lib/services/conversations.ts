@@ -79,6 +79,16 @@ export class ConversationsService {
   async getNextSequenceNumber(conversationId: string): Promise<number> {
     return await conversationsRepository.getNextSequenceNumber(conversationId);
   }
+
+  async addMessageWithSequence(
+    conversationId: string,
+    data: Omit<NewConversationMessage, "sequence_number" | "conversation_id">,
+  ): Promise<ConversationMessage> {
+    return await conversationsRepository.addMessageWithSequence(
+      conversationId,
+      data,
+    );
+  }
 }
 
 // Export singleton instance

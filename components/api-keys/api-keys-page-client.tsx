@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
 import { Plus, Copy } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";

@@ -112,6 +112,47 @@ export class ConversationsRepository {
 
     return lastMessage ? lastMessage.sequence_number + 1 : 1;
   }
+
+  async addMessageWithSequence(
+    conversationId: string,
+    data: Omit<NewConversationMessage, "sequence_number" | "conversation_id">,
+  ): Promise<ConversationMessage> {
+    return await db.transaction(async (tx) => {
+      const lastMessage = await tx.query.conversationMessages.findFirst({
+        where: eq(conversationMessages.conversation_id, conversationId),
+        orderBy: desc(conversationMessages.sequence_number),
+      });
+
+      const nextSequence = lastMessage ? lastMessage.sequence_number + 1 : 1;
+
+      const [message] = await tx
+        .insert(conversationMessages)
+        .values({
+          ...data,
+          conversation_id: conversationId,
+          sequence_number: nextSequence,
+        })
+        .returning();
+
+      const conversation = await tx.query.conversations.findFirst({
+        where: eq(conversations.id, conversationId),
+      });
+
+      if (conversation) {
+        await tx
+          .update(conversations)
+          .set({
+            message_count: conversation.message_count + 1,
+            last_message_at: new Date(),
+            total_cost: conversation.total_cost + (data.cost || 0),
+            updated_at: new Date(),
+          })
+          .where(eq(conversations.id, conversationId));
+      }
+
+      return message;
+    });
+  }
 }
 
 // Export singleton instance

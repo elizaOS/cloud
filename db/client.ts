@@ -1,9 +1,10 @@
 import { drizzle } from "drizzle-orm/neon-serverless";
 import { Pool } from "@neondatabase/serverless";
 import * as sassSchema from "./schemas";
+import * as elizaSchema from "./eliza/schema";
 import type { NeonDatabase } from "drizzle-orm/neon-serverless";
 
-const schema = { ...sassSchema };
+const schema = { ...sassSchema, ...elizaSchema };
 
 let _db: NeonDatabase<typeof schema> | null = null;
 

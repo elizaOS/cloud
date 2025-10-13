@@ -2,40 +2,11 @@ import { type NextRequest, NextResponse } from "next/server";
 import { requireAuth } from "@/lib/auth";
 import { stripe } from "@/lib/stripe";
 import { creditsService, organizationsService } from "@/lib/services";
-import { rateLimiter, RATE_LIMITS } from "@/lib/rate-limiter";
+import { withRateLimit, RateLimitPresets } from "@/lib/middleware/rate-limit";
 
-export async function POST(req: NextRequest) {
+async function handleCheckoutSession(req: NextRequest) {
   try {
     const user = await requireAuth();
-
-    const rateLimitKey = `checkout:${user.organization_id}`;
-    const rateLimitResult = rateLimiter.check(
-      rateLimitKey,
-      RATE_LIMITS.CHECKOUT_SESSION.limit,
-      RATE_LIMITS.CHECKOUT_SESSION.windowMs,
-    );
-
-    if (!rateLimitResult.allowed) {
-      const resetDate = new Date(rateLimitResult.resetAt);
-      return NextResponse.json(
-        {
-          error: "Too many checkout sessions created",
-          message: `Rate limit exceeded. Try again after ${resetDate.toLocaleTimeString()}`,
-          retryAfter: Math.ceil((rateLimitResult.resetAt - Date.now()) / 1000),
-        },
-        {
-          status: 429,
-          headers: {
-            "Retry-After": Math.ceil(
-              (rateLimitResult.resetAt - Date.now()) / 1000,
-            ).toString(),
-            "X-RateLimit-Limit": RATE_LIMITS.CHECKOUT_SESSION.limit.toString(),
-            "X-RateLimit-Remaining": "0",
-            "X-RateLimit-Reset": rateLimitResult.resetAt.toString(),
-          },
-        },
-      );
-    }
 
     const { creditPackId } = await req.json();
 
@@ -95,17 +66,7 @@ export async function POST(req: NextRequest) {
       },
     });
 
-    return NextResponse.json(
-      { sessionId: session.id, url: session.url },
-      {
-        status: 200,
-        headers: {
-          "X-RateLimit-Limit": RATE_LIMITS.CHECKOUT_SESSION.limit.toString(),
-          "X-RateLimit-Remaining": rateLimitResult.remaining.toString(),
-          "X-RateLimit-Reset": rateLimitResult.resetAt.toString(),
-        },
-      },
-    );
+    return NextResponse.json({ sessionId: session.id, url: session.url });
   } catch (error) {
     console.error("Error creating checkout session:", error);
     return NextResponse.json(
@@ -114,3 +75,6 @@ export async function POST(req: NextRequest) {
     );
   }
 }
+
+// Export rate-limited handler with standard preset
+export const POST = withRateLimit(handleCheckoutSession, RateLimitPresets.STRICT);
