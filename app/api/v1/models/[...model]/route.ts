@@ -1,5 +1,6 @@
 // app/api/v1/models/[...model]/route.ts
 import { requireAuthOrApiKey } from "@/lib/auth";
+import { logger } from "@/lib/utils/logger";
 import type { NextRequest } from "next/server";
 
 export const dynamic = "force-dynamic";
@@ -66,7 +67,7 @@ export async function GET(
     const data = await response.json();
     return Response.json(data);
   } catch (error) {
-    console.error("Error fetching model:", error);
+    logger.error("Error fetching model:", error);
     return Response.json(
       {
         error: {

@@ -171,3 +171,15 @@ export async function getCreditBalance(
 
   return org.credit_balance;
 }
+
+export async function checkSufficientCredits(
+  organizationId: string,
+  requiredAmount: number,
+): Promise<{ sufficient: boolean; balance: number; required: number }> {
+  const balance = await getCreditBalance(organizationId);
+  return {
+    sufficient: balance >= requiredAmount,
+    balance,
+    required: requiredAmount,
+  };
+}
