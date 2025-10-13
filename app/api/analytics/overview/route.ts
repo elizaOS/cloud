@@ -2,6 +2,8 @@ import { type NextRequest, NextResponse } from "next/server";
 import { requireAuthOrApiKey } from "@/lib/auth";
 import { logger } from "@/lib/utils/logger";
 import { withRateLimit, RateLimitPresets } from "@/lib/middleware/rate-limit";
+import { cache } from "@/lib/cache/client";
+import { CacheKeys, CacheTTL } from "@/lib/cache/keys";
 import {
   getUsageStatsSafe,
   getUsageTimeSeries,
@@ -21,6 +23,15 @@ async function handleGET(req: NextRequest) {
     const timeRange =
       (searchParams.get("timeRange") as "daily" | "weekly" | "monthly") ||
       "daily";
+
+    const cacheKey = CacheKeys.analytics.overview(user.organization_id, timeRange);
+    const cached = await cache.get<typeof response>(cacheKey);
+    if (cached) {
+      logger.debug(
+        `[Analytics Overview] Cache hit for org=${user.organization_id}, range=${timeRange}`
+      );
+      return NextResponse.json(cached);
+    }
 
     const now = new Date();
     let startDate: Date;
@@ -137,6 +148,9 @@ async function handleGET(req: NextRequest) {
         },
       },
     };
+
+    const ttl = CacheTTL.analytics.overview[timeRange];
+    await cache.set(cacheKey, response, ttl);
 
     return NextResponse.json(response);
   } catch (error) {
