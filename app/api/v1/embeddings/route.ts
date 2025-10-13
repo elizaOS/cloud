@@ -66,7 +66,7 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    const provider = getProviderFromModel(request.model);
+    const providerName = getProviderFromModel(request.model);
     const normalizedModel = normalizeModelName(request.model);
 
     // Estimate cost before making API call
@@ -76,7 +76,7 @@ export async function POST(req: NextRequest) {
     const estimatedTokens = estimateTokens(inputText);
     const { totalCost: estimatedCost } = await calculateCost(
       normalizedModel,
-      provider,
+      providerName,
       estimatedTokens,
       0, // embeddings don't have output tokens
     );
@@ -110,8 +110,8 @@ export async function POST(req: NextRequest) {
     }
 
     // Forward via provider
-    const provider = getProvider();
-    const response = await provider.embeddings(request);
+    const gatewayProvider = getProvider();
+    const response = await gatewayProvider.embeddings(request);
     const data: OpenAIEmbeddingsResponse = await response.json();
 
     // Background analytics with proper pricing
@@ -123,7 +123,7 @@ export async function POST(req: NextRequest) {
           // Use proper cost calculation
           const { inputCost, totalCost } = await calculateCost(
             normalizedModel,
-            provider,
+            providerName,
             tokensUsed,
             0, // embeddings don't have output tokens
           );
@@ -149,7 +149,7 @@ export async function POST(req: NextRequest) {
             api_key_id: apiKey?.id || null,
             type: "embeddings",
             model: normalizedModel,
-            provider,
+            provider: providerName,
             input_tokens: data.usage.prompt_tokens,
             output_tokens: 0,
             input_cost: inputCost,
@@ -160,7 +160,7 @@ export async function POST(req: NextRequest) {
           logger.info("[OpenAI Proxy] Embeddings completed", {
             model: request.model,
             normalizedModel,
-            provider,
+            provider: providerName,
             tokens: tokensUsed,
             cost: totalCost,
           });
