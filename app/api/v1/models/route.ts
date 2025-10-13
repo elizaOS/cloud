@@ -1,32 +1,53 @@
-import { gateway } from "@ai-sdk/gateway";
 import { requireAuthOrApiKey } from "@/lib/auth";
 import type { NextRequest } from "next/server";
 
-// This route requires authentication and must be dynamic
 export const dynamic = "force-dynamic";
+
+interface OpenAIModel {
+  id: string;
+  object: "model";
+  created: number;
+  owned_by: string;
+}
+
+interface OpenAIModelsResponse {
+  object: "list";
+  data: OpenAIModel[];
+}
 
 export async function GET(request: NextRequest) {
   try {
     await requireAuthOrApiKey(request);
 
-    const response = await gateway.getAvailableModels();
+    const gatewayKey = process.env.VERCEL_AI_GATEWAY_API_KEY || process.env.AI_GATEWAY_API_KEY;
+    if (!gatewayKey) {
+      throw new Error("VERCEL_AI_GATEWAY_API_KEY or AI_GATEWAY_API_KEY not configured");
+    }
 
-    // getAvailableModels returns a response with models array
-    const modelsList = response.models || [];
-
-    return Response.json({
-      models: modelsList.map(
-        (model: { id: string; name?: string; provider?: string }) => ({
-          id: model.id,
-          name: model.name || model.id,
-          ...(model.provider && { provider: model.provider }),
-        }),
-      ),
+    // Forward to Vercel AI Gateway
+    const response = await fetch("https://ai-gateway.vercel.sh/v1/models", {
+      headers: {
+        Authorization: `Bearer ${gatewayKey}`,
+      },
     });
+
+    if (!response.ok) {
+      throw new Error(`Gateway error: ${response.status}`);
+    }
+
+    const data: OpenAIModelsResponse = await response.json();
+
+    // Return OpenAI-compatible format
+    return Response.json(data);
   } catch (error) {
     console.error("Error fetching models:", error);
     return Response.json(
-      { error: "Failed to fetch available models" },
+      {
+        error: {
+          message: "Failed to fetch available models",
+          type: "api_error",
+        },
+      },
       { status: 500 },
     );
   }
