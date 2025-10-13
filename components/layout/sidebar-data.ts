@@ -18,6 +18,7 @@ import {
   CreditCard,
   UserCog,
   Bot,
+  Code,
 } from "lucide-react";
 import { ComponentType } from "react";
 
