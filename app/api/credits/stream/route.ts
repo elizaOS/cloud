@@ -8,8 +8,18 @@ import { logger } from "@/lib/utils/logger";
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
 
+// Heartbeat every 30 seconds to keep connection alive
 const HEARTBEAT_INTERVAL = 30000;
-const CONNECTION_TIMEOUT = 300000;
+
+// Connection timeout: 30 minutes (1800000ms) by default
+// Configurable via SSE_CONNECTION_TIMEOUT environment variable
+// Industry standard for SSE connections is 30-60 minutes
+// Previous value of 5 minutes caused unnecessary reconnections
+// See ANALYTICS_PR_REVIEW_ANALYSIS.md - Issue #4 (Fixed)
+const CONNECTION_TIMEOUT = parseInt(
+  process.env.SSE_CONNECTION_TIMEOUT || "1800000",
+  10
+);
 
 export async function GET(request: NextRequest) {
   try {

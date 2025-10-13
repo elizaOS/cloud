@@ -134,15 +134,27 @@ export async function getUsageStatsSafe(
   });
 }
 
+/**
+ * Get usage time series data with DOS protection
+ *
+ * @param organizationId - Organization ID
+ * @param options - Query options including maxRows limit
+ * @returns Time series data points
+ * @throws Error if result exceeds maxRows limit
+ *
+ * DOS Protection: Enforces database-level LIMIT to prevent expensive queries
+ * See ANALYTICS_PR_REVIEW_ANALYSIS.md - Issue #6 (Fixed)
+ */
 export async function getUsageTimeSeries(
   organizationId: string,
   options: {
     startDate: Date;
     endDate: Date;
     granularity: TimeGranularity;
+    maxRows?: number;
   }
 ): Promise<TimeSeriesDataPoint[]> {
-  const { startDate, endDate, granularity } = options;
+  const { startDate, endDate, granularity, maxRows = 100000 } = options;
 
   if (!validateGranularity(granularity)) {
     throw new Error(
@@ -179,7 +191,15 @@ export async function getUsageTimeSeries(
       )
     )
     .groupBy(truncateExpression)
-    .orderBy(truncateExpression);
+    .orderBy(truncateExpression)
+    .limit(maxRows + 1);
+
+  if (result.length > maxRows) {
+    throw new Error(
+      `Query would return ${result.length} rows (limit: ${maxRows}). ` +
+      `Please use a smaller date range or coarser granularity.`
+    );
+  }
 
   return result.map((row) => ({
     timestamp: new Date(row.timestamp as string),
@@ -191,15 +211,24 @@ export async function getUsageTimeSeries(
   }));
 }
 
+/**
+ * Get usage breakdown by user with DOS protection
+ *
+ * DOS Protection: Enforces maximum row limit
+ * See ANALYTICS_PR_REVIEW_ANALYSIS.md - Issue #6 (Fixed)
+ */
 export async function getUsageByUser(
   organizationId: string,
   options?: {
     startDate?: Date;
     endDate?: Date;
     limit?: number;
+    maxRows?: number;
   }
 ): Promise<UserUsageBreakdown[]> {
-  const { startDate, endDate, limit = 50 } = options || {};
+  const { startDate, endDate, limit = 50, maxRows = 100000 } = options || {};
+
+  const effectiveLimit = Math.min(limit, maxRows);
 
   const conditions: SQL[] = [
     eq(schema.usageRecords.organization_id, organizationId),
@@ -240,7 +269,13 @@ export async function getUsageByUser(
         sql`sum(${schema.usageRecords.input_cost} + ${schema.usageRecords.output_cost})`
       )
     )
-    .limit(limit);
+    .limit(effectiveLimit + 1);
+
+  if (result.length > effectiveLimit) {
+    throw new Error(
+      `Query would return more than ${effectiveLimit} rows. Please narrow your filters.`
+    );
+  }
 
   return result
     .filter((row) => row.userId !== null && row.userEmail !== null)
@@ -299,22 +334,30 @@ export async function getCostTrending(
   };
 }
 
+/**
+ * Get provider breakdown with DOS protection
+ *
+ * DOS Protection: Limits result set size
+ * See ANALYTICS_PR_REVIEW_ANALYSIS.md - Issue #6 (Fixed)
+ */
 export async function getProviderBreakdown(
   organizationId: string,
-  options?: { startDate?: Date; endDate?: Date }
+  options?: { startDate?: Date; endDate?: Date; maxRows?: number }
 ): Promise<ProviderBreakdown[]> {
+  const { startDate, endDate, maxRows = 100000 } = options || {};
+
   const conditions: SQL[] = [
     eq(schema.usageRecords.organization_id, organizationId),
   ];
 
-  if (options?.startDate) {
+  if (startDate) {
     conditions.push(
-      sql`${schema.usageRecords.created_at} >= ${options.startDate}`
+      sql`${schema.usageRecords.created_at} >= ${startDate}`
     );
   }
-  if (options?.endDate) {
+  if (endDate) {
     conditions.push(
-      sql`${schema.usageRecords.created_at} <= ${options.endDate}`
+      sql`${schema.usageRecords.created_at} <= ${endDate}`
     );
   }
 
@@ -337,7 +380,14 @@ export async function getProviderBreakdown(
       desc(
         sql`sum(${schema.usageRecords.input_cost} + ${schema.usageRecords.output_cost})`
       )
+    )
+    .limit(maxRows + 1);
+
+  if (result.length > maxRows) {
+    throw new Error(
+      `Query would return more than ${maxRows} providers. This should not happen in normal usage.`
     );
+  }
 
   const totalCost = result.reduce((sum, row) => sum + row.totalCost, 0);
 
@@ -351,11 +401,19 @@ export async function getProviderBreakdown(
   }));
 }
 
+/**
+ * Get model breakdown with DOS protection
+ *
+ * DOS Protection: Enforces maximum row limit
+ * See ANALYTICS_PR_REVIEW_ANALYSIS.md - Issue #6 (Fixed)
+ */
 export async function getModelBreakdown(
   organizationId: string,
-  options?: { startDate?: Date; endDate?: Date; limit?: number }
+  options?: { startDate?: Date; endDate?: Date; limit?: number; maxRows?: number }
 ): Promise<ModelBreakdown[]> {
-  const { startDate, endDate, limit = 50 } = options || {};
+  const { startDate, endDate, limit = 50, maxRows = 100000 } = options || {};
+
+  const effectiveLimit = Math.min(limit, maxRows);
 
   const conditions: SQL[] = [
     eq(schema.usageRecords.organization_id, organizationId),
@@ -393,7 +451,13 @@ export async function getModelBreakdown(
         sql`sum(${schema.usageRecords.input_cost} + ${schema.usageRecords.output_cost})`
       )
     )
-    .limit(limit);
+    .limit(effectiveLimit + 1);
+
+  if (result.length > effectiveLimit) {
+    throw new Error(
+      `Query would return more than ${effectiveLimit} models. Please narrow your filters.`
+    );
+  }
 
   return result.map((row) => ({
     model: row.model || "unknown",
