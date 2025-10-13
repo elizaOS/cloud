@@ -1,5 +1,52 @@
 import type { TimeSeriesDataPoint } from "@/lib/queries/analytics";
 
+/**
+ * Projection configuration constants
+ */
+export const PROJECTION_CONSTANTS = {
+  /**
+   * Variance factor for projection calculations (±10%)
+   * Applied to introduce realistic fluctuation in projected values
+   */
+  VARIANCE_FACTOR: 0.1,
+
+  /**
+   * Initial confidence level for projections (90%)
+   * Represents confidence in near-term projections
+   */
+  INITIAL_CONFIDENCE: 90,
+
+  /**
+   * Confidence decay rate per period (3% per period)
+   * How much confidence decreases as we project further
+   */
+  CONFIDENCE_DECAY_RATE: 3,
+
+  /**
+   * Minimum confidence floor (60%)
+   * Lowest confidence level for any projection
+   */
+  MIN_CONFIDENCE: 60,
+} as const;
+
+/**
+ * Deterministic pseudo-random generator using timestamp as seed
+ * This provides consistent "randomness" for a given timestamp
+ * @param timestamp - The date to use as seed
+ * @param index - Additional seed component for variation
+ * @param variance - Variance factor to apply
+ * @returns Value between (1 - variance/2) and (1 + variance/2)
+ */
+function seededRandom(timestamp: Date, index: number, variance: number): number {
+  const seed = timestamp.getTime() + index;
+  // Simple Linear Congruential Generator (LCG)
+  const a = 1664525;
+  const c = 1013904223;
+  const m = 2 ** 32;
+  const random = ((seed * a + c) % m) / m;
+  return 1 + (random - 0.5) * variance;
+}
+
 export interface ProjectionDataPoint {
   timestamp: Date;
   totalRequests: number;
@@ -24,10 +71,18 @@ export interface ProjectionAlert {
   projectedDate?: Date;
 }
 
+/**
+ * Calculate linear regression for a series of values
+ * Handles edge cases including division by zero and insufficient data
+ * @param values - Array of numeric values
+ * @returns Slope and intercept for the linear regression line
+ */
 export function calculateLinearRegression(
   values: number[]
 ): LinearRegressionResult {
   const n = values.length;
+
+  // Handle edge case: insufficient data
   if (n < 2) {
     return { slope: 0, intercept: values[0] || 0 };
   }
@@ -37,7 +92,16 @@ export function calculateLinearRegression(
   const sumXY = values.reduce((sum, val, i) => sum + i * val, 0);
   const sumXX = values.reduce((sum, _, i) => sum + i * i, 0);
 
-  const slope = (n * sumXY - sumX * sumY) / (n * sumXX - sumX * sumX);
+  const denominator = n * sumXX - sumX * sumX;
+
+  // Handle edge case: no variance in X values (all same)
+  // This shouldn't happen with sequential indices, but safety first
+  if (denominator === 0) {
+    const avgY = sumY / n;
+    return { slope: 0, intercept: avgY };
+  }
+
+  const slope = (n * sumXY - sumX * sumY) / denominator;
   const intercept = (sumY - slope * sumX) / n;
 
   return { slope, intercept };
@@ -109,17 +173,20 @@ export function generateProjections(
       )
     );
 
-    const variance = 0.1;
-    const requestsVariance =
-      projectedRequests * (1 + (Math.random() - 0.5) * variance);
-    const costVariance = projectedCost * (1 + (Math.random() - 0.5) * variance);
-    const inputTokensVariance =
-      projectedInputTokens * (1 + (Math.random() - 0.5) * variance);
-    const outputTokensVariance =
-      projectedOutputTokens * (1 + (Math.random() - 0.5) * variance);
-
     const futureDate = new Date(lastDate.getTime() + avgTimeDiff * i);
-    const confidence = Math.max(60, 90 - i * 3);
+
+    const variance = PROJECTION_CONSTANTS.VARIANCE_FACTOR;
+    const requestsVariance = projectedRequests * seededRandom(futureDate, i, variance);
+    const costVariance = projectedCost * seededRandom(futureDate, i + 1000, variance);
+    const inputTokensVariance =
+      projectedInputTokens * seededRandom(futureDate, i + 2000, variance);
+    const outputTokensVariance =
+      projectedOutputTokens * seededRandom(futureDate, i + 3000, variance);
+
+    const confidence = Math.max(
+      PROJECTION_CONSTANTS.MIN_CONFIDENCE,
+      PROJECTION_CONSTANTS.INITIAL_CONFIDENCE - i * PROJECTION_CONSTANTS.CONFIDENCE_DECAY_RATE
+    );
 
     combined.push({
       timestamp: futureDate,
