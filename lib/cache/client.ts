@@ -3,13 +3,17 @@ import { logger } from "@/lib/utils/logger";
 
 export class CacheClient {
   private redis: Redis | null = null;
-  private enabled: boolean;
+  private enabled: boolean | null = null;
+  private initialized: boolean = false;
   private failureCount: number = 0;
   private lastFailureTime: number = 0;
   private readonly MAX_FAILURES = 5;
   private readonly CIRCUIT_BREAKER_TIMEOUT = 60000;
 
-  constructor() {
+  private initialize(): void {
+    if (this.initialized) return;
+    this.initialized = true;
+
     this.enabled = process.env.CACHE_ENABLED !== "false";
 
     if (!this.enabled) {
@@ -18,25 +22,26 @@ export class CacheClient {
     }
 
     if (
-      !process.env.UPSTASH_REDIS_REST_URL ||
-      !process.env.UPSTASH_REDIS_REST_TOKEN
+      !process.env.KV_REST_API_URL ||
+      !process.env.KV_REST_API_TOKEN
     ) {
       logger.error(
-        "[Cache] Missing Upstash credentials, caching disabled. Set UPSTASH_REDIS_REST_URL and UPSTASH_REDIS_REST_TOKEN"
+        "[Cache] Missing Upstash credentials, caching disabled. Set KV_REST_API_URL and KV_REST_API_TOKEN"
       );
       this.enabled = false;
       return;
     }
 
     this.redis = new Redis({
-      url: process.env.UPSTASH_REDIS_REST_URL,
-      token: process.env.UPSTASH_REDIS_REST_TOKEN,
+      url: process.env.KV_REST_API_URL,
+      token: process.env.KV_REST_API_TOKEN,
     });
 
     logger.info("[Cache] Cache client initialized with Upstash Redis");
   }
 
   async get<T>(key: string): Promise<T | null> {
+    this.initialize();
     if (!this.enabled || !this.redis || this.isCircuitOpen()) return null;
 
     try {
@@ -68,6 +73,7 @@ export class CacheClient {
   }
 
   async set<T>(key: string, value: T, ttlSeconds: number): Promise<void> {
+    this.initialize();
     if (!this.enabled || !this.redis || this.isCircuitOpen()) return;
 
     try {
@@ -89,6 +95,7 @@ export class CacheClient {
   }
 
   async del(key: string): Promise<void> {
+    this.initialize();
     if (!this.enabled || !this.redis) return;
 
     try {
@@ -103,6 +110,7 @@ export class CacheClient {
   }
 
   async delPattern(pattern: string): Promise<void> {
+    this.initialize();
     if (!this.enabled || !this.redis) return;
 
     try {
@@ -125,6 +133,7 @@ export class CacheClient {
   }
 
   async mget<T>(keys: string[]): Promise<Array<T | null>> {
+    this.initialize();
     if (!this.enabled || !this.redis) return keys.map(() => null);
 
     try {

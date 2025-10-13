@@ -1,3 +1,6 @@
+// eslint-disable-next-line @typescript-eslint/no-require-imports
+require("dotenv").config();
+
 import { CacheHealth } from "@/lib/cache/health";
 import { logger } from "@/lib/utils/logger";
 
