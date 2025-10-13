@@ -1,6 +1,6 @@
 // app/api/v1/chat/completions/route.ts
 import { requireAuthOrApiKey } from "@/lib/auth";
-import { VercelGatewayProvider } from "@/lib/providers/vercel-gateway";
+import { getProvider } from "@/lib/providers";
 import { deductCredits, checkSufficientCredits } from "@/lib/queries/credits";
 import { createUsageRecord } from "@/lib/queries/usage";
 import { createGeneration } from "@/lib/queries/generations";
@@ -19,15 +19,6 @@ import type {
 } from "@/lib/providers/types";
 
 export const maxDuration = 60;
-
-// Initialize provider
-const getProvider = () => {
-  const apiKey = process.env.VERCEL_AI_GATEWAY_API_KEY || process.env.AI_GATEWAY_API_KEY;
-  if (!apiKey) {
-    throw new Error("VERCEL_AI_GATEWAY_API_KEY or AI_GATEWAY_API_KEY not configured");
-  }
-  return new VercelGatewayProvider(apiKey);
-};
 
 export async function POST(req: NextRequest) {
   const startTime = Date.now();

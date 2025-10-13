@@ -1,5 +1,9 @@
 // lib/providers/vercel-gateway.ts
-import type { AIProvider, OpenAIChatRequest } from "./types";
+import type { 
+  AIProvider, 
+  OpenAIChatRequest, 
+  OpenAIEmbeddingsRequest 
+} from "./types";
 import { logger } from "@/lib/utils/logger";
 
 interface GatewayError {
@@ -108,6 +112,55 @@ export class VercelGatewayProvider implements AIProvider {
       });
     } catch (error) {
       logger.error("[Vercel Gateway] Request failed", error);
+      throw error;
+    }
+  }
+
+  async embeddings(request: OpenAIEmbeddingsRequest): Promise<Response> {
+    logger.debug("[Vercel Gateway] Forwarding embeddings request", {
+      model: request.model,
+      inputType: Array.isArray(request.input) ? "array" : "string",
+    });
+
+    try {
+      return await this.fetchWithTimeout(`${this.baseUrl}/embeddings`, {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${this.apiKey}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(request),
+      });
+    } catch (error) {
+      logger.error("[Vercel Gateway] Embeddings request failed", error);
+      throw error;
+    }
+  }
+
+  async listModels(): Promise<Response> {
+    try {
+      return await this.fetchWithTimeout(`${this.baseUrl}/models`, {
+        method: "GET",
+        headers: {
+          Authorization: `Bearer ${this.apiKey}`,
+        },
+      });
+    } catch (error) {
+      logger.error("[Vercel Gateway] List models failed", error);
+      throw error;
+    }
+  }
+
+  async getModel(model: string): Promise<Response> {
+    try {
+      return await this.fetchWithTimeout(`${this.baseUrl}/models/${model}`, {
+        method: "GET",
+        headers: {
+          Authorization: `Bearer ${this.apiKey}`,
+        },
+      });
+    } catch (error) {
+      logger.error("[Vercel Gateway] Get model failed", error);
       throw error;
     }
   }

@@ -8,32 +8,14 @@ import {
   normalizeModelName,
   estimateTokens,
 } from "@/lib/pricing";
+import { getProvider } from "@/lib/providers";
+import type { OpenAIEmbeddingsRequest, OpenAIEmbeddingsResponse } from "@/lib/providers/types";
 import { logger } from "@/lib/utils/logger";
 import type { NextRequest } from "next/server";
 
 export const maxDuration = 60;
 
-interface OpenAIEmbeddingsRequest {
-  input: string | string[];
-  model: string;
-  encoding_format?: "float" | "base64";
-  dimensions?: number;
-  user?: string;
-}
-
-interface OpenAIEmbeddingsResponse {
-  object: "list";
-  data: Array<{
-    object: "embedding";
-    embedding: number[];
-    index: number;
-  }>;
-  model: string;
-  usage: {
-    prompt_tokens: number;
-    total_tokens: number;
-  };
-}
+// Using shared OpenAI embeddings types
 
 export async function POST(req: NextRequest) {
   try {
@@ -127,43 +109,9 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    const gatewayKey = process.env.VERCEL_AI_GATEWAY_API_KEY || process.env.AI_GATEWAY_API_KEY;
-    if (!gatewayKey) {
-      throw new Error("VERCEL_AI_GATEWAY_API_KEY or AI_GATEWAY_API_KEY not configured");
-    }
-
-    // Forward to Vercel AI Gateway with timeout
-    const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 60000); // 60 seconds
-
-    let response: Response;
-    try {
-      response = await fetch(
-        "https://ai-gateway.vercel.sh/v1/embeddings",
-        {
-          method: "POST",
-          headers: {
-            Authorization: `Bearer ${gatewayKey}`,
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify(request),
-          signal: controller.signal,
-        },
-      );
-      clearTimeout(timeoutId);
-    } catch (error) {
-      clearTimeout(timeoutId);
-      if (error instanceof Error && error.name === 'AbortError') {
-        throw new Error("Gateway request timeout after 60 seconds");
-      }
-      throw error;
-    }
-
-    if (!response.ok) {
-      const error = await response.text();
-      throw new Error(`Gateway error: ${response.status} ${error}`);
-    }
-
+    // Forward via provider
+    const provider = getProvider();
+    const response = await provider.embeddings(request);
     const data: OpenAIEmbeddingsResponse = await response.json();
 
     // Background analytics with proper pricing
