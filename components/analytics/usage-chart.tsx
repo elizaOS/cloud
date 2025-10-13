@@ -99,14 +99,14 @@ export function UsageChart({ data, granularity }: UsageChartProps) {
   const yAxisProps = useMemo(() => {
     if (activeMetric === "successRate") {
       return {
-        domain: [0, 100],
+        domain: [0, 100] as [number, number],
         tickFormatter: (value: number) => `${value}%`,
-      } as const;
+      };
     }
     return {
       tickFormatter: (value: number) =>
         value >= 1000 ? `${(value / 1000).toFixed(1)}k` : `${value}`,
-    } as const;
+    };
   }, [activeMetric]);
 
   return (

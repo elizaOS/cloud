@@ -1,4 +1,4 @@
-import type { TimeSeriesDataPoint } from "@/lib/queries/analytics";
+import type { TimeSeriesDataPoint } from "@/lib/services";
 
 export interface ProjectionDataPoint {
   timestamp: Date;

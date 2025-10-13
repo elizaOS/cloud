@@ -89,7 +89,7 @@ async function testWebhookIdempotency() {
       "   Note: Run database migration to activate unique constraint",
     );
   } catch (error) {
-    if (error.code === "23505" || error instanceof Error ? error.message : String(error)?.includes("unique")) {
+    if ((error as { code?: string }).code === "23505" || (error instanceof Error ? error.message : String(error))?.includes("unique")) {
       console.log(
         "✓ Duplicate prevented by unique constraint (constraint is active)",
       );

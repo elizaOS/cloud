@@ -1,6 +1,6 @@
 import { type NextRequest, NextResponse } from "next/server";
 import { requireAuthOrApiKey, requireRole } from "@/lib/auth";
-import { db, schema, eq } from "@/lib/db";
+import { organizationsService } from "@/lib/services";
 
 export const maxDuration = 60;
 
@@ -8,12 +8,7 @@ export async function GET(req: NextRequest) {
   try {
     const { user } = await requireAuthOrApiKey(req);
 
-    const org = await db.query.organizations.findFirst({
-      where: eq(schema.organizations.id, user.organization_id),
-      columns: {
-        settings: true,
-      },
-    });
+    const org = await organizationsService.getById(user.organization_id);
 
     const settings = (org?.settings as Record<string, unknown>) || {};
     const analyticsConfig = (settings.analytics as Record<string, unknown>) || {
@@ -100,12 +95,7 @@ export async function PUT(req: NextRequest) {
       );
     }
 
-    const org = await db.query.organizations.findFirst({
-      where: eq(schema.organizations.id, user.organization_id),
-      columns: {
-        settings: true,
-      },
-    });
+    const org = await organizationsService.getById(user.organization_id);
 
     const currentSettings = (org?.settings as Record<string, unknown>) || {};
     const currentAnalyticsConfig =
@@ -120,16 +110,13 @@ export async function PUT(req: NextRequest) {
       updatedAt: new Date().toISOString(),
     };
 
-    await db
-      .update(schema.organizations)
-      .set({
-        settings: {
-          ...currentSettings,
-          analytics: updatedAnalyticsConfig,
-        },
-        updated_at: new Date(),
-      })
-      .where(eq(schema.organizations.id, user.organization_id));
+    await organizationsService.update(user.organization_id, {
+      settings: {
+        ...currentSettings,
+        analytics: updatedAnalyticsConfig,
+      },
+      updated_at: new Date(),
+    });
 
     return NextResponse.json({
       success: true,

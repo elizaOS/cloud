@@ -1,6 +1,6 @@
 import { type NextRequest, NextResponse } from "next/server";
 import { requireAuthOrApiKey } from "@/lib/auth";
-import { getCostBreakdown } from "@/lib/queries/analytics";
+import { getCostBreakdown } from "@/lib/services";
 
 export const maxDuration = 60;
 
