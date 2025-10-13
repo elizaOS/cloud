@@ -1,12 +1,21 @@
 #!/bin/bash
 # Test OpenAI Proxy Implementation
-# Usage: ./scripts/test-openai-proxy.sh [API_KEY]
+# Usage: ./scripts/test-openai-proxy.sh <API_KEY>
+# Or: API_KEY=your_key ./scripts/test-openai-proxy.sh
 
 set -e
 
 # Configuration
 BASE_URL="${BASE_URL:-http://localhost:3000/api/v1}"
-API_KEY="${1:-${API_KEY:-your_api_key_here}}"
+API_KEY="${1:-${API_KEY}}"
+
+# Validate API key is provided
+if [ -z "$API_KEY" ]; then
+  echo "❌ Error: API_KEY is required"
+  echo "Usage: $0 <API_KEY>"
+  echo "Or set the API_KEY environment variable: API_KEY=your_key $0"
+  exit 1
+fi
 
 # Colors for output
 GREEN='\033[0;32m'
@@ -18,7 +27,6 @@ NC='\033[0m' # No Color
 echo -e "${BLUE}🧪 Testing All OpenAI-Compatible Endpoints${NC}"
 echo "==========================================="
 echo "Base URL: $BASE_URL"
-echo "API Key: ${API_KEY:0:20}..."
 echo ""
 
 # Test 1: List Models

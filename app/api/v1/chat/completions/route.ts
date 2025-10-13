@@ -1,10 +1,16 @@
 // app/api/v1/chat/completions/route.ts
 import { requireAuthOrApiKey } from "@/lib/auth";
 import { VercelGatewayProvider } from "@/lib/providers/vercel-gateway";
-import { deductCredits } from "@/lib/queries/credits";
+import { deductCredits, checkSufficientCredits } from "@/lib/queries/credits";
 import { createUsageRecord } from "@/lib/queries/usage";
 import { createGeneration } from "@/lib/queries/generations";
-import { calculateCost, getProviderFromModel } from "@/lib/pricing";
+import { 
+  calculateCost, 
+  getProviderFromModel, 
+  normalizeModelName,
+  estimateRequestCost,
+  estimateTokens,
+} from "@/lib/pricing";
 import { logger } from "@/lib/utils/logger";
 import type { NextRequest } from "next/server";
 import type {
@@ -33,7 +39,7 @@ export async function POST(req: NextRequest) {
     // 2. Parse request (already in OpenAI format!)
     const request: OpenAIChatRequest = await req.json();
 
-    // 3. Validate
+    // 3. Validate input
     if (!request.model || !request.messages) {
       return Response.json(
         {
@@ -48,38 +54,100 @@ export async function POST(req: NextRequest) {
       );
     }
 
+    if (!Array.isArray(request.messages) || request.messages.length === 0) {
+      return Response.json(
+        {
+          error: {
+            message: "messages must be a non-empty array",
+            type: "invalid_request_error",
+            param: "messages",
+            code: "invalid_value",
+          },
+        },
+        { status: 400 },
+      );
+    }
+
+    // Validate message content
+    for (const msg of request.messages) {
+      if (!msg.role || !msg.content) {
+        return Response.json(
+          {
+            error: {
+              message: "Each message must have role and content",
+              type: "invalid_request_error",
+              param: "messages",
+              code: "invalid_value",
+            },
+          },
+          { status: 400 },
+        );
+      }
+    }
+
     const model = request.model;
     const provider = getProviderFromModel(model);
+    const normalizedModel = normalizeModelName(model);
     const isStreaming = request.stream ?? false;
+
+    // 4. Check credits BEFORE making API call
+    const estimatedCost = await estimateRequestCost(model, request.messages as Array<{ role: string; content: string }>);
+    const creditCheck = await checkSufficientCredits(
+      user.organization_id,
+      estimatedCost,
+    );
+
+    if (!creditCheck.sufficient) {
+      logger.warn("[OpenAI Proxy] Insufficient credits", {
+        organizationId: user.organization_id,
+        required: creditCheck.required,
+        balance: creditCheck.balance,
+      });
+      
+      return Response.json(
+        {
+          error: {
+            message: `Insufficient credits. Required: ${creditCheck.required}, Available: ${creditCheck.balance}`,
+            type: "insufficient_quota",
+            code: "insufficient_credits",
+          },
+        },
+        { status: 402 },
+      );
+    }
 
     logger.info("[OpenAI Proxy] Chat completion request", {
       organizationId: user.organization_id,
       userId: user.id,
       model,
+      normalizedModel,
+      provider,
       streaming: isStreaming,
       messageCount: request.messages.length,
+      estimatedCost,
     });
 
-    // 4. Forward to Vercel AI Gateway
+    // 5. Forward to Vercel AI Gateway
     const providerInstance = getProvider();
     const providerResponse = await providerInstance.chatCompletions(request);
 
-    // 5. Handle streaming vs non-streaming
+    // 6. Handle streaming vs non-streaming
     if (isStreaming) {
       return handleStreamingResponse(
         providerResponse,
         user,
         apiKey ?? null,
-        model,
+        normalizedModel,
         provider,
         startTime,
+        request.messages,
       );
     } else {
       return handleNonStreamingResponse(
         providerResponse,
         user,
         apiKey ?? null,
-        model,
+        normalizedModel,
         provider,
         startTime,
       );
@@ -200,6 +268,7 @@ function handleStreamingResponse(
   model: string,
   provider: string,
   startTime: number,
+  messages: Array<{ role: string; content: string | object }>,
 ) {
   let totalTokens = 0;
   let inputTokens = 0;
@@ -259,6 +328,22 @@ function handleStreamingResponse(
       writer.close();
 
       // After stream completes, record analytics
+      // Use fallback token estimation if usage data was not provided
+      if (totalTokens === 0) {
+        logger.warn("[OpenAI Proxy] No usage data in stream, estimating tokens", {
+          model,
+          contentLength: fullContent.length,
+        });
+        
+        // Estimate tokens from content
+        const messageText = messages.map(m => 
+          typeof m.content === 'string' ? m.content : JSON.stringify(m.content)
+        ).join(" ");
+        inputTokens = estimateTokens(messageText);
+        outputTokens = estimateTokens(fullContent);
+        totalTokens = inputTokens + outputTokens;
+      }
+
       if (totalTokens > 0) {
         const { inputCost, outputCost, totalCost } = await calculateCost(
           model,
@@ -267,12 +352,20 @@ function handleStreamingResponse(
           outputTokens,
         );
 
-        await deductCredits(
+        const deductResult = await deductCredits(
           user.organization_id,
           totalCost,
           `OpenAI Proxy: ${model}`,
           user.id,
         );
+
+        if (!deductResult.success) {
+          logger.error("[OpenAI Proxy] Failed to deduct credits after streaming", {
+            organizationId: user.organization_id,
+            cost: totalCost,
+            balance: deductResult.newBalance,
+          });
+        }
 
         const usageRecord = await createUsageRecord({
           organization_id: user.organization_id,
@@ -296,7 +389,7 @@ function handleStreamingResponse(
             type: "chat",
             model,
             provider: "vercel-gateway",
-            prompt: "", // Could extract from request
+            prompt: JSON.stringify(messages),
             status: "completed",
             content: fullContent,
             tokens: totalTokens,
