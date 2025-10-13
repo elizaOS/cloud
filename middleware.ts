@@ -11,7 +11,9 @@ export default authkitMiddleware({
       "/api/v1/generate-image",
       "/api/v1/generate-video",
       "/api/v1/chat",
-      "/api/v1/models",
+      "/api/v1/models/:path*", // Allow /api/v1/models and /api/v1/models/{model}
+      "/api/v1/chat/completions",
+      "/api/v1/embeddings",
       "/api/stripe/webhook",
     ],
   },
