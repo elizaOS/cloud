@@ -2,10 +2,15 @@ import { NextRequest, NextResponse } from "next/server";
 import { agentRuntime } from "@/lib/eliza/agent-runtime";
 import { v4 as uuidv4 } from "uuid";
 import { stringToUuid, UUID, ChannelType } from "@elizaos/core";
+import { logger } from "@/lib/utils/logger";
+import { requireAuthOrApiKey } from "@/lib/auth";
 
 // GET /api/eliza/rooms - Get user's rooms
 export async function GET(request: NextRequest) {
   try {
+    // Authenticate user or validate API key
+    await requireAuthOrApiKey(request);
+
     const { searchParams } = new URL(request.url);
     const entityId = searchParams.get("entityId");
 
@@ -37,7 +42,7 @@ export async function GET(request: NextRequest) {
       rooms,
     });
   } catch (error) {
-    console.error("[Eliza Rooms API] Error getting rooms:", error);
+    logger.error("[Eliza Rooms API] Error getting rooms:", error);
     return NextResponse.json(
       {
         error: "Failed to get rooms",
@@ -51,10 +56,12 @@ export async function GET(request: NextRequest) {
 // POST /api/eliza/rooms - Create new room
 export async function POST(request: NextRequest) {
   try {
-    console.log("[Eliza Rooms API] POST request received");
+    // Authenticate user or validate API key
+    await requireAuthOrApiKey(request);
+
     const body = await request.json();
     const { entityId } = body;
-    console.log("[Eliza Rooms API] entityId:", entityId);
+    logger.debug("[Eliza Rooms API] Creating room for entity:", entityId);
 
     if (!entityId) {
       return NextResponse.json(
@@ -110,7 +117,7 @@ export async function POST(request: NextRequest) {
       userName: entityId,
     });
 
-    console.log(
+    logger.debug(
       "[Eliza Rooms API] Created room:",
       roomId,
       "for entity:",
@@ -119,7 +126,7 @@ export async function POST(request: NextRequest) {
 
     // Send initial greeting message
     try {
-      console.log("[Eliza Rooms API] Sending initial greeting");
+      logger.debug("[Eliza Rooms API] Sending initial greeting");
 
       const greetingText =
         "Hello! I'm Eliza, your friendly AI assistant. How can I help you today?";
@@ -138,9 +145,9 @@ export async function POST(request: NextRequest) {
         },
         "messages",
       );
-      console.log("[Eliza Rooms API] Initial greeting message saved to room");
+      logger.debug("[Eliza Rooms API] Initial greeting message saved to room");
     } catch (initErr) {
-      console.error(
+      logger.error(
         "[Eliza Rooms API] Failed to create initial greeting:",
         initErr,
       );
@@ -152,10 +159,9 @@ export async function POST(request: NextRequest) {
       createdAt: Date.now(),
     });
   } catch (error) {
-    console.error("[Eliza Rooms API] Detailed error:", error);
-    console.error(
-      "[Eliza Rooms API] Error stack:",
-      error instanceof Error ? error.stack : "No stack",
+    logger.error(
+      "[Eliza Rooms API] Error creating room:",
+      error instanceof Error ? error.stack : error,
     );
     return NextResponse.json(
       {

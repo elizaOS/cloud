@@ -4,7 +4,6 @@ import { useState, useEffect, useRef, useCallback } from "react";
 import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Loader2, Send, Bot, User, Clock, MessageSquare } from "lucide-react";
-import { Badge } from "@/components/ui/badge";
 import { ElizaAvatar } from "./eliza-avatar";
 
 interface Message {
@@ -145,19 +144,51 @@ export function ElizaChatInterface() {
     }
   }, [loadMessages, loadRooms]);
 
-  // Create or restore a room on mount, and start rooms polling
+  // Initialize room: restore saved room or use most recent existing room
   useEffect(() => {
-    const savedRoom =
-      typeof window !== "undefined"
-        ? window.localStorage.getItem("elizaRoomId")
-        : null;
-    if (savedRoom) {
-      setRoomId(savedRoom);
-      loadMessages(savedRoom);
-    } else {
-      createRoom();
-    }
-    loadRooms();
+    const initializeRoom = async () => {
+      // First check for saved room in localStorage
+      const savedRoom =
+        typeof window !== "undefined"
+          ? window.localStorage.getItem("elizaRoomId")
+          : null;
+
+      if (savedRoom) {
+        setRoomId(savedRoom);
+        loadMessages(savedRoom);
+        await loadRooms();
+      } else {
+        // No saved room - check if user has any existing rooms
+        try {
+          const params = new URLSearchParams({ entityId: entityId.current });
+          const res = await fetch(`/api/eliza/rooms?${params.toString()}`);
+          if (res.ok) {
+            const data = await res.json();
+            if (Array.isArray(data.rooms) && data.rooms.length > 0) {
+              // Use the most recent existing room
+              const mostRecentRoom = data.rooms[0];
+              setRoomId(mostRecentRoom.id);
+              if (typeof window !== "undefined") {
+                window.localStorage.setItem("elizaRoomId", mostRecentRoom.id);
+              }
+              loadMessages(mostRecentRoom.id);
+              await loadRooms();
+            } else {
+              // No existing rooms - create a new one
+              await createRoom();
+            }
+          } else {
+            // Failed to get rooms - create a new one
+            await createRoom();
+          }
+        } catch {
+          // Error checking rooms - create a new one
+          await createRoom();
+        }
+      }
+    };
+
+    initializeRoom();
     roomsIntervalRef.current = setInterval(loadRooms, 10000);
     return () => {
       if (pollIntervalRef.current) {
@@ -167,7 +198,8 @@ export function ElizaChatInterface() {
         clearInterval(roomsIntervalRef.current);
       }
     };
-  }, [createRoom, loadMessages, loadRooms]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   // Poll for new messages
   useEffect(() => {
@@ -405,7 +437,7 @@ export function ElizaChatInterface() {
     <div className="flex h-full w-full">
       {/* Left Sidebar - Rooms */}
       <div className="hidden md:flex md:flex-col w-80 border-r bg-card/50">
-        <div className="border-b p-4 bg-gradient-to-r from-background to-muted/20">
+        <div className="border-b p-4">
           <div className="flex items-center justify-between mb-3">
             <div className="flex items-center gap-2">
               <MessageSquare className="h-4 w-4 text-muted-foreground" />
@@ -480,18 +512,15 @@ export function ElizaChatInterface() {
       {/* Main Chat Area */}
       <div className="flex flex-col flex-1 h-full">
         {/* Header */}
-        <div className="border-b p-4 bg-gradient-to-r from-background to-muted/20">
+        <div className="border-b p-4">
           <div className="flex items-center gap-3">
-            <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-purple-500 to-blue-600 flex items-center justify-center">
-              <Bot className="h-5 w-5 text-white" />
+            <div className="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center">
+              <Bot className="h-5 w-5 text-primary" />
             </div>
             <div>
               <h3 className="text-sm font-semibold">Eliza</h3>
               <p className="text-xs text-muted-foreground">AI Assistant</p>
             </div>
-            <Badge variant="secondary" className="ml-auto text-xs">
-              {messages.length}
-            </Badge>
           </div>
         </div>
 
@@ -537,17 +566,17 @@ export function ElizaChatInterface() {
                     <ElizaAvatar
                       avatarUrl={agentInfo?.avatarUrl}
                       name={agentInfo?.name}
-                      className="flex-shrink-0 w-9 h-9 shadow-sm transition-transform hover:scale-110"
+                      className="flex-shrink-0 w-9 h-9"
                       iconClassName="h-5 w-5"
                       animate={isThinking}
                     />
                   )}
 
                   <div
-                    className={`rounded-2xl px-4 py-3 max-w-[80%] shadow-sm transform transition-all hover:scale-[1.02] hover:shadow-md ${
+                    className={`rounded-2xl px-4 py-3 max-w-[80%] ${
                       message.isAgent
                         ? "bg-card border"
-                        : "bg-gradient-to-br from-primary to-primary/90 text-primary-foreground"
+                        : "bg-primary text-primary-foreground"
                     }`}
                   >
                     {isThinking ? (
@@ -577,8 +606,8 @@ export function ElizaChatInterface() {
                   </div>
 
                   {!message.isAgent && (
-                    <div className="flex-shrink-0 w-9 h-9 rounded-full bg-gradient-to-br from-green-500 to-emerald-600 flex items-center justify-center shadow-sm transition-transform hover:scale-110">
-                      <User className="h-5 w-5 text-white" />
+                    <div className="flex-shrink-0 w-9 h-9 rounded-full bg-primary flex items-center justify-center">
+                      <User className="h-5 w-5 text-primary-foreground" />
                     </div>
                   )}
                 </div>
@@ -593,7 +622,7 @@ export function ElizaChatInterface() {
             e.preventDefault();
             sendMessage();
           }}
-          className="border-t p-4 bg-gradient-to-r from-background to-muted/20"
+          className="border-t p-4"
         >
           <div className="flex gap-2">
             <div className="flex-1 relative">
@@ -608,13 +637,12 @@ export function ElizaChatInterface() {
                 }}
                 placeholder="Type your message..."
                 disabled={isLoading || !roomId}
-                className="w-full rounded-xl border bg-background px-4 py-3 text-sm shadow-sm focus:outline-none focus:ring-2 focus:ring-ring disabled:opacity-50 transition-all"
+                className="w-full rounded-lg border bg-background px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-ring disabled:opacity-50"
               />
             </div>
             <Button
               type="submit"
               disabled={isLoading || !roomId || !inputText.trim()}
-              className="rounded-xl shadow-sm hover:shadow-md transition-all"
               size="lg"
             >
               {isLoading ? (
