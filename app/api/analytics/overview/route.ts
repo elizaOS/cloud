@@ -7,7 +7,7 @@ import {
   getModelBreakdown,
   getTrendData,
   type TimeGranularity,
-} from "@/lib/queries/analytics";
+} from "@/lib/services";
 
 export const maxDuration = 60;
 

@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireAuthOrApiKey } from "@/lib/auth";
-import { getContainer } from "@/lib/queries/containers";
+import { getContainer } from "@/lib/services";
 import { getCloudflareService } from "@/lib/services/cloudflare";
 
 export const dynamic = "force-dynamic";

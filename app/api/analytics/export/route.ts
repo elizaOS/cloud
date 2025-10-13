@@ -6,7 +6,7 @@ import {
   getProviderBreakdown,
   getModelBreakdown,
   type TimeGranularity,
-} from "@/lib/queries/analytics";
+} from "@/lib/services";
 import {
   generateCSV,
   generateJSON,

@@ -1,7 +1,7 @@
 import { config } from "dotenv";
 import { sql } from "drizzle-orm";
-import { db } from "../db/drizzle";
-import * as schema from "../db/sass/schema";
+import { db } from "../db/client";
+import * as schema from "../db/schemas";
 
 config({ path: ".env.local" });
 

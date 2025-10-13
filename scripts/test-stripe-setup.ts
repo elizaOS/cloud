@@ -157,7 +157,14 @@ async function createStripeProducts() {
 /**
  * Step 2: Generate seed script with real IDs
  */
-async function generateSeedScript(products: unknown[]) {
+async function generateSeedScript(products: Array<{
+  name: string;
+  productId: string;
+  priceId: string;
+  credits: number;
+  priceCents: number;
+  sortOrder: number;
+}>) {
   console.log("\n📝 Step 2: Generating Seed Script");
   console.log("-".repeat(50));
 
@@ -172,7 +179,7 @@ ${products
   .map(
     (p) => `  {
     name: "${p.name.replace("Credit Pack", "Pack")}",
-    description: "${creditPacksConfig.find((c) => c.name === p.name)?.description}",
+    description: "${creditPacksConfig.find((c) => c.name === p.name)?.description || ""}",
     credits: ${p.credits},
     price_cents: ${p.priceCents},
     stripe_price_id: "${p.priceId}",

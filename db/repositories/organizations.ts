@@ -93,6 +93,55 @@ export class OrganizationsRepository {
   async delete(id: string): Promise<void> {
     await db.delete(organizations).where(eq(organizations.id, id));
   }
+
+  async deductCreditsWithTransaction(
+    organizationId: string,
+    amount: number,
+    description: string,
+    userId?: string,
+  ): Promise<{ success: boolean; newBalance: number; transaction: any }> {
+    return await db.transaction(async (tx) => {
+      const org = await tx.query.organizations.findFirst({
+        where: eq(organizations.id, organizationId),
+      });
+
+      if (!org) {
+        throw new Error("Organization not found");
+      }
+
+      if (org.credit_balance < amount) {
+        throw new Error(
+          `Insufficient credits. Required: ${amount}, Available: ${org.credit_balance}`,
+        );
+      }
+
+      const newBalance = org.credit_balance - amount;
+
+      await tx
+        .update(organizations)
+        .set({
+          credit_balance: newBalance,
+          updated_at: new Date(),
+        })
+        .where(eq(organizations.id, organizationId));
+
+      const { creditTransactions } = await import("../schemas/credit-transactions");
+
+      const [creditTx] = await tx
+        .insert(creditTransactions)
+        .values({
+          organization_id: organizationId,
+          user_id: userId || null,
+          amount: -amount,
+          type: "debit",
+          description,
+          created_at: new Date(),
+        })
+        .returning();
+
+      return { success: true, newBalance, transaction: creditTx };
+    });
+  }
 }
 
 // Export singleton instance

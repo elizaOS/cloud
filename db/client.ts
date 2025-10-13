@@ -1,10 +1,7 @@
 import { drizzle } from "drizzle-orm/neon-serverless";
 import { Pool } from "@neondatabase/serverless";
-import * as sassSchema from "./schemas";
-import * as elizaSchema from "./eliza/schema";
+import * as schema from "./schemas";
 import type { NeonDatabase } from "drizzle-orm/neon-serverless";
-
-const schema = { ...sassSchema, ...elizaSchema };
 
 let _db: NeonDatabase<typeof schema> | null = null;
 
@@ -33,4 +30,8 @@ export const db = new Proxy({} as NeonDatabase<typeof schema>, {
   },
 });
 
-export type Database = typeof db;
+export type Database = NeonDatabase<typeof schema>;
+
+// NOTE: ONLY repositories should import from this file!
+// All other code should use services.
+// ElizaOS manages its own database schema separately.

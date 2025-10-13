@@ -3,9 +3,8 @@
  * Manages lifecycle of artifacts in R2 storage
  */
 
-import { db } from "@/db/drizzle";
-import { artifacts } from "@/db/sass/schema";
-import { and, eq, desc } from "drizzle-orm";
+import { artifactsRepository } from "@/db/repositories";
+import { containersRepository } from "@/db/repositories/containers";
 import { S3Client, DeleteObjectCommand } from "@aws-sdk/client-s3";
 
 export interface ArtifactRetentionPolicy {
@@ -91,16 +90,10 @@ export async function cleanupProjectArtifacts(
     });
 
     // Get all artifacts for this project, ordered by creation date (newest first)
-    const allArtifacts = await db
-      .select()
-      .from(artifacts)
-      .where(
-        and(
-          eq(artifacts.organization_id, organizationId),
-          eq(artifacts.project_id, projectId)
-        )
-      )
-      .orderBy(desc(artifacts.created_at));
+    const allArtifacts = await artifactsRepository.listByProject(
+      organizationId,
+      projectId,
+    );
 
     console.log(`Found ${allArtifacts.length} artifacts for project`, {
       projectId,
@@ -142,26 +135,9 @@ export async function cleanupProjectArtifacts(
       });
     }
 
-    // OPTIMIZATION: Query all containers once upfront to avoid N+1 pattern
+    // OPTIMIZATION: Query all containers once upfront to avoid N+1 pattern  
     // FIX: Use artifact_id for reliable comparison (URLs can be presigned/permanent)
-    const { containers } = await import("@/db/sass/schema");
-    const { sql, notInArray } = await import("drizzle-orm");
-    
-    const activeContainers = await db
-      .select({ 
-        id: containers.id, 
-        name: containers.name, 
-        status: containers.status,
-        artifact_id: sql<string>`${containers.metadata}->>'artifact_id'`.as('artifact_id')
-      })
-      .from(containers)
-      .where(
-        and(
-          eq(containers.organization_id, organizationId),
-          // Only check non-terminal states
-          notInArray(containers.status, ['failed', 'deleted', 'deleting'])
-        )
-      );
+    const activeContainers = await containersRepository.listActiveByOrganizationWithArtifactId(organizationId);
 
     // Build a Set of artifact IDs currently in use for O(1) lookup
     // CRITICAL: Use artifact_id (immutable) instead of URLs (which can be presigned)
@@ -195,7 +171,7 @@ export async function cleanupProjectArtifacts(
         
         if (r2Success) {
           // Delete from database
-          await db.delete(artifacts).where(eq(artifacts.id, artifact.id));
+          await artifactsRepository.delete(artifact.id);
           deleted++;
           console.log("Artifact cleaned up", {
             artifactId: artifact.id,
@@ -245,12 +221,7 @@ export async function cleanupAllArtifacts(
     console.log("Starting global artifact cleanup");
 
     // Get unique organization/project combinations
-    const projectGroups = await db
-      .selectDistinct({
-        organizationId: artifacts.organization_id,
-        projectId: artifacts.project_id,
-      })
-      .from(artifacts);
+    const projectGroups = await artifactsRepository.getDistinctOrganizationProjects();
 
     console.log(`Found ${projectGroups.length} project(s) with artifacts`);
 
@@ -293,10 +264,7 @@ export async function getArtifactStats(organizationId: string): Promise<{
   oldestArtifact?: Date;
   newestArtifact?: Date;
 }> {
-  const orgArtifacts = await db
-    .select()
-    .from(artifacts)
-    .where(eq(artifacts.organization_id, organizationId));
+  const orgArtifacts = await artifactsRepository.listByOrganization(organizationId);
 
   const totalSizeBytes = orgArtifacts.reduce(
     (sum, artifact) => sum + artifact.size,
