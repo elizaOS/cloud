@@ -13,7 +13,9 @@ import {
 import {
   generateCSV,
   generateJSON,
+  generateExcel,
   createDownloadResponse,
+  createBinaryDownloadResponse,
   formatCurrency,
   formatNumber,
   formatPercentage,
@@ -244,26 +246,17 @@ async function handleGET(req: NextRequest) {
       return response;
     }
 
-    // Excel export - Not yet implemented
-    // TODO: Implement Excel export using 'xlsx' package
-    // See ANALYTICS_PR_REVIEW_ANALYSIS.md - Issue #3 (Fixed)
     if (format === "excel" || format === "xlsx") {
-      return NextResponse.json(
-        {
-          error: "Excel export is not yet implemented",
-          message:
-            "Please use CSV or JSON format for now. Excel support coming soon.",
-          availableFormats: ["csv", "json"],
-          suggestion:
-            "Use format=csv for Excel compatibility - CSV files open in Excel",
-        },
-        {
-          status: 501,
-          headers: {
-            "X-Feature-Status": "not-implemented",
-          },
-        }
+      const excelBuffer = await generateExcel(data, columns, exportOptions);
+      const response = createBinaryDownloadResponse(
+        excelBuffer,
+        `${filename}.xlsx`,
+        "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
       );
+      Object.entries(responseHeaders).forEach(([key, value]) =>
+        response.headers.set(key, value)
+      );
+      return response;
     }
 
     if (format === "pdf") {

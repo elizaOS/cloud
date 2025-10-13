@@ -94,16 +94,75 @@ export function generateJSON(
 }
 
 export async function generateExcel(
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  ..._args: [
-    data: Array<Record<string, unknown>>,
-    columns: Array<ExportColumn>,
-    options?: ExportOptions
-  ]
+  data: Array<Record<string, unknown>>,
+  columns: Array<ExportColumn>,
+  options?: ExportOptions
 ): Promise<Buffer> {
-  throw new Error(
-    "Excel export requires 'xlsx' package. Install with: bun add xlsx"
+  const XLSX = await import("xlsx");
+
+  const workbook = XLSX.utils.book_new();
+  const worksheetData: Array<Array<string | number>> = [];
+
+  let metadataRowCount = 0;
+
+  if (options?.includeTimestamp) {
+    worksheetData.push(["Generated:", new Date().toISOString()]);
+    metadataRowCount++;
+  }
+
+  if (options?.includeMetadata && data.length > 0) {
+    worksheetData.push(["Total Records:", data.length]);
+    metadataRowCount++;
+  }
+
+  if (metadataRowCount > 0) {
+    worksheetData.push([]);
+  }
+
+  worksheetData.push(columns.map((col) => col.label));
+
+  const dataRows = data.map((row) =>
+    columns.map((col) => {
+      let value = row[col.key];
+      if (col.format) {
+        value = col.format(value);
+      }
+
+      if (value === null || value === undefined) {
+        return "";
+      }
+
+      if (typeof value === "number") {
+        return value;
+      }
+
+      return String(value);
+    })
   );
+
+  worksheetData.push(...dataRows);
+
+  const worksheet = XLSX.utils.aoa_to_sheet(worksheetData);
+
+  if (metadataRowCount > 0) {
+    const range = XLSX.utils.decode_range(worksheet["!ref"] || "A1");
+    range.s.r = metadataRowCount + 1;
+    worksheet["!autofilter"] = { ref: XLSX.utils.encode_range(range) };
+  }
+
+  const colWidths = columns.map((col) => ({
+    wch: Math.max(col.label.length, 15),
+  }));
+  worksheet["!cols"] = colWidths;
+
+  XLSX.utils.book_append_sheet(workbook, worksheet, "Analytics Data");
+
+  const excelBuffer = XLSX.write(workbook, {
+    type: "buffer",
+    bookType: "xlsx",
+  });
+
+  return Buffer.from(excelBuffer);
 }
 
 export async function generatePDF(
@@ -129,6 +188,21 @@ export function createDownloadResponse(
     headers: {
       "Content-Type": contentType,
       "Content-Disposition": `attachment; filename="${filename}"`,
+      "Cache-Control": "no-cache",
+    },
+  });
+}
+
+export function createBinaryDownloadResponse(
+  content: Buffer,
+  filename: string,
+  contentType: string
+): Response {
+  return new Response(new Uint8Array(content), {
+    headers: {
+      "Content-Type": contentType,
+      "Content-Disposition": `attachment; filename="${filename}"`,
+      "Content-Length": content.length.toString(),
       "Cache-Control": "no-cache",
     },
   });
