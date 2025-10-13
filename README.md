@@ -392,7 +392,7 @@ The platform uses two separate database schemas:
 
 ```bash
 cd eliza-cloud-v2
-npm install
+bun install
 ```
 
 ### 2. Environment Setup
@@ -438,14 +438,14 @@ openssl rand -hex 32
 Run migrations to create all tables:
 
 ```bash
-npm run db:push
+bun run db:push
 ```
 
 For production, use migration files:
 
 ```bash
-npm run db:generate
-npm run db:migrate
+bun run db:generate
+bun run db:migrate
 ```
 
 ### 4. Seed Credit Packs (Optional)
@@ -453,7 +453,7 @@ npm run db:migrate
 If using Stripe billing:
 
 ```bash
-npm run seed:credit-packs
+bun run seed:credit-packs
 ```
 
 This creates credit pack products in Stripe.
@@ -461,7 +461,7 @@ This creates credit pack products in Stripe.
 ### 5. Start Development Server
 
 ```bash
-npm run dev
+bun run dev
 ```
 
 Visit [http://localhost:3000](http://localhost:3000).
@@ -478,36 +478,36 @@ Visit [http://localhost:3000](http://localhost:3000).
 
 ```bash
 # Development
-npm run dev              # Start dev server with Turbopack
-npm run build            # Production build with Turbopack
-npm start                # Start production server
+bun run dev              # Start dev server with Turbopack
+bun run build            # Production build with Turbopack
+bun start                # Start production server
 
 # Database
-npm run db:generate      # Generate migrations
-npm run db:migrate       # Run migrations
-npm run db:push          # Push schema changes (dev only)
-npm run db:studio        # Open Drizzle Studio
+bun run db:generate      # Generate migrations
+bun run db:migrate       # Run migrations
+bun run db:push          # Push schema changes (dev only)
+bun run db:studio        # Open Drizzle Studio
 
 # Code Quality
-npm run lint             # Run ESLint
-npm run lint:fix         # Auto-fix ESLint issues
-npm run format           # Format with Prettier
-npm run format:check     # Check formatting
-npm run check-types      # TypeScript type checking
+bun run lint             # Run ESLint
+bun run lint:fix         # Auto-fix ESLint issues
+bun run format           # Format with Prettier
+bun run format:check     # Check formatting
+bun run check-types      # TypeScript type checking
 
 # Utilities
-npm run seed:credit-packs   # Seed Stripe credit packs
-npm run bootstrapper:build  # Build container bootstrapper
+bun run seed:credit-packs   # Seed Stripe credit packs
+bun run bootstrapper:build  # Build container bootstrapper
 ```
 
 ### Development Workflow
 
-1. **Start dev server**: `npm run dev`
+1. **Start dev server**: `bun run dev`
 2. **Make changes**: Edit files in `app/`, `components/`, `lib/`
 3. **Instant feedback**: Turbopack provides sub-second HMR
 4. **Test features**: Navigate to `/dashboard` routes
-5. **Check types**: `npm run check-types`
-6. **Database changes**: Edit `db/*/schema.ts` → `npm run db:push`
+5. **Check types**: `bun run check-types`
+6. **Database changes**: Edit `db/*/schema.ts` → `bun run db:push`
 
 ### Project Structure Guidelines
 
@@ -555,17 +555,7 @@ const { messages, input, handleSubmit, isLoading } = useChat({
 - Base64 preview for instant display
 - Download functionality
 
-**API**:
-
-```bash
-POST /api/v1/generate-image
-Content-Type: application/json
-Authorization: Bearer eliza_your_api_key
-
-{
-  "prompt": "A serene landscape with mountains and lake at sunset"
-}
-```
+**API**: See [Accessing AI Endpoints with API Keys](#accessing-ai-endpoints-with-api-keys) for detailed usage examples.
 
 **Cost**: 100 credits per image
 
@@ -574,29 +564,14 @@ Authorization: Bearer eliza_your_api_key
 **Location**: `/dashboard/video` and `/app/api/v1/generate-video/route.ts`
 
 **Features**:
-- Multiple Fal.ai models:
-  - `fal-ai/veo3` (Google Veo 3)
-  - `fal-ai/veo3/fast` (faster version)
-  - `fal-ai/kling-video/v2.1/pro/text-to-video` (Kling Pro)
-  - `fal-ai/minimax/hailuo-02/pro/text-to-video` (MiniMax)
+- Multiple Fal.ai models (Veo3, Kling v2.1, MiniMax Hailuo)
 - Automatic Vercel Blob upload
 - Progress tracking with queue updates
 - Fallback video on errors
 
-**API**:
+**API**: See [Accessing AI Endpoints with API Keys](#accessing-ai-endpoints-with-api-keys) for detailed usage examples and available models.
 
-```bash
-POST /api/v1/generate-video
-Content-Type: application/json
-Authorization: Bearer eliza_your_api_key
-
-{
-  "prompt": "A cinematic shot of a spaceship flying through stars",
-  "model": "fal-ai/veo3"
-}
-```
-
-**Cost**: 500 credits per video (250 for fallback)
+**Cost**: 500 credits per video
 
 ### 4. Gallery & Media Storage
 
@@ -793,14 +768,277 @@ POST /api/v1/api-keys/{id}/regenerate
 DELETE /api/v1/api-keys/{id}
 ```
 
-**Using API Keys**:
+#### Accessing AI Endpoints with API Keys
+
+All AI generation endpoints support API key authentication for programmatic access. Here's how to use them:
+
+##### 1. Create an API Key
+
+First, generate an API key from the dashboard:
+
+1. Navigate to `/dashboard/api-keys`
+2. Click "Create API Key"
+3. Give it a name and optional rate limit
+4. Copy the key (it's only shown once!)
+
+Or create one programmatically (requires existing authentication):
 
 ```bash
-curl https://your-app.com/api/v1/chat \
+curl -X POST https://www.elizacloud.ai/api/v1/api-keys \
+  -H "Content-Type: application/json" \
+  -H "Cookie: <session-cookie>" \
+  -d '{
+    "name": "My API Key",
+    "description": "For AI generation",
+    "rate_limit": 10000
+  }'
+```
+
+##### 2. Text Generation (Chat)
+
+Use your API key to generate text responses:
+
+```bash
+curl -X POST https://www.elizacloud.ai/api/v1/chat \
   -H "Authorization: Bearer eliza_your_key_here" \
   -H "Content-Type: application/json" \
-  -d '{"messages": [{"role": "user", "content": "Hello"}]}'
+  -d '{
+    "messages": [
+      {"role": "user", "content": "Explain quantum computing in simple terms"}
+    ],
+    "model": "gpt-4o"
+  }'
 ```
+
+**Streaming Response:**
+
+```typescript
+const response = await fetch('https://www.elizacloud.ai/api/v1/chat', {
+  method: 'POST',
+  headers: {
+    'Authorization': 'Bearer eliza_your_key_here',
+    'Content-Type': 'application/json',
+  },
+  body: JSON.stringify({
+    messages: [{ role: 'user', content: 'Hello!' }],
+    model: 'gpt-4o',
+  }),
+});
+
+// Stream the response
+const reader = response.body?.getReader();
+const decoder = new TextDecoder();
+
+while (true) {
+  const { done, value } = await reader.read();
+  if (done) break;
+  
+  const chunk = decoder.decode(value);
+  console.log(chunk);
+}
+```
+
+**Available Models**: `gpt-4o`, `gpt-4o-mini`, `claude-3-5-sonnet`, `gemini-2.0-flash`, etc.
+
+**Cost**: Token-based pricing (varies by model)
+
+##### 3. Image Generation
+
+Generate images using Google Gemini:
+
+```bash
+curl -X POST https://www.elizacloud.ai/api/v1/generate-image \
+  -H "Authorization: Bearer eliza_your_key_here" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "prompt": "A serene Japanese garden with cherry blossoms and a koi pond at sunset"
+  }'
+```
+
+**Response:**
+
+```json
+{
+  "success": true,
+  "data": {
+    "url": "https://blob.vercel-storage.com/...",
+    "base64": "data:image/png;base64,iVBORw0KG...",
+    "generationId": "uuid",
+    "creditsUsed": 100,
+    "creditsRemaining": 9900
+  }
+}
+```
+
+**TypeScript Example:**
+
+```typescript
+async function generateImage(prompt: string) {
+  const response = await fetch('https://www.elizacloud.ai/api/v1/generate-image', {
+    method: 'POST',
+    headers: {
+      'Authorization': `Bearer ${process.env.ELIZA_API_KEY}`,
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({ prompt }),
+  });
+
+  const data = await response.json();
+  
+  if (!data.success) {
+    throw new Error(data.error);
+  }
+
+  return data.data;
+}
+
+// Usage
+const result = await generateImage('A futuristic cityscape');
+console.log('Image URL:', result.url);
+console.log('Credits remaining:', result.creditsRemaining);
+```
+
+**Cost**: 100 credits per image
+
+##### 4. Video Generation
+
+Generate videos using Fal.ai models:
+
+```bash
+curl -X POST https://www.elizacloud.ai/api/v1/generate-video \
+  -H "Authorization: Bearer eliza_your_key_here" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "prompt": "A cinematic shot of a spaceship flying through colorful nebulae",
+    "model": "fal-ai/veo3"
+  }'
+```
+
+**Response:**
+
+```json
+{
+  "success": true,
+  "data": {
+    "url": "https://blob.vercel-storage.com/...",
+    "generationId": "uuid",
+    "model": "fal-ai/veo3",
+    "duration": 5,
+    "creditsUsed": 500,
+    "creditsRemaining": 9400
+  }
+}
+```
+
+**Available Models**:
+- `fal-ai/veo3` - Google Veo 3 (high quality)
+- `fal-ai/veo3/fast` - Google Veo 3 Fast (faster generation)
+- `fal-ai/kling-video/v2.1/master/text-to-video` - Kling Master (highest quality)
+- `fal-ai/kling-video/v2.1/pro/text-to-video` - Kling Pro (balanced)
+- `fal-ai/kling-video/v2.1/standard/text-to-video` - Kling Standard (fastest)
+- `fal-ai/minimax/hailuo-02/pro/text-to-video` - MiniMax Hailuo Pro
+- `fal-ai/minimax/hailuo-02/standard/text-to-video` - MiniMax Hailuo Standard
+
+**Python Example:**
+
+```python
+import requests
+import os
+
+API_KEY = os.environ['ELIZA_API_KEY']
+BASE_URL = 'https://www.elizacloud.ai/api/v1'
+
+def generate_video(prompt: str, model: str = 'fal-ai/veo3'):
+    response = requests.post(
+        f'{BASE_URL}/generate-video',
+        headers={
+            'Authorization': f'Bearer {API_KEY}',
+            'Content-Type': 'application/json',
+        },
+        json={
+            'prompt': prompt,
+            'model': model,
+        }
+    )
+    
+    data = response.json()
+    
+    if not data['success']:
+        raise Exception(data['error'])
+    
+    return data['data']
+
+# Usage
+result = generate_video('A time-lapse of a city from day to night')
+print(f"Video URL: {result['url']}")
+print(f"Credits remaining: {result['creditsRemaining']}")
+```
+
+**Cost**: 500 credits per video
+
+##### 5. Error Handling
+
+Always handle errors appropriately:
+
+```typescript
+async function callAIEndpoint(endpoint: string, body: object) {
+  try {
+    const response = await fetch(`https://www.elizacloud.ai/api/v1/${endpoint}`, {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${process.env.ELIZA_API_KEY}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(body),
+    });
+
+    const data = await response.json();
+
+    if (!data.success) {
+      // Handle API errors
+      switch (response.status) {
+        case 401:
+          throw new Error('Invalid API key');
+        case 402:
+          throw new Error('Insufficient credits');
+        case 429:
+          throw new Error('Rate limit exceeded');
+        case 503:
+          throw new Error('Service unavailable - feature not configured');
+        default:
+          throw new Error(data.error || 'Unknown error');
+      }
+    }
+
+    return data.data;
+  } catch (error) {
+    console.error('API call failed:', error);
+    throw error;
+  }
+}
+```
+
+##### 6. Rate Limits
+
+Default rate limits per API key:
+- **Standard**: 1000 requests/day
+- **Text Generation**: Token-based throttling
+- **Image Generation**: No specific limit (credit-based)
+- **Video Generation**: No specific limit (credit-based)
+
+Rate limit headers are included in responses:
+- `X-RateLimit-Limit`: Maximum requests allowed
+- `X-RateLimit-Remaining`: Requests remaining
+- `X-RateLimit-Reset`: When the limit resets
+
+##### 7. Security Best Practices
+
+- **Never expose API keys** in client-side code or public repositories
+- Store keys in environment variables: `process.env.ELIZA_API_KEY`
+- Use different keys for development and production
+- Rotate keys regularly using the regenerate endpoint
+- Delete unused keys to prevent unauthorized access
+- Monitor usage in `/dashboard/api-keys` for anomalies
 
 ### 9. Credit System & Billing
 
@@ -1026,7 +1264,7 @@ See `docs/STRIPE_SETUP.md` for detailed Stripe configuration.
 **Generate migration**:
 
 ```bash
-npm run db:generate
+bun run db:generate
 ```
 
 This creates SQL migration files in `db/migrations/`.
@@ -1034,13 +1272,13 @@ This creates SQL migration files in `db/migrations/`.
 **Apply migration**:
 
 ```bash
-npm run db:migrate
+bun run db:migrate
 ```
 
 **Push schema (dev only)**:
 
 ```bash
-npm run db:push
+bun run db:push
 ```
 
 ⚠️ **Never use `db:push` in production** - always use migrations.
@@ -1086,36 +1324,19 @@ All API routes support two authentication methods:
 ### Base URL
 
 - Development: `http://localhost:3000`
-- Production: `https://your-domain.com`
+- Production: `https://www.elizacloud.ai`
 
 ### Endpoints
 
 #### AI Generation
 
-```bash
-# Text Chat
-POST /api/v1/chat
-{
-  "messages": [{"role": "user", "content": "Hello"}],
-  "model": "gpt-4o"
-}
+For detailed examples, request/response formats, and code samples, see [Accessing AI Endpoints with API Keys](#accessing-ai-endpoints-with-api-keys).
 
-# Image Generation
-POST /api/v1/generate-image
-{
-  "prompt": "A beautiful sunset over mountains"
-}
-
-# Video Generation
-POST /api/v1/generate-video
-{
-  "prompt": "Cinematic shot of spaceship",
-  "model": "fal-ai/veo3"
-}
-
-# Available Models
-GET /api/v1/models
-```
+**Quick Reference**:
+- `POST /api/v1/chat` - Text generation with streaming support
+- `POST /api/v1/generate-image` - Image generation (100 credits)
+- `POST /api/v1/generate-video` - Video generation (500 credits)
+- `GET /api/v1/models` - List available AI models
 
 #### Gallery
 
@@ -1177,23 +1398,13 @@ GET /api/v1/artifacts/stats
 
 #### API Keys
 
-```bash
-# Create Key
-POST /api/v1/api-keys
-{
-  "name": "Production",
-  "rate_limit": 10000
-}
+See [API Key Management](#8-api-key-management) for detailed usage.
 
-# List Keys
-GET /api/v1/api-keys
-
-# Regenerate Key
-POST /api/v1/api-keys/{id}/regenerate
-
-# Delete Key
-DELETE /api/v1/api-keys/{id}
-```
+**Quick Reference**:
+- `POST /api/v1/api-keys` - Create new API key
+- `GET /api/v1/api-keys` - List all keys
+- `POST /api/v1/api-keys/{id}/regenerate` - Regenerate key
+- `DELETE /api/v1/api-keys/{id}` - Delete key
 
 #### User Info
 
@@ -1302,7 +1513,7 @@ Add all variables from `.env.local` in Vercel dashboard:
 **4. Update WorkOS Redirect URI**:
 
 - Add production callback URL to WorkOS dashboard
-- Format: `https://your-app.vercel.app/api/auth/callback`
+- Format: `https://www.elizacloud.ai/api/auth/callback`
 
 **5. Deploy**:
 
@@ -1313,7 +1524,7 @@ Add all variables from `.env.local` in Vercel dashboard:
 **6. Configure Stripe Webhook**:
 
 - Add webhook endpoint in Stripe dashboard
-- URL: `https://your-app.vercel.app/api/stripe/webhook`
+- URL: `https://www.elizacloud.ai/api/stripe/webhook`
 - Select events: `checkout.session.completed`, `payment_intent.succeeded`
 
 ### Database Migrations in Production
@@ -1322,7 +1533,7 @@ Vercel runs migrations automatically via build script. For manual migration:
 
 ```bash
 # Connect to production database
-DATABASE_URL=postgres://prod-url npm run db:migrate
+DATABASE_URL=postgres://prod-url bun run db:migrate
 ```
 
 ### Monitoring
