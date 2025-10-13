@@ -1,10 +1,13 @@
 import { type NextRequest, NextResponse } from "next/server";
 import { requireAuthOrApiKey } from "@/lib/auth";
+import { logger } from "@/lib/utils/logger";
+import { withRateLimit, RateLimitPresets } from "@/lib/middleware/rate-limit";
 import {
   getUsageTimeSeries,
   getUsageByUser,
   getProviderBreakdown,
   getModelBreakdown,
+  validateGranularity,
   type TimeGranularity,
 } from "@/lib/queries/analytics";
 import {
@@ -21,7 +24,14 @@ import {
 
 export const maxDuration = 60;
 
-export async function GET(req: NextRequest) {
+const EXPORT_LIMITS = {
+  MAX_TIME_RANGE_DAYS: 365,      // Max 1 year of data
+  MAX_ROWS: 100000,               // Max 100k rows
+  MAX_ROWS_WARNING: 50000,        // Warning threshold
+  STREAMING_THRESHOLD: 10000,     // Stream if > 10k rows (future)
+} as const;
+
+async function handleGET(req: NextRequest) {
   try {
     const { user } = await requireAuthOrApiKey(req);
     const searchParams = req.nextUrl.searchParams;
@@ -33,8 +43,39 @@ export async function GET(req: NextRequest) {
     const endDate = searchParams.get("endDate")
       ? new Date(searchParams.get("endDate")!)
       : new Date();
-    const granularity =
-      (searchParams.get("granularity") as TimeGranularity) || "day";
+
+    // Validate time range
+    const timeRangeDays = (endDate.getTime() - startDate.getTime()) / (1000 * 60 * 60 * 24);
+
+    if (timeRangeDays > EXPORT_LIMITS.MAX_TIME_RANGE_DAYS) {
+      return NextResponse.json(
+        {
+          error: `Time range too large. Maximum: ${EXPORT_LIMITS.MAX_TIME_RANGE_DAYS} days, requested: ${Math.ceil(timeRangeDays)} days`,
+          maxDays: EXPORT_LIMITS.MAX_TIME_RANGE_DAYS,
+        },
+        { status: 400 }
+      );
+    }
+
+    if (startDate >= endDate) {
+      return NextResponse.json(
+        { error: "startDate must be before endDate" },
+        { status: 400 }
+      );
+    }
+
+    const granularityParam = searchParams.get("granularity") || "day";
+
+    if (!validateGranularity(granularityParam)) {
+      return NextResponse.json(
+        {
+          error: `Invalid granularity: ${granularityParam}. Must be one of: hour, day, week, month`,
+        },
+        { status: 400 }
+      );
+    }
+
+    const granularity = granularityParam as TimeGranularity;
     const dataType = searchParams.get("type") || "timeseries";
     const includeMetadata = searchParams.get("includeMetadata") === "true";
 
@@ -166,7 +207,39 @@ export async function GET(req: NextRequest) {
       filename = `usage-analytics-${granularity}-${startDate.toISOString().split("T")[0]}-to-${endDate.toISOString().split("T")[0]}`;
     }
 
+    // Check result size
+    if (data.length > EXPORT_LIMITS.MAX_ROWS) {
+      return NextResponse.json(
+        {
+          error: `Result set too large. Maximum: ${EXPORT_LIMITS.MAX_ROWS} rows, found: ${data.length} rows. Please narrow your date range or filters.`,
+          maxRows: EXPORT_LIMITS.MAX_ROWS,
+          actualRows: data.length,
+          suggestion: "Use smaller date range or add filters",
+        },
+        { status: 413 } // Payload Too Large
+      );
+    }
+
+    // Add warning headers for large exports
+    const responseHeaders: Record<string, string> = {};
+    if (data.length > EXPORT_LIMITS.MAX_ROWS_WARNING) {
+      responseHeaders["X-Large-Export-Warning"] = "true";
+      responseHeaders["X-Row-Count"] = data.length.toString();
+    }
+
     if (format === "json") {
+      const response = createDownloadResponse(
+        generateJSON(data, exportOptions),
+        `${filename}.json`,
+        "application/json"
+      );
+      Object.entries(responseHeaders).forEach(([key, value]) =>
+        response.headers.set(key, value)
+      );
+      return response;
+    }
+
+    if (format === "excel" || format === "xlsx") {
       return createDownloadResponse(
         generateJSON(data, exportOptions),
         `${filename}.json`,
@@ -194,13 +267,17 @@ export async function GET(req: NextRequest) {
       );
     }
 
-    return createDownloadResponse(
+    const response = createDownloadResponse(
       generateCSV(data, columns, exportOptions),
       `${filename}.csv`,
       "text/csv"
     );
+    Object.entries(responseHeaders).forEach(([key, value]) =>
+      response.headers.set(key, value)
+    );
+    return response;
   } catch (error) {
-    console.error("[Analytics Export] Error:", error);
+    logger.error("[Analytics Export] Error:", error);
     return NextResponse.json(
       {
         error:
@@ -212,3 +289,5 @@ export async function GET(req: NextRequest) {
     );
   }
 }
+
+export const GET = withRateLimit(handleGET, RateLimitPresets.STANDARD);
