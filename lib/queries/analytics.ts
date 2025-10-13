@@ -3,6 +3,14 @@ import type { SQL } from "drizzle-orm";
 
 export type TimeGranularity = "hour" | "day" | "week" | "month";
 
+const VALID_GRANULARITIES = ["hour", "day", "week", "month"] as const;
+
+export function validateGranularity(
+  granularity: string
+): granularity is TimeGranularity {
+  return VALID_GRANULARITIES.includes(granularity as TimeGranularity);
+}
+
 export interface TimeSeriesDataPoint {
   timestamp: Date;
   totalRequests: number;
@@ -135,6 +143,12 @@ export async function getUsageTimeSeries(
   }
 ): Promise<TimeSeriesDataPoint[]> {
   const { startDate, endDate, granularity } = options;
+
+  if (!validateGranularity(granularity)) {
+    throw new Error(
+      `Invalid granularity: ${granularity}. Must be one of: ${VALID_GRANULARITIES.join(", ")}`
+    );
+  }
 
   const truncateExpression = {
     hour: sql`date_trunc('hour', ${schema.usageRecords.created_at})`,
@@ -440,6 +454,7 @@ export async function getCostBreakdown(
     sortBy?: "cost" | "requests" | "tokens";
     sortOrder?: "asc" | "desc";
     limit?: number;
+    offset?: number;
   }
 ): Promise<CostBreakdownItem[]> {
   const {
@@ -448,6 +463,7 @@ export async function getCostBreakdown(
     sortBy = "cost",
     sortOrder = "desc",
     limit = 100,
+    offset = 0,
   } = options || {};
 
   const conditions: SQL[] = [
@@ -493,7 +509,8 @@ export async function getCostBreakdown(
     .where(and(...conditions))
     .groupBy(dimensionColumn)
     .orderBy(orderDirection)
-    .limit(limit);
+    .limit(limit)
+    .offset(offset);
 
   return result.map((row) => ({
     dimension,
