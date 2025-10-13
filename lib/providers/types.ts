@@ -68,8 +68,45 @@ export interface OpenAIChatResponse {
   };
 }
 
+export interface OpenAIEmbeddingsRequest {
+  input: string | string[];
+  model: string;
+  encoding_format?: "float" | "base64";
+  dimensions?: number;
+  user?: string;
+}
+
+export interface OpenAIEmbeddingsResponse {
+  object: "list";
+  data: Array<{
+    object: "embedding";
+    embedding: number[];
+    index: number;
+  }>;
+  model: string;
+  usage: {
+    prompt_tokens: number;
+    total_tokens: number;
+  };
+}
+
+export interface OpenAIModel {
+  id: string;
+  object: "model";
+  created: number;
+  owned_by: string;
+}
+
+export interface OpenAIModelsResponse {
+  object: "list";
+  data: OpenAIModel[];
+}
+
 export interface AIProvider {
   name: string;
   chatCompletions(request: OpenAIChatRequest): Promise<Response>;
+  embeddings(request: OpenAIEmbeddingsRequest): Promise<Response>;
+  listModels(): Promise<Response>;
+  getModel(model: string): Promise<Response>;
 }
 

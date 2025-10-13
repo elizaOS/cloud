@@ -1,6 +1,7 @@
 // app/api/v1/models/[...model]/route.ts
 import { requireAuthOrApiKey } from "@/lib/auth";
 import { logger } from "@/lib/utils/logger";
+import { getProvider } from "@/lib/providers";
 import type { NextRequest } from "next/server";
 
 export const dynamic = "force-dynamic";
@@ -32,35 +33,8 @@ export async function GET(
     // Join segments to support both "openai/gpt-4o-mini" and "openai%2Fgpt-4o-mini"
     const model = modelSegments.join("/");
     
-    const gatewayKey = process.env.VERCEL_AI_GATEWAY_API_KEY || process.env.AI_GATEWAY_API_KEY;
-
-    if (!gatewayKey) {
-      throw new Error("VERCEL_AI_GATEWAY_API_KEY or AI_GATEWAY_API_KEY not configured");
-    }
-
-    // Forward to Vercel AI Gateway with timeout
-    const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 30000); // 30 seconds
-    
-    let response: Response;
-    try {
-      response = await fetch(
-        `https://ai-gateway.vercel.sh/v1/models/${model}`,
-        {
-          headers: {
-            Authorization: `Bearer ${gatewayKey}`,
-          },
-          signal: controller.signal,
-        },
-      );
-      clearTimeout(timeoutId);
-    } catch (error) {
-      clearTimeout(timeoutId);
-      if (error instanceof Error && error.name === 'AbortError') {
-        throw new Error("Gateway request timeout");
-      }
-      throw error;
-    }
+    const provider = getProvider();
+    const response = await provider.getModel(model);
 
     if (!response.ok) {
       if (response.status === 404) {
