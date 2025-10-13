@@ -14,6 +14,7 @@ import {
 } from "@/lib/queries/container-quota";
 import { addCredits } from "@/lib/queries/credits";
 import { createUsageRecord } from "@/lib/queries/usage";
+import { creditEventEmitter } from "@/lib/events/credit-events";
 import { calculateDeploymentCost, CONTAINER_LIMITS } from "@/lib/constants/pricing";
 import { getCloudflareService } from "@/lib/services/cloudflare";
 import { isFeatureConfigured } from "@/lib/config/env-validator";
@@ -295,7 +296,16 @@ async function handleCreateContainer(request: NextRequest) {
 
       container = result.container;
       creditResult = result.creditResult;
-      
+
+      creditEventEmitter.emitCreditUpdate({
+        organizationId: user.organization_id,
+        newBalance: creditResult.newBalance,
+        delta: -deploymentCost,
+        reason: `Container deployment: ${validatedData.name}`,
+        userId: user.id,
+        timestamp: new Date(),
+      });
+
     } catch (error) {
       // Transaction rolled back - no orphaned container or credit inconsistency
       const errorMessage = error instanceof Error ? error.message : "Unknown error";

@@ -1,5 +1,6 @@
 import { db, schema, eq, desc } from "@/lib/db";
 import type { CreditTransaction } from "@/lib/types";
+import { creditEventEmitter } from "@/lib/events/credit-events";
 
 export async function deductCredits(
   organizationId: string,
@@ -65,6 +66,18 @@ export async function deductCredits(
       .returning();
 
     return { success: true, newBalance, transaction };
+  }).then((result) => {
+    if (result.success) {
+      creditEventEmitter.emitCreditUpdate({
+        organizationId,
+        newBalance: result.newBalance,
+        delta: -roundedAmount,
+        reason: description || "API usage",
+        userId,
+        timestamp: new Date(),
+      });
+    }
+    return result;
   });
 }
 
@@ -127,6 +140,16 @@ export async function addCredits(
       .returning();
 
     return { success: true, newBalance, transaction };
+  }).then((result) => {
+    creditEventEmitter.emitCreditUpdate({
+      organizationId,
+      newBalance: result.newBalance,
+      delta: roundedAmount,
+      reason: description || `Credit ${type}`,
+      userId,
+      timestamp: new Date(),
+    });
+    return result;
   });
 }
 
