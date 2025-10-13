@@ -8,6 +8,7 @@ import {
   generationsService,
 } from "@/lib/services";
 import { calculateCost, getProviderFromModel } from "@/lib/pricing";
+import { logger } from "@/lib/utils/logger";
 import type { NextRequest } from "next/server";
 
 export const maxDuration = 60;
@@ -26,7 +27,7 @@ export async function POST(
     const { entityId, text, attachments } = body;
 
     if (!roomId) {
-      console.error("[Eliza Messages API] Missing roomId");
+      logger.error("[Eliza Messages API] Missing roomId");
       return NextResponse.json(
         { error: "roomId is required" },
         { status: 400 },
@@ -34,7 +35,7 @@ export async function POST(
     }
 
     if (!entityId) {
-      console.error("[Eliza Messages API] Missing entityId");
+      logger.error("[Eliza Messages API] Missing entityId");
       return NextResponse.json(
         { error: "entityId is required" },
         { status: 400 },
@@ -42,7 +43,7 @@ export async function POST(
     }
 
     if (!text || typeof text !== "string" || text.trim().length === 0) {
-      console.error("[Eliza Messages API] Invalid or missing text", { text });
+      logger.error("[Eliza Messages API] Invalid or missing text", { text });
       return NextResponse.json(
         { error: "text is required and must be a non-empty string" },
         { status: 400 },
@@ -57,18 +58,11 @@ export async function POST(
 
     const { message, usage } = result;
 
-    console.log(`[Eliza Messages API] Message sent successfully`, {
+    logger.debug(`[Eliza Messages API] Message sent`, {
       roomId,
       entityId,
       messageId: message.id,
       usage,
-    });
-
-    console.log(`[Eliza Messages API] Usage data received:`, {
-      hasUsage: !!usage,
-      inputTokens: usage?.inputTokens,
-      outputTokens: usage?.outputTokens,
-      model: usage?.model,
     });
 
     // Always deduct credits for Eliza messages
@@ -79,7 +73,7 @@ export async function POST(
       model: "gpt-4o",
     };
 
-    console.log(
+    logger.debug(
       `[Eliza Messages API] Effective usage for billing:`,
       effectiveUsage,
     );
@@ -105,7 +99,7 @@ export async function POST(
       );
 
       if (!deductionResult.success) {
-        console.error(
+        logger.error(
           "[Eliza Messages API] Failed to deduct credits - insufficient balance",
         );
       }
@@ -146,11 +140,11 @@ export async function POST(
         });
       }
 
-      console.log(
+      logger.debug(
         `[Eliza Messages API] Credits deducted: ${totalCost} (Input: ${inputCost}, Output: ${outputCost}), New balance: ${deductionResult.newBalance}`,
       );
     } catch (error) {
-      console.error(
+      logger.error(
         "[Eliza Messages API] Error deducting credits or tracking usage:",
         error,
       );
@@ -173,7 +167,7 @@ export async function POST(
             error instanceof Error ? error.message : "Unknown error",
         });
       } catch (usageError) {
-        console.error(
+        logger.error(
           "[Eliza Messages API] Error creating usage record:",
           usageError,
         );
@@ -197,7 +191,7 @@ export async function POST(
       pollInterval: 1000, // 1 second
     });
   } catch (error) {
-    console.error("[Eliza Messages API] Error sending message:", error);
+    logger.error("[Eliza Messages API] Error sending message:", error);
 
     // Provide more specific error messages based on the error type
     if (error instanceof TypeError) {
@@ -222,10 +216,13 @@ export async function POST(
 
 // GET /api/eliza/rooms/[roomId]/messages - Get messages (for polling)
 export async function GET(
-  request: Request,
+  request: NextRequest,
   ctx: { params: Promise<{ roomId: string }> },
 ) {
   try {
+    // Authenticate user or validate API key
+    await requireAuthOrApiKey(request);
+
     const { roomId } = await ctx.params;
     const { searchParams } = new URL(request.url);
     const limit = searchParams.get("limit");
@@ -289,7 +286,7 @@ export async function GET(
       { headers: { "Cache-Control": "no-store" } },
     );
   } catch (error) {
-    console.error("[Eliza Messages API] Error getting messages:", error);
+    logger.error("[Eliza Messages API] Error getting messages:", error);
     return NextResponse.json(
       {
         error: "Failed to get messages",

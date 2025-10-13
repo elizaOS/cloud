@@ -2,20 +2,8 @@ import { withAuth } from "@workos-inc/authkit-nextjs";
 import { usersService, apiKeysService } from "@/lib/services";
 import type { UserWithOrganization, ApiKey } from "@/lib/types";
 import { cache } from "react";
-import { unstable_cache } from "next/cache";
 import { redirect } from "next/navigation";
 import type { NextRequest } from "next/server";
-
-const getCachedUserByEmail = unstable_cache(
-  async (email: string) => {
-    return await usersService.getByEmailWithOrganization(email);
-  },
-  ["user-by-email"],
-  {
-    revalidate: 300,
-    tags: ["user-auth"],
-  },
-);
 
 export const getCurrentUser = cache(
   async (): Promise<UserWithOrganization | null> => {
@@ -25,10 +13,13 @@ export const getCurrentUser = cache(
       return null;
     }
 
-    const user = await getCachedUserByEmail(workosUser.email);
+    const user = await usersService.getByEmailWithOrganization(workosUser.email);
 
     if (!user) {
-      return redirect("/login");
+      console.error(
+        `[Auth] User not found in database for email: ${workosUser.email}`
+      );
+      return null;
     }
 
     return user;

@@ -1,4 +1,5 @@
 import { streamText, type UIMessage, convertToModelMessages } from "ai";
+import { gateway } from "@ai-sdk/gateway";
 import { requireAuthOrApiKey } from "@/lib/auth";
 import {
   conversationsService,
@@ -7,6 +8,7 @@ import {
   generationsService,
 } from "@/lib/services";
 import { calculateCost, getProviderFromModel } from "@/lib/pricing";
+import { logger } from "@/lib/utils/logger";
 import type { NextRequest } from "next/server";
 
 export const maxDuration = 60;
@@ -25,7 +27,7 @@ export async function POST(req: NextRequest) {
       : undefined;
 
     const result = streamText({
-      model: selectedModel,
+      model: gateway.languageModel(selectedModel),
       system: `You are a helpful AI assistant powered by elizaOS. You provide clear, accurate, and helpful responses.
       You are knowledgeable about AI agents, development, and technology.`,
       messages: convertToModelMessages(messages),
@@ -53,41 +55,33 @@ export async function POST(req: NextRequest) {
           );
 
           if (!deductionResult.success) {
-            console.error(
-              "[CHAT API] Failed to deduct credits - insufficient balance",
+            logger.error(
+              "chat-api",
+              "Failed to deduct credits - insufficient balance",
+              { userId: user.id, totalCost }
             );
           }
 
           if (conversationId) {
-            const userSequence = await conversationsService.getNextSequenceNumber(conversationId);
-
-            await conversationsService.addMessage(
-              conversationId,
-              "user",
-              userMessage.parts
+            // Add user message
+            await conversationsService.addMessageWithSequence(conversationId, {
+              role: "user",
+              content: userMessage.parts
                 .map((p) => (p.type === "text" ? p.text : ""))
                 .join(""),
-              userSequence,
-              {
-                model: selectedModel,
-                tokens: usage.inputTokens,
-                cost: inputCost,
-              },
-            );
+              model: selectedModel,
+              tokens: usage.inputTokens,
+              cost: inputCost,
+            });
 
-            const assistantSequence = await conversationsService.getNextSequenceNumber(conversationId);
-
-            await conversationsService.addMessage(
-              conversationId,
-              "assistant",
-              text,
-              assistantSequence,
-              {
-                model: selectedModel,
-                tokens: usage.outputTokens,
-                cost: outputCost,
-              },
-            );
+            // Add assistant message
+            await conversationsService.addMessageWithSequence(conversationId, {
+              role: "assistant",
+              content: text,
+              model: selectedModel,
+              tokens: usage.outputTokens,
+              cost: outputCost,
+            });
           }
 
           const usageRecord = await usageService.create({
@@ -134,13 +128,17 @@ export async function POST(req: NextRequest) {
             });
           }
 
-          console.log(
-            `[CHAT API] Credits deducted: ${totalCost} (Input: ${inputCost}, Output: ${outputCost}), New balance: ${deductionResult.newBalance}`,
-          );
+          logger.info("chat-api", "Credits deducted", {
+            totalCost,
+            inputCost,
+            outputCost,
+            newBalance: deductionResult.newBalance,
+          });
         } catch (error) {
-          console.error(
-            "[CHAT API] Error persisting messages or deducting credits:",
-            error,
+          logger.error(
+            "chat-api",
+            "Error persisting messages or deducting credits",
+            { error: error instanceof Error ? error.message : "Unknown error" }
           );
 
           if (usage) {
@@ -182,10 +180,9 @@ export async function POST(req: NextRequest) {
                 });
               }
             } catch (usageError) {
-              console.error(
-                "[CHAT API] Error creating usage record:",
-                usageError,
-              );
+              logger.error("chat-api", "Error creating usage record", {
+                error: usageError instanceof Error ? usageError.message : "Unknown error",
+              });
             }
           }
         }
@@ -194,7 +191,9 @@ export async function POST(req: NextRequest) {
 
     return result.toUIMessageStreamResponse();
   } catch (error) {
-    console.error("[CHAT API] Error:", error);
+    logger.error("chat-api", "Error processing chat", {
+      error: error instanceof Error ? error.message : "Unknown error",
+    });
     return new Response(JSON.stringify({ error: "Failed to process chat" }), {
       status: 500,
       headers: { "Content-Type": "application/json" },

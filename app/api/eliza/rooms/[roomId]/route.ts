@@ -1,13 +1,18 @@
 import { NextResponse } from "next/server";
 import { agentRuntime } from "@/lib/eliza/agent-runtime";
 import type { UUID } from "@elizaos/core";
+import { requireAuthOrApiKey } from "@/lib/auth";
+import type { NextRequest } from "next/server";
 
 // GET /api/eliza/rooms/[roomId] - Get room details and messages
 export async function GET(
-  request: Request,
+  request: NextRequest,
   ctx: { params: Promise<{ roomId: string }> },
 ) {
   try {
+    // Authenticate user or validate API key
+    await requireAuthOrApiKey(request);
+
     const { roomId } = await ctx.params;
     const { searchParams } = new URL(request.url);
     const limit = searchParams.get("limit");
