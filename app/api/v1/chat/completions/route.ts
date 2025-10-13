@@ -69,7 +69,7 @@ export async function POST(req: NextRequest) {
       return handleStreamingResponse(
         providerResponse,
         user,
-        apiKey,
+        apiKey ?? null,
         model,
         provider,
         startTime,
@@ -78,7 +78,7 @@ export async function POST(req: NextRequest) {
       return handleNonStreamingResponse(
         providerResponse,
         user,
-        apiKey,
+        apiKey ?? null,
         model,
         provider,
         startTime,
@@ -209,7 +209,6 @@ function handleStreamingResponse(
   // Create transform stream to track usage
   const { readable, writable } = new TransformStream();
   const writer = writable.getWriter();
-  const encoder = new TextEncoder();
   const decoder = new TextDecoder();
 
   // Process stream in background
@@ -250,7 +249,7 @@ function handleStreamingResponse(
                 outputTokens = parsed.usage.completion_tokens || 0;
                 totalTokens = parsed.usage.total_tokens || 0;
               }
-            } catch (e) {
+            } catch {
               // Ignore parse errors
             }
           }
