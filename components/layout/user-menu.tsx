@@ -20,16 +20,19 @@ import {
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { LogOut, Loader2, Coins, Settings, UserCircle } from "lucide-react";
 import { useEffect, useState } from "react";
-import { handleSignOut, getCreditBalance } from "@/app/actions/auth";
+import { handleSignOut } from "@/app/actions/auth";
 import { useRouter } from "next/navigation";
+import { useCreditsStream } from "@/hooks/use-credits-stream";
 
 export default function UserMenu() {
   const { user, loading } = useAuth();
   const router = useRouter();
   const [signInUrl, setSignInUrl] = useState<string | null>(null);
   const [signUpUrl, setSignUpUrl] = useState<string | null>(null);
-  const [creditBalance, setCreditBalance] = useState<number | null>(null);
-  const [loadingCredits, setLoadingCredits] = useState(false);
+  const {
+    creditBalance,
+    isLoading: loadingCredits,
+  } = useCreditsStream();
 
   useEffect(() => {
     async function getAuthUrls() {
@@ -43,33 +46,6 @@ export default function UserMenu() {
     if (!user && !loading) {
       getAuthUrls();
     }
-  }, [user, loading]);
-
-  useEffect(() => {
-    let interval: NodeJS.Timeout;
-
-    async function fetchCreditBalance() {
-      if (!user || loading) return;
-
-      setLoadingCredits(true);
-      try {
-        const balance = await getCreditBalance();
-        setCreditBalance(balance);
-      } catch (error) {
-        console.error("Failed to fetch credit balance:", error);
-      } finally {
-        setLoadingCredits(false);
-      }
-    }
-
-    if (user && !loading) {
-      fetchCreditBalance();
-      interval = setInterval(fetchCreditBalance, 5000);
-    }
-
-    return () => {
-      if (interval) clearInterval(interval);
-    };
   }, [user, loading]);
 
   // Loading state
