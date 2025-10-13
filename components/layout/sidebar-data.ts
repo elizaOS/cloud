@@ -11,7 +11,14 @@ import {
   ImageIcon,
   LayersIcon,
 } from "@radix-ui/react-icons";
-import { Server, HardDrive, Video, CreditCard, UserCog, Code } from "lucide-react";
+import {
+  Server,
+  HardDrive,
+  Video,
+  CreditCard,
+  UserCog,
+  Bot,
+} from "lucide-react";
 import { ComponentType } from "react";
 
 export interface SidebarItem {
@@ -72,6 +79,13 @@ export const sidebarSections: SidebarSection[] = [
     title: "Agent Development",
     items: [
       {
+        id: "eliza-agent",
+        label: "Eliza Agent",
+        href: "/dashboard/eliza",
+        icon: Bot,
+        isNew: false,
+      },
+      {
         id: "character-creator",
         label: "Character Creator",
         href: "/dashboard/character-creator",
@@ -84,7 +98,7 @@ export const sidebarSections: SidebarSection[] = [
         href: "/dashboard/api-explorer",
         icon: Code,
         isNew: true,
-      }
+      },
     ],
   },
   {
@@ -95,7 +109,7 @@ export const sidebarSections: SidebarSection[] = [
         label: "Containers",
         href: "/dashboard/containers",
         icon: Server,
-        isNew: false,
+        isNew: true,
       },
       {
         id: "storage",
