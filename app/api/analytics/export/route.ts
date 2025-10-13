@@ -92,6 +92,7 @@ async function handleGET(req: NextRequest) {
       const userBreakdown = await getUsageByUser(user.organization_id, {
         startDate,
         endDate,
+        maxRows: EXPORT_LIMITS.MAX_ROWS,
       });
       data = userBreakdown.map((u) => ({
         email: u.userEmail,
@@ -118,6 +119,7 @@ async function handleGET(req: NextRequest) {
         {
           startDate,
           endDate,
+          maxRows: EXPORT_LIMITS.MAX_ROWS,
         }
       );
       data = providerBreakdown.map((p) => ({
@@ -150,6 +152,7 @@ async function handleGET(req: NextRequest) {
         startDate,
         endDate,
         limit: 100,
+        maxRows: EXPORT_LIMITS.MAX_ROWS,
       });
       data = modelBreakdown.map((m) => ({
         model: m.model,
@@ -179,10 +182,12 @@ async function handleGET(req: NextRequest) {
       ];
       filename = `model-analytics-${startDate.toISOString().split("T")[0]}-to-${endDate.toISOString().split("T")[0]}`;
     } else {
+      // Time series export with DOS protection
       const timeSeriesData = await getUsageTimeSeries(user.organization_id, {
         startDate,
         endDate,
         granularity,
+        maxRows: EXPORT_LIMITS.MAX_ROWS,
       });
       data = timeSeriesData.map((point) => ({
         timestamp: point.timestamp.toISOString(),
@@ -239,21 +244,25 @@ async function handleGET(req: NextRequest) {
       return response;
     }
 
-    if (format === "excel" || format === "xlsx") {
-      return createDownloadResponse(
-        generateJSON(data, exportOptions),
-        `${filename}.json`,
-        "application/json"
-      );
-    }
-
+    // Excel export - Not yet implemented
+    // TODO: Implement Excel export using 'xlsx' package
+    // See ANALYTICS_PR_REVIEW_ANALYSIS.md - Issue #3 (Fixed)
     if (format === "excel" || format === "xlsx") {
       return NextResponse.json(
         {
-          error:
-            "Excel export requires 'xlsx' package. Install with: bun add xlsx",
+          error: "Excel export is not yet implemented",
+          message:
+            "Please use CSV or JSON format for now. Excel support coming soon.",
+          availableFormats: ["csv", "json"],
+          suggestion:
+            "Use format=csv for Excel compatibility - CSV files open in Excel",
         },
-        { status: 501 }
+        {
+          status: 501,
+          headers: {
+            "X-Feature-Status": "not-implemented",
+          },
+        }
       );
     }
 
