@@ -69,12 +69,32 @@ export async function POST(req: NextRequest) {
     }
 
     // Validate message content
+    // Note: content can be null/empty for tool calls or function calls
     for (const msg of request.messages) {
-      if (!msg.role || !msg.content) {
+      if (!msg.role) {
         return Response.json(
           {
             error: {
-              message: "Each message must have role and content",
+              message: "Each message must have a role",
+              type: "invalid_request_error",
+              param: "messages",
+              code: "invalid_value",
+            },
+          },
+          { status: 400 },
+        );
+      }
+      
+      // Content is optional for tool/function call messages
+      const hasToolCalls = 'tool_calls' in msg && msg.tool_calls;
+      const hasToolCallId = 'tool_call_id' in msg && msg.tool_call_id;
+      const hasFunctionCall = 'function_call' in msg && msg.function_call;
+      
+      if (!msg.content && !hasToolCalls && !hasToolCallId && !hasFunctionCall) {
+        return Response.json(
+          {
+            error: {
+              message: "Each message must have content, tool_calls, tool_call_id, or function_call",
               type: "invalid_request_error",
               param: "messages",
               code: "invalid_value",
@@ -91,7 +111,8 @@ export async function POST(req: NextRequest) {
     const isStreaming = request.stream ?? false;
 
     // 4. Check credits BEFORE making API call
-    const estimatedCost = await estimateRequestCost(model, request.messages as Array<{ role: string; content: string }>);
+    // estimateRequestCost now handles both string and multimodal content
+    const estimatedCost = await estimateRequestCost(model, request.messages);
     const creditCheck = await checkSufficientCredits(
       user.organization_id,
       estimatedCost,
@@ -155,7 +176,16 @@ export async function POST(req: NextRequest) {
   } catch (error) {
     logger.error("[OpenAI Proxy] Error:", error);
 
-    // Return OpenAI-formatted error
+    // Check if error is a structured gateway error
+    if (error && typeof error === 'object' && 'error' in error && 'status' in error) {
+      const gatewayError = error as { status: number; error: { message: string; type?: string; code?: string } };
+      return Response.json(
+        { error: gatewayError.error },
+        { status: gatewayError.status },
+      );
+    }
+
+    // Fallback to generic error
     return Response.json(
       {
         error: {
@@ -186,24 +216,49 @@ async function handleNonStreamingResponse(
   const usage = data.usage;
   const content = data.choices[0]?.message?.content || "";
 
-  // Background analytics (async, don't block response)
+  // Deduct credits SYNCHRONOUSLY before returning response
   if (usage) {
+    const { inputCost, outputCost, totalCost } = await calculateCost(
+      model,
+      provider,
+      usage.prompt_tokens,
+      usage.completion_tokens,
+    );
+
+    // CRITICAL: Deduct credits before returning response
+    const deductResult = await deductCredits(
+      user.organization_id,
+      totalCost,
+      `OpenAI Proxy: ${model}`,
+      user.id,
+    );
+
+    if (!deductResult.success) {
+      // This should rarely happen since we checked credits before the call
+      // But it can happen if credits were spent elsewhere between check and now
+      logger.error("[OpenAI Proxy] Failed to deduct credits after completion", {
+        organizationId: user.organization_id,
+        cost: totalCost,
+        balance: deductResult.newBalance,
+      });
+      
+      // Return error instead of giving free service
+      return Response.json(
+        {
+          error: {
+            message: "Credit deduction failed. Please contact support.",
+            type: "billing_error",
+            code: "credit_deduction_failed",
+          },
+        },
+        { status: 402 },
+      );
+    }
+
+    // Background analytics (usage records, generation records)
+    // These are not critical for billing, so can be async
     (async () => {
       try {
-        const { inputCost, outputCost, totalCost } = await calculateCost(
-          model,
-          provider,
-          usage.prompt_tokens,
-          usage.completion_tokens,
-        );
-
-        await deductCredits(
-          user.organization_id,
-          totalCost,
-          `OpenAI Proxy: ${model}`,
-          user.id,
-        );
-
         const usageRecord = await createUsageRecord({
           organization_id: user.organization_id,
           user_id: user.id,
@@ -252,11 +307,11 @@ async function handleNonStreamingResponse(
         logger.error("[OpenAI Proxy] Analytics error:", error);
       }
     })().catch((err) => {
-      logger.error("[OpenAI Proxy] Background operation failed:", err);
+      logger.error("[OpenAI Proxy] Background analytics failed:", err);
     });
   }
 
-  // Return response immediately (don't wait for analytics)
+  // Return response after credits are deducted
   return Response.json(data);
 }
 

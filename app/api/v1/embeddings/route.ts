@@ -99,8 +99,8 @@ export async function POST(req: NextRequest) {
       0, // embeddings don't have output tokens
     );
 
-    // Add 20% buffer for safety
-    const requiredCredits = Math.ceil(estimatedCost * 1.2);
+    // Add 50% buffer for safety (increased from 20% to handle usage spikes)
+    const requiredCredits = Math.ceil(estimatedCost * 1.5);
 
     // Check credits before making API call
     const creditCheck = await checkSufficientCredits(
@@ -132,18 +132,32 @@ export async function POST(req: NextRequest) {
       throw new Error("VERCEL_AI_GATEWAY_API_KEY or AI_GATEWAY_API_KEY not configured");
     }
 
-    // Forward to Vercel AI Gateway
-    const response = await fetch(
-      "https://ai-gateway.vercel.sh/v1/embeddings",
-      {
-        method: "POST",
-        headers: {
-          Authorization: `Bearer ${gatewayKey}`,
-          "Content-Type": "application/json",
+    // Forward to Vercel AI Gateway with timeout
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 60000); // 60 seconds
+
+    let response: Response;
+    try {
+      response = await fetch(
+        "https://ai-gateway.vercel.sh/v1/embeddings",
+        {
+          method: "POST",
+          headers: {
+            Authorization: `Bearer ${gatewayKey}`,
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify(request),
+          signal: controller.signal,
         },
-        body: JSON.stringify(request),
-      },
-    );
+      );
+      clearTimeout(timeoutId);
+    } catch (error) {
+      clearTimeout(timeoutId);
+      if (error instanceof Error && error.name === 'AbortError') {
+        throw new Error("Gateway request timeout after 60 seconds");
+      }
+      throw error;
+    }
 
     if (!response.ok) {
       const error = await response.text();

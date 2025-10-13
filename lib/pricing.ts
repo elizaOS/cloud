@@ -121,16 +121,29 @@ export function estimateTokens(text: string): number {
 /**
  * Estimate cost for a chat request before making the API call
  * Used for pre-flight credit checking
+ * 
+ * Note: content can be string or multimodal (arrays with text/images)
  */
 export async function estimateRequestCost(
   model: string,
-  messages: Array<{ role: string; content: string }>,
+  messages: Array<{ role: string; content: string | object }>,
 ): Promise<number> {
   const provider = getProviderFromModel(model);
   const normalizedModel = normalizeModelName(model);
   
   // Estimate input tokens from messages
-  const messageText = messages.map(m => m.content).join(" ");
+  // Handle both string content and multimodal content
+  const messageText = messages.map(m => {
+    if (typeof m.content === 'string') {
+      return m.content;
+    } else if (m.content && typeof m.content === 'object') {
+      // For multimodal content, stringify and estimate
+      // This is a rough approximation
+      return JSON.stringify(m.content);
+    }
+    return '';
+  }).join(" ");
+  
   const estimatedInputTokens = estimateTokens(messageText);
   
   // Estimate output tokens (conservative estimate: 500 tokens)
@@ -143,6 +156,6 @@ export async function estimateRequestCost(
     estimatedOutputTokens,
   );
   
-  // Add 20% buffer for safety
-  return Math.ceil(totalCost * 1.2);
+  // Add 50% buffer for safety (increased from 20% to handle usage spikes)
+  return Math.ceil(totalCost * 1.5);
 }

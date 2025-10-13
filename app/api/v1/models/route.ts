@@ -24,12 +24,26 @@ export async function GET(request: NextRequest) {
       throw new Error("VERCEL_AI_GATEWAY_API_KEY or AI_GATEWAY_API_KEY not configured");
     }
 
-    // Forward to Vercel AI Gateway
-    const response = await fetch("https://ai-gateway.vercel.sh/v1/models", {
-      headers: {
-        Authorization: `Bearer ${gatewayKey}`,
-      },
-    });
+    // Forward to Vercel AI Gateway with timeout
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 30000); // 30 seconds
+    
+    let response: Response;
+    try {
+      response = await fetch("https://ai-gateway.vercel.sh/v1/models", {
+        headers: {
+          Authorization: `Bearer ${gatewayKey}`,
+        },
+        signal: controller.signal,
+      });
+      clearTimeout(timeoutId);
+    } catch (error) {
+      clearTimeout(timeoutId);
+      if (error instanceof Error && error.name === 'AbortError') {
+        throw new Error("Gateway request timeout");
+      }
+      throw error;
+    }
 
     if (!response.ok) {
       throw new Error(`Gateway error: ${response.status}`);
