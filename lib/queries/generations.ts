@@ -1,5 +1,6 @@
 import { db, schema, eq, and, desc, sql } from "@/lib/db";
 import type { Generation, NewGeneration } from "@/lib/types";
+import { CacheInvalidation } from "@/lib/cache/invalidation";
 
 export async function createGeneration(
   data: NewGeneration,
@@ -8,6 +9,9 @@ export async function createGeneration(
     .insert(schema.generations)
     .values(data)
     .returning();
+
+  await CacheInvalidation.onGenerationCreated(data.organization_id);
+
   return generation;
 }
 

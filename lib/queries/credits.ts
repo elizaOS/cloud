@@ -1,5 +1,9 @@
 import { db, schema, eq, desc } from "@/lib/db";
 import type { CreditTransaction } from "@/lib/types";
+import { creditEventEmitter } from "@/lib/events/credit-events";
+import { cache } from "@/lib/cache/client";
+import { CacheKeys, CacheTTL } from "@/lib/cache/keys";
+import { CacheInvalidation } from "@/lib/cache/invalidation";
 
 export async function deductCredits(
   organizationId: string,
@@ -65,6 +69,20 @@ export async function deductCredits(
       .returning();
 
     return { success: true, newBalance, transaction };
+  }).then(async (result) => {
+    if (result.success) {
+      creditEventEmitter.emitCreditUpdate({
+        organizationId,
+        newBalance: result.newBalance,
+        delta: -roundedAmount,
+        reason: description || "API usage",
+        userId,
+        timestamp: new Date(),
+      });
+
+      await CacheInvalidation.onCreditMutation(organizationId);
+    }
+    return result;
   });
 }
 
@@ -127,6 +145,19 @@ export async function addCredits(
       .returning();
 
     return { success: true, newBalance, transaction };
+  }).then(async (result) => {
+    creditEventEmitter.emitCreditUpdate({
+      organizationId,
+      newBalance: result.newBalance,
+      delta: roundedAmount,
+      reason: description || `Credit ${type}`,
+      userId,
+      timestamp: new Date(),
+    });
+
+    await CacheInvalidation.onCreditMutation(organizationId);
+
+    return result;
   });
 }
 
@@ -158,6 +189,13 @@ export async function getCreditTransactionById(
 export async function getCreditBalance(
   organizationId: string,
 ): Promise<number> {
+  const cacheKey = CacheKeys.org.credits(organizationId);
+
+  const cached = await cache.get<{ balance: number; timestamp: Date }>(
+    cacheKey
+  );
+  if (cached) return cached.balance;
+
   const org = await db.query.organizations.findFirst({
     where: eq(schema.organizations.id, organizationId),
     columns: {
@@ -168,6 +206,12 @@ export async function getCreditBalance(
   if (!org) {
     throw new Error("Organization not found");
   }
+
+  await cache.set(
+    cacheKey,
+    { balance: org.credit_balance, timestamp: new Date() },
+    CacheTTL.org.credits
+  );
 
   return org.credit_balance;
 }

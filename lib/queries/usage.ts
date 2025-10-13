@@ -1,5 +1,6 @@
 import { db, schema, eq, and, desc, sql } from "@/lib/db";
 import type { UsageRecord, NewUsageRecord } from "@/lib/types";
+import { CacheInvalidation } from "@/lib/cache/invalidation";
 
 export async function createUsageRecord(
   data: NewUsageRecord,
@@ -8,6 +9,9 @@ export async function createUsageRecord(
     .insert(schema.usageRecords)
     .values(data)
     .returning();
+
+  await CacheInvalidation.onUsageRecordCreated(data.organization_id);
+
   return record;
 }
 

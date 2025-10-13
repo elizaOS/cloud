@@ -1,5 +1,9 @@
 import { type NextRequest, NextResponse } from "next/server";
 import { requireAuthOrApiKey } from "@/lib/auth";
+import { logger } from "@/lib/utils/logger";
+import { withRateLimit, RateLimitPresets } from "@/lib/middleware/rate-limit";
+import { cache } from "@/lib/cache/client";
+import { CacheKeys, CacheTTL } from "@/lib/cache/keys";
 import {
   getUsageStatsSafe,
   getUsageTimeSeries,
@@ -11,7 +15,7 @@ import {
 
 export const maxDuration = 60;
 
-export async function GET(req: NextRequest) {
+async function handleGET(req: NextRequest) {
   try {
     const { user } = await requireAuthOrApiKey(req);
     const searchParams = req.nextUrl.searchParams;
@@ -19,6 +23,15 @@ export async function GET(req: NextRequest) {
     const timeRange =
       (searchParams.get("timeRange") as "daily" | "weekly" | "monthly") ||
       "daily";
+
+    const cacheKey = CacheKeys.analytics.overview(user.organization_id, timeRange);
+    const cached = await cache.get<typeof response>(cacheKey);
+    if (cached) {
+      logger.debug(
+        `[Analytics Overview] Cache hit for org=${user.organization_id}, range=${timeRange}`
+      );
+      return NextResponse.json(cached);
+    }
 
     const now = new Date();
     let startDate: Date;
@@ -99,30 +112,24 @@ export async function GET(req: NextRequest) {
           date: point.timestamp.toISOString().split("T")[0],
           requests: point.totalRequests,
           cost: point.totalCost,
-          spent: point.totalCost,
           tokens: point.inputTokens + point.outputTokens,
         })),
         providerBreakdown: providerBreakdown.map((provider) => ({
           provider: provider.provider,
-          name: provider.provider,
           requests: provider.totalRequests,
           cost: provider.totalCost,
-          spent: provider.totalCost,
           tokens: provider.totalTokens,
           percentage: provider.percentage,
-          marketShare: provider.percentage,
         })),
         modelBreakdown: modelBreakdown.map((model) => ({
           model: model.model,
           requests: model.totalRequests,
           cost: model.totalCost,
-          spent: model.totalCost,
           tokens: model.totalTokens,
         })),
         summary: {
           totalRequests: summary.totalRequests,
           totalCost: summary.totalCost,
-          totalSpent: summary.totalCost,
           totalTokens: summary.totalInputTokens + summary.totalOutputTokens,
           successRate: summary.successRate,
           avgCostPerRequest:
@@ -135,7 +142,6 @@ export async function GET(req: NextRequest) {
         trends: {
           requestsChange: trends.requestsChange,
           costChange: trends.costChange,
-          spentChange: trends.costChange,
           tokensChange: trends.tokensChange,
           successRateChange: trends.successRateChange,
           period: trends.period,
@@ -143,9 +149,12 @@ export async function GET(req: NextRequest) {
       },
     };
 
+    const ttl = CacheTTL.analytics.overview[timeRange];
+    await cache.set(cacheKey, response, ttl);
+
     return NextResponse.json(response);
   } catch (error) {
-    console.error("[Analytics Overview] Error:", error);
+    logger.error("[Analytics Overview] Error:", error);
     return NextResponse.json(
       {
         success: false,
@@ -156,3 +165,5 @@ export async function GET(req: NextRequest) {
     );
   }
 }
+
+export const GET = withRateLimit(handleGET, RateLimitPresets.STANDARD);
