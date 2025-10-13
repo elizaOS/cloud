@@ -29,19 +29,39 @@ export function ChatInterfaceWithPersistence({
   const [selectedModel, setSelectedModel] = useState(
     conversation?.model || "gpt-4o",
   );
-  const [isCreatingConversation, setIsCreatingConversation] = useState(false);
+  const [isProcessing, setIsProcessing] = useState(false);
   const [activeConversationId, setActiveConversationId] = useState<
     string | null
   >(conversation?.id || null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const isFirstRender = useRef(true);
   const messageTimestamps = useRef<Map<string, Date>>(new Map());
+  const loadingTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
-  const { messages, sendMessage, status, setMessages } = useChat({
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
+
+  const { messages, sendMessage, setMessages } = useChat({
     id: selectedModel,
     transport: new DefaultChatTransport({
       api: "/api/v1/chat",
     }),
+    onError: (error: Error) => {
+      setErrorMessage(
+        error.message || "Failed to send message. Please try again.",
+      );
+      setIsProcessing(false);
+      if (loadingTimeoutRef.current) {
+        clearTimeout(loadingTimeoutRef.current);
+        loadingTimeoutRef.current = null;
+      }
+    },
+    onFinish: () => {
+      setIsProcessing(false);
+      if (loadingTimeoutRef.current) {
+        clearTimeout(loadingTimeoutRef.current);
+        loadingTimeoutRef.current = null;
+      }
+    },
   });
 
   useEffect(() => {
@@ -52,7 +72,7 @@ export function ChatInterfaceWithPersistence({
           setAvailableModels(data.models);
         }
       })
-      .catch((err) => console.error("Failed to fetch models:", err));
+      .catch(() => {});
   }, []);
 
   useEffect(() => {
@@ -97,7 +117,7 @@ export function ChatInterfaceWithPersistence({
         setMessages([]);
       }
     }
-  }, [conversation?.id, initialMessages, setMessages, activeConversationId]);
+  }, [conversation?.id, initialMessages, activeConversationId, setMessages]);
 
   useEffect(() => {
     messages.forEach((msg) => {
@@ -111,14 +131,23 @@ export function ChatInterfaceWithPersistence({
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages]);
 
+  useEffect(() => {
+    return () => {
+      if (loadingTimeoutRef.current) {
+        clearTimeout(loadingTimeoutRef.current);
+      }
+    };
+  }, []);
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!input.trim() || isCreatingConversation) return;
+    if (!input.trim() || isProcessing) return;
 
     let conversationId = conversation?.id;
 
+    setIsProcessing(true);
+
     if (!conversationId) {
-      setIsCreatingConversation(true);
       try {
         const result = await createConversationAction({
           title: "New Conversation",
@@ -127,7 +156,7 @@ export function ChatInterfaceWithPersistence({
 
         if (!result.success || !result.conversation) {
           console.error("Failed to create conversation");
-          setIsCreatingConversation(false);
+          setIsProcessing(false);
           return;
         }
 
@@ -139,12 +168,18 @@ export function ChatInterfaceWithPersistence({
         }
       } catch (error) {
         console.error("Error creating conversation:", error);
-        setIsCreatingConversation(false);
+        setIsProcessing(false);
         return;
-      } finally {
-        setIsCreatingConversation(false);
       }
     }
+
+    if (loadingTimeoutRef.current) {
+      clearTimeout(loadingTimeoutRef.current);
+    }
+    loadingTimeoutRef.current = setTimeout(() => {
+      console.warn("[Chat] Loading timeout - forcing reset");
+      setIsProcessing(false);
+    }, 30000);
 
     const messageText = input;
     setInput("");
@@ -155,11 +190,10 @@ export function ChatInterfaceWithPersistence({
     });
   };
 
-  const isLoading = status === "streaming" || isCreatingConversation;
   const lastMessage =
     messages.length > 0 ? messages[messages.length - 1] : null;
   const isWaitingForResponse =
-    lastMessage?.role === "user" && status === "submitted";
+    lastMessage?.role === "user" && isProcessing;
 
   const formatTimestamp = (timestamp: number): string => {
     const date = new Date(timestamp);
@@ -341,7 +375,7 @@ export function ChatInterfaceWithPersistence({
                   <span>
                     {formatTimestamp(
                       messageTimestamps.current.get(message.id)?.getTime() ||
-                        Date.now(),
+                      Date.now(),
                     )}
                   </span>
                 </div>
@@ -365,6 +399,23 @@ export function ChatInterfaceWithPersistence({
               </div>
             </div>
           )}
+
+          {errorMessage && (
+            <div className="flex items-start gap-3">
+              <div className="max-w-[min(760px,82%)] rounded-2xl border border-destructive/50 bg-destructive/10 px-4 py-3 text-sm text-destructive shadow-sm">
+                <div className="font-medium">Error</div>
+                <div className="mt-1">{errorMessage}</div>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setErrorMessage(null)}
+                  className="mt-2"
+                >
+                  Dismiss
+                </Button>
+              </div>
+            </div>
+          )}
         </div>
 
         <div ref={messagesEndRef} />
@@ -384,16 +435,16 @@ export function ChatInterfaceWithPersistence({
                   ? "Type your message…"
                   : "Type your message to start a new conversation…"
               }
-              disabled={isLoading}
+              disabled={isProcessing}
               className="h-11 w-full rounded-xl border border-border bg-background px-4 text-sm shadow-sm transition focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20 disabled:cursor-not-allowed disabled:opacity-60"
             />
           </div>
           <Button
             type="submit"
-            disabled={isLoading || !input.trim()}
+            disabled={isProcessing || !input.trim()}
             className="h-11 rounded-xl px-5 font-medium shadow-sm transition hover:shadow-md"
           >
-            {isLoading ? (
+            {isProcessing ? (
               <Loader2 className="h-5 w-5 animate-spin" />
             ) : (
               <Send className="h-5 w-5" />
