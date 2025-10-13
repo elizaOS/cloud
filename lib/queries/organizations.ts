@@ -1,12 +1,25 @@
 import { db, schema, eq } from "@/lib/db";
 import type { Organization, NewOrganization } from "@/lib/types";
+import { cache } from "@/lib/cache/client";
+import { CacheKeys, CacheTTL } from "@/lib/cache/keys";
 
 export async function getOrganizationById(
   id: string,
 ): Promise<Organization | undefined> {
-  return await db.query.organizations.findFirst({
+  const cacheKey = CacheKeys.org.data(id);
+
+  const cached = await cache.get<Organization>(cacheKey);
+  if (cached) return cached;
+
+  const org = await db.query.organizations.findFirst({
     where: eq(schema.organizations.id, id),
   });
+
+  if (org) {
+    await cache.set(cacheKey, org, CacheTTL.org.data);
+  }
+
+  return org;
 }
 
 export async function getOrganizationBySlug(
@@ -39,6 +52,12 @@ export async function updateOrganization(
     })
     .where(eq(schema.organizations.id, id))
     .returning();
+
+  if (updated) {
+    await cache.del(CacheKeys.org.data(id));
+    await cache.del(CacheKeys.org.dashboard(id));
+  }
+
   return updated;
 }
 
