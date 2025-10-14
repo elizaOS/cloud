@@ -13,7 +13,7 @@ export const users = pgTable(
   "users",
   {
     id: uuid("id").defaultRandom().primaryKey(),
-    privy_user_id: text("privy_user_id").unique(),
+    privy_user_id: text("privy_user_id").notNull().unique(),
     email: text("email").notNull().unique(),
     email_verified: boolean("email_verified").notNull().default(false),
     name: text("name"),
