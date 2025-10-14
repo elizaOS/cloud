@@ -19,10 +19,19 @@ export interface EnvValidationResult {
  * Environment variable definitions
  */
 const ENV_VARS = {
-  // Database
+  // Database - Platform
   DATABASE_URL: {
     required: true,
-    description: "PostgreSQL connection string",
+    description: "Platform PostgreSQL connection string (SaaS tables)",
+    validate: (value: string) =>
+      value.startsWith("postgresql://") || value.startsWith("postgres://"),
+    errorMessage: "Must be a valid PostgreSQL connection string",
+  },
+
+  // Database - Agent
+  AGENT_DATABASE_URL: {
+    required: true,
+    description: "Agent PostgreSQL connection string (ElizaOS tables)",
     validate: (value: string) =>
       value.startsWith("postgresql://") || value.startsWith("postgres://"),
     errorMessage: "Must be a valid PostgreSQL connection string",

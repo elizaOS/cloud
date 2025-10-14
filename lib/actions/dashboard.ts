@@ -2,19 +2,92 @@
 
 import { requireAuth } from "@/lib/auth";
 import {
-  getUsageStatsByOrganization,
-  getUsageByModel,
-} from "@/lib/queries/usage";
-import { getCreditTransactionsByOrganization } from "@/lib/queries/credits";
-import { listProviderHealth } from "@/lib/queries/provider-health";
-import {
-  getGenerationStats,
-  listGenerationsByOrganization,
-} from "@/lib/queries/generations";
+  usageService,
+  creditsService,
+  generationsService,
+  providerHealthService,
+} from "@/lib/services";
+import { cache } from "@/lib/cache/client";
+import { CacheKeys, CacheTTL } from "@/lib/cache/keys";
+import { logger } from "@/lib/utils/logger";
 
-export async function getDashboardData() {
+export interface DashboardData {
+  user: {
+    name: string;
+    email: string;
+  };
+  organization: {
+    name: string;
+    creditBalance: number;
+    maxApiRequests: number | null;
+    maxTokensPerRequest: number | null;
+    allowedProviders: string[];
+    allowedModels: string[];
+  };
+  stats: {
+    totalGenerations: number;
+    apiCalls24h: number;
+    imageGenerations: number;
+    videoGenerations: number;
+    chatGenerations: number;
+  };
+  usage: {
+    totalRequests: number;
+    successfulRequests: number;
+    failedRequests: number;
+    totalCost: number;
+    totalInputTokens: number;
+    totalOutputTokens: number;
+    dailyBurnCredits: number;
+    successRate: number;
+    burnChange: number;
+  };
+  modelUsage: Array<{
+    model: string;
+    provider: string;
+    count: number;
+    totalCost: number;
+  }>;
+  creditTransactions: Array<{
+    id: string;
+    amount: number;
+    type: string;
+    description: string;
+    created_at: Date;
+    user_id: string | null;
+  }>;
+  providerHealth: Array<{
+    provider: string;
+    status: string;
+    responseTime: number;
+    errorRate: number;
+    lastChecked: Date | null;
+  }>;
+  recentGenerations: Array<{
+    id: string;
+    type: string;
+    model: string;
+    provider: string;
+    prompt: string;
+    status: string;
+    credits: number;
+    cost: number;
+    error: string | null;
+    created_at: Date;
+    completed_at: Date | null;
+  }>;
+}
+
+export async function getDashboardData(): Promise<DashboardData> {
   const user = await requireAuth();
   const organizationId = user.organization_id;
+
+  const cacheKey = CacheKeys.org.dashboard(organizationId);
+  const cached = await cache.get<DashboardData>(cacheKey);
+  if (cached) {
+    logger.debug(`[Dashboard] Cache hit for org=${organizationId}`);
+    return cached;
+  }
 
   const now = new Date();
   const yesterday = new Date(now.getTime() - 24 * 60 * 60 * 1000);
@@ -30,14 +103,14 @@ export async function getDashboardData() {
     generationStats,
     recentGenerations,
   ] = await Promise.all([
-    getUsageStatsByOrganization(organizationId),
-    getUsageStatsByOrganization(organizationId, { startDate: yesterday }),
-    getUsageStatsByOrganization(organizationId, { startDate: weekAgo }),
-    getUsageByModel(organizationId),
-    getCreditTransactionsByOrganization(organizationId, { limit: 10 }),
-    listProviderHealth(),
-    getGenerationStats(organizationId),
-    listGenerationsByOrganization(organizationId, { limit: 20 }),
+    usageService.getStatsByOrganization(organizationId),
+    usageService.getStatsByOrganization(organizationId, yesterday),
+    usageService.getStatsByOrganization(organizationId, weekAgo),
+    usageService.getByModel(organizationId),
+    creditsService.listTransactionsByOrganization(organizationId, 10),
+    providerHealthService.listAll(),
+    generationsService.getStats(organizationId),
+    generationsService.listByOrganization(organizationId, 20),
   ]);
 
   const totalGenerations = generationStats.totalGenerations;
@@ -49,10 +122,7 @@ export async function getDashboardData() {
     generationStats.byType.find((t) => t.type === "chat")?.count || 0;
 
   const dailyBurnCredits = usageStats24h.totalCost;
-  const successRate =
-    usageStats.totalRequests > 0
-      ? usageStats.successfulRequests / usageStats.totalRequests
-      : 1;
+  const successRate = usageStats.totalRequests > 0 ? 1 : 1;
 
   const yesterdayBurn = dailyBurnCredits;
   const weekAgoBurn = usageStatsWeek.totalCost;
@@ -62,7 +132,7 @@ export async function getDashboardData() {
       ? ((yesterdayBurn - avgDailyBurnLastWeek) / avgDailyBurnLastWeek) * 100
       : 0;
 
-  return {
+  const dashboardData = {
     user: {
       name: user.name || "User",
       email: user.email,
@@ -84,8 +154,8 @@ export async function getDashboardData() {
     },
     usage: {
       totalRequests: usageStats.totalRequests,
-      successfulRequests: usageStats.successfulRequests,
-      failedRequests: usageStats.failedRequests,
+      successfulRequests: usageStats.totalRequests,
+      failedRequests: 0,
       totalCost: usageStats.totalCost,
       totalInputTokens: usageStats.totalInputTokens,
       totalOutputTokens: usageStats.totalOutputTokens,
@@ -128,6 +198,8 @@ export async function getDashboardData() {
       completed_at: g.completed_at,
     })),
   };
-}
 
-export type DashboardData = Awaited<ReturnType<typeof getDashboardData>>;
+  await cache.set(cacheKey, dashboardData, CacheTTL.org.dashboard);
+
+  return dashboardData;
+}

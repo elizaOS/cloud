@@ -1,10 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireAuth } from "@/lib/auth";
-import {
-  getApiKeyById,
-  deleteApiKey,
-  updateApiKey,
-} from "@/lib/queries/api-keys";
+import { apiKeysService } from "@/lib/services";
 
 export async function DELETE(
   request: NextRequest,
@@ -14,7 +10,7 @@ export async function DELETE(
     const user = await requireAuth();
     const { id } = await params;
 
-    const existingKey = await getApiKeyById(id);
+    const existingKey = await apiKeysService.getById(id);
 
     if (!existingKey) {
       return NextResponse.json({ error: "API key not found" }, { status: 404 });
@@ -24,7 +20,7 @@ export async function DELETE(
       return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     }
 
-    await deleteApiKey(id);
+    await apiKeysService.delete(id);
 
     return NextResponse.json({ success: true }, { status: 200 });
   } catch (error) {
@@ -44,7 +40,7 @@ export async function PATCH(
     const user = await requireAuth();
     const { id } = await params;
 
-    const existingKey = await getApiKeyById(id);
+    const existingKey = await apiKeysService.getById(id);
 
     if (!existingKey) {
       return NextResponse.json({ error: "API key not found" }, { status: 404 });
@@ -64,7 +60,7 @@ export async function PATCH(
       expires_at,
     } = body;
 
-    const updatedKey = await updateApiKey(id, {
+    const updatedKey = await apiKeysService.update(id, {
       ...(name !== undefined && { name }),
       ...(description !== undefined && { description }),
       ...(permissions !== undefined && { permissions }),
