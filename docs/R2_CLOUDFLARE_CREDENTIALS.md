@@ -32,12 +32,12 @@ sequenceDiagram
     API->>CF: Create download temp credentials<br/>(read, 1 hour)
     CF-->>API: Download credentials
     API-->>Client: Return both credential sets
-    
+
     Client->>R2: PUT with upload credentials<br/>(AWS SigV4)
     R2-->>Client: Artifact uploaded
-    
+
     Note over Client: Container starts (later)
-    
+
     Client->>R2: GET with download credentials<br/>(AWS SigV4)
     R2-->>Client: Artifact downloaded
 ```
@@ -49,6 +49,7 @@ sequenceDiagram
 **POST** `/api/v1/artifacts/upload`
 
 **Request:**
+
 ```json
 {
   "projectId": "my-project",
@@ -62,6 +63,7 @@ sequenceDiagram
 ```
 
 **Response:**
+
 ```json
 {
   "success": true,
@@ -98,7 +100,11 @@ sequenceDiagram
 ### CLI Upload with AWS SDK (Node.js)
 
 ```typescript
-import { S3Client, PutObjectCommand, GetObjectCommand } from "@aws-sdk/client-s3";
+import {
+  S3Client,
+  PutObjectCommand,
+  GetObjectCommand,
+} from "@aws-sdk/client-s3";
 import axios from "axios";
 import fs from "fs";
 
@@ -116,7 +122,7 @@ async function uploadAndPrepareDownload() {
       headers: {
         Authorization: `Bearer ${process.env.API_KEY}`,
       },
-    }
+    },
   );
 
   const { upload, download } = response.data.data;
@@ -133,14 +139,14 @@ async function uploadAndPrepareDownload() {
   });
 
   const artifactData = fs.readFileSync("artifact.tar.gz");
-  
+
   await uploadClient.send(
     new PutObjectCommand({
       Bucket: "eliza-artifacts",
       Key: new URL(upload.url).pathname.substring(1), // Extract key from URL
       Body: artifactData,
       ContentType: "application/gzip",
-    })
+    }),
   );
 
   console.log("✓ Artifact uploaded");
@@ -189,11 +195,11 @@ async function bootstrapContainer(downloadInfo: any) {
   // Stream to file
   await pipeline(
     response.Body as NodeJS.ReadableStream,
-    createWriteStream("artifact.tar.gz")
+    createWriteStream("artifact.tar.gz"),
   );
 
   console.log("✓ Artifact downloaded");
-  
+
   // Extract and run
   // ... tar -xzf artifact.tar.gz
 }
@@ -249,12 +255,14 @@ aws s3 cp "s3://eliza-artifacts/$(echo $DOWNLOAD_URL | sed 's/.*eliza-artifacts\
 ### Credential Scoping
 
 **Upload Credentials:**
+
 - Permission: `ObjectWrite` (write-only)
 - Scope: Single object path (e.g., `artifacts/org/project/1.0.0/abc123.tar.gz`)
 - Duration: 10 minutes
 - Cannot read, only write
 
 **Download Credentials:**
+
 - Permission: `ObjectRead` (read-only)
 - Scope: Single object path (same as above)
 - Duration: 1 hour (allows time for container startup)
@@ -297,11 +305,13 @@ R2_SECRET_ACCESS_KEY=your_r2_secret_key
 ### Create Temporary Credentials
 
 **Endpoint:**
+
 ```
 POST https://api.cloudflare.com/client/v4/accounts/{account_id}/r2/temp-access-credentials
 ```
 
 **Request Body:**
+
 ```json
 {
   "bucket": "eliza-artifacts",
@@ -312,6 +322,7 @@ POST https://api.cloudflare.com/client/v4/accounts/{account_id}/r2/temp-access-c
 ```
 
 **Response:**
+
 ```json
 {
   "success": true,
@@ -325,11 +336,11 @@ POST https://api.cloudflare.com/client/v4/accounts/{account_id}/r2/temp-access-c
 
 ### Permissions
 
-| Permission | Access Level |
-|------------|-------------|
-| `ObjectRead` | Read and list objects |
-| `ObjectWrite` | Write objects |
-| `ObjectReadWrite` | Both read and write |
+| Permission        | Access Level          |
+| ----------------- | --------------------- |
+| `ObjectRead`      | Read and list objects |
+| `ObjectWrite`     | Write objects         |
+| `ObjectReadWrite` | Both read and write   |
 
 ### Constraints
 
@@ -418,4 +429,3 @@ aws s3 ls s3://eliza-artifacts/artifacts/ \
 - **No cleanup jobs** needed
 - **Faster**: Direct R2 validation
 - **Scalable**: Cloudflare handles all credential management
-

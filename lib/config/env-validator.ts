@@ -168,7 +168,10 @@ export function validateEnvironment(): EnvValidationResult {
 
     // Validate format if validator is provided
     if ("validate" in config && config.validate && !config.validate(value)) {
-      const errorMsg = "errorMessage" in config && config.errorMessage ? config.errorMessage : "Invalid format";
+      const errorMsg =
+        "errorMessage" in config && config.errorMessage
+          ? config.errorMessage
+          : "Invalid format";
       if (config.required) {
         errors.push({
           variable,
@@ -215,7 +218,9 @@ export function requireValidEnvironment(): void {
       console.error(`  - ${error.message}`);
     }
     console.error("");
-    console.error("Please check your .env.local file and set the required variables.");
+    console.error(
+      "Please check your .env.local file and set the required variables.",
+    );
     console.error("See example.env.local for reference.");
     throw new Error("Invalid environment configuration");
   }
@@ -268,7 +273,7 @@ export function getConfiguredFeatures(): string[] {
  */
 export function logConfigurationStatus(): void {
   console.log("📋 Feature Configuration Status:");
-  
+
   const features = [
     { name: "Container Deployments", key: "containers" },
     { name: "Stripe Payments", key: "stripe" },
@@ -281,7 +286,6 @@ export function logConfigurationStatus(): void {
     const status = configured ? "✅ Enabled" : "⚠️  Disabled";
     console.log(`  ${status} - ${feature.name}`);
   }
-  
+
   console.log("");
 }
-

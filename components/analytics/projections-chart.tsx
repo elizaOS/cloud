@@ -19,12 +19,7 @@ import {
   ChartTooltipContent,
 } from "@/components/ui/chart";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
-import {
-  AlertTriangle,
-  TrendingUp,
-  Info,
-  Activity,
-} from "lucide-react";
+import { AlertTriangle, TrendingUp, Info, Activity } from "lucide-react";
 import type { ProjectionsData } from "@/lib/actions/analytics-enhanced";
 
 interface ProjectionsChartProps {
@@ -62,7 +57,9 @@ export function ProjectionsChart({ data }: ProjectionsChartProps) {
 
   const todayIndex = chartData.findIndex((d) => !d.isProjected);
   const lastHistoricalDate =
-    todayIndex >= 0 ? chartData[chartData.length - todayIndex - 1]?.fullDate : "";
+    todayIndex >= 0
+      ? chartData[chartData.length - todayIndex - 1]?.fullDate
+      : "";
 
   const getAlertIcon = (type: "warning" | "danger" | "info") => {
     switch (type) {

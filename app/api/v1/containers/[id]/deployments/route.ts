@@ -11,7 +11,7 @@ export const dynamic = "force-dynamic";
  */
 export async function GET(
   request: NextRequest,
-  { params }: { params: Promise<{ id: string }> }
+  { params }: { params: Promise<{ id: string }> },
 ) {
   try {
     const { id } = await params;
@@ -26,7 +26,7 @@ export async function GET(
           success: false,
           error: "Container not found",
         },
-        { status: 404 }
+        { status: 404 },
       );
     }
 
@@ -36,19 +36,20 @@ export async function GET(
     // A better approach would be to add a specific repository method for this
     const allRecords = await usageRecordsRepository.listByOrganization(
       user.organization_id,
-      50
+      50,
     );
 
     // Filter for container deployments
     const deployments = allRecords.filter(
-      (record) => record.type === "container_deployment"
+      (record) => record.type === "container_deployment",
     );
 
     // Filter for this specific container
     const containerDeployments = deployments.filter(
-      (d) => 
-        (d.metadata as Record<string, string> | null)?.container_id === id || 
-        (d.metadata as Record<string, string> | null)?.container_name === container.name
+      (d) =>
+        (d.metadata as Record<string, string> | null)?.container_id === id ||
+        (d.metadata as Record<string, string> | null)?.container_name ===
+          container.name,
     );
 
     // Enhance with container status snapshots
@@ -58,9 +59,12 @@ export async function GET(
       cost: deployment.input_cost,
       error: deployment.error_message,
       metadata: {
-        container_id: (deployment.metadata as Record<string, string> | null)?.container_id,
-        container_name: (deployment.metadata as Record<string, string> | null)?.container_name,
-        max_instances: (deployment.metadata as Record<string, string> | null)?.max_instances,
+        container_id: (deployment.metadata as Record<string, string> | null)
+          ?.container_id,
+        container_name: (deployment.metadata as Record<string, string> | null)
+          ?.container_name,
+        max_instances: (deployment.metadata as Record<string, string> | null)
+          ?.max_instances,
         port: (deployment.metadata as Record<string, string> | null)?.port,
         image_tag: container.image_tag,
         cloudflare_worker_id: container.cloudflare_worker_id,
@@ -92,8 +96,7 @@ export async function GET(
             ? error.message
             : "Failed to fetch deployment history",
       },
-      { status: 500 }
+      { status: 500 },
     );
   }
 }
-

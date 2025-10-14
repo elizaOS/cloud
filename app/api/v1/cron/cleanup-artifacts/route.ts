@@ -6,7 +6,7 @@ export const dynamic = "force-dynamic";
 /**
  * POST /api/v1/cron/cleanup-artifacts
  * Cron endpoint to clean up old artifacts
- * 
+ *
  * Should be called by a cron service (e.g., Vercel Cron, GitHub Actions)
  * Secure with CRON_SECRET in production
  */
@@ -18,13 +18,15 @@ export async function POST(request: NextRequest) {
 
     // CRITICAL: CRON_SECRET must be set - fail closed, not open
     if (!cronSecret) {
-      console.error("CRON_SECRET not configured - rejecting request for security");
+      console.error(
+        "CRON_SECRET not configured - rejecting request for security",
+      );
       return NextResponse.json(
         {
           success: false,
           error: "Server configuration error: CRON_SECRET not set",
         },
-        { status: 500 }
+        { status: 500 },
       );
     }
 
@@ -38,7 +40,7 @@ export async function POST(request: NextRequest) {
           success: false,
           error: "Unauthorized",
         },
-        { status: 401 }
+        { status: 401 },
       );
     }
 
@@ -63,7 +65,7 @@ export async function POST(request: NextRequest) {
   } catch (error) {
     console.error(
       "Artifact cleanup cron failed",
-      error instanceof Error ? error.message : String(error)
+      error instanceof Error ? error.message : String(error),
     );
 
     return NextResponse.json(
@@ -71,8 +73,7 @@ export async function POST(request: NextRequest) {
         success: false,
         error: error instanceof Error ? error.message : "Cleanup failed",
       },
-      { status: 500 }
+      { status: 500 },
     );
   }
 }
-

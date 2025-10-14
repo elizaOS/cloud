@@ -26,11 +26,12 @@ function getR2Client(): S3Client {
   const accountId = process.env.R2_ACCOUNT_ID;
   const accessKeyId = process.env.R2_ACCESS_KEY_ID;
   const secretAccessKey = process.env.R2_SECRET_ACCESS_KEY;
-  const endpoint = process.env.R2_ENDPOINT || `https://${accountId}.r2.cloudflarestorage.com`;
+  const endpoint =
+    process.env.R2_ENDPOINT || `https://${accountId}.r2.cloudflarestorage.com`;
 
   if (!accountId || !accessKeyId || !secretAccessKey) {
     throw new Error(
-      "R2 credentials not configured. Cannot perform cleanup operations."
+      "R2 credentials not configured. Cannot perform cleanup operations.",
     );
   }
 
@@ -64,7 +65,7 @@ export async function deleteArtifactFromR2(r2Key: string): Promise<boolean> {
     console.error(
       "Failed to delete artifact from R2",
       error instanceof Error ? error.message : String(error),
-      { r2Key }
+      { r2Key },
     );
     return false;
   }
@@ -76,7 +77,7 @@ export async function deleteArtifactFromR2(r2Key: string): Promise<boolean> {
 export async function cleanupProjectArtifacts(
   organizationId: string,
   projectId: string,
-  policy: Partial<ArtifactRetentionPolicy> = {}
+  policy: Partial<ArtifactRetentionPolicy> = {},
 ): Promise<{ deleted: number; errors: number }> {
   const finalPolicy = { ...DEFAULT_POLICY, ...policy };
   let deleted = 0;
@@ -135,19 +136,24 @@ export async function cleanupProjectArtifacts(
       });
     }
 
-    // OPTIMIZATION: Query all containers once upfront to avoid N+1 pattern  
+    // OPTIMIZATION: Query all containers once upfront to avoid N+1 pattern
     // FIX: Use artifact_id for reliable comparison (URLs can be presigned/permanent)
-    const activeContainers = await containersRepository.listActiveByOrganizationWithArtifactId(organizationId);
+    const activeContainers =
+      await containersRepository.listActiveByOrganizationWithArtifactId(
+        organizationId,
+      );
 
     // Build a Set of artifact IDs currently in use for O(1) lookup
     // CRITICAL: Use artifact_id (immutable) instead of URLs (which can be presigned)
     const artifactIdsInUse = new Set(
       activeContainers
-        .map(c => c.artifact_id)
-        .filter((id): id is string => id !== null && id !== undefined)
+        .map((c) => c.artifact_id)
+        .filter((id): id is string => id !== null && id !== undefined),
     );
 
-    console.log(`Found ${activeContainers.length} active containers using ${artifactIdsInUse.size} unique artifacts`);
+    console.log(
+      `Found ${activeContainers.length} active containers using ${artifactIdsInUse.size} unique artifacts`,
+    );
 
     // Delete artifacts - but skip those in use by running containers
     for (const artifact of artifactsToDelete) {
@@ -156,19 +162,23 @@ export async function cleanupProjectArtifacts(
         // Compare by artifact_id for accuracy (URLs can be presigned/permanent variations)
         if (artifactIdsInUse.has(artifact.id)) {
           const containersUsing = activeContainers.filter(
-            c => c.artifact_id === artifact.id
+            (c) => c.artifact_id === artifact.id,
           );
           console.warn("Skipping artifact deletion - in use by containers", {
             artifactId: artifact.id,
             version: artifact.version,
-            containersUsing: containersUsing.map(c => ({ id: c.id, name: c.name, status: c.status })),
+            containersUsing: containersUsing.map((c) => ({
+              id: c.id,
+              name: c.name,
+              status: c.status,
+            })),
           });
           continue; // Skip this artifact
         }
 
         // Safe to delete - artifact is not in use
         const r2Success = await deleteArtifactFromR2(artifact.r2_key);
-        
+
         if (r2Success) {
           // Delete from database
           await artifactsRepository.delete(artifact.id);
@@ -186,7 +196,7 @@ export async function cleanupProjectArtifacts(
         console.error(
           "Failed to delete artifact",
           error instanceof Error ? error.message : String(error),
-          { artifactId: artifact.id }
+          { artifactId: artifact.id },
         );
       }
     }
@@ -204,7 +214,7 @@ export async function cleanupProjectArtifacts(
     console.error(
       "Artifact cleanup failed",
       error instanceof Error ? error.message : String(error),
-      { organizationId, projectId }
+      { organizationId, projectId },
     );
     throw error;
   }
@@ -215,13 +225,14 @@ export async function cleanupProjectArtifacts(
  * Run this periodically via cron
  */
 export async function cleanupAllArtifacts(
-  policy: Partial<ArtifactRetentionPolicy> = {}
+  policy: Partial<ArtifactRetentionPolicy> = {},
 ): Promise<{ totalDeleted: number; totalErrors: number }> {
   try {
     console.log("Starting global artifact cleanup");
 
     // Get unique organization/project combinations
-    const projectGroups = await artifactsRepository.getDistinctOrganizationProjects();
+    const projectGroups =
+      await artifactsRepository.getDistinctOrganizationProjects();
 
     console.log(`Found ${projectGroups.length} project(s) with artifacts`);
 
@@ -233,7 +244,7 @@ export async function cleanupAllArtifacts(
       const result = await cleanupProjectArtifacts(
         group.organizationId,
         group.projectId,
-        policy
+        policy,
       );
       totalDeleted += result.deleted;
       totalErrors += result.errors;
@@ -248,7 +259,7 @@ export async function cleanupAllArtifacts(
   } catch (error) {
     console.error(
       "Global artifact cleanup failed",
-      error instanceof Error ? error.message : String(error)
+      error instanceof Error ? error.message : String(error),
     );
     throw error;
   }
@@ -264,11 +275,12 @@ export async function getArtifactStats(organizationId: string): Promise<{
   oldestArtifact?: Date;
   newestArtifact?: Date;
 }> {
-  const orgArtifacts = await artifactsRepository.listByOrganization(organizationId);
+  const orgArtifacts =
+    await artifactsRepository.listByOrganization(organizationId);
 
   const totalSizeBytes = orgArtifacts.reduce(
     (sum, artifact) => sum + artifact.size,
-    0
+    0,
   );
 
   const uniqueProjects = new Set(orgArtifacts.map((a) => a.project_id));
@@ -285,4 +297,3 @@ export async function getArtifactStats(organizationId: string): Promise<{
     newestArtifact: dates[dates.length - 1],
   };
 }
-

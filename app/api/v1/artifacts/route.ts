@@ -11,17 +11,17 @@ export const dynamic = "force-dynamic";
 export async function GET(request: NextRequest) {
   try {
     const { user } = await requireAuthOrApiKey(request);
-    
+
     const { searchParams } = new URL(request.url);
     const projectId = searchParams.get("projectId");
-    
+
     if (!projectId) {
       return NextResponse.json(
         {
           success: false,
           error: "projectId query parameter is required",
         },
-        { status: 400 }
+        { status: 400 },
       );
     }
 
@@ -40,9 +40,10 @@ export async function GET(request: NextRequest) {
     return NextResponse.json(
       {
         success: false,
-        error: error instanceof Error ? error.message : "Failed to fetch artifacts",
+        error:
+          error instanceof Error ? error.message : "Failed to fetch artifacts",
       },
-      { status: 500 }
+      { status: 500 },
     );
   }
 }

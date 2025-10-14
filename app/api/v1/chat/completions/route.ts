@@ -1,15 +1,15 @@
 // app/api/v1/chat/completions/route.ts
 import { requireAuthOrApiKey } from "@/lib/auth";
 import { getProvider } from "@/lib/providers";
-import { 
-  creditsService, 
-  usageService, 
+import {
+  creditsService,
+  usageService,
   generationsService,
   organizationsService,
 } from "@/lib/services";
-import { 
-  calculateCost, 
-  getProviderFromModel, 
+import {
+  calculateCost,
+  getProviderFromModel,
   normalizeModelName,
   estimateRequestCost,
   estimateTokens,
@@ -78,17 +78,18 @@ export async function POST(req: NextRequest) {
           { status: 400 },
         );
       }
-      
+
       // Content is optional for tool/function call messages
-      const hasToolCalls = 'tool_calls' in msg && msg.tool_calls;
-      const hasToolCallId = 'tool_call_id' in msg && msg.tool_call_id;
-      const hasFunctionCall = 'function_call' in msg && msg.function_call;
-      
+      const hasToolCalls = "tool_calls" in msg && msg.tool_calls;
+      const hasToolCallId = "tool_call_id" in msg && msg.tool_call_id;
+      const hasFunctionCall = "function_call" in msg && msg.function_call;
+
       if (!msg.content && !hasToolCalls && !hasToolCallId && !hasFunctionCall) {
         return Response.json(
           {
             error: {
-              message: "Each message must have content, tool_calls, tool_call_id, or function_call",
+              message:
+                "Each message must have content, tool_calls, tool_call_id, or function_call",
               type: "invalid_request_error",
               param: "messages",
               code: "invalid_value",
@@ -107,7 +108,7 @@ export async function POST(req: NextRequest) {
     // 4. Check credits BEFORE making API call
     // estimateRequestCost now handles both string and multimodal content
     const estimatedCost = await estimateRequestCost(model, request.messages);
-    
+
     // Check if organization has sufficient credits
     const org = await organizationsService.getById(user.organization_id);
     if (!org) {
@@ -135,7 +136,7 @@ export async function POST(req: NextRequest) {
         required: creditCheck.required,
         balance: creditCheck.balance,
       });
-      
+
       return Response.json(
         {
           error: {
@@ -188,8 +189,16 @@ export async function POST(req: NextRequest) {
     logger.error("[OpenAI Proxy] Error:", error);
 
     // Check if error is a structured gateway error
-    if (error && typeof error === 'object' && 'error' in error && 'status' in error) {
-      const gatewayError = error as { status: number; error: { message: string; type?: string; code?: string } };
+    if (
+      error &&
+      typeof error === "object" &&
+      "error" in error &&
+      "status" in error
+    ) {
+      const gatewayError = error as {
+        status: number;
+        error: { message: string; type?: string; code?: string };
+      };
       return Response.json(
         { error: gatewayError.error },
         { status: gatewayError.status },
@@ -252,7 +261,7 @@ async function handleNonStreamingResponse(
         cost: totalCost,
         balance: deductResult.newBalance,
       });
-      
+
       // Return error instead of giving free service
       return Response.json(
         {
@@ -396,15 +405,22 @@ function handleStreamingResponse(
       // After stream completes, record analytics
       // Use fallback token estimation if usage data was not provided
       if (totalTokens === 0) {
-        logger.warn("[OpenAI Proxy] No usage data in stream, estimating tokens", {
-          model,
-          contentLength: fullContent.length,
-        });
-        
+        logger.warn(
+          "[OpenAI Proxy] No usage data in stream, estimating tokens",
+          {
+            model,
+            contentLength: fullContent.length,
+          },
+        );
+
         // Estimate tokens from content
-        const messageText = messages.map(m => 
-          typeof m.content === 'string' ? m.content : JSON.stringify(m.content)
-        ).join(" ");
+        const messageText = messages
+          .map((m) =>
+            typeof m.content === "string"
+              ? m.content
+              : JSON.stringify(m.content),
+          )
+          .join(" ");
         inputTokens = estimateTokens(messageText);
         outputTokens = estimateTokens(fullContent);
         totalTokens = inputTokens + outputTokens;
@@ -428,12 +444,15 @@ function handleStreamingResponse(
         if (!deductResult.success) {
           // CRITICAL: This should rarely happen since we checked credits before streaming
           // But it can happen if credits were spent elsewhere between check and stream completion
-          logger.error("[OpenAI Proxy] CRITICAL: Failed to deduct credits after streaming - race condition detected", {
-            organizationId: user.organization_id,
-            userId: user.id,
-            cost: totalCost,
-            balance: deductResult.newBalance,
-          });
+          logger.error(
+            "[OpenAI Proxy] CRITICAL: Failed to deduct credits after streaming - race condition detected",
+            {
+              organizationId: user.organization_id,
+              userId: user.id,
+              cost: totalCost,
+              balance: deductResult.newBalance,
+            },
+          );
           // Stream has already completed, so we can't return an error to the client
           // This should trigger an alert for manual review
         }

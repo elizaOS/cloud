@@ -11,12 +11,12 @@ async function healthCheck() {
 
   if (result.healthy) {
     logger.info(
-      `[Cache Health] ✓ Cache is healthy (latency: ${result.latency}ms)`
+      `[Cache Health] ✓ Cache is healthy (latency: ${result.latency}ms)`,
     );
     process.exit(0);
   } else {
     logger.error(
-      `[Cache Health] ✗ Cache is unhealthy: ${result.error} (latency: ${result.latency}ms)`
+      `[Cache Health] ✗ Cache is unhealthy: ${result.error} (latency: ${result.latency}ms)`,
     );
     process.exit(1);
   }

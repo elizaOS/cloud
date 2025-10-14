@@ -41,7 +41,9 @@ When helping users:
 
 Be creative, encouraging, and help users think deeply about their character's personality. Always include a JSON block in your response showing the current character state.`;
 
-const editSystemPrompt = (character: ElizaCharacter) => `You are an AI assistant helping users edit and refine an existing ElizaOS agent character.
+const editSystemPrompt = (
+  character: ElizaCharacter,
+) => `You are an AI assistant helping users edit and refine an existing ElizaOS agent character.
 
 You are currently editing the character **"${character.name}"**.
 
@@ -93,15 +95,20 @@ export async function POST(request: Request) {
     await requireAuth();
 
     const body = await request.json();
-    const { messages, character, isEditMode }: { 
+    const {
+      messages,
+      character,
+      isEditMode,
+    }: {
       messages: UIMessage[];
       character?: ElizaCharacter;
       isEditMode?: boolean;
     } = body;
 
-    const systemPrompt = isEditMode && character 
-      ? editSystemPrompt(character)
-      : createSystemPrompt;
+    const systemPrompt =
+      isEditMode && character
+        ? editSystemPrompt(character)
+        : createSystemPrompt;
 
     const result = streamText({
       model: "gpt-4o-mini",
@@ -125,4 +132,3 @@ export async function POST(request: Request) {
     );
   }
 }
-

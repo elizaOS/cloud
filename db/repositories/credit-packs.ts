@@ -1,9 +1,10 @@
-import {
-  eq,
-  asc,
-} from "drizzle-orm";
+import { eq, asc } from "drizzle-orm";
 import { db } from "../client";
-import { creditPacks, type CreditPack, type NewCreditPack } from "../schemas/credit-packs";
+import {
+  creditPacks,
+  type CreditPack,
+  type NewCreditPack,
+} from "../schemas/credit-packs";
 
 export type { CreditPack, NewCreditPack };
 
@@ -36,10 +37,7 @@ export class CreditPacksRepository {
   }
 
   async create(data: NewCreditPack): Promise<CreditPack> {
-    const [creditPack] = await db
-      .insert(creditPacks)
-      .values(data)
-      .returning();
+    const [creditPack] = await db.insert(creditPacks).values(data).returning();
     return creditPack;
   }
 

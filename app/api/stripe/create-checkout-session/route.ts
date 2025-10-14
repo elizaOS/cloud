@@ -77,4 +77,7 @@ async function handleCheckoutSession(req: NextRequest) {
 }
 
 // Export rate-limited handler with standard preset
-export const POST = withRateLimit(handleCheckoutSession, RateLimitPresets.STRICT);
+export const POST = withRateLimit(
+  handleCheckoutSession,
+  RateLimitPresets.STRICT,
+);

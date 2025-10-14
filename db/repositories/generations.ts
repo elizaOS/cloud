@@ -1,13 +1,10 @@
-import {
-  eq,
-  desc,
-  and,
-  sql,
-  count,
-  sum,
-} from "drizzle-orm";
+import { eq, desc, and, sql, count, sum } from "drizzle-orm";
 import { db } from "../client";
-import { generations, type Generation, type NewGeneration } from "../schemas/generations";
+import {
+  generations,
+  type Generation,
+  type NewGeneration,
+} from "../schemas/generations";
 
 export type { Generation, NewGeneration };
 
@@ -82,10 +79,7 @@ export class GenerationsRepository {
   }
 
   async create(data: NewGeneration): Promise<Generation> {
-    const [generation] = await db
-      .insert(generations)
-      .values(data)
-      .returning();
+    const [generation] = await db.insert(generations).values(data).returning();
     return generation;
   }
 

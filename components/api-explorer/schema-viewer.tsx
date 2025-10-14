@@ -1,12 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import {
-  Card,
-  CardContent,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Button } from "@/components/ui/button";
@@ -23,7 +18,10 @@ import {
   InfoIcon,
 } from "lucide-react";
 import { toast } from "@/lib/utils/toast-adapter";
-import type { OpenAPISpec, OpenAPISchema } from "@/lib/swagger/openapi-generator";
+import type {
+  OpenAPISpec,
+  OpenAPISchema,
+} from "@/lib/swagger/openapi-generator";
 
 interface SchemaViewerProps {
   spec: OpenAPISpec | null;
@@ -64,7 +62,8 @@ export function SchemaViewer({ spec }: SchemaViewerProps) {
   };
 
   const getTypeColor = (type: string) => {
-    const base = "rounded-full px-2.5 py-1 text-xs font-medium ring-1 ring-inset";
+    const base =
+      "rounded-full px-2.5 py-1 text-xs font-medium ring-1 ring-inset";
     switch (type) {
       case "string":
         return `${base} bg-emerald-500/10 text-emerald-600 ring-emerald-500/30 dark:text-emerald-300`;
@@ -82,18 +81,11 @@ export function SchemaViewer({ spec }: SchemaViewerProps) {
     }
   };
 
-  const renderProperty = (
-    name: string,
-    schema: OpenAPISchema,
-    level = 0,
-  ) => {
+  const renderProperty = (name: string, schema: OpenAPISchema, level = 0) => {
     const isRequired = false;
 
     return (
-      <div
-        key={name}
-        className="mb-3 border-l-2 border-border/60 pl-4"
-      >
+      <div key={name} className="mb-3 border-l-2 border-border/60 pl-4">
         <div className="flex items-center gap-2 mb-2">
           <code className="font-mono font-semibold text-sm">{name}</code>
           {isRequired && (
@@ -247,7 +239,9 @@ export function SchemaViewer({ spec }: SchemaViewerProps) {
                         Example:
                       </div>
                       <pre className="overflow-x-auto rounded bg-muted p-3 text-xs font-mono text-muted-foreground">
-                        <code>{String(JSON.stringify(schema.example, null, 2))}</code>
+                        <code>
+                          {String(JSON.stringify(schema.example, null, 2))}
+                        </code>
                       </pre>
                     </div>
                   )}
@@ -324,7 +318,8 @@ export function SchemaViewer({ spec }: SchemaViewerProps) {
                 No schemas defined
               </h3>
               <p className="text-sm text-muted-foreground">
-                This API specification doesn&apos;t include any schema definitions.
+                This API specification doesn&apos;t include any schema
+                definitions.
               </p>
             </CardContent>
           </Card>

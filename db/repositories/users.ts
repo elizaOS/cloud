@@ -65,10 +65,7 @@ export class UsersRepository {
     return user;
   }
 
-  async update(
-    id: string,
-    data: Partial<NewUser>,
-  ): Promise<User | undefined> {
+  async update(id: string, data: Partial<NewUser>): Promise<User | undefined> {
     const [updated] = await db
       .update(users)
       .set({
