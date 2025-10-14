@@ -39,6 +39,9 @@ export const metadata: Metadata = {
   description: "View your AI agent dashboard, analytics, and quick actions",
 };
 
+// Force dynamic rendering since we use server-side auth (cookies)
+export const dynamic = 'force-dynamic';
+
 function generateUsageAlerts(
   data: Awaited<ReturnType<typeof getDashboardData>>,
 ): UsageAlertItem[] {

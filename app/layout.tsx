@@ -3,9 +3,9 @@ import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
 import { Analytics } from "@vercel/analytics/next";
 import { ThemeProvider } from "@/components/theme/theme-provider";
-import { AuthKitProvider } from "@workos-inc/authkit-nextjs/components";
 import { Toaster } from "sonner";
 import NextTopLoader from "nextjs-toploader";
+import PrivyProvider from "@/providers/PrivyProvider";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -40,7 +40,7 @@ export const metadata: Metadata = {
   creator: "elizaOS",
   publisher: "elizaOS",
   metadataBase: new URL(
-    process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000",
+    process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000"
   ),
   alternates: {
     canonical: "/",
@@ -81,10 +81,10 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en" suppressHydrationWarning>
-      <AuthKitProvider>
-        <body
-          className={`${geistSans.variable} ${geistMono.variable} antialiased`}
-        >
+      <body
+        className={`${geistSans.variable} ${geistMono.variable} antialiased`}
+      >
+        <PrivyProvider>
           <ThemeProvider
             attribute="class"
             defaultTheme="system"
@@ -95,9 +95,9 @@ export default function RootLayout({
             {children}
             <Toaster richColors />
           </ThemeProvider>
-        </body>
-      </AuthKitProvider>
-      <Analytics />
+        </PrivyProvider>
+        <Analytics />
+      </body>
     </html>
   );
 }

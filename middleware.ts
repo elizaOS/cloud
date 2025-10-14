@@ -1,21 +1,142 @@
-import { authkitMiddleware } from "@workos-inc/authkit-nextjs";
+import { NextResponse } from "next/server";
+import type { NextRequest } from "next/server";
+import { PrivyClient } from "@privy-io/server-auth";
 
-export default authkitMiddleware({
-  middlewareAuth: {
-    enabled: true,
-    unauthenticatedPaths: [
-      "/",
-      "/api/models",
-      "/api/fal/proxy",
-      "/auth/error",
-      "/api/v1/generate-image",
-      "/api/v1/generate-video",
-      "/api/v1/chat",
-      "/api/v1/models",
-      "/api/stripe/webhook",
-    ],
-  },
-});
+// Initialize Privy client
+const privyClient = new PrivyClient(
+  process.env.NEXT_PUBLIC_PRIVY_APP_ID!,
+  process.env.PRIVY_APP_SECRET!
+);
+
+// Paths that don't require authentication
+const publicPaths = [
+  "/",
+  "/api/models",
+  "/api/fal/proxy",
+  "/auth/error",
+  "/api/v1/generate-image",
+  "/api/v1/generate-video",
+  "/api/v1/chat",
+  "/api/v1/models",
+  "/api/stripe/webhook",
+  "/api/privy/webhook", // Privy webhook endpoint
+];
+
+// Paths that should be checked for authentication
+const protectedPaths = [
+  "/dashboard",
+  "/api/v1/user",
+  "/api/v1/organization",
+  "/api/v1/api-keys",
+  "/api/v1/usage",
+  "/api/v1/generations",
+  "/api/v1/containers",
+];
+
+export async function middleware(request: NextRequest) {
+  const { pathname } = request.nextUrl;
+
+  // Check if path is explicitly public
+  const isPublicPath = publicPaths.some(path => 
+    pathname === path || pathname.startsWith(`${path}/`)
+  );
+
+  if (isPublicPath) {
+    return NextResponse.next();
+  }
+
+  // Check if path needs protection
+  const isProtectedPath = protectedPaths.some(path => 
+    pathname === path || pathname.startsWith(`${path}/`)
+  );
+
+  // If not a protected path and not public, allow through
+  // This handles static files, etc.
+  if (!isProtectedPath && !pathname.startsWith("/api/")) {
+    return NextResponse.next();
+  }
+
+  // Try to verify authentication
+  try {
+    // Check for auth token in cookies
+    const authToken = request.cookies.get("privy-token");
+    
+    // Check for Bearer token in Authorization header (for API routes)
+    const authHeader = request.headers.get("Authorization");
+    const bearerToken = authHeader?.startsWith("Bearer ") 
+      ? authHeader.slice(7) 
+      : null;
+    
+    // Check for API key
+    const apiKey = request.headers.get("X-API-Key");
+    
+    // If API key is provided, allow through (will be validated in the route handler)
+    if (apiKey) {
+      return NextResponse.next();
+    }
+
+    const token = bearerToken || authToken?.value;
+
+    if (!token) {
+      // No token found - return 401 for all protected routes
+      if (pathname.startsWith("/api/")) {
+        return NextResponse.json(
+          { error: "Unauthorized" },
+          { status: 401 }
+        );
+      }
+      
+      // For web pages, redirect to home page where they can use the login modal
+      const url = request.nextUrl.clone();
+      url.pathname = "/";
+      return NextResponse.redirect(url);
+    }
+
+    // Verify the token with Privy
+    const user = await privyClient.verifyAuthToken(token);
+    
+    if (!user) {
+      // Invalid token
+      if (pathname.startsWith("/api/")) {
+        return NextResponse.json(
+          { error: "Invalid authentication token" },
+          { status: 401 }
+        );
+      }
+      
+      // For web pages, redirect to home page where they can use the login modal
+      const url = request.nextUrl.clone();
+      url.pathname = "/";
+      return NextResponse.redirect(url);
+    }
+
+    // Token is valid - add user info to headers for downstream use
+    const requestHeaders = new Headers(request.headers);
+    requestHeaders.set("x-privy-user-id", user.userId);
+    // Note: Email is not available from token claims - it's synced via webhooks
+
+    return NextResponse.next({
+      request: {
+        headers: requestHeaders,
+      },
+    });
+  } catch (error) {
+    console.error("Middleware auth error:", error);
+    
+    // Return error response
+    if (pathname.startsWith("/api/")) {
+      return NextResponse.json(
+        { error: "Authentication failed" },
+        { status: 401 }
+      );
+    }
+    
+    const url = request.nextUrl.clone();
+    url.pathname = "/auth/error";
+    url.searchParams.set("reason", "auth_failed");
+    return NextResponse.redirect(url);
+  }
+}
 
 export const config = {
   matcher: [

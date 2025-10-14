@@ -89,10 +89,15 @@ export async function deleteUser(id: string): Promise<void> {
   }
 }
 
-export async function getUserByWorkOSId(
-  workosUserId: string,
-): Promise<User | undefined> {
-  return await db.query.users.findFirst({
-    where: eq(schema.users.workos_user_id, workosUserId),
+export async function getUserByPrivyId(
+  privyUserId: string,
+): Promise<UserWithOrganization | undefined> {
+  const user = await db.query.users.findFirst({
+    where: eq(schema.users.privy_user_id, privyUserId),
+    with: {
+      organization: true,
+    },
   });
+
+  return user as UserWithOrganization | undefined;
 }

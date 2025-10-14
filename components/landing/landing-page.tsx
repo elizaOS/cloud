@@ -28,13 +28,38 @@ import { Timeline } from "@/components/ui/timeline";
 import { Button as MovingBorderButton } from "@/components/ui/moving-border";
 import { ShootingStars } from "@/components/ui/shooting-stars";
 import { StarsBackground } from "@/components/ui/stars-background";
+import { usePrivy, useLogin } from "@privy-io/react-auth";
+import { useRouter } from "next/navigation";
+import { useEffect } from "react";
 
-interface LandingPageProps {
-  signInUrl: string;
-  signUpUrl: string;
-}
-
-export function LandingPage({ signInUrl, signUpUrl }: LandingPageProps) {
+export function LandingPage() {
+  const { authenticated, ready } = usePrivy();
+  const { login } = useLogin();
+  const router = useRouter();
+  
+  // Auto-redirect to dashboard when authenticated
+  useEffect(() => {
+    if (ready && authenticated) {
+      console.log("User authenticated, redirecting to dashboard...");
+      router.push("/dashboard");
+    }
+  }, [ready, authenticated, router]);
+  
+  const handleAuth = () => {
+    console.log("Auth button clicked:", { authenticated, ready });
+    
+    if (!ready) {
+      console.log("Privy not ready yet");
+      return;
+    }
+    
+    if (authenticated) {
+      router.push("/dashboard");
+    } else {
+      console.log("Calling Privy login...");
+      login();
+    }
+  };
   // Tech stack logos/icons data for infinite marquee
   const techStack = [
     {
@@ -242,7 +267,7 @@ export function LandingPage({ signInUrl, signUpUrl }: LandingPageProps) {
   return (
     <div className="flex min-h-screen flex-col">
       {/* Header */}
-      <LandingHeader signInUrl={signInUrl} signUpUrl={signUpUrl} />
+      <LandingHeader />
 
       {/* Hero Section with Background Boxes, Spotlight, and Sparkles */}
       <section className="relative w-full overflow-hidden bg-background py-20 md:py-32">
@@ -296,14 +321,12 @@ export function LandingPage({ signInUrl, signUpUrl }: LandingPageProps) {
 
             {/* Buttons with pointer events re-enabled */}
             <div className="flex flex-col items-center justify-center gap-4 sm:flex-row pointer-events-auto">
-              <Button size="lg" asChild className="gap-2">
-                <Link href={signUpUrl}>
-                  Start Building Free
-                  <ArrowRight className="h-4 w-4" />
-                </Link>
+              <Button size="lg" onClick={handleAuth} className="gap-2">
+                Start Building Free
+                <ArrowRight className="h-4 w-4" />
               </Button>
-              <Button size="lg" variant="outline" asChild>
-                <Link href={signInUrl}>Sign In</Link>
+              <Button size="lg" variant="outline" onClick={handleAuth}>
+                Sign In
               </Button>
             </div>
           </div>
@@ -434,8 +457,7 @@ export function LandingPage({ signInUrl, signUpUrl }: LandingPageProps) {
                 className="bg-white text-black hover:bg-gray-100 font-semibold"
                 containerClassName="h-14 w-56"
                 borderClassName="bg-gradient-to-r from-violet-600 via-purple-600 to-pink-600"
-                as={Link}
-                href={signUpUrl}
+                onClick={handleAuth}
               >
                 <span className="flex items-center gap-2">
                   Get Started for Free

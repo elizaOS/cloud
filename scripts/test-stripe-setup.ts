@@ -154,10 +154,19 @@ async function createStripeProducts() {
   return products;
 }
 
+interface StripeCreatedProduct {
+  name: string;
+  productId: string;
+  priceId: string;
+  credits: number;
+  priceCents: number;
+  sortOrder: number;
+}
+
 /**
  * Step 2: Generate seed script with real IDs
  */
-async function generateSeedScript(products: any[]) {
+async function generateSeedScript(products: StripeCreatedProduct[]) {
   console.log("\n📝 Step 2: Generating Seed Script");
   console.log("-".repeat(50));
 
