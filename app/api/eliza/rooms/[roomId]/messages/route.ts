@@ -91,12 +91,12 @@ export async function POST(
       );
 
       // Deduct credits
-      const deductionResult = await creditsService.deductCredits(
-        user.organization_id,
-        totalCost,
-        `Eliza chat completion: ${model}`,
-        { user_id: user.id },
-      );
+      const deductionResult = await creditsService.deductCredits({
+        organizationId: user.organization_id,
+        amount: totalCost,
+        description: `Eliza chat completion: ${model}`,
+        metadata: { user_id: user.id },
+      });
 
       if (!deductionResult.success) {
         logger.error(

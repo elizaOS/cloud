@@ -160,12 +160,12 @@ export async function POST(request: NextRequest) {
       // Continue with original URL as fallback
     }
 
-    const deductionResult = await creditsService.deductCredits(
-      user.organization_id,
-      VIDEO_GENERATION_COST,
-      `Video generation: ${model}`,
-      { user_id: user.id },
-    );
+    const deductionResult = await creditsService.deductCredits({
+      organizationId: user.organization_id,
+      amount: VIDEO_GENERATION_COST,
+      description: `Video generation: ${model}`,
+      metadata: { user_id: user.id },
+    });
 
     // FIXED: Fail the request if credit deduction fails to prevent revenue leak
     if (!deductionResult.success) {
@@ -259,12 +259,12 @@ export async function POST(request: NextRequest) {
       const { user: fallbackUser, apiKey: fallbackApiKey } =
         await requireAuthOrApiKey(request);
 
-      const fallbackDeduction = await creditsService.deductCredits(
-        fallbackUser.organization_id,
-        VIDEO_GENERATION_FALLBACK_COST,
-        "Video generation (fallback): fal-ai/veo3",
-        { user_id: fallbackUser.id },
-      );
+      const fallbackDeduction = await creditsService.deductCredits({
+        organizationId: fallbackUser.organization_id,
+        amount: VIDEO_GENERATION_FALLBACK_COST,
+        description: "Video generation (fallback): fal-ai/veo3",
+        metadata: { user_id: fallbackUser.id },
+      });
 
       if (!fallbackDeduction.success) {
         console.error(

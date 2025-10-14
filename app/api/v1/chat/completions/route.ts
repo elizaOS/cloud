@@ -237,12 +237,12 @@ async function handleNonStreamingResponse(
     );
 
     // CRITICAL: Deduct credits before returning response
-    const deductResult = await creditsService.deductCredits(
-      user.organization_id,
-      totalCost,
-      `OpenAI Proxy: ${model}`,
-      { user_id: user.id },
-    );
+    const deductResult = await creditsService.deductCredits({
+      organizationId: user.organization_id,
+      amount: totalCost,
+      description: `OpenAI Proxy: ${model}`,
+      metadata: { user_id: user.id },
+    });
 
     if (!deductResult.success) {
       // This should rarely happen since we checked credits before the call
@@ -418,12 +418,12 @@ function handleStreamingResponse(
           outputTokens,
         );
 
-        const deductResult = await creditsService.deductCredits(
-          user.organization_id,
-          totalCost,
-          `OpenAI Proxy: ${model}`,
-          { user_id: user.id },
-        );
+        const deductResult = await creditsService.deductCredits({
+          organizationId: user.organization_id,
+          amount: totalCost,
+          description: `OpenAI Proxy: ${model}`,
+          metadata: { user_id: user.id },
+        });
 
         if (!deductResult.success) {
           logger.error("[OpenAI Proxy] Failed to deduct credits after streaming", {

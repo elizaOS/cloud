@@ -179,12 +179,12 @@ export async function POST(req: NextRequest) {
 
     // Deduct credits for actual number of successful images
     const actualCost = IMAGE_GENERATION_COST * successfulResults.length;
-    const deductionResult = await creditsService.deductCredits(
-      user.organization_id,
-      actualCost,
-      `Image generation (${successfulResults.length}x): google/gemini-2.5-flash-image-preview`,
-      { user_id: user.id },
-    );
+    const deductionResult = await creditsService.deductCredits({
+      organizationId: user.organization_id,
+      amount: actualCost,
+      description: `Image generation (${successfulResults.length}x): google/gemini-2.5-flash-image-preview`,
+      metadata: { user_id: user.id },
+    });
 
     // FIXED: Fail the request if credit deduction fails to prevent revenue leak
     if (!deductionResult.success) {
