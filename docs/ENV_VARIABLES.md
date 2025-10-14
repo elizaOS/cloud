@@ -2,22 +2,52 @@
 
 ## Required Environment Variables for Bootstrapper Deployment
 
-### Database
-- `DATABASE_URL` - PostgreSQL connection string
+### Databases (Two Separate Databases)
+
+#### Platform Database
+
+- `DATABASE_URL` - PostgreSQL connection string for platform tables
+  - Contains: organizations, users, API keys, credits, containers, artifacts, etc.
+  - Example: `postgresql://user:pass@host:5432/eliza_platform?sslmode=require`
+
+#### Agent Database
+
+- `AGENT_DATABASE_URL` - PostgreSQL connection string for ElizaOS agent tables
+  - Contains: agents, memories, rooms, embeddings, entities, relationships, etc.
+  - Managed by ElizaOS plugin-sql migrations
+  - Example: `postgresql://user:pass@host:5432/eliza_agents?sslmode=require`
+
+**Configuration Options:**
+
+1. **Same Database** (Development): Set both to the same URL
+
+   ```env
+   DATABASE_URL=postgresql://localhost:5432/eliza_dev
+   AGENT_DATABASE_URL=postgresql://localhost:5432/eliza_dev
+   ```
+
+2. **Separate Databases** (Production): Use different databases for isolation
+   ```env
+   DATABASE_URL=postgresql://host:5432/eliza_platform?sslmode=require
+   AGENT_DATABASE_URL=postgresql://host:5432/eliza_agents?sslmode=require
+   ```
 
 ### Authentication (WorkOS)
+
 - `WORKOS_CLIENT_ID` - WorkOS client ID
 - `WORKOS_API_KEY` - WorkOS API key
 - `WORKOS_REDIRECT_URI` - OAuth redirect URI
 - `WORKOS_COOKIE_PASSWORD` - Cookie encryption password (32+ chars)
 
 ### Stripe (for billing)
+
 - `STRIPE_SECRET_KEY` - Stripe secret key
 - `STRIPE_WEBHOOK_SECRET` - Stripe webhook secret
 - `STRIPE_PUBLISHABLE_KEY` - Stripe publishable key
 - `NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY` - Public Stripe key for frontend
 
 ### Cloudflare R2 Storage (for artifacts)
+
 - `R2_ACCOUNT_ID` - Cloudflare account ID
 - `R2_BUCKET_NAME` - R2 bucket name (default: eliza-artifacts)
 - `R2_ACCESS_KEY_ID` - R2 access key ID
@@ -26,15 +56,18 @@
 - `R2_PUBLIC_DOMAIN` - Public domain for R2 bucket (optional, for CDN access)
 
 ### Cloudflare API (for container deployment)
+
 - `CLOUDFLARE_ACCOUNT_ID` - Cloudflare account ID
 - `CLOUDFLARE_API_TOKEN` - Cloudflare API token with container permissions
 
 ### Application
+
 - `NEXT_PUBLIC_APP_URL` - Public URL of the application
 
 ## Optional Environment Variables
 
 ### AI Services
+
 - `FAL_KEY` - Fal.ai API key for image/video generation
 - `OPENAI_API_KEY` - OpenAI API key for chat features
 

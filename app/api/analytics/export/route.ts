@@ -9,7 +9,7 @@ import {
   getModelBreakdown,
   validateGranularity,
   type TimeGranularity,
-} from "@/lib/queries/analytics";
+} from "@/lib/services";
 import {
   generateCSV,
   generateJSON,
@@ -27,10 +27,10 @@ import {
 export const maxDuration = 60;
 
 const EXPORT_LIMITS = {
-  MAX_TIME_RANGE_DAYS: 365,      // Max 1 year of data
-  MAX_ROWS: 100000,               // Max 100k rows
-  MAX_ROWS_WARNING: 50000,        // Warning threshold
-  STREAMING_THRESHOLD: 10000,     // Stream if > 10k rows (future)
+  MAX_TIME_RANGE_DAYS: 365, // Max 1 year of data
+  MAX_ROWS: 100000, // Max 100k rows
+  MAX_ROWS_WARNING: 50000, // Warning threshold
+  STREAMING_THRESHOLD: 10000, // Stream if > 10k rows (future)
 } as const;
 
 async function handleGET(req: NextRequest) {
@@ -47,7 +47,8 @@ async function handleGET(req: NextRequest) {
       : new Date();
 
     // Validate time range
-    const timeRangeDays = (endDate.getTime() - startDate.getTime()) / (1000 * 60 * 60 * 24);
+    const timeRangeDays =
+      (endDate.getTime() - startDate.getTime()) / (1000 * 60 * 60 * 24);
 
     if (timeRangeDays > EXPORT_LIMITS.MAX_TIME_RANGE_DAYS) {
       return NextResponse.json(
@@ -55,14 +56,14 @@ async function handleGET(req: NextRequest) {
           error: `Time range too large. Maximum: ${EXPORT_LIMITS.MAX_TIME_RANGE_DAYS} days, requested: ${Math.ceil(timeRangeDays)} days`,
           maxDays: EXPORT_LIMITS.MAX_TIME_RANGE_DAYS,
         },
-        { status: 400 }
+        { status: 400 },
       );
     }
 
     if (startDate >= endDate) {
       return NextResponse.json(
         { error: "startDate must be before endDate" },
-        { status: 400 }
+        { status: 400 },
       );
     }
 
@@ -73,7 +74,7 @@ async function handleGET(req: NextRequest) {
         {
           error: `Invalid granularity: ${granularityParam}. Must be one of: hour, day, week, month`,
         },
-        { status: 400 }
+        { status: 400 },
       );
     }
 
@@ -223,7 +224,7 @@ async function handleGET(req: NextRequest) {
           actualRows: data.length,
           suggestion: "Use smaller date range or add filters",
         },
-        { status: 413 } // Payload Too Large
+        { status: 413 }, // Payload Too Large
       );
     }
 
@@ -238,10 +239,10 @@ async function handleGET(req: NextRequest) {
       const response = createDownloadResponse(
         generateJSON(data, exportOptions),
         `${filename}.json`,
-        "application/json"
+        "application/json",
       );
       Object.entries(responseHeaders).forEach(([key, value]) =>
-        response.headers.set(key, value)
+        response.headers.set(key, value),
       );
       return response;
     }
@@ -265,17 +266,17 @@ async function handleGET(req: NextRequest) {
           error:
             "PDF export requires 'pdfkit' package. Install with: bun add pdfkit @types/pdfkit",
         },
-        { status: 501 }
+        { status: 501 },
       );
     }
 
     const response = createDownloadResponse(
       generateCSV(data, columns, exportOptions),
       `${filename}.csv`,
-      "text/csv"
+      "text/csv",
     );
     Object.entries(responseHeaders).forEach(([key, value]) =>
-      response.headers.set(key, value)
+      response.headers.set(key, value),
     );
     return response;
   } catch (error) {
@@ -287,7 +288,7 @@ async function handleGET(req: NextRequest) {
             ? error.message
             : "Failed to export analytics data",
       },
-      { status: 500 }
+      { status: 500 },
     );
   }
 }

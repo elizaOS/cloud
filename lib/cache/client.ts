@@ -216,14 +216,14 @@ export class CacheClient {
     const timeSinceLastFailure = Date.now() - this.lastFailureTime;
     if (timeSinceLastFailure > this.CIRCUIT_BREAKER_TIMEOUT) {
       logger.info(
-        "[Cache] Circuit breaker timeout expired, attempting to reconnect"
+        "[Cache] Circuit breaker timeout expired, attempting to reconnect",
       );
       this.failureCount = 0;
       return false;
     }
 
     logger.warn(
-      `[Cache] Circuit breaker OPEN (${this.failureCount} failures, retry in ${Math.ceil((this.CIRCUIT_BREAKER_TIMEOUT - timeSinceLastFailure) / 1000)}s)`
+      `[Cache] Circuit breaker OPEN (${this.failureCount} failures, retry in ${Math.ceil((this.CIRCUIT_BREAKER_TIMEOUT - timeSinceLastFailure) / 1000)}s)`,
     );
     return true;
   }
@@ -234,7 +234,7 @@ export class CacheClient {
 
     if (this.failureCount === this.MAX_FAILURES) {
       logger.error(
-        `[Cache] Circuit breaker OPENED after ${this.MAX_FAILURES} failures`
+        `[Cache] Circuit breaker OPENED after ${this.MAX_FAILURES} failures`,
       );
     }
   }
@@ -271,7 +271,7 @@ export class CacheClient {
     key: string,
     operation: "hit" | "miss" | "set" | "del" | "del_pattern",
     durationMs: number,
-    metadata?: Record<string, unknown>
+    metadata?: Record<string, unknown>,
   ): void {
     const metricData = {
       key,
@@ -284,7 +284,7 @@ export class CacheClient {
     if (durationMs > 100) {
       logger.warn(
         `[Cache] Slow ${operation}: ${key} (${durationMs}ms)`,
-        metricData
+        metricData,
       );
     }
   }

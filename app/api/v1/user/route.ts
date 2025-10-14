@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireAuth } from "@/lib/auth";
-import { updateUser } from "@/lib/queries/users";
+import { usersService } from "@/lib/services";
 import { z } from "zod";
 import { revalidateTag } from "next/cache";
 import { withRateLimit, RateLimitPresets } from "@/lib/middleware/rate-limit";
@@ -70,7 +70,7 @@ async function handlePATCH(request: NextRequest) {
     const validated = updateUserSchema.parse(body);
 
     // Update user
-    const updated = await updateUser(user.id, {
+    const updated = await usersService.update(user.id, {
       ...(validated.name && { name: validated.name }),
       ...(validated.avatar !== undefined && {
         avatar: validated.avatar || null,

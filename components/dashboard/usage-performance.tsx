@@ -55,7 +55,10 @@ export function UsagePerformance({
 
   return (
     <Card
-      className={cn("border-border/50 bg-card/95 backdrop-blur-sm shadow-md", className)}
+      className={cn(
+        "border-border/50 bg-card/95 backdrop-blur-sm shadow-md",
+        className,
+      )}
     >
       <CardHeader>
         <div className="flex items-center justify-between">

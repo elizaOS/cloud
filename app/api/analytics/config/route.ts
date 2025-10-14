@@ -1,8 +1,8 @@
 import { type NextRequest, NextResponse } from "next/server";
 import { requireAuthOrApiKey, requireRole } from "@/lib/auth";
+import { organizationsService } from "@/lib/services";
 import { logger } from "@/lib/utils/logger";
 import { withRateLimit, RateLimitPresets } from "@/lib/middleware/rate-limit";
-import { db, schema, eq } from "@/lib/db";
 
 export const maxDuration = 60;
 
@@ -12,12 +12,7 @@ async function handleGET(req: NextRequest) {
   try {
     const { user } = await requireAuthOrApiKey(req);
 
-    const org = await db.query.organizations.findFirst({
-      where: eq(schema.organizations.id, user.organization_id),
-      columns: {
-        settings: true,
-      },
-    });
+    const org = await organizationsService.getById(user.organization_id);
 
     const settings = (org?.settings as Record<string, unknown>) || {};
     const analyticsConfig = (settings.analytics as Record<string, unknown>) || {
@@ -30,14 +25,15 @@ async function handleGET(req: NextRequest) {
     return NextResponse.json({
       success: true,
       data: {
-        markupPercentage:
-          (analyticsConfig.markupPercentage as number) || 20,
+        markupPercentage: (analyticsConfig.markupPercentage as number) || 20,
         autoRefreshInterval:
           (analyticsConfig.autoRefreshInterval as number) || 30,
         defaultTimeRange:
           (analyticsConfig.defaultTimeRange as string) || "daily",
-        exportFormats:
-          (analyticsConfig.exportFormats as string[]) || ["csv", "json"],
+        exportFormats: (analyticsConfig.exportFormats as string[]) || [
+          "csv",
+          "json",
+        ],
       },
     });
   } catch (error) {
@@ -50,7 +46,7 @@ async function handleGET(req: NextRequest) {
             ? error.message
             : "Failed to fetch analytics config",
       },
-      { status: 500 }
+      { status: 500 },
     );
   }
 }
@@ -60,8 +56,12 @@ async function handlePUT(req: NextRequest) {
     const user = await requireRole(["owner", "admin"]);
 
     const body = await req.json();
-    const { markupPercentage, autoRefreshInterval, defaultTimeRange, exportFormats } =
-      body;
+    const {
+      markupPercentage,
+      autoRefreshInterval,
+      defaultTimeRange,
+      exportFormats,
+    } = body;
 
     if (
       markupPercentage !== undefined &&
@@ -74,7 +74,7 @@ async function handlePUT(req: NextRequest) {
           success: false,
           error: "markupPercentage must be a number between 0 and 100",
         },
-        { status: 400 }
+        { status: 400 },
       );
     }
 
@@ -87,7 +87,7 @@ async function handlePUT(req: NextRequest) {
           success: false,
           error: "autoRefreshInterval must be a number >= 10 seconds",
         },
-        { status: 400 }
+        { status: 400 },
       );
     }
 
@@ -100,7 +100,7 @@ async function handlePUT(req: NextRequest) {
           success: false,
           error: "defaultTimeRange must be 'daily', 'weekly', or 'monthly'",
         },
-        { status: 400 }
+        { status: 400 },
       );
     }
 
@@ -111,12 +111,15 @@ async function handlePUT(req: NextRequest) {
             success: false,
             error: "exportFormats must be an array",
           },
-          { status: 400 }
+          { status: 400 },
         );
       }
 
       const invalidFormats = exportFormats.filter(
-        (format) => !VALID_EXPORT_FORMATS.includes(format as typeof VALID_EXPORT_FORMATS[number])
+        (format) =>
+          !VALID_EXPORT_FORMATS.includes(
+            format as (typeof VALID_EXPORT_FORMATS)[number],
+          ),
       );
 
       if (invalidFormats.length > 0) {
@@ -125,7 +128,7 @@ async function handlePUT(req: NextRequest) {
             success: false,
             error: `Invalid export formats: ${invalidFormats.join(", ")}. Valid formats: ${VALID_EXPORT_FORMATS.join(", ")}`,
           },
-          { status: 400 }
+          { status: 400 },
         );
       }
 
@@ -135,17 +138,12 @@ async function handlePUT(req: NextRequest) {
             success: false,
             error: "exportFormats must contain at least one format",
           },
-          { status: 400 }
+          { status: 400 },
         );
       }
     }
 
-    const org = await db.query.organizations.findFirst({
-      where: eq(schema.organizations.id, user.organization_id),
-      columns: {
-        settings: true,
-      },
-    });
+    const org = await organizationsService.getById(user.organization_id);
 
     const currentSettings = (org?.settings as Record<string, unknown>) || {};
     const currentAnalyticsConfig =
@@ -160,16 +158,13 @@ async function handlePUT(req: NextRequest) {
       updatedAt: new Date().toISOString(),
     };
 
-    await db
-      .update(schema.organizations)
-      .set({
-        settings: {
-          ...currentSettings,
-          analytics: updatedAnalyticsConfig,
-        },
-        updated_at: new Date(),
-      })
-      .where(eq(schema.organizations.id, user.organization_id));
+    await organizationsService.update(user.organization_id, {
+      settings: {
+        ...currentSettings,
+        analytics: updatedAnalyticsConfig,
+      },
+      updated_at: new Date(),
+    });
 
     return NextResponse.json({
       success: true,
@@ -185,7 +180,7 @@ async function handlePUT(req: NextRequest) {
             ? error.message
             : "Failed to update analytics config",
       },
-      { status: 500 }
+      { status: 500 },
     );
   }
 }

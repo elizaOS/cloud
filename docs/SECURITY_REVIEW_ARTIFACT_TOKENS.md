@@ -5,6 +5,7 @@
 **Location**: `app/api/v1/artifacts/upload/route.ts:113-122`
 
 **Problem**: Token was generated but never validated or stored
+
 ```typescript
 // ❌ CRITICAL: Token is generated but never validated or stored
 const tempToken = nanoid(32);
@@ -13,6 +14,7 @@ const tempToken = nanoid(32);
 ```
 
 **Security Risks**:
+
 - Token generated but not stored anywhere
 - No validation mechanism for the token
 - Comment indicated incomplete implementation ("For now")
@@ -43,10 +45,10 @@ graph TD
     B -->|5. Request download creds| D
     D -->|6. Return temp creds read| B
     B -->|7. Return both credential sets| A
-    
+
     A -->|8. PUT with upload creds| E[Cloudflare R2]
     E -->|9. Validate & store| E
-    
+
     F[Container] -->|10. GET with download creds| E
     E -->|11. Validate & return| F
 ```
@@ -56,11 +58,13 @@ graph TD
 #### 1. New Service: `lib/services/r2-credentials.ts`
 
 **Functions**:
+
 - `createR2TempCredentials()` - Call Cloudflare API to generate temporary credentials
 - `createArtifactUploadCredentials()` - Scoped write credentials (10 min)
 - `createArtifactDownloadCredentials()` - Scoped read credentials (1 hour)
 
 **Features**:
+
 - Uses native `fetch` API (no dependencies)
 - Supports both API token and email/key authentication
 - Proper error handling with typed responses
@@ -71,6 +75,7 @@ graph TD
 **File**: `app/api/v1/artifacts/upload/route.ts`
 
 **Changes**:
+
 - Removed presigned URL generation (S3 SDK)
 - Added calls to create temporary credentials via Cloudflare API
 - Returns two separate credential sets:
@@ -78,6 +83,7 @@ graph TD
   - **Download credentials**: Read-only, 1 hour (for containers)
 
 **Response Format**:
+
 ```json
 {
   "success": true,
@@ -104,6 +110,7 @@ graph TD
 #### 3. Removed Custom Token System
 
 **Deleted Files**:
+
 - ❌ `db/schema/artifact-tokens.ts` - Custom token schema
 - ❌ `lib/queries/artifact-tokens.ts` - Token CRUD operations
 - ❌ `app/api/v1/artifacts/[id]/download/route.ts` - Custom download endpoint
@@ -121,19 +128,20 @@ graph TD
 
 ### Security Improvements
 
-| Aspect | Before | After |
-|--------|--------|-------|
-| **Token Storage** | Not stored (security hole) | Managed by Cloudflare |
-| **Token Validation** | None | Cloudflare validates |
-| **Scoping** | None | Bucket + prefix scoped |
-| **Expiration** | Not enforced | Auto-expired by Cloudflare |
-| **Permissions** | Not enforced | Read/Write separated |
-| **Database Load** | Would need token table | No database queries |
-| **Cleanup** | Would need cron job | Automatic by Cloudflare |
+| Aspect               | Before                     | After                      |
+| -------------------- | -------------------------- | -------------------------- |
+| **Token Storage**    | Not stored (security hole) | Managed by Cloudflare      |
+| **Token Validation** | None                       | Cloudflare validates       |
+| **Scoping**          | None                       | Bucket + prefix scoped     |
+| **Expiration**       | Not enforced               | Auto-expired by Cloudflare |
+| **Permissions**      | Not enforced               | Read/Write separated       |
+| **Database Load**    | Would need token table     | No database queries        |
+| **Cleanup**          | Would need cron job        | Automatic by Cloudflare    |
 
 ### Environment Variables
 
 **New Requirements**:
+
 ```bash
 # Cloudflare API (for creating temp credentials)
 CLOUDFLARE_API_TOKEN=your_token
@@ -151,6 +159,7 @@ R2_BUCKET_NAME=eliza-artifacts
 ### Usage Example
 
 **CLI Upload**:
+
 ```typescript
 // 1. Get credentials
 const response = await fetch('/api/v1/artifacts/upload', {
@@ -177,6 +186,7 @@ await s3Client.send(new PutObjectCommand({ ... }));
 ```
 
 **Container Bootstrap**:
+
 ```typescript
 const s3Client = new S3Client({
   credentials: {
@@ -192,6 +202,7 @@ await s3Client.send(new GetObjectCommand({ ... }));
 ### Testing
 
 **Manual Test**:
+
 ```bash
 # 1. Request upload
 curl -X POST http://localhost:3000/api/v1/artifacts/upload \
@@ -209,10 +220,12 @@ aws s3 cp artifact.tar.gz s3://eliza-artifacts/... \
 ### Documentation
 
 **New Files**:
+
 - ✅ `docs/R2_CLOUDFLARE_CREDENTIALS.md` - Complete implementation guide
 - ✅ `docs/SECURITY_REVIEW_ARTIFACT_TOKENS.md` - This review
 
 **Updated Files**:
+
 - ✅ `example.env.local` - Added Cloudflare API variables
 - ✅ `README.md` - Added security section reference
 
@@ -243,13 +256,14 @@ The security issue has been completely addressed by adopting Cloudflare's native
 6. Separates permissions (read vs write)
 
 **Next Steps**:
+
 1. Configure Cloudflare API credentials in production
 2. Test end-to-end artifact upload/download flow
 3. Update CLI to use new credential format
 4. Monitor Cloudflare API usage and quotas
 
 **References**:
+
 - [Cloudflare R2 Temporary Credentials Docs](https://developers.cloudflare.com/r2/api/s3/tokens/)
 - Implementation: `lib/services/r2-credentials.ts`
 - Usage Guide: `docs/R2_CLOUDFLARE_CREDENTIALS.md`
-

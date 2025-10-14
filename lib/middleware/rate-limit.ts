@@ -72,8 +72,11 @@ setInterval(() => {
 function getDefaultKey(request: NextRequest): string {
   // Try to get user ID from auth header or IP address
   const apiKey = request.headers.get("authorization")?.replace("Bearer ", "");
-  const ip = request.headers.get("x-forwarded-for") || request.headers.get("x-real-ip") || "unknown";
-  
+  const ip =
+    request.headers.get("x-forwarded-for") ||
+    request.headers.get("x-real-ip") ||
+    "unknown";
+
   return apiKey || `ip:${ip}`;
 }
 
@@ -82,7 +85,7 @@ function getDefaultKey(request: NextRequest): string {
  */
 export function checkRateLimit(
   request: NextRequest,
-  config: RateLimitConfig
+  config: RateLimitConfig,
 ): {
   allowed: boolean;
   remaining: number;
@@ -90,7 +93,7 @@ export function checkRateLimit(
   retryAfter?: number;
 } {
   logRateLimitWarning();
-  
+
   const keyGenerator = config.keyGenerator || getDefaultKey;
   const key = keyGenerator(request);
   const now = Date.now();
@@ -111,7 +114,9 @@ export function checkRateLimit(
 
   const allowed = entry.count <= config.maxRequests;
   const remaining = Math.max(0, config.maxRequests - entry.count);
-  const retryAfter = allowed ? undefined : Math.ceil((entry.resetAt - now) / 1000);
+  const retryAfter = allowed
+    ? undefined
+    : Math.ceil((entry.resetAt - now) / 1000);
 
   if (!allowed) {
     console.warn("Rate limit exceeded", {
@@ -139,8 +144,11 @@ export function checkRateLimit(
  * Falls back to in-memory rate limiting for local development
  */
 export function withRateLimit<T = Record<string, string>>(
-  handler: (request: NextRequest, context?: { params: Promise<T> }) => Promise<Response>,
-  config: RateLimitConfig
+  handler: (
+    request: NextRequest,
+    context?: { params: Promise<T> },
+  ) => Promise<Response>,
+  config: RateLimitConfig,
 ) {
   return async (request: NextRequest, context?: { params: Promise<T> }): Promise<Response> => {
     const useRedis = process.env.REDIS_RATE_LIMITING === "true";
@@ -186,7 +194,7 @@ export function withRateLimit<T = Record<string, string>>(
             ...headers,
             "Retry-After": result.retryAfter?.toString() || "60",
           },
-        }
+        },
       );
     }
 
@@ -246,14 +254,17 @@ export interface CostBasedRateLimitConfig {
   getCost: (request: NextRequest) => number | Promise<number>;
 }
 
-const costLimitStore = new Map<string, { totalCost: number; resetAt: number }>();
+const costLimitStore = new Map<
+  string,
+  { totalCost: number; resetAt: number }
+>();
 
 /**
  * Check cost-based rate limit
  */
 export async function checkCostBasedRateLimit(
   request: NextRequest,
-  config: CostBasedRateLimitConfig
+  config: CostBasedRateLimitConfig,
 ): Promise<{
   allowed: boolean;
   remaining: number;
@@ -277,7 +288,9 @@ export async function checkCostBasedRateLimit(
 
   const allowed = entry.totalCost <= config.maxCost;
   const remaining = Math.max(0, config.maxCost - entry.totalCost);
-  const retryAfter = allowed ? undefined : Math.ceil((entry.resetAt - now) / 1000);
+  const retryAfter = allowed
+    ? undefined
+    : Math.ceil((entry.resetAt - now) / 1000);
 
   if (!allowed) {
     console.warn("Cost-based rate limit exceeded", {
@@ -306,4 +319,3 @@ setInterval(() => {
     }
   }
 }, 60000);
-

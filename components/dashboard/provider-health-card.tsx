@@ -1,7 +1,13 @@
 import { Activity, AlertTriangle, CheckCircle2 } from "lucide-react";
 
 import { Badge } from "@/components/ui/badge";
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
+import {
+  Card,
+  CardContent,
+  CardHeader,
+  CardTitle,
+  CardDescription,
+} from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
 import { cn } from "@/lib/utils";
 
@@ -54,7 +60,10 @@ export function ProviderHealthCard({
 
   return (
     <Card
-      className={cn("border-border/50 bg-card/95 backdrop-blur-sm shadow-md", className)}
+      className={cn(
+        "border-border/50 bg-card/95 backdrop-blur-sm shadow-md",
+        className,
+      )}
     >
       <CardHeader>
         <div className="flex items-center gap-3">

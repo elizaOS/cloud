@@ -1,8 +1,21 @@
 "use client";
 
-import { Loader2, Sparkles, Wand2, Image as ImageIcon, Ratio, Palette } from "lucide-react";
+import {
+  Loader2,
+  Sparkles,
+  Wand2,
+  Image as ImageIcon,
+  Ratio,
+  Palette,
+} from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { Label } from "@/components/ui/label";
 import type { AspectRatio, StylePreset } from "./image-generator";
 
@@ -38,12 +51,15 @@ export function PromptInput({
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
           {/* Number of Images */}
           <div className="space-y-2">
-            <Label htmlFor="num-images" className="flex items-center gap-2 text-sm font-semibold">
+            <Label
+              htmlFor="num-images"
+              className="flex items-center gap-2 text-sm font-semibold"
+            >
               <ImageIcon className="h-4 w-4 text-primary" />
               Images
             </Label>
-            <Select 
-              value={numImages.toString()} 
+            <Select
+              value={numImages.toString()}
               onValueChange={(value) => onNumImagesChange(parseInt(value))}
               disabled={isLoading}
             >
@@ -53,7 +69,7 @@ export function PromptInput({
               <SelectContent>
                 {[1, 2, 3, 4].map((num) => (
                   <SelectItem key={num} value={num.toString()}>
-                    {num} {num === 1 ? 'Image' : 'Images'}
+                    {num} {num === 1 ? "Image" : "Images"}
                   </SelectItem>
                 ))}
               </SelectContent>
@@ -62,13 +78,18 @@ export function PromptInput({
 
           {/* Aspect Ratio */}
           <div className="space-y-2">
-            <Label htmlFor="aspect-ratio" className="flex items-center gap-2 text-sm font-semibold">
+            <Label
+              htmlFor="aspect-ratio"
+              className="flex items-center gap-2 text-sm font-semibold"
+            >
               <Ratio className="h-4 w-4 text-primary" />
               Ratio
             </Label>
-            <Select 
-              value={aspectRatio} 
-              onValueChange={(value) => onAspectRatioChange(value as AspectRatio)}
+            <Select
+              value={aspectRatio}
+              onValueChange={(value) =>
+                onAspectRatioChange(value as AspectRatio)
+              }
               disabled={isLoading}
             >
               <SelectTrigger id="aspect-ratio" className="w-full">
@@ -88,13 +109,18 @@ export function PromptInput({
 
           {/* Style Preset */}
           <div className="space-y-2">
-            <Label htmlFor="style-preset" className="flex items-center gap-2 text-sm font-semibold">
+            <Label
+              htmlFor="style-preset"
+              className="flex items-center gap-2 text-sm font-semibold"
+            >
               <Palette className="h-4 w-4 text-primary" />
               Style Preset
             </Label>
-            <Select 
-              value={stylePreset} 
-              onValueChange={(value) => onStylePresetChange(value as StylePreset)}
+            <Select
+              value={stylePreset}
+              onValueChange={(value) =>
+                onStylePresetChange(value as StylePreset)
+              }
               disabled={isLoading}
             >
               <SelectTrigger id="style-preset" className="w-full">

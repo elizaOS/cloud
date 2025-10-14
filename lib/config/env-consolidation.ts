@@ -24,7 +24,9 @@ export function getR2Endpoint(): string {
     return `https://${accountId}.r2.cloudflarestorage.com`;
   }
 
-  throw new Error("Cannot determine R2 endpoint - CLOUDFLARE_ACCOUNT_ID or R2_ENDPOINT required");
+  throw new Error(
+    "Cannot determine R2 endpoint - CLOUDFLARE_ACCOUNT_ID or R2_ENDPOINT required",
+  );
 }
 
 /**
@@ -39,8 +41,10 @@ export function getR2BucketName(): string {
  */
 export function hasCloudflareAuth(): boolean {
   const hasApiToken = !!process.env.CLOUDFLARE_API_TOKEN;
-  const hasLegacyAuth = !!(process.env.CLOUDFLARE_EMAIL && process.env.CLOUDFLARE_API_KEY);
-  
+  const hasLegacyAuth = !!(
+    process.env.CLOUDFLARE_EMAIL && process.env.CLOUDFLARE_API_KEY
+  );
+
   return hasApiToken || hasLegacyAuth;
 }
 
@@ -56,7 +60,7 @@ export function getCloudflareAuthHeaders(): Record<string, string> {
 
   if (process.env.CLOUDFLARE_EMAIL && process.env.CLOUDFLARE_API_KEY) {
     console.warn(
-      "⚠️  Using legacy Cloudflare authentication (email + key). Please migrate to API tokens."
+      "⚠️  Using legacy Cloudflare authentication (email + key). Please migrate to API tokens.",
     );
     return {
       "X-Auth-Email": process.env.CLOUDFLARE_EMAIL,
@@ -75,19 +79,19 @@ export function checkDeprecatedVariables(): void {
 
   if (process.env.R2_ACCOUNT_ID && !process.env.CLOUDFLARE_ACCOUNT_ID) {
     warnings.push(
-      "R2_ACCOUNT_ID is deprecated. Please use CLOUDFLARE_ACCOUNT_ID instead."
+      "R2_ACCOUNT_ID is deprecated. Please use CLOUDFLARE_ACCOUNT_ID instead.",
     );
   }
 
   if (process.env.CLOUDFLARE_EMAIL || process.env.CLOUDFLARE_API_KEY) {
     warnings.push(
-      "CLOUDFLARE_EMAIL and CLOUDFLARE_API_KEY are deprecated. Please use CLOUDFLARE_API_TOKEN instead."
+      "CLOUDFLARE_EMAIL and CLOUDFLARE_API_KEY are deprecated. Please use CLOUDFLARE_API_TOKEN instead.",
     );
   }
 
   if (process.env.R2_PUBLIC_DOMAIN) {
     warnings.push(
-      "R2_PUBLIC_DOMAIN is no longer used. The endpoint is automatically configured."
+      "R2_PUBLIC_DOMAIN is no longer used. The endpoint is automatically configured.",
     );
   }
 
@@ -120,11 +124,16 @@ export function getConsolidatedConfig() {
       secretAccessKey: process.env.R2_SECRET_ACCESS_KEY,
     },
     features: {
-      containers: !!(getCloudflareAccountId() && hasCloudflareAuth() && process.env.R2_ACCESS_KEY_ID),
-      stripe: !!(process.env.STRIPE_SECRET_KEY && process.env.STRIPE_WEBHOOK_SECRET),
+      containers: !!(
+        getCloudflareAccountId() &&
+        hasCloudflareAuth() &&
+        process.env.R2_ACCESS_KEY_ID
+      ),
+      stripe: !!(
+        process.env.STRIPE_SECRET_KEY && process.env.STRIPE_WEBHOOK_SECRET
+      ),
       blob: !!process.env.BLOB_READ_WRITE_TOKEN,
       ai: !!(process.env.OPENAI_API_KEY || process.env.AI_GATEWAY_API_KEY),
     },
   };
 }
-

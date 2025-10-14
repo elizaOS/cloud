@@ -76,18 +76,28 @@ async function testAddCredits() {
     } else {
       console.log(`❌ Transaction not found in database`);
     }
-  } catch (error) {
+  } catch (error: unknown) {
     console.error("\n❌ ERROR!");
     console.error("-".repeat(70));
-    console.error(`Error Type: ${error instanceof Error ? error.constructor.name : typeof error}`);
-    console.error(`Error Message: ${error instanceof Error ? error.message : String(error)}`);
-    console.error(`Error Code: ${(error as { code?: string }).code || "(none)"}`);
-    if (error instanceof Error && error.stack) {
-      console.error(`\nStack Trace:`);
-      console.error(error.stack);
-    }
-    if ((error as { detail?: string }).detail) {
-      console.error(`\nDetail: ${(error as { detail: string }).detail}`);
+
+    if (error instanceof Error) {
+      console.error(`Error Type: ${error.constructor.name}`);
+      console.error(`Error Message: ${error.message}`);
+
+      // Handle database/PostgreSQL errors with code and detail properties
+      const errorWithCode = error as Error & { code?: string; detail?: string };
+      console.error(`Error Code: ${errorWithCode.code || "(none)"}`);
+
+      if (error.stack) {
+        console.error(`\nStack Trace:`);
+        console.error(error.stack);
+      }
+
+      if (errorWithCode.detail) {
+        console.error(`\nDetail: ${errorWithCode.detail}`);
+      }
+    } else {
+      console.error(`Error: ${String(error)}`);
     }
   }
 
