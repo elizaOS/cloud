@@ -186,9 +186,24 @@ export async function POST(req: NextRequest) {
       { user_id: user.id },
     );
 
+    // FIXED: Fail the request if credit deduction fails to prevent revenue leak
     if (!deductionResult.success) {
       console.error(
         "[IMAGE GENERATION] Failed to deduct credits - insufficient balance",
+        {
+          organizationId: user.organization_id,
+          cost: actualCost,
+          balance: deductionResult.newBalance,
+        }
+      );
+      
+      return Response.json(
+        {
+          error: "Insufficient credits to complete image generation",
+          required: actualCost,
+          available: deductionResult.newBalance,
+        },
+        { status: 402 }, // Payment Required
       );
     }
 

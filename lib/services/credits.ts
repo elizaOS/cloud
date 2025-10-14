@@ -6,6 +6,10 @@ import {
   type NewCreditTransaction,
   type CreditPack,
 } from "@/db/repositories";
+import { db } from "@/db/client";
+import { organizations } from "@/db/schemas/organizations";
+import { creditTransactions } from "@/db/schemas/credit-transactions";
+import { eq } from "drizzle-orm";
 
 export class CreditsService {
   // Credit Transactions
@@ -59,23 +63,45 @@ export class CreditsService {
     transaction: CreditTransaction;
     newBalance: number;
   }> {
-    // Create transaction record
-    const transaction = await this.createTransaction({
-      organization_id: organizationId,
-      amount,
-      type: "credit",
-      description,
-      metadata: metadata || {},
-      stripe_payment_intent_id: stripePaymentIntentId,
+    // FIXED: Wrap in atomic transaction to prevent inconsistency between
+    // transaction record and balance update
+    return await db.transaction(async (tx) => {
+      // Create transaction record
+      const [transaction] = await tx
+        .insert(creditTransactions)
+        .values({
+          organization_id: organizationId,
+          amount,
+          type: "credit",
+          description,
+          metadata: metadata || {},
+          stripe_payment_intent_id: stripePaymentIntentId,
+          created_at: new Date(),
+        })
+        .returning();
+
+      // Get current organization state
+      const org = await tx.query.organizations.findFirst({
+        where: eq(organizations.id, organizationId),
+      });
+
+      if (!org) {
+        throw new Error("Organization not found");
+      }
+
+      const newBalance = org.credit_balance + amount;
+
+      // Update organization balance atomically
+      await tx
+        .update(organizations)
+        .set({
+          credit_balance: newBalance,
+          updated_at: new Date(),
+        })
+        .where(eq(organizations.id, organizationId));
+
+      return { transaction, newBalance };
     });
-
-    // Update organization balance
-    const { newBalance } = await organizationsRepository.updateCreditBalance(
-      organizationId,
-      amount,
-    );
-
-    return { transaction, newBalance };
   }
 
   async deductCredits(
@@ -86,43 +112,63 @@ export class CreditsService {
   ): Promise<{
     success: boolean;
     newBalance: number;
-    transaction: CreditTransaction;
+    transaction: CreditTransaction | null;
   }> {
     if (amount <= 0) {
       throw new Error("Amount must be positive");
     }
 
-    // Check current balance first
-    const org = await organizationsRepository.findById(organizationId);
+    // CRITICAL FIX: Wrap entire operation in atomic transaction with row-level
+    // locking to prevent race conditions where concurrent requests could cause
+    // negative balance (TOCTOU vulnerability)
+    return await db.transaction(async (tx) => {
+      // Lock the organization row with FOR UPDATE to prevent concurrent access
+      // This ensures atomicity and prevents race conditions
+      const [org] = await tx
+        .select()
+        .from(organizations)
+        .where(eq(organizations.id, organizationId))
+        .for("update");
 
-    if (!org) {
-      throw new Error("Organization not found");
-    }
+      if (!org) {
+        throw new Error("Organization not found");
+      }
 
-    const newBalance = org.credit_balance - amount;
+      const newBalance = org.credit_balance - amount;
 
-    // Return early if insufficient credits, without creating a transaction
-    if (newBalance < 0) {
-      return {
-        success: false,
-        newBalance: org.credit_balance,
-        transaction: {} as CreditTransaction,
-      };
-    }
+      // Return early if insufficient credits, without creating a transaction
+      if (newBalance < 0) {
+        return {
+          success: false,
+          newBalance: org.credit_balance,
+          transaction: null,
+        };
+      }
 
-    // Create transaction record (negative amount)
-    const transaction = await this.createTransaction({
-      organization_id: organizationId,
-      amount: -amount,
-      type: "debit",
-      description,
-      metadata: metadata || {},
+      // Update balance atomically
+      await tx
+        .update(organizations)
+        .set({
+          credit_balance: newBalance,
+          updated_at: new Date(),
+        })
+        .where(eq(organizations.id, organizationId));
+
+      // Create transaction record
+      const [transaction] = await tx
+        .insert(creditTransactions)
+        .values({
+          organization_id: organizationId,
+          amount: -amount,
+          type: "debit",
+          description,
+          metadata: metadata || {},
+          created_at: new Date(),
+        })
+        .returning();
+
+      return { success: true, newBalance, transaction };
     });
-
-    // Update organization balance
-    await organizationsRepository.updateCreditBalance(organizationId, -amount);
-
-    return { success: true, newBalance, transaction };
   }
 
   // Credit Packs
