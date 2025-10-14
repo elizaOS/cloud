@@ -1,7 +1,8 @@
 import { NextRequest } from "next/server";
 import { requireAuth } from "@/lib/auth";
-import { getCreditBalance } from "@/lib/queries/credits";
-import { creditEventEmitter, type CreditUpdateEvent } from "@/lib/events/credit-events-unified";
+import { organizationsService } from "@/lib/services";
+import { creditEventEmitter } from "@/lib/events/credit-events";
+import type { CreditUpdateEvent } from "@/lib/events/credit-events";
 import { logger } from "@/lib/utils/logger";
 
 export const dynamic = "force-dynamic";
@@ -27,7 +28,7 @@ export async function GET(request: NextRequest) {
     const organizationId = user.organization_id;
 
     logger.info(
-      `[Credits SSE] Client connected: user=${user.id}, org=${organizationId}`
+      `[Credits SSE] Client connected: user=${user.id}, org=${organizationId}`,
     );
 
     const encoder = new TextEncoder();
@@ -47,7 +48,8 @@ export async function GET(request: NextRequest) {
         };
 
         try {
-          const initialBalance = await getCreditBalance(organizationId);
+          const org = await organizationsService.getById(organizationId);
+          const initialBalance = org?.credit_balance ?? 0;
           sendEvent("initial", {
             balance: initialBalance,
             timestamp: new Date(),
@@ -67,7 +69,7 @@ export async function GET(request: NextRequest) {
               reason: event.reason,
               timestamp: event.timestamp,
             });
-          }
+          },
         );
 
         creditEventEmitter.incrementConnections(organizationId);
@@ -78,7 +80,7 @@ export async function GET(request: NextRequest) {
 
         connectionTimeout = setTimeout(() => {
           logger.info(
-            `[Credits SSE] Connection timeout for org=${organizationId}`
+            `[Credits SSE] Connection timeout for org=${organizationId}`,
           );
           cleanup();
         }, CONNECTION_TIMEOUT);
@@ -103,7 +105,7 @@ export async function GET(request: NextRequest) {
           }
 
           logger.info(
-            `[Credits SSE] Client disconnected: org=${organizationId}`
+            `[Credits SSE] Client disconnected: org=${organizationId}`,
           );
         };
 

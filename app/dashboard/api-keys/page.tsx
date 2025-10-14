@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import { requireAuth } from "@/lib/auth";
-import { listApiKeys } from "@/lib/queries/api-keys";
+import { apiKeysService } from "@/lib/services";
 import { ApiKeysPage as ApiKeysPageView } from "@/components/api-keys/api-keys-page";
 import type {
   ApiKeyDisplay,
@@ -14,6 +14,9 @@ export const metadata: Metadata = {
     "Manage your API keys and authentication credentials for elizaOS platform",
 };
 
+// Force dynamic rendering since we use server-side auth (cookies)
+export const dynamic = "force-dynamic";
+
 function getApiKeyStatus(
   isActive: boolean,
   expiresAt: Date | null,
@@ -25,7 +28,7 @@ function getApiKeyStatus(
 
 export default async function ApiKeysPage() {
   const user = await requireAuth();
-  const keys = await listApiKeys(user.organization_id);
+  const keys = await apiKeysService.listByOrganization(user.organization_id);
 
   const displayKeys: ApiKeyDisplay[] = keys.map((key) => ({
     id: key.id,

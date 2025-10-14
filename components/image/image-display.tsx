@@ -48,7 +48,9 @@ export function ImageDisplay({
         </div>
       </div>
 
-      <div className={`grid gap-4 ${showGenerateAnother ? 'grid-cols-2' : 'grid-cols-1'}`}>
+      <div
+        className={`grid gap-4 ${showGenerateAnother ? "grid-cols-2" : "grid-cols-1"}`}
+      >
         <Button
           variant="outline"
           onClick={onDownload}

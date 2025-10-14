@@ -7,7 +7,7 @@ import {
   getUsageByUser,
   getCostTrending,
   type TimeGranularity,
-} from "@/lib/queries/analytics";
+} from "@/lib/services";
 
 export interface AnalyticsFilters {
   startDate?: Date;

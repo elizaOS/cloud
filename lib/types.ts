@@ -1,58 +1,49 @@
-import type { InferSelectModel, InferInsertModel } from "drizzle-orm";
-import * as schema from "@/db/sass/schema";
+// Re-export all types from schemas for convenience
+// Schemas are the single source of truth for type inference using InferSelectModel and InferInsertModel
+export type { Organization, NewOrganization } from "@/db/schemas/organizations";
 
-export type Organization = InferSelectModel<typeof schema.organizations>;
-export type NewOrganization = InferInsertModel<typeof schema.organizations>;
+export type { User, NewUser } from "@/db/schemas/users";
 
-export type User = InferSelectModel<typeof schema.users>;
-export type NewUser = InferInsertModel<typeof schema.users>;
+export type { ApiKey, NewApiKey } from "@/db/schemas/api-keys";
 
-export type ApiKey = InferSelectModel<typeof schema.apiKeys>;
-export type NewApiKey = InferInsertModel<typeof schema.apiKeys>;
+export type { UsageRecord, NewUsageRecord } from "@/db/schemas/usage-records";
 
-export type UsageRecord = InferSelectModel<typeof schema.usageRecords>;
-export type NewUsageRecord = InferInsertModel<typeof schema.usageRecords>;
+export type {
+  CreditTransaction,
+  NewCreditTransaction,
+} from "@/db/schemas/credit-transactions";
 
-export type CreditTransaction = InferSelectModel<
-  typeof schema.creditTransactions
->;
-export type NewCreditTransaction = InferInsertModel<
-  typeof schema.creditTransactions
->;
+export type { CreditPack, NewCreditPack } from "@/db/schemas/credit-packs";
 
-export type CreditPack = InferSelectModel<typeof schema.creditPacks>;
-export type NewCreditPack = InferInsertModel<typeof schema.creditPacks>;
+export type { Generation, NewGeneration } from "@/db/schemas/generations";
 
-export type Generation = InferSelectModel<typeof schema.generations>;
-export type NewGeneration = InferInsertModel<typeof schema.generations>;
+export type {
+  Conversation,
+  NewConversation,
+  ConversationMessage,
+  NewConversationMessage,
+} from "@/db/schemas/conversations";
 
-export type Job = InferSelectModel<typeof schema.jobs>;
-export type NewJob = InferInsertModel<typeof schema.jobs>;
+export type {
+  UserCharacter,
+  NewUserCharacter,
+} from "@/db/schemas/user-characters";
 
-export type ModelPricing = InferSelectModel<typeof schema.modelPricing>;
-export type NewModelPricing = InferInsertModel<typeof schema.modelPricing>;
+export type { Job, NewJob } from "@/db/schemas/jobs";
 
-export type ProviderHealth = InferSelectModel<typeof schema.providerHealth>;
-export type NewProviderHealth = InferInsertModel<typeof schema.providerHealth>;
+export type { ModelPricing, NewModelPricing } from "@/db/schemas/model-pricing";
 
-export type Conversation = InferSelectModel<typeof schema.conversations>;
-export type NewConversation = InferInsertModel<typeof schema.conversations>;
+export type {
+  ProviderHealth,
+  NewProviderHealth,
+} from "@/db/schemas/provider-health";
 
-export type ConversationMessage = InferSelectModel<
-  typeof schema.conversationMessages
->;
-export type NewConversationMessage = InferInsertModel<
-  typeof schema.conversationMessages
->;
+// Repository-specific composite types
+export type { UserWithOrganization } from "@/db/repositories/users";
+export type { ConversationWithMessages } from "@/db/repositories/conversations";
+export type { UsageStats } from "@/db/repositories/usage-records";
 
-export type UserWithOrganization = User & {
-  organization: Organization;
-};
-
-export type ConversationWithMessages = Conversation & {
-  messages: ConversationMessage[];
-};
-
+// Additional utility types
 export interface ConversationSettings {
   temperature?: number;
   maxTokens?: number;
@@ -68,9 +59,6 @@ export interface UsageMetadata {
   request_id?: string;
   [key: string]: unknown;
 }
-
-export type UserCharacter = InferSelectModel<typeof schema.userCharacters>;
-export type NewUserCharacter = InferInsertModel<typeof schema.userCharacters>;
 
 export type TemplateType =
   | string
@@ -100,7 +88,10 @@ export interface ElizaCharacter {
   adjectives?: string[];
   knowledge?: (string | { path: string; shared?: boolean })[];
   plugins?: string[];
-  settings?: Record<string, string | boolean | number | Record<string, unknown>>;
+  settings?: Record<
+    string,
+    string | boolean | number | Record<string, unknown>
+  >;
   secrets?: Record<string, string | boolean | number>;
   style?: {
     all?: string[];

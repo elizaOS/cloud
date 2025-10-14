@@ -3,8 +3,8 @@
  * Monitors deployed containers and updates their health status
  */
 
-import { db } from "@/db/drizzle";
-import { containers } from "@/db/sass/schema";
+import { db } from "@/db/client";
+import { containers } from "@/db/schemas";
 import { eq, and } from "drizzle-orm";
 
 export interface HealthCheckResult {
@@ -36,7 +36,7 @@ const DEFAULT_CONFIG: HealthMonitorConfig = {
 export async function checkContainerHealth(
   containerUrl: string,
   healthCheckPath: string = "/health",
-  timeoutMs: number = 10000
+  timeoutMs: number = 10000,
 ): Promise<HealthCheckResult> {
   const startTime = Date.now();
   const fullUrl = `${containerUrl}${healthCheckPath}`;
@@ -91,12 +91,12 @@ export async function checkContainerHealth(
  */
 export async function updateContainerHealth(
   containerId: string,
-  healthResult: HealthCheckResult
+  healthResult: HealthCheckResult,
 ): Promise<void> {
   try {
     // RACE CONDITION FIX: Use atomic conditional UPDATE instead of check-then-act
     // This prevents race conditions by including expected status in WHERE clause
-    
+
     const baseUpdate = {
       last_health_check: healthResult.checkedAt,
       updated_at: new Date(),
@@ -115,11 +115,11 @@ export async function updateContainerHealth(
         .where(
           and(
             eq(containers.id, containerId),
-            eq(containers.status, "running") // Only update if still running
-          )
+            eq(containers.status, "running"), // Only update if still running
+          ),
         )
         .returning({ id: containers.id });
-      
+
       // If no rows were updated, container status has changed (not a race condition)
       if (!updatedContainer) {
         // Just update health check timestamp without changing status
@@ -127,14 +127,17 @@ export async function updateContainerHealth(
           .update(containers)
           .set(baseUpdate)
           .where(eq(containers.id, containerId));
-        
-        console.log("Container health check failed, but status changed (not running anymore)", {
-          containerId,
-          healthy: false,
-        });
+
+        console.log(
+          "Container health check failed, but status changed (not running anymore)",
+          {
+            containerId,
+            healthy: false,
+          },
+        );
         return;
       }
-      
+
       console.log("Container health status updated to failed", {
         containerId,
         healthy: false,
@@ -153,25 +156,25 @@ export async function updateContainerHealth(
         .where(
           and(
             eq(containers.id, containerId),
-            eq(containers.status, "failed") // Only restore if currently failed
-          )
+            eq(containers.status, "failed"), // Only restore if currently failed
+          ),
         )
         .returning({ id: containers.id });
-      
+
       if (!updatedContainer) {
         // Just update health check timestamp for non-failed containers
         await db
           .update(containers)
           .set(baseUpdate)
           .where(eq(containers.id, containerId));
-        
+
         console.log("Container health check passed, status unchanged", {
           containerId,
           healthy: true,
         });
         return;
       }
-      
+
       console.log("Container health status restored to running", {
         containerId,
         healthy: true,
@@ -183,7 +186,7 @@ export async function updateContainerHealth(
     console.error(
       "Failed to update container health status",
       error instanceof Error ? error.message : String(error),
-      { containerId }
+      { containerId },
     );
   }
 }
@@ -193,7 +196,7 @@ export async function updateContainerHealth(
  * This should be called periodically (e.g., via cron job)
  */
 export async function monitorAllContainers(
-  config: Partial<HealthMonitorConfig> = {}
+  config: Partial<HealthMonitorConfig> = {},
 ): Promise<HealthCheckResult[]> {
   const finalConfig = { ...DEFAULT_CONFIG, ...config };
 
@@ -206,7 +209,9 @@ export async function monitorAllContainers(
       .from(containers)
       .where(eq(containers.status, "running"));
 
-    console.log(`Found ${runningContainers.length} running containers to check`);
+    console.log(
+      `Found ${runningContainers.length} running containers to check`,
+    );
 
     const results: HealthCheckResult[] = [];
 
@@ -222,7 +227,7 @@ export async function monitorAllContainers(
       const result = await checkContainerHealth(
         container.cloudflare_url,
         container.health_check_path || "/health",
-        finalConfig.timeout
+        finalConfig.timeout,
       );
 
       result.containerId = container.id;
@@ -253,7 +258,7 @@ export async function monitorAllContainers(
   } catch (error) {
     console.error(
       "Container health monitoring failed",
-      error instanceof Error ? error.message : String(error)
+      error instanceof Error ? error.message : String(error),
     );
     throw error;
   }
@@ -263,22 +268,30 @@ export async function monitorAllContainers(
  * Get health status for a specific container
  */
 export async function getContainerHealthStatus(
-  containerId: string
+  containerId: string,
 ): Promise<HealthCheckResult | null> {
   try {
-    const container = await db
+    // Note: We need to get container without organization_id here
+    // So we still use db directly, but this is acceptable for health monitoring
+    const results = await db
       .select()
       .from(containers)
       .where(eq(containers.id, containerId))
       .limit(1);
 
-    if (container.length === 0 || !container[0].cloudflare_url) {
+    if (results.length === 0 || !results[0].cloudflare_url) {
+      return null;
+    }
+
+    const container = results[0];
+
+    if (!container.cloudflare_url) {
       return null;
     }
 
     const result = await checkContainerHealth(
-      container[0].cloudflare_url,
-      container[0].health_check_path || "/health"
+      container.cloudflare_url,
+      container.health_check_path || "/health",
     );
 
     result.containerId = containerId;
@@ -289,7 +302,7 @@ export async function getContainerHealthStatus(
     console.error(
       "Failed to get container health status",
       error instanceof Error ? error.message : String(error),
-      { containerId }
+      { containerId },
     );
     return null;
   }
@@ -315,7 +328,7 @@ export async function getContainerHealthStatus(
  * @deprecated Use monitorAllContainers() via cron endpoint for serverless
  */
 export function startHealthMonitoring(
-  intervalMs: number = 60000
+  intervalMs: number = 60000,
 ): NodeJS.Timeout {
   const isServerless = process.env.VERCEL === "1" ||
                       process.env.AWS_LAMBDA_FUNCTION_NAME ||
@@ -341,7 +354,7 @@ export function startHealthMonitoring(
     } catch (error) {
       console.error(
         "Health monitoring cycle failed",
-        error instanceof Error ? error.message : String(error)
+        error instanceof Error ? error.message : String(error),
       );
     }
   }, intervalMs);
@@ -350,7 +363,7 @@ export function startHealthMonitoring(
   monitorAllContainers().catch((error) => {
     console.error(
       "Initial health check failed",
-      error instanceof Error ? error.message : String(error)
+      error instanceof Error ? error.message : String(error),
     );
   });
 
@@ -364,4 +377,3 @@ export function stopHealthMonitoring(interval: NodeJS.Timeout): void {
   clearInterval(interval);
   console.log("Health monitoring stopped");
 }
-

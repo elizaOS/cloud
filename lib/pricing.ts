@@ -1,4 +1,4 @@
-import { db, schema, eq, and } from "@/lib/db";
+import { modelPricingRepository } from "@/db/repositories";
 
 // Re-export constants from pricing-constants (safe for client components)
 export {
@@ -25,13 +25,10 @@ export async function calculateCost(
   inputTokens: number,
   outputTokens: number,
 ): Promise<CostBreakdown> {
-  const pricing = await db.query.modelPricing.findFirst({
-    where: and(
-      eq(schema.modelPricing.model, model),
-      eq(schema.modelPricing.provider, provider),
-      eq(schema.modelPricing.is_active, true),
-    ),
-  });
+  const pricing = await modelPricingRepository.findByModelAndProvider(
+    model,
+    provider,
+  );
 
   if (!pricing) {
     const fallbackCosts = getFallbackPricing(model, inputTokens, outputTokens);
@@ -89,7 +86,7 @@ export function getProviderFromModel(model: string): string {
     const [provider] = model.split("/");
     return provider;
   }
-  
+
   // Handle non-prefixed format: "gpt-4o-mini"
   if (model.startsWith("gpt-")) return "openai";
   if (model.startsWith("claude-")) return "anthropic";
@@ -121,7 +118,7 @@ export function estimateTokens(text: string): number {
 /**
  * Estimate cost for a chat request before making the API call
  * Used for pre-flight credit checking
- * 
+ *
  * Note: content can be string or multimodal (arrays with text/images)
  */
 export async function estimateRequestCost(
@@ -130,32 +127,34 @@ export async function estimateRequestCost(
 ): Promise<number> {
   const provider = getProviderFromModel(model);
   const normalizedModel = normalizeModelName(model);
-  
+
   // Estimate input tokens from messages
   // Handle both string content and multimodal content
-  const messageText = messages.map(m => {
-    if (typeof m.content === 'string') {
-      return m.content;
-    } else if (m.content && typeof m.content === 'object') {
-      // For multimodal content, stringify and estimate
-      // This is a rough approximation
-      return JSON.stringify(m.content);
-    }
-    return '';
-  }).join(" ");
-  
+  const messageText = messages
+    .map((m) => {
+      if (typeof m.content === "string") {
+        return m.content;
+      } else if (m.content && typeof m.content === "object") {
+        // For multimodal content, stringify and estimate
+        // This is a rough approximation
+        return JSON.stringify(m.content);
+      }
+      return "";
+    })
+    .join(" ");
+
   const estimatedInputTokens = estimateTokens(messageText);
-  
+
   // Estimate output tokens (conservative estimate: 500 tokens)
   const estimatedOutputTokens = 500;
-  
+
   const { totalCost } = await calculateCost(
     normalizedModel,
     provider,
     estimatedInputTokens,
     estimatedOutputTokens,
   );
-  
+
   // Add 50% buffer for safety (increased from 20% to handle usage spikes)
   return Math.ceil(totalCost * 1.5);
 }

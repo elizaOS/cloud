@@ -1,7 +1,9 @@
 // lib/providers/types.ts
 export interface OpenAIChatMessage {
   role: "system" | "user" | "assistant" | "tool";
-  content: string | Array<{ type: string; text?: string; image_url?: { url: string } }>;
+  content:
+    | string
+    | Array<{ type: string; text?: string; image_url?: { url: string } }>;
   name?: string;
   tool_calls?: Array<{
     id: string;
@@ -31,7 +33,10 @@ export interface OpenAIChatRequest {
       parameters?: Record<string, unknown>;
     };
   }>;
-  tool_choice?: "auto" | "none" | { type: "function"; function: { name: string } };
+  tool_choice?:
+    | "auto"
+    | "none"
+    | { type: "function"; function: { name: string } };
   response_format?: { type: "json_object" | "text" };
   seed?: number;
   logprobs?: boolean;
@@ -109,4 +114,3 @@ export interface AIProvider {
   listModels(): Promise<Response>;
   getModel(model: string): Promise<Response>;
 }
-

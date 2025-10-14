@@ -12,10 +12,13 @@ export function DashboardPageWrapper({
   userName,
   children,
 }: DashboardPageWrapperProps) {
-  useSetPageHeader({
-    title: "Dashboard",
-    description: `Welcome back, ${userName}!`,
-  }, [userName]);
+  useSetPageHeader(
+    {
+      title: "Dashboard",
+      description: `Welcome back, ${userName}!`,
+    },
+    [userName],
+  );
 
   return <>{children}</>;
 }

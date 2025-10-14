@@ -38,19 +38,23 @@ function sanitizeForLogging<T>(data: T): T {
     "R2_SESSION_TOKEN",
   ];
 
-  const sanitized = (Array.isArray(data) ? [...data] : { ...data }) as Record<string, unknown>;
+  const sanitized = (Array.isArray(data) ? [...data] : { ...data }) as Record<
+    string,
+    unknown
+  >;
 
   for (const key in sanitized) {
     const lowerKey = key.toLowerCase();
-    
+
     // Check if this is a sensitive key
-    if (sensitiveKeys.some(sk => lowerKey.includes(sk.toLowerCase()))) {
+    if (sensitiveKeys.some((sk) => lowerKey.includes(sk.toLowerCase()))) {
       const value = sanitized[key];
       if (typeof value === "string" && value.length > 0) {
         // Show first 4 chars and mask the rest
-        sanitized[key] = value.length > 8 
-          ? `${value.substring(0, 4)}${"*".repeat(Math.min(value.length - 4, 20))}`
-          : "***REDACTED***";
+        sanitized[key] =
+          value.length > 8
+            ? `${value.substring(0, 4)}${"*".repeat(Math.min(value.length - 4, 20))}`
+            : "***REDACTED***";
       }
     } else if (typeof sanitized[key] === "object" && sanitized[key] !== null) {
       // Recursively sanitize nested objects
@@ -98,20 +102,21 @@ export class CloudflareService {
    * Deploy a container to Cloudflare Workers
    * Uses bootstrapper architecture for efficient deployments
    */
-  async deployContainer(
-    config: DeploymentConfig,
-  ): Promise<DeploymentResult> {
+  async deployContainer(config: DeploymentConfig): Promise<DeploymentResult> {
     try {
-      console.log("Starting Cloudflare container deployment", sanitizeForLogging({
-        name: config.name,
-        port: config.port,
-        maxInstances: config.maxInstances,
-        useBootstrapper: config.useBootstrapper,
-        artifactUrl: config.artifactUrl,
-      }));
+      console.log(
+        "Starting Cloudflare container deployment",
+        sanitizeForLogging({
+          name: config.name,
+          port: config.port,
+          maxInstances: config.maxInstances,
+          useBootstrapper: config.useBootstrapper,
+          artifactUrl: config.artifactUrl,
+        }),
+      );
 
       // Use bootstrapper image for artifact-based deployments
-      const finalImageTag = config.useBootstrapper 
+      const finalImageTag = config.useBootstrapper
         ? process.env.BOOTSTRAPPER_IMAGE_TAG || "elizaos/bootstrapper:latest"
         : config.imageTag;
 
@@ -150,7 +155,7 @@ export class CloudflareService {
       console.error(
         "Cloudflare deployment failed",
         error instanceof Error ? error.message : String(error),
-        sanitizeForLogging({ config })
+        sanitizeForLogging({ config }),
       );
       throw new Error(
         `Deployment failed: ${error instanceof Error ? error.message : "Unknown error"}`,
@@ -189,7 +194,7 @@ export class CloudflareService {
                 `Worker creation failed: ${error}`,
                 endpoint,
                 "PUT",
-                { statusCode: response.status }
+                { statusCode: response.status },
               );
             }
 
@@ -200,13 +205,15 @@ export class CloudflareService {
             };
           },
           30000, // 30 second timeout
-          "createWorkerScript"
+          "createWorkerScript",
         );
       },
       { maxAttempts: 3, initialDelayMs: 2000 },
       (attempt, error) => {
-        console.warn(`Worker script creation failed (attempt ${attempt}): ${error.message}`);
-      }
+        console.warn(
+          `Worker script creation failed (attempt ${attempt}): ${error.message}`,
+        );
+      },
     );
   }
 
@@ -259,8 +266,10 @@ export default {
       async () => this.deployContainerBindingInternal(config, workerId),
       { maxAttempts: 3, initialDelayMs: 2000 },
       (attempt, error) => {
-        console.warn(`Container binding deployment failed (attempt ${attempt}): ${error.message}`);
-      }
+        console.warn(
+          `Container binding deployment failed (attempt ${attempt}): ${error.message}`,
+        );
+      },
     );
   }
 
@@ -306,7 +315,7 @@ export default {
     };
 
     const endpoint = `${this.baseUrl}/accounts/${this.config.accountId}/workers/scripts/${workerId}/bindings`;
-    
+
     const response = await withTimeout(
       async () => {
         return await fetch(endpoint, {
@@ -319,7 +328,7 @@ export default {
         });
       },
       45000, // 45 second timeout for binding
-      "deployContainerBinding"
+      "deployContainerBinding",
     );
 
     if (!response.ok) {
@@ -328,7 +337,7 @@ export default {
         `Container binding failed: ${error}`,
         endpoint,
         "PUT",
-        { statusCode: response.status }
+        { statusCode: response.status },
       );
     }
 
@@ -409,9 +418,7 @@ export default {
   /**
    * Get container logs (if available)
    */
-  async getContainerLogs(
-    workerId: string,
-  ): Promise<string[]> {
+  async getContainerLogs(workerId: string): Promise<string[]> {
     const response = await fetch(
       `${this.baseUrl}/accounts/${this.config.accountId}/workers/scripts/${workerId}/tails`,
       {
@@ -449,4 +456,3 @@ export function getCloudflareService(): CloudflareService {
     apiToken,
   });
 }
-

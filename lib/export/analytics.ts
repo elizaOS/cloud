@@ -17,9 +17,9 @@ export interface ExportOptions {
  * @returns Sanitized value safe for CSV export
  */
 function sanitizeCSVValue(value: string): string {
-  const dangerousChars = ['=', '+', '-', '@', '\t', '\r'];
+  const dangerousChars = ["=", "+", "-", "@", "\t", "\r"];
 
-  if (dangerousChars.some(char => value.startsWith(char))) {
+  if (dangerousChars.some((char) => value.startsWith(char))) {
     return `'${value}`; // Prefix with single quote to treat as text
   }
 
@@ -29,7 +29,7 @@ function sanitizeCSVValue(value: string): string {
 export function generateCSV(
   data: Array<Record<string, unknown>>,
   columns: Array<ExportColumn>,
-  options?: ExportOptions
+  options?: ExportOptions,
 ): string {
   const rows: string[] = [];
 
@@ -65,17 +65,14 @@ export function generateCSV(
 
         return sanitized;
       })
-      .join(",")
+      .join(","),
   );
 
   rows.push(...dataRows);
   return rows.join("\n");
 }
 
-export function generateJSON(
-  data: unknown,
-  options?: ExportOptions
-): string {
+export function generateJSON(data: unknown, options?: ExportOptions): string {
   const output: Record<string, unknown> = {};
 
   if (options?.includeTimestamp) {
@@ -171,18 +168,18 @@ export async function generatePDF(
     data: Array<Record<string, unknown>>,
     columns: Array<ExportColumn>,
     title: string,
-    options?: ExportOptions
+    options?: ExportOptions,
   ]
 ): Promise<Buffer> {
   throw new Error(
-    "PDF export requires 'pdfkit' package. Install with: bun add pdfkit @types/pdfkit"
+    "PDF export requires 'pdfkit' package. Install with: bun add pdfkit @types/pdfkit",
   );
 }
 
 export function createDownloadResponse(
   content: string,
   filename: string,
-  contentType: string
+  contentType: string,
 ): Response {
   return new Response(content, {
     headers: {

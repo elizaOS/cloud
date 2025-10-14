@@ -285,7 +285,7 @@ export function generateOpenAPISpec(baseUrl?: string): OpenAPISpec {
           type: "http",
           scheme: "bearer",
           bearerFormat: "JWT",
-          description: "WorkOS session authentication",
+          description: "Privy session authentication",
         },
         apiKeyAuth: {
           type: "apiKey",

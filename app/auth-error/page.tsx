@@ -23,15 +23,15 @@ export default function AuthErrorPage() {
               Error Details:
             </p>
             <p className="mt-2 text-sm text-muted-foreground">
-              Your authentication with WorkOS was successful, but we couldn&apos;t
-              sync your account to our database. This is likely a temporary
-              issue.
+              Your authentication with Privy was successful, but we
+              couldn&apos;t sync your account to our database. This is likely a
+              temporary issue.
             </p>
           </div>
 
           <div className="flex w-full flex-col gap-3">
             <Button asChild className="w-full">
-              <Link href="/login">Try Again</Link>
+              <Link href="/">Try Again</Link>
             </Button>
 
             <Button asChild variant="outline" className="w-full">

@@ -1,9 +1,12 @@
 // app/api/v1/chat/completions/route.ts
 import { requireAuthOrApiKey } from "@/lib/auth";
 import { getProvider } from "@/lib/providers";
-import { deductCredits, checkSufficientCredits } from "@/lib/queries/credits";
-import { createUsageRecord } from "@/lib/queries/usage";
-import { createGeneration } from "@/lib/queries/generations";
+import {
+  creditsService,
+  usageService,
+  generationsService,
+  organizationsService,
+} from "@/lib/services";
 import {
   calculateCost,
   getProviderFromModel,
@@ -76,17 +79,18 @@ async function handlePOST(req: NextRequest) {
           { status: 400 },
         );
       }
-      
+
       // Content is optional for tool/function call messages
-      const hasToolCalls = 'tool_calls' in msg && msg.tool_calls;
-      const hasToolCallId = 'tool_call_id' in msg && msg.tool_call_id;
-      const hasFunctionCall = 'function_call' in msg && msg.function_call;
-      
+      const hasToolCalls = "tool_calls" in msg && msg.tool_calls;
+      const hasToolCallId = "tool_call_id" in msg && msg.tool_call_id;
+      const hasFunctionCall = "function_call" in msg && msg.function_call;
+
       if (!msg.content && !hasToolCalls && !hasToolCallId && !hasFunctionCall) {
         return Response.json(
           {
             error: {
-              message: "Each message must have content, tool_calls, tool_call_id, or function_call",
+              message:
+                "Each message must have content, tool_calls, tool_call_id, or function_call",
               type: "invalid_request_error",
               param: "messages",
               code: "invalid_value",
@@ -105,10 +109,27 @@ async function handlePOST(req: NextRequest) {
     // 4. Check credits BEFORE making API call
     // estimateRequestCost now handles both string and multimodal content
     const estimatedCost = await estimateRequestCost(model, request.messages);
-    const creditCheck = await checkSufficientCredits(
-      user.organization_id,
-      estimatedCost,
-    );
+
+    // Check if organization has sufficient credits
+    const org = await organizationsService.getById(user.organization_id);
+    if (!org) {
+      return Response.json(
+        {
+          error: {
+            message: "Organization not found",
+            type: "invalid_request_error",
+            code: "organization_not_found",
+          },
+        },
+        { status: 404 },
+      );
+    }
+
+    const creditCheck = {
+      sufficient: org.credit_balance >= estimatedCost,
+      required: estimatedCost,
+      balance: org.credit_balance,
+    };
 
     if (!creditCheck.sufficient) {
       logger.warn("[OpenAI Proxy] Insufficient credits", {
@@ -116,7 +137,7 @@ async function handlePOST(req: NextRequest) {
         required: creditCheck.required,
         balance: creditCheck.balance,
       });
-      
+
       return Response.json(
         {
           error: {
@@ -169,8 +190,16 @@ async function handlePOST(req: NextRequest) {
     logger.error("[OpenAI Proxy] Error:", error);
 
     // Check if error is a structured gateway error
-    if (error && typeof error === 'object' && 'error' in error && 'status' in error) {
-      const gatewayError = error as { status: number; error: { message: string; type?: string; code?: string } };
+    if (
+      error &&
+      typeof error === "object" &&
+      "error" in error &&
+      "status" in error
+    ) {
+      const gatewayError = error as {
+        status: number;
+        error: { message: string; type?: string; code?: string };
+      };
       return Response.json(
         { error: gatewayError.error },
         { status: gatewayError.status },
@@ -218,12 +247,12 @@ async function handleNonStreamingResponse(
     );
 
     // CRITICAL: Deduct credits before returning response
-    const deductResult = await deductCredits(
-      user.organization_id,
-      totalCost,
-      `OpenAI Proxy: ${model}`,
-      user.id,
-    );
+    const deductResult = await creditsService.deductCredits({
+      organizationId: user.organization_id,
+      amount: totalCost,
+      description: `OpenAI Proxy: ${model}`,
+      metadata: { user_id: user.id },
+    });
 
     if (!deductResult.success) {
       // This should rarely happen since we checked credits before the call
@@ -233,7 +262,7 @@ async function handleNonStreamingResponse(
         cost: totalCost,
         balance: deductResult.newBalance,
       });
-      
+
       // Return error instead of giving free service
       return Response.json(
         {
@@ -251,7 +280,7 @@ async function handleNonStreamingResponse(
     // These are not critical for billing, so can be async
     (async () => {
       try {
-        const usageRecord = await createUsageRecord({
+        const usageRecord = await usageService.create({
           organization_id: user.organization_id,
           user_id: user.id,
           api_key_id: apiKey?.id || null,
@@ -266,7 +295,7 @@ async function handleNonStreamingResponse(
         });
 
         if (apiKey) {
-          await createGeneration({
+          await generationsService.create({
             organization_id: user.organization_id,
             user_id: user.id,
             api_key_id: apiKey.id,
@@ -377,15 +406,22 @@ function handleStreamingResponse(
       // After stream completes, record analytics
       // Use fallback token estimation if usage data was not provided
       if (totalTokens === 0) {
-        logger.warn("[OpenAI Proxy] No usage data in stream, estimating tokens", {
-          model,
-          contentLength: fullContent.length,
-        });
-        
+        logger.warn(
+          "[OpenAI Proxy] No usage data in stream, estimating tokens",
+          {
+            model,
+            contentLength: fullContent.length,
+          },
+        );
+
         // Estimate tokens from content
-        const messageText = messages.map(m => 
-          typeof m.content === 'string' ? m.content : JSON.stringify(m.content)
-        ).join(" ");
+        const messageText = messages
+          .map((m) =>
+            typeof m.content === "string"
+              ? m.content
+              : JSON.stringify(m.content),
+          )
+          .join(" ");
         inputTokens = estimateTokens(messageText);
         outputTokens = estimateTokens(fullContent);
         totalTokens = inputTokens + outputTokens;
@@ -399,22 +435,30 @@ function handleStreamingResponse(
           outputTokens,
         );
 
-        const deductResult = await deductCredits(
-          user.organization_id,
-          totalCost,
-          `OpenAI Proxy: ${model}`,
-          user.id,
-        );
+        const deductResult = await creditsService.deductCredits({
+          organizationId: user.organization_id,
+          amount: totalCost,
+          description: `OpenAI Proxy: ${model}`,
+          metadata: { user_id: user.id },
+        });
 
         if (!deductResult.success) {
-          logger.error("[OpenAI Proxy] Failed to deduct credits after streaming", {
-            organizationId: user.organization_id,
-            cost: totalCost,
-            balance: deductResult.newBalance,
-          });
+          // CRITICAL: This should rarely happen since we checked credits before streaming
+          // But it can happen if credits were spent elsewhere between check and stream completion
+          logger.error(
+            "[OpenAI Proxy] CRITICAL: Failed to deduct credits after streaming - race condition detected",
+            {
+              organizationId: user.organization_id,
+              userId: user.id,
+              cost: totalCost,
+              balance: deductResult.newBalance,
+            },
+          );
+          // Stream has already completed, so we can't return an error to the client
+          // This should trigger an alert for manual review
         }
 
-        const usageRecord = await createUsageRecord({
+        const usageRecord = await usageService.create({
           organization_id: user.organization_id,
           user_id: user.id,
           api_key_id: apiKey?.id || null,
@@ -429,7 +473,7 @@ function handleStreamingResponse(
         });
 
         if (apiKey) {
-          await createGeneration({
+          await generationsService.create({
             organization_id: user.organization_id,
             user_id: user.id,
             api_key_id: apiKey.id,
@@ -474,7 +518,10 @@ function handleStreamingResponse(
     },
   });
 }
+<<<<<<< HEAD
 
 
 
 export const POST = withRateLimit(handlePOST, RateLimitPresets.STRICT);
+=======
+>>>>>>> 29c4013704f830472a5bfa07468c504978dd0486

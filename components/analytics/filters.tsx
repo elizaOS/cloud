@@ -35,7 +35,8 @@ export function AnalyticsFilters() {
     );
 
     const now = new Date();
-    const isAlignedWithNow = Math.abs(end.getTime() - now.getTime()) < 1000 * 60 * 60;
+    const isAlignedWithNow =
+      Math.abs(end.getTime() - now.getTime()) < 1000 * 60 * 60;
 
     if (diffInDays === 7 && isAlignedWithNow) return "7d";
     if (diffInDays === 30 && isAlignedWithNow) return "30d";
@@ -84,7 +85,10 @@ export function AnalyticsFilters() {
         </div>
 
         {activeRange === "custom" ? (
-          <Badge variant="outline" className="gap-1 rounded-full px-3 py-1 text-xs">
+          <Badge
+            variant="outline"
+            className="gap-1 rounded-full px-3 py-1 text-xs"
+          >
             <Sparkles className="h-3.5 w-3.5" />
             Custom range detected
           </Badge>
@@ -103,7 +107,7 @@ export function AnalyticsFilters() {
               className={cn(
                 "rounded-full border border-border/60 bg-background/60 text-xs font-medium transition-colors",
                 isActive &&
-                "border-primary/60 bg-primary/10 text-primary hover:bg-primary/15",
+                  "border-primary/60 bg-primary/10 text-primary hover:bg-primary/15",
               )}
               onClick={() => {
                 const now = new Date();

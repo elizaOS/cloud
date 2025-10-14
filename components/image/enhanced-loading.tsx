@@ -17,14 +17,15 @@ interface EnhancedLoadingProps {
 }
 
 export function EnhancedLoading({ message, progress }: EnhancedLoadingProps) {
-  const randomMessage = LOADING_MESSAGES[Math.floor(Math.random() * LOADING_MESSAGES.length)];
+  const randomMessage =
+    LOADING_MESSAGES[Math.floor(Math.random() * LOADING_MESSAGES.length)];
   const displayMessage = message || randomMessage;
 
   return (
     <div className="relative w-full aspect-square rounded-2xl border-2 bg-gradient-to-br from-purple-500/5 via-blue-500/5 to-pink-500/5 overflow-hidden">
       {/* Animated background gradient */}
       <div className="absolute inset-0 bg-gradient-to-r from-purple-500/10 via-blue-500/10 to-pink-500/10 animate-pulse" />
-      
+
       {/* Floating particles */}
       <div className="absolute inset-0">
         {[...Array(12)].map((_, i) => (
@@ -32,7 +33,7 @@ export function EnhancedLoading({ message, progress }: EnhancedLoadingProps) {
             key={i}
             className={cn(
               "absolute w-2 h-2 rounded-full bg-primary/30",
-              "animate-float"
+              "animate-float",
             )}
             style={{
               left: `${Math.random() * 100}%`,
@@ -54,15 +55,24 @@ export function EnhancedLoading({ message, progress }: EnhancedLoadingProps) {
           <div className="relative flex items-center justify-center w-24 h-24 rounded-full bg-gradient-to-br from-purple-500/20 to-blue-500/20 backdrop-blur-sm border-2 border-primary/20">
             <Loader2 className="w-12 h-12 text-primary animate-spin" />
           </div>
-          
+
           {/* Orbiting icons */}
-          <div className="absolute inset-0 animate-spin" style={{ animationDuration: "3s" }}>
+          <div
+            className="absolute inset-0 animate-spin"
+            style={{ animationDuration: "3s" }}
+          >
             <Sparkles className="absolute top-0 left-1/2 -translate-x-1/2 w-4 h-4 text-purple-500" />
           </div>
-          <div className="absolute inset-0 animate-spin" style={{ animationDuration: "4s", animationDirection: "reverse" }}>
+          <div
+            className="absolute inset-0 animate-spin"
+            style={{ animationDuration: "4s", animationDirection: "reverse" }}
+          >
             <Zap className="absolute bottom-0 left-1/2 -translate-x-1/2 w-4 h-4 text-blue-500" />
           </div>
-          <div className="absolute inset-0 animate-spin" style={{ animationDuration: "5s" }}>
+          <div
+            className="absolute inset-0 animate-spin"
+            style={{ animationDuration: "5s" }}
+          >
             <Stars className="absolute left-0 top-1/2 -translate-y-1/2 w-4 h-4 text-pink-500" />
           </div>
         </div>
@@ -72,7 +82,7 @@ export function EnhancedLoading({ message, progress }: EnhancedLoadingProps) {
           <p className="text-base font-semibold bg-gradient-to-r from-purple-600 to-blue-600 bg-clip-text text-transparent animate-pulse">
             {displayMessage}
           </p>
-          
+
           {/* Progress bar */}
           {progress !== undefined && (
             <div className="w-64 h-2 rounded-full bg-muted overflow-hidden">
@@ -82,7 +92,7 @@ export function EnhancedLoading({ message, progress }: EnhancedLoadingProps) {
               />
             </div>
           )}
-          
+
           <p className="text-xs text-muted-foreground">
             This may take 10-30 seconds
           </p>

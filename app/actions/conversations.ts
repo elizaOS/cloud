@@ -2,13 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { requireAuth } from "@/lib/auth";
-import {
-  createConversation,
-  updateConversation,
-  deleteConversation,
-  listConversationsByUser,
-  getConversationWithMessages,
-} from "@/lib/queries/conversations";
+import { conversationsService } from "@/lib/services";
 
 export async function createConversationAction(data: {
   title: string;
@@ -16,7 +10,7 @@ export async function createConversationAction(data: {
 }) {
   const user = await requireAuth();
 
-  const conversation = await createConversation({
+  const conversation = await conversationsService.create({
     title: data.title,
     model: data.model,
     organization_id: user.organization_id,
@@ -34,7 +28,7 @@ export async function updateConversationTitleAction(
 ) {
   await requireAuth();
 
-  const conversation = await updateConversation(conversationId, {
+  const conversation = await conversationsService.update(conversationId, {
     title,
   });
 
@@ -49,7 +43,7 @@ export async function updateConversationTitleAction(
 export async function deleteConversationAction(conversationId: string) {
   await requireAuth();
 
-  await deleteConversation(conversationId);
+  await conversationsService.delete(conversationId);
 
   revalidatePath("/dashboard/text");
   return { success: true };
@@ -58,10 +52,7 @@ export async function deleteConversationAction(conversationId: string) {
 export async function listUserConversationsAction() {
   const user = await requireAuth();
 
-  const conversations = await listConversationsByUser(user.id, {
-    status: "active",
-    limit: 50,
-  });
+  const conversations = await conversationsService.listByUser(user.id, 50);
 
   return { success: true, conversations };
 }
@@ -69,7 +60,8 @@ export async function listUserConversationsAction() {
 export async function getConversationAction(conversationId: string) {
   await requireAuth();
 
-  const conversation = await getConversationWithMessages(conversationId);
+  const conversation =
+    await conversationsService.getWithMessages(conversationId);
 
   if (!conversation) {
     return { success: false, error: "Conversation not found" };

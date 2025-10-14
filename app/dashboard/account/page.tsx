@@ -8,6 +8,9 @@ export const metadata: Metadata = {
     "Manage your account preferences, profile, and security settings",
 };
 
+// Force dynamic rendering since we use server-side auth (cookies)
+export const dynamic = "force-dynamic";
+
 export default async function AccountPage() {
   const user = await requireAuth();
 
