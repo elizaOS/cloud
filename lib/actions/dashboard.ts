@@ -7,10 +7,87 @@ import {
   generationsService,
   providerHealthService,
 } from "@/lib/services";
+import { cache } from "@/lib/cache/client";
+import { CacheKeys, CacheTTL } from "@/lib/cache/keys";
+import { logger } from "@/lib/utils/logger";
 
-export async function getDashboardData() {
+export interface DashboardData {
+  user: {
+    name: string;
+    email: string;
+  };
+  organization: {
+    name: string;
+    creditBalance: number;
+    maxApiRequests: number | null;
+    maxTokensPerRequest: number | null;
+    allowedProviders: string[];
+    allowedModels: string[];
+  };
+  stats: {
+    totalGenerations: number;
+    apiCalls24h: number;
+    imageGenerations: number;
+    videoGenerations: number;
+    chatGenerations: number;
+  };
+  usage: {
+    totalRequests: number;
+    successfulRequests: number;
+    failedRequests: number;
+    totalCost: number;
+    totalInputTokens: number;
+    totalOutputTokens: number;
+    dailyBurnCredits: number;
+    successRate: number;
+    burnChange: number;
+  };
+  modelUsage: Array<{
+    model: string;
+    provider: string;
+    count: number;
+    totalCost: number;
+  }>;
+  creditTransactions: Array<{
+    id: string;
+    amount: number;
+    type: string;
+    description: string;
+    created_at: Date;
+    user_id: string | null;
+  }>;
+  providerHealth: Array<{
+    provider: string;
+    status: string;
+    responseTime: number;
+    errorRate: number;
+    lastChecked: Date | null;
+  }>;
+  recentGenerations: Array<{
+    id: string;
+    type: string;
+    model: string;
+    provider: string;
+    prompt: string;
+    status: string;
+    credits: number;
+    cost: number;
+    error: string | null;
+    created_at: Date;
+    completed_at: Date | null;
+  }>;
+}
+
+export async function getDashboardData(): Promise<DashboardData> {
   const user = await requireAuth();
   const organizationId = user.organization_id;
+
+  const cacheKey = CacheKeys.org.dashboard(organizationId);
+  const cached = await cache.get<DashboardData>(cacheKey);
+  if (cached) {
+    logger.debug(`[Dashboard] Cache hit for org=${organizationId}`);
+    return cached;
+  }
 
   const now = new Date();
   const yesterday = new Date(now.getTime() - 24 * 60 * 60 * 1000);
@@ -55,7 +132,7 @@ export async function getDashboardData() {
       ? ((yesterdayBurn - avgDailyBurnLastWeek) / avgDailyBurnLastWeek) * 100
       : 0;
 
-  return {
+  const dashboardData = {
     user: {
       name: user.name || "User",
       email: user.email,
@@ -121,6 +198,8 @@ export async function getDashboardData() {
       completed_at: g.completed_at,
     })),
   };
-}
 
-export type DashboardData = Awaited<ReturnType<typeof getDashboardData>>;
+  await cache.set(cacheKey, dashboardData, CacheTTL.org.dashboard);
+
+  return dashboardData;
+}

@@ -10,6 +10,7 @@ import {
   QuotaExceededError,
   type NewContainer,
 } from "@/lib/services";
+import { creditEventEmitter } from "@/lib/events/credit-events";
 import { calculateDeploymentCost, CONTAINER_LIMITS } from "@/lib/constants/pricing";
 import { getCloudflareService } from "@/lib/services/cloudflare";
 import { isFeatureConfigured } from "@/lib/config/env-validator";
@@ -250,6 +251,16 @@ async function handleCreateContainer(request: NextRequest) {
 
       container = result.container;
       newBalance = result.newBalance;
+
+      // Emit credit update event for real-time balance updates
+      creditEventEmitter.emitCreditUpdate({
+        organizationId: user.organization_id,
+        newBalance: newBalance,
+        delta: -deploymentCost,
+        reason: `Container deployment: ${validatedData.name}`,
+        userId: user.id,
+        timestamp: new Date(),
+      });
       
     } catch (error) {
       // Transaction rolled back - no orphaned container or credit inconsistency

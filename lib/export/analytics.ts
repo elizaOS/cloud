@@ -10,6 +10,22 @@ export interface ExportOptions {
   groupBy?: string;
 }
 
+/**
+ * Sanitize value to prevent CSV injection attacks
+ * Values starting with =, +, -, @, tab, or carriage return are prefixed with '
+ * @param value - The value to sanitize
+ * @returns Sanitized value safe for CSV export
+ */
+function sanitizeCSVValue(value: string): string {
+  const dangerousChars = ['=', '+', '-', '@', '\t', '\r'];
+
+  if (dangerousChars.some(char => value.startsWith(char))) {
+    return `'${value}`; // Prefix with single quote to treat as text
+  }
+
+  return value;
+}
+
 export function generateCSV(
   data: Array<Record<string, unknown>>,
   columns: Array<ExportColumn>,
@@ -35,13 +51,19 @@ export function generateCSV(
         if (col.format) {
           value = col.format(value);
         }
-        if (
-          typeof value === "string" &&
-          (value.includes(",") || value.includes('"'))
-        ) {
-          return `"${value.replace(/"/g, '""')}"`;
+
+        // Convert to string
+        const stringValue = value?.toString() ?? "";
+
+        // Sanitize for CSV injection
+        const sanitized = sanitizeCSVValue(stringValue);
+
+        // Quote if contains comma or quote
+        if (sanitized.includes(",") || sanitized.includes('"')) {
+          return `"${sanitized.replace(/"/g, '""')}"`;
         }
-        return value ?? "";
+
+        return sanitized;
       })
       .join(",")
   );

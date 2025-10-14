@@ -1,10 +1,12 @@
 import { type NextRequest, NextResponse } from "next/server";
 import { requireAuthOrApiKey } from "@/lib/auth";
 import { getCostBreakdown } from "@/lib/services";
+import { logger } from "@/lib/utils/logger";
+import { withRateLimit, RateLimitPresets } from "@/lib/middleware/rate-limit";
 
 export const maxDuration = 60;
 
-export async function GET(req: NextRequest) {
+async function handleGET(req: NextRequest) {
   try {
     const { user } = await requireAuthOrApiKey(req);
     const searchParams = req.nextUrl.searchParams;
@@ -18,7 +20,8 @@ export async function GET(req: NextRequest) {
     const sortOrder = (searchParams.get("sortOrder") || "desc") as
       | "asc"
       | "desc";
-    const limit = parseInt(searchParams.get("limit") || "100", 10);
+    const limit = Math.min(parseInt(searchParams.get("limit") || "100", 10), 1000); // Cap at 1000
+    const offset = parseInt(searchParams.get("offset") || "0", 10);
 
     const startDate = searchParams.get("startDate")
       ? new Date(searchParams.get("startDate")!)
@@ -35,17 +38,21 @@ export async function GET(req: NextRequest) {
         endDate,
         sortBy,
         sortOrder,
-        limit,
+        limit: limit + 1, // Fetch one extra to check if more exist
+        offset,
       }
     );
 
+    // Check if more results exist
+    const hasMore = breakdown.length > limit;
+    const results = hasMore ? breakdown.slice(0, limit) : breakdown;
+
     return NextResponse.json({
       success: true,
-      data: breakdown.map((item) => ({
+      data: results.map((item) => ({
         dimension: item.dimension,
         value: item.value,
         cost: item.cost,
-        spent: item.cost,
         requests: item.requests,
         tokens: item.tokens,
         successCount: item.successCount,
@@ -53,9 +60,15 @@ export async function GET(req: NextRequest) {
         successRate:
           item.totalCount > 0 ? item.successCount / item.totalCount : 1.0,
       })),
+      pagination: {
+        limit,
+        offset,
+        hasMore,
+        nextOffset: hasMore ? offset + limit : null,
+      },
     });
   } catch (error) {
-    console.error("[Analytics Breakdown] Error:", error);
+    logger.error("[Analytics Breakdown] Error:", error);
     return NextResponse.json(
       {
         success: false,
@@ -68,3 +81,5 @@ export async function GET(req: NextRequest) {
     );
   }
 }
+
+export const GET = withRateLimit(handleGET, RateLimitPresets.STANDARD);

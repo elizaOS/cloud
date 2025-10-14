@@ -86,7 +86,7 @@ async function testAddCredits() {
       console.error(error.stack);
     }
     if ((error as { detail?: string }).detail) {
-      console.error(`\nDetail: ${(error as { detail?: string }).detail}`);
+      console.error(`\nDetail: ${(error as { detail: string }).detail}`);
     }
   }
 
