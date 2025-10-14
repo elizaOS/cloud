@@ -56,7 +56,7 @@ export default function UserMenu() {
     try {
       // Call Privy's logout to clear authentication state
       await logout();
-      
+
       // Force redirect to home page
       router.push("/");
     } catch (error) {
