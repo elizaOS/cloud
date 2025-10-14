@@ -14,7 +14,7 @@ export async function POST(req: Request) {
 
     // Generate truly random seed for diversity
     const randomSeed = `${seed}-${Math.random()}-${Math.random()}`;
-    
+
     const result = streamText({
       model: openai("gpt-4o"),
       messages: [
@@ -55,7 +55,8 @@ Random seed: ${randomSeed}`,
         },
         {
           role: "user",
-          content: "Generate 4 short, practical agent concepts for real-world utility. Keep each under 8 words. Make them diverse across different domains.",
+          content:
+            "Generate 4 short, practical agent concepts for real-world utility. Keep each under 8 words. Make them diverse across different domains.",
         },
       ],
       temperature: 1.5,
@@ -77,4 +78,3 @@ Random seed: ${randomSeed}`,
     );
   }
 }
-

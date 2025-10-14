@@ -1,19 +1,20 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireAuthOrApiKey } from "@/lib/auth";
-import { db } from "@/db/drizzle";
-import { artifacts } from "@/db/sass/schema";
+import { artifactsService } from "@/lib/services";
 import { nanoid } from "nanoid";
-import { 
-  createArtifactUploadCredentials, 
+import {
+  createArtifactUploadCredentials,
   createArtifactDownloadCredentials,
-  generatePresignedUrl 
+  generatePresignedUrl,
 } from "@/lib/services/r2-credentials";
 import { withRateLimit, RateLimitPresets } from "@/lib/middleware/rate-limit";
 
 export const dynamic = "force-dynamic";
 
 const R2_BUCKET = process.env.R2_BUCKET_NAME || "eliza-artifacts";
-const R2_ENDPOINT = process.env.R2_ENDPOINT || `https://${process.env.R2_ACCOUNT_ID}.r2.cloudflarestorage.com`;
+const R2_ENDPOINT =
+  process.env.R2_ENDPOINT ||
+  `https://${process.env.R2_ACCOUNT_ID}.r2.cloudflarestorage.com`;
 
 /**
  * POST /api/v1/artifacts/upload
@@ -34,7 +35,7 @@ async function handleArtifactUpload(request: NextRequest) {
           success: false,
           error: "Missing required fields: projectId, version, checksum, size",
         },
-        { status: 400 }
+        { status: 400 },
       );
     }
 
@@ -46,13 +47,13 @@ async function handleArtifactUpload(request: NextRequest) {
           success: false,
           error: `Artifact size exceeds limit of ${MAX_SIZE / 1024 / 1024}MB`,
         },
-        { status: 400 }
+        { status: 400 },
       );
     }
 
     // Generate unique artifact ID
     const artifactId = nanoid();
-    
+
     // Create R2 key
     const r2Key = `artifacts/${user.organization_id}/${projectId}/${version}/${artifactId}.tar.gz`;
 
@@ -82,7 +83,8 @@ async function handleArtifactUpload(request: NextRequest) {
         }),
       ]);
     } catch (credError) {
-      const errorMsg = credError instanceof Error ? credError.message : "Unknown error";
+      const errorMsg =
+        credError instanceof Error ? credError.message : "Unknown error";
       throw new Error(`Failed to create R2 credentials: ${errorMsg}`);
     }
 
@@ -105,13 +107,14 @@ async function handleArtifactUpload(request: NextRequest) {
         }),
       ]);
     } catch (urlError) {
-      const errorMsg = urlError instanceof Error ? urlError.message : "Unknown error";
+      const errorMsg =
+        urlError instanceof Error ? urlError.message : "Unknown error";
       throw new Error(`Failed to generate presigned URLs: ${errorMsg}`);
     }
 
     // Only insert into database after ALL prerequisites are successfully generated
     // This prevents orphaned database records
-    await db.insert(artifacts).values({
+    await artifactsService.create({
       id: artifactId,
       organization_id: user.organization_id,
       project_id: projectId,
@@ -119,7 +122,7 @@ async function handleArtifactUpload(request: NextRequest) {
       checksum,
       size,
       r2_key: r2Key,
-      r2_url: `https://${process.env.R2_PUBLIC_DOMAIN || process.env.R2_ACCOUNT_ID + '.r2.cloudflarestorage.com'}/${R2_BUCKET}/${r2Key}`,
+      r2_url: `https://${process.env.R2_PUBLIC_DOMAIN || process.env.R2_ACCOUNT_ID + ".r2.cloudflarestorage.com"}/${R2_BUCKET}/${r2Key}`,
       metadata: metadata || {},
       created_by: user.id,
       created_at: new Date(),
@@ -159,12 +162,18 @@ async function handleArtifactUpload(request: NextRequest) {
     return NextResponse.json(
       {
         success: false,
-        error: error instanceof Error ? error.message : "Failed to create artifact upload",
+        error:
+          error instanceof Error
+            ? error.message
+            : "Failed to create artifact upload",
       },
-      { status: 500 }
+      { status: 500 },
     );
   }
 }
 
 // Export rate-limited handler
-export const POST = withRateLimit(handleArtifactUpload, RateLimitPresets.STRICT);
+export const POST = withRateLimit(
+  handleArtifactUpload,
+  RateLimitPresets.STRICT,
+);

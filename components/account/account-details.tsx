@@ -108,13 +108,13 @@ export function AccountDetails({ user }: AccountDetailsProps) {
             </div>
           </div>
 
-          {user.workos_user_id && (
+          {user.privy_user_id && (
             <div className="pt-4 border-t space-y-1">
               <p className="text-sm text-muted-foreground">
                 Authentication Provider
               </p>
               <p className="text-xs font-mono text-muted-foreground">
-                WorkOS ID: {user.workos_user_id}
+                Privy ID: {user.privy_user_id}
               </p>
             </div>
           )}

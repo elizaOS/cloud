@@ -3,7 +3,13 @@ import type { ReactNode } from "react";
 import { AlertTriangle, CheckCircle2, Info } from "lucide-react";
 
 import { Badge } from "@/components/ui/badge";
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
+import {
+  Card,
+  CardContent,
+  CardHeader,
+  CardTitle,
+  CardDescription,
+} from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
 import { cn } from "@/lib/utils";
 
@@ -100,9 +106,7 @@ export function UsageAlertsCard({
           <div className="flex items-center gap-3 rounded-xl border border-border/50 bg-gradient-to-br from-muted/30 to-emerald-500/10 px-4 py-6">
             <CheckCircle2 className="h-5 w-5 text-emerald-500" />
             <div>
-              <p className="text-sm font-semibold text-foreground">
-                All clear
-              </p>
+              <p className="text-sm font-semibold text-foreground">All clear</p>
               <p className="text-xs text-muted-foreground">
                 No outstanding usage-related actions.
               </p>
@@ -144,7 +148,9 @@ export function UsageAlertsCard({
         {footer ? (
           <>
             <Separator />
-            <div className="pt-2 text-xs text-muted-foreground/80">{footer}</div>
+            <div className="pt-2 text-xs text-muted-foreground/80">
+              {footer}
+            </div>
           </>
         ) : null}
       </CardContent>

@@ -28,8 +28,7 @@ export async function GET(request: NextRequest) {
         success: false,
         error: error instanceof Error ? error.message : "Failed to get stats",
       },
-      { status: 500 }
+      { status: 500 },
     );
   }
 }
-

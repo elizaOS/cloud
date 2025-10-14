@@ -6,8 +6,28 @@ import { ImageDisplay } from "./image-display";
 import { EmptyState } from "./empty-state";
 import { LoadingState } from "./loading-state";
 
-export type AspectRatio = "1:1" | "16:9" | "9:16" | "4:3" | "3:4" | "21:9" | "9:21";
-export type StylePreset = "none" | "photographic" | "digital-art" | "comic-book" | "fantasy-art" | "analog-film" | "neon-punk" | "isometric" | "low-poly" | "origami" | "line-art" | "cinematic" | "3d-model";
+export type AspectRatio =
+  | "1:1"
+  | "16:9"
+  | "9:16"
+  | "4:3"
+  | "3:4"
+  | "21:9"
+  | "9:21";
+export type StylePreset =
+  | "none"
+  | "photographic"
+  | "digital-art"
+  | "comic-book"
+  | "fantasy-art"
+  | "analog-film"
+  | "neon-punk"
+  | "isometric"
+  | "low-poly"
+  | "origami"
+  | "line-art"
+  | "cinematic"
+  | "3d-model";
 
 interface GeneratedImage {
   image: string;
@@ -37,7 +57,7 @@ export function ImageGenerator() {
         headers: {
           "Content-Type": "application/json",
         },
-        body: JSON.stringify({ 
+        body: JSON.stringify({
           prompt,
           numImages,
           aspectRatio,
@@ -54,7 +74,9 @@ export function ImageGenerator() {
       // Handle multiple images response
       if (data.images && Array.isArray(data.images)) {
         const processedImages = data.images.map((img: GeneratedImage) => ({
-          image: img.image.startsWith("data:") ? img.image : `data:image/png;base64,${img.image}`,
+          image: img.image.startsWith("data:")
+            ? img.image
+            : `data:image/png;base64,${img.image}`,
           url: img.url,
           text: img.text || "",
         }));
@@ -105,7 +127,9 @@ export function ImageGenerator() {
 
       {images.length > 0 && (
         <div className="space-y-6">
-          <div className={`grid gap-6 ${images.length === 1 ? 'grid-cols-1' : 'grid-cols-1 md:grid-cols-2'}`}>
+          <div
+            className={`grid gap-6 ${images.length === 1 ? "grid-cols-1" : "grid-cols-1 md:grid-cols-2"}`}
+          >
             {images.map((img, index) => (
               <ImageDisplay
                 key={index}

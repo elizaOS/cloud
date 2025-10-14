@@ -2,10 +2,17 @@ import { NextResponse } from "next/server";
 import { agentRuntime } from "@/lib/eliza/agent-runtime";
 import type { UUID } from "@elizaos/core";
 import { requireAuthOrApiKey } from "@/lib/auth";
-import { deductCredits } from "@/lib/queries/credits";
-import { createUsageRecord } from "@/lib/queries/usage";
-import { createGeneration } from "@/lib/queries/generations";
-import { calculateCost, getProviderFromModel } from "@/lib/pricing";
+import {
+  creditsService,
+  usageService,
+  generationsService,
+  organizationsService,
+} from "@/lib/services";
+import {
+  calculateCost,
+  getProviderFromModel,
+  estimateTokens,
+} from "@/lib/pricing";
 import { logger } from "@/lib/utils/logger";
 import type { NextRequest } from "next/server";
 
@@ -45,6 +52,47 @@ export async function POST(
       return NextResponse.json(
         { error: "text is required and must be a non-empty string" },
         { status: 400 },
+      );
+    }
+
+    // CRITICAL FIX: Check credit balance BEFORE processing to prevent free service
+    // Estimate cost based on input text
+    const estimatedInputTokens = estimateTokens(text);
+    const estimatedOutputTokens = 100; // Conservative estimate for response
+    const model = "gpt-4o";
+    const provider = getProviderFromModel(model);
+
+    const { totalCost: estimatedCost } = await calculateCost(
+      model,
+      provider,
+      estimatedInputTokens,
+      estimatedOutputTokens,
+    );
+
+    // Check organization balance
+    const org = await organizationsService.getById(user.organization_id);
+    if (!org) {
+      logger.error("[Eliza Messages API] Organization not found", {
+        organizationId: user.organization_id,
+      });
+      return NextResponse.json(
+        { error: "Organization not found" },
+        { status: 404 },
+      );
+    }
+
+    if (org.credit_balance < estimatedCost) {
+      logger.warn("[Eliza Messages API] Insufficient credits", {
+        organizationId: user.organization_id,
+        required: estimatedCost,
+        balance: org.credit_balance,
+      });
+      return NextResponse.json(
+        {
+          error: "Insufficient credits",
+          details: `Required: ${estimatedCost}, Available: ${org.credit_balance}`,
+        },
+        { status: 402 },
       );
     }
 
@@ -89,21 +137,31 @@ export async function POST(
       );
 
       // Deduct credits
-      const deductionResult = await deductCredits(
-        user.organization_id,
-        totalCost,
-        `Eliza chat completion: ${model}`,
-        user.id,
-      );
+      const deductionResult = await creditsService.deductCredits({
+        organizationId: user.organization_id,
+        amount: totalCost,
+        description: `Eliza chat completion: ${model}`,
+        metadata: { user_id: user.id },
+      });
 
       if (!deductionResult.success) {
+        // CRITICAL: This should rarely happen since we checked credits before processing
+        // But it can happen if credits were spent elsewhere between check and now
         logger.error(
-          "[Eliza Messages API] Failed to deduct credits - insufficient balance",
+          "[Eliza Messages API] CRITICAL: Failed to deduct credits after message processing - race condition detected",
+          {
+            organizationId: user.organization_id,
+            cost: totalCost,
+            balance: deductionResult.newBalance,
+            messageId: message.id,
+          },
         );
+        // Message has already been processed, so we return it but flag the billing issue
+        // This should trigger an alert for manual review
       }
 
       // Create usage record
-      const usageRecord = await createUsageRecord({
+      const usageRecord = await usageService.create({
         organization_id: user.organization_id,
         user_id: user.id,
         api_key_id: apiKey?.id || null,
@@ -119,7 +177,7 @@ export async function POST(
 
       // Create generation record if using API key
       if (apiKey) {
-        await createGeneration({
+        await generationsService.create({
           organization_id: user.organization_id,
           user_id: user.id,
           api_key_id: apiKey.id,
@@ -149,7 +207,7 @@ export async function POST(
 
       // Still create an unsuccessful usage record for tracking
       try {
-        await createUsageRecord({
+        await usageService.create({
           organization_id: user.organization_id,
           user_id: user.id,
           api_key_id: apiKey?.id || null,

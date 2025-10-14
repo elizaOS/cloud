@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireAuthOrApiKey } from "@/lib/auth";
-import { getContainer } from "@/lib/queries/containers";
+import { getContainer } from "@/lib/services";
 import { getCloudflareService } from "@/lib/services/cloudflare";
 
 export const dynamic = "force-dynamic";
@@ -11,7 +11,7 @@ export const dynamic = "force-dynamic";
  */
 export async function GET(
   request: NextRequest,
-  { params }: { params: Promise<{ id: string }> }
+  { params }: { params: Promise<{ id: string }> },
 ) {
   try {
     const { id } = await params;
@@ -26,7 +26,7 @@ export async function GET(
           success: false,
           error: "Container not found",
         },
-        { status: 404 }
+        { status: 404 },
       );
     }
 
@@ -37,13 +37,15 @@ export async function GET(
           success: false,
           error: "Container has not been deployed to Cloudflare yet",
         },
-        { status: 400 }
+        { status: 400 },
       );
     }
 
     // Get logs from Cloudflare
     const cloudflare = getCloudflareService();
-    const rawLogs = await cloudflare.getContainerLogs(container.cloudflare_worker_id);
+    const rawLogs = await cloudflare.getContainerLogs(
+      container.cloudflare_worker_id,
+    );
 
     // Parse query parameters for filtering
     const searchParams = request.nextUrl.searchParams;
@@ -53,19 +55,28 @@ export async function GET(
 
     // Parse logs if they're strings (convert to structured format)
     // Cloudflare may return logs as strings or objects depending on API version
-    const logs: Array<{ timestamp: string; level: string; message: string; metadata?: Record<string, unknown> }> = 
-      rawLogs.map((log) => {
-        if (typeof log === 'string') {
-          // Simple string logs - parse or return as-is
-          return {
-            timestamp: new Date().toISOString(),
-            level: 'info',
-            message: log,
-          };
-        }
-        // Already structured
-        return log as { timestamp: string; level: string; message: string; metadata?: Record<string, unknown> };
-      });
+    const logs: Array<{
+      timestamp: string;
+      level: string;
+      message: string;
+      metadata?: Record<string, unknown>;
+    }> = rawLogs.map((log) => {
+      if (typeof log === "string") {
+        // Simple string logs - parse or return as-is
+        return {
+          timestamp: new Date().toISOString(),
+          level: "info",
+          message: log,
+        };
+      }
+      // Already structured
+      return log as {
+        timestamp: string;
+        level: string;
+        message: string;
+        metadata?: Record<string, unknown>;
+      };
+    });
 
     // Filter logs
     let filteredLogs = logs;
@@ -109,10 +120,11 @@ export async function GET(
       {
         success: false,
         error:
-          error instanceof Error ? error.message : "Failed to fetch container logs",
+          error instanceof Error
+            ? error.message
+            : "Failed to fetch container logs",
       },
-      { status: 500 }
+      { status: 500 },
     );
   }
 }
-

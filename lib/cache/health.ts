@@ -54,7 +54,9 @@ export class CacheHealth {
   }
 
   static async clearCorruptedEntries(organizationId: string): Promise<void> {
-    logger.info(`[Cache Health] Clearing potentially corrupted cache for org=${organizationId}`);
+    logger.info(
+      `[Cache Health] Clearing potentially corrupted cache for org=${organizationId}`,
+    );
     await this.clearPattern(`org:${organizationId}:*`);
     await this.clearPattern(`analytics:*:${organizationId}:*`);
   }
