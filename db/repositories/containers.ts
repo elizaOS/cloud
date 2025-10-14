@@ -1,4 +1,12 @@
-import { eq, and, desc, notInArray, sql, type InferSelectModel, type InferInsertModel } from "drizzle-orm";
+import {
+  eq,
+  and,
+  desc,
+  notInArray,
+  sql,
+  type InferSelectModel,
+  type InferInsertModel,
+} from "drizzle-orm";
 import { db, type Database } from "../client";
 import { containers } from "../schemas/containers";
 import { organizations } from "../schemas/organizations";
@@ -69,7 +77,10 @@ export class ContainersRepository {
       .select()
       .from(containers)
       .where(
-        and(eq(containers.id, id), eq(containers.organization_id, organizationId)),
+        and(
+          eq(containers.id, id),
+          eq(containers.organization_id, organizationId),
+        ),
       )
       .limit(1);
 
@@ -100,7 +111,10 @@ export class ContainersRepository {
         updated_at: new Date(),
       })
       .where(
-        and(eq(containers.id, id), eq(containers.organization_id, organizationId)),
+        and(
+          eq(containers.id, id),
+          eq(containers.organization_id, organizationId),
+        ),
       )
       .returning();
 
@@ -111,7 +125,10 @@ export class ContainersRepository {
     const results = await db
       .delete(containers)
       .where(
-        and(eq(containers.id, id), eq(containers.organization_id, organizationId)),
+        and(
+          eq(containers.id, id),
+          eq(containers.organization_id, organizationId),
+        ),
       )
       .returning();
 
@@ -149,25 +166,29 @@ export class ContainersRepository {
     return updated || null;
   }
 
-  async listActiveByOrganizationWithArtifactId(organizationId: string): Promise<Array<{
-    id: string;
-    name: string;
-    status: string;
-    artifact_id: string | null;
-  }>> {
+  async listActiveByOrganizationWithArtifactId(organizationId: string): Promise<
+    Array<{
+      id: string;
+      name: string;
+      status: string;
+      artifact_id: string | null;
+    }>
+  > {
     const results = await db
       .select({
         id: containers.id,
         name: containers.name,
         status: containers.status,
-        artifact_id: sql<string>`${containers.metadata}->>'artifact_id'`.as('artifact_id'),
+        artifact_id: sql<string>`${containers.metadata}->>'artifact_id'`.as(
+          "artifact_id",
+        ),
       })
       .from(containers)
       .where(
         and(
           eq(containers.organization_id, organizationId),
-          notInArray(containers.status, ['failed', 'deleted', 'deleting'])
-        )
+          notInArray(containers.status, ["failed", "deleted", "deleting"]),
+        ),
       );
 
     return results;
@@ -301,7 +322,10 @@ export class ContainersRepository {
   ): Promise<{ container: Container; newBalance: number }> {
     return await db.transaction(async (tx) => {
       // Create container with quota check
-      const container = await this.createWithQuotaCheck(containerData, tx as typeof db);
+      const container = await this.createWithQuotaCheck(
+        containerData,
+        tx as typeof db,
+      );
 
       // Check and deduct credits
       const org = await tx.query.organizations.findFirst({
@@ -344,4 +368,3 @@ export class ContainersRepository {
 
 // Export singleton instance
 export const containersRepository = new ContainersRepository();
-

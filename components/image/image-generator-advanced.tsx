@@ -2,7 +2,13 @@
 
 import { useEffect, useState } from "react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
 import { Slider } from "@/components/ui/slider";
 import { Button } from "@/components/ui/button";
@@ -16,17 +22,17 @@ import {
   CarouselPrevious,
   type CarouselApi,
 } from "@/components/ui/carousel";
-import { 
-  Wand2, 
-  Sparkles, 
-  Settings2, 
-  ImageIcon, 
-  Loader2, 
-  Download, 
+import {
+  Wand2,
+  Sparkles,
+  Settings2,
+  ImageIcon,
+  Loader2,
+  Download,
   History,
   Maximize2,
   Heart,
-  Share2
+  Share2,
 } from "lucide-react";
 import Image from "next/image";
 import { EnhancedLoading } from "./enhanced-loading";
@@ -73,7 +79,9 @@ export function ImageGeneratorAdvanced() {
   const [currentImages, setCurrentImages] = useState<GeneratedImage[]>([]);
   const [currentImageIndex, setCurrentImageIndex] = useState<number>(0);
   const [numImages, setNumImages] = useState<number>(1);
-  const [carouselApi, setCarouselApi] = useState<CarouselApi | undefined>(undefined);
+  const [carouselApi, setCarouselApi] = useState<CarouselApi | undefined>(
+    undefined,
+  );
   const [imageHistory, setImageHistory] = useState<GeneratedImage[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -91,7 +99,7 @@ export function ImageGeneratorAdvanced() {
         headers: {
           "Content-Type": "application/json",
         },
-        body: JSON.stringify({ 
+        body: JSON.stringify({
           prompt,
           ...settings,
           numImages,
@@ -106,16 +114,14 @@ export function ImageGeneratorAdvanced() {
 
       // Handle multiple images array response
       if (Array.isArray(data.images) && data.images.length > 0) {
-        const generatedBatch: GeneratedImage[] = data.images.map(
-          (
-            img: { image?: string; url?: string }
-            , index: number
-          ) => {
-            const base64OrData = img.image && img.image.startsWith("data:")
-              ? img.image
-              : img?.image
-              ? `data:image/png;base64,${img.image}`
-              : "";
+        const generatedBatch: GeneratedImage[] = data.images
+          .map((img: { image?: string; url?: string }, index: number) => {
+            const base64OrData =
+              img.image && img.image.startsWith("data:")
+                ? img.image
+                : img?.image
+                  ? `data:image/png;base64,${img.image}`
+                  : "";
             const finalUrl = img.url ?? base64OrData;
             return {
               id: `${Date.now()}-${index}`,
@@ -124,17 +130,14 @@ export function ImageGeneratorAdvanced() {
               timestamp: new Date(),
               settings: { ...settings },
             };
-          }
-        ).filter((g: GeneratedImage) => Boolean(g.url));
+          })
+          .filter((g: GeneratedImage) => Boolean(g.url));
 
         if (generatedBatch.length > 0) {
           setCurrentImages(generatedBatch);
           setCurrentImage(generatedBatch[0]);
           setCurrentImageIndex(0);
-          setImageHistory((prev) => [
-            ...generatedBatch,
-            ...prev,
-          ].slice(0, 12));
+          setImageHistory((prev) => [...generatedBatch, ...prev].slice(0, 12));
         }
       } else if (data.image) {
         // Backward compatibility: single image response
@@ -176,7 +179,7 @@ export function ImageGeneratorAdvanced() {
   };
 
   const selectSizePreset = (width: number, height: number) => {
-    setSettings(prev => ({ ...prev, width, height }));
+    setSettings((prev) => ({ ...prev, width, height }));
   };
 
   useEffect(() => {
@@ -231,7 +234,9 @@ export function ImageGeneratorAdvanced() {
 
             {/* Preset Prompts */}
             <div className="space-y-2">
-              <Label className="text-xs text-muted-foreground">Quick Presets</Label>
+              <Label className="text-xs text-muted-foreground">
+                Quick Presets
+              </Label>
               <div className="flex flex-wrap gap-2">
                 {PRESET_PROMPTS.slice(0, 3).map((preset, index) => (
                   <Badge
@@ -262,11 +267,15 @@ export function ImageGeneratorAdvanced() {
                         : "outline"
                     }
                     size="sm"
-                    onClick={() => selectSizePreset(preset.width, preset.height)}
+                    onClick={() =>
+                      selectSizePreset(preset.width, preset.height)
+                    }
                     className="w-full"
                   >
                     <div className="flex flex-col items-center">
-                      <span className="text-xs font-medium">{preset.label}</span>
+                      <span className="text-xs font-medium">
+                        {preset.label}
+                      </span>
                       <span className="text-[10px] text-muted-foreground">
                         {preset.width}×{preset.height}
                       </span>
@@ -282,15 +291,21 @@ export function ImageGeneratorAdvanced() {
             <div className="space-y-4">
               <div className="flex items-center gap-2">
                 <Settings2 className="h-4 w-4 text-muted-foreground" />
-                <Label className="text-sm font-semibold">Advanced Settings</Label>
+                <Label className="text-sm font-semibold">
+                  Advanced Settings
+                </Label>
               </div>
 
               <div className="space-y-4">
                 {/* Steps */}
                 <div className="space-y-2">
                   <div className="flex items-center justify-between">
-                    <Label className="text-xs text-muted-foreground">Steps</Label>
-                    <span className="text-xs font-medium">{settings.steps}</span>
+                    <Label className="text-xs text-muted-foreground">
+                      Steps
+                    </Label>
+                    <span className="text-xs font-medium">
+                      {settings.steps}
+                    </span>
                   </div>
                   <Slider
                     value={[settings.steps]}
@@ -335,7 +350,9 @@ export function ImageGeneratorAdvanced() {
                 {/* Images */}
                 <div className="space-y-2">
                   <div className="flex items-center justify-between">
-                    <Label className="text-xs text-muted-foreground">Images</Label>
+                    <Label className="text-xs text-muted-foreground">
+                      Images
+                    </Label>
                     <span className="text-xs font-medium">{numImages}</span>
                   </div>
                   <Slider
@@ -397,144 +414,139 @@ export function ImageGeneratorAdvanced() {
             {error && (
               <Card className="border-2 border-destructive bg-destructive/10 mb-4">
                 <CardContent className="pt-6">
-                  <p className="text-sm text-destructive font-medium">{error}</p>
+                  <p className="text-sm text-destructive font-medium">
+                    {error}
+                  </p>
                 </CardContent>
               </Card>
             )}
 
             {currentImage ? (
               <>
-              {currentImages.length > 1 && (
-                <div className="mb-4 grid grid-cols-2 md:grid-cols-4 gap-3">
-                  {currentImages.map((img, idx) => (
-                    <button
-                      key={img.id}
-                      onClick={() => {
-                        setCurrentImageIndex(idx);
-                        setCurrentImage(img);
-                        if (carouselApi) {
-                          carouselApi.scrollTo(idx);
-                        }
-                      }}
-                      className={`group relative block overflow-hidden rounded-md border ${
-                        idx === currentImageIndex ? "border-primary ring-2 ring-primary/40" : "border-border"
-                      }`}
-                      aria-label={`Select image ${idx + 1}`}
-                      type="button"
-                    >
+                {currentImages.length > 1 && (
+                  <div className="mb-4 grid grid-cols-2 md:grid-cols-4 gap-3">
+                    {currentImages.map((img, idx) => (
+                      <button
+                        key={img.id}
+                        onClick={() => {
+                          setCurrentImageIndex(idx);
+                          setCurrentImage(img);
+                          if (carouselApi) {
+                            carouselApi.scrollTo(idx);
+                          }
+                        }}
+                        className={`group relative block overflow-hidden rounded-md border ${
+                          idx === currentImageIndex
+                            ? "border-primary ring-2 ring-primary/40"
+                            : "border-border"
+                        }`}
+                        aria-label={`Select image ${idx + 1}`}
+                        type="button"
+                      >
+                        <div className="relative aspect-square w-full bg-muted/10">
+                          <Image
+                            src={img.url}
+                            alt={img.prompt}
+                            fill
+                            className="object-cover group-hover:scale-105 transition-transform duration-300"
+                            unoptimized
+                          />
+                        </div>
+                      </button>
+                    ))}
+                  </div>
+                )}
+
+                <Card className="border-2 overflow-hidden">
+                  <CardContent className="p-0">
+                    {currentImages.length > 1 ? (
+                      <div className="relative w-full bg-muted/10">
+                        <Carousel setApi={setCarouselApi} className="w-full">
+                          <CarouselContent>
+                            {currentImages.map((img) => (
+                              <CarouselItem key={img.id}>
+                                <div className="relative aspect-square w-full bg-muted/10">
+                                  <Image
+                                    src={img.url}
+                                    alt={img.prompt}
+                                    fill
+                                    className="object-contain"
+                                    unoptimized
+                                  />
+                                </div>
+                              </CarouselItem>
+                            ))}
+                          </CarouselContent>
+                          <CarouselPrevious className="left-4 top-1/2 -translate-y-1/2" />
+                          <CarouselNext className="right-4 top-1/2 -translate-y-1/2" />
+                        </Carousel>
+                      </div>
+                    ) : (
                       <div className="relative aspect-square w-full bg-muted/10">
                         <Image
-                          src={img.url}
-                          alt={img.prompt}
+                          src={currentImage.url}
+                          alt={currentImage.prompt}
                           fill
-                          className="object-cover group-hover:scale-105 transition-transform duration-300"
+                          className="object-contain"
                           unoptimized
                         />
                       </div>
-                    </button>
-                  ))}
-                </div>
-              )}
+                    )}
 
-              <Card className="border-2 overflow-hidden">
-                <CardContent className="p-0">
-                  {currentImages.length > 1 ? (
-                    <div className="relative w-full bg-muted/10">
-                      <Carousel setApi={setCarouselApi} className="w-full">
-                        <CarouselContent>
-                          {currentImages.map((img) => (
-                            <CarouselItem key={img.id}>
-                              <div className="relative aspect-square w-full bg-muted/10">
-                                <Image
-                                  src={img.url}
-                                  alt={img.prompt}
-                                  fill
-                                  className="object-contain"
-                                  unoptimized
-                                />
-                              </div>
-                            </CarouselItem>
-                          ))}
-                        </CarouselContent>
-                        <CarouselPrevious className="left-4 top-1/2 -translate-y-1/2" />
-                        <CarouselNext className="right-4 top-1/2 -translate-y-1/2" />
-                      </Carousel>
-                    </div>
-                  ) : (
-                    <div className="relative aspect-square w-full bg-muted/10">
-                      <Image
-                        src={currentImage.url}
-                        alt={currentImage.prompt}
-                        fill
-                        className="object-contain"
-                        unoptimized
-                      />
-                    </div>
-                  )}
-                  
-                  <div className="p-6 space-y-4">
-                    <div className="space-y-2">
-                      <p className="text-sm font-medium leading-relaxed">
-                        {currentImage.prompt}
-                      </p>
-                      <div className="flex items-center gap-2 text-xs text-muted-foreground">
-                        <Badge variant="secondary" className="text-xs">
-                          {currentImage.settings.width}×{currentImage.settings.height}
-                        </Badge>
-                        <Badge variant="secondary" className="text-xs">
-                          {currentImage.settings.steps} steps
-                        </Badge>
-                        <Badge variant="secondary" className="text-xs">
-                          CFG {currentImage.settings.guidanceScale}
-                        </Badge>
-                        {currentImages.length > 1 && (
+                    <div className="p-6 space-y-4">
+                      <div className="space-y-2">
+                        <p className="text-sm font-medium leading-relaxed">
+                          {currentImage.prompt}
+                        </p>
+                        <div className="flex items-center gap-2 text-xs text-muted-foreground">
                           <Badge variant="secondary" className="text-xs">
-                            {currentImageIndex + 1}/{currentImages.length}
+                            {currentImage.settings.width}×
+                            {currentImage.settings.height}
                           </Badge>
-                        )}
+                          <Badge variant="secondary" className="text-xs">
+                            {currentImage.settings.steps} steps
+                          </Badge>
+                          <Badge variant="secondary" className="text-xs">
+                            CFG {currentImage.settings.guidanceScale}
+                          </Badge>
+                          {currentImages.length > 1 && (
+                            <Badge variant="secondary" className="text-xs">
+                              {currentImageIndex + 1}/{currentImages.length}
+                            </Badge>
+                          )}
+                        </div>
+                      </div>
+
+                      <div className="grid grid-cols-4 gap-2">
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() =>
+                            handleDownload(
+                              currentImages[currentImageIndex] ?? currentImage,
+                            )
+                          }
+                          className="gap-2"
+                        >
+                          <Download className="h-4 w-4" />
+                          Save
+                        </Button>
+                        <Button variant="outline" size="sm" className="gap-2">
+                          <Heart className="h-4 w-4" />
+                          Like
+                        </Button>
+                        <Button variant="outline" size="sm" className="gap-2">
+                          <Share2 className="h-4 w-4" />
+                          Share
+                        </Button>
+                        <Button variant="outline" size="sm" className="gap-2">
+                          <Maximize2 className="h-4 w-4" />
+                          Full
+                        </Button>
                       </div>
                     </div>
-
-                    <div className="grid grid-cols-4 gap-2">
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => handleDownload(currentImages[currentImageIndex] ?? currentImage)}
-                        className="gap-2"
-                      >
-                        <Download className="h-4 w-4" />
-                        Save
-                      </Button>
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        className="gap-2"
-                      >
-                        <Heart className="h-4 w-4" />
-                        Like
-                      </Button>
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        className="gap-2"
-                      >
-                        <Share2 className="h-4 w-4" />
-                        Share
-                      </Button>
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        className="gap-2"
-                      >
-                        <Maximize2 className="h-4 w-4" />
-                        Full
-                      </Button>
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
-
-              
+                  </CardContent>
+                </Card>
               </>
             ) : isLoading ? (
               <div className="animate-in fade-in duration-500">

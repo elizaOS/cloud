@@ -32,19 +32,19 @@ Eliza Cloud V2 is a full-stack AI-as-a-Service platform that combines:
 
 ### 🤖 AI Generation Studio
 
-- **Text & Chat**: 
+- **Text & Chat**:
   - Multi-model support (GPT-4, Claude, Gemini, etc.) via AI SDK Gateway
   - Real-time streaming responses
   - Conversation persistence with full history
   - Model selection and configuration
 
-- **Image Creation**: 
+- **Image Creation**:
   - Google Gemini 2.5 Flash multimodal generation
   - High-quality images (1024x1024)
   - Automatic Vercel Blob storage
   - Base64 preview + downloadable files
 
-- **Video Generation**: 
+- **Video Generation**:
   - Multiple Fal.ai models: Veo3, Kling v2.1, MiniMax Hailuo
   - Long-form video support (up to 5 minutes)
   - Automatic Vercel Blob upload
@@ -52,19 +52,19 @@ Eliza Cloud V2 is a full-stack AI-as-a-Service platform that combines:
 
 ### 🧠 ElizaOS Runtime Integration
 
-- **Full Agent Runtime**: 
+- **Full Agent Runtime**:
   - AgentRuntime from `@elizaos/core` with PostgreSQL database
   - Memory system with vector embeddings (384-3072 dimensions)
   - Rooms, participants, relationships, and entities
   - Plugin system with custom providers and actions
 
-- **Character Creator**: 
+- **Character Creator**:
   - AI-assisted character definition builder
   - Progressive JSON generation with live preview
   - Import/export ElizaOS-compatible character files
   - Support for all character fields (bio, style, plugins, knowledge, etc.)
 
-- **Agent Chat Interface**: 
+- **Agent Chat Interface**:
   - Chat with deployed ElizaOS agents via rooms
   - Message persistence and history
   - Real-time WebSocket updates (future)
@@ -72,19 +72,19 @@ Eliza Cloud V2 is a full-stack AI-as-a-Service platform that combines:
 
 ### 💳 SaaS Platform Features
 
-- **Credit System**: 
+- **Credit System**:
   - Purchase credits via Stripe integration
   - Automatic deduction for AI operations
   - Usage tracking per organization/user
   - Credit packs with volume pricing
 
-- **API Key Management**: 
+- **API Key Management**:
   - Generate API keys for programmatic access
   - Key rotation and regeneration
   - Rate limiting per key
   - Usage statistics and audit logs
 
-- **Container Deployments**: 
+- **Container Deployments**:
   - Deploy ElizaOS projects via `elizaos deploy` CLI
   - Bootstrapper architecture for artifact-based deployments
   - R2 storage for deployment artifacts
@@ -93,38 +93,38 @@ Eliza Cloud V2 is a full-stack AI-as-a-Service platform that combines:
 
 ### 📊 Management & Analytics
 
-- **Dashboard**: 
+- **Dashboard**:
   - Usage overview with charts (Recharts)
   - Provider health monitoring
   - Credit activity timeline
   - Model usage breakdown
 
-- **Gallery**: 
+- **Gallery**:
   - View all generated images and videos
   - Filter by type (image/video)
   - Download or delete media
   - Storage usage statistics
 
-- **Analytics**: 
+- **Analytics**:
   - Usage records by model, provider, type
   - Cost breakdown and trends
   - Error tracking and success rates
 
 ### 🔐 Security & Infrastructure
 
-- **Enterprise Auth**: 
+- **Enterprise Auth**:
   - Privy authentication with email, wallet, and social logins
   - Organization and user management
   - Webhook-based user synchronization
   - Role-based access (admin, member)
 
-- **Billing Integration**: 
+- **Billing Integration**:
   - Stripe Checkout for credit purchases
   - Webhook processing with idempotency
   - Tax ID collection for businesses
   - Invoice generation
 
-- **Type Safety**: 
+- **Type Safety**:
   - Full TypeScript coverage
   - Zod validation for API requests
   - Drizzle ORM with type-safe queries
@@ -525,6 +525,7 @@ npm run bootstrapper:build  # Build container bootstrapper
 **Location**: `/dashboard/text` and `/app/api/v1/chat/route.ts`
 
 **Features**:
+
 - Multi-model support (GPT-4, Claude, Gemini, etc.)
 - Real-time streaming responses with `useChat` hook
 - Conversation persistence with full history
@@ -538,7 +539,7 @@ import { useChat } from "@ai-sdk/react";
 
 const { messages, input, handleSubmit, isLoading } = useChat({
   api: "/api/v1/chat",
-  body: { model: "gpt-4o" }
+  body: { model: "gpt-4o" },
 });
 ```
 
@@ -549,6 +550,7 @@ const { messages, input, handleSubmit, isLoading } = useChat({
 **Location**: `/dashboard/image` and `/app/api/v1/generate-image/route.ts`
 
 **Features**:
+
 - Google Gemini 2.5 Flash multimodal generation
 - High-quality 1024x1024 images
 - Automatic Vercel Blob upload
@@ -574,6 +576,7 @@ Authorization: Bearer eliza_your_api_key
 **Location**: `/dashboard/video` and `/app/api/v1/generate-video/route.ts`
 
 **Features**:
+
 - Multiple Fal.ai models:
   - `fal-ai/veo3` (Google Veo 3)
   - `fal-ai/veo3/fast` (faster version)
@@ -603,6 +606,7 @@ Authorization: Bearer eliza_your_api_key
 **Location**: `/dashboard/gallery`
 
 **Features**:
+
 - View all generated images and videos
 - Filter by type (image, video, all)
 - Grid layout with thumbnails
@@ -612,6 +616,7 @@ Authorization: Bearer eliza_your_api_key
 - Storage usage statistics
 
 **Vercel Blob Benefits**:
+
 - Global CDN delivery (19 edge regions)
 - Public access with unguessable URLs
 - Automatic caching
@@ -631,6 +636,7 @@ BLOB_READ_WRITE_TOKEN=vercel_blob_rw_your_token
 **Location**: `/dashboard/containers` and `/app/api/v1/containers/route.ts`
 
 **Features**:
+
 - Deploy ElizaOS projects via `elizaos deploy` CLI
 - Bootstrapper architecture for artifact-based deployments
 - Cloudflare Workers runtime
@@ -657,6 +663,7 @@ ENTRYPOINT ["/bootstrap.sh"]
 ```
 
 The bootstrapper:
+
 - Downloads artifact from R2 using temporary credentials
 - Extracts tarball
 - Installs dependencies
@@ -682,6 +689,7 @@ Authorization: Bearer eliza_your_api_key
 ```
 
 **Requirements**:
+
 - Cloudflare account with Workers
 - R2 storage configured
 - Environment variables set (see `docs/DEPLOYMENT.md`)
@@ -691,6 +699,7 @@ Authorization: Bearer eliza_your_api_key
 **Location**: `/dashboard/eliza` and `lib/eliza/`
 
 **Features**:
+
 - Full `AgentRuntime` from `@elizaos/core`
 - PostgreSQL-backed memory system
 - Vector embeddings (384-3072 dimensions)
@@ -699,6 +708,7 @@ Authorization: Bearer eliza_your_api_key
 - Custom plugins and providers
 
 **Database Schema**:
+
 - `agents`: Character definitions
 - `memories`: Conversation history
 - `embeddings`: Vector similarity search
@@ -729,6 +739,7 @@ POST /api/eliza/rooms/{roomId}/messages
 **Location**: `/dashboard/character-creator` and `/app/api/v1/character-assistant/route.ts`
 
 **Features**:
+
 - AI-assisted character building using GPT-4o-mini
 - Progressive JSON generation
 - Live preview of character definition
@@ -740,6 +751,7 @@ POST /api/eliza/rooms/{roomId}/messages
   - plugins, knowledge, settings
 
 **Workflow**:
+
 1. User describes character in natural language
 2. AI generates JSON incrementally
 3. User sees live preview
@@ -767,6 +779,7 @@ POST /api/eliza/rooms/{roomId}/messages
 **Location**: `/dashboard/api-keys` and `/app/api/v1/api-keys/route.ts`
 
 **Features**:
+
 - Generate API keys for programmatic access
 - Key rotation and regeneration
 - Rate limiting per key (default 1000 req/day)
@@ -807,6 +820,7 @@ curl https://your-app.com/api/v1/chat \
 **Location**: `/dashboard/billing` and `lib/queries/credits.ts`
 
 **Features**:
+
 - Credit-based pricing model
 - Stripe integration for purchases
 - Credit packs with volume discounts
@@ -815,12 +829,14 @@ curl https://your-app.com/api/v1/chat \
 - Organization-level balance
 
 **Credit Costs**:
+
 - **Text Chat**: Token-based (varies by model)
 - **Image Generation**: 100 credits
 - **Video Generation**: 500 credits
 - **Container Deployment**: Based on instance hours
 
 **Stripe Integration**:
+
 - Credit pack products defined in Stripe
 - Checkout session for purchases
 - Webhook processing for fulfillment
@@ -832,8 +848,8 @@ curl https://your-app.com/api/v1/chat \
 [
   { name: "Starter", credits: 10000, price: 9.99 },
   { name: "Pro", credits: 50000, price: 39.99 },
-  { name: "Enterprise", credits: 200000, price: 129.99 }
-]
+  { name: "Enterprise", credits: 200000, price: 129.99 },
+];
 ```
 
 **Setup**:
@@ -845,6 +861,7 @@ See `docs/STRIPE_SETUP.md` for detailed Stripe configuration.
 **Location**: `/dashboard/analytics` and `lib/queries/usage.ts`
 
 **Features**:
+
 - Usage records per request (tokens, cost, model)
 - Provider health monitoring
 - Model usage breakdown (Recharts)
@@ -853,6 +870,7 @@ See `docs/STRIPE_SETUP.md` for detailed Stripe configuration.
 - Response time monitoring
 
 **Metrics Tracked**:
+
 - Input/output tokens
 - Cost per request
 - Duration (ms)
@@ -861,6 +879,7 @@ See `docs/STRIPE_SETUP.md` for detailed Stripe configuration.
 - Model and provider used
 
 **Provider Health**:
+
 - Automatic health checks for AI providers
 - Status: healthy, degraded, unhealthy
 - Response time percentiles
@@ -1054,19 +1073,21 @@ The platform implements atomic operations to prevent quota bypass:
 ```typescript
 await db.transaction(async (tx) => {
   // 1. Lock organization row
-  const org = await tx.select()
+  const org = await tx
+    .select()
     .from(organizations)
     .where(eq(organizations.id, orgId))
     .for("update");
-  
+
   // 2. Count containers while holding lock
-  const count = await tx.select()
+  const count = await tx
+    .select()
     .from(containers)
     .where(eq(containers.organization_id, orgId));
-  
+
   // 3. Check quota
   if (count >= maxAllowed) throw new QuotaExceededError();
-  
+
   // 4. Create container
   return await tx.insert(containers).values(data);
 });
@@ -1258,6 +1279,7 @@ Rate limits return:
 ```
 
 HTTP Status Codes:
+
 - `400`: Bad Request (validation error)
 - `401`: Unauthorized (missing/invalid auth)
 - `403`: Forbidden (insufficient permissions)
@@ -1341,6 +1363,7 @@ DATABASE_URL=postgres://prod-url npm run db:migrate
 **Error**: `Connection refused` or `SSL required`
 
 **Solutions**:
+
 - Verify `DATABASE_URL` includes `?sslmode=require`
 - Check Neon dashboard for correct connection string
 - Ensure database is not paused (serverless auto-pause)
@@ -1350,6 +1373,7 @@ DATABASE_URL=postgres://prod-url npm run db:migrate
 **Error**: Authentication errors or login failures
 
 **Solutions**:
+
 - Verify `NEXT_PUBLIC_PRIVY_APP_ID` and `PRIVY_APP_SECRET` are correct
 - Check allowed origins in Privy dashboard match your domain
 - Clear browser cookies and try again
@@ -1360,6 +1384,7 @@ DATABASE_URL=postgres://prod-url npm run db:migrate
 **Error**: `undefined` values in runtime
 
 **Solutions**:
+
 - Restart dev server after changing `.env.local`
 - Ensure file is named exactly `.env.local` (not `.env`)
 - Public variables must start with `NEXT_PUBLIC_`
@@ -1370,6 +1395,7 @@ DATABASE_URL=postgres://prod-url npm run db:migrate
 **Error**: "Container deployment failed" or "Deployment timeout"
 
 **Solutions**:
+
 - Check `CLOUDFLARE_ACCOUNT_ID` and `CLOUDFLARE_API_TOKEN` are correct
 - Verify R2 credentials:
   - `R2_ACCESS_KEY_ID`, `R2_SECRET_ACCESS_KEY`
@@ -1385,6 +1411,7 @@ See `docs/DEPLOYMENT_TROUBLESHOOTING.md` for detailed troubleshooting.
 **Error**: "Failed to upload artifact" or "Artifact upload timeout"
 
 **Solutions**:
+
 - Check artifact size (max 500MB)
 - Verify R2 credentials with AWS CLI:
   ```bash
@@ -1398,6 +1425,7 @@ See `docs/DEPLOYMENT_TROUBLESHOOTING.md` for detailed troubleshooting.
 **Error**: "No image/video was generated" or timeout
 
 **Solutions**:
+
 - **Image**: Verify Google Gemini access in AI Gateway or OpenAI API key
 - **Video**: Check `FAL_KEY` is set correctly
 - Try simpler prompts first
@@ -1409,6 +1437,7 @@ See `docs/DEPLOYMENT_TROUBLESHOOTING.md` for detailed troubleshooting.
 **Error**: Usage not tracking or credits not deducted
 
 **Solutions**:
+
 - Check `credit_transactions` table for records
 - Verify organization `credit_balance` column
 - Check for database transaction errors in logs
@@ -1419,6 +1448,7 @@ See `docs/DEPLOYMENT_TROUBLESHOOTING.md` for detailed troubleshooting.
 **Error**: Credits not added after purchase
 
 **Solutions**:
+
 - Verify `STRIPE_WEBHOOK_SECRET` matches Stripe dashboard
 - Check webhook endpoint URL is correct
 - View webhook events in Stripe dashboard → Developers → Webhooks

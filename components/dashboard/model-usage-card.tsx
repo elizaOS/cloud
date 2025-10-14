@@ -1,4 +1,10 @@
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
+import {
+  Card,
+  CardContent,
+  CardHeader,
+  CardTitle,
+  CardDescription,
+} from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
 import { cn } from "@/lib/utils";
@@ -29,7 +35,10 @@ export function ModelUsageCard({
 
   return (
     <Card
-      className={cn("border-border/50 bg-card/95 backdrop-blur-sm shadow-md", className)}
+      className={cn(
+        "border-border/50 bg-card/95 backdrop-blur-sm shadow-md",
+        className,
+      )}
     >
       <CardHeader className="space-y-1">
         <CardTitle className="text-sm font-semibold tracking-tight">
@@ -52,7 +61,10 @@ export function ModelUsageCard({
                     <span className="text-sm font-medium text-foreground">
                       {item.model ?? "Unknown model"}
                     </span>
-                    <Badge variant="secondary" className="w-fit rounded-full text-[10px]">
+                    <Badge
+                      variant="secondary"
+                      className="w-fit rounded-full text-[10px]"
+                    >
                       {item.provider}
                     </Badge>
                   </div>

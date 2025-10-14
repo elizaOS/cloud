@@ -3,14 +3,20 @@ import { getContainer } from "@/lib/services";
 import { redirect } from "next/navigation";
 import { ContainerDeploymentHistory } from "@/components/containers/container-deployment-history";
 import { ContainerLogsViewer } from "@/components/containers/container-logs-viewer";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { ExternalLink, ArrowLeft } from "lucide-react";
 import Link from "next/link";
 
 // Force dynamic rendering since we use server-side auth (cookies)
-export const dynamic = 'force-dynamic';
+export const dynamic = "force-dynamic";
 
 interface PageProps {
   params: Promise<{ id: string }>;
@@ -62,7 +68,11 @@ export default async function ContainerDetailsPage({ params }: PageProps) {
         </div>
         {container.cloudflare_url && (
           <Button asChild>
-            <a href={container.cloudflare_url} target="_blank" rel="noopener noreferrer">
+            <a
+              href={container.cloudflare_url}
+              target="_blank"
+              rel="noopener noreferrer"
+            >
               <ExternalLink className="h-4 w-4 mr-2" />
               Open Container
             </a>
@@ -80,7 +90,9 @@ export default async function ContainerDetailsPage({ params }: PageProps) {
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
             <div>
               <p className="text-sm text-muted-foreground mb-1">Status</p>
-              <Badge className={`${getStatusColor(container.status)} text-white`}>
+              <Badge
+                className={`${getStatusColor(container.status)} text-white`}
+              >
                 {container.status}
               </Badge>
             </div>
@@ -89,11 +101,15 @@ export default async function ContainerDetailsPage({ params }: PageProps) {
               <p className="text-lg font-semibold">{container.port}</p>
             </div>
             <div>
-              <p className="text-sm text-muted-foreground mb-1">Max Instances</p>
+              <p className="text-sm text-muted-foreground mb-1">
+                Max Instances
+              </p>
               <p className="text-lg font-semibold">{container.max_instances}</p>
             </div>
             <div>
-              <p className="text-sm text-muted-foreground mb-1">Last Deployed</p>
+              <p className="text-sm text-muted-foreground mb-1">
+                Last Deployed
+              </p>
               <p className="text-sm">
                 {container.last_deployed_at
                   ? new Date(container.last_deployed_at).toLocaleDateString()
@@ -113,7 +129,9 @@ export default async function ContainerDetailsPage({ params }: PageProps) {
           {container.cloudflare_worker_id && (
             <div className="mt-4 space-y-2">
               <div className="flex items-center gap-2">
-                <p className="text-sm text-muted-foreground">Cloudflare Worker ID:</p>
+                <p className="text-sm text-muted-foreground">
+                  Cloudflare Worker ID:
+                </p>
                 <code className="text-xs bg-muted px-2 py-1 rounded">
                   {container.cloudflare_worker_id}
                 </code>
@@ -137,11 +155,16 @@ export default async function ContainerDetailsPage({ params }: PageProps) {
       </Card>
 
       {/* Deployment History */}
-      <ContainerDeploymentHistory containerId={container.id} containerName={container.name} />
+      <ContainerDeploymentHistory
+        containerId={container.id}
+        containerName={container.name}
+      />
 
       {/* Container Logs */}
-      <ContainerLogsViewer containerId={container.id} containerName={container.name} />
+      <ContainerLogsViewer
+        containerId={container.id}
+        containerName={container.name}
+      />
     </div>
   );
 }
-

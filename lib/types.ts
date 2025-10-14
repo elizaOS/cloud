@@ -1,39 +1,21 @@
 // Re-export all types from schemas for convenience
 // Schemas are the single source of truth for type inference using InferSelectModel and InferInsertModel
-export type {
-  Organization,
-  NewOrganization,
-} from "@/db/schemas/organizations";
+export type { Organization, NewOrganization } from "@/db/schemas/organizations";
 
-export type {
-  User,
-  NewUser,
-} from "@/db/schemas/users";
+export type { User, NewUser } from "@/db/schemas/users";
 
-export type {
-  ApiKey,
-  NewApiKey,
-} from "@/db/schemas/api-keys";
+export type { ApiKey, NewApiKey } from "@/db/schemas/api-keys";
 
-export type {
-  UsageRecord,
-  NewUsageRecord,
-} from "@/db/schemas/usage-records";
+export type { UsageRecord, NewUsageRecord } from "@/db/schemas/usage-records";
 
 export type {
   CreditTransaction,
   NewCreditTransaction,
 } from "@/db/schemas/credit-transactions";
 
-export type {
-  CreditPack,
-  NewCreditPack,
-} from "@/db/schemas/credit-packs";
+export type { CreditPack, NewCreditPack } from "@/db/schemas/credit-packs";
 
-export type {
-  Generation,
-  NewGeneration,
-} from "@/db/schemas/generations";
+export type { Generation, NewGeneration } from "@/db/schemas/generations";
 
 export type {
   Conversation,
@@ -47,15 +29,9 @@ export type {
   NewUserCharacter,
 } from "@/db/schemas/user-characters";
 
-export type {
-  Job,
-  NewJob,
-} from "@/db/schemas/jobs";
+export type { Job, NewJob } from "@/db/schemas/jobs";
 
-export type {
-  ModelPricing,
-  NewModelPricing,
-} from "@/db/schemas/model-pricing";
+export type { ModelPricing, NewModelPricing } from "@/db/schemas/model-pricing";
 
 export type {
   ProviderHealth,
@@ -112,7 +88,10 @@ export interface ElizaCharacter {
   adjectives?: string[];
   knowledge?: (string | { path: string; shared?: boolean })[];
   plugins?: string[];
-  settings?: Record<string, string | boolean | number | Record<string, unknown>>;
+  settings?: Record<
+    string,
+    string | boolean | number | Record<string, unknown>
+  >;
   secrets?: Record<string, string | boolean | number>;
   style?: {
     all?: string[];

@@ -70,9 +70,7 @@ export function ProviderBreakdown({ providers }: ProviderBreakdownProps) {
                     <span>
                       {numberFormatter.format(provider.totalRequests)} requests
                     </span>
-                    <span>
-                      ${formatCurrency(provider.totalCost)} spent
-                    </span>
+                    <span>${formatCurrency(provider.totalCost)} spent</span>
                     <span>
                       {numberFormatter.format(provider.totalTokens)} tokens
                     </span>

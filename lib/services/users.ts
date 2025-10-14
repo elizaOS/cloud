@@ -15,7 +15,9 @@ export class UsersService {
     return await usersRepository.findByEmail(email);
   }
 
-  async getByPrivyId(privyUserId: string): Promise<UserWithOrganization | undefined> {
+  async getByPrivyId(
+    privyUserId: string,
+  ): Promise<UserWithOrganization | undefined> {
     return await usersRepository.findByPrivyIdWithOrganization(privyUserId);
   }
 
@@ -39,10 +41,7 @@ export class UsersService {
     return await usersRepository.create(data);
   }
 
-  async update(
-    id: string,
-    data: Partial<NewUser>,
-  ): Promise<User | undefined> {
+  async update(id: string, data: Partial<NewUser>): Promise<User | undefined> {
     return await usersRepository.update(id, data);
   }
 
@@ -58,9 +57,8 @@ export class UsersService {
     await usersRepository.delete(id);
 
     // Check if this was the last user in the organization
-    const remainingUsers = await usersRepository.listByOrganization(
-      organizationId,
-    );
+    const remainingUsers =
+      await usersRepository.listByOrganization(organizationId);
 
     // If no users remain, delete the organization
     if (remainingUsers.length === 0) {

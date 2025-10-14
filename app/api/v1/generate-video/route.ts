@@ -175,9 +175,9 @@ export async function POST(request: NextRequest) {
           organizationId: user.organization_id,
           cost: VIDEO_GENERATION_COST,
           balance: deductionResult.newBalance,
-        }
+        },
       );
-      
+
       return NextResponse.json(
         {
           error: "Insufficient credits to complete video generation",

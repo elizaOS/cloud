@@ -1,6 +1,6 @@
 /**
  * Privy User Synchronization
- * 
+ *
  * Shared logic for syncing Privy users to the local database.
  * Used by both:
  * 1. Webhook handler (background sync)
@@ -33,24 +33,28 @@ interface PrivyUserData {
  * Updates user data if it has changed
  */
 export async function syncUserFromPrivy(
-  privyUser: PrivyUserData
+  privyUser: PrivyUserData,
 ): Promise<UserWithOrganization> {
   const privyUserId = privyUser.id;
-  
+
   // Extract email
   let email: string | undefined;
   if (privyUser.email?.address) {
     email = privyUser.email.address.toLowerCase().trim();
   }
-  
+
   // Try to get email from linked accounts if not in primary email field
   if (!email && privyUser.linkedAccounts) {
     for (const account of privyUser.linkedAccounts) {
-      if ('address' in account && account.type === 'email' && typeof account.address === 'string') {
+      if (
+        "address" in account &&
+        account.type === "email" &&
+        typeof account.address === "string"
+      ) {
         email = account.address.toLowerCase().trim();
         break;
       }
-      if ('email' in account && typeof account.email === 'string') {
+      if ("email" in account && typeof account.email === "string") {
         email = account.email.toLowerCase().trim();
         break;
       }
@@ -65,7 +69,7 @@ export async function syncUserFromPrivy(
   let name = privyUser.name;
   if (!name && privyUser.linkedAccounts) {
     for (const account of privyUser.linkedAccounts) {
-      if ('name' in account && typeof account.name === 'string') {
+      if ("name" in account && typeof account.name === "string") {
         name = account.name;
         break;
       }
@@ -81,9 +85,7 @@ export async function syncUserFromPrivy(
   if (user) {
     // Update user if needed
     const shouldUpdate =
-      user.name !== name ||
-      user.email !== email ||
-      !user.email_verified;
+      user.name !== name || user.email !== email || !user.email_verified;
 
     if (shouldUpdate) {
       await usersService.update(user.id, {
@@ -92,7 +94,7 @@ export async function syncUserFromPrivy(
         email_verified: true,
         updated_at: new Date(),
       });
-      
+
       // Refresh user with organization
       user = (await usersService.getByPrivyId(privyUserId))!;
     }
@@ -102,13 +104,15 @@ export async function syncUserFromPrivy(
 
   // Create new user and organization
   let orgSlug = generateSlugFromEmail(email);
-  
+
   // Ensure slug is unique
   let attempts = 0;
   while (await organizationsService.getBySlug(orgSlug)) {
     attempts++;
     if (attempts > 10) {
-      throw new Error(`Failed to generate unique organization slug for ${email}`);
+      throw new Error(
+        `Failed to generate unique organization slug for ${email}`,
+      );
     }
     orgSlug = generateSlugFromEmail(email);
   }
@@ -133,7 +137,7 @@ export async function syncUserFromPrivy(
 
   // Return user with organization
   const userWithOrg = await usersService.getByPrivyId(privyUserId);
-  
+
   if (!userWithOrg) {
     throw new Error(`Failed to fetch newly created user ${privyUserId}`);
   }

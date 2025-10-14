@@ -30,9 +30,7 @@ export const users = pgTable(
     email_idx: index("users_email_idx").on(table.email),
     organization_idx: index("users_organization_idx").on(table.organization_id),
     is_active_idx: index("users_is_active_idx").on(table.is_active),
-    privy_user_id_idx: index("users_privy_user_id_idx").on(
-      table.privy_user_id,
-    ),
+    privy_user_id_idx: index("users_privy_user_id_idx").on(table.privy_user_id),
   }),
 );
 

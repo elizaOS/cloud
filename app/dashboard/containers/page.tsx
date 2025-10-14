@@ -3,7 +3,13 @@ import { requireAuth } from "@/lib/auth";
 import { listContainers } from "@/lib/services";
 import { ContainersTable } from "@/components/containers/containers-table";
 import { ContainersSkeleton } from "@/components/containers/containers-skeleton";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
 import { Terminal } from "lucide-react";
 
 export const dynamic = "force-dynamic";
@@ -37,15 +43,20 @@ export default async function ContainersPage() {
         <CardContent>
           <div className="space-y-3">
             <div className="bg-muted p-4 rounded-md font-mono text-sm">
-              <div className="text-muted-foreground mb-2"># Install ElizaOS CLI</div>
+              <div className="text-muted-foreground mb-2">
+                # Install ElizaOS CLI
+              </div>
               <div>bun install -g @elizaos/cli</div>
-              
-              <div className="text-muted-foreground mt-4 mb-2"># Deploy your project</div>
+
+              <div className="text-muted-foreground mt-4 mb-2">
+                # Deploy your project
+              </div>
               <div>cd your-elizaos-project</div>
               <div>elizaos deploy</div>
             </div>
             <p className="text-sm text-muted-foreground">
-              Click the details icon (📄) in the table to view deployment history and logs for each container.
+              Click the details icon (📄) in the table to view deployment
+              history and logs for each container.
             </p>
           </div>
         </CardContent>

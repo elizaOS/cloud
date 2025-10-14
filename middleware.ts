@@ -5,7 +5,7 @@ import { PrivyClient } from "@privy-io/server-auth";
 // Initialize Privy client
 const privyClient = new PrivyClient(
   process.env.NEXT_PUBLIC_PRIVY_APP_ID!,
-  process.env.PRIVY_APP_SECRET!
+  process.env.PRIVY_APP_SECRET!,
 );
 
 // Paths that don't require authentication
@@ -39,8 +39,8 @@ export async function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
 
   // Check if path is explicitly public
-  const isPublicPath = publicPaths.some(path => 
-    pathname === path || pathname.startsWith(`${path}/`)
+  const isPublicPath = publicPaths.some(
+    (path) => pathname === path || pathname.startsWith(`${path}/`),
   );
 
   if (isPublicPath) {
@@ -48,8 +48,8 @@ export async function middleware(request: NextRequest) {
   }
 
   // Check if path needs protection
-  const isProtectedPath = protectedPaths.some(path => 
-    pathname === path || pathname.startsWith(`${path}/`)
+  const isProtectedPath = protectedPaths.some(
+    (path) => pathname === path || pathname.startsWith(`${path}/`),
   );
 
   // If not a protected path and not public, allow through
@@ -62,16 +62,16 @@ export async function middleware(request: NextRequest) {
   try {
     // Check for auth token in cookies
     const authToken = request.cookies.get("privy-token");
-    
+
     // Check for Bearer token in Authorization header (for API routes)
     const authHeader = request.headers.get("Authorization");
-    const bearerToken = authHeader?.startsWith("Bearer ") 
-      ? authHeader.slice(7) 
+    const bearerToken = authHeader?.startsWith("Bearer ")
+      ? authHeader.slice(7)
       : null;
-    
+
     // Check for API key (support both X-API-Key header and Bearer token)
     const apiKey = request.headers.get("X-API-Key");
-    
+
     // If API key is provided, allow through (will be validated in the route handler)
     if (apiKey || (bearerToken && bearerToken.startsWith("eliza_"))) {
       return NextResponse.next();
@@ -82,12 +82,9 @@ export async function middleware(request: NextRequest) {
     if (!token) {
       // No token found - return 401 for all protected routes
       if (pathname.startsWith("/api/")) {
-        return NextResponse.json(
-          { error: "Unauthorized" },
-          { status: 401 }
-        );
+        return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
       }
-      
+
       // For web pages, redirect to home page where they can use the login modal
       const url = request.nextUrl.clone();
       url.pathname = "/";
@@ -96,16 +93,16 @@ export async function middleware(request: NextRequest) {
 
     // Verify the token with Privy
     const user = await privyClient.verifyAuthToken(token);
-    
+
     if (!user) {
       // Invalid token
       if (pathname.startsWith("/api/")) {
         return NextResponse.json(
           { error: "Invalid authentication token" },
-          { status: 401 }
+          { status: 401 },
         );
       }
-      
+
       // For web pages, redirect to home page where they can use the login modal
       const url = request.nextUrl.clone();
       url.pathname = "/";
@@ -124,15 +121,15 @@ export async function middleware(request: NextRequest) {
     });
   } catch (error) {
     console.error("Middleware auth error:", error);
-    
+
     // Return error response
     if (pathname.startsWith("/api/")) {
       return NextResponse.json(
         { error: "Authentication failed" },
-        { status: 401 }
+        { status: 401 },
       );
     }
-    
+
     const url = request.nextUrl.clone();
     url.pathname = "/auth/error";
     url.searchParams.set("reason", "auth_failed");

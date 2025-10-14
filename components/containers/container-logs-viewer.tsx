@@ -1,12 +1,24 @@
 "use client";
 
 import { useEffect, useState, useRef, useCallback } from "react";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { RefreshCw, Download } from "lucide-react";
 
 interface LogEntry {
@@ -21,7 +33,10 @@ interface ContainerLogsViewerProps {
   containerName: string;
 }
 
-export function ContainerLogsViewer({ containerId, containerName }: ContainerLogsViewerProps) {
+export function ContainerLogsViewer({
+  containerId,
+  containerName,
+}: ContainerLogsViewerProps) {
   const [logs, setLogs] = useState<LogEntry[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -37,7 +52,9 @@ export function ContainerLogsViewer({ containerId, containerName }: ContainerLog
         ...(level !== "all" && { level }),
       });
 
-      const response = await fetch(`/api/v1/containers/${containerId}/logs?${params}`);
+      const response = await fetch(
+        `/api/v1/containers/${containerId}/logs?${params}`,
+      );
 
       if (!response.ok) {
         throw new Error("Failed to fetch logs");
@@ -103,7 +120,9 @@ export function ContainerLogsViewer({ containerId, containerName }: ContainerLog
     const logsText = logs
       .map((log) => {
         const timestamp = new Date(log.timestamp).toISOString();
-        const metadata = log.metadata ? ` | ${JSON.stringify(log.metadata)}` : "";
+        const metadata = log.metadata
+          ? ` | ${JSON.stringify(log.metadata)}`
+          : "";
         return `[${timestamp}] [${log.level.toUpperCase()}] ${log.message}${metadata}`;
       })
       .join("\n");
@@ -147,7 +166,9 @@ export function ContainerLogsViewer({ containerId, containerName }: ContainerLog
               size="sm"
               onClick={() => setAutoRefresh(!autoRefresh)}
             >
-              <RefreshCw className={`h-4 w-4 ${autoRefresh ? "animate-spin" : ""}`} />
+              <RefreshCw
+                className={`h-4 w-4 ${autoRefresh ? "animate-spin" : ""}`}
+              />
             </Button>
             <Button
               variant="outline"
@@ -170,7 +191,12 @@ export function ContainerLogsViewer({ containerId, containerName }: ContainerLog
         ) : error ? (
           <div className="text-center py-8">
             <p className="text-red-500">{error}</p>
-            <Button variant="outline" size="sm" onClick={fetchLogs} className="mt-4">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={fetchLogs}
+              className="mt-4"
+            >
               Retry
             </Button>
           </div>
@@ -179,14 +205,26 @@ export function ContainerLogsViewer({ containerId, containerName }: ContainerLog
             No logs available for this container
           </div>
         ) : (
-          <ScrollArea className="h-[400px] w-full rounded-md border" ref={scrollRef}>
+          <ScrollArea
+            className="h-[400px] w-full rounded-md border"
+            ref={scrollRef}
+          >
             <div className="p-4 font-mono text-sm space-y-1">
               {logs.map((log, index) => (
                 <div
                   key={`${log.timestamp}-${index}`}
                   className={`flex gap-3 p-2 hover:bg-muted/50 rounded ${getLevelColor(log.level)}`}
                 >
-                  <Badge variant={getLevelBadge(log.level) as "default" | "destructive" | "outline" | "secondary"} className="shrink-0 h-5">
+                  <Badge
+                    variant={
+                      getLevelBadge(log.level) as
+                        | "default"
+                        | "destructive"
+                        | "outline"
+                        | "secondary"
+                    }
+                    className="shrink-0 h-5"
+                  >
                     {log.level.toUpperCase()}
                   </Badge>
                   <span className="text-xs text-muted-foreground shrink-0">
@@ -213,4 +251,3 @@ export function ContainerLogsViewer({ containerId, containerName }: ContainerLog
     </Card>
   );
 }
-

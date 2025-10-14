@@ -1,7 +1,6 @@
 import {
   creditTransactionsRepository,
   creditPacksRepository,
-  organizationsRepository,
   type CreditTransaction,
   type NewCreditTransaction,
   type CreditPack,
@@ -29,9 +28,7 @@ export interface DeductCreditsParams {
 
 export class CreditsService {
   // Credit Transactions
-  async getTransactionById(
-    id: string,
-  ): Promise<CreditTransaction | undefined> {
+  async getTransactionById(id: string): Promise<CreditTransaction | undefined> {
     return await creditTransactionsRepository.findById(id);
   }
 
@@ -69,9 +66,7 @@ export class CreditsService {
     return await creditTransactionsRepository.create(data);
   }
 
-  async addCredits(
-    params: AddCreditsParams,
-  ): Promise<{
+  async addCredits(params: AddCreditsParams): Promise<{
     transaction: CreditTransaction;
     newBalance: number;
   }> {
@@ -124,9 +119,7 @@ export class CreditsService {
     });
   }
 
-  async deductCredits(
-    params: DeductCreditsParams,
-  ): Promise<{
+  async deductCredits(params: DeductCreditsParams): Promise<{
     success: boolean;
     newBalance: number;
     transaction: CreditTransaction | null;

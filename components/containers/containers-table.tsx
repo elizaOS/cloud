@@ -93,9 +93,7 @@ export function ContainersTable({ containers }: ContainersTableProps) {
   if (containers.length === 0) {
     return (
       <div className="flex flex-col items-center justify-center py-12 text-center">
-        <p className="text-muted-foreground mb-4">
-          No containers deployed yet
-        </p>
+        <p className="text-muted-foreground mb-4">No containers deployed yet</p>
         <p className="text-sm text-muted-foreground max-w-md">
           Deploy your first ElizaOS project using the CLI:{" "}
           <code className="bg-muted px-2 py-1 rounded">elizaos deploy</code>
@@ -149,7 +147,9 @@ export function ContainersTable({ containers }: ContainersTableProps) {
                 <TableCell>
                   {container.last_deployed_at ? (
                     <span className="text-sm">
-                      {new Date(container.last_deployed_at).toLocaleDateString()}
+                      {new Date(
+                        container.last_deployed_at,
+                      ).toLocaleDateString()}
                     </span>
                   ) : (
                     <span className="text-sm text-muted-foreground">
@@ -160,7 +160,11 @@ export function ContainersTable({ containers }: ContainersTableProps) {
                 <TableCell className="text-right">
                   <div className="flex justify-end gap-2">
                     <Link href={`/dashboard/containers/${container.id}`}>
-                      <Button variant="ghost" size="sm" title="View details, logs & history">
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        title="View details, logs & history"
+                      >
                         <FileText className="h-4 w-4" />
                       </Button>
                     </Link>
@@ -222,4 +226,3 @@ export function ContainersTable({ containers }: ContainersTableProps) {
     </>
   );
 }
-

@@ -232,8 +232,8 @@ export function CharacterForm({ character, onChange }: CharacterFormProps) {
                   Array.isArray(character.style?.all)
                     ? character.style.all.join("\n")
                     : typeof character.style?.all === "string"
-                    ? character.style.all
-                    : ""
+                      ? character.style.all
+                      : ""
                 }
                 onChange={(e) =>
                   updateField("style", {
@@ -254,8 +254,8 @@ export function CharacterForm({ character, onChange }: CharacterFormProps) {
                   Array.isArray(character.style?.chat)
                     ? character.style.chat.join("\n")
                     : typeof character.style?.chat === "string"
-                    ? character.style.chat
-                    : ""
+                      ? character.style.chat
+                      : ""
                 }
                 onChange={(e) =>
                   updateField("style", {
@@ -276,8 +276,8 @@ export function CharacterForm({ character, onChange }: CharacterFormProps) {
                   Array.isArray(character.style?.post)
                     ? character.style.post.join("\n")
                     : typeof character.style?.post === "string"
-                    ? character.style.post
-                    : ""
+                      ? character.style.post
+                      : ""
                 }
                 onChange={(e) =>
                   updateField("style", {
@@ -343,4 +343,3 @@ export function CharacterForm({ character, onChange }: CharacterFormProps) {
     </Card>
   );
 }
-

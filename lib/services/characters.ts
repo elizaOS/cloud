@@ -42,9 +42,7 @@ export class CharactersService {
     return await userCharactersRepository.listByUser(userId);
   }
 
-  async listByOrganization(
-    organizationId: string,
-  ): Promise<UserCharacter[]> {
+  async listByOrganization(organizationId: string): Promise<UserCharacter[]> {
     return await userCharactersRepository.listByOrganization(organizationId);
   }
 
@@ -107,7 +105,7 @@ export class CharactersService {
       username: character.username ?? undefined,
       system: character.system ?? undefined,
       bio: character.bio,
-      messageExamples: (character.message_examples as unknown[]) as
+      messageExamples: character.message_examples as unknown[] as
         | Array<
             Array<{
               name: string;
