@@ -1,4 +1,4 @@
-import { eq, and } from "drizzle-orm";
+import { eq, and, sql } from "drizzle-orm";
 import { db } from "../client";
 import { apiKeys, type ApiKey, type NewApiKey } from "../schemas/api-keys";
 
@@ -61,18 +61,16 @@ export class ApiKeysRepository {
   }
 
   async incrementUsage(id: string): Promise<void> {
-    const apiKey = await this.findById(id);
-
-    if (apiKey) {
-      await db
-        .update(apiKeys)
-        .set({
-          usage_count: apiKey.usage_count + 1,
-          last_used_at: new Date(),
-          updated_at: new Date(),
-        })
-        .where(eq(apiKeys.id, id));
-    }
+    // FIXED: Use SQL atomic increment to prevent race condition
+    // Multiple concurrent requests won't lose counts
+    await db
+      .update(apiKeys)
+      .set({
+        usage_count: sql`${apiKeys.usage_count} + 1`,
+        last_used_at: new Date(),
+        updated_at: new Date(),
+      })
+      .where(eq(apiKeys.id, id));
   }
 
   async delete(id: string): Promise<void> {

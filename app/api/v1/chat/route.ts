@@ -6,10 +6,12 @@ import {
   creditsService,
   usageService,
   generationsService,
+  organizationsService,
 } from "@/lib/services";
-import { calculateCost, getProviderFromModel } from "@/lib/pricing";
+import { calculateCost, getProviderFromModel, estimateTokens } from "@/lib/pricing";
 import { logger } from "@/lib/utils/logger";
 import type { NextRequest } from "next/server";
+import { NextResponse } from "next/server";
 
 export const maxDuration = 60;
 
@@ -25,6 +27,48 @@ export async function POST(req: NextRequest) {
     const conversationId = lastMessage?.metadata
       ? (lastMessage.metadata as { conversationId?: string }).conversationId
       : undefined;
+
+    // CRITICAL FIX: Check credit balance BEFORE starting stream to prevent free service
+    // Estimate cost based on input messages
+    const messageText = messages
+      .map((m) => m.parts.map((p) => (p.type === "text" ? p.text : "")).join(""))
+      .join(" ");
+    const estimatedInputTokens = estimateTokens(messageText);
+    const estimatedOutputTokens = 500; // Conservative estimate for streaming response
+    
+    const { totalCost: estimatedCost } = await calculateCost(
+      selectedModel,
+      provider,
+      estimatedInputTokens,
+      estimatedOutputTokens,
+    );
+
+    // Check organization balance
+    const org = await organizationsService.getById(user.organization_id);
+    if (!org) {
+      logger.error("chat-api", "Organization not found", {
+        organizationId: user.organization_id,
+      });
+      return NextResponse.json(
+        { error: "Organization not found" },
+        { status: 404 },
+      );
+    }
+
+    if (org.credit_balance < estimatedCost) {
+      logger.warn("chat-api", "Insufficient credits", {
+        organizationId: user.organization_id,
+        required: estimatedCost,
+        balance: org.credit_balance,
+      });
+      return NextResponse.json(
+        {
+          error: "Insufficient credits",
+          details: `Required: ${estimatedCost}, Available: ${org.credit_balance}`,
+        },
+        { status: 402 },
+      );
+    }
 
     const result = streamText({
       model: gateway.languageModel(selectedModel),
@@ -55,11 +99,20 @@ export async function POST(req: NextRequest) {
           });
 
           if (!deductionResult.success) {
+            // CRITICAL: This should rarely happen since we checked credits before streaming
+            // But it can happen if credits were spent elsewhere between check and stream completion
             logger.error(
               "chat-api",
-              "Failed to deduct credits - insufficient balance",
-              { userId: user.id, totalCost }
+              "CRITICAL: Failed to deduct credits after streaming - race condition detected",
+              { 
+                userId: user.id, 
+                organizationId: user.organization_id,
+                cost: totalCost,
+                balance: deductionResult.newBalance,
+              }
             );
+            // Stream has already completed, so we can't return an error
+            // This should trigger an alert for manual review
           }
 
           if (conversationId) {

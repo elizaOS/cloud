@@ -6,8 +6,9 @@ import {
   creditsService,
   usageService,
   generationsService,
+  organizationsService,
 } from "@/lib/services";
-import { calculateCost, getProviderFromModel } from "@/lib/pricing";
+import { calculateCost, getProviderFromModel, estimateTokens } from "@/lib/pricing";
 import { logger } from "@/lib/utils/logger";
 import type { NextRequest } from "next/server";
 
@@ -47,6 +48,47 @@ export async function POST(
       return NextResponse.json(
         { error: "text is required and must be a non-empty string" },
         { status: 400 },
+      );
+    }
+
+    // CRITICAL FIX: Check credit balance BEFORE processing to prevent free service
+    // Estimate cost based on input text
+    const estimatedInputTokens = estimateTokens(text);
+    const estimatedOutputTokens = 100; // Conservative estimate for response
+    const model = "gpt-4o";
+    const provider = getProviderFromModel(model);
+    
+    const { totalCost: estimatedCost } = await calculateCost(
+      model,
+      provider,
+      estimatedInputTokens,
+      estimatedOutputTokens,
+    );
+
+    // Check organization balance
+    const org = await organizationsService.getById(user.organization_id);
+    if (!org) {
+      logger.error("[Eliza Messages API] Organization not found", {
+        organizationId: user.organization_id,
+      });
+      return NextResponse.json(
+        { error: "Organization not found" },
+        { status: 404 },
+      );
+    }
+
+    if (org.credit_balance < estimatedCost) {
+      logger.warn("[Eliza Messages API] Insufficient credits", {
+        organizationId: user.organization_id,
+        required: estimatedCost,
+        balance: org.credit_balance,
+      });
+      return NextResponse.json(
+        {
+          error: "Insufficient credits",
+          details: `Required: ${estimatedCost}, Available: ${org.credit_balance}`,
+        },
+        { status: 402 },
       );
     }
 
@@ -99,9 +141,19 @@ export async function POST(
       });
 
       if (!deductionResult.success) {
+        // CRITICAL: This should rarely happen since we checked credits before processing
+        // But it can happen if credits were spent elsewhere between check and now
         logger.error(
-          "[Eliza Messages API] Failed to deduct credits - insufficient balance",
+          "[Eliza Messages API] CRITICAL: Failed to deduct credits after message processing - race condition detected",
+          {
+            organizationId: user.organization_id,
+            cost: totalCost,
+            balance: deductionResult.newBalance,
+            messageId: message.id,
+          },
         );
+        // Message has already been processed, so we return it but flag the billing issue
+        // This should trigger an alert for manual review
       }
 
       // Create usage record
