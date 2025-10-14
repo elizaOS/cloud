@@ -92,6 +92,7 @@ export class AnalyticsService {
       sortBy?: "cost" | "requests" | "tokens";
       sortOrder?: "asc" | "desc";
       limit?: number;
+      offset?: number;
     }
   ) {
     return await usageRecordsRepository.getCostBreakdown(
@@ -161,5 +162,11 @@ export const getCostBreakdown = (
     sortBy?: "cost" | "requests" | "tokens";
     sortOrder?: "asc" | "desc";
     limit?: number;
+    offset?: number;
   }
 ) => analyticsService.getCostBreakdown(organizationId, dimension, options);
+
+// Validation helper for granularity
+export function validateGranularity(value: string): value is "hour" | "day" | "week" | "month" {
+  return ["hour", "day", "week", "month"].includes(value);
+}

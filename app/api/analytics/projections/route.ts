@@ -1,5 +1,6 @@
 import { type NextRequest, NextResponse } from "next/server";
 import { requireAuthOrApiKey } from "@/lib/auth";
+import { logger } from "@/lib/utils/logger";
 import {
   getUsageTimeSeries,
   type TimeGranularity,
@@ -67,13 +68,13 @@ export async function GET(req: NextRequest) {
         historicalData: historicalData.map((point) => ({
           date: point.timestamp.toISOString().split("T")[0],
           requests: point.totalRequests,
-          spent: point.totalCost,
+          cost: point.totalCost,
           tokens: point.inputTokens + point.outputTokens,
         })),
         projections: projections.map((point) => ({
           date: point.timestamp.toISOString().split("T")[0],
           requests: point.totalRequests,
-          spent: point.totalCost,
+          cost: point.totalCost,
           tokens: point.inputTokens + point.outputTokens,
           isProjected: point.isProjected,
           confidence: point.confidence,
@@ -87,7 +88,7 @@ export async function GET(req: NextRequest) {
       },
     });
   } catch (error) {
-    console.error("[Analytics Projections] Error:", error);
+    logger.error("[Analytics Projections] Error:", error);
     return NextResponse.json(
       {
         success: false,

@@ -514,6 +514,7 @@ export class UsageRecordsRepository {
       sortBy?: "cost" | "requests" | "tokens";
       sortOrder?: "asc" | "desc";
       limit?: number;
+      offset?: number;
     }
   ): Promise<CostBreakdownItem[]> {
     const {
@@ -522,6 +523,7 @@ export class UsageRecordsRepository {
       sortBy = "cost",
       sortOrder = "desc",
       limit = 100,
+      offset = 0,
     } = options || {};
 
     const conditions: SQL[] = [
@@ -567,7 +569,8 @@ export class UsageRecordsRepository {
       .where(and(...conditions))
       .groupBy(dimensionColumn)
       .orderBy(orderDirection)
-      .limit(limit);
+      .limit(limit)
+      .offset(offset);
 
     return result.map((row) => ({
       dimension,
