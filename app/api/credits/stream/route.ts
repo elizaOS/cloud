@@ -59,18 +59,30 @@ export async function GET(request: NextRequest) {
           sendEvent("error", { message: "Failed to fetch initial balance" });
         }
 
+        logger.info(`[Credits SSE] 🔌 Creating subscription for org=${organizationId}`);
+
         unsubscribe = creditEventEmitter.subscribeToCreditUpdates(
           organizationId,
           (event: CreditUpdateEvent) => {
-            logger.debug(`[Credits SSE] Sending update to client:`, event);
+            logger.info(`[Credits SSE] 📤 RECEIVED EVENT from emitter:`, {
+              organizationId: event.organizationId,
+              newBalance: event.newBalance,
+              delta: event.delta,
+              reason: event.reason,
+            });
+
+            logger.info(`[Credits SSE] 📨 SENDING update event to client via SSE`);
             sendEvent("update", {
               balance: event.newBalance,
               delta: event.delta,
               reason: event.reason,
               timestamp: event.timestamp,
             });
-          }
+            logger.info(`[Credits SSE] ✅ Update event sent to client`);
+          },
         );
+
+        logger.info(`[Credits SSE] ✅ Subscription created successfully`);
 
         creditEventEmitter.incrementConnections(organizationId);
 
