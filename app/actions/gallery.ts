@@ -34,27 +34,20 @@ export async function listUserMedia(options?: {
 }): Promise<GalleryItem[]> {
   const user = await requireAuth();
 
+  // Fetch with database-level filtering
   const generations = await generationsService.listByOrganizationAndStatus(
     user.organization_id,
     "completed",
+    {
+      userId: user.id,
+      type: options?.type,
+      limit: options?.limit,
+      offset: options?.offset,
+    },
   );
 
-  // Filter by type and user if needed
-  let filtered = generations.filter(
-    (gen) => gen.storage_url && gen.user_id === user.id,
-  );
-
-  if (options?.type) {
-    filtered = filtered.filter((gen) => gen.type === options.type);
-  }
-
-  // Apply offset and limit
-  if (options?.offset) {
-    filtered = filtered.slice(options.offset);
-  }
-  if (options?.limit) {
-    filtered = filtered.slice(0, options.limit);
-  }
+  // Filter out generations without storage_url
+  const filtered = generations.filter((gen) => gen.storage_url);
 
   return filtered.map((gen) => ({
     id: gen.id,
@@ -115,15 +108,16 @@ export async function getUserMediaStats(): Promise<{
 }> {
   const user = await requireAuth();
 
-  // Get all completed generations for the user
+  // Get completed generations for the user with storage_url
   const generations = await generationsService.listByOrganizationAndStatus(
     user.organization_id,
     "completed",
+    {
+      userId: user.id,
+    },
   );
 
-  const userGenerations = generations.filter(
-    (gen) => gen.user_id === user.id && gen.storage_url,
-  );
+  const userGenerations = generations.filter((gen) => gen.storage_url);
 
   const totalImages = userGenerations.filter((gen) => gen.type === "image")
     .length;

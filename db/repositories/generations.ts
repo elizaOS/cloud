@@ -53,13 +53,31 @@ export class GenerationsRepository {
   async listByOrganizationAndStatus(
     organizationId: string,
     status: string,
+    options?: {
+      userId?: string;
+      type?: string;
+      limit?: number;
+      offset?: number;
+    },
   ): Promise<Generation[]> {
+    const conditions = [
+      eq(generations.organization_id, organizationId),
+      eq(generations.status, status),
+    ];
+
+    if (options?.userId) {
+      conditions.push(eq(generations.user_id, options.userId));
+    }
+
+    if (options?.type) {
+      conditions.push(eq(generations.type, options.type));
+    }
+
     return await db.query.generations.findMany({
-      where: and(
-        eq(generations.organization_id, organizationId),
-        eq(generations.status, status),
-      ),
+      where: and(...conditions),
       orderBy: desc(generations.created_at),
+      limit: options?.limit,
+      offset: options?.offset,
     });
   }
 

@@ -14,25 +14,23 @@ export async function GET(request: NextRequest) {
 
     const searchParams = request.nextUrl.searchParams;
     const type = searchParams.get("type") as "image" | "video" | null;
-    const limit = parseInt(searchParams.get("limit") || "100");
+    const limit = Math.min(parseInt(searchParams.get("limit") || "100"), 1000);
     const offset = parseInt(searchParams.get("offset") || "0");
 
-    // Get all generations for the user, then filter by type and status
+    // Fetch with database-level filtering for performance
     const allGenerations = await generationsService.listByOrganizationAndStatus(
       user.organization_id,
       "completed",
+      {
+        userId: user.id,
+        type: type || undefined,
+        limit: limit,
+        offset: offset,
+      },
     );
 
-    let filtered = allGenerations.filter(
-      (gen) => gen.storage_url && gen.user_id === user.id,
-    );
-
-    if (type) {
-      filtered = filtered.filter((gen) => gen.type === type);
-    }
-
-    // Apply offset and limit
-    const generations = filtered.slice(offset, offset + Math.min(limit, 1000));
+    // Filter out generations without storage_url
+    const generations = allGenerations.filter((gen) => gen.storage_url);
 
     const items = generations.map((gen) => ({
       id: gen.id,
@@ -58,7 +56,7 @@ export async function GET(request: NextRequest) {
         count: items.length,
         offset,
         limit,
-        hasMore: filtered.length > offset + limit,
+        hasMore: items.length === limit,
       },
       { status: 200 },
     );

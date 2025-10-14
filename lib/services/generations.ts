@@ -38,10 +38,17 @@ export class GenerationsService {
   async listByOrganizationAndStatus(
     organizationId: string,
     status: string,
+    options?: {
+      userId?: string;
+      type?: string;
+      limit?: number;
+      offset?: number;
+    },
   ): Promise<Generation[]> {
     return await generationsRepository.listByOrganizationAndStatus(
       organizationId,
       status,
+      options,
     );
   }
 
