@@ -31,7 +31,3 @@ export const db = new Proxy({} as NeonDatabase<typeof schema>, {
 });
 
 export type Database = NeonDatabase<typeof schema>;
-
-// NOTE: ONLY repositories should import from this file!
-// All other code should use services.
-// ElizaOS manages its own database schema separately.
