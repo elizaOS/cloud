@@ -213,37 +213,43 @@ export async function monitorAllContainers(
       `Found ${runningContainers.length} running containers to check`,
     );
 
-    const results: HealthCheckResult[] = [];
+    // Check all containers in parallel for better performance
+    const results: HealthCheckResult[] = await Promise.all(
+      runningContainers.map(async (container) => {
+        if (!container.cloudflare_url) {
+          console.warn("Container has no URL, skipping health check", {
+            containerId: container.id,
+          });
+          return {
+            healthy: false,
+            responseTime: 0,
+            error: "No URL configured",
+            containerId: container.id,
+          } as HealthCheckResult;
+        }
 
-    // Check each container
-    for (const container of runningContainers) {
-      if (!container.cloudflare_url) {
-        console.warn("Container has no URL, skipping health check", {
-          containerId: container.id,
-        });
-        continue;
-      }
+        const result = await checkContainerHealth(
+          container.cloudflare_url,
+          container.health_check_path || "/health",
+          finalConfig.timeout,
+        );
 
-      const result = await checkContainerHealth(
-        container.cloudflare_url,
-        container.health_check_path || "/health",
-        finalConfig.timeout,
-      );
+        result.containerId = container.id;
 
-      result.containerId = container.id;
-      results.push(result);
+        // Update database
+        await updateContainerHealth(container.id, result);
 
-      // Update database
-      await updateContainerHealth(container.id, result);
+        if (!result.healthy) {
+          console.warn("Container health check failed", {
+            containerId: container.id,
+            url: container.cloudflare_url,
+            error: result.error,
+          });
+        }
 
-      if (!result.healthy) {
-        console.warn("Container health check failed", {
-          containerId: container.id,
-          url: container.cloudflare_url,
-          error: result.error,
-        });
-      }
-    }
+        return result;
+      }),
+    );
 
     const healthyCount = results.filter((r) => r.healthy).length;
     const unhealthyCount = results.length - healthyCount;
