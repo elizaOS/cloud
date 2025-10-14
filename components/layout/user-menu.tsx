@@ -53,9 +53,17 @@ export default function UserMenu() {
 
   // Handle sign out
   const onSignOut = async () => {
-    // Privy's logout handles all cleanup internally
-    await logout();
-    // Redirect is handled automatically by Privy after logout
+    try {
+      // Call Privy's logout to clear authentication state
+      await logout();
+      
+      // Force redirect to home page
+      router.push("/");
+    } catch (error) {
+      console.error("Logout error:", error);
+      // Still try to redirect even if there's an error
+      router.push("/");
+    }
   };
 
   // Get user details
