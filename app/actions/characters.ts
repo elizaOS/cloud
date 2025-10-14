@@ -1,14 +1,7 @@
 "use server";
 
 import { requireAuth } from "@/lib/auth";
-import {
-  createCharacter as dbCreateCharacter,
-  updateCharacter as dbUpdateCharacter,
-  deleteCharacter as dbDeleteCharacter,
-  listCharactersByUser,
-  getCharacterById,
-  toElizaCharacter,
-} from "@/lib/queries/characters";
+import { charactersService } from "@/lib/services";
 import type { ElizaCharacter, NewUserCharacter } from "@/lib/types";
 import { revalidatePath } from "next/cache";
 
@@ -42,10 +35,10 @@ export async function createCharacter(elizaCharacter: ElizaCharacter) {
     is_public: false,
   };
 
-  const character = await dbCreateCharacter(newCharacter);
+  const character = await charactersService.create(newCharacter);
 
   revalidatePath("/dashboard/character-creator");
-  return toElizaCharacter(character);
+  return charactersService.toElizaCharacter(character);
 }
 
 /**
@@ -77,14 +70,18 @@ export async function updateCharacter(
     character_data: elizaCharacter as unknown as Record<string, unknown>,
   };
 
-  const character = await dbUpdateCharacter(characterId, user.id, updates);
+  const character = await charactersService.updateForUser(
+    characterId,
+    user.id,
+    updates,
+  );
 
   if (!character) {
     throw new Error("Character not found or access denied");
   }
 
   revalidatePath("/dashboard/character-creator");
-  return toElizaCharacter(character);
+  return charactersService.toElizaCharacter(character);
 }
 
 /**
@@ -93,7 +90,7 @@ export async function updateCharacter(
 export async function deleteCharacter(characterId: string) {
   const user = await requireAuth();
 
-  const success = await dbDeleteCharacter(characterId, user.id);
+  const success = await charactersService.deleteForUser(characterId, user.id);
 
   if (!success) {
     throw new Error("Character not found or access denied");
@@ -109,11 +106,11 @@ export async function deleteCharacter(characterId: string) {
 export async function listCharacters() {
   const user = await requireAuth();
 
-  const characters = await listCharactersByUser(user.id, {
+  const characters = await charactersService.listByUser(user.id, {
     includeTemplates: false,
   });
 
-  return characters.map(toElizaCharacter);
+  return characters.map((c) => charactersService.toElizaCharacter(c));
 }
 
 /**
@@ -122,12 +119,14 @@ export async function listCharacters() {
 export async function getCharacter(characterId: string) {
   const user = await requireAuth();
 
-  const character = await getCharacterById(characterId, user.id);
+  const character = await charactersService.getByIdForUser(
+    characterId,
+    user.id,
+  );
 
   if (!character) {
     throw new Error("Character not found");
   }
 
-  return toElizaCharacter(character);
+  return charactersService.toElizaCharacter(character);
 }
-

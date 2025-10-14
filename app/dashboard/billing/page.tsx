@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import { requireAuth } from "@/lib/auth";
-import { listActiveCreditPacks } from "@/lib/queries/credit-packs";
+import { creditsService } from "@/lib/services";
 import { BillingPageWrapper } from "@/components/billing/billing-page-wrapper";
 
 export const metadata: Metadata = {
@@ -17,7 +17,7 @@ export default async function BillingPage({
   searchParams: Promise<{ canceled?: string }>;
 }) {
   const user = await requireAuth();
-  const creditPacks = await listActiveCreditPacks();
+  const creditPacks = await creditsService.listActiveCreditPacks();
   const params = await searchParams;
 
   return (

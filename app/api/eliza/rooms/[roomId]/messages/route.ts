@@ -2,10 +2,14 @@ import { NextResponse } from "next/server";
 import { agentRuntime } from "@/lib/eliza/agent-runtime";
 import type { UUID } from "@elizaos/core";
 import { requireAuthOrApiKey } from "@/lib/auth";
-import { deductCredits } from "@/lib/queries/credits";
-import { createUsageRecord } from "@/lib/queries/usage";
-import { createGeneration } from "@/lib/queries/generations";
-import { calculateCost, getProviderFromModel } from "@/lib/pricing";
+import {
+  creditsService,
+  usageService,
+  generationsService,
+  organizationsService,
+} from "@/lib/services";
+import { calculateCost, getProviderFromModel, estimateTokens } from "@/lib/pricing";
+import { logger } from "@/lib/utils/logger";
 import type { NextRequest } from "next/server";
 
 export const maxDuration = 60;
@@ -24,7 +28,7 @@ export async function POST(
     const { entityId, text, attachments } = body;
 
     if (!roomId) {
-      console.error("[Eliza Messages API] Missing roomId");
+      logger.error("[Eliza Messages API] Missing roomId");
       return NextResponse.json(
         { error: "roomId is required" },
         { status: 400 },
@@ -32,7 +36,7 @@ export async function POST(
     }
 
     if (!entityId) {
-      console.error("[Eliza Messages API] Missing entityId");
+      logger.error("[Eliza Messages API] Missing entityId");
       return NextResponse.json(
         { error: "entityId is required" },
         { status: 400 },
@@ -40,10 +44,51 @@ export async function POST(
     }
 
     if (!text || typeof text !== "string" || text.trim().length === 0) {
-      console.error("[Eliza Messages API] Invalid or missing text", { text });
+      logger.error("[Eliza Messages API] Invalid or missing text", { text });
       return NextResponse.json(
         { error: "text is required and must be a non-empty string" },
         { status: 400 },
+      );
+    }
+
+    // CRITICAL FIX: Check credit balance BEFORE processing to prevent free service
+    // Estimate cost based on input text
+    const estimatedInputTokens = estimateTokens(text);
+    const estimatedOutputTokens = 100; // Conservative estimate for response
+    const model = "gpt-4o";
+    const provider = getProviderFromModel(model);
+    
+    const { totalCost: estimatedCost } = await calculateCost(
+      model,
+      provider,
+      estimatedInputTokens,
+      estimatedOutputTokens,
+    );
+
+    // Check organization balance
+    const org = await organizationsService.getById(user.organization_id);
+    if (!org) {
+      logger.error("[Eliza Messages API] Organization not found", {
+        organizationId: user.organization_id,
+      });
+      return NextResponse.json(
+        { error: "Organization not found" },
+        { status: 404 },
+      );
+    }
+
+    if (org.credit_balance < estimatedCost) {
+      logger.warn("[Eliza Messages API] Insufficient credits", {
+        organizationId: user.organization_id,
+        required: estimatedCost,
+        balance: org.credit_balance,
+      });
+      return NextResponse.json(
+        {
+          error: "Insufficient credits",
+          details: `Required: ${estimatedCost}, Available: ${org.credit_balance}`,
+        },
+        { status: 402 },
       );
     }
 
@@ -55,18 +100,11 @@ export async function POST(
 
     const { message, usage } = result;
 
-    console.log(`[Eliza Messages API] Message sent successfully`, {
+    logger.debug(`[Eliza Messages API] Message sent`, {
       roomId,
       entityId,
       messageId: message.id,
       usage,
-    });
-
-    console.log(`[Eliza Messages API] Usage data received:`, {
-      hasUsage: !!usage,
-      inputTokens: usage?.inputTokens,
-      outputTokens: usage?.outputTokens,
-      model: usage?.model,
     });
 
     // Always deduct credits for Eliza messages
@@ -77,7 +115,7 @@ export async function POST(
       model: "gpt-4o",
     };
 
-    console.log(
+    logger.debug(
       `[Eliza Messages API] Effective usage for billing:`,
       effectiveUsage,
     );
@@ -95,21 +133,31 @@ export async function POST(
       );
 
       // Deduct credits
-      const deductionResult = await deductCredits(
-        user.organization_id,
-        totalCost,
-        `Eliza chat completion: ${model}`,
-        user.id,
-      );
+      const deductionResult = await creditsService.deductCredits({
+        organizationId: user.organization_id,
+        amount: totalCost,
+        description: `Eliza chat completion: ${model}`,
+        metadata: { user_id: user.id },
+      });
 
       if (!deductionResult.success) {
-        console.error(
-          "[Eliza Messages API] Failed to deduct credits - insufficient balance",
+        // CRITICAL: This should rarely happen since we checked credits before processing
+        // But it can happen if credits were spent elsewhere between check and now
+        logger.error(
+          "[Eliza Messages API] CRITICAL: Failed to deduct credits after message processing - race condition detected",
+          {
+            organizationId: user.organization_id,
+            cost: totalCost,
+            balance: deductionResult.newBalance,
+            messageId: message.id,
+          },
         );
+        // Message has already been processed, so we return it but flag the billing issue
+        // This should trigger an alert for manual review
       }
 
       // Create usage record
-      const usageRecord = await createUsageRecord({
+      const usageRecord = await usageService.create({
         organization_id: user.organization_id,
         user_id: user.id,
         api_key_id: apiKey?.id || null,
@@ -125,7 +173,7 @@ export async function POST(
 
       // Create generation record if using API key
       if (apiKey) {
-        await createGeneration({
+        await generationsService.create({
           organization_id: user.organization_id,
           user_id: user.id,
           api_key_id: apiKey.id,
@@ -144,18 +192,18 @@ export async function POST(
         });
       }
 
-      console.log(
+      logger.debug(
         `[Eliza Messages API] Credits deducted: ${totalCost} (Input: ${inputCost}, Output: ${outputCost}), New balance: ${deductionResult.newBalance}`,
       );
     } catch (error) {
-      console.error(
+      logger.error(
         "[Eliza Messages API] Error deducting credits or tracking usage:",
         error,
       );
 
       // Still create an unsuccessful usage record for tracking
       try {
-        await createUsageRecord({
+        await usageService.create({
           organization_id: user.organization_id,
           user_id: user.id,
           api_key_id: apiKey?.id || null,
@@ -171,7 +219,7 @@ export async function POST(
             error instanceof Error ? error.message : "Unknown error",
         });
       } catch (usageError) {
-        console.error(
+        logger.error(
           "[Eliza Messages API] Error creating usage record:",
           usageError,
         );
@@ -195,7 +243,7 @@ export async function POST(
       pollInterval: 1000, // 1 second
     });
   } catch (error) {
-    console.error("[Eliza Messages API] Error sending message:", error);
+    logger.error("[Eliza Messages API] Error sending message:", error);
 
     // Provide more specific error messages based on the error type
     if (error instanceof TypeError) {
@@ -220,10 +268,13 @@ export async function POST(
 
 // GET /api/eliza/rooms/[roomId]/messages - Get messages (for polling)
 export async function GET(
-  request: Request,
+  request: NextRequest,
   ctx: { params: Promise<{ roomId: string }> },
 ) {
   try {
+    // Authenticate user or validate API key
+    await requireAuthOrApiKey(request);
+
     const { roomId } = await ctx.params;
     const { searchParams } = new URL(request.url);
     const limit = searchParams.get("limit");
@@ -287,7 +338,7 @@ export async function GET(
       { headers: { "Cache-Control": "no-store" } },
     );
   } catch (error) {
-    console.error("[Eliza Messages API] Error getting messages:", error);
+    logger.error("[Eliza Messages API] Error getting messages:", error);
     return NextResponse.json(
       {
         error: "Failed to get messages",

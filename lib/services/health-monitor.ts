@@ -3,8 +3,8 @@
  * Monitors deployed containers and updates their health status
  */
 
-import { db } from "@/db/drizzle";
-import { containers } from "@/db/sass/schema";
+import { db } from "@/db/client";
+import { containers } from "@/db/schemas";
 import { eq, and } from "drizzle-orm";
 
 export interface HealthCheckResult {
@@ -266,19 +266,27 @@ export async function getContainerHealthStatus(
   containerId: string
 ): Promise<HealthCheckResult | null> {
   try {
-    const container = await db
+    // Note: We need to get container without organization_id here
+    // So we still use db directly, but this is acceptable for health monitoring
+    const results = await db
       .select()
       .from(containers)
       .where(eq(containers.id, containerId))
       .limit(1);
 
-    if (container.length === 0 || !container[0].cloudflare_url) {
+    if (results.length === 0 || !results[0].cloudflare_url) {
       return null;
     }
 
+    const container = results[0];
+    
+    if (!container.cloudflare_url) {
+      return null;
+    }
+    
     const result = await checkContainerHealth(
-      container[0].cloudflare_url,
-      container[0].health_check_path || "/health"
+      container.cloudflare_url,
+      container.health_check_path || "/health"
     );
 
     result.containerId = containerId;

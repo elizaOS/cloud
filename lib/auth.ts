@@ -1,9 +1,5 @@
 import { PrivyClient } from "@privy-io/server-auth";
-import {
-  getUserWithOrganization,
-  getUserByPrivyId,
-} from "@/lib/queries/users";
-import { validateApiKey, incrementApiKeyUsage } from "@/lib/queries/api-keys";
+import { usersService, apiKeysService } from "@/lib/services";
 import type { UserWithOrganization, ApiKey } from "@/lib/types";
 import { cache } from "react";
 import { cookies } from "next/headers";
@@ -51,7 +47,7 @@ export const getCurrentUser = cache(
       }
 
       // Get user from database by Privy ID
-      let user = await getUserByPrivyId(verifiedClaims.userId);
+      let user = await usersService.getByPrivyId(verifiedClaims.userId);
       
       // Just-in-time sync: If user doesn't exist, fetch from Privy and create
       // This handles race conditions where webhooks haven't fired yet
@@ -143,25 +139,42 @@ export async function requireRole(
 /**
  * Get user from API key
  */
-async function getUserFromApiKey(apiKey: ApiKey): Promise<UserWithOrganization | null> {
-  if (!apiKey.user_id) {
+export async function getUserFromApiKey(
+  apiKey: ApiKey,
+): Promise<UserWithOrganization | null> {
+  const user = await usersService.getWithOrganization(apiKey.user_id);
+  if (!user) {
     return null;
   }
-
-  return (await getUserWithOrganization(apiKey.user_id)) ?? null;
+  return user;
 }
 
 /**
  * Require authentication via session or API key
+ * Supports both X-API-Key header and Authorization: Bearer header
  */
 export async function requireAuthOrApiKey(
   request: NextRequest,
 ): Promise<AuthResult> {
-  // Check for API key first
+  // Check for API key in X-API-Key header (legacy)
   const apiKeyHeader = request.headers.get("X-API-Key");
+  
+  // Check for API key in Authorization header (standard)
+  const authHeader = request.headers.get("authorization");
+  let apiKeyValue: string | null = null;
 
   if (apiKeyHeader) {
-    const apiKey = await validateApiKey(apiKeyHeader);
+    apiKeyValue = apiKeyHeader;
+  } else if (authHeader?.startsWith("Bearer ")) {
+    apiKeyValue = authHeader.substring(7);
+  }
+
+  if (apiKeyValue) {
+    if (!apiKeyValue || apiKeyValue.trim().length === 0) {
+      throw new Error("Invalid API key format");
+    }
+
+    const apiKey = await apiKeysService.validateApiKey(apiKeyValue);
 
     if (!apiKey) {
       throw new Error("Invalid or expired API key");
@@ -189,7 +202,7 @@ export async function requireAuthOrApiKey(
       throw new Error("Organization is inactive");
     }
 
-    await incrementApiKeyUsage(apiKey.id);
+    await apiKeysService.incrementUsage(apiKey.id);
 
     return {
       user,
@@ -226,7 +239,7 @@ export async function verifyPrivyToken(token: string) {
 export async function getUserFromRequest(
   request: NextRequest
 ): Promise<UserWithOrganization | null> {
-  // Check Authorization header
+  // Check Authorization header for Privy token
   const authHeader = request.headers.get("Authorization");
   if (authHeader?.startsWith("Bearer ")) {
     const token = authHeader.slice(7);
@@ -234,7 +247,7 @@ export async function getUserFromRequest(
     
     if (privyUser) {
       // Get user from database
-      const user = await getUserByPrivyId(privyUser.userId);
+      const user = await usersService.getByPrivyId(privyUser.userId);
       
       // The email is not directly available from the token claims
       // User should already be synced via webhooks

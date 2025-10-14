@@ -1,5 +1,5 @@
 import { requireAuth } from "@/lib/auth";
-import { getContainer } from "@/lib/queries/containers";
+import { getContainer } from "@/lib/services";
 import { redirect } from "next/navigation";
 import { ContainerDeploymentHistory } from "@/components/containers/container-deployment-history";
 import { ContainerLogsViewer } from "@/components/containers/container-logs-viewer";

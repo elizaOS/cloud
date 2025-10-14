@@ -7,6 +7,8 @@ import type {
   VideoUsageSummary,
 } from "@/components/video/types";
 
+export const dynamic = 'force-dynamic';
+
 export const metadata: Metadata = {
   title: "Video Generation Studio",
   description:

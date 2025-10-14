@@ -468,7 +468,7 @@ Visit [http://localhost:3000](http://localhost:3000).
 
 ### 6. First Login
 
-1. Click "Sign In" → WorkOS will create your user
+1. Click "Sign In" → Privy will create your user
 2. You'll be redirected to the dashboard
 3. Your organization starts with 10,000 credits
 
@@ -878,7 +878,7 @@ See `docs/STRIPE_SETUP.md` for detailed Stripe configuration.
   - webhook_url for notifications
 
 - **users**: User accounts linked to organizations
-  - workos_user_id for SSO
+  - privy_user_id for authentication
   - role: admin, member
   - is_active for deactivation
 
@@ -1080,7 +1080,7 @@ See `lib/queries/container-quota.ts` for full implementation.
 
 All API routes support two authentication methods:
 
-1. **Session Cookie** (WorkOS): Automatic for logged-in users
+1. **Session Cookie** (Privy): Automatic for logged-in users
 2. **API Key Header**: `Authorization: Bearer eliza_your_key`
 
 ### Base URL
@@ -1299,10 +1299,10 @@ Add all variables from `.env.local` in Vercel dashboard:
 - `R2_ACCESS_KEY_ID`, `R2_SECRET_ACCESS_KEY`, `R2_BUCKET_NAME`, `R2_ENDPOINT`
 - `CRON_SECRET`
 
-**4. Update WorkOS Redirect URI**:
+**4. Update Privy Redirect URI**:
 
-- Add production callback URL to WorkOS dashboard
-- Format: `https://your-app.vercel.app/api/auth/callback`
+- Add production callback URL to Privy dashboard
+- Configure allowed origins: `https://your-app.vercel.app`
 
 **5. Deploy**:
 
@@ -1345,15 +1345,15 @@ DATABASE_URL=postgres://prod-url npm run db:migrate
 - Check Neon dashboard for correct connection string
 - Ensure database is not paused (serverless auto-pause)
 
-#### 2. Authentication Loops
+#### 2. Authentication Issues
 
-**Error**: Continuous redirect between app and WorkOS
+**Error**: Authentication errors or login failures
 
 **Solutions**:
-- Verify `NEXT_PUBLIC_WORKOS_REDIRECT_URI` matches exactly in WorkOS dashboard
-- Check callback route exists: `/app/callback/route.ts`
-- Clear browser cookies
-- Ensure `WORKOS_COOKIE_PASSWORD` is at least 32 characters
+- Verify `NEXT_PUBLIC_PRIVY_APP_ID` and `PRIVY_APP_SECRET` are correct
+- Check allowed origins in Privy dashboard match your domain
+- Clear browser cookies and try again
+- Ensure Privy webhook is configured if using just-in-time sync
 
 #### 3. Environment Variables Not Loading
 
@@ -1432,7 +1432,7 @@ See `docs/DEPLOYMENT_TROUBLESHOOTING.md` for detailed troubleshooting.
 - Check detailed docs in `/docs` folder
 - [Next.js Documentation](https://nextjs.org/docs)
 - [Drizzle ORM Docs](https://orm.drizzle.team/docs)
-- [WorkOS Documentation](https://workos.com/docs)
+- [Privy Documentation](https://docs.privy.io)
 - [Vercel AI SDK Docs](https://sdk.vercel.ai/docs)
 - [ElizaOS Documentation](https://github.com/elizaos/eliza)
 
@@ -1464,7 +1464,8 @@ See `docs/DEPLOYMENT_TROUBLESHOOTING.md` for detailed troubleshooting.
 
 ### Authentication & Billing
 
-- [WorkOS AuthKit Guide](https://workos.com/docs/authkit)
+- [Privy Authentication](https://docs.privy.io/guide/react/wallets/usage/overview)
+- [Privy Webhooks](https://docs.privy.io/guide/server/webhooks)
 - [Stripe API Documentation](https://stripe.com/docs/api)
 - [Stripe Checkout](https://stripe.com/docs/payments/checkout)
 - [Stripe Webhooks](https://stripe.com/docs/webhooks)

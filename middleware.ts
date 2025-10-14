@@ -17,6 +17,8 @@ const publicPaths = [
   "/api/v1/generate-image",
   "/api/v1/generate-video",
   "/api/v1/chat",
+  "/api/v1/chat/completions",
+  "/api/v1/embeddings",
   "/api/v1/models",
   "/api/stripe/webhook",
   "/api/privy/webhook", // Privy webhook endpoint
@@ -67,11 +69,11 @@ export async function middleware(request: NextRequest) {
       ? authHeader.slice(7) 
       : null;
     
-    // Check for API key
+    // Check for API key (support both X-API-Key header and Bearer token)
     const apiKey = request.headers.get("X-API-Key");
     
     // If API key is provided, allow through (will be validated in the route handler)
-    if (apiKey) {
+    if (apiKey || (bearerToken && bearerToken.startsWith("eliza_"))) {
       return NextResponse.next();
     }
 

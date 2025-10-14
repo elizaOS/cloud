@@ -1,14 +1,17 @@
 import { streamText, type UIMessage, convertToModelMessages } from "ai";
+import { gateway } from "@ai-sdk/gateway";
 import { requireAuthOrApiKey } from "@/lib/auth";
 import {
-  addMessageToConversation,
-  getNextSequenceNumber,
-} from "@/lib/queries/conversations";
-import { deductCredits } from "@/lib/queries/credits";
-import { createUsageRecord } from "@/lib/queries/usage";
-import { createGeneration } from "@/lib/queries/generations";
-import { calculateCost, getProviderFromModel } from "@/lib/pricing";
+  conversationsService,
+  creditsService,
+  usageService,
+  generationsService,
+  organizationsService,
+} from "@/lib/services";
+import { calculateCost, getProviderFromModel, estimateTokens } from "@/lib/pricing";
+import { logger } from "@/lib/utils/logger";
 import type { NextRequest } from "next/server";
+import { NextResponse } from "next/server";
 
 export const maxDuration = 60;
 
@@ -25,8 +28,50 @@ export async function POST(req: NextRequest) {
       ? (lastMessage.metadata as { conversationId?: string }).conversationId
       : undefined;
 
+    // CRITICAL FIX: Check credit balance BEFORE starting stream to prevent free service
+    // Estimate cost based on input messages
+    const messageText = messages
+      .map((m) => m.parts.map((p) => (p.type === "text" ? p.text : "")).join(""))
+      .join(" ");
+    const estimatedInputTokens = estimateTokens(messageText);
+    const estimatedOutputTokens = 500; // Conservative estimate for streaming response
+    
+    const { totalCost: estimatedCost } = await calculateCost(
+      selectedModel,
+      provider,
+      estimatedInputTokens,
+      estimatedOutputTokens,
+    );
+
+    // Check organization balance
+    const org = await organizationsService.getById(user.organization_id);
+    if (!org) {
+      logger.error("chat-api", "Organization not found", {
+        organizationId: user.organization_id,
+      });
+      return NextResponse.json(
+        { error: "Organization not found" },
+        { status: 404 },
+      );
+    }
+
+    if (org.credit_balance < estimatedCost) {
+      logger.warn("chat-api", "Insufficient credits", {
+        organizationId: user.organization_id,
+        required: estimatedCost,
+        balance: org.credit_balance,
+      });
+      return NextResponse.json(
+        {
+          error: "Insufficient credits",
+          details: `Required: ${estimatedCost}, Available: ${org.credit_balance}`,
+        },
+        { status: 402 },
+      );
+    }
+
     const result = streamText({
-      model: selectedModel,
+      model: gateway.languageModel(selectedModel),
       system: `You are a helpful AI assistant powered by elizaOS. You provide clear, accurate, and helpful responses.
       You are knowledgeable about AI agents, development, and technology.`,
       messages: convertToModelMessages(messages),
@@ -43,49 +88,56 @@ export async function POST(req: NextRequest) {
             usage.outputTokens || 0,
           );
 
-          const deductionResult = await deductCredits(
-            user.organization_id,
-            totalCost,
-            `Chat completion: ${selectedModel}`,
-            user.id,
-          );
+          const deductionResult = await creditsService.deductCredits({
+            organizationId: user.organization_id,
+            amount: totalCost,
+            description: `Chat completion: ${selectedModel}`,
+            metadata: {
+              user_id: user.id,
+              model: selectedModel,
+            },
+          });
 
           if (!deductionResult.success) {
-            console.error(
-              "[CHAT API] Failed to deduct credits - insufficient balance",
+            // CRITICAL: This should rarely happen since we checked credits before streaming
+            // But it can happen if credits were spent elsewhere between check and stream completion
+            logger.error(
+              "chat-api",
+              "CRITICAL: Failed to deduct credits after streaming - race condition detected",
+              { 
+                userId: user.id, 
+                organizationId: user.organization_id,
+                cost: totalCost,
+                balance: deductionResult.newBalance,
+              }
             );
+            // Stream has already completed, so we can't return an error
+            // This should trigger an alert for manual review
           }
 
           if (conversationId) {
-            const userSequence = await getNextSequenceNumber(conversationId);
-
-            await addMessageToConversation({
-              conversation_id: conversationId,
+            // Add user message
+            await conversationsService.addMessageWithSequence(conversationId, {
               role: "user",
               content: userMessage.parts
                 .map((p) => (p.type === "text" ? p.text : ""))
                 .join(""),
-              sequence_number: userSequence,
               model: selectedModel,
               tokens: usage.inputTokens,
               cost: inputCost,
             });
 
-            const assistantSequence =
-              await getNextSequenceNumber(conversationId);
-
-            await addMessageToConversation({
-              conversation_id: conversationId,
+            // Add assistant message
+            await conversationsService.addMessageWithSequence(conversationId, {
               role: "assistant",
               content: text,
-              sequence_number: assistantSequence,
               model: selectedModel,
               tokens: usage.outputTokens,
               cost: outputCost,
             });
           }
 
-          const usageRecord = await createUsageRecord({
+          const usageRecord = await usageService.create({
             organization_id: user.organization_id,
             user_id: user.id,
             api_key_id: apiKey?.id || null,
@@ -104,7 +156,7 @@ export async function POST(req: NextRequest) {
               messages[messages.length - 1]?.parts
                 .map((p) => (p.type === "text" ? p.text : ""))
                 .join("") || "";
-            await createGeneration({
+            await generationsService.create({
               organization_id: user.organization_id,
               user_id: user.id,
               api_key_id: apiKey.id,
@@ -129,18 +181,22 @@ export async function POST(req: NextRequest) {
             });
           }
 
-          console.log(
-            `[CHAT API] Credits deducted: ${totalCost} (Input: ${inputCost}, Output: ${outputCost}), New balance: ${deductionResult.newBalance}`,
-          );
+          logger.info("chat-api", "Credits deducted", {
+            totalCost,
+            inputCost,
+            outputCost,
+            newBalance: deductionResult.newBalance,
+          });
         } catch (error) {
-          console.error(
-            "[CHAT API] Error persisting messages or deducting credits:",
-            error,
+          logger.error(
+            "chat-api",
+            "Error persisting messages or deducting credits",
+            { error: error instanceof Error ? error.message : "Unknown error" }
           );
 
           if (usage) {
             try {
-              const errorUsageRecord = await createUsageRecord({
+              const errorUsageRecord = await usageService.create({
                 organization_id: user.organization_id,
                 user_id: user.id,
                 api_key_id: apiKey?.id || null,
@@ -161,7 +217,7 @@ export async function POST(req: NextRequest) {
                   messages[messages.length - 1]?.parts
                     .map((p) => (p.type === "text" ? p.text : ""))
                     .join("") || "";
-                await createGeneration({
+                await generationsService.create({
                   organization_id: user.organization_id,
                   user_id: user.id,
                   api_key_id: apiKey.id,
@@ -177,10 +233,9 @@ export async function POST(req: NextRequest) {
                 });
               }
             } catch (usageError) {
-              console.error(
-                "[CHAT API] Error creating usage record:",
-                usageError,
-              );
+              logger.error("chat-api", "Error creating usage record", {
+                error: usageError instanceof Error ? usageError.message : "Unknown error",
+              });
             }
           }
         }
@@ -189,7 +244,9 @@ export async function POST(req: NextRequest) {
 
     return result.toUIMessageStreamResponse();
   } catch (error) {
-    console.error("[CHAT API] Error:", error);
+    logger.error("chat-api", "Error processing chat", {
+      error: error instanceof Error ? error.message : "Unknown error",
+    });
     return new Response(JSON.stringify({ error: "Failed to process chat" }), {
       status: 500,
       headers: { "Content-Type": "application/json" },

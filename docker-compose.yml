@@ -1,0 +1,19 @@
+version: '3.8'
+
+services:
+  postgres:
+    image: pgvector/pgvector:pg16
+    container_name: eliza-local-db
+    restart: unless-stopped
+    ports:
+      - "5432:5432"
+    environment:
+      POSTGRES_USER: eliza_dev
+      POSTGRES_PASSWORD: local_dev_password
+      POSTGRES_DB: eliza_dev
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./scripts/init-db.sh:/docker-entrypoint-initdb.d/init-db.sh
+
+volumes:
+  postgres_data:

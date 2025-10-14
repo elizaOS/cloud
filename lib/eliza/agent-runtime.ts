@@ -12,7 +12,7 @@ import {
   type Logger,
   type IDatabaseAdapter,
 } from "@elizaos/core";
-import { createDatabaseAdapter } from "@elizaos/plugin-sql";
+import { createDatabaseAdapter, plugin as sqlPlugin } from "@elizaos/plugin-sql";
 import agent from "./agent";
 
 interface GlobalWithEliza {
@@ -175,16 +175,35 @@ class AgentRuntimeManager {
         elizaLogger.info("#Eliza", "Creating new database adapter");
         dbAdapter = createDatabaseAdapter(
           {
-            postgresUrl: process.env.DATABASE_URL,
+            postgresUrl: process.env.AGENT_DATABASE_URL,
           },
           RUNTIME_AGENT_ID,
         );
 
-        // Initialize the adapter
+        // Initialize the adapter connection
         await dbAdapter.init();
         elizaLogger.info("#Eliza", "Database adapter initialized");
 
-        // Cache globally for warm containers
+        // Run plugin-sql migrations ONCE to create ElizaOS tables (agents, memories, etc.)
+        // The adapter is cached globally, so migrations only run on first initialization
+        if (typeof (dbAdapter as { runPluginMigrations?: unknown }).runPluginMigrations === 'function') {
+          if (sqlPlugin?.schema) {
+            elizaLogger.info("#Eliza", "Running plugin-sql migrations to create ElizaOS tables...");
+            try {
+              await (dbAdapter as { runPluginMigrations: (plugins: Array<{name: string; schema: unknown}>, options?: {verbose?: boolean; force?: boolean; dryRun?: boolean}) => Promise<void> })
+                .runPluginMigrations([{ name: '@elizaos/plugin-sql', schema: sqlPlugin.schema }], { verbose: false });
+              elizaLogger.success("#Eliza", "ElizaOS migrations completed - all tables ready");
+            } catch (error) {
+              const errorMsg = error instanceof Error ? error.message : String(error);
+              // Tables may already exist - this is fine
+              elizaLogger.info("#Eliza", `Migrations: ${errorMsg}`);
+            }
+          } else {
+            elizaLogger.warn("#Eliza", "plugin-sql schema not found - migrations skipped");
+          }
+        }
+
+        // Cache globally for warm containers (adapter init runs only ONCE)
         globalAny.__elizaDatabaseAdapter = dbAdapter;
       }
 
@@ -211,8 +230,8 @@ class AgentRuntimeManager {
         agentId: RUNTIME_AGENT_ID,
         settings: {
           OPENAI_API_KEY: process.env.OPENAI_API_KEY,
-          POSTGRES_URL: process.env.DATABASE_URL,
-          DATABASE_URL: process.env.DATABASE_URL,
+          POSTGRES_URL: process.env.AGENT_DATABASE_URL,
+          DATABASE_URL: process.env.AGENT_DATABASE_URL,
           ...agent.character.settings,
         },
       });
@@ -377,7 +396,7 @@ class AgentRuntimeManager {
   }> {
     const runtime = await this.getRuntime();
 
-    // Ensure room and entity connection (follows Eliza's ensureConnection pattern)
+    // Ensure room and entity connection
     const entityUuid = stringToUuid(entityId) as UUID;
     await runtime.ensureConnection({
       entityId: entityUuid,
@@ -390,7 +409,7 @@ class AgentRuntimeManager {
       userName: entityId,
     });
 
-    // Create user message
+    // Create and save user message
     const userMessage: Memory = {
       id: uuidv4() as UUID,
       roomId: roomId as UUID,
@@ -410,18 +429,16 @@ class AgentRuntimeManager {
       },
     };
 
-    // Track usage from callback
+    // Save user message to database
+    await runtime.createMemory(userMessage, "messages");
+
+    // Track usage and response
     let usage:
       | { inputTokens: number; outputTokens: number; model: string }
       | undefined;
+    let responseText: string | undefined;
 
-    // Use the full ElizaOS event pipeline (like OTC agent)
-    // This triggers the plugin's messageReceivedHandler which will:
-    // 1. Use providers to gather context
-    // 2. Compose state with composeState()
-    // 3. Call useModel() with full context
-    // 4. Process any actions
-    // 5. Create and save the response memory
+    // Process message through event pipeline to generate response
     await runtime.emitEvent(EventType.MESSAGE_RECEIVED, {
       runtime,
       message: userMessage,
@@ -429,14 +446,39 @@ class AgentRuntimeManager {
         text?: string;
         usage?: { inputTokens: number; outputTokens: number; model: string };
       }) => {
-        // Response is already saved by the plugin's messageReceivedHandler
-        elizaLogger.debug("#Eliza", "Message processed via event pipeline");
+        elizaLogger.debug("#Eliza", "Message processed, generating response");
+        if (result.text) {
+          responseText = result.text;
+        }
         if (result.usage) {
           usage = result.usage;
         }
         return [];
       },
     });
+
+    // Explicitly create and save agent response if we have text
+    if (responseText) {
+      const agentResponse: Memory = {
+        id: uuidv4() as UUID,
+        roomId: roomId as UUID,
+        entityId: runtime.agentId as UUID,
+        agentId: runtime.agentId as UUID,
+        createdAt: Date.now(),
+        content: {
+          text: responseText,
+          type: "agent",
+        },
+      };
+
+      await runtime.createMemory(agentResponse, "messages");
+      elizaLogger.debug("#Eliza", "Agent response saved to messages table");
+    } else {
+      elizaLogger.warn(
+        "#Eliza",
+        "No response text generated from event pipeline",
+      );
+    }
 
     return { message: userMessage, usage };
   }

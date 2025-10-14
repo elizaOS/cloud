@@ -7,15 +7,7 @@
  * 2. Just-in-time sync (fallback for race conditions)
  */
 
-import {
-  createUser,
-  getUserByPrivyId,
-  updateUser,
-} from "@/lib/queries/users";
-import {
-  createOrganization,
-  getOrganizationBySlug,
-} from "@/lib/queries/organizations";
+import { usersService, organizationsService } from "@/lib/services";
 import type { UserWithOrganization } from "@/lib/types";
 
 function generateSlugFromEmail(email: string): string {
@@ -84,7 +76,7 @@ export async function syncUserFromPrivy(
   }
 
   // Check if user already exists
-  let user = await getUserByPrivyId(privyUserId);
+  let user = await usersService.getByPrivyId(privyUserId);
 
   if (user) {
     // Update user if needed
@@ -94,7 +86,7 @@ export async function syncUserFromPrivy(
       !user.email_verified;
 
     if (shouldUpdate) {
-      await updateUser(user.id, {
+      await usersService.update(user.id, {
         name,
         email,
         email_verified: true,
@@ -102,7 +94,7 @@ export async function syncUserFromPrivy(
       });
       
       // Refresh user with organization
-      user = (await getUserByPrivyId(privyUserId))!;
+      user = (await usersService.getByPrivyId(privyUserId))!;
     }
 
     return user;
@@ -113,7 +105,7 @@ export async function syncUserFromPrivy(
   
   // Ensure slug is unique
   let attempts = 0;
-  while (await getOrganizationBySlug(orgSlug)) {
+  while (await organizationsService.getBySlug(orgSlug)) {
     attempts++;
     if (attempts > 10) {
       throw new Error(`Failed to generate unique organization slug for ${email}`);
@@ -122,14 +114,14 @@ export async function syncUserFromPrivy(
   }
 
   // Create organization
-  const organization = await createOrganization({
+  const organization = await organizationsService.create({
     name: `${name}'s Organization`,
     slug: orgSlug,
     credit_balance: 50000, // Initial credits
   });
 
   // Create user
-  await createUser({
+  await usersService.create({
     privy_user_id: privyUserId,
     email,
     email_verified: true,
@@ -140,7 +132,7 @@ export async function syncUserFromPrivy(
   });
 
   // Return user with organization
-  const userWithOrg = await getUserByPrivyId(privyUserId);
+  const userWithOrg = await usersService.getByPrivyId(privyUserId);
   
   if (!userWithOrg) {
     throw new Error(`Failed to fetch newly created user ${privyUserId}`);

@@ -1,6 +1,6 @@
 import { Suspense } from "react";
 import { requireAuth } from "@/lib/auth";
-import { listContainers } from "@/lib/queries/containers";
+import { listContainers } from "@/lib/services";
 import { ContainersTable } from "@/components/containers/containers-table";
 import { ContainersSkeleton } from "@/components/containers/containers-skeleton";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -38,7 +38,7 @@ export default async function ContainersPage() {
           <div className="space-y-3">
             <div className="bg-muted p-4 rounded-md font-mono text-sm">
               <div className="text-muted-foreground mb-2"># Install ElizaOS CLI</div>
-              <div>npm install -g @elizaos/cli</div>
+              <div>bun install -g @elizaos/cli</div>
               
               <div className="text-muted-foreground mt-4 mb-2"># Deploy your project</div>
               <div>cd your-elizaos-project</div>

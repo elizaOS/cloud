@@ -120,12 +120,13 @@ export function checkRateLimit(
 /**
  * Rate limit middleware wrapper for API routes
  * Compatible with Next.js 15 where params is a Promise
+ * Supports both NextResponse and Response return types
  */
 export function withRateLimit<T = Record<string, string>>(
-  handler: (request: NextRequest, context?: { params: Promise<T> }) => Promise<NextResponse>,
+  handler: (request: NextRequest, context?: { params: Promise<T> }) => Promise<Response>,
   config: RateLimitConfig
 ) {
-  return async (request: NextRequest, context?: { params: Promise<T> }): Promise<NextResponse> => {
+  return async (request: NextRequest, context?: { params: Promise<T> }): Promise<Response> => {
     const result = checkRateLimit(request, config);
 
     // Add rate limit headers
@@ -156,11 +157,17 @@ export function withRateLimit<T = Record<string, string>>(
     const response = await handler(request, context);
 
     // Add rate limit headers to successful responses
+    // Create new response with additional headers to preserve immutability
+    const newHeaders = new Headers(response.headers);
     for (const [key, value] of Object.entries(headers)) {
-      response.headers.set(key, value);
+      newHeaders.set(key, value);
     }
 
-    return response;
+    return new Response(response.body, {
+      status: response.status,
+      statusText: response.statusText,
+      headers: newHeaders,
+    });
   };
 }
 
