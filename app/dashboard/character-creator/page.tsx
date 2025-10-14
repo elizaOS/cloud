@@ -9,6 +9,9 @@ export const metadata: Metadata = {
     "Create and customize AI agent characters with personality, knowledge, and style",
 };
 
+// Force dynamic rendering since we use server-side auth (cookies)
+export const dynamic = "force-dynamic";
+
 export default async function CharacterCreatorPage() {
   await requireAuth();
   const characters = await listCharacters();

@@ -1,15 +1,7 @@
 "use server";
 
-import { signOut } from "@workos-inc/authkit-nextjs";
 import { requireAuth } from "@/lib/auth";
 import { organizationsService } from "@/lib/services";
-
-/**
- * Server action to handle user sign out
- */
-export async function handleSignOut() {
-  await signOut();
-}
 
 /**
  * Server action to get user's organization credit balance

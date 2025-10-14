@@ -22,10 +22,17 @@ export class UsersRepository {
     });
   }
 
-  async findByWorkOSId(workosUserId: string): Promise<User | undefined> {
-    return await db.query.users.findFirst({
-      where: eq(users.workos_user_id, workosUserId),
+  async findByPrivyIdWithOrganization(
+    privyUserId: string,
+  ): Promise<UserWithOrganization | undefined> {
+    const user = await db.query.users.findFirst({
+      where: eq(users.privy_user_id, privyUserId),
+      with: {
+        organization: true,
+      },
     });
+
+    return user as UserWithOrganization | undefined;
   }
 
   async findWithOrganization(

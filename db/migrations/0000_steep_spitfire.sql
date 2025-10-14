@@ -23,7 +23,7 @@ CREATE TABLE "organizations" (
 --> statement-breakpoint
 CREATE TABLE "users" (
 	"id" uuid PRIMARY KEY DEFAULT gen_random_uuid() NOT NULL,
-	"workos_user_id" text,
+	"privy_user_id" text,
 	"email" text NOT NULL,
 	"email_verified" boolean DEFAULT false NOT NULL,
 	"name" text,
@@ -33,7 +33,7 @@ CREATE TABLE "users" (
 	"is_active" boolean DEFAULT true NOT NULL,
 	"created_at" timestamp DEFAULT now() NOT NULL,
 	"updated_at" timestamp DEFAULT now() NOT NULL,
-	CONSTRAINT "users_workos_user_id_unique" UNIQUE("workos_user_id"),
+	CONSTRAINT "users_privy_user_id_unique" UNIQUE("privy_user_id"),
 	CONSTRAINT "users_email_unique" UNIQUE("email")
 );
 --> statement-breakpoint
@@ -247,6 +247,46 @@ CREATE TABLE "user_characters" (
 	"updated_at" timestamp DEFAULT now() NOT NULL
 );
 --> statement-breakpoint
+CREATE TABLE "containers" (
+	"id" uuid PRIMARY KEY DEFAULT gen_random_uuid() NOT NULL,
+	"name" text NOT NULL,
+	"description" text,
+	"organization_id" uuid NOT NULL,
+	"user_id" uuid NOT NULL,
+	"api_key_id" uuid,
+	"cloudflare_worker_id" text,
+	"cloudflare_container_id" text,
+	"cloudflare_url" text,
+	"status" text DEFAULT 'pending' NOT NULL,
+	"image_tag" text,
+	"dockerfile_path" text,
+	"environment_vars" jsonb DEFAULT '{}'::jsonb NOT NULL,
+	"max_instances" integer DEFAULT 1 NOT NULL,
+	"port" integer DEFAULT 3000 NOT NULL,
+	"health_check_path" text DEFAULT '/health',
+	"last_deployed_at" timestamp,
+	"last_health_check" timestamp,
+	"deployment_log" text,
+	"error_message" text,
+	"metadata" jsonb DEFAULT '{}'::jsonb NOT NULL,
+	"created_at" timestamp DEFAULT now() NOT NULL,
+	"updated_at" timestamp DEFAULT now() NOT NULL
+);
+--> statement-breakpoint
+CREATE TABLE "artifacts" (
+	"id" text PRIMARY KEY NOT NULL,
+	"organization_id" text NOT NULL,
+	"project_id" text NOT NULL,
+	"version" text NOT NULL,
+	"checksum" text NOT NULL,
+	"size" integer NOT NULL,
+	"r2_key" text NOT NULL,
+	"r2_url" text NOT NULL,
+	"metadata" jsonb DEFAULT '{}'::jsonb,
+	"created_by" text NOT NULL,
+	"created_at" timestamp DEFAULT now() NOT NULL
+);
+--> statement-breakpoint
 ALTER TABLE "users" ADD CONSTRAINT "users_organization_id_organizations_id_fk" FOREIGN KEY ("organization_id") REFERENCES "public"."organizations"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "api_keys" ADD CONSTRAINT "api_keys_organization_id_organizations_id_fk" FOREIGN KEY ("organization_id") REFERENCES "public"."organizations"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "api_keys" ADD CONSTRAINT "api_keys_user_id_users_id_fk" FOREIGN KEY ("user_id") REFERENCES "public"."users"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
@@ -269,12 +309,15 @@ ALTER TABLE "conversations" ADD CONSTRAINT "conversations_organization_id_organi
 ALTER TABLE "conversations" ADD CONSTRAINT "conversations_user_id_users_id_fk" FOREIGN KEY ("user_id") REFERENCES "public"."users"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "user_characters" ADD CONSTRAINT "user_characters_organization_id_organizations_id_fk" FOREIGN KEY ("organization_id") REFERENCES "public"."organizations"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "user_characters" ADD CONSTRAINT "user_characters_user_id_users_id_fk" FOREIGN KEY ("user_id") REFERENCES "public"."users"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE "containers" ADD CONSTRAINT "containers_organization_id_organizations_id_fk" FOREIGN KEY ("organization_id") REFERENCES "public"."organizations"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE "containers" ADD CONSTRAINT "containers_user_id_users_id_fk" FOREIGN KEY ("user_id") REFERENCES "public"."users"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE "containers" ADD CONSTRAINT "containers_api_key_id_api_keys_id_fk" FOREIGN KEY ("api_key_id") REFERENCES "public"."api_keys"("id") ON DELETE set null ON UPDATE no action;--> statement-breakpoint
 CREATE INDEX "organizations_slug_idx" ON "organizations" USING btree ("slug");--> statement-breakpoint
 CREATE INDEX "organizations_stripe_customer_idx" ON "organizations" USING btree ("stripe_customer_id");--> statement-breakpoint
 CREATE INDEX "users_email_idx" ON "users" USING btree ("email");--> statement-breakpoint
 CREATE INDEX "users_organization_idx" ON "users" USING btree ("organization_id");--> statement-breakpoint
 CREATE INDEX "users_is_active_idx" ON "users" USING btree ("is_active");--> statement-breakpoint
-CREATE INDEX "users_workos_user_id_idx" ON "users" USING btree ("workos_user_id");--> statement-breakpoint
+CREATE INDEX "users_privy_user_id_idx" ON "users" USING btree ("privy_user_id");--> statement-breakpoint
 CREATE INDEX "api_keys_key_idx" ON "api_keys" USING btree ("key");--> statement-breakpoint
 CREATE UNIQUE INDEX "api_keys_key_hash_idx" ON "api_keys" USING btree ("key_hash");--> statement-breakpoint
 CREATE INDEX "api_keys_key_prefix_idx" ON "api_keys" USING btree ("key_prefix");--> statement-breakpoint
@@ -319,4 +362,11 @@ CREATE INDEX "conversations_updated_idx" ON "conversations" USING btree ("update
 CREATE INDEX "conversations_status_idx" ON "conversations" USING btree ("status");--> statement-breakpoint
 CREATE INDEX "user_characters_organization_idx" ON "user_characters" USING btree ("organization_id");--> statement-breakpoint
 CREATE INDEX "user_characters_user_idx" ON "user_characters" USING btree ("user_id");--> statement-breakpoint
-CREATE INDEX "user_characters_name_idx" ON "user_characters" USING btree ("name");
+CREATE INDEX "user_characters_name_idx" ON "user_characters" USING btree ("name");--> statement-breakpoint
+CREATE INDEX "containers_organization_idx" ON "containers" USING btree ("organization_id");--> statement-breakpoint
+CREATE INDEX "containers_user_idx" ON "containers" USING btree ("user_id");--> statement-breakpoint
+CREATE INDEX "containers_status_idx" ON "containers" USING btree ("status");--> statement-breakpoint
+CREATE INDEX "containers_cloudflare_worker_idx" ON "containers" USING btree ("cloudflare_worker_id");--> statement-breakpoint
+CREATE INDEX "idx_artifacts_org_project" ON "artifacts" USING btree ("organization_id","project_id");--> statement-breakpoint
+CREATE INDEX "idx_artifacts_project_version" ON "artifacts" USING btree ("project_id","version");--> statement-breakpoint
+CREATE UNIQUE INDEX "uniq_artifact_version" ON "artifacts" USING btree ("organization_id","project_id","version");

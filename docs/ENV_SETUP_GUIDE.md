@@ -64,63 +64,32 @@ CLOUDFLARE_API_KEY=your_global_api_key
 
 ## Required Variables
 
-### Databases (Two Separate Databases)
-
-The platform uses two databases for separation of concerns:
+### Database
 
 ```env
-# Platform Database - SaaS tables (users, credits, containers, etc.)
-DATABASE_URL=postgresql://user:password@host:5432/eliza_platform?sslmode=require
-
-# Agent Database - ElizaOS tables (agents, memories, rooms, etc.)
-AGENT_DATABASE_URL=postgresql://user:password@host:5432/eliza_agents?sslmode=require
+DATABASE_URL=postgresql://user:password@host:5432/database?sslmode=require
 ```
 
 Get from: [Neon](https://neon.tech), [Supabase](https://supabase.com), or any Postgres provider
 
-**Development Setup (Same Database):**
+### Authentication (Privy)
 
 ```env
-# Use the same database for both (simpler for local dev)
-DATABASE_URL=postgresql://localhost:5432/eliza_dev
-AGENT_DATABASE_URL=postgresql://localhost:5432/eliza_dev
-```
-
-**Production Setup (Separate Databases - Recommended):**
-
-```env
-# Use different databases for better isolation
-DATABASE_URL=postgresql://host:5432/eliza_platform?sslmode=require
-AGENT_DATABASE_URL=postgresql://host:5432/eliza_agents?sslmode=require
-```
-
-**Benefits of Separation:**
-
-- ElizaOS tables isolated from platform tables
-- Independent scaling for agent workloads
-- Separate backups and disaster recovery
-- ElizaOS plugin-sql manages its own migrations
-
-### Authentication (WorkOS)
-
-```env
-WORKOS_CLIENT_ID=client_01H...
-WORKOS_API_KEY=sk_live_...
-WORKOS_COOKIE_PASSWORD=<generate-random-32+-chars>
-NEXT_PUBLIC_WORKOS_REDIRECT_URI=https://your-domain.com/api/auth/callback
+NEXT_PUBLIC_PRIVY_APP_ID=your_privy_app_id_here
+PRIVY_APP_SECRET=your_privy_app_secret_here
+PRIVY_WEBHOOK_SECRET=<generate-random-32+-chars>
 ```
 
 Setup:
 
-1. Create account at [WorkOS](https://workos.com)
-2. Create an organization
-3. Create an application
-4. Copy Client ID and API Key
-5. Generate a random 32+ character string for cookie password:
+1. Create account at [Privy](https://privy.io)
+2. Create an application
+3. Configure login methods (email, wallet, social)
+4. Set up webhook endpoint: `https://your-domain.com/api/privy/webhook`
+5. Generate a random 32+ character string for webhook secret:
    ```bash
    openssl rand -base64 32
    ```
-6. Set redirect URI to your domain + `/api/auth/callback`
 
 ## Optional Features
 
@@ -248,7 +217,7 @@ The dashboard will show:
 
 ```env
 DATABASE_URL=postgresql://localhost:5432/eliza_dev
-NEXT_PUBLIC_WORKOS_REDIRECT_URI=http://localhost:3000/api/auth/callback
+# Privy handles authentication via client-side SDK
 # Use test/development keys
 STRIPE_SECRET_KEY=sk_test_...
 ```
@@ -257,7 +226,7 @@ STRIPE_SECRET_KEY=sk_test_...
 
 ```env
 DATABASE_URL=postgresql://production-host:5432/eliza_prod?sslmode=require
-NEXT_PUBLIC_WORKOS_REDIRECT_URI=https://your-domain.com/api/auth/callback
+# Configure Privy webhook in dashboard: https://your-domain.com/api/privy/webhook
 # Use live keys
 STRIPE_SECRET_KEY=sk_live_...
 ```
@@ -268,7 +237,7 @@ STRIPE_SECRET_KEY=sk_live_...
 2. **Use different keys for dev/prod** - Don't use production keys in development
 3. **Rotate secrets regularly** - Especially API keys and tokens
 4. **Use scoped tokens** - Give minimum required permissions
-5. **Enable 2FA** - On all service accounts (Cloudflare, WorkOS, etc.)
+5. **Enable 2FA** - On all service accounts (Cloudflare, Privy, etc.)
 6. **Monitor usage** - Set up alerts for unusual activity
 
 ## Troubleshooting
@@ -280,7 +249,7 @@ Check that:
 - All REQUIRED variables are set
 - Values match expected formats (e.g., `sk_` prefix for API keys)
 - DATABASE_URL starts with `postgresql://`
-- WORKOS_COOKIE_PASSWORD is at least 32 characters
+- PRIVY_WEBHOOK_SECRET is at least 32 characters
 - URLs start with `http://` or `https://`
 
 ### "Feature not configured"
@@ -303,15 +272,11 @@ If you see "Container deployments are not configured":
 For development/testing with minimal features:
 
 ```env
-# Required - Databases (using same database for simplicity)
+# Required
 DATABASE_URL=postgresql://localhost:5432/eliza_dev
-AGENT_DATABASE_URL=postgresql://localhost:5432/eliza_dev
-
-# Authentication
-WORKOS_CLIENT_ID=client_test
-WORKOS_API_KEY=sk_test_key
-WORKOS_COOKIE_PASSWORD=abcdefghijklmnopqrstuvwxyz123456
-NEXT_PUBLIC_WORKOS_REDIRECT_URI=http://localhost:3000/api/auth/callback
+NEXT_PUBLIC_PRIVY_APP_ID=your_privy_app_id_here
+PRIVY_APP_SECRET=your_privy_app_secret_here
+PRIVY_WEBHOOK_SECRET=abcdefghijklmnopqrstuvwxyz123456
 
 # Optional - Just OpenAI for AI features
 OPENAI_API_KEY=sk-proj-...
@@ -331,15 +296,14 @@ This gives you:
 For production with all features:
 
 ```env
-# Databases - Separate for production isolation
-DATABASE_URL=postgresql://prod-user:***@prod-host:5432/eliza_platform?sslmode=require
-AGENT_DATABASE_URL=postgresql://agent-user:***@agent-host:5432/eliza_agents?sslmode=require
+# Database
+DATABASE_URL=postgresql://prod-user:***@prod-host:5432/eliza?sslmode=require
 
 # Auth
 WORKOS_CLIENT_ID=client_01H...
 WORKOS_API_KEY=sk_live_...
 WORKOS_COOKIE_PASSWORD=***
-NEXT_PUBLIC_WORKOS_REDIRECT_URI=https://eliza.cloud/api/auth/callback
+PRIVY_WEBHOOK_SECRET=https://eliza.cloud/api/auth/callback
 
 # AI
 OPENAI_API_KEY=sk-proj-...

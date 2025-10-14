@@ -1,9 +1,15 @@
-import { signOut } from "@workos-inc/authkit-nextjs";
 import { NextResponse } from "next/server";
+import { cookies } from "next/headers";
 
+/**
+ * Logout endpoint for Privy authentication
+ * Clears the Privy auth cookie
+ */
 export async function POST() {
   try {
-    await signOut();
+    const cookieStore = await cookies();
+    cookieStore.delete("privy-token");
+
     return NextResponse.json({ success: true });
   } catch (error) {
     console.error("Logout error:", error);
@@ -13,7 +19,9 @@ export async function POST() {
 
 export async function GET() {
   try {
-    await signOut();
+    const cookieStore = await cookies();
+    cookieStore.delete("privy-token");
+
     return NextResponse.redirect(
       new URL("/", process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000"),
     );

@@ -1,3 +1,5 @@
+"use client";
+
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import {
@@ -8,19 +10,22 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { AlertCircle } from "lucide-react";
-import { getSignInUrl } from "@workos-inc/authkit-nextjs";
+import { useLogin } from "@privy-io/react-auth";
+import { useSearchParams } from "next/navigation";
+import { Suspense } from "react";
 
-export default async function AuthErrorPage({
-  searchParams,
-}: {
-  searchParams: Promise<{ reason?: string }>;
-}) {
-  const signInUrl = await getSignInUrl();
-  const params = await searchParams;
-  const reason = params.reason || "unknown";
+function AuthErrorContent() {
+  const { login } = useLogin();
+  const searchParams = useSearchParams();
+  const reason = searchParams.get("reason") || "unknown";
 
   const errorMessages: Record<string, { title: string; description: string }> =
     {
+      auth_failed: {
+        title: "Authentication Failed",
+        description:
+          "We could not authenticate your account. Please try signing in again.",
+      },
       sync_failed: {
         title: "Authentication Sync Failed",
         description:
@@ -47,9 +52,7 @@ export default async function AuthErrorPage({
         </CardHeader>
         <CardContent className="space-y-4">
           <div className="flex flex-col gap-2">
-            <Button asChild>
-              <Link href={signInUrl}>Try Again</Link>
-            </Button>
+            <Button onClick={login}>Try Again</Button>
             <Button variant="outline" asChild>
               <Link href="/">Go Home</Link>
             </Button>
@@ -60,5 +63,27 @@ export default async function AuthErrorPage({
         </CardContent>
       </Card>
     </div>
+  );
+}
+
+export default function AuthErrorPage() {
+  return (
+    <Suspense
+      fallback={
+        <div className="flex min-h-screen items-center justify-center bg-background p-4">
+          <Card className="w-full max-w-md">
+            <CardHeader className="text-center">
+              <div className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-full bg-destructive/10">
+                <AlertCircle className="h-6 w-6 text-destructive" />
+              </div>
+              <CardTitle>Authentication Error</CardTitle>
+              <CardDescription>Loading error details...</CardDescription>
+            </CardHeader>
+          </Card>
+        </div>
+      }
+    >
+      <AuthErrorContent />
+    </Suspense>
   );
 }

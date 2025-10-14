@@ -1,5 +1,5 @@
 import { config } from "dotenv";
-import { creditsService } from "../lib/services";
+import { addCredits } from "../lib/queries/credits";
 
 config({ path: ".env.local" });
 
@@ -24,13 +24,14 @@ async function testAddCredits() {
   console.log("-".repeat(70));
 
   try {
-    const result = await creditsService.addCredits({
+    const result = await addCredits(
       organizationId,
-      amount: credits,
-      description: `Test credit pack purchase - ${credits.toLocaleString()} credits`,
-      metadata: { user_id: userId },
-      stripePaymentIntentId: paymentIntentId,
-    });
+      credits,
+      "purchase",
+      `Test credit pack purchase - ${credits.toLocaleString()} credits`,
+      userId,
+      paymentIntentId,
+    );
 
     console.log("\n✅ SUCCESS!");
     console.log("-".repeat(70));
@@ -47,8 +48,8 @@ async function testAddCredits() {
     console.log("\n📊 Verifying in Database...");
     console.log("-".repeat(70));
 
-    const { db } = await import("../db/client");
-    const schema = await import("../db/schemas");
+    const { db } = await import("../db/drizzle");
+    const schema = await import("../db/sass/schema");
     const { eq } = await import("drizzle-orm");
 
     const org = await db.query.organizations.findFirst({
@@ -75,24 +76,28 @@ async function testAddCredits() {
     } else {
       console.log(`❌ Transaction not found in database`);
     }
-  } catch (error) {
+  } catch (error: unknown) {
     console.error("\n❌ ERROR!");
     console.error("-".repeat(70));
-    console.error(
-      `Error Type: ${error instanceof Error ? error.constructor.name : typeof error}`,
-    );
-    console.error(
-      `Error Message: ${error instanceof Error ? error.message : String(error)}`,
-    );
-    console.error(
-      `Error Code: ${(error as { code?: string }).code || "(none)"}`,
-    );
-    if (error instanceof Error && error.stack) {
-      console.error(`\nStack Trace:`);
-      console.error(error.stack);
-    }
-    if ((error as { detail?: string }).detail) {
-      console.error(`\nDetail: ${(error as { detail: string }).detail}`);
+
+    if (error instanceof Error) {
+      console.error(`Error Type: ${error.constructor.name}`);
+      console.error(`Error Message: ${error.message}`);
+
+      // Handle database/PostgreSQL errors with code and detail properties
+      const errorWithCode = error as Error & { code?: string; detail?: string };
+      console.error(`Error Code: ${errorWithCode.code || "(none)"}`);
+
+      if (error.stack) {
+        console.error(`\nStack Trace:`);
+        console.error(error.stack);
+      }
+
+      if (errorWithCode.detail) {
+        console.error(`\nDetail: ${errorWithCode.detail}`);
+      }
+    } else {
+      console.error(`Error: ${String(error)}`);
     }
   }
 

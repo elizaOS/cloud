@@ -15,8 +15,10 @@ export class UsersService {
     return await usersRepository.findByEmail(email);
   }
 
-  async getByWorkOSId(workosUserId: string): Promise<User | undefined> {
-    return await usersRepository.findByWorkOSId(workosUserId);
+  async getByPrivyId(
+    privyUserId: string,
+  ): Promise<UserWithOrganization | undefined> {
+    return await usersRepository.findByPrivyIdWithOrganization(privyUserId);
   }
 
   async getWithOrganization(
