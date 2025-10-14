@@ -10,7 +10,13 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { CheckCircle2, XCircle, Clock } from "lucide-react";
 
@@ -36,7 +42,10 @@ interface DeploymentHistoryProps {
   containerName: string;
 }
 
-export function ContainerDeploymentHistory({ containerId, containerName }: DeploymentHistoryProps) {
+export function ContainerDeploymentHistory({
+  containerId,
+  containerName,
+}: DeploymentHistoryProps) {
   const [deployments, setDeployments] = useState<Deployment[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -45,7 +54,9 @@ export function ContainerDeploymentHistory({ containerId, containerName }: Deplo
     async function fetchDeployments() {
       try {
         setLoading(true);
-        const response = await fetch(`/api/v1/containers/${containerId}/deployments`);
+        const response = await fetch(
+          `/api/v1/containers/${containerId}/deployments`,
+        );
 
         if (!response.ok) {
           throw new Error("Failed to fetch deployment history");
@@ -59,7 +70,9 @@ export function ContainerDeploymentHistory({ containerId, containerName }: Deplo
         }
       } catch (err) {
         console.error("Error fetching deployments:", err);
-        setError(err instanceof Error ? err.message : "Failed to load deployments");
+        setError(
+          err instanceof Error ? err.message : "Failed to load deployments",
+        );
       } finally {
         setLoading(false);
       }
@@ -101,9 +114,7 @@ export function ContainerDeploymentHistory({ containerId, containerName }: Deplo
     <Card>
       <CardHeader>
         <CardTitle>Deployment History</CardTitle>
-        <CardDescription>
-          Past deployments for {containerName}
-        </CardDescription>
+        <CardDescription>Past deployments for {containerName}</CardDescription>
       </CardHeader>
       <CardContent>
         {deployments.length === 0 ? (
@@ -134,7 +145,11 @@ export function ContainerDeploymentHistory({ containerId, containerName }: Deplo
                           <XCircle className="h-4 w-4 text-red-500" />
                         )}
                         <Badge
-                          variant={deployment.status === "success" ? "default" : "destructive"}
+                          variant={
+                            deployment.status === "success"
+                              ? "default"
+                              : "destructive"
+                          }
                         >
                           {deployment.status}
                         </Badge>
@@ -143,10 +158,14 @@ export function ContainerDeploymentHistory({ containerId, containerName }: Deplo
                     <TableCell>
                       <div className="text-sm">
                         <div>
-                          {new Date(deployment.deployed_at).toLocaleDateString()}
+                          {new Date(
+                            deployment.deployed_at,
+                          ).toLocaleDateString()}
                         </div>
                         <div className="text-muted-foreground">
-                          {new Date(deployment.deployed_at).toLocaleTimeString()}
+                          {new Date(
+                            deployment.deployed_at,
+                          ).toLocaleTimeString()}
                         </div>
                       </div>
                     </TableCell>
@@ -185,7 +204,11 @@ export function ContainerDeploymentHistory({ containerId, containerName }: Deplo
                       )}
                       {deployment.metadata.cloudflare_worker_id && (
                         <div className="text-xs text-muted-foreground font-mono">
-                          {deployment.metadata.cloudflare_worker_id.substring(0, 8)}...
+                          {deployment.metadata.cloudflare_worker_id.substring(
+                            0,
+                            8,
+                          )}
+                          ...
                         </div>
                       )}
                     </TableCell>
@@ -199,4 +222,3 @@ export function ContainerDeploymentHistory({ containerId, containerName }: Deplo
     </Card>
   );
 }
-

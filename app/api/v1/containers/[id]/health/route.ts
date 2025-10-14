@@ -11,7 +11,7 @@ export const dynamic = "force-dynamic";
  */
 export async function GET(
   request: NextRequest,
-  { params }: { params: Promise<{ id: string }> }
+  { params }: { params: Promise<{ id: string }> },
 ) {
   try {
     const { user } = await requireAuthOrApiKey(request);
@@ -20,7 +20,7 @@ export async function GET(
     // Verify container belongs to user's organization
     const container = await containersRepository.findById(
       containerId,
-      user.organization_id
+      user.organization_id,
     );
 
     if (!container) {
@@ -29,7 +29,7 @@ export async function GET(
           success: false,
           error: "Container not found",
         },
-        { status: 404 }
+        { status: 404 },
       );
     }
 
@@ -40,9 +40,10 @@ export async function GET(
       return NextResponse.json(
         {
           success: false,
-          error: "Unable to perform health check - container may not have a URL",
+          error:
+            "Unable to perform health check - container may not have a URL",
         },
-        { status: 400 }
+        { status: 400 },
       );
     }
 
@@ -69,8 +70,7 @@ export async function GET(
             ? error.message
             : "Failed to check container health",
       },
-      { status: 500 }
+      { status: 500 },
     );
   }
 }
-

@@ -1,7 +1,13 @@
 import { ShieldAlert, ShieldCheck } from "lucide-react";
 
 import { Badge } from "@/components/ui/badge";
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
+import {
+  Card,
+  CardContent,
+  CardHeader,
+  CardTitle,
+  CardDescription,
+} from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
 import { cn } from "@/lib/utils";
 
@@ -82,7 +88,9 @@ export function PlanLimitsCard({
 
         <div className="space-y-3">
           <div className="flex items-center justify-between text-xs">
-            <span className="font-medium text-muted-foreground">Allowed providers</span>
+            <span className="font-medium text-muted-foreground">
+              Allowed providers
+            </span>
             <Badge variant="outline" className="rounded-full text-[10px]">
               {allowedProviders.length}
             </Badge>
@@ -112,7 +120,9 @@ export function PlanLimitsCard({
 
         <div className="space-y-3">
           <div className="flex items-center justify-between text-xs">
-            <span className="font-medium text-muted-foreground">Allowed models</span>
+            <span className="font-medium text-muted-foreground">
+              Allowed models
+            </span>
             <Badge variant="outline" className="rounded-full text-[10px]">
               {allowedModels.length}
             </Badge>
@@ -152,7 +162,10 @@ export function PlanLimitsCard({
             </span>
           </div>
           {nextReset ? (
-            <Badge variant="outline" className="rounded-full text-[10px] uppercase">
+            <Badge
+              variant="outline"
+              className="rounded-full text-[10px] uppercase"
+            >
               resets {nextReset}
             </Badge>
           ) : null}

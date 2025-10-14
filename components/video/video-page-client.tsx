@@ -15,12 +15,7 @@ import {
 import { Progress } from "@/components/ui/progress";
 import { cn } from "@/lib/utils";
 import { MONTHLY_CREDIT_CAP } from "@/lib/pricing-constants";
-import {
-  CheckCircle2,
-  Clock4,
-  History,
-  Loader2,
-} from "lucide-react";
+import { CheckCircle2, Clock4, History, Loader2 } from "lucide-react";
 import { useSetPageHeader } from "@/components/layout/page-header-context";
 
 import { VideoGenerationForm } from "./video-generation-form";

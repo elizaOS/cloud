@@ -80,10 +80,10 @@ export function calculateDeploymentCost(config: {
 
   // Additional cost for scaling beyond single instance
   if (config.maxInstances && config.maxInstances > 1) {
-    totalCost += (config.maxInstances - 1) * CONTAINER_PRICING.COST_PER_ADDITIONAL_INSTANCE;
+    totalCost +=
+      (config.maxInstances - 1) *
+      CONTAINER_PRICING.COST_PER_ADDITIONAL_INSTANCE;
   }
 
   return totalCost;
 }
-
-

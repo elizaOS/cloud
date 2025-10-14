@@ -41,16 +41,13 @@ export const conversationMessagesRelations = relations(
   }),
 );
 
-export const userCharactersRelations = relations(
-  userCharacters,
-  ({ one }) => ({
-    user: one(users, {
-      fields: [userCharacters.user_id],
-      references: [users.id],
-    }),
-    organization: one(organizations, {
-      fields: [userCharacters.organization_id],
-      references: [organizations.id],
-    }),
+export const userCharactersRelations = relations(userCharacters, ({ one }) => ({
+  user: one(users, {
+    fields: [userCharacters.user_id],
+    references: [users.id],
   }),
-);
+  organization: one(organizations, {
+    fields: [userCharacters.organization_id],
+    references: [organizations.id],
+  }),
+}));

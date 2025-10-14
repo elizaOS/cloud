@@ -1,6 +1,10 @@
 import { eq, and } from "drizzle-orm";
 import { db } from "../client";
-import { modelPricing, type ModelPricing, type NewModelPricing } from "../schemas/model-pricing";
+import {
+  modelPricing,
+  type ModelPricing,
+  type NewModelPricing,
+} from "../schemas/model-pricing";
 
 export type { ModelPricing, NewModelPricing };
 

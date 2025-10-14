@@ -11,7 +11,10 @@ export default function LogoutPage() {
         document.cookie.split(";").forEach((c) => {
           document.cookie = c
             .replace(/^ +/, "")
-            .replace(/=.*/, "=;expires=" + new Date().toUTCString() + ";path=/");
+            .replace(
+              /=.*/,
+              "=;expires=" + new Date().toUTCString() + ";path=/",
+            );
         });
 
         window.location.href = "/";
@@ -21,7 +24,10 @@ export default function LogoutPage() {
         document.cookie.split(";").forEach((c) => {
           document.cookie = c
             .replace(/^ +/, "")
-            .replace(/=.*/, "=;expires=" + new Date().toUTCString() + ";path=/");
+            .replace(
+              /=.*/,
+              "=;expires=" + new Date().toUTCString() + ";path=/",
+            );
         });
 
         window.location.href = "/";
@@ -32,14 +38,16 @@ export default function LogoutPage() {
   }, []);
 
   return (
-    <div style={{
-      display: "flex",
-      alignItems: "center",
-      justifyContent: "center",
-      height: "100vh",
-      flexDirection: "column",
-      gap: "16px"
-    }}>
+    <div
+      style={{
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "center",
+        height: "100vh",
+        flexDirection: "column",
+        gap: "16px",
+      }}
+    >
       <div>Logging out...</div>
       <div style={{ fontSize: "14px", color: "#666" }}>
         Clearing session and cookies

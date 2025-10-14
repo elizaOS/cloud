@@ -96,4 +96,6 @@ export const conversationMessages = pgTable(
 export type Conversation = InferSelectModel<typeof conversations>;
 export type NewConversation = InferInsertModel<typeof conversations>;
 export type ConversationMessage = InferSelectModel<typeof conversationMessages>;
-export type NewConversationMessage = InferInsertModel<typeof conversationMessages>;
+export type NewConversationMessage = InferInsertModel<
+  typeof conversationMessages
+>;

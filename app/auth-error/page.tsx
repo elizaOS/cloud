@@ -23,9 +23,9 @@ export default function AuthErrorPage() {
               Error Details:
             </p>
             <p className="mt-2 text-sm text-muted-foreground">
-              Your authentication with WorkOS was successful, but we couldn&apos;t
-              sync your account to our database. This is likely a temporary
-              issue.
+              Your authentication with WorkOS was successful, but we
+              couldn&apos;t sync your account to our database. This is likely a
+              temporary issue.
             </p>
           </div>
 

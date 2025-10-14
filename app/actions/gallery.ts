@@ -119,10 +119,12 @@ export async function getUserMediaStats(): Promise<{
 
   const userGenerations = generations.filter((gen) => gen.storage_url);
 
-  const totalImages = userGenerations.filter((gen) => gen.type === "image")
-    .length;
-  const totalVideos = userGenerations.filter((gen) => gen.type === "video")
-    .length;
+  const totalImages = userGenerations.filter(
+    (gen) => gen.type === "image",
+  ).length;
+  const totalVideos = userGenerations.filter(
+    (gen) => gen.type === "video",
+  ).length;
   const totalSize = userGenerations.reduce(
     (acc, gen) => acc + Number(gen.file_size || 0),
     0,

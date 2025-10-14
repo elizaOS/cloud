@@ -11,8 +11,11 @@ async function handleGET(req: NextRequest) {
     const { user } = await requireAuthOrApiKey(req);
     const searchParams = req.nextUrl.searchParams;
 
-    const dimension = (searchParams.get("dimension") ||
-      "model") as "model" | "provider" | "user" | "apiKey";
+    const dimension = (searchParams.get("dimension") || "model") as
+      | "model"
+      | "provider"
+      | "user"
+      | "apiKey";
     const sortBy = (searchParams.get("sortBy") || "cost") as
       | "cost"
       | "requests"
@@ -20,7 +23,10 @@ async function handleGET(req: NextRequest) {
     const sortOrder = (searchParams.get("sortOrder") || "desc") as
       | "asc"
       | "desc";
-    const limit = Math.min(parseInt(searchParams.get("limit") || "100", 10), 1000); // Cap at 1000
+    const limit = Math.min(
+      parseInt(searchParams.get("limit") || "100", 10),
+      1000,
+    ); // Cap at 1000
     const offset = parseInt(searchParams.get("offset") || "0", 10);
 
     const startDate = searchParams.get("startDate")
@@ -30,18 +36,14 @@ async function handleGET(req: NextRequest) {
       ? new Date(searchParams.get("endDate")!)
       : new Date();
 
-    const breakdown = await getCostBreakdown(
-      user.organization_id,
-      dimension,
-      {
-        startDate,
-        endDate,
-        sortBy,
-        sortOrder,
-        limit: limit + 1, // Fetch one extra to check if more exist
-        offset,
-      }
-    );
+    const breakdown = await getCostBreakdown(user.organization_id, dimension, {
+      startDate,
+      endDate,
+      sortBy,
+      sortOrder,
+      limit: limit + 1, // Fetch one extra to check if more exist
+      offset,
+    });
 
     // Check if more results exist
     const hasMore = breakdown.length > limit;
@@ -77,7 +79,7 @@ async function handleGET(req: NextRequest) {
             ? error.message
             : "Failed to fetch breakdown data",
       },
-      { status: 500 }
+      { status: 500 },
     );
   }
 }

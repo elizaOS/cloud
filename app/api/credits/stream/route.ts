@@ -17,7 +17,7 @@ export async function GET(request: NextRequest) {
     const organizationId = user.organization_id;
 
     logger.info(
-      `[Credits SSE] Client connected: user=${user.id}, org=${organizationId}`
+      `[Credits SSE] Client connected: user=${user.id}, org=${organizationId}`,
     );
 
     const encoder = new TextEncoder();
@@ -58,7 +58,7 @@ export async function GET(request: NextRequest) {
               reason: event.reason,
               timestamp: event.timestamp,
             });
-          }
+          },
         );
 
         creditEventEmitter.incrementConnections(organizationId);
@@ -69,7 +69,7 @@ export async function GET(request: NextRequest) {
 
         connectionTimeout = setTimeout(() => {
           logger.info(
-            `[Credits SSE] Connection timeout for org=${organizationId}`
+            `[Credits SSE] Connection timeout for org=${organizationId}`,
           );
           cleanup();
         }, CONNECTION_TIMEOUT);
@@ -88,7 +88,7 @@ export async function GET(request: NextRequest) {
           }
 
           logger.info(
-            `[Credits SSE] Client disconnected: org=${organizationId}`
+            `[Credits SSE] Client disconnected: org=${organizationId}`,
           );
         };
 

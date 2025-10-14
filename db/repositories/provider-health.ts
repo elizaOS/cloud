@@ -1,6 +1,10 @@
 import { eq, desc } from "drizzle-orm";
 import { db } from "../client";
-import { providerHealth, type ProviderHealth, type NewProviderHealth } from "../schemas/provider-health";
+import {
+  providerHealth,
+  type ProviderHealth,
+  type NewProviderHealth,
+} from "../schemas/provider-health";
 
 export type { ProviderHealth, NewProviderHealth };
 
@@ -32,10 +36,7 @@ export class ProviderHealthRepository {
       return updated;
     }
 
-    const [created] = await db
-      .insert(providerHealth)
-      .values(data)
-      .returning();
+    const [created] = await db.insert(providerHealth).values(data).returning();
     return created;
   }
 

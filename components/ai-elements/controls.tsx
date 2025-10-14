@@ -11,7 +11,7 @@ export const Controls = ({ className, ...props }: ControlsProps) => (
     className={cn(
       "gap-px overflow-hidden rounded-md border bg-card p-1 shadow-none!",
       "[&>button]:rounded-md [&>button]:border-none",
-      className
+      className,
     )}
     {...props}
   />
