@@ -3,6 +3,8 @@ import { requireAuthOrApiKey } from "@/lib/auth";
 import { logger } from "@/lib/utils/logger";
 import { withRateLimit, RateLimitPresets } from "@/lib/middleware/rate-limit";
 import { getCostBreakdown } from "@/lib/queries/analytics";
+import { cache } from "@/lib/cache/client";
+import { CacheKeys, CacheTTL } from "@/lib/cache/keys";
 
 export const maxDuration = 60;
 
@@ -30,6 +32,29 @@ async function handleGET(req: NextRequest) {
       ? new Date(searchParams.get("endDate")!)
       : new Date();
 
+    const cacheKey = CacheKeys.analytics.breakdown(
+      user.organization_id,
+      dimension,
+      `${startDate.toISOString()}-${endDate.toISOString()}-${sortBy}-${sortOrder}-${limit}-${offset}`
+    );
+
+    const cached = await cache.get<typeof results>(cacheKey);
+    if (cached) {
+      logger.debug(
+        `[Analytics Breakdown] Cache hit for org=${user.organization_id}, dimension=${dimension}`
+      );
+      return NextResponse.json({
+        success: true,
+        data: cached,
+        pagination: {
+          limit,
+          offset,
+          hasMore: cached.length === limit,
+          nextOffset: cached.length === limit ? offset + limit : null,
+        },
+      });
+    }
+
     const breakdown = await getCostBreakdown(
       user.organization_id,
       dimension,
@@ -47,19 +72,23 @@ async function handleGET(req: NextRequest) {
     const hasMore = breakdown.length > limit;
     const results = hasMore ? breakdown.slice(0, limit) : breakdown;
 
+    const responseData = results.map((item) => ({
+      dimension: item.dimension,
+      value: item.value,
+      cost: item.cost,
+      requests: item.requests,
+      tokens: item.tokens,
+      successCount: item.successCount,
+      totalCount: item.totalCount,
+      successRate:
+        item.totalCount > 0 ? item.successCount / item.totalCount : 1.0,
+    }));
+
+    await cache.set(cacheKey, responseData, CacheTTL.analytics.breakdown);
+
     return NextResponse.json({
       success: true,
-      data: results.map((item) => ({
-        dimension: item.dimension,
-        value: item.value,
-        cost: item.cost,
-        requests: item.requests,
-        tokens: item.tokens,
-        successCount: item.successCount,
-        totalCount: item.totalCount,
-        successRate:
-          item.totalCount > 0 ? item.successCount / item.totalCount : 1.0,
-      })),
+      data: responseData,
       pagination: {
         limit,
         offset,

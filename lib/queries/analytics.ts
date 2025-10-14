@@ -1,5 +1,8 @@
 import { db, schema, eq, and, desc, sql } from "@/lib/db";
 import type { SQL } from "drizzle-orm";
+import { cache } from "@/lib/cache/client";
+import { CacheKeys, CacheTTL } from "@/lib/cache/keys";
+import { logger } from "@/lib/utils/logger";
 
 export type TimeGranularity = "hour" | "day" | "week" | "month";
 
@@ -162,6 +165,19 @@ export async function getUsageTimeSeries(
     );
   }
 
+  const cacheKey = CacheKeys.analytics.timeSeries(
+    organizationId,
+    granularity,
+    startDate.toISOString(),
+    endDate.toISOString()
+  );
+
+  const cached = await cache.get<TimeSeriesDataPoint[]>(cacheKey);
+  if (cached) {
+    logger.debug(`[Analytics] Cache hit for time series query`);
+    return cached;
+  }
+
   const truncateExpression = {
     hour: sql`date_trunc('hour', ${schema.usageRecords.created_at})`,
     day: sql`date_trunc('day', ${schema.usageRecords.created_at})`,
@@ -201,7 +217,7 @@ export async function getUsageTimeSeries(
     );
   }
 
-  return result.map((row) => ({
+  const data = result.map((row) => ({
     timestamp: new Date(row.timestamp as string),
     totalRequests: row.totalRequests,
     totalCost: row.totalCost,
@@ -209,6 +225,10 @@ export async function getUsageTimeSeries(
     outputTokens: row.outputTokens,
     successRate: row.successRate,
   }));
+
+  await cache.set(cacheKey, data, CacheTTL.analytics.timeSeries);
+
+  return data;
 }
 
 /**
@@ -346,6 +366,18 @@ export async function getProviderBreakdown(
 ): Promise<ProviderBreakdown[]> {
   const { startDate, endDate, maxRows = 100000 } = options || {};
 
+  const cacheKey = CacheKeys.analytics.providerBreakdown(
+    organizationId,
+    startDate?.toISOString() || "all",
+    endDate?.toISOString() || "now"
+  );
+
+  const cached = await cache.get<ProviderBreakdown[]>(cacheKey);
+  if (cached) {
+    logger.debug(`[Analytics] Cache hit for provider breakdown query`);
+    return cached;
+  }
+
   const conditions: SQL[] = [
     eq(schema.usageRecords.organization_id, organizationId),
   ];
@@ -391,7 +423,7 @@ export async function getProviderBreakdown(
 
   const totalCost = result.reduce((sum, row) => sum + row.totalCost, 0);
 
-  return result.map((row) => ({
+  const data = result.map((row) => ({
     provider: row.provider,
     totalRequests: row.totalRequests,
     totalCost: row.totalCost,
@@ -399,6 +431,10 @@ export async function getProviderBreakdown(
     successRate: row.successRate,
     percentage: totalCost > 0 ? (row.totalCost / totalCost) * 100 : 0,
   }));
+
+  await cache.set(cacheKey, data, CacheTTL.analytics.providerBreakdown);
+
+  return data;
 }
 
 /**
@@ -412,6 +448,18 @@ export async function getModelBreakdown(
   options?: { startDate?: Date; endDate?: Date; limit?: number; maxRows?: number }
 ): Promise<ModelBreakdown[]> {
   const { startDate, endDate, limit = 50, maxRows = 100000 } = options || {};
+
+  const cacheKey = CacheKeys.analytics.modelBreakdown(
+    organizationId,
+    startDate?.toISOString() || "all",
+    endDate?.toISOString() || "now"
+  );
+
+  const cached = await cache.get<ModelBreakdown[]>(cacheKey);
+  if (cached) {
+    logger.debug(`[Analytics] Cache hit for model breakdown query`);
+    return cached;
+  }
 
   const effectiveLimit = Math.min(limit, maxRows);
 
@@ -459,7 +507,7 @@ export async function getModelBreakdown(
     );
   }
 
-  return result.map((row) => ({
+  const data = result.map((row) => ({
     model: row.model || "unknown",
     provider: row.provider,
     totalRequests: row.totalRequests,
@@ -469,6 +517,10 @@ export async function getModelBreakdown(
       row.totalTokens > 0 ? row.totalCost / row.totalTokens : 0,
     successRate: row.successRate,
   }));
+
+  await cache.set(cacheKey, data, CacheTTL.analytics.modelBreakdown);
+
+  return data;
 }
 
 export async function getTrendData(
