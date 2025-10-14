@@ -11,6 +11,7 @@ Complete API documentation for ElizaOS Cloud V2.
 All protected endpoints require authentication via one of:
 
 1. **API Key** (Recommended for CLI/programmatic access):
+
 ```bash
 Authorization: Bearer eliza_your_api_key_here
 ```
@@ -20,17 +21,19 @@ Authorization: Bearer eliza_your_api_key_here
    - Automatically included in browser requests
 
 ### Get API Key
+
 Visit `/dashboard/api-keys` to create an API key.
 
 ## Rate Limits
 
-| Endpoint Type | Limit | Window |
-|--------------|-------|--------|
-| Standard API | 60 requests | 1 minute |
-| Deployments | 5 requests | 5 minutes |
-| Artifact Upload | 10 requests | 1 minute |
+| Endpoint Type   | Limit       | Window    |
+| --------------- | ----------- | --------- |
+| Standard API    | 60 requests | 1 minute  |
+| Deployments     | 5 requests  | 5 minutes |
+| Artifact Upload | 10 requests | 1 minute  |
 
 Rate limit headers included in responses:
+
 - `X-RateLimit-Limit` - Maximum requests allowed
 - `X-RateLimit-Remaining` - Requests remaining in window
 - `X-RateLimit-Reset` - When the limit resets
@@ -41,11 +44,13 @@ Rate limit headers included in responses:
 ## Containers
 
 ### List Containers
+
 `GET /api/v1/containers`
 
 Get all containers for your organization.
 
 **Response:**
+
 ```json
 {
   "success": true,
@@ -64,6 +69,7 @@ Get all containers for your organization.
 ```
 
 **Status Values:**
+
 - `pending` - Container created, waiting for deployment
 - `building` - Building container image
 - `deploying` - Deploying to Cloudflare
@@ -75,6 +81,7 @@ Get all containers for your organization.
 ---
 
 ### Create Container
+
 `POST /api/v1/containers`
 
 Deploy a new container.
@@ -82,6 +89,7 @@ Deploy a new container.
 **Rate Limit:** 5 requests per 5 minutes
 
 **Request Body:**
+
 ```json
 {
   "name": "my-agent",
@@ -101,6 +109,7 @@ Deploy a new container.
 ```
 
 **Response (Success):**
+
 ```json
 {
   "success": true,
@@ -117,6 +126,7 @@ Deploy a new container.
 ```
 
 **Response (Insufficient Credits):**
+
 ```json
 {
   "success": false,
@@ -125,9 +135,11 @@ Deploy a new container.
   "availableCredits": 500
 }
 ```
+
 Status: `402 Payment Required`
 
 **Response (Quota Exceeded):**
+
 ```json
 {
   "success": false,
@@ -138,16 +150,19 @@ Status: `402 Payment Required`
   }
 }
 ```
+
 Status: `403 Forbidden`
 
 ---
 
 ### Get Container
+
 `GET /api/v1/containers/{id}`
 
 Get details for a specific container.
 
 **Response:**
+
 ```json
 {
   "success": true,
@@ -172,11 +187,13 @@ Get details for a specific container.
 ---
 
 ### Delete Container
+
 `DELETE /api/v1/containers/{id}`
 
 Delete a container deployment.
 
 **Response:**
+
 ```json
 {
   "success": true,
@@ -187,11 +204,13 @@ Delete a container deployment.
 ---
 
 ### Get Container Health
+
 `GET /api/v1/containers/{id}/health`
 
 Check health status of a container.
 
 **Response:**
+
 ```json
 {
   "success": true,
@@ -210,11 +229,13 @@ Check health status of a container.
 ---
 
 ### Get Container Quota
+
 `GET /api/v1/containers/quota`
 
 Get quota and pricing information.
 
 **Response:**
+
 ```json
 {
   "success": true,
@@ -241,6 +262,7 @@ Get quota and pricing information.
 ## Artifacts
 
 ### Request Artifact Upload
+
 `POST /api/v1/artifacts/upload`
 
 Request presigned URLs for uploading an artifact.
@@ -248,6 +270,7 @@ Request presigned URLs for uploading an artifact.
 **Rate Limit:** 10 requests per minute
 
 **Request Body:**
+
 ```json
 {
   "projectId": "my-project",
@@ -262,6 +285,7 @@ Request presigned URLs for uploading an artifact.
 ```
 
 **Response:**
+
 ```json
 {
   "success": true,
@@ -298,6 +322,7 @@ Request presigned URLs for uploading an artifact.
 ```
 
 **Usage:**
+
 ```bash
 # 1. Request upload URL
 RESPONSE=$(curl -X POST https://your-app.com/api/v1/artifacts/upload \
@@ -317,16 +342,19 @@ curl -X PUT "$UPLOAD_URL" \
 ---
 
 ### List Artifacts
+
 `GET /api/v1/artifacts`
 
 List artifacts for your organization.
 
 **Query Parameters:**
+
 - `projectId` (optional) - Filter by project
 - `limit` (optional) - Max results (default: 50)
 - `offset` (optional) - Pagination offset
 
 **Response:**
+
 ```json
 {
   "success": true,
@@ -351,11 +379,13 @@ List artifacts for your organization.
 ---
 
 ### Get Artifact Stats
+
 `GET /api/v1/artifacts/stats`
 
 Get artifact statistics for your organization.
 
 **Response:**
+
 ```json
 {
   "success": true,
@@ -375,11 +405,13 @@ Get artifact statistics for your organization.
 ## API Keys
 
 ### List API Keys
+
 `GET /api/v1/api-keys`
 
 List all API keys for your organization.
 
 **Response:**
+
 ```json
 {
   "success": true,
@@ -402,11 +434,13 @@ List all API keys for your organization.
 ---
 
 ### Create API Key
+
 `POST /api/v1/api-keys`
 
 Create a new API key.
 
 **Request Body:**
+
 ```json
 {
   "name": "My Deployment Key",
@@ -418,6 +452,7 @@ Create a new API key.
 ```
 
 **Response:**
+
 ```json
 {
   "success": true,
@@ -437,11 +472,13 @@ Create a new API key.
 ---
 
 ### Regenerate API Key
+
 `POST /api/v1/api-keys/{id}/regenerate`
 
 Regenerate an API key (invalidates old key).
 
 **Response:**
+
 ```json
 {
   "success": true,
@@ -456,11 +493,13 @@ Regenerate an API key (invalidates old key).
 ---
 
 ### Delete API Key
+
 `DELETE /api/v1/api-keys/{id}`
 
 Delete an API key.
 
 **Response:**
+
 ```json
 {
   "success": true,
@@ -485,29 +524,29 @@ All errors follow this format:
 
 ### Common Error Codes
 
-| Code | Status | Description |
-|------|--------|-------------|
-| `UNAUTHORIZED` | 401 | Invalid or missing authentication |
-| `FORBIDDEN` | 403 | Insufficient permissions |
-| `NOT_FOUND` | 404 | Resource not found |
-| `VALIDATION_ERROR` | 400 | Invalid request data |
-| `QUOTA_EXCEEDED` | 403 | Container quota limit reached |
-| `INSUFFICIENT_CREDITS` | 402 | Not enough credits |
-| `RATE_LIMIT_EXCEEDED` | 429 | Too many requests |
-| `CLOUDFLARE_API_ERROR` | 502 | Cloudflare API failure |
-| `ARTIFACT_UPLOAD_FAILED` | 500 | Artifact upload failed |
-| `DEPLOYMENT_FAILED` | 500 | Container deployment failed |
-| `TIMEOUT` | 504 | Operation timed out |
+| Code                     | Status | Description                       |
+| ------------------------ | ------ | --------------------------------- |
+| `UNAUTHORIZED`           | 401    | Invalid or missing authentication |
+| `FORBIDDEN`              | 403    | Insufficient permissions          |
+| `NOT_FOUND`              | 404    | Resource not found                |
+| `VALIDATION_ERROR`       | 400    | Invalid request data              |
+| `QUOTA_EXCEEDED`         | 403    | Container quota limit reached     |
+| `INSUFFICIENT_CREDITS`   | 402    | Not enough credits                |
+| `RATE_LIMIT_EXCEEDED`    | 429    | Too many requests                 |
+| `CLOUDFLARE_API_ERROR`   | 502    | Cloudflare API failure            |
+| `ARTIFACT_UPLOAD_FAILED` | 500    | Artifact upload failed            |
+| `DEPLOYMENT_FAILED`      | 500    | Container deployment failed       |
+| `TIMEOUT`                | 504    | Operation timed out               |
 
 ### Error Handling Example
 
 ```typescript
 try {
-  const response = await fetch('https://api.eliza.cloud/api/v1/containers', {
-    method: 'POST',
+  const response = await fetch("https://api.eliza.cloud/api/v1/containers", {
+    method: "POST",
     headers: {
-      'Authorization': `Bearer ${apiKey}`,
-      'Content-Type': 'application/json',
+      Authorization: `Bearer ${apiKey}`,
+      "Content-Type": "application/json",
     },
     body: JSON.stringify(containerConfig),
   });
@@ -517,36 +556,39 @@ try {
   if (!data.success) {
     // Handle specific error codes
     switch (data.code) {
-      case 'INSUFFICIENT_CREDITS':
-        console.error('Buy more credits:', data.details);
+      case "INSUFFICIENT_CREDITS":
+        console.error("Buy more credits:", data.details);
         break;
-      case 'QUOTA_EXCEEDED':
-        console.error('Delete unused containers:', data.quota);
+      case "QUOTA_EXCEEDED":
+        console.error("Delete unused containers:", data.quota);
         break;
       default:
-        console.error('Error:', data.error);
+        console.error("Error:", data.error);
     }
     return;
   }
 
   // Success
-  console.log('Container created:', data.data.id);
+  console.log("Container created:", data.data.id);
 } catch (error) {
-  console.error('Network error:', error);
+  console.error("Network error:", error);
 }
 ```
 
 ## Webhooks
 
 ### Stripe Webhook
+
 `POST /api/stripe/webhook`
 
 Handles Stripe payment webhooks.
 
 **Headers:**
+
 - `stripe-signature` - Webhook signature for verification
 
 **Events Handled:**
+
 - `payment_intent.succeeded` - Credits added to account
 - `payment_intent.payment_failed` - Payment failed
 
@@ -555,6 +597,7 @@ Handles Stripe payment webhooks.
 ## Cron Endpoints
 
 ### Cleanup Artifacts
+
 `POST /api/v1/cron/cleanup-artifacts`
 
 Cleans up old artifacts based on retention policy.
@@ -567,6 +610,7 @@ curl -X POST https://your-app.com/api/v1/cron/cleanup-artifacts \
 ```
 
 **Response:**
+
 ```json
 {
   "success": true,
@@ -583,6 +627,7 @@ curl -X POST https://your-app.com/api/v1/cron/cleanup-artifacts \
 ## Models
 
 ### List Available Models
+
 `GET /api/v1/models`
 
 Get list of available AI models.
@@ -590,6 +635,7 @@ Get list of available AI models.
 **Public endpoint** - No authentication required
 
 **Response:**
+
 ```json
 {
   "models": [
@@ -624,6 +670,7 @@ When rate limited, you'll receive:
 ```
 
 **Headers:**
+
 ```
 X-RateLimit-Limit: 10
 X-RateLimit-Remaining: 0
@@ -632,11 +679,12 @@ Retry-After: 60
 ```
 
 **Handling:**
+
 ```typescript
 if (response.status === 429) {
-  const retryAfter = parseInt(response.headers.get('Retry-After') || '60');
+  const retryAfter = parseInt(response.headers.get("Retry-After") || "60");
   console.log(`Rate limited. Retry after ${retryAfter} seconds`);
-  await new Promise(resolve => setTimeout(resolve, retryAfter * 1000));
+  await new Promise((resolve) => setTimeout(resolve, retryAfter * 1000));
   // Retry request
 }
 ```
@@ -648,23 +696,23 @@ if (response.status === 429) {
 ### JavaScript/TypeScript
 
 ```typescript
-import { ElizaCloudClient } from '@elizaos/cloud-client';
+import { ElizaCloudClient } from "@elizaos/cloud-client";
 
 const client = new ElizaCloudClient({
   apiKey: process.env.ELIZAOS_API_KEY,
-  baseUrl: 'https://eliza.cloud',
+  baseUrl: "https://eliza.cloud",
 });
 
 // Deploy container
 const container = await client.containers.create({
-  name: 'my-agent',
-  artifactUrl: '...',
+  name: "my-agent",
+  artifactUrl: "...",
   port: 3000,
 });
 
 // Check health
 const health = await client.containers.getHealth(container.id);
-console.log('Container healthy:', health.healthy);
+console.log("Container healthy:", health.healthy);
 ```
 
 ### cURL Examples
@@ -724,10 +772,12 @@ curl -X PUT "$UPLOAD_URL" \
 Endpoints that return lists support pagination:
 
 **Query Parameters:**
+
 - `limit` - Items per page (default: 50, max: 100)
 - `offset` - Number of items to skip
 
 **Response:**
+
 ```json
 {
   "success": true,
@@ -750,6 +800,7 @@ Current API version: **v1**
 Future versions will be available at `/api/v2`, `/api/v3`, etc.
 
 Deprecated endpoints will:
+
 1. Be documented as deprecated for 90 days
 2. Return `Deprecation` header with sunset date
 3. Be removed after sunset date
@@ -762,4 +813,3 @@ Deprecated endpoints will:
 - **Status Page**: https://status.eliza.cloud
 - **Support**: support@eliza.cloud
 - **Discord**: https://discord.gg/elizaos
-

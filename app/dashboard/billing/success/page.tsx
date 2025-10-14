@@ -13,6 +13,9 @@ import { CheckCircle, ArrowRight } from "lucide-react";
 import { requireAuth } from "@/lib/auth";
 import { CreditBalanceDisplay } from "@/components/billing/success-client";
 
+// Force dynamic rendering since we use server-side auth (cookies)
+export const dynamic = "force-dynamic";
+
 export const metadata: Metadata = {
   title: "Purchase Successful",
   description: "Your credit purchase was successful",

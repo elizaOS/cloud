@@ -120,4 +120,3 @@ export function JsonEditor({ character, onChange, onSave }: JsonEditorProps) {
     </Card>
   );
 }
-

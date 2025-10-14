@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireAuthOrApiKey } from "@/lib/auth";
-import { listContainers } from "@/lib/queries/containers";
+import { listContainers } from "@/lib/services";
 import {
   CONTAINER_PRICING,
   CONTAINER_LIMITS,
@@ -57,7 +57,8 @@ export async function GET(request: NextRequest) {
         },
         limits: {
           maxImageSize: CONTAINER_LIMITS.MAX_IMAGE_SIZE_BYTES,
-          maxInstancesPerContainer: CONTAINER_LIMITS.MAX_INSTANCES_PER_CONTAINER,
+          maxInstancesPerContainer:
+            CONTAINER_LIMITS.MAX_INSTANCES_PER_CONTAINER,
           maxEnvVars: CONTAINER_LIMITS.MAX_ENV_VARS,
         },
       },
@@ -68,12 +69,9 @@ export async function GET(request: NextRequest) {
     return NextResponse.json(
       {
         success: false,
-        error:
-          error instanceof Error ? error.message : "Failed to fetch quota",
+        error: error instanceof Error ? error.message : "Failed to fetch quota",
       },
       { status: 500 },
     );
   }
 }
-
-

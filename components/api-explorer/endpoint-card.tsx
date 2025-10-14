@@ -62,7 +62,11 @@ export function EndpointCard({
 
           <div className="flex flex-wrap gap-1.5">
             {endpoint.tags.map((tag) => (
-              <Badge key={tag} variant="secondary" className="rounded-full text-xs">
+              <Badge
+                key={tag}
+                variant="secondary"
+                className="rounded-full text-xs"
+              >
                 {tag}
               </Badge>
             ))}

@@ -121,4 +121,3 @@ export async function listBlobs(prefix?: string) {
     limit: 1000,
   });
 }
-

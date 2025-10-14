@@ -4,7 +4,7 @@ import {
   getContainer,
   deleteContainer,
   updateContainerStatus,
-} from "@/lib/queries/containers";
+} from "@/lib/services";
 import { getCloudflareService } from "@/lib/services/cloudflare";
 
 export const dynamic = "force-dynamic";
@@ -118,4 +118,3 @@ export async function DELETE(
     );
   }
 }
-

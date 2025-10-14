@@ -1,7 +1,13 @@
 import type { CreditTransaction } from "@/lib/types";
 
 import { Badge } from "@/components/ui/badge";
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
+import {
+  Card,
+  CardContent,
+  CardHeader,
+  CardTitle,
+  CardDescription,
+} from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
 import { Clock } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -32,7 +38,10 @@ export function CreditActivity({
 
   return (
     <Card
-      className={cn("border-border/50 bg-card/95 backdrop-blur-sm shadow-md", className)}
+      className={cn(
+        "border-border/50 bg-card/95 backdrop-blur-sm shadow-md",
+        className,
+      )}
     >
       <CardHeader className="space-y-1">
         <CardTitle className="text-sm font-semibold tracking-tight">

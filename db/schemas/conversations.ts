@@ -1,0 +1,101 @@
+import {
+  index,
+  integer,
+  jsonb,
+  pgTable,
+  text,
+  timestamp,
+  uuid,
+} from "drizzle-orm/pg-core";
+import type { InferSelectModel, InferInsertModel } from "drizzle-orm";
+import { organizations } from "./organizations";
+import { users } from "./users";
+import { usageRecords } from "./usage-records";
+
+export const conversations = pgTable(
+  "conversations",
+  {
+    id: uuid("id").defaultRandom().primaryKey(),
+    organization_id: uuid("organization_id")
+      .notNull()
+      .references(() => organizations.id, { onDelete: "cascade" }),
+    user_id: uuid("user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    title: text("title").notNull(),
+    model: text("model").notNull(),
+    settings: jsonb("settings")
+      .$type<{
+        temperature?: number;
+        maxTokens?: number;
+        topP?: number;
+        frequencyPenalty?: number;
+        presencePenalty?: number;
+        systemPrompt?: string;
+      }>()
+      .notNull()
+      .default({
+        temperature: 0.7,
+        maxTokens: 2000,
+        topP: 1,
+        frequencyPenalty: 0,
+        presencePenalty: 0,
+        systemPrompt: "You are a helpful AI assistant.",
+      }),
+    status: text("status").notNull().default("active"),
+    message_count: integer("message_count").notNull().default(0),
+    total_cost: integer("total_cost").notNull().default(0),
+    last_message_at: timestamp("last_message_at"),
+    created_at: timestamp("created_at").notNull().defaultNow(),
+    updated_at: timestamp("updated_at").notNull().defaultNow(),
+  },
+  (table) => ({
+    organization_idx: index("conversations_organization_idx").on(
+      table.organization_id,
+    ),
+    user_idx: index("conversations_user_idx").on(table.user_id),
+    updated_idx: index("conversations_updated_idx").on(table.updated_at),
+    status_idx: index("conversations_status_idx").on(table.status),
+  }),
+);
+
+export const conversationMessages = pgTable(
+  "conversation_messages",
+  {
+    id: uuid("id").defaultRandom().primaryKey(),
+    conversation_id: uuid("conversation_id")
+      .notNull()
+      .references(() => conversations.id, { onDelete: "cascade" }),
+    role: text("role").notNull(),
+    content: text("content").notNull(),
+    sequence_number: integer("sequence_number").notNull(),
+    model: text("model"),
+    tokens: integer("tokens"),
+    cost: integer("cost").default(0),
+    usage_record_id: uuid("usage_record_id").references(() => usageRecords.id, {
+      onDelete: "set null",
+    }),
+    api_request: jsonb("api_request").$type<Record<string, unknown>>(),
+    api_response: jsonb("api_response").$type<Record<string, unknown>>(),
+    processing_time: integer("processing_time"),
+    created_at: timestamp("created_at").notNull().defaultNow(),
+  },
+  (table) => ({
+    conversation_idx: index("conv_messages_conversation_idx").on(
+      table.conversation_id,
+    ),
+    sequence_idx: index("conv_messages_sequence_idx").on(
+      table.conversation_id,
+      table.sequence_number,
+    ),
+    created_idx: index("conv_messages_created_idx").on(table.created_at),
+  }),
+);
+
+// Type inference
+export type Conversation = InferSelectModel<typeof conversations>;
+export type NewConversation = InferInsertModel<typeof conversations>;
+export type ConversationMessage = InferSelectModel<typeof conversationMessages>;
+export type NewConversationMessage = InferInsertModel<
+  typeof conversationMessages
+>;

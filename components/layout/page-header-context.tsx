@@ -1,6 +1,13 @@
 "use client";
 
-import { createContext, useContext, useState, useEffect, type ReactNode, type DependencyList } from "react";
+import {
+  createContext,
+  useContext,
+  useState,
+  useEffect,
+  type ReactNode,
+  type DependencyList,
+} from "react";
 
 interface PageHeaderInfo {
   title: string;
@@ -38,11 +45,14 @@ export function usePageHeader() {
 /**
  * Custom hook to set page header info and automatically clean it up on unmount.
  * This eliminates the need to manually call setPageInfo(null) in a cleanup function.
- * 
+ *
  * @param pageInfo - The page header information to set
  * @param deps - Dependencies array for the effect (similar to useEffect)
  */
-export function useSetPageHeader(pageInfo: PageHeaderInfo | null, deps: DependencyList = []) {
+export function useSetPageHeader(
+  pageInfo: PageHeaderInfo | null,
+  deps: DependencyList = [],
+) {
   const { setPageInfo } = usePageHeader();
 
   useEffect(() => {

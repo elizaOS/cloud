@@ -5,7 +5,7 @@ import { logger } from "@/lib/utils/logger";
 export class CacheInvalidation {
   static async onCreditMutation(organizationId: string): Promise<void> {
     logger.debug(
-      `[Cache Invalidation] Credit mutation for org=${organizationId}`
+      `[Cache Invalidation] Credit mutation for org=${organizationId}`,
     );
 
     await Promise.all([
@@ -17,7 +17,7 @@ export class CacheInvalidation {
 
   static async onUsageRecordCreated(organizationId: string): Promise<void> {
     logger.debug(
-      `[Cache Invalidation] Usage record created for org=${organizationId}`
+      `[Cache Invalidation] Usage record created for org=${organizationId}`,
     );
 
     await Promise.all([
@@ -28,7 +28,7 @@ export class CacheInvalidation {
 
   static async onGenerationCreated(organizationId: string): Promise<void> {
     logger.debug(
-      `[Cache Invalidation] Generation created for org=${organizationId}`
+      `[Cache Invalidation] Generation created for org=${organizationId}`,
     );
 
     await cache.del(CacheKeys.org.dashboard(organizationId));
@@ -36,7 +36,7 @@ export class CacheInvalidation {
 
   static async onOrganizationUpdated(organizationId: string): Promise<void> {
     logger.debug(
-      `[Cache Invalidation] Organization updated for org=${organizationId}`
+      `[Cache Invalidation] Organization updated for org=${organizationId}`,
     );
 
     await Promise.all([
@@ -47,7 +47,7 @@ export class CacheInvalidation {
 
   static async clearAll(organizationId: string): Promise<void> {
     logger.warn(
-      `[Cache Invalidation] Clearing ALL cache for org=${organizationId}`
+      `[Cache Invalidation] Clearing ALL cache for org=${organizationId}`,
     );
 
     await Promise.all([

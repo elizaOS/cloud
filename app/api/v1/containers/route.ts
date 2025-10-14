@@ -1,21 +1,20 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireAuthOrApiKey } from "@/lib/auth";
-import { db } from "@/db/drizzle";
-import { organizations, creditTransactions } from "@/db/sass/schema";
-import { eq } from "drizzle-orm";
 import {
+  creditsService,
+  usageService,
+  containersService,
   listContainers,
-  type NewContainer,
   deleteContainer,
-} from "@/lib/queries/containers";
-import {
-  createContainerWithQuotaCheck,
+  updateContainerStatus,
   QuotaExceededError,
-} from "@/lib/queries/container-quota";
-import { addCredits } from "@/lib/queries/credits";
-import { createUsageRecord } from "@/lib/queries/usage";
-import { creditEventEmitter } from "@/lib/events/credit-events-unified";
-import { calculateDeploymentCost, CONTAINER_LIMITS } from "@/lib/constants/pricing";
+  type NewContainer,
+} from "@/lib/services";
+import { creditEventEmitter } from "@/lib/events/credit-events";
+import {
+  calculateDeploymentCost,
+  CONTAINER_LIMITS,
+} from "@/lib/constants/pricing";
 import { getCloudflareService } from "@/lib/services/cloudflare";
 import { isFeatureConfigured } from "@/lib/config/env-validator";
 import { withRateLimit, RateLimitPresets } from "@/lib/middleware/rate-limit";
@@ -30,15 +29,20 @@ const createContainerSchema = z.object({
   max_instances: z.number().int().min(1).max(10).default(1),
   environment_vars: z.record(z.string(), z.string()).optional(),
   health_check_path: z.string().default("/health"),
-  
+
   // Bootstrapper architecture fields
   use_bootstrapper: z.boolean().optional().default(true), // Default to bootstrapper
   artifact_url: z.string().optional(), // Presigned download URL (expires in 1 hour)
   artifact_id: z.string().optional(), // Artifact ID for reference tracking
   artifact_checksum: z.string().optional(),
-  
+
   // Optional: Allow custom image tag for self-hosted bootstrapper images
-  image_tag: z.string().optional().default(process.env.BOOTSTRAPPER_IMAGE_TAG || "elizaos/bootstrapper:latest"),
+  image_tag: z
+    .string()
+    .optional()
+    .default(
+      process.env.BOOTSTRAPPER_IMAGE_TAG || "elizaos/bootstrapper:latest",
+    ),
 });
 
 /**
@@ -61,9 +65,7 @@ export async function GET(request: NextRequest) {
       {
         success: false,
         error:
-          error instanceof Error
-            ? error.message
-            : "Failed to fetch containers",
+          error instanceof Error ? error.message : "Failed to fetch containers",
       },
       { status: 500 },
     );
@@ -82,9 +84,10 @@ async function handleCreateContainer(request: NextRequest) {
       return NextResponse.json(
         {
           success: false,
-          error: "Container deployments are not configured. Please set CLOUDFLARE_ACCOUNT_ID, CLOUDFLARE_API_TOKEN, and R2 credentials.",
+          error:
+            "Container deployments are not configured. Please set CLOUDFLARE_ACCOUNT_ID, CLOUDFLARE_API_TOKEN, and R2 credentials.",
         },
-        { status: 503 }
+        { status: 503 },
       );
     }
 
@@ -107,12 +110,14 @@ async function handleCreateContainer(request: NextRequest) {
               provided: envVarCount,
             },
           },
-          { status: 400 }
+          { status: 400 },
         );
       }
 
       // Validate each env var name and value size
-      for (const [key, value] of Object.entries(validatedData.environment_vars)) {
+      for (const [key, value] of Object.entries(
+        validatedData.environment_vars,
+      )) {
         // Validate key format
         if (!/^[A-Za-z_][A-Za-z0-9_]*$/.test(key)) {
           return NextResponse.json(
@@ -120,7 +125,7 @@ async function handleCreateContainer(request: NextRequest) {
               success: false,
               error: `Invalid environment variable name: '${key}'. Must start with letter/underscore and contain only alphanumeric and underscores.`,
             },
-            { status: 400 }
+            { status: 400 },
           );
         }
 
@@ -132,7 +137,7 @@ async function handleCreateContainer(request: NextRequest) {
               success: false,
               error: `Environment variable '${key}' value exceeds maximum size of ${CONTAINER_LIMITS.MAX_ENV_VAR_SIZE} bytes (got ${valueSize} bytes)`,
             },
-            { status: 400 }
+            { status: 400 },
           );
         }
       }
@@ -145,13 +150,14 @@ async function handleCreateContainer(request: NextRequest) {
         return NextResponse.json(
           {
             success: false,
-            error: "artifact_url is required when using bootstrapper deployment (use_bootstrapper=true)",
+            error:
+              "artifact_url is required when using bootstrapper deployment (use_bootstrapper=true)",
             details: {
               field: "artifact_url",
               hint: "Upload your artifact first via POST /api/v1/artifacts/upload",
             },
           },
-          { status: 400 }
+          { status: 400 },
         );
       }
 
@@ -159,13 +165,14 @@ async function handleCreateContainer(request: NextRequest) {
         return NextResponse.json(
           {
             success: false,
-            error: "artifact_checksum is required when using bootstrapper deployment (use_bootstrapper=true)",
+            error:
+              "artifact_checksum is required when using bootstrapper deployment (use_bootstrapper=true)",
             details: {
               field: "artifact_checksum",
               hint: "Provide the SHA256 checksum of your artifact for integrity validation",
             },
           },
-          { status: 400 }
+          { status: 400 },
         );
       }
 
@@ -178,7 +185,7 @@ async function handleCreateContainer(request: NextRequest) {
               success: false,
               error: `Invalid artifact_url protocol: ${artifactUrlObj.protocol}. Must be http or https.`,
             },
-            { status: 400 }
+            { status: 400 },
           );
         }
       } catch (urlError) {
@@ -188,10 +195,13 @@ async function handleCreateContainer(request: NextRequest) {
             error: "artifact_url must be a valid URL",
             details: {
               provided: validatedData.artifact_url,
-              error: urlError instanceof Error ? urlError.message : "Invalid URL format",
+              error:
+                urlError instanceof Error
+                  ? urlError.message
+                  : "Invalid URL format",
             },
           },
-          { status: 400 }
+          { status: 400 },
         );
       }
 
@@ -201,13 +211,14 @@ async function handleCreateContainer(request: NextRequest) {
         return NextResponse.json(
           {
             success: false,
-            error: "artifact_checksum must be a valid SHA256 hash (64 hexadecimal characters)",
+            error:
+              "artifact_checksum must be a valid SHA256 hash (64 hexadecimal characters)",
             details: {
               provided: validatedData.artifact_checksum,
               expected: "64-character hexadecimal string",
             },
           },
-          { status: 400 }
+          { status: 400 },
         );
       }
     }
@@ -219,7 +230,10 @@ async function handleCreateContainer(request: NextRequest) {
       organization_id: user.organization_id,
       user_id: user.id,
       api_key_id: apiKey?.id || null,
-      image_tag: validatedData.image_tag || process.env.BOOTSTRAPPER_IMAGE_TAG || "elizaos/bootstrapper:latest",
+      image_tag:
+        validatedData.image_tag ||
+        process.env.BOOTSTRAPPER_IMAGE_TAG ||
+        "elizaos/bootstrapper:latest",
       port: validatedData.port,
       max_instances: validatedData.max_instances,
       environment_vars: validatedData.environment_vars || {},
@@ -244,72 +258,32 @@ async function handleCreateContainer(request: NextRequest) {
     // CRITICAL: Wrap container creation AND credit deduction in a single transaction
     // This prevents race condition where container exists but credits fail to deduct
     let container;
-    let creditResult;
-    
+    let newBalance;
+
     try {
-      const result = await db.transaction(async (tx) => {
-        // Step 1: Create container within transaction
-        const newContainer = await createContainerWithQuotaCheck(containerData, tx);
-        
-        // Step 2: Check credits within the same transaction
-        const org = await tx.query.organizations.findFirst({
-          where: eq(organizations.id, user.organization_id),
-        });
-
-        if (!org) {
-          throw new Error("Organization not found");
-        }
-
-        if (org.credit_balance < deploymentCost) {
-          // Transaction will rollback, container won't be created
-          throw new Error(`Insufficient credits. Required: ${deploymentCost}, Available: ${org.credit_balance}`);
-        }
-
-        const newBalance = org.credit_balance - deploymentCost;
-
-        // Step 3: Deduct credits within transaction
-        await tx
-          .update(organizations)
-          .set({
-            credit_balance: newBalance,
-            updated_at: new Date(),
-          })
-          .where(eq(organizations.id, user.organization_id));
-
-        // Step 4: Create credit transaction record
-        const [creditTx] = await tx
-          .insert(creditTransactions)
-          .values({
-            organization_id: user.organization_id,
-            user_id: user.id,
-            amount: -deploymentCost,
-            type: "usage",
-            description: `Container deployment: ${validatedData.name}`,
-          })
-          .returning();
-
-        return {
-          container: newContainer,
-          creditResult: { success: true, newBalance, transaction: creditTx },
-        };
-      });
+      const result = await containersService.createContainerWithCreditDeduction(
+        containerData,
+        user.id,
+        deploymentCost,
+      );
 
       container = result.container;
-      creditResult = result.creditResult;
+      newBalance = result.newBalance;
 
+      // Emit credit update event for real-time balance updates
       creditEventEmitter.emitCreditUpdate({
         organizationId: user.organization_id,
-        newBalance: creditResult.newBalance,
+        newBalance: newBalance,
         delta: -deploymentCost,
         reason: `Container deployment: ${validatedData.name}`,
         userId: user.id,
         timestamp: new Date(),
       });
-
     } catch (error) {
       // Transaction rolled back - no orphaned container or credit inconsistency
-      const errorMessage = error instanceof Error ? error.message : "Unknown error";
-      
+      const errorMessage =
+        error instanceof Error ? error.message : "Unknown error";
+
       if (errorMessage.includes("Insufficient credits")) {
         return NextResponse.json(
           {
@@ -320,12 +294,12 @@ async function handleCreateContainer(request: NextRequest) {
           { status: 402 }, // Payment Required
         );
       }
-      
+
       throw error; // Re-throw for outer error handler
     }
 
     // Create usage record for audit trail
-    await createUsageRecord({
+    await usageService.create({
       organization_id: user.organization_id,
       user_id: user.id,
       api_key_id: apiKey?.id,
@@ -359,7 +333,7 @@ async function handleCreateContainer(request: NextRequest) {
         message:
           "Container deployment initiated. Check status for deployment progress.",
         creditsDeducted: deploymentCost,
-        creditsRemaining: creditResult.newBalance,
+        creditsRemaining: newBalance,
       },
       { status: 201 },
     );
@@ -402,7 +376,8 @@ async function handleCreateContainer(request: NextRequest) {
       return NextResponse.json(
         {
           success: false,
-          error: "A container with this name already exists in your organization",
+          error:
+            "A container with this name already exists in your organization",
         },
         { status: 409 },
       );
@@ -421,7 +396,10 @@ async function handleCreateContainer(request: NextRequest) {
 }
 
 // Export rate-limited handler for POST
-export const POST = withRateLimit(handleCreateContainer, RateLimitPresets.CRITICAL);
+export const POST = withRateLimit(
+  handleCreateContainer,
+  RateLimitPresets.CRITICAL,
+);
 
 /**
  * Background deployment function
@@ -433,8 +411,9 @@ async function deployContainerAsync(
   deploymentCost: number,
   organizationId: string,
 ): Promise<void> {
-  const { updateContainerStatus } = await import("@/lib/queries/containers");
-  const { TimeoutError, withTimeout } = await import("@/lib/errors/deployment-errors");
+  const { TimeoutError, withTimeout } = await import(
+    "@/lib/errors/deployment-errors"
+  );
 
   try {
     // Update status to building
@@ -448,23 +427,24 @@ async function deployContainerAsync(
 
     // Note: Artifact download credentials are generated and injected
     // by the CloudflareService.deployContainerBinding() method
-    
+
     // Add timeout to prevent deployments from hanging indefinitely
     const DEPLOYMENT_TIMEOUT_MS = 10 * 60 * 1000; // 10 minutes
     const deployment = await withTimeout(
-      async () => cloudflare.deployContainer({
-        name: config.name,
-        imageTag: config.image_tag || "latest",
-        port: config.port,
-        maxInstances: config.max_instances,
-        environmentVars: config.environment_vars,
-        healthCheckPath: config.health_check_path,
-        useBootstrapper: config.use_bootstrapper,
-        artifactUrl: config.artifact_url,
-        artifactChecksum: config.artifact_checksum,
-      }),
+      async () =>
+        cloudflare.deployContainer({
+          name: config.name,
+          imageTag: config.image_tag || "latest",
+          port: config.port,
+          maxInstances: config.max_instances,
+          environmentVars: config.environment_vars,
+          healthCheckPath: config.health_check_path,
+          useBootstrapper: config.use_bootstrapper,
+          artifactUrl: config.artifact_url,
+          artifactChecksum: config.artifact_checksum,
+        }),
       DEPLOYMENT_TIMEOUT_MS,
-      "deployContainer"
+      "deployContainer",
     );
 
     // Update container with deployment info
@@ -475,16 +455,19 @@ async function deployContainerAsync(
       deploymentLog: `Deployed successfully to ${deployment.url}`,
     });
 
-    console.log(`✅ Container ${containerId} deployed successfully to ${deployment.url}`);
+    console.log(
+      `✅ Container ${containerId} deployed successfully to ${deployment.url}`,
+    );
   } catch (error) {
     console.error("Deployment failed:", error);
 
-    const errorMessage = error instanceof Error ? error.message : "Unknown deployment error";
+    const errorMessage =
+      error instanceof Error ? error.message : "Unknown deployment error";
     const isTimeout = error instanceof TimeoutError;
 
     // Update container status to failed
     await updateContainerStatus(containerId, "failed", {
-      errorMessage: isTimeout 
+      errorMessage: isTimeout
         ? "Deployment timed out after 10 minutes. This may indicate a configuration issue or infrastructure problem."
         : errorMessage,
       deploymentLog: `Deployment failed: ${errorMessage}${isTimeout ? " (timeout)" : ""}`,
@@ -498,13 +481,15 @@ async function deployContainerAsync(
     // Attempt refund with retries
     for (let attempt = 1; attempt <= 3; attempt++) {
       try {
-        await addCredits(
+        await creditsService.addCredits({
           organizationId,
-          deploymentCost,
-          "refund",
-          `Refund for failed container deployment: ${config.name}${isTimeout ? " (timeout)" : ""}`,
+          amount: deploymentCost,
+          description: `Refund for failed container deployment: ${config.name}${isTimeout ? " (timeout)" : ""}`,
+          metadata: { type: "refund" },
+        });
+        console.log(
+          `✅ Refunded ${deploymentCost} credits for failed deployment of container ${containerId}`,
         );
-        console.log(`✅ Refunded ${deploymentCost} credits for failed deployment of container ${containerId}`);
         refundSuccessful = true;
         break;
       } catch (refundError) {
@@ -513,13 +498,15 @@ async function deployContainerAsync(
           // CRITICAL: Log to monitoring system for manual intervention
           console.error(
             `🚨 CRITICAL: Failed to refund ${deploymentCost} credits to org ${organizationId} for container ${containerId}. MANUAL INTERVENTION REQUIRED.`,
-            { containerId, organizationId, deploymentCost, error: refundError }
+            { containerId, organizationId, deploymentCost, error: refundError },
           );
           // In production, this should trigger an alert/notification
           // TODO: Add alert to monitoring system (e.g., Sentry, DataDog)
         } else {
           // Wait before retry with exponential backoff
-          await new Promise(resolve => setTimeout(resolve, 1000 * Math.pow(2, attempt - 1)));
+          await new Promise((resolve) =>
+            setTimeout(resolve, 1000 * Math.pow(2, attempt - 1)),
+          );
         }
       }
     }
@@ -528,19 +515,26 @@ async function deployContainerAsync(
     for (let attempt = 1; attempt <= 3; attempt++) {
       try {
         await deleteContainer(containerId, organizationId);
-        console.log(`✅ Rolled back failed container ${containerId} (deleted from database)`);
+        console.log(
+          `✅ Rolled back failed container ${containerId} (deleted from database)`,
+        );
         rollbackSuccessful = true;
         break;
       } catch (rollbackError) {
-        console.error(`❌ Rollback attempt ${attempt}/3 failed:`, rollbackError);
+        console.error(
+          `❌ Rollback attempt ${attempt}/3 failed:`,
+          rollbackError,
+        );
         if (attempt === 3) {
           console.error(
             `⚠️  Failed to delete failed container ${containerId}. Container marked as 'failed' but not removed.`,
-            { containerId, organizationId, error: rollbackError }
+            { containerId, organizationId, error: rollbackError },
           );
           // This is less critical than refund - admin can clean up later
         } else {
-          await new Promise(resolve => setTimeout(resolve, 1000 * Math.pow(2, attempt - 1)));
+          await new Promise((resolve) =>
+            setTimeout(resolve, 1000 * Math.pow(2, attempt - 1)),
+          );
         }
       }
     }
@@ -562,4 +556,3 @@ async function deployContainerAsync(
     });
   }
 }
-

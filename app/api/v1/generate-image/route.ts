@@ -1,8 +1,10 @@
 import { streamText } from "ai";
 import { requireAuthOrApiKey } from "@/lib/auth";
-import { createUsageRecord } from "@/lib/queries/usage";
-import { deductCredits } from "@/lib/queries/credits";
-import { createGeneration, updateGeneration } from "@/lib/queries/generations";
+import {
+  usageService,
+  creditsService,
+  generationsService,
+} from "@/lib/services";
 import { IMAGE_GENERATION_COST } from "@/lib/pricing";
 import { uploadBase64Image } from "@/lib/blob";
 import { withRateLimit, RateLimitPresets } from "@/lib/middleware/rate-limit";
@@ -11,7 +13,20 @@ import type { NextRequest } from "next/server";
 export const maxDuration = 30;
 
 type AspectRatio = "1:1" | "16:9" | "9:16" | "4:3" | "3:4" | "21:9" | "9:21";
-type StylePreset = "none" | "photographic" | "digital-art" | "comic-book" | "fantasy-art" | "analog-film" | "neon-punk" | "isometric" | "low-poly" | "origami" | "line-art" | "cinematic" | "3d-model";
+type StylePreset =
+  | "none"
+  | "photographic"
+  | "digital-art"
+  | "comic-book"
+  | "fantasy-art"
+  | "analog-film"
+  | "neon-punk"
+  | "isometric"
+  | "low-poly"
+  | "origami"
+  | "line-art"
+  | "cinematic"
+  | "3d-model";
 
 interface GenerateImageRequest {
   prompt: string;
@@ -24,11 +39,11 @@ async function handlePOST(req: NextRequest) {
   let generationId: string | undefined;
   try {
     const { user, apiKey } = await requireAuthOrApiKey(req);
-    const { 
-      prompt, 
-      numImages = 1, 
-      aspectRatio = "1:1", 
-      stylePreset 
+    const {
+      prompt,
+      numImages = 1,
+      aspectRatio = "1:1",
+      stylePreset,
     }: GenerateImageRequest = await req.json();
 
     if (!prompt || typeof prompt !== "string" || prompt.trim().length === 0) {
@@ -41,7 +56,7 @@ async function handlePOST(req: NextRequest) {
     // Calculate total cost based on number of images
     const totalCost = IMAGE_GENERATION_COST * numImages;
 
-    const generation = await createGeneration({
+    const generation = await generationsService.create({
       organization_id: user.organization_id,
       user_id: user.id,
       api_key_id: apiKey?.id || null,
@@ -58,28 +73,34 @@ async function handlePOST(req: NextRequest) {
 
     // Build enhanced prompt with options
     let enhancedPrompt = prompt;
-    
+
     // Add style preset to prompt if specified
     if (stylePreset && stylePreset !== "none") {
       const styleDescriptions: Record<StylePreset, string> = {
-        "none": "",
-        "photographic": "in a photographic style with realistic lighting and details",
-        "digital-art": "in a digital art style with vibrant colors and modern aesthetics",
-        "comic-book": "in a comic book style with bold lines and dramatic shading",
-        "fantasy-art": "in a fantasy art style with magical and ethereal elements",
-        "analog-film": "in an analog film photography style with film grain and vintage tones",
+        none: "",
+        photographic:
+          "in a photographic style with realistic lighting and details",
+        "digital-art":
+          "in a digital art style with vibrant colors and modern aesthetics",
+        "comic-book":
+          "in a comic book style with bold lines and dramatic shading",
+        "fantasy-art":
+          "in a fantasy art style with magical and ethereal elements",
+        "analog-film":
+          "in an analog film photography style with film grain and vintage tones",
         "neon-punk": "in a neon punk cyberpunk style with glowing neon colors",
-        "isometric": "in an isometric perspective style with geometric precision",
+        isometric: "in an isometric perspective style with geometric precision",
         "low-poly": "in a low-poly 3D style with geometric facets",
-        "origami": "in an origami paper-folding style",
+        origami: "in an origami paper-folding style",
         "line-art": "in a clean line art style with minimal shading",
-        "cinematic": "in a cinematic style with dramatic lighting and composition",
+        cinematic:
+          "in a cinematic style with dramatic lighting and composition",
         "3d-model": "as a high-quality 3D rendered model",
       };
-      
+
       enhancedPrompt += ` ${styleDescriptions[stylePreset]}`;
     }
-    
+
     // Add aspect ratio guidance
     const aspectRatioDescriptions: Record<AspectRatio, string> = {
       "1:1": "square composition",
@@ -90,13 +111,19 @@ async function handlePOST(req: NextRequest) {
       "21:9": "ultra-wide cinematic composition",
       "9:21": "ultra-tall vertical composition",
     };
-    
+
     enhancedPrompt += `, ${aspectRatioDescriptions[aspectRatio]}`;
 
-    console.log(`[IMAGE GENERATION] Generating ${numImages} image(s) with prompt: ${enhancedPrompt}`);
+    console.log(
+      `[IMAGE GENERATION] Generating ${numImages} image(s) with prompt: ${enhancedPrompt}`,
+    );
 
     // Function to generate a single image
-    async function generateSingleImage(): Promise<{ imageBase64: string; textResponse: string; mimeType: string } | null> {
+    async function generateSingleImage(): Promise<{
+      imageBase64: string;
+      textResponse: string;
+      mimeType: string;
+    } | null> {
       const result = streamText({
         model: "google/gemini-2.5-flash-image-preview",
         providerOptions: {
@@ -139,14 +166,18 @@ async function handlePOST(req: NextRequest) {
     }
 
     // Generate multiple images in parallel
-    const imagePromises = Array.from({ length: numImages }, () => generateSingleImage());
+    const imagePromises = Array.from({ length: numImages }, () =>
+      generateSingleImage(),
+    );
     const results = await Promise.all(imagePromises);
 
     // Filter out any failed generations
-    const successfulResults = results.filter((r): r is NonNullable<typeof r> => r !== null);
+    const successfulResults = results.filter(
+      (r): r is NonNullable<typeof r> => r !== null,
+    );
 
     if (successfulResults.length === 0) {
-      const usageRecord = await createUsageRecord({
+      const usageRecord = await usageService.create({
         organization_id: user.organization_id,
         user_id: user.id,
         api_key_id: apiKey?.id || null,
@@ -162,7 +193,7 @@ async function handlePOST(req: NextRequest) {
       });
 
       if (generationId) {
-        await updateGeneration(generationId, {
+        await generationsService.update(generationId, {
           status: "failed",
           error: "No images were generated",
           usage_record_id: usageRecord.id,
@@ -178,20 +209,35 @@ async function handlePOST(req: NextRequest) {
 
     // Deduct credits for actual number of successful images
     const actualCost = IMAGE_GENERATION_COST * successfulResults.length;
-    const deductionResult = await deductCredits(
-      user.organization_id,
-      actualCost,
-      `Image generation (${successfulResults.length}x): google/gemini-2.5-flash-image-preview`,
-      user.id,
-    );
+    const deductionResult = await creditsService.deductCredits({
+      organizationId: user.organization_id,
+      amount: actualCost,
+      description: `Image generation (${successfulResults.length}x): google/gemini-2.5-flash-image-preview`,
+      metadata: { user_id: user.id },
+    });
 
+    // FIXED: Fail the request if credit deduction fails to prevent revenue leak
     if (!deductionResult.success) {
       console.error(
         "[IMAGE GENERATION] Failed to deduct credits - insufficient balance",
+        {
+          organizationId: user.organization_id,
+          cost: actualCost,
+          balance: deductionResult.newBalance,
+        },
+      );
+
+      return Response.json(
+        {
+          error: "Insufficient credits to complete image generation",
+          required: actualCost,
+          available: deductionResult.newBalance,
+        },
+        { status: 402 }, // Payment Required
       );
     }
 
-    const usageRecord = await createUsageRecord({
+    const usageRecord = await usageService.create({
       organization_id: user.organization_id,
       user_id: user.id,
       api_key_id: apiKey?.id || null,
@@ -219,7 +265,7 @@ async function handlePOST(req: NextRequest) {
       const { imageBase64, textResponse, mimeType } = result;
       let blobUrl = imageBase64;
       let fileSize: bigint | null = null;
-      
+
       try {
         const fileExtension = mimeType.split("/")[1] || "png";
         const blobResult = await uploadBase64Image(imageBase64, {
@@ -259,7 +305,7 @@ async function handlePOST(req: NextRequest) {
     }));
 
     if (generationId) {
-      await updateGeneration(generationId, {
+      await generationsService.update(generationId, {
         status: "completed",
         content: uploadResults[0].imageBase64,
         storage_url: uploadResults[0].blobUrl,
@@ -291,7 +337,7 @@ async function handlePOST(req: NextRequest) {
 
     if (generationId) {
       try {
-        await updateGeneration(generationId, {
+        await generationsService.update(generationId, {
           status: "failed",
           error: errorMessage,
           completed_at: new Date(),

@@ -14,11 +14,7 @@ import {
   DialogTitle,
   DialogFooter,
 } from "@/components/ui/dialog";
-import {
-  DownloadIcon,
-  TrashIcon,
-  CalendarIcon,
-} from "@radix-ui/react-icons";
+import { DownloadIcon, TrashIcon, CalendarIcon } from "@radix-ui/react-icons";
 import { Eye } from "lucide-react";
 import type { GalleryItem } from "@/app/actions/gallery";
 import { deleteMedia } from "@/app/actions/gallery";
@@ -32,9 +28,8 @@ interface GalleryGridProps {
 
 export function GalleryGrid({ items, onItemDeleted }: GalleryGridProps) {
   const [selectedItem, setSelectedItem] = useState<GalleryItem | null>(null);
-  const [deleteConfirmItem, setDeleteConfirmItem] = useState<GalleryItem | null>(
-    null,
-  );
+  const [deleteConfirmItem, setDeleteConfirmItem] =
+    useState<GalleryItem | null>(null);
   const [isDeleting, setIsDeleting] = useState(false);
 
   const handleDelete = async (item: GalleryItem) => {
@@ -178,7 +173,7 @@ export function GalleryGrid({ items, onItemDeleted }: GalleryGridProps) {
                     {selectedItem.prompt}
                   </p>
                 </div>
-                
+
                 <div>
                   <p className="text-muted-foreground text-xs">Model</p>
                   <p className="font-medium truncate">{selectedItem.model}</p>
@@ -186,7 +181,9 @@ export function GalleryGrid({ items, onItemDeleted }: GalleryGridProps) {
 
                 <div>
                   <p className="text-muted-foreground text-xs">Type</p>
-                  <Badge variant="secondary" className="mt-0.5">{selectedItem.type}</Badge>
+                  <Badge variant="secondary" className="mt-0.5">
+                    {selectedItem.type}
+                  </Badge>
                 </div>
 
                 <div>
@@ -200,7 +197,8 @@ export function GalleryGrid({ items, onItemDeleted }: GalleryGridProps) {
                   <div>
                     <p className="text-muted-foreground text-xs">Dimensions</p>
                     <p className="font-medium">
-                      {selectedItem.dimensions.width} × {selectedItem.dimensions.height}
+                      {selectedItem.dimensions.width} ×{" "}
+                      {selectedItem.dimensions.height}
                     </p>
                   </div>
                 )}
@@ -209,7 +207,8 @@ export function GalleryGrid({ items, onItemDeleted }: GalleryGridProps) {
                   <div>
                     <p className="text-muted-foreground text-xs">File Size</p>
                     <p className="font-medium">
-                      {(Number(selectedItem.fileSize) / 1024 / 1024).toFixed(2)} MB
+                      {(Number(selectedItem.fileSize) / 1024 / 1024).toFixed(2)}{" "}
+                      MB
                     </p>
                   </div>
                 )}
@@ -271,7 +270,9 @@ export function GalleryGrid({ items, onItemDeleted }: GalleryGridProps) {
             </Button>
             <Button
               variant="destructive"
-              onClick={() => deleteConfirmItem && handleDelete(deleteConfirmItem)}
+              onClick={() =>
+                deleteConfirmItem && handleDelete(deleteConfirmItem)
+              }
               disabled={isDeleting}
             >
               {isDeleting ? "Deleting..." : "Delete"}
@@ -298,4 +299,3 @@ export function GalleryGridSkeleton() {
     </div>
   );
 }
-

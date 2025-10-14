@@ -2,12 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import {
-  Card,
-  CardContent,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Separator } from "@/components/ui/separator";
@@ -45,7 +40,8 @@ import { useSetPageHeader } from "@/components/layout/page-header-context";
 export default function ApiExplorerPage() {
   useSetPageHeader({
     title: "API Explorer",
-    description: "Interactive API documentation and testing interface for Eliza Cloud V2",
+    description:
+      "Interactive API documentation and testing interface for Eliza Cloud V2",
   });
 
   const [selectedEndpoint, setSelectedEndpoint] = useState<ApiEndpoint | null>(
@@ -96,7 +92,8 @@ export default function ApiExplorerPage() {
   };
 
   const getMethodColor = (method: string) => {
-    const base = "ring-1 ring-inset rounded-full px-2.5 py-1 text-xs font-medium";
+    const base =
+      "ring-1 ring-inset rounded-full px-2.5 py-1 text-xs font-medium";
     switch (method) {
       case "GET":
         return `${base} bg-emerald-500/10 text-emerald-600 ring-emerald-500/30 dark:text-emerald-300`;
@@ -119,7 +116,9 @@ export default function ApiExplorerPage() {
         <div className="lg:col-span-1">
           <Card className="border-border/70 bg-background/60 shadow-sm">
             <CardHeader className="pb-4">
-              <CardTitle className="text-lg font-semibold">Browse APIs</CardTitle>
+              <CardTitle className="text-lg font-semibold">
+                Browse APIs
+              </CardTitle>
             </CardHeader>
             <CardContent className="space-y-6">
               <div className="relative">
@@ -132,10 +131,7 @@ export default function ApiExplorerPage() {
                 />
               </div>
 
-              <AuthManager
-                authToken={authToken}
-                onTokenChange={setAuthToken}
-              />
+              <AuthManager authToken={authToken} onTokenChange={setAuthToken} />
 
               <Separator />
 
@@ -152,7 +148,7 @@ export default function ApiExplorerPage() {
                         "flex w-full items-center gap-2 rounded-lg px-3 py-2 text-left text-sm transition-colors",
                         selectedCategory === category
                           ? "bg-primary/10 text-primary ring-1 ring-inset ring-primary/20"
-                          : "text-muted-foreground hover:bg-muted"
+                          : "text-muted-foreground hover:bg-muted",
                       )}
                     >
                       {category !== "All" && getCategoryIcon(category)}

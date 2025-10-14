@@ -74,9 +74,7 @@ export function CustomSelect({
       >
         <span
           className={cn(
-            selectedLabel
-              ? "text-foreground"
-              : "text-muted-foreground",
+            selectedLabel ? "text-foreground" : "text-muted-foreground",
           )}
         >
           {selectedLabel || placeholder}
@@ -111,8 +109,7 @@ export function CustomSelect({
                     "text-foreground",
                     "hover:bg-muted",
                     "focus:bg-muted",
-                    isSelected &&
-                    "bg-primary/10 text-primary",
+                    isSelected && "bg-primary/10 text-primary",
                   )}
                 >
                   {option.label}

@@ -60,7 +60,8 @@ export const API_ENDPOINTS: ApiEndpoint[] = [
     method: "POST",
     category: "Image Generation",
     name: "Generate Image",
-    description: "Generate images from text prompts using AI models (supports API key auth)",
+    description:
+      "Generate images from text prompts using AI models (supports API key auth)",
     requiresAuth: true,
     parameters: {
       body: [
@@ -132,7 +133,8 @@ export const API_ENDPOINTS: ApiEndpoint[] = [
     method: "POST",
     category: "AI Completions",
     name: "Chat Completion",
-    description: "Generate text completions using Vercel AI SDK format (supports API key auth)",
+    description:
+      "Generate text completions using Vercel AI SDK format (supports API key auth)",
     requiresAuth: true,
     parameters: {
       body: [
@@ -140,10 +142,12 @@ export const API_ENDPOINTS: ApiEndpoint[] = [
           name: "messages",
           type: "array",
           required: true,
-          description: "Array of UIMessage objects (Vercel AI SDK format with role and parts)",
+          description:
+            "Array of UIMessage objects (Vercel AI SDK format with role and parts)",
           defaultValue:
             '[{"role":"user","parts":[{"type":"text","text":"Hello, how are you?"}]}]',
-          example: '[{"role":"user","parts":[{"type":"text","text":"Explain quantum computing"}]}]',
+          example:
+            '[{"role":"user","parts":[{"type":"text","text":"Explain quantum computing"}]}]',
         },
         {
           name: "id",
@@ -171,7 +175,8 @@ export const API_ENDPOINTS: ApiEndpoint[] = [
     method: "POST",
     category: "AI Completions",
     name: "Character Assistant",
-    description: "AI assistant for creating character definitions (session auth only)",
+    description:
+      "AI assistant for creating character definitions (session auth only)",
     requiresAuth: true,
     parameters: {
       body: [
@@ -211,7 +216,8 @@ export const API_ENDPOINTS: ApiEndpoint[] = [
     method: "POST",
     category: "AI Completions",
     name: "Generate Prompts",
-    description: "Generate creative prompts for image/video generation (session auth only)",
+    description:
+      "Generate creative prompts for image/video generation (session auth only)",
     requiresAuth: true,
     parameters: {
       body: [
@@ -219,7 +225,8 @@ export const API_ENDPOINTS: ApiEndpoint[] = [
           name: "seed",
           type: "number",
           required: false,
-          description: "Seed for prompt generation (optional, auto-generated if not provided)",
+          description:
+            "Seed for prompt generation (optional, auto-generated if not provided)",
           example: 1234567890,
         },
       ],
@@ -259,7 +266,8 @@ export const API_ENDPOINTS: ApiEndpoint[] = [
     method: "GET",
     category: "Gallery",
     name: "List Generations",
-    description: "List all media generations (images and videos) (supports API key auth)",
+    description:
+      "List all media generations (images and videos) (supports API key auth)",
     requiresAuth: true,
     parameters: {
       query: [
@@ -305,7 +313,8 @@ export const API_ENDPOINTS: ApiEndpoint[] = [
     method: "GET",
     category: "User Management",
     name: "Get User Profile",
-    description: "Get current user profile and organization details (session auth only - won't work with API key)",
+    description:
+      "Get current user profile and organization details (session auth only - won't work with API key)",
     requiresAuth: true,
     parameters: {},
     responses: [
@@ -324,7 +333,8 @@ export const API_ENDPOINTS: ApiEndpoint[] = [
     method: "PATCH",
     category: "User Management",
     name: "Update User Profile",
-    description: "Update user profile information (session auth only - won't work with API key)",
+    description:
+      "Update user profile information (session auth only - won't work with API key)",
     requiresAuth: true,
     parameters: {
       body: [
@@ -360,7 +370,8 @@ export const API_ENDPOINTS: ApiEndpoint[] = [
     method: "GET",
     category: "API Keys",
     name: "List API Keys",
-    description: "List all API keys for your organization (session auth only - won't work with API key)",
+    description:
+      "List all API keys for your organization (session auth only - won't work with API key)",
     requiresAuth: true,
     parameters: {},
     responses: [
@@ -379,7 +390,8 @@ export const API_ENDPOINTS: ApiEndpoint[] = [
     method: "POST",
     category: "API Keys",
     name: "Create API Key",
-    description: "Create a new API key (session auth only - won't work with API key)",
+    description:
+      "Create a new API key (session auth only - won't work with API key)",
     requiresAuth: true,
     parameters: {
       body: [
@@ -432,7 +444,8 @@ export const API_ENDPOINTS: ApiEndpoint[] = [
     method: "DELETE",
     category: "API Keys",
     name: "Delete API Key",
-    description: "Delete an API key (session auth only - won't work with API key)",
+    description:
+      "Delete an API key (session auth only - won't work with API key)",
     requiresAuth: true,
     parameters: {
       path: [
@@ -461,7 +474,8 @@ export const API_ENDPOINTS: ApiEndpoint[] = [
     method: "PATCH",
     category: "API Keys",
     name: "Update API Key",
-    description: "Update API key properties (session auth only - won't work with API key)",
+    description:
+      "Update API key properties (session auth only - won't work with API key)",
     requiresAuth: true,
     parameters: {
       path: [
@@ -506,7 +520,8 @@ export const API_ENDPOINTS: ApiEndpoint[] = [
     method: "POST",
     category: "API Keys",
     name: "Regenerate API Key",
-    description: "Regenerate API key secret (old key becomes invalid) (session auth only - won't work with API key)",
+    description:
+      "Regenerate API key secret (old key becomes invalid) (session auth only - won't work with API key)",
     requiresAuth: true,
     parameters: {
       path: [

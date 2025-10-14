@@ -10,12 +10,12 @@ import {
   getModelBreakdown,
   getTrendData,
   type TimeGranularity,
-} from "@/lib/queries/analytics";
+  organizationsService,
+} from "@/lib/services";
 import {
   generateProjections,
   generateProjectionAlerts,
 } from "@/lib/analytics/projections";
-import { db, schema, eq } from "@/lib/db";
 
 export interface EnhancedAnalyticsFilters {
   startDate?: Date;
@@ -25,7 +25,7 @@ export interface EnhancedAnalyticsFilters {
 }
 
 export async function getEnhancedAnalyticsData(
-  filters: EnhancedAnalyticsFilters = {}
+  filters: EnhancedAnalyticsFilters = {},
 ) {
   const user = await requireAuth();
   const organizationId = user.organization_id;
@@ -81,7 +81,7 @@ export async function getEnhancedAnalyticsData(
     getTrendData(
       organizationId,
       { startDate, endDate },
-      { startDate: previousStartDate, endDate: previousEndDate }
+      { startDate: previousStartDate, endDate: previousEndDate },
     ),
   ]);
 
@@ -112,24 +112,21 @@ export async function getProjectionsData(periods: number = 7) {
   const now = new Date();
   const startDate = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
 
-  const [historicalData, orgData] = await Promise.all([
+  const [historicalData, org] = await Promise.all([
     getUsageTimeSeries(organizationId, {
       startDate,
       endDate: now,
       granularity: "day",
     }),
-    db.query.organizations.findFirst({
-      where: eq(schema.organizations.id, organizationId),
-      columns: { credit_balance: true },
-    }),
+    organizationsService.getById(organizationId),
   ]);
 
-  const creditBalance = orgData?.credit_balance || 0;
+  const creditBalance = org?.credit_balance || 0;
   const projections = generateProjections(historicalData, periods);
   const alerts = generateProjectionAlerts(
     historicalData,
     projections,
-    creditBalance
+    creditBalance,
   );
 
   return {

@@ -19,39 +19,42 @@ export interface EnvValidationResult {
  * Environment variable definitions
  */
 const ENV_VARS = {
-  // Database
+  // Database - Platform
   DATABASE_URL: {
     required: true,
-    description: "PostgreSQL connection string",
+    description: "Platform PostgreSQL connection string (SaaS tables)",
     validate: (value: string) =>
       value.startsWith("postgresql://") || value.startsWith("postgres://"),
     errorMessage: "Must be a valid PostgreSQL connection string",
   },
 
-  // WorkOS Authentication
-  WORKOS_CLIENT_ID: {
+  // Database - Agent
+  AGENT_DATABASE_URL: {
     required: true,
-    description: "WorkOS client ID",
-    validate: (value: string) => value.length > 0,
-  },
-  WORKOS_API_KEY: {
-    required: true,
-    description: "WorkOS API key",
-    validate: (value: string) => value.startsWith("sk_"),
-    errorMessage: "Must start with 'sk_'",
-  },
-  WORKOS_COOKIE_PASSWORD: {
-    required: true,
-    description: "WorkOS cookie encryption password",
-    validate: (value: string) => value.length >= 32,
-    errorMessage: "Must be at least 32 characters",
-  },
-  NEXT_PUBLIC_WORKOS_REDIRECT_URI: {
-    required: true,
-    description: "WorkOS redirect URI",
+    description: "Agent PostgreSQL connection string (ElizaOS tables)",
     validate: (value: string) =>
-      value.startsWith("http://") || value.startsWith("https://"),
-    errorMessage: "Must be a valid URL",
+      value.startsWith("postgresql://") || value.startsWith("postgres://"),
+    errorMessage: "Must be a valid PostgreSQL connection string",
+  },
+
+  // Privy Authentication
+  NEXT_PUBLIC_PRIVY_APP_ID: {
+    required: true,
+    description: "Privy application ID",
+    validate: (value: string) => value.length > 0,
+    errorMessage: "Must be a valid Privy app ID",
+  },
+  PRIVY_APP_SECRET: {
+    required: true,
+    description: "Privy application secret",
+    validate: (value: string) => value.length > 0,
+    errorMessage: "Must be a valid Privy app secret",
+  },
+  PRIVY_WEBHOOK_SECRET: {
+    required: false,
+    description: "Privy webhook secret for user synchronization",
+    validate: (value: string) => value.length >= 32,
+    errorMessage: "Must be at least 32 characters for security",
   },
 
   // AI Services
@@ -159,7 +162,10 @@ export function validateEnvironment(): EnvValidationResult {
 
     // Validate format if validator is provided
     if ("validate" in config && config.validate && !config.validate(value)) {
-      const errorMsg = "errorMessage" in config && config.errorMessage ? config.errorMessage : "Invalid format";
+      const errorMsg =
+        "errorMessage" in config && config.errorMessage
+          ? config.errorMessage
+          : "Invalid format";
       if (config.required) {
         errors.push({
           variable,
@@ -206,7 +212,9 @@ export function requireValidEnvironment(): void {
       console.error(`  - ${error.message}`);
     }
     console.error("");
-    console.error("Please check your .env.local file and set the required variables.");
+    console.error(
+      "Please check your .env.local file and set the required variables.",
+    );
     console.error("See example.env.local for reference.");
     throw new Error("Invalid environment configuration");
   }
@@ -259,7 +267,7 @@ export function getConfiguredFeatures(): string[] {
  */
 export function logConfigurationStatus(): void {
   console.log("📋 Feature Configuration Status:");
-  
+
   const features = [
     { name: "Container Deployments", key: "containers" },
     { name: "Stripe Payments", key: "stripe" },
@@ -272,7 +280,6 @@ export function logConfigurationStatus(): void {
     const status = configured ? "✅ Enabled" : "⚠️  Disabled";
     console.log(`  ${status} - ${feature.name}`);
   }
-  
+
   console.log("");
 }
-
