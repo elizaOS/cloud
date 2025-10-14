@@ -58,12 +58,39 @@ CLOUDFLARE_API_KEY=your_global_api_key
 
 ## Required Variables
 
-### Database
+### Databases (Two Separate Databases)
+
+The platform uses two databases for separation of concerns:
+
 ```env
-DATABASE_URL=postgresql://user:password@host:5432/database?sslmode=require
+# Platform Database - SaaS tables (users, credits, containers, etc.)
+DATABASE_URL=postgresql://user:password@host:5432/eliza_platform?sslmode=require
+
+# Agent Database - ElizaOS tables (agents, memories, rooms, etc.)
+AGENT_DATABASE_URL=postgresql://user:password@host:5432/eliza_agents?sslmode=require
 ```
 
 Get from: [Neon](https://neon.tech), [Supabase](https://supabase.com), or any Postgres provider
+
+**Development Setup (Same Database):**
+```env
+# Use the same database for both (simpler for local dev)
+DATABASE_URL=postgresql://localhost:5432/eliza_dev
+AGENT_DATABASE_URL=postgresql://localhost:5432/eliza_dev
+```
+
+**Production Setup (Separate Databases - Recommended):**
+```env
+# Use different databases for better isolation
+DATABASE_URL=postgresql://host:5432/eliza_platform?sslmode=require
+AGENT_DATABASE_URL=postgresql://host:5432/eliza_agents?sslmode=require
+```
+
+**Benefits of Separation:**
+- ElizaOS tables isolated from platform tables
+- Independent scaling for agent workloads
+- Separate backups and disaster recovery
+- ElizaOS plugin-sql manages its own migrations
 
 ### Authentication (WorkOS)
 ```env
@@ -251,8 +278,11 @@ If you see "Container deployments are not configured":
 For development/testing with minimal features:
 
 ```env
-# Required
+# Required - Databases (using same database for simplicity)
 DATABASE_URL=postgresql://localhost:5432/eliza_dev
+AGENT_DATABASE_URL=postgresql://localhost:5432/eliza_dev
+
+# Authentication
 WORKOS_CLIENT_ID=client_test
 WORKOS_API_KEY=sk_test_key
 WORKOS_COOKIE_PASSWORD=abcdefghijklmnopqrstuvwxyz123456
@@ -275,8 +305,9 @@ This gives you:
 For production with all features:
 
 ```env
-# Database
-DATABASE_URL=postgresql://prod-user:***@prod-host:5432/eliza?sslmode=require
+# Databases - Separate for production isolation
+DATABASE_URL=postgresql://prod-user:***@prod-host:5432/eliza_platform?sslmode=require
+AGENT_DATABASE_URL=postgresql://agent-user:***@agent-host:5432/eliza_agents?sslmode=require
 
 # Auth
 WORKOS_CLIENT_ID=client_01H...
