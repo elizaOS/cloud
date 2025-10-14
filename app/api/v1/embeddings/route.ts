@@ -146,12 +146,12 @@ export async function POST(req: NextRequest) {
             0, // embeddings don't have output tokens
           );
 
-          const deductResult = await creditsService.deductCredits(
-            user.organization_id,
-            totalCost,
-            `OpenAI Proxy Embeddings: ${request.model}`,
-            { user_id: user.id },
-          );
+          const deductResult = await creditsService.deductCredits({
+            organizationId: user.organization_id,
+            amount: totalCost,
+            description: `OpenAI Proxy Embeddings: ${request.model}`,
+            metadata: { user_id: user.id },
+          });
 
           if (!deductResult.success) {
             logger.error("[OpenAI Proxy] Failed to deduct credits for embeddings", {

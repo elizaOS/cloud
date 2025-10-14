@@ -44,15 +44,15 @@ export async function POST(req: NextRequest) {
             usage.outputTokens || 0,
           );
 
-          const deductionResult = await creditsService.deductCredits(
-            user.organization_id,
-            totalCost,
-            `Chat completion: ${selectedModel}`,
-            {
+          const deductionResult = await creditsService.deductCredits({
+            organizationId: user.organization_id,
+            amount: totalCost,
+            description: `Chat completion: ${selectedModel}`,
+            metadata: {
               user_id: user.id,
               model: selectedModel,
             },
-          );
+          });
 
           if (!deductionResult.success) {
             logger.error(

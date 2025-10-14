@@ -24,13 +24,13 @@ async function testAddCredits() {
   console.log("-".repeat(70));
 
   try {
-    const result = await creditsService.addCredits(
+    const result = await creditsService.addCredits({
       organizationId,
-      credits,
-      `Test credit pack purchase - ${credits.toLocaleString()} credits`,
-      { user_id: userId },
-      paymentIntentId,
-    );
+      amount: credits,
+      description: `Test credit pack purchase - ${credits.toLocaleString()} credits`,
+      metadata: { user_id: userId },
+      stripePaymentIntentId: paymentIntentId,
+    });
 
     console.log("\n✅ SUCCESS!");
     console.log("-".repeat(70));

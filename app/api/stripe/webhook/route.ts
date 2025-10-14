@@ -83,17 +83,17 @@ export async function POST(req: NextRequest) {
           }
 
           // Add credits
-          await creditsService.addCredits(
+          await creditsService.addCredits({
             organizationId,
-            credits,
-            `Credit pack purchase - ${credits.toLocaleString()} credits`,
-            {
+            amount: credits,
+            description: `Credit pack purchase - ${credits.toLocaleString()} credits`,
+            metadata: {
               user_id: userId,
               payment_intent_id: paymentIntentId,
               session_id: session.id,
             },
-            paymentIntentId,
-          );
+            stripePaymentIntentId: paymentIntentId,
+          });
 
           revalidateTag("user-auth");
 

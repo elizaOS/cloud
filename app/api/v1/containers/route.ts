@@ -453,12 +453,12 @@ async function deployContainerAsync(
     // Attempt refund with retries
     for (let attempt = 1; attempt <= 3; attempt++) {
       try {
-        await creditsService.addCredits(
+        await creditsService.addCredits({
           organizationId,
-          deploymentCost,
-          `Refund for failed container deployment: ${config.name}${isTimeout ? " (timeout)" : ""}`,
-          { type: "refund" },
-        );
+          amount: deploymentCost,
+          description: `Refund for failed container deployment: ${config.name}${isTimeout ? " (timeout)" : ""}`,
+          metadata: { type: "refund" },
+        });
         console.log(`✅ Refunded ${deploymentCost} credits for failed deployment of container ${containerId}`);
         refundSuccessful = true;
         break;

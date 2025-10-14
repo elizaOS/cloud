@@ -11,6 +11,22 @@ import { organizations } from "@/db/schemas/organizations";
 import { creditTransactions } from "@/db/schemas/credit-transactions";
 import { eq } from "drizzle-orm";
 
+// Parameter types for consistent API signatures
+export interface AddCreditsParams {
+  organizationId: string;
+  amount: number;
+  description: string;
+  metadata?: Record<string, unknown>;
+  stripePaymentIntentId?: string;
+}
+
+export interface DeductCreditsParams {
+  organizationId: string;
+  amount: number;
+  description: string;
+  metadata?: Record<string, unknown>;
+}
+
 export class CreditsService {
   // Credit Transactions
   async getTransactionById(
@@ -54,15 +70,19 @@ export class CreditsService {
   }
 
   async addCredits(
-    organizationId: string,
-    amount: number,
-    description: string,
-    metadata?: Record<string, unknown>,
-    stripePaymentIntentId?: string,
+    params: AddCreditsParams,
   ): Promise<{
     transaction: CreditTransaction;
     newBalance: number;
   }> {
+    const {
+      organizationId,
+      amount,
+      description,
+      metadata,
+      stripePaymentIntentId,
+    } = params;
+
     // FIXED: Wrap in atomic transaction to prevent inconsistency between
     // transaction record and balance update
     return await db.transaction(async (tx) => {
@@ -105,15 +125,14 @@ export class CreditsService {
   }
 
   async deductCredits(
-    organizationId: string,
-    amount: number,
-    description: string,
-    metadata?: Record<string, unknown>,
+    params: DeductCreditsParams,
   ): Promise<{
     success: boolean;
     newBalance: number;
     transaction: CreditTransaction | null;
   }> {
+    const { organizationId, amount, description, metadata } = params;
+
     if (amount <= 0) {
       throw new Error("Amount must be positive");
     }
