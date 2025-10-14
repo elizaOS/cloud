@@ -132,35 +132,51 @@ export async function POST(req: NextRequest) {
     const response = await gatewayProvider.embeddings(request);
     const data: OpenAIEmbeddingsResponse = await response.json();
 
-    // Background analytics with proper pricing
+    // CRITICAL FIX: Deduct credits SYNCHRONOUSLY before returning response
+    // to prevent free service if deduction fails
     if (data.usage) {
+      const tokensUsed = data.usage.total_tokens;
+      
+      // Use proper cost calculation
+      const { inputCost, totalCost } = await calculateCost(
+        normalizedModel,
+        providerName,
+        tokensUsed,
+        0, // embeddings don't have output tokens
+      );
+
+      const deductResult = await creditsService.deductCredits({
+        organizationId: user.organization_id,
+        amount: totalCost,
+        description: `OpenAI Proxy Embeddings: ${request.model}`,
+        metadata: { user_id: user.id },
+      });
+
+      if (!deductResult.success) {
+        // This should rarely happen since we checked credits before the call
+        // But it can happen if credits were spent elsewhere between check and now
+        logger.error("[OpenAI Proxy] CRITICAL: Failed to deduct credits for embeddings after completion", {
+          organizationId: user.organization_id,
+          cost: totalCost,
+          balance: deductResult.newBalance,
+        });
+        
+        // Return error instead of giving free service
+        return Response.json(
+          {
+            error: {
+              message: "Credit deduction failed. Please contact support.",
+              type: "billing_error",
+              code: "credit_deduction_failed",
+            },
+          },
+          { status: 402 },
+        );
+      }
+
+      // Background analytics (not critical for billing)
       (async () => {
         try {
-          const tokensUsed = data.usage.total_tokens;
-          
-          // Use proper cost calculation
-          const { inputCost, totalCost } = await calculateCost(
-            normalizedModel,
-            providerName,
-            tokensUsed,
-            0, // embeddings don't have output tokens
-          );
-
-          const deductResult = await creditsService.deductCredits({
-            organizationId: user.organization_id,
-            amount: totalCost,
-            description: `OpenAI Proxy Embeddings: ${request.model}`,
-            metadata: { user_id: user.id },
-          });
-
-          if (!deductResult.success) {
-            logger.error("[OpenAI Proxy] Failed to deduct credits for embeddings", {
-              organizationId: user.organization_id,
-              cost: totalCost,
-              balance: deductResult.newBalance,
-            });
-          }
-
           await usageService.create({
             organization_id: user.organization_id,
             user_id: user.id,

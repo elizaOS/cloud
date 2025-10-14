@@ -426,11 +426,16 @@ function handleStreamingResponse(
         });
 
         if (!deductResult.success) {
-          logger.error("[OpenAI Proxy] Failed to deduct credits after streaming", {
+          // CRITICAL: This should rarely happen since we checked credits before streaming
+          // But it can happen if credits were spent elsewhere between check and stream completion
+          logger.error("[OpenAI Proxy] CRITICAL: Failed to deduct credits after streaming - race condition detected", {
             organizationId: user.organization_id,
+            userId: user.id,
             cost: totalCost,
             balance: deductResult.newBalance,
           });
+          // Stream has already completed, so we can't return an error to the client
+          // This should trigger an alert for manual review
         }
 
         const usageRecord = await usageService.create({
