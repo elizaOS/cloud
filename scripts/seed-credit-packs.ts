@@ -1,6 +1,6 @@
 import { config } from "dotenv";
-import { db } from "../db/drizzle";
-import * as schema from "../db/sass/schema";
+import { db } from "../db/client";
+import { creditPacks as creditPacksTable } from "../db/schemas/credit-packs";
 
 config({ path: ".env.local" });
 
@@ -40,7 +40,7 @@ async function seedCreditPacks() {
     for (const pack of creditPacks) {
         try {
             const [result] = await db
-                .insert(schema.creditPacks)
+                .insert(creditPacksTable)
                 .values(pack)
                 .returning();
             console.log(`✓ Created: ${pack.name} (${result.id})`);
