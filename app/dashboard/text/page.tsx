@@ -13,6 +13,9 @@ export const metadata: Metadata = {
     "Generate AI-powered text and engage in intelligent conversations with advanced language models",
 };
 
+// Force dynamic rendering since we use server-side auth (cookies)
+export const dynamic = 'force-dynamic';
+
 export default async function TextPage({
   searchParams,
 }: {

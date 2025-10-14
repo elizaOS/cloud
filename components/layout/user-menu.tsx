@@ -5,8 +5,7 @@
 
 "use client";
 
-import { useAuth } from "@workos-inc/authkit-nextjs/components";
-import { getSignInUrl, getSignUpUrl } from "@workos-inc/authkit-nextjs";
+import { usePrivy, useLogin, useLogout } from "@privy-io/react-auth";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import {
@@ -20,36 +19,22 @@ import {
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { LogOut, Loader2, Coins, Settings, UserCircle } from "lucide-react";
 import { useEffect, useState } from "react";
-import { handleSignOut, getCreditBalance } from "@/app/actions/auth";
+import { getCreditBalance } from "@/app/actions/auth";
 import { useRouter } from "next/navigation";
 
 export default function UserMenu() {
-  const { user, loading } = useAuth();
+  const { ready, authenticated, user } = usePrivy();
+  const { login } = useLogin();
+  const { logout } = useLogout();
   const router = useRouter();
-  const [signInUrl, setSignInUrl] = useState<string | null>(null);
-  const [signUpUrl, setSignUpUrl] = useState<string | null>(null);
   const [creditBalance, setCreditBalance] = useState<number | null>(null);
   const [loadingCredits, setLoadingCredits] = useState(false);
-
-  useEffect(() => {
-    async function getAuthUrls() {
-      const [signIn, signUp] = await Promise.all([
-        getSignInUrl(),
-        getSignUpUrl(),
-      ]);
-      setSignInUrl(signIn);
-      setSignUpUrl(signUp);
-    }
-    if (!user && !loading) {
-      getAuthUrls();
-    }
-  }, [user, loading]);
 
   useEffect(() => {
     let interval: NodeJS.Timeout;
 
     async function fetchCreditBalance() {
-      if (!user || loading) return;
+      if (!authenticated || !ready) return;
 
       setLoadingCredits(true);
       try {
@@ -62,7 +47,7 @@ export default function UserMenu() {
       }
     }
 
-    if (user && !loading) {
+    if (authenticated && ready) {
       fetchCreditBalance();
       interval = setInterval(fetchCreditBalance, 5000);
     }
@@ -70,10 +55,10 @@ export default function UserMenu() {
     return () => {
       if (interval) clearInterval(interval);
     };
-  }, [user, loading]);
+  }, [authenticated, ready]);
 
   // Loading state
-  if (loading) {
+  if (!ready) {
     return (
       <div className="flex items-center gap-2">
         <Loader2 className="h-4 w-4 animate-spin" />
@@ -82,45 +67,79 @@ export default function UserMenu() {
   }
 
   // Signed out state
-  if (!user) {
+  if (!authenticated || !user) {
     return (
       <div className="flex items-center gap-2">
-        {signInUrl && (
-          <Button variant="ghost" size="sm" asChild>
-            <a href={signInUrl}>Log in</a>
-          </Button>
-        )}
-        {signUpUrl && (
-          <Button size="sm" asChild>
-            <a href={signUpUrl}>Sign Up</a>
-          </Button>
-        )}
+        <Button variant="ghost" size="sm" onClick={login}>
+          Log in
+        </Button>
+        <Button size="sm" onClick={login}>
+          Sign Up
+        </Button>
       </div>
     );
   }
 
-  // Handle sign out using server action
+  // Handle sign out
   const onSignOut = async () => {
-    await handleSignOut();
+    // Privy's logout handles all cleanup internally
+    await logout();
+    // Redirect is handled automatically by Privy after logout
+  };
+
+  // Get user details
+  const getUserEmail = () => {
+    if (user?.email?.address) {
+      return user.email.address;
+    }
+    // Check linked accounts for email
+    if (user?.linkedAccounts) {
+      for (const account of user.linkedAccounts) {
+        // Type guard: check if account has email property
+        if ('address' in account && account.type === 'email') {
+          return account.address;
+        }
+        if ('email' in account && typeof account.email === 'string') {
+          return account.email;
+        }
+      }
+    }
+    return "user@example.com";
+  };
+
+  const getUserName = () => {
+    // Try to get name from various sources
+    if (user?.google?.name) {
+      return user.google.name;
+    }
+    if (user?.github?.username) {
+      return user.github.username;
+    }
+    if (user?.linkedAccounts) {
+      for (const account of user.linkedAccounts) {
+        // Type guard: check if account has name property
+        if ('name' in account && typeof account.name === 'string') {
+          return account.name;
+        }
+        // Type guard: check if account has username property
+        if ('username' in account && typeof account.username === 'string') {
+          return account.username;
+        }
+      }
+    }
+    // Fall back to email
+    const email = getUserEmail();
+    return email.split("@")[0];
   };
 
   // Get user initials for avatar
   const getUserInitials = () => {
-    if (user.firstName) {
-      const firstInitial = user.firstName.charAt(0).toUpperCase();
-      const lastInitial = user.lastName
-        ? user.lastName.charAt(0).toUpperCase()
-        : "";
-      return `${firstInitial}${lastInitial}`;
+    const name = getUserName();
+    const parts = name.split(" ");
+    if (parts.length >= 2) {
+      return `${parts[0].charAt(0)}${parts[parts.length - 1].charAt(0)}`.toUpperCase();
     }
-    return user.email?.charAt(0).toUpperCase() || "U";
-  };
-
-  const getUserDisplayName = () => {
-    if (user.firstName) {
-      return `${user.firstName}${user.lastName ? ` ${user.lastName}` : ""}`;
-    }
-    return user.email || "User";
+    return name.charAt(0).toUpperCase();
   };
 
   // Signed in state
@@ -139,10 +158,10 @@ export default function UserMenu() {
         <DropdownMenuLabel className="font-normal">
           <div className="flex flex-col space-y-1">
             <p className="text-sm font-medium leading-none">
-              {getUserDisplayName()}
+              {getUserName()}
             </p>
             <p className="text-xs leading-none text-muted-foreground">
-              {user.email}
+              {getUserEmail()}
             </p>
           </div>
         </DropdownMenuLabel>

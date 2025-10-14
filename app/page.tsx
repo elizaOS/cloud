@@ -1,23 +1,14 @@
-import {
-  getSignInUrl,
-  getSignUpUrl,
-  withAuth,
-} from "@workos-inc/authkit-nextjs";
-import { redirect } from "next/navigation";
 import { LandingPage } from "@/components/landing/landing-page";
 
-export default async function Home() {
-  // Check if user is already signed in
-  const { user } = await withAuth();
-
-  // If signed in, redirect to dashboard
-  if (user) {
-    redirect("/dashboard");
-  }
-
-  // Get auth URLs for sign in/up
-  const signInUrl = await getSignInUrl();
-  const signUpUrl = await getSignUpUrl();
-
-  return <LandingPage signInUrl={signInUrl} signUpUrl={signUpUrl} />;
+/**
+ * Landing Page
+ * 
+ * Authentication is handled entirely client-side by Privy.
+ * The LandingPage component uses usePrivy() hook to check auth state
+ * and redirects to /dashboard if the user is authenticated.
+ * 
+ * This approach allows the page to be statically rendered.
+ */
+export default function Home() {
+  return <LandingPage />;
 }

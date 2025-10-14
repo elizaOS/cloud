@@ -39,8 +39,9 @@ async function testStripeWebhook() {
       `  Business Name: ${account.business_profile?.name || "(not set)"}`,
     );
     console.log(`  Country: ${account.country}`);
-  } catch (error: any) {
-    console.log(`❌ Failed to connect to Stripe: ${error.message}`);
+  } catch (error: unknown) {
+    const errorMessage = error instanceof Error ? error.message : String(error);
+    console.log(`❌ Failed to connect to Stripe: ${errorMessage}`);
     return;
   }
 
@@ -68,8 +69,9 @@ async function testStripeWebhook() {
         console.log(`    Secret: ${webhook.secret?.substring(0, 15)}...`);
       });
     }
-  } catch (error: any) {
-    console.log(`⚠️  Could not list webhooks: ${error.message}`);
+  } catch (error: unknown) {
+    const errorMessage = error instanceof Error ? error.message : String(error);
+    console.log(`⚠️  Could not list webhooks: ${errorMessage}`);
   }
 
   // Check recent checkout sessions
@@ -98,8 +100,9 @@ async function testStripeWebhook() {
         console.log(`  Metadata:`, JSON.stringify(session.metadata, null, 4));
       });
     }
-  } catch (error: any) {
-    console.log(`❌ Failed to list checkout sessions: ${error.message}`);
+  } catch (error: unknown) {
+    const errorMessage = error instanceof Error ? error.message : String(error);
+    console.log(`❌ Failed to list checkout sessions: ${errorMessage}`);
   }
 
   // Check recent payment intents
@@ -123,8 +126,9 @@ async function testStripeWebhook() {
         );
       });
     }
-  } catch (error: any) {
-    console.log(`❌ Failed to list payment intents: ${error.message}`);
+  } catch (error: unknown) {
+    const errorMessage = error instanceof Error ? error.message : String(error);
+    console.log(`❌ Failed to list payment intents: ${errorMessage}`);
   }
 
   console.log("\n\n" + "=".repeat(70));

@@ -26,7 +26,7 @@ Eliza Cloud V2 is a full-stack AI-as-a-Service platform that combines:
 - **ElizaOS Integration**: Full-featured autonomous agent runtime with memory, rooms, and plugins
 - **SaaS Platform**: User management, API keys, credit-based billing, usage tracking
 - **Container Deployment**: Deploy ElizaOS projects via `elizaos deploy` CLI to Cloudflare Workers
-- **Enterprise Features**: WorkOS authentication, Stripe billing, artifact storage, health monitoring
+- **Enterprise Features**: Privy authentication with multi-provider support, Stripe billing, artifact storage, health monitoring
 
 ## ✨ Key Features
 
@@ -113,9 +113,9 @@ Eliza Cloud V2 is a full-stack AI-as-a-Service platform that combines:
 ### 🔐 Security & Infrastructure
 
 - **Enterprise Auth**: 
-  - WorkOS AuthKit with SSO support
+  - Privy authentication with email, wallet, and social logins
   - Organization and user management
-  - WorkOS sync for user profiles
+  - Webhook-based user synchronization
   - Role-based access (admin, member)
 
 - **Billing Integration**: 
@@ -251,7 +251,7 @@ eliza-cloud-v2/
 graph TD
     A[Client Request] --> B[Next.js Middleware]
     B --> C{Auth Required?}
-    C -->|Yes| D[WorkOS AuthKit]
+    C -->|Yes| D[Privy Auth]
     C -->|No| E[Route Handler]
     D -->|Authenticated| E
     D -->|Unauthenticated| F[Redirect to Login]
@@ -306,7 +306,7 @@ The platform uses two separate database schemas:
 
 ### Authentication & Billing
 
-- **WorkOS AuthKit 2.9.0**: Enterprise SSO and user management
+- **Privy Auth**: Web3-native authentication with multi-provider support
 - **Stripe 19.1.0**: Payment processing and subscriptions
 - **@stripe/stripe-js 8.0.0**: Client-side Stripe integration
 
@@ -359,9 +359,10 @@ The platform uses two separate database schemas:
    - Create a new project
    - Copy the connection string
 
-2. **WorkOS** ([workos.com](https://workos.com))
-   - Create an organization and application
-   - Configure redirect URI: `http://localhost:3000/api/auth/callback`
+2. **Privy** ([privy.io](https://privy.io))
+   - Create an application
+   - Configure webhook endpoint: `http://localhost:3000/api/privy/webhook`
+   - Enable desired login methods (email, wallet, social)
    - Note your Client ID and API Key
 
 3. **OpenAI or AI Gateway** (at least one)
@@ -411,11 +412,10 @@ Edit `.env.local` with your credentials (see [example.env.local](example.env.loc
 # Database
 DATABASE_URL=postgresql://user:password@host:5432/database?sslmode=require
 
-# WorkOS Authentication
-WORKOS_CLIENT_ID=client_your_id_here
-WORKOS_API_KEY=sk_your_key_here
-WORKOS_COOKIE_PASSWORD=generate_a_random_32+_character_string
-NEXT_PUBLIC_WORKOS_REDIRECT_URI=http://localhost:3000/api/auth/callback
+# Privy Authentication
+NEXT_PUBLIC_PRIVY_APP_ID=your_privy_app_id_here
+PRIVY_APP_SECRET=your_privy_app_secret_here
+PRIVY_WEBHOOK_SECRET=replace_with_strong_random_secret
 
 # AI (at least one)
 OPENAI_API_KEY=sk-your_openai_key
@@ -426,7 +426,7 @@ AI_GATEWAY_API_KEY=your_gateway_key
 **Generate secure passwords:**
 
 ```bash
-# Generate WORKOS_COOKIE_PASSWORD (min 32 chars)
+# Generate PRIVY_WEBHOOK_SECRET (min 32 chars)
 openssl rand -base64 32
 
 # Generate CRON_SECRET

@@ -3,38 +3,10 @@
   "dialect": "postgresql",
   "entries": [
     {
-      "idx": 1,
+      "idx": 0,
       "version": "7",
-      "when": 1759671011961,
-      "tag": "0001_numerous_carnage",
-      "breakpoints": true
-    },
-    {
-      "idx": 2,
-      "version": "7",
-      "when": 1759756277947,
-      "tag": "0002_curvy_daimon_hellstrom",
-      "breakpoints": true
-    },
-    {
-      "idx": 3,
-      "version": "7",
-      "when": 1759815675792,
-      "tag": "0003_mixed_wendell_vaughn",
-      "breakpoints": true
-    },
-    {
-      "idx": 4,
-      "version": "7",
-      "when": 1760009820287,
-      "tag": "0004_black_night_thrasher",
-      "breakpoints": true
-    },
-    {
-      "idx": 5,
-      "version": "7",
-      "when": 1760268046215,
-      "tag": "0005_wooden_fenris",
+      "when": 1760430729739,
+      "tag": "0000_dry_fat_cobra",
       "breakpoints": true
     }
   ]
