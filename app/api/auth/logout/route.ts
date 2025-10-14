@@ -14,9 +14,13 @@ export async function POST() {
 export async function GET() {
   try {
     await signOut();
-    return NextResponse.redirect(new URL("/", process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000"));
+    return NextResponse.redirect(
+      new URL("/", process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000"),
+    );
   } catch (error) {
     console.error("Logout error:", error);
-    return NextResponse.redirect(new URL("/", process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000"));
+    return NextResponse.redirect(
+      new URL("/", process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000"),
+    );
   }
 }

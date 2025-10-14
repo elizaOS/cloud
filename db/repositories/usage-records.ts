@@ -1,16 +1,10 @@
-import {
-  eq,
-  desc,
-  and,
-  gte,
-  lte,
-  sum,
-  count,
-  sql,
-  type SQL,
-} from "drizzle-orm";
+import { eq, desc, and, gte, lte, sql, type SQL } from "drizzle-orm";
 import { db } from "../client";
-import { usageRecords, type UsageRecord, type NewUsageRecord } from "../schemas/usage-records";
+import {
+  usageRecords,
+  type UsageRecord,
+  type NewUsageRecord,
+} from "../schemas/usage-records";
 import { users } from "../schemas/users";
 import { organizations } from "../schemas/organizations";
 
@@ -129,7 +123,9 @@ export class UsageRecordsRepository {
     startDate?: Date,
     endDate?: Date,
   ): Promise<UsageStats> {
-    const conditions: SQL[] = [eq(usageRecords.organization_id, organizationId)];
+    const conditions: SQL[] = [
+      eq(usageRecords.organization_id, organizationId),
+    ];
 
     if (startDate) {
       conditions.push(sql`${usageRecords.created_at} >= ${startDate}`);
@@ -214,7 +210,7 @@ export class UsageRecordsRepository {
       startDate: Date;
       endDate: Date;
       granularity: TimeGranularity;
-    }
+    },
   ): Promise<TimeSeriesDataPoint[]> {
     const { startDate, endDate, granularity } = options;
 
@@ -243,8 +239,8 @@ export class UsageRecordsRepository {
         and(
           eq(usageRecords.organization_id, organizationId),
           sql`${usageRecords.created_at} >= ${startDate}`,
-          sql`${usageRecords.created_at} <= ${endDate}`
-        )
+          sql`${usageRecords.created_at} <= ${endDate}`,
+        ),
       )
       .groupBy(truncateExpression)
       .orderBy(truncateExpression);
@@ -265,7 +261,7 @@ export class UsageRecordsRepository {
       startDate?: Date;
       endDate?: Date;
       limit?: number;
-    }
+    },
   ): Promise<UserUsageBreakdown[]> {
     const { startDate, endDate, limit = 50 } = options || {};
 
@@ -274,14 +270,10 @@ export class UsageRecordsRepository {
     ];
 
     if (startDate) {
-      conditions.push(
-        sql`${usageRecords.created_at} >= ${startDate}`
-      );
+      conditions.push(sql`${usageRecords.created_at} >= ${startDate}`);
     }
     if (endDate) {
-      conditions.push(
-        sql`${usageRecords.created_at} <= ${endDate}`
-      );
+      conditions.push(sql`${usageRecords.created_at} <= ${endDate}`);
     }
 
     const result = await db
@@ -298,15 +290,11 @@ export class UsageRecordsRepository {
       .from(usageRecords)
       .leftJoin(users, eq(usageRecords.user_id, users.id))
       .where(and(...conditions))
-      .groupBy(
-        usageRecords.user_id,
-        users.name,
-        users.email
-      )
+      .groupBy(usageRecords.user_id, users.name, users.email)
       .orderBy(
         desc(
-          sql`sum(${usageRecords.input_cost} + ${usageRecords.output_cost})`
-        )
+          sql`sum(${usageRecords.input_cost} + ${usageRecords.output_cost})`,
+        ),
       )
       .limit(limit);
 
@@ -348,7 +336,9 @@ export class UsageRecordsRepository {
     const projectedMonthlyBurn = currentDailyBurn * 30;
     const creditBalance = orgData?.credit_balance || 0;
     const daysUntilBalanceZero =
-      currentDailyBurn > 0 ? Math.floor(creditBalance / currentDailyBurn) : null;
+      currentDailyBurn > 0
+        ? Math.floor(creditBalance / currentDailyBurn)
+        : null;
 
     return {
       currentDailyBurn,
@@ -361,21 +351,17 @@ export class UsageRecordsRepository {
 
   async getProviderBreakdown(
     organizationId: string,
-    options?: { startDate?: Date; endDate?: Date }
+    options?: { startDate?: Date; endDate?: Date },
   ): Promise<ProviderBreakdown[]> {
     const conditions: SQL[] = [
       eq(usageRecords.organization_id, organizationId),
     ];
 
     if (options?.startDate) {
-      conditions.push(
-        sql`${usageRecords.created_at} >= ${options.startDate}`
-      );
+      conditions.push(sql`${usageRecords.created_at} >= ${options.startDate}`);
     }
     if (options?.endDate) {
-      conditions.push(
-        sql`${usageRecords.created_at} <= ${options.endDate}`
-      );
+      conditions.push(sql`${usageRecords.created_at} <= ${options.endDate}`);
     }
 
     const result = await db
@@ -395,8 +381,8 @@ export class UsageRecordsRepository {
       .groupBy(usageRecords.provider)
       .orderBy(
         desc(
-          sql`sum(${usageRecords.input_cost} + ${usageRecords.output_cost})`
-        )
+          sql`sum(${usageRecords.input_cost} + ${usageRecords.output_cost})`,
+        ),
       );
 
     const totalCost = result.reduce((sum, row) => sum + row.totalCost, 0);
@@ -413,7 +399,7 @@ export class UsageRecordsRepository {
 
   async getModelBreakdown(
     organizationId: string,
-    options?: { startDate?: Date; endDate?: Date; limit?: number }
+    options?: { startDate?: Date; endDate?: Date; limit?: number },
   ): Promise<ModelBreakdown[]> {
     const { startDate, endDate, limit = 50 } = options || {};
 
@@ -422,14 +408,10 @@ export class UsageRecordsRepository {
     ];
 
     if (startDate) {
-      conditions.push(
-        sql`${usageRecords.created_at} >= ${startDate}`
-      );
+      conditions.push(sql`${usageRecords.created_at} >= ${startDate}`);
     }
     if (endDate) {
-      conditions.push(
-        sql`${usageRecords.created_at} <= ${endDate}`
-      );
+      conditions.push(sql`${usageRecords.created_at} <= ${endDate}`);
     }
 
     const result = await db
@@ -450,8 +432,8 @@ export class UsageRecordsRepository {
       .groupBy(usageRecords.model, usageRecords.provider)
       .orderBy(
         desc(
-          sql`sum(${usageRecords.input_cost} + ${usageRecords.output_cost})`
-        )
+          sql`sum(${usageRecords.input_cost} + ${usageRecords.output_cost})`,
+        ),
       )
       .limit(limit);
 
@@ -470,11 +452,19 @@ export class UsageRecordsRepository {
   async getTrendData(
     organizationId: string,
     currentPeriod: { startDate: Date; endDate: Date },
-    previousPeriod: { startDate: Date; endDate: Date }
+    previousPeriod: { startDate: Date; endDate: Date },
   ): Promise<TrendData> {
     const [currentStats, previousStats] = await Promise.all([
-      this.getStatsByOrganization(organizationId, currentPeriod.startDate, currentPeriod.endDate),
-      this.getStatsByOrganization(organizationId, previousPeriod.startDate, previousPeriod.endDate),
+      this.getStatsByOrganization(
+        organizationId,
+        currentPeriod.startDate,
+        currentPeriod.endDate,
+      ),
+      this.getStatsByOrganization(
+        organizationId,
+        previousPeriod.startDate,
+        previousPeriod.endDate,
+      ),
     ]);
 
     const calculateChange = (current: number, previous: number): number => {
@@ -484,22 +474,25 @@ export class UsageRecordsRepository {
 
     const periodDays = Math.ceil(
       (currentPeriod.endDate.getTime() - currentPeriod.startDate.getTime()) /
-        (1000 * 60 * 60 * 24)
+        (1000 * 60 * 60 * 24),
     );
 
     return {
       requestsChange: calculateChange(
         currentStats.totalRequests,
-        previousStats.totalRequests
+        previousStats.totalRequests,
       ),
-      costChange: calculateChange(currentStats.totalCost, previousStats.totalCost),
+      costChange: calculateChange(
+        currentStats.totalCost,
+        previousStats.totalCost,
+      ),
       tokensChange: calculateChange(
         currentStats.totalInputTokens + currentStats.totalOutputTokens,
-        previousStats.totalInputTokens + previousStats.totalOutputTokens
+        previousStats.totalInputTokens + previousStats.totalOutputTokens,
       ),
       successRateChange: calculateChange(
         currentStats.successRate,
-        previousStats.successRate
+        previousStats.successRate,
       ),
       period: `${periodDays}d`,
     };
@@ -515,7 +508,7 @@ export class UsageRecordsRepository {
       sortOrder?: "asc" | "desc";
       limit?: number;
       offset?: number;
-    }
+    },
   ): Promise<CostBreakdownItem[]> {
     const {
       startDate,
@@ -531,14 +524,10 @@ export class UsageRecordsRepository {
     ];
 
     if (startDate) {
-      conditions.push(
-        sql`${usageRecords.created_at} >= ${startDate}`
-      );
+      conditions.push(sql`${usageRecords.created_at} >= ${startDate}`);
     }
     if (endDate) {
-      conditions.push(
-        sql`${usageRecords.created_at} <= ${endDate}`
-      );
+      conditions.push(sql`${usageRecords.created_at} <= ${endDate}`);
     }
 
     const dimensionColumn = {

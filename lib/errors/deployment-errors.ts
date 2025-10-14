@@ -8,7 +8,7 @@ export class DeploymentError extends Error {
     message: string,
     public code: string,
     public statusCode: number = 500,
-    public details?: Record<string, unknown>
+    public details?: Record<string, unknown>,
   ) {
     super(message);
     this.name = "DeploymentError";
@@ -34,7 +34,7 @@ export class CloudflareApiError extends DeploymentError {
     message: string,
     public endpoint: string,
     public method: string,
-    details?: Record<string, unknown>
+    details?: Record<string, unknown>,
   ) {
     super(message, "CLOUDFLARE_API_ERROR", 502, details);
     this.name = "CloudflareApiError";
@@ -45,7 +45,7 @@ export class ContainerDeploymentError extends DeploymentError {
   constructor(
     message: string,
     public containerId?: string,
-    details?: Record<string, unknown>
+    details?: Record<string, unknown>,
   ) {
     super(message, "CONTAINER_DEPLOYMENT_FAILED", 500, details);
     this.name = "ContainerDeploymentError";
@@ -56,13 +56,13 @@ export class InsufficientCreditsError extends DeploymentError {
   constructor(
     required: number,
     available: number,
-    details?: Record<string, unknown>
+    details?: Record<string, unknown>,
   ) {
     super(
       `Insufficient credits. Required: ${required}, Available: ${available}`,
       "INSUFFICIENT_CREDITS",
       402,
-      { required, available, ...details }
+      { required, available, ...details },
     );
     this.name = "InsufficientCreditsError";
   }
@@ -81,7 +81,7 @@ export class TimeoutError extends DeploymentError {
       `Operation '${operation}' timed out after ${timeoutMs}ms`,
       "TIMEOUT",
       504,
-      { operation, timeoutMs }
+      { operation, timeoutMs },
     );
     this.name = "TimeoutError";
   }
@@ -133,7 +133,7 @@ export function isRetryableError(error: unknown): boolean {
 export async function retryWithBackoff<T>(
   fn: () => Promise<T>,
   config: Partial<RetryConfig> = {},
-  onRetry?: (attempt: number, error: Error) => void
+  onRetry?: (attempt: number, error: Error) => void,
 ): Promise<T> {
   const finalConfig = { ...DEFAULT_RETRY_CONFIG, ...config };
   let lastError: Error;
@@ -153,8 +153,9 @@ export async function retryWithBackoff<T>(
       }
 
       const delayMs = Math.min(
-        finalConfig.initialDelayMs * Math.pow(finalConfig.backoffMultiplier, attempt - 1),
-        finalConfig.maxDelayMs
+        finalConfig.initialDelayMs *
+          Math.pow(finalConfig.backoffMultiplier, attempt - 1),
+        finalConfig.maxDelayMs,
       );
 
       if (onRetry) {
@@ -162,7 +163,7 @@ export async function retryWithBackoff<T>(
       }
 
       console.warn(
-        `Retry attempt ${attempt}/${finalConfig.maxAttempts} after ${delayMs}ms delay. Error: ${lastError.message}`
+        `Retry attempt ${attempt}/${finalConfig.maxAttempts} after ${delayMs}ms delay. Error: ${lastError.message}`,
       );
 
       await new Promise((resolve) => setTimeout(resolve, delayMs));
@@ -178,7 +179,7 @@ export async function retryWithBackoff<T>(
 export async function withTimeout<T>(
   fn: () => Promise<T>,
   timeoutMs: number,
-  operation: string
+  operation: string,
 ): Promise<T> {
   const timeoutPromise = new Promise<never>((_, reject) => {
     setTimeout(() => {
@@ -219,4 +220,3 @@ export function formatErrorResponse(error: unknown): {
     error: "An unknown error occurred",
   };
 }
-

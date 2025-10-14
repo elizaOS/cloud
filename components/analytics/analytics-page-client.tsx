@@ -92,10 +92,10 @@ export function AnalyticsPageClient({
       delta:
         trendDelta.requests !== 0
           ? {
-            value: formatDelta(trendDelta.requests) ?? "0%",
-            trend: resolveTrend(trendDelta.requests),
-            label: `vs previous period`,
-          }
+              value: formatDelta(trendDelta.requests) ?? "0%",
+              trend: resolveTrend(trendDelta.requests),
+              label: `vs previous period`,
+            }
           : undefined,
       icon: Activity,
       accent: "violet" as const,
@@ -107,10 +107,10 @@ export function AnalyticsPageClient({
       delta:
         trendDelta.cost !== 0
           ? {
-            value: formatDelta(trendDelta.cost) ?? "0%",
-            trend: resolveTrend(trendDelta.cost),
-            label: `vs previous period`,
-          }
+              value: formatDelta(trendDelta.cost) ?? "0%",
+              trend: resolveTrend(trendDelta.cost),
+              label: `vs previous period`,
+            }
           : undefined,
       icon: Coins,
       accent: "amber" as const,
@@ -122,10 +122,10 @@ export function AnalyticsPageClient({
       delta:
         trendDelta.successRate !== 0
           ? {
-            value: formatDelta(trendDelta.successRate, 2) ?? "0%",
-            trend: resolveTrend(trendDelta.successRate),
-            label: `vs previous period`,
-          }
+              value: formatDelta(trendDelta.successRate, 2) ?? "0%",
+              trend: resolveTrend(trendDelta.successRate),
+              label: `vs previous period`,
+            }
           : undefined,
       icon: ShieldCheck,
       accent: "emerald" as const,
@@ -137,10 +137,10 @@ export function AnalyticsPageClient({
       delta:
         trendDelta.tokens !== 0
           ? {
-            value: formatDelta(trendDelta.tokens) ?? "0%",
-            trend: resolveTrend(trendDelta.tokens),
-            label: `vs previous period`,
-          }
+              value: formatDelta(trendDelta.tokens) ?? "0%",
+              trend: resolveTrend(trendDelta.tokens),
+              label: `vs previous period`,
+            }
           : undefined,
       icon: BarChart3,
       accent: "sky" as const,
@@ -149,7 +149,6 @@ export function AnalyticsPageClient({
 
   return (
     <>
-
       <section className="flex flex-col gap-6 lg:flex-row lg:items-start lg:justify-between lg:gap-10 pb-2">
         <div className="space-y-5 lg:max-w-3xl">
           <div className="flex flex-wrap items-center gap-2 gap-y-3 text-xs font-medium text-muted-foreground">
@@ -176,7 +175,9 @@ export function AnalyticsPageClient({
         <section className="space-y-8 lg:space-y-10">
           <Card className="border-border/70 bg-background/60 shadow-sm">
             <CardHeader className="flex flex-col gap-4 p-6 pb-5">
-              <CardTitle className="text-base font-semibold">Controls</CardTitle>
+              <CardTitle className="text-base font-semibold">
+                Controls
+              </CardTitle>
               <p className="text-sm text-muted-foreground">
                 Adjust the aggregation cadence and time range to refocus the
                 analytics surface. All widgets update in real time.
@@ -235,7 +236,10 @@ export function AnalyticsPageClient({
               </div>
             </TabsContent>
 
-            <TabsContent value="projections" className="space-y-8 lg:space-y-10">
+            <TabsContent
+              value="projections"
+              className="space-y-8 lg:space-y-10"
+            >
               <ProjectionsChart data={projectionsData} />
             </TabsContent>
           </Tabs>

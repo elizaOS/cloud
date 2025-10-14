@@ -1,18 +1,21 @@
 // app/api/v1/embeddings/route.ts
 import { requireAuthOrApiKey } from "@/lib/auth";
-import { 
+import {
   creditsService,
   usageService,
   organizationsService,
 } from "@/lib/services";
-import { 
-  calculateCost, 
-  getProviderFromModel, 
+import {
+  calculateCost,
+  getProviderFromModel,
   normalizeModelName,
   estimateTokens,
 } from "@/lib/pricing";
 import { getProvider } from "@/lib/providers";
-import type { OpenAIEmbeddingsRequest, OpenAIEmbeddingsResponse } from "@/lib/providers/types";
+import type {
+  OpenAIEmbeddingsRequest,
+  OpenAIEmbeddingsResponse,
+} from "@/lib/providers/types";
 import { logger } from "@/lib/utils/logger";
 import type { NextRequest } from "next/server";
 
@@ -55,7 +58,10 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    if (typeof request.input === 'string' && request.input.trim().length === 0) {
+    if (
+      typeof request.input === "string" &&
+      request.input.trim().length === 0
+    ) {
       return Response.json(
         {
           error: {
@@ -73,8 +79,8 @@ export async function POST(req: NextRequest) {
     const normalizedModel = normalizeModelName(request.model);
 
     // Estimate cost before making API call
-    const inputText = Array.isArray(request.input) 
-      ? request.input.join(" ") 
+    const inputText = Array.isArray(request.input)
+      ? request.input.join(" ")
       : request.input;
     const estimatedTokens = estimateTokens(inputText);
     const { totalCost: estimatedCost } = await calculateCost(
@@ -114,7 +120,7 @@ export async function POST(req: NextRequest) {
         required: creditCheck.required,
         balance: creditCheck.balance,
       });
-      
+
       return Response.json(
         {
           error: {
@@ -136,7 +142,7 @@ export async function POST(req: NextRequest) {
     // to prevent free service if deduction fails
     if (data.usage) {
       const tokensUsed = data.usage.total_tokens;
-      
+
       // Use proper cost calculation
       const { inputCost, totalCost } = await calculateCost(
         normalizedModel,
@@ -155,12 +161,15 @@ export async function POST(req: NextRequest) {
       if (!deductResult.success) {
         // This should rarely happen since we checked credits before the call
         // But it can happen if credits were spent elsewhere between check and now
-        logger.error("[OpenAI Proxy] CRITICAL: Failed to deduct credits for embeddings after completion", {
-          organizationId: user.organization_id,
-          cost: totalCost,
-          balance: deductResult.newBalance,
-        });
-        
+        logger.error(
+          "[OpenAI Proxy] CRITICAL: Failed to deduct credits for embeddings after completion",
+          {
+            organizationId: user.organization_id,
+            cost: totalCost,
+            balance: deductResult.newBalance,
+          },
+        );
+
         // Return error instead of giving free service
         return Response.json(
           {

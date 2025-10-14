@@ -90,7 +90,8 @@ export function ApiKeysPageClient({ keys, summary }: ApiKeysPageClientProps) {
 
   useSetPageHeader({
     title: "API Keys",
-    description: "Securely manage programmatic access to the Eliza Cloud platform",
+    description:
+      "Securely manage programmatic access to the Eliza Cloud platform",
     actions: (
       <Button
         size="sm"
@@ -275,146 +276,145 @@ export function ApiKeysPageClient({ keys, summary }: ApiKeysPageClientProps) {
   return (
     <div className="flex flex-col gap-8">
       <Dialog open={createDialogOpen} onOpenChange={setCreateDialogOpen}>
-          <DialogContent className="max-w-2xl">
-            <DialogHeader>
-              <DialogTitle>Create API key</DialogTitle>
-              <DialogDescription>
-                Generate a scoped API key with clear permissions and rate
-                limits.
-              </DialogDescription>
-            </DialogHeader>
-            <div className="grid gap-6">
-              <div className="grid gap-2">
-                <Label htmlFor="api-key-name">Name</Label>
-                <Input
-                  id="api-key-name"
-                  placeholder="Production integration"
-                  value={formData.name}
-                  onChange={(e) =>
-                    setFormData({ ...formData, name: e.target.value })
-                  }
-                  autoFocus
-                />
-                <p className="text-xs text-muted-foreground">
-                  Choose a descriptive name for this key so your team can
-                  recognize its purpose.
-                </p>
-              </div>
+        <DialogContent className="max-w-2xl">
+          <DialogHeader>
+            <DialogTitle>Create API key</DialogTitle>
+            <DialogDescription>
+              Generate a scoped API key with clear permissions and rate limits.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="grid gap-6">
+            <div className="grid gap-2">
+              <Label htmlFor="api-key-name">Name</Label>
+              <Input
+                id="api-key-name"
+                placeholder="Production integration"
+                value={formData.name}
+                onChange={(e) =>
+                  setFormData({ ...formData, name: e.target.value })
+                }
+                autoFocus
+              />
+              <p className="text-xs text-muted-foreground">
+                Choose a descriptive name for this key so your team can
+                recognize its purpose.
+              </p>
+            </div>
 
-              <div className="grid gap-2">
-                <Label htmlFor="api-key-description">Description</Label>
-                <Textarea
-                  id="api-key-description"
-                  placeholder="Used by our backend services for customer facing features"
-                  value={formData.description}
-                  onChange={(e) =>
-                    setFormData({ ...formData, description: e.target.value })
-                  }
-                  rows={3}
-                />
-              </div>
+            <div className="grid gap-2">
+              <Label htmlFor="api-key-description">Description</Label>
+              <Textarea
+                id="api-key-description"
+                placeholder="Used by our backend services for customer facing features"
+                value={formData.description}
+                onChange={(e) =>
+                  setFormData({ ...formData, description: e.target.value })
+                }
+                rows={3}
+              />
+            </div>
 
-              <div className="grid gap-2">
-                <Label>Permissions</Label>
-                <div className="grid gap-3 rounded-lg border p-4">
-                  {permissionGroups.map((group) => (
-                    <div key={group.title} className="space-y-2">
-                      <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
-                        {group.title}
-                      </p>
-                      <div className="flex flex-wrap gap-2">
-                        {group.permissions.map((permission) => {
-                          const isSelected = selectedPermissions.includes(
-                            permission.id,
-                          );
-                          return (
-                            <Button
-                              key={permission.id}
-                              type="button"
-                              variant={isSelected ? "default" : "outline"}
-                              size="sm"
-                              className="rounded-full text-xs"
-                              onClick={() => {
-                                setSelectedPermissions((prev) =>
-                                  isSelected
-                                    ? prev.filter((p) => p !== permission.id)
-                                    : [...prev, permission.id],
-                                );
-                              }}
-                            >
-                              {permission.label}
-                            </Button>
-                          );
-                        })}
-                      </div>
+            <div className="grid gap-2">
+              <Label>Permissions</Label>
+              <div className="grid gap-3 rounded-lg border p-4">
+                {permissionGroups.map((group) => (
+                  <div key={group.title} className="space-y-2">
+                    <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+                      {group.title}
+                    </p>
+                    <div className="flex flex-wrap gap-2">
+                      {group.permissions.map((permission) => {
+                        const isSelected = selectedPermissions.includes(
+                          permission.id,
+                        );
+                        return (
+                          <Button
+                            key={permission.id}
+                            type="button"
+                            variant={isSelected ? "default" : "outline"}
+                            size="sm"
+                            className="rounded-full text-xs"
+                            onClick={() => {
+                              setSelectedPermissions((prev) =>
+                                isSelected
+                                  ? prev.filter((p) => p !== permission.id)
+                                  : [...prev, permission.id],
+                              );
+                            }}
+                          >
+                            {permission.label}
+                          </Button>
+                        );
+                      })}
                     </div>
-                  ))}
-                </div>
-              </div>
-
-              <div className="grid gap-2">
-                <Label>Rate limit</Label>
-                <Select
-                  value={rateLimitPreset}
-                  onValueChange={(value) =>
-                    setRateLimitPreset(
-                      value as (typeof rateLimitPresets)[number]["value"],
-                    )
-                  }
-                >
-                  <SelectTrigger>
-                    <SelectValue placeholder="Select a limit" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {rateLimitPresets.map((preset) => (
-                      <SelectItem key={preset.value} value={preset.value}>
-                        {preset.label}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-                {rateLimitPreset === "custom" && (
-                  <div className="grid gap-2 rounded-lg border border-dashed p-4">
-                    <Label htmlFor="api-key-rate-custom">
-                      Custom requests / minute
-                    </Label>
-                    <Input
-                      id="api-key-rate-custom"
-                      type="number"
-                      placeholder="Enter custom rate limit"
-                      value={
-                        rateLimitPreset === "custom" ? formData.rate_limit : ""
-                      }
-                      onChange={(e) =>
-                        setFormData({
-                          ...formData,
-                          rate_limit: parseInt(e.target.value) || 100,
-                        })
-                      }
-                      min={100}
-                      step={100}
-                    />
                   </div>
-                )}
+                ))}
               </div>
             </div>
-            <DialogFooter className="gap-2">
-              <Button
-                variant="outline"
-                onClick={() => setCreateDialogOpen(false)}
-                disabled={isCreating}
+
+            <div className="grid gap-2">
+              <Label>Rate limit</Label>
+              <Select
+                value={rateLimitPreset}
+                onValueChange={(value) =>
+                  setRateLimitPreset(
+                    value as (typeof rateLimitPresets)[number]["value"],
+                  )
+                }
               >
-                Cancel
-              </Button>
-              <Button
-                onClick={handleCreateKey}
-                disabled={isCreating || !formData.name.trim()}
-              >
-                {isCreating ? "Creating..." : "Create key"}
-              </Button>
-            </DialogFooter>
-          </DialogContent>
-        </Dialog>
+                <SelectTrigger>
+                  <SelectValue placeholder="Select a limit" />
+                </SelectTrigger>
+                <SelectContent>
+                  {rateLimitPresets.map((preset) => (
+                    <SelectItem key={preset.value} value={preset.value}>
+                      {preset.label}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              {rateLimitPreset === "custom" && (
+                <div className="grid gap-2 rounded-lg border border-dashed p-4">
+                  <Label htmlFor="api-key-rate-custom">
+                    Custom requests / minute
+                  </Label>
+                  <Input
+                    id="api-key-rate-custom"
+                    type="number"
+                    placeholder="Enter custom rate limit"
+                    value={
+                      rateLimitPreset === "custom" ? formData.rate_limit : ""
+                    }
+                    onChange={(e) =>
+                      setFormData({
+                        ...formData,
+                        rate_limit: parseInt(e.target.value) || 100,
+                      })
+                    }
+                    min={100}
+                    step={100}
+                  />
+                </div>
+              )}
+            </div>
+          </div>
+          <DialogFooter className="gap-2">
+            <Button
+              variant="outline"
+              onClick={() => setCreateDialogOpen(false)}
+              disabled={isCreating}
+            >
+              Cancel
+            </Button>
+            <Button
+              onClick={handleCreateKey}
+              disabled={isCreating || !formData.name.trim()}
+            >
+              {isCreating ? "Creating..." : "Create key"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       <ApiKeysSummary summary={summary} />
 

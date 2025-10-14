@@ -1,10 +1,10 @@
-import {
-  eq,
-  desc,
-  and,
-} from "drizzle-orm";
+import { eq, desc, and } from "drizzle-orm";
 import { db } from "../client";
-import { creditTransactions, type CreditTransaction, type NewCreditTransaction } from "../schemas/credit-transactions";
+import {
+  creditTransactions,
+  type CreditTransaction,
+  type NewCreditTransaction,
+} from "../schemas/credit-transactions";
 
 export type { CreditTransaction, NewCreditTransaction };
 
@@ -19,10 +19,7 @@ export class CreditTransactionsRepository {
     paymentIntentId: string,
   ): Promise<CreditTransaction | undefined> {
     return await db.query.creditTransactions.findFirst({
-      where: eq(
-        creditTransactions.stripe_payment_intent_id,
-        paymentIntentId,
-      ),
+      where: eq(creditTransactions.stripe_payment_intent_id, paymentIntentId),
     });
   }
 
@@ -50,9 +47,7 @@ export class CreditTransactionsRepository {
     });
   }
 
-  async create(
-    data: NewCreditTransaction,
-  ): Promise<CreditTransaction> {
+  async create(data: NewCreditTransaction): Promise<CreditTransaction> {
     const [transaction] = await db
       .insert(creditTransactions)
       .values(data)
@@ -62,5 +57,4 @@ export class CreditTransactionsRepository {
 }
 
 // Export singleton instance
-export const creditTransactionsRepository =
-  new CreditTransactionsRepository();
+export const creditTransactionsRepository = new CreditTransactionsRepository();

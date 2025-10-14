@@ -27,10 +27,7 @@ export class ContainersService {
     return await containersRepository.listByOrganization(organizationId);
   }
 
-  async getById(
-    id: string,
-    organizationId: string,
-  ): Promise<Container | null> {
+  async getById(id: string, organizationId: string): Promise<Container | null> {
     return await containersRepository.findById(id, organizationId);
   }
 
@@ -102,7 +99,7 @@ export const createContainer = (data: NewContainer) =>
 export const updateContainer = (
   id: string,
   organizationId: string,
-  data: Partial<NewContainer>
+  data: Partial<NewContainer>,
 ) => containersService.update(id, organizationId, data);
 
 export const deleteContainer = (id: string, organizationId: string) =>
@@ -111,13 +108,15 @@ export const deleteContainer = (id: string, organizationId: string) =>
 export const updateContainerStatus = async (
   id: string,
   status: ContainerStatus,
-  options?: string | {
-    errorMessage?: string;
-    deploymentLog?: string;
-    cloudflareWorkerId?: string;
-    cloudflareContainerId?: string;
-    cloudflareUrl?: string;
-  }
+  options?:
+    | string
+    | {
+        errorMessage?: string;
+        deploymentLog?: string;
+        cloudflareWorkerId?: string;
+        cloudflareContainerId?: string;
+        cloudflareUrl?: string;
+      },
 ): Promise<Container> => {
   // Handle both old string format and new options object format
   if (typeof options === "string") {
@@ -125,44 +124,44 @@ export const updateContainerStatus = async (
     if (!result) throw new Error("Container not found");
     return result;
   }
-  
+
   // Build update data - use direct db access for backward compatibility
   // This matches the original queries/containers.ts implementation
   const updateData: Partial<Container> = {
     status,
     updated_at: new Date(),
   };
-  
+
   if (options?.errorMessage) {
     updateData.error_message = options.errorMessage;
   }
-  
+
   if (options?.deploymentLog) {
     updateData.deployment_log = options.deploymentLog;
   }
-  
+
   if (options?.cloudflareWorkerId) {
     updateData.cloudflare_worker_id = options.cloudflareWorkerId;
   }
-  
+
   if (options?.cloudflareContainerId) {
     updateData.cloudflare_container_id = options.cloudflareContainerId;
   }
-  
+
   if (options?.cloudflareUrl) {
     updateData.cloudflare_url = options.cloudflareUrl;
   }
-  
+
   if (status === "running") {
     updateData.last_deployed_at = new Date();
   }
-  
+
   const [container] = await db
     .update(containers)
     .set(updateData)
     .where(eq(containers.id, id))
     .returning();
-  
+
   return container;
 };
 
@@ -172,10 +171,10 @@ export const updateContainerHealth = (id: string) =>
 export const createContainerWithCreditDeduction = (
   containerData: NewContainer,
   userId: string,
-  deploymentCost: number
+  deploymentCost: number,
 ) =>
   containersService.createContainerWithCreditDeduction(
     containerData,
     userId,
-    deploymentCost
+    deploymentCost,
   );

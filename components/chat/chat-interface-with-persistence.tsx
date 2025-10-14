@@ -192,8 +192,7 @@ export function ChatInterfaceWithPersistence({
 
   const lastMessage =
     messages.length > 0 ? messages[messages.length - 1] : null;
-  const isWaitingForResponse =
-    lastMessage?.role === "user" && isProcessing;
+  const isWaitingForResponse = lastMessage?.role === "user" && isProcessing;
 
   const formatTimestamp = (timestamp: number): string => {
     const date = new Date(timestamp);
@@ -375,7 +374,7 @@ export function ChatInterfaceWithPersistence({
                   <span>
                     {formatTimestamp(
                       messageTimestamps.current.get(message.id)?.getTime() ||
-                      Date.now(),
+                        Date.now(),
                     )}
                   </span>
                 </div>

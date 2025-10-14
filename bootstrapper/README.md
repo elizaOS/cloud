@@ -5,12 +5,14 @@ A lightweight Docker container that downloads and runs ElizaOS project artifacts
 ## Purpose
 
 The bootstrapper enables efficient, versioned deployments by:
+
 1. Downloading pre-built project artifacts from R2
 2. Validating integrity via checksum
 3. Installing dependencies
 4. Running the project with configurable commands
 
 This separates the build phase from runtime, allowing for:
+
 - Faster deployments (small bootstrapper image)
 - Version control of artifacts
 - Easy rollbacks
@@ -37,6 +39,7 @@ Run start command (configurable)
 ## Environment Variables
 
 ### Required
+
 - `R2_ARTIFACT_URL` - Full URL to the artifact in R2
 - `R2_ACCESS_KEY_ID` - Temporary R2 access key
 - `R2_SECRET_ACCESS_KEY` - Temporary R2 secret key
@@ -45,12 +48,14 @@ Run start command (configurable)
 - `R2_BUCKET_NAME` - R2 bucket name (default: eliza-artifacts)
 
 ### Optional
+
 - `R2_ARTIFACT_CHECKSUM` - SHA256 checksum for validation
 - `START_CMD` - Command to run the project (default: "bun run start")
 - `SKIP_BUILD` - Skip build step (default: false)
 - `PORT` - Port for the application (default: 3000)
 
 ### Application-Specific
+
 Any environment variables needed by your ElizaOS project can be passed through and will be available to the application.
 
 ## Building the Image
@@ -103,22 +108,26 @@ docker run -it --rm \
 ## Troubleshooting
 
 ### Artifact Download Fails
+
 - Check R2 credentials are valid and not expired
 - Verify R2_ENDPOINT is correct
 - Ensure artifact path exists in R2
 - Check network connectivity
 
 ### Checksum Validation Fails
+
 - Artifact may be corrupted during upload
 - Checksum mismatch indicates tampering
 - Re-upload the artifact
 
 ### Dependencies Installation Fails
+
 - Check package.json is valid
 - Verify all dependencies are available
 - Check network connectivity to npm registry
 
 ### Application Fails to Start
+
 - Check START_CMD is correct
 - Verify PORT is available
 - Check application logs
@@ -133,6 +142,7 @@ elizaos deploy --name my-agent --port 3000
 ```
 
 The CLI will:
+
 1. Create an artifact of your project
 2. Upload to R2 via the Cloud API
 3. Deploy this bootstrapper image with artifact URL
@@ -145,4 +155,3 @@ The CLI will:
   - Checksum validation
   - Dependency installation
   - Configurable start command
-

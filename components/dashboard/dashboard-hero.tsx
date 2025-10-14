@@ -1,9 +1,21 @@
 import Link from "next/link";
-import { Sparkles, ArrowUpRight, CreditCard, Building2, TrendingUp } from "lucide-react";
+import {
+  Sparkles,
+  ArrowUpRight,
+  CreditCard,
+  Building2,
+  TrendingUp,
+} from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
+import {
+  Card,
+  CardContent,
+  CardHeader,
+  CardTitle,
+  CardDescription,
+} from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
 import { cn } from "@/lib/utils";
 
@@ -55,7 +67,10 @@ export function DashboardHero({
       <CardHeader className="relative z-10 pb-4">
         <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
           <div className="space-y-3">
-            <Badge variant="secondary" className="w-fit rounded-full border border-border/60 bg-background/80 px-3 py-1">
+            <Badge
+              variant="secondary"
+              className="w-fit rounded-full border border-border/60 bg-background/80 px-3 py-1"
+            >
               <Sparkles className="mr-1.5 h-3.5 w-3.5 text-primary" />
               <span>Good to see you, {userName}</span>
             </Badge>
@@ -70,11 +85,17 @@ export function DashboardHero({
               </CardDescription>
             </div>
             <div className="flex flex-wrap items-center gap-3 text-sm">
-              <Badge variant="default" className="gap-1.5 rounded-full bg-primary/10 text-primary hover:bg-primary/20">
+              <Badge
+                variant="default"
+                className="gap-1.5 rounded-full bg-primary/10 text-primary hover:bg-primary/20"
+              >
                 <Building2 className="h-4 w-4" />
                 {organizationName}
               </Badge>
-              <Badge variant="outline" className="gap-2 rounded-full border-border/50 bg-background/70 font-medium">
+              <Badge
+                variant="outline"
+                className="gap-2 rounded-full border-border/50 bg-background/70 font-medium"
+              >
                 <CreditCard className="h-4 w-4 text-primary" />
                 {creditBalance.toLocaleString()} credits
               </Badge>
@@ -134,7 +155,9 @@ export function DashboardHero({
                   <TrendingUp className="h-4 w-4 text-emerald-500 opacity-0 transition-opacity group-hover:opacity-100" />
                 </div>
                 {stat.hint ? (
-                  <p className="mt-1 text-xs text-muted-foreground">{stat.hint}</p>
+                  <p className="mt-1 text-xs text-muted-foreground">
+                    {stat.hint}
+                  </p>
                 ) : null}
               </CardContent>
             </Card>

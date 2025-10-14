@@ -55,7 +55,10 @@ export function ActivityFeed({
 
   return (
     <Card
-      className={cn("flex flex-col border-border/50 bg-card/95 backdrop-blur-sm shadow-md", className)}
+      className={cn(
+        "flex flex-col border-border/50 bg-card/95 backdrop-blur-sm shadow-md",
+        className,
+      )}
     >
       <CardHeader className="space-y-1">
         <CardTitle className="text-sm font-semibold tracking-tight">
@@ -100,7 +103,10 @@ export function ActivityFeed({
                             </Badge>
                           ) : null}
                           {item.metadata ? (
-                            <Badge variant="secondary" className="rounded-full text-[11px]">
+                            <Badge
+                              variant="secondary"
+                              className="rounded-full text-[11px]"
+                            >
                               {item.metadata}
                             </Badge>
                           ) : null}
@@ -114,7 +120,9 @@ export function ActivityFeed({
                         </div>
                       </div>
                     </div>
-                    {index < items.length - 1 && <Separator className="ml-12" />}
+                    {index < items.length - 1 && (
+                      <Separator className="ml-12" />
+                    )}
                   </div>
                 );
               })

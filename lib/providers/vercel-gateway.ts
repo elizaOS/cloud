@@ -1,8 +1,8 @@
 // lib/providers/vercel-gateway.ts
-import type { 
-  AIProvider, 
-  OpenAIChatRequest, 
-  OpenAIEmbeddingsRequest 
+import type {
+  AIProvider,
+  OpenAIChatRequest,
+  OpenAIEmbeddingsRequest,
 } from "./types";
 import { logger } from "@/lib/utils/logger";
 
@@ -47,7 +47,7 @@ export class VercelGatewayProvider implements AIProvider {
       // Parse and propagate OpenAI-formatted errors
       if (!response.ok) {
         let errorData: GatewayError | null = null;
-        
+
         try {
           const text = await response.text();
           errorData = JSON.parse(text);
@@ -77,8 +77,8 @@ export class VercelGatewayProvider implements AIProvider {
       return response;
     } catch (error) {
       clearTimeout(timeoutId);
-      
-      if (error instanceof Error && error.name === 'AbortError') {
+
+      if (error instanceof Error && error.name === "AbortError") {
         throw {
           status: 504,
           error: {
@@ -88,7 +88,7 @@ export class VercelGatewayProvider implements AIProvider {
           },
         };
       }
-      
+
       // Re-throw structured errors
       throw error;
     }
@@ -165,4 +165,3 @@ export class VercelGatewayProvider implements AIProvider {
     }
   }
 }
-

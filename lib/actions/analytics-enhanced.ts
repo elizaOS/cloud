@@ -25,7 +25,7 @@ export interface EnhancedAnalyticsFilters {
 }
 
 export async function getEnhancedAnalyticsData(
-  filters: EnhancedAnalyticsFilters = {}
+  filters: EnhancedAnalyticsFilters = {},
 ) {
   const user = await requireAuth();
   const organizationId = user.organization_id;
@@ -81,7 +81,7 @@ export async function getEnhancedAnalyticsData(
     getTrendData(
       organizationId,
       { startDate, endDate },
-      { startDate: previousStartDate, endDate: previousEndDate }
+      { startDate: previousStartDate, endDate: previousEndDate },
     ),
   ]);
 
@@ -126,7 +126,7 @@ export async function getProjectionsData(periods: number = 7) {
   const alerts = generateProjectionAlerts(
     historicalData,
     projections,
-    creditBalance
+    creditBalance,
   );
 
   return {

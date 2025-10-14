@@ -15,7 +15,7 @@ export async function GET(
 
     const resolvedParams = await context.params;
     const modelSegments = resolvedParams.model;
-    
+
     // Validate that we have model segments
     if (!modelSegments || modelSegments.length === 0) {
       return Response.json(
@@ -29,10 +29,10 @@ export async function GET(
         { status: 400 },
       );
     }
-    
+
     // Join segments to support both "openai/gpt-4o-mini" and "openai%2Fgpt-4o-mini"
     const model = modelSegments.join("/");
-    
+
     const provider = getProvider();
     const response = await provider.getModel(model);
 
@@ -67,4 +67,3 @@ export async function GET(
     );
   }
 }
-

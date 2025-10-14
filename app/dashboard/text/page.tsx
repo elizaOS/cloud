@@ -24,8 +24,9 @@ export default async function TextPage({
   let messages: ConversationMessage[] = [];
 
   if (params.conversationId) {
-    const conv =
-      await conversationsService.getWithMessages(params.conversationId);
+    const conv = await conversationsService.getWithMessages(
+      params.conversationId,
+    );
     if (conv) {
       currentConversation = conv;
       messages = conv.messages || [];
