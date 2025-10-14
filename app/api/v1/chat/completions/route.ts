@@ -4,14 +4,15 @@ import { getProvider } from "@/lib/providers";
 import { deductCredits, checkSufficientCredits } from "@/lib/queries/credits";
 import { createUsageRecord } from "@/lib/queries/usage";
 import { createGeneration } from "@/lib/queries/generations";
-import { 
-  calculateCost, 
-  getProviderFromModel, 
+import {
+  calculateCost,
+  getProviderFromModel,
   normalizeModelName,
   estimateRequestCost,
   estimateTokens,
 } from "@/lib/pricing";
 import { logger } from "@/lib/utils/logger";
+import { withRateLimit, RateLimitPresets } from "@/lib/middleware/rate-limit";
 import type { NextRequest } from "next/server";
 import type {
   OpenAIChatRequest,
@@ -20,7 +21,7 @@ import type {
 
 export const maxDuration = 60;
 
-export async function POST(req: NextRequest) {
+async function handlePOST(req: NextRequest) {
   const startTime = Date.now();
 
   try {
@@ -474,3 +475,6 @@ function handleStreamingResponse(
   });
 }
 
+
+
+export const POST = withRateLimit(handlePOST, RateLimitPresets.STRICT);

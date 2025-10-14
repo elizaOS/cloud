@@ -10,6 +10,7 @@ import {
   VIDEO_GENERATION_FALLBACK_COST,
 } from "@/lib/pricing";
 import { uploadFromUrl } from "@/lib/blob";
+import { withRateLimit, RateLimitPresets } from "@/lib/middleware/rate-limit";
 
 fal.config({
   proxyUrl: "/api/fal/proxy",
@@ -46,7 +47,7 @@ const VALID_MODELS = [
   "fal-ai/minimax/hailuo-02/pro/text-to-video",
 ];
 
-export async function POST(request: NextRequest) {
+async function handlePOST(request: NextRequest) {
   let generationId: string | undefined;
   try {
     const { user, apiKey } = await requireAuthOrApiKey(request);
@@ -327,3 +328,6 @@ export async function POST(request: NextRequest) {
     );
   }
 }
+
+
+export const POST = withRateLimit(handlePOST, RateLimitPresets.CRITICAL);

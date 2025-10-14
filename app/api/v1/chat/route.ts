@@ -7,11 +7,12 @@ import { createUsageRecord } from "@/lib/queries/usage";
 import { createGeneration } from "@/lib/queries/generations";
 import { calculateCost, getProviderFromModel } from "@/lib/pricing";
 import { logger } from "@/lib/utils/logger";
+import { withRateLimit, RateLimitPresets } from "@/lib/middleware/rate-limit";
 import type { NextRequest } from "next/server";
 
 export const maxDuration = 60;
 
-export async function POST(req: NextRequest) {
+async function handlePOST(req: NextRequest) {
   try {
     const { user, apiKey } = await requireAuthOrApiKey(req);
     const body = await req.json();
@@ -190,3 +191,6 @@ export async function POST(req: NextRequest) {
     });
   }
 }
+
+
+export const POST = withRateLimit(handlePOST, RateLimitPresets.STANDARD);

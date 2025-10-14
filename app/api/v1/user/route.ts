@@ -3,6 +3,7 @@ import { requireAuth } from "@/lib/auth";
 import { updateUser } from "@/lib/queries/users";
 import { z } from "zod";
 import { revalidateTag } from "next/cache";
+import { withRateLimit, RateLimitPresets } from "@/lib/middleware/rate-limit";
 
 const updateUserSchema = z.object({
   name: z.string().min(1).max(100).optional(),
@@ -13,7 +14,7 @@ const updateUserSchema = z.object({
  * GET /api/v1/user
  * Get current user profile
  */
-export async function GET() {
+async function handleGET() {
   try {
     const user = await requireAuth();
 
@@ -60,7 +61,7 @@ export async function GET() {
  * PATCH /api/v1/user
  * Update current user profile
  */
-export async function PATCH(request: NextRequest) {
+async function handlePATCH(request: NextRequest) {
   try {
     const user = await requireAuth();
     const body = await request.json();
@@ -130,3 +131,7 @@ export async function PATCH(request: NextRequest) {
     );
   }
 }
+
+
+export const GET = withRateLimit(handleGET, RateLimitPresets.STANDARD);
+export const PATCH = withRateLimit(handlePATCH, RateLimitPresets.STANDARD);

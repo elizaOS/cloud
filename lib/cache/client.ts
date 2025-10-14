@@ -17,7 +17,15 @@ export class CacheClient {
     this.enabled = process.env.CACHE_ENABLED !== "false";
 
     if (!this.enabled) {
-      logger.warn("[Cache] Caching is disabled via CACHE_ENABLED flag");
+      if (process.env.NODE_ENV === "production") {
+        logger.error(
+          "🚨 [Cache] CRITICAL: Caching disabled in production! " +
+          "This will cause severe performance degradation. " +
+          "Set CACHE_ENABLED=true and configure Redis credentials."
+        );
+      } else {
+        logger.warn("[Cache] Caching is disabled via CACHE_ENABLED flag");
+      }
       return;
     }
 
@@ -25,9 +33,17 @@ export class CacheClient {
       !process.env.KV_REST_API_URL ||
       !process.env.KV_REST_API_TOKEN
     ) {
-      logger.error(
-        "[Cache] Missing Upstash credentials, caching disabled. Set KV_REST_API_URL and KV_REST_API_TOKEN"
-      );
+      if (process.env.NODE_ENV === "production") {
+        logger.error(
+          "🚨 [Cache] CRITICAL: Missing Upstash credentials in production! " +
+          "Caching disabled - this will cause severe performance issues. " +
+          "Set KV_REST_API_URL and KV_REST_API_TOKEN immediately."
+        );
+      } else {
+        logger.error(
+          "[Cache] Missing Upstash credentials, caching disabled. Set KV_REST_API_URL and KV_REST_API_TOKEN"
+        );
+      }
       this.enabled = false;
       return;
     }
@@ -37,7 +53,7 @@ export class CacheClient {
       token: process.env.KV_REST_API_TOKEN,
     });
 
-    logger.info("[Cache] Cache client initialized with Upstash Redis");
+    logger.info("[Cache] ✓ Cache client initialized with Upstash Redis");
   }
 
   async get<T>(key: string): Promise<T | null> {

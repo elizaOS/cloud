@@ -2,6 +2,9 @@ import crypto from "crypto";
 import { db, schema, eq, and } from "@/lib/db";
 import type { ApiKey, NewApiKey } from "@/lib/types";
 import { API_KEY_PREFIX_LENGTH } from "@/lib/pricing";
+import { cache } from "@/lib/cache/client";
+import { CacheKeys, CacheTTL } from "@/lib/cache/keys";
+import { logger } from "@/lib/utils/logger";
 
 export function generateApiKey(): {
   key: string;
@@ -18,6 +21,17 @@ export function generateApiKey(): {
 
 export async function validateApiKey(key: string): Promise<ApiKey | null> {
   const hash = crypto.createHash("sha256").update(key).digest("hex");
+  const cacheKey = CacheKeys.apiKey.validation(hash);
+
+  const cached = await cache.get<ApiKey>(cacheKey);
+  if (cached) {
+    logger.debug(`[API Key] Cache hit for key validation`);
+    if (cached.expires_at && new Date(cached.expires_at) < new Date()) {
+      await cache.del(cacheKey);
+      return null;
+    }
+    return cached;
+  }
 
   const apiKey = await db.query.apiKeys.findFirst({
     where: and(
@@ -33,6 +47,8 @@ export async function validateApiKey(key: string): Promise<ApiKey | null> {
   if (apiKey.expires_at && new Date(apiKey.expires_at) < new Date()) {
     return null;
   }
+
+  await cache.set(cacheKey, apiKey, CacheTTL.apiKey.validation);
 
   return apiKey;
 }
@@ -77,6 +93,10 @@ export async function updateApiKey(
   id: string,
   data: Partial<NewApiKey>,
 ): Promise<ApiKey | undefined> {
+  const existing = await db.query.apiKeys.findFirst({
+    where: eq(schema.apiKeys.id, id),
+  });
+
   const [updated] = await db
     .update(schema.apiKeys)
     .set({
@@ -85,11 +105,26 @@ export async function updateApiKey(
     })
     .where(eq(schema.apiKeys.id, id))
     .returning();
+
+  if (existing) {
+    const cacheKey = CacheKeys.apiKey.validation(existing.key_hash);
+    await cache.del(cacheKey);
+  }
+
   return updated;
 }
 
 export async function deleteApiKey(id: string): Promise<void> {
+  const existing = await db.query.apiKeys.findFirst({
+    where: eq(schema.apiKeys.id, id),
+  });
+
   await db.delete(schema.apiKeys).where(eq(schema.apiKeys.id, id));
+
+  if (existing) {
+    const cacheKey = CacheKeys.apiKey.validation(existing.key_hash);
+    await cache.del(cacheKey);
+  }
 }
 
 export async function incrementApiKeyUsage(id: string): Promise<void> {

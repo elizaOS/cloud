@@ -38,13 +38,19 @@ const rateLimitStore = new Map<string, RateLimitEntry>();
 // Log warning on first use (only if Redis is not enabled)
 let hasLoggedWarning = false;
 function logRateLimitWarning() {
-  if (!hasLoggedWarning && process.env.NODE_ENV === "production" && process.env.REDIS_RATE_LIMITING !== "true") {
-    logger.warn(
-      "⚠️  [Rate Limit] Using in-memory rate limiting in production. " +
-      "Set REDIS_RATE_LIMITING=true for distributed rate limiting. " +
-      "See lib/middleware/rate-limit-redis.ts"
-    );
-    hasLoggedWarning = true;
+  if (!hasLoggedWarning && process.env.NODE_ENV === "production") {
+    if (process.env.REDIS_RATE_LIMITING !== "true") {
+      logger.error(
+        "🚨 [Rate Limit] CRITICAL: In-memory rate limiting in production! " +
+        "This is a SECURITY VULNERABILITY - users can bypass limits across instances. " +
+        "Set REDIS_RATE_LIMITING=true immediately. " +
+        "See lib/middleware/rate-limit-redis.ts"
+      );
+      hasLoggedWarning = true;
+    } else {
+      logger.info("[Rate Limit] ✓ Using Redis-backed rate limiting (production mode)");
+      hasLoggedWarning = true;
+    }
   }
 }
 
