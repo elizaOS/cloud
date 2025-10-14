@@ -8,6 +8,9 @@ export const metadata: Metadata = {
   description: "Purchase credits and manage your billing",
 };
 
+// Force dynamic rendering since we use server-side auth (cookies)
+export const dynamic = "force-dynamic";
+
 export default async function BillingPage({
   searchParams,
 }: {

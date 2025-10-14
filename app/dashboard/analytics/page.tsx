@@ -6,6 +6,9 @@ import {
 import { requireAuth } from "@/lib/auth";
 import { AnalyticsPageClient } from "@/components/analytics/analytics-page-client";
 
+// Force dynamic rendering for authenticated pages
+export const dynamic = "force-dynamic";
+
 export const metadata: Metadata = {
   title: "Analytics",
   description:

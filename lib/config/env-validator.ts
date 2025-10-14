@@ -37,30 +37,24 @@ const ENV_VARS = {
     errorMessage: "Must be a valid PostgreSQL connection string",
   },
 
-  // WorkOS Authentication
-  WORKOS_CLIENT_ID: {
+  // Privy Authentication
+  NEXT_PUBLIC_PRIVY_APP_ID: {
     required: true,
-    description: "WorkOS client ID",
+    description: "Privy application ID",
     validate: (value: string) => value.length > 0,
+    errorMessage: "Must be a valid Privy app ID",
   },
-  WORKOS_API_KEY: {
+  PRIVY_APP_SECRET: {
     required: true,
-    description: "WorkOS API key",
-    validate: (value: string) => value.startsWith("sk_"),
-    errorMessage: "Must start with 'sk_'",
+    description: "Privy application secret",
+    validate: (value: string) => value.length > 0,
+    errorMessage: "Must be a valid Privy app secret",
   },
-  WORKOS_COOKIE_PASSWORD: {
-    required: true,
-    description: "WorkOS cookie encryption password",
+  PRIVY_WEBHOOK_SECRET: {
+    required: false,
+    description: "Privy webhook secret for user synchronization",
     validate: (value: string) => value.length >= 32,
-    errorMessage: "Must be at least 32 characters",
-  },
-  NEXT_PUBLIC_WORKOS_REDIRECT_URI: {
-    required: true,
-    description: "WorkOS redirect URI",
-    validate: (value: string) =>
-      value.startsWith("http://") || value.startsWith("https://"),
-    errorMessage: "Must be a valid URL",
+    errorMessage: "Must be at least 32 characters for security",
   },
 
   // AI Services

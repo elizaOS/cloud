@@ -14,6 +14,9 @@ export const metadata: Metadata = {
     "Manage your API keys and authentication credentials for elizaOS platform",
 };
 
+// Force dynamic rendering since we use server-side auth (cookies)
+export const dynamic = "force-dynamic";
+
 function getApiKeyStatus(
   isActive: boolean,
   expiresAt: Date | null,
