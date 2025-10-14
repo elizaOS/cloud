@@ -64,16 +64,20 @@ class RedisCreditEventEmitter {
     });
 
     try {
-      await this.redis.rpush(channel, message);
-      await this.redis.expire(channel, 300);
-
-      logger.debug(`[Credit Events Redis] Published event to ${channel}`, {
+      logger.info(`[Credit Events Redis] 📡 PUBLISHING event to ${channel}`, {
         organizationId: event.organizationId,
         delta: event.delta,
         newBalance: event.newBalance,
+        reason: event.reason,
       });
+
+      const result = await this.redis.rpush(channel, message);
+      logger.info(`[Credit Events Redis] ✅ Event published successfully, queue length: ${result}`);
+
+      await this.redis.expire(channel, 300);
+      logger.debug(`[Credit Events Redis] Set expiry on ${channel} to 300s`);
     } catch (error) {
-      logger.error("[Credit Events Redis] Failed to publish event:", error);
+      logger.error("[Credit Events Redis] ❌ Failed to publish event:", error);
     }
   }
 
@@ -98,15 +102,31 @@ class RedisCreditEventEmitter {
       token: process.env.KV_REST_API_TOKEN!,
     });
 
-    const processMessage = async (message: string) => {
+    const processMessage = async (message: string | Record<string, any>) => {
       try {
-        const parsed = JSON.parse(message);
+        // Upstash Redis client auto-parses JSON, so message might already be an object
+        let parsed: any;
+        if (typeof message === 'string') {
+          logger.debug(`[Credit Events Redis] Processing string message`);
+          parsed = JSON.parse(message);
+        } else if (typeof message === 'object' && message !== null) {
+          logger.debug(`[Credit Events Redis] Processing pre-parsed object message`);
+          parsed = message;
+        } else {
+          logger.error(`[Credit Events Redis] Invalid message type: ${typeof message}`);
+          return;
+        }
+
         const event: CreditUpdateEvent = {
           ...parsed,
           timestamp: new Date(parsed.timestamp),
         };
 
-        logger.debug(`[Credit Events Redis] Received event on ${channel}`, event);
+        logger.info(`[Credit Events Redis] ✅ Received event on ${channel}`, {
+          organizationId: event.organizationId,
+          newBalance: event.newBalance,
+          delta: event.delta,
+        });
         await handler(event);
       } catch (error) {
         logger.error("[Credit Events Redis] Error processing message:", error);
@@ -116,17 +136,34 @@ class RedisCreditEventEmitter {
     let isActive = true;
 
     const pollSubscription = async () => {
+      let pollCount = 0;
+      const queueKey = `${channel}:queue`;
+      logger.info(`[Credit Events Redis] 🔄 Starting polling loop for ${queueKey}`);
+      logger.info(`[Credit Events Redis] 🎯 Will check: ${queueKey} every 1 second`);
+      logger.info(`[Credit Events Redis] 🔍 isActive=${isActive}`);
+
       while (isActive) {
         try {
-          const messages = await subscriptionRedis.lrange(`${channel}:queue`, 0, -1);
+          pollCount++;
+          // Log every 5th poll to see if it's running
+          if (pollCount % 5 === 0) {
+            logger.info(`[Credit Events Redis] 🔄 Poll #${pollCount} checking ${queueKey}...`);
+          }
+
+          const messages = await subscriptionRedis.lrange(queueKey, 0, -1);
 
           if (messages && messages.length > 0) {
+            logger.info(`[Credit Events Redis] 📨 Found ${messages.length} message(s) in ${queueKey}`, {
+              messages: messages.slice(0, 2), // Log first 2 for debugging
+            });
+
             for (const message of messages) {
-              if (typeof message === 'string') {
-                await processMessage(message);
-              }
+              logger.debug(`[Credit Events Redis] Processing message from ${queueKey} (type: ${typeof message})`);
+              await processMessage(message);
             }
-            await subscriptionRedis.del(`${channel}:queue`);
+
+            logger.debug(`[Credit Events Redis] Deleting queue ${queueKey} after processing`);
+            await subscriptionRedis.del(queueKey);
           }
 
           await new Promise(resolve => setTimeout(resolve, 1000));
@@ -137,6 +174,8 @@ class RedisCreditEventEmitter {
           break;
         }
       }
+
+      logger.info(`[Credit Events Redis] 🛑 Polling loop ended for ${channel}:queue (total polls: ${pollCount})`);
     };
 
     pollSubscription();
