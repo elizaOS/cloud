@@ -1,0 +1,588 @@
+import {
+  eq,
+  desc,
+  and,
+  gte,
+  lte,
+  sum,
+  count,
+  sql,
+  type SQL,
+} from "drizzle-orm";
+import { db } from "../client";
+import { usageRecords, type UsageRecord, type NewUsageRecord } from "../schemas/usage-records";
+import { users } from "../schemas/users";
+import { organizations } from "../schemas/organizations";
+
+export type { UsageRecord, NewUsageRecord };
+
+export type TimeGranularity = "hour" | "day" | "week" | "month";
+
+export interface UsageStats {
+  totalRequests: number;
+  totalInputTokens: number;
+  totalOutputTokens: number;
+  totalCost: number;
+  successRate: number;
+}
+
+export interface TimeSeriesDataPoint {
+  timestamp: Date;
+  totalRequests: number;
+  totalCost: number;
+  inputTokens: number;
+  outputTokens: number;
+  successRate: number;
+}
+
+export interface UserUsageBreakdown {
+  userId: string;
+  userName: string | null;
+  userEmail: string;
+  totalRequests: number;
+  totalCost: number;
+  inputTokens: number;
+  outputTokens: number;
+  lastActive: Date | null;
+}
+
+export interface CostTrending {
+  currentDailyBurn: number;
+  previousDailyBurn: number;
+  burnChangePercent: number;
+  projectedMonthlyBurn: number;
+  daysUntilBalanceZero: number | null;
+}
+
+export interface ProviderBreakdown {
+  provider: string;
+  totalRequests: number;
+  totalCost: number;
+  totalTokens: number;
+  successRate: number;
+  percentage: number;
+}
+
+export interface ModelBreakdown {
+  model: string;
+  provider: string;
+  totalRequests: number;
+  totalCost: number;
+  totalTokens: number;
+  avgCostPerToken: number;
+  successRate: number;
+}
+
+export interface TrendData {
+  requestsChange: number;
+  costChange: number;
+  tokensChange: number;
+  successRateChange: number;
+  period: string;
+}
+
+export interface CostBreakdownItem {
+  dimension: string;
+  value: string;
+  cost: number;
+  requests: number;
+  tokens: number;
+  successCount: number;
+  totalCount: number;
+}
+
+export class UsageRecordsRepository {
+  async findById(id: string): Promise<UsageRecord | undefined> {
+    return await db.query.usageRecords.findFirst({
+      where: eq(usageRecords.id, id),
+    });
+  }
+
+  async listByOrganization(
+    organizationId: string,
+    limit?: number,
+  ): Promise<UsageRecord[]> {
+    return await db.query.usageRecords.findMany({
+      where: eq(usageRecords.organization_id, organizationId),
+      orderBy: desc(usageRecords.created_at),
+      limit,
+    });
+  }
+
+  async listByOrganizationAndDateRange(
+    organizationId: string,
+    startDate: Date,
+    endDate: Date,
+  ): Promise<UsageRecord[]> {
+    return await db.query.usageRecords.findMany({
+      where: and(
+        eq(usageRecords.organization_id, organizationId),
+        gte(usageRecords.created_at, startDate),
+        lte(usageRecords.created_at, endDate),
+      ),
+      orderBy: desc(usageRecords.created_at),
+    });
+  }
+
+  async getStatsByOrganization(
+    organizationId: string,
+    startDate?: Date,
+    endDate?: Date,
+  ): Promise<UsageStats> {
+    const conditions: SQL[] = [eq(usageRecords.organization_id, organizationId)];
+
+    if (startDate) {
+      conditions.push(sql`${usageRecords.created_at} >= ${startDate}`);
+    }
+    if (endDate) {
+      conditions.push(sql`${usageRecords.created_at} <= ${endDate}`);
+    }
+
+    const [stats] = await db
+      .select({
+        totalRequests: sql<number>`count(*)::int`,
+        totalInputTokens: sql<number>`coalesce(sum(${usageRecords.input_tokens}), 0)::int`,
+        totalOutputTokens: sql<number>`coalesce(sum(${usageRecords.output_tokens}), 0)::int`,
+        totalCost: sql<number>`coalesce(sum(${usageRecords.input_cost} + ${usageRecords.output_cost}), 0)::int`,
+        successRate: sql<number>`coalesce(
+          count(*) filter (where ${usageRecords.is_successful} = true)::float /
+          nullif(count(*)::float, 0),
+          1.0
+        )`,
+      })
+      .from(usageRecords)
+      .where(and(...conditions));
+
+    return {
+      totalRequests: stats?.totalRequests || 0,
+      totalInputTokens: stats?.totalInputTokens || 0,
+      totalOutputTokens: stats?.totalOutputTokens || 0,
+      totalCost: stats?.totalCost || 0,
+      successRate: stats?.successRate || 1.0,
+    };
+  }
+
+  async create(data: NewUsageRecord): Promise<UsageRecord> {
+    const [record] = await db.insert(usageRecords).values(data).returning();
+    return record;
+  }
+
+  async getByModel(
+    organizationId: string,
+    startDate?: Date,
+    endDate?: Date,
+  ): Promise<
+    Array<{
+      model: string | null;
+      provider: string;
+      count: number;
+      totalCost: number;
+    }>
+  > {
+    const conditions = [eq(usageRecords.organization_id, organizationId)];
+
+    if (startDate) {
+      conditions.push(gte(usageRecords.created_at, startDate));
+    }
+
+    if (endDate) {
+      conditions.push(lte(usageRecords.created_at, endDate));
+    }
+
+    const result = await db
+      .select({
+        model: usageRecords.model,
+        provider: usageRecords.provider,
+        count: sql<number>`count(*)::int`,
+        totalCost: sql<number>`sum(${usageRecords.input_cost} + ${usageRecords.output_cost})::int`,
+      })
+      .from(usageRecords)
+      .where(and(...conditions))
+      .groupBy(usageRecords.model, usageRecords.provider);
+
+    return result.map((r) => ({
+      model: r.model,
+      provider: r.provider,
+      count: Number(r.count),
+      totalCost: Number(r.totalCost || 0),
+    }));
+  }
+
+  async getUsageTimeSeries(
+    organizationId: string,
+    options: {
+      startDate: Date;
+      endDate: Date;
+      granularity: TimeGranularity;
+    }
+  ): Promise<TimeSeriesDataPoint[]> {
+    const { startDate, endDate, granularity } = options;
+
+    const truncateExpression = {
+      hour: sql`date_trunc('hour', ${usageRecords.created_at})`,
+      day: sql`date_trunc('day', ${usageRecords.created_at})`,
+      week: sql`date_trunc('week', ${usageRecords.created_at})`,
+      month: sql`date_trunc('month', ${usageRecords.created_at})`,
+    }[granularity];
+
+    const result = await db
+      .select({
+        timestamp: truncateExpression.as("timestamp"),
+        totalRequests: sql<number>`count(*)::int`,
+        totalCost: sql<number>`coalesce(sum(${usageRecords.input_cost} + ${usageRecords.output_cost}), 0)::int`,
+        inputTokens: sql<number>`coalesce(sum(${usageRecords.input_tokens}), 0)::int`,
+        outputTokens: sql<number>`coalesce(sum(${usageRecords.output_tokens}), 0)::int`,
+        successRate: sql<number>`coalesce(
+          count(*) filter (where ${usageRecords.is_successful} = true)::float /
+          nullif(count(*)::float, 0),
+          1.0
+        )`,
+      })
+      .from(usageRecords)
+      .where(
+        and(
+          eq(usageRecords.organization_id, organizationId),
+          sql`${usageRecords.created_at} >= ${startDate}`,
+          sql`${usageRecords.created_at} <= ${endDate}`
+        )
+      )
+      .groupBy(truncateExpression)
+      .orderBy(truncateExpression);
+
+    return result.map((row) => ({
+      timestamp: new Date(row.timestamp as string),
+      totalRequests: row.totalRequests,
+      totalCost: row.totalCost,
+      inputTokens: row.inputTokens,
+      outputTokens: row.outputTokens,
+      successRate: row.successRate,
+    }));
+  }
+
+  async getUsageByUser(
+    organizationId: string,
+    options?: {
+      startDate?: Date;
+      endDate?: Date;
+      limit?: number;
+    }
+  ): Promise<UserUsageBreakdown[]> {
+    const { startDate, endDate, limit = 50 } = options || {};
+
+    const conditions: SQL[] = [
+      eq(usageRecords.organization_id, organizationId),
+    ];
+
+    if (startDate) {
+      conditions.push(
+        sql`${usageRecords.created_at} >= ${startDate}`
+      );
+    }
+    if (endDate) {
+      conditions.push(
+        sql`${usageRecords.created_at} <= ${endDate}`
+      );
+    }
+
+    const result = await db
+      .select({
+        userId: usageRecords.user_id,
+        userName: users.name,
+        userEmail: users.email,
+        totalRequests: sql<number>`count(*)::int`,
+        totalCost: sql<number>`coalesce(sum(${usageRecords.input_cost} + ${usageRecords.output_cost}), 0)::int`,
+        inputTokens: sql<number>`coalesce(sum(${usageRecords.input_tokens}), 0)::int`,
+        outputTokens: sql<number>`coalesce(sum(${usageRecords.output_tokens}), 0)::int`,
+        lastActive: sql<Date>`max(${usageRecords.created_at})`,
+      })
+      .from(usageRecords)
+      .leftJoin(users, eq(usageRecords.user_id, users.id))
+      .where(and(...conditions))
+      .groupBy(
+        usageRecords.user_id,
+        users.name,
+        users.email
+      )
+      .orderBy(
+        desc(
+          sql`sum(${usageRecords.input_cost} + ${usageRecords.output_cost})`
+        )
+      )
+      .limit(limit);
+
+    return result
+      .filter((row) => row.userId !== null && row.userEmail !== null)
+      .map((row) => ({
+        userId: row.userId!,
+        userName: row.userName,
+        userEmail: row.userEmail!,
+        totalRequests: row.totalRequests,
+        totalCost: row.totalCost,
+        inputTokens: row.inputTokens,
+        outputTokens: row.outputTokens,
+        lastActive: row.lastActive,
+      }));
+  }
+
+  async getCostTrending(organizationId: string): Promise<CostTrending> {
+    const now = new Date();
+    const yesterday = new Date(now.getTime() - 24 * 60 * 60 * 1000);
+    const twoDaysAgo = new Date(now.getTime() - 48 * 60 * 60 * 1000);
+
+    const [currentStats, previousStats, orgData] = await Promise.all([
+      this.getStatsByOrganization(organizationId, yesterday, now),
+      this.getStatsByOrganization(organizationId, twoDaysAgo, yesterday),
+      db.query.organizations.findFirst({
+        where: eq(organizations.id, organizationId),
+        columns: { credit_balance: true },
+      }),
+    ]);
+
+    const currentDailyBurn = currentStats.totalCost;
+    const previousDailyBurn = previousStats.totalCost;
+    const burnChangePercent =
+      previousDailyBurn > 0
+        ? ((currentDailyBurn - previousDailyBurn) / previousDailyBurn) * 100
+        : 0;
+
+    const projectedMonthlyBurn = currentDailyBurn * 30;
+    const creditBalance = orgData?.credit_balance || 0;
+    const daysUntilBalanceZero =
+      currentDailyBurn > 0 ? Math.floor(creditBalance / currentDailyBurn) : null;
+
+    return {
+      currentDailyBurn,
+      previousDailyBurn,
+      burnChangePercent,
+      projectedMonthlyBurn,
+      daysUntilBalanceZero,
+    };
+  }
+
+  async getProviderBreakdown(
+    organizationId: string,
+    options?: { startDate?: Date; endDate?: Date }
+  ): Promise<ProviderBreakdown[]> {
+    const conditions: SQL[] = [
+      eq(usageRecords.organization_id, organizationId),
+    ];
+
+    if (options?.startDate) {
+      conditions.push(
+        sql`${usageRecords.created_at} >= ${options.startDate}`
+      );
+    }
+    if (options?.endDate) {
+      conditions.push(
+        sql`${usageRecords.created_at} <= ${options.endDate}`
+      );
+    }
+
+    const result = await db
+      .select({
+        provider: usageRecords.provider,
+        totalRequests: sql<number>`count(*)::int`,
+        totalCost: sql<number>`coalesce(sum(${usageRecords.input_cost} + ${usageRecords.output_cost}), 0)::int`,
+        totalTokens: sql<number>`coalesce(sum(${usageRecords.input_tokens} + ${usageRecords.output_tokens}), 0)::int`,
+        successRate: sql<number>`coalesce(
+          count(*) filter (where ${usageRecords.is_successful} = true)::float /
+          nullif(count(*)::float, 0),
+          1.0
+        )`,
+      })
+      .from(usageRecords)
+      .where(and(...conditions))
+      .groupBy(usageRecords.provider)
+      .orderBy(
+        desc(
+          sql`sum(${usageRecords.input_cost} + ${usageRecords.output_cost})`
+        )
+      );
+
+    const totalCost = result.reduce((sum, row) => sum + row.totalCost, 0);
+
+    return result.map((row) => ({
+      provider: row.provider,
+      totalRequests: row.totalRequests,
+      totalCost: row.totalCost,
+      totalTokens: row.totalTokens,
+      successRate: row.successRate,
+      percentage: totalCost > 0 ? (row.totalCost / totalCost) * 100 : 0,
+    }));
+  }
+
+  async getModelBreakdown(
+    organizationId: string,
+    options?: { startDate?: Date; endDate?: Date; limit?: number }
+  ): Promise<ModelBreakdown[]> {
+    const { startDate, endDate, limit = 50 } = options || {};
+
+    const conditions: SQL[] = [
+      eq(usageRecords.organization_id, organizationId),
+    ];
+
+    if (startDate) {
+      conditions.push(
+        sql`${usageRecords.created_at} >= ${startDate}`
+      );
+    }
+    if (endDate) {
+      conditions.push(
+        sql`${usageRecords.created_at} <= ${endDate}`
+      );
+    }
+
+    const result = await db
+      .select({
+        model: usageRecords.model,
+        provider: usageRecords.provider,
+        totalRequests: sql<number>`count(*)::int`,
+        totalCost: sql<number>`coalesce(sum(${usageRecords.input_cost} + ${usageRecords.output_cost}), 0)::int`,
+        totalTokens: sql<number>`coalesce(sum(${usageRecords.input_tokens} + ${usageRecords.output_tokens}), 0)::int`,
+        successRate: sql<number>`coalesce(
+          count(*) filter (where ${usageRecords.is_successful} = true)::float /
+          nullif(count(*)::float, 0),
+          1.0
+        )`,
+      })
+      .from(usageRecords)
+      .where(and(...conditions))
+      .groupBy(usageRecords.model, usageRecords.provider)
+      .orderBy(
+        desc(
+          sql`sum(${usageRecords.input_cost} + ${usageRecords.output_cost})`
+        )
+      )
+      .limit(limit);
+
+    return result.map((row) => ({
+      model: row.model || "unknown",
+      provider: row.provider,
+      totalRequests: row.totalRequests,
+      totalCost: row.totalCost,
+      totalTokens: row.totalTokens,
+      avgCostPerToken:
+        row.totalTokens > 0 ? row.totalCost / row.totalTokens : 0,
+      successRate: row.successRate,
+    }));
+  }
+
+  async getTrendData(
+    organizationId: string,
+    currentPeriod: { startDate: Date; endDate: Date },
+    previousPeriod: { startDate: Date; endDate: Date }
+  ): Promise<TrendData> {
+    const [currentStats, previousStats] = await Promise.all([
+      this.getStatsByOrganization(organizationId, currentPeriod.startDate, currentPeriod.endDate),
+      this.getStatsByOrganization(organizationId, previousPeriod.startDate, previousPeriod.endDate),
+    ]);
+
+    const calculateChange = (current: number, previous: number): number => {
+      if (previous === 0) return current > 0 ? 100 : 0;
+      return ((current - previous) / previous) * 100;
+    };
+
+    const periodDays = Math.ceil(
+      (currentPeriod.endDate.getTime() - currentPeriod.startDate.getTime()) /
+        (1000 * 60 * 60 * 24)
+    );
+
+    return {
+      requestsChange: calculateChange(
+        currentStats.totalRequests,
+        previousStats.totalRequests
+      ),
+      costChange: calculateChange(currentStats.totalCost, previousStats.totalCost),
+      tokensChange: calculateChange(
+        currentStats.totalInputTokens + currentStats.totalOutputTokens,
+        previousStats.totalInputTokens + previousStats.totalOutputTokens
+      ),
+      successRateChange: calculateChange(
+        currentStats.successRate,
+        previousStats.successRate
+      ),
+      period: `${periodDays}d`,
+    };
+  }
+
+  async getCostBreakdown(
+    organizationId: string,
+    dimension: "model" | "provider" | "user" | "apiKey",
+    options?: {
+      startDate?: Date;
+      endDate?: Date;
+      sortBy?: "cost" | "requests" | "tokens";
+      sortOrder?: "asc" | "desc";
+      limit?: number;
+      offset?: number;
+    }
+  ): Promise<CostBreakdownItem[]> {
+    const {
+      startDate,
+      endDate,
+      sortBy = "cost",
+      sortOrder = "desc",
+      limit = 100,
+      offset = 0,
+    } = options || {};
+
+    const conditions: SQL[] = [
+      eq(usageRecords.organization_id, organizationId),
+    ];
+
+    if (startDate) {
+      conditions.push(
+        sql`${usageRecords.created_at} >= ${startDate}`
+      );
+    }
+    if (endDate) {
+      conditions.push(
+        sql`${usageRecords.created_at} <= ${endDate}`
+      );
+    }
+
+    const dimensionColumn = {
+      model: usageRecords.model,
+      provider: usageRecords.provider,
+      user: usageRecords.user_id,
+      apiKey: usageRecords.api_key_id,
+    }[dimension];
+
+    const sortColumn = {
+      cost: sql`sum(${usageRecords.input_cost} + ${usageRecords.output_cost})`,
+      requests: sql`count(*)`,
+      tokens: sql`sum(${usageRecords.input_tokens} + ${usageRecords.output_tokens})`,
+    }[sortBy];
+
+    const orderDirection = sortOrder === "desc" ? desc(sortColumn) : sortColumn;
+
+    const result = await db
+      .select({
+        value: dimensionColumn,
+        cost: sql<number>`coalesce(sum(${usageRecords.input_cost} + ${usageRecords.output_cost}), 0)::int`,
+        requests: sql<number>`count(*)::int`,
+        tokens: sql<number>`coalesce(sum(${usageRecords.input_tokens} + ${usageRecords.output_tokens}), 0)::int`,
+        successCount: sql<number>`count(*) filter (where ${usageRecords.is_successful} = true)::int`,
+        totalCount: sql<number>`count(*)::int`,
+      })
+      .from(usageRecords)
+      .where(and(...conditions))
+      .groupBy(dimensionColumn)
+      .orderBy(orderDirection)
+      .limit(limit)
+      .offset(offset);
+
+    return result.map((row) => ({
+      dimension,
+      value: row.value || "unknown",
+      cost: row.cost,
+      requests: row.requests,
+      tokens: row.tokens,
+      successCount: row.successCount,
+      totalCount: row.totalCount,
+    }));
+  }
+}
+
+// Export singleton instance
+export const usageRecordsRepository = new UsageRecordsRepository();

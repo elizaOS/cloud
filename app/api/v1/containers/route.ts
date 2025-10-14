@@ -1,19 +1,15 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireAuthOrApiKey } from "@/lib/auth";
-import { db } from "@/db/drizzle";
-import { organizations, creditTransactions } from "@/db/sass/schema";
-import { eq } from "drizzle-orm";
 import {
+  creditsService,
+  usageService,
+  containersService,
   listContainers,
-  type NewContainer,
   deleteContainer,
-} from "@/lib/queries/containers";
-import {
-  createContainerWithQuotaCheck,
+  updateContainerStatus,
   QuotaExceededError,
-} from "@/lib/queries/container-quota";
-import { addCredits } from "@/lib/queries/credits";
-import { createUsageRecord } from "@/lib/queries/usage";
+  type NewContainer,
+} from "@/lib/services";
 import { creditEventEmitter } from "@/lib/events/credit-events";
 import { calculateDeploymentCost, CONTAINER_LIMITS } from "@/lib/constants/pricing";
 import { getCloudflareService } from "@/lib/services/cloudflare";
@@ -244,68 +240,28 @@ async function handleCreateContainer(request: NextRequest) {
     // CRITICAL: Wrap container creation AND credit deduction in a single transaction
     // This prevents race condition where container exists but credits fail to deduct
     let container;
-    let creditResult;
+    let newBalance;
     
     try {
-      const result = await db.transaction(async (tx) => {
-        // Step 1: Create container within transaction
-        const newContainer = await createContainerWithQuotaCheck(containerData, tx);
-        
-        // Step 2: Check credits within the same transaction
-        const org = await tx.query.organizations.findFirst({
-          where: eq(organizations.id, user.organization_id),
-        });
-
-        if (!org) {
-          throw new Error("Organization not found");
-        }
-
-        if (org.credit_balance < deploymentCost) {
-          // Transaction will rollback, container won't be created
-          throw new Error(`Insufficient credits. Required: ${deploymentCost}, Available: ${org.credit_balance}`);
-        }
-
-        const newBalance = org.credit_balance - deploymentCost;
-
-        // Step 3: Deduct credits within transaction
-        await tx
-          .update(organizations)
-          .set({
-            credit_balance: newBalance,
-            updated_at: new Date(),
-          })
-          .where(eq(organizations.id, user.organization_id));
-
-        // Step 4: Create credit transaction record
-        const [creditTx] = await tx
-          .insert(creditTransactions)
-          .values({
-            organization_id: user.organization_id,
-            user_id: user.id,
-            amount: -deploymentCost,
-            type: "usage",
-            description: `Container deployment: ${validatedData.name}`,
-          })
-          .returning();
-
-        return {
-          container: newContainer,
-          creditResult: { success: true, newBalance, transaction: creditTx },
-        };
-      });
+      const result = await containersService.createContainerWithCreditDeduction(
+        containerData,
+        user.id,
+        deploymentCost,
+      );
 
       container = result.container;
-      creditResult = result.creditResult;
+      newBalance = result.newBalance;
 
+      // Emit credit update event for real-time balance updates
       creditEventEmitter.emitCreditUpdate({
         organizationId: user.organization_id,
-        newBalance: creditResult.newBalance,
+        newBalance: newBalance,
         delta: -deploymentCost,
         reason: `Container deployment: ${validatedData.name}`,
         userId: user.id,
         timestamp: new Date(),
       });
-
+      
     } catch (error) {
       // Transaction rolled back - no orphaned container or credit inconsistency
       const errorMessage = error instanceof Error ? error.message : "Unknown error";
@@ -325,7 +281,7 @@ async function handleCreateContainer(request: NextRequest) {
     }
 
     // Create usage record for audit trail
-    await createUsageRecord({
+    await usageService.create({
       organization_id: user.organization_id,
       user_id: user.id,
       api_key_id: apiKey?.id,
@@ -359,7 +315,7 @@ async function handleCreateContainer(request: NextRequest) {
         message:
           "Container deployment initiated. Check status for deployment progress.",
         creditsDeducted: deploymentCost,
-        creditsRemaining: creditResult.newBalance,
+        creditsRemaining: newBalance,
       },
       { status: 201 },
     );
@@ -433,7 +389,6 @@ async function deployContainerAsync(
   deploymentCost: number,
   organizationId: string,
 ): Promise<void> {
-  const { updateContainerStatus } = await import("@/lib/queries/containers");
   const { TimeoutError, withTimeout } = await import("@/lib/errors/deployment-errors");
 
   try {
@@ -498,12 +453,12 @@ async function deployContainerAsync(
     // Attempt refund with retries
     for (let attempt = 1; attempt <= 3; attempt++) {
       try {
-        await addCredits(
+        await creditsService.addCredits({
           organizationId,
-          deploymentCost,
-          "refund",
-          `Refund for failed container deployment: ${config.name}${isTimeout ? " (timeout)" : ""}`,
-        );
+          amount: deploymentCost,
+          description: `Refund for failed container deployment: ${config.name}${isTimeout ? " (timeout)" : ""}`,
+          metadata: { type: "refund" },
+        });
         console.log(`✅ Refunded ${deploymentCost} credits for failed deployment of container ${containerId}`);
         refundSuccessful = true;
         break;

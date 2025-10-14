@@ -1,10 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireAuth } from "@/lib/auth";
-import {
-  getApiKeyById,
-  updateApiKey,
-  generateApiKey,
-} from "@/lib/queries/api-keys";
+import { apiKeysService } from "@/lib/services";
 
 export async function POST(
   request: NextRequest,
@@ -14,7 +10,7 @@ export async function POST(
     const user = await requireAuth();
     const { id } = await params;
 
-    const existingKey = await getApiKeyById(id);
+    const existingKey = await apiKeysService.getById(id);
 
     if (!existingKey) {
       return NextResponse.json({ error: "API key not found" }, { status: 404 });
@@ -24,9 +20,9 @@ export async function POST(
       return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     }
 
-    const { key: newKey, hash: newHash, prefix: newPrefix } = generateApiKey();
+    const { key: newKey, hash: newHash, prefix: newPrefix } = apiKeysService.generateApiKey();
 
-    const updatedKey = await updateApiKey(id, {
+    const updatedKey = await apiKeysService.update(id, {
       key: newKey,
       key_hash: newHash,
       key_prefix: newPrefix,

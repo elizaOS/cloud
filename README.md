@@ -32,19 +32,19 @@ Eliza Cloud V2 is a full-stack AI-as-a-Service platform that combines:
 
 ### 🤖 AI Generation Studio
 
-- **Text & Chat**: 
+- **Text & Chat**:
   - Multi-model support (GPT-4, Claude, Gemini, etc.) via AI SDK Gateway
   - Real-time streaming responses
   - Conversation persistence with full history
   - Model selection and configuration
 
-- **Image Creation**: 
+- **Image Creation**:
   - Google Gemini 2.5 Flash multimodal generation
   - High-quality images (1024x1024)
   - Automatic Vercel Blob storage
   - Base64 preview + downloadable files
 
-- **Video Generation**: 
+- **Video Generation**:
   - Multiple Fal.ai models: Veo3, Kling v2.1, MiniMax Hailuo
   - Long-form video support (up to 5 minutes)
   - Automatic Vercel Blob upload
@@ -52,19 +52,19 @@ Eliza Cloud V2 is a full-stack AI-as-a-Service platform that combines:
 
 ### 🧠 ElizaOS Runtime Integration
 
-- **Full Agent Runtime**: 
+- **Full Agent Runtime**:
   - AgentRuntime from `@elizaos/core` with PostgreSQL database
   - Memory system with vector embeddings (384-3072 dimensions)
   - Rooms, participants, relationships, and entities
   - Plugin system with custom providers and actions
 
-- **Character Creator**: 
+- **Character Creator**:
   - AI-assisted character definition builder
   - Progressive JSON generation with live preview
   - Import/export ElizaOS-compatible character files
   - Support for all character fields (bio, style, plugins, knowledge, etc.)
 
-- **Agent Chat Interface**: 
+- **Agent Chat Interface**:
   - Chat with deployed ElizaOS agents via rooms
   - Message persistence and history
   - Real-time WebSocket updates (future)
@@ -72,19 +72,19 @@ Eliza Cloud V2 is a full-stack AI-as-a-Service platform that combines:
 
 ### 💳 SaaS Platform Features
 
-- **Credit System**: 
+- **Credit System**:
   - Purchase credits via Stripe integration
   - Automatic deduction for AI operations
   - Usage tracking per organization/user
   - Credit packs with volume pricing
 
-- **API Key Management**: 
+- **API Key Management**:
   - Generate API keys for programmatic access
   - Key rotation and regeneration
   - Rate limiting per key
   - Usage statistics and audit logs
 
-- **Container Deployments**: 
+- **Container Deployments**:
   - Deploy ElizaOS projects via `elizaos deploy` CLI
   - Bootstrapper architecture for artifact-based deployments
   - R2 storage for deployment artifacts
@@ -93,38 +93,38 @@ Eliza Cloud V2 is a full-stack AI-as-a-Service platform that combines:
 
 ### 📊 Management & Analytics
 
-- **Dashboard**: 
+- **Dashboard**:
   - Usage overview with charts (Recharts)
   - Provider health monitoring
   - Credit activity timeline
   - Model usage breakdown
 
-- **Gallery**: 
+- **Gallery**:
   - View all generated images and videos
   - Filter by type (image/video)
   - Download or delete media
   - Storage usage statistics
 
-- **Analytics**: 
+- **Analytics**:
   - Usage records by model, provider, type
   - Cost breakdown and trends
   - Error tracking and success rates
 
 ### 🔐 Security & Infrastructure
 
-- **Enterprise Auth**: 
+- **Enterprise Auth**:
   - WorkOS AuthKit with SSO support
   - Organization and user management
   - WorkOS sync for user profiles
   - Role-based access (admin, member)
 
-- **Billing Integration**: 
+- **Billing Integration**:
   - Stripe Checkout for credit purchases
   - Webhook processing with idempotency
   - Tax ID collection for businesses
   - Invoice generation
 
-- **Type Safety**: 
+- **Type Safety**:
   - Full TypeScript coverage
   - Zod validation for API requests
   - Drizzle ORM with type-safe queries
@@ -189,11 +189,11 @@ eliza-cloud-v2/
 │   ├── ui/                  # Reusable UI components (45+ components)
 │   └── ai-elements/         # AI-specific UI components
 ├── db/                      # Database layer
-│   ├── sass/                # SaaS platform schema
-│   │   └── schema.ts        # Organizations, users, API keys, credits, etc.
-│   ├── eliza/               # ElizaOS runtime schema
-│   │   └── schema.ts        # Agents, memories, rooms, embeddings, etc.
-│   ├── drizzle.ts           # Database client
+│   ├── schemas/             # Database schemas
+│   │   └── *.ts             # Organizations, users, API keys, credits, etc.
+│   ├── repositories/        # Data access layer
+│   │   └── *.ts             # Database query functions
+│   ├── client.ts            # Database client
 │   └── migrations/          # Migration SQL files
 ├── lib/                     # Shared utilities
 │   ├── queries/             # Database queries (12 files)
@@ -271,9 +271,9 @@ graph TD
 
 ### Dual Database Architecture
 
-The platform uses two separate database schemas:
+The platform uses **TWO SEPARATE DATABASES** for isolation and scalability:
 
-1. **SaaS Database** (`db/sass/schema.ts`): Platform infrastructure
+1. **Platform Database** (`DATABASE_URL` → `db/schemas/`): SaaS infrastructure
    - Organizations, users, authentication
    - API keys, usage tracking
    - Credit system, billing, Stripe integration
@@ -281,13 +281,21 @@ The platform uses two separate database schemas:
    - Generations (image/video records)
    - Conversations (platform-level chat)
 
-2. **ElizaOS Database** (`db/eliza/schema.ts`): Agent runtime
-   - Agents (character definitions)
+2. **Agent Database** (`AGENT_DATABASE_URL`): ElizaOS runtime
+   - Agents (character definitions) - managed by ElizaOS core
    - Memories with vector embeddings
    - Rooms and participants
    - Entities and relationships
    - Components and tasks
    - Message servers and channels
+   - **Note**: ElizaOS manages its own schema through `@elizaos/plugin-sql`
+
+**Why Two Databases?**
+
+- **Isolation**: ElizaOS framework tables don't mix with platform tables
+- **Scalability**: Agent database can be scaled independently
+- **Migrations**: ElizaOS plugin-sql manages its own migrations
+- **Flexibility**: Use different Postgres instances for different workloads
 
 ## 🛠 Tech Stack
 
@@ -408,8 +416,11 @@ Edit `.env.local` with your credentials (see [example.env.local](example.env.loc
 **Minimum required variables:**
 
 ```env
-# Database
-DATABASE_URL=postgresql://user:password@host:5432/database?sslmode=require
+# Database - Platform (SaaS tables)
+DATABASE_URL=postgresql://user:password@host:5432/platform_db?sslmode=require
+
+# Database - Agent (ElizaOS tables) - Can be same or different database
+AGENT_DATABASE_URL=postgresql://user:password@host:5432/agent_db?sslmode=require
 
 # WorkOS Authentication
 WORKOS_CLIENT_ID=client_your_id_here
@@ -422,6 +433,13 @@ OPENAI_API_KEY=sk-your_openai_key
 # OR
 AI_GATEWAY_API_KEY=your_gateway_key
 ```
+
+**Note on Databases:**
+
+- You can use the **same database** for both (just use the same URL)
+- Or use **separate databases** for better isolation (recommended for production)
+- If same database: ElizaOS tables and platform tables will coexist
+- If separate: Better isolation, independent scaling, separate backups
 
 **Generate secure passwords:**
 
@@ -525,6 +543,7 @@ bun run bootstrapper:build  # Build container bootstrapper
 **Location**: `/dashboard/text` and `/app/api/v1/chat/route.ts`
 
 **Features**:
+
 - Multi-model support (GPT-4, Claude, Gemini, etc.)
 - Real-time streaming responses with `useChat` hook
 - Conversation persistence with full history
@@ -538,7 +557,7 @@ import { useChat } from "@ai-sdk/react";
 
 const { messages, input, handleSubmit, isLoading } = useChat({
   api: "/api/v1/chat",
-  body: { model: "gpt-4o" }
+  body: { model: "gpt-4o" },
 });
 ```
 
@@ -549,6 +568,7 @@ const { messages, input, handleSubmit, isLoading } = useChat({
 **Location**: `/dashboard/image` and `/app/api/v1/generate-image/route.ts`
 
 **Features**:
+
 - Google Gemini 2.5 Flash multimodal generation
 - High-quality 1024x1024 images
 - Automatic Vercel Blob upload
@@ -564,6 +584,7 @@ const { messages, input, handleSubmit, isLoading } = useChat({
 **Location**: `/dashboard/video` and `/app/api/v1/generate-video/route.ts`
 
 **Features**:
+
 - Multiple Fal.ai models (Veo3, Kling v2.1, MiniMax Hailuo)
 - Automatic Vercel Blob upload
 - Progress tracking with queue updates
@@ -578,6 +599,7 @@ const { messages, input, handleSubmit, isLoading } = useChat({
 **Location**: `/dashboard/gallery`
 
 **Features**:
+
 - View all generated images and videos
 - Filter by type (image, video, all)
 - Grid layout with thumbnails
@@ -587,6 +609,7 @@ const { messages, input, handleSubmit, isLoading } = useChat({
 - Storage usage statistics
 
 **Vercel Blob Benefits**:
+
 - Global CDN delivery (19 edge regions)
 - Public access with unguessable URLs
 - Automatic caching
@@ -606,6 +629,7 @@ BLOB_READ_WRITE_TOKEN=vercel_blob_rw_your_token
 **Location**: `/dashboard/containers` and `/app/api/v1/containers/route.ts`
 
 **Features**:
+
 - Deploy ElizaOS projects via `elizaos deploy` CLI
 - Bootstrapper architecture for artifact-based deployments
 - Cloudflare Workers runtime
@@ -632,6 +656,7 @@ ENTRYPOINT ["/bootstrap.sh"]
 ```
 
 The bootstrapper:
+
 - Downloads artifact from R2 using temporary credentials
 - Extracts tarball
 - Installs dependencies
@@ -657,6 +682,7 @@ Authorization: Bearer eliza_your_api_key
 ```
 
 **Requirements**:
+
 - Cloudflare account with Workers
 - R2 storage configured
 - Environment variables set (see `docs/DEPLOYMENT.md`)
@@ -666,6 +692,7 @@ Authorization: Bearer eliza_your_api_key
 **Location**: `/dashboard/eliza` and `lib/eliza/`
 
 **Features**:
+
 - Full `AgentRuntime` from `@elizaos/core`
 - PostgreSQL-backed memory system
 - Vector embeddings (384-3072 dimensions)
@@ -674,6 +701,7 @@ Authorization: Bearer eliza_your_api_key
 - Custom plugins and providers
 
 **Database Schema**:
+
 - `agents`: Character definitions
 - `memories`: Conversation history
 - `embeddings`: Vector similarity search
@@ -704,6 +732,7 @@ POST /api/eliza/rooms/{roomId}/messages
 **Location**: `/dashboard/character-creator` and `/app/api/v1/character-assistant/route.ts`
 
 **Features**:
+
 - AI-assisted character building using GPT-4o-mini
 - Progressive JSON generation
 - Live preview of character definition
@@ -715,6 +744,7 @@ POST /api/eliza/rooms/{roomId}/messages
   - plugins, knowledge, settings
 
 **Workflow**:
+
 1. User describes character in natural language
 2. AI generates JSON incrementally
 3. User sees live preview
@@ -742,6 +772,7 @@ POST /api/eliza/rooms/{roomId}/messages
 **Location**: `/dashboard/api-keys` and `/app/api/v1/api-keys/route.ts`
 
 **Features**:
+
 - Generate API keys for programmatic access
 - Key rotation and regeneration
 - Rate limiting per key (default 1000 req/day)
@@ -813,15 +844,15 @@ curl -X POST https://www.elizacloud.ai/api/v1/chat \
 **Streaming Response:**
 
 ```typescript
-const response = await fetch('https://www.elizacloud.ai/api/v1/chat', {
-  method: 'POST',
+const response = await fetch("https://www.elizacloud.ai/api/v1/chat", {
+  method: "POST",
   headers: {
-    'Authorization': 'Bearer eliza_your_key_here',
-    'Content-Type': 'application/json',
+    Authorization: "Bearer eliza_your_key_here",
+    "Content-Type": "application/json",
   },
   body: JSON.stringify({
-    messages: [{ role: 'user', content: 'Hello!' }],
-    model: 'gpt-4o',
+    messages: [{ role: "user", content: "Hello!" }],
+    model: "gpt-4o",
   }),
 });
 
@@ -832,7 +863,7 @@ const decoder = new TextDecoder();
 while (true) {
   const { done, value } = await reader.read();
   if (done) break;
-  
+
   const chunk = decoder.decode(value);
   console.log(chunk);
 }
@@ -874,17 +905,20 @@ curl -X POST https://www.elizacloud.ai/api/v1/generate-image \
 
 ```typescript
 async function generateImage(prompt: string) {
-  const response = await fetch('https://www.elizacloud.ai/api/v1/generate-image', {
-    method: 'POST',
-    headers: {
-      'Authorization': `Bearer ${process.env.ELIZA_API_KEY}`,
-      'Content-Type': 'application/json',
+  const response = await fetch(
+    "https://www.elizacloud.ai/api/v1/generate-image",
+    {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${process.env.ELIZA_API_KEY}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({ prompt }),
     },
-    body: JSON.stringify({ prompt }),
-  });
+  );
 
   const data = await response.json();
-  
+
   if (!data.success) {
     throw new Error(data.error);
   }
@@ -893,9 +927,9 @@ async function generateImage(prompt: string) {
 }
 
 // Usage
-const result = await generateImage('A futuristic cityscape');
-console.log('Image URL:', result.url);
-console.log('Credits remaining:', result.creditsRemaining);
+const result = await generateImage("A futuristic cityscape");
+console.log("Image URL:", result.url);
+console.log("Credits remaining:", result.creditsRemaining);
 ```
 
 **Cost**: 100 credits per image
@@ -931,6 +965,7 @@ curl -X POST https://www.elizacloud.ai/api/v1/generate-video \
 ```
 
 **Available Models**:
+
 - `fal-ai/veo3` - Google Veo 3 (high quality)
 - `fal-ai/veo3/fast` - Google Veo 3 Fast (faster generation)
 - `fal-ai/kling-video/v2.1/master/text-to-video` - Kling Master (highest quality)
@@ -960,12 +995,12 @@ def generate_video(prompt: str, model: str = 'fal-ai/veo3'):
             'model': model,
         }
     )
-    
+
     data = response.json()
-    
+
     if not data['success']:
         raise Exception(data['error'])
-    
+
     return data['data']
 
 # Usage
@@ -983,14 +1018,17 @@ Always handle errors appropriately:
 ```typescript
 async function callAIEndpoint(endpoint: string, body: object) {
   try {
-    const response = await fetch(`https://www.elizacloud.ai/api/v1/${endpoint}`, {
-      method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${process.env.ELIZA_API_KEY}`,
-        'Content-Type': 'application/json',
+    const response = await fetch(
+      `https://www.elizacloud.ai/api/v1/${endpoint}`,
+      {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${process.env.ELIZA_API_KEY}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(body),
       },
-      body: JSON.stringify(body),
-    });
+    );
 
     const data = await response.json();
 
@@ -998,21 +1036,21 @@ async function callAIEndpoint(endpoint: string, body: object) {
       // Handle API errors
       switch (response.status) {
         case 401:
-          throw new Error('Invalid API key');
+          throw new Error("Invalid API key");
         case 402:
-          throw new Error('Insufficient credits');
+          throw new Error("Insufficient credits");
         case 429:
-          throw new Error('Rate limit exceeded');
+          throw new Error("Rate limit exceeded");
         case 503:
-          throw new Error('Service unavailable - feature not configured');
+          throw new Error("Service unavailable - feature not configured");
         default:
-          throw new Error(data.error || 'Unknown error');
+          throw new Error(data.error || "Unknown error");
       }
     }
 
     return data.data;
   } catch (error) {
-    console.error('API call failed:', error);
+    console.error("API call failed:", error);
     throw error;
   }
 }
@@ -1021,12 +1059,14 @@ async function callAIEndpoint(endpoint: string, body: object) {
 ##### 6. Rate Limits
 
 Default rate limits per API key:
+
 - **Standard**: 1000 requests/day
 - **Text Generation**: Token-based throttling
 - **Image Generation**: No specific limit (credit-based)
 - **Video Generation**: No specific limit (credit-based)
 
 Rate limit headers are included in responses:
+
 - `X-RateLimit-Limit`: Maximum requests allowed
 - `X-RateLimit-Remaining`: Requests remaining
 - `X-RateLimit-Reset`: When the limit resets
@@ -1045,6 +1085,7 @@ Rate limit headers are included in responses:
 **Location**: `/dashboard/billing` and `lib/queries/credits.ts`
 
 **Features**:
+
 - Credit-based pricing model
 - Stripe integration for purchases
 - Credit packs with volume discounts
@@ -1053,12 +1094,14 @@ Rate limit headers are included in responses:
 - Organization-level balance
 
 **Credit Costs**:
+
 - **Text Chat**: Token-based (varies by model)
 - **Image Generation**: 100 credits
 - **Video Generation**: 500 credits
 - **Container Deployment**: Based on instance hours
 
 **Stripe Integration**:
+
 - Credit pack products defined in Stripe
 - Checkout session for purchases
 - Webhook processing for fulfillment
@@ -1070,8 +1113,8 @@ Rate limit headers are included in responses:
 [
   { name: "Starter", credits: 10000, price: 9.99 },
   { name: "Pro", credits: 50000, price: 39.99 },
-  { name: "Enterprise", credits: 200000, price: 129.99 }
-]
+  { name: "Enterprise", credits: 200000, price: 129.99 },
+];
 ```
 
 **Setup**:
@@ -1083,6 +1126,7 @@ See `docs/STRIPE_SETUP.md` for detailed Stripe configuration.
 **Location**: `/dashboard/analytics` and `lib/queries/usage.ts`
 
 **Features**:
+
 - Usage records per request (tokens, cost, model)
 - Provider health monitoring
 - Model usage breakdown (Recharts)
@@ -1091,6 +1135,7 @@ See `docs/STRIPE_SETUP.md` for detailed Stripe configuration.
 - Response time monitoring
 
 **Metrics Tracked**:
+
 - Input/output tokens
 - Cost per request
 - Duration (ms)
@@ -1099,6 +1144,7 @@ See `docs/STRIPE_SETUP.md` for detailed Stripe configuration.
 - Model and provider used
 
 **Provider Health**:
+
 - Automatic health checks for AI providers
 - Status: healthy, degraded, unhealthy
 - Response time percentiles
@@ -1106,7 +1152,7 @@ See `docs/STRIPE_SETUP.md` for detailed Stripe configuration.
 
 ## 🗄 Database Architecture
 
-### SaaS Schema (`db/sass/schema.ts`)
+### SaaS Schema (`db/schemas/`)
 
 **Core Tables**:
 
@@ -1186,9 +1232,9 @@ See `docs/STRIPE_SETUP.md` for detailed Stripe configuration.
   - attempts, max_attempts
   - webhook_url for callbacks
 
-### ElizaOS Schema (`db/eliza/schema.ts`)
+### ElizaOS Schema (Managed by `@elizaos/plugin-sql`)
 
-**Agent Runtime Tables**:
+**Agent Runtime Tables** (automatically managed by ElizaOS core):
 
 - **agents**: Character definitions
   - name, username, bio, system
@@ -1292,19 +1338,21 @@ The platform implements atomic operations to prevent quota bypass:
 ```typescript
 await db.transaction(async (tx) => {
   // 1. Lock organization row
-  const org = await tx.select()
+  const org = await tx
+    .select()
     .from(organizations)
     .where(eq(organizations.id, orgId))
     .for("update");
-  
+
   // 2. Count containers while holding lock
-  const count = await tx.select()
+  const count = await tx
+    .select()
     .from(containers)
     .where(eq(containers.organization_id, orgId));
-  
+
   // 3. Check quota
   if (count >= maxAllowed) throw new QuotaExceededError();
-  
+
   // 4. Create container
   return await tx.insert(containers).values(data);
 });
@@ -1333,6 +1381,7 @@ All API routes support two authentication methods:
 For detailed examples, request/response formats, and code samples, see [Accessing AI Endpoints with API Keys](#accessing-ai-endpoints-with-api-keys).
 
 **Quick Reference**:
+
 - `POST /api/v1/chat` - Text generation with streaming support
 - `POST /api/v1/generate-image` - Image generation (100 credits)
 - `POST /api/v1/generate-video` - Video generation (500 credits)
@@ -1401,6 +1450,7 @@ GET /api/v1/artifacts/stats
 See [API Key Management](#8-api-key-management) for detailed usage.
 
 **Quick Reference**:
+
 - `POST /api/v1/api-keys` - Create new API key
 - `GET /api/v1/api-keys` - List all keys
 - `POST /api/v1/api-keys/{id}/regenerate` - Regenerate key
@@ -1469,6 +1519,7 @@ Rate limits return:
 ```
 
 HTTP Status Codes:
+
 - `400`: Bad Request (validation error)
 - `401`: Unauthorized (missing/invalid auth)
 - `403`: Forbidden (insufficient permissions)
@@ -1552,6 +1603,7 @@ DATABASE_URL=postgres://prod-url bun run db:migrate
 **Error**: `Connection refused` or `SSL required`
 
 **Solutions**:
+
 - Verify `DATABASE_URL` includes `?sslmode=require`
 - Check Neon dashboard for correct connection string
 - Ensure database is not paused (serverless auto-pause)
@@ -1561,6 +1613,7 @@ DATABASE_URL=postgres://prod-url bun run db:migrate
 **Error**: Continuous redirect between app and WorkOS
 
 **Solutions**:
+
 - Verify `NEXT_PUBLIC_WORKOS_REDIRECT_URI` matches exactly in WorkOS dashboard
 - Check callback route exists: `/app/callback/route.ts`
 - Clear browser cookies
@@ -1571,6 +1624,7 @@ DATABASE_URL=postgres://prod-url bun run db:migrate
 **Error**: `undefined` values in runtime
 
 **Solutions**:
+
 - Restart dev server after changing `.env.local`
 - Ensure file is named exactly `.env.local` (not `.env`)
 - Public variables must start with `NEXT_PUBLIC_`
@@ -1581,6 +1635,7 @@ DATABASE_URL=postgres://prod-url bun run db:migrate
 **Error**: "Container deployment failed" or "Deployment timeout"
 
 **Solutions**:
+
 - Check `CLOUDFLARE_ACCOUNT_ID` and `CLOUDFLARE_API_TOKEN` are correct
 - Verify R2 credentials:
   - `R2_ACCESS_KEY_ID`, `R2_SECRET_ACCESS_KEY`
@@ -1596,6 +1651,7 @@ See `docs/DEPLOYMENT_TROUBLESHOOTING.md` for detailed troubleshooting.
 **Error**: "Failed to upload artifact" or "Artifact upload timeout"
 
 **Solutions**:
+
 - Check artifact size (max 500MB)
 - Verify R2 credentials with AWS CLI:
   ```bash
@@ -1609,6 +1665,7 @@ See `docs/DEPLOYMENT_TROUBLESHOOTING.md` for detailed troubleshooting.
 **Error**: "No image/video was generated" or timeout
 
 **Solutions**:
+
 - **Image**: Verify Google Gemini access in AI Gateway or OpenAI API key
 - **Video**: Check `FAL_KEY` is set correctly
 - Try simpler prompts first
@@ -1620,6 +1677,7 @@ See `docs/DEPLOYMENT_TROUBLESHOOTING.md` for detailed troubleshooting.
 **Error**: Usage not tracking or credits not deducted
 
 **Solutions**:
+
 - Check `credit_transactions` table for records
 - Verify organization `credit_balance` column
 - Check for database transaction errors in logs
@@ -1630,6 +1688,7 @@ See `docs/DEPLOYMENT_TROUBLESHOOTING.md` for detailed troubleshooting.
 **Error**: Credits not added after purchase
 
 **Solutions**:
+
 - Verify `STRIPE_WEBHOOK_SECRET` matches Stripe dashboard
 - Check webhook endpoint URL is correct
 - View webhook events in Stripe dashboard → Developers → Webhooks

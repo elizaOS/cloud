@@ -1,6 +1,6 @@
 import { NextRequest } from "next/server";
 import { requireAuth } from "@/lib/auth";
-import { getCreditBalance } from "@/lib/queries/credits";
+import { organizationsService } from "@/lib/services";
 import { creditEventEmitter } from "@/lib/events/credit-events";
 import type { CreditUpdateEvent } from "@/lib/events/credit-events";
 import { logger } from "@/lib/utils/logger";
@@ -37,7 +37,8 @@ export async function GET(request: NextRequest) {
         };
 
         try {
-          const initialBalance = await getCreditBalance(organizationId);
+          const org = await organizationsService.getById(organizationId);
+          const initialBalance = org?.credit_balance ?? 0;
           sendEvent("initial", {
             balance: initialBalance,
             timestamp: new Date(),

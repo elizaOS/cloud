@@ -4,12 +4,12 @@ import { logger } from "@/lib/utils/logger";
 import {
   getUsageTimeSeries,
   type TimeGranularity,
-} from "@/lib/queries/analytics";
+} from "@/lib/services";
 import {
   generateProjections,
   generateProjectionAlerts,
 } from "@/lib/analytics/projections";
-import { db, schema, eq } from "@/lib/db";
+import { organizationsService } from "@/lib/services";
 
 export const maxDuration = 60;
 
@@ -45,16 +45,13 @@ export async function GET(req: NextRequest) {
         granularity = "day";
     }
 
-    const [historicalData, orgData] = await Promise.all([
+    const [historicalData, org] = await Promise.all([
       getUsageTimeSeries(user.organization_id, {
         startDate,
         endDate: now,
         granularity,
       }),
-      db.query.organizations.findFirst({
-        where: eq(schema.organizations.id, user.organization_id),
-        columns: { credit_balance: true },
-      }),
+      organizationsService.getById(user.organization_id),
     ]);
 
     const projections = generateProjections(historicalData, periods);
@@ -62,7 +59,7 @@ export async function GET(req: NextRequest) {
     const alerts = generateProjectionAlerts(
       historicalData,
       projections,
-      orgData?.credit_balance || 0
+      org?.credit_balance || 0
     );
 
     return NextResponse.json({
@@ -86,7 +83,7 @@ export async function GET(req: NextRequest) {
         metadata: {
           timeRange,
           periods,
-          creditBalance: orgData?.credit_balance || 0,
+          creditBalance: org?.credit_balance || 0,
         },
       },
     });

@@ -1,9 +1,12 @@
 // app/api/v1/chat/completions/route.ts
 import { requireAuthOrApiKey } from "@/lib/auth";
 import { getProvider } from "@/lib/providers";
-import { deductCredits, checkSufficientCredits } from "@/lib/queries/credits";
-import { createUsageRecord } from "@/lib/queries/usage";
-import { createGeneration } from "@/lib/queries/generations";
+import { 
+  creditsService, 
+  usageService, 
+  generationsService,
+  organizationsService,
+} from "@/lib/services";
 import { 
   calculateCost, 
   getProviderFromModel, 
@@ -104,10 +107,27 @@ export async function POST(req: NextRequest) {
     // 4. Check credits BEFORE making API call
     // estimateRequestCost now handles both string and multimodal content
     const estimatedCost = await estimateRequestCost(model, request.messages);
-    const creditCheck = await checkSufficientCredits(
-      user.organization_id,
-      estimatedCost,
-    );
+    
+    // Check if organization has sufficient credits
+    const org = await organizationsService.getById(user.organization_id);
+    if (!org) {
+      return Response.json(
+        {
+          error: {
+            message: "Organization not found",
+            type: "invalid_request_error",
+            code: "organization_not_found",
+          },
+        },
+        { status: 404 },
+      );
+    }
+
+    const creditCheck = {
+      sufficient: org.credit_balance >= estimatedCost,
+      required: estimatedCost,
+      balance: org.credit_balance,
+    };
 
     if (!creditCheck.sufficient) {
       logger.warn("[OpenAI Proxy] Insufficient credits", {
@@ -217,12 +237,12 @@ async function handleNonStreamingResponse(
     );
 
     // CRITICAL: Deduct credits before returning response
-    const deductResult = await deductCredits(
-      user.organization_id,
-      totalCost,
-      `OpenAI Proxy: ${model}`,
-      user.id,
-    );
+    const deductResult = await creditsService.deductCredits({
+      organizationId: user.organization_id,
+      amount: totalCost,
+      description: `OpenAI Proxy: ${model}`,
+      metadata: { user_id: user.id },
+    });
 
     if (!deductResult.success) {
       // This should rarely happen since we checked credits before the call
@@ -250,7 +270,7 @@ async function handleNonStreamingResponse(
     // These are not critical for billing, so can be async
     (async () => {
       try {
-        const usageRecord = await createUsageRecord({
+        const usageRecord = await usageService.create({
           organization_id: user.organization_id,
           user_id: user.id,
           api_key_id: apiKey?.id || null,
@@ -265,7 +285,7 @@ async function handleNonStreamingResponse(
         });
 
         if (apiKey) {
-          await createGeneration({
+          await generationsService.create({
             organization_id: user.organization_id,
             user_id: user.id,
             api_key_id: apiKey.id,
@@ -398,22 +418,27 @@ function handleStreamingResponse(
           outputTokens,
         );
 
-        const deductResult = await deductCredits(
-          user.organization_id,
-          totalCost,
-          `OpenAI Proxy: ${model}`,
-          user.id,
-        );
+        const deductResult = await creditsService.deductCredits({
+          organizationId: user.organization_id,
+          amount: totalCost,
+          description: `OpenAI Proxy: ${model}`,
+          metadata: { user_id: user.id },
+        });
 
         if (!deductResult.success) {
-          logger.error("[OpenAI Proxy] Failed to deduct credits after streaming", {
+          // CRITICAL: This should rarely happen since we checked credits before streaming
+          // But it can happen if credits were spent elsewhere between check and stream completion
+          logger.error("[OpenAI Proxy] CRITICAL: Failed to deduct credits after streaming - race condition detected", {
             organizationId: user.organization_id,
+            userId: user.id,
             cost: totalCost,
             balance: deductResult.newBalance,
           });
+          // Stream has already completed, so we can't return an error to the client
+          // This should trigger an alert for manual review
         }
 
-        const usageRecord = await createUsageRecord({
+        const usageRecord = await usageService.create({
           organization_id: user.organization_id,
           user_id: user.id,
           api_key_id: apiKey?.id || null,
@@ -428,7 +453,7 @@ function handleStreamingResponse(
         });
 
         if (apiKey) {
-          await createGeneration({
+          await generationsService.create({
             organization_id: user.organization_id,
             user_id: user.id,
             api_key_id: apiKey.id,
@@ -473,4 +498,3 @@ function handleStreamingResponse(
     },
   });
 }
-

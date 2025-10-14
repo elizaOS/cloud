@@ -1,6 +1,6 @@
 import { Suspense } from "react";
 import { requireAuth } from "@/lib/auth";
-import { listContainers } from "@/lib/queries/containers";
+import { listContainers } from "@/lib/services";
 import { ContainersTable } from "@/components/containers/containers-table";
 import { ContainersSkeleton } from "@/components/containers/containers-skeleton";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
