@@ -229,10 +229,5 @@ async function handlePOST(req: NextRequest) {
     );
   }
 }
-<<<<<<< HEAD
-
-
 
 export const POST = withRateLimit(handlePOST, RateLimitPresets.STANDARD);
-=======
->>>>>>> 29c4013704f830472a5bfa07468c504978dd0486

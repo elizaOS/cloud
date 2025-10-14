@@ -237,7 +237,7 @@ async function main() {
     { name: "Check pgvector extension", fn: checkPgVector },
     { name: "Run database migrations", fn: runMigrations },
     { name: "Verify tables exist", fn: checkTables },
-    { name: "Seed development data", fn: seedData },
+    // { name: "Seed development data", fn: seedData },
     { name: "Verify setup", fn: verifySetup },
     { name: "Check environment configuration", fn: createEnvFile },
   ];
