@@ -167,9 +167,24 @@ export async function POST(request: NextRequest) {
       { user_id: user.id },
     );
 
+    // FIXED: Fail the request if credit deduction fails to prevent revenue leak
     if (!deductionResult.success) {
       console.error(
         "[VIDEO GENERATION] Failed to deduct credits - insufficient balance",
+        {
+          organizationId: user.organization_id,
+          cost: VIDEO_GENERATION_COST,
+          balance: deductionResult.newBalance,
+        }
+      );
+      
+      return NextResponse.json(
+        {
+          error: "Insufficient credits to complete video generation",
+          required: VIDEO_GENERATION_COST,
+          available: deductionResult.newBalance,
+        },
+        { status: 402 }, // Payment Required
       );
     }
 

@@ -1,6 +1,7 @@
 import { eq } from "drizzle-orm";
 import { db } from "../client";
 import { organizations, type Organization, type NewOrganization } from "../schemas/organizations";
+import type { CreditTransaction } from "../schemas/credit-transactions";
 
 export type { Organization, NewOrganization };
 
@@ -99,7 +100,7 @@ export class OrganizationsRepository {
     amount: number,
     description: string,
     userId?: string,
-  ): Promise<{ success: boolean; newBalance: number; transaction: any }> {
+  ): Promise<{ success: boolean; newBalance: number; transaction: CreditTransaction }> {
     return await db.transaction(async (tx) => {
       const org = await tx.query.organizations.findFirst({
         where: eq(organizations.id, organizationId),
