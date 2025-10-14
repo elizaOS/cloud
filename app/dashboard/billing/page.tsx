@@ -9,7 +9,7 @@ export const metadata: Metadata = {
 };
 
 // Force dynamic rendering since we use server-side auth (cookies)
-export const dynamic = 'force-dynamic';
+export const dynamic = "force-dynamic";
 
 export default async function BillingPage({
   searchParams,

@@ -8,7 +8,7 @@ import type { NextRequest } from "next/server";
 // Initialize Privy client
 const privyClient = new PrivyClient(
   process.env.NEXT_PUBLIC_PRIVY_APP_ID!,
-  process.env.PRIVY_APP_SECRET!
+  process.env.PRIVY_APP_SECRET!,
 );
 
 export type AuthResult = {
@@ -19,13 +19,13 @@ export type AuthResult = {
 
 /**
  * Get the current authenticated user from Privy token
- * 
+ *
  * Flow:
  * 1. Verify Privy token from cookies
  * 2. Look up user in database by Privy ID
  * 3. If not found, fetch full user data from Privy API (just-in-time sync)
  * 4. Create user and organization in database
- * 
+ *
  * This handles the race condition where webhooks haven't fired yet.
  */
 export const getCurrentUser = cache(
@@ -34,36 +34,47 @@ export const getCurrentUser = cache(
       // Get the auth token from cookies
       const cookieStore = await cookies();
       const authToken = cookieStore.get("privy-token");
-      
+
       if (!authToken) {
         return null;
       }
 
       // Verify the token with Privy
       const verifiedClaims = await privyClient.verifyAuthToken(authToken.value);
-      
+
       if (!verifiedClaims) {
         return null;
       }
 
       // Get user from database by Privy ID
       let user = await usersService.getByPrivyId(verifiedClaims.userId);
-      
+
       // Just-in-time sync: If user doesn't exist, fetch from Privy and create
       // This handles race conditions where webhooks haven't fired yet
       if (!user) {
-        console.log(`User ${verifiedClaims.userId} not in database, performing just-in-time sync...`);
-        
+        console.log(
+          `User ${verifiedClaims.userId} not in database, performing just-in-time sync...`,
+        );
+
         try {
           // Fetch full user data from Privy API
           const privyUser = await privyClient.getUser(verifiedClaims.userId);
-          
+
           if (privyUser) {
             // Import the sync logic from webhook
             const { syncUserFromPrivy } = await import("./privy-sync");
             // Type cast needed because Privy SDK types don't match our simplified interface
-            user = await syncUserFromPrivy(privyUser as unknown as { id: string; email?: { address: string }; name?: string | null; linkedAccounts?: Array<Record<string, unknown>> });
-            console.log(`Successfully synced user ${verifiedClaims.userId} just-in-time`);
+            user = await syncUserFromPrivy(
+              privyUser as unknown as {
+                id: string;
+                email?: { address: string };
+                name?: string | null;
+                linkedAccounts?: Array<Record<string, unknown>>;
+              },
+            );
+            console.log(
+              `Successfully synced user ${verifiedClaims.userId} just-in-time`,
+            );
           }
         } catch (syncError) {
           console.error("Failed to sync user just-in-time:", syncError);
@@ -158,7 +169,7 @@ export async function requireAuthOrApiKey(
 ): Promise<AuthResult> {
   // Check for API key in X-API-Key header (legacy)
   const apiKeyHeader = request.headers.get("X-API-Key");
-  
+
   // Check for API key in Authorization header (standard)
   const authHeader = request.headers.get("authorization");
   let apiKeyValue: string | null = null;
@@ -237,21 +248,21 @@ export async function verifyPrivyToken(token: string) {
  * Get user from request headers (for API routes)
  */
 export async function getUserFromRequest(
-  request: NextRequest
+  request: NextRequest,
 ): Promise<UserWithOrganization | null> {
   // Check Authorization header for Privy token
   const authHeader = request.headers.get("Authorization");
   if (authHeader?.startsWith("Bearer ")) {
     const token = authHeader.slice(7);
     const privyUser = await verifyPrivyToken(token);
-    
+
     if (privyUser) {
       // Get user from database
       const user = await usersService.getByPrivyId(privyUser.userId);
-      
+
       // The email is not directly available from the token claims
       // User should already be synced via webhooks
-      
+
       return user ?? null;
     }
   }

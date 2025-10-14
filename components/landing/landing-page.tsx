@@ -36,7 +36,7 @@ export function LandingPage() {
   const { authenticated, ready } = usePrivy();
   const { login } = useLogin();
   const router = useRouter();
-  
+
   // Auto-redirect to dashboard when authenticated
   useEffect(() => {
     if (ready && authenticated) {
@@ -44,15 +44,15 @@ export function LandingPage() {
       router.push("/dashboard");
     }
   }, [ready, authenticated, router]);
-  
+
   const handleAuth = () => {
     console.log("Auth button clicked:", { authenticated, ready });
-    
+
     if (!ready) {
       console.log("Privy not ready yet");
       return;
     }
-    
+
     if (authenticated) {
       router.push("/dashboard");
     } else {

@@ -1,4 +1,11 @@
-import { eq, and, desc, type InferSelectModel, type InferInsertModel } from "drizzle-orm";
+import {
+  eq,
+  and,
+  desc,
+  inArray,
+  type InferSelectModel,
+  type InferInsertModel,
+} from "drizzle-orm";
 import { db } from "../client";
 import { artifacts } from "../schemas/artifacts";
 
@@ -60,20 +67,25 @@ export class ArtifactsRepository {
     if (toDelete.length === 0) return 0;
 
     const idsToDelete = toDelete.map((a) => a.id);
-    await db.delete(artifacts).where(
-      and(
-        eq(artifacts.organization_id, organizationId),
-        eq(artifacts.project_id, projectId),
-      ),
-    );
+    await db
+      .delete(artifacts)
+      .where(
+        and(
+          eq(artifacts.organization_id, organizationId),
+          eq(artifacts.project_id, projectId),
+          inArray(artifacts.id, idsToDelete),
+        ),
+      );
 
     return toDelete.length;
   }
 
-  async getDistinctOrganizationProjects(): Promise<Array<{
-    organizationId: string;
-    projectId: string;
-  }>> {
+  async getDistinctOrganizationProjects(): Promise<
+    Array<{
+      organizationId: string;
+      projectId: string;
+    }>
+  > {
     const results = await db
       .selectDistinct({
         organizationId: artifacts.organization_id,

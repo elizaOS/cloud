@@ -19,7 +19,10 @@ interface AiAssistantProps {
   onCharacterUpdate: (updates: Partial<ElizaCharacter>) => void;
 }
 
-export function AiAssistant({ character, onCharacterUpdate }: AiAssistantProps) {
+export function AiAssistant({
+  character,
+  onCharacterUpdate,
+}: AiAssistantProps) {
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const [input, setInput] = useState("");
   const [quickPrompts, setQuickPrompts] = useState<string[]>([
@@ -29,7 +32,7 @@ export function AiAssistant({ character, onCharacterUpdate }: AiAssistantProps) 
     "Personal productivity coach",
   ]);
   const [isLoadingPrompts, setIsLoadingPrompts] = useState(true);
-  
+
   // Track the character ID to detect when we switch characters
   const characterIdRef = useRef(character.id);
 
@@ -107,17 +110,17 @@ export function AiAssistant({ character, onCharacterUpdate }: AiAssistantProps) 
   useEffect(() => {
     // Check if we've switched to a different character
     const characterChanged = characterIdRef.current !== character.id;
-    
+
     if (characterChanged || messages.length === 0) {
       characterIdRef.current = character.id;
-      
-      const welcomeText = isEditMode 
+
+      const welcomeText = isEditMode
         ? `Hi! I'm here to help you edit **${character.name}**.
 
 **Current Character Summary:**
 - **Name:** ${character.name}
 - **Bio:** ${character.bio}
-${character.adjectives && character.adjectives.length > 0 ? `- **Traits:** ${character.adjectives.join(', ')}\n` : ''}${character.topics && character.topics.length > 0 ? `- **Topics:** ${character.topics.join(', ')}\n` : ''}
+${character.adjectives && character.adjectives.length > 0 ? `- **Traits:** ${character.adjectives.join(", ")}\n` : ""}${character.topics && character.topics.length > 0 ? `- **Topics:** ${character.topics.join(", ")}\n` : ""}
 What would you like to change or improve about this character? I can help you refine the personality, add more details, adjust the style, or anything else!`
         : `Hi! I'm here to help you create an amazing character for your ElizaOS agent. Let's start with the basics:
 
@@ -140,7 +143,16 @@ Tell me about your vision, and I'll help you craft a detailed character definiti
         },
       ]);
     }
-  }, [character.id, character.name, character.bio, character.adjectives, character.topics, isEditMode, setMessages, messages.length]);
+  }, [
+    character.id,
+    character.name,
+    character.bio,
+    character.adjectives,
+    character.topics,
+    isEditMode,
+    setMessages,
+    messages.length,
+  ]);
 
   // Auto-scroll to bottom on new messages and during streaming
   useEffect(() => {
@@ -150,9 +162,13 @@ Tell me about your vision, and I'll help you craft a detailed character definiti
   // Extract and apply character updates in real-time as the AI streams
   useEffect(() => {
     const lastMessage = messages[messages.length - 1];
-    
+
     // Process assistant messages (including while streaming)
-    if (lastMessage && lastMessage.role === "assistant" && lastMessage.id !== "welcome") {
+    if (
+      lastMessage &&
+      lastMessage.role === "assistant" &&
+      lastMessage.id !== "welcome"
+    ) {
       const content = lastMessage.parts
         .filter((part) => part.type === "text")
         .map((part) => (part as { text: string }).text)
@@ -162,7 +178,7 @@ Tell me about your vision, and I'll help you craft a detailed character definiti
       const jsonMatch = content.match(/```json\n([\s\S]*?)(\n```|$)/);
       if (jsonMatch) {
         const jsonText = jsonMatch[1].trim();
-        
+
         // Try to parse even partial JSON
         try {
           // First, try parsing as complete JSON
@@ -172,15 +188,17 @@ Tell me about your vision, and I'll help you craft a detailed character definiti
           // If that fails, try to extract individual fields that are complete
           try {
             // Look for complete field definitions (strings, numbers, booleans, complete arrays)
-            const fieldMatches = jsonText.matchAll(/"(\w+)":\s*("(?:[^"\\]|\\.)*"|true|false|null|\d+(?:\.\d+)?|\[[^\]]*\])/g);
+            const fieldMatches = jsonText.matchAll(
+              /"(\w+)":\s*("(?:[^"\\]|\\.)*"|true|false|null|\d+(?:\.\d+)?|\[[^\]]*\])/g,
+            );
             const partialUpdates: Record<string, unknown> = {};
-            
+
             for (const match of fieldMatches) {
               const [, key, value] = match;
               try {
                 // Parse the value
                 const parsedValue = JSON.parse(value);
-                
+
                 // Only add if it's a meaningful value
                 if (parsedValue !== null && parsedValue !== undefined) {
                   partialUpdates[key] = parsedValue;
@@ -189,7 +207,7 @@ Tell me about your vision, and I'll help you craft a detailed character definiti
                 // Skip invalid values
               }
             }
-            
+
             // Apply partial updates if we got any valid fields
             if (Object.keys(partialUpdates).length > 0) {
               onCharacterUpdate(partialUpdates);
@@ -245,11 +263,13 @@ Tell me about your vision, and I'll help you craft a detailed character definiti
                       : "bg-muted"
                   }`}
                 >
-                  <div className={`prose prose-sm max-w-none [&_pre]:bg-transparent [&_pre]:p-0 ${
-                    message.role === "user" 
-                      ? "prose-invert [&_p]:text-white [&_code]:text-white" 
-                      : "dark:prose-invert"
-                  }`}>
+                  <div
+                    className={`prose prose-sm max-w-none [&_pre]:bg-transparent [&_pre]:p-0 ${
+                      message.role === "user"
+                        ? "prose-invert [&_p]:text-white [&_code]:text-white"
+                        : "dark:prose-invert"
+                    }`}
+                  >
                     <ReactMarkdown
                       remarkPlugins={[remarkGfm]}
                       rehypePlugins={[rehypeHighlight]}
@@ -380,4 +400,3 @@ Tell me about your vision, and I'll help you craft a detailed character definiti
     </Card>
   );
 }
-

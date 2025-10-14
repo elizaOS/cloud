@@ -1,23 +1,27 @@
 # Character Creator Feature
 
 ## Overview
+
 The Character Creator is a comprehensive tool for designing and managing AI agent characters that conform to the ElizaOS character specification. It provides an intuitive interface combining AI-assisted character generation with manual editing capabilities.
 
 ## Features
 
 ### 1. **AI Chat Assistant** 🤖
+
 - Interactive conversational AI that helps users craft character definitions
 - Provides suggestions and asks clarifying questions
 - Automatically extracts and applies character updates from responses
 - Quick prompt buttons for common use cases
 
 ### 2. **JSON Editor** 📝
+
 - Real-time JSON editing with syntax validation
 - Live validation feedback with visual indicators
 - Export character definitions as JSON files
 - Save directly to database
 
 ### 3. **Character Form** 📋
+
 - Organized tabbed interface:
   - **Basics**: Name, username, bio, system prompt
   - **Personality**: Topics, adjectives, post examples
@@ -27,12 +31,14 @@ The Character Creator is a comprehensive tool for designing and managing AI agen
 - Visual badge management
 
 ### 4. **Split Layout** 🖥️
+
 - AI Assistant on the left
 - JSON Editor/Form on the right
 - Toggle between assistant and form views
 - Responsive design for all screen sizes
 
 ### 5. **Character Management** 💾
+
 - Create new characters from scratch
 - Load and edit existing characters
 - Save to database with user/organization isolation
@@ -41,6 +47,7 @@ The Character Creator is a comprehensive tool for designing and managing AI agen
 ## Database Schema
 
 ### `user_characters` Table
+
 ```typescript
 {
   id: UUID (primary key)
@@ -70,6 +77,7 @@ The Character Creator is a comprehensive tool for designing and managing AI agen
 ## API Endpoints
 
 ### `/api/v1/character-assistant`
+
 - **Method**: POST
 - **Purpose**: AI chat assistant for character generation
 - **Uses**: OpenAI GPT-4o-mini with streaming responses
@@ -77,6 +85,7 @@ The Character Creator is a comprehensive tool for designing and managing AI agen
 ## Server Actions
 
 Located in `app/actions/characters.ts`:
+
 - `createCharacter(character)` - Create a new character
 - `updateCharacter(id, character)` - Update existing character
 - `deleteCharacter(id)` - Delete a character
@@ -95,6 +104,7 @@ Located in `app/actions/characters.ts`:
 ## ElizaOS Integration
 
 Characters created with this tool conform to the ElizaOS character specification and can be:
+
 - Exported as JSON files
 - Used directly with ElizaOS agents
 - Shared across the platform (future feature)
@@ -117,4 +127,3 @@ Characters created with this tool conform to the ElizaOS character specification
 - [ ] Direct integration with agent deployment
 - [ ] Character testing playground
 - [ ] Community sharing and marketplace
-

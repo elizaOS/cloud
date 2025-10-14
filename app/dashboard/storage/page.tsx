@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import { StoragePageClient } from "@/components/storage/storage-page-client";
 
-export const dynamic = 'force-dynamic';
+export const dynamic = "force-dynamic";
 
 export const metadata: Metadata = {
   title: "Storage",

@@ -17,15 +17,15 @@ const tempToken = nanoid(32);
 
 ### Why Cloudflare's Approach?
 
-| Feature | Custom Tokens | Cloudflare Temp Credentials |
-|---------|--------------|---------------------------|
-| Token Storage | Requires database table | Managed by Cloudflare |
-| Validation | Custom logic needed | Built-in by Cloudflare |
-| Expiration | Cron job to cleanup | Automatic |
-| Scoping | Application-level | Bucket + prefix enforced |
-| Permissions | Custom logic | AWS STS standard |
-| Database Load | Yes (queries + cleanup) | No |
-| Security | DIY (error-prone) | Industry standard |
+| Feature       | Custom Tokens           | Cloudflare Temp Credentials |
+| ------------- | ----------------------- | --------------------------- |
+| Token Storage | Requires database table | Managed by Cloudflare       |
+| Validation    | Custom logic needed     | Built-in by Cloudflare      |
+| Expiration    | Cron job to cleanup     | Automatic                   |
+| Scoping       | Application-level       | Bucket + prefix enforced    |
+| Permissions   | Custom logic            | AWS STS standard            |
+| Database Load | Yes (queries + cleanup) | No                          |
+| Security      | DIY (error-prone)       | Industry standard           |
 
 ### Implementation
 
@@ -44,18 +44,18 @@ export async function createR2TempCredentials(params) {
       headers: { Authorization: `Bearer ${CLOUDFLARE_API_TOKEN}` },
       body: JSON.stringify({
         bucket: bucketName,
-        prefix: objectPrefix,  // Scope to specific path!
-        permission: "ObjectRead",  // Read-only
-        ttl_seconds: 3600
-      })
-    }
+        prefix: objectPrefix, // Scope to specific path!
+        permission: "ObjectRead", // Read-only
+        ttl_seconds: 3600,
+      }),
+    },
   );
-  
+
   return {
     accessKeyId,
     secretAccessKey,
-    sessionToken,  // Temporary session token
-    expiresAt
+    sessionToken, // Temporary session token
+    expiresAt,
   };
 }
 ```
@@ -65,38 +65,55 @@ export async function createR2TempCredentials(params) {
 **File**: `app/api/v1/artifacts/upload/route.ts`
 
 **Before** (insecure):
+
 ```typescript
-const tempToken = nanoid(32);  // Generated but never validated!
+const tempToken = nanoid(32); // Generated but never validated!
 return { uploadUrl, token: tempToken };
 ```
 
 **After** (secure):
+
 ```typescript
 // Generate UPLOAD credentials (write-only, 10 min)
 const uploadCreds = await createArtifactUploadCredentials({
-  organizationId, projectId, version, artifactId,
-  ttlSeconds: 600
+  organizationId,
+  projectId,
+  version,
+  artifactId,
+  ttlSeconds: 600,
 });
 
 // Generate DOWNLOAD credentials (read-only, 1 hour)
 const downloadCreds = await createArtifactDownloadCredentials({
-  organizationId, projectId, version, artifactId,
-  ttlSeconds: 3600
+  organizationId,
+  projectId,
+  version,
+  artifactId,
+  ttlSeconds: 3600,
 });
 
 return {
   upload: {
-    url, accessKeyId, secretAccessKey, sessionToken, expiresAt
+    url,
+    accessKeyId,
+    secretAccessKey,
+    sessionToken,
+    expiresAt,
   },
   download: {
-    url, accessKeyId, secretAccessKey, sessionToken, expiresAt
-  }
+    url,
+    accessKeyId,
+    secretAccessKey,
+    sessionToken,
+    expiresAt,
+  },
 };
 ```
 
 #### 3. Removed Custom Token Infrastructure
 
 **Deleted** (no longer needed):
+
 - `db/schema/artifact-tokens.ts` - Token table schema
 - `lib/queries/artifact-tokens.ts` - Token CRUD
 - `app/api/v1/artifacts/[id]/download/route.ts` - Custom download
@@ -131,11 +148,11 @@ sequenceDiagram
     API->>CF: Create download temp creds (read, 1hr)
     CF-->>API: Download credentials
     API-->>CLI: Return both credential sets
-    
+
     CLI->>R2: PUT artifact (upload creds)
     Note over R2: Validates credentials,<br/>checks scope & expiration
     R2-->>CLI: Success
-    
+
     CLI->>Container: Start with download creds
     Container->>R2: GET artifact (download creds)
     Note over R2: Validates credentials,<br/>enforces read-only
@@ -145,11 +162,12 @@ sequenceDiagram
 ### Client Usage
 
 **CLI Upload**:
+
 ```typescript
-const response = await fetch('/api/v1/artifacts/upload', {
-  method: 'POST',
+const response = await fetch("/api/v1/artifacts/upload", {
+  method: "POST",
   headers: { Authorization: `Bearer ${apiKey}` },
-  body: JSON.stringify({ projectId, version, checksum, size })
+  body: JSON.stringify({ projectId, version, checksum, size }),
 });
 
 const { upload, download } = response.data;
@@ -159,8 +177,8 @@ const s3 = new S3Client({
   credentials: {
     accessKeyId: upload.accessKeyId,
     secretAccessKey: upload.secretAccessKey,
-    sessionToken: upload.sessionToken  // ← Temporary!
-  }
+    sessionToken: upload.sessionToken, // ← Temporary!
+  },
 });
 
 await s3.send(new PutObjectCommand({ Bucket, Key, Body }));
@@ -170,6 +188,7 @@ process.env.ARTIFACT_DOWNLOAD_CREDS = JSON.stringify(download);
 ```
 
 **Container Bootstrap**:
+
 ```typescript
 const creds = JSON.parse(process.env.ARTIFACT_DOWNLOAD_CREDS);
 
@@ -177,8 +196,8 @@ const s3 = new S3Client({
   credentials: {
     accessKeyId: creds.accessKeyId,
     secretAccessKey: creds.secretAccessKey,
-    sessionToken: creds.sessionToken
-  }
+    sessionToken: creds.sessionToken,
+  },
 });
 
 await s3.send(new GetObjectCommand({ Bucket, Key }));
@@ -187,6 +206,7 @@ await s3.send(new GetObjectCommand({ Bucket, Key }));
 ### Configuration
 
 **Required Environment Variables**:
+
 ```bash
 # Cloudflare API (for creating temp credentials)
 CLOUDFLARE_API_TOKEN=your_token
@@ -235,18 +255,21 @@ aws s3 cp s3://eliza-artifacts/artifacts/... downloaded.tar.gz \
 ## Files Changed
 
 ### Created
+
 - ✅ `lib/services/r2-credentials.ts` - Cloudflare API service
 - ✅ `docs/R2_CLOUDFLARE_CREDENTIALS.md` - Full implementation guide
 - ✅ `docs/SECURITY_REVIEW_ARTIFACT_TOKENS.md` - Security review
 - ✅ `docs/ARTIFACT_SECURITY_IMPLEMENTATION.md` - This summary
 
 ### Modified
+
 - ✅ `app/api/v1/artifacts/upload/route.ts` - Use Cloudflare temp creds
 - ✅ `db/sass/schema.ts` - Removed artifact_tokens table
 - ✅ `example.env.local` - Added Cloudflare/R2 variables
 - ✅ `README.md` - Added security section
 
 ### Deleted
+
 - ❌ `db/schema/artifact-tokens.ts`
 - ❌ `lib/queries/artifact-tokens.ts`
 - ❌ `app/api/v1/artifacts/[id]/download/route.ts`
@@ -279,4 +302,3 @@ The critical security vulnerability has been resolved by adopting Cloudflare's n
 - [Temporary Access Credentials](https://developers.cloudflare.com/r2/api/s3/tokens/#temporary-access-credentials)
 - Implementation: `lib/services/r2-credentials.ts`
 - Full Guide: `docs/R2_CLOUDFLARE_CREDENTIALS.md`
-

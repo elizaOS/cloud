@@ -12,7 +12,10 @@ import {
   type Logger,
   type IDatabaseAdapter,
 } from "@elizaos/core";
-import { createDatabaseAdapter, plugin as sqlPlugin } from "@elizaos/plugin-sql";
+import {
+  createDatabaseAdapter,
+  plugin as sqlPlugin,
+} from "@elizaos/plugin-sql";
 import agent from "./agent";
 
 interface GlobalWithEliza {
@@ -186,20 +189,46 @@ class AgentRuntimeManager {
 
         // Run plugin-sql migrations ONCE to create ElizaOS tables (agents, memories, etc.)
         // The adapter is cached globally, so migrations only run on first initialization
-        if (typeof (dbAdapter as { runPluginMigrations?: unknown }).runPluginMigrations === 'function') {
+        if (
+          typeof (dbAdapter as { runPluginMigrations?: unknown })
+            .runPluginMigrations === "function"
+        ) {
           if (sqlPlugin?.schema) {
-            elizaLogger.info("#Eliza", "Running plugin-sql migrations to create ElizaOS tables...");
+            elizaLogger.info(
+              "#Eliza",
+              "Running plugin-sql migrations to create ElizaOS tables...",
+            );
             try {
-              await (dbAdapter as { runPluginMigrations: (plugins: Array<{name: string; schema: unknown}>, options?: {verbose?: boolean; force?: boolean; dryRun?: boolean}) => Promise<void> })
-                .runPluginMigrations([{ name: '@elizaos/plugin-sql', schema: sqlPlugin.schema }], { verbose: false });
-              elizaLogger.success("#Eliza", "ElizaOS migrations completed - all tables ready");
+              await (
+                dbAdapter as {
+                  runPluginMigrations: (
+                    plugins: Array<{ name: string; schema: unknown }>,
+                    options?: {
+                      verbose?: boolean;
+                      force?: boolean;
+                      dryRun?: boolean;
+                    },
+                  ) => Promise<void>;
+                }
+              ).runPluginMigrations(
+                [{ name: "@elizaos/plugin-sql", schema: sqlPlugin.schema }],
+                { verbose: false },
+              );
+              elizaLogger.success(
+                "#Eliza",
+                "ElizaOS migrations completed - all tables ready",
+              );
             } catch (error) {
-              const errorMsg = error instanceof Error ? error.message : String(error);
+              const errorMsg =
+                error instanceof Error ? error.message : String(error);
               // Tables may already exist - this is fine
               elizaLogger.info("#Eliza", `Migrations: ${errorMsg}`);
             }
           } else {
-            elizaLogger.warn("#Eliza", "plugin-sql schema not found - migrations skipped");
+            elizaLogger.warn(
+              "#Eliza",
+              "plugin-sql schema not found - migrations skipped",
+            );
           }
         }
 

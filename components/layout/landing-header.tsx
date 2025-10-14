@@ -30,12 +30,12 @@ export default function LandingHeader() {
 
   const handleAuth = () => {
     console.log("Header auth button clicked:", { authenticated, ready });
-    
+
     if (!ready) {
       console.log("Privy not ready yet");
       return;
     }
-    
+
     if (authenticated) {
       router.push("/dashboard");
     } else {

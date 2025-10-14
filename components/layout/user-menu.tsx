@@ -26,10 +26,7 @@ export default function UserMenu() {
   const { login } = useLogin();
   const { logout } = useLogout();
   const router = useRouter();
-  const {
-    creditBalance,
-    isLoading: loadingCredits,
-  } = useCreditsStream();
+  const { creditBalance, isLoading: loadingCredits } = useCreditsStream();
 
   // Loading state
   if (!ready) {
@@ -70,10 +67,10 @@ export default function UserMenu() {
     if (user?.linkedAccounts) {
       for (const account of user.linkedAccounts) {
         // Type guard: check if account has email property
-        if ('address' in account && account.type === 'email') {
+        if ("address" in account && account.type === "email") {
           return account.address;
         }
-        if ('email' in account && typeof account.email === 'string') {
+        if ("email" in account && typeof account.email === "string") {
           return account.email;
         }
       }
@@ -92,11 +89,11 @@ export default function UserMenu() {
     if (user?.linkedAccounts) {
       for (const account of user.linkedAccounts) {
         // Type guard: check if account has name property
-        if ('name' in account && typeof account.name === 'string') {
+        if ("name" in account && typeof account.name === "string") {
           return account.name;
         }
         // Type guard: check if account has username property
-        if ('username' in account && typeof account.username === 'string') {
+        if ("username" in account && typeof account.username === "string") {
           return account.username;
         }
       }
@@ -131,9 +128,7 @@ export default function UserMenu() {
       <DropdownMenuContent className="w-56" align="end" forceMount>
         <DropdownMenuLabel className="font-normal">
           <div className="flex flex-col space-y-1">
-            <p className="text-sm font-medium leading-none">
-              {getUserName()}
-            </p>
+            <p className="text-sm font-medium leading-none">{getUserName()}</p>
             <p className="text-xs leading-none text-muted-foreground">
               {getUserEmail()}
             </p>
@@ -147,7 +142,10 @@ export default function UserMenu() {
               <span className="text-xs text-muted-foreground">Loading...</span>
             </div>
           ) : (
-            <Badge variant="secondary" className="gap-1.5 px-3 py-1.5 w-full justify-center">
+            <Badge
+              variant="secondary"
+              className="gap-1.5 px-3 py-1.5 w-full justify-center"
+            >
               <Coins className="h-3.5 w-3.5" />
               <span className="font-semibold">
                 {creditBalance !== null ? creditBalance.toLocaleString() : "0"}

@@ -1,9 +1,10 @@
-import {
-  eq,
-  desc,
-} from "drizzle-orm";
+import { eq, desc } from "drizzle-orm";
 import { db } from "../client";
-import { userCharacters, type UserCharacter, type NewUserCharacter } from "../schemas/user-characters";
+import {
+  userCharacters,
+  type UserCharacter,
+  type NewUserCharacter,
+} from "../schemas/user-characters";
 
 export type { UserCharacter, NewUserCharacter };
 
@@ -21,9 +22,7 @@ export class UserCharactersRepository {
     });
   }
 
-  async listByOrganization(
-    organizationId: string,
-  ): Promise<UserCharacter[]> {
+  async listByOrganization(organizationId: string): Promise<UserCharacter[]> {
     return await db.query.userCharacters.findMany({
       where: eq(userCharacters.organization_id, organizationId),
       orderBy: desc(userCharacters.created_at),

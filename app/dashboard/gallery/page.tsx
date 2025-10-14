@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import { GalleryPageClient } from "@/components/gallery/gallery-page-client";
 
-export const dynamic = 'force-dynamic';
+export const dynamic = "force-dynamic";
 
 export const metadata: Metadata = {
   title: "Gallery",

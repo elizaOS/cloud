@@ -20,7 +20,7 @@ interface RateLimitEntry {
 // ⚠️  WARNING: This implementation uses in-memory storage and will NOT work correctly
 // in multi-instance deployments. Each instance will have its own rate limit counter,
 // allowing users to bypass limits by hitting different instances.
-// 
+//
 // PRODUCTION REQUIREMENTS:
 // - Use Redis for distributed rate limiting (recommended: ioredis + rate-limiter-flexible)
 // - Or use database-backed rate limiting with proper locking
@@ -35,7 +35,7 @@ function logRateLimitWarning() {
   if (!hasLoggedWarning && process.env.NODE_ENV === "production") {
     console.warn(
       "⚠️  WARNING: Using in-memory rate limiting. This will not work correctly in multi-instance deployments. " +
-      "Configure Redis-backed rate limiting for production. See lib/middleware/rate-limit.ts"
+        "Configure Redis-backed rate limiting for production. See lib/middleware/rate-limit.ts",
     );
     hasLoggedWarning = true;
   }
@@ -59,8 +59,11 @@ setInterval(() => {
 function getDefaultKey(request: NextRequest): string {
   // Try to get user ID from auth header or IP address
   const apiKey = request.headers.get("authorization")?.replace("Bearer ", "");
-  const ip = request.headers.get("x-forwarded-for") || request.headers.get("x-real-ip") || "unknown";
-  
+  const ip =
+    request.headers.get("x-forwarded-for") ||
+    request.headers.get("x-real-ip") ||
+    "unknown";
+
   return apiKey || `ip:${ip}`;
 }
 
@@ -69,7 +72,7 @@ function getDefaultKey(request: NextRequest): string {
  */
 export function checkRateLimit(
   request: NextRequest,
-  config: RateLimitConfig
+  config: RateLimitConfig,
 ): {
   allowed: boolean;
   remaining: number;
@@ -77,7 +80,7 @@ export function checkRateLimit(
   retryAfter?: number;
 } {
   logRateLimitWarning();
-  
+
   const keyGenerator = config.keyGenerator || getDefaultKey;
   const key = keyGenerator(request);
   const now = Date.now();
@@ -98,7 +101,9 @@ export function checkRateLimit(
 
   const allowed = entry.count <= config.maxRequests;
   const remaining = Math.max(0, config.maxRequests - entry.count);
-  const retryAfter = allowed ? undefined : Math.ceil((entry.resetAt - now) / 1000);
+  const retryAfter = allowed
+    ? undefined
+    : Math.ceil((entry.resetAt - now) / 1000);
 
   if (!allowed) {
     console.warn("Rate limit exceeded", {
@@ -123,10 +128,16 @@ export function checkRateLimit(
  * Supports both NextResponse and Response return types
  */
 export function withRateLimit<T = Record<string, string>>(
-  handler: (request: NextRequest, context?: { params: Promise<T> }) => Promise<Response>,
-  config: RateLimitConfig
+  handler: (
+    request: NextRequest,
+    context?: { params: Promise<T> },
+  ) => Promise<Response>,
+  config: RateLimitConfig,
 ) {
-  return async (request: NextRequest, context?: { params: Promise<T> }): Promise<Response> => {
+  return async (
+    request: NextRequest,
+    context?: { params: Promise<T> },
+  ): Promise<Response> => {
     const result = checkRateLimit(request, config);
 
     // Add rate limit headers
@@ -149,7 +160,7 @@ export function withRateLimit<T = Record<string, string>>(
             ...headers,
             "Retry-After": result.retryAfter?.toString() || "60",
           },
-        }
+        },
       );
     }
 
@@ -209,14 +220,17 @@ export interface CostBasedRateLimitConfig {
   getCost: (request: NextRequest) => number | Promise<number>;
 }
 
-const costLimitStore = new Map<string, { totalCost: number; resetAt: number }>();
+const costLimitStore = new Map<
+  string,
+  { totalCost: number; resetAt: number }
+>();
 
 /**
  * Check cost-based rate limit
  */
 export async function checkCostBasedRateLimit(
   request: NextRequest,
-  config: CostBasedRateLimitConfig
+  config: CostBasedRateLimitConfig,
 ): Promise<{
   allowed: boolean;
   remaining: number;
@@ -240,7 +254,9 @@ export async function checkCostBasedRateLimit(
 
   const allowed = entry.totalCost <= config.maxCost;
   const remaining = Math.max(0, config.maxCost - entry.totalCost);
-  const retryAfter = allowed ? undefined : Math.ceil((entry.resetAt - now) / 1000);
+  const retryAfter = allowed
+    ? undefined
+    : Math.ceil((entry.resetAt - now) / 1000);
 
   if (!allowed) {
     console.warn("Cost-based rate limit exceeded", {
@@ -269,4 +285,3 @@ setInterval(() => {
     }
   }
 }, 60000);
-

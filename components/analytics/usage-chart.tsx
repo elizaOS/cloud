@@ -1,13 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import {
-  Area,
-  AreaChart,
-  CartesianGrid,
-  XAxis,
-  YAxis,
-} from "recharts";
+import { Area, AreaChart, CartesianGrid, XAxis, YAxis } from "recharts";
 import { format } from "date-fns";
 import { Button } from "@/components/ui/button";
 import {
@@ -120,7 +114,10 @@ export function UsageChart({ data, granularity }: UsageChartProps) {
             <span className="text-2xl font-semibold text-foreground">
               {formatMetricValue(latestPoint?.[activeMetric])}
             </span>
-            <Badge variant="outline" className="rounded-full bg-background/80 text-xs">
+            <Badge
+              variant="outline"
+              className="rounded-full bg-background/80 text-xs"
+            >
               Latest data point
             </Badge>
           </div>
@@ -143,7 +140,9 @@ export function UsageChart({ data, granularity }: UsageChartProps) {
                   !isActive && "border-border/60 bg-background/60",
                 )}
                 style={
-                  isActive ? { backgroundColor: color, borderColor: color } : undefined
+                  isActive
+                    ? { backgroundColor: color, borderColor: color }
+                    : undefined
                 }
                 onClick={() => setActiveMetric(metric)}
               >
@@ -160,7 +159,13 @@ export function UsageChart({ data, granularity }: UsageChartProps) {
       >
         <AreaChart data={chartData}>
           <defs>
-            <linearGradient id={`fill-${activeMetric}`} x1="0" y1="0" x2="0" y2="1">
+            <linearGradient
+              id={`fill-${activeMetric}`}
+              x1="0"
+              y1="0"
+              x2="0"
+              y2="1"
+            >
               <stop offset="5%" stopColor={activeColor} stopOpacity={0.3} />
               <stop offset="95%" stopColor={activeColor} stopOpacity={0.05} />
             </linearGradient>
@@ -172,12 +177,7 @@ export function UsageChart({ data, granularity }: UsageChartProps) {
             axisLine={false}
             minTickGap={24}
           />
-          <YAxis
-            tickLine={false}
-            axisLine={false}
-            width={70}
-            {...yAxisProps}
-          />
+          <YAxis tickLine={false} axisLine={false} width={70} {...yAxisProps} />
           <ChartTooltip
             cursor={{ strokeDasharray: "4 4" }}
             content={
@@ -192,8 +192,14 @@ export function UsageChart({ data, granularity }: UsageChartProps) {
                 }}
                 labelFormatter={(_, payload) => {
                   const source = payload?.[0];
-                  if (source && typeof source === "object" && "payload" in source) {
-                    const inner = (source as { payload?: { fullLabel?: string } }).payload;
+                  if (
+                    source &&
+                    typeof source === "object" &&
+                    "payload" in source
+                  ) {
+                    const inner = (
+                      source as { payload?: { fullLabel?: string } }
+                    ).payload;
                     return inner?.fullLabel ?? "";
                   }
                   return "";

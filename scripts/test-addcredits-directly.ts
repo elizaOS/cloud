@@ -79,20 +79,20 @@ async function testAddCredits() {
   } catch (error: unknown) {
     console.error("\n❌ ERROR!");
     console.error("-".repeat(70));
-    
+
     if (error instanceof Error) {
       console.error(`Error Type: ${error.constructor.name}`);
       console.error(`Error Message: ${error.message}`);
-      
+
       // Handle database/PostgreSQL errors with code and detail properties
       const errorWithCode = error as Error & { code?: string; detail?: string };
       console.error(`Error Code: ${errorWithCode.code || "(none)"}`);
-      
+
       if (error.stack) {
         console.error(`\nStack Trace:`);
         console.error(error.stack);
       }
-      
+
       if (errorWithCode.detail) {
         console.error(`\nDetail: ${errorWithCode.detail}`);
       }
