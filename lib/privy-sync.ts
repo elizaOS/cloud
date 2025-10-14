@@ -33,7 +33,7 @@ interface PrivyUserData {
  * Updates user data if it has changed
  */
 export async function syncUserFromPrivy(
-  privyUser: PrivyUserData,
+  privyUser: PrivyUserData
 ): Promise<UserWithOrganization> {
   const privyUserId = privyUser.id;
 
@@ -111,7 +111,7 @@ export async function syncUserFromPrivy(
     attempts++;
     if (attempts > 10) {
       throw new Error(
-        `Failed to generate unique organization slug for ${email}`,
+        `Failed to generate unique organization slug for ${email}`
       );
     }
     orgSlug = generateSlugFromEmail(email);
@@ -136,29 +136,104 @@ export async function syncUserFromPrivy(
       is_active: true,
     });
   } catch (error) {
-    // Check if this is a duplicate key error (race condition)
-    if (
+    // Check if this is a duplicate key error (race condition or duplicate email)
+    // Drizzle/PostgreSQL errors can have code at top level or in cause property
+    const isDuplicateError =
       error &&
       typeof error === "object" &&
-      "code" in error &&
-      error.code === "23505"
-    ) {
-      // Another request created the user simultaneously - fetch it
+      (("code" in error && error.code === "23505") ||
+        ("cause" in error &&
+          error.cause &&
+          typeof error.cause === "object" &&
+          "code" in error.cause &&
+          error.cause.code === "23505"));
+
+    if (isDuplicateError) {
       console.log(
-        `Race condition detected: user ${privyUserId} was created by another request`,
+        `Duplicate key error detected for user ${privyUserId}, handling race condition...`
       );
-      const existingUser = await usersService.getByPrivyId(privyUserId);
+
+      // Try to find existing user with retries (in case parallel transaction hasn't committed yet)
+      let existingUser: UserWithOrganization | undefined;
+      const maxRetries = 3;
+
+      for (let attempt = 0; attempt < maxRetries; attempt++) {
+        if (attempt > 0) {
+          // Wait a bit for the other transaction to commit
+          await new Promise((resolve) =>
+            setTimeout(resolve, 50 * Math.pow(2, attempt - 1))
+          );
+          console.log(
+            `Retry ${attempt}/${maxRetries} to find existing user ${privyUserId}`
+          );
+        }
+
+        // Try to find by Privy ID first (most common race condition)
+        existingUser = await usersService.getByPrivyId(privyUserId);
+
+        if (existingUser) {
+          break;
+        }
+
+        // If not found by Privy ID, try by email (edge case: email constraint violated)
+        existingUser = await usersService.getByEmailWithOrganization(email);
+        if (existingUser) {
+          // Check if it's the same Privy user or a different one
+          if (existingUser.privy_user_id !== privyUserId) {
+            console.warn(
+              `User with email ${email} already exists with different Privy ID: ${existingUser.privy_user_id}`
+            );
+            // Clean up orphaned org and throw - this is a data integrity issue
+            try {
+              await organizationsService.delete(organization.id);
+            } catch (cleanupError) {
+              console.error(
+                "Failed to clean up orphaned organization:",
+                cleanupError
+              );
+            }
+            throw new Error(
+              `Email ${email} is already registered with a different account`
+            );
+          }
+          break;
+        }
+      }
+
       if (existingUser) {
+        console.log(
+          `Found existing user ${privyUserId}, cleaning up orphaned org and returning existing user`
+        );
         // Clean up the orphaned organization we just created
         try {
           await organizationsService.delete(organization.id);
         } catch (cleanupError) {
-          console.error("Failed to clean up orphaned organization:", cleanupError);
+          console.error(
+            "Failed to clean up orphaned organization:",
+            cleanupError
+          );
         }
         return existingUser;
       }
+
+      // Couldn't find existing user even after retries - cleanup and rethrow
+      console.error(
+        `Duplicate key error but user ${privyUserId} not found after ${maxRetries} retries - cleaning up and rethrowing`
+      );
+      try {
+        await organizationsService.delete(organization.id);
+      } catch (cleanupError) {
+        console.error(
+          "Failed to clean up orphaned organization:",
+          cleanupError
+        );
+      }
     }
     // Not a duplicate key error or couldn't find the existing user - rethrow
+    console.error(
+      `Failed to create user ${privyUserId}:`,
+      error instanceof Error ? error.message : error
+    );
     throw error;
   }
 
