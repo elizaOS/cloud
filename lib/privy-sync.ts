@@ -124,16 +124,43 @@ export async function syncUserFromPrivy(
     credit_balance: 50000, // Initial credits
   });
 
-  // Create user
-  await usersService.create({
-    privy_user_id: privyUserId,
-    email,
-    email_verified: true,
-    name,
-    organization_id: organization.id,
-    role: "owner",
-    is_active: true,
-  });
+  // Create user - handle race condition where another request created the user
+  try {
+    await usersService.create({
+      privy_user_id: privyUserId,
+      email,
+      email_verified: true,
+      name,
+      organization_id: organization.id,
+      role: "owner",
+      is_active: true,
+    });
+  } catch (error) {
+    // Check if this is a duplicate key error (race condition)
+    if (
+      error &&
+      typeof error === "object" &&
+      "code" in error &&
+      error.code === "23505"
+    ) {
+      // Another request created the user simultaneously - fetch it
+      console.log(
+        `Race condition detected: user ${privyUserId} was created by another request`,
+      );
+      const existingUser = await usersService.getByPrivyId(privyUserId);
+      if (existingUser) {
+        // Clean up the orphaned organization we just created
+        try {
+          await organizationsService.delete(organization.id);
+        } catch (cleanupError) {
+          console.error("Failed to clean up orphaned organization:", cleanupError);
+        }
+        return existingUser;
+      }
+    }
+    // Not a duplicate key error or couldn't find the existing user - rethrow
+    throw error;
+  }
 
   // Return user with organization
   const userWithOrg = await usersService.getByPrivyId(privyUserId);
