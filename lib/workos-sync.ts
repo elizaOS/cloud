@@ -49,7 +49,7 @@ export async function syncWorkOSUser(
 
     if (!org) {
       console.error(
-        `[WorkOS Sync] Organization not found: ${user.organization_id}`
+        `[WorkOS Sync] Organization not found: ${user.organization_id}`,
       );
       throw new Error(
         `Organization ${user.organization_id} not found for user ${user.id}`,
@@ -74,7 +74,7 @@ export async function syncWorkOSUser(
 
   while (org && attempts < MAX_ATTEMPTS) {
     console.log(
-      `[WorkOS Sync] Slug collision, regenerating (attempt ${attempts + 1}/${MAX_ATTEMPTS})`
+      `[WorkOS Sync] Slug collision, regenerating (attempt ${attempts + 1}/${MAX_ATTEMPTS})`,
     );
     orgSlug = generateSlugFromEmail(email);
     org = await organizationsService.getBySlug(orgSlug);
@@ -83,7 +83,7 @@ export async function syncWorkOSUser(
 
   if (org) {
     console.error(
-      `[WorkOS Sync] Failed to generate unique slug after ${MAX_ATTEMPTS} attempts`
+      `[WorkOS Sync] Failed to generate unique slug after ${MAX_ATTEMPTS} attempts`,
     );
     throw new Error(
       `Failed to generate unique organization slug after ${MAX_ATTEMPTS} attempts`,

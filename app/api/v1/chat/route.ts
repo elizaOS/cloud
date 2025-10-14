@@ -8,7 +8,11 @@ import {
   generationsService,
   organizationsService,
 } from "@/lib/services";
-import { calculateCost, getProviderFromModel, estimateTokens } from "@/lib/pricing";
+import {
+  calculateCost,
+  getProviderFromModel,
+  estimateTokens,
+} from "@/lib/pricing";
 import { logger } from "@/lib/utils/logger";
 import type { NextRequest } from "next/server";
 import { NextResponse } from "next/server";
@@ -31,11 +35,13 @@ export async function POST(req: NextRequest) {
     // CRITICAL FIX: Check credit balance BEFORE starting stream to prevent free service
     // Estimate cost based on input messages
     const messageText = messages
-      .map((m) => m.parts.map((p) => (p.type === "text" ? p.text : "")).join(""))
+      .map((m) =>
+        m.parts.map((p) => (p.type === "text" ? p.text : "")).join(""),
+      )
       .join(" ");
     const estimatedInputTokens = estimateTokens(messageText);
     const estimatedOutputTokens = 500; // Conservative estimate for streaming response
-    
+
     const { totalCost: estimatedCost } = await calculateCost(
       selectedModel,
       provider,
@@ -104,12 +110,12 @@ export async function POST(req: NextRequest) {
             logger.error(
               "chat-api",
               "CRITICAL: Failed to deduct credits after streaming - race condition detected",
-              { 
-                userId: user.id, 
+              {
+                userId: user.id,
                 organizationId: user.organization_id,
                 cost: totalCost,
                 balance: deductionResult.newBalance,
-              }
+              },
             );
             // Stream has already completed, so we can't return an error
             // This should trigger an alert for manual review
@@ -191,7 +197,7 @@ export async function POST(req: NextRequest) {
           logger.error(
             "chat-api",
             "Error persisting messages or deducting credits",
-            { error: error instanceof Error ? error.message : "Unknown error" }
+            { error: error instanceof Error ? error.message : "Unknown error" },
           );
 
           if (usage) {
@@ -234,7 +240,10 @@ export async function POST(req: NextRequest) {
               }
             } catch (usageError) {
               logger.error("chat-api", "Error creating usage record", {
-                error: usageError instanceof Error ? usageError.message : "Unknown error",
+                error:
+                  usageError instanceof Error
+                    ? usageError.message
+                    : "Unknown error",
               });
             }
           }

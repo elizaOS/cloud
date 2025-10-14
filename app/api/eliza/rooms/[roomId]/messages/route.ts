@@ -8,7 +8,11 @@ import {
   generationsService,
   organizationsService,
 } from "@/lib/services";
-import { calculateCost, getProviderFromModel, estimateTokens } from "@/lib/pricing";
+import {
+  calculateCost,
+  getProviderFromModel,
+  estimateTokens,
+} from "@/lib/pricing";
 import { logger } from "@/lib/utils/logger";
 import type { NextRequest } from "next/server";
 
@@ -57,7 +61,7 @@ export async function POST(
     const estimatedOutputTokens = 100; // Conservative estimate for response
     const model = "gpt-4o";
     const provider = getProviderFromModel(model);
-    
+
     const { totalCost: estimatedCost } = await calculateCost(
       model,
       provider,

@@ -3,7 +3,10 @@
  * Run validation and initialization tasks when the app starts
  */
 
-import { requireValidEnvironment, logConfigurationStatus } from "./env-validator";
+import {
+  requireValidEnvironment,
+  logConfigurationStatus,
+} from "./env-validator";
 
 let initialized = false;
 
@@ -34,13 +37,15 @@ export function initializeApplication(): void {
     console.error("❌ Application initialization failed:");
     console.error(error);
     console.error("");
-    
+
     // In production, we want to fail fast
     if (process.env.NODE_ENV === "production") {
       console.error("Cannot start application with invalid configuration");
       process.exit(1);
     } else {
-      console.warn("⚠️  Running in development mode with invalid configuration");
+      console.warn(
+        "⚠️  Running in development mode with invalid configuration",
+      );
       console.warn("Some features may not work correctly");
       console.warn("");
     }
@@ -53,4 +58,3 @@ export function initializeApplication(): void {
 export function isInitialized(): boolean {
   return initialized;
 }
-

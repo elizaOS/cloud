@@ -13,11 +13,13 @@ export const getCurrentUser = cache(
       return null;
     }
 
-    const user = await usersService.getByEmailWithOrganization(workosUser.email);
+    const user = await usersService.getByEmailWithOrganization(
+      workosUser.email,
+    );
 
     if (!user) {
       console.error(
-        `[Auth] User not found in database for email: ${workosUser.email}`
+        `[Auth] User not found in database for email: ${workosUser.email}`,
       );
       return null;
     }

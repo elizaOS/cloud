@@ -29,10 +29,7 @@ export default function UserMenu() {
   const router = useRouter();
   const [signInUrl, setSignInUrl] = useState<string | null>(null);
   const [signUpUrl, setSignUpUrl] = useState<string | null>(null);
-  const {
-    creditBalance,
-    isLoading: loadingCredits,
-  } = useCreditsStream();
+  const { creditBalance, isLoading: loadingCredits } = useCreditsStream();
 
   useEffect(() => {
     async function getAuthUrls() {
@@ -130,7 +127,10 @@ export default function UserMenu() {
               <span className="text-xs text-muted-foreground">Loading...</span>
             </div>
           ) : (
-            <Badge variant="secondary" className="gap-1.5 px-3 py-1.5 w-full justify-center">
+            <Badge
+              variant="secondary"
+              className="gap-1.5 px-3 py-1.5 w-full justify-center"
+            >
               <Coins className="h-3.5 w-3.5" />
               <span className="font-semibold">
                 {creditBalance !== null ? creditBalance.toLocaleString() : "0"}

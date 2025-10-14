@@ -103,7 +103,7 @@ export function useCreditsStream(): UseCreditsStreamResult {
         const delay = RECONNECT_DELAY * reconnectAttemptsRef.current;
 
         setError(
-          `Connection lost. Reconnecting... (${reconnectAttemptsRef.current}/${MAX_RECONNECT_ATTEMPTS})`
+          `Connection lost. Reconnecting... (${reconnectAttemptsRef.current}/${MAX_RECONNECT_ATTEMPTS})`,
         );
 
         reconnectTimeoutRef.current = setTimeout(() => {

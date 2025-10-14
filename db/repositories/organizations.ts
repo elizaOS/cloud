@@ -1,6 +1,10 @@
 import { eq } from "drizzle-orm";
 import { db } from "../client";
-import { organizations, type Organization, type NewOrganization } from "../schemas/organizations";
+import {
+  organizations,
+  type Organization,
+  type NewOrganization,
+} from "../schemas/organizations";
 import type { CreditTransaction } from "../schemas/credit-transactions";
 
 export type { Organization, NewOrganization };
@@ -100,7 +104,11 @@ export class OrganizationsRepository {
     amount: number,
     description: string,
     userId?: string,
-  ): Promise<{ success: boolean; newBalance: number; transaction: CreditTransaction }> {
+  ): Promise<{
+    success: boolean;
+    newBalance: number;
+    transaction: CreditTransaction;
+  }> {
     return await db.transaction(async (tx) => {
       const org = await tx.query.organizations.findFirst({
         where: eq(organizations.id, organizationId),
@@ -126,7 +134,9 @@ export class OrganizationsRepository {
         })
         .where(eq(organizations.id, organizationId));
 
-      const { creditTransactions } = await import("../schemas/credit-transactions");
+      const { creditTransactions } = await import(
+        "../schemas/credit-transactions"
+      );
 
       const [creditTx] = await tx
         .insert(creditTransactions)

@@ -1,10 +1,7 @@
 import { type NextRequest, NextResponse } from "next/server";
 import { requireAuthOrApiKey } from "@/lib/auth";
 import { logger } from "@/lib/utils/logger";
-import {
-  getUsageTimeSeries,
-  type TimeGranularity,
-} from "@/lib/services";
+import { getUsageTimeSeries, type TimeGranularity } from "@/lib/services";
 import {
   generateProjections,
   generateProjectionAlerts,
@@ -59,7 +56,7 @@ export async function GET(req: NextRequest) {
     const alerts = generateProjectionAlerts(
       historicalData,
       projections,
-      org?.credit_balance || 0
+      org?.credit_balance || 0,
     );
 
     return NextResponse.json({
@@ -97,7 +94,7 @@ export async function GET(req: NextRequest) {
             ? error.message
             : "Failed to generate projections",
       },
-      { status: 500 }
+      { status: 500 },
     );
   }
 }

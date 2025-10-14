@@ -1,7 +1,4 @@
-import {
-  eq,
-  desc,
-} from "drizzle-orm";
+import { eq, desc } from "drizzle-orm";
 import { db } from "../client";
 import {
   conversations,
@@ -12,7 +9,12 @@ import {
   type NewConversationMessage,
 } from "../schemas/conversations";
 
-export type { Conversation, NewConversation, ConversationMessage, NewConversationMessage };
+export type {
+  Conversation,
+  NewConversation,
+  ConversationMessage,
+  NewConversationMessage,
+};
 
 export interface ConversationWithMessages extends Conversation {
   messages: ConversationMessage[];
@@ -87,9 +89,7 @@ export class ConversationsRepository {
   }
 
   // Message operations
-  async addMessage(
-    data: NewConversationMessage,
-  ): Promise<ConversationMessage> {
+  async addMessage(data: NewConversationMessage): Promise<ConversationMessage> {
     const [message] = await db
       .insert(conversationMessages)
       .values(data)

@@ -20,7 +20,11 @@ export async function POST(
       return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     }
 
-    const { key: newKey, hash: newHash, prefix: newPrefix } = apiKeysService.generateApiKey();
+    const {
+      key: newKey,
+      hash: newHash,
+      prefix: newPrefix,
+    } = apiKeysService.generateApiKey();
 
     const updatedKey = await apiKeysService.update(id, {
       key: newKey,

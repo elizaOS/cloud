@@ -22,12 +22,12 @@ export type {
 export class AnalyticsService {
   async getUsageStats(
     organizationId: string,
-    options?: { startDate?: Date; endDate?: Date }
+    options?: { startDate?: Date; endDate?: Date },
   ) {
     return await usageRecordsRepository.getStatsByOrganization(
       organizationId,
       options?.startDate,
-      options?.endDate
+      options?.endDate,
     );
   }
 
@@ -37,9 +37,12 @@ export class AnalyticsService {
       startDate: Date;
       endDate: Date;
       granularity: "hour" | "day" | "week" | "month";
-    }
+    },
   ) {
-    return await usageRecordsRepository.getUsageTimeSeries(organizationId, options);
+    return await usageRecordsRepository.getUsageTimeSeries(
+      organizationId,
+      options,
+    );
   }
 
   async getUsageByUser(
@@ -48,7 +51,7 @@ export class AnalyticsService {
       startDate?: Date;
       endDate?: Date;
       limit?: number;
-    }
+    },
   ) {
     return await usageRecordsRepository.getUsageByUser(organizationId, options);
   }
@@ -59,27 +62,33 @@ export class AnalyticsService {
 
   async getProviderBreakdown(
     organizationId: string,
-    options?: { startDate?: Date; endDate?: Date }
+    options?: { startDate?: Date; endDate?: Date },
   ) {
-    return await usageRecordsRepository.getProviderBreakdown(organizationId, options);
+    return await usageRecordsRepository.getProviderBreakdown(
+      organizationId,
+      options,
+    );
   }
 
   async getModelBreakdown(
     organizationId: string,
-    options?: { startDate?: Date; endDate?: Date; limit?: number }
+    options?: { startDate?: Date; endDate?: Date; limit?: number },
   ) {
-    return await usageRecordsRepository.getModelBreakdown(organizationId, options);
+    return await usageRecordsRepository.getModelBreakdown(
+      organizationId,
+      options,
+    );
   }
 
   async getTrendData(
     organizationId: string,
     currentPeriod: { startDate: Date; endDate: Date },
-    previousPeriod: { startDate: Date; endDate: Date }
+    previousPeriod: { startDate: Date; endDate: Date },
   ) {
     return await usageRecordsRepository.getTrendData(
       organizationId,
       currentPeriod,
-      previousPeriod
+      previousPeriod,
     );
   }
 
@@ -93,12 +102,12 @@ export class AnalyticsService {
       sortOrder?: "asc" | "desc";
       limit?: number;
       offset?: number;
-    }
+    },
   ) {
     return await usageRecordsRepository.getCostBreakdown(
       organizationId,
       dimension,
-      options
+      options,
     );
   }
 }
@@ -110,7 +119,7 @@ export const analyticsService = new AnalyticsService();
 // These delegate to the service instance
 export const getUsageStats = (
   organizationId: string,
-  options?: { startDate?: Date; endDate?: Date }
+  options?: { startDate?: Date; endDate?: Date },
 ) => analyticsService.getUsageStats(organizationId, options);
 
 export const getUsageStatsSafe = getUsageStats; // Alias for backward compatibility
@@ -121,7 +130,7 @@ export const getUsageTimeSeries = (
     startDate: Date;
     endDate: Date;
     granularity: "hour" | "day" | "week" | "month";
-  }
+  },
 ) => analyticsService.getUsageTimeSeries(organizationId, options);
 
 export const getUsageByUser = (
@@ -130,7 +139,7 @@ export const getUsageByUser = (
     startDate?: Date;
     endDate?: Date;
     limit?: number;
-  }
+  },
 ) => analyticsService.getUsageByUser(organizationId, options);
 
 export const getCostTrending = (organizationId: string) =>
@@ -138,18 +147,18 @@ export const getCostTrending = (organizationId: string) =>
 
 export const getProviderBreakdown = (
   organizationId: string,
-  options?: { startDate?: Date; endDate?: Date }
+  options?: { startDate?: Date; endDate?: Date },
 ) => analyticsService.getProviderBreakdown(organizationId, options);
 
 export const getModelBreakdown = (
   organizationId: string,
-  options?: { startDate?: Date; endDate?: Date; limit?: number }
+  options?: { startDate?: Date; endDate?: Date; limit?: number },
 ) => analyticsService.getModelBreakdown(organizationId, options);
 
 export const getTrendData = (
   organizationId: string,
   currentPeriod: { startDate: Date; endDate: Date },
-  previousPeriod: { startDate: Date; endDate: Date }
+  previousPeriod: { startDate: Date; endDate: Date },
 ) =>
   analyticsService.getTrendData(organizationId, currentPeriod, previousPeriod);
 
@@ -163,10 +172,12 @@ export const getCostBreakdown = (
     sortOrder?: "asc" | "desc";
     limit?: number;
     offset?: number;
-  }
+  },
 ) => analyticsService.getCostBreakdown(organizationId, dimension, options);
 
 // Validation helper for granularity
-export function validateGranularity(value: string): value is "hour" | "day" | "week" | "month" {
+export function validateGranularity(
+  value: string,
+): value is "hour" | "day" | "week" | "month" {
   return ["hour", "day", "week", "month"].includes(value);
 }

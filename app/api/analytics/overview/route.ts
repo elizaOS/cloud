@@ -24,11 +24,14 @@ async function handleGET(req: NextRequest) {
       (searchParams.get("timeRange") as "daily" | "weekly" | "monthly") ||
       "daily";
 
-    const cacheKey = CacheKeys.analytics.overview(user.organization_id, timeRange);
+    const cacheKey = CacheKeys.analytics.overview(
+      user.organization_id,
+      timeRange,
+    );
     const cached = await cache.get<typeof response>(cacheKey);
     if (cached) {
       logger.debug(
-        `[Analytics Overview] Cache hit for org=${user.organization_id}, range=${timeRange}`
+        `[Analytics Overview] Cache hit for org=${user.organization_id}, range=${timeRange}`,
       );
       return NextResponse.json(cached);
     }
@@ -66,44 +69,43 @@ async function handleGET(req: NextRequest) {
         break;
       case "weekly":
         previousStartDate = new Date(
-          startDate.getTime() - 7 * 24 * 60 * 60 * 1000
+          startDate.getTime() - 7 * 24 * 60 * 60 * 1000,
         );
         previousEndDate = startDate;
         break;
       case "monthly":
         previousStartDate = new Date(
-          startDate.getTime() - 30 * 24 * 60 * 60 * 1000
+          startDate.getTime() - 30 * 24 * 60 * 60 * 1000,
         );
         previousEndDate = startDate;
         break;
       default:
         previousStartDate = new Date(
-          startDate.getTime() - 7 * 24 * 60 * 60 * 1000
+          startDate.getTime() - 7 * 24 * 60 * 60 * 1000,
         );
         previousEndDate = startDate;
     }
 
-    const [
-      summary,
-      timeSeries,
-      providerBreakdown,
-      modelBreakdown,
-      trends,
-    ] = await Promise.all([
-      getUsageStatsSafe(user.organization_id, { startDate, endDate }),
-      getUsageTimeSeries(user.organization_id, {
-        startDate,
-        endDate,
-        granularity,
-      }),
-      getProviderBreakdown(user.organization_id, { startDate, endDate }),
-      getModelBreakdown(user.organization_id, { startDate, endDate, limit: 20 }),
-      getTrendData(
-        user.organization_id,
-        { startDate, endDate },
-        { startDate: previousStartDate, endDate: previousEndDate }
-      ),
-    ]);
+    const [summary, timeSeries, providerBreakdown, modelBreakdown, trends] =
+      await Promise.all([
+        getUsageStatsSafe(user.organization_id, { startDate, endDate }),
+        getUsageTimeSeries(user.organization_id, {
+          startDate,
+          endDate,
+          granularity,
+        }),
+        getProviderBreakdown(user.organization_id, { startDate, endDate }),
+        getModelBreakdown(user.organization_id, {
+          startDate,
+          endDate,
+          limit: 20,
+        }),
+        getTrendData(
+          user.organization_id,
+          { startDate, endDate },
+          { startDate: previousStartDate, endDate: previousEndDate },
+        ),
+      ]);
 
     const response = {
       success: true,
@@ -161,7 +163,7 @@ async function handleGET(req: NextRequest) {
         error:
           error instanceof Error ? error.message : "Failed to fetch analytics",
       },
-      { status: 500 }
+      { status: 500 },
     );
   }
 }

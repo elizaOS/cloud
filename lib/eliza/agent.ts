@@ -14,7 +14,8 @@ const character: Character = {
     POSTGRES_URL: process.env.AGENT_DATABASE_URL!,
     DATABASE_URL: process.env.AGENT_DATABASE_URL!,
     OPENAI_API_KEY: process.env.OPENAI_API_KEY!,
-    avatarUrl: "https://raw.githubusercontent.com/elizaOS/eliza-avatars/refs/heads/master/Eliza/portrait.png",
+    avatarUrl:
+      "https://raw.githubusercontent.com/elizaOS/eliza-avatars/refs/heads/master/Eliza/portrait.png",
   },
   system:
     "You are Eliza, a friendly and helpful AI assistant. You engage in thoughtful conversations and provide useful information. You are professional yet warm, and always aim to be helpful while being concise and clear in your responses.",

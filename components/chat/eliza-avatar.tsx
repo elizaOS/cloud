@@ -16,7 +16,7 @@ interface ElizaAvatarProps {
 /**
  * Reusable Eliza avatar component with consistent fallback behavior.
  * Shows custom avatar if provided, otherwise shows Bot icon with gradient background.
- * 
+ *
  * @param avatarUrl - Optional custom avatar URL
  * @param name - Optional name for alt text
  * @param className - Additional classes for the Avatar wrapper
@@ -35,14 +35,25 @@ export function ElizaAvatar({
   return (
     <Avatar className={cn(className)}>
       {avatarUrl ? (
-        <AvatarImage 
-          src={avatarUrl} 
+        <AvatarImage
+          src={avatarUrl}
           alt={name}
           className={animate ? "animate-pulse" : ""}
         />
       ) : null}
-      <AvatarFallback className={cn("bg-gradient-to-br from-purple-500 to-blue-600", fallbackClassName)}>
-        <Bot className={cn("text-white", iconClassName, animate && "animate-pulse")} />
+      <AvatarFallback
+        className={cn(
+          "bg-gradient-to-br from-purple-500 to-blue-600",
+          fallbackClassName,
+        )}
+      >
+        <Bot
+          className={cn(
+            "text-white",
+            iconClassName,
+            animate && "animate-pulse",
+          )}
+        />
       </AvatarFallback>
     </Avatar>
   );

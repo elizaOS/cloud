@@ -34,7 +34,7 @@ class CreditEventEmitter extends EventEmitter {
 
   public subscribeToCreditUpdates(
     organizationId: string,
-    handler: (event: CreditUpdateEvent) => void
+    handler: (event: CreditUpdateEvent) => void,
   ): () => void {
     const channel = `credits:${organizationId}`;
     this.on(channel, handler);
@@ -48,7 +48,7 @@ class CreditEventEmitter extends EventEmitter {
     const count = this.activeConnections.get(organizationId) || 0;
     this.activeConnections.set(organizationId, count + 1);
     logger.info(
-      `[Credit Events] Active connections for org ${organizationId}: ${count + 1}`
+      `[Credit Events] Active connections for org ${organizationId}: ${count + 1}`,
     );
   }
 
@@ -56,7 +56,7 @@ class CreditEventEmitter extends EventEmitter {
     const count = this.activeConnections.get(organizationId) || 0;
     this.activeConnections.set(organizationId, Math.max(0, count - 1));
     logger.info(
-      `[Credit Events] Active connections for org ${organizationId}: ${count - 1}`
+      `[Credit Events] Active connections for org ${organizationId}: ${count - 1}`,
     );
   }
 

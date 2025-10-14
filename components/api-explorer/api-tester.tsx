@@ -92,7 +92,10 @@ export function ApiTester({
 
   const executeTest = async () => {
     if (endpoint.requiresAuth && !authToken.trim()) {
-      toast({ message: "API key is required for this endpoint", mode: "error" });
+      toast({
+        message: "API key is required for this endpoint",
+        mode: "error",
+      });
       return;
     }
 
@@ -159,15 +162,18 @@ export function ApiTester({
           if ((value !== undefined && value !== "") || param.required) {
             if (param.type === "object" || param.type === "array") {
               try {
-                const parsedValue = typeof value === "string" ? JSON.parse(value) : value;
+                const parsedValue =
+                  typeof value === "string" ? JSON.parse(value) : value;
                 bodyData[param.name] = parsedValue;
               } catch {
                 if (param.required) {
                   toast({
                     message: `Invalid JSON for ${param.name}. Please check the format.`,
-                    mode: "error"
+                    mode: "error",
                   });
-                  throw new Error(`Invalid JSON for required parameter: ${param.name}`);
+                  throw new Error(
+                    `Invalid JSON for required parameter: ${param.name}`,
+                  );
                 }
                 bodyData[param.name] = value;
               }
@@ -211,9 +217,10 @@ export function ApiTester({
         data: responseData,
         error: fetchResponse.ok
           ? undefined
-          : ((responseData as { error?: { message?: string }; message?: string })?.error?.message ||
+          : (responseData as { error?: { message?: string }; message?: string })
+              ?.error?.message ||
             (responseData as { message?: string })?.message ||
-            "Request failed"),
+            "Request failed",
         headers: responseHeaders,
         responseTime,
         timestamp: new Date().toISOString(),
@@ -321,16 +328,19 @@ export function ApiTester({
     toast({ message: "cURL command copied to clipboard", mode: "success" });
   };
 
-  const renderParameterInput = (param: {
-    name: string;
-    type: string;
-    required: boolean;
-    description: string;
-    example?: unknown;
-    enum?: string[];
-    format?: string;
-    defaultValue?: unknown;
-  }, value: unknown) => {
+  const renderParameterInput = (
+    param: {
+      name: string;
+      type: string;
+      required: boolean;
+      description: string;
+      example?: unknown;
+      enum?: string[];
+      format?: string;
+      defaultValue?: unknown;
+    },
+    value: unknown,
+  ) => {
     const inputId = `param-${param.name}`;
 
     return (
@@ -343,9 +353,7 @@ export function ApiTester({
           </Badge>
         </Label>
 
-        <p className="text-sm text-muted-foreground">
-          {param.description}
-        </p>
+        <p className="text-sm text-muted-foreground">{param.description}</p>
 
         {param.enum ? (
           <CustomSelect
@@ -387,10 +395,10 @@ export function ApiTester({
               typeof value === "string"
                 ? value
                 : JSON.stringify(
-                  value || param.defaultValue || param.example,
-                  null,
-                  2,
-                )
+                    value || param.defaultValue || param.example,
+                    null,
+                    2,
+                  )
             }
             onChange={(e) => handleParameterChange(param.name, e.target.value)}
             placeholder={JSON.stringify(
@@ -620,7 +628,10 @@ export function ApiTester({
                   <ScrollArea className="max-h-64 rounded-lg border border-border/60">
                     <dl className="divide-y divide-border/60 text-sm">
                       {Object.entries(response.headers).map(([key, value]) => (
-                        <div key={key} className="flex flex-col gap-1 px-4 py-3">
+                        <div
+                          key={key}
+                          className="flex flex-col gap-1 px-4 py-3"
+                        >
                           <dt className="font-mono text-xs uppercase tracking-wide text-muted-foreground">
                             {key}
                           </dt>

@@ -54,7 +54,8 @@ export function CostAlerts({ costTrending, creditBalance }: CostAlertsProps) {
           <div className="space-y-2">
             <p className="font-semibold">All good</p>
             <p className="text-sm text-emerald-900/80 dark:text-emerald-50/80">
-              Usage is tracking within healthy thresholds. You&apos;re trending below the projected monthly spend.
+              Usage is tracking within healthy thresholds. You&apos;re trending
+              below the projected monthly spend.
             </p>
           </div>
         </div>
@@ -67,8 +68,7 @@ export function CostAlerts({ costTrending, creditBalance }: CostAlertsProps) {
       "border-amber-500/30 bg-amber-500/10 text-amber-700 dark:border-amber-500/30 dark:bg-amber-500/15 dark:text-amber-100",
     error:
       "border-rose-500/40 bg-rose-500/10 text-rose-700 dark:border-rose-500/30 dark:bg-rose-500/20 dark:text-rose-100",
-    info:
-      "border-sky-500/40 bg-sky-500/10 text-sky-700 dark:border-sky-500/30 dark:bg-sky-500/20 dark:text-sky-100",
+    info: "border-sky-500/40 bg-sky-500/10 text-sky-700 dark:border-sky-500/30 dark:bg-sky-500/20 dark:text-sky-100",
   };
 
   const iconMap: Record<"warning" | "error" | "info", ReactNode> = {

@@ -53,4 +53,3 @@ export const organizations = pgTable(
 // Type inference
 export type Organization = InferSelectModel<typeof organizations>;
 export type NewOrganization = InferInsertModel<typeof organizations>;
-
