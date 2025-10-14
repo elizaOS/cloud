@@ -37,12 +37,20 @@ export class AnalyticsService {
       startDate: Date;
       endDate: Date;
       granularity: "hour" | "day" | "week" | "month";
+      maxRows?: number;
     },
   ) {
-    return await usageRecordsRepository.getUsageTimeSeries(
+    const result = await usageRecordsRepository.getUsageTimeSeries(
       organizationId,
       options,
     );
+    
+    // Enforce maxRows limit if specified
+    if (options.maxRows && result.length > options.maxRows) {
+      return result.slice(0, options.maxRows);
+    }
+    
+    return result;
   }
 
   async getUsageByUser(
@@ -51,9 +59,17 @@ export class AnalyticsService {
       startDate?: Date;
       endDate?: Date;
       limit?: number;
+      maxRows?: number;
     },
   ) {
-    return await usageRecordsRepository.getUsageByUser(organizationId, options);
+    const result = await usageRecordsRepository.getUsageByUser(organizationId, options);
+    
+    // Enforce maxRows limit if specified
+    if (options?.maxRows && result.length > options.maxRows) {
+      return result.slice(0, options.maxRows);
+    }
+    
+    return result;
   }
 
   async getCostTrending(organizationId: string) {
@@ -62,22 +78,36 @@ export class AnalyticsService {
 
   async getProviderBreakdown(
     organizationId: string,
-    options?: { startDate?: Date; endDate?: Date },
+    options?: { startDate?: Date; endDate?: Date; maxRows?: number },
   ) {
-    return await usageRecordsRepository.getProviderBreakdown(
+    const result = await usageRecordsRepository.getProviderBreakdown(
       organizationId,
       options,
     );
+    
+    // Enforce maxRows limit if specified
+    if (options?.maxRows && result.length > options.maxRows) {
+      return result.slice(0, options.maxRows);
+    }
+    
+    return result;
   }
 
   async getModelBreakdown(
     organizationId: string,
-    options?: { startDate?: Date; endDate?: Date; limit?: number },
+    options?: { startDate?: Date; endDate?: Date; limit?: number; maxRows?: number },
   ) {
-    return await usageRecordsRepository.getModelBreakdown(
+    const result = await usageRecordsRepository.getModelBreakdown(
       organizationId,
       options,
     );
+    
+    // Enforce maxRows limit if specified
+    if (options?.maxRows && result.length > options.maxRows) {
+      return result.slice(0, options.maxRows);
+    }
+    
+    return result;
   }
 
   async getTrendData(

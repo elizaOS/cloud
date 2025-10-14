@@ -28,7 +28,7 @@ export async function GET(request: NextRequest) {
     const organizationId = user.organization_id;
 
     logger.info(
-      `[Credits SSE] Client connected: user=${user.id}, org=${organizationId}`,
+      `[Credits SSE] Client connected: user=${user.id}, org=${organizationId}`
     );
 
     const encoder = new TextEncoder();
@@ -36,7 +36,7 @@ export async function GET(request: NextRequest) {
       async start(controller) {
         let heartbeatInterval: NodeJS.Timeout | null = null;
         let connectionTimeout: NodeJS.Timeout | null = null;
-        let subscription: Awaited<ReturnType<typeof creditEventEmitter.subscribeToCreditUpdates>> | null = null;
+        let unsubscribe: (() => void) | null = null;
 
         const sendEvent = (event: string, data: unknown) => {
           const message = `event: ${event}\ndata: ${JSON.stringify(data)}\n\n`;
@@ -59,7 +59,7 @@ export async function GET(request: NextRequest) {
           sendEvent("error", { message: "Failed to fetch initial balance" });
         }
 
-        subscription = await creditEventEmitter.subscribeToCreditUpdates(
+        unsubscribe = creditEventEmitter.subscribeToCreditUpdates(
           organizationId,
           (event: CreditUpdateEvent) => {
             logger.debug(`[Credits SSE] Sending update to client:`, event);
@@ -69,7 +69,7 @@ export async function GET(request: NextRequest) {
               reason: event.reason,
               timestamp: event.timestamp,
             });
-          },
+          }
         );
 
         creditEventEmitter.incrementConnections(organizationId);
@@ -80,7 +80,7 @@ export async function GET(request: NextRequest) {
 
         connectionTimeout = setTimeout(() => {
           logger.info(
-            `[Credits SSE] Connection timeout for org=${organizationId}`,
+            `[Credits SSE] Connection timeout for org=${organizationId}`
           );
           cleanup();
         }, CONNECTION_TIMEOUT);
@@ -88,9 +88,9 @@ export async function GET(request: NextRequest) {
         const cleanup = async () => {
           if (heartbeatInterval) clearInterval(heartbeatInterval);
           if (connectionTimeout) clearTimeout(connectionTimeout);
-          if (subscription) {
+          if (unsubscribe) {
             try {
-              await subscription.unsubscribe();
+              unsubscribe();
             } catch (error) {
               logger.error("[Credits SSE] Error unsubscribing:", error);
             }
@@ -105,7 +105,7 @@ export async function GET(request: NextRequest) {
           }
 
           logger.info(
-            `[Credits SSE] Client disconnected: org=${organizationId}`,
+            `[Credits SSE] Client disconnected: org=${organizationId}`
           );
         };
 
