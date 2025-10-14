@@ -102,10 +102,10 @@ class RedisCreditEventEmitter {
       token: process.env.KV_REST_API_TOKEN!,
     });
 
-    const processMessage = async (message: string | Record<string, any>) => {
+    const processMessage = async (message: string | Record<string, unknown>) => {
       try {
         // Upstash Redis client auto-parses JSON, so message might already be an object
-        let parsed: any;
+        let parsed: Record<string, unknown>;
         if (typeof message === 'string') {
           logger.debug(`[Credit Events Redis] Processing string message`);
           parsed = JSON.parse(message);
@@ -117,10 +117,10 @@ class RedisCreditEventEmitter {
           return;
         }
 
-        const event: CreditUpdateEvent = {
-          ...parsed,
-          timestamp: new Date(parsed.timestamp),
-        };
+        const event = {
+          ...(parsed as unknown as CreditUpdateEvent),
+          timestamp: new Date(parsed.timestamp as string),
+        } as CreditUpdateEvent;
 
         logger.info(`[Credit Events Redis] ✅ Received event on ${channel}`, {
           organizationId: event.organizationId,

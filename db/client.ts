@@ -1,7 +1,14 @@
 import { drizzle } from "drizzle-orm/neon-serverless";
-import { Pool } from "@neondatabase/serverless";
+import { Pool, neonConfig } from "@neondatabase/serverless";
 import * as schema from "./schemas";
 import type { NeonDatabase } from "drizzle-orm/neon-serverless";
+import ws from "ws";
+
+// Configure WebSocket for Node.js environment
+// Neon serverless requires WebSocket support which isn't available by default in Node.js
+if (typeof WebSocket === 'undefined') {
+  neonConfig.webSocketConstructor = ws;
+}
 
 let _db: NeonDatabase<typeof schema> | null = null;
 

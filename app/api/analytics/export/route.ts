@@ -95,7 +95,7 @@ async function handleGET(req: NextRequest) {
       const userBreakdown = await getUsageByUser(user.organization_id, {
         startDate,
         endDate,
-        maxRows: EXPORT_LIMITS.MAX_ROWS,
+        limit: EXPORT_LIMITS.MAX_ROWS,
       });
       data = userBreakdown.map((u) => ({
         email: u.userEmail,
@@ -122,7 +122,6 @@ async function handleGET(req: NextRequest) {
         {
           startDate,
           endDate,
-          maxRows: EXPORT_LIMITS.MAX_ROWS,
         }
       );
       data = providerBreakdown.map((p) => ({
@@ -154,8 +153,7 @@ async function handleGET(req: NextRequest) {
       const modelBreakdown = await getModelBreakdown(user.organization_id, {
         startDate,
         endDate,
-        limit: 100,
-        maxRows: EXPORT_LIMITS.MAX_ROWS,
+        limit: EXPORT_LIMITS.MAX_ROWS,
       });
       data = modelBreakdown.map((m) => ({
         model: m.model,
@@ -190,7 +188,6 @@ async function handleGET(req: NextRequest) {
         startDate,
         endDate,
         granularity,
-        maxRows: EXPORT_LIMITS.MAX_ROWS,
       });
       data = timeSeriesData.map((point) => ({
         timestamp: point.timestamp.toISOString(),
@@ -220,7 +217,7 @@ async function handleGET(req: NextRequest) {
       return NextResponse.json(
         {
           error: `Result set too large. Maximum: ${EXPORT_LIMITS.MAX_ROWS} rows, found: ${data.length} rows. Please narrow your date range or filters.`,
-          maxRows: EXPORT_LIMITS.MAX_ROWS,
+          limit: EXPORT_LIMITS.MAX_ROWS,
           actualRows: data.length,
           suggestion: "Use smaller date range or add filters",
         },
