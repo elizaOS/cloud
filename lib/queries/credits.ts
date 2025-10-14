@@ -1,6 +1,6 @@
 import { db, schema, eq, desc } from "@/lib/db";
 import type { CreditTransaction } from "@/lib/types";
-import { creditEventEmitter } from "@/lib/events/credit-events";
+import { creditEventEmitter } from "@/lib/events/credit-events-unified";
 import { cache } from "@/lib/cache/client";
 import { CacheKeys, CacheTTL } from "@/lib/cache/keys";
 import { CacheInvalidation } from "@/lib/cache/invalidation";

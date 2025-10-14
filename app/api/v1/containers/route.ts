@@ -14,7 +14,7 @@ import {
 } from "@/lib/queries/container-quota";
 import { addCredits } from "@/lib/queries/credits";
 import { createUsageRecord } from "@/lib/queries/usage";
-import { creditEventEmitter } from "@/lib/events/credit-events";
+import { creditEventEmitter } from "@/lib/events/credit-events-unified";
 import { calculateDeploymentCost, CONTAINER_LIMITS } from "@/lib/constants/pricing";
 import { getCloudflareService } from "@/lib/services/cloudflare";
 import { isFeatureConfigured } from "@/lib/config/env-validator";
