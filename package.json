@@ -86,6 +86,7 @@
     "drizzle-orm": "^0.44.6",
     "embla-carousel-react": "^8.6.0",
     "highlight.js": "^11.11.1",
+    "lightningcss": "^1.30.2",
     "lucide-react": "^0.545.0",
     "mini-svg-data-uri": "^1.4.4",
     "motion": "^12.23.24",
