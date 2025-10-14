@@ -271,9 +271,9 @@ graph TD
 
 ### Dual Database Architecture
 
-The platform uses two separate database schemas:
+The platform uses **TWO SEPARATE DATABASES** for isolation and scalability:
 
-1. **SaaS Database** (`db/sass/schema.ts`): Platform infrastructure
+1. **Platform Database** (`DATABASE_URL` → `db/sass/schema.ts`): SaaS infrastructure
    - Organizations, users, authentication
    - API keys, usage tracking
    - Credit system, billing, Stripe integration
@@ -281,13 +281,19 @@ The platform uses two separate database schemas:
    - Generations (image/video records)
    - Conversations (platform-level chat)
 
-2. **ElizaOS Database** (`db/eliza/schema.ts`): Agent runtime
+2. **Agent Database** (`AGENT_DATABASE_URL` → `db/eliza/schema.ts`): ElizaOS runtime
    - Agents (character definitions)
    - Memories with vector embeddings
    - Rooms and participants
    - Entities and relationships
    - Components and tasks
    - Message servers and channels
+
+**Why Two Databases?**
+- **Isolation**: ElizaOS framework tables don't mix with platform tables
+- **Scalability**: Agent database can be scaled independently
+- **Migrations**: ElizaOS plugin-sql manages its own migrations
+- **Flexibility**: Use different Postgres instances for different workloads
 
 ## 🛠 Tech Stack
 
@@ -408,8 +414,11 @@ Edit `.env.local` with your credentials (see [example.env.local](example.env.loc
 **Minimum required variables:**
 
 ```env
-# Database
-DATABASE_URL=postgresql://user:password@host:5432/database?sslmode=require
+# Database - Platform (SaaS tables)
+DATABASE_URL=postgresql://user:password@host:5432/platform_db?sslmode=require
+
+# Database - Agent (ElizaOS tables) - Can be same or different database
+AGENT_DATABASE_URL=postgresql://user:password@host:5432/agent_db?sslmode=require
 
 # WorkOS Authentication
 WORKOS_CLIENT_ID=client_your_id_here
@@ -422,6 +431,12 @@ OPENAI_API_KEY=sk-your_openai_key
 # OR
 AI_GATEWAY_API_KEY=your_gateway_key
 ```
+
+**Note on Databases:**
+- You can use the **same database** for both (just use the same URL)
+- Or use **separate databases** for better isolation (recommended for production)
+- If same database: ElizaOS tables and platform tables will coexist
+- If separate: Better isolation, independent scaling, separate backups
 
 **Generate secure passwords:**
 
