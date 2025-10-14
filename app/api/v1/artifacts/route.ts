@@ -1,8 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireAuthOrApiKey } from "@/lib/auth";
-import { db } from "@/db/drizzle";
-import { artifacts } from "@/db/sass/schema";
-import { eq, desc, and } from "drizzle-orm";
+import { artifactsService } from "@/lib/services";
 
 export const dynamic = "force-dynamic";
 
@@ -28,21 +26,14 @@ export async function GET(request: NextRequest) {
     }
 
     // Fetch artifacts for the project
-    const projectArtifacts = await db
-      .select()
-      .from(artifacts)
-      .where(
-        and(
-          eq(artifacts.organization_id, user.organization_id),
-          eq(artifacts.project_id, projectId)
-        )
-      )
-      .orderBy(desc(artifacts.created_at))
-      .limit(20);
+    const projectArtifacts = await artifactsService.listByProject(
+      user.organization_id,
+      projectId,
+    );
 
     return NextResponse.json({
       success: true,
-      data: projectArtifacts,
+      data: projectArtifacts.slice(0, 20), // Limit to 20 most recent
     });
   } catch (error) {
     console.error("Error fetching artifacts:", error);

@@ -1,7 +1,10 @@
 // app/api/v1/embeddings/route.ts
 import { requireAuthOrApiKey } from "@/lib/auth";
-import { deductCredits, checkSufficientCredits } from "@/lib/queries/credits";
-import { createUsageRecord } from "@/lib/queries/usage";
+import { 
+  creditsService,
+  usageService,
+  organizationsService,
+} from "@/lib/services";
 import { 
   calculateCost, 
   getProviderFromModel, 
@@ -85,10 +88,25 @@ export async function POST(req: NextRequest) {
     const requiredCredits = Math.ceil(estimatedCost * 1.5);
 
     // Check credits before making API call
-    const creditCheck = await checkSufficientCredits(
-      user.organization_id,
-      requiredCredits,
-    );
+    const org = await organizationsService.getById(user.organization_id);
+    if (!org) {
+      return Response.json(
+        {
+          error: {
+            message: "Organization not found",
+            type: "invalid_request_error",
+            code: "organization_not_found",
+          },
+        },
+        { status: 404 },
+      );
+    }
+
+    const creditCheck = {
+      sufficient: org.credit_balance >= requiredCredits,
+      required: requiredCredits,
+      balance: org.credit_balance,
+    };
 
     if (!creditCheck.sufficient) {
       logger.warn("[OpenAI Proxy] Insufficient credits for embeddings", {
@@ -114,36 +132,52 @@ export async function POST(req: NextRequest) {
     const response = await gatewayProvider.embeddings(request);
     const data: OpenAIEmbeddingsResponse = await response.json();
 
-    // Background analytics with proper pricing
+    // CRITICAL FIX: Deduct credits SYNCHRONOUSLY before returning response
+    // to prevent free service if deduction fails
     if (data.usage) {
+      const tokensUsed = data.usage.total_tokens;
+      
+      // Use proper cost calculation
+      const { inputCost, totalCost } = await calculateCost(
+        normalizedModel,
+        providerName,
+        tokensUsed,
+        0, // embeddings don't have output tokens
+      );
+
+      const deductResult = await creditsService.deductCredits({
+        organizationId: user.organization_id,
+        amount: totalCost,
+        description: `OpenAI Proxy Embeddings: ${request.model}`,
+        metadata: { user_id: user.id },
+      });
+
+      if (!deductResult.success) {
+        // This should rarely happen since we checked credits before the call
+        // But it can happen if credits were spent elsewhere between check and now
+        logger.error("[OpenAI Proxy] CRITICAL: Failed to deduct credits for embeddings after completion", {
+          organizationId: user.organization_id,
+          cost: totalCost,
+          balance: deductResult.newBalance,
+        });
+        
+        // Return error instead of giving free service
+        return Response.json(
+          {
+            error: {
+              message: "Credit deduction failed. Please contact support.",
+              type: "billing_error",
+              code: "credit_deduction_failed",
+            },
+          },
+          { status: 402 },
+        );
+      }
+
+      // Background analytics (not critical for billing)
       (async () => {
         try {
-          const tokensUsed = data.usage.total_tokens;
-          
-          // Use proper cost calculation
-          const { inputCost, totalCost } = await calculateCost(
-            normalizedModel,
-            providerName,
-            tokensUsed,
-            0, // embeddings don't have output tokens
-          );
-
-          const deductResult = await deductCredits(
-            user.organization_id,
-            totalCost,
-            `OpenAI Proxy Embeddings: ${request.model}`,
-            user.id,
-          );
-
-          if (!deductResult.success) {
-            logger.error("[OpenAI Proxy] Failed to deduct credits for embeddings", {
-              organizationId: user.organization_id,
-              cost: totalCost,
-              balance: deductResult.newBalance,
-            });
-          }
-
-          await createUsageRecord({
+          await usageService.create({
             organization_id: user.organization_id,
             user_id: user.id,
             api_key_id: apiKey?.id || null,
@@ -185,4 +219,3 @@ export async function POST(req: NextRequest) {
     );
   }
 }
-

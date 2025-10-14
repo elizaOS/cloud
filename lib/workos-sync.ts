@@ -1,9 +1,4 @@
-import {
-  createOrganization,
-  getOrganizationBySlug,
-  getOrganizationById,
-} from "@/lib/queries/organizations";
-import { createUser, getUserByEmail, updateUser } from "@/lib/queries/users";
+import { organizationsService, usersService } from "@/lib/services";
 import type { UserWithOrganization } from "@/lib/types";
 
 interface WorkOSUser {
@@ -32,7 +27,7 @@ export async function syncWorkOSUser(
 
   console.log(`[WorkOS Sync] Looking up user: ${email}`);
 
-  let user = await getUserByEmail(email);
+  let user = await usersService.getByEmail(email);
 
   if (user) {
     console.log(`[WorkOS Sync] User found in database: ${user.id}`);
@@ -43,14 +38,14 @@ export async function syncWorkOSUser(
     if (shouldUpdate) {
       console.log(`[WorkOS Sync] Updating user: ${user.id}`);
       user =
-        (await updateUser(user.id, {
+        (await usersService.update(user.id, {
           name,
           workos_user_id: workosUser.id,
           updated_at: new Date(),
         })) || user;
     }
 
-    const org = await getOrganizationById(user.organization_id);
+    const org = await organizationsService.getById(user.organization_id);
 
     if (!org) {
       console.error(
@@ -72,7 +67,7 @@ export async function syncWorkOSUser(
   console.log(`[WorkOS Sync] User not found, creating new user and org`);
 
   let orgSlug = generateSlugFromEmail(email);
-  let org = await getOrganizationBySlug(orgSlug);
+  let org = await organizationsService.getBySlug(orgSlug);
 
   let attempts = 0;
   const MAX_ATTEMPTS = 5;
@@ -82,7 +77,7 @@ export async function syncWorkOSUser(
       `[WorkOS Sync] Slug collision, regenerating (attempt ${attempts + 1}/${MAX_ATTEMPTS})`
     );
     orgSlug = generateSlugFromEmail(email);
-    org = await getOrganizationBySlug(orgSlug);
+    org = await organizationsService.getBySlug(orgSlug);
     attempts++;
   }
 
@@ -95,54 +90,28 @@ export async function syncWorkOSUser(
     );
   }
 
-  console.log(`[WorkOS Sync] Creating organization: ${orgSlug}`);
+  org = await organizationsService.create({
+    name: name || email,
+    slug: orgSlug,
+    credit_balance: 10000,
+    is_active: true,
+    allowed_models: [],
+    allowed_providers: [],
+    settings: {
+      created_via: "workos_oauth",
+      initial_login: new Date().toISOString(),
+    },
+  });
 
-  try {
-    org = await createOrganization({
-      name: name || email,
-      slug: orgSlug,
-      credit_balance: 10000,
-      is_active: true,
-      allowed_models: [],
-      allowed_providers: [],
-      settings: {
-        created_via: "workos_oauth",
-        initial_login: new Date().toISOString(),
-      },
-    });
-
-    console.log(`[WorkOS Sync] Organization created: ${org.id}`);
-  } catch (error) {
-    console.error(`[WorkOS Sync] Failed to create organization:`, error);
-    throw new Error(
-      `Failed to create organization: ${error instanceof Error ? error.message : "Unknown error"}`
-    );
-  }
-
-  console.log(`[WorkOS Sync] Creating user: ${email}`);
-
-  try {
-    user = await createUser({
-      workos_user_id: workosUser.id,
-      email,
-      name,
-      organization_id: org.id,
-      role: "owner",
-      email_verified: true,
-      is_active: true,
-    });
-
-    console.log(`[WorkOS Sync] User created: ${user.id}`);
-  } catch (error) {
-    console.error(`[WorkOS Sync] Failed to create user:`, error);
-    throw new Error(
-      `Failed to create user: ${error instanceof Error ? error.message : "Unknown error"}`
-    );
-  }
-
-  console.log(
-    `[WorkOS Sync] ✓ Complete - User: ${user.id}, Org: ${org.id}`
-  );
+  user = await usersService.create({
+    workos_user_id: workosUser.id,
+    email,
+    name,
+    organization_id: org.id,
+    role: "owner",
+    email_verified: true,
+    is_active: true,
+  });
 
   return {
     ...user,

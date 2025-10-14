@@ -19,12 +19,15 @@ Before deploying, verify:
 elizaos config validate  # Future CLI command
 
 # Or manually verify .env.local has:
-- DATABASE_URL
+- DATABASE_URL (platform database)
+- AGENT_DATABASE_URL (ElizaOS agent database)
 - WORKOS_CLIENT_ID, WORKOS_API_KEY, WORKOS_COOKIE_PASSWORD
 - CLOUDFLARE_ACCOUNT_ID, CLOUDFLARE_API_TOKEN
 - R2_ACCOUNT_ID, R2_ACCESS_KEY_ID, R2_SECRET_ACCESS_KEY
 - R2_ENDPOINT, R2_BUCKET_NAME
 ```
+
+**Note:** `DATABASE_URL` and `AGENT_DATABASE_URL` can point to the same database (development) or separate databases (production)
 
 ### 2. API Key
 ```bash
@@ -318,8 +321,10 @@ docker run -it --rm \
 ```
 
 ### Database Inspection
+
+**Platform Database** (SaaS tables):
 ```bash
-# Connect to database
+# Connect to platform database
 psql $DATABASE_URL
 
 # Check containers
@@ -340,6 +345,42 @@ FROM credit_transactions
 WHERE organization_id = 'your-org-id'
 ORDER BY created_at DESC 
 LIMIT 20;
+```
+
+**Agent Database** (ElizaOS tables):
+```bash
+# Connect to agent database
+psql $AGENT_DATABASE_URL
+
+# Check agents
+SELECT id, name, username, created_at 
+FROM agents 
+ORDER BY created_at DESC;
+
+# Check rooms
+SELECT id, name, source, type, created_at 
+FROM rooms 
+ORDER BY created_at DESC 
+LIMIT 20;
+
+# Check memories
+SELECT id, type, room_id, created_at 
+FROM memories 
+ORDER BY created_at DESC 
+LIMIT 20;
+
+# Check embeddings dimension
+SELECT COUNT(*), 
+  CASE 
+    WHEN dim384 IS NOT NULL THEN 384
+    WHEN dim512 IS NOT NULL THEN 512
+    WHEN dim768 IS NOT NULL THEN 768
+    WHEN dim1024 IS NOT NULL THEN 1024
+    WHEN dim1536 IS NOT NULL THEN 1536
+    WHEN dim3072 IS NOT NULL THEN 3072
+  END as dimension
+FROM embeddings
+GROUP BY dimension;
 ```
 
 ### Cloudflare Worker Debugging

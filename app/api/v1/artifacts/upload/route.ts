@@ -1,7 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireAuthOrApiKey } from "@/lib/auth";
-import { db } from "@/db/drizzle";
-import { artifacts } from "@/db/sass/schema";
+import { artifactsService } from "@/lib/services";
 import { nanoid } from "nanoid";
 import { 
   createArtifactUploadCredentials, 
@@ -111,7 +110,7 @@ async function handleArtifactUpload(request: NextRequest) {
 
     // Only insert into database after ALL prerequisites are successfully generated
     // This prevents orphaned database records
-    await db.insert(artifacts).values({
+    await artifactsService.create({
       id: artifactId,
       organization_id: user.organization_id,
       project_id: projectId,

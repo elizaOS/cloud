@@ -1,4 +1,4 @@
-import { db, schema, eq, and } from "@/lib/db";
+import { modelPricingRepository } from "@/db/repositories";
 
 // Re-export constants from pricing-constants (safe for client components)
 export {
@@ -25,13 +25,8 @@ export async function calculateCost(
   inputTokens: number,
   outputTokens: number,
 ): Promise<CostBreakdown> {
-  const pricing = await db.query.modelPricing.findFirst({
-    where: and(
-      eq(schema.modelPricing.model, model),
-      eq(schema.modelPricing.provider, provider),
-      eq(schema.modelPricing.is_active, true),
-    ),
-  });
+  const pricing =
+    await modelPricingRepository.findByModelAndProvider(model, provider);
 
   if (!pricing) {
     const fallbackCosts = getFallbackPricing(model, inputTokens, outputTokens);

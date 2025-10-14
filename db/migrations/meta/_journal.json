@@ -3,24 +3,17 @@
   "dialect": "postgresql",
   "entries": [
     {
+      "idx": 0,
+      "version": "7",
+      "when": 1760067748400,
+      "tag": "0000_vector_extension",
+      "breakpoints": true
+    },
+    {
       "idx": 1,
       "version": "7",
-      "when": 1759671011961,
-      "tag": "0001_numerous_carnage",
-      "breakpoints": true
-    },
-    {
-      "idx": 2,
-      "version": "7",
-      "when": 1759756277947,
-      "tag": "0002_curvy_daimon_hellstrom",
-      "breakpoints": true
-    },
-    {
-      "idx": 3,
-      "version": "7",
-      "when": 1759815675792,
-      "tag": "0003_mixed_wendell_vaughn",
+      "when": 1760067772122,
+      "tag": "0001_init",
       "breakpoints": true
     },
     {
