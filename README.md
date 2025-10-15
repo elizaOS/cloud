@@ -1466,6 +1466,122 @@ See `docs/DEPLOYMENT_TROUBLESHOOTING.md` for detailed troubleshooting.
 - [Vercel AI SDK Docs](https://sdk.vercel.ai/docs)
 - [ElizaOS Documentation](https://github.com/elizaos/eliza)
 
+## 🚀 Cloudflare Container Deployment
+
+Deploy ElizaOS agents to Cloudflare's global edge network using the bootstrapper container.
+
+### Quick Start
+
+```bash
+# 1. Install Wrangler
+npm install -g wrangler && wrangler login
+
+# 2. Push bootstrapper to Cloudflare registry
+cd bootstrapper && ./deploy-to-cloudflare.sh v1.0.0
+
+# 3. Configure environment
+# Edit .env:
+BOOTSTRAPPER_IMAGE_TAG=registry.cloudflare.com/YOUR_ACCOUNT_ID/elizaos-bootstrapper:latest
+CLOUDFLARE_ACCOUNT_ID=your_account_id
+CLOUDFLARE_API_TOKEN=your_api_token
+R2_ACCESS_KEY_ID=your_r2_key
+R2_SECRET_ACCESS_KEY=your_r2_secret
+R2_BUCKET_NAME=eliza-artifacts
+R2_ENDPOINT=https://YOUR_ACCOUNT_ID.r2.cloudflarestorage.com
+
+# 4. Start platform
+cd .. && npm run build && npm start
+
+# 5. Deploy agents
+cd your-project && elizaos deploy --name my-agent
+```
+
+### How It Works
+
+1. **CLI** uploads artifact to R2
+2. **Platform** tells Cloudflare to deploy
+3. **Cloudflare** pulls bootstrapper from `registry.cloudflare.com`
+4. **Bootstrapper** downloads artifact and runs your agent
+5. **Agent** runs on Cloudflare's global edge network
+
+### Setup Steps
+
+**1. Get Cloudflare Credentials**
+- Account ID: Visit https://dash.cloudflare.com (in URL)
+- API Token: Profile → API Tokens → Create (use "Edit Cloudflare Workers" template)
+- Create R2 bucket: R2 → Create bucket → Name: `eliza-artifacts`
+- R2 API Token: R2 → Manage R2 API Tokens → Create (Object Read & Write)
+
+**2. Deploy Bootstrapper**
+```bash
+cd bootstrapper
+./deploy-to-cloudflare.sh v1.0.0
+```
+
+**3. Configure**
+Update `.env` with credentials from step 1. Run config checker:
+```bash
+tsx scripts/check-bootstrapper-config.ts
+```
+
+**4. Deploy**
+```bash
+npm start
+# Then use: elizaos deploy --name my-agent
+```
+
+### Verification
+
+```bash
+# Check image in Cloudflare registry
+wrangler containers images list
+
+# Check deployed containers  
+wrangler containers list
+
+# View in dashboard
+# https://dash.cloudflare.com/YOUR_ACCOUNT/workers
+```
+
+### Cost
+
+- **Container Registry:** Included (50 GB free)
+- **R2 Storage:** $0.015/GB/month (10 GB free)
+- **Container Execution:** Usage-based (~$5-20/month)
+- **Total:** ~$10-30/month for production
+
+### Documentation
+
+- **Full guide:** `bootstrapper/README.md`
+- **Config checker:** `scripts/check-bootstrapper-config.ts`
+- **Cloudflare docs:** https://developers.cloudflare.com/containers/
+
+### Troubleshooting
+
+**Image not found when deploying**
+```bash
+# Ensure env uses full registry path:
+BOOTSTRAPPER_IMAGE_TAG=registry.cloudflare.com/ACCOUNT_ID/elizaos-bootstrapper:latest
+```
+
+**Wrangler not found**
+```bash
+npm install -g wrangler
+```
+
+**Not logged in**
+```bash
+wrangler login
+```
+
+**Deploy fails**
+- Check `tsx scripts/check-bootstrapper-config.ts`
+- Verify all env variables are set
+- Check Cloudflare dashboard for logs
+
+---
+---
+
 ## 📚 Additional Resources
 
 ### Core Framework
