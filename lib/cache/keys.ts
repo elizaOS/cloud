@@ -10,6 +10,10 @@ export const CacheKeys = {
       `analytics:overview:${orgId}:${timeRange}:v1`,
     breakdown: (orgId: string, dimension: string, range: string) =>
       `analytics:breakdown:${orgId}:${dimension}:${range}:v1`,
+    stats: (orgId: string, dateRange: string) =>
+      `analytics:stats:${orgId}:${dateRange}:v1`,
+    userBreakdown: (orgId: string, params: string) =>
+      `analytics:userbreakdown:${orgId}:${params}:v1`,
     projections: (orgId: string, daysAhead: number) =>
       `analytics:projections:${orgId}:${daysAhead}:v1`,
     timeSeries: (orgId: string, granularity: string, start: string, end: string) =>
@@ -43,6 +47,8 @@ export const CacheTTL = {
       monthly: 300,
     },
     breakdown: 180,
+    stats: 300,
+    userBreakdown: 600,
     projections: 300,
     timeSeries: 180,
     providerBreakdown: 180,

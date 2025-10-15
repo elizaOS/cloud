@@ -5,6 +5,9 @@
  */
 
 import { usageRecordsRepository } from "@/db/repositories/usage-records";
+import type { CostBreakdownItem } from "@/db/repositories/usage-records";
+import { cache } from "@/lib/cache/client";
+import { CacheKeys, CacheTTL } from "@/lib/cache/keys";
 
 // Re-export types
 export type {
@@ -24,11 +27,21 @@ export class AnalyticsService {
     organizationId: string,
     options?: { startDate?: Date; endDate?: Date },
   ) {
-    return await usageRecordsRepository.getStatsByOrganization(
+    const dateRange = `${options?.startDate?.toISOString() || "null"}-${options?.endDate?.toISOString() || "null"}`;
+    const cacheKey = CacheKeys.analytics.stats(organizationId, dateRange);
+
+    const cached = await cache.get(cacheKey);
+    if (cached) return cached;
+
+    const results = await usageRecordsRepository.getStatsByOrganization(
       organizationId,
       options?.startDate,
       options?.endDate,
     );
+
+    await cache.set(cacheKey, results, CacheTTL.analytics.stats);
+
+    return results;
   }
 
   async getUsageTimeSeries(
@@ -40,16 +53,32 @@ export class AnalyticsService {
       maxRows?: number;
     },
   ) {
+    const cacheKey = CacheKeys.analytics.timeSeries(
+      organizationId,
+      options.granularity,
+      options.startDate.toISOString(),
+      options.endDate.toISOString(),
+    );
+
+    const cached = await cache.get<typeof result>(cacheKey);
+    if (cached) {
+      if (options.maxRows && cached.length > options.maxRows) {
+        return cached.slice(0, options.maxRows);
+      }
+      return cached;
+    }
+
     const result = await usageRecordsRepository.getUsageTimeSeries(
       organizationId,
       options,
     );
-    
-    // Enforce maxRows limit if specified
+
+    await cache.set(cacheKey, result, CacheTTL.analytics.timeSeries);
+
     if (options.maxRows && result.length > options.maxRows) {
       return result.slice(0, options.maxRows);
     }
-    
+
     return result;
   }
 
@@ -62,13 +91,25 @@ export class AnalyticsService {
       maxRows?: number;
     },
   ) {
+    const params = `${options?.startDate?.toISOString() || "null"}-${options?.endDate?.toISOString() || "null"}-${options?.limit || 0}`;
+    const cacheKey = CacheKeys.analytics.userBreakdown(organizationId, params);
+
+    const cached = await cache.get<typeof result>(cacheKey);
+    if (cached) {
+      if (options?.maxRows && cached.length > options.maxRows) {
+        return cached.slice(0, options.maxRows);
+      }
+      return cached;
+    }
+
     const result = await usageRecordsRepository.getUsageByUser(organizationId, options);
-    
-    // Enforce maxRows limit if specified
+
+    await cache.set(cacheKey, result, CacheTTL.analytics.userBreakdown);
+
     if (options?.maxRows && result.length > options.maxRows) {
       return result.slice(0, options.maxRows);
     }
-    
+
     return result;
   }
 
@@ -80,16 +121,31 @@ export class AnalyticsService {
     organizationId: string,
     options?: { startDate?: Date; endDate?: Date; maxRows?: number },
   ) {
+    const cacheKey = CacheKeys.analytics.providerBreakdown(
+      organizationId,
+      options?.startDate?.toISOString() || "null",
+      options?.endDate?.toISOString() || "null",
+    );
+
+    const cached = await cache.get<typeof result>(cacheKey);
+    if (cached) {
+      if (options?.maxRows && cached.length > options.maxRows) {
+        return cached.slice(0, options.maxRows);
+      }
+      return cached;
+    }
+
     const result = await usageRecordsRepository.getProviderBreakdown(
       organizationId,
       options,
     );
-    
-    // Enforce maxRows limit if specified
+
+    await cache.set(cacheKey, result, CacheTTL.analytics.providerBreakdown);
+
     if (options?.maxRows && result.length > options.maxRows) {
       return result.slice(0, options.maxRows);
     }
-    
+
     return result;
   }
 
@@ -97,16 +153,31 @@ export class AnalyticsService {
     organizationId: string,
     options?: { startDate?: Date; endDate?: Date; limit?: number; maxRows?: number },
   ) {
+    const cacheKey = CacheKeys.analytics.modelBreakdown(
+      organizationId,
+      options?.startDate?.toISOString() || "null",
+      options?.endDate?.toISOString() || "null",
+    );
+
+    const cached = await cache.get<typeof result>(cacheKey);
+    if (cached) {
+      if (options?.maxRows && cached.length > options.maxRows) {
+        return cached.slice(0, options.maxRows);
+      }
+      return cached;
+    }
+
     const result = await usageRecordsRepository.getModelBreakdown(
       organizationId,
       options,
     );
-    
-    // Enforce maxRows limit if specified
+
+    await cache.set(cacheKey, result, CacheTTL.analytics.modelBreakdown);
+
     if (options?.maxRows && result.length > options.maxRows) {
       return result.slice(0, options.maxRows);
     }
-    
+
     return result;
   }
 
@@ -133,12 +204,191 @@ export class AnalyticsService {
       limit?: number;
       offset?: number;
     },
-  ) {
-    return await usageRecordsRepository.getCostBreakdown(
+  ): Promise<CostBreakdownItem[]> {
+    // Build cache key with serialized options
+    const cacheKey = CacheKeys.analytics.breakdown(
+      organizationId,
+      dimension,
+      this.serializeBreakdownOptions(options),
+    );
+
+    // Try cache first
+    const cached = await cache.get<CostBreakdownItem[]>(cacheKey);
+    if (cached) return cached;
+
+    // Fetch from database
+    const results = await usageRecordsRepository.getCostBreakdown(
       organizationId,
       dimension,
       options,
     );
+
+    // Cache results
+    await cache.set(cacheKey, results, CacheTTL.analytics.breakdown);
+
+    return results;
+  }
+
+  /**
+   * Get complete analytics overview with caching
+   * Handles date calculations, parallel data fetching, and response formatting
+   */
+  async getOverview(
+    organizationId: string,
+    timeRange: "daily" | "weekly" | "monthly",
+  ) {
+    // Build cache key
+    const cacheKey = CacheKeys.analytics.overview(organizationId, timeRange);
+
+    // Try cache first
+    const cached = await cache.get(cacheKey);
+    if (cached) return cached;
+
+    // Calculate date ranges
+    const {
+      startDate,
+      endDate,
+      granularity,
+      previousStartDate,
+      previousEndDate,
+    } = this.calculateDateRanges(timeRange);
+
+    // Fetch all data in parallel
+    const [summary, timeSeries, providerBreakdown, modelBreakdown, trends] =
+      await Promise.all([
+        usageRecordsRepository.getStatsByOrganization(
+          organizationId,
+          startDate,
+          endDate,
+        ),
+        usageRecordsRepository.getUsageTimeSeries(organizationId, {
+          startDate,
+          endDate,
+          granularity,
+        }),
+        usageRecordsRepository.getProviderBreakdown(organizationId, {
+          startDate,
+          endDate,
+        }),
+        usageRecordsRepository.getModelBreakdown(organizationId, {
+          startDate,
+          endDate,
+          limit: 20,
+        }),
+        usageRecordsRepository.getTrendData(
+          organizationId,
+          { startDate, endDate },
+          { startDate: previousStartDate, endDate: previousEndDate },
+        ),
+      ]);
+
+    // Format response
+    const result = {
+      timeSeries: timeSeries.map((point) => ({
+        date: point.timestamp.toISOString().split("T")[0],
+        requests: point.totalRequests,
+        cost: point.totalCost,
+        tokens: point.inputTokens + point.outputTokens,
+      })),
+      providerBreakdown: providerBreakdown.map((provider) => ({
+        provider: provider.provider,
+        requests: provider.totalRequests,
+        cost: provider.totalCost,
+        tokens: provider.totalTokens,
+        percentage: provider.percentage,
+      })),
+      modelBreakdown: modelBreakdown.map((model) => ({
+        model: model.model,
+        requests: model.totalRequests,
+        cost: model.totalCost,
+        tokens: model.totalTokens,
+      })),
+      summary: {
+        totalRequests: summary.totalRequests,
+        totalCost: summary.totalCost,
+        totalTokens: summary.totalInputTokens + summary.totalOutputTokens,
+        successRate: summary.successRate,
+        avgCostPerRequest:
+          summary.totalRequests > 0
+            ? summary.totalCost / summary.totalRequests
+            : 0,
+        avgLatency: 0,
+        activeApiKeys: 0,
+      },
+      trends: {
+        requestsChange: trends.requestsChange,
+        costChange: trends.costChange,
+        tokensChange: trends.tokensChange,
+        successRateChange: trends.successRateChange,
+        period: trends.period,
+      },
+    };
+
+    // Cache results with appropriate TTL
+    const ttl = CacheTTL.analytics.overview[timeRange];
+    await cache.set(cacheKey, result, ttl);
+
+    return result;
+  }
+
+  /**
+   * Calculate date ranges and granularity based on time range
+   */
+  private calculateDateRanges(timeRange: "daily" | "weekly" | "monthly"): {
+    startDate: Date;
+    endDate: Date;
+    granularity: "hour" | "day" | "week" | "month";
+    previousStartDate: Date;
+    previousEndDate: Date;
+  } {
+    const now = new Date();
+    const endDate = now;
+    let startDate: Date;
+    let granularity: "hour" | "day" | "week" | "month";
+
+    switch (timeRange) {
+      case "daily":
+        startDate = new Date(now.getTime() - 24 * 60 * 60 * 1000);
+        granularity = "hour";
+        break;
+      case "weekly":
+        startDate = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
+        granularity = "day";
+        break;
+      case "monthly":
+        startDate = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
+        granularity = "day";
+        break;
+    }
+
+    // Calculate previous period for trend comparison
+    const timeRangeMs = endDate.getTime() - startDate.getTime();
+    const previousEndDate = startDate;
+    const previousStartDate = new Date(startDate.getTime() - timeRangeMs);
+
+    return {
+      startDate,
+      endDate,
+      granularity,
+      previousStartDate,
+      previousEndDate,
+    };
+  }
+
+  /**
+   * Serializes breakdown options into a stable cache key string
+   */
+  private serializeBreakdownOptions(options?: {
+    startDate?: Date;
+    endDate?: Date;
+    sortBy?: "cost" | "requests" | "tokens";
+    sortOrder?: "asc" | "desc";
+    limit?: number;
+    offset?: number;
+  }): string {
+    if (!options) return "default";
+    const { startDate, endDate, sortBy, sortOrder, limit, offset } = options;
+    return `${startDate?.toISOString() || "null"}-${endDate?.toISOString() || "null"}-${sortBy || "cost"}-${sortOrder || "desc"}-${limit || 0}-${offset || 0}`;
   }
 }
 
