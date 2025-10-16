@@ -166,34 +166,6 @@ export class ContainersRepository {
     return updated || null;
   }
 
-  async listActiveByOrganizationWithArtifactId(organizationId: string): Promise<
-    Array<{
-      id: string;
-      name: string;
-      status: string;
-      artifact_id: string | null;
-    }>
-  > {
-    const results = await db
-      .select({
-        id: containers.id,
-        name: containers.name,
-        status: containers.status,
-        artifact_id: sql<string>`${containers.metadata}->>'artifact_id'`.as(
-          "artifact_id",
-        ),
-      })
-      .from(containers)
-      .where(
-        and(
-          eq(containers.organization_id, organizationId),
-          notInArray(containers.status, ["failed", "deleted", "deleting"]),
-        ),
-      );
-
-    return results;
-  }
-
   /**
    * Check quota without creating a container (read-only check)
    * Note: This has a small race condition window but is useful for pre-flight checks
