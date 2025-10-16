@@ -66,10 +66,14 @@ export function getMaxContainersForOrg(
 
 /**
  * Calculate total deployment cost
+ * Supports both legacy (maxInstances) and new (desiredCount, cpu, memory) parameters
  */
 export function calculateDeploymentCost(config: {
   imageSize?: number;
-  maxInstances?: number;
+  maxInstances?: number; // Legacy parameter
+  desiredCount?: number; // New ECS parameter
+  cpu?: number; // CPU units
+  memory?: number; // Memory in MB
   includeUpload?: boolean;
 }): number {
   let totalCost = CONTAINER_PRICING.DEPLOYMENT;
@@ -78,11 +82,27 @@ export function calculateDeploymentCost(config: {
     totalCost += CONTAINER_PRICING.IMAGE_UPLOAD;
   }
 
+  // Use desiredCount if provided, otherwise fall back to maxInstances
+  const instanceCount = config.desiredCount || config.maxInstances || 1;
+
   // Additional cost for scaling beyond single instance
-  if (config.maxInstances && config.maxInstances > 1) {
+  if (instanceCount > 1) {
     totalCost +=
-      (config.maxInstances - 1) *
+      (instanceCount - 1) *
       CONTAINER_PRICING.COST_PER_ADDITIONAL_INSTANCE;
+  }
+
+  // Additional cost for higher CPU/memory allocations
+  if (config.cpu && config.cpu > 256) {
+    // Base is 256 CPU, charge extra for higher tiers
+    const cpuMultiplier = config.cpu / 256;
+    totalCost += Math.floor((cpuMultiplier - 1) * 200);
+  }
+
+  if (config.memory && config.memory > 512) {
+    // Base is 512MB, charge extra for more memory
+    const memoryMultiplier = config.memory / 512;
+    totalCost += Math.floor((memoryMultiplier - 1) * 100);
   }
 
   return totalCost;

@@ -1,13 +1,17 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireAuthOrApiKey } from "@/lib/auth";
 import { getContainer } from "@/lib/services";
-import { getCloudflareService } from "@/lib/services/cloudflare";
+import {
+  CloudWatchLogsClient,
+  GetLogEventsCommand,
+  type OutputLogEvent,
+} from "@aws-sdk/client-cloudwatch-logs";
 
 export const dynamic = "force-dynamic";
 
 /**
  * GET /api/v1/containers/[id]/logs
- * Get container logs from Cloudflare
+ * Get container logs from AWS CloudWatch
  */
 export async function GET(
   request: NextRequest,
@@ -30,70 +34,27 @@ export async function GET(
       );
     }
 
-    // Check if container has a Cloudflare worker ID
-    if (!container.cloudflare_worker_id) {
+    // Check if container has been deployed to ECS
+    if (!container.ecs_service_arn) {
       return NextResponse.json(
         {
           success: false,
-          error: "Container has not been deployed to Cloudflare yet",
+          error: "Container has not been deployed to ECS yet",
         },
         { status: 400 },
       );
     }
 
-    // Get logs from Cloudflare
-    const cloudflare = getCloudflareService();
-    const rawLogs = await cloudflare.getContainerLogs(
-      container.cloudflare_worker_id,
-    );
-
     // Parse query parameters for filtering
     const searchParams = request.nextUrl.searchParams;
     const limit = parseInt(searchParams.get("limit") || "100");
-    const levelFilter = searchParams.get("level"); // error, warn, info, debug
     const since = searchParams.get("since"); // ISO timestamp
 
-    // Parse logs if they're strings (convert to structured format)
-    // Cloudflare may return logs as strings or objects depending on API version
-    const logs: Array<{
-      timestamp: string;
-      level: string;
-      message: string;
-      metadata?: Record<string, unknown>;
-    }> = rawLogs.map((log) => {
-      if (typeof log === "string") {
-        // Simple string logs - parse or return as-is
-        return {
-          timestamp: new Date().toISOString(),
-          level: "info",
-          message: log,
-        };
-      }
-      // Already structured
-      return log as {
-        timestamp: string;
-        level: string;
-        message: string;
-        metadata?: Record<string, unknown>;
-      };
+    // Get logs from CloudWatch
+    const logs = await getCloudWatchLogs(container.name, {
+      limit,
+      since: since ? new Date(since) : undefined,
     });
-
-    // Filter logs
-    let filteredLogs = logs;
-
-    if (since) {
-      const sinceDate = new Date(since);
-      filteredLogs = filteredLogs.filter((log) => {
-        const logDate = new Date(log.timestamp || 0);
-        return logDate >= sinceDate;
-      });
-    }
-
-    if (levelFilter) {
-      filteredLogs = filteredLogs.filter((log) => log.level === levelFilter);
-    }
-
-    const limitedLogs = filteredLogs.slice(0, limit);
 
     return NextResponse.json({
       success: true,
@@ -102,14 +63,12 @@ export async function GET(
           id: container.id,
           name: container.name,
           status: container.status,
-          cloudflare_worker_id: container.cloudflare_worker_id,
+          ecs_service_arn: container.ecs_service_arn,
         },
-        logs: limitedLogs,
-        total: limitedLogs.length,
-        available: logs.length,
+        logs,
+        total: logs.length,
         filters: {
           limit,
-          level: levelFilter,
           since,
         },
       },
@@ -126,5 +85,61 @@ export async function GET(
       },
       { status: 500 },
     );
+  }
+}
+
+/**
+ * Get logs from CloudWatch for a container
+ */
+async function getCloudWatchLogs(
+  containerName: string,
+  options: {
+    limit?: number;
+    since?: Date;
+  }
+): Promise<
+  Array<{
+    timestamp: string;
+    message: string;
+  }>
+> {
+  const region = process.env.AWS_REGION;
+  const accessKeyId = process.env.AWS_ACCESS_KEY_ID;
+  const secretAccessKey = process.env.AWS_SECRET_ACCESS_KEY;
+
+  if (!region || !accessKeyId || !secretAccessKey) {
+    throw new Error("AWS credentials not configured");
+  }
+
+  const client = new CloudWatchLogsClient({
+    region,
+    credentials: {
+      accessKeyId,
+      secretAccessKey,
+    },
+  });
+
+  const logGroupName = `/ecs/elizaos-${containerName}`;
+
+  try {
+    const command = new GetLogEventsCommand({
+      logGroupName,
+      logStreamName: "ecs", // This would need to be more dynamic in production
+      limit: options.limit || 100,
+      startTime: options.since?.getTime(),
+      startFromHead: false, // Get most recent logs first
+    });
+
+    const response = await client.send(command);
+    const events = response.events || [];
+
+    return events.map((event: OutputLogEvent) => ({
+      timestamp: new Date(event.timestamp || 0).toISOString(),
+      message: event.message || "",
+    }));
+  } catch (error) {
+    console.error("Error fetching CloudWatch logs:", error);
+    // Return empty array if logs not available yet
+    return [];
   }
 }

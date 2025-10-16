@@ -217,7 +217,7 @@ export async function monitorAllContainers(
 
     // Check each container
     for (const container of runningContainers) {
-      if (!container.cloudflare_url) {
+      if (!container.load_balancer_url) {
         console.warn("Container has no URL, skipping health check", {
           containerId: container.id,
         });
@@ -225,7 +225,7 @@ export async function monitorAllContainers(
       }
 
       const result = await checkContainerHealth(
-        container.cloudflare_url,
+        container.load_balancer_url,
         container.health_check_path || "/health",
         finalConfig.timeout,
       );
@@ -239,7 +239,7 @@ export async function monitorAllContainers(
       if (!result.healthy) {
         console.warn("Container health check failed", {
           containerId: container.id,
-          url: container.cloudflare_url,
+          url: container.load_balancer_url,
           error: result.error,
         });
       }
@@ -279,18 +279,18 @@ export async function getContainerHealthStatus(
       .where(eq(containers.id, containerId))
       .limit(1);
 
-    if (results.length === 0 || !results[0].cloudflare_url) {
+    if (results.length === 0 || !results[0].load_balancer_url) {
       return null;
     }
 
     const container = results[0];
 
-    if (!container.cloudflare_url) {
+    if (!container.load_balancer_url) {
       return null;
     }
 
     const result = await checkContainerHealth(
-      container.cloudflare_url,
+      container.load_balancer_url,
       container.health_check_path || "/health",
     );
 

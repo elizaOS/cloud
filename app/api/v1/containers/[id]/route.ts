@@ -5,7 +5,7 @@ import {
   deleteContainer,
   updateContainerStatus,
 } from "@/lib/services";
-import { getCloudflareService } from "@/lib/services/cloudflare";
+import { getECSManager } from "@/lib/services/ecs";
 
 export const dynamic = "force-dynamic";
 
@@ -52,7 +52,7 @@ export async function GET(
 
 /**
  * DELETE /api/v1/containers/[id]
- * Delete a container and remove it from Cloudflare
+ * Delete a container and remove it from ECS
  */
 export async function DELETE(
   request: NextRequest,
@@ -78,14 +78,14 @@ export async function DELETE(
     // Update status to deleting
     await updateContainerStatus(id, "deleting");
 
-    // Delete from Cloudflare if it exists
-    if (container.cloudflare_worker_id) {
+    // Delete from ECS if it exists
+    if (container.ecs_service_arn) {
       try {
-        const cloudflare = getCloudflareService();
-        await cloudflare.deleteContainer(container.cloudflare_worker_id);
+        const ecsManager = getECSManager();
+        await ecsManager.deleteService(container.ecs_service_arn);
       } catch (error) {
-        console.error("Error deleting from Cloudflare:", error);
-        // Continue with database deletion even if Cloudflare deletion fails
+        console.error("Error deleting from ECS:", error);
+        // Continue with database deletion even if ECS deletion fails
       }
     }
 
