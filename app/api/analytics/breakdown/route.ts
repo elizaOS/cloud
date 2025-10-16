@@ -1,6 +1,6 @@
 import { type NextRequest, NextResponse } from "next/server";
 import { requireAuthOrApiKey } from "@/lib/auth";
-import { getCostBreakdown } from "@/lib/services";
+import { analyticsService, type CostBreakdownItem } from "@/lib/services/analytics";
 import { logger } from "@/lib/utils/logger";
 import { withRateLimit, RateLimitPresets } from "@/lib/middleware/rate-limit";
 
@@ -25,8 +25,8 @@ async function handleGET(req: NextRequest) {
       | "desc";
     const limit = Math.min(
       parseInt(searchParams.get("limit") || "100", 10),
-      1000,
-    ); // Cap at 1000
+      1000
+    );
     const offset = parseInt(searchParams.get("offset") || "0", 10);
 
     const startDate = searchParams.get("startDate")
@@ -36,32 +36,37 @@ async function handleGET(req: NextRequest) {
       ? new Date(searchParams.get("endDate")!)
       : new Date();
 
-    const breakdown = await getCostBreakdown(user.organization_id, dimension, {
-      startDate,
-      endDate,
-      sortBy,
-      sortOrder,
-      limit: limit + 1, // Fetch one extra to check if more exist
-      offset,
-    });
+    const breakdown = await analyticsService.getCostBreakdown(
+      user.organization_id,
+      dimension,
+      {
+        startDate,
+        endDate,
+        sortBy,
+        sortOrder,
+        limit: limit + 1,
+        offset,
+      }
+    );
 
-    // Check if more results exist
     const hasMore = breakdown.length > limit;
     const results = hasMore ? breakdown.slice(0, limit) : breakdown;
 
+    const responseData = results.map((item: CostBreakdownItem) => ({
+      dimension: item.dimension,
+      value: item.value,
+      cost: item.cost,
+      requests: item.requests,
+      tokens: item.tokens,
+      successCount: item.successCount,
+      totalCount: item.totalCount,
+      successRate:
+        item.totalCount > 0 ? item.successCount / item.totalCount : 1.0,
+    }));
+
     return NextResponse.json({
       success: true,
-      data: results.map((item) => ({
-        dimension: item.dimension,
-        value: item.value,
-        cost: item.cost,
-        requests: item.requests,
-        tokens: item.tokens,
-        successCount: item.successCount,
-        totalCount: item.totalCount,
-        successRate:
-          item.totalCount > 0 ? item.successCount / item.totalCount : 1.0,
-      })),
+      data: responseData,
       pagination: {
         limit,
         offset,
@@ -79,7 +84,7 @@ async function handleGET(req: NextRequest) {
             ? error.message
             : "Failed to fetch breakdown data",
       },
-      { status: 500 },
+      { status: 500 }
     );
   }
 }

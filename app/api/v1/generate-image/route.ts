@@ -7,6 +7,7 @@ import {
 } from "@/lib/services";
 import { IMAGE_GENERATION_COST } from "@/lib/pricing";
 import { uploadBase64Image } from "@/lib/blob";
+import { withRateLimit, RateLimitPresets } from "@/lib/middleware/rate-limit";
 import type { NextRequest } from "next/server";
 
 export const maxDuration = 30;
@@ -34,7 +35,7 @@ interface GenerateImageRequest {
   stylePreset?: StylePreset;
 }
 
-export async function POST(req: NextRequest) {
+async function handlePOST(req: NextRequest) {
   let generationId: string | undefined;
   try {
     const { user, apiKey } = await requireAuthOrApiKey(req);
@@ -360,3 +361,6 @@ export async function POST(req: NextRequest) {
     );
   }
 }
+
+
+export const POST = withRateLimit(handlePOST, RateLimitPresets.STRICT);

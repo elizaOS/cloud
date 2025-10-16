@@ -36,7 +36,7 @@ export function TopUsersTable({ users }: TopUsersTableProps) {
               <span className="px-6 py-3 text-right">Tokens</span>
             </div>
             <div className="divide-y divide-border/60">
-              {users.map((user, index) => {
+              {users.map((user: (typeof users)[0], index: number) => {
                 const totalTokens = user.inputTokens + user.outputTokens;
                 const lastActiveLabel = user.lastActive
                   ? formatDistanceToNowStrict(new Date(user.lastActive), {

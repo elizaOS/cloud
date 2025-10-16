@@ -213,37 +213,43 @@ export async function monitorAllContainers(
       `Found ${runningContainers.length} running containers to check`,
     );
 
-    const results: HealthCheckResult[] = [];
+    // Check all containers in parallel for better performance
+    const results: HealthCheckResult[] = await Promise.all(
+      runningContainers.map(async (container) => {
+        if (!container.cloudflare_url) {
+          console.warn("Container has no URL, skipping health check", {
+            containerId: container.id,
+          });
+          return {
+            healthy: false,
+            responseTime: 0,
+            error: "No URL configured",
+            containerId: container.id,
+          } as HealthCheckResult;
+        }
 
-    // Check each container
-    for (const container of runningContainers) {
-      if (!container.cloudflare_url) {
-        console.warn("Container has no URL, skipping health check", {
-          containerId: container.id,
-        });
-        continue;
-      }
+        const result = await checkContainerHealth(
+          container.cloudflare_url,
+          container.health_check_path || "/health",
+          finalConfig.timeout,
+        );
 
-      const result = await checkContainerHealth(
-        container.cloudflare_url,
-        container.health_check_path || "/health",
-        finalConfig.timeout,
-      );
+        result.containerId = container.id;
 
-      result.containerId = container.id;
-      results.push(result);
+        // Update database
+        await updateContainerHealth(container.id, result);
 
-      // Update database
-      await updateContainerHealth(container.id, result);
+        if (!result.healthy) {
+          console.warn("Container health check failed", {
+            containerId: container.id,
+            url: container.cloudflare_url,
+            error: result.error,
+          });
+        }
 
-      if (!result.healthy) {
-        console.warn("Container health check failed", {
-          containerId: container.id,
-          url: container.cloudflare_url,
-          error: result.error,
-        });
-      }
-    }
+        return result;
+      }),
+    );
 
     const healthyCount = results.filter((r) => r.healthy).length;
     const unhealthyCount = results.length - healthyCount;
@@ -310,14 +316,43 @@ export async function getContainerHealthStatus(
 
 /**
  * Start continuous health monitoring
- * Call this on application startup
+ *
+ * ⚠️ SERVERLESS WARNING: This function does NOT work in serverless environments!
+ *
+ * In serverless deployments (Vercel, AWS Lambda, etc.), background intervals
+ * do NOT persist across function invocations. This function will:
+ * - Start an interval that stops when the serverless function completes
+ * - Run multiple times (once per instance) in multi-instance deployments
+ * - Waste resources and not provide reliable monitoring
+ *
+ * For serverless environments, use one of these alternatives:
+ * 1. Call monitorAllContainers() from a cron endpoint (recommended)
+ *    Example: Create /api/v1/cron/health-check that calls monitorAllContainers()
+ * 2. Use Vercel Cron Jobs (https://vercel.com/docs/cron-jobs)
+ * 3. Use external schedulers (GitHub Actions, Upstash QStash, etc.)
+ *
+ * @deprecated Use monitorAllContainers() via cron endpoint for serverless
  */
 export function startHealthMonitoring(
   intervalMs: number = 60000,
 ): NodeJS.Timeout {
-  console.log("Starting continuous health monitoring", {
-    intervalMs,
-  });
+  const isServerless = process.env.VERCEL === "1" ||
+                      process.env.AWS_LAMBDA_FUNCTION_NAME ||
+                      process.env.FUNCTION_NAME;
+
+  if (isServerless) {
+    console.error(
+      "🚨 [Health Monitor] CRITICAL: startHealthMonitoring() called in serverless environment!\n" +
+      "This will NOT work correctly. Background intervals stop when serverless functions complete.\n" +
+      "Use a cron endpoint instead: POST /api/v1/cron/health-check\n" +
+      "See lib/services/health-monitor.ts for details."
+    );
+  }
+
+  console.warn(
+    "[Health Monitor] Starting continuous health monitoring (NOT serverless-compatible)",
+    { intervalMs, isServerless }
+  );
 
   const interval = setInterval(async () => {
     try {

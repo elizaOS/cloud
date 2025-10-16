@@ -17,14 +17,33 @@ export class CacheClient {
     this.enabled = process.env.CACHE_ENABLED !== "false";
 
     if (!this.enabled) {
-      logger.warn("[Cache] Caching is disabled via CACHE_ENABLED flag");
+      if (process.env.NODE_ENV === "production") {
+        logger.error(
+          "🚨 [Cache] CRITICAL: Caching disabled in production! " +
+          "This will cause severe performance degradation. " +
+          "Set CACHE_ENABLED=true and configure Redis credentials."
+        );
+      } else {
+        logger.warn("[Cache] Caching is disabled via CACHE_ENABLED flag");
+      }
       return;
     }
 
-    if (!process.env.KV_REST_API_URL || !process.env.KV_REST_API_TOKEN) {
-      logger.error(
-        "[Cache] Missing Upstash credentials, caching disabled. Set KV_REST_API_URL and KV_REST_API_TOKEN",
-      );
+    if (
+      !process.env.KV_REST_API_URL ||
+      !process.env.KV_REST_API_TOKEN
+    ) {
+      if (process.env.NODE_ENV === "production") {
+        logger.error(
+          "🚨 [Cache] CRITICAL: Missing Upstash credentials in production! " +
+          "Caching disabled - this will cause severe performance issues. " +
+          "Set KV_REST_API_URL and KV_REST_API_TOKEN immediately."
+        );
+      } else {
+        logger.error(
+          "[Cache] Missing Upstash credentials, caching disabled. Set KV_REST_API_URL and KV_REST_API_TOKEN"
+        );
+      }
       this.enabled = false;
       return;
     }
@@ -34,7 +53,7 @@ export class CacheClient {
       token: process.env.KV_REST_API_TOKEN,
     });
 
-    logger.info("[Cache] Cache client initialized with Upstash Redis");
+    logger.info("[Cache] ✓ Cache client initialized with Upstash Redis");
   }
 
   async get<T>(key: string): Promise<T | null> {
@@ -106,24 +125,62 @@ export class CacheClient {
     }
   }
 
-  async delPattern(pattern: string): Promise<void> {
+  /**
+   * Delete all keys matching a pattern using SCAN (non-blocking)
+   *
+   * Uses SCAN instead of KEYS to avoid blocking Redis on large keysets
+   * See ANALYTICS_PR_REVIEW_ANALYSIS.md - Issue #7 (Fixed)
+   *
+   * @param pattern - Pattern to match (e.g., "org:*:cache")
+   * @param batchSize - Number of keys to scan per iteration (default: 100)
+   */
+  async delPattern(pattern: string, batchSize = 100): Promise<void> {
     this.initialize();
     if (!this.enabled || !this.redis) return;
 
     try {
       const start = Date.now();
-      const keys = await this.redis.keys(pattern);
+      let cursor: string | number = 0;
+      let totalDeleted = 0;
+      let iterations = 0;
 
-      if (keys.length === 0) {
+      do {
+        // Use SCAN instead of KEYS to avoid blocking Redis
+        const result: [string | number, string[]] = await this.redis.scan(cursor, {
+          match: pattern,
+          count: batchSize,
+        });
+
+        // result is [nextCursor, keys]
+        // Upstash Redis returns cursor as string or number
+        cursor = typeof result[0] === "string" ? parseInt(result[0], 10) : result[0];
+        const keys = result[1];
+
+        if (keys.length > 0) {
+          await this.redis.del(...keys);
+          totalDeleted += keys.length;
+          logger.debug(
+            `[Cache] DEL_PATTERN iteration ${++iterations}: deleted ${keys.length} keys (total: ${totalDeleted})`
+          );
+        }
+
+        // Small delay to avoid overwhelming Redis
+        if (cursor !== 0) {
+          await new Promise((resolve) => setTimeout(resolve, 10));
+        }
+      } while (cursor !== 0);
+
+      const duration = Date.now() - start;
+
+      if (totalDeleted === 0) {
         logger.debug(`[Cache] DEL_PATTERN: ${pattern} (no keys found)`);
-        return;
+      } else {
+        logger.info(
+          `[Cache] DEL_PATTERN: ${pattern} (deleted ${totalDeleted} keys in ${duration}ms, ${iterations} iterations)`
+        );
       }
 
-      await this.redis.del(...keys);
-      logger.info(
-        `[Cache] DEL_PATTERN: ${pattern} (deleted ${keys.length} keys)`,
-      );
-      this.logMetric(pattern, "del_pattern", Date.now() - start);
+      this.logMetric(pattern, "del_pattern", duration);
     } catch (error) {
       logger.error(`[Cache] Error deleting pattern ${pattern}:`, error);
     }
