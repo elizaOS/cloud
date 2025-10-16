@@ -5,7 +5,7 @@
  */
 
 import { usageRecordsRepository } from "@/db/repositories/usage-records";
-import type { CostBreakdownItem } from "@/db/repositories/usage-records";
+import type { CostBreakdownItem, UsageStats } from "@/db/repositories/usage-records";
 import { cache } from "@/lib/cache/client";
 import { CacheKeys, CacheTTL } from "@/lib/cache/keys";
 
@@ -26,11 +26,11 @@ export class AnalyticsService {
   async getUsageStats(
     organizationId: string,
     options?: { startDate?: Date; endDate?: Date },
-  ) {
+  ): Promise<UsageStats> {
     const dateRange = `${options?.startDate?.toISOString() || "null"}-${options?.endDate?.toISOString() || "null"}`;
     const cacheKey = CacheKeys.analytics.stats(organizationId, dateRange);
 
-    const cached = await cache.get(cacheKey);
+    const cached = await cache.get<UsageStats>(cacheKey);
     if (cached) return cached;
 
     const results = await usageRecordsRepository.getStatsByOrganization(
