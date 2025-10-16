@@ -885,6 +885,112 @@ See `docs/STRIPE_SETUP.md` for detailed Stripe configuration.
 - Response time percentiles
 - Error rate calculation
 
+### 11. MCP (Model Context Protocol) Integration
+
+**Location**: `/app/api/mcp/route.ts` and `docs/MCP_INTEGRATION.md`
+
+**Features**:
+
+- Standards-based MCP server implementation
+- 4 AI-powered tools exposed via MCP protocol
+- Bearer token authentication using API keys
+- Compatible with any MCP client (Claude Desktop, MCP Inspector, etc.)
+- Automatic credit deduction for tool usage
+- Full request/response logging
+
+**Available MCP Tools**:
+
+1. **check_credits**: View organization credit balance and recent transactions
+   - Optional parameters: `includeTransactions` (boolean), `limit` (number)
+
+2. **get_recent_usage**: View recent API usage statistics with model and cost details
+   - Optional parameter: `limit` (number, 1-50)
+
+3. **generate_text**: Generate text using AI models (GPT-4, Claude, Gemini)
+   - Required: `prompt` (string)
+   - Optional: `model` (enum), `maxLength` (number)
+   - Automatically deducts credits based on token usage
+
+4. **generate_image**: Generate images using Google Gemini 2.5
+   - Required: `prompt` (string)
+   - Optional: `aspectRatio` (enum: 1:1, 16:9, 9:16, 4:3, 3:4)
+   - Cost: 100 credits per image
+
+**Using MCP Inspector**:
+
+```bash
+# Launch MCP Inspector UI
+npm run mcp:inspector
+```
+
+**MCP Inspector Setup**:
+
+1. **Transport Type**: Select `Streamable HTTP`
+2. **URL**: `http://localhost:3000/api/mcp`
+3. **Connection Type**: Select `Via Proxy`
+4. **Configuration**:
+   - Paste the session token shown in the inspector
+5. **Authentication**:
+   - Header Name: `Authorization`
+   - Header Value: `Bearer eliza_your_api_key_here`
+6. Click **Connect**
+
+**Using with Claude Desktop**:
+
+Add to your Claude Desktop config (`~/Library/Application Support/Claude/claude_desktop_config.json` on macOS):
+
+```json
+{
+  "mcpServers": {
+    "eliza-cloud": {
+      "url": "http://localhost:3000/api/mcp",
+      "transport": {
+        "type": "streamableHttp"
+      },
+      "headers": {
+        "Authorization": "Bearer eliza_your_api_key_here"
+      }
+    }
+  }
+}
+```
+
+**API Endpoint**:
+
+```bash
+POST http://localhost:3000/api/mcp
+Content-Type: application/json
+Authorization: Bearer eliza_your_api_key
+Accept: application/json, text/event-stream
+
+# List tools
+{
+  "jsonrpc": "2.0",
+  "id": 1,
+  "method": "tools/list"
+}
+
+# Call a tool
+{
+  "jsonrpc": "2.0",
+  "id": 2,
+  "method": "tools/call",
+  "params": {
+    "name": "check_credits",
+    "arguments": {
+      "includeTransactions": true,
+      "limit": 5
+    }
+  }
+}
+```
+
+**Documentation**:
+
+- Full setup guide: `docs/MCP_INTEGRATION.md`
+- MCP Inspector setup: `MCP_INSPECTOR_SETUP.md`
+- Model Context Protocol spec: [modelcontextprotocol.io](https://modelcontextprotocol.io)
+
 ## 🗄 Database Architecture
 
 ### SaaS Schema (`db/sass/schema.ts`)

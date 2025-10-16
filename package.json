@@ -24,7 +24,8 @@
     "seed:credit-packs": "tsx scripts/seed-credit-packs.ts",
     "bootstrapper:build": "cd bootstrapper && ./build.sh",
     "cache:clear": "tsx scripts/clear-cache.ts",
-    "cache:health": "tsx scripts/cache-health-check.ts"
+    "cache:health": "tsx scripts/cache-health-check.ts",
+    "mcp:inspector": "bunx @modelcontextprotocol/inspector@latest"
   },
   "dependencies": {
     "@ai-sdk/gateway": "^1.0.40",
