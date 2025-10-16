@@ -31,7 +31,10 @@ export function ProviderBreakdown({ providers }: ProviderBreakdownProps) {
     );
   }
 
-  const totalCost = providers.reduce((sum, p) => sum + p.totalCost, 0);
+  const totalCost = providers.reduce(
+    (sum: number, p: (typeof providers)[0]) => sum + p.totalCost,
+    0,
+  );
 
   return (
     <Card className="border-border/70 bg-background/60 shadow-sm">
@@ -51,7 +54,7 @@ export function ProviderBreakdown({ providers }: ProviderBreakdownProps) {
       </CardHeader>
       <CardContent className="border-t border-border/60 p-6">
         <div className="space-y-6">
-          {providers.map((provider, index) => (
+          {providers.map((provider: (typeof providers)[0], index: number) => (
             <div key={provider.provider} className="space-y-3">
               <div className="flex items-start justify-between gap-4">
                 <div className="flex-1 space-y-1">

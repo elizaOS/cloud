@@ -7,9 +7,20 @@ import { logger } from "@/lib/utils/logger";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
+export const maxDuration = 300;
 
+// Heartbeat every 30 seconds to keep connection alive
 const HEARTBEAT_INTERVAL = 30000;
-const CONNECTION_TIMEOUT = 300000;
+
+// Connection timeout: Serverless-friendly default of 5 minutes (300000ms)
+// Configurable via SSE_CONNECTION_TIMEOUT environment variable
+// For serverless environments, shorter connections with reconnection logic
+// are more cost-effective and reliable than long-lived connections
+// Vercel Pro max: 300s (5 minutes)
+const CONNECTION_TIMEOUT = parseInt(
+  process.env.SSE_CONNECTION_TIMEOUT || "300000",
+  10
+);
 
 export async function GET(request: NextRequest) {
   try {
@@ -17,7 +28,7 @@ export async function GET(request: NextRequest) {
     const organizationId = user.organization_id;
 
     logger.info(
-      `[Credits SSE] Client connected: user=${user.id}, org=${organizationId}`,
+      `[Credits SSE] Client connected: user=${user.id}, org=${organizationId}`
     );
 
     const encoder = new TextEncoder();
@@ -48,18 +59,34 @@ export async function GET(request: NextRequest) {
           sendEvent("error", { message: "Failed to fetch initial balance" });
         }
 
+        logger.info(
+          `[Credits SSE] 🔌 Creating subscription for org=${organizationId}`
+        );
+
         unsubscribe = creditEventEmitter.subscribeToCreditUpdates(
           organizationId,
           (event: CreditUpdateEvent) => {
-            logger.debug(`[Credits SSE] Sending update to client:`, event);
+            logger.info(`[Credits SSE] 📤 RECEIVED EVENT from emitter:`, {
+              organizationId: event.organizationId,
+              newBalance: event.newBalance,
+              delta: event.delta,
+              reason: event.reason,
+            });
+
+            logger.info(
+              `[Credits SSE] 📨 SENDING update event to client via SSE`
+            );
             sendEvent("update", {
               balance: event.newBalance,
               delta: event.delta,
               reason: event.reason,
               timestamp: event.timestamp,
             });
-          },
+            logger.info(`[Credits SSE] ✅ Update event sent to client`);
+          }
         );
+
+        logger.info(`[Credits SSE] ✅ Subscription created successfully`);
 
         creditEventEmitter.incrementConnections(organizationId);
 
@@ -69,15 +96,21 @@ export async function GET(request: NextRequest) {
 
         connectionTimeout = setTimeout(() => {
           logger.info(
-            `[Credits SSE] Connection timeout for org=${organizationId}`,
+            `[Credits SSE] Connection timeout for org=${organizationId}`
           );
           cleanup();
         }, CONNECTION_TIMEOUT);
 
-        const cleanup = () => {
+        const cleanup = async () => {
           if (heartbeatInterval) clearInterval(heartbeatInterval);
           if (connectionTimeout) clearTimeout(connectionTimeout);
-          if (unsubscribe) unsubscribe();
+          if (unsubscribe) {
+            try {
+              unsubscribe();
+            } catch (error) {
+              logger.error("[Credits SSE] Error unsubscribing:", error);
+            }
+          }
 
           creditEventEmitter.decrementConnections(organizationId);
 
@@ -88,11 +121,15 @@ export async function GET(request: NextRequest) {
           }
 
           logger.info(
-            `[Credits SSE] Client disconnected: org=${organizationId}`,
+            `[Credits SSE] Client disconnected: org=${organizationId}`
           );
         };
 
-        request.signal.addEventListener("abort", cleanup);
+        request.signal.addEventListener("abort", () => {
+          cleanup().catch((error) => {
+            logger.error("[Credits SSE] Cleanup error:", error);
+          });
+        });
       },
     });
 

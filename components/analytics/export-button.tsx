@@ -16,7 +16,7 @@ interface ExportButtonProps {
   startDate: Date;
   endDate: Date;
   granularity: string;
-  format?: "csv" | "json";
+  format?: "csv" | "json" | "excel";
   type?: "timeseries" | "users" | "providers" | "models";
   variant?: "simple" | "dropdown";
 }
@@ -30,8 +30,8 @@ export function ExportButton({
   variant = "simple",
 }: ExportButtonProps) {
   const handleExport = (
-    exportFormat: "csv" | "json",
-    exportType: "timeseries" | "users" | "providers" | "models",
+    exportFormat: "csv" | "json" | "excel",
+    exportType: "timeseries" | "users" | "providers" | "models"
   ) => {
     const params = new URLSearchParams({
       format: exportFormat,
@@ -56,33 +56,48 @@ export function ExportButton({
           </Button>
         </DropdownMenuTrigger>
         <DropdownMenuContent align="end" className="w-56">
-          <DropdownMenuLabel>Export format</DropdownMenuLabel>
+          <DropdownMenuLabel>Time series</DropdownMenuLabel>
           <DropdownMenuItem onClick={() => handleExport("csv", "timeseries")}>
-            Time series (CSV)
+            Export as CSV
+          </DropdownMenuItem>
+          <DropdownMenuItem onClick={() => handleExport("excel", "timeseries")}>
+            Export as Excel
           </DropdownMenuItem>
           <DropdownMenuItem onClick={() => handleExport("json", "timeseries")}>
-            Time series (JSON)
+            Export as JSON
           </DropdownMenuItem>
           <DropdownMenuSeparator />
+          <DropdownMenuLabel>Providers</DropdownMenuLabel>
           <DropdownMenuItem onClick={() => handleExport("csv", "providers")}>
-            Providers (CSV)
+            Export as CSV
+          </DropdownMenuItem>
+          <DropdownMenuItem onClick={() => handleExport("excel", "providers")}>
+            Export as Excel
           </DropdownMenuItem>
           <DropdownMenuItem onClick={() => handleExport("json", "providers")}>
-            Providers (JSON)
+            Export as JSON
           </DropdownMenuItem>
           <DropdownMenuSeparator />
+          <DropdownMenuLabel>Models</DropdownMenuLabel>
           <DropdownMenuItem onClick={() => handleExport("csv", "models")}>
-            Models (CSV)
+            Export as CSV
+          </DropdownMenuItem>
+          <DropdownMenuItem onClick={() => handleExport("excel", "models")}>
+            Export as Excel
           </DropdownMenuItem>
           <DropdownMenuItem onClick={() => handleExport("json", "models")}>
-            Models (JSON)
+            Export as JSON
           </DropdownMenuItem>
           <DropdownMenuSeparator />
+          <DropdownMenuLabel>Users</DropdownMenuLabel>
           <DropdownMenuItem onClick={() => handleExport("csv", "users")}>
-            Users (CSV)
+            Export as CSV
+          </DropdownMenuItem>
+          <DropdownMenuItem onClick={() => handleExport("excel", "users")}>
+            Export as Excel
           </DropdownMenuItem>
           <DropdownMenuItem onClick={() => handleExport("json", "users")}>
-            Users (JSON)
+            Export as JSON
           </DropdownMenuItem>
         </DropdownMenuContent>
       </DropdownMenu>

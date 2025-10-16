@@ -17,13 +17,14 @@ import type {
   OpenAIEmbeddingsResponse,
 } from "@/lib/providers/types";
 import { logger } from "@/lib/utils/logger";
+import { withRateLimit, RateLimitPresets } from "@/lib/middleware/rate-limit";
 import type { NextRequest } from "next/server";
 
 export const maxDuration = 60;
 
 // Using shared OpenAI embeddings types
 
-export async function POST(req: NextRequest) {
+async function handlePOST(req: NextRequest) {
   try {
     const { user, apiKey } = await requireAuthOrApiKey(req);
     const request: OpenAIEmbeddingsRequest = await req.json();
@@ -228,3 +229,5 @@ export async function POST(req: NextRequest) {
     );
   }
 }
+
+export const POST = withRateLimit(handlePOST, RateLimitPresets.STANDARD);

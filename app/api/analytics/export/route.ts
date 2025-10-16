@@ -13,7 +13,9 @@ import {
 import {
   generateCSV,
   generateJSON,
+  generateExcel,
   createDownloadResponse,
+  createBinaryDownloadResponse,
   formatCurrency,
   formatNumber,
   formatPercentage,
@@ -93,6 +95,7 @@ async function handleGET(req: NextRequest) {
       const userBreakdown = await getUsageByUser(user.organization_id, {
         startDate,
         endDate,
+        limit: EXPORT_LIMITS.MAX_ROWS,
       });
       data = userBreakdown.map((u) => ({
         email: u.userEmail,
@@ -119,7 +122,7 @@ async function handleGET(req: NextRequest) {
         {
           startDate,
           endDate,
-        },
+        }
       );
       data = providerBreakdown.map((p) => ({
         provider: p.provider,
@@ -150,7 +153,7 @@ async function handleGET(req: NextRequest) {
       const modelBreakdown = await getModelBreakdown(user.organization_id, {
         startDate,
         endDate,
-        limit: 100,
+        limit: EXPORT_LIMITS.MAX_ROWS,
       });
       data = modelBreakdown.map((m) => ({
         model: m.model,
@@ -180,6 +183,7 @@ async function handleGET(req: NextRequest) {
       ];
       filename = `model-analytics-${startDate.toISOString().split("T")[0]}-to-${endDate.toISOString().split("T")[0]}`;
     } else {
+      // Time series export with DOS protection
       const timeSeriesData = await getUsageTimeSeries(user.organization_id, {
         startDate,
         endDate,
@@ -213,7 +217,7 @@ async function handleGET(req: NextRequest) {
       return NextResponse.json(
         {
           error: `Result set too large. Maximum: ${EXPORT_LIMITS.MAX_ROWS} rows, found: ${data.length} rows. Please narrow your date range or filters.`,
-          maxRows: EXPORT_LIMITS.MAX_ROWS,
+          limit: EXPORT_LIMITS.MAX_ROWS,
           actualRows: data.length,
           suggestion: "Use smaller date range or add filters",
         },
@@ -241,21 +245,16 @@ async function handleGET(req: NextRequest) {
     }
 
     if (format === "excel" || format === "xlsx") {
-      return createDownloadResponse(
-        generateJSON(data, exportOptions),
-        `${filename}.json`,
-        "application/json",
+      const excelBuffer = await generateExcel(data, columns, exportOptions);
+      const response = createBinaryDownloadResponse(
+        excelBuffer,
+        `${filename}.xlsx`,
+        "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
       );
-    }
-
-    if (format === "excel" || format === "xlsx") {
-      return NextResponse.json(
-        {
-          error:
-            "Excel export requires 'xlsx' package. Install with: bun add xlsx",
-        },
-        { status: 501 },
+      Object.entries(responseHeaders).forEach(([key, value]) =>
+        response.headers.set(key, value)
       );
+      return response;
     }
 
     if (format === "pdf") {

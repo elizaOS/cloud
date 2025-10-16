@@ -15,6 +15,7 @@ import {
   estimateTokens,
 } from "@/lib/pricing";
 import { logger } from "@/lib/utils/logger";
+import { withRateLimit, RateLimitPresets } from "@/lib/middleware/rate-limit";
 import type { NextRequest } from "next/server";
 import type {
   OpenAIChatRequest,
@@ -23,7 +24,7 @@ import type {
 
 export const maxDuration = 60;
 
-export async function POST(req: NextRequest) {
+async function handlePOST(req: NextRequest) {
   const startTime = Date.now();
 
   try {
@@ -44,7 +45,7 @@ export async function POST(req: NextRequest) {
             code: "missing_required_parameter",
           },
         },
-        { status: 400 },
+        { status: 400 }
       );
     }
 
@@ -58,7 +59,7 @@ export async function POST(req: NextRequest) {
             code: "invalid_value",
           },
         },
-        { status: 400 },
+        { status: 400 }
       );
     }
 
@@ -75,7 +76,7 @@ export async function POST(req: NextRequest) {
               code: "invalid_value",
             },
           },
-          { status: 400 },
+          { status: 400 }
         );
       }
 
@@ -95,7 +96,7 @@ export async function POST(req: NextRequest) {
               code: "invalid_value",
             },
           },
-          { status: 400 },
+          { status: 400 }
         );
       }
     }
@@ -120,7 +121,7 @@ export async function POST(req: NextRequest) {
             code: "organization_not_found",
           },
         },
-        { status: 404 },
+        { status: 404 }
       );
     }
 
@@ -145,7 +146,7 @@ export async function POST(req: NextRequest) {
             code: "insufficient_credits",
           },
         },
-        { status: 402 },
+        { status: 402 }
       );
     }
 
@@ -173,7 +174,7 @@ export async function POST(req: NextRequest) {
         normalizedModel,
         provider,
         startTime,
-        request.messages,
+        request.messages
       );
     } else {
       return handleNonStreamingResponse(
@@ -182,7 +183,7 @@ export async function POST(req: NextRequest) {
         apiKey ?? null,
         normalizedModel,
         provider,
-        startTime,
+        startTime
       );
     }
   } catch (error) {
@@ -201,7 +202,7 @@ export async function POST(req: NextRequest) {
       };
       return Response.json(
         { error: gatewayError.error },
-        { status: gatewayError.status },
+        { status: gatewayError.status }
       );
     }
 
@@ -215,7 +216,7 @@ export async function POST(req: NextRequest) {
           code: "internal_server_error",
         },
       },
-      { status: 500 },
+      { status: 500 }
     );
   }
 }
@@ -227,7 +228,7 @@ async function handleNonStreamingResponse(
   apiKey: { id: string } | null,
   model: string,
   provider: string,
-  startTime: number,
+  startTime: number
 ) {
   // Parse response
   const data: OpenAIChatResponse = await providerResponse.json();
@@ -242,7 +243,7 @@ async function handleNonStreamingResponse(
       model,
       provider,
       usage.prompt_tokens,
-      usage.completion_tokens,
+      usage.completion_tokens
     );
 
     // CRITICAL: Deduct credits before returning response
@@ -271,7 +272,7 @@ async function handleNonStreamingResponse(
             code: "credit_deduction_failed",
           },
         },
-        { status: 402 },
+        { status: 402 }
       );
     }
 
@@ -343,7 +344,7 @@ function handleStreamingResponse(
   model: string,
   provider: string,
   startTime: number,
-  messages: Array<{ role: string; content: string | object }>,
+  messages: Array<{ role: string; content: string | object }>
 ) {
   let totalTokens = 0;
   let inputTokens = 0;
@@ -410,7 +411,7 @@ function handleStreamingResponse(
           {
             model,
             contentLength: fullContent.length,
-          },
+          }
         );
 
         // Estimate tokens from content
@@ -418,7 +419,7 @@ function handleStreamingResponse(
           .map((m) =>
             typeof m.content === "string"
               ? m.content
-              : JSON.stringify(m.content),
+              : JSON.stringify(m.content)
           )
           .join(" ");
         inputTokens = estimateTokens(messageText);
@@ -431,7 +432,7 @@ function handleStreamingResponse(
           model,
           provider,
           inputTokens,
-          outputTokens,
+          outputTokens
         );
 
         const deductResult = await creditsService.deductCredits({
@@ -451,7 +452,7 @@ function handleStreamingResponse(
               userId: user.id,
               cost: totalCost,
               balance: deductResult.newBalance,
-            },
+            }
           );
           // Stream has already completed, so we can't return an error to the client
           // This should trigger an alert for manual review
@@ -517,3 +518,5 @@ function handleStreamingResponse(
     },
   });
 }
+
+export const POST = withRateLimit(handlePOST, RateLimitPresets.STRICT);

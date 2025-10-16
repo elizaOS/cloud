@@ -44,8 +44,14 @@ export function ModelBreakdown({ models }: ModelBreakdownProps) {
     );
   }
 
-  const totalCost = models.reduce((sum, m) => sum + m.totalCost, 0);
-  const totalRequests = models.reduce((sum, m) => sum + m.totalRequests, 0);
+  const totalCost = models.reduce(
+    (sum: number, m: (typeof models)[0]) => sum + m.totalCost,
+    0,
+  );
+  const totalRequests = models.reduce(
+    (sum: number, m: (typeof models)[0]) => sum + m.totalRequests,
+    0,
+  );
 
   return (
     <Card className="border-border/70 bg-background/60 shadow-sm">
@@ -90,7 +96,7 @@ export function ModelBreakdown({ models }: ModelBreakdownProps) {
                 </tr>
               </thead>
               <tbody>
-                {displayedModels.map((model) => (
+                {displayedModels.map((model: (typeof models)[0]) => (
                   <tr
                     key={`${model.model}-${model.provider}`}
                     className="border-b border-border/30 last:border-0"

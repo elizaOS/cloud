@@ -1,9 +1,17 @@
 /**
  * Rate Limiting Middleware
  * Implements multiple rate limiting strategies for API protection
+ *
+ * PRODUCTION: Uses Redis-backed rate limiting when REDIS_RATE_LIMITING=true
+ * DEVELOPMENT: Falls back to in-memory storage when Redis is unavailable
+ *
+ * @see lib/middleware/rate-limit-redis.ts for distributed implementation
+ * @see ANALYTICS_PR_REVIEW_ANALYSIS.md - Issue #1 (Fixed)
  */
 
 import { NextRequest, NextResponse } from "next/server";
+import { checkRateLimitRedis } from "./rate-limit-redis";
+import { logger } from "@/lib/utils/logger";
 
 interface RateLimitConfig {
   windowMs: number; // Time window in milliseconds
@@ -16,28 +24,33 @@ interface RateLimitEntry {
   resetAt: number;
 }
 
-// In-memory store for rate limiting
+// In-memory store for rate limiting (FALLBACK ONLY)
 // ⚠️  WARNING: This implementation uses in-memory storage and will NOT work correctly
 // in multi-instance deployments. Each instance will have its own rate limit counter,
 // allowing users to bypass limits by hitting different instances.
 //
-// PRODUCTION REQUIREMENTS:
-// - Use Redis for distributed rate limiting (recommended: ioredis + rate-limiter-flexible)
-// - Or use database-backed rate limiting with proper locking
-// - Configure rate limit key to include instance-agnostic identifier
+// ✅  FIXED: Redis-backed rate limiting is now available via REDIS_RATE_LIMITING=true
+// This in-memory store is kept as a fallback for local development.
 //
-// TODO: Migrate to Redis-backed rate limiting for production multi-instance deployments
+// PRODUCTION: Always set REDIS_RATE_LIMITING=true
 const rateLimitStore = new Map<string, RateLimitEntry>();
 
-// Log warning on first use
+// Log warning on first use (only if Redis is not enabled)
 let hasLoggedWarning = false;
 function logRateLimitWarning() {
   if (!hasLoggedWarning && process.env.NODE_ENV === "production") {
-    console.warn(
-      "⚠️  WARNING: Using in-memory rate limiting. This will not work correctly in multi-instance deployments. " +
-        "Configure Redis-backed rate limiting for production. See lib/middleware/rate-limit.ts",
-    );
-    hasLoggedWarning = true;
+    if (process.env.REDIS_RATE_LIMITING !== "true") {
+      logger.error(
+        "🚨 [Rate Limit] CRITICAL: In-memory rate limiting in production! " +
+        "This is a SECURITY VULNERABILITY - users can bypass limits across instances. " +
+        "Set REDIS_RATE_LIMITING=true immediately. " +
+        "See lib/middleware/rate-limit-redis.ts"
+      );
+      hasLoggedWarning = true;
+    } else {
+      logger.info("[Rate Limit] ✓ Using Redis-backed rate limiting (production mode)");
+      hasLoggedWarning = true;
+    }
   }
 }
 
@@ -126,6 +139,9 @@ export function checkRateLimit(
  * Rate limit middleware wrapper for API routes
  * Compatible with Next.js 15 where params is a Promise
  * Supports both NextResponse and Response return types
+ *
+ * Uses Redis-backed rate limiting when REDIS_RATE_LIMITING=true (production)
+ * Falls back to in-memory rate limiting for local development
  */
 export function withRateLimit<T = Record<string, string>>(
   handler: (
@@ -134,24 +150,42 @@ export function withRateLimit<T = Record<string, string>>(
   ) => Promise<Response>,
   config: RateLimitConfig,
 ) {
-  return async (
-    request: NextRequest,
-    context?: { params: Promise<T> },
-  ): Promise<Response> => {
-    const result = checkRateLimit(request, config);
+  return async (request: NextRequest, context?: { params: Promise<T> }): Promise<Response> => {
+    const useRedis = process.env.REDIS_RATE_LIMITING === "true";
+    const keyGenerator = config.keyGenerator || getDefaultKey;
+    const key = keyGenerator(request);
+
+    let result;
+    if (useRedis) {
+      result = await checkRateLimitRedis(key, config.windowMs, config.maxRequests);
+      logger.debug(
+        `[Rate Limit] Redis check for key=${key}, allowed=${result.allowed}, remaining=${result.remaining}`
+      );
+    } else {
+      result = checkRateLimit(request, config);
+      logger.debug(
+        `[Rate Limit] In-memory check for key=${key}, allowed=${result.allowed}, remaining=${result.remaining}`
+      );
+    }
 
     // Add rate limit headers
     const headers = {
       "X-RateLimit-Limit": config.maxRequests.toString(),
       "X-RateLimit-Remaining": result.remaining.toString(),
       "X-RateLimit-Reset": new Date(result.resetAt).toISOString(),
+      "X-RateLimit-Policy": useRedis ? "redis" : "in-memory",
     };
 
     if (!result.allowed) {
+      logger.warn(
+        `[Rate Limit] Request blocked for key=${key}, limit=${config.maxRequests}, window=${config.windowMs}ms`
+      );
+
       return NextResponse.json(
         {
           success: false,
           error: "Too many requests",
+          message: `Rate limit exceeded. Maximum ${config.maxRequests} requests per ${Math.ceil(config.windowMs / 1000)} seconds.`,
           retryAfter: result.retryAfter,
         },
         {
