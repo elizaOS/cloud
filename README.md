@@ -268,15 +268,15 @@ graph TD
 
 The platform uses two separate database schemas:
 
-1. **SaaS Database** (`db/sass/schema.ts`): Platform infrastructure
-   - Organizations, users, authentication
-   - API keys, usage tracking
-   - Credit system, billing, Stripe integration
-   - Containers, ECS/ECR deployments
-   - Generations (image/video records)
-   - Conversations (platform-level chat)
+1. **SaaS Database** (`db/schemas/*.ts`): Platform infrastructure
+   - Organizations (`db/schemas/organizations.ts`), users (`db/schemas/users.ts`), authentication
+   - API keys (`db/schemas/api-keys.ts`), usage tracking (`db/schemas/usage-records.ts`)
+   - Credit system (`db/schemas/credit-transactions.ts`, `db/schemas/credit-packs.ts`), billing, Stripe integration
+   - Containers (`db/schemas/containers.ts`), ECS/ECR deployments
+   - Generations (`db/schemas/generations.ts` - image/video records)
+   - Conversations (`db/schemas/conversations.ts` - platform-level chat)
 
-2. **ElizaOS Database** (`db/eliza/schema.ts`): Agent runtime
+2. **ElizaOS Database** (separate database, configured via `AGENT_DATABASE_URL`): Agent runtime
    - Agents (character definitions)
    - Memories with vector embeddings
    - Rooms and participants
@@ -294,15 +294,19 @@ The platform uses two separate database schemas:
 
 ### Database & ORM
 
-- **Neon Serverless PostgreSQL**: Auto-scaling serverless database
+- **PostgreSQL**: Dual database setup (platform + agent)
+  - Platform DB: SaaS tables (users, credits, containers, etc.)
+  - Agent DB: ElizaOS tables (agents, memories, rooms, etc.)
 - **Drizzle ORM 0.44.6**: Type-safe SQL ORM
 - **Drizzle Kit 0.31.5**: Migrations and schema management
-- **pgvector**: Vector similarity search for embeddings
+- **pgvector**: Vector similarity search for embeddings (in agent database)
 
 ### Authentication & Billing
 
-- **Privy Auth**: Web3-native authentication with multi-provider support
-- **Stripe 19.1.0**: Payment processing and subscriptions
+- **Privy Auth**: Web3-native authentication with multi-provider support (email, wallet, social logins)
+  - `@privy-io/react-auth` for frontend
+  - `@privy-io/server-auth` for backend token verification
+- **Stripe 19.1.0**: Payment processing and credit purchases
 - **@stripe/stripe-js 8.0.0**: Client-side Stripe integration
 
 ### AI & Machine Learning
@@ -374,9 +378,10 @@ The platform uses two separate database schemas:
    - Required for video generation
    - Create account and get API key
 
-6. **Cloudflare** ([cloudflare.com](https://cloudflare.com))
+6. **AWS** ([aws.amazon.com](https://aws.amazon.com))
    - Required for container deployments
-   - Account ID, API token, R2 credentials
+   - AWS credentials (Access Key ID, Secret Access Key)
+   - ECS/ECR configuration, VPC, subnets, security groups
 
 7. **Stripe** ([stripe.com](https://stripe.com))
    - Required for billing/credits
@@ -713,10 +718,11 @@ Authorization: Bearer eliza_your_api_key
 
 **Requirements**:
 
-- AWS account with ECS/EC2 access
+- AWS account with ECS/ECR/EC2 access and CloudFormation permissions
 - ElizaOS Cloud account with API key
-- R2 storage configured
-- Environment variables set (see `docs/DEPLOYMENT.md`)
+- VPC with public subnets configured
+- IAM roles for ECS task execution
+- Environment variables set (see `example.env.local` and `docs/ENV_VARIABLES.md`)
 
 ### 6. ElizaOS Agent Integration
 
@@ -911,7 +917,7 @@ See `docs/STRIPE_SETUP.md` for detailed Stripe configuration.
 
 ## 🗄 Database Architecture
 
-### SaaS Schema (`db/sass/schema.ts`)
+### SaaS Schema (`db/schemas/*.ts`)
 
 **Core Tables**:
 
@@ -951,15 +957,17 @@ See `docs/STRIPE_SETUP.md` for detailed Stripe configuration.
   - storage_url (Vercel Blob)
   - dimensions, file_size, mime_type
 
-- **containers**: Cloudflare container deployments
-  - cloudflare_worker_id, cloudflare_url
-  - status: pending, building, deploying, running, failed
-  - environment_vars, max_instances, port
+- **containers**: AWS ECS container deployments
+  - ecr_repository_uri, ecr_image_tag (Docker image in ECR)
+  - ecs_cluster_arn, ecs_service_arn, ecs_task_definition_arn (ECS resources)
+  - load_balancer_url (ALB URL for accessing the container)
+  - status: pending, building, deploying, running, failed, stopped
+  - environment_vars, desired_count, cpu, memory, port
   - Unique constraint on (organization_id, name)
 
-- **ECR Images**: Docker images stored in AWS ECR
-  - Tracked via ecr_repository_uri and ecr_image_tag in containers table
-  - Images are built and pushed via CLI before deployment
+- **alb_priorities**: Application Load Balancer priority management
+  - Ensures each container gets a unique priority for ALB routing rules
+  - Prevents priority conflicts when multiple containers share an ALB
 
 - **conversations**: Platform-level chat history
   - title, model, settings
@@ -990,7 +998,9 @@ See `docs/STRIPE_SETUP.md` for detailed Stripe configuration.
   - attempts, max_attempts
   - webhook_url for callbacks
 
-### ElizaOS Schema (`db/eliza/schema.ts`)
+### ElizaOS Schema (Separate Database)
+
+Configured via `AGENT_DATABASE_URL`. This database contains agent runtime tables and is managed by ElizaOS core:
 
 **Agent Runtime Tables**:
 
@@ -1333,16 +1343,16 @@ git push origin main
 
 Add all variables from `.env.local` in Vercel dashboard:
 
-- `DATABASE_URL`
-- `WORKOS_CLIENT_ID`, `WORKOS_API_KEY`, `WORKOS_COOKIE_PASSWORD`
-- `NEXT_PUBLIC_WORKOS_REDIRECT_URI` (use production URL)
+- `DATABASE_URL` - Platform database
+- `AGENT_DATABASE_URL` - Agent database (can be same as DATABASE_URL)
+- `NEXT_PUBLIC_PRIVY_APP_ID`, `PRIVY_APP_SECRET`, `PRIVY_WEBHOOK_SECRET`
 - `OPENAI_API_KEY` or `AI_GATEWAY_API_KEY`
-- `BLOB_READ_WRITE_TOKEN`
-- `FAL_KEY`
-- `STRIPE_SECRET_KEY`, `STRIPE_WEBHOOK_SECRET`
-- `CLOUDFLARE_ACCOUNT_ID`, `CLOUDFLARE_API_TOKEN`
-- `R2_ACCESS_KEY_ID`, `R2_SECRET_ACCESS_KEY`, `R2_BUCKET_NAME`, `R2_ENDPOINT`
-- `CRON_SECRET`
+- `BLOB_READ_WRITE_TOKEN` (optional, for media gallery)
+- `FAL_KEY` (optional, for video generation)
+- `STRIPE_SECRET_KEY`, `STRIPE_WEBHOOK_SECRET` (optional, for payments)
+- `AWS_REGION`, `AWS_ACCESS_KEY_ID`, `AWS_SECRET_ACCESS_KEY` (optional, for container deployments)
+- `ECS_CLUSTER_NAME`, `AWS_VPC_ID`, `AWS_SUBNET_IDS`, `AWS_SECURITY_GROUP_IDS` (for containers)
+- `CRON_SECRET` (required for production)
 
 **4. Update Privy Redirect URI**:
 
@@ -1398,9 +1408,10 @@ DATABASE_URL=postgres://prod-url npm run db:migrate
 **Solutions**:
 
 - Verify `NEXT_PUBLIC_PRIVY_APP_ID` and `PRIVY_APP_SECRET` are correct
-- Check allowed origins in Privy dashboard match your domain
-- Clear browser cookies and try again
-- Ensure Privy webhook is configured if using just-in-time sync
+- Check allowed origins in Privy dashboard match your domain (e.g., `https://your-app.vercel.app`)
+- Clear browser cookies and localStorage, then try again
+- Ensure Privy webhook is configured: `https://your-domain.com/api/privy/webhook`
+- Check webhook secret matches `PRIVY_WEBHOOK_SECRET` in your environment
 
 #### 3. Environment Variables Not Loading
 
@@ -1419,13 +1430,17 @@ DATABASE_URL=postgres://prod-url npm run db:migrate
 
 **Solutions**:
 
-- Check `CLOUDFLARE_ACCOUNT_ID` and `CLOUDFLARE_API_TOKEN` are correct
-- Verify R2 credentials:
-  - `R2_ACCESS_KEY_ID`, `R2_SECRET_ACCESS_KEY`
-  - `R2_ENDPOINT` format: `https://account_id.r2.cloudflarestorage.com`
-  - `R2_BUCKET_NAME` exists in Cloudflare
+- Check AWS credentials are correct: `AWS_REGION`, `AWS_ACCESS_KEY_ID`, `AWS_SECRET_ACCESS_KEY`
+- Verify ECS configuration:
+  - `ECS_CLUSTER_NAME` - cluster must exist or CloudFormation will create it
+  - `AWS_VPC_ID` - must be a valid VPC ID
+  - `AWS_SUBNET_IDS` - comma-separated subnet IDs in different AZs
+  - `AWS_SECURITY_GROUP_IDS` - security group must allow HTTP/HTTPS ingress
+  - `ECS_EXECUTION_ROLE_ARN` - IAM role for ECS task execution
+- Test AWS credentials: `aws sts get-caller-identity`
 - Check quota: `GET /api/v1/containers/quota`
-- View logs in Cloudflare Workers dashboard
+- View logs in AWS CloudWatch or ECS console
+- Ensure shared infrastructure is deployed: `cd infrastructure/cloudformation && ./deploy-shared.sh`
 
 See `docs/DEPLOYMENT_TROUBLESHOOTING.md` for detailed troubleshooting.
 
@@ -1489,22 +1504,22 @@ See `docs/DEPLOYMENT_TROUBLESHOOTING.md` for detailed troubleshooting.
 
 ## 🚀 AWS ECS Container Deployment
 
-Deploy ElizaOS agents to AWS ECS (Elastic Container Service) using Docker containers.
+Deploy ElizaOS agents to AWS ECS (Elastic Container Service) using Docker containers. Each user gets a dedicated EC2 instance (t3g.small ARM) managed via CloudFormation.
 
 ### Quick Start
 
 ```bash
-# 1. Get your API key
-# Visit https://elizacloud.ai/dashboard/api-keys
+# 1. Get your API key from the dashboard
+# Visit https://your-domain.com/dashboard/api-keys
 
 # 2. Set your API key
 export ELIZAOS_API_KEY="your-api-key-here"
 
-# 3. Make sure Docker is running
+# 3. Ensure Docker is running locally
 docker --version
 docker info
 
-# 4. Deploy your project
+# 4. Deploy your ElizaOS project
 cd your-elizaos-project
 elizaos deploy
 ```
@@ -1518,39 +1533,57 @@ elizaos deploy
 5. **Cloud** deploys to dedicated EC2 instance (t3g.small ARM) with ECS
 6. **Agent** runs on AWS with health checks and monitoring
 
-### AWS Infrastructure Setup (for platform maintainers)
+### AWS Infrastructure Setup (Platform Maintainers)
 
-**1. AWS Credentials**
+**1. Deploy Shared Infrastructure**
+
+The platform uses CloudFormation to provision per-user infrastructure. First, deploy shared resources:
 
 ```bash
-# Required environment variables in .env
+cd infrastructure/cloudformation
+./deploy-shared.sh
+```
+
+This creates:
+- VPC with public subnets
+- Application Load Balancer (ALB) for routing
+- IAM roles for ECS tasks
+- Security groups
+
+**2. Configure Environment Variables**
+
+```bash
+# AWS Credentials
 AWS_REGION=us-east-1
-AWS_ACCESS_KEY_ID=your_aws_key
+AWS_ACCESS_KEY_ID=your_aws_access_key
 AWS_SECRET_ACCESS_KEY=your_aws_secret
 
+# Network Configuration (from CloudFormation outputs)
+AWS_VPC_ID=vpc-xxxxx
+AWS_SUBNET_IDS=subnet-xxxxx,subnet-yyyyy
+AWS_SECURITY_GROUP_IDS=sg-xxxxx
+
 # ECS Configuration
-ECS_CLUSTER_NAME=elizaos-cluster
-ECS_TASK_EXECUTION_ROLE_ARN=arn:aws:iam::ACCOUNT:role/ecsTaskExecutionRole
+ECS_CLUSTER_NAME=elizaos-production
+ECS_EXECUTION_ROLE_ARN=arn:aws:iam::ACCOUNT:role/ecsTaskExecutionRole
 ECS_TASK_ROLE_ARN=arn:aws:iam::ACCOUNT:role/ecsTaskRole
-ECS_SECURITY_GROUP_ID=sg-xxxxx
-ECS_SUBNET_IDS=subnet-xxxxx,subnet-yyyyy
-ECS_TARGET_GROUP_ARN=arn:aws:elasticloadbalancing:...
-ECS_LOAD_BALANCER_DNS=your-lb-xxxxx.us-east-1.elb.amazonaws.com
+
+# Optional: Shared ALB (recommended for cost savings)
+ECS_SHARED_ALB_ARN=arn:aws:elasticloadbalancing:...
+ECS_SHARED_LISTENER_ARN=arn:aws:elasticloadbalancing:...
+
+# Environment (for stack naming)
+ENVIRONMENT=production
 ```
 
-**2. Required AWS Resources**
-Update `.env` with credentials from step 1. Run config checker:
+**3. Start the Platform**
 
 ```bash
-tsx scripts/check-bootstrapper-config.ts
+npm run dev  # Development
+npm run build && npm start  # Production
 ```
 
-**4. Deploy**
-
-```bash
-npm start
-# Then use: elizaos deploy
-```
+Users can now deploy via: `elizaos deploy`
 
 ### For Users: Deployment Options
 
@@ -1590,54 +1623,20 @@ curl https://elizacloud.ai/api/v1/containers \
 
 ### Cost & Billing
 
-Deployments are billed based on:
+Container deployments are billed based on:
 
-- **Image Upload**: ~500 credits (one-time per image)
-- **Container Deployment**: ~500-1000 credits based on CPU/memory
-- **Running Cost**: Charged per hour based on resources
-  - 256 CPU (0.25 vCPU) + 512MB RAM: ~10 credits/hour
-  - 512 CPU (0.5 vCPU) + 1024MB RAM: ~20 credits/hour
-  - 1024 CPU (1 vCPU) + 2048MB RAM: ~40 credits/hour
+- **Deployment**: 1000 credits (one-time per deployment)
+- **Running Costs**: Charged per hour based on resources
+  - t3g.small (1.75 vCPU + 1.75 GB RAM): Default, ~10-20 credits/hour
+  - Higher CPU/memory allocations: Additional charges
+  
+**AWS Infrastructure Costs** (billed directly by AWS, not through credits):
+- **EC2 Instances**: ~$13/month per t3g.small (1 per user)
+- **ECR Storage**: First 50 GB free, then $0.10/GB/month
+- **Data Transfer**: First 100 GB free per month
+- **Application Load Balancer**: ~$16/month (shared across all users)
 
-### Cost
-
-- **Container Registry:** Included (50 GB free)
-- **R2 Storage:** $0.015/GB/month (10 GB free)
-- **Container Execution:** Usage-based (~$5-20/month)
-- **Total:** ~$10-30/month for production
-
-### Documentation
-
-- **Full guide:** `bootstrapper/README.md`
-- **Config checker:** `scripts/check-bootstrapper-config.ts`
-- **Cloudflare docs:** https://developers.cloudflare.com/containers/
-
-### Troubleshooting
-
-**Image not found when deploying**
-
-```bash
-# Ensure env uses full registry path:
-BOOTSTRAPPER_IMAGE_TAG=registry.cloudflare.com/ACCOUNT_ID/elizaos-bootstrapper:latest
-```
-
-**Wrangler not found**
-
-```bash
-npm install -g wrangler
-```
-
-**Not logged in**
-
-```bash
-wrangler login
-```
-
-**Deploy fails**
-
-- Check `tsx scripts/check-bootstrapper-config.ts`
-- Verify all env variables are set
-- Check Cloudflare dashboard for logs
+**Total**: ~$15-30/month per active container (EC2 + credits)
 
 ---
 
@@ -1681,9 +1680,10 @@ wrangler login
 
 - [Vercel Blob](https://vercel.com/docs/storage/vercel-blob)
 - [Vercel Blob Pricing](https://vercel.com/docs/storage/vercel-blob/pricing)
-- [Cloudflare Workers](https://developers.cloudflare.com/workers/)
-- [Cloudflare R2](https://developers.cloudflare.com/r2/)
+- [AWS ECS Documentation](https://docs.aws.amazon.com/ecs/)
+- [AWS ECR Documentation](https://docs.aws.amazon.com/ecr/)
 - [AWS SDK for JavaScript](https://docs.aws.amazon.com/sdk-for-javascript/)
+- [AWS CloudFormation](https://docs.aws.amazon.com/cloudformation/)
 
 ### UI & Styling
 

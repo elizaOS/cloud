@@ -17,7 +17,7 @@ Authorization: Bearer eliza_your_api_key_here
 ```
 
 2. **Session Cookie** (Automatic for dashboard):
-   - Managed by WorkOS AuthKit
+   - Managed by Privy
    - Automatically included in browser requests
 
 ### Get API Key

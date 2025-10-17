@@ -14,53 +14,6 @@ cp example.env.local .env.local
 3. Optionally configure features you want to use
 4. Restart dev server: `npm run dev`
 
-## Variable Consolidation
-
-### Cloudflare Account ID
-
-**Important**: `CLOUDFLARE_ACCOUNT_ID` and `R2_ACCOUNT_ID` are the **same value**.
-
-To get your Cloudflare Account ID:
-
-1. Log in to [Cloudflare Dashboard](https://dash.cloudflare.com)
-2. Go to any page (e.g., Workers & Pages)
-3. Look at the URL: `dash.cloudflare.com/{account-id}/...`
-4. Copy the 32-character hex string
-
-Set both variables to this value:
-
-```env
-CLOUDFLARE_ACCOUNT_ID=abc123def456...
-R2_ACCOUNT_ID=abc123def456...  # Same value!
-```
-
-**Note**: In the future, we'll remove `R2_ACCOUNT_ID` and only use `CLOUDFLARE_ACCOUNT_ID`.
-
-### Cloudflare API Authentication
-
-You have two options for Cloudflare API authentication:
-
-**Option 1: API Token (Recommended)**
-
-```env
-CLOUDFLARE_API_TOKEN=your_scoped_api_token
-```
-
-Generate a token with these permissions:
-
-- Account > Account Settings > Read
-- Account > Workers Scripts > Edit
-- Account > Workers Routes > Edit
-
-**Option 2: Global API Key (Legacy, Not Recommended)**
-
-```env
-CLOUDFLARE_EMAIL=your@email.com
-CLOUDFLARE_API_KEY=your_global_api_key
-```
-
-**Use Option 1 (API Token) for better security.** The legacy email + key authentication is deprecated.
-
 ## Required Variables
 
 ### Database
@@ -122,21 +75,23 @@ Setup:
 2. Navigate to Storage → Create → Blob
 3. Copy the `BLOB_READ_WRITE_TOKEN`
 
-### Cloudflare (for 'elizaos deploy')
+### AWS ECS/ECR (for 'elizaos deploy')
 
-Required for container deployments via CLI:
+Required for container deployments via CLI. The platform uses CloudFormation to provision per-user infrastructure automatically.
 
 ```env
-# AWS Configuration for ECS/ECR
+# AWS Credentials
 AWS_REGION=us-east-1
 AWS_ACCESS_KEY_ID=AKIA...
 AWS_SECRET_ACCESS_KEY=...
 
-# ECS Configuration
-ECS_CLUSTER_NAME=elizaos-production
+# Network Configuration
 AWS_VPC_ID=vpc-...
 AWS_SUBNET_IDS=subnet-xxx,subnet-yyy
 AWS_SECURITY_GROUP_IDS=sg-...
+
+# ECS Configuration
+ECS_CLUSTER_NAME=elizaos-production
 
 # ECS IAM Roles
 ECS_EXECUTION_ROLE_ARN=arn:aws:iam::...:role/ecsTaskExecutionRole
@@ -145,29 +100,36 @@ ECS_TASK_ROLE_ARN=arn:aws:iam::...:role/ecsTaskRole
 # Optional: Shared ALB for cost optimization (recommended)
 ECS_SHARED_ALB_ARN=arn:aws:elasticloadbalancing:...
 ECS_SHARED_LISTENER_ARN=arn:aws:elasticloadbalancing:...
+
+# Environment (for stack naming)
+ENVIRONMENT=production
 ```
 
 Setup:
 
-1. **Create ECS Cluster**:
-   - Go to AWS Console → ECS
-   - Click "Create cluster"
-   - Choose "EC2 Linux + Networking" launch type
-   - Name it `elizaos-production`
-   - Note: Clusters are created automatically via CloudFormation per user
+1. **Deploy Shared Infrastructure**:
+   ```bash
+   cd infrastructure/cloudformation
+   ./deploy-shared.sh
+   ```
+   This creates:
+   - VPC with public subnets
+   - Application Load Balancer (ALB)
+   - IAM roles for ECS tasks
+   - Security groups
 
-2. **Set up VPC and Subnets**:
-   - Use existing VPC or create new one
-   - Need at least 2 public subnets in different AZs
-   - Security group must allow HTTP/HTTPS ingress
+2. **Get CloudFormation Outputs**:
+   - VPC ID, Subnet IDs, Security Group IDs
+   - IAM Role ARNs
+   - ALB and Listener ARNs
 
-3. **Create IAM Roles**:
-   - Create `ecsTaskExecutionRole` with `AmazonECSTaskExecutionRolePolicy`
-   - Create `ecsTaskRole` for task-specific permissions
-4. **Optional: Create Shared ALB** (saves $20/month per container):
-   - Create Application Load Balancer in ECS console
-   - Configure HTTPS listener with ACM certificate for `*.elizacloud.ai`
-   - Note the ALB ARN and Listener ARN
+3. **Configure Environment Variables**:
+   - Add the CloudFormation outputs to your `.env.local`
+   - Platform will create per-user CloudFormation stacks automatically
+
+4. **Deploy**:
+   - Users can now use `elizaos deploy` to deploy containers
+   - Each user gets a dedicated t3g.small EC2 instance
 
 ### Stripe (for Payments)
 
@@ -234,13 +196,34 @@ DATABASE_URL=postgresql://localhost:5432/eliza_dev
 STRIPE_SECRET_KEY=sk_test_...
 ```
 
-### Production (.env.production or Vercel Environment Variables)
+### Production (Vercel Environment Variables)
 
 ```env
-DATABASE_URL=postgresql://production-host:5432/eliza_prod?sslmode=require
-# Configure Privy webhook in dashboard: https://your-domain.com/api/privy/webhook
-# Use live keys
+# Databases
+DATABASE_URL=postgresql://production-host:5432/eliza_platform?sslmode=require
+AGENT_DATABASE_URL=postgresql://production-host:5432/eliza_agents?sslmode=require
+
+# Privy Authentication
+NEXT_PUBLIC_PRIVY_APP_ID=your_production_app_id
+PRIVY_APP_SECRET=your_production_secret
+PRIVY_WEBHOOK_SECRET=your_webhook_secret
+# Configure webhook in Privy dashboard: https://your-domain.com/api/privy/webhook
+
+# Stripe (Live Keys)
 STRIPE_SECRET_KEY=sk_live_...
+STRIPE_WEBHOOK_SECRET=whsec_...
+
+# AWS (for container deployments)
+AWS_REGION=us-east-1
+AWS_ACCESS_KEY_ID=AKIA...
+AWS_SECRET_ACCESS_KEY=...
+ECS_CLUSTER_NAME=elizaos-production
+AWS_VPC_ID=vpc-...
+AWS_SUBNET_IDS=subnet-xxx,subnet-yyy
+AWS_SECURITY_GROUP_IDS=sg-...
+
+# Cron Security
+CRON_SECRET=your_production_cron_secret
 ```
 
 ## Security Best Practices
@@ -249,7 +232,7 @@ STRIPE_SECRET_KEY=sk_live_...
 2. **Use different keys for dev/prod** - Don't use production keys in development
 3. **Rotate secrets regularly** - Especially API keys and tokens
 4. **Use scoped tokens** - Give minimum required permissions
-5. **Enable 2FA** - On all service accounts (Cloudflare, Privy, etc.)
+5. **Enable 2FA** - On all service accounts (AWS, Privy, Stripe, etc.)
 6. **Monitor usage** - Set up alerts for unusual activity
 
 ## Troubleshooting
@@ -268,9 +251,10 @@ Check that:
 
 If you see "Container deployments are not configured":
 
-- Verify ALL AWS ECS variables are set
+- Verify ALL AWS ECS variables are set (AWS_REGION, AWS_ACCESS_KEY_ID, AWS_SECRET_ACCESS_KEY, ECS_CLUSTER_NAME, AWS_VPC_ID)
 - Check AWS credentials are valid: `aws sts get-caller-identity`
-- Verify ECS cluster exists: `aws ecs describe-clusters --clusters elizaos-production`
+- Verify shared infrastructure is deployed: `aws cloudformation describe-stacks --stack-name elizaos-shared-production`
+- Check CloudFormation deployment guide: `infrastructure/README.md`
 
 ### "Cannot connect to database"
 
@@ -308,18 +292,19 @@ This gives you:
 For production with all features:
 
 ```env
-# Database
-DATABASE_URL=postgresql://prod-user:***@prod-host:5432/eliza?sslmode=require
+# Databases
+DATABASE_URL=postgresql://prod-user:***@prod-host:5432/eliza_platform?sslmode=require
+AGENT_DATABASE_URL=postgresql://prod-user:***@prod-host:5432/eliza_agents?sslmode=require
 
-# Auth
-WORKOS_CLIENT_ID=client_01H...
-WORKOS_API_KEY=sk_live_...
-WORKOS_COOKIE_PASSWORD=***
-PRIVY_WEBHOOK_SECRET=https://eliza.cloud/api/auth/callback
+# Privy Authentication
+NEXT_PUBLIC_PRIVY_APP_ID=your_production_app_id
+PRIVY_APP_SECRET=***
+PRIVY_WEBHOOK_SECRET=***
 
-# AI
+# AI Services
 OPENAI_API_KEY=sk-proj-...
 AI_GATEWAY_API_KEY=***
+FAL_KEY=***
 
 # Storage
 BLOB_READ_WRITE_TOKEN=vercel_blob_rw_...
@@ -336,13 +321,15 @@ ECS_EXECUTION_ROLE_ARN=arn:aws:iam::***:role/ecsTaskExecutionRole
 ECS_TASK_ROLE_ARN=arn:aws:iam::***:role/ecsTaskRole
 ECS_SHARED_ALB_ARN=arn:aws:elasticloadbalancing:***
 ECS_SHARED_LISTENER_ARN=arn:aws:elasticloadbalancing:***
+ENVIRONMENT=production
 
 # Payments
 STRIPE_SECRET_KEY=sk_live_...
 STRIPE_WEBHOOK_SECRET=whsec_...
+NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY=pk_live_...
 
 # Security
 CRON_SECRET=***
 ```
 
-This enables all features.
+This enables all features: authentication, AI generation, container deployments, media gallery, and payments.
