@@ -29,7 +29,7 @@ interface ContainerMetrics {
  */
 export async function GET(
   request: NextRequest,
-  { params }: { params: Promise<{ id: string }> }
+  { params }: { params: Promise<{ id: string }> },
 ) {
   try {
     const { id } = await params;
@@ -44,7 +44,7 @@ export async function GET(
           success: false,
           error: "Container not found",
         },
-        { status: 404 }
+        { status: 404 },
       );
     }
 
@@ -55,7 +55,7 @@ export async function GET(
           success: false,
           error: "Container has not been deployed to ECS yet",
         },
-        { status: 400 }
+        { status: 400 },
       );
     }
 
@@ -64,14 +64,17 @@ export async function GET(
     const periodMinutes = parseInt(searchParams.get("period") || "60");
 
     // Fetch metrics from CloudWatch
-    const metrics = await getContainerMetrics({
-      id: container.id,
-      name: container.name,
-      user_id: container.user_id,
-      ecs_cluster_arn: container.ecs_cluster_arn,
-      ecs_service_arn: container.ecs_service_arn,
-      desired_count: container.desired_count || 1,
-    }, periodMinutes);
+    const metrics = await getContainerMetrics(
+      {
+        id: container.id,
+        name: container.name,
+        user_id: container.user_id,
+        ecs_cluster_arn: container.ecs_cluster_arn,
+        ecs_service_arn: container.ecs_service_arn,
+        desired_count: container.desired_count || 1,
+      },
+      periodMinutes,
+    );
 
     return NextResponse.json({
       success: true,
@@ -95,7 +98,7 @@ export async function GET(
             ? error.message
             : "Failed to fetch container metrics",
       },
-      { status: 500 }
+      { status: 500 },
     );
   }
 }
@@ -112,7 +115,7 @@ async function getContainerMetrics(
     ecs_service_arn: string;
     desired_count: number;
   },
-  periodMinutes: number
+  periodMinutes: number,
 ): Promise<ContainerMetrics> {
   const region = process.env.AWS_REGION || "us-east-1";
   const accessKeyId = process.env.AWS_ACCESS_KEY_ID;
@@ -140,21 +143,55 @@ async function getContainerMetrics(
   // Fetch multiple metrics in parallel
   const [cpuData, memoryData, networkRxData, networkTxData] =
     await Promise.allSettled([
-      fetchMetric(client, "CPUUtilization", clusterName, serviceName, startTime, now),
-      fetchMetric(client, "MemoryUtilization", clusterName, serviceName, startTime, now),
-      fetchMetric(client, "NetworkRxBytes", clusterName, serviceName, startTime, now),
-      fetchMetric(client, "NetworkTxBytes", clusterName, serviceName, startTime, now),
+      fetchMetric(
+        client,
+        "CPUUtilization",
+        clusterName,
+        serviceName,
+        startTime,
+        now,
+      ),
+      fetchMetric(
+        client,
+        "MemoryUtilization",
+        clusterName,
+        serviceName,
+        startTime,
+        now,
+      ),
+      fetchMetric(
+        client,
+        "NetworkRxBytes",
+        clusterName,
+        serviceName,
+        startTime,
+        now,
+      ),
+      fetchMetric(
+        client,
+        "NetworkTxBytes",
+        clusterName,
+        serviceName,
+        startTime,
+        now,
+      ),
     ]);
 
   // Extract values with fallbacks
   const cpu_utilization =
     cpuData.status === "fulfilled" && cpuData.value ? cpuData.value : 0;
   const memory_utilization =
-    memoryData.status === "fulfilled" && memoryData.value ? memoryData.value : 0;
+    memoryData.status === "fulfilled" && memoryData.value
+      ? memoryData.value
+      : 0;
   const network_rx_bytes =
-    networkRxData.status === "fulfilled" && networkRxData.value ? networkRxData.value : 0;
+    networkRxData.status === "fulfilled" && networkRxData.value
+      ? networkRxData.value
+      : 0;
   const network_tx_bytes =
-    networkTxData.status === "fulfilled" && networkTxData.value ? networkTxData.value : 0;
+    networkTxData.status === "fulfilled" && networkTxData.value
+      ? networkTxData.value
+      : 0;
 
   return {
     cpu_utilization,
@@ -176,7 +213,7 @@ async function fetchMetric(
   clusterName: string,
   serviceName: string,
   startTime: Date,
-  endTime: Date
+  endTime: Date,
 ): Promise<number> {
   try {
     const command = new GetMetricStatisticsCommand({
@@ -207,7 +244,8 @@ async function fetchMetric(
 
     // Get the latest datapoint
     const latest = datapoints.reduce((prev, current) => {
-      return (current.Timestamp || new Date(0)) > (prev.Timestamp || new Date(0))
+      return (current.Timestamp || new Date(0)) >
+        (prev.Timestamp || new Date(0))
         ? current
         : prev;
     });
@@ -218,4 +256,3 @@ async function fetchMetric(
     return 0;
   }
 }
-

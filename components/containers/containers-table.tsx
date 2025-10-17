@@ -176,10 +176,7 @@ export function ContainersTable({ containers }: ContainersTableProps) {
                         variant="ghost"
                         size="sm"
                         onClick={() => {
-                          window.open(
-                            container.load_balancer_url!,
-                            "_blank",
-                          );
+                          window.open(container.load_balancer_url!, "_blank");
                         }}
                         title="Open container URL"
                       >

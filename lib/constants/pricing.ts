@@ -85,8 +85,7 @@ export function calculateDeploymentCost(config: {
   // Additional cost for scaling beyond single instance
   if (instanceCount > 1) {
     totalCost +=
-      (instanceCount - 1) *
-      CONTAINER_PRICING.COST_PER_ADDITIONAL_INSTANCE;
+      (instanceCount - 1) * CONTAINER_PRICING.COST_PER_ADDITIONAL_INSTANCE;
   }
 
   // Additional cost for higher CPU/memory allocations

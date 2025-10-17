@@ -31,7 +31,7 @@ export function ExportButton({
 }: ExportButtonProps) {
   const handleExport = (
     exportFormat: "csv" | "json" | "excel",
-    exportType: "timeseries" | "users" | "providers" | "models"
+    exportType: "timeseries" | "users" | "providers" | "models",
   ) => {
     const params = new URLSearchParams({
       format: exportFormat,

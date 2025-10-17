@@ -1,6 +1,6 @@
 /**
  * ALB Priority Management Schema
- * 
+ *
  * Tracks ALB listener rule priorities to ensure uniqueness across all user deployments.
  * ALB priorities must be unique integers between 1 and 50,000.
  */
@@ -19,4 +19,3 @@ export const albPriorities = pgTable("alb_priorities", {
 
 export type AlbPriority = typeof albPriorities.$inferSelect;
 export type NewAlbPriority = typeof albPriorities.$inferInsert;
-

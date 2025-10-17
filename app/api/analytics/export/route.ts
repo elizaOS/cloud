@@ -122,7 +122,7 @@ async function handleGET(req: NextRequest) {
         {
           startDate,
           endDate,
-        }
+        },
       );
       data = providerBreakdown.map((p) => ({
         provider: p.provider,
@@ -249,10 +249,10 @@ async function handleGET(req: NextRequest) {
       const response = createBinaryDownloadResponse(
         excelBuffer,
         `${filename}.xlsx`,
-        "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+        "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
       );
       Object.entries(responseHeaders).forEach(([key, value]) =>
-        response.headers.set(key, value)
+        response.headers.set(key, value),
       );
       return response;
     }

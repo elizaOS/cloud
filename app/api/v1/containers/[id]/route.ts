@@ -1,6 +1,6 @@
 /**
  * Production-ready container management endpoints with proper teardown
- * 
+ *
  * DELETE endpoint now properly tears down CloudFormation stacks
  */
 
@@ -24,7 +24,7 @@ export const dynamic = "force-dynamic";
  */
 export async function GET(
   request: NextRequest,
-  { params }: { params: Promise<{ id: string }> }
+  { params }: { params: Promise<{ id: string }> },
 ) {
   try {
     const { user } = await requireAuthOrApiKey(request);
@@ -38,7 +38,7 @@ export async function GET(
           success: false,
           error: "Container not found",
         },
-        { status: 404 }
+        { status: 404 },
       );
     }
 
@@ -54,7 +54,7 @@ export async function GET(
         error:
           error instanceof Error ? error.message : "Failed to fetch container",
       },
-      { status: 500 }
+      { status: 500 },
     );
   }
 }
@@ -62,8 +62,8 @@ export async function GET(
 /**
  * DELETE /api/v1/containers/[id]
  * Delete container and tear down CloudFormation stack
- * 
- * PRODUCTION READY: 
+ *
+ * PRODUCTION READY:
  * - Tears down CloudFormation stack
  * - Releases ALB priority
  * - Refunds remaining credits (prorated)
@@ -71,7 +71,7 @@ export async function GET(
  */
 export async function DELETE(
   request: NextRequest,
-  { params }: { params: Promise<{ id: string }> }
+  { params }: { params: Promise<{ id: string }> },
 ) {
   try {
     const { user } = await requireAuthOrApiKey(request);
@@ -86,7 +86,7 @@ export async function DELETE(
           success: false,
           error: "Container not found",
         },
-        { status: 404 }
+        { status: 404 },
       );
     }
 
@@ -97,7 +97,7 @@ export async function DELETE(
           success: false,
           error: "Unauthorized",
         },
-        { status: 403 }
+        { status: 403 },
       );
     }
 
@@ -111,20 +111,20 @@ export async function DELETE(
     // Step 2: Delete CloudFormation stack
     try {
       console.log(`Deleting CloudFormation stack for ${containerId}...`);
-      
+
       await cloudFormationService.deleteUserStack(containerId);
-      
+
       // Wait for deletion with timeout
       const DELETION_TIMEOUT_MINUTES = 15;
       await cloudFormationService.waitForStackDeletion(
         containerId,
-        DELETION_TIMEOUT_MINUTES
+        DELETION_TIMEOUT_MINUTES,
       );
-      
+
       console.log(`✅ CloudFormation stack deleted for ${containerId}`);
     } catch (cfError) {
       console.error(`Failed to delete CloudFormation stack:`, cfError);
-      
+
       // Log error but continue with cleanup
       // Stack may have been manually deleted or may not exist
       await updateContainerStatus(containerId, "deleting", {
@@ -143,14 +143,14 @@ export async function DELETE(
 
     // Step 4: Calculate prorated refund if container was running
     let refundAmount = 0;
-    
+
     if (container.status === "running" && container.created_at) {
       try {
         // Calculate how long the container was running
         const now = Date.now();
         const createdAt = new Date(container.created_at).getTime();
         const runtimeHours = (now - createdAt) / (1000 * 60 * 60);
-        
+
         // Calculate deployment cost
         const deploymentCost = calculateDeploymentCost({
           desiredCount: container.desired_count || 1,
@@ -158,25 +158,25 @@ export async function DELETE(
           memory: container.memory || 512,
           includeUpload: false,
         });
-        
+
         // Prorated refund: if container ran less than 1 hour, refund 50%
         // This is generous to users but prevents abuse
         if (runtimeHours < 1) {
           refundAmount = Math.floor(deploymentCost * 0.5);
         }
-        
+
         if (refundAmount > 0) {
           await creditsService.addCredits({
             organizationId: user.organization_id,
             amount: refundAmount,
             description: `Prorated refund for container ${container.name} (ran ${runtimeHours.toFixed(2)} hours)`,
-            metadata: { 
-              type: "refund", 
+            metadata: {
+              type: "refund",
               containerId,
-              runtimeHours: runtimeHours.toFixed(2)
+              runtimeHours: runtimeHours.toFixed(2),
             },
           });
-          
+
           console.log(`✅ Refunded ${refundAmount} credits for early deletion`);
         }
       } catch (refundError) {
@@ -187,7 +187,7 @@ export async function DELETE(
 
     // Step 5: Delete from database
     await deleteContainer(containerId, user.organization_id);
-    
+
     console.log(`✅ Container ${containerId} deleted successfully`);
 
     return NextResponse.json({
@@ -197,7 +197,7 @@ export async function DELETE(
     });
   } catch (error) {
     console.error("Error deleting container:", error);
-    
+
     // Try to update status to failed
     try {
       const { id } = await params;
@@ -215,7 +215,7 @@ export async function DELETE(
         error:
           error instanceof Error ? error.message : "Failed to delete container",
       },
-      { status: 500 }
+      { status: 500 },
     );
   }
 }
@@ -223,12 +223,12 @@ export async function DELETE(
 /**
  * PATCH /api/v1/containers/[id]
  * Update container configuration (restart with new settings)
- * 
+ *
  * Note: This requires updating the CloudFormation stack with new parameters
  */
 export async function PATCH(
   request: NextRequest,
-  { params }: { params: Promise<{ id: string }> }
+  { params }: { params: Promise<{ id: string }> },
 ) {
   try {
     const { user } = await requireAuthOrApiKey(request);
@@ -244,7 +244,7 @@ export async function PATCH(
           success: false,
           error: "Container not found",
         },
-        { status: 404 }
+        { status: 404 },
       );
     }
 
@@ -255,7 +255,7 @@ export async function PATCH(
           success: false,
           error: "Unauthorized",
         },
-        { status: 403 }
+        { status: 403 },
       );
     }
 
@@ -266,9 +266,10 @@ export async function PATCH(
     return NextResponse.json(
       {
         success: false,
-        error: "Container updates not yet implemented. Delete and recreate for now.",
+        error:
+          "Container updates not yet implemented. Delete and recreate for now.",
       },
-      { status: 501 }
+      { status: 501 },
     );
   } catch (error) {
     console.error("Error updating container:", error);
@@ -278,8 +279,7 @@ export async function PATCH(
         error:
           error instanceof Error ? error.message : "Failed to update container",
       },
-      { status: 500 }
+      { status: 500 },
     );
   }
 }
-

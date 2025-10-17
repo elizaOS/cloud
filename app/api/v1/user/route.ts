@@ -132,6 +132,5 @@ async function handlePATCH(request: NextRequest) {
   }
 }
 
-
 export const GET = withRateLimit(handleGET, RateLimitPresets.STANDARD);
 export const PATCH = withRateLimit(handlePATCH, RateLimitPresets.STANDARD);

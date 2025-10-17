@@ -28,13 +28,13 @@ export interface ContainerStatusInfo {
  */
 export async function getContainerStatus(
   containerId: string,
-  organizationId: string
+  organizationId: string,
 ): Promise<ContainerStatusInfo | null> {
   try {
     // Get container from database
     const container = await containersRepository.findById(
       containerId,
-      organizationId
+      organizationId,
     );
 
     if (!container) {
@@ -69,7 +69,7 @@ export async function getContainerStatus(
  */
 export async function syncContainerStatusFromECS(
   containerId: string,
-  organizationId: string
+  organizationId: string,
 ): Promise<boolean> {
   try {
     const statusInfo = await getContainerStatus(containerId, organizationId);
@@ -98,8 +98,16 @@ export async function syncContainerStatusFromECS(
     // Update container status in database
     await containersRepository.updateStatus(
       containerId,
-      dbStatus as "pending" | "building" | "deploying" | "running" | "stopped" | "failed" | "deleting" | "deleted",
-      statusInfo.error
+      dbStatus as
+        | "pending"
+        | "building"
+        | "deploying"
+        | "running"
+        | "stopped"
+        | "failed"
+        | "deleting"
+        | "deleted",
+      statusInfo.error,
     );
 
     // Update health check timestamp
@@ -117,7 +125,7 @@ export async function syncContainerStatusFromECS(
  */
 export async function checkContainerHealth(
   containerId: string,
-  organizationId: string
+  organizationId: string,
 ): Promise<{
   healthy: boolean;
   statusCode?: number;
@@ -127,7 +135,7 @@ export async function checkContainerHealth(
   try {
     const container = await containersRepository.findById(
       containerId,
-      organizationId
+      organizationId,
     );
 
     if (!container) {
@@ -174,4 +182,3 @@ export async function checkContainerHealth(
     };
   }
 }
-

@@ -15,7 +15,6 @@ export class DeploymentError extends Error {
   }
 }
 
-
 export class ContainerDeploymentError extends DeploymentError {
   constructor(
     message: string,
@@ -42,7 +41,6 @@ export class InsufficientCreditsError extends DeploymentError {
     this.name = "InsufficientCreditsError";
   }
 }
-
 
 export class TimeoutError extends DeploymentError {
   constructor(operation: string, timeoutMs: number) {

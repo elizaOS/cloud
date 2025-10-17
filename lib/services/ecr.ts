@@ -85,7 +85,10 @@ export class ECRManager {
       }
     } catch (error) {
       // Repository doesn't exist, create it
-      if (error instanceof Error && error.name !== "RepositoryNotFoundException") {
+      if (
+        error instanceof Error &&
+        error.name !== "RepositoryNotFoundException"
+      ) {
         throw error;
       }
     }
@@ -106,7 +109,7 @@ export class ECRManager {
     const repository = createResponse.repository!;
 
     console.log("Repository created:", repository.repositoryUri);
-    
+
     // Set lifecycle policy to prevent storage bloat
     try {
       await this.setLifecyclePolicy(repositoryName);
@@ -114,7 +117,7 @@ export class ECRManager {
       console.warn(`Failed to set lifecycle policy (non-fatal):`, error);
       // Don't fail the operation - lifecycle policy can be set later
     }
-    
+
     return {
       repositoryUri: repository.repositoryUri!,
       repositoryArn: repository.repositoryArn!,
@@ -176,7 +179,9 @@ export class ECRManager {
     });
 
     await this.client.send(command);
-    console.log(`✅ ECR lifecycle policy set for repository: ${repositoryName}`);
+    console.log(
+      `✅ ECR lifecycle policy set for repository: ${repositoryName}`,
+    );
   }
 
   /**
@@ -185,7 +190,7 @@ export class ECRManager {
   async getAuthorizationToken(): Promise<AuthorizationData> {
     const command = new GetAuthorizationTokenCommand({});
     const response = await this.client.send(command);
-    
+
     const authData = response.authorizationData?.[0];
     if (!authData || !authData.authorizationToken) {
       throw new Error("Failed to get ECR authorization token");
@@ -210,10 +215,12 @@ export class ECRManager {
     });
 
     const response = await this.client.send(command);
-    return response.imageDetails?.map((detail) => ({
-      imageDigest: detail.imageDigest,
-      imageTag: detail.imageTags?.[0],
-    })) || [];
+    return (
+      response.imageDetails?.map((detail) => ({
+        imageDigest: detail.imageDigest,
+        imageTag: detail.imageTags?.[0],
+      })) || []
+    );
   }
 
   /**
@@ -221,7 +228,7 @@ export class ECRManager {
    */
   async deleteImages(
     repositoryName: string,
-    imageIds: ImageIdentifier[]
+    imageIds: ImageIdentifier[],
   ): Promise<void> {
     if (imageIds.length === 0) {
       return;
@@ -248,7 +255,10 @@ export class ECRManager {
       const response = await this.client.send(command);
       return response.repositories?.[0] || null;
     } catch (error) {
-      if (error instanceof Error && error.name === "RepositoryNotFoundException") {
+      if (
+        error instanceof Error &&
+        error.name === "RepositoryNotFoundException"
+      ) {
         return null;
       }
       throw error;
@@ -260,7 +270,7 @@ export class ECRManager {
    */
   static generateRepositoryName(
     organizationId: string,
-    projectId: string
+    projectId: string,
   ): string {
     // ECR repository names must be lowercase
     const sanitized = `${organizationId}/${projectId}`
@@ -300,7 +310,7 @@ export class ECRManager {
       // Parse image URI: registry/repository:tag
       const [repoWithRegistry, tag] = imageUri.split(":");
       const repositoryName = repoWithRegistry.split("/").slice(1).join("/");
-      
+
       if (!tag) {
         throw new Error("Image URI must include a tag");
       }
@@ -331,7 +341,7 @@ export function getECRManager(): ECRManager {
 
   if (!region || !accessKeyId || !secretAccessKey) {
     throw new Error(
-      "AWS ECR configuration missing. Required: AWS_REGION, AWS_ACCESS_KEY_ID, AWS_SECRET_ACCESS_KEY"
+      "AWS ECR configuration missing. Required: AWS_REGION, AWS_ACCESS_KEY_ID, AWS_SECRET_ACCESS_KEY",
     );
   }
 
@@ -341,4 +351,3 @@ export function getECRManager(): ECRManager {
     secretAccessKey,
   });
 }
-

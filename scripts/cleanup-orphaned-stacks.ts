@@ -1,11 +1,11 @@
 /**
  * Cleanup Orphaned CloudFormation Stacks
- * 
+ *
  * Run this script periodically (e.g., daily via cron) to:
  * 1. Find CloudFormation stacks that don't have corresponding containers in DB
  * 2. Delete orphaned stacks
  * 3. Clean up expired ALB priorities
- * 
+ *
  * Usage:
  *   bun run scripts/cleanup-orphaned-stacks.ts [--dry-run]
  */
@@ -63,7 +63,7 @@ async function cleanupOrphanedStacks() {
         "deploying",
         "building",
         "pending",
-      ])
+      ]),
     );
 
   const activeContainerIds = new Set(activeContainers.map((c) => c.id));
@@ -82,7 +82,7 @@ async function cleanupOrphanedStacks() {
   console.log(`🔍 Found ${orphanedStacks.length} orphaned stacks:`);
   for (const stack of orphanedStacks) {
     console.log(
-      `  - ${stack.StackName} (${stack.StackStatus}, created: ${stack.CreationTime?.toISOString()})`
+      `  - ${stack.StackName} (${stack.StackStatus}, created: ${stack.CreationTime?.toISOString()})`,
     );
   }
   console.log("");
@@ -136,12 +136,12 @@ async function cleanupOrphanedStacks() {
     const expiredPriorities = await dbClient.query.albPriorities.findMany({
       where: and(
         isNotNull(albPriorities.expiresAt),
-        lt(albPriorities.expiresAt, new Date())
+        lt(albPriorities.expiresAt, new Date()),
       ),
     });
 
     console.log(
-      `🔍 DRY RUN: Would delete ${expiredPriorities.length} expired priorities`
+      `🔍 DRY RUN: Would delete ${expiredPriorities.length} expired priorities`,
     );
   } else {
     const deletedPriorities =
@@ -158,4 +158,3 @@ cleanupOrphanedStacks().catch((error) => {
   console.error("❌ Cleanup failed:", error);
   process.exit(1);
 });
-

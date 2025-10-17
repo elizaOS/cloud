@@ -41,7 +41,7 @@ class CreditEventEmitter extends EventEmitter {
     }, this.CLEANUP_INTERVAL);
 
     logger.info(
-      `[Credit Events] Auto-cleanup enabled (stale threshold: ${this.STALE_THRESHOLD}ms, interval: ${this.CLEANUP_INTERVAL}ms)`
+      `[Credit Events] Auto-cleanup enabled (stale threshold: ${this.STALE_THRESHOLD}ms, interval: ${this.CLEANUP_INTERVAL}ms)`,
     );
   }
 
@@ -57,7 +57,9 @@ class CreditEventEmitter extends EventEmitter {
     logger.debug(`[Credit Events] Emitting event on channel ${channel}`, event);
 
     // Update last activity for all listeners on this channel
-    const listeners = this.listeners(channel) as Array<(event: CreditUpdateEvent) => void>;
+    const listeners = this.listeners(channel) as Array<
+      (event: CreditUpdateEvent) => void
+    >;
     listeners.forEach((listener) => {
       const listenerId = this.getListenerId(channel, listener);
       const metadata = this.listenerMetadata.get(listenerId);
@@ -85,14 +87,14 @@ class CreditEventEmitter extends EventEmitter {
     this.on(channel, handler);
 
     logger.debug(
-      `[Credit Events] Subscribed to ${channel} (total listeners: ${this.listenerCount(channel)})`
+      `[Credit Events] Subscribed to ${channel} (total listeners: ${this.listenerCount(channel)})`,
     );
 
     return () => {
       this.off(channel, handler);
       this.listenerMetadata.delete(listenerId);
       logger.debug(
-        `[Credit Events] Unsubscribed from ${channel} (remaining: ${this.listenerCount(channel)})`
+        `[Credit Events] Unsubscribed from ${channel} (remaining: ${this.listenerCount(channel)})`,
       );
     };
   }
@@ -131,7 +133,7 @@ class CreditEventEmitter extends EventEmitter {
 
         logger.warn(
           `[Credit Events] Cleaned up stale listener on ${channel} ` +
-          `(removed ${listenerCount} listeners, inactive for ${Math.round(inactiveDuration / 1000)}s)`
+            `(removed ${listenerCount} listeners, inactive for ${Math.round(inactiveDuration / 1000)}s)`,
         );
       }
     }
@@ -139,7 +141,7 @@ class CreditEventEmitter extends EventEmitter {
     if (cleanedCount > 0) {
       logger.info(
         `[Credit Events] Cleanup completed: removed ${cleanedCount} stale channels ` +
-        `(total remaining: ${this.listenerMetadata.size})`
+          `(total remaining: ${this.listenerMetadata.size})`,
       );
     }
   }
@@ -149,7 +151,7 @@ class CreditEventEmitter extends EventEmitter {
    */
   private getListenerId(
     channel: string,
-    listener: (event: CreditUpdateEvent) => void
+    listener: (event: CreditUpdateEvent) => void,
   ): string {
     return `${channel}:${listener.toString().substring(0, 50)}:${Date.now()}`;
   }
