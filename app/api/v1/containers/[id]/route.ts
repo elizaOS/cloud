@@ -154,8 +154,8 @@ export async function DELETE(
         // Calculate deployment cost
         const deploymentCost = calculateDeploymentCost({
           desiredCount: container.desired_count || 1,
-          cpu: container.cpu || 256,
-          memory: container.memory || 512,
+          cpu: container.cpu || 1792,
+          memory: container.memory || 1792,
           includeUpload: false,
         });
 

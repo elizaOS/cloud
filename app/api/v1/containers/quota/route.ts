@@ -31,8 +31,8 @@ export async function GET(request: NextRequest) {
     // Calculate costs (base container: 1 instance, 256 CPU, 512 MB RAM)
     const baseCost = calculateDeploymentCost({
       desiredCount: 1,
-      cpu: 256,
-      memory: 512,
+      cpu: 1792, // Default: 1.75 vCPU (87.5% of t3g.small)
+      memory: 1792, // Default: 1.75 GB (87.5% of t3g.small)
       includeUpload: false,
     });
 
