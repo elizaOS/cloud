@@ -4,110 +4,85 @@
  * Manages unique priority assignment for ALB listener rules.
  * ALB priorities must be unique integers between 1 and 50,000.
  * 
- * This service uses DynamoDB to track assigned priorities and ensure
- * no conflicts when creating new container deployments.
+ * SIMPLIFIED APPROACH:
+ * - Sequential allocation: next_priority = max(priority) + 1
+ * - Released priorities are marked with released_at timestamp
+ * - Cleanup cron deletes released priorities after 1 hour (allows audit trail)
+ * - No complex hashing or collision handling needed
  */
 
-import crypto from "node:crypto";
-
 /**
- * Generate a deterministic priority number from a user ID
- * Maps any string to a number between 1 and 50,000
- */
-export function generatePriorityFromUserId(userId: string): number {
-  // Use first 8 characters of SHA-256 hash
-  const hash = crypto.createHash("sha256").update(userId).digest("hex");
-  const hashInt = parseInt(hash.substring(0, 8), 16);
-  
-  // Map to range 1-50000
-  const priority = (hashInt % 49999) + 1;
-  
-  return priority;
-}
-
-/**
- * Database-backed priority manager (PRODUCTION IMPLEMENTATION)
+ * Database-backed priority manager (PRODUCTION)
  * 
- * Uses PostgreSQL with atomic transactions and unique constraints
- * to prevent race conditions and ensure ALB priority uniqueness.
+ * Uses PostgreSQL with sequential allocation and soft deletes.
  */
 export class DatabasePriorityManager {
   /**
-   * Allocate a unique ALB priority for a user
-   * Uses database transaction with retry logic for collision handling
+   * Allocate next available ALB priority for a user
+   * Uses simple sequential allocation with database transaction
    */
   async allocatePriority(userId: string): Promise<number> {
     const { db } = await import("@/db/client");
     const { albPriorities } = await import("@/db/schemas/alb-priorities");
-    const { eq } = await import("drizzle-orm");
+    const { eq, isNull, sql } = await import("drizzle-orm");
 
-    // Check if user already has a priority
-    const existing = await db.query.albPriorities.findFirst({
-      where: eq(albPriorities.userId, userId),
-    });
+    return await db.transaction(async (tx) => {
+      // Check if user already has an active priority
+      const existing = await tx.query.albPriorities.findFirst({
+        where: eq(albPriorities.userId, userId),
+      });
 
-    if (existing) {
-      console.log(`User ${userId} already has priority ${existing.priority}`);
-      return existing.priority;
-    }
-
-    // Generate initial priority from user ID
-    let priority = generatePriorityFromUserId(userId);
-    let attempts = 0;
-    const maxAttempts = 100;
-
-    // Attempt to insert with collision handling
-    while (attempts < maxAttempts) {
-      try {
-        const [inserted] = await db
-          .insert(albPriorities)
-          .values({
-            userId,
-            priority,
-            createdAt: new Date(),
-            expiresAt: null,
-          })
-          .returning();
-
-        console.log(`✅ Allocated ALB priority ${priority} for user ${userId}`);
-        return inserted.priority;
-      } catch (error: unknown) {
-        // Handle unique constraint violation (priority already taken)
-        if (
-          error instanceof Error &&
-          ("code" in error) &&
-          (error as { code: string }).code === "23505"
-        ) {
-          // Priority collision - try next priority
-          priority = (priority % 49999) + 1;
-          attempts++;
-          console.log(
-            `Priority collision, trying ${priority} (attempt ${attempts}/${maxAttempts})`
-          );
-        } else {
-          // Unexpected error
-          console.error("Failed to allocate ALB priority:", error);
-          throw error;
-        }
+      if (existing && !existing.expiresAt) {
+        console.log(`User ${userId} already has priority ${existing.priority}`);
+        return existing.priority;
       }
-    }
 
-    throw new Error(
-      `Failed to allocate unique ALB priority after ${maxAttempts} attempts - too many containers`
-    );
+      // Get the maximum currently allocated priority
+      const [maxResult] = await tx
+        .select({
+          maxPriority: sql<number>`COALESCE(MAX(${albPriorities.priority}), 0)`,
+        })
+        .from(albPriorities)
+        .where(isNull(albPriorities.expiresAt));
+
+      const nextPriority = (maxResult?.maxPriority || 0) + 1;
+
+      // Validate we haven't exceeded ALB limit
+      if (nextPriority > 50000) {
+        throw new Error(
+          "ALB priority limit exceeded - too many active containers (max 50,000)"
+        );
+      }
+
+      // Create new priority record
+      const [inserted] = await tx
+        .insert(albPriorities)
+        .values({
+          userId,
+          priority: nextPriority,
+          createdAt: new Date(),
+          expiresAt: null,
+        })
+        .returning();
+
+      console.log(
+        `✅ Allocated ALB priority ${nextPriority} for user ${userId}`
+      );
+      return inserted.priority;
+    });
   }
 
   /**
    * Release a priority when a container is deleted
-   * Sets expiry for cleanup but keeps record for audit trail
+   * Sets expiry timestamp for cleanup (1 hour grace period for audit)
    */
   async releasePriority(userId: string): Promise<void> {
     const { db } = await import("@/db/client");
     const { albPriorities } = await import("@/db/schemas/alb-priorities");
     const { eq } = await import("drizzle-orm");
 
-    // Set expiry date (24 hours from now for audit trail)
-    const expiryDate = new Date(Date.now() + 24 * 60 * 60 * 1000);
+    // Set expiry date (1 hour from now for audit trail)
+    const expiryDate = new Date(Date.now() + 60 * 60 * 1000);
 
     const result = await db
       .update(albPriorities)
@@ -136,12 +111,17 @@ export class DatabasePriorityManager {
       where: eq(albPriorities.userId, userId),
     });
 
-    return result?.priority;
+    // Only return if not expired
+    if (result && !result.expiresAt) {
+      return result.priority;
+    }
+
+    return undefined;
   }
 
   /**
-   * Cleanup expired priorities (run this periodically via cron)
-   * Permanently deletes priorities that have been expired for >24h
+   * Cleanup expired priorities (run this via cron every hour)
+   * Permanently deletes priorities that have expired
    */
   async cleanupExpiredPriorities(): Promise<number> {
     const { db } = await import("@/db/client");
@@ -160,17 +140,19 @@ export class DatabasePriorityManager {
       .returning();
 
     if (deleted.length > 0) {
-      console.log(`🧹 Cleaned up ${deleted.length} expired ALB priorities`);
+      console.log(
+        `🧹 Cleaned up ${deleted.length} expired ALB priorities (freed ${deleted.map((p) => p.priority).join(", ")})`
+      );
     }
 
     return deleted.length;
   }
 
   /**
-   * Get all assigned priorities (for debugging/monitoring)
+   * Get all active priorities (for debugging/monitoring)
    */
-  async getAllPriorities(): Promise<
-    Array<{ userId: string; priority: number }>
+  async getAllActivePriorities(): Promise<
+    Array<{ userId: string; priority: number; createdAt: Date }>
   > {
     const { db } = await import("@/db/client");
     const { albPriorities } = await import("@/db/schemas/alb-priorities");
@@ -181,12 +163,57 @@ export class DatabasePriorityManager {
       columns: {
         userId: true,
         priority: true,
+        createdAt: true,
       },
+      orderBy: (albPriorities, { asc }) => [asc(albPriorities.priority)],
     });
 
-    return results;
+    return results.map((r) => ({
+      userId: r.userId,
+      priority: r.priority,
+      createdAt: r.createdAt,
+    }));
+  }
+
+  /**
+   * Get statistics about priority allocation
+   */
+  async getStats(): Promise<{
+    totalActive: number;
+    totalExpired: number;
+    highestPriority: number;
+    availableSlots: number;
+  }> {
+    const { db } = await import("@/db/client");
+    const { albPriorities } = await import("@/db/schemas/alb-priorities");
+    const { isNull, isNotNull, sql } = await import("drizzle-orm");
+
+    const [activeCount] = await db
+      .select({ count: sql<number>`count(*)::int` })
+      .from(albPriorities)
+      .where(isNull(albPriorities.expiresAt));
+
+    const [expiredCount] = await db
+      .select({ count: sql<number>`count(*)::int` })
+      .from(albPriorities)
+      .where(isNotNull(albPriorities.expiresAt));
+
+    const [maxResult] = await db
+      .select({ max: sql<number>`COALESCE(MAX(${albPriorities.priority}), 0)` })
+      .from(albPriorities)
+      .where(isNull(albPriorities.expiresAt));
+
+    const highestPriority = maxResult?.max || 0;
+    const totalActive = activeCount?.count || 0;
+    const totalExpired = expiredCount?.count || 0;
+
+    return {
+      totalActive,
+      totalExpired,
+      highestPriority,
+      availableSlots: 50000 - totalActive,
+    };
   }
 }
 
 export const dbPriorityManager = new DatabasePriorityManager();
-

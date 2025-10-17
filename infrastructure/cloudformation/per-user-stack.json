@@ -1,6 +1,6 @@
 {
   "AWSTemplateFormatVersion": "2010-09-09",
-  "Description": "ElizaOS Per-User Container Stack v2 - Production Ready - 1 t3g.small ARM instance with ECS",
+  "Description": "ElizaOS Per-User Container Stack - Production Ready - 1 t3g.small ARM instance with ECS + Monitoring",
   "Parameters": {
     "UserId": {
       "Type": "String",
@@ -68,11 +68,19 @@
       "Description": "ALB Listener Rule Priority (must be unique, 1-50000)",
       "MinValue": 1,
       "MaxValue": 50000
+    },
+    "SNSTopicArn": {
+      "Type": "String",
+      "Description": "SNS Topic ARN for alerts (optional)",
+      "Default": ""
     }
   },
   "Conditions": {
     "HasKeyPair": {
       "Fn::Not": [{"Fn::Equals": [{"Ref": "KeyName"}, ""]}]
+    },
+    "HasSNSTopic": {
+      "Fn::Not": [{"Fn::Equals": [{"Ref": "SNSTopicArn"}, ""]}]
     }
   },
   "Resources": {
@@ -115,9 +123,11 @@
           {"Key": "Name", "Value": {"Fn::Sub": "elizaos-user-${UserId}-sg"}},
           {"Key": "UserId", "Value": {"Ref": "UserId"}},
           {"Key": "UserEmail", "Value": {"Ref": "UserEmail"}},
+          {"Key": "Project", "Value": "ElizaOS"},
+          {"Key": "Environment", "Value": "production"},
           {"Key": "BillingEntity", "Value": "ElizaOS"},
           {"Key": "CostCenter", "Value": {"Ref": "UserId"}},
-          {"Key": "ManagedBy", "Value": "ElizaOS"}
+          {"Key": "ManagedBy", "Value": "CloudFormation"}
         ]
       }
     },
@@ -127,13 +137,21 @@
         "ClusterName": {
           "Fn::Sub": "elizaos-user-${UserId}"
         },
+        "ClusterSettings": [
+          {
+            "Name": "containerInsights",
+            "Value": "enabled"
+          }
+        ],
         "Tags": [
           {"Key": "Name", "Value": {"Fn::Sub": "elizaos-user-${UserId}"}},
           {"Key": "UserId", "Value": {"Ref": "UserId"}},
           {"Key": "UserEmail", "Value": {"Ref": "UserEmail"}},
+          {"Key": "Project", "Value": "ElizaOS"},
+          {"Key": "Environment", "Value": "production"},
           {"Key": "BillingEntity", "Value": "ElizaOS"},
           {"Key": "CostCenter", "Value": {"Ref": "UserId"}},
-          {"Key": "ManagedBy", "Value": "ElizaOS"}
+          {"Key": "ManagedBy", "Value": "CloudFormation"}
         ]
       }
     },
@@ -170,7 +188,7 @@
           ],
           "UserData": {
             "Fn::Base64": {
-              "Fn::Sub": "#!/bin/bash\necho ECS_CLUSTER=${ECSCluster} >> /etc/ecs/ecs.config\necho ECS_ENABLE_CONTAINER_METADATA=true >> /etc/ecs/ecs.config\necho ECS_ENABLE_TASK_IAM_ROLE=true >> /etc/ecs/ecs.config\nyum install -y amazon-cloudwatch-agent\nsystemctl restart docker\n"
+              "Fn::Sub": "#!/bin/bash\necho ECS_CLUSTER=${ECSCluster} >> /etc/ecs/ecs.config\necho ECS_ENABLE_CONTAINER_METADATA=true >> /etc/ecs/ecs.config\necho ECS_ENABLE_TASK_IAM_ROLE=true >> /etc/ecs/ecs.config\necho ECS_ENABLE_TASK_CPU_MEM_LIMIT=true >> /etc/ecs/ecs.config\nyum install -y amazon-cloudwatch-agent\n/opt/aws/amazon-cloudwatch-agent/bin/amazon-cloudwatch-agent-ctl \\\n  -a fetch-config \\\n  -m ec2 \\\n  -s -c default\nsystemctl restart docker\n"
             }
           },
           "BlockDeviceMappings": [
@@ -193,9 +211,22 @@
                 {"Key": "Name", "Value": {"Fn::Sub": "elizaos-user-${UserId}"}},
                 {"Key": "UserId", "Value": {"Ref": "UserId"}},
                 {"Key": "UserEmail", "Value": {"Ref": "UserEmail"}},
+                {"Key": "Project", "Value": "ElizaOS"},
+                {"Key": "Environment", "Value": "production"},
                 {"Key": "BillingEntity", "Value": "ElizaOS"},
                 {"Key": "CostCenter", "Value": {"Ref": "UserId"}},
-                {"Key": "ManagedBy", "Value": "ElizaOS"}
+                {"Key": "ManagedBy", "Value": "CloudFormation"}
+              ]
+            },
+            {
+              "ResourceType": "volume",
+              "Tags": [
+                {"Key": "Name", "Value": {"Fn::Sub": "elizaos-user-${UserId}-ebs"}},
+                {"Key": "UserId", "Value": {"Ref": "UserId"}},
+                {"Key": "Project", "Value": "ElizaOS"},
+                {"Key": "BillingEntity", "Value": "ElizaOS"},
+                {"Key": "CostCenter", "Value": {"Ref": "UserId"}},
+                {"Key": "ManagedBy", "Value": "CloudFormation"}
               ]
             }
           ],
@@ -218,15 +249,18 @@
           {"Key": "Name", "Value": {"Fn::Sub": "elizaos-user-${UserId}"}},
           {"Key": "UserId", "Value": {"Ref": "UserId"}},
           {"Key": "UserEmail", "Value": {"Ref": "UserEmail"}},
+          {"Key": "Project", "Value": "ElizaOS"},
+          {"Key": "Environment", "Value": "production"},
           {"Key": "BillingEntity", "Value": "ElizaOS"},
-          {"Key": "CostCenter", "Value": {"Ref": "UserId"}}
+          {"Key": "CostCenter", "Value": {"Ref": "UserId"}},
+          {"Key": "ManagedBy", "Value": "CloudFormation"}
         ]
       }
     },
     "EC2RecoveryAlarm": {
       "Type": "AWS::CloudWatch::Alarm",
       "Properties": {
-        "AlarmName": {"Fn::Sub": "elizaos-${UserId}-recovery"},
+        "AlarmName": {"Fn::Sub": "elizaos-${UserId}-ec2-recovery"},
         "AlarmDescription": "Trigger EC2 recovery if system status check fails",
         "MetricName": "StatusCheckFailed_System",
         "Namespace": "AWS/EC2",
@@ -240,7 +274,8 @@
         ],
         "Dimensions": [
           {"Name": "InstanceId", "Value": {"Ref": "EC2Instance"}}
-        ]
+        ],
+        "TreatMissingData": "notBreaching"
       }
     },
     "TargetGroup": {
@@ -260,12 +295,99 @@
         "HealthCheckTimeoutSeconds": 5,
         "HealthyThresholdCount": 2,
         "UnhealthyThresholdCount": 3,
+        "Matcher": {
+          "HttpCode": "200,201"
+        },
         "Tags": [
           {"Key": "UserId", "Value": {"Ref": "UserId"}},
+          {"Key": "Project", "Value": "ElizaOS"},
           {"Key": "BillingEntity", "Value": "ElizaOS"},
           {"Key": "CostCenter", "Value": {"Ref": "UserId"}},
-          {"Key": "ManagedBy", "Value": "ElizaOS"}
+          {"Key": "ManagedBy", "Value": "CloudFormation"}
         ]
+      }
+    },
+    "UnhealthyTargetAlarm": {
+      "Type": "AWS::CloudWatch::Alarm",
+      "Condition": "HasSNSTopic",
+      "Properties": {
+        "AlarmName": {"Fn::Sub": "elizaos-${UserId}-unhealthy-targets"},
+        "AlarmDescription": "Alert when targets are unhealthy",
+        "MetricName": "UnHealthyHostCount",
+        "Namespace": "AWS/ApplicationELB",
+        "Statistic": "Average",
+        "Period": 60,
+        "EvaluationPeriods": 2,
+        "Threshold": 1,
+        "ComparisonOperator": "GreaterThanOrEqualToThreshold",
+        "Dimensions": [
+          {
+            "Name": "TargetGroup",
+            "Value": {"Fn::GetAtt": ["TargetGroup", "TargetGroupFullName"]}
+          }
+        ],
+        "AlarmActions": [
+          {"Ref": "SNSTopicArn"}
+        ],
+        "TreatMissingData": "notBreaching"
+      }
+    },
+    "HighCPUAlarm": {
+      "Type": "AWS::CloudWatch::Alarm",
+      "Condition": "HasSNSTopic",
+      "Properties": {
+        "AlarmName": {"Fn::Sub": "elizaos-${UserId}-high-cpu"},
+        "AlarmDescription": "Alert when CPU utilization is high",
+        "MetricName": "CPUUtilization",
+        "Namespace": "AWS/ECS",
+        "Statistic": "Average",
+        "Period": 300,
+        "EvaluationPeriods": 2,
+        "Threshold": 80,
+        "ComparisonOperator": "GreaterThanThreshold",
+        "Dimensions": [
+          {
+            "Name": "ServiceName",
+            "Value": {"Fn::GetAtt": ["ECSService", "Name"]}
+          },
+          {
+            "Name": "ClusterName",
+            "Value": {"Ref": "ECSCluster"}
+          }
+        ],
+        "AlarmActions": [
+          {"Ref": "SNSTopicArn"}
+        ],
+        "TreatMissingData": "notBreaching"
+      }
+    },
+    "HighMemoryAlarm": {
+      "Type": "AWS::CloudWatch::Alarm",
+      "Condition": "HasSNSTopic",
+      "Properties": {
+        "AlarmName": {"Fn::Sub": "elizaos-${UserId}-high-memory"},
+        "AlarmDescription": "Alert when memory utilization is high",
+        "MetricName": "MemoryUtilization",
+        "Namespace": "AWS/ECS",
+        "Statistic": "Average",
+        "Period": 300,
+        "EvaluationPeriods": 2,
+        "Threshold": 80,
+        "ComparisonOperator": "GreaterThanThreshold",
+        "Dimensions": [
+          {
+            "Name": "ServiceName",
+            "Value": {"Fn::GetAtt": ["ECSService", "Name"]}
+          },
+          {
+            "Name": "ClusterName",
+            "Value": {"Ref": "ECSCluster"}
+          }
+        ],
+        "AlarmActions": [
+          {"Ref": "SNSTopicArn"}
+        ],
+        "TreatMissingData": "notBreaching"
       }
     },
     "ListenerRule": {
@@ -329,20 +451,28 @@
                 "awslogs-region": {"Ref": "AWS::Region"},
                 "awslogs-stream-prefix": "ecs"
               }
+            },
+            "HealthCheck": {
+              "Command": ["CMD-SHELL", "curl -f http://localhost:3000/health || exit 1"],
+              "Interval": 30,
+              "Timeout": 5,
+              "Retries": 3,
+              "StartPeriod": 60
             }
           }
         ],
         "Tags": [
           {"Key": "UserId", "Value": {"Ref": "UserId"}},
+          {"Key": "Project", "Value": "ElizaOS"},
           {"Key": "BillingEntity", "Value": "ElizaOS"},
           {"Key": "CostCenter", "Value": {"Ref": "UserId"}},
-          {"Key": "ManagedBy", "Value": "ElizaOS"}
+          {"Key": "ManagedBy", "Value": "CloudFormation"}
         ]
       }
     },
     "ECSService": {
       "Type": "AWS::ECS::Service",
-      "DependsOn": ["EC2Instance"],
+      "DependsOn": ["EC2Instance", "ListenerRule"],
       "Properties": {
         "ServiceName": {
           "Fn::Sub": "elizaos-user-${UserId}"
@@ -360,14 +490,19 @@
         ],
         "HealthCheckGracePeriodSeconds": 300,
         "DeploymentConfiguration": {
-          "MaximumPercent": 200,
-          "MinimumHealthyPercent": 100
+          "MaximumPercent": 100,
+          "MinimumHealthyPercent": 0,
+          "DeploymentCircuitBreaker": {
+            "Enable": true,
+            "Rollback": true
+          }
         },
         "Tags": [
           {"Key": "UserId", "Value": {"Ref": "UserId"}},
+          {"Key": "Project", "Value": "ElizaOS"},
           {"Key": "BillingEntity", "Value": "ElizaOS"},
           {"Key": "CostCenter", "Value": {"Ref": "UserId"}},
-          {"Key": "ManagedBy", "Value": "ElizaOS"}
+          {"Key": "ManagedBy", "Value": "CloudFormation"}
         ]
       }
     }
@@ -407,4 +542,3 @@
     }
   }
 }
-

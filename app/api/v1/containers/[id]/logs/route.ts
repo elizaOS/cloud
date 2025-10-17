@@ -90,6 +90,7 @@ export async function GET(
 
 /**
  * Get logs from CloudWatch for a container
+ * PRODUCTION FIX: Dynamically discovers log streams instead of hardcoding
  */
 async function getCloudWatchLogs(
   containerName: string,
@@ -103,7 +104,7 @@ async function getCloudWatchLogs(
     message: string;
   }>
 > {
-  const region = process.env.AWS_REGION;
+  const region = process.env.AWS_REGION || "us-east-1";
   const accessKeyId = process.env.AWS_ACCESS_KEY_ID;
   const secretAccessKey = process.env.AWS_SECRET_ACCESS_KEY;
 
@@ -119,27 +120,79 @@ async function getCloudWatchLogs(
     },
   });
 
-  const logGroupName = `/ecs/elizaos-${containerName}`;
+  const logGroupName = `/ecs/elizaos-user-${containerName}`;
 
   try {
-    const command = new GetLogEventsCommand({
-      logGroupName,
-      logStreamName: "ecs", // This would need to be more dynamic in production
-      limit: options.limit || 100,
-      startTime: options.since?.getTime(),
-      startFromHead: false, // Get most recent logs first
-    });
+    // First, discover the latest log streams
+    const { DescribeLogStreamsCommand } = await import(
+      "@aws-sdk/client-cloudwatch-logs"
+    );
+    
+    const streamsResponse = await client.send(
+      new DescribeLogStreamsCommand({
+        logGroupName,
+        orderBy: "LastEventTime",
+        descending: true,
+        limit: 5, // Get up to 5 most recent streams
+      })
+    );
 
-    const response = await client.send(command);
-    const events = response.events || [];
+    const logStreams = streamsResponse.logStreams || [];
+    
+    if (logStreams.length === 0) {
+      console.warn(`No log streams found for ${logGroupName}`);
+      return [];
+    }
 
-    return events.map((event: OutputLogEvent) => ({
-      timestamp: new Date(event.timestamp || 0).toISOString(),
-      message: event.message || "",
-    }));
+    // Aggregate logs from all recent streams (in case of task restarts)
+    const allLogs: Array<{ timestamp: string; message: string }> = [];
+
+    for (const stream of logStreams) {
+      if (!stream.logStreamName) continue;
+
+      try {
+        const command = new GetLogEventsCommand({
+          logGroupName,
+          logStreamName: stream.logStreamName,
+          limit: Math.ceil((options.limit || 100) / logStreams.length),
+          startTime: options.since?.getTime(),
+          startFromHead: false, // Get most recent logs first
+        });
+
+        const response = await client.send(command);
+        const events = response.events || [];
+
+        allLogs.push(
+          ...events.map((event: OutputLogEvent) => ({
+            timestamp: new Date(event.timestamp || 0).toISOString(),
+            message: event.message || "",
+          }))
+        );
+      } catch (streamError) {
+        console.warn(
+          `Failed to fetch logs from stream ${stream.logStreamName}:`,
+          streamError
+        );
+        // Continue with other streams
+      }
+    }
+
+    // Sort by timestamp descending and limit
+    return allLogs
+      .sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime())
+      .slice(0, options.limit || 100);
+      
   } catch (error) {
     console.error("Error fetching CloudWatch logs:", error);
-    // Return empty array if logs not available yet
+    
+    // Check if log group doesn't exist
+    if (
+      error instanceof Error &&
+      error.name === "ResourceNotFoundException"
+    ) {
+      console.warn(`Log group ${logGroupName} not found - container may not be deployed yet`);
+    }
+    
     return [];
   }
 }

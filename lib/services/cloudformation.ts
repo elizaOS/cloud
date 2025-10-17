@@ -72,7 +72,7 @@ export class CloudFormationService {
       this.client = new CloudFormationClient({ region: this.region });
     }
 
-    // Use production template
+    // Use production template with monitoring
     this.templatePath = path.join(
       __dirname,
       "../../infrastructure/cloudformation/per-user-stack.json"
