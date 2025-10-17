@@ -254,14 +254,20 @@ CREATE TABLE "containers" (
 	"organization_id" uuid NOT NULL,
 	"user_id" uuid NOT NULL,
 	"api_key_id" uuid,
-	"cloudflare_worker_id" text,
-	"cloudflare_container_id" text,
-	"cloudflare_url" text,
+	"ecr_repository_uri" text,
+	"ecr_image_tag" text,
+	"ecs_cluster_arn" text,
+	"ecs_service_arn" text,
+	"ecs_task_definition_arn" text,
+	"ecs_task_arn" text,
+	"load_balancer_url" text,
 	"status" text DEFAULT 'pending' NOT NULL,
 	"image_tag" text,
 	"dockerfile_path" text,
 	"environment_vars" jsonb DEFAULT '{}'::jsonb NOT NULL,
-	"max_instances" integer DEFAULT 1 NOT NULL,
+	"desired_count" integer DEFAULT 1 NOT NULL,
+	"cpu" integer DEFAULT 256 NOT NULL,
+	"memory" integer DEFAULT 512 NOT NULL,
 	"port" integer DEFAULT 3000 NOT NULL,
 	"health_check_path" text DEFAULT '/health',
 	"last_deployed_at" timestamp,
@@ -273,18 +279,14 @@ CREATE TABLE "containers" (
 	"updated_at" timestamp DEFAULT now() NOT NULL
 );
 --> statement-breakpoint
-CREATE TABLE "artifacts" (
-	"id" text PRIMARY KEY NOT NULL,
-	"organization_id" text NOT NULL,
-	"project_id" text NOT NULL,
-	"version" text NOT NULL,
-	"checksum" text NOT NULL,
-	"size" integer NOT NULL,
-	"r2_key" text NOT NULL,
-	"r2_url" text NOT NULL,
-	"metadata" jsonb DEFAULT '{}'::jsonb,
-	"created_by" text NOT NULL,
-	"created_at" timestamp DEFAULT now() NOT NULL
+CREATE TABLE "alb_priorities" (
+	"id" uuid PRIMARY KEY DEFAULT gen_random_uuid() NOT NULL,
+	"user_id" text NOT NULL,
+	"priority" integer NOT NULL,
+	"created_at" timestamp with time zone DEFAULT now() NOT NULL,
+	"expires_at" timestamp with time zone,
+	CONSTRAINT "alb_priorities_user_id_unique" UNIQUE("user_id"),
+	CONSTRAINT "alb_priorities_priority_unique" UNIQUE("priority")
 );
 --> statement-breakpoint
 ALTER TABLE "users" ADD CONSTRAINT "users_organization_id_organizations_id_fk" FOREIGN KEY ("organization_id") REFERENCES "public"."organizations"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
@@ -366,7 +368,5 @@ CREATE INDEX "user_characters_name_idx" ON "user_characters" USING btree ("name"
 CREATE INDEX "containers_organization_idx" ON "containers" USING btree ("organization_id");--> statement-breakpoint
 CREATE INDEX "containers_user_idx" ON "containers" USING btree ("user_id");--> statement-breakpoint
 CREATE INDEX "containers_status_idx" ON "containers" USING btree ("status");--> statement-breakpoint
-CREATE INDEX "containers_cloudflare_worker_idx" ON "containers" USING btree ("cloudflare_worker_id");--> statement-breakpoint
-CREATE INDEX "idx_artifacts_org_project" ON "artifacts" USING btree ("organization_id","project_id");--> statement-breakpoint
-CREATE INDEX "idx_artifacts_project_version" ON "artifacts" USING btree ("project_id","version");--> statement-breakpoint
-CREATE UNIQUE INDEX "uniq_artifact_version" ON "artifacts" USING btree ("organization_id","project_id","version");
+CREATE INDEX "containers_ecs_service_idx" ON "containers" USING btree ("ecs_service_arn");--> statement-breakpoint
+CREATE INDEX "containers_ecr_repository_idx" ON "containers" USING btree ("ecr_repository_uri");
