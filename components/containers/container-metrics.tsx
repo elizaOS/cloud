@@ -41,7 +41,7 @@ export function ContainerMetrics({
     try {
       setLoading(true);
       const response = await fetch(
-        `/api/v1/containers/${containerId}/metrics?period=60`
+        `/api/v1/containers/${containerId}/metrics?period=60`,
       );
 
       if (!response.ok) {
@@ -117,9 +117,7 @@ export function ContainerMetrics({
       <Card>
         <CardHeader>
           <CardTitle>Container Metrics</CardTitle>
-          <CardDescription className="text-red-500">
-            {error}
-          </CardDescription>
+          <CardDescription className="text-red-500">{error}</CardDescription>
         </CardHeader>
         <CardContent>
           <div className="flex items-center justify-center p-8 text-muted-foreground">
@@ -288,4 +286,3 @@ export function ContainerMetrics({
     </Card>
   );
 }
-

@@ -216,7 +216,7 @@ export async function monitorAllContainers(
     // Check all containers in parallel for better performance
     const results: HealthCheckResult[] = await Promise.all(
       runningContainers.map(async (container) => {
-        if (!container.cloudflare_url) {
+        if (!container.load_balancer_url) {
           console.warn("Container has no URL, skipping health check", {
             containerId: container.id,
           });
@@ -228,20 +228,11 @@ export async function monitorAllContainers(
           } as HealthCheckResult;
         }
 
-    // Check each container
-    for (const container of runningContainers) {
-      if (!container.load_balancer_url) {
-        console.warn("Container has no URL, skipping health check", {
-          containerId: container.id,
-        });
-        continue;
-      }
-
-      const result = await checkContainerHealth(
-        container.load_balancer_url,
-        container.health_check_path || "/health",
-        finalConfig.timeout,
-      );
+        const result = await checkContainerHealth(
+          container.load_balancer_url,
+          container.health_check_path || "/health",
+          finalConfig.timeout,
+        );
 
         // Update database
         await updateContainerHealth(container.id, result);
@@ -249,19 +240,14 @@ export async function monitorAllContainers(
         if (!result.healthy) {
           console.warn("Container health check failed", {
             containerId: container.id,
-            url: container.cloudflare_url,
+            url: container.load_balancer_url,
             error: result.error,
           });
         }
 
-      if (!result.healthy) {
-        console.warn("Container health check failed", {
-          containerId: container.id,
-          url: container.load_balancer_url,
-          error: result.error,
-        });
-      }
-    }
+        return result;
+      }),
+    );
 
     const healthyCount = results.filter((r) => r.healthy).length;
     const unhealthyCount = results.length - healthyCount;
@@ -348,22 +334,23 @@ export async function getContainerHealthStatus(
 export function startHealthMonitoring(
   intervalMs: number = 60000,
 ): NodeJS.Timeout {
-  const isServerless = process.env.VERCEL === "1" ||
-                      process.env.AWS_LAMBDA_FUNCTION_NAME ||
-                      process.env.FUNCTION_NAME;
+  const isServerless =
+    process.env.VERCEL === "1" ||
+    process.env.AWS_LAMBDA_FUNCTION_NAME ||
+    process.env.FUNCTION_NAME;
 
   if (isServerless) {
     console.error(
       "🚨 [Health Monitor] CRITICAL: startHealthMonitoring() called in serverless environment!\n" +
-      "This will NOT work correctly. Background intervals stop when serverless functions complete.\n" +
-      "Use a cron endpoint instead: POST /api/v1/cron/health-check\n" +
-      "See lib/services/health-monitor.ts for details."
+        "This will NOT work correctly. Background intervals stop when serverless functions complete.\n" +
+        "Use a cron endpoint instead: POST /api/v1/cron/health-check\n" +
+        "See lib/services/health-monitor.ts for details.",
     );
   }
 
   console.warn(
     "[Health Monitor] Starting continuous health monitoring (NOT serverless-compatible)",
-    { intervalMs, isServerless }
+    { intervalMs, isServerless },
   );
 
   const interval = setInterval(async () => {

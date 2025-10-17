@@ -1,9 +1,9 @@
 /**
  * ALB Listener Rule Priority Manager
- * 
+ *
  * Manages unique priority assignment for ALB listener rules.
  * ALB priorities must be unique integers between 1 and 50,000.
- * 
+ *
  * SIMPLIFIED APPROACH:
  * - Sequential allocation: next_priority = max(priority) + 1
  * - Released priorities are marked with released_at timestamp
@@ -13,7 +13,7 @@
 
 /**
  * Database-backed priority manager (PRODUCTION)
- * 
+ *
  * Uses PostgreSQL with sequential allocation and soft deletes.
  */
 export class DatabasePriorityManager {
@@ -50,7 +50,7 @@ export class DatabasePriorityManager {
       // Validate we haven't exceeded ALB limit
       if (nextPriority > 50000) {
         throw new Error(
-          "ALB priority limit exceeded - too many active containers (max 50,000)"
+          "ALB priority limit exceeded - too many active containers (max 50,000)",
         );
       }
 
@@ -66,7 +66,7 @@ export class DatabasePriorityManager {
         .returning();
 
       console.log(
-        `✅ Allocated ALB priority ${nextPriority} for user ${userId}`
+        `✅ Allocated ALB priority ${nextPriority} for user ${userId}`,
       );
       return inserted.priority;
     });
@@ -92,7 +92,7 @@ export class DatabasePriorityManager {
 
     if (result.length > 0) {
       console.log(
-        `✅ Released ALB priority ${result[0].priority} for user ${userId} (expires: ${expiryDate.toISOString()})`
+        `✅ Released ALB priority ${result[0].priority} for user ${userId} (expires: ${expiryDate.toISOString()})`,
       );
     } else {
       console.warn(`⚠️  No ALB priority found for user ${userId}`);
@@ -134,14 +134,14 @@ export class DatabasePriorityManager {
       .where(
         and(
           isNotNull(albPriorities.expiresAt),
-          lt(albPriorities.expiresAt, now)
-        )
+          lt(albPriorities.expiresAt, now),
+        ),
       )
       .returning();
 
     if (deleted.length > 0) {
       console.log(
-        `🧹 Cleaned up ${deleted.length} expired ALB priorities (freed ${deleted.map((p) => p.priority).join(", ")})`
+        `🧹 Cleaned up ${deleted.length} expired ALB priorities (freed ${deleted.map((p) => p.priority).join(", ")})`,
       );
     }
 

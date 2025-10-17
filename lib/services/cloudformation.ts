@@ -1,6 +1,6 @@
 /**
  * AWS CloudFormation Service - Production Ready
- * 
+ *
  * Provisions and manages per-user CloudFormation stacks with:
  * - ALB priority management
  * - Retry logic
@@ -75,7 +75,7 @@ export class CloudFormationService {
     // Use production template with monitoring
     this.templatePath = path.join(
       __dirname,
-      "../../infrastructure/cloudformation/per-user-stack.json"
+      "../../infrastructure/cloudformation/per-user-stack.json",
     );
   }
 
@@ -88,7 +88,7 @@ export class CloudFormationService {
 
     if (!accessKeyId || !secretAccessKey) {
       throw new Error(
-        "AWS credentials not configured. Set AWS_ACCESS_KEY_ID and AWS_SECRET_ACCESS_KEY"
+        "AWS credentials not configured. Set AWS_ACCESS_KEY_ID and AWS_SECRET_ACCESS_KEY",
       );
     }
 
@@ -117,7 +117,7 @@ export class CloudFormationService {
   private async withRetry<T>(
     operation: () => Promise<T>,
     maxRetries: number = 3,
-    delayMs: number = 1000
+    delayMs: number = 1000,
   ): Promise<T> {
     for (let attempt = 1; attempt <= maxRetries; attempt++) {
       try {
@@ -133,10 +133,11 @@ export class CloudFormationService {
         }
 
         const backoffDelay = delayMs * Math.pow(2, attempt - 1);
-        const errorMessage = error instanceof Error ? error.message : String(error);
+        const errorMessage =
+          error instanceof Error ? error.message : String(error);
         console.warn(
           `CloudFormation operation failed (attempt ${attempt}/${maxRetries}), retrying in ${backoffDelay}ms...`,
-          errorMessage
+          errorMessage,
         );
         await new Promise((resolve) => setTimeout(resolve, backoffDelay));
       }
@@ -149,7 +150,7 @@ export class CloudFormationService {
    */
   async createUserStack(config: UserStackConfig): Promise<string> {
     this.ensureCredentials();
-    
+
     return this.withRetry(async () => {
       const stackName = this.getStackName(config.userId);
 
@@ -157,7 +158,7 @@ export class CloudFormationService {
 
       // Allocate unique ALB priority
       const albPriority = await dbPriorityManager.allocatePriority(
-        config.userId
+        config.userId,
       );
       console.log(`Allocated ALB priority ${albPriority} for ${config.userId}`);
 
@@ -194,7 +195,10 @@ export class CloudFormationService {
             ParameterKey: "SharedSubnetId",
             ParameterValue: sharedOutputs.subnetId,
           },
-          { ParameterKey: "SharedALBArn", ParameterValue: sharedOutputs.albArn },
+          {
+            ParameterKey: "SharedALBArn",
+            ParameterValue: sharedOutputs.albArn,
+          },
           {
             ParameterKey: "SharedListenerArn",
             ParameterValue: sharedOutputs.listenerArn,
@@ -240,7 +244,7 @@ export class CloudFormationService {
    */
   async waitForStackComplete(
     userId: string,
-    timeoutMinutes: number = 15
+    timeoutMinutes: number = 15,
   ): Promise<StackStatus> {
     const stackName = this.getStackName(userId);
     const startTime = Date.now();
@@ -272,7 +276,7 @@ export class CloudFormationService {
         // Get failure reason from stack events
         const failureReason = stack.StackStatusReason || "Unknown failure";
         throw new Error(
-          `Stack ${stackName} failed with status: ${status}. Reason: ${failureReason}`
+          `Stack ${stackName} failed with status: ${status}. Reason: ${failureReason}`,
         );
       }
 
@@ -282,7 +286,7 @@ export class CloudFormationService {
     }
 
     throw new Error(
-      `Stack ${stackName} creation timeout after ${timeoutMinutes} minutes`
+      `Stack ${stackName} creation timeout after ${timeoutMinutes} minutes`,
     );
   }
 
@@ -291,7 +295,7 @@ export class CloudFormationService {
    */
   async getStack(userId: string): Promise<Stack | null> {
     this.ensureCredentials();
-    
+
     const stackName = this.getStackName(userId);
 
     try {
@@ -341,7 +345,7 @@ export class CloudFormationService {
    */
   async deleteUserStack(userId: string): Promise<void> {
     this.ensureCredentials();
-    
+
     return this.withRetry(async () => {
       const stackName = this.getStackName(userId);
 
@@ -353,7 +357,7 @@ export class CloudFormationService {
 
       await this.client.send(command);
       console.log(`Stack deletion initiated: ${stackName}`);
-      
+
       // Release ALB priority after stack deletion initiated
       // This will set expiry timestamp for cleanup
       try {
@@ -370,7 +374,7 @@ export class CloudFormationService {
    */
   async waitForStackDeletion(
     userId: string,
-    timeoutMinutes: number = 15
+    timeoutMinutes: number = 15,
   ): Promise<void> {
     const stackName = this.getStackName(userId);
     const startTime = Date.now();
@@ -389,18 +393,18 @@ export class CloudFormationService {
       if (status === "DELETE_FAILED") {
         const failureReason = stack.StackStatusReason || "Unknown failure";
         throw new Error(
-          `Stack ${stackName} deletion failed. Reason: ${failureReason}`
+          `Stack ${stackName} deletion failed. Reason: ${failureReason}`,
         );
       }
 
       console.log(
-        `Stack ${stackName} status: ${status}, waiting for deletion...`
+        `Stack ${stackName} status: ${status}, waiting for deletion...`,
       );
       await new Promise((resolve) => setTimeout(resolve, 10000));
     }
 
     throw new Error(
-      `Stack ${stackName} deletion timeout after ${timeoutMinutes} minutes`
+      `Stack ${stackName} deletion timeout after ${timeoutMinutes} minutes`,
     );
   }
 
@@ -428,7 +432,7 @@ export class CloudFormationService {
 
       if (!stack || !stack.Outputs) {
         throw new Error(
-          `Shared infrastructure stack not found: ${sharedStackName}. Deploy it first using deploy-shared.sh`
+          `Shared infrastructure stack not found: ${sharedStackName}. Deploy it first using deploy-shared.sh`,
         );
       }
 
@@ -436,7 +440,7 @@ export class CloudFormationService {
         const output = stack.Outputs!.find((o) => o.OutputKey === key);
         if (!output?.OutputValue) {
           throw new Error(
-            `Missing output ${key} in shared infrastructure stack`
+            `Missing output ${key} in shared infrastructure stack`,
           );
         }
         return output.OutputValue;
@@ -452,10 +456,14 @@ export class CloudFormationService {
         albSecurityGroupId: getOutput("ALBSecurityGroupId"),
       };
     } catch (error: unknown) {
-      const errorMessage = error instanceof Error ? error.message : String(error);
-      console.error("Failed to get shared infrastructure outputs:", errorMessage);
+      const errorMessage =
+        error instanceof Error ? error.message : String(error);
+      console.error(
+        "Failed to get shared infrastructure outputs:",
+        errorMessage,
+      );
       throw new Error(
-        `Cannot provision user stack: shared infrastructure not deployed. Run deploy-shared.sh first.`
+        `Cannot provision user stack: shared infrastructure not deployed. Run deploy-shared.sh first.`,
       );
     }
   }
@@ -475,4 +483,3 @@ export class CloudFormationService {
 
 // Export singleton instance
 export const cloudFormationService = new CloudFormationService();
-

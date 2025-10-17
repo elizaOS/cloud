@@ -153,8 +153,10 @@ async function handleCreateContainer(request: NextRequest) {
     try {
       const { getECRManager } = await import("@/lib/services/ecr");
       const ecrManager = getECRManager();
-      const imageExists = await ecrManager.verifyImageExists(validatedData.ecr_image_uri);
-      
+      const imageExists = await ecrManager.verifyImageExists(
+        validatedData.ecr_image_uri,
+      );
+
       if (!imageExists) {
         return NextResponse.json(
           {
@@ -170,7 +172,9 @@ async function handleCreateContainer(request: NextRequest) {
     } catch (error) {
       console.error("Failed to verify ECR image:", error);
       // Log but don't block deployment - image might exist but verification failed
-      console.warn("Proceeding with deployment despite image verification failure");
+      console.warn(
+        "Proceeding with deployment despite image verification failure",
+      );
     }
 
     // Prepare container data for ECS deployment
@@ -364,7 +368,9 @@ async function deployContainerAsync(
   const { TimeoutError, withTimeout } = await import(
     "@/lib/errors/deployment-errors"
   );
-  const { cloudFormationService } = await import("@/lib/services/cloudformation");
+  const { cloudFormationService } = await import(
+    "@/lib/services/cloudformation"
+  );
 
   try {
     // Update status to building
@@ -373,16 +379,18 @@ async function deployContainerAsync(
     });
 
     // Check if shared infrastructure is deployed
-    const sharedInfraExists = await cloudFormationService.isSharedInfrastructureDeployed();
+    const sharedInfraExists =
+      await cloudFormationService.isSharedInfrastructureDeployed();
     if (!sharedInfraExists) {
       throw new Error(
-        "Shared infrastructure not deployed. Contact support or deploy infrastructure first."
+        "Shared infrastructure not deployed. Contact support or deploy infrastructure first.",
       );
     }
 
     // Create CloudFormation stack for this user
     await updateContainerStatus(containerId, "deploying", {
-      deploymentLog: "Creating CloudFormation stack (1x t3g.small ARM instance)...",
+      deploymentLog:
+        "Creating CloudFormation stack (1x t3g.small ARM instance)...",
     });
 
     await cloudFormationService.createUserStack({
@@ -399,7 +407,10 @@ async function deployContainerAsync(
     const STACK_TIMEOUT_MINUTES = 15;
     await withTimeout(
       async () =>
-        cloudFormationService.waitForStackComplete(containerId, STACK_TIMEOUT_MINUTES),
+        cloudFormationService.waitForStackComplete(
+          containerId,
+          STACK_TIMEOUT_MINUTES,
+        ),
       STACK_TIMEOUT_MINUTES * 60 * 1000,
       "CloudFormation stack creation",
     );
@@ -420,14 +431,11 @@ async function deployContainerAsync(
       deploymentLog: `Deployed successfully! EC2: ${outputs.instancePublicIp}, URL: ${outputs.containerUrl}`,
     });
 
-    console.log(
-      `✅ Container ${containerId} deployed successfully:`,
-      {
-        instance: outputs.instancePublicIp,
-        url: outputs.containerUrl,
-        cluster: outputs.clusterName,
-      }
-    );
+    console.log(`✅ Container ${containerId} deployed successfully:`, {
+      instance: outputs.instancePublicIp,
+      url: outputs.containerUrl,
+      cluster: outputs.clusterName,
+    });
   } catch (error) {
     console.error("Deployment failed:", error);
 
@@ -487,7 +495,9 @@ async function deployContainerAsync(
         // Delete CloudFormation stack first
         try {
           await cloudFormationService.deleteUserStack(containerId);
-          console.log(`✅ CloudFormation stack deletion initiated for ${containerId}`);
+          console.log(
+            `✅ CloudFormation stack deletion initiated for ${containerId}`,
+          );
         } catch (cfError) {
           console.warn(`⚠️  Failed to delete CloudFormation stack:`, cfError);
           // Continue with database cleanup even if CF deletion fails

@@ -8,10 +8,10 @@ export const dynamic = "force-dynamic";
 /**
  * POST /api/v1/containers/credentials
  * Request ECR repository and authentication token for building and pushing Docker images
- * 
+ *
  * This endpoint provides temporary ECR credentials for the CLI to push Docker images.
  * The images are tracked via the containers table using ecr_image_uri.
- * 
+ *
  * Rate limited: 10 requests per minute
  */
 async function handleECRCredentials(request: NextRequest) {
@@ -28,7 +28,7 @@ async function handleECRCredentials(request: NextRequest) {
           success: false,
           error: "Missing required fields: projectId, version",
         },
-        { status: 400 }
+        { status: 400 },
       );
     }
 
@@ -36,7 +36,8 @@ async function handleECRCredentials(request: NextRequest) {
     const ecrManager = getECRManager();
 
     // Generate ECR repository name
-    const repositoryName = `elizaos/${user.organization_id}/${projectId}`.toLowerCase();
+    const repositoryName =
+      `elizaos/${user.organization_id}/${projectId}`.toLowerCase();
 
     // Create or get ECR repository
     const repository = await ecrManager.createRepository(repositoryName);
@@ -70,7 +71,7 @@ async function handleECRCredentials(request: NextRequest) {
             ? error.message
             : "Failed to get ECR credentials",
       },
-      { status: 500 }
+      { status: 500 },
     );
   }
 }
@@ -78,6 +79,5 @@ async function handleECRCredentials(request: NextRequest) {
 // Export rate-limited handler
 export const POST = withRateLimit(
   handleECRCredentials,
-  RateLimitPresets.STRICT
+  RateLimitPresets.STRICT,
 );
-

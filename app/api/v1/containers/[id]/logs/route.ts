@@ -97,7 +97,7 @@ async function getCloudWatchLogs(
   options: {
     limit?: number;
     since?: Date;
-  }
+  },
 ): Promise<
   Array<{
     timestamp: string;
@@ -127,18 +127,18 @@ async function getCloudWatchLogs(
     const { DescribeLogStreamsCommand } = await import(
       "@aws-sdk/client-cloudwatch-logs"
     );
-    
+
     const streamsResponse = await client.send(
       new DescribeLogStreamsCommand({
         logGroupName,
         orderBy: "LastEventTime",
         descending: true,
         limit: 5, // Get up to 5 most recent streams
-      })
+      }),
     );
 
     const logStreams = streamsResponse.logStreams || [];
-    
+
     if (logStreams.length === 0) {
       console.warn(`No log streams found for ${logGroupName}`);
       return [];
@@ -166,12 +166,12 @@ async function getCloudWatchLogs(
           ...events.map((event: OutputLogEvent) => ({
             timestamp: new Date(event.timestamp || 0).toISOString(),
             message: event.message || "",
-          }))
+          })),
         );
       } catch (streamError) {
         console.warn(
           `Failed to fetch logs from stream ${stream.logStreamName}:`,
-          streamError
+          streamError,
         );
         // Continue with other streams
       }
@@ -179,20 +179,21 @@ async function getCloudWatchLogs(
 
     // Sort by timestamp descending and limit
     return allLogs
-      .sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime())
+      .sort(
+        (a, b) =>
+          new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime(),
+      )
       .slice(0, options.limit || 100);
-      
   } catch (error) {
     console.error("Error fetching CloudWatch logs:", error);
-    
+
     // Check if log group doesn't exist
-    if (
-      error instanceof Error &&
-      error.name === "ResourceNotFoundException"
-    ) {
-      console.warn(`Log group ${logGroupName} not found - container may not be deployed yet`);
+    if (error instanceof Error && error.name === "ResourceNotFoundException") {
+      console.warn(
+        `Log group ${logGroupName} not found - container may not be deployed yet`,
+      );
     }
-    
+
     return [];
   }
 }

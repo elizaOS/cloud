@@ -1,7 +1,7 @@
 /**
  * Cron job to cleanup expired ALB priorities
  * Run this hourly to free up priorities from deleted containers
- * 
+ *
  * Vercel Cron: Add to vercel.json:
  * {
  *   "crons": [{
@@ -35,7 +35,7 @@ export async function GET(request: NextRequest) {
           success: false,
           error: "Cron jobs not configured",
         },
-        { status: 503 }
+        { status: 503 },
       );
     }
 
@@ -46,7 +46,7 @@ export async function GET(request: NextRequest) {
           success: false,
           error: "Unauthorized",
         },
-        { status: 401 }
+        { status: 401 },
       );
     }
 
@@ -57,15 +57,14 @@ export async function GET(request: NextRequest) {
     console.log("Stats before cleanup:", statsBefore);
 
     // Run cleanup
-    const deletedCount =
-      await dbPriorityManager.cleanupExpiredPriorities();
+    const deletedCount = await dbPriorityManager.cleanupExpiredPriorities();
 
     // Get stats after cleanup
     const statsAfter = await dbPriorityManager.getStats();
     console.log("Stats after cleanup:", statsAfter);
 
     console.log(
-      `✅ ALB priority cleanup complete: ${deletedCount} priorities freed`
+      `✅ ALB priority cleanup complete: ${deletedCount} priorities freed`,
     );
 
     return NextResponse.json({
@@ -81,11 +80,9 @@ export async function GET(request: NextRequest) {
     return NextResponse.json(
       {
         success: false,
-        error:
-          error instanceof Error ? error.message : "Cleanup job failed",
+        error: error instanceof Error ? error.message : "Cleanup job failed",
       },
-      { status: 500 }
+      { status: 500 },
     );
   }
 }
-

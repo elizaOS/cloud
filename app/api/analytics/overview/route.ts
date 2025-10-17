@@ -17,7 +17,7 @@ async function handleGET(req: NextRequest) {
 
     const data = await analyticsService.getOverview(
       user.organization_id,
-      timeRange
+      timeRange,
     );
 
     return NextResponse.json({
@@ -32,7 +32,7 @@ async function handleGET(req: NextRequest) {
         error:
           error instanceof Error ? error.message : "Failed to fetch analytics",
       },
-      { status: 500 }
+      { status: 500 },
     );
   }
 }

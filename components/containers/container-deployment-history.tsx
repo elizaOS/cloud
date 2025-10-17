@@ -194,7 +194,8 @@ export function ContainerDeploymentHistory({
                           Count: {deployment.metadata.desired_count || 1}
                         </div>
                         <div className="text-muted-foreground">
-                          CPU: {deployment.metadata.cpu || 256} / Mem: {deployment.metadata.memory || 512}MB
+                          CPU: {deployment.metadata.cpu || 256} / Mem:{" "}
+                          {deployment.metadata.memory || 512}MB
                         </div>
                         <div className="text-muted-foreground">
                           Port: {deployment.metadata.port || 3000}
@@ -209,9 +210,15 @@ export function ContainerDeploymentHistory({
                       )}
                       {deployment.metadata.ecs_service_arn && (
                         <div className="text-xs text-muted-foreground font-mono">
-                          ECS: {deployment.metadata.ecs_service_arn.substring(
-                            deployment.metadata.ecs_service_arn.lastIndexOf("/") + 1
-                          ).substring(0, 12)}...
+                          ECS:{" "}
+                          {deployment.metadata.ecs_service_arn
+                            .substring(
+                              deployment.metadata.ecs_service_arn.lastIndexOf(
+                                "/",
+                              ) + 1,
+                            )
+                            .substring(0, 12)}
+                          ...
                         </div>
                       )}
                     </TableCell>

@@ -346,5 +346,4 @@ async function handlePOST(request: NextRequest) {
   }
 }
 
-
 export const POST = withRateLimit(handlePOST, RateLimitPresets.CRITICAL);

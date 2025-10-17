@@ -29,7 +29,7 @@ class RedisCreditEventEmitter {
     if (!process.env.KV_REST_API_URL || !process.env.KV_REST_API_TOKEN) {
       logger.error(
         "[Credit Events Redis] Missing Redis credentials. Real-time credit updates will not work. " +
-        "Set KV_REST_API_URL and KV_REST_API_TOKEN for serverless-compatible real-time updates."
+          "Set KV_REST_API_URL and KV_REST_API_TOKEN for serverless-compatible real-time updates.",
       );
       this.enabled = false;
       return;
@@ -41,7 +41,9 @@ class RedisCreditEventEmitter {
     });
 
     this.enabled = true;
-    logger.info("[Credit Events Redis] Redis Pub/Sub initialized for serverless credit events");
+    logger.info(
+      "[Credit Events Redis] Redis Pub/Sub initialized for serverless credit events",
+    );
   }
 
   public static getInstance(): RedisCreditEventEmitter {
@@ -53,7 +55,9 @@ class RedisCreditEventEmitter {
 
   public async emitCreditUpdate(event: CreditUpdateEvent): Promise<void> {
     if (!this.enabled || !this.redis) {
-      logger.warn("[Credit Events Redis] Redis not enabled, event not published");
+      logger.warn(
+        "[Credit Events Redis] Redis not enabled, event not published",
+      );
       return;
     }
 
@@ -72,7 +76,9 @@ class RedisCreditEventEmitter {
       });
 
       const result = await this.redis.rpush(channel, message);
-      logger.info(`[Credit Events Redis] ✅ Event published successfully, queue length: ${result}`);
+      logger.info(
+        `[Credit Events Redis] ✅ Event published successfully, queue length: ${result}`,
+      );
 
       await this.redis.expire(channel, 300);
       logger.debug(`[Credit Events Redis] Set expiry on ${channel} to 300s`);
@@ -83,14 +89,18 @@ class RedisCreditEventEmitter {
 
   public async subscribeToCreditUpdates(
     organizationId: string,
-    handler: (event: CreditUpdateEvent) => void | Promise<void>
+    handler: (event: CreditUpdateEvent) => void | Promise<void>,
   ): Promise<RedisSubscriptionClient> {
     if (!this.enabled || !this.redis) {
-      logger.warn("[Credit Events Redis] Redis not enabled, subscription not created");
+      logger.warn(
+        "[Credit Events Redis] Redis not enabled, subscription not created",
+      );
       return {
         organizationId,
         unsubscribe: async () => {
-          logger.debug("[Credit Events Redis] No-op unsubscribe (Redis not enabled)");
+          logger.debug(
+            "[Credit Events Redis] No-op unsubscribe (Redis not enabled)",
+          );
         },
       };
     }
@@ -102,18 +112,24 @@ class RedisCreditEventEmitter {
       token: process.env.KV_REST_API_TOKEN!,
     });
 
-    const processMessage = async (message: string | Record<string, unknown>) => {
+    const processMessage = async (
+      message: string | Record<string, unknown>,
+    ) => {
       try {
         // Upstash Redis client auto-parses JSON, so message might already be an object
         let parsed: Record<string, unknown>;
-        if (typeof message === 'string') {
+        if (typeof message === "string") {
           logger.debug(`[Credit Events Redis] Processing string message`);
           parsed = JSON.parse(message);
-        } else if (typeof message === 'object' && message !== null) {
-          logger.debug(`[Credit Events Redis] Processing pre-parsed object message`);
+        } else if (typeof message === "object" && message !== null) {
+          logger.debug(
+            `[Credit Events Redis] Processing pre-parsed object message`,
+          );
           parsed = message;
         } else {
-          logger.error(`[Credit Events Redis] Invalid message type: ${typeof message}`);
+          logger.error(
+            `[Credit Events Redis] Invalid message type: ${typeof message}`,
+          );
           return;
         }
 
@@ -138,8 +154,12 @@ class RedisCreditEventEmitter {
     const pollSubscription = async () => {
       let pollCount = 0;
       const queueKey = `${channel}:queue`;
-      logger.info(`[Credit Events Redis] 🔄 Starting polling loop for ${queueKey}`);
-      logger.info(`[Credit Events Redis] 🎯 Will check: ${queueKey} every 1 second`);
+      logger.info(
+        `[Credit Events Redis] 🔄 Starting polling loop for ${queueKey}`,
+      );
+      logger.info(
+        `[Credit Events Redis] 🎯 Will check: ${queueKey} every 1 second`,
+      );
       logger.info(`[Credit Events Redis] 🔍 isActive=${isActive}`);
 
       while (isActive) {
@@ -147,26 +167,35 @@ class RedisCreditEventEmitter {
           pollCount++;
           // Log every 5th poll to see if it's running
           if (pollCount % 5 === 0) {
-            logger.info(`[Credit Events Redis] 🔄 Poll #${pollCount} checking ${queueKey}...`);
+            logger.info(
+              `[Credit Events Redis] 🔄 Poll #${pollCount} checking ${queueKey}...`,
+            );
           }
 
           const messages = await subscriptionRedis.lrange(queueKey, 0, -1);
 
           if (messages && messages.length > 0) {
-            logger.info(`[Credit Events Redis] 📨 Found ${messages.length} message(s) in ${queueKey}`, {
-              messages: messages.slice(0, 2), // Log first 2 for debugging
-            });
+            logger.info(
+              `[Credit Events Redis] 📨 Found ${messages.length} message(s) in ${queueKey}`,
+              {
+                messages: messages.slice(0, 2), // Log first 2 for debugging
+              },
+            );
 
             for (const message of messages) {
-              logger.debug(`[Credit Events Redis] Processing message from ${queueKey} (type: ${typeof message})`);
+              logger.debug(
+                `[Credit Events Redis] Processing message from ${queueKey} (type: ${typeof message})`,
+              );
               await processMessage(message);
             }
 
-            logger.debug(`[Credit Events Redis] Deleting queue ${queueKey} after processing`);
+            logger.debug(
+              `[Credit Events Redis] Deleting queue ${queueKey} after processing`,
+            );
             await subscriptionRedis.del(queueKey);
           }
 
-          await new Promise(resolve => setTimeout(resolve, 1000));
+          await new Promise((resolve) => setTimeout(resolve, 1000));
         } catch (error) {
           if (isActive) {
             logger.error("[Credit Events Redis] Subscription error:", error);
@@ -175,7 +204,9 @@ class RedisCreditEventEmitter {
         }
       }
 
-      logger.info(`[Credit Events Redis] 🛑 Polling loop ended for ${channel}:queue (total polls: ${pollCount})`);
+      logger.info(
+        `[Credit Events Redis] 🛑 Polling loop ended for ${channel}:queue (total polls: ${pollCount})`,
+      );
     };
 
     pollSubscription();
@@ -198,7 +229,7 @@ class RedisCreditEventEmitter {
     const count = this.activeSubscriptions.get(organizationId) || 0;
     this.activeSubscriptions.set(organizationId, count + 1);
     logger.info(
-      `[Credit Events Redis] Active connections for org ${organizationId}: ${count + 1}`
+      `[Credit Events Redis] Active connections for org ${organizationId}: ${count + 1}`,
     );
   }
 
@@ -212,7 +243,7 @@ class RedisCreditEventEmitter {
     }
 
     logger.info(
-      `[Credit Events Redis] Active connections for org ${organizationId}: ${newCount}`
+      `[Credit Events Redis] Active connections for org ${organizationId}: ${newCount}`,
     );
   }
 
@@ -231,13 +262,16 @@ class RedisCreditEventEmitter {
     organizations: Array<{ id: string; connections: number }>;
   } {
     const organizations = Array.from(this.activeSubscriptions.entries()).map(
-      ([id, connections]) => ({ id, connections })
+      ([id, connections]) => ({ id, connections }),
     );
 
     return {
       enabled: this.enabled,
       totalOrganizations: this.activeSubscriptions.size,
-      totalConnections: organizations.reduce((sum, org) => sum + org.connections, 0),
+      totalConnections: organizations.reduce(
+        (sum, org) => sum + org.connections,
+        0,
+      ),
       organizations,
     };
   }

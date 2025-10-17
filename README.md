@@ -1521,6 +1521,7 @@ elizaos deploy
 ### AWS Infrastructure Setup (for platform maintainers)
 
 **1. AWS Credentials**
+
 ```bash
 # Required environment variables in .env
 AWS_REGION=us-east-1
@@ -1539,11 +1540,13 @@ ECS_LOAD_BALANCER_DNS=your-lb-xxxxx.us-east-1.elb.amazonaws.com
 
 **2. Required AWS Resources**
 Update `.env` with credentials from step 1. Run config checker:
+
 ```bash
 tsx scripts/check-bootstrapper-config.ts
 ```
 
 **4. Deploy**
+
 ```bash
 npm start
 # Then use: elizaos deploy
@@ -1588,6 +1591,7 @@ curl https://elizacloud.ai/api/v1/containers \
 ### Cost & Billing
 
 Deployments are billed based on:
+
 - **Image Upload**: ~500 credits (one-time per image)
 - **Container Deployment**: ~500-1000 credits based on CPU/memory
 - **Running Cost**: Charged per hour based on resources
@@ -1611,27 +1615,32 @@ Deployments are billed based on:
 ### Troubleshooting
 
 **Image not found when deploying**
+
 ```bash
 # Ensure env uses full registry path:
 BOOTSTRAPPER_IMAGE_TAG=registry.cloudflare.com/ACCOUNT_ID/elizaos-bootstrapper:latest
 ```
 
 **Wrangler not found**
+
 ```bash
 npm install -g wrangler
 ```
 
 **Not logged in**
+
 ```bash
 wrangler login
 ```
 
 **Deploy fails**
+
 - Check `tsx scripts/check-bootstrapper-config.ts`
 - Verify all env variables are set
 - Check Cloudflare dashboard for logs
 
 ---
+
 ---
 
 ## 📚 Additional Resources
