@@ -77,41 +77,6 @@ const ENV_VARS = {
     errorMessage: "Must start with 'vercel_blob_'",
   },
 
-  // Cloudflare - Required for container deployments
-  CLOUDFLARE_ACCOUNT_ID: {
-    required: false, // Optional - only needed for container deployments
-    description: "Cloudflare account ID",
-    validate: (value: string) => value.length === 32,
-    errorMessage: "Must be 32 characters",
-  },
-  CLOUDFLARE_API_TOKEN: {
-    required: false,
-    description: "Cloudflare API token",
-  },
-
-  // R2 Storage - Required for artifact storage
-  R2_ACCOUNT_ID: {
-    required: false, // Optional - only needed for artifacts
-    description: "R2 account ID (usually same as Cloudflare account ID)",
-  },
-  R2_ACCESS_KEY_ID: {
-    required: false,
-    description: "R2 access key ID",
-  },
-  R2_SECRET_ACCESS_KEY: {
-    required: false,
-    description: "R2 secret access key",
-  },
-  R2_BUCKET_NAME: {
-    required: false,
-    description: "R2 bucket name",
-    default: "eliza-artifacts",
-  },
-  R2_ENDPOINT: {
-    required: false,
-    description: "R2 endpoint URL",
-  },
-
   // Stripe (optional)
   STRIPE_SECRET_KEY: {
     required: false,
@@ -234,12 +199,13 @@ export function requireValidEnvironment(): void {
 export function isFeatureConfigured(feature: string): boolean {
   switch (feature) {
     case "containers":
+      // Check for AWS ECS/ECR configuration
       return !!(
-        process.env.CLOUDFLARE_ACCOUNT_ID &&
-        process.env.CLOUDFLARE_API_TOKEN &&
-        process.env.R2_ACCOUNT_ID &&
-        process.env.R2_ACCESS_KEY_ID &&
-        process.env.R2_SECRET_ACCESS_KEY
+        process.env.AWS_REGION &&
+        process.env.AWS_ACCESS_KEY_ID &&
+        process.env.AWS_SECRET_ACCESS_KEY &&
+        process.env.ECS_CLUSTER_NAME &&
+        process.env.AWS_VPC_ID
       );
     case "stripe":
       return !!(

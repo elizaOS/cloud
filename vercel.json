@@ -1,0 +1,14 @@
+{
+  "crons": [
+    {
+      "path": "/api/cron/cleanup-priorities",
+      "schedule": "0 * * * *"
+    }
+  ],
+  "buildCommand": "npm run build",
+  "devCommand": "npm run dev",
+  "installCommand": "npm install",
+  "framework": "nextjs",
+  "regions": ["iad1"]
+}
+

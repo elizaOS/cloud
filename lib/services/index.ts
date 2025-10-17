@@ -9,6 +9,10 @@ export * from "./conversations";
 export * from "./characters";
 export * from "./provider-health";
 export * from "./containers";
-export * from "./artifacts";
 export * from "./analytics";
 export * from "./container-quota";
+
+// AWS Infrastructure services
+export * from "./ecr";
+export * from "./cloudformation";
+export * from "./alb-priority-manager";

@@ -228,13 +228,20 @@ export async function monitorAllContainers(
           } as HealthCheckResult;
         }
 
-        const result = await checkContainerHealth(
-          container.cloudflare_url,
-          container.health_check_path || "/health",
-          finalConfig.timeout,
-        );
+    // Check each container
+    for (const container of runningContainers) {
+      if (!container.load_balancer_url) {
+        console.warn("Container has no URL, skipping health check", {
+          containerId: container.id,
+        });
+        continue;
+      }
 
-        result.containerId = container.id;
+      const result = await checkContainerHealth(
+        container.load_balancer_url,
+        container.health_check_path || "/health",
+        finalConfig.timeout,
+      );
 
         // Update database
         await updateContainerHealth(container.id, result);
@@ -247,9 +254,14 @@ export async function monitorAllContainers(
           });
         }
 
-        return result;
-      }),
-    );
+      if (!result.healthy) {
+        console.warn("Container health check failed", {
+          containerId: container.id,
+          url: container.load_balancer_url,
+          error: result.error,
+        });
+      }
+    }
 
     const healthyCount = results.filter((r) => r.healthy).length;
     const unhealthyCount = results.length - healthyCount;
@@ -285,18 +297,18 @@ export async function getContainerHealthStatus(
       .where(eq(containers.id, containerId))
       .limit(1);
 
-    if (results.length === 0 || !results[0].cloudflare_url) {
+    if (results.length === 0 || !results[0].load_balancer_url) {
       return null;
     }
 
     const container = results[0];
 
-    if (!container.cloudflare_url) {
+    if (!container.load_balancer_url) {
       return null;
     }
 
     const result = await checkContainerHealth(
-      container.cloudflare_url,
+      container.load_balancer_url,
       container.health_check_path || "/health",
     );
 
