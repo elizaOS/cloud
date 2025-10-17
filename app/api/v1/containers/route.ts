@@ -15,7 +15,6 @@ import {
   calculateDeploymentCost,
   CONTAINER_LIMITS,
 } from "@/lib/constants/pricing";
-import { getECSManager } from "@/lib/services/ecs";
 import { isFeatureConfigured } from "@/lib/config/env-validator";
 import { withRateLimit, RateLimitPresets } from "@/lib/middleware/rate-limit";
 import { z } from "zod";
@@ -148,6 +147,30 @@ async function handleCreateContainer(request: NextRequest) {
         },
         { status: 400 },
       );
+    }
+
+    // Verify ECR image exists before deployment (prevents expensive failed deployments)
+    try {
+      const { getECRManager } = await import("@/lib/services/ecr");
+      const ecrManager = getECRManager();
+      const imageExists = await ecrManager.verifyImageExists(validatedData.ecr_image_uri);
+      
+      if (!imageExists) {
+        return NextResponse.json(
+          {
+            success: false,
+            error: `ECR image not found: ${validatedData.ecr_image_uri}`,
+            details: {
+              hint: "Ensure the Docker image was successfully pushed to ECR before deploying",
+            },
+          },
+          { status: 404 },
+        );
+      }
+    } catch (error) {
+      console.error("Failed to verify ECR image:", error);
+      // Log but don't block deployment - image might exist but verification failed
+      console.warn("Proceeding with deployment despite image verification failure");
     }
 
     // Prepare container data for ECS deployment
@@ -329,7 +352,7 @@ export const POST = withRateLimit(
 );
 
 /**
- * Background deployment function
+ * Background deployment function - Provisions per-user CloudFormation stack
  * In production, this should be handled by a job queue
  */
 async function deployContainerAsync(
@@ -341,45 +364,69 @@ async function deployContainerAsync(
   const { TimeoutError, withTimeout } = await import(
     "@/lib/errors/deployment-errors"
   );
+  const { cloudFormationService } = await import("@/lib/services/cloudformation");
 
   try {
     // Update status to building
-    await updateContainerStatus(containerId, "building");
+    await updateContainerStatus(containerId, "building", {
+      deploymentLog: "Provisioning dedicated EC2 instance and ECS cluster...",
+    });
 
-    // Initialize ECS manager
-    const ecsManager = getECSManager();
+    // Check if shared infrastructure is deployed
+    const sharedInfraExists = await cloudFormationService.isSharedInfrastructureDeployed();
+    if (!sharedInfraExists) {
+      throw new Error(
+        "Shared infrastructure not deployed. Contact support or deploy infrastructure first."
+      );
+    }
 
-    // Deploy to ECS
-    await updateContainerStatus(containerId, "deploying");
+    // Create CloudFormation stack for this user
+    await updateContainerStatus(containerId, "deploying", {
+      deploymentLog: "Creating CloudFormation stack (1x t3g.small ARM instance)...",
+    });
 
-    // Add timeout to prevent deployments from hanging indefinitely
-    const DEPLOYMENT_TIMEOUT_MS = 15 * 60 * 1000; // 15 minutes (ECS takes longer than Cloudflare)
-    const deployment = await withTimeout(
+    await cloudFormationService.createUserStack({
+      userId: containerId,
+      userEmail: config.name, // Using container name as identifier
+      containerImage: config.ecr_image_uri,
+      containerPort: config.port,
+      containerCpu: config.cpu,
+      containerMemory: config.memory,
+      keyName: process.env.EC2_KEY_NAME,
+    });
+
+    // Wait for stack creation to complete (with timeout)
+    const STACK_TIMEOUT_MINUTES = 15;
+    await withTimeout(
       async () =>
-        ecsManager.deployContainer({
-          name: config.name,
-          ecrImageUri: config.ecr_image_uri,
-          port: config.port,
-          cpu: config.cpu,
-          memory: config.memory,
-          desiredCount: config.desired_count,
-          environmentVars: config.environment_vars,
-          healthCheckPath: config.health_check_path,
-        }),
-      DEPLOYMENT_TIMEOUT_MS,
-      "deployContainer",
+        cloudFormationService.waitForStackComplete(containerId, STACK_TIMEOUT_MINUTES),
+      STACK_TIMEOUT_MINUTES * 60 * 1000,
+      "CloudFormation stack creation",
     );
+
+    // Get stack outputs
+    const outputs = await cloudFormationService.getStackOutputs(containerId);
+
+    if (!outputs) {
+      throw new Error("Failed to get stack outputs");
+    }
 
     // Update container with deployment info
     await updateContainerStatus(containerId, "running", {
-      ecsServiceArn: deployment.serviceArn,
-      ecsTaskDefinitionArn: deployment.taskDefinitionArn,
-      loadBalancerUrl: deployment.loadBalancerUrl,
-      deploymentLog: `Deployed successfully to ${deployment.loadBalancerUrl || "ECS"}`,
+      ecsServiceArn: outputs.serviceArn,
+      ecsTaskDefinitionArn: outputs.taskDefinitionArn,
+      ecsClusterArn: outputs.clusterArn,
+      loadBalancerUrl: outputs.containerUrl,
+      deploymentLog: `Deployed successfully! EC2: ${outputs.instancePublicIp}, URL: ${outputs.containerUrl}`,
     });
 
     console.log(
-      `✅ Container ${containerId} deployed successfully to ${deployment.loadBalancerUrl || deployment.serviceArn}`,
+      `✅ Container ${containerId} deployed successfully:`,
+      {
+        instance: outputs.instancePublicIp,
+        url: outputs.containerUrl,
+        cluster: outputs.clusterName,
+      }
     );
   } catch (error) {
     console.error("Deployment failed:", error);
@@ -434,12 +481,22 @@ async function deployContainerAsync(
       }
     }
 
-    // Attempt rollback with retries
+    // Attempt rollback with retries (delete CloudFormation stack + database record)
     for (let attempt = 1; attempt <= 3; attempt++) {
       try {
+        // Delete CloudFormation stack first
+        try {
+          await cloudFormationService.deleteUserStack(containerId);
+          console.log(`✅ CloudFormation stack deletion initiated for ${containerId}`);
+        } catch (cfError) {
+          console.warn(`⚠️  Failed to delete CloudFormation stack:`, cfError);
+          // Continue with database cleanup even if CF deletion fails
+        }
+
+        // Delete from database
         await deleteContainer(containerId, organizationId);
         console.log(
-          `✅ Rolled back failed container ${containerId} (deleted from database)`,
+          `✅ Rolled back failed container ${containerId} (CloudFormation stack + database)`,
         );
         rollbackSuccessful = true;
         break;

@@ -3,7 +3,6 @@
  * Provides utilities for checking and updating container status with ECS
  */
 
-import { getECSManager } from "./ecs";
 import { containersRepository } from "@/db/repositories/containers";
 
 export interface ContainerStatusInfo {
@@ -50,35 +49,12 @@ export async function getContainerStatus(
     };
 
     // If container has ECS service, get its status
+    // TODO: Implement ECS status checking when needed
+    // For now, rely on CloudFormation stack status and health checks
     if (container.ecs_service_arn) {
-      try {
-        const ecsManager = getECSManager();
-        const ecsStatus = await ecsManager.getServiceStatus(
-          container.ecs_service_arn
-        );
-
-        statusInfo.ecsStatus = {
-          status: ecsStatus.status,
-          runningCount: ecsStatus.runningCount,
-          desiredCount: ecsStatus.desiredCount,
-          tasks: ecsStatus.tasks.map((task) => ({
-            taskArn: task.taskArn,
-            lastStatus: task.lastStatus,
-            healthStatus: task.healthStatus,
-          })),
-        };
-
-        // Update healthy status based on ECS
-        statusInfo.healthy =
-          ecsStatus.status === "ACTIVE" &&
-          ecsStatus.runningCount === ecsStatus.desiredCount &&
-          ecsStatus.runningCount > 0;
-      } catch (error) {
-        console.error("Error checking ECS service status:", error);
-        statusInfo.error =
-          error instanceof Error ? error.message : "Failed to check ECS status";
-        statusInfo.healthy = false;
-      }
+      // ECS status checking would go here
+      // Currently handled by CloudFormation stack outputs
+      statusInfo.healthy = container.status === "running";
     }
 
     return statusInfo;

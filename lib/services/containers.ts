@@ -118,10 +118,6 @@ export const updateContainerStatus = async (
         ecsTaskArn?: string;
         ecsClusterArn?: string;
         loadBalancerUrl?: string;
-        // Legacy Cloudflare fields (for backward compatibility during migration)
-        cloudflareWorkerId?: string;
-        cloudflareContainerId?: string;
-        cloudflareUrl?: string;
       },
 ): Promise<Container> => {
   // Handle both old string format and new options object format

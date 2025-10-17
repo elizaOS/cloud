@@ -65,14 +65,12 @@ export function getMaxContainersForOrg(
 }
 
 /**
- * Calculate total deployment cost
- * Supports both legacy (maxInstances) and new (desiredCount, cpu, memory) parameters
+ * Calculate total deployment cost for AWS ECS containers
  */
 export function calculateDeploymentCost(config: {
   imageSize?: number;
-  maxInstances?: number; // Legacy parameter
-  desiredCount?: number; // New ECS parameter
-  cpu?: number; // CPU units
+  desiredCount?: number;
+  cpu?: number; // CPU units (256 = 0.25 vCPU)
   memory?: number; // Memory in MB
   includeUpload?: boolean;
 }): number {
@@ -82,8 +80,7 @@ export function calculateDeploymentCost(config: {
     totalCost += CONTAINER_PRICING.IMAGE_UPLOAD;
   }
 
-  // Use desiredCount if provided, otherwise fall back to maxInstances
-  const instanceCount = config.desiredCount || config.maxInstances || 1;
+  const instanceCount = config.desiredCount || 1;
 
   // Additional cost for scaling beyond single instance
   if (instanceCount > 1) {
