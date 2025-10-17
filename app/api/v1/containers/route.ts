@@ -15,7 +15,6 @@ import {
   calculateDeploymentCost,
   CONTAINER_LIMITS,
 } from "@/lib/constants/pricing";
-import { getCloudflareService } from "@/lib/services/cloudflare";
 import { isFeatureConfigured } from "@/lib/config/env-validator";
 import { withRateLimit, RateLimitPresets } from "@/lib/middleware/rate-limit";
 import { z } from "zod";
@@ -26,23 +25,16 @@ const createContainerSchema = z.object({
   name: z.string().min(1).max(100),
   description: z.string().optional(),
   port: z.number().int().min(1).max(65535).default(3000),
-  max_instances: z.number().int().min(1).max(10).default(1),
+  desired_count: z.number().int().min(1).max(10).default(1),
+  cpu: z.number().int().default(256), // CPU units (256 = 0.25 vCPU)
+  memory: z.number().int().default(512), // Memory in MB
   environment_vars: z.record(z.string(), z.string()).optional(),
   health_check_path: z.string().default("/health"),
 
-  // Bootstrapper architecture fields
-  use_bootstrapper: z.boolean().optional().default(true), // Default to bootstrapper
-  artifact_url: z.string().optional(), // Presigned download URL (expires in 1 hour)
-  artifact_id: z.string().optional(), // Artifact ID for reference tracking
-  artifact_checksum: z.string().optional(),
-
-  // Optional: Allow custom image tag for self-hosted bootstrapper images
-  image_tag: z
-    .string()
-    .optional()
-    .default(
-      process.env.BOOTSTRAPPER_IMAGE_TAG || "elizaos/bootstrapper:latest",
-    ),
+  // ECR image fields
+  ecr_image_uri: z.string(), // Required: Full ECR image URI with tag
+  ecr_repository_uri: z.string().optional(),
+  image_tag: z.string().optional(),
 });
 
 /**
@@ -85,7 +77,7 @@ async function handleCreateContainer(request: NextRequest) {
         {
           success: false,
           error:
-            "Container deployments are not configured. Please set CLOUDFLARE_ACCOUNT_ID, CLOUDFLARE_API_TOKEN, and R2 credentials.",
+            "Container deployments are not configured. Please set AWS_REGION, AWS_ACCESS_KEY_ID, AWS_SECRET_ACCESS_KEY, and ECS configuration.",
         },
         { status: 503 },
       );
@@ -143,116 +135,72 @@ async function handleCreateContainer(request: NextRequest) {
       }
     }
 
-    // CRITICAL: Validate bootstrapper requirements
-    // If using bootstrapper, artifact_url and artifact_checksum are REQUIRED
-    if (validatedData.use_bootstrapper !== false) {
-      if (!validatedData.artifact_url) {
-        return NextResponse.json(
-          {
-            success: false,
-            error:
-              "artifact_url is required when using bootstrapper deployment (use_bootstrapper=true)",
-            details: {
-              field: "artifact_url",
-              hint: "Upload your artifact first via POST /api/v1/artifacts/upload",
-            },
+    // Validate ECR image URI
+    if (!validatedData.ecr_image_uri) {
+      return NextResponse.json(
+        {
+          success: false,
+          error: "ecr_image_uri is required",
+          details: {
+            hint: "Call POST /api/v1/containers/credentials to get ECR credentials and push your Docker image to ECR first",
           },
-          { status: 400 },
-        );
-      }
-
-      if (!validatedData.artifact_checksum) {
-        return NextResponse.json(
-          {
-            success: false,
-            error:
-              "artifact_checksum is required when using bootstrapper deployment (use_bootstrapper=true)",
-            details: {
-              field: "artifact_checksum",
-              hint: "Provide the SHA256 checksum of your artifact for integrity validation",
-            },
-          },
-          { status: 400 },
-        );
-      }
-
-      // Validate artifact_url format (must be a valid URL)
-      try {
-        const artifactUrlObj = new URL(validatedData.artifact_url);
-        if (!artifactUrlObj.protocol.startsWith("http")) {
-          return NextResponse.json(
-            {
-              success: false,
-              error: `Invalid artifact_url protocol: ${artifactUrlObj.protocol}. Must be http or https.`,
-            },
-            { status: 400 },
-          );
-        }
-      } catch (urlError) {
-        return NextResponse.json(
-          {
-            success: false,
-            error: "artifact_url must be a valid URL",
-            details: {
-              provided: validatedData.artifact_url,
-              error:
-                urlError instanceof Error
-                  ? urlError.message
-                  : "Invalid URL format",
-            },
-          },
-          { status: 400 },
-        );
-      }
-
-      // Validate artifact_checksum format (must be 64-char hex string for SHA256)
-      const checksumPattern = /^[a-f0-9]{64}$/i;
-      if (!checksumPattern.test(validatedData.artifact_checksum)) {
-        return NextResponse.json(
-          {
-            success: false,
-            error:
-              "artifact_checksum must be a valid SHA256 hash (64 hexadecimal characters)",
-            details: {
-              provided: validatedData.artifact_checksum,
-              expected: "64-character hexadecimal string",
-            },
-          },
-          { status: 400 },
-        );
-      }
+        },
+        { status: 400 },
+      );
     }
 
-    // Prepare container data for bootstrapper architecture
+    // Verify ECR image exists before deployment (prevents expensive failed deployments)
+    try {
+      const { getECRManager } = await import("@/lib/services/ecr");
+      const ecrManager = getECRManager();
+      const imageExists = await ecrManager.verifyImageExists(validatedData.ecr_image_uri);
+      
+      if (!imageExists) {
+        return NextResponse.json(
+          {
+            success: false,
+            error: `ECR image not found: ${validatedData.ecr_image_uri}`,
+            details: {
+              hint: "Ensure the Docker image was successfully pushed to ECR before deploying",
+            },
+          },
+          { status: 404 },
+        );
+      }
+    } catch (error) {
+      console.error("Failed to verify ECR image:", error);
+      // Log but don't block deployment - image might exist but verification failed
+      console.warn("Proceeding with deployment despite image verification failure");
+    }
+
+    // Prepare container data for ECS deployment
     const containerData: NewContainer = {
       name: validatedData.name,
       description: validatedData.description,
       organization_id: user.organization_id,
       user_id: user.id,
       api_key_id: apiKey?.id || null,
-      image_tag:
-        validatedData.image_tag ||
-        process.env.BOOTSTRAPPER_IMAGE_TAG ||
-        "elizaos/bootstrapper:latest",
+      ecr_repository_uri: validatedData.ecr_repository_uri,
+      ecr_image_tag: validatedData.image_tag,
+      image_tag: validatedData.image_tag,
       port: validatedData.port,
-      max_instances: validatedData.max_instances,
+      desired_count: validatedData.desired_count,
+      cpu: validatedData.cpu,
+      memory: validatedData.memory,
       environment_vars: validatedData.environment_vars || {},
       health_check_path: validatedData.health_check_path,
       status: "pending",
-      // Store bootstrapper-specific fields in metadata
-      // CRITICAL: Store artifact_id for reliable reference tracking
       metadata: {
-        use_bootstrapper: validatedData.use_bootstrapper !== false,
-        artifact_id: validatedData.artifact_id, // Primary reference for cleanup
-        artifact_url: validatedData.artifact_url, // Presigned URL (expires)
-        artifact_checksum: validatedData.artifact_checksum,
+        ecr_image_uri: validatedData.ecr_image_uri,
       },
     };
 
-    // Calculate deployment cost upfront
+    // Calculate deployment cost upfront (ECS is more expensive than Cloudflare)
     const deploymentCost = calculateDeploymentCost({
-      maxInstances: validatedData.max_instances,
-      includeUpload: false, // Upload is charged separately
+      desiredCount: validatedData.desired_count,
+      cpu: validatedData.cpu,
+      memory: validatedData.memory,
+      includeUpload: false, // Image build/push is charged separately
     });
 
     // CRITICAL: Wrap container creation AND credit deduction in a single transaction
@@ -304,14 +252,16 @@ async function handleCreateContainer(request: NextRequest) {
       user_id: user.id,
       api_key_id: apiKey?.id,
       type: "container_deployment",
-      provider: "cloudflare",
+      provider: "aws_ecs",
       input_cost: deploymentCost,
       output_cost: 0,
       is_successful: true,
       metadata: {
         container_id: container.id,
         container_name: validatedData.name,
-        max_instances: validatedData.max_instances,
+        desired_count: validatedData.desired_count,
+        cpu: validatedData.cpu,
+        memory: validatedData.memory,
         port: validatedData.port,
       },
     });
@@ -402,7 +352,7 @@ export const POST = withRateLimit(
 );
 
 /**
- * Background deployment function
+ * Background deployment function - Provisions per-user CloudFormation stack
  * In production, this should be handled by a job queue
  */
 async function deployContainerAsync(
@@ -414,49 +364,69 @@ async function deployContainerAsync(
   const { TimeoutError, withTimeout } = await import(
     "@/lib/errors/deployment-errors"
   );
+  const { cloudFormationService } = await import("@/lib/services/cloudformation");
 
   try {
     // Update status to building
-    await updateContainerStatus(containerId, "building");
+    await updateContainerStatus(containerId, "building", {
+      deploymentLog: "Provisioning dedicated EC2 instance and ECS cluster...",
+    });
 
-    // Initialize Cloudflare service
-    const cloudflare = getCloudflareService();
+    // Check if shared infrastructure is deployed
+    const sharedInfraExists = await cloudFormationService.isSharedInfrastructureDeployed();
+    if (!sharedInfraExists) {
+      throw new Error(
+        "Shared infrastructure not deployed. Contact support or deploy infrastructure first."
+      );
+    }
 
-    // Deploy to Cloudflare
-    await updateContainerStatus(containerId, "deploying");
+    // Create CloudFormation stack for this user
+    await updateContainerStatus(containerId, "deploying", {
+      deploymentLog: "Creating CloudFormation stack (1x t3g.small ARM instance)...",
+    });
 
-    // Note: Artifact download credentials are generated and injected
-    // by the CloudflareService.deployContainerBinding() method
+    await cloudFormationService.createUserStack({
+      userId: containerId,
+      userEmail: config.name, // Using container name as identifier
+      containerImage: config.ecr_image_uri,
+      containerPort: config.port,
+      containerCpu: config.cpu,
+      containerMemory: config.memory,
+      keyName: process.env.EC2_KEY_NAME,
+    });
 
-    // Add timeout to prevent deployments from hanging indefinitely
-    const DEPLOYMENT_TIMEOUT_MS = 10 * 60 * 1000; // 10 minutes
-    const deployment = await withTimeout(
+    // Wait for stack creation to complete (with timeout)
+    const STACK_TIMEOUT_MINUTES = 15;
+    await withTimeout(
       async () =>
-        cloudflare.deployContainer({
-          name: config.name,
-          imageTag: config.image_tag || "latest",
-          port: config.port,
-          maxInstances: config.max_instances,
-          environmentVars: config.environment_vars,
-          healthCheckPath: config.health_check_path,
-          useBootstrapper: config.use_bootstrapper,
-          artifactUrl: config.artifact_url,
-          artifactChecksum: config.artifact_checksum,
-        }),
-      DEPLOYMENT_TIMEOUT_MS,
-      "deployContainer",
+        cloudFormationService.waitForStackComplete(containerId, STACK_TIMEOUT_MINUTES),
+      STACK_TIMEOUT_MINUTES * 60 * 1000,
+      "CloudFormation stack creation",
     );
+
+    // Get stack outputs
+    const outputs = await cloudFormationService.getStackOutputs(containerId);
+
+    if (!outputs) {
+      throw new Error("Failed to get stack outputs");
+    }
 
     // Update container with deployment info
     await updateContainerStatus(containerId, "running", {
-      cloudflareWorkerId: deployment.workerId,
-      cloudflareContainerId: deployment.containerId,
-      cloudflareUrl: deployment.url,
-      deploymentLog: `Deployed successfully to ${deployment.url}`,
+      ecsServiceArn: outputs.serviceArn,
+      ecsTaskDefinitionArn: outputs.taskDefinitionArn,
+      ecsClusterArn: outputs.clusterArn,
+      loadBalancerUrl: outputs.containerUrl,
+      deploymentLog: `Deployed successfully! EC2: ${outputs.instancePublicIp}, URL: ${outputs.containerUrl}`,
     });
 
     console.log(
-      `✅ Container ${containerId} deployed successfully to ${deployment.url}`,
+      `✅ Container ${containerId} deployed successfully:`,
+      {
+        instance: outputs.instancePublicIp,
+        url: outputs.containerUrl,
+        cluster: outputs.clusterName,
+      }
     );
   } catch (error) {
     console.error("Deployment failed:", error);
@@ -511,12 +481,22 @@ async function deployContainerAsync(
       }
     }
 
-    // Attempt rollback with retries
+    // Attempt rollback with retries (delete CloudFormation stack + database record)
     for (let attempt = 1; attempt <= 3; attempt++) {
       try {
+        // Delete CloudFormation stack first
+        try {
+          await cloudFormationService.deleteUserStack(containerId);
+          console.log(`✅ CloudFormation stack deletion initiated for ${containerId}`);
+        } catch (cfError) {
+          console.warn(`⚠️  Failed to delete CloudFormation stack:`, cfError);
+          // Continue with database cleanup even if CF deletion fails
+        }
+
+        // Delete from database
         await deleteContainer(containerId, organizationId);
         console.log(
-          `✅ Rolled back failed container ${containerId} (deleted from database)`,
+          `✅ Rolled back failed container ${containerId} (CloudFormation stack + database)`,
         );
         rollbackSuccessful = true;
         break;

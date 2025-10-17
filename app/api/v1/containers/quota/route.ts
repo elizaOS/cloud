@@ -28,9 +28,11 @@ export async function GET(request: NextRequest) {
       user.organization.settings as Record<string, unknown> | undefined,
     );
 
-    // Calculate costs
+    // Calculate costs (base container: 1 instance, 256 CPU, 512 MB RAM)
     const baseCost = calculateDeploymentCost({
-      maxInstances: 1,
+      desiredCount: 1,
+      cpu: 256,
+      memory: 512,
       includeUpload: false,
     });
 

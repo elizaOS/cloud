@@ -12,5 +12,5 @@ export * from "./provider-health";
 export * from "./conversations";
 export * from "./user-characters";
 export * from "./containers";
-export * from "./artifacts";
+export * from "./alb-priorities";
 export * from "./relations";
