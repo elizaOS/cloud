@@ -30,7 +30,7 @@ Visit `/dashboard/api-keys` to create an API key.
 | --------------- | ----------- | --------- |
 | Standard API    | 60 requests | 1 minute  |
 | Deployments     | 5 requests  | 5 minutes |
-| Artifact Upload | 10 requests | 1 minute  |
+| ECR Credentials | 10 requests | 1 minute  |
 
 Rate limit headers included in responses:
 
@@ -59,9 +59,12 @@ Get all containers for your organization.
       "id": "uuid",
       "name": "my-agent",
       "status": "running",
-      "cloudflare_url": "https://my-agent-abc123.workers.dev",
+      "load_balancer_url": "http://my-agent-alb-123456.us-east-1.elb.amazonaws.com",
+      "ecs_service_arn": "arn:aws:ecs:us-east-1:123456789012:service/elizaos-cluster/my-agent",
       "port": 3000,
-      "max_instances": 1,
+      "desired_count": 1,
+      "cpu": 256,
+      "memory": 512,
       "created_at": "2025-10-12T10:00:00.000Z"
     }
   ]
@@ -71,8 +74,8 @@ Get all containers for your organization.
 **Status Values:**
 
 - `pending` - Container created, waiting for deployment
-- `building` - Building container image
-- `deploying` - Deploying to Cloudflare
+- `building` - Building Docker image
+- `deploying` - Deploying to AWS ECS
 - `running` - Container is live and healthy
 - `failed` - Deployment or health check failed
 - `stopped` - Container was manually stopped
@@ -84,7 +87,7 @@ Get all containers for your organization.
 
 `POST /api/v1/containers`
 
-Deploy a new container.
+Deploy a new container to AWS ECS.
 
 **Rate Limit:** 5 requests per 5 minutes
 
@@ -95,16 +98,17 @@ Deploy a new container.
   "name": "my-agent",
   "description": "My ElizaOS agent",
   "port": 3000,
-  "max_instances": 1,
+  "desired_count": 1,
+  "cpu": 256,
+  "memory": 512,
+  "ecr_image_uri": "123456789012.dkr.ecr.us-east-1.amazonaws.com/elizaos/my-org/my-project:v1.0.0-1234567890",
+  "ecr_repository_uri": "123456789012.dkr.ecr.us-east-1.amazonaws.com/elizaos/my-org/my-project",
+  "image_tag": "v1.0.0-1234567890",
   "environment_vars": {
     "OPENAI_API_KEY": "sk-...",
     "DATABASE_URL": "postgresql://..."
   },
-  "health_check_path": "/health",
-  "use_bootstrapper": true,
-  "artifact_url": "https://r2-endpoint/bucket/path/artifact.tar.gz",
-  "artifact_checksum": "sha256_hash",
-  "image_tag": "elizaos/bootstrapper:latest"
+  "health_check_path": "/health"
 }
 ```
 
@@ -117,9 +121,15 @@ Deploy a new container.
     "id": "container-uuid",
     "name": "my-agent",
     "status": "pending",
-    ...
+    "ecr_repository_uri": "123456789012.dkr.ecr.us-east-1.amazonaws.com/elizaos/my-org/my-project",
+    "ecr_image_tag": "v1.0.0-1234567890",
+    "port": 3000,
+    "desired_count": 1,
+    "cpu": 256,
+    "memory": 512,
+    "created_at": "2025-10-12T10:00:00.000Z"
   },
-  "message": "Container deployment initiated",
+  "message": "Container deployment initiated. Check status for deployment progress.",
   "creditsDeducted": 1000,
   "creditsRemaining": 9000
 }
@@ -131,8 +141,7 @@ Deploy a new container.
 {
   "success": false,
   "error": "Insufficient credits. Required: 1000, Available: 500",
-  "requiredCredits": 1000,
-  "availableCredits": 500
+  "requiredCredits": 1000
 }
 ```
 
@@ -143,7 +152,7 @@ Status: `402 Payment Required`
 ```json
 {
   "success": false,
-  "error": "Container limit reached...",
+  "error": "Container limit reached (5). Delete unused containers or contact support.",
   "quota": {
     "current": 5,
     "max": 5
@@ -152,6 +161,38 @@ Status: `402 Payment Required`
 ```
 
 Status: `403 Forbidden`
+
+**Field Descriptions:**
+
+- `name` **(required)**: Container name (alphanumeric, hyphens allowed)
+- `description`: Optional description of the container
+- `port`: Port the container listens on (1-65535, default: 3000)
+- `desired_count`: Number of container tasks to run (1-10, default: 1)
+- `cpu`: CPU units (256 = 0.25 vCPU, 512 = 0.5 vCPU, 1024 = 1 vCPU, default: 256)
+- `memory`: Memory in MB (minimum 512, default: 512)
+- `ecr_image_uri` **(required)**: Full ECR image URI with tag
+- `ecr_repository_uri`: ECR repository URI (optional)
+- `image_tag`: Image tag (optional)
+- `environment_vars`: Environment variables (max 50 vars, 32KB per var)
+- `health_check_path`: HTTP path for health checks (default: `/health`)
+
+**Credit Costs:**
+
+- Base deployment: 1000 credits ($10)
+- Additional instances: 50 credits per instance per hour
+- Higher CPU/memory allocations incur additional charges
+
+**Validation Rules:**
+
+- Container name must be unique within your organization
+- Port must be between 1 and 65535
+- Desired count cannot exceed 10
+- CPU must be one of: 256, 512, 1024, 2048, 4096
+- Memory must be at least 512 MB
+- Environment variable names must start with letter/underscore
+- Environment variable values cannot exceed 32KB each
+- Maximum 50 environment variables total
+- ECR image URI must be provided
 
 ---
 
@@ -170,14 +211,17 @@ Get details for a specific container.
     "id": "uuid",
     "name": "my-agent",
     "status": "running",
-    "cloudflare_worker_id": "my-agent",
-    "cloudflare_url": "https://my-agent-abc123.workers.dev",
+    "ecs_service_arn": "arn:aws:ecs:us-east-1:123456789012:service/elizaos-cluster/my-agent",
+    "ecs_task_definition_arn": "arn:aws:ecs:us-east-1:123456789012:task-definition/elizaos-my-agent:1",
+    "load_balancer_url": "http://my-agent-alb-123456.us-east-1.elb.amazonaws.com",
     "port": 3000,
-    "max_instances": 1,
+    "desired_count": 1,
+    "cpu": 256,
+    "memory": 512,
     "environment_vars": { ... },
     "last_deployed_at": "2025-10-12T10:00:00.000Z",
     "last_health_check": "2025-10-12T10:05:00.000Z",
-    "deployment_log": "Deployed successfully...",
+    "deployment_log": "Deployed successfully to ECS...",
     "error_message": null,
     "created_at": "2025-10-12T09:30:00.000Z"
   }
@@ -190,7 +234,7 @@ Get details for a specific container.
 
 `DELETE /api/v1/containers/{id}`
 
-Delete a container deployment.
+Stop and delete a container from ECS.
 
 **Response:**
 
@@ -203,69 +247,11 @@ Delete a container deployment.
 
 ---
 
-### Get Container Health
-
-`GET /api/v1/containers/{id}/health`
-
-Check health status of a container.
-
-**Response:**
-
-```json
-{
-  "success": true,
-  "data": {
-    "containerId": "uuid",
-    "healthy": true,
-    "statusCode": 200,
-    "responseTime": 45,
-    "checkedAt": "2025-10-12T10:10:00.000Z",
-    "containerStatus": "running",
-    "lastHealthCheck": "2025-10-12T10:05:00.000Z"
-  }
-}
-```
-
----
-
-### Get Container Quota
-
-`GET /api/v1/containers/quota`
-
-Get quota and pricing information.
-
-**Response:**
-
-```json
-{
-  "success": true,
-  "data": {
-    "quota": {
-      "max": 10,
-      "current": 3,
-      "remaining": 7
-    },
-    "credits": {
-      "balance": 15000
-    },
-    "pricing": {
-      "totalForNewContainer": 1000,
-      "imageUpload": 500,
-      "containerDeployment": 500
-    }
-  }
-}
-```
-
----
-
-## ECR Image Building
-
-### Request ECR Credentials
+### Get ECR Credentials
 
 `POST /api/v1/containers/credentials`
 
-Request ECR repository and authentication credentials for building and pushing Docker images.
+Request ECR repository and authentication token for building and pushing Docker images.
 
 **Rate Limit:** 10 requests per minute
 
@@ -276,8 +262,8 @@ Request ECR repository and authentication credentials for building and pushing D
   "projectId": "my-project",
   "version": "1.0.0",
   "metadata": {
-    "elizaVersion": "1.6.1",
-    "nodeVersion": "v20.11.0"
+    "elizaVersion": "2.0.0",
+    "nodeVersion": "v20.0.0"
   }
 }
 ```
@@ -288,77 +274,36 @@ Request ECR repository and authentication credentials for building and pushing D
 {
   "success": true,
   "data": {
-    "ecrRepositoryUri": "123456789.dkr.ecr.us-east-1.amazonaws.com/elizaos/org-id/my-project",
-    "ecrImageUri": "123456789.dkr.ecr.us-east-1.amazonaws.com/elizaos/org-id/my-project:1.0.0-1729080000000",
-    "ecrImageTag": "1.0.0-1729080000000",
-    "authToken": "BASE64_ENCODED_TOKEN",
-    "authTokenExpiresAt": "2025-10-16T12:00:00.000Z",
-    "registryEndpoint": "123456789.dkr.ecr.us-east-1.amazonaws.com"
+    "ecrRepositoryUri": "123456789012.dkr.ecr.us-east-1.amazonaws.com/elizaos/my-org/my-project",
+    "ecrImageUri": "123456789012.dkr.ecr.us-east-1.amazonaws.com/elizaos/my-org/my-project:1.0.0-1234567890",
+    "ecrImageTag": "1.0.0-1234567890",
+    "authToken": "base64-encoded-token",
+    "authTokenExpiresAt": "2025-10-12T22:00:00.000Z",
+    "registryEndpoint": "https://123456789012.dkr.ecr.us-east-1.amazonaws.com"
   }
 }
 ```
 
-**Usage:**
-
-The `elizaos deploy` CLI command handles this automatically:
+**Usage with Docker:**
 
 ```bash
-elizaos deploy
-```
+# Decode and login to ECR
+echo $AUTH_TOKEN | base64 --decode | docker login -u AWS --password-stdin $REGISTRY_ENDPOINT
 
-Or manually:
+# Tag your image
+docker tag my-project:latest $ECR_IMAGE_URI
 
-```bash
-# 1. Request ECR credentials
-RESPONSE=$(curl -X POST https://elizacloud.ai/api/v1/containers/credentials \
-  -H "Authorization: Bearer $API_KEY" \
-  -H "Content-Type: application/json" \
-  -d '{"projectId":"my-project","version":"1.0.0"}')
-
-# 2. Extract ECR credentials
-ECR_IMAGE_URI=$(echo $RESPONSE | jq -r '.data.ecrImageUri')
-AUTH_TOKEN=$(echo $RESPONSE | jq -r '.data.authToken')
-REGISTRY=$(echo $RESPONSE | jq -r '.data.registryEndpoint')
-
-# 3. Docker login to ECR
-echo $AUTH_TOKEN | docker login --username AWS --password-stdin $REGISTRY
-
-# 4. Build and push Docker image
-docker build -t $ECR_IMAGE_URI .
+# Push to ECR
 docker push $ECR_IMAGE_URI
-
-# 5. Create container deployment
-curl -X POST https://elizacloud.ai/api/v1/containers \
-  -H "Authorization: Bearer $API_KEY" \
-  -H "Content-Type: application/json" \
-  -d "{
-    \"name\": \"my-project\",
-    \"ecr_image_uri\": \"$ECR_IMAGE_URI\",
-    \"port\": 3000,
-    \"desired_count\": 1,
-    \"cpu\": 256,
-    \"memory\": 512
-  }"
-
-# 3. Upload artifact
-curl -X PUT "$UPLOAD_URL" \
-  -H "Content-Type: application/gzip" \
-  --data-binary @artifact.tar.gz
 ```
 
 ---
 
-### List Artifacts
+### Get Container Quota
 
-`GET /api/v1/artifacts`
+`GET /api/v1/containers/quota`
 
-List artifacts for your organization.
-
-**Query Parameters:**
-
-- `projectId` (optional) - Filter by project
-- `limit` (optional) - Max results (default: 50)
-- `offset` (optional) - Pagination offset
+Get quota information and pricing for your organization.
 
 **Response:**
 
@@ -366,43 +311,18 @@ List artifacts for your organization.
 {
   "success": true,
   "data": {
-    "artifacts": [
-      {
-        "id": "artifact-uuid",
-        "project_id": "my-project",
-        "version": "1.0.0",
-        "size": 10485760,
-        "checksum": "sha256_hash",
-        "created_at": "2025-10-12T10:00:00.000Z"
-      }
-    ],
-    "total": 15,
-    "limit": 50,
-    "offset": 0
-  }
-}
-```
-
----
-
-### Get Artifact Stats
-
-`GET /api/v1/artifacts/stats`
-
-Get artifact statistics for your organization.
-
-**Response:**
-
-```json
-{
-  "success": true,
-  "data": {
-    "totalArtifacts": 25,
-    "totalSizeBytes": 262144000,
-    "totalSizeMB": "250.00",
-    "projectCount": 5,
-    "oldestArtifact": "2025-09-01T00:00:00.000Z",
-    "newestArtifact": "2025-10-12T10:00:00.000Z"
+    "quota": {
+      "max": 5,
+      "current": 2,
+      "remaining": 3
+    },
+    "credits": {
+      "balance": 10000
+    },
+    "pricing": {
+      "totalForNewContainer": 1000,
+      "containerDeployment": 1000
+    }
   }
 }
 ```
@@ -415,7 +335,7 @@ Get artifact statistics for your organization.
 
 `GET /api/v1/api-keys`
 
-List all API keys for your organization.
+Get all API keys for your organization.
 
 **Response:**
 
@@ -425,13 +345,10 @@ List all API keys for your organization.
   "data": [
     {
       "id": "uuid",
-      "name": "Production Deployment Key",
-      "key_prefix": "eliza_abc",
-      "is_active": true,
-      "usage_count": 42,
-      "rate_limit": 1000,
+      "name": "Production Key",
+      "key_preview": "eliza_***************xyz",
+      "last_used_at": "2025-10-12T10:00:00.000Z",
       "expires_at": null,
-      "last_used_at": "2025-10-12T09:00:00.000Z",
       "created_at": "2025-10-01T00:00:00.000Z"
     }
   ]
@@ -452,7 +369,7 @@ Create a new API key.
 {
   "name": "My Deployment Key",
   "description": "Used for CI/CD deployments",
-  "permissions": ["containers:write", "artifacts:write"],
+  "permissions": ["containers:write"],
   "rate_limit": 1000,
   "expires_at": "2026-10-12T00:00:00.000Z"
 }
@@ -466,34 +383,11 @@ Create a new API key.
   "data": {
     "id": "uuid",
     "name": "My Deployment Key",
-    "key": "eliza_abc123def456...",
-    "key_prefix": "eliza_abc",
+    "key": "eliza_full_key_shown_once_only",
+    "key_preview": "eliza_***************xyz",
     "created_at": "2025-10-12T10:00:00.000Z"
   },
-  "warning": "Save this key now - it won't be shown again"
-}
-```
-
-**⚠️ Important:** The full `key` is only returned once. Save it securely.
-
----
-
-### Regenerate API Key
-
-`POST /api/v1/api-keys/{id}/regenerate`
-
-Regenerate an API key (invalidates old key).
-
-**Response:**
-
-```json
-{
-  "success": true,
-  "data": {
-    "id": "uuid",
-    "key": "eliza_new_key_here",
-    "key_prefix": "eliza_new"
-  }
+  "warning": "Store this key securely. It will not be shown again."
 }
 ```
 
@@ -503,118 +397,26 @@ Regenerate an API key (invalidates old key).
 
 `DELETE /api/v1/api-keys/{id}`
 
-Delete an API key.
+Revoke and delete an API key.
 
 **Response:**
 
 ```json
 {
   "success": true,
-  "message": "API key deleted"
+  "message": "API key deleted successfully"
 }
 ```
 
 ---
 
-## Error Responses
+## User & Organization
 
-All errors follow this format:
+### Get Current User
 
-```json
-{
-  "success": false,
-  "error": "Error message",
-  "code": "ERROR_CODE",
-  "details": { ... }
-}
-```
+`GET /api/v1/user`
 
-### Common Error Codes
-
-| Code                     | Status | Description                       |
-| ------------------------ | ------ | --------------------------------- |
-| `UNAUTHORIZED`           | 401    | Invalid or missing authentication |
-| `FORBIDDEN`              | 403    | Insufficient permissions          |
-| `NOT_FOUND`              | 404    | Resource not found                |
-| `VALIDATION_ERROR`       | 400    | Invalid request data              |
-| `QUOTA_EXCEEDED`         | 403    | Container quota limit reached     |
-| `INSUFFICIENT_CREDITS`   | 402    | Not enough credits                |
-| `RATE_LIMIT_EXCEEDED`    | 429    | Too many requests                 |
-| `CLOUDFLARE_API_ERROR`   | 502    | Cloudflare API failure            |
-| `ARTIFACT_UPLOAD_FAILED` | 500    | Artifact upload failed            |
-| `DEPLOYMENT_FAILED`      | 500    | Container deployment failed       |
-| `TIMEOUT`                | 504    | Operation timed out               |
-
-### Error Handling Example
-
-```typescript
-try {
-  const response = await fetch("https://api.eliza.cloud/api/v1/containers", {
-    method: "POST",
-    headers: {
-      Authorization: `Bearer ${apiKey}`,
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify(containerConfig),
-  });
-
-  const data = await response.json();
-
-  if (!data.success) {
-    // Handle specific error codes
-    switch (data.code) {
-      case "INSUFFICIENT_CREDITS":
-        console.error("Buy more credits:", data.details);
-        break;
-      case "QUOTA_EXCEEDED":
-        console.error("Delete unused containers:", data.quota);
-        break;
-      default:
-        console.error("Error:", data.error);
-    }
-    return;
-  }
-
-  // Success
-  console.log("Container created:", data.data.id);
-} catch (error) {
-  console.error("Network error:", error);
-}
-```
-
-## Webhooks
-
-### Stripe Webhook
-
-`POST /api/stripe/webhook`
-
-Handles Stripe payment webhooks.
-
-**Headers:**
-
-- `stripe-signature` - Webhook signature for verification
-
-**Events Handled:**
-
-- `payment_intent.succeeded` - Credits added to account
-- `payment_intent.payment_failed` - Payment failed
-
----
-
-## Cron Endpoints
-
-### Cleanup Artifacts
-
-`POST /api/v1/cron/cleanup-artifacts`
-
-Cleans up old artifacts based on retention policy.
-
-**Authentication:** Requires `CRON_SECRET` in Authorization header
-
-```bash
-curl -X POST https://your-app.com/api/v1/cron/cleanup-artifacts \
-  -H "Authorization: Bearer $CRON_SECRET"
-```
+Get information about the authenticated user.
 
 **Response:**
 
@@ -622,201 +424,136 @@ curl -X POST https://your-app.com/api/v1/cron/cleanup-artifacts \
 {
   "success": true,
   "data": {
-    "deleted": 15,
-    "errors": 0,
-    "timestamp": "2025-10-12T10:00:00.000Z"
+    "id": "uuid",
+    "email": "user@example.com",
+    "organization_id": "org-uuid",
+    "created_at": "2025-09-01T00:00:00.000Z"
   }
 }
 ```
 
 ---
 
-## Models
+## Error Codes
 
-### List Available Models
-
-`GET /api/v1/models`
-
-Get list of available AI models.
-
-**Public endpoint** - No authentication required
-
-**Response:**
-
-```json
-{
-  "models": [
-    {
-      "id": "gpt-4o",
-      "name": "GPT-4 Optimized",
-      "provider": "openai",
-      "capabilities": ["chat", "completion"]
-    },
-    {
-      "id": "claude-3-sonnet",
-      "name": "Claude 3 Sonnet",
-      "provider": "anthropic",
-      "capabilities": ["chat"]
-    }
-  ]
-}
-```
+| Code                     | Status | Description                       |
+| ------------------------ | ------ | --------------------------------- |
+| `UNAUTHORIZED`           | 401    | Missing or invalid API key        |
+| `FORBIDDEN`              | 403    | Access denied                     |
+| `NOT_FOUND`              | 404    | Resource not found                |
+| `VALIDATION_ERROR`       | 400    | Invalid request data              |
+| `QUOTA_EXCEEDED`         | 403    | Container limit reached           |
+| `INSUFFICIENT_CREDITS`   | 402    | Not enough credits                |
+| `RATE_LIMIT_EXCEEDED`    | 429    | Too many requests                 |
+| `AWS_API_ERROR`          | 502    | AWS API failure                   |
+| `DEPLOYMENT_FAILED`      | 500    | Container deployment failed       |
+| `TIMEOUT`                | 504    | Operation timed out               |
 
 ---
 
-## Rate Limiting Response
+## Usage Examples
 
-When rate limited, you'll receive:
-
-```json
-{
-  "success": false,
-  "error": "Too many requests",
-  "retryAfter": 60
-}
-```
-
-**Headers:**
-
-```
-X-RateLimit-Limit: 10
-X-RateLimit-Remaining: 0
-X-RateLimit-Reset: 2025-10-12T10:05:00.000Z
-Retry-After: 60
-```
-
-**Handling:**
-
-```typescript
-if (response.status === 429) {
-  const retryAfter = parseInt(response.headers.get("Retry-After") || "60");
-  console.log(`Rate limited. Retry after ${retryAfter} seconds`);
-  await new Promise((resolve) => setTimeout(resolve, retryAfter * 1000));
-  // Retry request
-}
-```
-
----
-
-## SDKs and Examples
-
-### JavaScript/TypeScript
-
-```typescript
-import { ElizaCloudClient } from "@elizaos/cloud-client";
-
-const client = new ElizaCloudClient({
-  apiKey: process.env.ELIZAOS_API_KEY,
-  baseUrl: "https://eliza.cloud",
-});
-
-// Deploy container
-const container = await client.containers.create({
-  name: "my-agent",
-  artifactUrl: "...",
-  port: 3000,
-});
-
-// Check health
-const health = await client.containers.getHealth(container.id);
-console.log("Container healthy:", health.healthy);
-```
-
-### cURL Examples
+### Deploy via CLI
 
 ```bash
-# Set API key
-export API_KEY="eliza_your_key_here"
-export BASE_URL="https://eliza.cloud/api/v1"
+# Set your API key
+export ELIZAOS_API_KEY="eliza_your_api_key_here"
 
-# List containers
-curl "$BASE_URL/containers" \
-  -H "Authorization: Bearer $API_KEY"
+# Deploy your project
+elizaos deploy --name my-agent --port 3000
+```
 
-# Create container
-curl -X POST "$BASE_URL/containers" \
+### Deploy via API (Full Flow)
+
+```bash
+# 1. Request ECR credentials
+curl -X POST "$BASE_URL/api/v1/containers/credentials" \
+  -H "Authorization: Bearer $API_KEY" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "projectId": "my-project",
+    "version": "1.0.0"
+  }'
+
+# 2. Build and push Docker image to ECR
+docker build -t my-project:1.0.0 .
+docker tag my-project:1.0.0 $ECR_IMAGE_URI
+echo $AUTH_TOKEN | base64 --decode | docker login -u AWS --password-stdin $REGISTRY_ENDPOINT
+docker push $ECR_IMAGE_URI
+
+# 3. Create container
+curl -X POST "$BASE_URL/api/v1/containers" \
   -H "Authorization: Bearer $API_KEY" \
   -H "Content-Type: application/json" \
   -d '{
     "name": "my-agent",
     "port": 3000,
-    "max_instances": 1,
-    "artifact_url": "...",
-    "use_bootstrapper": true
+    "desired_count": 1,
+    "cpu": 256,
+    "memory": 512,
+    "ecr_image_uri": "'$ECR_IMAGE_URI'",
+    "environment_vars": {
+      "NODE_ENV": "production"
+    }
   }'
 
-# Check quota
-curl "$BASE_URL/containers/quota" \
+# 4. Check deployment status
+curl -X GET "$BASE_URL/api/v1/containers/$CONTAINER_ID" \
   -H "Authorization: Bearer $API_KEY"
-
-# Get container health
-curl "$BASE_URL/containers/{id}/health" \
-  -H "Authorization: Bearer $API_KEY"
-
-# Upload artifact (2-step process)
-# Step 1: Request upload URL
-curl -X POST "$BASE_URL/artifacts/upload" \
-  -H "Authorization: Bearer $API_KEY" \
-  -H "Content-Type: application/json" \
-  -d '{
-    "projectId": "my-project",
-    "version": "1.0.0",
-    "checksum": "sha256_hash",
-    "size": 1048576
-  }' > response.json
-
-# Step 2: Upload to presigned URL
-UPLOAD_URL=$(jq -r '.data.upload.url' response.json)
-curl -X PUT "$UPLOAD_URL" \
-  -H "Content-Type: application/gzip" \
-  --data-binary @artifact.tar.gz
 ```
 
 ---
 
-## Pagination
+## SDK Examples
 
-Endpoints that return lists support pagination:
+### TypeScript/JavaScript
 
-**Query Parameters:**
+```typescript
+import { CloudApiClient } from '@elizaos/api-client';
 
-- `limit` - Items per page (default: 50, max: 100)
-- `offset` - Number of items to skip
+const client = new CloudApiClient({
+  apiKey: process.env.ELIZAOS_API_KEY,
+  apiUrl: 'https://elizacloud.ai'
+});
 
-**Response:**
+// Request ECR credentials
+const credentials = await client.requestImageBuild({
+  projectId: 'my-project',
+  version: '1.0.0'
+});
 
-```json
-{
-  "success": true,
-  "data": [...],
-  "pagination": {
-    "total": 150,
-    "limit": 50,
-    "offset": 0,
-    "hasMore": true
-  }
-}
+// Create container
+const container = await client.createContainer({
+  name: 'my-agent',
+  ecr_image_uri: credentials.ecrImageUri,
+  port: 3000,
+  desired_count: 1,
+  cpu: 256,
+  memory: 512
+});
+
+// Wait for deployment
+const deployment = await client.waitForDeployment(container.id);
+console.log(`Deployed to: ${deployment.load_balancer_url}`);
 ```
 
 ---
 
-## Versioning
+## Best Practices
 
-Current API version: **v1**
-
-Future versions will be available at `/api/v2`, `/api/v3`, etc.
-
-Deprecated endpoints will:
-
-1. Be documented as deprecated for 90 days
-2. Return `Deprecation` header with sunset date
-3. Be removed after sunset date
+1. **Use API Keys for Automation**: Create dedicated API keys for CI/CD with scoped permissions
+2. **Set Expiration Dates**: Configure expiration dates for temporary keys
+3. **Monitor Credits**: Set up alerts for low credit balance
+4. **Use Health Checks**: Implement `/health` endpoints in your containers
+5. **Environment Variables**: Never hardcode secrets - use environment variables
+6. **Resource Sizing**: Start with minimum resources and scale up as needed
+7. **Multiple Instances**: Use `desired_count > 1` for high availability
 
 ---
 
 ## Support
 
-- **Documentation**: https://docs.eliza.cloud
-- **Status Page**: https://status.eliza.cloud
-- **Support**: support@eliza.cloud
-- **Discord**: https://discord.gg/elizaos
+For issues or questions:
+- Documentation: https://elizacloud.ai/docs
+- Support: support@elizacloud.ai
+- Status Page: https://status.elizacloud.ai

@@ -88,7 +88,7 @@ Eliza Cloud V2 is a full-stack AI-as-a-Service platform that combines:
   - Deploy ElizaOS projects via `elizaos deploy` CLI
   - Docker-based deployments to AWS ECS (Elastic Container Service)
   - ECR (Elastic Container Registry) for Docker image storage
-  - AWS Fargate serverless container runtime
+  - EC2-based ECS (t3g.small ARM instances, 1 per user)
   - Health checks and monitoring via ECS
 
 ### 📊 Management & Analytics
@@ -204,10 +204,10 @@ eliza-cloud-v2/
 │   │   ├── usage.ts         # Usage tracking
 │   │   └── ...
 │   ├── services/            # Business logic services
-│   │   ├── cloudflare.ts    # Cloudflare Workers API
-│   │   ├── r2-credentials.ts  # R2 temporary credentials
+│   │   ├── ecr.ts           # AWS ECR integration
+│   │   ├── ecs.ts           # AWS ECS deployment
 │   │   ├── health-monitor.ts  # Provider health checks
-│   │   └── artifact-cleanup.ts  # Cleanup cron jobs
+│   │   └── containers.ts    # Container management
 │   ├── eliza/               # ElizaOS integration
 │   │   ├── agent-runtime.ts # AgentRuntime wrapper
 │   │   ├── agent.ts         # Agent management
@@ -225,16 +225,12 @@ eliza-cloud-v2/
 │   ├── rate-limiter.ts      # Rate limiting
 │   ├── utils.ts             # General utilities
 │   └── types.ts             # Shared TypeScript types
-├── bootstrapper/            # Container bootstrapper
-│   ├── Dockerfile           # Bootstrapper image
-│   ├── bootstrap.sh         # Artifact download and run
-│   ├── build.sh             # Build script
-│   └── README.md            # Bootstrapper docs
 ├── docs/                    # Detailed documentation
-│   ├── API_REFERENCE.md
-│   ├── DEPLOYMENT.md
-│   ├── STRIPE_SETUP.md
-│   ├── R2_CLOUDFLARE_CREDENTIALS.md
+│   ├── API_REFERENCE.md    # Complete API reference
+│   ├── DEPLOYMENT.md       # Deployment guide
+│   ├── DEPLOYMENT_TROUBLESHOOTING.md  # Troubleshooting
+│   ├── STRIPE_SETUP.md     # Stripe integration
+│   ├── ENV_VARIABLES.md    # Environment configuration
 │   └── ...
 ├── scripts/                 # Utility scripts
 │   ├── seed-credit-packs.ts
@@ -258,7 +254,7 @@ graph TD
     G -->|AI Chat| H[AI SDK Gateway]
     G -->|Image/Video| I[Gemini/Fal.ai]
     G -->|Data| J[Drizzle ORM]
-    G -->|Container| K[Cloudflare API]
+    G -->|Container| K[AWS ECS/ECR]
     G -->|ElizaOS| L[AgentRuntime]
     H --> M[Response]
     I --> M
@@ -276,7 +272,7 @@ The platform uses two separate database schemas:
    - Organizations, users, authentication
    - API keys, usage tracking
    - Credit system, billing, Stripe integration
-   - Containers, artifacts, deployments
+   - Containers, ECS/ECR deployments
    - Generations (image/video records)
    - Conversations (platform-level chat)
 
@@ -323,8 +319,8 @@ The platform uses two separate database schemas:
 ### Storage & Infrastructure
 
 - **Vercel Blob 2.0.0**: Media storage (images/videos)
-- **@aws-sdk/client-s3 3.908.0**: R2 artifact storage
-- **@cloudflare/containers 0.0.28**: Cloudflare Workers deployment
+- **@aws-sdk/client-ecr 3.x**: AWS Elastic Container Registry
+- **@aws-sdk/client-ecs 3.x**: AWS Elastic Container Service deployment
 
 ### Styling & UI
 
@@ -639,7 +635,7 @@ BLOB_READ_WRITE_TOKEN=vercel_blob_rw_your_token
 - Deploy ElizaOS projects via `elizaos deploy` CLI
 - Docker-based deployments to AWS ECS (Elastic Container Service)
 - ECR (Elastic Container Registry) for Docker image storage
-- AWS Fargate serverless container runtime
+- EC2-based ECS (t3g.small ARM instances, 1 per user, no auto-scaling)
 - Health checks and monitoring via ECS
 - Quota enforcement (prevents race conditions)
 - Environment variable injection
@@ -653,8 +649,8 @@ BLOB_READ_WRITE_TOKEN=vercel_blob_rw_your_token
 4. CLI builds Docker image locally using project's Dockerfile (or generates one)
 5. CLI pushes Docker image to ECR
 6. CLI creates container deployment via cloud API with ECR image URI
-7. Cloud deploys container to AWS ECS Fargate
-8. Container accessible via AWS Load Balancer URL
+7. Cloud deploys container to dedicated EC2 instance with ECS
+8. Container accessible via AWS Load Balancer URL (https://{userId}.elizacloud.ai)
 9. Credits automatically deducted based on container resources (CPU/memory)
 
 **Deployment Architecture**:
@@ -679,7 +675,7 @@ BLOB_READ_WRITE_TOKEN=vercel_blob_rw_your_token
        │ 3. Push image to ECR
        ▼
 ┌──────────────┐     4. Deploy container     ┌──────────────┐
-│     ECR      │ ─────────────────────────▶ │  ECS Fargate │
+│     ECR      │ ─────────────────────────▶ │  EC2 + ECS   │
 │  (Registry)  │                              │  (Runtime)   │
 └──────────────┘                              └──────┬───────┘
                                                       │
@@ -711,14 +707,14 @@ Authorization: Bearer eliza_your_api_key
   "environment_vars": {
     "NODE_ENV": "production"
   },
-  "artifact_url": "https://r2.../artifact.tar.gz",
-  "artifact_checksum": "sha256:abcd..."
+  "ecr_image_uri": "123456789012.dkr.ecr.us-east-1.amazonaws.com/elizaos/my-project:latest"
 }
 ```
 
 **Requirements**:
 
-- Cloudflare account with Workers
+- AWS account with ECS/EC2 access
+- ElizaOS Cloud account with API key
 - R2 storage configured
 - Environment variables set (see `docs/DEPLOYMENT.md`)
 
@@ -961,10 +957,9 @@ See `docs/STRIPE_SETUP.md` for detailed Stripe configuration.
   - environment_vars, max_instances, port
   - Unique constraint on (organization_id, name)
 
-- **artifacts**: Deployment artifact storage
-  - r2_key, r2_url (Cloudflare R2)
-  - checksum, size, version
-  - Unique constraint on (organization_id, project_id, version)
+- **ECR Images**: Docker images stored in AWS ECR
+  - Tracked via ecr_repository_uri and ecr_image_tag in containers table
+  - Images are built and pushed via CLI before deployment
 
 - **conversations**: Platform-level chat history
   - title, model, settings
@@ -1191,8 +1186,11 @@ POST /api/v1/containers
 {
   "name": "my-agent",
   "port": 3000,
-  "artifact_url": "https://...",
-  "environment_vars": {...}
+  "ecr_image_uri": "123456789012.dkr.ecr.us-east-1.amazonaws.com/elizaos/my-project:v1.0.0",
+  "environment_vars": {...},
+  "cpu": 256,
+  "memory": 512,
+  "desired_count": 1
 }
 
 # Get Container
@@ -1205,23 +1203,20 @@ DELETE /api/v1/containers/{id}
 GET /api/v1/containers/quota
 ```
 
-#### Artifacts
+#### ECR Credentials
 
 ```bash
-# Upload Artifact
-POST /api/v1/artifacts/upload
+# Get ECR credentials for pushing Docker images
+POST /api/v1/containers/credentials
 {
-  "project_id": "my-project",
-  "version": "1.0.0",
-  "checksum": "sha256:...",
-  "size": 1048576
+  "projectId": "my-project",
+  "version": "1.0.0"
 }
 
-# List Artifacts
-GET /api/v1/artifacts?project_id=my-project
-
-# Get Stats
-GET /api/v1/artifacts/stats
+# Response includes:
+# - ecrRepositoryUri: Where to push the image
+# - authToken: Docker login credentials
+# - ecrImageUri: Full image URI to use in deployment
 ```
 
 #### API Keys
@@ -1434,19 +1429,17 @@ DATABASE_URL=postgres://prod-url npm run db:migrate
 
 See `docs/DEPLOYMENT_TROUBLESHOOTING.md` for detailed troubleshooting.
 
-#### 5. Artifact Upload Fails
+#### 5. Docker Image Push Fails
 
-**Error**: "Failed to upload artifact" or "Artifact upload timeout"
+**Error**: "Failed to push image to ECR" or "Authentication failed"
 
 **Solutions**:
 
-- Check artifact size (max 500MB)
-- Verify R2 credentials with AWS CLI:
-  ```bash
-  aws s3 ls --endpoint-url=$R2_ENDPOINT s3://eliza-artifacts/
-  ```
-- Check network allows S3 API calls
-- Increase timeout for large files
+- Verify Docker is running: `docker info`
+- Check AWS ECR credentials are valid
+- Ensure image was built successfully: `docker images`
+- Verify network connectivity to ECR
+- Try re-authenticating: Request new credentials from `/api/v1/containers/credentials`
 
 #### 6. Image/Video Generation Fails
 
@@ -1522,8 +1515,8 @@ elizaos deploy
 2. **CLI** builds Docker image locally
 3. **CLI** pushes image to AWS ECR (Elastic Container Registry)
 4. **CLI** creates container deployment via cloud API
-5. **Cloud** deploys to AWS ECS Fargate
-6. **Agent** runs on AWS with automatic scaling and health checks
+5. **Cloud** deploys to dedicated EC2 instance (t3g.small ARM) with ECS
+6. **Agent** runs on AWS with health checks and monitoring
 
 ### AWS Infrastructure Setup (for platform maintainers)
 

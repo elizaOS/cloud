@@ -223,6 +223,35 @@ export class ECRManager {
   static getRegistryHostname(repositoryUri: string): string {
     return repositoryUri.split("/")[0];
   }
+
+  /**
+   * Verify that an ECR image exists before attempting deployment
+   * Critical for preventing failed deployments due to missing images
+   */
+  async verifyImageExists(imageUri: string): Promise<boolean> {
+    try {
+      // Parse image URI: registry/repository:tag
+      const [repoWithRegistry, tag] = imageUri.split(":");
+      const repositoryName = repoWithRegistry.split("/").slice(1).join("/");
+      
+      if (!tag) {
+        throw new Error("Image URI must include a tag");
+      }
+
+      const command = new DescribeImagesCommand({
+        repositoryName,
+        imageIds: [{ imageTag: tag }],
+      });
+
+      const response = await this.client.send(command);
+      return !!(response.imageDetails && response.imageDetails.length > 0);
+    } catch (error) {
+      if (error instanceof Error && error.name === "ImageNotFoundException") {
+        return false;
+      }
+      throw error;
+    }
+  }
 }
 
 /**

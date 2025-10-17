@@ -212,7 +212,7 @@ export function ContainersTable({ containers }: ContainersTableProps) {
             <AlertDialogTitle>Delete Container</AlertDialogTitle>
             <AlertDialogDescription>
               Are you sure you want to delete this container? This action cannot
-              be undone and will remove the container from Cloudflare.
+              be undone and will remove the container from AWS ECS.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
