@@ -10,6 +10,7 @@ import {
   DescribeRepositoriesCommand,
   DescribeImagesCommand,
   BatchDeleteImageCommand,
+  PutLifecyclePolicyCommand,
   type Repository,
   type ImageIdentifier,
   type AuthorizationData,
@@ -105,11 +106,77 @@ export class ECRManager {
     const repository = createResponse.repository!;
 
     console.log("Repository created:", repository.repositoryUri);
+    
+    // Set lifecycle policy to prevent storage bloat
+    try {
+      await this.setLifecyclePolicy(repositoryName);
+    } catch (error) {
+      console.warn(`Failed to set lifecycle policy (non-fatal):`, error);
+      // Don't fail the operation - lifecycle policy can be set later
+    }
+    
     return {
       repositoryUri: repository.repositoryUri!,
       repositoryArn: repository.repositoryArn!,
       registryId: repository.registryId!,
     };
+  }
+
+  /**
+   * Set lifecycle policy to automatically clean up old images
+   * Keeps last 10 images per repository to prevent storage costs from exploding
+   */
+  async setLifecyclePolicy(repositoryName: string): Promise<void> {
+    const policy = {
+      rules: [
+        {
+          rulePriority: 1,
+          description: "Keep last 10 tagged images only",
+          selection: {
+            tagStatus: "tagged",
+            tagPrefixList: ["v", "latest", "prod", "staging"],
+            countType: "imageCountMoreThan",
+            countNumber: 10,
+          },
+          action: {
+            type: "expire",
+          },
+        },
+        {
+          rulePriority: 2,
+          description: "Delete untagged images after 7 days",
+          selection: {
+            tagStatus: "untagged",
+            countType: "sinceImagePushed",
+            countUnit: "days",
+            countNumber: 7,
+          },
+          action: {
+            type: "expire",
+          },
+        },
+        {
+          rulePriority: 3,
+          description: "Keep last 3 images for all other tags",
+          selection: {
+            tagStatus: "any",
+            countType: "imageCountMoreThan",
+            countNumber: 3,
+          },
+          action: {
+            type: "expire",
+          },
+        },
+      ],
+    };
+
+    const command = new PutLifecyclePolicyCommand({
+      repositoryName,
+      lifecyclePolicyText: JSON.stringify(policy),
+    });
+
+    await this.client.send(command);
+    console.log(`✅ ECR lifecycle policy set for repository: ${repositoryName}`);
   }
 
   /**
