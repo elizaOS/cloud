@@ -2,8 +2,6 @@
 
 **Production-ready container deployment infrastructure using AWS CloudFormation, EC2, and ECS.**
 
-**Status**: ✅ **Production Ready** | **Version**: 2.0 | **Last Updated**: January 17, 2025
-
 ---
 
 ## 🎯 Core Principle
@@ -227,12 +225,12 @@ elizaos deploy --name test-container
 ### CloudFormation Templates (`cloudformation/`)
 
 **Production Templates**:
-- `shared-infrastructure.json` (350 lines)
+- `shared-infrastructure.json`
   - VPC, ALB, IAM roles
   - Deploy once per environment
   - ~$21-36/month
 
-- `per-user-stack.json` (545 lines) ✅ **Enhanced with monitoring**
+- `per-user-stack.json` ✅ **Enhanced with monitoring**
   - EC2 instance (t3g.small ARM)
   - ECS cluster + service
   - Target group + ALB listener rule
@@ -250,19 +248,19 @@ elizaos deploy --name test-container
 ### Services (`../lib/services/`)
 
 **AWS Integration**:
-- `cloudformation.ts` (479 lines)
+- `cloudformation.ts`
   - Stack creation/deletion/monitoring
   - Retry logic with exponential backoff
   - Error handling and validation
   - Shared infrastructure output retrieval
 
-- `alb-priority-manager.ts` (220 lines) ✅ **Simplified**
+- `alb-priority-manager.ts` ✅ **Simplified**
   - Sequential priority allocation (MAX + 1)
   - Soft deletes with 1-hour expiry
   - Stats API for monitoring
   - Cleanup automation support
 
-- `ecr.ts` (345 lines)
+- `ecr.ts`
   - Repository creation
   - Image verification
   - Auth token generation
@@ -304,10 +302,10 @@ elizaos deploy --name test-container
 - `schemas/containers.ts` - Container metadata
 - `schemas/alb-priorities.ts` - ALB priority tracking
 
-**Migrations**:
-- `migrations/0005_alb_priorities.sql` - Create priorities table
-- `migrations/0006_cleanup_dead_code.sql` ✅ **NEW** - Remove Cloudflare fields
-- `migrations/0007_update_resource_defaults.sql` ✅ **NEW** - Update to 1792/1792
+**Migrations**: Located in `../db/migrations/`
+- ALB priorities table
+- Container schema updates
+- Resource allocation defaults (1792/1792)
 
 ---
 
@@ -930,9 +928,9 @@ Before going live:
 - [CloudWatch Container Insights](https://docs.aws.amazon.com/AmazonCloudWatch/latest/monitoring/ContainerInsights.html)
 
 ### Internal Documentation
-- Infrastructure review and audit (deleted per workspace rules)
-- See code comments for implementation details
-- Check `../README.md` for user-facing documentation
+- Code comments contain implementation details
+- `../README.md` - User-facing documentation
+- `../docs/` - API reference and setup guides
 
 ### Support
 - **Infrastructure issues**: Check CloudFormation events and CloudWatch logs
@@ -945,33 +943,34 @@ Before going live:
 ## 🚀 Version History
 
 ### v2.0 (January 2025) - Production Ready ✅
-- ✅ **Resource optimization**: 1792 CPU / 1792 MB (87.5% utilization)
-- ✅ **Simplified ALB priority manager**: Sequential allocation
-- ✅ **Enhanced monitoring**: CloudWatch alarms + Container Insights
-- ✅ **Fixed CloudWatch logs**: Dynamic stream discovery
-- ✅ **Added metrics API**: Real-time CPU/memory/network
-- ✅ **Added metrics UI**: Auto-refresh dashboard
-- ✅ **Automated cleanup**: Hourly cron for ALB priorities
-- ✅ **Dead code removal**: Cleaned up Cloudflare migration
-- ✅ **Deployment circuit breaker**: Auto-rollback on failures
-- ✅ **Comprehensive tags**: Full cost allocation support
+- **Resource optimization**: 1792 CPU / 1792 MB (87.5% utilization)
+- **Simplified ALB priority manager**: Sequential allocation
+- **Enhanced monitoring**: CloudWatch alarms + Container Insights
+- **Fixed CloudWatch logs**: Dynamic stream discovery
+- **Metrics API & UI**: Real-time CPU/memory/network monitoring
+- **Automated cleanup**: Hourly cron for ALB priorities
+- **Deployment circuit breaker**: Auto-rollback on failures
+- **Comprehensive tagging**: Full cost allocation support
 
-### v1.0 (October 2024) - Initial Implementation
-- Basic EC2 + ECS deployment
+### v1.0 - Initial Implementation
+- EC2 + ECS deployment
 - CloudFormation IaC
-- Hash-based ALB priority allocation
-- Basic monitoring
+- Basic monitoring and logging
 
 ---
-
-## 📞 Contact
-
-**Infrastructure Team**: DevOps  
-**On-Call**: [Configure PagerDuty/Opsgenie]  
-**AWS Support**: [Your support tier]
 
 ---
 
 **Built with ❤️ for the ElizaOS ecosystem**
 
 **Status**: ✅ Production Ready | **Architecture**: Simple, Clean, Scalable
+
+---
+
+## 📞 Support
+
+For infrastructure issues:
+1. Check CloudFormation events: `aws cloudformation describe-stack-events --stack-name elizaos-user-<userId>`
+2. Review CloudWatch logs: `/api/v1/containers/[id]/logs`
+3. Check container metrics: `/api/v1/containers/[id]/metrics`
+4. Verify shared infrastructure: `aws cloudformation describe-stacks --stack-name production-elizaos-shared`
