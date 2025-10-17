@@ -23,7 +23,7 @@ if [ -z "$CERTIFICATE_ARN" ]; then
 fi
 
 STACK_NAME="${ENVIRONMENT}-elizaos-shared"
-TEMPLATE_FILE="shared-infrastructure-v2-production.json"
+TEMPLATE_FILE="shared-infrastructure.json"
 
 # Check if template exists
 if [ ! -f "$TEMPLATE_FILE" ]; then

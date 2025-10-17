@@ -3,6 +3,7 @@ import { getContainer } from "@/lib/services";
 import { redirect } from "next/navigation";
 import { ContainerDeploymentHistory } from "@/components/containers/container-deployment-history";
 import { ContainerLogsViewer } from "@/components/containers/container-logs-viewer";
+import { ContainerMetrics } from "@/components/containers/container-metrics";
 import {
   Card,
   CardContent,
@@ -153,6 +154,14 @@ export default async function ContainerDetailsPage({ params }: PageProps) {
           )}
         </CardContent>
       </Card>
+
+      {/* Container Metrics */}
+      {container.status === "running" && container.ecs_service_arn && (
+        <ContainerMetrics
+          containerId={container.id}
+          containerName={container.name}
+        />
+      )}
 
       {/* Deployment History */}
       <ContainerDeploymentHistory

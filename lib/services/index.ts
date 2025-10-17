@@ -11,3 +11,8 @@ export * from "./provider-health";
 export * from "./containers";
 export * from "./analytics";
 export * from "./container-quota";
+
+// AWS Infrastructure services
+export * from "./ecr";
+export * from "./cloudformation";
+export * from "./alb-priority-manager";
