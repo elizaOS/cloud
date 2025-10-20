@@ -264,25 +264,24 @@ graph TD
     N --> M
 ```
 
-### Dual Database Architecture
+### Unified Database Architecture
 
-The platform uses two separate database schemas:
+The platform uses a single database with integrated schemas:
 
-1. **SaaS Database** (`db/schemas/*.ts`): Platform infrastructure
+1. **Platform Schemas** (`db/schemas/*.ts`): Platform infrastructure
    - Organizations (`db/schemas/organizations.ts`), users (`db/schemas/users.ts`), authentication
    - API keys (`db/schemas/api-keys.ts`), usage tracking (`db/schemas/usage-records.ts`)
    - Credit system (`db/schemas/credit-transactions.ts`, `db/schemas/credit-packs.ts`), billing, Stripe integration
    - Containers (`db/schemas/containers.ts`), ECS/ECR deployments
    - Generations (`db/schemas/generations.ts` - image/video records)
    - Conversations (`db/schemas/conversations.ts` - platform-level chat)
-
-2. **ElizaOS Database** (separate database, configured via `AGENT_DATABASE_URL`): Agent runtime
-   - Agents (character definitions)
-   - Memories with vector embeddings
-   - Rooms and participants
-   - Entities and relationships
-   - Components and tasks
-   - Message servers and channels
+   - **ElizaOS Tables** (integrated via `@elizaos/plugin-sql` schema):
+     - Agents (character definitions)
+     - Memories with vector embeddings
+     - Rooms and participants
+     - Entities and relationships
+     - Components and tasks
+     - Message servers and channels
 
 ## 🛠 Tech Stack
 
@@ -294,12 +293,12 @@ The platform uses two separate database schemas:
 
 ### Database & ORM
 
-- **PostgreSQL**: Dual database setup (platform + agent)
-  - Platform DB: SaaS tables (users, credits, containers, etc.)
-  - Agent DB: ElizaOS tables (agents, memories, rooms, etc.)
+- **PostgreSQL**: Single unified database with all tables
+  - Platform tables: SaaS tables (users, credits, containers, etc.)
+  - ElizaOS tables: Agent runtime tables (agents, memories, rooms, etc.)
 - **Drizzle ORM 0.44.6**: Type-safe SQL ORM
 - **Drizzle Kit 0.31.5**: Migrations and schema management
-- **pgvector**: Vector similarity search for embeddings (in agent database)
+- **pgvector**: Vector similarity search for embeddings
 
 ### Authentication & Billing
 
@@ -998,9 +997,9 @@ See `docs/STRIPE_SETUP.md` for detailed Stripe configuration.
   - attempts, max_attempts
   - webhook_url for callbacks
 
-### ElizaOS Schema (Separate Database)
+### ElizaOS Schema (Integrated)
 
-Configured via `AGENT_DATABASE_URL`. This database contains agent runtime tables and is managed by ElizaOS core:
+Integrated into the main database via `@elizaos/plugin-sql` schema. These tables are managed by ElizaOS core:
 
 **Agent Runtime Tables**:
 
@@ -1343,8 +1342,7 @@ git push origin main
 
 Add all variables from `.env.local` in Vercel dashboard:
 
-- `DATABASE_URL` - Platform database
-- `AGENT_DATABASE_URL` - Agent database (can be same as DATABASE_URL)
+- `DATABASE_URL` - Single unified database for platform and ElizaOS tables
 - `NEXT_PUBLIC_PRIVY_APP_ID`, `PRIVY_APP_SECRET`, `PRIVY_WEBHOOK_SECRET`
 - `OPENAI_API_KEY` or `AI_GATEWAY_API_KEY`
 - `BLOB_READ_WRITE_TOKEN` (optional, for media gallery)

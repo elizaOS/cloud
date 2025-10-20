@@ -19,19 +19,10 @@ export interface EnvValidationResult {
  * Environment variable definitions
  */
 const ENV_VARS = {
-  // Database - Platform
+  // Database - Single unified database for platform and ElizaOS
   DATABASE_URL: {
     required: true,
-    description: "Platform PostgreSQL connection string (SaaS tables)",
-    validate: (value: string) =>
-      value.startsWith("postgresql://") || value.startsWith("postgres://"),
-    errorMessage: "Must be a valid PostgreSQL connection string",
-  },
-
-  // Database - Agent
-  AGENT_DATABASE_URL: {
-    required: true,
-    description: "Agent PostgreSQL connection string (ElizaOS tables)",
+    description: "PostgreSQL connection string (unified platform + ElizaOS tables)",
     validate: (value: string) =>
       value.startsWith("postgresql://") || value.startsWith("postgres://"),
     errorMessage: "Must be a valid PostgreSQL connection string",
