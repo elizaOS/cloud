@@ -199,9 +199,8 @@ STRIPE_SECRET_KEY=sk_test_...
 ### Production (Vercel Environment Variables)
 
 ```env
-# Databases
+# Database - Single unified database for platform and ElizaOS tables
 DATABASE_URL=postgresql://production-host:5432/eliza_platform?sslmode=require
-AGENT_DATABASE_URL=postgresql://production-host:5432/eliza_agents?sslmode=require
 
 # Privy Authentication
 NEXT_PUBLIC_PRIVY_APP_ID=your_production_app_id
@@ -292,9 +291,8 @@ This gives you:
 For production with all features:
 
 ```env
-# Databases
+# Database - Single unified database for platform and ElizaOS tables
 DATABASE_URL=postgresql://prod-user:***@prod-host:5432/eliza_platform?sslmode=require
-AGENT_DATABASE_URL=postgresql://prod-user:***@prod-host:5432/eliza_agents?sslmode=require
 
 # Privy Authentication
 NEXT_PUBLIC_PRIVY_APP_ID=your_production_app_id
