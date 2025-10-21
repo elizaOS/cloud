@@ -1194,7 +1194,7 @@ const mcpHandler = createMcpHandler(
 
     server.tool(
       "get_conversation_context",
-      "Retrieve enriched conversation context with memory integration. Deducts 0.5 credits per request.",
+      "Retrieve enriched conversation context with memory integration. Deducts 1 credit per request.",
       {
         roomId: z.string().describe("Room/conversation ID"),
         depth: z
@@ -1237,7 +1237,7 @@ const mcpHandler = createMcpHandler(
             };
           }
 
-          const CONTEXT_COST = 0.5;
+          const CONTEXT_COST = 1;
           if (org.credit_balance < CONTEXT_COST) {
             return {
               content: [
