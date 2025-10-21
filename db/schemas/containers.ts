@@ -10,6 +10,7 @@ import {
 import { organizations } from "./organizations";
 import { users } from "./users";
 import { apiKeys } from "./api-keys";
+import { userCharacters } from "./user-characters";
 
 export const containers = pgTable(
   "containers",
@@ -24,6 +25,9 @@ export const containers = pgTable(
       .notNull()
       .references(() => users.id, { onDelete: "cascade" }),
     api_key_id: uuid("api_key_id").references(() => apiKeys.id, {
+      onDelete: "set null",
+    }),
+    character_id: uuid("character_id").references(() => userCharacters.id, {
       onDelete: "set null",
     }),
     // AWS ECS/ECR specific fields
@@ -63,6 +67,7 @@ export const containers = pgTable(
     ),
     user_idx: index("containers_user_idx").on(table.user_id),
     status_idx: index("containers_status_idx").on(table.status),
+    character_idx: index("containers_character_idx").on(table.character_id),
     ecs_service_idx: index("containers_ecs_service_idx").on(
       table.ecs_service_arn,
     ),
