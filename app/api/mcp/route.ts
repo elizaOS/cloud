@@ -1837,6 +1837,660 @@ const mcpHandler = createMcpHandler(
         }
       },
     );
+
+    server.tool(
+      "optimize_context_window",
+      "Intelligently select the most relevant context for token-limited requests. Deducts 5 credits.",
+      {
+        roomId: z.string().describe("Room/conversation ID"),
+        maxTokens: z
+          .number()
+          .int()
+          .min(100)
+          .max(100000)
+          .describe("Token budget for context"),
+        query: z
+          .string()
+          .optional()
+          .describe("Current user query for relevance scoring"),
+        preserveRecent: z
+          .number()
+          .int()
+          .min(1)
+          .max(50)
+          .optional()
+          .default(5)
+          .describe("Always include N recent messages"),
+      },
+      async ({ roomId, maxTokens, query, preserveRecent = 5 }) => {
+        try {
+          const { user } = getAuthContext();
+
+          const org = await organizationsService.getById(user.organization_id);
+          if (!org) {
+            return {
+              content: [
+                {
+                  type: "text" as const,
+                  text: JSON.stringify(
+                    { error: "Organization not found" },
+                    null,
+                    2,
+                  ),
+                },
+              ],
+              isError: true,
+            };
+          }
+
+          const OPTIMIZE_COST = 5;
+          if (org.credit_balance < OPTIMIZE_COST) {
+            return {
+              content: [
+                {
+                  type: "text" as const,
+                  text: JSON.stringify(
+                    {
+                      error: "Insufficient credits",
+                      required: OPTIMIZE_COST,
+                      available: org.credit_balance,
+                    },
+                    null,
+                    2,
+                  ),
+                },
+              ],
+              isError: true,
+            };
+          }
+
+          const optimized = await memoryService.optimizeContextWindow(
+            roomId,
+            user.organization_id,
+            maxTokens,
+            query,
+            preserveRecent,
+          );
+
+          const deductionResult = await creditsService.deductCredits({
+            organizationId: user.organization_id,
+            amount: OPTIMIZE_COST,
+            description: `MCP context optimization: ${roomId}`,
+            metadata: {
+              user_id: user.id,
+              room_id: roomId,
+              max_tokens: maxTokens,
+            },
+          });
+
+          if (!deductionResult.success) {
+            return {
+              content: [
+                {
+                  type: "text" as const,
+                  text: JSON.stringify(
+                    {
+                      error: "Failed to deduct credits",
+                      required: OPTIMIZE_COST,
+                      available: deductionResult.newBalance,
+                    },
+                    null,
+                    2,
+                  ),
+                },
+              ],
+              isError: true,
+            };
+          }
+
+          await usageService.create({
+            organization_id: user.organization_id,
+            user_id: user.id,
+            api_key_id: null,
+            type: "memory",
+            model: "context-optimization",
+            provider: "internal",
+            input_tokens: 0,
+            output_tokens: 0,
+            input_cost: OPTIMIZE_COST,
+            output_cost: 0,
+            is_successful: true,
+          });
+
+          return {
+            content: [
+              {
+                type: "text" as const,
+                text: JSON.stringify(
+                  {
+                    messages: optimized.messages.map((m) => ({
+                      id: m.id,
+                      content: m.content,
+                      createdAt: m.createdAt,
+                    })),
+                    totalTokens: optimized.totalTokens,
+                    messageCount: optimized.messageCount,
+                    relevanceScores: optimized.relevanceScores,
+                    cost: OPTIMIZE_COST,
+                    newBalance: deductionResult.newBalance,
+                  },
+                  null,
+                  2,
+                ),
+              },
+            ],
+          };
+        } catch (error) {
+          return {
+            content: [
+              {
+                type: "text" as const,
+                text: JSON.stringify(
+                  {
+                    error:
+                      error instanceof Error
+                        ? error.message
+                        : "Failed to optimize context window",
+                  },
+                  null,
+                  2,
+                ),
+              },
+            ],
+            isError: true,
+          };
+        }
+      },
+    );
+
+    server.tool(
+      "export_conversation",
+      "Export conversation history in various formats (json, markdown, txt). Deducts 5 credits.",
+      {
+        conversationId: z.string().describe("Conversation ID to export"),
+        format: z
+          .enum(["json", "markdown", "txt"])
+          .describe("Export format"),
+        includeMemories: z
+          .boolean()
+          .optional()
+          .default(false)
+          .describe("Include related memories"),
+        includeMetadata: z
+          .boolean()
+          .optional()
+          .default(true)
+          .describe("Include conversation metadata"),
+      },
+      async ({
+        conversationId,
+        format,
+        includeMemories = false,
+        includeMetadata = true,
+      }) => {
+        try {
+          const { user } = getAuthContext();
+
+          const org = await organizationsService.getById(user.organization_id);
+          if (!org) {
+            return {
+              content: [
+                {
+                  type: "text" as const,
+                  text: JSON.stringify(
+                    { error: "Organization not found" },
+                    null,
+                    2,
+                  ),
+                },
+              ],
+              isError: true,
+            };
+          }
+
+          const EXPORT_COST = 5;
+          if (org.credit_balance < EXPORT_COST) {
+            return {
+              content: [
+                {
+                  type: "text" as const,
+                  text: JSON.stringify(
+                    {
+                      error: "Insufficient credits",
+                      required: EXPORT_COST,
+                      available: org.credit_balance,
+                    },
+                    null,
+                    2,
+                  ),
+                },
+              ],
+              isError: true,
+            };
+          }
+
+          const exportData = await memoryService.exportConversation(
+            conversationId,
+            user.organization_id,
+            format,
+            includeMemories,
+          );
+
+          const deductionResult = await creditsService.deductCredits({
+            organizationId: user.organization_id,
+            amount: EXPORT_COST,
+            description: `MCP conversation export: ${conversationId}`,
+            metadata: {
+              user_id: user.id,
+              conversation_id: conversationId,
+              format,
+            },
+          });
+
+          if (!deductionResult.success) {
+            return {
+              content: [
+                {
+                  type: "text" as const,
+                  text: JSON.stringify(
+                    {
+                      error: "Failed to deduct credits",
+                      required: EXPORT_COST,
+                      available: deductionResult.newBalance,
+                    },
+                    null,
+                    2,
+                  ),
+                },
+              ],
+              isError: true,
+            };
+          }
+
+          await usageService.create({
+            organization_id: user.organization_id,
+            user_id: user.id,
+            api_key_id: null,
+            type: "conversation",
+            model: "conversation-export",
+            provider: "internal",
+            input_tokens: 0,
+            output_tokens: 0,
+            input_cost: EXPORT_COST,
+            output_cost: 0,
+            is_successful: true,
+          });
+
+          return {
+            content: [
+              {
+                type: "text" as const,
+                text: JSON.stringify(
+                  {
+                    content: exportData.content,
+                    format: exportData.format,
+                    size: exportData.size,
+                    cost: EXPORT_COST,
+                    newBalance: deductionResult.newBalance,
+                  },
+                  null,
+                  2,
+                ),
+              },
+            ],
+          };
+        } catch (error) {
+          return {
+            content: [
+              {
+                type: "text" as const,
+                text: JSON.stringify(
+                  {
+                    error:
+                      error instanceof Error
+                        ? error.message
+                        : "Failed to export conversation",
+                  },
+                  null,
+                  2,
+                ),
+              },
+            ],
+            isError: true,
+          };
+        }
+      },
+    );
+
+    server.tool(
+      "clone_conversation",
+      "Duplicate a conversation with optional modifications. Deducts 2 credits.",
+      {
+        conversationId: z.string().describe("Source conversation ID"),
+        newTitle: z
+          .string()
+          .optional()
+          .describe("New title (defaults to 'Original (Copy)')"),
+        preserveMessages: z
+          .boolean()
+          .optional()
+          .default(true)
+          .describe("Copy all messages"),
+        preserveMemories: z
+          .boolean()
+          .optional()
+          .default(false)
+          .describe("Copy related memories"),
+        newModel: z
+          .string()
+          .optional()
+          .describe("Change model (optional)"),
+      },
+      async ({
+        conversationId,
+        newTitle,
+        preserveMessages = true,
+        preserveMemories = false,
+        newModel,
+      }) => {
+        try {
+          const { user } = getAuthContext();
+
+          const org = await organizationsService.getById(user.organization_id);
+          if (!org) {
+            return {
+              content: [
+                {
+                  type: "text" as const,
+                  text: JSON.stringify(
+                    { error: "Organization not found" },
+                    null,
+                    2,
+                  ),
+                },
+              ],
+              isError: true,
+            };
+          }
+
+          const CLONE_COST = 2;
+          if (org.credit_balance < CLONE_COST) {
+            return {
+              content: [
+                {
+                  type: "text" as const,
+                  text: JSON.stringify(
+                    {
+                      error: "Insufficient credits",
+                      required: CLONE_COST,
+                      available: org.credit_balance,
+                    },
+                    null,
+                    2,
+                  ),
+                },
+              ],
+              isError: true,
+            };
+          }
+
+          const cloneResult = await memoryService.cloneConversation(
+            conversationId,
+            user.organization_id,
+            user.id,
+            {
+              newTitle,
+              preserveMessages,
+              preserveMemories,
+              newModel,
+            },
+          );
+
+          const deductionResult = await creditsService.deductCredits({
+            organizationId: user.organization_id,
+            amount: CLONE_COST,
+            description: `MCP conversation clone: ${conversationId}`,
+            metadata: {
+              user_id: user.id,
+              source_conversation_id: conversationId,
+              new_conversation_id: cloneResult.conversationId,
+            },
+          });
+
+          if (!deductionResult.success) {
+            return {
+              content: [
+                {
+                  type: "text" as const,
+                  text: JSON.stringify(
+                    {
+                      error: "Failed to deduct credits",
+                      required: CLONE_COST,
+                      available: deductionResult.newBalance,
+                    },
+                    null,
+                    2,
+                  ),
+                },
+              ],
+              isError: true,
+            };
+          }
+
+          await usageService.create({
+            organization_id: user.organization_id,
+            user_id: user.id,
+            api_key_id: null,
+            type: "conversation",
+            model: "conversation-clone",
+            provider: "internal",
+            input_tokens: 0,
+            output_tokens: 0,
+            input_cost: CLONE_COST,
+            output_cost: 0,
+            is_successful: true,
+          });
+
+          return {
+            content: [
+              {
+                type: "text" as const,
+                text: JSON.stringify(
+                  {
+                    success: true,
+                    conversationId: cloneResult.conversationId,
+                    clonedMessageCount: cloneResult.clonedMessageCount,
+                    cost: CLONE_COST,
+                    newBalance: deductionResult.newBalance,
+                  },
+                  null,
+                  2,
+                ),
+              },
+            ],
+          };
+        } catch (error) {
+          return {
+            content: [
+              {
+                type: "text" as const,
+                text: JSON.stringify(
+                  {
+                    error:
+                      error instanceof Error
+                        ? error.message
+                        : "Failed to clone conversation",
+                  },
+                  null,
+                  2,
+                ),
+              },
+            ],
+            isError: true,
+          };
+        }
+      },
+    );
+
+    server.tool(
+      "analyze_memory_patterns",
+      "Analyze user/org memory patterns for insights (topics, sentiment, entities, timeline). Deducts 20 credits.",
+      {
+        analysisType: z
+          .enum(["topics", "sentiment", "entities", "timeline"])
+          .describe("Type of analysis to perform"),
+        timeRange: z
+          .object({
+            from: z.string().describe("ISO date string"),
+            to: z.string().describe("ISO date string"),
+          })
+          .optional()
+          .describe("Time range for analysis"),
+        groupBy: z
+          .enum(["day", "week", "month"])
+          .optional()
+          .describe("Grouping for timeline analysis"),
+      },
+      async ({ analysisType, timeRange, groupBy }) => {
+        try {
+          const { user } = getAuthContext();
+
+          const org = await organizationsService.getById(user.organization_id);
+          if (!org) {
+            return {
+              content: [
+                {
+                  type: "text" as const,
+                  text: JSON.stringify(
+                    { error: "Organization not found" },
+                    null,
+                    2,
+                  ),
+                },
+              ],
+              isError: true,
+            };
+          }
+
+          const ANALYSIS_COST = 20;
+          if (org.credit_balance < ANALYSIS_COST) {
+            return {
+              content: [
+                {
+                  type: "text" as const,
+                  text: JSON.stringify(
+                    {
+                      error: "Insufficient credits",
+                      required: ANALYSIS_COST,
+                      available: org.credit_balance,
+                    },
+                    null,
+                    2,
+                  ),
+                },
+              ],
+              isError: true,
+            };
+          }
+
+          const timeRangeObj = timeRange
+            ? {
+                from: new Date(timeRange.from),
+                to: new Date(timeRange.to),
+              }
+            : undefined;
+
+          const analysis = await memoryService.analyzeMemoryPatterns(
+            user.organization_id,
+            analysisType,
+            timeRangeObj,
+          );
+
+          const deductionResult = await creditsService.deductCredits({
+            organizationId: user.organization_id,
+            amount: ANALYSIS_COST,
+            description: `MCP memory analysis: ${analysisType}`,
+            metadata: {
+              user_id: user.id,
+              analysis_type: analysisType,
+            },
+          });
+
+          if (!deductionResult.success) {
+            return {
+              content: [
+                {
+                  type: "text" as const,
+                  text: JSON.stringify(
+                    {
+                      error: "Failed to deduct credits",
+                      required: ANALYSIS_COST,
+                      available: deductionResult.newBalance,
+                    },
+                    null,
+                    2,
+                  ),
+                },
+              ],
+              isError: true,
+            };
+          }
+
+          await usageService.create({
+            organization_id: user.organization_id,
+            user_id: user.id,
+            api_key_id: null,
+            type: "memory",
+            model: "memory-analysis",
+            provider: "internal",
+            input_tokens: 0,
+            output_tokens: 0,
+            input_cost: ANALYSIS_COST,
+            output_cost: 0,
+            is_successful: true,
+          });
+
+          return {
+            content: [
+              {
+                type: "text" as const,
+                text: JSON.stringify(
+                  {
+                    analysisType: analysis.analysisType,
+                    insights: analysis.insights,
+                    data: analysis.data,
+                    chartData: analysis.chartData,
+                    cost: ANALYSIS_COST,
+                    newBalance: deductionResult.newBalance,
+                  },
+                  null,
+                  2,
+                ),
+              },
+            ],
+          };
+        } catch (error) {
+          return {
+            content: [
+              {
+                type: "text" as const,
+                text: JSON.stringify(
+                  {
+                    error:
+                      error instanceof Error
+                        ? error.message
+                        : "Failed to analyze memory patterns",
+                  },
+                  null,
+                  2,
+                ),
+              },
+            ],
+            isError: true,
+          };
+        }
+      },
+    );
   },
   {},
   { basePath: "/api" },
