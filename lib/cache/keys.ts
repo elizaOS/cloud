@@ -36,6 +36,27 @@ export const CacheKeys = {
     byEmail: (email: string) => `user:email:${email}:v1`,
     pattern: () => `user:*`,
   },
+  memory: {
+    item: (orgId: string, memoryId: string) =>
+      `memory:${orgId}:${memoryId}:v1`,
+    roomRecent: (orgId: string, roomId: string) =>
+      `memory:${orgId}:room:${roomId}:recent:v1`,
+    roomContext: (orgId: string, roomId: string, depth: number) =>
+      `memory:${orgId}:room:${roomId}:context:${depth}:v1`,
+    search: (orgId: string, queryHash: string) =>
+      `memory:${orgId}:search:${queryHash}:v1`,
+    conversationContext: (orgId: string, convId: string, depth: number) =>
+      `memory:${orgId}:conv:${convId}:${depth}:v1`,
+    conversationSummary: (orgId: string, convId: string) =>
+      `memory:${orgId}:conv:${convId}:summary:v1`,
+    patterns: (orgId: string, analysisType: string) =>
+      `memory:${orgId}:patterns:${analysisType}:v1`,
+    topics: (orgId: string, timeRange: string) =>
+      `memory:${orgId}:topics:${timeRange}:v1`,
+    orgPattern: (orgId: string) => `memory:${orgId}:*`,
+    roomPattern: (orgId: string, roomId: string) =>
+      `memory:${orgId}:room:${roomId}:*`,
+  },
 } as const;
 
 export const CacheTTL = {
@@ -63,5 +84,15 @@ export const CacheTTL = {
   },
   user: {
     byEmail: 300,
+  },
+  memory: {
+    item: 1440,
+    roomRecent: 300,
+    roomContext: 300,
+    conversationContext: 300,
+    conversationSummary: 600,
+    search: 300,
+    patterns: 600,
+    topics: 600,
   },
 } as const;
