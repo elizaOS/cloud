@@ -5,6 +5,7 @@ import {
   usageService,
   containersService,
   listContainers,
+  getContainer,
   deleteContainer,
   updateContainerStatus,
   QuotaExceededError,
@@ -20,6 +21,10 @@ import { withRateLimit, RateLimitPresets } from "@/lib/middleware/rate-limit";
 import { z } from "zod";
 
 export const dynamic = "force-dynamic";
+// Set max duration to handle CloudFormation deployments
+// CloudFormation typically takes 5-10 minutes for EC2+ECS provisioning
+// Vercel limits: Hobby=10s, Pro=300s, Enterprise=900s
+export const maxDuration = 300; // 5 minutes - max we can do on Pro plan
 
 const createContainerSchema = z.object({
   name: z.string().min(1).max(100),
@@ -270,33 +275,47 @@ async function handleCreateContainer(request: NextRequest) {
       },
     });
 
-    // Start async deployment process
-    // Note: Vercel Pro allows up to 800s execution time (13.3 minutes)
-    // CloudFormation typically takes 5-15 minutes to provision
-    deployContainerAsync(
-      container.id,
-      validatedData,
-      deploymentCost,
-      user.organization_id,
-    ).catch((error) => {
-      console.error("❌ [deployContainerAsync] CRITICAL ERROR:", {
-        containerId: container.id,
-        error: error instanceof Error ? error.message : String(error),
-        stack: error instanceof Error ? error.stack : undefined,
-      });
-    });
-
-    return NextResponse.json(
-      {
-        success: true,
-        data: container,
-        message:
-          "Container deployment initiated. Check status for deployment progress.",
-        creditsDeducted: deploymentCost,
-        creditsRemaining: newBalance,
-      },
-      { status: 201 },
-    );
+    // Deploy container synchronously - wait for completion before returning
+    // This ensures the function stays alive for the entire deployment
+    try {
+      await deployContainerAsync(
+        container.id,
+        validatedData,
+        deploymentCost,
+        user.organization_id,
+      );
+      
+      // Fetch updated container status
+      const deployedContainer = await getContainer(container.id, user.organization_id);
+      
+      return NextResponse.json(
+        {
+          success: true,
+          data: deployedContainer || container,
+          message: deployedContainer?.status === "running" 
+            ? "Container deployed successfully"
+            : "Container deployment in progress. Check status for updates.",
+          creditsDeducted: deploymentCost,
+          creditsRemaining: newBalance,
+        },
+        { status: 201 },
+      );
+    } catch (deployError) {
+      console.error("❌ [handleCreateContainer] Deployment failed:", deployError);
+      
+      // Return with current container status (likely "failed")
+      const failedContainer = await getContainer(container.id, user.organization_id);
+      
+      return NextResponse.json(
+        {
+          success: false,
+          data: failedContainer || container,
+          error: deployError instanceof Error ? deployError.message : "Deployment failed",
+          message: "Deployment failed. Check container error_message for details.",
+        },
+        { status: 500 },
+      );
+    }
   } catch (error) {
     console.error("Error creating container:", error);
 
@@ -383,15 +402,26 @@ async function deployContainerAsync(
   try {
     // Update status to building
     console.log(`📝 [deployContainerAsync] Updating status to 'building'`);
-    await updateContainerStatus(containerId, "building", {
-      deploymentLog: "Provisioning dedicated EC2 instance and ECS cluster...",
-    });
+    try {
+      await updateContainerStatus(containerId, "building", {
+        deploymentLog: "Provisioning dedicated EC2 instance and ECS cluster...",
+      });
+      console.log(`✅ [deployContainerAsync] Status updated to 'building'`);
+    } catch (dbError) {
+      console.error(`❌ [deployContainerAsync] DB update failed:`, dbError);
+      throw dbError;
+    }
 
     // Check if shared infrastructure is deployed
     console.log(`🔍 [deployContainerAsync] Checking shared infrastructure...`);
-    const sharedInfraExists =
-      await cloudFormationService.isSharedInfrastructureDeployed();
-    console.log(`📊 [deployContainerAsync] Shared infrastructure exists: ${sharedInfraExists}`);
+    let sharedInfraExists: boolean;
+    try {
+      sharedInfraExists = await cloudFormationService.isSharedInfrastructureDeployed();
+      console.log(`📊 [deployContainerAsync] Shared infrastructure exists: ${sharedInfraExists}`);
+    } catch (cfError) {
+      console.error(`❌ [deployContainerAsync] CloudFormation check failed:`, cfError);
+      throw cfError;
+    }
     
     if (!sharedInfraExists) {
       throw new Error(
@@ -428,7 +458,10 @@ async function deployContainerAsync(
     console.log(`✅ [deployContainerAsync] CloudFormation stack initiated: ${stackId}`);
 
     // Wait for stack creation to complete (with timeout)
-    const STACK_TIMEOUT_MINUTES = 15;
+    // CRITICAL: Must fit within Vercel maxDuration (300s = 5 min)
+    // CloudFormation typically takes 5-8 minutes, so we set 4 min timeout
+    // to leave buffer for other operations
+    const STACK_TIMEOUT_MINUTES = 4;
     console.log(`⏳ [deployContainerAsync] Waiting for stack creation (max ${STACK_TIMEOUT_MINUTES} minutes)...`);
     
     await withTimeout(
