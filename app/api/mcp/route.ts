@@ -12,6 +12,9 @@ import {
   generationsService,
   conversationsService,
   memoryService,
+  agentService,
+  agentDiscoveryService,
+  containersService,
 } from "@/lib/services";
 import { streamText } from "ai";
 import { gateway } from "@ai-sdk/gateway";
@@ -2498,6 +2501,390 @@ const mcpHandler = createMcpHandler(
                       error instanceof Error
                         ? error.message
                         : "Failed to analyze memory patterns",
+                  },
+                  null,
+                  2,
+                ),
+              },
+            ],
+            isError: true,
+          };
+        }
+      },
+    );
+
+    // Tool 16: Chat with Agent - Direct agent conversation
+    server.tool(
+      "chat_with_agent",
+      "Send a message to your deployed ElizaOS agent and receive a response. Supports streaming via SSE. Deducts 5-100 credits based on token usage.",
+      {
+        message: z.string().min(1).max(4000).describe("Message to send to the agent"),
+        roomId: z.string().uuid().optional().describe("Existing conversation room ID (creates new if not provided)"),
+        entityId: z.string().optional().describe("User identifier (defaults to authenticated user)"),
+        streaming: z.boolean().optional().default(false).describe("Enable streaming response via SSE"),
+      },
+      async ({ message, roomId, entityId, streaming = false }) => {
+        try {
+          const { user } = getAuthContext();
+          const org = await organizationsService.getById(user.organization_id);
+
+          if (!org) {
+            return {
+              content: [
+                {
+                  type: "text" as const,
+                  text: JSON.stringify({ error: "Organization not found" }, null, 2),
+                },
+              ],
+              isError: true,
+            };
+          }
+
+          const estimatedInputTokens = Math.ceil(message.length / 4);
+          const estimatedCost = Math.max(5, Math.ceil(estimatedInputTokens * 0.01));
+
+          if (org.credit_balance < estimatedCost) {
+            return {
+              content: [
+                {
+                  type: "text" as const,
+                  text: JSON.stringify(
+                    {
+                      error: "Insufficient credits",
+                      required: estimatedCost,
+                      available: org.credit_balance,
+                    },
+                    null,
+                    2,
+                  ),
+                },
+              ],
+              isError: true,
+            };
+          }
+
+          const actualRoomId = roomId || await agentService.getOrCreateRoom(
+            entityId || user.id,
+            org.id,
+            user.organization_id,
+          );
+
+          const response = await agentService.sendMessage({
+            roomId: actualRoomId,
+            entityId: entityId || user.id,
+            message,
+            organizationId: user.organization_id,
+            streaming,
+          });
+
+          const actualCost = Math.ceil(
+            (response.usage?.inputTokens || estimatedInputTokens) * 0.01 +
+            (response.usage?.outputTokens || 0) * 0.03
+          );
+
+          await creditsService.deductCredits({
+            organizationId: user.organization_id,
+            amount: actualCost,
+            description: `MCP chat with agent`,
+            metadata: {
+              user_id: user.id,
+              room_id: actualRoomId,
+              message_id: response.messageId,
+              input_tokens: response.usage?.inputTokens || 0,
+              output_tokens: response.usage?.outputTokens || 0,
+            },
+          });
+
+          await usageService.create({
+            organization_id: user.organization_id,
+            user_id: user.id,
+            type: "mcp_tool",
+            model: response.usage?.model || "eliza-agent",
+            provider: "eliza",
+            input_tokens: response.usage?.inputTokens || 0,
+            output_tokens: response.usage?.outputTokens || 0,
+            input_cost: actualCost,
+            output_cost: 0,
+            is_successful: true,
+            error_message: null,
+            metadata: { tool: "chat_with_agent", room_id: actualRoomId },
+          });
+
+          return {
+            content: [
+              {
+                type: "text" as const,
+                text: JSON.stringify(
+                  {
+                    success: true,
+                    response: response.content,
+                    roomId: actualRoomId,
+                    messageId: response.messageId,
+                    timestamp: response.timestamp,
+                    creditsUsed: actualCost,
+                    ...(streaming && response.streaming && {
+                      streamUrl: response.streaming.sseUrl,
+                    }),
+                    usage: response.usage,
+                  },
+                  null,
+                  2,
+                ),
+              },
+            ],
+          };
+        } catch (error) {
+          return {
+            content: [
+              {
+                type: "text" as const,
+                text: JSON.stringify(
+                  {
+                    error:
+                      error instanceof Error
+                        ? error.message
+                        : "Failed to chat with agent",
+                  },
+                  null,
+                  2,
+                ),
+              },
+            ],
+            isError: true,
+          };
+        }
+      },
+    );
+
+    // Tool 17: List Agents
+    server.tool(
+      "list_agents",
+      "List all available agents, characters, and deployed ElizaOS instances. FREE tool.",
+      {
+        filters: z.object({
+          deployed: z.boolean().optional(),
+          template: z.boolean().optional(),
+          owned: z.boolean().optional(),
+        }).optional(),
+        includeStats: z.boolean().optional().default(false),
+      },
+      async ({ filters, includeStats = false }) => {
+        try {
+          const { user } = getAuthContext();
+
+          const result = await agentDiscoveryService.listAgents(
+            user.organization_id,
+            user.id,
+            filters,
+            includeStats,
+          );
+
+          return {
+            content: [
+              {
+                type: "text" as const,
+                text: JSON.stringify(
+                  {
+                    success: true,
+                    agents: result.agents,
+                    total: result.total,
+                    cached: result.cached,
+                  },
+                  null,
+                  2,
+                ),
+              },
+            ],
+          };
+        } catch (error) {
+          return {
+            content: [
+              {
+                type: "text" as const,
+                text: JSON.stringify(
+                  {
+                    error:
+                      error instanceof Error
+                        ? error.message
+                        : "Failed to list agents",
+                  },
+                  null,
+                  2,
+                ),
+              },
+            ],
+            isError: true,
+          };
+        }
+      },
+    );
+
+    // Tool 18: Subscribe Agent Events
+    server.tool(
+      "subscribe_agent_events",
+      "Get SSE stream URL for real-time agent events. FREE tool.",
+      {
+        roomId: z.string().uuid(),
+      },
+      async ({ roomId }) => {
+        try {
+          const baseUrl = process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000";
+          const sseUrl = `${baseUrl}/api/mcp/stream?eventType=agent&resourceId=${roomId}`;
+
+          return {
+            content: [
+              {
+                type: "text" as const,
+                text: JSON.stringify(
+                  {
+                    success: true,
+                    sseUrl,
+                    roomId,
+                    eventTypes: [
+                      "message_received",
+                      "response_started",
+                      "response_chunk",
+                      "response_complete",
+                      "error",
+                    ],
+                  },
+                  null,
+                  2,
+                ),
+              },
+            ],
+          };
+        } catch (error) {
+          return {
+            content: [
+              {
+                type: "text" as const,
+                text: JSON.stringify(
+                  {
+                    error:
+                      error instanceof Error
+                        ? error.message
+                        : "Failed to generate SSE URL",
+                  },
+                  null,
+                  2,
+                ),
+              },
+            ],
+            isError: true,
+          };
+        }
+      },
+    );
+
+    // Tool 19: Stream Credit Updates
+    server.tool(
+      "stream_credit_updates",
+      "Get SSE stream URL for real-time credit updates. FREE tool.",
+      {
+        includeTransactions: z.boolean().optional().default(false),
+      },
+      async ({ includeTransactions = false }) => {
+        try {
+          const { user } = getAuthContext();
+          const baseUrl = process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000";
+          const sseUrl = `${baseUrl}/api/mcp/stream?eventType=credits&resourceId=${user.organization_id}`;
+
+          return {
+            content: [
+              {
+                type: "text" as const,
+                text: JSON.stringify(
+                  {
+                    success: true,
+                    sseUrl,
+                    organizationId: user.organization_id,
+                    eventTypes: ["balance_updated", "transaction_created"],
+                    includeTransactions,
+                  },
+                  null,
+                  2,
+                ),
+              },
+            ],
+          };
+        } catch (error) {
+          return {
+            content: [
+              {
+                type: "text" as const,
+                text: JSON.stringify(
+                  {
+                    error:
+                      error instanceof Error
+                        ? error.message
+                        : "Failed to generate SSE URL",
+                  },
+                  null,
+                  2,
+                ),
+              },
+            ],
+            isError: true,
+          };
+        }
+      },
+    );
+
+    // Tool 20: List Containers
+    server.tool(
+      "list_containers",
+      "List all deployed containers with status. FREE tool.",
+      {
+        status: z.enum(["running", "stopped", "failed", "deploying"]).optional(),
+        includeMetrics: z.boolean().optional().default(false),
+      },
+      async ({ status, includeMetrics = false }) => {
+        try {
+          const { user } = getAuthContext();
+          let containers = await containersService.listByOrganization(user.organization_id);
+
+          if (status) {
+            containers = containers.filter((c) => c.status === status);
+          }
+
+          const formattedContainers = containers.map((container: typeof containers[0]) => ({
+            id: container.id,
+            name: container.name,
+            status: container.status,
+            url: container.load_balancer_url,
+            createdAt: container.created_at,
+            errorMessage: container.error_message,
+            ecsServiceArn: container.ecs_service_arn,
+          }));
+
+          return {
+            content: [
+              {
+                type: "text" as const,
+                text: JSON.stringify(
+                  {
+                    success: true,
+                    containers: formattedContainers,
+                    total: formattedContainers.length,
+                  },
+                  null,
+                  2,
+                ),
+              },
+            ],
+          };
+        } catch (error) {
+          return {
+            content: [
+              {
+                type: "text" as const,
+                text: JSON.stringify(
+                  {
+                    error:
+                      error instanceof Error
+                        ? error.message
+                        : "Failed to list containers",
                   },
                   null,
                   2,

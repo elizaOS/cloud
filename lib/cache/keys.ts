@@ -57,6 +57,20 @@ export const CacheKeys = {
     roomPattern: (orgId: string, roomId: string) =>
       `memory:${orgId}:room:${roomId}:*`,
   },
+  agent: {
+    roomContext: (roomId: string) => `agent:room:${roomId}:context:v1`,
+    characterData: (agentId: string) => `agent:${agentId}:character:v1`,
+    userSession: (entityId: string) => `agent:user:${entityId}:session:v1`,
+    agentList: (orgId: string, filterHash: string) =>
+      `agent:list:${orgId}:${filterHash}:v1`,
+    agentStats: (agentId: string) => `agent:stats:${agentId}:v1`,
+  },
+  container: {
+    list: (orgId: string) => `containers:list:${orgId}:v1`,
+    logs: (containerId: string) => `container:logs:${containerId}:recent:v1`,
+    metrics: (containerId: string, period: string) =>
+      `container:metrics:${containerId}:${period}:v1`,
+  },
 } as const;
 
 export const CacheTTL = {
@@ -94,5 +108,17 @@ export const CacheTTL = {
     search: 300,
     patterns: 600,
     topics: 600,
+  },
+  agent: {
+    roomContext: 300, // 5 minutes
+    characterData: 3600, // 1 hour
+    userSession: 300, // 5 minutes
+    agentList: 3600, // 1 hour
+    agentStats: 300, // 5 minutes
+  },
+  container: {
+    list: 30, // 30 seconds
+    logs: 30, // 30 seconds
+    metrics: 300, // 5 minutes
   },
 } as const;

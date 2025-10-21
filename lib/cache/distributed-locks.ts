@@ -1,0 +1,292 @@
+import { Redis } from "@upstash/redis";
+import { logger } from "@/lib/utils/logger";
+import { v4 as uuidv4 } from "uuid";
+
+export interface Lock {
+  lockId: string;
+  roomId: string;
+  expiresAt: Date;
+  release: () => Promise<void>;
+  extend: (ms: number) => Promise<void>;
+}
+
+export class DistributedLockService {
+  private static instance: DistributedLockService;
+  private redis: Redis | null = null;
+  private enabled: boolean = false;
+
+  private constructor() {
+    this.initialize();
+  }
+
+  private initialize(): void {
+    if (!process.env.KV_REST_API_URL || !process.env.KV_REST_API_TOKEN) {
+      logger.warn(
+        "[Distributed Locks] Missing Redis credentials. Distributed locking disabled.",
+      );
+      this.enabled = false;
+      return;
+    }
+
+    this.redis = new Redis({
+      url: process.env.KV_REST_API_URL,
+      token: process.env.KV_REST_API_TOKEN,
+    });
+
+    this.enabled = true;
+    logger.info("[Distributed Locks] Service initialized");
+  }
+
+  public static getInstance(): DistributedLockService {
+    if (!DistributedLockService.instance) {
+      DistributedLockService.instance = new DistributedLockService();
+    }
+    return DistributedLockService.instance;
+  }
+
+  /**
+   * Acquire a lock for a room to prevent concurrent message processing
+   * @param roomId - Room to lock
+   * @param ttl - Lock TTL in milliseconds (default: 30000ms = 30s)
+   * @returns Lock object if acquired, null if already locked
+   */
+  async acquireRoomLock(
+    roomId: string,
+    ttl: number = 30000,
+  ): Promise<Lock | null> {
+    if (!this.enabled || !this.redis) {
+      logger.warn(
+        "[Distributed Locks] Service disabled, skipping lock acquisition",
+      );
+      return this.createDummyLock(roomId, ttl);
+    }
+
+    const lockId = uuidv4();
+    const key = `agent:room:${roomId}:lock`;
+
+    try {
+      // Try to acquire lock using SET NX (set if not exists) with expiry
+      const acquired = await this.redis.set(key, lockId, {
+        nx: true, // Only set if key doesn't exist
+        px: ttl, // TTL in milliseconds
+      });
+
+      if (!acquired) {
+        logger.debug(`[Distributed Locks] Failed to acquire lock for ${roomId} - already locked`);
+        return null;
+      }
+
+      logger.debug(
+        `[Distributed Locks] Acquired lock ${lockId} for ${roomId} (TTL: ${ttl}ms)`,
+      );
+
+      return {
+        lockId,
+        roomId,
+        expiresAt: new Date(Date.now() + ttl),
+        release: async () => { await this.releaseRoomLock(roomId, lockId); },
+        extend: async (ms) => { await this.extendLock(roomId, lockId, ms); },
+      };
+    } catch (error) {
+      logger.error(
+        `[Distributed Locks] Error acquiring lock for ${roomId}:`,
+        error,
+      );
+      return null;
+    }
+  }
+
+  /**
+   * Release a lock for a room
+   * @param roomId - Room to unlock
+   * @param lockId - Lock ID to verify ownership
+   * @returns true if released, false if not owned or doesn't exist
+   */
+  async releaseRoomLock(roomId: string, lockId: string): Promise<boolean> {
+    if (!this.enabled || !this.redis) {
+      return true;
+    }
+
+    const key = `agent:room:${roomId}:lock`;
+
+    try {
+      // Only release if we own the lock (check lockId matches)
+      const currentLockId = await this.redis.get(key);
+
+      if (currentLockId !== lockId) {
+        logger.warn(
+          `[Distributed Locks] Cannot release lock ${lockId} for ${roomId} - not owned or expired`,
+        );
+        return false;
+      }
+
+      await this.redis.del(key);
+      logger.debug(
+        `[Distributed Locks] Released lock ${lockId} for ${roomId}`,
+      );
+      return true;
+    } catch (error) {
+      logger.error(
+        `[Distributed Locks] Error releasing lock for ${roomId}:`,
+        error,
+      );
+      return false;
+    }
+  }
+
+  /**
+   * Extend the TTL of an existing lock
+   * @param roomId - Room with lock
+   * @param lockId - Lock ID to verify ownership
+   * @param ms - Additional milliseconds to extend
+   * @returns true if extended, false if not owned or doesn't exist
+   */
+  async extendLock(
+    roomId: string,
+    lockId: string,
+    ms: number,
+  ): Promise<boolean> {
+    if (!this.enabled || !this.redis) {
+      return true;
+    }
+
+    const key = `agent:room:${roomId}:lock`;
+
+    try {
+      // Verify ownership
+      const currentLockId = await this.redis.get(key);
+
+      if (currentLockId !== lockId) {
+        logger.warn(
+          `[Distributed Locks] Cannot extend lock ${lockId} for ${roomId} - not owned or expired`,
+        );
+        return false;
+      }
+
+      // Get current TTL
+      const ttl = await this.redis.pttl(key);
+      if (ttl <= 0) {
+        logger.warn(
+          `[Distributed Locks] Cannot extend lock ${lockId} for ${roomId} - already expired`,
+        );
+        return false;
+      }
+
+      // Set new TTL (current + extension)
+      const newTtl = ttl + ms;
+      await this.redis.pexpire(key, newTtl);
+
+      logger.debug(
+        `[Distributed Locks] Extended lock ${lockId} for ${roomId} by ${ms}ms (new TTL: ${newTtl}ms)`,
+      );
+      return true;
+    } catch (error) {
+      logger.error(
+        `[Distributed Locks] Error extending lock for ${roomId}:`,
+        error,
+      );
+      return false;
+    }
+  }
+
+  /**
+   * Check if a room is currently locked
+   * @param roomId - Room to check
+   * @returns true if locked, false otherwise
+   */
+  async isLocked(roomId: string): Promise<boolean> {
+    if (!this.enabled || !this.redis) {
+      return false;
+    }
+
+    const key = `agent:room:${roomId}:lock`;
+
+    try {
+      const lockId = await this.redis.get(key);
+      return lockId !== null;
+    } catch (error) {
+      logger.error(
+        `[Distributed Locks] Error checking lock for ${roomId}:`,
+        error,
+      );
+      return false;
+    }
+  }
+
+  /**
+   * Get information about a lock
+   * @param roomId - Room to check
+   * @returns Lock info or null if not locked
+   */
+  async getLockInfo(
+    roomId: string,
+  ): Promise<{ lockId: string; ttl: number } | null> {
+    if (!this.enabled || !this.redis) {
+      return null;
+    }
+
+    const key = `agent:room:${roomId}:lock`;
+
+    try {
+      const lockId = await this.redis.get<string>(key);
+      if (!lockId) {
+        return null;
+      }
+
+      const ttl = await this.redis.pttl(key);
+      return { lockId, ttl };
+    } catch (error) {
+      logger.error(
+        `[Distributed Locks] Error getting lock info for ${roomId}:`,
+        error,
+      );
+      return null;
+    }
+  }
+
+  /**
+   * Force release a lock (admin/cleanup use only)
+   * @param roomId - Room to unlock
+   * @returns true if released, false on error
+   */
+  async forceRelease(roomId: string): Promise<boolean> {
+    if (!this.enabled || !this.redis) {
+      return true;
+    }
+
+    const key = `agent:room:${roomId}:lock`;
+
+    try {
+      await this.redis.del(key);
+      logger.info(`[Distributed Locks] Force released lock for ${roomId}`);
+      return true;
+    } catch (error) {
+      logger.error(
+        `[Distributed Locks] Error force releasing lock for ${roomId}:`,
+        error,
+      );
+      return false;
+    }
+  }
+
+  /**
+   * Create a dummy lock when service is disabled (for compatibility)
+   */
+  private createDummyLock(roomId: string, ttl: number): Lock {
+    const lockId = uuidv4();
+    return {
+      lockId,
+      roomId,
+      expiresAt: new Date(Date.now() + ttl),
+      release: async () => {},
+      extend: async () => {},
+    };
+  }
+
+  public isEnabled(): boolean {
+    return this.enabled;
+  }
+}
+
+// Export singleton instance
+export const distributedLocks = DistributedLockService.getInstance();
