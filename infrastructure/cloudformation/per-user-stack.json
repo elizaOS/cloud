@@ -1,6 +1,6 @@
 {
   "AWSTemplateFormatVersion": "2010-09-09",
-  "Description": "ElizaOS Per-User Container Stack - Production Ready - 1 t3g.small ARM instance with ECS + Monitoring",
+  "Description": "ElizaOS Per-User Container Stack - Production Ready - 1 t3.small instance with ECS + Monitoring",
   "Parameters": {
     "UserId": {
       "Type": "String",
@@ -23,12 +23,12 @@
     "ContainerCpu": {
       "Type": "Number",
       "Default": 1792,
-      "Description": "CPU units (1792 = 1.75 vCPU, 87.5% of t3g.small)"
+      "Description": "CPU units (1792 = 1.75 vCPU, 87.5% of t3.small)"
     },
     "ContainerMemory": {
       "Type": "Number",
       "Default": 1792,
-      "Description": "Memory in MB (1792 = 1.75 GB, 87.5% of t3g.small)"
+      "Description": "Memory in MB (1792 = 1.75 GB, 87.5% of t3.small)"
     },
     "SharedVPCId": {
       "Type": "String",
@@ -175,9 +175,9 @@
         },
         "LaunchTemplateData": {
           "ImageId": {
-            "Fn::Sub": "{{resolve:ssm:/aws/service/ecs/optimized-ami/amazon-linux-2/arm64/recommended/image_id}}"
+            "Fn::Sub": "{{resolve:ssm:/aws/service/ecs/optimized-ami/amazon-linux-2/recommended/image_id}}"
           },
-          "InstanceType": "t3g.small",
+          "InstanceType": "t3.small",
           "IamInstanceProfile": {
             "Arn": { "Fn::GetAtt": ["InstanceProfile", "Arn"] }
           },
@@ -191,14 +191,14 @@
           "SecurityGroupIds": [{ "Ref": "UserSecurityGroup" }],
           "UserData": {
             "Fn::Base64": {
-              "Fn::Sub": "#!/bin/bash\necho ECS_CLUSTER=${ECSCluster} >> /etc/ecs/ecs.config\necho ECS_ENABLE_CONTAINER_METADATA=true >> /etc/ecs/ecs.config\necho ECS_ENABLE_TASK_IAM_ROLE=true >> /etc/ecs/ecs.config\necho ECS_ENABLE_TASK_CPU_MEM_LIMIT=true >> /etc/ecs/ecs.config\nyum install -y amazon-cloudwatch-agent\n/opt/aws/amazon-cloudwatch-agent/bin/amazon-cloudwatch-agent-ctl \\\n  -a fetch-config \\\n  -m ec2 \\\n  -s -c default\nsystemctl restart docker\n"
+              "Fn::Sub": "#!/bin/bash\nset -x\nset -e\n\n# Log everything\nexec > >(tee /var/log/user-data.log|logger -t user-data -s 2>/dev/console) 2>&1\n\necho \"Starting ECS configuration at $(date)\"\n\n# Wait for docker to be ready (ECS agent depends on it)\necho \"Waiting for docker service...\"\nfor i in {1..30}; do\n  if systemctl is-active docker >/dev/null 2>&1; then\n    echo \"Docker is active\"\n    break\n  fi\n  echo \"Waiting for docker (attempt $i/30)...\"\n  sleep 2\ndone\n\n# Configure ECS agent to join the cluster\necho \"Configuring ECS agent for cluster: ${ECSCluster}\"\ncat > /etc/ecs/ecs.config << EOF\nECS_CLUSTER=${ECSCluster}\nECS_ENABLE_CONTAINER_METADATA=true\nECS_ENABLE_TASK_IAM_ROLE=true\nECS_ENABLE_TASK_CPU_MEM_LIMIT=true\nECS_ENABLE_TASK_IAM_ROLE_NETWORK_HOST=true\nECS_CONTAINER_STOP_TIMEOUT=90s\nECS_ENABLE_UNTRACKED_IMAGE_CLEANUP=true\nECS_IMAGE_CLEANUP_INTERVAL=30m\nECS_RESERVED_MEMORY=256\nEOF\n\necho \"ECS config written. Contents:\"\ncat /etc/ecs/ecs.config\n\n# Start ECS agent (don't restart, as it may not be running yet)\necho \"Starting ECS agent...\"\nsystemctl enable ecs\nsystemctl start ecs\n\n# Wait for ECS agent to start\necho \"Waiting for ECS agent to become active...\"\nfor i in {1..30}; do\n  if systemctl is-active ecs >/dev/null 2>&1; then\n    echo \"✅ ECS agent is active\"\n    break\n  fi\n  echo \"Waiting for ECS agent (attempt $i/30)...\"\n  sleep 2\ndone\n\n# Verify agent started\nif ! systemctl is-active ecs >/dev/null 2>&1; then\n  echo \"❌ ERROR: ECS agent failed to start!\"\n  systemctl status ecs || true\n  journalctl -u ecs -n 50 || true\n  /opt/aws/bin/cfn-signal -e 1 --stack ${AWS::StackName} --resource EC2Instance --region ${AWS::Region}\n  exit 1\nfi\n\n# Wait for instance to register with cluster\necho \"Waiting 5 minutes for instance to register with ECS cluster...\"\nsleep 300\n\necho \"Checking final ECS agent status...\"\nsystemctl status ecs || true\n\n# Signal success\necho \"Sending success signal to CloudFormation at $(date)\"\n/opt/aws/bin/cfn-signal -e 0 --stack ${AWS::StackName} --resource EC2Instance --region ${AWS::Region}\n\necho \"✅ UserData script completed successfully at $(date)\"\n"
             }
           },
           "BlockDeviceMappings": [
             {
               "DeviceName": "/dev/xvda",
               "Ebs": {
-                "VolumeSize": 20,
+                "VolumeSize": 35,
                 "VolumeType": "gp3",
                 "DeleteOnTermination": true,
                 "Encrypted": true,
@@ -248,6 +248,12 @@
     },
     "EC2Instance": {
       "Type": "AWS::EC2::Instance",
+      "CreationPolicy": {
+        "ResourceSignal": {
+          "Timeout": "PT15M",
+          "Count": 1
+        }
+      },
       "Properties": {
         "LaunchTemplate": {
           "LaunchTemplateId": { "Ref": "LaunchTemplate" },
@@ -291,7 +297,25 @@
       "Type": "AWS::ElasticLoadBalancingV2::TargetGroup",
       "Properties": {
         "Name": {
-          "Fn::Sub": "elizaos-${UserId}"
+          "Fn::Join": [
+            "",
+            [
+              "eliza-",
+              {
+                "Fn::Select": [
+                  0,
+                  { "Fn::Split": ["-", { "Ref": "UserId" }] }
+                ]
+              },
+              "-",
+              {
+                "Fn::Select": [
+                  1,
+                  { "Fn::Split": ["-", { "Ref": "UserId" }] }
+                ]
+              }
+            ]
+          ]
         },
         "Protocol": "HTTP",
         "Port": { "Ref": "ContainerPort" },
@@ -476,7 +500,7 @@
     },
     "ECSService": {
       "Type": "AWS::ECS::Service",
-      "DependsOn": ["EC2Instance", "ListenerRule"],
+      "DependsOn": ["EC2Instance", "ListenerRule", "TargetGroup", "ECSCluster"],
       "Properties": {
         "ServiceName": {
           "Fn::Sub": "elizaos-user-${UserId}"
@@ -492,13 +516,13 @@
             "ContainerPort": { "Ref": "ContainerPort" }
           }
         ],
-        "HealthCheckGracePeriodSeconds": 300,
+        "HealthCheckGracePeriodSeconds": 900,
         "DeploymentConfiguration": {
           "MaximumPercent": 100,
           "MinimumHealthyPercent": 0,
           "DeploymentCircuitBreaker": {
-            "Enable": true,
-            "Rollback": true
+            "Enable": false,
+            "Rollback": false
           }
         },
         "Tags": [

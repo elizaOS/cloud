@@ -22,7 +22,8 @@ const ENV_VARS = {
   // Database - Single unified database for platform and ElizaOS
   DATABASE_URL: {
     required: true,
-    description: "PostgreSQL connection string (unified platform + ElizaOS tables)",
+    description:
+      "PostgreSQL connection string (unified platform + ElizaOS tables)",
     validate: (value: string) =>
       value.startsWith("postgresql://") || value.startsWith("postgres://"),
     errorMessage: "Must be a valid PostgreSQL connection string",
