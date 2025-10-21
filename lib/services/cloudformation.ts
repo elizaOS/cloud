@@ -224,6 +224,7 @@ export class CloudFormationService {
       const command = new CreateStackCommand({
         StackName: stackName,
         TemplateBody: templateBody,
+        Capabilities: ["CAPABILITY_NAMED_IAM"], // Required for IAM role creation
         Parameters: [
           { ParameterKey: "UserId", ParameterValue: config.userId },
           { ParameterKey: "UserEmail", ParameterValue: config.userEmail },
@@ -713,6 +714,7 @@ export class CloudFormationService {
       const command = new UpdateStackCommand({
         StackName: stackName,
         TemplateBody: templateBody,
+        Capabilities: ["CAPABILITY_NAMED_IAM"], // Required for IAM role updates
         Parameters: parameters,
         Tags: [
           { Key: "UserId", Value: getParam("UserId") },
