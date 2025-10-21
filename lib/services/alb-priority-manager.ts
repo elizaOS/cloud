@@ -24,7 +24,7 @@ export class DatabasePriorityManager {
   async allocatePriority(userId: string): Promise<number> {
     const { db } = await import("@/db/client");
     const { albPriorities } = await import("@/db/schemas/alb-priorities");
-    const { eq, isNull, sql } = await import("drizzle-orm");
+    const { eq, sql } = await import("drizzle-orm");
 
     return await db.transaction(async (tx) => {
       // Check if user already has an active priority
@@ -37,24 +37,26 @@ export class DatabasePriorityManager {
         return existing.priority;
       }
 
-      // Get the maximum currently allocated priority
+      // Get the maximum priority (including expired ones to avoid conflicts)
       const [maxResult] = await tx
         .select({
           maxPriority: sql<number>`COALESCE(MAX(${albPriorities.priority}), 0)`,
         })
-        .from(albPriorities)
-        .where(isNull(albPriorities.expiresAt));
+        .from(albPriorities);
 
       const nextPriority = (maxResult?.maxPriority || 0) + 1;
 
       // Validate we haven't exceeded ALB limit
       if (nextPriority > 50000) {
         throw new Error(
-          "ALB priority limit exceeded - too many active containers (max 50,000)",
+          "ALB priority limit exceeded - too many containers created (max 50,000)",
         );
       }
 
+      console.log(`[ALB] Attempting to allocate priority ${nextPriority} for user ${userId}`);
+
       // Create new priority record
+      // Note: priority column has unique constraint, so this will fail if there's a conflict
       const [inserted] = await tx
         .insert(albPriorities)
         .values({

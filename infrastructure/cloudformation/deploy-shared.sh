@@ -4,6 +4,15 @@
 
 set -e
 
+# Auto-load from .env.local if variables not set
+if [ -z "$AWS_REGION" ] || [ -z "$ACM_CERTIFICATE_ARN" ]; then
+  if [ -f "../../.env.local" ]; then
+    echo "📝 Loading environment variables from .env.local..."
+    echo ""
+    source load-env.sh
+  fi
+fi
+
 REGION="${AWS_REGION:-us-east-1}"
 ENVIRONMENT="${ENVIRONMENT:-production}"
 CERTIFICATE_ARN="${ACM_CERTIFICATE_ARN}"
