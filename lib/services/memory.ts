@@ -1,6 +1,6 @@
 import { v4 as uuidv4 } from "uuid";
 import { agentRuntime } from "@/lib/eliza/agent-runtime";
-import { memoryCache, type RoomContext, type SearchResult } from "@/lib/cache/memory-cache";
+import { memoryCache, type MemoryRoomContext, type SearchResult } from "@/lib/cache/memory-cache";
 import { CacheKeys, CacheTTL } from "@/lib/cache/keys";
 import { logger } from "@/lib/utils/logger";
 import { streamText } from "ai";
@@ -281,7 +281,7 @@ export class MemoryService {
     organizationId: string,
     depth: number = 20,
     includeMemories: boolean = false,
-  ): Promise<RoomContext> {
+  ): Promise<MemoryRoomContext> {
     try {
       const cached = await memoryCache.getRoomContext(roomId);
       if (cached && cached.depth >= depth) {
@@ -304,7 +304,7 @@ export class MemoryService {
       const rooms = await runtime.adapter.getRoomsByIds([roomId as UUID]);
       const room = rooms && rooms.length > 0 ? rooms[0] : null;
 
-      const context: RoomContext = {
+      const context: MemoryRoomContext = {
         roomId,
         messages: memories,
         participants,
@@ -412,7 +412,7 @@ export class MemoryService {
     return hash.substring(0, 16);
   }
 
-  private buildSummaryPrompt(context: RoomContext, style: string): string {
+  private buildSummaryPrompt(context: MemoryRoomContext, style: string): string {
     const messages = context.messages
       .slice(0, 50)
       .map((m) => `${m.entityId}: ${m.content.text}`)

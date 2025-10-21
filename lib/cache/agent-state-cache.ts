@@ -58,10 +58,11 @@ export class AgentStateCache {
     const key = CacheKeys.agent.roomContext(roomId);
 
     try {
-      const cached = await cacheClient.get<string>(key);
+      // Cache client now handles JSON.parse internally
+      const cached = await cacheClient.get<SerializableRoomContext>(key);
       if (!cached) return null;
 
-      const serialized = JSON.parse(cached) as SerializableRoomContext;
+      const serialized = cached;
 
       // Convert back to RoomContext with Memory objects
       const context: RoomContext = {
@@ -127,9 +128,10 @@ export class AgentStateCache {
         lastActivity: context.lastActivity.toISOString(),
       };
 
+      // Cache client now handles JSON.stringify internally
       await cacheClient.set(
         key,
-        JSON.stringify(serializable),
+        serializable,
         CacheTTL.agent.roomContext,
       );
       logger.debug(`[Agent State Cache] Cached room context for ${roomId}`);
@@ -176,10 +178,10 @@ export class AgentStateCache {
     const key = CacheKeys.agent.characterData(agentId);
 
     try {
-      const cached = await cacheClient.get<string>(key);
+      const cached = await cacheClient.get<ElizaCharacter>(key);
       if (!cached) return null;
 
-      return JSON.parse(cached) as ElizaCharacter;
+      return cached;
     } catch (error) {
       logger.error(
         `[Agent State Cache] Error getting character data for ${agentId}:`,
@@ -203,7 +205,7 @@ export class AgentStateCache {
     try {
       await cacheClient.set(
         key,
-        JSON.stringify(character),
+        character,
         CacheTTL.agent.characterData,
       );
       logger.debug(
@@ -250,11 +252,13 @@ export class AgentStateCache {
     const key = CacheKeys.agent.userSession(entityId);
 
     try {
-      const cached = await cacheClient.get<string>(key);
+      const cached = await cacheClient.get<UserSession & { lastActivity: string }>(key);
       if (!cached) return null;
 
-      const session = JSON.parse(cached) as UserSession;
-      session.lastActivity = new Date(session.lastActivity);
+      const session: UserSession = {
+        ...cached,
+        lastActivity: new Date(cached.lastActivity),
+      };
       return session;
     } catch (error) {
       logger.error(
@@ -279,7 +283,7 @@ export class AgentStateCache {
     try {
       await cacheClient.set(
         key,
-        JSON.stringify(session),
+        session,
         CacheTTL.agent.userSession,
       );
       logger.debug(`[Agent State Cache] Cached user session for ${entityId}`);
@@ -302,13 +306,13 @@ export class AgentStateCache {
     const key = CacheKeys.agent.agentStats(agentId);
 
     try {
-      const cached = await cacheClient.get<string>(key);
+      const cached = await cacheClient.get<AgentStats & { lastActiveAt: string | null }>(key);
       if (!cached) return null;
 
-      const stats = JSON.parse(cached) as AgentStats;
-      if (stats.lastActiveAt) {
-        stats.lastActiveAt = new Date(stats.lastActiveAt);
-      }
+      const stats: AgentStats = {
+        ...cached,
+        lastActiveAt: cached.lastActiveAt ? new Date(cached.lastActiveAt) : null,
+      };
       return stats;
     } catch (error) {
       logger.error(
@@ -330,7 +334,7 @@ export class AgentStateCache {
     try {
       await cacheClient.set(
         key,
-        JSON.stringify(stats),
+        stats,
         CacheTTL.agent.agentStats,
       );
       logger.debug(`[Agent State Cache] Cached agent stats for ${agentId}`);
@@ -357,10 +361,10 @@ export class AgentStateCache {
     const key = CacheKeys.agent.agentList(orgId, filterHash);
 
     try {
-      const cached = await cacheClient.get<string>(key);
+      const cached = await cacheClient.get<unknown[]>(key);
       if (!cached) return null;
 
-      return JSON.parse(cached);
+      return cached;
     } catch (error) {
       logger.error(
         `[Agent State Cache] Error getting agent list for ${orgId}:`,
@@ -386,7 +390,7 @@ export class AgentStateCache {
     try {
       await cacheClient.set(
         key,
-        JSON.stringify(agents),
+        agents,
         CacheTTL.agent.agentList,
       );
       logger.debug(

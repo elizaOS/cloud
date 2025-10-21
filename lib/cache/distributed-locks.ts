@@ -45,6 +45,67 @@ export class DistributedLockService {
   }
 
   /**
+   * Acquire a lock for a room with retry logic for concurrent requests
+   * @param roomId - Room to lock
+   * @param ttl - Lock TTL in milliseconds (default: 30000ms = 30s)
+   * @param options - Retry options
+   * @returns Lock object if acquired, null if failed after all retries
+   */
+  async acquireRoomLockWithRetry(
+    roomId: string,
+    ttl: number = 30000,
+    options: {
+      maxRetries?: number;
+      initialDelayMs?: number;
+      maxDelayMs?: number;
+    } = {},
+  ): Promise<Lock | null> {
+    const {
+      maxRetries = 10,
+      initialDelayMs = 100,
+      maxDelayMs = 2000,
+    } = options;
+
+    let attempt = 0;
+    let delayMs = initialDelayMs;
+
+    while (attempt <= maxRetries) {
+      const lock = await this.acquireRoomLock(roomId, ttl);
+
+      if (lock) {
+        if (attempt > 0) {
+          logger.info(
+            `[Distributed Locks] Acquired lock for ${roomId} after ${attempt} retries`,
+          );
+        }
+        return lock;
+      }
+
+      if (attempt < maxRetries) {
+        logger.debug(
+          `[Distributed Locks] Lock acquisition attempt ${attempt + 1}/${maxRetries + 1} failed for ${roomId}, retrying in ${delayMs}ms`,
+        );
+
+        // Wait before retrying
+        await new Promise(resolve => setTimeout(resolve, delayMs));
+
+        // Exponential backoff with jitter
+        delayMs = Math.min(
+          maxDelayMs,
+          delayMs * 2 + Math.random() * 100,
+        );
+      }
+
+      attempt++;
+    }
+
+    logger.warn(
+      `[Distributed Locks] Failed to acquire lock for ${roomId} after ${maxRetries + 1} attempts`,
+    );
+    return null;
+  }
+
+  /**
    * Acquire a lock for a room to prevent concurrent message processing
    * @param roomId - Room to lock
    * @param ttl - Lock TTL in milliseconds (default: 30000ms = 30s)

@@ -481,6 +481,7 @@ class AgentRuntimeManager {
       | { inputTokens: number; outputTokens: number; model: string }
       | undefined;
     let responseText: string | undefined;
+    let agentResponse: Memory | undefined;
 
     // Process message through event pipeline to generate response
     try {
@@ -518,7 +519,7 @@ class AgentRuntimeManager {
 
     // Explicitly create and save agent response if we have text
     if (responseText) {
-      const agentResponse: Memory = {
+      agentResponse = {
         id: uuidv4() as UUID,
         roomId: roomId as UUID,
         entityId: runtime.agentId as UUID,
@@ -539,7 +540,9 @@ class AgentRuntimeManager {
       );
     }
 
-    return { message: userMessage, usage };
+    // Return agent response if available, otherwise fallback to user message
+    // (This should rarely happen as we set error messages above)
+    return { message: agentResponse || userMessage, usage };
   }
 }
 
