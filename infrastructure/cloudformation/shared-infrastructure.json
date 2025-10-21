@@ -245,6 +245,23 @@
                 }
               ]
             }
+          },
+          {
+            "PolicyName": "ECSClusterRegistrationVerification",
+            "PolicyDocument": {
+              "Version": "2012-10-17",
+              "Statement": [
+                {
+                  "Effect": "Allow",
+                  "Action": [
+                    "ecs:DescribeContainerInstances",
+                    "ecs:ListContainerInstances",
+                    "ecs:DescribeClusters"
+                  ],
+                  "Resource": "*"
+                }
+              ]
+            }
           }
         ],
         "Tags": [
