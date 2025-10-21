@@ -253,15 +253,30 @@ class AgentRuntimeManager {
         (p) => p.name !== "@elizaos/plugin-sql",
       );
 
+      // Construct settings with proper fallback for API keys
+      const openaiKeyRaw = process.env.OPENAI_API_KEY ||
+        agent.character.secrets?.OPENAI_API_KEY ||
+        agent.character.settings?.OPENAI_API_KEY;
+
+      const openaiKey = typeof openaiKeyRaw === 'string' ? openaiKeyRaw : String(openaiKeyRaw || '');
+
+      if (!openaiKey || openaiKey === '' || openaiKey === 'undefined') {
+        elizaLogger.warn(
+          "#Eliza",
+          "⚠️  OPENAI_API_KEY not configured - AI features may fail. Set in environment or character secrets.",
+        );
+      }
+
       this.runtime = new AgentRuntime({
         character: agent.character,
-        plugins: pluginsWithoutSql, // Exclude plugin-sql
+        plugins: pluginsWithoutSql as any, // Type assertion for plugin compatibility
         agentId: RUNTIME_AGENT_ID,
         settings: {
-          OPENAI_API_KEY: process.env.OPENAI_API_KEY,
+          OPENAI_API_KEY: openaiKey,
           POSTGRES_URL: process.env.DATABASE_URL,
           DATABASE_URL: process.env.DATABASE_URL,
           ...agent.character.settings,
+          ...agent.character.secrets,
         },
       });
 
@@ -468,23 +483,38 @@ class AgentRuntimeManager {
     let responseText: string | undefined;
 
     // Process message through event pipeline to generate response
-    await runtime.emitEvent(EventType.MESSAGE_RECEIVED, {
-      runtime,
-      message: userMessage,
-      callback: async (result: {
-        text?: string;
-        usage?: { inputTokens: number; outputTokens: number; model: string };
-      }) => {
-        elizaLogger.debug("#Eliza", "Message processed, generating response");
-        if (result.text) {
-          responseText = result.text;
-        }
-        if (result.usage) {
-          usage = result.usage;
-        }
-        return [];
-      },
-    });
+    try {
+      await runtime.emitEvent(EventType.MESSAGE_RECEIVED, {
+        runtime,
+        message: userMessage,
+        callback: async (result: {
+          text?: string;
+          usage?: { inputTokens: number; outputTokens: number; model: string };
+        }) => {
+          elizaLogger.debug("#Eliza", "Message processed, generating response");
+          if (result.text) {
+            responseText = result.text;
+          }
+          if (result.usage) {
+            usage = result.usage;
+          }
+          return [];
+        },
+      });
+    } catch (error) {
+      elizaLogger.error(
+        "#Eliza",
+        "Error during message processing:",
+        error instanceof Error ? error.message : String(error),
+      );
+
+      // Check if it's an API key error
+      if (error instanceof Error && error.message.includes("API key")) {
+        responseText = "⚠️ Configuration error: OpenAI API key is missing or invalid. Please configure OPENAI_API_KEY in your environment or character secrets.";
+      } else {
+        responseText = "I apologize, but I encountered an error processing your message. Please try again.";
+      }
+    }
 
     // Explicitly create and save agent response if we have text
     if (responseText) {
