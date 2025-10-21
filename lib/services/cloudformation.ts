@@ -14,6 +14,7 @@ import {
   DeleteStackCommand,
   UpdateStackCommand,
   DescribeStacksCommand,
+  DescribeStackEventsCommand,
   type Stack,
   type StackStatus,
 } from "@aws-sdk/client-cloudformation";
@@ -315,10 +316,20 @@ export class CloudFormationService {
         status === "DELETE_COMPLETE" ||
         status === "DELETE_FAILED"
       ) {
-        // Get failure reason from stack events
+        // Get detailed failure reason from stack events
+        const failureDetails = await this.getStackFailureDetails(stackName);
         const failureReason = stack.StackStatusReason || "Unknown failure";
+        
+        console.error(`❌ [CloudFormation] Stack ${stackName} failed:`, {
+          status,
+          reason: failureReason,
+          failedResources: failureDetails,
+        });
+        
         throw new Error(
-          `Stack ${stackName} failed with status: ${status}. Reason: ${failureReason}`,
+          `Stack ${stackName} failed with status: ${status}.\n` +
+          `Reason: ${failureReason}\n` +
+          `Failed resources: ${failureDetails.map(f => `${f.resource}: ${f.reason}`).join('; ')}`,
         );
       }
 
@@ -330,6 +341,36 @@ export class CloudFormationService {
     throw new Error(
       `Stack ${stackName} creation timeout after ${timeoutMinutes} minutes`,
     );
+  }
+
+  /**
+   * Get detailed failure reasons from stack events
+   */
+  async getStackFailureDetails(stackName: string): Promise<Array<{ resource: string; reason: string }>> {
+    try {
+      const command = new DescribeStackEventsCommand({
+        StackName: stackName,
+      });
+
+      const response = await this.client.send(command);
+      const events = response.StackEvents || [];
+
+      // Find failed resources
+      const failedEvents = events.filter((event) =>
+        event.ResourceStatus?.includes("FAILED") ||
+        event.ResourceStatus === "ROLLBACK_COMPLETE"
+      );
+
+      return failedEvents
+        .slice(0, 5) // Get top 5 failures
+        .map((event) => ({
+          resource: event.LogicalResourceId || "Unknown",
+          reason: event.ResourceStatusReason || "No reason provided",
+        }));
+    } catch (error) {
+      console.error("Failed to fetch stack events:", error);
+      return [{ resource: "Unknown", reason: "Could not fetch stack events" }];
+    }
   }
 
   /**
