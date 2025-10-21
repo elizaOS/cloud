@@ -3,7 +3,7 @@ import { CacheKeys, CacheTTL } from "@/lib/cache/keys";
 import { logger } from "@/lib/utils/logger";
 import type { Memory, UUID } from "@elizaos/core";
 
-export interface RoomContext {
+export interface MemoryRoomContext {
   roomId: string;
   messages: Memory[];
   participants: UUID[];
@@ -77,7 +77,7 @@ export class MemoryCache {
 
   async cacheRoomContext(
     roomId: string,
-    context: RoomContext,
+    context: MemoryRoomContext,
     ttl: number,
   ): Promise<void> {
     try {
@@ -99,11 +99,11 @@ export class MemoryCache {
     }
   }
 
-  async getRoomContext(roomId: string): Promise<RoomContext | null> {
+  async getRoomContext(roomId: string): Promise<MemoryRoomContext | null> {
     try {
       const keys = await this.getRoomContextKeys(roomId);
       for (const key of keys) {
-        const cached = await cache.get<RoomContext & { timestamp: string }>(
+        const cached = await cache.get<MemoryRoomContext & { timestamp: string }>(
           key,
         );
         if (cached) {

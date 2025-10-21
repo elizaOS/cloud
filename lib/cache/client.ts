@@ -59,7 +59,7 @@ export class CacheClient {
 
     try {
       const start = Date.now();
-      const value = await this.redis.get<T>(key);
+      const value = await this.redis.get<string>(key);
 
       if (value === null || value === undefined) {
         logger.debug(`[Cache] MISS: ${key}`);
@@ -67,7 +67,24 @@ export class CacheClient {
         return null;
       }
 
-      if (!this.isValidCacheValue(value)) {
+      // Check for corrupted cache values (objects that were stringified incorrectly)
+      if (typeof value === "string" && value === "[object Object]") {
+        logger.warn(`[Cache] Corrupted cache value detected for key ${key}, deleting`);
+        await this.del(key);
+        return null;
+      }
+
+      // Parse JSON string back to object
+      let parsed: T;
+      try {
+        parsed = typeof value === "string" ? JSON.parse(value) : value;
+      } catch (parseError) {
+        logger.warn(`[Cache] Failed to parse cached value for key ${key}, deleting`, parseError);
+        await this.del(key);
+        return null;
+      }
+
+      if (!this.isValidCacheValue(parsed)) {
         logger.warn(`[Cache] Invalid cached value for key ${key}, deleting`);
         await this.del(key);
         return null;
@@ -76,7 +93,7 @@ export class CacheClient {
       this.resetFailures();
       logger.debug(`[Cache] HIT: ${key}`);
       this.logMetric(key, "hit", Date.now() - start);
-      return value;
+      return parsed;
     } catch (error) {
       this.recordFailure();
       logger.error(`[Cache] Error getting key ${key}:`, error);
@@ -95,8 +112,11 @@ export class CacheClient {
         return;
       }
 
+      // Always serialize to JSON string before storing
+      const serialized = typeof value === "string" ? value : JSON.stringify(value);
+
       const start = Date.now();
-      await this.redis.setex(key, ttlSeconds, value);
+      await this.redis.setex(key, ttlSeconds, serialized);
 
       this.resetFailures();
       logger.debug(`[Cache] SET: ${key} (TTL: ${ttlSeconds}s)`);
@@ -193,16 +213,36 @@ export class CacheClient {
 
     try {
       const start = Date.now();
-      const values = await this.redis.mget<T[]>(...keys);
+      const values = await this.redis.mget<string[]>(...keys);
 
-      const hitCount = values.filter((v) => v !== null).length;
+      // Parse each JSON string value
+      const parsed = values.map((value, index) => {
+        if (value === null || value === undefined) return null;
+
+        // Check for corrupted values
+        if (typeof value === "string" && value === "[object Object]") {
+          logger.warn(`[Cache] Corrupted cache value in mget for key ${keys[index]}, skipping`);
+          this.del(keys[index]).catch(() => {});
+          return null;
+        }
+
+        try {
+          return typeof value === "string" ? JSON.parse(value) : value;
+        } catch (parseError) {
+          logger.warn(`[Cache] Failed to parse value in mget for key ${keys[index]}`, parseError);
+          this.del(keys[index]).catch(() => {});
+          return null;
+        }
+      });
+
+      const hitCount = parsed.filter((v) => v !== null).length;
       logger.debug(`[Cache] MGET: ${keys.length} keys (${hitCount} hits)`);
       this.logMetric("mget", "hit", Date.now() - start, {
         keys: keys.length,
         hits: hitCount,
       });
 
-      return values;
+      return parsed;
     } catch (error) {
       logger.error(`[Cache] Error in mget:`, error);
       return keys.map(() => null);
