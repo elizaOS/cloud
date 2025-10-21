@@ -21,9 +21,9 @@ import { z } from "zod";
 
 export const dynamic = "force-dynamic";
 // Set max duration to handle CloudFormation deployments
-// CloudFormation typically takes 5-10 minutes for EC2+ECS provisioning
-// Vercel limits: Hobby=10s, Pro=300s, Enterprise=900s
-export const maxDuration = 300; // 5 minutes - max we can do on Pro plan
+// CloudFormation typically takes 5-12 minutes for EC2+ECS provisioning
+// Vercel limits: Hobby=300s, Pro/Enterprise=800s (configurable)
+export const maxDuration = 780; // 13 minutes - allows full CloudFormation deployment
 
 const createContainerSchema = z.object({
   name: z.string().min(1).max(100),
@@ -457,10 +457,11 @@ async function deployContainerAsync(
     console.log(`✅ [deployContainerAsync] CloudFormation stack initiated: ${stackId}`);
 
     // Wait for stack creation to complete (with timeout)
-    // CRITICAL: Must fit within Vercel maxDuration (300s = 5 min)
-    // CloudFormation typically takes 5-8 minutes, so we set 4 min timeout
-    // to leave buffer for other operations
-    const STACK_TIMEOUT_MINUTES = 4;
+    // With Vercel Pro/Enterprise maxDuration of 800s (13.33 min), we can wait for full deployment
+    // UserData waits 5 min + CloudFormation overhead = typically 7-10 min total
+    // We set 12 min timeout to handle slower AWS regions and edge cases
+    // This fits comfortably within the 13 min Vercel limit
+    const STACK_TIMEOUT_MINUTES = 12;
     console.log(`⏳ [deployContainerAsync] Waiting for stack creation (max ${STACK_TIMEOUT_MINUTES} minutes)...`);
     
     await withTimeout(
@@ -504,7 +505,7 @@ async function deployContainerAsync(
     // Update container status to failed
     await updateContainerStatus(containerId, "failed", {
       errorMessage: isTimeout
-        ? "Deployment timed out after 10 minutes. This may indicate a configuration issue or infrastructure problem."
+        ? "Deployment timed out after 12 minutes. This likely indicates an infrastructure issue. Check AWS CloudFormation console for detailed error logs. Common causes: insufficient AWS capacity, networking issues, or IAM permission problems."
         : errorMessage,
       deploymentLog: `Deployment failed: ${errorMessage}${isTimeout ? " (timeout)" : ""}`,
     });
