@@ -35,13 +35,16 @@ export class UsersRepository {
 
       return user as UserWithOrganization | undefined;
     } catch (error) {
-      console.error('[UsersRepository] Error in findByPrivyIdWithOrganization:', {
-        privyUserId,
-        error,
-        errorMessage: error instanceof Error ? error.message : String(error),
-        errorStack: error instanceof Error ? error.stack : undefined,
-        errorCause: error instanceof Error ? (error as any).cause : undefined,
-      });
+      console.error(
+        "[UsersRepository] Error in findByPrivyIdWithOrganization:",
+        {
+          privyUserId,
+          error,
+          errorMessage: error instanceof Error ? error.message : String(error),
+          errorStack: error instanceof Error ? error.stack : undefined,
+          errorCause: error instanceof Error ? (error as Error & { cause?: unknown }).cause : undefined,
+        },
+      );
       throw error;
     }
   }

@@ -113,9 +113,11 @@ export const updateContainerStatus = async (
     | {
         errorMessage?: string;
         deploymentLog?: string;
-        cloudflareWorkerId?: string;
-        cloudflareContainerId?: string;
-        cloudflareUrl?: string;
+        ecsServiceArn?: string;
+        ecsTaskDefinitionArn?: string;
+        ecsTaskArn?: string;
+        ecsClusterArn?: string;
+        loadBalancerUrl?: string;
       },
 ): Promise<Container> => {
   // Handle both old string format and new options object format
@@ -125,8 +127,7 @@ export const updateContainerStatus = async (
     return result;
   }
 
-  // Build update data - use direct db access for backward compatibility
-  // This matches the original queries/containers.ts implementation
+  // Build update data
   const updateData: Partial<Container> = {
     status,
     updated_at: new Date(),
@@ -140,16 +141,25 @@ export const updateContainerStatus = async (
     updateData.deployment_log = options.deploymentLog;
   }
 
-  if (options?.cloudflareWorkerId) {
-    updateData.cloudflare_worker_id = options.cloudflareWorkerId;
+  // ECS fields
+  if (options?.ecsServiceArn) {
+    updateData.ecs_service_arn = options.ecsServiceArn;
   }
 
-  if (options?.cloudflareContainerId) {
-    updateData.cloudflare_container_id = options.cloudflareContainerId;
+  if (options?.ecsTaskDefinitionArn) {
+    updateData.ecs_task_definition_arn = options.ecsTaskDefinitionArn;
   }
 
-  if (options?.cloudflareUrl) {
-    updateData.cloudflare_url = options.cloudflareUrl;
+  if (options?.ecsTaskArn) {
+    updateData.ecs_task_arn = options.ecsTaskArn;
+  }
+
+  if (options?.ecsClusterArn) {
+    updateData.ecs_cluster_arn = options.ecsClusterArn;
+  }
+
+  if (options?.loadBalancerUrl) {
+    updateData.load_balancer_url = options.loadBalancerUrl;
   }
 
   if (status === "running") {

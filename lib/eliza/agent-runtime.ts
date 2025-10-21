@@ -178,7 +178,7 @@ class AgentRuntimeManager {
         elizaLogger.info("#Eliza", "Creating new database adapter");
         dbAdapter = createDatabaseAdapter(
           {
-            postgresUrl: process.env.AGENT_DATABASE_URL,
+            postgresUrl: process.env.DATABASE_URL,
           },
           RUNTIME_AGENT_ID,
         );
@@ -259,8 +259,8 @@ class AgentRuntimeManager {
         agentId: RUNTIME_AGENT_ID,
         settings: {
           OPENAI_API_KEY: process.env.OPENAI_API_KEY,
-          POSTGRES_URL: process.env.AGENT_DATABASE_URL,
-          DATABASE_URL: process.env.AGENT_DATABASE_URL,
+          POSTGRES_URL: process.env.DATABASE_URL,
+          DATABASE_URL: process.env.DATABASE_URL,
           ...agent.character.settings,
         },
       });

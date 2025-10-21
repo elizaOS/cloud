@@ -16,8 +16,12 @@ export const CacheKeys = {
       `analytics:userbreakdown:${orgId}:${params}:v1`,
     projections: (orgId: string, daysAhead: number) =>
       `analytics:projections:${orgId}:${daysAhead}:v1`,
-    timeSeries: (orgId: string, granularity: string, start: string, end: string) =>
-      `analytics:timeseries:${orgId}:${granularity}:${start}:${end}:v1`,
+    timeSeries: (
+      orgId: string,
+      granularity: string,
+      start: string,
+      end: string,
+    ) => `analytics:timeseries:${orgId}:${granularity}:${start}:${end}:v1`,
     providerBreakdown: (orgId: string, start: string, end: string) =>
       `analytics:provider:${orgId}:${start}:${end}:v1`,
     modelBreakdown: (orgId: string, start: string, end: string) =>

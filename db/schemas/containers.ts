@@ -26,9 +26,14 @@ export const containers = pgTable(
     api_key_id: uuid("api_key_id").references(() => apiKeys.id, {
       onDelete: "set null",
     }),
-    cloudflare_worker_id: text("cloudflare_worker_id"),
-    cloudflare_container_id: text("cloudflare_container_id"),
-    cloudflare_url: text("cloudflare_url"),
+    // AWS ECS/ECR specific fields
+    ecr_repository_uri: text("ecr_repository_uri"),
+    ecr_image_tag: text("ecr_image_tag"),
+    ecs_cluster_arn: text("ecs_cluster_arn"),
+    ecs_service_arn: text("ecs_service_arn"),
+    ecs_task_definition_arn: text("ecs_task_definition_arn"),
+    ecs_task_arn: text("ecs_task_arn"),
+    load_balancer_url: text("load_balancer_url"),
     status: text("status").default("pending").notNull(),
     image_tag: text("image_tag"),
     dockerfile_path: text("dockerfile_path"),
@@ -36,7 +41,9 @@ export const containers = pgTable(
       .$type<Record<string, string>>()
       .default({})
       .notNull(),
-    max_instances: integer("max_instances").default(1).notNull(),
+    desired_count: integer("desired_count").default(1).notNull(),
+    cpu: integer("cpu").default(1792).notNull(), // CPU units (1792 = 1.75 vCPU, 87.5% of t3g.small)
+    memory: integer("memory").default(1792).notNull(), // Memory in MB (1792 = 1.75 GB, 87.5% of t3g.small)
     port: integer("port").default(3000).notNull(),
     health_check_path: text("health_check_path").default("/health"),
     last_deployed_at: timestamp("last_deployed_at"),
@@ -56,8 +63,11 @@ export const containers = pgTable(
     ),
     user_idx: index("containers_user_idx").on(table.user_id),
     status_idx: index("containers_status_idx").on(table.status),
-    cloudflare_worker_idx: index("containers_cloudflare_worker_idx").on(
-      table.cloudflare_worker_id,
+    ecs_service_idx: index("containers_ecs_service_idx").on(
+      table.ecs_service_arn,
+    ),
+    ecr_repository_idx: index("containers_ecr_repository_idx").on(
+      table.ecr_repository_uri,
     ),
   }),
 );

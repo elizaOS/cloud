@@ -29,14 +29,14 @@ export async function POST(request: NextRequest) {
 
     if (!cronSecret) {
       logger.error(
-        "[Health Check Cron] CRON_SECRET not configured - rejecting request for security"
+        "[Health Check Cron] CRON_SECRET not configured - rejecting request for security",
       );
       return NextResponse.json(
         {
           success: false,
           error: "Server configuration error: CRON_SECRET not set",
         },
-        { status: 500 }
+        { status: 500 },
       );
     }
 
@@ -50,11 +50,13 @@ export async function POST(request: NextRequest) {
           success: false,
           error: "Unauthorized",
         },
-        { status: 401 }
+        { status: 401 },
       );
     }
 
-    logger.info("[Health Check Cron] Starting scheduled container health check");
+    logger.info(
+      "[Health Check Cron] Starting scheduled container health check",
+    );
 
     const results = await monitorAllContainers({
       checkIntervalMs: 60000,
@@ -91,7 +93,7 @@ export async function POST(request: NextRequest) {
   } catch (error) {
     logger.error(
       "[Health Check Cron] Failed:",
-      error instanceof Error ? error.message : String(error)
+      error instanceof Error ? error.message : String(error),
     );
 
     return NextResponse.json(
@@ -99,7 +101,7 @@ export async function POST(request: NextRequest) {
         success: false,
         error: error instanceof Error ? error.message : "Health check failed",
       },
-      { status: 500 }
+      { status: 500 },
     );
   }
 }

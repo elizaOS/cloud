@@ -1,4 +1,4 @@
-import { EventEmitter } from 'events';
+import { EventEmitter } from "events";
 import { logger } from "@/lib/utils/logger";
 import { redisCreditEventEmitter } from "./credit-events-redis";
 import type { CreditUpdateEvent } from "./credit-events-redis";
@@ -31,37 +31,42 @@ class UnifiedCreditEventEmitter {
    */
   private shouldUseRedis(): boolean {
     // Check environment variables at runtime
-    const isServerless = process.env.VERCEL === "1" ||
-                        process.env.NODE_ENV === "production" ||
-                        process.env.FORCE_REDIS_EVENTS === "true";
+    const isServerless =
+      process.env.VERCEL === "1" ||
+      process.env.NODE_ENV === "production" ||
+      process.env.FORCE_REDIS_EVENTS === "true";
 
     const redisConfigured = !!(
-      process.env.KV_REST_API_URL &&
-      process.env.KV_REST_API_TOKEN
+      process.env.KV_REST_API_URL && process.env.KV_REST_API_TOKEN
     );
 
     const useRedis = isServerless && redisConfigured;
 
     // Log initialization once per state change
-    if (!this.initLogged || (this.lastEnvCheck && this.lastEnvCheck.useRedis !== useRedis)) {
+    if (
+      !this.initLogged ||
+      (this.lastEnvCheck && this.lastEnvCheck.useRedis !== useRedis)
+    ) {
       if (isServerless && !redisConfigured) {
         logger.error(
           "[Credit Events] 🚨 SERVERLESS DETECTED but Redis not configured! " +
-          "Real-time credit updates will NOT work across instances. " +
-          "Set KV_REST_API_URL and KV_REST_API_TOKEN immediately."
+            "Real-time credit updates will NOT work across instances. " +
+            "Set KV_REST_API_URL and KV_REST_API_TOKEN immediately.",
         );
       }
 
       if (useRedis) {
-        logger.info("[Credit Events] ✓ Using Redis Pub/Sub for serverless-compatible real-time updates");
+        logger.info(
+          "[Credit Events] ✓ Using Redis Pub/Sub for serverless-compatible real-time updates",
+        );
       } else {
         if (!this.inMemoryEmitter) {
           this.inMemoryEmitter = new EventEmitter();
         }
         logger.warn(
           "[Credit Events] ⚠️  Using in-memory EventEmitter (development mode). " +
-          "This will NOT work in multi-instance serverless deployments. " +
-          "Set FORCE_REDIS_EVENTS=true to test with Redis locally."
+            "This will NOT work in multi-instance serverless deployments. " +
+            "Set FORCE_REDIS_EVENTS=true to test with Redis locally.",
         );
       }
       this.initLogged = true;
@@ -84,7 +89,7 @@ class UnifiedCreditEventEmitter {
     if (useRedis) {
       await redisCreditEventEmitter.emitCreditUpdate(event);
     } else if (this.inMemoryEmitter) {
-      this.inMemoryEmitter.emit('credit-update', event);
+      this.inMemoryEmitter.emit("credit-update", event);
       logger.debug("[Credit Events] Event emitted to in-memory listeners", {
         organizationId: event.organizationId,
         delta: event.delta,
@@ -95,19 +100,22 @@ class UnifiedCreditEventEmitter {
 
   public subscribeToCreditUpdates(
     organizationId: string,
-    handler: (event: CreditUpdateEvent) => void | Promise<void>
+    handler: (event: CreditUpdateEvent) => void | Promise<void>,
   ): UnsubscribeFunction {
     const useRedis = this.shouldUseRedis();
 
     if (useRedis) {
-      redisCreditEventEmitter.subscribeToCreditUpdates(
-        organizationId,
-        handler
-      ).then(() => {
-        // Redis subscription is async, but we return sync unsubscribe
-      }).catch(error => {
-        logger.error('[Credit Events] Failed to create Redis subscription:', error);
-      });
+      redisCreditEventEmitter
+        .subscribeToCreditUpdates(organizationId, handler)
+        .then(() => {
+          // Redis subscription is async, but we return sync unsubscribe
+        })
+        .catch((error) => {
+          logger.error(
+            "[Credit Events] Failed to create Redis subscription:",
+            error,
+          );
+        });
 
       // Return sync unsubscribe function
       return () => {
@@ -120,18 +128,22 @@ class UnifiedCreditEventEmitter {
         }
       };
 
-      this.inMemoryEmitter.on('credit-update', listener);
+      this.inMemoryEmitter.on("credit-update", listener);
       logger.info(
         `[Credit Events] In-memory subscription created for org ${organizationId} ` +
-        "(development mode - works only in single instance)"
+          "(development mode - works only in single instance)",
       );
 
       return () => {
-        this.inMemoryEmitter?.off('credit-update', listener);
-        logger.debug(`[Credit Events] In-memory subscription ended for org ${organizationId}`);
+        this.inMemoryEmitter?.off("credit-update", listener);
+        logger.debug(
+          `[Credit Events] In-memory subscription ended for org ${organizationId}`,
+        );
       };
     } else {
-      logger.error(`[Credit Events] No event system available for org ${organizationId}`);
+      logger.error(
+        `[Credit Events] No event system available for org ${organizationId}`,
+      );
       return () => {};
     }
   }

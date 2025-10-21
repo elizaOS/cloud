@@ -63,11 +63,13 @@ export async function GET(
           ?.container_id,
         container_name: (deployment.metadata as Record<string, string> | null)
           ?.container_name,
-        max_instances: (deployment.metadata as Record<string, string> | null)
-          ?.max_instances,
+        desired_count: (deployment.metadata as Record<string, string> | null)
+          ?.desired_count,
+        cpu: (deployment.metadata as Record<string, string> | null)?.cpu,
+        memory: (deployment.metadata as Record<string, string> | null)?.memory,
         port: (deployment.metadata as Record<string, string> | null)?.port,
         image_tag: container.image_tag,
-        cloudflare_worker_id: container.cloudflare_worker_id,
+        ecs_service_arn: container.ecs_service_arn,
       },
       deployed_at: deployment.created_at,
       duration_ms: deployment.duration_ms,
@@ -80,7 +82,8 @@ export async function GET(
           id: container.id,
           name: container.name,
           current_status: container.status,
-          cloudflare_url: container.cloudflare_url,
+          load_balancer_url: container.load_balancer_url,
+          ecs_service_arn: container.ecs_service_arn,
         },
         deployments: enhancedHistory,
         total: enhancedHistory.length,
