@@ -7,6 +7,8 @@ import { streamText } from "ai";
 import { gateway } from "@ai-sdk/gateway";
 import type { Memory, UUID } from "@elizaos/core";
 import { createHash } from "crypto";
+import { conversationsService } from "@/lib/services/conversations";
+import type { ConversationMessage } from "@/db/repositories";
 
 export interface SaveMemoryInput {
   organizationId: string;
@@ -378,6 +380,393 @@ Summary:`;
       .map((m) => m.content.text || "")
       .join(" ");
     return Math.ceil(totalText.length / 4);
+  }
+
+  async optimizeContextWindow(
+    roomId: string,
+    organizationId: string,
+    maxTokens: number,
+    query?: string,
+    preserveRecent: number = 5,
+  ): Promise<{
+    messages: Memory[];
+    totalTokens: number;
+    messageCount: number;
+    relevanceScores: Array<{ messageId: string; score: number }>;
+  }> {
+    try {
+      const context = await this.getRoomContext(roomId, organizationId, 100);
+
+      const recentMessages = context.messages.slice(0, preserveRecent);
+      const olderMessages = context.messages.slice(preserveRecent);
+
+      let selectedMessages = [...recentMessages];
+      let currentTokens = await this.estimateTokenCount(recentMessages);
+
+      const relevanceScores: Array<{ messageId: string; score: number }> = [];
+
+      if (query) {
+        for (const msg of olderMessages) {
+          const msgText = msg.content.text || "";
+          const score = this.calculateRelevanceScore(msgText, query);
+          relevanceScores.push({
+            messageId: msg.id?.toString() || "",
+            score,
+          });
+        }
+
+        relevanceScores.sort((a, b) => b.score - a.score);
+
+        for (const scoreItem of relevanceScores) {
+          const msg = olderMessages.find(
+            (m) => m.id?.toString() === scoreItem.messageId,
+          );
+          if (msg) {
+            const msgTokens = await this.estimateTokenCount([msg]);
+            if (currentTokens + msgTokens <= maxTokens) {
+              selectedMessages.push(msg);
+              currentTokens += msgTokens;
+            } else {
+              break;
+            }
+          }
+        }
+      } else {
+        for (const msg of olderMessages) {
+          const msgTokens = await this.estimateTokenCount([msg]);
+          if (currentTokens + msgTokens <= maxTokens) {
+            selectedMessages.push(msg);
+            currentTokens += msgTokens;
+          } else {
+            break;
+          }
+        }
+      }
+
+      logger.info(
+        `[Memory Service] Optimized context: ${selectedMessages.length}/${context.messages.length} messages, ${currentTokens}/${maxTokens} tokens`,
+      );
+
+      return {
+        messages: selectedMessages,
+        totalTokens: currentTokens,
+        messageCount: selectedMessages.length,
+        relevanceScores,
+      };
+    } catch (error) {
+      logger.error(
+        "[Memory Service] Failed to optimize context window:",
+        error,
+      );
+      throw error;
+    }
+  }
+
+  async exportConversation(
+    conversationId: string,
+    organizationId: string,
+    format: "json" | "markdown" | "txt",
+    includeMemories: boolean = false,
+  ): Promise<{
+    content: string;
+    size: number;
+    format: string;
+  }> {
+    try {
+      const conversation = await conversationsService.getWithMessages(
+        conversationId,
+      );
+
+      if (!conversation) {
+        throw new Error("Conversation not found");
+      }
+
+      let content = "";
+
+      switch (format) {
+        case "json":
+          content = JSON.stringify(
+            {
+              id: conversation.id,
+              title: conversation.title,
+              model: conversation.model,
+              createdAt: conversation.created_at,
+              messages: conversation.messages.map((m: ConversationMessage) => ({
+                id: m.id,
+                role: m.role,
+                content: m.content,
+                tokens: m.tokens,
+                cost: m.cost,
+                createdAt: m.created_at,
+              })),
+              metadata: {
+                messageCount: conversation.message_count,
+                totalCost: conversation.total_cost,
+              },
+            },
+            null,
+            2,
+          );
+          break;
+
+        case "markdown":
+          content = `# ${conversation.title}\n\n`;
+          content += `**Model**: ${conversation.model}\n`;
+          content += `**Created**: ${conversation.created_at}\n`;
+          content += `**Messages**: ${conversation.message_count}\n\n`;
+          content += `---\n\n`;
+
+          for (const msg of conversation.messages) {
+            content += `## ${msg.role}\n\n`;
+            content += `${msg.content}\n\n`;
+            content += `_Tokens: ${msg.tokens || 0} | Cost: ${msg.cost || 0} credits_\n\n`;
+            content += `---\n\n`;
+          }
+          break;
+
+        case "txt":
+          content = `Conversation: ${conversation.title}\n`;
+          content += `Model: ${conversation.model}\n`;
+          content += `Created: ${conversation.created_at}\n`;
+          content += `\n${"=".repeat(80)}\n\n`;
+
+          for (const msg of conversation.messages) {
+            content += `[${msg.role.toUpperCase()}]\n`;
+            content += `${msg.content}\n`;
+            content += `\n${"-".repeat(80)}\n\n`;
+          }
+          break;
+      }
+
+      logger.info(
+        `[Memory Service] Exported conversation ${conversationId} as ${format}`,
+      );
+
+      return {
+        content,
+        size: content.length,
+        format,
+      };
+    } catch (error) {
+      logger.error("[Memory Service] Failed to export conversation:", error);
+      throw error;
+    }
+  }
+
+  async cloneConversation(
+    conversationId: string,
+    organizationId: string,
+    userId: string,
+    options: {
+      newTitle?: string;
+      preserveMessages?: boolean;
+      preserveMemories?: boolean;
+      newModel?: string;
+    },
+  ): Promise<{
+    conversationId: string;
+    clonedMessageCount: number;
+  }> {
+    try {
+      const sourceConversation = await conversationsService.getWithMessages(
+        conversationId,
+      );
+
+      if (!sourceConversation) {
+        throw new Error("Source conversation not found");
+      }
+
+      const newConversation = await conversationsService.create({
+        organization_id: organizationId,
+        user_id: userId,
+        title: options.newTitle || `${sourceConversation.title} (Copy)`,
+        model: options.newModel || sourceConversation.model,
+        settings: sourceConversation.settings,
+      });
+
+      let clonedMessageCount = 0;
+
+      if (options.preserveMessages && sourceConversation.messages.length > 0) {
+        for (const msg of sourceConversation.messages) {
+          await conversationsService.addMessage(
+            newConversation.id,
+            msg.role,
+            msg.content,
+            msg.sequence_number,
+            {
+              tokens: msg.tokens,
+              cost: msg.cost,
+            },
+          );
+          clonedMessageCount++;
+        }
+      }
+
+      logger.info(
+        `[Memory Service] Cloned conversation ${conversationId} to ${newConversation.id} with ${clonedMessageCount} messages`,
+      );
+
+      return {
+        conversationId: newConversation.id,
+        clonedMessageCount,
+      };
+    } catch (error) {
+      logger.error("[Memory Service] Failed to clone conversation:", error);
+      throw error;
+    }
+  }
+
+  async analyzeMemoryPatterns(
+    organizationId: string,
+    analysisType: "topics" | "sentiment" | "entities" | "timeline",
+    timeRange?: { from: Date; to: Date },
+  ): Promise<{
+    analysisType: string;
+    insights: string[];
+    data: Record<string, unknown>;
+    chartData?: Array<{ label: string; value: number }>;
+  }> {
+    try {
+      const memories = await this.retrieveMemories({
+        organizationId,
+        limit: 100,
+      });
+
+      const memoriesText = memories
+        .map((m) => m.memory.content.text || "")
+        .join("\n");
+
+      let insights: string[] = [];
+      let data: Record<string, unknown> = {};
+      let chartData: Array<{ label: string; value: number }> = [];
+
+      switch (analysisType) {
+        case "topics":
+          const topics = this.extractTopics(memoriesText);
+          insights = [
+            `Identified ${topics.length} key topics from ${memories.length} memories`,
+            `Most frequent: ${topics.slice(0, 3).join(", ")}`,
+          ];
+          data = { topics };
+          chartData = topics.map((topic, idx) => ({
+            label: topic,
+            value: topics.length - idx,
+          }));
+          break;
+
+        case "timeline":
+          const timelineData = memories.map((m) => ({
+            date: new Date(m.memory.createdAt || Date.now()),
+            type: m.memory.content.type || "unknown",
+          }));
+
+          const groupedByDay = new Map<string, number>();
+          for (const item of timelineData) {
+            const day = item.date.toISOString().split("T")[0];
+            groupedByDay.set(day, (groupedByDay.get(day) || 0) + 1);
+          }
+
+          chartData = Array.from(groupedByDay.entries()).map(
+            ([label, value]) => ({ label, value }),
+          );
+
+          insights = [
+            `Analyzed ${memories.length} memories over ${groupedByDay.size} days`,
+            `Peak activity: ${Math.max(...Array.from(groupedByDay.values()))} memories in a single day`,
+          ];
+          data = { timelineData: Object.fromEntries(groupedByDay) };
+          break;
+
+        case "entities":
+          const words = memoriesText
+            .toLowerCase()
+            .split(/\W+/)
+            .filter((w) => w.length > 3);
+          const wordCounts = new Map<string, number>();
+          for (const word of words) {
+            wordCounts.set(word, (wordCounts.get(word) || 0) + 1);
+          }
+
+          const topEntities = Array.from(wordCounts.entries())
+            .sort((a, b) => b[1] - a[1])
+            .slice(0, 10);
+
+          chartData = topEntities.map(([label, value]) => ({ label, value }));
+          insights = [
+            `Extracted ${topEntities.length} key entities`,
+            `Total unique words: ${wordCounts.size}`,
+          ];
+          data = { entities: Object.fromEntries(topEntities) };
+          break;
+
+        case "sentiment":
+          const positiveWords = ["good", "great", "excellent", "happy", "love"];
+          const negativeWords = ["bad", "terrible", "hate", "sad", "poor"];
+
+          let positiveCount = 0;
+          let negativeCount = 0;
+
+          const lowerText = memoriesText.toLowerCase();
+          for (const word of positiveWords) {
+            positiveCount += (lowerText.match(new RegExp(word, "g")) || [])
+              .length;
+          }
+          for (const word of negativeWords) {
+            negativeCount += (lowerText.match(new RegExp(word, "g")) || [])
+              .length;
+          }
+
+          const neutralCount = memories.length - positiveCount - negativeCount;
+
+          chartData = [
+            { label: "Positive", value: positiveCount },
+            { label: "Neutral", value: neutralCount },
+            { label: "Negative", value: negativeCount },
+          ];
+
+          insights = [
+            `Sentiment distribution: ${positiveCount} positive, ${neutralCount} neutral, ${negativeCount} negative`,
+            positiveCount > negativeCount
+              ? "Overall positive sentiment detected"
+              : "Overall negative sentiment detected",
+          ];
+          data = { positive: positiveCount, neutral: neutralCount, negative: negativeCount };
+          break;
+      }
+
+      logger.info(
+        `[Memory Service] Analyzed ${memories.length} memories for ${analysisType}`,
+      );
+
+      return {
+        analysisType,
+        insights,
+        data,
+        chartData,
+      };
+    } catch (error) {
+      logger.error("[Memory Service] Failed to analyze memory patterns:", error);
+      throw error;
+    }
+  }
+
+  private calculateRelevanceScore(text: string, query: string): number {
+    const textLower = text.toLowerCase();
+    const queryLower = query.toLowerCase();
+    const queryWords = queryLower.split(/\s+/);
+
+    let score = 0;
+    for (const word of queryWords) {
+      if (textLower.includes(word)) {
+        score += 1;
+      }
+    }
+
+    if (textLower.includes(queryLower)) {
+      score += 5;
+    }
+
+    return score;
   }
 }
 
