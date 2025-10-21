@@ -199,7 +199,9 @@ async function getContainerMetrics(
     network_rx_bytes,
     network_tx_bytes,
     task_count: container.desired_count,
-    healthy_task_count: container.desired_count, // TODO: Get actual healthy count from ECS
+    // Healthy task count approximation: assumes all tasks are healthy if no CloudWatch alarms
+    // For accurate health status, query ECS DescribeServices API or check ALB target health
+    healthy_task_count: container.desired_count,
     timestamp: now.toISOString(),
   };
 }

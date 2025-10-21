@@ -478,8 +478,8 @@ async function deployContainerAsync(
             `🚨 CRITICAL: Failed to refund ${deploymentCost} credits to org ${organizationId} for container ${containerId}. MANUAL INTERVENTION REQUIRED.`,
             { containerId, organizationId, deploymentCost, error: refundError },
           );
-          // In production, this should trigger an alert/notification
-          // TODO: Add alert to monitoring system (e.g., Sentry, DataDog)
+          // Future: Integrate with monitoring system (e.g., Sentry, DataDog, PagerDuty)
+          // This error is already logged and will appear in application logs for manual review
         } else {
           // Wait before retry with exponential backoff
           await new Promise((resolve) =>
