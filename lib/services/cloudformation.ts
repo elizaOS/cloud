@@ -12,7 +12,9 @@ import {
   CloudFormationClient,
   CreateStackCommand,
   DeleteStackCommand,
+  UpdateStackCommand,
   DescribeStacksCommand,
+  DescribeStackEventsCommand,
   type Stack,
   type StackStatus,
 } from "@aws-sdk/client-cloudformation";
@@ -73,10 +75,45 @@ export class CloudFormationService {
     }
 
     // Use production template with monitoring
-    this.templatePath = path.join(
-      __dirname,
-      "../../infrastructure/cloudformation/per-user-stack.json",
-    );
+    // Try multiple paths for better compatibility across environments
+    const possiblePaths = [
+      // Vercel deployment (relative to project root)
+      path.join(
+        process.cwd(),
+        "infrastructure/cloudformation/per-user-stack.json",
+      ),
+      // Local development (from lib/services/)
+      path.join(
+        __dirname,
+        "../../infrastructure/cloudformation/per-user-stack.json",
+      ),
+      // Build output (from .next/server/)
+      path.join(
+        __dirname,
+        "../../../infrastructure/cloudformation/per-user-stack.json",
+      ),
+    ];
+
+    // Find the first path that exists
+    this.templatePath =
+      possiblePaths.find((p) => fs.existsSync(p)) || possiblePaths[0];
+    
+    console.log(`[CloudFormation] Template path: ${this.templatePath}`);
+    console.log(`[CloudFormation] Template exists: ${fs.existsSync(this.templatePath)}`);
+    console.log(`[CloudFormation] AWS credentials: ${accessKeyId ? 'SET' : 'NOT SET'}`);
+  }
+
+  /**
+   * Validate that the CloudFormation template file exists
+   */
+  private validateTemplateExists(): void {
+    if (!fs.existsSync(this.templatePath)) {
+      throw new Error(
+        `CloudFormation template not found at: ${this.templatePath}. ` +
+          `Expected location: infrastructure/cloudformation/per-user-stack.json from project root. ` +
+          `Current working directory: ${process.cwd()}`,
+      );
+    }
   }
 
   /**
@@ -149,12 +186,18 @@ export class CloudFormationService {
    * Create a new CloudFormation stack for a user with ALB priority management
    */
   async createUserStack(config: UserStackConfig): Promise<string> {
+    console.log(`[CloudFormation] createUserStack called for user: ${config.userId}`);
+    
     this.ensureCredentials();
+    console.log(`[CloudFormation] Credentials validated`);
+    
+    this.validateTemplateExists();
+    console.log(`[CloudFormation] Template validated`);
 
     return this.withRetry(async () => {
       const stackName = this.getStackName(config.userId);
 
-      console.log(`Creating CloudFormation stack: ${stackName}`);
+      console.log(`[CloudFormation] Creating stack: ${stackName}`);
 
       // Allocate unique ALB priority
       const albPriority = await dbPriorityManager.allocatePriority(
@@ -167,10 +210,21 @@ export class CloudFormationService {
 
       // Get shared infrastructure outputs
       const sharedOutputs = await this.getSharedInfrastructureOutputs();
+      
+      console.log(`[CloudFormation] Shared infrastructure outputs:`, {
+        vpcId: sharedOutputs.vpcId,
+        subnetId: sharedOutputs.subnetId,
+        albArn: sharedOutputs.albArn?.substring(0, 50) + '...',
+        listenerArn: sharedOutputs.listenerArn?.substring(0, 50) + '...',
+        executionRoleArn: sharedOutputs.executionRoleArn?.substring(0, 50) + '...',
+        taskRoleArn: sharedOutputs.taskRoleArn?.substring(0, 50) + '...',
+        albSecurityGroupId: sharedOutputs.albSecurityGroupId,
+      });
 
       const command = new CreateStackCommand({
         StackName: stackName,
         TemplateBody: templateBody,
+        Capabilities: ["CAPABILITY_NAMED_IAM"], // Required for IAM role creation
         Parameters: [
           { ParameterKey: "UserId", ParameterValue: config.userId },
           { ParameterKey: "UserEmail", ParameterValue: config.userEmail },
@@ -232,10 +286,27 @@ export class CloudFormationService {
         OnFailure: "ROLLBACK",
       });
 
-      const response = await this.client.send(command);
-      console.log(`Stack creation initiated: ${response.StackId}`);
+      console.log(`[CloudFormation] Sending CreateStack command with parameters:`, {
+        stackName,
+        containerImage: config.containerImage,
+        port: config.containerPort,
+        cpu: config.containerCpu,
+        memory: config.containerMemory,
+        albPriority,
+      });
 
-      return response.StackId!;
+      try {
+        const response = await this.client.send(command);
+        console.log(`✅ [CloudFormation] Stack creation initiated: ${response.StackId}`);
+        return response.StackId!;
+      } catch (createError) {
+        console.error(`❌ [CloudFormation] CreateStack API call failed:`, {
+          error: createError instanceof Error ? createError.message : String(createError),
+          stack: createError instanceof Error ? createError.stack : undefined,
+          name: createError instanceof Error ? createError.name : undefined,
+        });
+        throw createError;
+      }
     });
   }
 
@@ -273,10 +344,24 @@ export class CloudFormationService {
         status === "DELETE_COMPLETE" ||
         status === "DELETE_FAILED"
       ) {
-        // Get failure reason from stack events
+        // Get detailed failure reason from stack events
+        const failureDetails = await this.getStackFailureDetails(stackName);
         const failureReason = stack.StackStatusReason || "Unknown failure";
+        
+        console.error(`❌ [CloudFormation] Stack ${stackName} failed:`, {
+          status,
+          reason: failureReason,
+          failedResources: failureDetails,
+        });
+        
+        const failureMessage = failureDetails.length > 0
+          ? failureDetails.map(f => `\n  • ${f.resource}: ${f.reason}`).join('')
+          : '\n  (No detailed failure events found - check AWS CloudFormation console)';
+        
         throw new Error(
-          `Stack ${stackName} failed with status: ${status}. Reason: ${failureReason}`,
+          `CloudFormation stack failed with status: ${status}\n` +
+          `Stack reason: ${failureReason}\n` +
+          `Failed resources:${failureMessage}`,
         );
       }
 
@@ -288,6 +373,58 @@ export class CloudFormationService {
     throw new Error(
       `Stack ${stackName} creation timeout after ${timeoutMinutes} minutes`,
     );
+  }
+
+  /**
+   * Get detailed failure reasons from stack events
+   */
+  async getStackFailureDetails(stackName: string): Promise<Array<{ resource: string; reason: string; status: string }>> {
+    try {
+      const command = new DescribeStackEventsCommand({
+        StackName: stackName,
+      });
+
+      const response = await this.client.send(command);
+      const events = response.StackEvents || [];
+
+      console.log(`[CloudFormation] Fetched ${events.length} stack events for ${stackName}`);
+
+      // Find CREATE_FAILED events (these are the actual failures, not rollback events)
+      const failedEvents = events.filter((event) => {
+        const isFailed = event.ResourceStatus === "CREATE_FAILED";
+        const isNotStack = event.ResourceType !== "AWS::CloudFormation::Stack";
+        return isFailed && isNotStack; // Only resource failures, not stack-level status
+      });
+
+      console.log(`[CloudFormation] Found ${failedEvents.length} CREATE_FAILED resource events`);
+
+      // If no CREATE_FAILED, also check for rollback events to get more context
+      if (failedEvents.length === 0) {
+        const rollbackEvents = events.filter((event) =>
+          event.ResourceStatus?.includes("ROLLBACK") &&
+          event.ResourceType !== "AWS::CloudFormation::Stack"
+        ).slice(0, 10);
+        
+        console.log(`[CloudFormation] No CREATE_FAILED events, showing ${rollbackEvents.length} rollback events`);
+        
+        return rollbackEvents.map((event) => ({
+          resource: `${event.LogicalResourceId} (${event.ResourceType})` || "Unknown",
+          reason: event.ResourceStatusReason || "No reason provided",
+          status: event.ResourceStatus || "Unknown",
+        }));
+      }
+
+      return failedEvents
+        .slice(0, 10) // Get top 10 failures
+        .map((event) => ({
+          resource: `${event.LogicalResourceId} (${event.ResourceType})` || "Unknown",
+          reason: event.ResourceStatusReason || "No reason provided",
+          status: event.ResourceStatus || "Unknown",
+        }));
+    } catch (error) {
+      console.error("Failed to fetch stack events:", error);
+      return [{ resource: "Unknown", reason: "Could not fetch stack events", status: "ERROR" }];
+    }
   }
 
   /**
@@ -478,6 +615,180 @@ export class CloudFormationService {
     } catch {
       return false;
     }
+  }
+
+  /**
+   * Update an existing CloudFormation stack with new parameters
+   * Allows updating: CPU, Memory, Container Image, Environment Variables
+   */
+  async updateUserStack(
+    userId: string,
+    updates: {
+      containerImage?: string;
+      containerCpu?: number;
+      containerMemory?: number;
+      containerPort?: number;
+    },
+  ): Promise<string> {
+    this.ensureCredentials();
+
+    return this.withRetry(async () => {
+      const stackName = this.getStackName(userId);
+
+      console.log(`Updating CloudFormation stack: ${stackName}`);
+
+      // Get current stack to preserve existing parameters
+      const stack = await this.getStack(userId);
+      if (!stack) {
+        throw new Error(`Stack ${stackName} not found`);
+      }
+
+      // Load template
+      const templateBody = fs.readFileSync(this.templatePath, "utf-8");
+
+      // Get shared infrastructure outputs
+      const sharedOutputs = await this.getSharedInfrastructureOutputs();
+
+      // Extract current parameters from stack
+      const currentParams = stack.Parameters || [];
+      const getParam = (key: string): string => {
+        const param = currentParams.find((p) => p.ParameterKey === key);
+        return param?.ParameterValue || "";
+      };
+
+      // Build parameters list - use new values or preserve existing
+      const parameters = [
+        { ParameterKey: "UserId", ParameterValue: getParam("UserId") },
+        { ParameterKey: "UserEmail", ParameterValue: getParam("UserEmail") },
+        {
+          ParameterKey: "ContainerImage",
+          ParameterValue: updates.containerImage || getParam("ContainerImage"),
+        },
+        {
+          ParameterKey: "ContainerPort",
+          ParameterValue: updates.containerPort
+            ? updates.containerPort.toString()
+            : getParam("ContainerPort"),
+        },
+        {
+          ParameterKey: "ContainerCpu",
+          ParameterValue: updates.containerCpu
+            ? updates.containerCpu.toString()
+            : getParam("ContainerCpu"),
+        },
+        {
+          ParameterKey: "ContainerMemory",
+          ParameterValue: updates.containerMemory
+            ? updates.containerMemory.toString()
+            : getParam("ContainerMemory"),
+        },
+        { ParameterKey: "SharedVPCId", ParameterValue: sharedOutputs.vpcId },
+        {
+          ParameterKey: "SharedSubnetId",
+          ParameterValue: sharedOutputs.subnetId,
+        },
+        { ParameterKey: "SharedALBArn", ParameterValue: sharedOutputs.albArn },
+        {
+          ParameterKey: "SharedListenerArn",
+          ParameterValue: sharedOutputs.listenerArn,
+        },
+        {
+          ParameterKey: "ECSExecutionRoleArn",
+          ParameterValue: sharedOutputs.executionRoleArn,
+        },
+        {
+          ParameterKey: "ECSTaskRoleArn",
+          ParameterValue: sharedOutputs.taskRoleArn,
+        },
+        {
+          ParameterKey: "SharedALBSecurityGroupId",
+          ParameterValue: sharedOutputs.albSecurityGroupId,
+        },
+        { ParameterKey: "KeyName", ParameterValue: getParam("KeyName") },
+        {
+          ParameterKey: "ListenerRulePriority",
+          ParameterValue: getParam("ListenerRulePriority"),
+        },
+      ];
+
+      const command = new UpdateStackCommand({
+        StackName: stackName,
+        TemplateBody: templateBody,
+        Capabilities: ["CAPABILITY_NAMED_IAM"], // Required for IAM role updates
+        Parameters: parameters,
+        Tags: [
+          { Key: "UserId", Value: getParam("UserId") },
+          { Key: "UserEmail", Value: getParam("UserEmail") },
+          { Key: "ManagedBy", Value: "ElizaOS" },
+          { Key: "Environment", Value: this.environment },
+          { Key: "BillingEntity", Value: "ElizaOS" },
+          { Key: "CostCenter", Value: getParam("UserId") },
+        ],
+      });
+
+      try {
+        const response = await this.client.send(command);
+        console.log(`Stack update initiated: ${response.StackId}`);
+        return response.StackId!;
+      } catch (error: unknown) {
+        // If no changes needed, CloudFormation throws an error
+        if (
+          error instanceof Error &&
+          error.message.includes("No updates are to be performed")
+        ) {
+          console.log(`No changes needed for stack ${stackName}`);
+          return stack.StackId || stackName;
+        }
+        throw error;
+      }
+    });
+  }
+
+  /**
+   * Wait for stack update to complete
+   */
+  async waitForStackUpdate(
+    userId: string,
+    timeoutMinutes: number = 15,
+  ): Promise<StackStatus> {
+    const stackName = this.getStackName(userId);
+    const maxAttempts = (timeoutMinutes * 60) / 10; // Check every 10 seconds
+
+    for (let attempt = 0; attempt < maxAttempts; attempt++) {
+      const stack = await this.getStack(userId);
+
+      if (!stack) {
+        throw new Error(`Stack ${stackName} not found during update`);
+      }
+
+      const status = stack.StackStatus;
+
+      // Complete states
+      if (status === "UPDATE_COMPLETE") {
+        console.log(`✅ Stack ${stackName} updated successfully`);
+        return status;
+      }
+
+      // Failure states
+      if (
+        status === "UPDATE_ROLLBACK_COMPLETE" ||
+        status === "UPDATE_ROLLBACK_FAILED" ||
+        status === "UPDATE_FAILED"
+      ) {
+        const failureReason = stack.StackStatusReason || "Unknown failure";
+        throw new Error(
+          `Stack ${stackName} update failed. Status: ${status}. Reason: ${failureReason}`,
+        );
+      }
+
+      // Still in progress
+      console.log(`Stack ${stackName} status: ${status}, waiting...`);
+      await new Promise((resolve) => setTimeout(resolve, 10000));
+    }
+
+    throw new Error(
+      `Stack ${stackName} update timeout after ${timeoutMinutes} minutes`,
+    );
   }
 }
 
