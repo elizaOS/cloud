@@ -1,6 +1,7 @@
 import { cache } from "@/lib/cache/client";
 import { CacheKeys } from "@/lib/cache/keys";
 import { logger } from "@/lib/utils/logger";
+import { memoryCache } from "@/lib/cache/memory-cache";
 
 export class CacheInvalidation {
   static async onCreditMutation(organizationId: string): Promise<void> {
@@ -53,6 +54,39 @@ export class CacheInvalidation {
     await Promise.all([
       cache.delPattern(CacheKeys.org.pattern(organizationId)),
       cache.delPattern(CacheKeys.analytics.pattern(organizationId)),
+      memoryCache.invalidateOrganization(organizationId),
     ]);
+  }
+
+  static async onMemoryCreated(
+    organizationId: string,
+    roomId?: string,
+  ): Promise<void> {
+    logger.debug(
+      `[Cache Invalidation] Memory created for org=${organizationId}, room=${roomId}`,
+    );
+
+    if (roomId) {
+      await memoryCache.invalidateRoom(roomId);
+    }
+  }
+
+  static async onMemoryDeleted(
+    organizationId: string,
+    memoryId: string,
+  ): Promise<void> {
+    logger.debug(
+      `[Cache Invalidation] Memory deleted: memoryId=${memoryId}`,
+    );
+
+    await memoryCache.invalidateMemory(memoryId);
+  }
+
+  static async onConversationUpdated(conversationId: string): Promise<void> {
+    logger.debug(
+      `[Cache Invalidation] Conversation updated: ${conversationId}`,
+    );
+
+    await memoryCache.invalidateConversation(conversationId);
   }
 }
