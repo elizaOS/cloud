@@ -96,6 +96,10 @@ export class CloudFormationService {
     // Find the first path that exists
     this.templatePath =
       possiblePaths.find((p) => fs.existsSync(p)) || possiblePaths[0];
+    
+    console.log(`[CloudFormation] Template path: ${this.templatePath}`);
+    console.log(`[CloudFormation] Template exists: ${fs.existsSync(this.templatePath)}`);
+    console.log(`[CloudFormation] AWS credentials: ${accessKeyId ? 'SET' : 'NOT SET'}`);
   }
 
   /**
@@ -181,13 +185,18 @@ export class CloudFormationService {
    * Create a new CloudFormation stack for a user with ALB priority management
    */
   async createUserStack(config: UserStackConfig): Promise<string> {
+    console.log(`[CloudFormation] createUserStack called for user: ${config.userId}`);
+    
     this.ensureCredentials();
+    console.log(`[CloudFormation] Credentials validated`);
+    
     this.validateTemplateExists();
+    console.log(`[CloudFormation] Template validated`);
 
     return this.withRetry(async () => {
       const stackName = this.getStackName(config.userId);
 
-      console.log(`Creating CloudFormation stack: ${stackName}`);
+      console.log(`[CloudFormation] Creating stack: ${stackName}`);
 
       // Allocate unique ALB priority
       const albPriority = await dbPriorityManager.allocatePriority(

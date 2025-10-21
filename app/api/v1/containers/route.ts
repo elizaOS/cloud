@@ -270,14 +270,20 @@ async function handleCreateContainer(request: NextRequest) {
       },
     });
 
-    // Start async deployment process (in real implementation, this would be a background job)
+    // Start async deployment process
+    // Note: Vercel Pro allows up to 800s execution time (13.3 minutes)
+    // CloudFormation typically takes 5-15 minutes to provision
     deployContainerAsync(
       container.id,
       validatedData,
       deploymentCost,
       user.organization_id,
     ).catch((error) => {
-      console.error("Async deployment failed:", error);
+      console.error("❌ [deployContainerAsync] CRITICAL ERROR:", {
+        containerId: container.id,
+        error: error instanceof Error ? error.message : String(error),
+        stack: error instanceof Error ? error.stack : undefined,
+      });
     });
 
     return NextResponse.json(
@@ -365,6 +371,8 @@ async function deployContainerAsync(
   deploymentCost: number,
   organizationId: string,
 ): Promise<void> {
+  console.log(`🚀 [deployContainerAsync] Starting deployment for container: ${containerId}`);
+  
   const { TimeoutError, withTimeout } = await import(
     "@/lib/errors/deployment-errors"
   );
@@ -374,13 +382,17 @@ async function deployContainerAsync(
 
   try {
     // Update status to building
+    console.log(`📝 [deployContainerAsync] Updating status to 'building'`);
     await updateContainerStatus(containerId, "building", {
       deploymentLog: "Provisioning dedicated EC2 instance and ECS cluster...",
     });
 
     // Check if shared infrastructure is deployed
+    console.log(`🔍 [deployContainerAsync] Checking shared infrastructure...`);
     const sharedInfraExists =
       await cloudFormationService.isSharedInfrastructureDeployed();
+    console.log(`📊 [deployContainerAsync] Shared infrastructure exists: ${sharedInfraExists}`);
+    
     if (!sharedInfraExists) {
       throw new Error(
         "Shared infrastructure not deployed. Contact support or deploy infrastructure first.",
@@ -388,12 +400,22 @@ async function deployContainerAsync(
     }
 
     // Create CloudFormation stack for this user
+    console.log(`📝 [deployContainerAsync] Updating status to 'deploying'`);
     await updateContainerStatus(containerId, "deploying", {
       deploymentLog:
         "Creating CloudFormation stack (1x t3g.small ARM instance)...",
     });
 
-    await cloudFormationService.createUserStack({
+    console.log(`☁️ [deployContainerAsync] Creating CloudFormation stack...`, {
+      userId: containerId,
+      containerName: config.name,
+      ecrImageUri: config.ecr_image_uri,
+      port: config.port,
+      cpu: config.cpu,
+      memory: config.memory,
+    });
+
+    const stackId = await cloudFormationService.createUserStack({
       userId: containerId,
       userEmail: config.name, // Using container name as identifier
       containerImage: config.ecr_image_uri,
@@ -403,8 +425,12 @@ async function deployContainerAsync(
       keyName: process.env.EC2_KEY_NAME,
     });
 
+    console.log(`✅ [deployContainerAsync] CloudFormation stack initiated: ${stackId}`);
+
     // Wait for stack creation to complete (with timeout)
     const STACK_TIMEOUT_MINUTES = 15;
+    console.log(`⏳ [deployContainerAsync] Waiting for stack creation (max ${STACK_TIMEOUT_MINUTES} minutes)...`);
+    
     await withTimeout(
       async () =>
         cloudFormationService.waitForStackComplete(
