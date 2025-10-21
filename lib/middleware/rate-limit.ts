@@ -42,13 +42,15 @@ function logRateLimitWarning() {
     if (process.env.REDIS_RATE_LIMITING !== "true") {
       logger.error(
         "🚨 [Rate Limit] CRITICAL: In-memory rate limiting in production! " +
-        "This is a SECURITY VULNERABILITY - users can bypass limits across instances. " +
-        "Set REDIS_RATE_LIMITING=true immediately. " +
-        "See lib/middleware/rate-limit-redis.ts"
+          "This is a SECURITY VULNERABILITY - users can bypass limits across instances. " +
+          "Set REDIS_RATE_LIMITING=true immediately. " +
+          "See lib/middleware/rate-limit-redis.ts",
       );
       hasLoggedWarning = true;
     } else {
-      logger.info("[Rate Limit] ✓ Using Redis-backed rate limiting (production mode)");
+      logger.info(
+        "[Rate Limit] ✓ Using Redis-backed rate limiting (production mode)",
+      );
       hasLoggedWarning = true;
     }
   }
@@ -150,21 +152,28 @@ export function withRateLimit<T = Record<string, string>>(
   ) => Promise<Response>,
   config: RateLimitConfig,
 ) {
-  return async (request: NextRequest, context?: { params: Promise<T> }): Promise<Response> => {
+  return async (
+    request: NextRequest,
+    context?: { params: Promise<T> },
+  ): Promise<Response> => {
     const useRedis = process.env.REDIS_RATE_LIMITING === "true";
     const keyGenerator = config.keyGenerator || getDefaultKey;
     const key = keyGenerator(request);
 
     let result;
     if (useRedis) {
-      result = await checkRateLimitRedis(key, config.windowMs, config.maxRequests);
+      result = await checkRateLimitRedis(
+        key,
+        config.windowMs,
+        config.maxRequests,
+      );
       logger.debug(
-        `[Rate Limit] Redis check for key=${key}, allowed=${result.allowed}, remaining=${result.remaining}`
+        `[Rate Limit] Redis check for key=${key}, allowed=${result.allowed}, remaining=${result.remaining}`,
       );
     } else {
       result = checkRateLimit(request, config);
       logger.debug(
-        `[Rate Limit] In-memory check for key=${key}, allowed=${result.allowed}, remaining=${result.remaining}`
+        `[Rate Limit] In-memory check for key=${key}, allowed=${result.allowed}, remaining=${result.remaining}`,
       );
     }
 
@@ -178,7 +187,7 @@ export function withRateLimit<T = Record<string, string>>(
 
     if (!result.allowed) {
       logger.warn(
-        `[Rate Limit] Request blocked for key=${key}, limit=${config.maxRequests}, window=${config.windowMs}ms`
+        `[Rate Limit] Request blocked for key=${key}, limit=${config.maxRequests}, window=${config.windowMs}ms`,
       );
 
       return NextResponse.json(

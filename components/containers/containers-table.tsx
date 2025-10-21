@@ -31,9 +31,12 @@ interface Container {
   name: string;
   description: string | null;
   status: string;
-  cloudflare_worker_id: string | null;
+  ecs_service_arn: string | null;
+  load_balancer_url: string | null;
   port: number;
-  max_instances: number;
+  desired_count: number;
+  cpu: number;
+  memory: number;
   last_deployed_at: Date | null;
   created_at: Date;
   error_message: string | null;
@@ -143,7 +146,7 @@ export function ContainersTable({ containers }: ContainersTableProps) {
                   )}
                 </TableCell>
                 <TableCell>{container.port}</TableCell>
-                <TableCell>{container.max_instances}</TableCell>
+                <TableCell>{container.desired_count}</TableCell>
                 <TableCell>
                   {container.last_deployed_at ? (
                     <span className="text-sm">
@@ -168,15 +171,12 @@ export function ContainersTable({ containers }: ContainersTableProps) {
                         <FileText className="h-4 w-4" />
                       </Button>
                     </Link>
-                    {container.cloudflare_worker_id && (
+                    {container.load_balancer_url && (
                       <Button
                         variant="ghost"
                         size="sm"
                         onClick={() => {
-                          window.open(
-                            `https://${container.name.toLowerCase()}.workers.dev`,
-                            "_blank",
-                          );
+                          window.open(container.load_balancer_url!, "_blank");
                         }}
                         title="Open container URL"
                       >
@@ -209,7 +209,7 @@ export function ContainersTable({ containers }: ContainersTableProps) {
             <AlertDialogTitle>Delete Container</AlertDialogTitle>
             <AlertDialogDescription>
               Are you sure you want to delete this container? This action cannot
-              be undone and will remove the container from Cloudflare.
+              be undone and will remove the container from AWS ECS.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>

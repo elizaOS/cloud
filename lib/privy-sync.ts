@@ -33,7 +33,7 @@ interface PrivyUserData {
  * Updates user data if it has changed
  */
 export async function syncUserFromPrivy(
-  privyUser: PrivyUserData
+  privyUser: PrivyUserData,
 ): Promise<UserWithOrganization> {
   const privyUserId = privyUser.id;
 
@@ -111,7 +111,7 @@ export async function syncUserFromPrivy(
     attempts++;
     if (attempts > 10) {
       throw new Error(
-        `Failed to generate unique organization slug for ${email}`
+        `Failed to generate unique organization slug for ${email}`,
       );
     }
     orgSlug = generateSlugFromEmail(email);
@@ -150,7 +150,7 @@ export async function syncUserFromPrivy(
 
     if (isDuplicateError) {
       console.log(
-        `Duplicate key error detected for user ${privyUserId}, handling race condition...`
+        `Duplicate key error detected for user ${privyUserId}, handling race condition...`,
       );
 
       // Try to find existing user with retries (in case parallel transaction hasn't committed yet)
@@ -161,10 +161,10 @@ export async function syncUserFromPrivy(
         if (attempt > 0) {
           // Wait a bit for the other transaction to commit
           await new Promise((resolve) =>
-            setTimeout(resolve, 50 * Math.pow(2, attempt - 1))
+            setTimeout(resolve, 50 * Math.pow(2, attempt - 1)),
           );
           console.log(
-            `Retry ${attempt}/${maxRetries} to find existing user ${privyUserId}`
+            `Retry ${attempt}/${maxRetries} to find existing user ${privyUserId}`,
           );
         }
 
@@ -181,7 +181,7 @@ export async function syncUserFromPrivy(
           // Check if it's the same Privy user or a different one
           if (existingUser.privy_user_id !== privyUserId) {
             console.warn(
-              `User with email ${email} already exists with different Privy ID: ${existingUser.privy_user_id}`
+              `User with email ${email} already exists with different Privy ID: ${existingUser.privy_user_id}`,
             );
             // Clean up orphaned org and throw - this is a data integrity issue
             try {
@@ -189,11 +189,11 @@ export async function syncUserFromPrivy(
             } catch (cleanupError) {
               console.error(
                 "Failed to clean up orphaned organization:",
-                cleanupError
+                cleanupError,
               );
             }
             throw new Error(
-              `Email ${email} is already registered with a different account`
+              `Email ${email} is already registered with a different account`,
             );
           }
           break;
@@ -202,7 +202,7 @@ export async function syncUserFromPrivy(
 
       if (existingUser) {
         console.log(
-          `Found existing user ${privyUserId}, cleaning up orphaned org and returning existing user`
+          `Found existing user ${privyUserId}, cleaning up orphaned org and returning existing user`,
         );
         // Clean up the orphaned organization we just created
         try {
@@ -210,7 +210,7 @@ export async function syncUserFromPrivy(
         } catch (cleanupError) {
           console.error(
             "Failed to clean up orphaned organization:",
-            cleanupError
+            cleanupError,
           );
         }
         return existingUser;
@@ -218,21 +218,21 @@ export async function syncUserFromPrivy(
 
       // Couldn't find existing user even after retries - cleanup and rethrow
       console.error(
-        `Duplicate key error but user ${privyUserId} not found after ${maxRetries} retries - cleaning up and rethrowing`
+        `Duplicate key error but user ${privyUserId} not found after ${maxRetries} retries - cleaning up and rethrowing`,
       );
       try {
         await organizationsService.delete(organization.id);
       } catch (cleanupError) {
         console.error(
           "Failed to clean up orphaned organization:",
-          cleanupError
+          cleanupError,
         );
       }
     }
     // Not a duplicate key error or couldn't find the existing user - rethrow
     console.error(
       `Failed to create user ${privyUserId}:`,
-      error instanceof Error ? error.message : error
+      error instanceof Error ? error.message : error,
     );
     throw error;
   }

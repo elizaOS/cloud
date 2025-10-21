@@ -5,7 +5,10 @@
  */
 
 import { usageRecordsRepository } from "@/db/repositories/usage-records";
-import type { CostBreakdownItem, UsageStats } from "@/db/repositories/usage-records";
+import type {
+  CostBreakdownItem,
+  UsageStats,
+} from "@/db/repositories/usage-records";
 import { cache } from "@/lib/cache/client";
 import { CacheKeys, CacheTTL } from "@/lib/cache/keys";
 
@@ -102,7 +105,10 @@ export class AnalyticsService {
       return cached;
     }
 
-    const result = await usageRecordsRepository.getUsageByUser(organizationId, options);
+    const result = await usageRecordsRepository.getUsageByUser(
+      organizationId,
+      options,
+    );
 
     await cache.set(cacheKey, result, CacheTTL.analytics.userBreakdown);
 
@@ -151,7 +157,12 @@ export class AnalyticsService {
 
   async getModelBreakdown(
     organizationId: string,
-    options?: { startDate?: Date; endDate?: Date; limit?: number; maxRows?: number },
+    options?: {
+      startDate?: Date;
+      endDate?: Date;
+      limit?: number;
+      maxRows?: number;
+    },
   ) {
     const cacheKey = CacheKeys.analytics.modelBreakdown(
       organizationId,

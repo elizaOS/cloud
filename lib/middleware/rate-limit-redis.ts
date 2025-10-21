@@ -22,7 +22,7 @@ function getRedisClient(): Redis | null {
 
   if (!process.env.KV_REST_API_URL || !process.env.KV_REST_API_TOKEN) {
     logger.error(
-      "[Rate Limit Redis] Missing Upstash credentials. Set KV_REST_API_URL and KV_REST_API_TOKEN"
+      "[Rate Limit Redis] Missing Upstash credentials. Set KV_REST_API_URL and KV_REST_API_TOKEN",
     );
     return null;
   }
@@ -62,13 +62,13 @@ export interface RateLimitResult {
 export async function checkRateLimitRedis(
   key: string,
   windowMs: number,
-  maxRequests: number
+  maxRequests: number,
 ): Promise<RateLimitResult> {
   const client = getRedisClient();
 
   if (!client) {
     logger.warn(
-      "[Rate Limit Redis] Redis unavailable, failing open (allowing request)"
+      "[Rate Limit Redis] Redis unavailable, failing open (allowing request)",
     );
     return {
       allowed: true,
@@ -106,11 +106,11 @@ export async function checkRateLimitRedis(
 
     if (!allowed) {
       logger.info(
-        `[Rate Limit Redis] Limit exceeded for key=${key}, count=${count + 1}, max=${maxRequests}`
+        `[Rate Limit Redis] Limit exceeded for key=${key}, count=${count + 1}, max=${maxRequests}`,
       );
     } else {
       logger.debug(
-        `[Rate Limit Redis] Request allowed for key=${key}, remaining=${remaining}`
+        `[Rate Limit Redis] Request allowed for key=${key}, remaining=${remaining}`,
       );
     }
 
@@ -151,7 +151,7 @@ export async function clearRateLimit(key: string): Promise<void> {
 export async function getRateLimitStatus(
   key: string,
   windowMs: number,
-  maxRequests: number
+  maxRequests: number,
 ): Promise<{ count: number; remaining: number; resetAt: number }> {
   const client = getRedisClient();
 

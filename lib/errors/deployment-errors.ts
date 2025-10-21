@@ -15,32 +15,6 @@ export class DeploymentError extends Error {
   }
 }
 
-export class ArtifactUploadError extends DeploymentError {
-  constructor(message: string, details?: Record<string, unknown>) {
-    super(message, "ARTIFACT_UPLOAD_FAILED", 500, details);
-    this.name = "ArtifactUploadError";
-  }
-}
-
-export class ArtifactDownloadError extends DeploymentError {
-  constructor(message: string, details?: Record<string, unknown>) {
-    super(message, "ARTIFACT_DOWNLOAD_FAILED", 500, details);
-    this.name = "ArtifactDownloadError";
-  }
-}
-
-export class CloudflareApiError extends DeploymentError {
-  constructor(
-    message: string,
-    public endpoint: string,
-    public method: string,
-    details?: Record<string, unknown>,
-  ) {
-    super(message, "CLOUDFLARE_API_ERROR", 502, details);
-    this.name = "CloudflareApiError";
-  }
-}
-
 export class ContainerDeploymentError extends DeploymentError {
   constructor(
     message: string,
@@ -65,13 +39,6 @@ export class InsufficientCreditsError extends DeploymentError {
       { required, available, ...details },
     );
     this.name = "InsufficientCreditsError";
-  }
-}
-
-export class R2CredentialsError extends DeploymentError {
-  constructor(message: string, details?: Record<string, unknown>) {
-    super(message, "R2_CREDENTIALS_ERROR", 500, details);
-    this.name = "R2CredentialsError";
   }
 }
 
@@ -109,10 +76,6 @@ export const DEFAULT_RETRY_CONFIG: RetryConfig = {
  */
 export function isRetryableError(error: unknown): boolean {
   if (error instanceof TimeoutError) return true;
-  if (error instanceof CloudflareApiError) {
-    // Retry on 5xx errors and rate limits
-    return error.statusCode >= 500 || error.statusCode === 429;
-  }
   if (error instanceof Error) {
     const message = error.message.toLowerCase();
     return (

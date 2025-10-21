@@ -93,7 +93,7 @@ export function generateJSON(data: unknown, options?: ExportOptions): string {
 export async function generateExcel(
   data: Array<Record<string, unknown>>,
   columns: Array<ExportColumn>,
-  options?: ExportOptions
+  options?: ExportOptions,
 ): Promise<Buffer> {
   const XLSX = await import("xlsx");
 
@@ -134,7 +134,7 @@ export async function generateExcel(
       }
 
       return String(value);
-    })
+    }),
   );
 
   worksheetData.push(...dataRows);
@@ -193,7 +193,7 @@ export function createDownloadResponse(
 export function createBinaryDownloadResponse(
   content: Buffer,
   filename: string,
-  contentType: string
+  contentType: string,
 ): Response {
   return new Response(new Uint8Array(content), {
     headers: {

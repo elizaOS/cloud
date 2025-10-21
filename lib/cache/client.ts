@@ -20,8 +20,8 @@ export class CacheClient {
       if (process.env.NODE_ENV === "production") {
         logger.error(
           "🚨 [Cache] CRITICAL: Caching disabled in production! " +
-          "This will cause severe performance degradation. " +
-          "Set CACHE_ENABLED=true and configure Redis credentials."
+            "This will cause severe performance degradation. " +
+            "Set CACHE_ENABLED=true and configure Redis credentials.",
         );
       } else {
         logger.warn("[Cache] Caching is disabled via CACHE_ENABLED flag");
@@ -29,19 +29,16 @@ export class CacheClient {
       return;
     }
 
-    if (
-      !process.env.KV_REST_API_URL ||
-      !process.env.KV_REST_API_TOKEN
-    ) {
+    if (!process.env.KV_REST_API_URL || !process.env.KV_REST_API_TOKEN) {
       if (process.env.NODE_ENV === "production") {
         logger.error(
           "🚨 [Cache] CRITICAL: Missing Upstash credentials in production! " +
-          "Caching disabled - this will cause severe performance issues. " +
-          "Set KV_REST_API_URL and KV_REST_API_TOKEN immediately."
+            "Caching disabled - this will cause severe performance issues. " +
+            "Set KV_REST_API_URL and KV_REST_API_TOKEN immediately.",
         );
       } else {
         logger.error(
-          "[Cache] Missing Upstash credentials, caching disabled. Set KV_REST_API_URL and KV_REST_API_TOKEN"
+          "[Cache] Missing Upstash credentials, caching disabled. Set KV_REST_API_URL and KV_REST_API_TOKEN",
         );
       }
       this.enabled = false;
@@ -146,21 +143,25 @@ export class CacheClient {
 
       do {
         // Use SCAN instead of KEYS to avoid blocking Redis
-        const result: [string | number, string[]] = await this.redis.scan(cursor, {
-          match: pattern,
-          count: batchSize,
-        });
+        const result: [string | number, string[]] = await this.redis.scan(
+          cursor,
+          {
+            match: pattern,
+            count: batchSize,
+          },
+        );
 
         // result is [nextCursor, keys]
         // Upstash Redis returns cursor as string or number
-        cursor = typeof result[0] === "string" ? parseInt(result[0], 10) : result[0];
+        cursor =
+          typeof result[0] === "string" ? parseInt(result[0], 10) : result[0];
         const keys = result[1];
 
         if (keys.length > 0) {
           await this.redis.del(...keys);
           totalDeleted += keys.length;
           logger.debug(
-            `[Cache] DEL_PATTERN iteration ${++iterations}: deleted ${keys.length} keys (total: ${totalDeleted})`
+            `[Cache] DEL_PATTERN iteration ${++iterations}: deleted ${keys.length} keys (total: ${totalDeleted})`,
           );
         }
 
@@ -176,7 +177,7 @@ export class CacheClient {
         logger.debug(`[Cache] DEL_PATTERN: ${pattern} (no keys found)`);
       } else {
         logger.info(
-          `[Cache] DEL_PATTERN: ${pattern} (deleted ${totalDeleted} keys in ${duration}ms, ${iterations} iterations)`
+          `[Cache] DEL_PATTERN: ${pattern} (deleted ${totalDeleted} keys in ${duration}ms, ${iterations} iterations)`,
         );
       }
 

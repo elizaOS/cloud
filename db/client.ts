@@ -13,7 +13,7 @@ let _db: Database | null = null;
 
 function isNeonDatabase(url: string): boolean {
   // Check if the URL is a Neon database (contains neon.tech domain)
-  return url.includes('neon.tech') || url.includes('neon.database');
+  return url.includes("neon.tech") || url.includes("neon.database");
 }
 
 function getDb() {
@@ -28,10 +28,10 @@ function getDb() {
 
     if (isNeonDatabase(databaseUrl)) {
       // Production: Use Neon serverless driver with WebSocket support
-      console.log('[Database] Using Neon serverless driver for production');
+      console.log("[Database] Using Neon serverless driver for production");
 
       // Configure WebSocket for Node.js environment
-      if (typeof WebSocket === 'undefined') {
+      if (typeof WebSocket === "undefined") {
         neonConfig.webSocketConstructor = ws;
       }
 
@@ -39,7 +39,9 @@ function getDb() {
       _db = drizzleNeon(pool, { schema }) as Database;
     } else {
       // Local development: Use regular PostgreSQL driver
-      console.log('[Database] Using node-postgres driver for local development');
+      console.log(
+        "[Database] Using node-postgres driver for local development",
+      );
 
       const pool = new PgPool({ connectionString: databaseUrl });
       _db = drizzleNode(pool, { schema }) as Database;

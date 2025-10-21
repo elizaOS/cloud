@@ -19,7 +19,7 @@ const HEARTBEAT_INTERVAL = 30000;
 // Vercel Pro max: 300s (5 minutes)
 const CONNECTION_TIMEOUT = parseInt(
   process.env.SSE_CONNECTION_TIMEOUT || "300000",
-  10
+  10,
 );
 
 export async function GET(request: NextRequest) {
@@ -28,7 +28,7 @@ export async function GET(request: NextRequest) {
     const organizationId = user.organization_id;
 
     logger.info(
-      `[Credits SSE] Client connected: user=${user.id}, org=${organizationId}`
+      `[Credits SSE] Client connected: user=${user.id}, org=${organizationId}`,
     );
 
     const encoder = new TextEncoder();
@@ -60,7 +60,7 @@ export async function GET(request: NextRequest) {
         }
 
         logger.info(
-          `[Credits SSE] 🔌 Creating subscription for org=${organizationId}`
+          `[Credits SSE] 🔌 Creating subscription for org=${organizationId}`,
         );
 
         unsubscribe = creditEventEmitter.subscribeToCreditUpdates(
@@ -74,7 +74,7 @@ export async function GET(request: NextRequest) {
             });
 
             logger.info(
-              `[Credits SSE] 📨 SENDING update event to client via SSE`
+              `[Credits SSE] 📨 SENDING update event to client via SSE`,
             );
             sendEvent("update", {
               balance: event.newBalance,
@@ -83,7 +83,7 @@ export async function GET(request: NextRequest) {
               timestamp: event.timestamp,
             });
             logger.info(`[Credits SSE] ✅ Update event sent to client`);
-          }
+          },
         );
 
         logger.info(`[Credits SSE] ✅ Subscription created successfully`);
@@ -96,7 +96,7 @@ export async function GET(request: NextRequest) {
 
         connectionTimeout = setTimeout(() => {
           logger.info(
-            `[Credits SSE] Connection timeout for org=${organizationId}`
+            `[Credits SSE] Connection timeout for org=${organizationId}`,
           );
           cleanup();
         }, CONNECTION_TIMEOUT);
@@ -121,7 +121,7 @@ export async function GET(request: NextRequest) {
           }
 
           logger.info(
-            `[Credits SSE] Client disconnected: org=${organizationId}`
+            `[Credits SSE] Client disconnected: org=${organizationId}`,
           );
         };
 

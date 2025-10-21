@@ -28,10 +28,12 @@ interface Deployment {
   metadata: {
     container_id?: string;
     container_name?: string;
-    max_instances?: number;
+    desired_count?: number;
+    cpu?: number;
+    memory?: number;
     port?: number;
     image_tag?: string;
-    cloudflare_worker_id?: string;
+    ecs_service_arn?: string;
   };
   deployed_at: Date;
   duration_ms?: number;
@@ -189,7 +191,11 @@ export function ContainerDeploymentHistory({
                     <TableCell>
                       <div className="text-xs space-y-1">
                         <div>
-                          Instances: {deployment.metadata.max_instances || 1}
+                          Count: {deployment.metadata.desired_count || 1}
+                        </div>
+                        <div className="text-muted-foreground">
+                          CPU: {deployment.metadata.cpu || 256} / Mem:{" "}
+                          {deployment.metadata.memory || 512}MB
                         </div>
                         <div className="text-muted-foreground">
                           Port: {deployment.metadata.port || 3000}
@@ -202,12 +208,16 @@ export function ContainerDeploymentHistory({
                           {deployment.error}
                         </div>
                       )}
-                      {deployment.metadata.cloudflare_worker_id && (
+                      {deployment.metadata.ecs_service_arn && (
                         <div className="text-xs text-muted-foreground font-mono">
-                          {deployment.metadata.cloudflare_worker_id.substring(
-                            0,
-                            8,
-                          )}
+                          ECS:{" "}
+                          {deployment.metadata.ecs_service_arn
+                            .substring(
+                              deployment.metadata.ecs_service_arn.lastIndexOf(
+                                "/",
+                              ) + 1,
+                            )
+                            .substring(0, 12)}
                           ...
                         </div>
                       )}

@@ -3,6 +3,7 @@ import { getContainer } from "@/lib/services";
 import { redirect } from "next/navigation";
 import { ContainerDeploymentHistory } from "@/components/containers/container-deployment-history";
 import { ContainerLogsViewer } from "@/components/containers/container-logs-viewer";
+import { ContainerMetrics } from "@/components/containers/container-metrics";
 import {
   Card,
   CardContent,
@@ -66,10 +67,10 @@ export default async function ContainerDetailsPage({ params }: PageProps) {
             )}
           </div>
         </div>
-        {container.cloudflare_url && (
+        {container.load_balancer_url && (
           <Button asChild>
             <a
-              href={container.cloudflare_url}
+              href={container.load_balancer_url}
               target="_blank"
               rel="noopener noreferrer"
             >
@@ -102,9 +103,9 @@ export default async function ContainerDetailsPage({ params }: PageProps) {
             </div>
             <div>
               <p className="text-sm text-muted-foreground mb-1">
-                Max Instances
+                Desired Count
               </p>
-              <p className="text-lg font-semibold">{container.max_instances}</p>
+              <p className="text-lg font-semibold">{container.desired_count}</p>
             </div>
             <div>
               <p className="text-sm text-muted-foreground mb-1">
@@ -126,26 +127,26 @@ export default async function ContainerDetailsPage({ params }: PageProps) {
             </div>
           )}
 
-          {container.cloudflare_worker_id && (
+          {container.ecs_service_arn && (
             <div className="mt-4 space-y-2">
               <div className="flex items-center gap-2">
                 <p className="text-sm text-muted-foreground">
-                  Cloudflare Worker ID:
+                  ECS Service ARN:
                 </p>
                 <code className="text-xs bg-muted px-2 py-1 rounded">
-                  {container.cloudflare_worker_id}
+                  {container.ecs_service_arn}
                 </code>
               </div>
-              {container.cloudflare_url && (
+              {container.load_balancer_url && (
                 <div className="flex items-center gap-2">
                   <p className="text-sm text-muted-foreground">URL:</p>
                   <a
-                    href={container.cloudflare_url}
+                    href={container.load_balancer_url}
                     target="_blank"
                     rel="noopener noreferrer"
                     className="text-xs text-blue-600 hover:underline"
                   >
-                    {container.cloudflare_url}
+                    {container.load_balancer_url}
                   </a>
                 </div>
               )}
@@ -153,6 +154,14 @@ export default async function ContainerDetailsPage({ params }: PageProps) {
           )}
         </CardContent>
       </Card>
+
+      {/* Container Metrics */}
+      {container.status === "running" && container.ecs_service_arn && (
+        <ContainerMetrics
+          containerId={container.id}
+          containerName={container.name}
+        />
+      )}
 
       {/* Deployment History */}
       <ContainerDeploymentHistory

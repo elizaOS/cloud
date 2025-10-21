@@ -1,6 +1,9 @@
 import { type NextRequest, NextResponse } from "next/server";
 import { requireAuthOrApiKey } from "@/lib/auth";
-import { analyticsService, type CostBreakdownItem } from "@/lib/services/analytics";
+import {
+  analyticsService,
+  type CostBreakdownItem,
+} from "@/lib/services/analytics";
 import { logger } from "@/lib/utils/logger";
 import { withRateLimit, RateLimitPresets } from "@/lib/middleware/rate-limit";
 
@@ -25,7 +28,7 @@ async function handleGET(req: NextRequest) {
       | "desc";
     const limit = Math.min(
       parseInt(searchParams.get("limit") || "100", 10),
-      1000
+      1000,
     );
     const offset = parseInt(searchParams.get("offset") || "0", 10);
 
@@ -46,7 +49,7 @@ async function handleGET(req: NextRequest) {
         sortOrder,
         limit: limit + 1,
         offset,
-      }
+      },
     );
 
     const hasMore = breakdown.length > limit;
@@ -84,7 +87,7 @@ async function handleGET(req: NextRequest) {
             ? error.message
             : "Failed to fetch breakdown data",
       },
-      { status: 500 }
+      { status: 500 },
     );
   }
 }
