@@ -5,7 +5,7 @@ import {
   usageService,
   containersService,
   listContainers,
-  deleteContainer,
+  getContainer,
   updateContainerStatus,
   QuotaExceededError,
   type NewContainer,
@@ -20,6 +20,10 @@ import { withRateLimit, RateLimitPresets } from "@/lib/middleware/rate-limit";
 import { z } from "zod";
 
 export const dynamic = "force-dynamic";
+// Set max duration to handle CloudFormation deployments
+// CloudFormation typically takes 5-12 minutes for EC2+ECS provisioning
+// Vercel limits: Hobby=300s, Pro/Enterprise=800s (configurable)
+export const maxDuration = 780; // 13 minutes - allows full CloudFormation deployment
 
 const createContainerSchema = z.object({
   name: z.string().min(1).max(100),
@@ -270,27 +274,47 @@ async function handleCreateContainer(request: NextRequest) {
       },
     });
 
-    // Start async deployment process (in real implementation, this would be a background job)
-    deployContainerAsync(
-      container.id,
-      validatedData,
-      deploymentCost,
-      user.organization_id,
-    ).catch((error) => {
-      console.error("Async deployment failed:", error);
-    });
-
-    return NextResponse.json(
-      {
-        success: true,
-        data: container,
-        message:
-          "Container deployment initiated. Check status for deployment progress.",
-        creditsDeducted: deploymentCost,
-        creditsRemaining: newBalance,
-      },
-      { status: 201 },
-    );
+    // Deploy container synchronously - wait for completion before returning
+    // This ensures the function stays alive for the entire deployment
+    try {
+      await deployContainerAsync(
+        container.id,
+        validatedData,
+        deploymentCost,
+        user.organization_id,
+      );
+      
+      // Fetch updated container status
+      const deployedContainer = await getContainer(container.id, user.organization_id);
+      
+      return NextResponse.json(
+        {
+          success: true,
+          data: deployedContainer || container,
+          message: deployedContainer?.status === "running" 
+            ? "Container deployed successfully"
+            : "Container deployment in progress. Check status for updates.",
+          creditsDeducted: deploymentCost,
+          creditsRemaining: newBalance,
+        },
+        { status: 201 },
+      );
+    } catch (deployError) {
+      console.error("❌ [handleCreateContainer] Deployment failed:", deployError);
+      
+      // Return with current container status (likely "failed")
+      const failedContainer = await getContainer(container.id, user.organization_id);
+      
+      return NextResponse.json(
+        {
+          success: false,
+          data: failedContainer || container,
+          error: deployError instanceof Error ? deployError.message : "Deployment failed",
+          message: "Deployment failed. Check container error_message for details.",
+        },
+        { status: 500 },
+      );
+    }
   } catch (error) {
     console.error("Error creating container:", error);
 
@@ -365,6 +389,8 @@ async function deployContainerAsync(
   deploymentCost: number,
   organizationId: string,
 ): Promise<void> {
+  console.log(`🚀 [deployContainerAsync] Starting deployment for container: ${containerId}`);
+  
   const { TimeoutError, withTimeout } = await import(
     "@/lib/errors/deployment-errors"
   );
@@ -374,13 +400,28 @@ async function deployContainerAsync(
 
   try {
     // Update status to building
-    await updateContainerStatus(containerId, "building", {
-      deploymentLog: "Provisioning dedicated EC2 instance and ECS cluster...",
-    });
+    console.log(`📝 [deployContainerAsync] Updating status to 'building'`);
+    try {
+      await updateContainerStatus(containerId, "building", {
+        deploymentLog: "Provisioning dedicated EC2 instance and ECS cluster...",
+      });
+      console.log(`✅ [deployContainerAsync] Status updated to 'building'`);
+    } catch (dbError) {
+      console.error(`❌ [deployContainerAsync] DB update failed:`, dbError);
+      throw dbError;
+    }
 
     // Check if shared infrastructure is deployed
-    const sharedInfraExists =
-      await cloudFormationService.isSharedInfrastructureDeployed();
+    console.log(`🔍 [deployContainerAsync] Checking shared infrastructure...`);
+    let sharedInfraExists: boolean;
+    try {
+      sharedInfraExists = await cloudFormationService.isSharedInfrastructureDeployed();
+      console.log(`📊 [deployContainerAsync] Shared infrastructure exists: ${sharedInfraExists}`);
+    } catch (cfError) {
+      console.error(`❌ [deployContainerAsync] CloudFormation check failed:`, cfError);
+      throw cfError;
+    }
+    
     if (!sharedInfraExists) {
       throw new Error(
         "Shared infrastructure not deployed. Contact support or deploy infrastructure first.",
@@ -388,12 +429,22 @@ async function deployContainerAsync(
     }
 
     // Create CloudFormation stack for this user
+    console.log(`📝 [deployContainerAsync] Updating status to 'deploying'`);
     await updateContainerStatus(containerId, "deploying", {
       deploymentLog:
         "Creating CloudFormation stack (1x t3g.small ARM instance)...",
     });
 
-    await cloudFormationService.createUserStack({
+    console.log(`☁️ [deployContainerAsync] Creating CloudFormation stack...`, {
+      userId: containerId,
+      containerName: config.name,
+      ecrImageUri: config.ecr_image_uri,
+      port: config.port,
+      cpu: config.cpu,
+      memory: config.memory,
+    });
+
+    const stackId = await cloudFormationService.createUserStack({
       userId: containerId,
       userEmail: config.name, // Using container name as identifier
       containerImage: config.ecr_image_uri,
@@ -403,8 +454,16 @@ async function deployContainerAsync(
       keyName: process.env.EC2_KEY_NAME,
     });
 
+    console.log(`✅ [deployContainerAsync] CloudFormation stack initiated: ${stackId}`);
+
     // Wait for stack creation to complete (with timeout)
-    const STACK_TIMEOUT_MINUTES = 15;
+    // With Vercel Pro/Enterprise maxDuration of 800s (13.33 min), we can wait for full deployment
+    // UserData waits 5 min + CloudFormation overhead = typically 7-10 min total
+    // We set 12 min timeout to handle slower AWS regions and edge cases
+    // This fits comfortably within the 13 min Vercel limit
+    const STACK_TIMEOUT_MINUTES = 12;
+    console.log(`⏳ [deployContainerAsync] Waiting for stack creation (max ${STACK_TIMEOUT_MINUTES} minutes)...`);
+    
     await withTimeout(
       async () =>
         cloudFormationService.waitForStackComplete(
@@ -446,7 +505,7 @@ async function deployContainerAsync(
     // Update container status to failed
     await updateContainerStatus(containerId, "failed", {
       errorMessage: isTimeout
-        ? "Deployment timed out after 10 minutes. This may indicate a configuration issue or infrastructure problem."
+        ? "Deployment timed out after 12 minutes. This likely indicates an infrastructure issue. Check AWS CloudFormation console for detailed error logs. Common causes: insufficient AWS capacity, networking issues, or IAM permission problems."
         : errorMessage,
       deploymentLog: `Deployment failed: ${errorMessage}${isTimeout ? " (timeout)" : ""}`,
     });
@@ -478,8 +537,8 @@ async function deployContainerAsync(
             `🚨 CRITICAL: Failed to refund ${deploymentCost} credits to org ${organizationId} for container ${containerId}. MANUAL INTERVENTION REQUIRED.`,
             { containerId, organizationId, deploymentCost, error: refundError },
           );
-          // In production, this should trigger an alert/notification
-          // TODO: Add alert to monitoring system (e.g., Sentry, DataDog)
+          // Future: Integrate with monitoring system (e.g., Sentry, DataDog, PagerDuty)
+          // This error is already logged and will appear in application logs for manual review
         } else {
           // Wait before retry with exponential backoff
           await new Promise((resolve) =>
@@ -489,7 +548,8 @@ async function deployContainerAsync(
       }
     }
 
-    // Attempt rollback with retries (delete CloudFormation stack + database record)
+    // Attempt rollback (delete CloudFormation stack and release priority)
+    // KEEP the container record in "failed" status for visibility
     for (let attempt = 1; attempt <= 3; attempt++) {
       try {
         // Delete CloudFormation stack first
@@ -500,13 +560,23 @@ async function deployContainerAsync(
           );
         } catch (cfError) {
           console.warn(`⚠️  Failed to delete CloudFormation stack:`, cfError);
-          // Continue with database cleanup even if CF deletion fails
+          // Continue - stack may not exist yet
         }
 
-        // Delete from database
-        await deleteContainer(containerId, organizationId);
+        // Release ALB priority
+        try {
+          const { dbPriorityManager } = await import(
+            "@/lib/services/alb-priority-manager"
+          );
+          await dbPriorityManager.releasePriority(containerId);
+          console.log(`✅ Released ALB priority for ${containerId}`);
+        } catch (priorityError) {
+          console.warn(`⚠️  Failed to release ALB priority:`, priorityError);
+          // Continue - priority may not have been allocated yet
+        }
+
         console.log(
-          `✅ Rolled back failed container ${containerId} (CloudFormation stack + database)`,
+          `✅ Cleaned up infrastructure for failed container ${containerId} (kept record in 'failed' state)`,
         );
         rollbackSuccessful = true;
         break;
@@ -515,13 +585,7 @@ async function deployContainerAsync(
           `❌ Rollback attempt ${attempt}/3 failed:`,
           rollbackError,
         );
-        if (attempt === 3) {
-          console.error(
-            `⚠️  Failed to delete failed container ${containerId}. Container marked as 'failed' but not removed.`,
-            { containerId, organizationId, error: rollbackError },
-          );
-          // This is less critical than refund - admin can clean up later
-        } else {
+        if (attempt < 3) {
           await new Promise((resolve) =>
             setTimeout(resolve, 1000 * Math.pow(2, attempt - 1)),
           );
@@ -540,8 +604,10 @@ async function deployContainerAsync(
 
     // Log final cleanup status for monitoring
     console.log(`Deployment cleanup completed for container ${containerId}:`, {
+      status: "failed",
       refundSuccessful,
       rollbackSuccessful,
+      containerPreserved: true,
       requiresManualIntervention: !refundSuccessful,
     });
   }

@@ -42,7 +42,10 @@ export class UsersRepository {
           error,
           errorMessage: error instanceof Error ? error.message : String(error),
           errorStack: error instanceof Error ? error.stack : undefined,
-          errorCause: error instanceof Error ? (error as Error & { cause?: unknown }).cause : undefined,
+          errorCause:
+            error instanceof Error
+              ? (error as Error & { cause?: unknown }).cause
+              : undefined,
         },
       );
       throw error;
