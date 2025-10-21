@@ -210,6 +210,16 @@ export class CloudFormationService {
 
       // Get shared infrastructure outputs
       const sharedOutputs = await this.getSharedInfrastructureOutputs();
+      
+      console.log(`[CloudFormation] Shared infrastructure outputs:`, {
+        vpcId: sharedOutputs.vpcId,
+        subnetId: sharedOutputs.subnetId,
+        albArn: sharedOutputs.albArn?.substring(0, 50) + '...',
+        listenerArn: sharedOutputs.listenerArn?.substring(0, 50) + '...',
+        executionRoleArn: sharedOutputs.executionRoleArn?.substring(0, 50) + '...',
+        taskRoleArn: sharedOutputs.taskRoleArn?.substring(0, 50) + '...',
+        albSecurityGroupId: sharedOutputs.albSecurityGroupId,
+      });
 
       const command = new CreateStackCommand({
         StackName: stackName,
@@ -275,10 +285,27 @@ export class CloudFormationService {
         OnFailure: "ROLLBACK",
       });
 
-      const response = await this.client.send(command);
-      console.log(`Stack creation initiated: ${response.StackId}`);
+      console.log(`[CloudFormation] Sending CreateStack command with parameters:`, {
+        stackName,
+        containerImage: config.containerImage,
+        port: config.containerPort,
+        cpu: config.containerCpu,
+        memory: config.containerMemory,
+        albPriority,
+      });
 
-      return response.StackId!;
+      try {
+        const response = await this.client.send(command);
+        console.log(`✅ [CloudFormation] Stack creation initiated: ${response.StackId}`);
+        return response.StackId!;
+      } catch (createError) {
+        console.error(`❌ [CloudFormation] CreateStack API call failed:`, {
+          error: createError instanceof Error ? createError.message : String(createError),
+          stack: createError instanceof Error ? createError.stack : undefined,
+          name: createError instanceof Error ? createError.name : undefined,
+        });
+        throw createError;
+      }
     });
   }
 
@@ -326,10 +353,14 @@ export class CloudFormationService {
           failedResources: failureDetails,
         });
         
+        const failureMessage = failureDetails.length > 0
+          ? failureDetails.map(f => `\n  • ${f.resource}: ${f.reason}`).join('')
+          : '\n  (No detailed failure events found - check AWS CloudFormation console)';
+        
         throw new Error(
-          `Stack ${stackName} failed with status: ${status}.\n` +
-          `Reason: ${failureReason}\n` +
-          `Failed resources: ${failureDetails.map(f => `${f.resource}: ${f.reason}`).join('; ')}`,
+          `CloudFormation stack failed with status: ${status}\n` +
+          `Stack reason: ${failureReason}\n` +
+          `Failed resources:${failureMessage}`,
         );
       }
 
@@ -346,7 +377,7 @@ export class CloudFormationService {
   /**
    * Get detailed failure reasons from stack events
    */
-  async getStackFailureDetails(stackName: string): Promise<Array<{ resource: string; reason: string }>> {
+  async getStackFailureDetails(stackName: string): Promise<Array<{ resource: string; reason: string; status: string }>> {
     try {
       const command = new DescribeStackEventsCommand({
         StackName: stackName,
@@ -355,21 +386,43 @@ export class CloudFormationService {
       const response = await this.client.send(command);
       const events = response.StackEvents || [];
 
-      // Find failed resources
-      const failedEvents = events.filter((event) =>
-        event.ResourceStatus?.includes("FAILED") ||
-        event.ResourceStatus === "ROLLBACK_COMPLETE"
-      );
+      console.log(`[CloudFormation] Fetched ${events.length} stack events for ${stackName}`);
+
+      // Find CREATE_FAILED events (these are the actual failures, not rollback events)
+      const failedEvents = events.filter((event) => {
+        const isFailed = event.ResourceStatus === "CREATE_FAILED";
+        const isNotStack = event.ResourceType !== "AWS::CloudFormation::Stack";
+        return isFailed && isNotStack; // Only resource failures, not stack-level status
+      });
+
+      console.log(`[CloudFormation] Found ${failedEvents.length} CREATE_FAILED resource events`);
+
+      // If no CREATE_FAILED, also check for rollback events to get more context
+      if (failedEvents.length === 0) {
+        const rollbackEvents = events.filter((event) =>
+          event.ResourceStatus?.includes("ROLLBACK") &&
+          event.ResourceType !== "AWS::CloudFormation::Stack"
+        ).slice(0, 10);
+        
+        console.log(`[CloudFormation] No CREATE_FAILED events, showing ${rollbackEvents.length} rollback events`);
+        
+        return rollbackEvents.map((event) => ({
+          resource: `${event.LogicalResourceId} (${event.ResourceType})` || "Unknown",
+          reason: event.ResourceStatusReason || "No reason provided",
+          status: event.ResourceStatus || "Unknown",
+        }));
+      }
 
       return failedEvents
-        .slice(0, 5) // Get top 5 failures
+        .slice(0, 10) // Get top 10 failures
         .map((event) => ({
-          resource: event.LogicalResourceId || "Unknown",
+          resource: `${event.LogicalResourceId} (${event.ResourceType})` || "Unknown",
           reason: event.ResourceStatusReason || "No reason provided",
+          status: event.ResourceStatus || "Unknown",
         }));
     } catch (error) {
       console.error("Failed to fetch stack events:", error);
-      return [{ resource: "Unknown", reason: "Could not fetch stack events" }];
+      return [{ resource: "Unknown", reason: "Could not fetch stack events", status: "ERROR" }];
     }
   }
 
