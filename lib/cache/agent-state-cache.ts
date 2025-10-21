@@ -4,12 +4,33 @@ import { logger } from "@/lib/utils/logger";
 import type { Memory, UUID } from "@elizaos/core";
 import type { ElizaCharacter } from "@/lib/types";
 
+export interface SerializableMessage {
+  id: string;
+  entityId: string;
+  agentId: string;
+  roomId: string;
+  content: {
+    text?: string;
+    action?: string;
+    source?: string;
+  };
+  createdAt: number;
+}
+
 export interface RoomContext {
   roomId: string;
   messages: Memory[];
   participants: string[];
   metadata: Record<string, unknown>;
   lastActivity: Date;
+}
+
+interface SerializableRoomContext {
+  roomId: string;
+  messages: SerializableMessage[];
+  participants: string[];
+  metadata: Record<string, unknown>;
+  lastActivity: string;
 }
 
 export interface UserSession {
@@ -40,9 +61,24 @@ export class AgentStateCache {
       const cached = await cacheClient.get<string>(key);
       if (!cached) return null;
 
-      const context = JSON.parse(cached) as RoomContext;
-      // Convert date strings back to Date objects
-      context.lastActivity = new Date(context.lastActivity);
+      const serialized = JSON.parse(cached) as SerializableRoomContext;
+
+      // Convert back to RoomContext with Memory objects
+      const context: RoomContext = {
+        roomId: serialized.roomId,
+        messages: serialized.messages.map((msg) => ({
+          id: msg.id as UUID,
+          entityId: msg.entityId as UUID,
+          agentId: msg.agentId as UUID,
+          roomId: msg.roomId as UUID,
+          content: msg.content,
+          createdAt: msg.createdAt,
+        } as Memory)),
+        participants: serialized.participants,
+        metadata: serialized.metadata,
+        lastActivity: new Date(serialized.lastActivity),
+      };
+
       return context;
     } catch (error) {
       logger.error(
@@ -65,9 +101,35 @@ export class AgentStateCache {
     const key = CacheKeys.agent.roomContext(roomId);
 
     try {
+      // Convert Memory objects to serializable format
+      const serializable: SerializableRoomContext = {
+        roomId: context.roomId,
+        messages: context.messages.map((msg) => ({
+          id: msg.id?.toString() || "",
+          entityId: msg.entityId?.toString() || "",
+          agentId: msg.agentId?.toString() || "",
+          roomId: msg.roomId?.toString() || "",
+          content: {
+            text: typeof msg.content === "object" && msg.content !== null
+              ? (msg.content as any).text
+              : String(msg.content),
+            action: typeof msg.content === "object" && msg.content !== null
+              ? (msg.content as any).action
+              : undefined,
+            source: typeof msg.content === "object" && msg.content !== null
+              ? (msg.content as any).source
+              : undefined,
+          },
+          createdAt: msg.createdAt || Date.now(),
+        })),
+        participants: context.participants,
+        metadata: context.metadata,
+        lastActivity: context.lastActivity.toISOString(),
+      };
+
       await cacheClient.set(
         key,
-        JSON.stringify(context),
+        JSON.stringify(serializable),
         CacheTTL.agent.roomContext,
       );
       logger.debug(`[Agent State Cache] Cached room context for ${roomId}`);
