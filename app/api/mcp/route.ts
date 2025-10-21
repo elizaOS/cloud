@@ -769,8 +769,7 @@ const mcpHandler = createMcpHandler(
           .describe("Store in PostgreSQL (default: true)"),
         roomId: z
           .string()
-          .optional()
-          .describe("Room ID to associate memory with"),
+          .describe("Room ID to associate memory with (required)"),
       },
       async ({
         content,
@@ -792,6 +791,25 @@ const mcpHandler = createMcpHandler(
                   type: "text" as const,
                   text: JSON.stringify(
                     { error: "Organization not found" },
+                    null,
+                    2,
+                  ),
+                },
+              ],
+              isError: true,
+            };
+          }
+
+          if (!roomId) {
+            return {
+              content: [
+                {
+                  type: "text" as const,
+                  text: JSON.stringify(
+                    {
+                      error:
+                        "roomId is required. Memory must be associated with a room/conversation.",
+                    },
                     null,
                     2,
                   ),
@@ -824,7 +842,7 @@ const mcpHandler = createMcpHandler(
 
           const result = await memoryService.saveMemory({
             organizationId: user.organization_id,
-            roomId: roomId || user.id,
+            roomId: roomId,
             entityId: user.id,
             content,
             type,

@@ -72,10 +72,44 @@ export class MemoryService {
     try {
       const runtime = await agentRuntime.getRuntime();
 
+      // Ensure the room exists in the database
+      const roomId = input.roomId as UUID;
+      const adapter = runtime.adapter as unknown as {
+        getRoomsByIds: (roomIds: UUID[]) => Promise<unknown[]>;
+        createRooms: (rooms: { id: UUID }[]) => Promise<UUID[]>;
+        ensureEntityExists: (entity: {
+          id: UUID;
+          agentId: UUID;
+          names?: string[];
+        }) => Promise<boolean>;
+        addParticipant: (entityId: UUID, roomId: UUID) => Promise<boolean>;
+      };
+
+      const existingRooms = await adapter.getRoomsByIds([roomId]);
+      if (!existingRooms || existingRooms.length === 0) {
+        await adapter.createRooms([{ id: roomId }]);
+        logger.debug(`[Memory Service] Created room: ${roomId}`);
+      }
+
+      // Ensure the entity (user) exists in the database
+      const entityId = input.entityId as UUID;
+      await adapter.ensureEntityExists({
+        id: entityId,
+        agentId: runtime.agentId,
+        names: [entityId], // Use ID as name if we don't have a proper name
+      });
+      logger.debug(`[Memory Service] Ensured entity exists: ${entityId}`);
+
+      // Ensure the entity is a participant in the room
+      await adapter.addParticipant(entityId, roomId);
+      logger.debug(
+        `[Memory Service] Ensured participant in room: ${entityId} -> ${roomId}`,
+      );
+
       const memory: Memory = {
         id: uuidv4() as UUID,
-        roomId: input.roomId as UUID,
-        entityId: input.entityId as UUID,
+        roomId: roomId,
+        entityId: entityId,
         agentId: runtime.agentId,
         createdAt: Date.now(),
         content: {
@@ -89,10 +123,42 @@ export class MemoryService {
       const persistent = input.persistent !== false;
 
       if (persistent) {
-        await runtime.adapter.createMemory(memory, "memories", true);
-        logger.info(
-          `[Memory Service] Saved memory to PostgreSQL: ${memory.id}`,
-        );
+        try {
+          logger.debug(
+            `[Memory Service] Attempting to create memory in PostgreSQL:`,
+            {
+              memoryId: memory.id,
+              roomId: memory.roomId,
+              entityId: memory.entityId,
+              agentId: memory.agentId,
+              contentLength: JSON.stringify(memory.content).length,
+            },
+          );
+          await runtime.adapter.createMemory(memory, "memories", true);
+          logger.info(
+            `[Memory Service] Saved memory to PostgreSQL: ${memory.id}`,
+          );
+        } catch (dbError) {
+          logger.error(
+            `[Memory Service] PostgreSQL insert failed with full error:`,
+            {
+              error: dbError instanceof Error ? dbError.message : String(dbError),
+              errorName: dbError instanceof Error ? dbError.name : "Unknown",
+              errorStack: dbError instanceof Error ? dbError.stack : undefined,
+              errorCause:
+                dbError instanceof Error
+                  ? JSON.stringify(dbError.cause)
+                  : undefined,
+              memory: {
+                id: memory.id,
+                roomId: memory.roomId,
+                entityId: memory.entityId,
+                agentId: memory.agentId,
+              },
+            },
+          );
+          throw dbError;
+        }
       }
 
       const ttl = input.ttl || CacheTTL.memory.item;
@@ -108,7 +174,17 @@ export class MemoryService {
         expiresAt: input.ttl ? new Date(Date.now() + ttl * 1000) : undefined,
       };
     } catch (error) {
-      logger.error("[Memory Service] Failed to save memory:", error);
+      logger.error("[Memory Service] Failed to save memory:", {
+        error: error instanceof Error ? error.message : String(error),
+        stack: error instanceof Error ? error.stack : undefined,
+        cause: error instanceof Error ? error.cause : undefined,
+        input: {
+          organizationId: input.organizationId,
+          roomId: input.roomId,
+          entityId: input.entityId,
+          persistent: input.persistent,
+        },
+      });
       throw error;
     }
   }
