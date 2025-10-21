@@ -74,10 +74,41 @@ export class CloudFormationService {
     }
 
     // Use production template with monitoring
-    this.templatePath = path.join(
-      __dirname,
-      "../../infrastructure/cloudformation/per-user-stack.json",
-    );
+    // Try multiple paths for better compatibility across environments
+    const possiblePaths = [
+      // Vercel deployment (relative to project root)
+      path.join(
+        process.cwd(),
+        "infrastructure/cloudformation/per-user-stack.json",
+      ),
+      // Local development (from lib/services/)
+      path.join(
+        __dirname,
+        "../../infrastructure/cloudformation/per-user-stack.json",
+      ),
+      // Build output (from .next/server/)
+      path.join(
+        __dirname,
+        "../../../infrastructure/cloudformation/per-user-stack.json",
+      ),
+    ];
+
+    // Find the first path that exists
+    this.templatePath =
+      possiblePaths.find((p) => fs.existsSync(p)) || possiblePaths[0];
+  }
+
+  /**
+   * Validate that the CloudFormation template file exists
+   */
+  private validateTemplateExists(): void {
+    if (!fs.existsSync(this.templatePath)) {
+      throw new Error(
+        `CloudFormation template not found at: ${this.templatePath}. ` +
+          `Expected location: infrastructure/cloudformation/per-user-stack.json from project root. ` +
+          `Current working directory: ${process.cwd()}`,
+      );
+    }
   }
 
   /**
@@ -151,6 +182,7 @@ export class CloudFormationService {
    */
   async createUserStack(config: UserStackConfig): Promise<string> {
     this.ensureCredentials();
+    this.validateTemplateExists();
 
     return this.withRetry(async () => {
       const stackName = this.getStackName(config.userId);

@@ -108,10 +108,12 @@ ENVIRONMENT=production
 Setup:
 
 1. **Deploy Shared Infrastructure**:
+
    ```bash
    cd infrastructure/cloudformation
    ./deploy-shared.sh
    ```
+
    This creates:
    - VPC with public subnets
    - Application Load Balancer (ALB)

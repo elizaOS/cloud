@@ -1543,6 +1543,7 @@ cd infrastructure/cloudformation
 ```
 
 This creates:
+
 - VPC with public subnets
 - Application Load Balancer (ALB) for routing
 - IAM roles for ECS tasks
@@ -1627,8 +1628,9 @@ Container deployments are billed based on:
 - **Running Costs**: Charged per hour based on resources
   - t3g.small (1.75 vCPU + 1.75 GB RAM): Default, ~10-20 credits/hour
   - Higher CPU/memory allocations: Additional charges
-  
+
 **AWS Infrastructure Costs** (billed directly by AWS, not through credits):
+
 - **EC2 Instances**: ~$13/month per t3g.small (1 per user)
 - **ECR Storage**: First 50 GB free, then $0.10/GB/month
 - **Data Transfer**: First 100 GB free per month

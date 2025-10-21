@@ -339,7 +339,8 @@ export async function PATCH(
       return NextResponse.json(
         {
           success: false,
-          error: "No valid updates provided. Updatable fields: cpu, memory, port, ecr_image_uri",
+          error:
+            "No valid updates provided. Updatable fields: cpu, memory, port, ecr_image_uri",
         },
         { status: 400 },
       );
@@ -369,7 +370,8 @@ export async function PATCH(
       if (updates.containerCpu) dbUpdates.cpu = updates.containerCpu;
       if (updates.containerMemory) dbUpdates.memory = updates.containerMemory;
       if (updates.containerPort) dbUpdates.port = updates.containerPort;
-      if (updates.containerImage) dbUpdates.ecr_image_uri = updates.containerImage;
+      if (updates.containerImage)
+        dbUpdates.ecr_image_uri = updates.containerImage;
 
       // Update container in database
       const updatedContainer = await containersService.update(
@@ -399,7 +401,8 @@ export async function PATCH(
 
       // Mark as failed
       await updateContainerStatus(containerId, "failed", {
-        errorMessage: cfError instanceof Error ? cfError.message : "Update failed",
+        errorMessage:
+          cfError instanceof Error ? cfError.message : "Update failed",
         deploymentLog: `CloudFormation update failed: ${cfError instanceof Error ? cfError.message : "Unknown error"}`,
       });
 
