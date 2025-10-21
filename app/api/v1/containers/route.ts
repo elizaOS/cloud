@@ -6,7 +6,6 @@ import {
   containersService,
   listContainers,
   getContainer,
-  deleteContainer,
   updateContainerStatus,
   QuotaExceededError,
   type NewContainer,
@@ -548,7 +547,8 @@ async function deployContainerAsync(
       }
     }
 
-    // Attempt rollback with retries (delete CloudFormation stack + database record)
+    // Attempt rollback (delete CloudFormation stack and release priority)
+    // KEEP the container record in "failed" status for visibility
     for (let attempt = 1; attempt <= 3; attempt++) {
       try {
         // Delete CloudFormation stack first
@@ -559,13 +559,23 @@ async function deployContainerAsync(
           );
         } catch (cfError) {
           console.warn(`⚠️  Failed to delete CloudFormation stack:`, cfError);
-          // Continue with database cleanup even if CF deletion fails
+          // Continue - stack may not exist yet
         }
 
-        // Delete from database
-        await deleteContainer(containerId, organizationId);
+        // Release ALB priority
+        try {
+          const { dbPriorityManager } = await import(
+            "@/lib/services/alb-priority-manager"
+          );
+          await dbPriorityManager.releasePriority(containerId);
+          console.log(`✅ Released ALB priority for ${containerId}`);
+        } catch (priorityError) {
+          console.warn(`⚠️  Failed to release ALB priority:`, priorityError);
+          // Continue - priority may not have been allocated yet
+        }
+
         console.log(
-          `✅ Rolled back failed container ${containerId} (CloudFormation stack + database)`,
+          `✅ Cleaned up infrastructure for failed container ${containerId} (kept record in 'failed' state)`,
         );
         rollbackSuccessful = true;
         break;
@@ -574,13 +584,7 @@ async function deployContainerAsync(
           `❌ Rollback attempt ${attempt}/3 failed:`,
           rollbackError,
         );
-        if (attempt === 3) {
-          console.error(
-            `⚠️  Failed to delete failed container ${containerId}. Container marked as 'failed' but not removed.`,
-            { containerId, organizationId, error: rollbackError },
-          );
-          // This is less critical than refund - admin can clean up later
-        } else {
+        if (attempt < 3) {
           await new Promise((resolve) =>
             setTimeout(resolve, 1000 * Math.pow(2, attempt - 1)),
           );
@@ -599,8 +603,10 @@ async function deployContainerAsync(
 
     // Log final cleanup status for monitoring
     console.log(`Deployment cleanup completed for container ${containerId}:`, {
+      status: "failed",
       refundSuccessful,
       rollbackSuccessful,
+      containerPreserved: true,
       requiresManualIntervention: !refundSuccessful,
     });
   }
