@@ -1454,7 +1454,6 @@ const mcpHandler = createMcpHandler(
       }
     );
 
-    // @ts-expect-error - Zod v3/v4 type compatibility issue with MCP SDK
     server.tool(
       "create_conversation",
       "Create a new conversation context with initial settings. Deducts 1 credit.",
@@ -2506,9 +2505,9 @@ const mcpHandler = createMcpHandler(
 
           const timeRangeObj = timeRange
             ? {
-                from: new Date(timeRange.from),
-                to: new Date(timeRange.to),
-              }
+              from: new Date(timeRange.from),
+              to: new Date(timeRange.to),
+            }
             : undefined;
 
           const analysis = await memoryService.analyzeMemoryPatterns(
@@ -2695,7 +2694,7 @@ const mcpHandler = createMcpHandler(
 
           const actualCost = Math.ceil(
             (response.usage?.inputTokens || estimatedInputTokens) * 0.01 +
-              (response.usage?.outputTokens || 0) * 0.03
+            (response.usage?.outputTokens || 0) * 0.03
           );
 
           await creditsService.deductCredits({
@@ -2740,8 +2739,8 @@ const mcpHandler = createMcpHandler(
                     creditsUsed: actualCost,
                     ...(streaming &&
                       response.streaming && {
-                        streamUrl: response.streaming.sseUrl,
-                      }),
+                      streamUrl: response.streaming.sseUrl,
+                    }),
                     usage: response.usage,
                   },
                   null,

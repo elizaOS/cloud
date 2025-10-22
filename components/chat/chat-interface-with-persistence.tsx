@@ -1,14 +1,19 @@
 "use client";
 
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
 import { useChat, type UIMessage } from "@ai-sdk/react";
 import { DefaultChatTransport } from "ai";
 import type { Conversation, ConversationMessage } from "@/lib/types";
-import { Send, Loader2, Bot, User, Clock, Settings } from "lucide-react";
+import { Send, Loader2, Bot, User, Clock, Settings, Mic, Square, Play, Volume2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { Switch } from "@/components/ui/switch";
+import { Label } from "@/components/ui/label";
 import { createConversationAction } from "@/app/actions/conversations";
 import { cn } from "@/lib/utils";
+import { useAudioRecorder } from "./hooks/use-audio-recorder";
+import { useAudioPlayer } from "./hooks/use-audio-player";
+import { toast } from "sonner";
 
 interface ChatInterfaceWithPersistenceProps {
   conversation?: Conversation | null;
@@ -37,8 +42,15 @@ export function ChatInterfaceWithPersistence({
   const isFirstRender = useRef(true);
   const messageTimestamps = useRef<Map<string, Date>>(new Map());
   const loadingTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const messageAudioUrls = useRef<Map<string, string>>(new Map());
 
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const [autoPlayTTS, setAutoPlayTTS] = useState(false);
+  const [currentPlayingId, setCurrentPlayingId] = useState<string | null>(null);
+
+  // Audio hooks
+  const recorder = useAudioRecorder();
+  const player = useAudioPlayer();
 
   const { messages, sendMessage, setMessages } = useChat({
     id: selectedModel,
@@ -136,8 +148,174 @@ export function ChatInterfaceWithPersistence({
       if (loadingTimeoutRef.current) {
         clearTimeout(loadingTimeoutRef.current);
       }
+      // Cleanup audio URLs
+      messageAudioUrls.current.forEach((url) => URL.revokeObjectURL(url));
     };
   }, []);
+
+  // Show recorder errors
+  useEffect(() => {
+    if (recorder.error) {
+      toast.error(recorder.error);
+    }
+  }, [recorder.error]);
+
+  // Show player errors
+  useEffect(() => {
+    if (player.error) {
+      toast.error(player.error);
+    }
+  }, [player.error]);
+
+  // Generate TTS for assistant message
+  const generateTTS = useCallback(async (text: string, messageId: string) => {
+    try {
+      const response = await fetch("/api/elevenlabs/tts", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ text }),
+      });
+
+      if (!response.ok) {
+        throw new Error("Failed to generate speech");
+      }
+
+      const audioBlob = await response.blob();
+      const audioUrl = URL.createObjectURL(audioBlob);
+      messageAudioUrls.current.set(messageId, audioUrl);
+
+      // Auto-play if enabled
+      if (autoPlayTTS) {
+        setCurrentPlayingId(messageId);
+        await player.playAudio(audioBlob);
+        setCurrentPlayingId(null);
+      }
+    } catch (error) {
+      console.error("Error generating TTS:", error);
+      toast.error("Failed to generate speech");
+    }
+  }, [autoPlayTTS, player]);
+
+  // Handle voice message (STT → AI → TTS)
+  const handleVoiceMessage = useCallback(async (audioBlob: Blob) => {
+    if (isProcessing) return;
+    setIsProcessing(true);
+
+    try {
+      // Step 1: Transcribe audio
+      const formData = new FormData();
+      const audioFile = new File([audioBlob], "recording.webm", {
+        type: audioBlob.type || "audio/webm"
+      });
+      formData.append("audio", audioFile);
+
+      const sttResponse = await fetch("/api/elevenlabs/stt", {
+        method: "POST",
+        body: formData,
+      });
+
+      if (!sttResponse.ok) {
+        const error = await sttResponse.json();
+        throw new Error(error.error || "Failed to transcribe audio");
+      }
+
+      const { transcript } = await sttResponse.json();
+
+      if (!transcript || transcript.trim().length === 0) {
+        toast.error("No speech detected. Please try again.");
+        setIsProcessing(false);
+        return;
+      }
+
+      // Step 2: Send transcribed text to AI (same as text input)
+      let conversationId = conversation?.id;
+
+      if (!conversationId) {
+        const result = await createConversationAction({
+          title: transcript.substring(0, 50),
+          model: selectedModel,
+        });
+
+        if (!result.success || !result.conversation) {
+          throw new Error("Failed to create conversation");
+        }
+
+        conversationId = result.conversation.id;
+        setActiveConversationId(conversationId);
+
+        if (onConversationCreated) {
+          onConversationCreated(result.conversation);
+        }
+      }
+
+      if (loadingTimeoutRef.current) {
+        clearTimeout(loadingTimeoutRef.current);
+      }
+      loadingTimeoutRef.current = setTimeout(() => {
+        setIsProcessing(false);
+      }, 30000);
+
+      sendMessage({
+        text: transcript,
+        metadata: { conversationId },
+      });
+
+    } catch (error) {
+      console.error("Error processing voice message:", error);
+      toast.error(error instanceof Error ? error.message : "Failed to process voice message");
+      setIsProcessing(false);
+    }
+  }, [isProcessing, conversation, selectedModel, onConversationCreated, sendMessage]);
+
+  // Monitor for completed recording
+  useEffect(() => {
+    if (recorder.audioBlob && !isProcessing) {
+      handleVoiceMessage(recorder.audioBlob);
+      recorder.clearRecording();
+    }
+  }, [recorder.audioBlob, isProcessing, handleVoiceMessage, recorder]);
+
+  // Auto-generate TTS for new assistant messages
+  useEffect(() => {
+    if (!autoPlayTTS) return;
+
+    const lastMessage = messages[messages.length - 1];
+    if (lastMessage && lastMessage.role === "assistant" && !isProcessing) {
+      // Check if we already generated audio for this message
+      if (!messageAudioUrls.current.has(lastMessage.id)) {
+        const text = lastMessage.parts.find((p) => p.type === "text")?.text || "";
+        if (text) {
+          generateTTS(text, lastMessage.id);
+        }
+      }
+    }
+  }, [messages, autoPlayTTS, isProcessing, generateTTS]);
+
+  const playMessageAudio = async (messageId: string) => {
+    const existingUrl = messageAudioUrls.current.get(messageId);
+
+    if (existingUrl) {
+      // Play existing audio
+      setCurrentPlayingId(messageId);
+      await player.playAudio(existingUrl);
+      setCurrentPlayingId(null);
+    } else {
+      // Generate and play new audio
+      const message = messages.find((m) => m.id === messageId);
+      if (message && message.role === "assistant") {
+        const text = message.parts.find((p) => p.type === "text")?.text || "";
+        if (text) {
+          setCurrentPlayingId(messageId);
+          await generateTTS(text, messageId);
+          const url = messageAudioUrls.current.get(messageId);
+          if (url) {
+            await player.playAudio(url);
+          }
+          setCurrentPlayingId(null);
+        }
+      }
+    }
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -241,22 +419,40 @@ export function ChatInterfaceWithPersistence({
           </div>
         </div>
 
-        <div className="relative">
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => setShowModelSelector(!showModelSelector)}
-            className="flex items-center gap-2 rounded-full border-border/60 bg-background/80 px-4 py-2 text-xs font-medium shadow-sm transition hover:bg-background"
-          >
-            <Settings className="h-4 w-4" />
-            <span className="truncate">{selectedModel}</span>
-            <Badge
-              variant="secondary"
-              className="rounded-full px-2 py-0 text-[10px]"
+        <div className="flex items-center gap-4">
+          {/* TTS Toggle */}
+          <div className="flex items-center gap-2">
+            <Switch
+              id="auto-tts"
+              checked={autoPlayTTS}
+              onCheckedChange={setAutoPlayTTS}
+              disabled={isProcessing}
+            />
+            <Label
+              htmlFor="auto-tts"
+              className="text-xs cursor-pointer select-none flex items-center gap-1"
             >
-              {messages.length}
-            </Badge>
-          </Button>
+              <Volume2 className="h-3 w-3" />
+              <span className="hidden sm:inline">Auto-play</span>
+            </Label>
+          </div>
+
+          <div className="relative">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setShowModelSelector(!showModelSelector)}
+              className="flex items-center gap-2 rounded-full border-border/60 bg-background/80 px-4 py-2 text-xs font-medium shadow-sm transition hover:bg-background"
+            >
+              <Settings className="h-4 w-4" />
+              <span className="truncate">{selectedModel}</span>
+              <Badge
+                variant="secondary"
+                className="rounded-full px-2 py-0 text-[10px]"
+              >
+                {messages.length}
+              </Badge>
+            </Button>
 
           {showModelSelector && availableModels.length > 0 && (
             <div className="absolute right-0 top-full z-50 mt-2 w-72 overflow-hidden rounded-xl border border-border/60 bg-popover shadow-xl">
@@ -292,6 +488,7 @@ export function ChatInterfaceWithPersistence({
               </div>
             </div>
           )}
+        </div>
         </div>
       </div>
 
@@ -364,19 +561,38 @@ export function ChatInterfaceWithPersistence({
 
                 <div
                   className={cn(
-                    "mt-3 flex items-center gap-2 text-xs",
+                    "mt-3 flex items-center justify-between gap-2 text-xs",
                     message.role === "user"
                       ? "text-primary-foreground/80"
                       : "text-muted-foreground",
                   )}
                 >
-                  <Clock className="h-3 w-3" />
-                  <span>
-                    {formatTimestamp(
-                      messageTimestamps.current.get(message.id)?.getTime() ||
-                        Date.now(),
-                    )}
-                  </span>
+                  <div className="flex items-center gap-2">
+                    <Clock className="h-3 w-3" />
+                    <span>
+                      {formatTimestamp(
+                        messageTimestamps.current.get(message.id)?.getTime() ||
+                          Date.now(),
+                      )}
+                    </span>
+                  </div>
+
+                  {/* Play button for assistant messages */}
+                  {message.role === "assistant" && (
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      className="h-6 px-2 hover:bg-muted/50"
+                      onClick={() => playMessageAudio(message.id)}
+                      disabled={currentPlayingId === message.id}
+                    >
+                      {currentPlayingId === message.id ? (
+                        <Loader2 className="h-3 w-3 animate-spin" />
+                      ) : (
+                        <Play className="h-3 w-3" />
+                      )}
+                    </Button>
+                  )}
                 </div>
               </div>
 
@@ -422,25 +638,52 @@ export function ChatInterfaceWithPersistence({
 
       <form
         onSubmit={handleSubmit}
-        className="border-t bg-card/80 px-6 py-4 backdrop-blur-sm"
+        className="border-t bg-card/80 px-6 py-4 backdrop-blur-sm space-y-3"
       >
+        {/* Voice recording indicator */}
+        {recorder.isRecording && (
+          <div className="flex items-center justify-center gap-2 text-sm text-muted-foreground">
+            <div className="w-2 h-2 rounded-full bg-red-500 animate-pulse" />
+            <span>Recording... {Math.floor(recorder.recordingTime / 60)}:{(recorder.recordingTime % 60).toString().padStart(2, '0')}</span>
+          </div>
+        )}
+
         <div className="flex gap-2">
+          {/* Voice recording button */}
+          <Button
+            type="button"
+            variant={recorder.isRecording ? "destructive" : "outline"}
+            size="lg"
+            className={cn(
+              "h-11 w-11 rounded-xl",
+              recorder.isRecording && "animate-pulse"
+            )}
+            onClick={recorder.isRecording ? recorder.stopRecording : recorder.startRecording}
+            disabled={isProcessing && !recorder.isRecording}
+          >
+            {recorder.isRecording ? (
+              <Square className="h-5 w-5" fill="currentColor" />
+            ) : (
+              <Mic className="h-5 w-5" />
+            )}
+          </Button>
+
           <div className="relative flex-1">
             <input
               value={input}
               onChange={(e) => setInput(e.currentTarget.value)}
               placeholder={
                 conversation
-                  ? "Type your message…"
-                  : "Type your message to start a new conversation…"
+                  ? "Type or speak your message…"
+                  : "Type or speak to start a new conversation…"
               }
-              disabled={isProcessing}
+              disabled={isProcessing || recorder.isRecording}
               className="h-11 w-full rounded-xl border border-border bg-background px-4 text-sm shadow-sm transition focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20 disabled:cursor-not-allowed disabled:opacity-60"
             />
           </div>
           <Button
             type="submit"
-            disabled={isProcessing || !input.trim()}
+            disabled={isProcessing || !input.trim() || recorder.isRecording}
             className="h-11 rounded-xl px-5 font-medium shadow-sm transition hover:shadow-md"
           >
             {isProcessing ? (
