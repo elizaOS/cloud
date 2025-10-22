@@ -9,6 +9,10 @@ import type { Memory, UUID } from "@elizaos/core";
 import { createHash } from "crypto";
 import { conversationsService } from "@/lib/services/conversations";
 import type { ConversationMessage } from "@/db/repositories";
+import { db } from "@/db/client";
+import { eq, and, inArray, desc } from "drizzle-orm";
+import { users } from "@/db/schemas/users";
+import { participantTable, memoryTable } from "@/db/schemas/eliza";
 
 export interface SaveMemoryInput {
   organizationId: string;
@@ -68,6 +72,39 @@ export interface SummarizeConversationResult {
 }
 
 export class MemoryService {
+  private async getRoomIdsForOrganization(
+    organizationId: string,
+  ): Promise<Set<string>> {
+    try {
+      logger.info(
+        `[Memory Service] getRoomIdsForOrganization called for org: ${organizationId}`,
+      );
+
+      const results = await db
+        .selectDistinct({ roomId: participantTable.roomId })
+        .from(participantTable)
+        .innerJoin(users, eq(participantTable.entityId, users.id))
+        .where(eq(users.organization_id, organizationId));
+
+      logger.info(
+        `[Memory Service] Query returned ${results.length} results:`,
+        JSON.stringify(results, null, 2),
+      );
+
+      const roomIds = new Set(results.map((r) => r.roomId));
+      logger.info(
+        `[Memory Service] Found ${roomIds.size} rooms for organization ${organizationId}: ${Array.from(roomIds).join(", ")}`,
+      );
+      return roomIds;
+    } catch (error) {
+      logger.error(
+        `[Memory Service] Failed to get room IDs for organization ${organizationId}:`,
+        error,
+      );
+      return new Set();
+    }
+  }
+
   async saveMemory(input: SaveMemoryInput): Promise<SaveMemoryResult> {
     try {
       const runtime = await agentRuntime.getRuntime();
@@ -193,7 +230,20 @@ export class MemoryService {
     input: RetrieveMemoriesInput,
   ): Promise<SearchResult[]> {
     try {
+      logger.info(
+        `[Memory Service] retrieveMemories called with input:`,
+        JSON.stringify({
+          organizationId: input.organizationId,
+          roomId: input.roomId,
+          query: input.query,
+          limit: input.limit,
+          type: input.type,
+          tags: input.tags,
+        }, null, 2),
+      );
+
       const runtime = await agentRuntime.getRuntime();
+      logger.info(`[Memory Service] Runtime initialized, agentId: ${runtime.agentId}`);
 
       if (input.query) {
         const queryHash = this.hashQuery(input.query, input);
@@ -206,27 +256,136 @@ export class MemoryService {
         }
       }
 
-      let memories: Memory[] = [];
+      const allowedRoomIds = await this.getRoomIdsForOrganization(
+        input.organizationId,
+      );
 
-      if (input.query) {
-        const embedding = new Array(1536).fill(0);
-        memories = await runtime.adapter.searchMemories({
-          embedding,
-          tableName: "memories",
-          count: input.limit || 10,
-          roomId: input.roomId ? (input.roomId as UUID) : undefined,
-          match_threshold: 0.7,
-        });
-      } else {
-        memories = await runtime.adapter.getMemories({
-          tableName: "memories",
-          roomId: input.roomId ? (input.roomId as UUID) : undefined,
-          count: input.limit || 10,
-          unique: true,
-        });
+      logger.info(
+        `[Memory Service] Allowed room IDs size: ${allowedRoomIds.size}`,
+      );
+
+      if (allowedRoomIds.size === 0) {
+        logger.warn(
+          `[Memory Service] No rooms found for organization ${input.organizationId}`,
+        );
+        return [];
       }
 
-      const results: SearchResult[] = memories.map((memory) => ({
+      let memories: Memory[] = [];
+
+      if (input.roomId) {
+        logger.info(
+          `[Memory Service] Checking if roomId ${input.roomId} is in allowedRoomIds`,
+        );
+        logger.info(
+          `[Memory Service] allowedRoomIds contains: ${Array.from(allowedRoomIds).join(", ")}`,
+        );
+
+        if (!allowedRoomIds.has(input.roomId)) {
+          logger.warn(
+            `[Memory Service] Room ${input.roomId} does not belong to organization ${input.organizationId}`,
+          );
+          return [];
+        }
+
+        logger.info(
+          `[Memory Service] Room ${input.roomId} is allowed, fetching memories`,
+        );
+
+        if (input.query) {
+          const embedding = new Array(1536).fill(0);
+          logger.info(`[Memory Service] Calling searchMemories with roomId: ${input.roomId}`);
+          memories = await runtime.adapter.searchMemories({
+            embedding,
+            tableName: "memories",
+            count: input.limit || 10,
+            roomId: input.roomId as UUID,
+            match_threshold: 0.7,
+          });
+        } else {
+          logger.info(`[Memory Service] Querying database directly for roomId: ${input.roomId}`);
+
+          const results = await db
+            .select()
+            .from(memoryTable)
+            .where(
+              and(
+                eq(memoryTable.roomId, input.roomId),
+                eq(memoryTable.agentId, runtime.agentId)
+              )
+            )
+            .orderBy(desc(memoryTable.createdAt))
+            .limit(input.limit || 10);
+
+          memories = results.map((row) => ({
+            id: row.id as UUID,
+            type: row.type,
+            createdAt: new Date(row.createdAt).getTime(),
+            content: row.content,
+            entityId: row.entityId as UUID,
+            agentId: row.agentId as UUID,
+            roomId: row.roomId as UUID,
+            worldId: row.worldId as UUID | undefined,
+            unique: row.unique,
+          } as Memory));
+        }
+
+        logger.info(
+          `[Memory Service] Database query returned ${memories.length} memories`,
+        );
+      } else {
+        logger.info(
+          `[Memory Service] No specific roomId, fetching from all allowed rooms`,
+        );
+        const allMemories: Memory[] = [];
+        const limit = input.limit || 10;
+
+        for (const roomId of allowedRoomIds) {
+          logger.info(`[Memory Service] Fetching memories for room: ${roomId}`);
+
+          const results = await db
+            .select()
+            .from(memoryTable)
+            .where(
+              and(
+                eq(memoryTable.roomId, roomId),
+                eq(memoryTable.agentId, runtime.agentId)
+              )
+            )
+            .orderBy(desc(memoryTable.createdAt))
+            .limit(limit);
+
+          const roomMemories = results.map((row) => ({
+            id: row.id as UUID,
+            type: row.type,
+            createdAt: new Date(row.createdAt).getTime(),
+            content: row.content,
+            entityId: row.entityId as UUID,
+            agentId: row.agentId as UUID,
+            roomId: row.roomId as UUID,
+            worldId: row.worldId as UUID | undefined,
+            unique: row.unique,
+          } as Memory));
+
+          logger.info(
+            `[Memory Service] Room ${roomId} returned ${roomMemories.length} memories`,
+          );
+          allMemories.push(...roomMemories);
+
+          if (allMemories.length >= limit) {
+            break;
+          }
+        }
+
+        memories = allMemories.slice(0, limit);
+        logger.info(
+          `[Memory Service] Total memories collected: ${memories.length}`,
+        );
+      }
+
+      const filteredMemories = memories;
+
+      const results: SearchResult[] = filteredMemories.map((memory) => ({
         memory,
         score: 1.0,
         context: [],
@@ -242,7 +401,7 @@ export class MemoryService {
       }
 
       logger.info(
-        `[Memory Service] Retrieved ${results.length} memories for query`,
+        `[Memory Service] Retrieved ${results.length} memories (filtered from ${memories.length}) for query`,
       );
       return results;
     } catch (error) {
