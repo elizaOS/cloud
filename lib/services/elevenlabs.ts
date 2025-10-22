@@ -111,7 +111,6 @@ export class ElevenLabsService {
       const result = await this.client.speechToText.convert({
         file: options.audioFile as File,
         modelId,
-        enableLogging: false,
         languageCode: options.languageCode,
       });
 
