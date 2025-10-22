@@ -11,6 +11,7 @@ import {
   type Agent,
   type Logger,
   type IDatabaseAdapter,
+  type Plugin,
 } from "@elizaos/core";
 import {
   createDatabaseAdapter,
@@ -269,7 +270,7 @@ class AgentRuntimeManager {
 
       this.runtime = new AgentRuntime({
         character: agent.character,
-        plugins: pluginsWithoutSql as any, // Type assertion for plugin compatibility
+        plugins: pluginsWithoutSql as Plugin[],
         agentId: RUNTIME_AGENT_ID,
         settings: {
           OPENAI_API_KEY: openaiKey,
