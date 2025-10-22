@@ -26,8 +26,26 @@ import {
   IMAGE_GENERATION_COST,
 } from "@/lib/pricing";
 import { uploadBase64Image } from "@/lib/blob";
+import {
+  MCP_REQUEST_TIMEOUT,
+  MEMORY_SAVE_COST,
+  MEMORY_RETRIEVAL_COST_PER_ITEM,
+  MEMORY_RETRIEVAL_MAX_COST,
+  CONTEXT_RETRIEVAL_COST,
+  CONVERSATION_CREATE_COST,
+  CONVERSATION_SEARCH_COST,
+  CONVERSATION_CLONE_COST,
+  CONVERSATION_EXPORT_COST,
+  CONTEXT_OPTIMIZATION_COST,
+  MEMORY_ANALYSIS_COST,
+  AGENT_CHAT_MIN_COST,
+  AGENT_CHAT_INPUT_TOKEN_COST,
+  AGENT_CHAT_OUTPUT_TOKEN_COST,
+  CONVERSATION_SUMMARY_BASE_COST,
+  CONVERSATION_SUMMARY_MAX_COST,
+} from "@/lib/config/mcp";
 
-export const maxDuration = 60;
+export const maxDuration = MCP_REQUEST_TIMEOUT;
 
 // AsyncLocalStorage for request-scoped auth context
 const authContextStorage = new AsyncLocalStorage<AuthResult>();
@@ -917,7 +935,6 @@ const mcpHandler = createMcpHandler(
             };
           }
 
-          const MEMORY_SAVE_COST = 1;
           if (org.credit_balance < MEMORY_SAVE_COST) {
             return {
               content: [
@@ -1100,10 +1117,9 @@ const mcpHandler = createMcpHandler(
             sortBy,
           });
 
-          const COST_PER_MEMORY = 0.1;
           const totalCost = Math.min(
-            Math.ceil(memories.length * COST_PER_MEMORY),
-            5
+            Math.ceil(memories.length * MEMORY_RETRIEVAL_COST_PER_ITEM),
+            MEMORY_RETRIEVAL_MAX_COST
           );
 
           if (totalCost > 0) {
@@ -1329,8 +1345,7 @@ const mcpHandler = createMcpHandler(
             };
           }
 
-          const CONTEXT_COST = 1;
-          if (org.credit_balance < CONTEXT_COST) {
+          if (org.credit_balance < CONTEXT_RETRIEVAL_COST) {
             return {
               content: [
                 {
@@ -1338,7 +1353,7 @@ const mcpHandler = createMcpHandler(
                   text: JSON.stringify(
                     {
                       error: "Insufficient credits",
-                      required: CONTEXT_COST,
+                      required: CONTEXT_RETRIEVAL_COST,
                       available: org.credit_balance,
                     },
                     null,
@@ -1359,7 +1374,7 @@ const mcpHandler = createMcpHandler(
 
           const deductionResult = await creditsService.deductCredits({
             organizationId: user.organization_id,
-            amount: CONTEXT_COST,
+            amount: CONTEXT_RETRIEVAL_COST,
             description: `MCP conversation context: ${roomId}`,
             metadata: {
               user_id: user.id,
@@ -1376,7 +1391,7 @@ const mcpHandler = createMcpHandler(
                   text: JSON.stringify(
                     {
                       error: "Failed to deduct credits",
-                      required: CONTEXT_COST,
+                      required: CONTEXT_RETRIEVAL_COST,
                       available: deductionResult.newBalance,
                     },
                     null,
@@ -1397,7 +1412,7 @@ const mcpHandler = createMcpHandler(
             provider: "internal",
             input_tokens: 0,
             output_tokens: 0,
-            input_cost: CONTEXT_COST,
+            input_cost: CONTEXT_RETRIEVAL_COST,
             output_cost: 0,
             is_successful: true,
           });
@@ -1417,7 +1432,7 @@ const mcpHandler = createMcpHandler(
                     participants: context.participants.length,
                     metadata: context.metadata,
                     tokenEstimate,
-                    cost: CONTEXT_COST,
+                    cost: CONTEXT_RETRIEVAL_COST,
                     messages: context.messages.map((m) => ({
                       id: m.id,
                       content: m.content,
@@ -1500,7 +1515,6 @@ const mcpHandler = createMcpHandler(
             };
           }
 
-          const CONVERSATION_CREATE_COST = 1;
           if (org.credit_balance < CONVERSATION_CREATE_COST) {
             return {
               content: [
@@ -1665,8 +1679,7 @@ const mcpHandler = createMcpHandler(
             };
           }
 
-          const SEARCH_COST = 2;
-          if (org.credit_balance < SEARCH_COST) {
+          if (org.credit_balance < CONVERSATION_SEARCH_COST) {
             return {
               content: [
                 {
@@ -1674,7 +1687,7 @@ const mcpHandler = createMcpHandler(
                   text: JSON.stringify(
                     {
                       error: "Insufficient credits",
-                      required: SEARCH_COST,
+                      required: CONVERSATION_SEARCH_COST,
                       available: org.credit_balance,
                     },
                     null,
@@ -1693,7 +1706,7 @@ const mcpHandler = createMcpHandler(
 
           const deductionResult = await creditsService.deductCredits({
             organizationId: user.organization_id,
-            amount: SEARCH_COST,
+            amount: CONVERSATION_SEARCH_COST,
             description: `MCP conversation search: ${query || "all"}`,
             metadata: {
               user_id: user.id,
@@ -1709,7 +1722,7 @@ const mcpHandler = createMcpHandler(
                   text: JSON.stringify(
                     {
                       error: "Failed to deduct credits",
-                      required: SEARCH_COST,
+                      required: CONVERSATION_SEARCH_COST,
                       available: deductionResult.newBalance,
                     },
                     null,
@@ -1730,7 +1743,7 @@ const mcpHandler = createMcpHandler(
             provider: "internal",
             input_tokens: 0,
             output_tokens: 0,
-            input_cost: SEARCH_COST,
+            input_cost: CONVERSATION_SEARCH_COST,
             output_cost: 0,
             is_successful: true,
           });
@@ -1751,7 +1764,7 @@ const mcpHandler = createMcpHandler(
                       createdAt: c.created_at,
                     })),
                     count: conversations.length,
-                    cost: SEARCH_COST,
+                    cost: CONVERSATION_SEARCH_COST,
                   },
                   null,
                   2
@@ -1832,7 +1845,10 @@ const mcpHandler = createMcpHandler(
             };
           }
 
-          const estimatedCost = Math.min(10 + Math.floor(lastN / 10), 50);
+          const estimatedCost = Math.min(
+            CONVERSATION_SUMMARY_BASE_COST + Math.floor(lastN / 10),
+            CONVERSATION_SUMMARY_MAX_COST
+          );
           if (org.credit_balance < estimatedCost) {
             return {
               content: [
@@ -1862,8 +1878,9 @@ const mcpHandler = createMcpHandler(
           });
 
           const actualCost = Math.min(
-            10 + Math.ceil(summary.tokenCount / 1000),
-            50
+            CONVERSATION_SUMMARY_BASE_COST +
+              Math.ceil(summary.tokenCount / 1000),
+            CONVERSATION_SUMMARY_MAX_COST
           );
 
           const deductionResult = await creditsService.deductCredits({
@@ -1998,8 +2015,7 @@ const mcpHandler = createMcpHandler(
             };
           }
 
-          const OPTIMIZE_COST = 5;
-          if (org.credit_balance < OPTIMIZE_COST) {
+          if (org.credit_balance < CONTEXT_OPTIMIZATION_COST) {
             return {
               content: [
                 {
@@ -2007,7 +2023,7 @@ const mcpHandler = createMcpHandler(
                   text: JSON.stringify(
                     {
                       error: "Insufficient credits",
-                      required: OPTIMIZE_COST,
+                      required: CONTEXT_OPTIMIZATION_COST,
                       available: org.credit_balance,
                     },
                     null,
@@ -2029,7 +2045,7 @@ const mcpHandler = createMcpHandler(
 
           const deductionResult = await creditsService.deductCredits({
             organizationId: user.organization_id,
-            amount: OPTIMIZE_COST,
+            amount: CONTEXT_OPTIMIZATION_COST,
             description: `MCP context optimization: ${roomId}`,
             metadata: {
               user_id: user.id,
@@ -2046,7 +2062,7 @@ const mcpHandler = createMcpHandler(
                   text: JSON.stringify(
                     {
                       error: "Failed to deduct credits",
-                      required: OPTIMIZE_COST,
+                      required: CONTEXT_OPTIMIZATION_COST,
                       available: deductionResult.newBalance,
                     },
                     null,
@@ -2067,7 +2083,7 @@ const mcpHandler = createMcpHandler(
             provider: "internal",
             input_tokens: 0,
             output_tokens: 0,
-            input_cost: OPTIMIZE_COST,
+            input_cost: CONTEXT_OPTIMIZATION_COST,
             output_cost: 0,
             is_successful: true,
           });
@@ -2086,7 +2102,7 @@ const mcpHandler = createMcpHandler(
                     totalTokens: optimized.totalTokens,
                     messageCount: optimized.messageCount,
                     relevanceScores: optimized.relevanceScores,
-                    cost: OPTIMIZE_COST,
+                    cost: CONTEXT_OPTIMIZATION_COST,
                     newBalance: deductionResult.newBalance,
                   },
                   null,
@@ -2161,8 +2177,7 @@ const mcpHandler = createMcpHandler(
             };
           }
 
-          const EXPORT_COST = 5;
-          if (org.credit_balance < EXPORT_COST) {
+          if (org.credit_balance < CONVERSATION_EXPORT_COST) {
             return {
               content: [
                 {
@@ -2170,7 +2185,7 @@ const mcpHandler = createMcpHandler(
                   text: JSON.stringify(
                     {
                       error: "Insufficient credits",
-                      required: EXPORT_COST,
+                      required: CONVERSATION_EXPORT_COST,
                       available: org.credit_balance,
                     },
                     null,
@@ -2191,7 +2206,7 @@ const mcpHandler = createMcpHandler(
 
           const deductionResult = await creditsService.deductCredits({
             organizationId: user.organization_id,
-            amount: EXPORT_COST,
+            amount: CONVERSATION_EXPORT_COST,
             description: `MCP conversation export: ${conversationId}`,
             metadata: {
               user_id: user.id,
@@ -2208,7 +2223,7 @@ const mcpHandler = createMcpHandler(
                   text: JSON.stringify(
                     {
                       error: "Failed to deduct credits",
-                      required: EXPORT_COST,
+                      required: CONVERSATION_EXPORT_COST,
                       available: deductionResult.newBalance,
                     },
                     null,
@@ -2229,7 +2244,7 @@ const mcpHandler = createMcpHandler(
             provider: "internal",
             input_tokens: 0,
             output_tokens: 0,
-            input_cost: EXPORT_COST,
+            input_cost: CONVERSATION_EXPORT_COST,
             output_cost: 0,
             is_successful: true,
           });
@@ -2243,7 +2258,7 @@ const mcpHandler = createMcpHandler(
                     content: exportData.content,
                     format: exportData.format,
                     size: exportData.size,
-                    cost: EXPORT_COST,
+                    cost: CONVERSATION_EXPORT_COST,
                     newBalance: deductionResult.newBalance,
                   },
                   null,
@@ -2323,8 +2338,7 @@ const mcpHandler = createMcpHandler(
             };
           }
 
-          const CLONE_COST = 2;
-          if (org.credit_balance < CLONE_COST) {
+          if (org.credit_balance < CONVERSATION_CLONE_COST) {
             return {
               content: [
                 {
@@ -2332,7 +2346,7 @@ const mcpHandler = createMcpHandler(
                   text: JSON.stringify(
                     {
                       error: "Insufficient credits",
-                      required: CLONE_COST,
+                      required: CONVERSATION_CLONE_COST,
                       available: org.credit_balance,
                     },
                     null,
@@ -2358,7 +2372,7 @@ const mcpHandler = createMcpHandler(
 
           const deductionResult = await creditsService.deductCredits({
             organizationId: user.organization_id,
-            amount: CLONE_COST,
+            amount: CONVERSATION_CLONE_COST,
             description: `MCP conversation clone: ${conversationId}`,
             metadata: {
               user_id: user.id,
@@ -2375,7 +2389,7 @@ const mcpHandler = createMcpHandler(
                   text: JSON.stringify(
                     {
                       error: "Failed to deduct credits",
-                      required: CLONE_COST,
+                      required: CONVERSATION_CLONE_COST,
                       available: deductionResult.newBalance,
                     },
                     null,
@@ -2396,7 +2410,7 @@ const mcpHandler = createMcpHandler(
             provider: "internal",
             input_tokens: 0,
             output_tokens: 0,
-            input_cost: CLONE_COST,
+            input_cost: CONVERSATION_CLONE_COST,
             output_cost: 0,
             is_successful: true,
           });
@@ -2410,7 +2424,7 @@ const mcpHandler = createMcpHandler(
                     success: true,
                     conversationId: cloneResult.conversationId,
                     clonedMessageCount: cloneResult.clonedMessageCount,
-                    cost: CLONE_COST,
+                    cost: CONVERSATION_CLONE_COST,
                     newBalance: deductionResult.newBalance,
                   },
                   null,
@@ -2482,8 +2496,7 @@ const mcpHandler = createMcpHandler(
             };
           }
 
-          const ANALYSIS_COST = 20;
-          if (org.credit_balance < ANALYSIS_COST) {
+          if (org.credit_balance < MEMORY_ANALYSIS_COST) {
             return {
               content: [
                 {
@@ -2491,7 +2504,7 @@ const mcpHandler = createMcpHandler(
                   text: JSON.stringify(
                     {
                       error: "Insufficient credits",
-                      required: ANALYSIS_COST,
+                      required: MEMORY_ANALYSIS_COST,
                       available: org.credit_balance,
                     },
                     null,
@@ -2505,9 +2518,9 @@ const mcpHandler = createMcpHandler(
 
           const timeRangeObj = timeRange
             ? {
-              from: new Date(timeRange.from),
-              to: new Date(timeRange.to),
-            }
+                from: new Date(timeRange.from),
+                to: new Date(timeRange.to),
+              }
             : undefined;
 
           const analysis = await memoryService.analyzeMemoryPatterns(
@@ -2518,7 +2531,7 @@ const mcpHandler = createMcpHandler(
 
           const deductionResult = await creditsService.deductCredits({
             organizationId: user.organization_id,
-            amount: ANALYSIS_COST,
+            amount: MEMORY_ANALYSIS_COST,
             description: `MCP memory analysis: ${analysisType}`,
             metadata: {
               user_id: user.id,
@@ -2534,7 +2547,7 @@ const mcpHandler = createMcpHandler(
                   text: JSON.stringify(
                     {
                       error: "Failed to deduct credits",
-                      required: ANALYSIS_COST,
+                      required: MEMORY_ANALYSIS_COST,
                       available: deductionResult.newBalance,
                     },
                     null,
@@ -2555,7 +2568,7 @@ const mcpHandler = createMcpHandler(
             provider: "internal",
             input_tokens: 0,
             output_tokens: 0,
-            input_cost: ANALYSIS_COST,
+            input_cost: MEMORY_ANALYSIS_COST,
             output_cost: 0,
             is_successful: true,
           });
@@ -2570,7 +2583,7 @@ const mcpHandler = createMcpHandler(
                     insights: analysis.insights,
                     data: analysis.data,
                     chartData: analysis.chartData,
-                    cost: ANALYSIS_COST,
+                    cost: MEMORY_ANALYSIS_COST,
                     newBalance: deductionResult.newBalance,
                   },
                   null,
@@ -2652,8 +2665,8 @@ const mcpHandler = createMcpHandler(
 
           const estimatedInputTokens = Math.ceil(message.length / 4);
           const estimatedCost = Math.max(
-            5,
-            Math.ceil(estimatedInputTokens * 0.01)
+            AGENT_CHAT_MIN_COST,
+            Math.ceil(estimatedInputTokens * AGENT_CHAT_INPUT_TOKEN_COST)
           );
 
           if (org.credit_balance < estimatedCost) {
@@ -2693,8 +2706,9 @@ const mcpHandler = createMcpHandler(
           });
 
           const actualCost = Math.ceil(
-            (response.usage?.inputTokens || estimatedInputTokens) * 0.01 +
-            (response.usage?.outputTokens || 0) * 0.03
+            (response.usage?.inputTokens || estimatedInputTokens) *
+              AGENT_CHAT_INPUT_TOKEN_COST +
+              (response.usage?.outputTokens || 0) * AGENT_CHAT_OUTPUT_TOKEN_COST
           );
 
           await creditsService.deductCredits({
@@ -2739,8 +2753,8 @@ const mcpHandler = createMcpHandler(
                     creditsUsed: actualCost,
                     ...(streaming &&
                       response.streaming && {
-                      streamUrl: response.streaming.sseUrl,
-                    }),
+                        streamUrl: response.streaming.sseUrl,
+                      }),
                     usage: response.usage,
                   },
                   null,
