@@ -75,7 +75,7 @@ const mcpHandler = createMcpHandler(
                   text: JSON.stringify(
                     { error: "Organization not found" },
                     null,
-                    2,
+                    2
                   ),
                 },
               ],
@@ -104,7 +104,7 @@ const mcpHandler = createMcpHandler(
             const transactions =
               await creditsService.listTransactionsByOrganization(
                 user.organization_id,
-                limit,
+                limit
               );
             response.transactions = transactions.map((t) => ({
               id: t.id,
@@ -136,14 +136,14 @@ const mcpHandler = createMcpHandler(
                         : "Failed to check credits",
                   },
                   null,
-                  2,
+                  2
                 ),
               },
             ],
             isError: true,
           };
         }
-      },
+      }
     );
 
     // Tool 2: Get Recent Usage - View API usage statistics
@@ -166,7 +166,7 @@ const mcpHandler = createMcpHandler(
 
           const usageRecords = await usageService.listByOrganization(
             user.organization_id,
-            limit,
+            limit
           );
 
           const formattedUsage = usageRecords.map((record) => ({
@@ -186,7 +186,7 @@ const mcpHandler = createMcpHandler(
 
           const totalCost = formattedUsage.reduce(
             (sum, record) => sum + record.totalCost,
-            0,
+            0
           );
 
           return {
@@ -202,7 +202,7 @@ const mcpHandler = createMcpHandler(
                     },
                   },
                   null,
-                  2,
+                  2
                 ),
               },
             ],
@@ -220,14 +220,14 @@ const mcpHandler = createMcpHandler(
                         : "Failed to fetch usage",
                   },
                   null,
-                  2,
+                  2
                 ),
               },
             ],
             isError: true,
           };
         }
-      },
+      }
     );
 
     // Tool 3: Generate Text - Generate text using AI models
@@ -272,7 +272,7 @@ const mcpHandler = createMcpHandler(
                   text: JSON.stringify(
                     { error: "Organization not found" },
                     null,
-                    2,
+                    2
                   ),
                 },
               ],
@@ -296,7 +296,7 @@ const mcpHandler = createMcpHandler(
                       available: org.credit_balance,
                     },
                     null,
-                    2,
+                    2
                   ),
                 },
               ],
@@ -343,7 +343,7 @@ const mcpHandler = createMcpHandler(
             model,
             provider,
             usage?.inputTokens || 0,
-            usage?.outputTokens || 0,
+            usage?.outputTokens || 0
           );
 
           // Deduct credits
@@ -371,7 +371,7 @@ const mcpHandler = createMcpHandler(
                       balance: deductionResult.newBalance,
                     },
                     null,
-                    2,
+                    2
                   ),
                 },
               ],
@@ -446,14 +446,14 @@ const mcpHandler = createMcpHandler(
                         : "Text generation failed",
                   },
                   null,
-                  2,
+                  2
                 ),
               },
             ],
             isError: true,
           };
         }
-      },
+      }
     );
 
     // Tool 4: Generate Image - Generate images using Gemini
@@ -486,7 +486,7 @@ const mcpHandler = createMcpHandler(
                   text: JSON.stringify(
                     { error: "Organization not found" },
                     null,
-                    2,
+                    2
                   ),
                 },
               ],
@@ -506,7 +506,7 @@ const mcpHandler = createMcpHandler(
                       available: org.credit_balance,
                     },
                     null,
-                    2,
+                    2
                   ),
                 },
               ],
@@ -606,7 +606,7 @@ const mcpHandler = createMcpHandler(
                   text: JSON.stringify(
                     { error: "No image was generated" },
                     null,
-                    2,
+                    2
                   ),
                 },
               ],
@@ -634,7 +634,7 @@ const mcpHandler = createMcpHandler(
                       available: deductionResult.newBalance,
                     },
                     null,
-                    2,
+                    2
                   ),
                 },
               ],
@@ -702,7 +702,7 @@ const mcpHandler = createMcpHandler(
                     newBalance: deductionResult.newBalance,
                   },
                   null,
-                  2,
+                  2
                 ),
               },
             ],
@@ -733,14 +733,14 @@ const mcpHandler = createMcpHandler(
                         : "Image generation failed",
                   },
                   null,
-                  2,
+                  2
                 ),
               },
             ],
             isError: true,
           };
         }
-      },
+      }
     );
 
     server.tool(
@@ -795,7 +795,7 @@ const mcpHandler = createMcpHandler(
                   text: JSON.stringify(
                     { error: "Organization not found" },
                     null,
-                    2,
+                    2
                   ),
                 },
               ],
@@ -814,7 +814,7 @@ const mcpHandler = createMcpHandler(
                         "roomId is required. Memory must be associated with a room/conversation.",
                     },
                     null,
-                    2,
+                    2
                   ),
                 },
               ],
@@ -835,7 +835,7 @@ const mcpHandler = createMcpHandler(
                       available: org.credit_balance,
                     },
                     null,
-                    2,
+                    2
                   ),
                 },
               ],
@@ -878,7 +878,7 @@ const mcpHandler = createMcpHandler(
                       available: deductionResult.newBalance,
                     },
                     null,
-                    2,
+                    2
                   ),
                 },
               ],
@@ -914,7 +914,7 @@ const mcpHandler = createMcpHandler(
                     newBalance: deductionResult.newBalance,
                   },
                   null,
-                  2,
+                  2
                 ),
               },
             ],
@@ -932,36 +932,27 @@ const mcpHandler = createMcpHandler(
                         : "Failed to save memory",
                   },
                   null,
-                  2,
+                  2
                 ),
               },
             ],
             isError: true,
           };
         }
-      },
+      }
     );
 
     server.tool(
       "retrieve_memories",
       "Search and retrieve memories using semantic search or filters. Deducts 0.1 credit per memory retrieved (max 5 credits).",
       {
-        query: z
-          .string()
-          .optional()
-          .describe("Semantic search query"),
+        query: z.string().optional().describe("Semantic search query"),
         roomId: z
           .string()
           .optional()
           .describe("Filter to specific room/conversation"),
-        type: z
-          .array(z.string())
-          .optional()
-          .describe("Filter by memory type"),
-        tags: z
-          .array(z.string())
-          .optional()
-          .describe("Filter by tags"),
+        type: z.array(z.string()).optional().describe("Filter by memory type"),
+        tags: z.array(z.string()).optional().describe("Filter by tags"),
         limit: z
           .number()
           .int()
@@ -976,7 +967,14 @@ const mcpHandler = createMcpHandler(
           .default("relevance")
           .describe("Sort order"),
       },
-      async ({ query, roomId, type, tags, limit = 10, sortBy = "relevance" }) => {
+      async ({
+        query,
+        roomId,
+        type,
+        tags,
+        limit = 10,
+        sortBy = "relevance",
+      }) => {
         try {
           const { user } = getAuthContext();
 
@@ -989,7 +987,7 @@ const mcpHandler = createMcpHandler(
                   text: JSON.stringify(
                     { error: "Organization not found" },
                     null,
-                    2,
+                    2
                   ),
                 },
               ],
@@ -1010,7 +1008,7 @@ const mcpHandler = createMcpHandler(
           const COST_PER_MEMORY = 0.1;
           const totalCost = Math.min(
             Math.ceil(memories.length * COST_PER_MEMORY),
-            5,
+            5
           );
 
           if (totalCost > 0) {
@@ -1037,7 +1035,7 @@ const mcpHandler = createMcpHandler(
                         available: deductionResult.newBalance,
                       },
                       null,
-                      2,
+                      2
                     ),
                   },
                 ],
@@ -1076,7 +1074,7 @@ const mcpHandler = createMcpHandler(
                     cost: totalCost,
                   },
                   null,
-                  2,
+                  2
                 ),
               },
             ],
@@ -1094,14 +1092,14 @@ const mcpHandler = createMcpHandler(
                         : "Failed to retrieve memories",
                   },
                   null,
-                  2,
+                  2
                 ),
               },
             ],
             isError: true,
           };
         }
-      },
+      }
     );
 
     server.tool(
@@ -1118,14 +1116,8 @@ const mcpHandler = createMcpHandler(
           .positive()
           .optional()
           .describe("Delete memories older than N days"),
-        type: z
-          .array(z.string())
-          .optional()
-          .describe("Delete by type"),
-        tags: z
-          .array(z.string())
-          .optional()
-          .describe("Delete by tags"),
+        type: z.array(z.string()).optional().describe("Delete by type"),
+        tags: z.array(z.string()).optional().describe("Delete by tags"),
       },
       async ({ memoryId, olderThan, type, tags }) => {
         try {
@@ -1164,7 +1156,7 @@ const mcpHandler = createMcpHandler(
                     storageFreed: result.storageFreed,
                   },
                   null,
-                  2,
+                  2
                 ),
               },
             ],
@@ -1182,14 +1174,14 @@ const mcpHandler = createMcpHandler(
                         : "Failed to delete memory",
                   },
                   null,
-                  2,
+                  2
                 ),
               },
             ],
             isError: true,
           };
         }
-      },
+      }
     );
 
     server.tool(
@@ -1216,7 +1208,12 @@ const mcpHandler = createMcpHandler(
           .default("json")
           .describe("Output format"),
       },
-      async ({ roomId, depth = 20, includeMemories = true, format = "json" }) => {
+      async ({
+        roomId,
+        depth = 20,
+        includeMemories = true,
+        format: _format = "json",
+      }) => {
         try {
           const { user } = getAuthContext();
 
@@ -1229,7 +1226,7 @@ const mcpHandler = createMcpHandler(
                   text: JSON.stringify(
                     { error: "Organization not found" },
                     null,
-                    2,
+                    2
                   ),
                 },
               ],
@@ -1250,7 +1247,7 @@ const mcpHandler = createMcpHandler(
                       available: org.credit_balance,
                     },
                     null,
-                    2,
+                    2
                   ),
                 },
               ],
@@ -1262,7 +1259,7 @@ const mcpHandler = createMcpHandler(
             roomId,
             user.organization_id,
             depth,
-            includeMemories,
+            includeMemories
           );
 
           const deductionResult = await creditsService.deductCredits({
@@ -1288,7 +1285,7 @@ const mcpHandler = createMcpHandler(
                       available: deductionResult.newBalance,
                     },
                     null,
-                    2,
+                    2
                   ),
                 },
               ],
@@ -1311,7 +1308,7 @@ const mcpHandler = createMcpHandler(
           });
 
           const tokenEstimate = await memoryService.estimateTokenCount(
-            context.messages,
+            context.messages
           );
 
           return {
@@ -1334,7 +1331,7 @@ const mcpHandler = createMcpHandler(
                     })),
                   },
                   null,
-                  2,
+                  2
                 ),
               },
             ],
@@ -1352,16 +1349,17 @@ const mcpHandler = createMcpHandler(
                         : "Failed to get conversation context",
                   },
                   null,
-                  2,
+                  2
                 ),
               },
             ],
             isError: true,
           };
         }
-      },
+      }
     );
 
+    // @ts-expect-error - Zod v3/v4 type compatibility issue with MCP SDK
     server.tool(
       "create_conversation",
       "Create a new conversation context with initial settings. Deducts 1 credit.",
@@ -1400,7 +1398,7 @@ const mcpHandler = createMcpHandler(
                   text: JSON.stringify(
                     { error: "Organization not found" },
                     null,
-                    2,
+                    2
                   ),
                 },
               ],
@@ -1421,7 +1419,7 @@ const mcpHandler = createMcpHandler(
                       available: org.credit_balance,
                     },
                     null,
-                    2,
+                    2
                   ),
                 },
               ],
@@ -1462,7 +1460,7 @@ const mcpHandler = createMcpHandler(
                       available: deductionResult.newBalance,
                     },
                     null,
-                    2,
+                    2
                   ),
                 },
               ],
@@ -1498,7 +1496,7 @@ const mcpHandler = createMcpHandler(
                     newBalance: deductionResult.newBalance,
                   },
                   null,
-                  2,
+                  2
                 ),
               },
             ],
@@ -1516,14 +1514,14 @@ const mcpHandler = createMcpHandler(
                         : "Failed to create conversation",
                   },
                   null,
-                  2,
+                  2
                 ),
               },
             ],
             isError: true,
           };
         }
-      },
+      }
     );
 
     server.tool(
@@ -1534,18 +1532,9 @@ const mcpHandler = createMcpHandler(
           .string()
           .optional()
           .describe("Search query (semantic or keyword)"),
-        model: z
-          .array(z.string())
-          .optional()
-          .describe("Filter by model used"),
-        dateFrom: z
-          .string()
-          .optional()
-          .describe("ISO date string (from)"),
-        dateTo: z
-          .string()
-          .optional()
-          .describe("ISO date string (to)"),
+        model: z.array(z.string()).optional().describe("Filter by model used"),
+        dateFrom: z.string().optional().describe("ISO date string (from)"),
+        dateTo: z.string().optional().describe("ISO date string (to)"),
         limit: z
           .number()
           .int()
@@ -1555,7 +1544,13 @@ const mcpHandler = createMcpHandler(
           .default(10)
           .describe("Maximum results"),
       },
-      async ({ query, model, dateFrom, dateTo, limit = 10 }) => {
+      async ({
+        query,
+        model: _model,
+        dateFrom: _dateFrom,
+        dateTo: _dateTo,
+        limit = 10,
+      }) => {
         try {
           const { user } = getAuthContext();
 
@@ -1568,7 +1563,7 @@ const mcpHandler = createMcpHandler(
                   text: JSON.stringify(
                     { error: "Organization not found" },
                     null,
-                    2,
+                    2
                   ),
                 },
               ],
@@ -1589,7 +1584,7 @@ const mcpHandler = createMcpHandler(
                       available: org.credit_balance,
                     },
                     null,
-                    2,
+                    2
                   ),
                 },
               ],
@@ -1599,7 +1594,7 @@ const mcpHandler = createMcpHandler(
 
           const conversations = await conversationsService.listByOrganization(
             user.organization_id,
-            limit,
+            limit
           );
 
           const deductionResult = await creditsService.deductCredits({
@@ -1624,7 +1619,7 @@ const mcpHandler = createMcpHandler(
                       available: deductionResult.newBalance,
                     },
                     null,
-                    2,
+                    2
                   ),
                 },
               ],
@@ -1665,7 +1660,7 @@ const mcpHandler = createMcpHandler(
                     cost: SEARCH_COST,
                   },
                   null,
-                  2,
+                  2
                 ),
               },
             ],
@@ -1683,14 +1678,14 @@ const mcpHandler = createMcpHandler(
                         : "Failed to search conversations",
                   },
                   null,
-                  2,
+                  2
                 ),
               },
             ],
             isError: true,
           };
         }
-      },
+      }
     );
 
     server.tool(
@@ -1717,7 +1712,12 @@ const mcpHandler = createMcpHandler(
           .default(false)
           .describe("Include participant and topic metadata"),
       },
-      async ({ roomId, lastN = 50, style = "brief", includeMetadata = false }) => {
+      async ({
+        roomId,
+        lastN = 50,
+        style = "brief",
+        includeMetadata = false,
+      }) => {
         try {
           const { user } = getAuthContext();
 
@@ -1730,7 +1730,7 @@ const mcpHandler = createMcpHandler(
                   text: JSON.stringify(
                     { error: "Organization not found" },
                     null,
-                    2,
+                    2
                   ),
                 },
               ],
@@ -1751,7 +1751,7 @@ const mcpHandler = createMcpHandler(
                       available: org.credit_balance,
                     },
                     null,
-                    2,
+                    2
                   ),
                 },
               ],
@@ -1769,7 +1769,7 @@ const mcpHandler = createMcpHandler(
 
           const actualCost = Math.min(
             10 + Math.ceil(summary.tokenCount / 1000),
-            50,
+            50
           );
 
           const deductionResult = await creditsService.deductCredits({
@@ -1795,7 +1795,7 @@ const mcpHandler = createMcpHandler(
                       available: deductionResult.newBalance,
                     },
                     null,
-                    2,
+                    2
                   ),
                 },
               ],
@@ -1831,7 +1831,7 @@ const mcpHandler = createMcpHandler(
                     newBalance: deductionResult.newBalance,
                   },
                   null,
-                  2,
+                  2
                 ),
               },
             ],
@@ -1849,14 +1849,14 @@ const mcpHandler = createMcpHandler(
                         : "Failed to summarize conversation",
                   },
                   null,
-                  2,
+                  2
                 ),
               },
             ],
             isError: true,
           };
         }
-      },
+      }
     );
 
     server.tool(
@@ -1896,7 +1896,7 @@ const mcpHandler = createMcpHandler(
                   text: JSON.stringify(
                     { error: "Organization not found" },
                     null,
-                    2,
+                    2
                   ),
                 },
               ],
@@ -1917,7 +1917,7 @@ const mcpHandler = createMcpHandler(
                       available: org.credit_balance,
                     },
                     null,
-                    2,
+                    2
                   ),
                 },
               ],
@@ -1930,7 +1930,7 @@ const mcpHandler = createMcpHandler(
             user.organization_id,
             maxTokens,
             query,
-            preserveRecent,
+            preserveRecent
           );
 
           const deductionResult = await creditsService.deductCredits({
@@ -1956,7 +1956,7 @@ const mcpHandler = createMcpHandler(
                       available: deductionResult.newBalance,
                     },
                     null,
-                    2,
+                    2
                   ),
                 },
               ],
@@ -1996,7 +1996,7 @@ const mcpHandler = createMcpHandler(
                     newBalance: deductionResult.newBalance,
                   },
                   null,
-                  2,
+                  2
                 ),
               },
             ],
@@ -2014,14 +2014,14 @@ const mcpHandler = createMcpHandler(
                         : "Failed to optimize context window",
                   },
                   null,
-                  2,
+                  2
                 ),
               },
             ],
             isError: true,
           };
         }
-      },
+      }
     );
 
     server.tool(
@@ -2029,9 +2029,7 @@ const mcpHandler = createMcpHandler(
       "Export conversation history in various formats (json, markdown, txt). Deducts 5 credits.",
       {
         conversationId: z.string().describe("Conversation ID to export"),
-        format: z
-          .enum(["json", "markdown", "txt"])
-          .describe("Export format"),
+        format: z.enum(["json", "markdown", "txt"]).describe("Export format"),
         includeMemories: z
           .boolean()
           .optional()
@@ -2047,7 +2045,7 @@ const mcpHandler = createMcpHandler(
         conversationId,
         format,
         includeMemories = false,
-        includeMetadata = true,
+        includeMetadata: _includeMetadata = true,
       }) => {
         try {
           const { user } = getAuthContext();
@@ -2061,7 +2059,7 @@ const mcpHandler = createMcpHandler(
                   text: JSON.stringify(
                     { error: "Organization not found" },
                     null,
-                    2,
+                    2
                   ),
                 },
               ],
@@ -2082,7 +2080,7 @@ const mcpHandler = createMcpHandler(
                       available: org.credit_balance,
                     },
                     null,
-                    2,
+                    2
                   ),
                 },
               ],
@@ -2094,7 +2092,7 @@ const mcpHandler = createMcpHandler(
             conversationId,
             user.organization_id,
             format,
-            includeMemories,
+            includeMemories
           );
 
           const deductionResult = await creditsService.deductCredits({
@@ -2120,7 +2118,7 @@ const mcpHandler = createMcpHandler(
                       available: deductionResult.newBalance,
                     },
                     null,
-                    2,
+                    2
                   ),
                 },
               ],
@@ -2155,7 +2153,7 @@ const mcpHandler = createMcpHandler(
                     newBalance: deductionResult.newBalance,
                   },
                   null,
-                  2,
+                  2
                 ),
               },
             ],
@@ -2173,14 +2171,14 @@ const mcpHandler = createMcpHandler(
                         : "Failed to export conversation",
                   },
                   null,
-                  2,
+                  2
                 ),
               },
             ],
             isError: true,
           };
         }
-      },
+      }
     );
 
     server.tool(
@@ -2202,10 +2200,7 @@ const mcpHandler = createMcpHandler(
           .optional()
           .default(false)
           .describe("Copy related memories"),
-        newModel: z
-          .string()
-          .optional()
-          .describe("Change model (optional)"),
+        newModel: z.string().optional().describe("Change model (optional)"),
       },
       async ({
         conversationId,
@@ -2226,7 +2221,7 @@ const mcpHandler = createMcpHandler(
                   text: JSON.stringify(
                     { error: "Organization not found" },
                     null,
-                    2,
+                    2
                   ),
                 },
               ],
@@ -2247,7 +2242,7 @@ const mcpHandler = createMcpHandler(
                       available: org.credit_balance,
                     },
                     null,
-                    2,
+                    2
                   ),
                 },
               ],
@@ -2264,7 +2259,7 @@ const mcpHandler = createMcpHandler(
               preserveMessages,
               preserveMemories,
               newModel,
-            },
+            }
           );
 
           const deductionResult = await creditsService.deductCredits({
@@ -2290,7 +2285,7 @@ const mcpHandler = createMcpHandler(
                       available: deductionResult.newBalance,
                     },
                     null,
-                    2,
+                    2
                   ),
                 },
               ],
@@ -2325,7 +2320,7 @@ const mcpHandler = createMcpHandler(
                     newBalance: deductionResult.newBalance,
                   },
                   null,
-                  2,
+                  2
                 ),
               },
             ],
@@ -2343,14 +2338,14 @@ const mcpHandler = createMcpHandler(
                         : "Failed to clone conversation",
                   },
                   null,
-                  2,
+                  2
                 ),
               },
             ],
             isError: true,
           };
         }
-      },
+      }
     );
 
     server.tool(
@@ -2372,7 +2367,7 @@ const mcpHandler = createMcpHandler(
           .optional()
           .describe("Grouping for timeline analysis"),
       },
-      async ({ analysisType, timeRange, groupBy }) => {
+      async ({ analysisType, timeRange, groupBy: _groupBy }) => {
         try {
           const { user } = getAuthContext();
 
@@ -2385,7 +2380,7 @@ const mcpHandler = createMcpHandler(
                   text: JSON.stringify(
                     { error: "Organization not found" },
                     null,
-                    2,
+                    2
                   ),
                 },
               ],
@@ -2406,7 +2401,7 @@ const mcpHandler = createMcpHandler(
                       available: org.credit_balance,
                     },
                     null,
-                    2,
+                    2
                   ),
                 },
               ],
@@ -2424,7 +2419,7 @@ const mcpHandler = createMcpHandler(
           const analysis = await memoryService.analyzeMemoryPatterns(
             user.organization_id,
             analysisType,
-            timeRangeObj,
+            timeRangeObj
           );
 
           const deductionResult = await creditsService.deductCredits({
@@ -2449,7 +2444,7 @@ const mcpHandler = createMcpHandler(
                       available: deductionResult.newBalance,
                     },
                     null,
-                    2,
+                    2
                   ),
                 },
               ],
@@ -2485,7 +2480,7 @@ const mcpHandler = createMcpHandler(
                     newBalance: deductionResult.newBalance,
                   },
                   null,
-                  2,
+                  2
                 ),
               },
             ],
@@ -2503,14 +2498,14 @@ const mcpHandler = createMcpHandler(
                         : "Failed to analyze memory patterns",
                   },
                   null,
-                  2,
+                  2
                 ),
               },
             ],
             isError: true,
           };
         }
-      },
+      }
     );
 
     // Tool 16: Chat with Agent - Direct agent conversation
@@ -2518,10 +2513,27 @@ const mcpHandler = createMcpHandler(
       "chat_with_agent",
       "Send a message to your deployed ElizaOS agent and receive a response. Supports streaming via SSE. Deducts 5-100 credits based on token usage.",
       {
-        message: z.string().min(1).max(4000).describe("Message to send to the agent"),
-        roomId: z.string().uuid().optional().describe("Existing conversation room ID (creates new if not provided)"),
-        entityId: z.string().optional().describe("User identifier (defaults to authenticated user)"),
-        streaming: z.boolean().optional().default(false).describe("Enable streaming response via SSE"),
+        message: z
+          .string()
+          .min(1)
+          .max(4000)
+          .describe("Message to send to the agent"),
+        roomId: z
+          .string()
+          .uuid()
+          .optional()
+          .describe(
+            "Existing conversation room ID (creates new if not provided)"
+          ),
+        entityId: z
+          .string()
+          .optional()
+          .describe("User identifier (defaults to authenticated user)"),
+        streaming: z
+          .boolean()
+          .optional()
+          .default(false)
+          .describe("Enable streaming response via SSE"),
       },
       async ({ message, roomId, entityId, streaming = false }) => {
         try {
@@ -2533,7 +2545,11 @@ const mcpHandler = createMcpHandler(
               content: [
                 {
                   type: "text" as const,
-                  text: JSON.stringify({ error: "Organization not found" }, null, 2),
+                  text: JSON.stringify(
+                    { error: "Organization not found" },
+                    null,
+                    2
+                  ),
                 },
               ],
               isError: true,
@@ -2541,7 +2557,10 @@ const mcpHandler = createMcpHandler(
           }
 
           const estimatedInputTokens = Math.ceil(message.length / 4);
-          const estimatedCost = Math.max(5, Math.ceil(estimatedInputTokens * 0.01));
+          const estimatedCost = Math.max(
+            5,
+            Math.ceil(estimatedInputTokens * 0.01)
+          );
 
           if (org.credit_balance < estimatedCost) {
             return {
@@ -2555,7 +2574,7 @@ const mcpHandler = createMcpHandler(
                       available: org.credit_balance,
                     },
                     null,
-                    2,
+                    2
                   ),
                 },
               ],
@@ -2563,11 +2582,13 @@ const mcpHandler = createMcpHandler(
             };
           }
 
-          const actualRoomId = roomId || await agentService.getOrCreateRoom(
-            entityId || user.id,
-            org.id,
-            user.organization_id,
-          );
+          const actualRoomId =
+            roomId ||
+            (await agentService.getOrCreateRoom(
+              entityId || user.id,
+              org.id,
+              user.organization_id
+            ));
 
           const response = await agentService.sendMessage({
             roomId: actualRoomId,
@@ -2579,7 +2600,7 @@ const mcpHandler = createMcpHandler(
 
           const actualCost = Math.ceil(
             (response.usage?.inputTokens || estimatedInputTokens) * 0.01 +
-            (response.usage?.outputTokens || 0) * 0.03
+              (response.usage?.outputTokens || 0) * 0.03
           );
 
           await creditsService.deductCredits({
@@ -2622,13 +2643,14 @@ const mcpHandler = createMcpHandler(
                     messageId: response.messageId,
                     timestamp: response.timestamp,
                     creditsUsed: actualCost,
-                    ...(streaming && response.streaming && {
-                      streamUrl: response.streaming.sseUrl,
-                    }),
+                    ...(streaming &&
+                      response.streaming && {
+                        streamUrl: response.streaming.sseUrl,
+                      }),
                     usage: response.usage,
                   },
                   null,
-                  2,
+                  2
                 ),
               },
             ],
@@ -2646,14 +2668,14 @@ const mcpHandler = createMcpHandler(
                         : "Failed to chat with agent",
                   },
                   null,
-                  2,
+                  2
                 ),
               },
             ],
             isError: true,
           };
         }
-      },
+      }
     );
 
     // Tool 17: List Agents
@@ -2661,11 +2683,13 @@ const mcpHandler = createMcpHandler(
       "list_agents",
       "List all available agents, characters, and deployed ElizaOS instances. FREE tool.",
       {
-        filters: z.object({
-          deployed: z.boolean().optional(),
-          template: z.boolean().optional(),
-          owned: z.boolean().optional(),
-        }).optional(),
+        filters: z
+          .object({
+            deployed: z.boolean().optional(),
+            template: z.boolean().optional(),
+            owned: z.boolean().optional(),
+          })
+          .optional(),
         includeStats: z.boolean().optional().default(false),
       },
       async ({ filters, includeStats = false }) => {
@@ -2676,7 +2700,7 @@ const mcpHandler = createMcpHandler(
             user.organization_id,
             user.id,
             filters,
-            includeStats,
+            includeStats
           );
 
           return {
@@ -2691,7 +2715,7 @@ const mcpHandler = createMcpHandler(
                     cached: result.cached,
                   },
                   null,
-                  2,
+                  2
                 ),
               },
             ],
@@ -2709,14 +2733,14 @@ const mcpHandler = createMcpHandler(
                         : "Failed to list agents",
                   },
                   null,
-                  2,
+                  2
                 ),
               },
             ],
             isError: true,
           };
         }
-      },
+      }
     );
 
     // Tool 18: Subscribe Agent Events
@@ -2728,7 +2752,8 @@ const mcpHandler = createMcpHandler(
       },
       async ({ roomId }) => {
         try {
-          const baseUrl = process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000";
+          const baseUrl =
+            process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000";
           const sseUrl = `${baseUrl}/api/mcp/stream?eventType=agent&resourceId=${roomId}`;
 
           return {
@@ -2749,7 +2774,7 @@ const mcpHandler = createMcpHandler(
                     ],
                   },
                   null,
-                  2,
+                  2
                 ),
               },
             ],
@@ -2767,14 +2792,14 @@ const mcpHandler = createMcpHandler(
                         : "Failed to generate SSE URL",
                   },
                   null,
-                  2,
+                  2
                 ),
               },
             ],
             isError: true,
           };
         }
-      },
+      }
     );
 
     // Tool 19: Stream Credit Updates
@@ -2787,7 +2812,8 @@ const mcpHandler = createMcpHandler(
       async ({ includeTransactions = false }) => {
         try {
           const { user } = getAuthContext();
-          const baseUrl = process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000";
+          const baseUrl =
+            process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000";
           const sseUrl = `${baseUrl}/api/mcp/stream?eventType=credits&resourceId=${user.organization_id}`;
 
           return {
@@ -2803,7 +2829,7 @@ const mcpHandler = createMcpHandler(
                     includeTransactions,
                   },
                   null,
-                  2,
+                  2
                 ),
               },
             ],
@@ -2821,14 +2847,14 @@ const mcpHandler = createMcpHandler(
                         : "Failed to generate SSE URL",
                   },
                   null,
-                  2,
+                  2
                 ),
               },
             ],
             isError: true,
           };
         }
-      },
+      }
     );
 
     // Tool 20: List Containers
@@ -2836,27 +2862,33 @@ const mcpHandler = createMcpHandler(
       "list_containers",
       "List all deployed containers with status. FREE tool.",
       {
-        status: z.enum(["running", "stopped", "failed", "deploying"]).optional(),
+        status: z
+          .enum(["running", "stopped", "failed", "deploying"])
+          .optional(),
         includeMetrics: z.boolean().optional().default(false),
       },
-      async ({ status, includeMetrics = false }) => {
+      async ({ status, includeMetrics: _includeMetrics = false }) => {
         try {
           const { user } = getAuthContext();
-          let containers = await containersService.listByOrganization(user.organization_id);
+          let containers = await containersService.listByOrganization(
+            user.organization_id
+          );
 
           if (status) {
             containers = containers.filter((c) => c.status === status);
           }
 
-          const formattedContainers = containers.map((container: typeof containers[0]) => ({
-            id: container.id,
-            name: container.name,
-            status: container.status,
-            url: container.load_balancer_url,
-            createdAt: container.created_at,
-            errorMessage: container.error_message,
-            ecsServiceArn: container.ecs_service_arn,
-          }));
+          const formattedContainers = containers.map(
+            (container: (typeof containers)[0]) => ({
+              id: container.id,
+              name: container.name,
+              status: container.status,
+              url: container.load_balancer_url,
+              createdAt: container.created_at,
+              errorMessage: container.error_message,
+              ecsServiceArn: container.ecs_service_arn,
+            })
+          );
 
           return {
             content: [
@@ -2869,7 +2901,7 @@ const mcpHandler = createMcpHandler(
                     total: formattedContainers.length,
                   },
                   null,
-                  2,
+                  2
                 ),
               },
             ],
@@ -2887,18 +2919,18 @@ const mcpHandler = createMcpHandler(
                         : "Failed to list containers",
                   },
                   null,
-                  2,
+                  2
                 ),
               },
             ],
             isError: true,
           };
         }
-      },
+      }
     );
   },
   {},
-  { basePath: "/api" },
+  { basePath: "/api" }
 );
 
 // Manual authentication wrapper using AsyncLocalStorage
@@ -2927,7 +2959,7 @@ async function handleRequest(req: NextRequest) {
           "WWW-Authenticate":
             'Bearer realm="MCP Server", error="invalid_token"',
         },
-      },
+      }
     );
   }
 }

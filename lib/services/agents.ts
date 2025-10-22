@@ -23,13 +23,13 @@ export interface Attachment {
   mimeType?: string;
 }
 
-// ElizaOS Media type for compatibility
-interface Media {
-  type: string;
-  url: string;
-  filename?: string;
-  mimeType?: string;
-}
+// ElizaOS Media type for compatibility (currently unused but kept for future use)
+// interface Media {
+//   type: string;
+//   url: string;
+//   filename?: string;
+//   mimeType?: string;
+// }
 
 export interface AgentResponse {
   messageId: string;
@@ -57,7 +57,7 @@ export class AgentService {
   async getOrCreateRoom(
     entityId: string,
     agentId: string,
-    organizationId: string,
+    _organizationId: string,
   ): Promise<string> {
     try {
       const runtime = await agentRuntime.getRuntime();
@@ -140,8 +140,8 @@ export class AgentService {
     try {
       const runtime = await agentRuntime.getRuntime();
 
-      // Get room context (check cache first)
-      const context = await this.getRoomContext(roomId);
+      // Get room context (check cache first) - for future use if needed
+      // const _context = await this.getRoomContext(roomId);
 
       // Process message with agent using full ElizaOS event pipeline
       await agentEventEmitter.emitResponseStarted(roomId, runtime.agentId);
