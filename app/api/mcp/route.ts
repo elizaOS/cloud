@@ -3,8 +3,9 @@ import { createMcpHandler } from "mcp-handler";
 // The MCP SDK internally uses zod v3.x, and zod v4.x has breaking internal API changes
 import { z } from "zod3";
 import { NextRequest, NextResponse } from "next/server";
-import { AsyncLocalStorage } from "async_hooks";
-import { requireAuthOrApiKey, type AuthResult } from "@/lib/auth";
+import { AsyncLocalStorage } from "node:async_hooks";
+import { requireAuthOrApiKey } from "@/lib/auth";
+import type { AuthResult } from "@/lib/auth";
 import {
   creditsService,
   usageService,
@@ -235,7 +236,11 @@ const mcpHandler = createMcpHandler(
       "generate_text",
       "Generate text using AI models (GPT-4, Claude, Gemini). Deducts credits based on token usage.",
       {
-        prompt: z.string().min(1).describe("The text prompt to generate from"),
+        prompt: z
+          .string()
+          .min(1)
+          .max(10000)
+          .describe("The text prompt to generate from"),
         model: z
           .enum([
             "gpt-4o",
@@ -257,12 +262,16 @@ const mcpHandler = createMcpHandler(
       },
       async ({ prompt, model = "gpt-4o", maxLength = 1000 }) => {
         let generationId: string | undefined;
+        let creditsDeducted = false;
+        let deductedAmount = 0;
+        let userOrganizationId: string | undefined;
+
         try {
           const { user, apiKey } = getAuthContext();
+          userOrganizationId = user.organization_id;
 
           const provider = getProviderFromModel(model);
 
-          // Check credit balance first
           const org = await organizationsService.getById(user.organization_id);
           if (!org) {
             return {
@@ -284,7 +293,21 @@ const mcpHandler = createMcpHandler(
           const estimatedCost = await estimateRequestCost(model, [
             { role: "user", content: prompt },
           ]);
-          if (org.credit_balance < estimatedCost) {
+
+          // CRITICAL FIX: Deduct credits BEFORE generation to prevent race conditions
+          // The deductCredits method uses database-level locking (SELECT FOR UPDATE)
+          const deductionResult = await creditsService.deductCredits({
+            organizationId: user.organization_id,
+            amount: estimatedCost,
+            description: `MCP text generation (pending): ${model}`,
+            metadata: {
+              user_id: user.id,
+              model: model,
+              prompt: prompt.substring(0, 100),
+            },
+          });
+
+          if (!deductionResult.success) {
             return {
               content: [
                 {
@@ -293,7 +316,7 @@ const mcpHandler = createMcpHandler(
                     {
                       error: "Insufficient credits",
                       required: estimatedCost,
-                      available: org.credit_balance,
+                      available: deductionResult.newBalance,
                     },
                     null,
                     2
@@ -303,6 +326,9 @@ const mcpHandler = createMcpHandler(
               isError: true,
             };
           }
+
+          creditsDeducted = true;
+          deductedAmount = estimatedCost;
 
           // Create generation record
           const generation = await generationsService.create({
@@ -346,37 +372,55 @@ const mcpHandler = createMcpHandler(
             usage?.outputTokens || 0
           );
 
-          // Deduct credits
-          const deductionResult = await creditsService.deductCredits({
-            organizationId: user.organization_id,
-            amount: totalCost,
-            description: `MCP text generation: ${model}`,
-            metadata: {
-              user_id: user.id,
-              model: model,
-              input_tokens: usage?.inputTokens,
-              output_tokens: usage?.outputTokens,
-            },
-          });
-
-          if (!deductionResult.success) {
-            return {
-              content: [
-                {
-                  type: "text" as const,
-                  text: JSON.stringify(
-                    {
-                      error: "Failed to deduct credits",
-                      cost: totalCost,
-                      balance: deductionResult.newBalance,
-                    },
-                    null,
-                    2
-                  ),
-                },
-              ],
-              isError: true,
-            };
+          // Handle cost difference: refund excess or deduct additional
+          const costDifference = totalCost - deductedAmount;
+          if (costDifference > 0) {
+            // Need to deduct more
+            const additionalDeduction = await creditsService.deductCredits({
+              organizationId: user.organization_id,
+              amount: costDifference,
+              description: `MCP text generation (additional): ${model}`,
+              metadata: {
+                user_id: user.id,
+                model: model,
+                generation_id: generationId,
+              },
+            });
+            if (!additionalDeduction.success) {
+              // Refund the initial deduction since we can't complete
+              await creditsService.refundCredits({
+                organizationId: user.organization_id,
+                amount: deductedAmount,
+                description: `MCP text generation refund (insufficient credits): ${model}`,
+                metadata: { user_id: user.id, generation_id: generationId },
+              });
+              return {
+                content: [
+                  {
+                    type: "text" as const,
+                    text: JSON.stringify(
+                      {
+                        error: "Insufficient credits for actual cost",
+                        estimated: deductedAmount,
+                        actual: totalCost,
+                        refunded: deductedAmount,
+                      },
+                      null,
+                      2
+                    ),
+                  },
+                ],
+                isError: true,
+              };
+            }
+          } else if (costDifference < 0) {
+            // Refund excess
+            await creditsService.refundCredits({
+              organizationId: user.organization_id,
+              amount: -costDifference,
+              description: `MCP text generation refund (overestimate): ${model}`,
+              metadata: { user_id: user.id, generation_id: generationId },
+            });
           }
 
           // Create usage record
@@ -420,6 +464,24 @@ const mcpHandler = createMcpHandler(
             ],
           };
         } catch (error) {
+          // CRITICAL FIX: Refund credits if generation failed after deduction
+          if (creditsDeducted && deductedAmount > 0 && userOrganizationId) {
+            try {
+              await creditsService.refundCredits({
+                organizationId: userOrganizationId,
+                amount: deductedAmount,
+                description: `MCP text generation refund (failed): ${model}`,
+                metadata: {
+                  error:
+                    error instanceof Error ? error.message : "Unknown error",
+                  generation_id: generationId,
+                },
+              });
+            } catch (refundError) {
+              console.error("Failed to refund credits:", refundError);
+            }
+          }
+
           // Mark generation as failed if we have an ID
           if (generationId) {
             try {
@@ -444,6 +506,7 @@ const mcpHandler = createMcpHandler(
                       error instanceof Error
                         ? error.message
                         : "Text generation failed",
+                    refunded: creditsDeducted ? deductedAmount : 0,
                   },
                   null,
                   2
@@ -464,6 +527,7 @@ const mcpHandler = createMcpHandler(
         prompt: z
           .string()
           .min(1)
+          .max(5000)
           .describe("Description of the image to generate"),
         aspectRatio: z
           .enum(["1:1", "16:9", "9:16", "4:3", "3:4"])
@@ -473,10 +537,14 @@ const mcpHandler = createMcpHandler(
       },
       async ({ prompt, aspectRatio = "1:1" }) => {
         let generationId: string | undefined;
+        let creditsDeducted = false;
+        let deductedAmount = 0;
+        let userOrganizationId: string | undefined;
+
         try {
           const { user, apiKey } = getAuthContext();
+          userOrganizationId = user.organization_id;
 
-          // Check credit balance
           const org = await organizationsService.getById(user.organization_id);
           if (!org) {
             return {
@@ -494,7 +562,17 @@ const mcpHandler = createMcpHandler(
             };
           }
 
-          if (org.credit_balance < IMAGE_GENERATION_COST) {
+          // CRITICAL FIX: Deduct credits BEFORE generation to prevent race conditions
+          // The deductCredits method uses database-level locking (SELECT FOR UPDATE)
+          const initialDeduction = await creditsService.deductCredits({
+            organizationId: user.organization_id,
+            amount: IMAGE_GENERATION_COST,
+            description:
+              "MCP image generation (pending): google/gemini-2.5-flash-image-preview",
+            metadata: { user_id: user.id, prompt: prompt.substring(0, 100) },
+          });
+
+          if (!initialDeduction.success) {
             return {
               content: [
                 {
@@ -503,7 +581,7 @@ const mcpHandler = createMcpHandler(
                     {
                       error: "Insufficient credits",
                       required: IMAGE_GENERATION_COST,
-                      available: org.credit_balance,
+                      available: initialDeduction.newBalance,
                     },
                     null,
                     2
@@ -513,6 +591,9 @@ const mcpHandler = createMcpHandler(
               isError: true,
             };
           }
+
+          creditsDeducted = true;
+          deductedAmount = IMAGE_GENERATION_COST;
 
           // Create generation record
           const generation = await generationsService.create({
@@ -575,6 +656,21 @@ const mcpHandler = createMcpHandler(
           }
 
           if (!imageBase64) {
+            // CRITICAL FIX: Refund credits since image generation failed
+            if (creditsDeducted && deductedAmount > 0 && userOrganizationId) {
+              try {
+                await creditsService.refundCredits({
+                  organizationId: userOrganizationId,
+                  amount: deductedAmount,
+                  description:
+                    "MCP image generation refund (no image): google/gemini-2.5-flash-image-preview",
+                  metadata: { generation_id: generationId },
+                });
+              } catch (refundError) {
+                console.error("Failed to refund credits:", refundError);
+              }
+            }
+
             const usageRecord = await usageService.create({
               organization_id: user.organization_id,
               user_id: user.id,
@@ -604,34 +700,9 @@ const mcpHandler = createMcpHandler(
                 {
                   type: "text" as const,
                   text: JSON.stringify(
-                    { error: "No image was generated" },
-                    null,
-                    2
-                  ),
-                },
-              ],
-              isError: true,
-            };
-          }
-
-          // Deduct credits
-          const deductionResult = await creditsService.deductCredits({
-            organizationId: user.organization_id,
-            amount: IMAGE_GENERATION_COST,
-            description: `MCP image generation: google/gemini-2.5-flash-image-preview`,
-            metadata: { user_id: user.id },
-          });
-
-          if (!deductionResult.success) {
-            return {
-              content: [
-                {
-                  type: "text" as const,
-                  text: JSON.stringify(
                     {
-                      error: "Failed to deduct credits",
-                      required: IMAGE_GENERATION_COST,
-                      available: deductionResult.newBalance,
+                      error: "No image was generated",
+                      refunded: deductedAmount,
                     },
                     null,
                     2
@@ -699,7 +770,7 @@ const mcpHandler = createMcpHandler(
                     url: blobUrl !== imageBase64 ? blobUrl : undefined,
                     aspectRatio,
                     cost: IMAGE_GENERATION_COST,
-                    newBalance: deductionResult.newBalance,
+                    newBalance: initialDeduction.newBalance,
                   },
                   null,
                   2
@@ -708,6 +779,25 @@ const mcpHandler = createMcpHandler(
             ],
           };
         } catch (error) {
+          // CRITICAL FIX: Refund credits if generation failed after deduction
+          if (creditsDeducted && deductedAmount > 0 && userOrganizationId) {
+            try {
+              await creditsService.refundCredits({
+                organizationId: userOrganizationId,
+                amount: deductedAmount,
+                description:
+                  "MCP image generation refund (failed): google/gemini-2.5-flash-image-preview",
+                metadata: {
+                  error:
+                    error instanceof Error ? error.message : "Unknown error",
+                  generation_id: generationId,
+                },
+              });
+            } catch (refundError) {
+              console.error("Failed to refund credits:", refundError);
+            }
+          }
+
           if (generationId) {
             try {
               await generationsService.update(generationId, {
@@ -731,6 +821,7 @@ const mcpHandler = createMcpHandler(
                       error instanceof Error
                         ? error.message
                         : "Image generation failed",
+                    refunded: creditsDeducted ? deductedAmount : 0,
                   },
                   null,
                   2
@@ -747,7 +838,11 @@ const mcpHandler = createMcpHandler(
       "save_memory",
       "Save important information to long-term memory with semantic tagging. Deducts 1 credit per save.",
       {
-        content: z.string().min(1).describe("The memory content to save"),
+        content: z
+          .string()
+          .min(1)
+          .max(10000)
+          .describe("The memory content to save"),
         type: z
           .enum(["fact", "preference", "context", "document"])
           .describe("Type of memory being saved"),
@@ -2606,7 +2701,7 @@ const mcpHandler = createMcpHandler(
           await creditsService.deductCredits({
             organizationId: user.organization_id,
             amount: actualCost,
-            description: `MCP chat with agent`,
+            description: "MCP chat with agent",
             metadata: {
               user_id: user.id,
               room_id: actualRoomId,
