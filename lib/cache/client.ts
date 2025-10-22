@@ -1,6 +1,12 @@
 import { Redis } from "@upstash/redis";
 import { logger } from "@/lib/utils/logger";
 
+interface CachedValue<T> {
+  data: T;
+  cachedAt: number;
+  staleAt: number;
+}
+
 export class CacheClient {
   private redis: Redis | null = null;
   private enabled: boolean | null = null;
@@ -9,6 +15,7 @@ export class CacheClient {
   private lastFailureTime: number = 0;
   private readonly MAX_FAILURES = 5;
   private readonly CIRCUIT_BREAKER_TIMEOUT = 60000;
+  private revalidationQueue: Map<string, Promise<unknown>> = new Map();
 
   private initialize(): void {
     if (this.initialized) return;
@@ -29,28 +36,32 @@ export class CacheClient {
       return;
     }
 
-    if (!process.env.KV_REST_API_URL || !process.env.KV_REST_API_TOKEN) {
+    const redisUrl = process.env.REDIS_URL || process.env.KV_URL;
+    const restUrl = process.env.KV_REST_API_URL;
+    const restToken = process.env.KV_REST_API_TOKEN;
+
+    if (redisUrl) {
+      this.redis = Redis.fromEnv();
+      logger.info("[Cache] ✓ Cache client initialized with native Redis protocol");
+    } else if (restUrl && restToken) {
+      this.redis = new Redis({
+        url: restUrl,
+        token: restToken,
+      });
+      logger.info("[Cache] ✓ Cache client initialized with REST API (consider using native protocol)");
+    } else {
       if (process.env.NODE_ENV === "production") {
         logger.error(
-          "🚨 [Cache] CRITICAL: Missing Upstash credentials in production! " +
+          "🚨 [Cache] CRITICAL: Missing Redis credentials in production! " +
             "Caching disabled - this will cause severe performance issues. " +
-            "Set KV_REST_API_URL and KV_REST_API_TOKEN immediately.",
+            "Set REDIS_URL or KV_URL for native protocol, or KV_REST_API_URL + KV_REST_API_TOKEN.",
         );
       } else {
-        logger.error(
-          "[Cache] Missing Upstash credentials, caching disabled. Set KV_REST_API_URL and KV_REST_API_TOKEN",
-        );
+        logger.warn("[Cache] Missing Redis credentials, caching disabled.");
       }
       this.enabled = false;
       return;
     }
-
-    this.redis = new Redis({
-      url: process.env.KV_REST_API_URL,
-      token: process.env.KV_REST_API_TOKEN,
-    });
-
-    logger.info("[Cache] ✓ Cache client initialized with Upstash Redis");
   }
 
   async get<T>(key: string): Promise<T | null> {
@@ -60,17 +71,17 @@ export class CacheClient {
     try {
       const start = Date.now();
       const value = await this.redis.get<string>(key);
+      const duration = Date.now() - start;
 
       if (value === null || value === undefined) {
-        logger.debug(`[Cache] MISS: ${key}`);
-        this.logMetric(key, "miss", Date.now() - start);
+        this.logMetric(key, "miss", duration);
         return null;
       }
 
-      // Check for corrupted cache values (objects that were stringified incorrectly)
+      // Check for corrupted cache values
       if (typeof value === "string" && value === "[object Object]") {
         logger.warn(`[Cache] Corrupted cache value detected for key ${key}, deleting`);
-        await this.del(key);
+        this.del(key).catch(() => {}); // Fire-and-forget
         return null;
       }
 
@@ -78,27 +89,96 @@ export class CacheClient {
       let parsed: T;
       try {
         parsed = typeof value === "string" ? JSON.parse(value) : value;
-      } catch (parseError) {
-        logger.warn(`[Cache] Failed to parse cached value for key ${key}, deleting`, parseError);
-        await this.del(key);
+      } catch {
+        logger.warn(`[Cache] Failed to parse cached value for key ${key}, deleting`);
+        this.del(key).catch(() => {}); // Fire-and-forget
         return null;
       }
 
       if (!this.isValidCacheValue(parsed)) {
         logger.warn(`[Cache] Invalid cached value for key ${key}, deleting`);
-        await this.del(key);
+        this.del(key).catch(() => {}); // Fire-and-forget
         return null;
       }
 
       this.resetFailures();
-      logger.debug(`[Cache] HIT: ${key}`);
-      this.logMetric(key, "hit", Date.now() - start);
+      this.logMetric(key, "hit", duration);
       return parsed;
     } catch (error) {
       this.recordFailure();
       logger.error(`[Cache] Error getting key ${key}:`, error);
-      await this.del(key).catch(() => {});
       return null;
+    }
+  }
+
+  async getWithSWR<T>(
+    key: string,
+    staleTTL: number,
+    revalidate: () => Promise<T>,
+  ): Promise<T | null> {
+    this.initialize();
+    if (!this.enabled || !this.redis || this.isCircuitOpen()) {
+      return await revalidate();
+    }
+
+    try {
+      const start = Date.now();
+      const value = await this.redis.get<string>(key);
+      const duration = Date.now() - start;
+
+      if (value === null || value === undefined) {
+        this.logMetric(key, "miss", duration);
+        const fresh = await revalidate();
+        if (fresh !== null) {
+          this.set(key, { data: fresh, cachedAt: Date.now(), staleAt: Date.now() + staleTTL * 1000 } as CachedValue<T>, staleTTL * 2).catch(() => {});
+        }
+        return fresh;
+      }
+
+      let parsed: CachedValue<T>;
+      try {
+        const raw = typeof value === "string" ? JSON.parse(value) : value;
+        parsed = raw as CachedValue<T>;
+      } catch {
+        const fresh = await revalidate();
+        if (fresh !== null) {
+          this.set(key, { data: fresh, cachedAt: Date.now(), staleAt: Date.now() + staleTTL * 1000 } as CachedValue<T>, staleTTL * 2).catch(() => {});
+        }
+        return fresh;
+      }
+
+      const now = Date.now();
+      const isStale = now > parsed.staleAt;
+
+      if (isStale) {
+        this.logMetric(key, "stale", duration);
+
+        // Return stale data immediately
+        const staleData = parsed.data;
+
+        // Revalidate in background (deduplicated)
+        if (!this.revalidationQueue.has(key)) {
+          const revalidationPromise = revalidate().then((fresh) => {
+            if (fresh !== null) {
+              return this.set(key, { data: fresh, cachedAt: Date.now(), staleAt: Date.now() + staleTTL * 1000 } as CachedValue<T>, staleTTL * 2);
+            }
+          }).finally(() => {
+            this.revalidationQueue.delete(key);
+          });
+
+          this.revalidationQueue.set(key, revalidationPromise);
+        }
+
+        return staleData;
+      }
+
+      this.logMetric(key, "hit", duration);
+      this.resetFailures();
+      return parsed.data;
+    } catch (error) {
+      this.recordFailure();
+      logger.error(`[Cache] Error in getWithSWR for key ${key}:`, error);
+      return await revalidate();
     }
   }
 
@@ -310,22 +390,14 @@ export class CacheClient {
 
   private logMetric(
     key: string,
-    operation: "hit" | "miss" | "set" | "del" | "del_pattern",
+    operation: "hit" | "miss" | "set" | "del" | "del_pattern" | "stale",
     durationMs: number,
     metadata?: Record<string, unknown>,
   ): void {
-    const metricData = {
-      key,
-      operation,
-      durationMs,
-      timestamp: new Date().toISOString(),
-      ...metadata,
-    };
-
     if (durationMs > 100) {
       logger.warn(
         `[Cache] Slow ${operation}: ${key} (${durationMs}ms)`,
-        metricData,
+        { operation, durationMs, timestamp: new Date().toISOString(), ...metadata },
       );
     }
   }

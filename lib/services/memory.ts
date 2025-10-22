@@ -10,7 +10,7 @@ import { createHash } from "crypto";
 import { conversationsService } from "@/lib/services/conversations";
 import type { ConversationMessage } from "@/db/repositories";
 import { db } from "@/db/client";
-import { eq, and, inArray, desc } from "drizzle-orm";
+import { eq, and, desc } from "drizzle-orm";
 import { users } from "@/db/schemas/users";
 import { participantTable, memoryTable } from "@/db/schemas/eliza";
 
@@ -439,7 +439,7 @@ export class MemoryService {
     roomId: string,
     organizationId: string,
     depth: number = 20,
-    includeMemories: boolean = false,
+    _includeMemories: boolean = false,
   ): Promise<MemoryRoomContext> {
     try {
       const cached = await memoryCache.getRoomContext(roomId);
@@ -635,7 +635,7 @@ Summary:`;
       const recentMessages = context.messages.slice(0, preserveRecent);
       const olderMessages = context.messages.slice(preserveRecent);
 
-      let selectedMessages = [...recentMessages];
+      const selectedMessages = [...recentMessages];
       let currentTokens = await this.estimateTokenCount(recentMessages);
 
       const relevanceScores: Array<{ messageId: string; score: number }> = [];
@@ -701,7 +701,7 @@ Summary:`;
     conversationId: string,
     organizationId: string,
     format: "json" | "markdown" | "txt",
-    includeMemories: boolean = false,
+    _includeMemories: boolean = false,
   ): Promise<{
     content: string;
     size: number;
@@ -854,7 +854,7 @@ Summary:`;
   async analyzeMemoryPatterns(
     organizationId: string,
     analysisType: "topics" | "sentiment" | "entities" | "timeline",
-    timeRange?: { from: Date; to: Date },
+    _timeRange?: { from: Date; to: Date },
   ): Promise<{
     analysisType: string;
     insights: string[];
