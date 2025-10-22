@@ -1,0 +1,162 @@
+/**
+ * ElevenLabs Service
+ *
+ * Provides text-to-speech and speech-to-text functionality using ElevenLabs API.
+ * Follows the configuration patterns from @elizaos/plugin-elevenlabs
+ *
+ * Note: The @elizaos/plugin-elevenlabs only supports TTS through agent runtime.
+ * This service provides both TTS and STT for standalone API usage.
+ */
+
+import { ElevenLabsClient } from "@elevenlabs/elevenlabs-js";
+import { logger } from "@/lib/utils/logger";
+
+export interface ElevenLabsConfig {
+  apiKey: string;
+  voiceId?: string;
+  modelId?: string;
+  voiceStability?: number;
+  voiceSimilarityBoost?: number;
+  voiceStyle?: number;
+  voiceUseSpeakerBoost?: boolean;
+  optimizeStreamingLatency?: number;
+  outputFormat?: string;
+}
+
+export interface TTSOptions {
+  text: string;
+  voiceId?: string;
+  modelId?: string;
+}
+
+export interface STTOptions {
+  audioFile: File | Blob;
+  modelId?: string;
+  languageCode?: string;
+}
+
+export class ElevenLabsService {
+  private client: ElevenLabsClient;
+  private config: ElevenLabsConfig;
+
+  constructor(config: ElevenLabsConfig) {
+    this.config = config;
+    this.client = new ElevenLabsClient({ apiKey: config.apiKey });
+  }
+
+  /**
+   * Initialize service with environment variables (following plugin patterns)
+   */
+  static fromEnv(): ElevenLabsService {
+    const apiKey = process.env.ELEVENLABS_API_KEY;
+
+    if (!apiKey) {
+      throw new Error("ELEVENLABS_API_KEY environment variable is required");
+    }
+
+    const config: ElevenLabsConfig = {
+      apiKey,
+      voiceId: process.env.ELEVENLABS_VOICE_ID || "EXAVITQu4vr4xnSDxMaL",
+      modelId: process.env.ELEVENLABS_MODEL_ID || "eleven_flash_v2_5",
+      voiceStability: parseFloat(process.env.ELEVENLABS_VOICE_STABILITY || "0.5"),
+      voiceSimilarityBoost: parseFloat(process.env.ELEVENLABS_VOICE_SIMILARITY_BOOST || "0.75"),
+      voiceStyle: parseFloat(process.env.ELEVENLABS_VOICE_STYLE || "0"),
+      voiceUseSpeakerBoost: process.env.ELEVENLABS_VOICE_USE_SPEAKER_BOOST !== "false",
+      optimizeStreamingLatency: parseInt(process.env.ELEVENLABS_OPTIMIZE_STREAMING_LATENCY || "4"),
+      outputFormat: process.env.ELEVENLABS_OUTPUT_FORMAT || "mp3_44100_128",
+    };
+
+    return new ElevenLabsService(config);
+  }
+
+  /**
+   * Convert text to speech (streaming)
+   */
+  async textToSpeech(options: TTSOptions): Promise<ReadableStream<Uint8Array>> {
+    const voiceId = options.voiceId || this.config.voiceId || "EXAVITQu4vr4xnSDxMaL";
+    const modelId = options.modelId || this.config.modelId || "eleven_flash_v2_5";
+
+    logger.info(`[ElevenLabs TTS] Generating speech: voice=${voiceId}, model=${modelId}, length=${options.text.length}`);
+
+    try {
+      const audioStream = await this.client.textToSpeech.stream(voiceId, {
+        text: options.text,
+        modelId,
+        outputFormat: this.config.outputFormat as  "mp3_44100_128" | "pcm_16000",
+        optimizeStreamingLatency: this.config.optimizeStreamingLatency,
+        voiceSettings: {
+          stability: this.config.voiceStability,
+          similarityBoost: this.config.voiceSimilarityBoost,
+          style: this.config.voiceStyle,
+          useSpeakerBoost: this.config.voiceUseSpeakerBoost,
+        },
+      });
+
+      return audioStream;
+    } catch (error) {
+      logger.error("[ElevenLabs TTS] Error:", error);
+      throw error;
+    }
+  }
+
+  /**
+   * Convert speech to text
+   */
+  async speechToText(options: STTOptions): Promise<string> {
+    const modelId = options.modelId || "scribe_v1";
+
+    logger.info(`[ElevenLabs STT] Transcribing audio: model=${modelId}`);
+
+    try {
+      const result = await this.client.speechToText.convert({
+        file: options.audioFile as File,
+        modelId,
+        enableLogging: false,
+        languageCode: options.languageCode,
+      });
+
+      // Handle response type (union of single/multichannel/webhook)
+      let transcript = "";
+
+      if ("text" in result) {
+        // Single channel response
+        transcript = result.text || "";
+      } else if ("transcripts" in result) {
+        // Multi-channel response - combine all channels
+        const transcripts = result.transcripts || {};
+        transcript = Object.values(transcripts)
+          .map((t: { text?: string }) => t?.text || "")
+          .filter(Boolean)
+          .join(" ");
+      }
+
+      return transcript;
+    } catch (error) {
+      logger.error("[ElevenLabs STT] Error:", error);
+      throw error;
+    }
+  }
+
+  /**
+   * Get available voices
+   */
+  async getVoices() {
+    try {
+      const response = await this.client.voices.search();
+      return response.voices || [];
+    } catch (error) {
+      logger.error("[ElevenLabs] Error fetching voices:", error);
+      throw error;
+    }
+  }
+}
+
+// Export singleton instance
+let serviceInstance: ElevenLabsService | null = null;
+
+export function getElevenLabsService(): ElevenLabsService {
+  if (!serviceInstance) {
+    serviceInstance = ElevenLabsService.fromEnv();
+  }
+  return serviceInstance;
+}
