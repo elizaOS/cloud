@@ -141,7 +141,7 @@ export class AgentService {
       const runtime = await agentRuntime.getRuntime();
 
       // Get room context (check cache first)
-      let context = await this.getRoomContext(roomId);
+      const context = await this.getRoomContext(roomId);
 
       // Process message with agent using full ElizaOS event pipeline
       await agentEventEmitter.emitResponseStarted(roomId, runtime.agentId);

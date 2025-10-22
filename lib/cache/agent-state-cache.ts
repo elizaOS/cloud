@@ -112,13 +112,13 @@ export class AgentStateCache {
           roomId: msg.roomId?.toString() || "",
           content: {
             text: typeof msg.content === "object" && msg.content !== null
-              ? (msg.content as any).text
+              ? (msg.content as { text?: string }).text
               : String(msg.content),
             action: typeof msg.content === "object" && msg.content !== null
-              ? (msg.content as any).action
+              ? (msg.content as { action?: string }).action
               : undefined,
             source: typeof msg.content === "object" && msg.content !== null
-              ? (msg.content as any).source
+              ? (msg.content as { source?: string }).source
               : undefined,
           },
           createdAt: msg.createdAt || Date.now(),
