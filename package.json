@@ -39,6 +39,7 @@
     "@aws-sdk/client-s3": "^3.913.0",
     "@aws-sdk/s3-request-presigner": "^3.913.0",
     "@elizaos/core": "^1.6.2",
+    "@elizaos/plugin-memory": "^1.0.3",
     "@elizaos/plugin-openai": "^1.5.16",
     "@elizaos/plugin-sql": "^1.6.2",
     "@fal-ai/client": "^1.7.0",
