@@ -438,7 +438,8 @@ class AgentRuntimeManager {
       userName: entityId,
     });
 
-    // Create and save user message
+    // Create user message
+    // Note: The plugin (assistantPlugin) will save this to the database via the event handler
     const userMessage: Memory = {
       id: uuidv4() as UUID,
       roomId: roomId as UUID,
@@ -458,9 +459,6 @@ class AgentRuntimeManager {
       },
     };
 
-    // Save user message to database
-    await runtime.createMemory(userMessage, "messages");
-
     // Track usage and response
     let usage:
       | { inputTokens: number; outputTokens: number; model: string }
@@ -468,7 +466,9 @@ class AgentRuntimeManager {
     let responseText: string | undefined;
 
     // Process message through event pipeline to generate response
-    await runtime.emitEvent(EventType.MESSAGE_RECEIVED, {
+    // Note: The plugin (assistantPlugin) handles saving the response to the database
+    // Just call the evaluator don't wait to finish as we don't expect the response from evaluators
+    runtime.emitEvent(EventType.MESSAGE_RECEIVED, {
       runtime,
       message: userMessage,
       callback: async (result: {
@@ -486,23 +486,8 @@ class AgentRuntimeManager {
       },
     });
 
-    // Explicitly create and save agent response if we have text
-    if (responseText) {
-      const agentResponse: Memory = {
-        id: uuidv4() as UUID,
-        roomId: roomId as UUID,
-        entityId: runtime.agentId as UUID,
-        agentId: runtime.agentId as UUID,
-        createdAt: Date.now(),
-        content: {
-          text: responseText,
-          type: "agent",
-        },
-      };
-
-      await runtime.createMemory(agentResponse, "messages");
-      elizaLogger.debug("#Eliza", "Agent response saved to messages table");
-    } else {
+    // The plugin already saved the response to the database, so we just log here
+    if (!responseText) {
       elizaLogger.warn(
         "#Eliza",
         "No response text generated from event pipeline",

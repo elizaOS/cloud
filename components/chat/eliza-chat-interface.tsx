@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useRef, useCallback } from "react";
 import { Button } from "@/components/ui/button";
-import { ScrollArea } from "@/components/ui/scroll-area";
+import * as ScrollAreaPrimitive from "@radix-ui/react-scroll-area";
 import { Loader2, Send, Bot, User, Clock, MessageSquare } from "lucide-react";
 import { ElizaAvatar } from "./eliza-avatar";
 
@@ -39,6 +39,7 @@ export function ElizaChatInterface() {
   const [isLoadingRooms, setIsLoadingRooms] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const scrollAreaRef = useRef<HTMLDivElement>(null);
+  const scrollViewportRef = useRef<HTMLDivElement>(null);
   const pollIntervalRef = useRef<NodeJS.Timeout | null>(null);
   const roomsIntervalRef = useRef<NodeJS.Timeout | null>(null);
   const thinkingTimeoutRef = useRef<NodeJS.Timeout | null>(null);
@@ -272,8 +273,8 @@ export function ElizaChatInterface() {
 
   // Auto-scroll to bottom when messages change
   useEffect(() => {
-    if (scrollAreaRef.current) {
-      scrollAreaRef.current.scrollTop = scrollAreaRef.current.scrollHeight;
+    if (scrollViewportRef.current) {
+      scrollViewportRef.current.scrollTop = scrollViewportRef.current.scrollHeight;
     }
   }, [messages]);
 
@@ -456,57 +457,66 @@ export function ElizaChatInterface() {
             Refresh
           </Button>
         </div>
-        <ScrollArea className="flex-1">
-          <div className="p-2 space-y-1">
-            {isLoadingRooms && rooms.length === 0 ? (
-              <div className="flex items-center justify-center py-8">
-                <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
-              </div>
-            ) : (
-              <>
-                {rooms.map((r) => (
-                  <button
-                    key={r.id}
-                    className={`w-full rounded-lg px-3 py-3 text-left transition-all hover:bg-accent/50 ${
-                      r.id === roomId ? "bg-accent" : ""
-                    }`}
-                    onClick={() => {
-                      setRoomId(r.id);
-                      if (typeof window !== "undefined") {
-                        window.localStorage.setItem("elizaRoomId", r.id);
-                      }
-                      setMessages([]);
-                      loadMessages(r.id);
-                    }}
-                  >
-                    <div className="flex items-center justify-between mb-1">
-                      <div className="text-xs font-semibold truncate flex-1">
-                        Room {r.id.substring(0, 8)}...
-                      </div>
-                      {r.lastTime ? (
-                        <div className="text-[10px] text-muted-foreground whitespace-nowrap ml-2">
-                          {formatTimestamp(r.lastTime)}
+        <ScrollAreaPrimitive.Root className="flex-1 overflow-hidden">
+          <ScrollAreaPrimitive.Viewport className="h-full w-full rounded-[inherit]">
+            <div className="p-2 space-y-1">
+              {isLoadingRooms && rooms.length === 0 ? (
+                <div className="flex items-center justify-center py-8">
+                  <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
+                </div>
+              ) : (
+                <>
+                  {rooms.map((r) => (
+                    <button
+                      key={r.id}
+                      className={`w-full rounded-lg px-3 py-3 text-left transition-all hover:bg-accent/50 ${
+                        r.id === roomId ? "bg-accent" : ""
+                      }`}
+                      onClick={() => {
+                        setRoomId(r.id);
+                        if (typeof window !== "undefined") {
+                          window.localStorage.setItem("elizaRoomId", r.id);
+                        }
+                        setMessages([]);
+                        loadMessages(r.id);
+                      }}
+                    >
+                      <div className="flex items-center justify-between mb-1">
+                        <div className="text-xs font-semibold truncate flex-1">
+                          Room {r.id.substring(0, 8)}...
                         </div>
-                      ) : null}
-                    </div>
-                    {r.lastText && (
-                      <div className="text-xs text-muted-foreground truncate">
-                        {r.lastText}
+                        {r.lastTime ? (
+                          <div className="text-[10px] text-muted-foreground whitespace-nowrap ml-2">
+                            {formatTimestamp(r.lastTime)}
+                          </div>
+                        ) : null}
                       </div>
-                    )}
-                  </button>
-                ))}
-                {rooms.length === 0 && !isLoadingRooms && (
-                  <div className="px-3 py-8 text-center">
-                    <p className="text-xs text-muted-foreground">
-                      No conversations yet
-                    </p>
-                  </div>
-                )}
-              </>
-            )}
-          </div>
-        </ScrollArea>
+                      {r.lastText && (
+                        <div className="text-xs text-muted-foreground truncate">
+                          {r.lastText}
+                        </div>
+                      )}
+                    </button>
+                  ))}
+                  {rooms.length === 0 && !isLoadingRooms && (
+                    <div className="px-3 py-8 text-center">
+                      <p className="text-xs text-muted-foreground">
+                        No conversations yet
+                      </p>
+                    </div>
+                  )}
+                </>
+              )}
+            </div>
+          </ScrollAreaPrimitive.Viewport>
+          <ScrollAreaPrimitive.ScrollAreaScrollbar
+            orientation="vertical"
+            className="flex touch-none p-px transition-colors select-none h-full w-2.5 border-l border-l-transparent"
+          >
+            <ScrollAreaPrimitive.ScrollAreaThumb className="bg-border relative flex-1 rounded-full" />
+          </ScrollAreaPrimitive.ScrollAreaScrollbar>
+          <ScrollAreaPrimitive.Corner />
+        </ScrollAreaPrimitive.Root>
       </div>
 
       {/* Main Chat Area */}
@@ -525,96 +535,108 @@ export function ElizaChatInterface() {
         </div>
 
         {/* Messages Area */}
-        <ScrollArea className="flex-1 p-4" ref={scrollAreaRef}>
-          <div className="space-y-4">
-            {error && (
-              <div className="rounded-lg border border-destructive bg-destructive/10 p-3">
-                <p className="text-sm text-destructive">{error}</p>
-              </div>
-            )}
+        <ScrollAreaPrimitive.Root className="flex-1 overflow-hidden" ref={scrollAreaRef}>
+          <ScrollAreaPrimitive.Viewport 
+            className="h-full w-full rounded-[inherit]" 
+            ref={scrollViewportRef}
+          >
+            <div className="p-4 space-y-4">
+              {error && (
+                <div className="rounded-lg border border-destructive bg-destructive/10 p-3">
+                  <p className="text-sm text-destructive">{error}</p>
+                </div>
+              )}
 
-            {messages.length === 0 && !error && (
-              <div className="flex flex-col items-center justify-center h-full text-center">
-                <ElizaAvatar
-                  avatarUrl={agentInfo?.avatarUrl}
-                  name={agentInfo?.name}
-                  className="h-12 w-12 mb-4"
-                  fallbackClassName="bg-muted"
-                  iconClassName="h-6 w-6 text-muted-foreground"
-                />
-                <h3 className="text-lg font-semibold mb-2">
-                  Start a conversation
-                </h3>
-                <p className="text-sm text-muted-foreground max-w-md">
-                  Ask me anything about AI, development, or how elizaOS can help
-                  you build intelligent agents.
-                </p>
-              </div>
-            )}
+              {messages.length === 0 && !error && (
+                <div className="flex flex-col items-center justify-center min-h-[400px] text-center">
+                  <ElizaAvatar
+                    avatarUrl={agentInfo?.avatarUrl}
+                    name={agentInfo?.name}
+                    className="h-12 w-12 mb-4"
+                    fallbackClassName="bg-muted"
+                    iconClassName="h-6 w-6 text-muted-foreground"
+                  />
+                  <h3 className="text-lg font-semibold mb-2">
+                    Start a conversation
+                  </h3>
+                  <p className="text-sm text-muted-foreground max-w-md">
+                    Ask me anything about AI, development, or how elizaOS can help
+                    you build intelligent agents.
+                  </p>
+                </div>
+              )}
 
-            {messages.map((message, index) => {
-              const isThinking = message.id.startsWith("thinking-");
-              return (
-                <div
-                  key={message.id}
-                  className={`flex gap-3 ${
-                    message.isAgent ? "justify-start" : "justify-end"
-                  } animate-in fade-in slide-in-from-bottom-4 duration-500`}
-                  style={{ animationDelay: `${index * 50}ms` }}
-                >
-                  {message.isAgent && (
-                    <ElizaAvatar
-                      avatarUrl={agentInfo?.avatarUrl}
-                      name={agentInfo?.name}
-                      className="flex-shrink-0 w-9 h-9"
-                      iconClassName="h-5 w-5"
-                      animate={isThinking}
-                    />
-                  )}
-
+              {messages.map((message, index) => {
+                const isThinking = message.id.startsWith("thinking-");
+                return (
                   <div
-                    className={`rounded-2xl px-4 py-3 max-w-[80%] ${
-                      message.isAgent
-                        ? "bg-card border"
-                        : "bg-primary text-primary-foreground"
-                    }`}
+                    key={message.id}
+                    className={`flex gap-3 ${
+                      message.isAgent ? "justify-start" : "justify-end"
+                    } animate-in fade-in slide-in-from-bottom-4 duration-500`}
+                    style={{ animationDelay: `${index * 50}ms` }}
                   >
-                    {isThinking ? (
-                      <div className="flex items-center gap-3">
-                        <Loader2 className="h-4 w-4 animate-spin" />
-                        <p className="text-sm text-muted-foreground">
-                          Eliza is thinking...
-                        </p>
+                    {message.isAgent && (
+                      <ElizaAvatar
+                        avatarUrl={agentInfo?.avatarUrl}
+                        name={agentInfo?.name}
+                        className="flex-shrink-0 w-9 h-9"
+                        iconClassName="h-5 w-5"
+                        animate={isThinking}
+                      />
+                    )}
+
+                    <div
+                      className={`rounded-2xl px-4 py-3 max-w-[80%] ${
+                        message.isAgent
+                          ? "bg-card border"
+                          : "bg-primary text-primary-foreground"
+                      }`}
+                    >
+                      {isThinking ? (
+                        <div className="flex items-center gap-3">
+                          <Loader2 className="h-4 w-4 animate-spin" />
+                          <p className="text-sm text-muted-foreground">
+                            Eliza is thinking...
+                          </p>
+                        </div>
+                      ) : (
+                        <>
+                          <div className="text-sm whitespace-pre-wrap mb-2">
+                            {message.content.text}
+                          </div>
+                          <div
+                            className={`flex items-center gap-2 text-xs mt-2 pt-2 border-t ${
+                              message.isAgent
+                                ? "border-border text-muted-foreground"
+                                : "border-primary-foreground/20 text-primary-foreground/80"
+                            }`}
+                          >
+                            <Clock className="h-3 w-3" />
+                            <span>{formatTimestamp(message.createdAt)}</span>
+                          </div>
+                        </>
+                      )}
+                    </div>
+
+                    {!message.isAgent && (
+                      <div className="flex-shrink-0 w-9 h-9 rounded-full bg-primary flex items-center justify-center">
+                        <User className="h-5 w-5 text-primary-foreground" />
                       </div>
-                    ) : (
-                      <>
-                        <div className="text-sm whitespace-pre-wrap mb-2">
-                          {message.content.text}
-                        </div>
-                        <div
-                          className={`flex items-center gap-2 text-xs mt-2 pt-2 border-t ${
-                            message.isAgent
-                              ? "border-border text-muted-foreground"
-                              : "border-primary-foreground/20 text-primary-foreground/80"
-                          }`}
-                        >
-                          <Clock className="h-3 w-3" />
-                          <span>{formatTimestamp(message.createdAt)}</span>
-                        </div>
-                      </>
                     )}
                   </div>
-
-                  {!message.isAgent && (
-                    <div className="flex-shrink-0 w-9 h-9 rounded-full bg-primary flex items-center justify-center">
-                      <User className="h-5 w-5 text-primary-foreground" />
-                    </div>
-                  )}
-                </div>
-              );
-            })}
-          </div>
-        </ScrollArea>
+                );
+              })}
+            </div>
+          </ScrollAreaPrimitive.Viewport>
+          <ScrollAreaPrimitive.ScrollAreaScrollbar
+            orientation="vertical"
+            className="flex touch-none p-px transition-colors select-none h-full w-2.5 border-l border-l-transparent"
+          >
+            <ScrollAreaPrimitive.ScrollAreaThumb className="bg-border relative flex-1 rounded-full" />
+          </ScrollAreaPrimitive.ScrollAreaScrollbar>
+          <ScrollAreaPrimitive.Corner />
+        </ScrollAreaPrimitive.Root>
 
         {/* Input Area */}
         <form

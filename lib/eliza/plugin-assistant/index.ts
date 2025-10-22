@@ -12,7 +12,6 @@ import {
   type UUID,
 } from "@elizaos/core";
 import { v4 } from "uuid";
-import { recentMessagesProvider } from "./providers/recentMessages";
 
 // Track usage per message for credit deduction
 const messageUsageMap = new Map<
@@ -66,8 +65,18 @@ export const messageHandlerTemplate = `
 </providers>
 
 <instructions>
-Respond to the user's message and answer their question thoroughly and helpfully.
-Be concise, clear, and friendly.
+You are a friendly companion and assistant. Your goal is to build a genuine connection with the user.
+
+Response Guidelines:
+- Keep your responses SHORT and CONVERSATIONAL (1-3 sentences typically)
+- Ask thoughtful questions to understand the user and their needs better
+- Show genuine curiosity about the user's situation, goals, and challenges
+- Listen actively before offering solutions
+- Only provide detailed/longer responses if the user asks a complex question or explicitly requests more detail
+- Match the user's message length and tone - if they write long, you can elaborate more; if they write short, keep it brief
+- Be warm, authentic, and supportive like a trusted friend
+
+Think of yourself as a companion first, helper second. Build rapport before diving into solutions.
 </instructions>
 
 <keys>
@@ -180,7 +189,7 @@ const messageReceivedHandler = async ({
     await runtime.createMemory(message, "messages");
 
     // Compose state using providers (this is the key difference from manual approach!)
-    const state = await runtime.composeState(message, ["RECENT_MESSAGES"]);
+    const state = await runtime.composeState(message, ["SHORT_TERM_MEMORY","LONG_TERM_MEMORY"]);
 
     const prompt = composePromptFromState({
       state,
@@ -273,6 +282,23 @@ const messageReceivedHandler = async ({
       });
     }
 
+    const responseMessages: Memory[] = [];
+    responseMessages.push(responseMemory);
+
+    // Run evaluators
+    await runtime.evaluate(
+      message,
+      state,
+      true,
+      async (content) => {
+        if (callback) {
+          return callback(content);
+        }
+        return [];
+      },
+      responseMessages
+    );
+
     // Emit run ended event
     await runtime.emitEvent(EventType.RUN_ENDED, {
       runtime,
@@ -329,7 +355,7 @@ export const assistantPlugin: Plugin = {
   name: "eliza-assistant",
   description: "Core assistant plugin with message handling and context",
   events,
-  providers: [recentMessagesProvider],
+  providers: [],
   actions: [],
   services: [],
 };
