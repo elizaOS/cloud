@@ -58,8 +58,8 @@ export function ElizaChatInterface({ availableCharacters = [] }: ElizaChatInterf
   const [error, setError] = useState<string | null>(null);
   const scrollAreaRef = useRef<HTMLDivElement>(null);
   const pollIntervalRef = useRef<NodeJS.Timeout | null>(null);
-  const roomsIntervalRef = useRef<NodeJS.Timeout | null>(null);
   const thinkingTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const isPollingRef = useRef(false);
   const [autoPlayTTS, setAutoPlayTTS] = useState(false);
   const [currentPlayingId, setCurrentPlayingId] = useState<string | null>(null);
   const [isProcessingSTT, setIsProcessingSTT] = useState(false);
@@ -91,36 +91,12 @@ export function ElizaChatInterface({ availableCharacters = [] }: ElizaChatInterf
           const list = data.rooms.slice(0, 12) as { id: string; characterId?: string }[];
           console.log("[ElizaChat] Loaded rooms from API:", list.map(r => ({ id: r.id.substring(0, 8), characterId: r.characterId })));
 
-          // Fetch last message preview per room (best-effort)
-          const enriched: RoomItem[] = await Promise.all(
-            list.map(async (r) => {
-              try {
-                const resp = await fetch(
-                  `/api/eliza/rooms/${r.id}/messages?limit=1`,
-                );
-                if (resp.ok) {
-                  const js = await resp.json();
-                  const msgs = (js.messages || []) as {
-                    content: { text?: string };
-                    createdAt: number;
-                  }[];
-                  const last = msgs[msgs.length - 1];
-                  return {
-                    id: r.id,
-                    characterId: r.characterId,  // CRITICAL: Preserve characterId from API
-                    lastText: last?.content?.text || "",
-                    lastTime: last?.createdAt || 0,
-                  } as RoomItem;
-                }
-              } catch {}
-              return {
-                id: r.id,
-                characterId: r.characterId,  // CRITICAL: Preserve characterId even on error
-              } as RoomItem;
-            }),
-          );
-          console.log("[ElizaChat] Enriched rooms:", enriched.map(r => ({ id: r.id.substring(0, 8), characterId: r.characterId })));
-          setRooms(enriched);
+          const rooms: RoomItem[] = list.map((r) => ({
+            id: r.id,
+            characterId: r.characterId,
+          }));
+
+          setRooms(rooms);
         }
       }
     } catch {
@@ -239,13 +215,9 @@ export function ElizaChatInterface({ availableCharacters = [] }: ElizaChatInterf
     };
 
     initializeRoom();
-    roomsIntervalRef.current = setInterval(loadRooms, 10000);
     return () => {
       if (pollIntervalRef.current) {
         clearInterval(pollIntervalRef.current);
-      }
-      if (roomsIntervalRef.current) {
-        clearInterval(roomsIntervalRef.current);
       }
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -390,6 +362,11 @@ export function ElizaChatInterface({ availableCharacters = [] }: ElizaChatInterf
     if (!roomId) return;
 
     const pollMessages = async () => {
+      if (isPollingRef.current) {
+        return;
+      }
+
+      isPollingRef.current = true;
       try {
         const lastTimestamp =
           messages.length > 0
@@ -450,6 +427,8 @@ export function ElizaChatInterface({ availableCharacters = [] }: ElizaChatInterf
         }
       } catch (err) {
         console.error("Error polling messages:", err);
+      } finally {
+        isPollingRef.current = false;
       }
     };
 
@@ -457,7 +436,7 @@ export function ElizaChatInterface({ availableCharacters = [] }: ElizaChatInterf
     const hasThinkingMessage = messages.some((m) =>
       m.id.startsWith("thinking-"),
     );
-    const pollInterval = hasThinkingMessage ? 500 : 2000; // 500ms when thinking, 2s otherwise
+    const pollInterval = hasThinkingMessage ? 1000 : 3000; // 1s when thinking, 3s otherwise
 
     pollIntervalRef.current = setInterval(pollMessages, pollInterval);
 

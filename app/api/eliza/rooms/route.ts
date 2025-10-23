@@ -27,25 +27,20 @@ export async function GET(request: NextRequest) {
       stringToUuid(entityId) as UUID,
     ]);
 
+    // Batch load character mappings for all rooms in a single query
+    let characterMappings: Map<string, string> = new Map();
+    try {
+      characterMappings = await elizaRoomCharactersRepository.findByRoomIds(roomIds);
+      logger.debug("[Eliza Rooms API] Batch loaded character mappings:", characterMappings.size);
+    } catch (err) {
+      logger.error("[Eliza Rooms API] ✗ Failed to batch load character mappings:", err);
+    }
+
     // Get room details with character mappings
     const rooms = await Promise.all(
       roomIds.map(async (roomId) => {
         const room = await runtime.getRoom(roomId);
-
-        // Look up character for this room
-        let characterId: string | undefined;
-        try {
-          logger.debug("[Eliza Rooms API] Looking up character for room:", roomId);
-          const roomCharacter = await elizaRoomCharactersRepository.findByRoomId(roomId);
-          if (roomCharacter) {
-            characterId = roomCharacter.character_id;
-            logger.debug("[Eliza Rooms API] ✓ Found character:", characterId, "for room:", roomId);
-          } else {
-            logger.debug("[Eliza Rooms API] ⓘ No character mapping for room:", roomId);
-          }
-        } catch (err) {
-          logger.error("[Eliza Rooms API] ✗ Failed to get character for room:", roomId, err);
-        }
+        const characterId = characterMappings.get(roomId);
 
         return {
           id: roomId,
