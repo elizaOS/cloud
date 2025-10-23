@@ -9,12 +9,12 @@ import defaultAgent from "./agent";
 /**
  * Maps plugin names to their implementations
  * Add new plugins here as they are integrated
- * Note: Using 'as any' due to ElizaOS plugin type bundling differences
+ * Note: Type assertions needed due to ElizaOS plugin type bundling differences
  */
 const AVAILABLE_PLUGINS: Record<string, Plugin> = {
-  "@elizaos/plugin-openai": openaiPlugin as any,
-  "@elizaos/plugin-elevenlabs": elevenLabsPlugin as any,
-  "@eliza-cloud/plugin-assistant": assistantPlugin as any,
+  "@elizaos/plugin-openai": openaiPlugin as unknown as Plugin,
+  "@elizaos/plugin-elevenlabs": elevenLabsPlugin as unknown as Plugin,
+  "@eliza-cloud/plugin-assistant": assistantPlugin as unknown as Plugin,
 };
 
 /**
@@ -75,7 +75,7 @@ export class CharacterLoader {
   } {
     return {
       character: defaultAgent.character,
-      plugins: defaultAgent.plugins as any,
+      plugins: defaultAgent.plugins as unknown as Plugin[],
     };
   }
 
@@ -196,16 +196,16 @@ export class CharacterLoader {
    * Handles special cases like ElevenLabs and returns providers/actions
    */
   private resolvePlugins(pluginNames: string[]): Plugin[] {
-    const plugins: Plugin[] = [] as any;
+    const plugins: unknown[] = [];
 
     // Always include OpenAI for LLM (required)
-    if (!plugins.some((p: any) => p === openaiPlugin)) {
-      (plugins as any).push(openaiPlugin);
+    if (!plugins.some((p) => p === openaiPlugin)) {
+      plugins.push(openaiPlugin);
     }
 
     // Always include assistant plugin (provides context)
-    if (!plugins.some((p: any) => p === assistantPlugin)) {
-      (plugins as any).push(assistantPlugin);
+    if (!plugins.some((p) => p === assistantPlugin)) {
+      plugins.push(assistantPlugin);
     }
 
     // Resolve character-specified plugins
@@ -214,15 +214,15 @@ export class CharacterLoader {
 
       if (plugin) {
         // Avoid duplicates
-        if (!plugins.some((p: any) => p === plugin)) {
-          (plugins as any).push(plugin);
+        if (!plugins.some((p) => p === plugin)) {
+          plugins.push(plugin);
         }
       } else {
         console.warn(`[CharacterLoader] Unknown plugin: ${pluginName}`);
       }
     }
 
-    return plugins;
+    return plugins as Plugin[];
   }
 
   /**

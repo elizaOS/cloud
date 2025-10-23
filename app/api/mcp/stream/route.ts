@@ -1,16 +1,20 @@
-import { NextRequest, NextResponse } from "next/server";
+import type { NextRequest } from "next/server";
+import { NextResponse } from "next/server";
 import { requireAuthOrApiKey } from "@/lib/auth";
 import { Redis } from "@upstash/redis";
 import { logger } from "@/lib/utils/logger";
 import { verifyResourceAccess } from "@/lib/services/resource-authorization";
 import {
-  SSE_MAX_DURATION,
-  SSE_POLL_INTERVAL_MS,
   SSE_HEARTBEAT_INTERVAL,
   SSE_CONNECTION_TIMEOUT_MS,
+  SSE_MAX_CONNECTIONS_PER_ORG,
+  SSE_BACKOFF_INITIAL_MS,
+  SSE_BACKOFF_MAX_MS,
+  SSE_BACKOFF_MULTIPLIER,
 } from "@/lib/config/mcp";
 
-export const maxDuration = SSE_MAX_DURATION;
+// Next.js requires literal values for segment config exports
+export const maxDuration = 300; // 5 minutes - matches default SSE_MAX_DURATION
 export const dynamic = "force-dynamic";
 
 interface SSEMessage {
@@ -70,12 +74,33 @@ export async function GET(request: NextRequest) {
       );
     }
 
+    // SECURITY FIX: Check connection limits per organization to prevent resource exhaustion
+    const redis = await getRedisSubscriber();
+    const connectionKey = `sse:connections:${auth.user.organization_id}`;
+    const connectionCount = await redis.incr(connectionKey);
+    await redis.expire(connectionKey, maxDuration + 60); // Auto-cleanup
+
+    if (connectionCount > SSE_MAX_CONNECTIONS_PER_ORG) {
+      await redis.decr(connectionKey); // Rollback the increment
+      logger.warn(
+        `[SSE Stream] Connection limit exceeded for org ${auth.user.organization_id}: ${connectionCount}/${SSE_MAX_CONNECTIONS_PER_ORG}`
+      );
+      return new NextResponse(
+        JSON.stringify({
+          error: "TooManyConnections",
+          message: `Maximum ${SSE_MAX_CONNECTIONS_PER_ORG} concurrent SSE connections allowed per organization`,
+          currentConnections: connectionCount - 1,
+        }),
+        { status: 429 }
+      );
+    }
+
     logger.info(
-      `[SSE Stream] Starting stream: ${eventType}:${resourceId} for user ${auth.user.id}`
+      `[SSE Stream] Starting stream: ${eventType}:${resourceId} for user ${auth.user.id} ` +
+        `(${connectionCount}/${SSE_MAX_CONNECTIONS_PER_ORG} connections)`
     );
 
     const encoder = new TextEncoder();
-    const redis = await getRedisSubscriber();
 
     const stream = new ReadableStream({
       async start(controller) {
@@ -83,9 +108,12 @@ export async function GET(request: NextRequest) {
         let pollCount = 0;
         let pollInterval: NodeJS.Timeout | null = null;
         let timeoutHandle: NodeJS.Timeout | null = null;
+        // PERFORMANCE FIX: Implement exponential backoff to reduce Redis load when no messages
+        let currentBackoff = SSE_BACKOFF_INITIAL_MS;
+        let consecutiveEmptyPolls = 0;
 
         // MEMORY LEAK FIX: Cleanup function to ensure all resources are released
-        const cleanup = () => {
+        const cleanup = async () => {
           if (pollInterval) {
             clearInterval(pollInterval);
             pollInterval = null;
@@ -95,6 +123,19 @@ export async function GET(request: NextRequest) {
             timeoutHandle = null;
           }
           isActive = false;
+
+          // SECURITY FIX: Decrement connection count on cleanup
+          try {
+            await redis.decr(connectionKey);
+            logger.debug(
+              `[SSE Stream] Decremented connection count for org ${auth.user.organization_id}`
+            );
+          } catch (error) {
+            logger.error(
+              "[SSE Stream] Failed to decrement connection count:",
+              error
+            );
+          }
         };
 
         try {
@@ -111,9 +152,9 @@ export async function GET(request: NextRequest) {
             )
           );
 
-          pollInterval = setInterval(async () => {
+          const poll = async (): Promise<void> => {
             if (!isActive) {
-              cleanup();
+              await cleanup();
               return;
             }
 
@@ -125,6 +166,10 @@ export async function GET(request: NextRequest) {
                 logger.debug(
                   `[SSE Stream] Found ${messages.length} messages in ${channel}`
                 );
+
+                // PERFORMANCE FIX: Reset backoff when messages are found
+                consecutiveEmptyPolls = 0;
+                currentBackoff = SSE_BACKOFF_INITIAL_MS;
 
                 for (const message of messages) {
                   const parsed =
@@ -138,6 +183,18 @@ export async function GET(request: NextRequest) {
                 }
 
                 await redis.del(channel);
+              } else {
+                // PERFORMANCE FIX: Implement exponential backoff when no messages
+                consecutiveEmptyPolls++;
+                if (consecutiveEmptyPolls > 3) {
+                  currentBackoff = Math.min(
+                    currentBackoff * SSE_BACKOFF_MULTIPLIER,
+                    SSE_BACKOFF_MAX_MS
+                  );
+                  logger.debug(
+                    `[SSE Stream] No messages for ${consecutiveEmptyPolls} polls, backing off to ${currentBackoff}ms`
+                  );
+                }
               }
 
               // Send heartbeat based on configured interval
@@ -146,11 +203,23 @@ export async function GET(request: NextRequest) {
                   encoder.encode(
                     formatSSE({
                       type: "heartbeat",
-                      data: { pollCount, active: isActive },
+                      data: {
+                        pollCount,
+                        active: isActive,
+                        backoff: currentBackoff,
+                      },
                       timestamp: new Date().toISOString(),
                     })
                   )
                 );
+              }
+
+              // Schedule next poll with current backoff
+              if (isActive) {
+                pollInterval = setTimeout(
+                  poll,
+                  currentBackoff
+                ) as unknown as NodeJS.Timeout;
               }
             } catch (error) {
               logger.error("[SSE Stream] Polling error:", error);
@@ -176,19 +245,31 @@ export async function GET(request: NextRequest) {
                   "[SSE Stream] Failed to enqueue error:",
                   enqueueError
                 );
-                cleanup();
+                await cleanup();
                 try {
                   controller.close();
                 } catch {
                   /* already closed */
                 }
+                return; // Exit poll loop
+              }
+
+              // Retry poll after backoff on error
+              if (isActive) {
+                pollInterval = setTimeout(
+                  poll,
+                  currentBackoff
+                ) as unknown as NodeJS.Timeout;
               }
             }
-          }, SSE_POLL_INTERVAL_MS);
+          };
+
+          // Start polling
+          poll();
 
           // Handle client disconnect
-          request.signal.addEventListener("abort", () => {
-            cleanup();
+          request.signal.addEventListener("abort", async () => {
+            await cleanup();
             logger.info(
               `[SSE Stream] Client disconnected: ${eventType}:${resourceId}`
             );
@@ -200,8 +281,8 @@ export async function GET(request: NextRequest) {
           });
 
           // MEMORY LEAK FIX: Set timeout with proper cleanup
-          timeoutHandle = setTimeout(() => {
-            cleanup();
+          timeoutHandle = setTimeout(async () => {
+            await cleanup();
             logger.info(
               `[SSE Stream] Timeout reached: ${eventType}:${resourceId}`
             );

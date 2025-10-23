@@ -75,13 +75,15 @@ export class MemoryCache {
     }
   }
 
+  // SECURITY FIX: Add organization ID to all cache methods to prevent key collisions
   async cacheRoomContext(
     roomId: string,
+    organizationId: string,
     context: MemoryRoomContext,
     ttl: number,
   ): Promise<void> {
     try {
-      const key = `memory:room:${roomId}:context:${context.depth}:v1`;
+      const key = `memory:${organizationId}:room:${roomId}:context:${context.depth}:v1`;
       await cache.set(
         key,
         {
@@ -99,9 +101,12 @@ export class MemoryCache {
     }
   }
 
-  async getRoomContext(roomId: string): Promise<MemoryRoomContext | null> {
+  async getRoomContext(
+    roomId: string,
+    organizationId: string,
+  ): Promise<MemoryRoomContext | null> {
     try {
-      const keys = await this.getRoomContextKeys(roomId);
+      const keys = await this.getRoomContextKeys(roomId, organizationId);
       for (const key of keys) {
         const cached = await cache.get<MemoryRoomContext & { timestamp: string }>(
           key,
@@ -125,9 +130,12 @@ export class MemoryCache {
     }
   }
 
-  async invalidateRoom(roomId: string): Promise<void> {
+  async invalidateRoom(
+    roomId: string,
+    organizationId: string,
+  ): Promise<void> {
     try {
-      const pattern = `memory:*:room:${roomId}:*`;
+      const pattern = `memory:${organizationId}:room:${roomId}:*`;
       await cache.delPattern(pattern);
       logger.debug(`[Memory Cache] Invalidated room pattern: ${pattern}`);
     } catch (error) {
@@ -297,11 +305,14 @@ export class MemoryCache {
     }
   }
 
-  private async getRoomContextKeys(roomId: string): Promise<string[]> {
+  private async getRoomContextKeys(
+    roomId: string,
+    organizationId: string,
+  ): Promise<string[]> {
     return [
-      `memory:room:${roomId}:context:20:v1`,
-      `memory:room:${roomId}:context:50:v1`,
-      `memory:room:${roomId}:context:100:v1`,
+      `memory:${organizationId}:room:${roomId}:context:20:v1`,
+      `memory:${organizationId}:room:${roomId}:context:50:v1`,
+      `memory:${organizationId}:room:${roomId}:context:100:v1`,
     ];
   }
 }

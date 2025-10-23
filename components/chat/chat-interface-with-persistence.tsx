@@ -144,12 +144,15 @@ export function ChatInterfaceWithPersistence({
   }, [messages]);
 
   useEffect(() => {
+    // Store the current ref value in a variable for cleanup
+    const currentAudioUrls = messageAudioUrls.current;
+    
     return () => {
       if (loadingTimeoutRef.current) {
         clearTimeout(loadingTimeoutRef.current);
       }
-      // Cleanup audio URLs
-      messageAudioUrls.current.forEach((url) => URL.revokeObjectURL(url));
+      // Cleanup audio URLs using the stored ref value
+      currentAudioUrls.forEach((url) => URL.revokeObjectURL(url));
     };
   }, []);
 

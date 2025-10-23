@@ -5,13 +5,16 @@
 
 import {
   type Action,
-  type Memory,
   type State,
   type HandlerCallback,
-  ModelType,
+  ContentType,
 } from "@elizaos/core";
 import { ElevenLabsClient } from "@elevenlabs/elevenlabs-js";
-import type { TranscriptionOptions, TranscriptionResult, VoiceSettings } from "./types";
+import type {
+  TranscriptionOptions,
+  TranscriptionResult,
+  VoiceSettings,
+} from "./types";
 
 /**
  * Transcribe audio to text using ElevenLabs STT
@@ -36,11 +39,17 @@ async function transcribeAudio(
 
   if ("text" in result) {
     transcript = result.text || "";
-    languageCode = (result as any).languageCode || (result as any).language_code;
+    const resultWithLangCode = result as {
+      text?: string;
+      languageCode?: string;
+      language_code?: string;
+    };
+    languageCode =
+      resultWithLangCode.languageCode || resultWithLangCode.language_code;
   } else if ("transcripts" in result) {
     const transcripts = result.transcripts || {};
     transcript = Object.values(transcripts)
-      .map((t: any) => t?.text || "")
+      .map((t: { text?: string }) => t?.text || "")
       .filter(Boolean)
       .join(" ");
   }
@@ -66,15 +75,18 @@ export const speechToTextAction: Action = {
     "RECOGNIZE_SPEECH",
   ],
 
-  validate: async (runtime, message, state?: State) => {
+  validate: async (runtime, message) => {
     // Check if message contains audio attachment
-    if (!message.content?.attachments || message.content.attachments.length === 0) {
+    if (
+      !message.content?.attachments ||
+      message.content.attachments.length === 0
+    ) {
       return false;
     }
 
     // Check if any attachment is audio
-    const hasAudioAttachment = message.content.attachments.some(
-      (att) => att.contentType?.startsWith("audio/")
+    const hasAudioAttachment = message.content.attachments.some((att) =>
+      att.contentType?.startsWith("audio/")
     );
 
     if (!hasAudioAttachment) {
@@ -83,7 +95,8 @@ export const speechToTextAction: Action = {
 
     // Check if ElevenLabs API key is configured
     const settings = runtime.character?.settings;
-    const apiKey = settings?.ELEVENLABS_API_KEY || process.env.ELEVENLABS_API_KEY;
+    const apiKey =
+      settings?.ELEVENLABS_API_KEY || process.env.ELEVENLABS_API_KEY;
 
     return !!apiKey;
   },
@@ -98,16 +111,19 @@ export const speechToTextAction: Action = {
     try {
       // Get voice settings from character config
       const settings: VoiceSettings = {
-        apiKey: String(runtime.character?.settings?.ELEVENLABS_API_KEY ||
-                process.env.ELEVENLABS_API_KEY || ""),
+        apiKey: String(
+          runtime.character?.settings?.ELEVENLABS_API_KEY ||
+            process.env.ELEVENLABS_API_KEY ||
+            ""
+        ),
         languageCode: runtime.character?.settings?.ELEVENLABS_LANGUAGE_CODE
           ? String(runtime.character.settings.ELEVENLABS_LANGUAGE_CODE)
           : undefined,
       };
 
       // Find audio attachment
-      const audioAttachment = message.content?.attachments?.find(
-        (att) => att.contentType?.startsWith("audio/")
+      const audioAttachment = message.content?.attachments?.find((att) =>
+        att.contentType?.startsWith("audio/")
       );
 
       if (!audioAttachment) {
@@ -175,7 +191,7 @@ export const speechToTextAction: Action = {
             {
               id: "audio-1",
               url: "https://example.com/audio.mp3",
-              contentType: "audio/mpeg" as any,
+              contentType: ContentType.AUDIO,
             },
           ],
         },

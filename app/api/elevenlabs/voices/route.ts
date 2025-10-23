@@ -1,9 +1,9 @@
-import { NextRequest, NextResponse } from "next/server";
+import { NextResponse } from "next/server";
 import { requireAuth } from "@/lib/auth";
 import { getElevenLabsService } from "@/lib/services/elevenlabs";
 import { logger } from "@/lib/utils/logger";
 
-export async function GET(_request: NextRequest) {
+export async function GET() {
   try {
     // Authenticate user
     const user = await requireAuth();
@@ -19,11 +19,13 @@ export async function GET(_request: NextRequest) {
     return NextResponse.json({
       voices,
     });
-
   } catch (error) {
     logger.error("[Voices API] Error:", error);
 
-    if (error instanceof Error && error.message.includes("ELEVENLABS_API_KEY")) {
+    if (
+      error instanceof Error &&
+      error.message.includes("ELEVENLABS_API_KEY")
+    ) {
       return NextResponse.json(
         { error: "Service not configured" },
         { status: 500 }
