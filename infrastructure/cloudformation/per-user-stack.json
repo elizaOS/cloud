@@ -281,10 +281,10 @@
         "HealthCheckEnabled": true,
         "HealthCheckPath": "/health",
         "HealthCheckProtocol": "HTTP",
-        "HealthCheckIntervalSeconds": 30,
+        "HealthCheckIntervalSeconds": 15,
         "HealthCheckTimeoutSeconds": 5,
         "HealthyThresholdCount": 2,
-        "UnhealthyThresholdCount": 3,
+        "UnhealthyThresholdCount": 2,
         "Matcher": {
           "HttpCode": "200,201"
         },
@@ -427,7 +427,7 @@
             "PortMappings": [
               {
                 "ContainerPort": { "Ref": "ContainerPort" },
-                "HostPort": 0,
+                "HostPort": { "Ref": "ContainerPort" },
                 "Protocol": "tcp"
               }
             ],
@@ -442,7 +442,9 @@
             "HealthCheck": {
               "Command": [
                 "CMD-SHELL",
-                "curl -f http://localhost:3000/health || exit 1"
+                {
+                  "Fn::Sub": "curl -f http://localhost:${ContainerPort}/health || exit 1"
+                }
               ],
               "Interval": 30,
               "Timeout": 5,
@@ -478,7 +480,7 @@
             "ContainerPort": { "Ref": "ContainerPort" }
           }
         ],
-        "HealthCheckGracePeriodSeconds": 900,
+        "HealthCheckGracePeriodSeconds": 300,
         "DeploymentConfiguration": {
           "MaximumPercent": 100,
           "MinimumHealthyPercent": 0,
