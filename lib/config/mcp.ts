@@ -6,11 +6,11 @@
 /**
  * Request Timeout Configuration
  */
-export const MCP_REQUEST_TIMEOUT = parseInt(
+export const MCP_REQUEST_TIMEOUT = Number.parseInt(
   process.env.MCP_TIMEOUT || "60",
   10
 );
-export const SSE_MAX_DURATION = parseInt(
+export const SSE_MAX_DURATION = Number.parseInt(
   process.env.SSE_MAX_DURATION || "300",
   10
 );
@@ -18,15 +18,35 @@ export const SSE_MAX_DURATION = parseInt(
 /**
  * SSE (Server-Sent Events) Configuration
  */
-export const SSE_POLL_INTERVAL_MS = parseInt(
+export const SSE_POLL_INTERVAL_MS = Number.parseInt(
   process.env.SSE_POLL_INTERVAL_MS || "500",
   10
 );
-export const SSE_HEARTBEAT_INTERVAL = parseInt(
+export const SSE_HEARTBEAT_INTERVAL = Number.parseInt(
   process.env.SSE_HEARTBEAT_INTERVAL || "30",
   10
 ); // Send heartbeat every N polls
 export const SSE_CONNECTION_TIMEOUT_MS = SSE_MAX_DURATION * 1000; // 5 minutes default
+
+/**
+ * SSE Connection Limits and Backoff Configuration
+ * SECURITY FIX: Prevent resource exhaustion attacks
+ */
+export const SSE_MAX_CONNECTIONS_PER_ORG = Number.parseInt(
+  process.env.SSE_MAX_CONNECTIONS_PER_ORG || "10",
+  10
+);
+export const SSE_BACKOFF_INITIAL_MS = Number.parseInt(
+  process.env.SSE_BACKOFF_INITIAL_MS || "500",
+  10
+);
+export const SSE_BACKOFF_MAX_MS = Number.parseInt(
+  process.env.SSE_BACKOFF_MAX_MS || "5000",
+  10
+);
+export const SSE_BACKOFF_MULTIPLIER = Number.parseFloat(
+  process.env.SSE_BACKOFF_MULTIPLIER || "1.5"
+);
 
 /**
  * Credit Costs for MCP Operations
@@ -60,5 +80,5 @@ export const MCP_EVENT_TYPES = {
   CONTAINER: "container",
 } as const;
 
-export type MCPEventType = (typeof MCP_EVENT_TYPES)[keyof typeof MCP_EVENT_TYPES];
-
+export type MCPEventType =
+  (typeof MCP_EVENT_TYPES)[keyof typeof MCP_EVENT_TYPES];

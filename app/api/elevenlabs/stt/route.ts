@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { requireAuth } from "@/lib/auth";
 import { getElevenLabsService } from "@/lib/services/elevenlabs";
 import { logger } from "@/lib/utils/logger";
+import { fileTypeFromBuffer } from "file-type";
 
 const MAX_FILE_SIZE = 25 * 1024 * 1024; // 25MB
 
@@ -14,6 +15,17 @@ const SUPPORTED_MIME_TYPES = [
   "audio/webm",
   "audio/ogg",
 ];
+
+// Magic number validation - map expected file signatures
+const ALLOWED_AUDIO_SIGNATURES = new Set([
+  "audio/mpeg",
+  "audio/mp4",
+  "audio/x-m4a",
+  "audio/wav",
+  "audio/x-wav",
+  "audio/webm",
+  "audio/ogg",
+]);
 
 export async function POST(request: NextRequest) {
   try {
@@ -51,15 +63,47 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    logger.info(`[STT API] Processing for user ${user.id}: ${audioFile.name} (${audioFile.size} bytes)`);
+    // SECURITY FIX: Validate actual file content using magic numbers
+    // MIME type headers can be spoofed, so we need to check the actual file signature
+    const buffer = Buffer.from(await audioFile.arrayBuffer());
+    
+    // Check magic numbers (file signature)
+    const fileTypeResult = await fileTypeFromBuffer(buffer);
+    
+    if (!fileTypeResult) {
+      logger.warn(`[STT API] Unable to detect file type for ${audioFile.name} - rejecting`);
+      return NextResponse.json(
+        {
+          error: "Unable to verify file type. The file may be corrupted or of an unsupported format."
+        },
+        { status: 400 }
+      );
+    }
+
+    if (!ALLOWED_AUDIO_SIGNATURES.has(fileTypeResult.mime)) {
+      logger.warn(
+        `[STT API] File signature mismatch for ${audioFile.name}: claimed=${baseMimeType}, actual=${fileTypeResult.mime}`
+      );
+      return NextResponse.json(
+        {
+          error: `File content does not match the declared format. Detected: ${fileTypeResult.mime}, Expected audio format.`
+        },
+        { status: 400 }
+      );
+    }
+
+    logger.info(
+      `[STT API] Processing for user ${user.id}: ${audioFile.name} (${audioFile.size} bytes, verified: ${fileTypeResult.mime})`
+    );
 
     // Get ElevenLabs service
     const elevenlabs = getElevenLabsService();
 
-    // Transcribe audio
+    // Transcribe audio (convert buffer back to File for the service)
     const startTime = Date.now();
+    const validatedFile = new File([buffer], audioFile.name, { type: fileTypeResult.mime });
     const transcript = await elevenlabs.speechToText({
-      audioFile,
+      audioFile: validatedFile,
       languageCode,
     });
     const duration = Date.now() - startTime;
@@ -76,7 +120,8 @@ export async function POST(request: NextRequest) {
 
     if (error instanceof Error) {
       const errorMessage = error.message.toLowerCase();
-      const errorBody = (error as any).body?.detail?.message || "";
+      const errorWithBody = error as Error & { body?: { detail?: { message?: string } }; statusCode?: number };
+      const errorBody = errorWithBody.body?.detail?.message || "";
 
       if (errorMessage.includes("rate limit")) {
         return NextResponse.json(
@@ -85,7 +130,7 @@ export async function POST(request: NextRequest) {
         );
       }
 
-      if (errorMessage.includes("quota") || (error as any).statusCode === 403) {
+      if (errorMessage.includes("quota") || errorWithBody.statusCode === 403) {
         if (errorBody.includes("enterprise") || errorBody.includes("trial tier") || errorBody.includes("ZRM mode")) {
           return NextResponse.json(
             {

@@ -57,7 +57,6 @@ export class AgentService {
   async getOrCreateRoom(
     entityId: string,
     agentId: string,
-    _organizationId: string,
   ): Promise<string> {
     try {
       const runtime = await agentRuntime.getRuntime();

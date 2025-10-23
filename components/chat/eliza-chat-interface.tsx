@@ -3,7 +3,7 @@
 import { useState, useEffect, useRef, useCallback } from "react";
 import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { Loader2, Send, Bot, User, Clock, MessageSquare, Mic, Square, Play, Volume2 } from "lucide-react";
+import { Loader2, Send, Bot, User, Clock, MessageSquare, Mic, Square, Volume2 } from "lucide-react";
 import { ElizaAvatar } from "./eliza-avatar";
 import { useAudioRecorder } from "./hooks/use-audio-recorder";
 import { useAudioPlayer } from "./hooks/use-audio-player";

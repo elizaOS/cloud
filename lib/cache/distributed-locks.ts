@@ -13,7 +13,7 @@ export interface Lock {
 export class DistributedLockService {
   private static instance: DistributedLockService;
   private redis: Redis | null = null;
-  private enabled: boolean = false;
+  private enabled = false;
 
   private constructor() {
     this.initialize();
@@ -22,7 +22,7 @@ export class DistributedLockService {
   private initialize(): void {
     if (!process.env.KV_REST_API_URL || !process.env.KV_REST_API_TOKEN) {
       logger.warn(
-        "[Distributed Locks] Missing Redis credentials. Distributed locking disabled.",
+        "[Distributed Locks] Missing Redis credentials. Distributed locking disabled."
       );
       this.enabled = false;
       return;
@@ -47,18 +47,19 @@ export class DistributedLockService {
   /**
    * Acquire a lock for a room with retry logic for concurrent requests
    * @param roomId - Room to lock
-   * @param ttl - Lock TTL in milliseconds (default: 30000ms = 30s)
+   * @param ttl - Lock TTL in milliseconds (default: 90000ms = 90s)
+   * PERFORMANCE FIX: Increased from 30s to 90s to accommodate long-running LLM calls
    * @param options - Retry options
    * @returns Lock object if acquired, null if failed after all retries
    */
   async acquireRoomLockWithRetry(
     roomId: string,
-    ttl: number = 30000,
+    ttl: number = 90000,
     options: {
       maxRetries?: number;
       initialDelayMs?: number;
       maxDelayMs?: number;
-    } = {},
+    } = {}
   ): Promise<Lock | null> {
     const {
       maxRetries = 10,
@@ -75,7 +76,7 @@ export class DistributedLockService {
       if (lock) {
         if (attempt > 0) {
           logger.info(
-            `[Distributed Locks] Acquired lock for ${roomId} after ${attempt} retries`,
+            `[Distributed Locks] Acquired lock for ${roomId} after ${attempt} retries`
           );
         }
         return lock;
@@ -83,24 +84,21 @@ export class DistributedLockService {
 
       if (attempt < maxRetries) {
         logger.debug(
-          `[Distributed Locks] Lock acquisition attempt ${attempt + 1}/${maxRetries + 1} failed for ${roomId}, retrying in ${delayMs}ms`,
+          `[Distributed Locks] Lock acquisition attempt ${attempt + 1}/${maxRetries + 1} failed for ${roomId}, retrying in ${delayMs}ms`
         );
 
         // Wait before retrying
-        await new Promise(resolve => setTimeout(resolve, delayMs));
+        await new Promise((resolve) => setTimeout(resolve, delayMs));
 
         // Exponential backoff with jitter
-        delayMs = Math.min(
-          maxDelayMs,
-          delayMs * 2 + Math.random() * 100,
-        );
+        delayMs = Math.min(maxDelayMs, delayMs * 2 + Math.random() * 100);
       }
 
       attempt++;
     }
 
     logger.warn(
-      `[Distributed Locks] Failed to acquire lock for ${roomId} after ${maxRetries + 1} attempts`,
+      `[Distributed Locks] Failed to acquire lock for ${roomId} after ${maxRetries + 1} attempts`
     );
     return null;
   }
@@ -108,16 +106,17 @@ export class DistributedLockService {
   /**
    * Acquire a lock for a room to prevent concurrent message processing
    * @param roomId - Room to lock
-   * @param ttl - Lock TTL in milliseconds (default: 30000ms = 30s)
+   * @param ttl - Lock TTL in milliseconds (default: 90000ms = 90s)
+   * PERFORMANCE FIX: Increased from 30s to 90s to accommodate long-running LLM calls
    * @returns Lock object if acquired, null if already locked
    */
   async acquireRoomLock(
     roomId: string,
-    ttl: number = 30000,
+    ttl: number = 90000
   ): Promise<Lock | null> {
     if (!this.enabled || !this.redis) {
       logger.warn(
-        "[Distributed Locks] Service disabled, skipping lock acquisition",
+        "[Distributed Locks] Service disabled, skipping lock acquisition"
       );
       return this.createDummyLock(roomId, ttl);
     }
@@ -133,25 +132,31 @@ export class DistributedLockService {
       });
 
       if (!acquired) {
-        logger.debug(`[Distributed Locks] Failed to acquire lock for ${roomId} - already locked`);
+        logger.debug(
+          `[Distributed Locks] Failed to acquire lock for ${roomId} - already locked`
+        );
         return null;
       }
 
       logger.debug(
-        `[Distributed Locks] Acquired lock ${lockId} for ${roomId} (TTL: ${ttl}ms)`,
+        `[Distributed Locks] Acquired lock ${lockId} for ${roomId} (TTL: ${ttl}ms)`
       );
 
       return {
         lockId,
         roomId,
         expiresAt: new Date(Date.now() + ttl),
-        release: async () => { await this.releaseRoomLock(roomId, lockId); },
-        extend: async (ms) => { await this.extendLock(roomId, lockId, ms); },
+        release: async () => {
+          await this.releaseRoomLock(roomId, lockId);
+        },
+        extend: async (ms) => {
+          await this.extendLock(roomId, lockId, ms);
+        },
       };
     } catch (error) {
       logger.error(
         `[Distributed Locks] Error acquiring lock for ${roomId}:`,
-        error,
+        error
       );
       return null;
     }
@@ -176,20 +181,18 @@ export class DistributedLockService {
 
       if (currentLockId !== lockId) {
         logger.warn(
-          `[Distributed Locks] Cannot release lock ${lockId} for ${roomId} - not owned or expired`,
+          `[Distributed Locks] Cannot release lock ${lockId} for ${roomId} - not owned or expired`
         );
         return false;
       }
 
       await this.redis.del(key);
-      logger.debug(
-        `[Distributed Locks] Released lock ${lockId} for ${roomId}`,
-      );
+      logger.debug(`[Distributed Locks] Released lock ${lockId} for ${roomId}`);
       return true;
     } catch (error) {
       logger.error(
         `[Distributed Locks] Error releasing lock for ${roomId}:`,
-        error,
+        error
       );
       return false;
     }
@@ -205,7 +208,7 @@ export class DistributedLockService {
   async extendLock(
     roomId: string,
     lockId: string,
-    ms: number,
+    ms: number
   ): Promise<boolean> {
     if (!this.enabled || !this.redis) {
       return true;
@@ -219,7 +222,7 @@ export class DistributedLockService {
 
       if (currentLockId !== lockId) {
         logger.warn(
-          `[Distributed Locks] Cannot extend lock ${lockId} for ${roomId} - not owned or expired`,
+          `[Distributed Locks] Cannot extend lock ${lockId} for ${roomId} - not owned or expired`
         );
         return false;
       }
@@ -228,7 +231,7 @@ export class DistributedLockService {
       const ttl = await this.redis.pttl(key);
       if (ttl <= 0) {
         logger.warn(
-          `[Distributed Locks] Cannot extend lock ${lockId} for ${roomId} - already expired`,
+          `[Distributed Locks] Cannot extend lock ${lockId} for ${roomId} - already expired`
         );
         return false;
       }
@@ -238,13 +241,13 @@ export class DistributedLockService {
       await this.redis.pexpire(key, newTtl);
 
       logger.debug(
-        `[Distributed Locks] Extended lock ${lockId} for ${roomId} by ${ms}ms (new TTL: ${newTtl}ms)`,
+        `[Distributed Locks] Extended lock ${lockId} for ${roomId} by ${ms}ms (new TTL: ${newTtl}ms)`
       );
       return true;
     } catch (error) {
       logger.error(
         `[Distributed Locks] Error extending lock for ${roomId}:`,
-        error,
+        error
       );
       return false;
     }
@@ -268,7 +271,7 @@ export class DistributedLockService {
     } catch (error) {
       logger.error(
         `[Distributed Locks] Error checking lock for ${roomId}:`,
-        error,
+        error
       );
       return false;
     }
@@ -280,7 +283,7 @@ export class DistributedLockService {
    * @returns Lock info or null if not locked
    */
   async getLockInfo(
-    roomId: string,
+    roomId: string
   ): Promise<{ lockId: string; ttl: number } | null> {
     if (!this.enabled || !this.redis) {
       return null;
@@ -299,7 +302,7 @@ export class DistributedLockService {
     } catch (error) {
       logger.error(
         `[Distributed Locks] Error getting lock info for ${roomId}:`,
-        error,
+        error
       );
       return null;
     }
@@ -324,7 +327,7 @@ export class DistributedLockService {
     } catch (error) {
       logger.error(
         `[Distributed Locks] Error force releasing lock for ${roomId}:`,
-        error,
+        error
       );
       return false;
     }

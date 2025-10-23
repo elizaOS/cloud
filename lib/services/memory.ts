@@ -72,6 +72,34 @@ export interface SummarizeConversationResult {
 }
 
 export class MemoryService {
+  // PERFORMANCE FIX: Add method to check single room ownership efficiently
+  private async checkRoomOwnership(
+    organizationId: string,
+    roomId: string,
+  ): Promise<boolean> {
+    try {
+      const result = await db
+        .select({ exists: participantTable.roomId })
+        .from(participantTable)
+        .innerJoin(users, eq(participantTable.entityId, users.id))
+        .where(
+          and(
+            eq(participantTable.roomId, roomId),
+            eq(users.organization_id, organizationId),
+          ),
+        )
+        .limit(1);
+
+      return result.length > 0;
+    } catch (error) {
+      logger.error(
+        `[Memory Service] Failed to check room ownership for org ${organizationId}, room ${roomId}:`,
+        error,
+      );
+      return false;
+    }
+  }
+
   private async getRoomIdsForOrganization(
     organizationId: string,
   ): Promise<Set<string>> {
@@ -203,7 +231,7 @@ export class MemoryService {
       const cacheKey = CacheKeys.memory.item(input.organizationId, memoryId);
       await memoryCache.cacheMemory(cacheKey, memory, ttl);
 
-      await memoryCache.invalidateRoom(input.roomId);
+      await memoryCache.invalidateRoom(input.roomId, input.organizationId);
 
       return {
         memoryId: memoryId,
@@ -256,32 +284,21 @@ export class MemoryService {
         }
       }
 
-      const allowedRoomIds = await this.getRoomIdsForOrganization(
-        input.organizationId,
-      );
-
-      logger.info(
-        `[Memory Service] Allowed room IDs size: ${allowedRoomIds.size}`,
-      );
-
-      if (allowedRoomIds.size === 0) {
-        logger.warn(
-          `[Memory Service] No rooms found for organization ${input.organizationId}`,
-        );
-        return [];
-      }
-
       let memories: Memory[] = [];
 
+      // PERFORMANCE FIX: Use efficient single-room check when roomId is provided
+      // instead of fetching all room IDs for the organization
       if (input.roomId) {
         logger.info(
-          `[Memory Service] Checking if roomId ${input.roomId} is in allowedRoomIds`,
-        );
-        logger.info(
-          `[Memory Service] allowedRoomIds contains: ${Array.from(allowedRoomIds).join(", ")}`,
+          `[Memory Service] Checking room ownership for roomId ${input.roomId}`,
         );
 
-        if (!allowedRoomIds.has(input.roomId)) {
+        const hasAccess = await this.checkRoomOwnership(
+          input.organizationId,
+          input.roomId,
+        );
+
+        if (!hasAccess) {
           logger.warn(
             `[Memory Service] Room ${input.roomId} does not belong to organization ${input.organizationId}`,
           );
@@ -337,6 +354,23 @@ export class MemoryService {
         logger.info(
           `[Memory Service] No specific roomId, fetching from all allowed rooms`,
         );
+        
+        // Fetch all room IDs for the organization when no specific room is requested
+        const allowedRoomIds = await this.getRoomIdsForOrganization(
+          input.organizationId,
+        );
+
+        logger.info(
+          `[Memory Service] Allowed room IDs size: ${allowedRoomIds.size}`,
+        );
+
+        if (allowedRoomIds.size === 0) {
+          logger.warn(
+            `[Memory Service] No rooms found for organization ${input.organizationId}`,
+          );
+          return [];
+        }
+
         const allMemories: Memory[] = [];
         const limit = input.limit || 10;
 
@@ -439,10 +473,9 @@ export class MemoryService {
     roomId: string,
     organizationId: string,
     depth: number = 20,
-    _includeMemories: boolean = false,
   ): Promise<MemoryRoomContext> {
     try {
-      const cached = await memoryCache.getRoomContext(roomId);
+      const cached = await memoryCache.getRoomContext(roomId, organizationId);
       if (cached && cached.depth >= depth) {
         logger.debug(`[Memory Service] Cache HIT for room context: ${roomId}`);
         return cached;
@@ -474,6 +507,7 @@ export class MemoryService {
 
       await memoryCache.cacheRoomContext(
         roomId,
+        organizationId,
         context,
         CacheTTL.memory.roomContext,
       );
@@ -701,7 +735,6 @@ Summary:`;
     conversationId: string,
     organizationId: string,
     format: "json" | "markdown" | "txt",
-    _includeMemories: boolean = false,
   ): Promise<{
     content: string;
     size: number;
@@ -854,7 +887,6 @@ Summary:`;
   async analyzeMemoryPatterns(
     organizationId: string,
     analysisType: "topics" | "sentiment" | "entities" | "timeline",
-    _timeRange?: { from: Date; to: Date },
   ): Promise<{
     analysisType: string;
     insights: string[];

@@ -2,10 +2,13 @@ import { createMcpHandler } from "mcp-handler";
 // IMPORTANT: Must use zod v3.x (aliased as zod3) for MCP SDK compatibility
 // The MCP SDK internally uses zod v3.x, and zod v4.x has breaking internal API changes
 import { z } from "zod3";
-import { NextRequest, NextResponse } from "next/server";
+import type { NextRequest } from "next/server";
+import { NextResponse } from "next/server";
 import { AsyncLocalStorage } from "node:async_hooks";
+import DOMPurify from "isomorphic-dompurify";
 import { requireAuthOrApiKey } from "@/lib/auth";
 import type { AuthResult } from "@/lib/auth";
+import { checkRateLimitRedis } from "@/lib/middleware/rate-limit-redis";
 import {
   creditsService,
   usageService,
@@ -27,7 +30,6 @@ import {
 } from "@/lib/pricing";
 import { uploadBase64Image } from "@/lib/blob";
 import {
-  MCP_REQUEST_TIMEOUT,
   MEMORY_SAVE_COST,
   MEMORY_RETRIEVAL_COST_PER_ITEM,
   MEMORY_RETRIEVAL_MAX_COST,
@@ -45,7 +47,8 @@ import {
   CONVERSATION_SUMMARY_MAX_COST,
 } from "@/lib/config/mcp";
 
-export const maxDuration = MCP_REQUEST_TIMEOUT;
+// Next.js requires literal values for segment config exports
+export const maxDuration = 60; // 60 seconds - matches default MCP_REQUEST_TIMEOUT
 
 // AsyncLocalStorage for request-scoped auth context
 const authContextStorage = new AsyncLocalStorage<AuthResult>();
@@ -935,45 +938,88 @@ const mcpHandler = createMcpHandler(
             };
           }
 
-          if (org.credit_balance < MEMORY_SAVE_COST) {
-            return {
-              content: [
-                {
-                  type: "text" as const,
-                  text: JSON.stringify(
-                    {
-                      error: "Insufficient credits",
-                      required: MEMORY_SAVE_COST,
-                      available: org.credit_balance,
-                    },
-                    null,
-                    2
-                  ),
-                },
-              ],
-              isError: true,
-            };
-          }
+          // SECURITY FIX: Validate and sanitize inputs to prevent XSS and data corruption
 
-          const result = await memoryService.saveMemory({
-            organizationId: user.organization_id,
-            roomId: roomId,
-            entityId: user.id,
-            content,
-            type,
-            tags,
-            metadata,
-            ttl,
-            persistent,
+          // 1. Sanitize content to prevent stored XSS
+          const sanitizedContent = DOMPurify.sanitize(content, {
+            ALLOWED_TAGS: [], // Strip all HTML tags
+            ALLOWED_ATTR: [], // Strip all attributes
+            KEEP_CONTENT: true, // Keep text content
           });
 
+          // 2. Validate metadata size (max 5KB to prevent abuse)
+          if (metadata) {
+            const metadataSize = JSON.stringify(metadata).length;
+            const MAX_METADATA_SIZE = 5 * 1024; // 5KB
+
+            if (metadataSize > MAX_METADATA_SIZE) {
+              return {
+                content: [
+                  {
+                    type: "text" as const,
+                    text: JSON.stringify(
+                      {
+                        error: "Metadata too large",
+                        maxSize: MAX_METADATA_SIZE,
+                        actualSize: metadataSize,
+                      },
+                      null,
+                      2
+                    ),
+                  },
+                ],
+                isError: true,
+              };
+            }
+          }
+
+          // 3. Validate and sanitize tags
+          let sanitizedTags = tags;
+          if (tags && tags.length > 0) {
+            // Limit number of tags
+            if (tags.length > 20) {
+              return {
+                content: [
+                  {
+                    type: "text" as const,
+                    text: JSON.stringify(
+                      {
+                        error: "Too many tags",
+                        maxTags: 20,
+                        provided: tags.length,
+                      },
+                      null,
+                      2
+                    ),
+                  },
+                ],
+                isError: true,
+              };
+            }
+
+            // Sanitize each tag
+            sanitizedTags = tags
+              .map(
+                (tag) =>
+                  DOMPurify.sanitize(tag, {
+                    ALLOWED_TAGS: [],
+                    ALLOWED_ATTR: [],
+                    KEEP_CONTENT: true,
+                  })
+                    .trim()
+                    .substring(0, 50) // Limit tag length to 50 chars
+              )
+              .filter((tag) => tag.length > 0); // Remove empty tags
+          }
+
+          // CRITICAL FIX: Deduct credits BEFORE expensive operation to prevent race conditions
+          // The deductCredits method uses database-level locking (SELECT FOR UPDATE)
           const deductionResult = await creditsService.deductCredits({
             organizationId: user.organization_id,
             amount: MEMORY_SAVE_COST,
-            description: `MCP memory save: ${type}`,
+            description: `MCP memory save (pending): ${type}`,
             metadata: {
               user_id: user.id,
-              memory_id: result.memoryId,
               type,
             },
           });
@@ -985,7 +1031,7 @@ const mcpHandler = createMcpHandler(
                   type: "text" as const,
                   text: JSON.stringify(
                     {
-                      error: "Failed to deduct credits",
+                      error: "Insufficient credits",
                       required: MEMORY_SAVE_COST,
                       available: deductionResult.newBalance,
                     },
@@ -996,6 +1042,36 @@ const mcpHandler = createMcpHandler(
               ],
               isError: true,
             };
+          }
+
+          let result: Awaited<ReturnType<typeof memoryService.saveMemory>>;
+          try {
+            result = await memoryService.saveMemory({
+              organizationId: user.organization_id,
+              roomId: roomId,
+              entityId: user.id,
+              content: sanitizedContent,
+              type,
+              tags: sanitizedTags,
+              metadata,
+              ttl,
+              persistent,
+            });
+          } catch (saveError) {
+            // CRITICAL FIX: Refund credits if save failed after deduction
+            await creditsService.refundCredits({
+              organizationId: user.organization_id,
+              amount: MEMORY_SAVE_COST,
+              description: `MCP memory save refund (failed): ${type}`,
+              metadata: {
+                user_id: user.id,
+                error:
+                  saveError instanceof Error
+                    ? saveError.message
+                    : "Unknown error",
+              },
+            });
+            throw saveError;
           }
 
           await usageService.create({
@@ -1107,53 +1183,95 @@ const mcpHandler = createMcpHandler(
             };
           }
 
-          const memories = await memoryService.retrieveMemories({
+          // CRITICAL FIX: Deduct credits BEFORE retrieval to prevent race conditions
+          // Estimate max cost upfront, then refund difference if actual cost is lower
+          const estimatedMaxCost = MEMORY_RETRIEVAL_MAX_COST;
+
+          const initialDeduction = await creditsService.deductCredits({
             organizationId: user.organization_id,
-            query,
-            roomId,
-            type,
-            tags,
-            limit,
-            sortBy,
+            amount: estimatedMaxCost,
+            description: "MCP memory retrieval (pending): estimated max",
+            metadata: {
+              user_id: user.id,
+              query,
+              estimated: true,
+            },
           });
 
-          const totalCost = Math.min(
+          if (!initialDeduction.success) {
+            return {
+              content: [
+                {
+                  type: "text" as const,
+                  text: JSON.stringify(
+                    {
+                      error: "Insufficient credits",
+                      required: estimatedMaxCost,
+                      available: initialDeduction.newBalance,
+                    },
+                    null,
+                    2
+                  ),
+                },
+              ],
+              isError: true,
+            };
+          }
+
+          let memories: Awaited<
+            ReturnType<typeof memoryService.retrieveMemories>
+          >;
+          try {
+            memories = await memoryService.retrieveMemories({
+              organizationId: user.organization_id,
+              query,
+              roomId,
+              type,
+              tags,
+              limit,
+              sortBy,
+            });
+          } catch (retrieveError) {
+            // CRITICAL FIX: Refund credits if retrieval failed
+            await creditsService.refundCredits({
+              organizationId: user.organization_id,
+              amount: estimatedMaxCost,
+              description: "MCP memory retrieval refund (failed)",
+              metadata: {
+                user_id: user.id,
+                error:
+                  retrieveError instanceof Error
+                    ? retrieveError.message
+                    : "Unknown error",
+              },
+            });
+            throw retrieveError;
+          }
+
+          // Calculate actual cost and refund difference if lower than estimated
+          const actualCost = Math.min(
             Math.ceil(memories.length * MEMORY_RETRIEVAL_COST_PER_ITEM),
             MEMORY_RETRIEVAL_MAX_COST
           );
 
-          if (totalCost > 0) {
-            const deductionResult = await creditsService.deductCredits({
+          const costDifference = estimatedMaxCost - actualCost;
+          if (costDifference > 0) {
+            // Refund the overestimate
+            await creditsService.refundCredits({
               organizationId: user.organization_id,
-              amount: totalCost,
-              description: `MCP memory retrieval: ${memories.length} memories`,
+              amount: costDifference,
+              description: `MCP memory retrieval refund (overestimate): ${memories.length} memories`,
               metadata: {
                 user_id: user.id,
                 query,
                 count: memories.length,
+                estimated: estimatedMaxCost,
+                actual: actualCost,
               },
             });
+          }
 
-            if (!deductionResult.success) {
-              return {
-                content: [
-                  {
-                    type: "text" as const,
-                    text: JSON.stringify(
-                      {
-                        error: "Failed to deduct credits",
-                        required: totalCost,
-                        available: deductionResult.newBalance,
-                      },
-                      null,
-                      2
-                    ),
-                  },
-                ],
-                isError: true,
-              };
-            }
-
+          if (actualCost > 0) {
             await usageService.create({
               organization_id: user.organization_id,
               user_id: user.id,
@@ -1163,7 +1281,7 @@ const mcpHandler = createMcpHandler(
               provider: "internal",
               input_tokens: 0,
               output_tokens: 0,
-              input_cost: totalCost,
+              input_cost: actualCost,
               output_cost: 0,
               is_successful: true,
             });
@@ -1182,7 +1300,7 @@ const mcpHandler = createMcpHandler(
                       createdAt: m.memory.createdAt,
                     })),
                     count: memories.length,
-                    cost: totalCost,
+                    cost: actualCost,
                   },
                   null,
                   2
@@ -1319,12 +1437,7 @@ const mcpHandler = createMcpHandler(
           .default("json")
           .describe("Output format"),
       },
-      async ({
-        roomId,
-        depth = 20,
-        includeMemories = true,
-        format: _format = "json",
-      }) => {
+      async ({ roomId, depth = 20 }) => {
         try {
           const { user } = getAuthContext();
 
@@ -1368,8 +1481,7 @@ const mcpHandler = createMcpHandler(
           const context = await memoryService.getRoomContext(
             roomId,
             user.organization_id,
-            depth,
-            includeMemories
+            depth
           );
 
           const deductionResult = await creditsService.deductCredits({
@@ -1652,13 +1764,7 @@ const mcpHandler = createMcpHandler(
           .default(10)
           .describe("Maximum results"),
       },
-      async ({
-        query,
-        model: _model,
-        dateFrom: _dateFrom,
-        dateTo: _dateTo,
-        limit = 10,
-      }) => {
+      async ({ query, limit = 10 }) => {
         try {
           const { user } = getAuthContext();
 
@@ -2151,12 +2257,7 @@ const mcpHandler = createMcpHandler(
           .default(true)
           .describe("Include conversation metadata"),
       },
-      async ({
-        conversationId,
-        format,
-        includeMemories = false,
-        includeMetadata: _includeMetadata = true,
-      }) => {
+      async ({ conversationId, format }) => {
         try {
           const { user } = getAuthContext();
 
@@ -2200,8 +2301,7 @@ const mcpHandler = createMcpHandler(
           const exportData = await memoryService.exportConversation(
             conversationId,
             user.organization_id,
-            format,
-            includeMemories
+            format
           );
 
           const deductionResult = await creditsService.deductCredits({
@@ -2475,7 +2575,7 @@ const mcpHandler = createMcpHandler(
           .optional()
           .describe("Grouping for timeline analysis"),
       },
-      async ({ analysisType, timeRange, groupBy: _groupBy }) => {
+      async ({ analysisType }) => {
         try {
           const { user } = getAuthContext();
 
@@ -2516,17 +2616,9 @@ const mcpHandler = createMcpHandler(
             };
           }
 
-          const timeRangeObj = timeRange
-            ? {
-                from: new Date(timeRange.from),
-                to: new Date(timeRange.to),
-              }
-            : undefined;
-
           const analysis = await memoryService.analyzeMemoryPatterns(
             user.organization_id,
-            analysisType,
-            timeRangeObj
+            analysisType
           );
 
           const deductionResult = await creditsService.deductCredits({
@@ -2691,11 +2783,7 @@ const mcpHandler = createMcpHandler(
 
           const actualRoomId =
             roomId ||
-            (await agentService.getOrCreateRoom(
-              entityId || user.id,
-              org.id,
-              user.organization_id
-            ));
+            (await agentService.getOrCreateRoom(entityId || user.id, org.id));
 
           const response = await agentService.sendMessage({
             roomId: actualRoomId,
@@ -2975,7 +3063,7 @@ const mcpHandler = createMcpHandler(
           .optional(),
         includeMetrics: z.boolean().optional().default(false),
       },
-      async ({ status, includeMetrics: _includeMetrics = false }) => {
+      async ({ status }) => {
         try {
           const { user } = getAuthContext();
           let containers = await containersService.listByOrganization(
@@ -3046,6 +3134,31 @@ async function handleRequest(req: NextRequest) {
   try {
     // Authenticate request
     const authResult = await requireAuthOrApiKey(req);
+
+    // SECURITY FIX: Rate limiting for MCP tool invocations
+    // Limit: 100 requests per minute per organization
+    const rateLimitKey = `mcp:ratelimit:${authResult.user.organization_id}`;
+    const rateLimit = await checkRateLimitRedis(rateLimitKey, 60000, 100);
+
+    if (!rateLimit.allowed) {
+      return NextResponse.json(
+        {
+          error: "rate_limit_exceeded",
+          error_description: `Rate limit exceeded. Maximum 100 MCP requests per minute allowed. Try again in ${Math.ceil((rateLimit.retryAfter || 60) / 1000)} seconds.`,
+          remaining: rateLimit.remaining,
+          resetAt: new Date(rateLimit.resetAt).toISOString(),
+        },
+        {
+          status: 429,
+          headers: {
+            "X-RateLimit-Limit": "100",
+            "X-RateLimit-Remaining": rateLimit.remaining.toString(),
+            "X-RateLimit-Reset": rateLimit.resetAt.toString(),
+            "Retry-After": (rateLimit.retryAfter || 60).toString(),
+          },
+        }
+      );
+    }
 
     // Run MCP handler within auth context using AsyncLocalStorage
     return await authContextStorage.run(authResult, async () => {
