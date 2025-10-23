@@ -2,7 +2,6 @@ import type { Character } from "@elizaos/core";
 import { openaiPlugin } from "@elizaos/plugin-openai";
 import { elevenLabsPlugin } from "@elizaos/plugin-elevenlabs";
 import { assistantPlugin } from "./plugin-assistant";
-import { voicePlugin } from "./plugin-voice";
 // NOTE: plugin-sql is provided via a pre-initialized adapter in agent-runtime
 
 /**
@@ -13,7 +12,6 @@ const character: Character = {
   name: "Eliza",
   plugins: [
     "@elizaos/plugin-elevenlabs",
-    "@eliza-cloud/plugin-voice",
   ],
   settings: {
     POSTGRES_URL: process.env.DATABASE_URL!,
@@ -30,6 +28,13 @@ const character: Character = {
     ELEVENLABS_OPTIMIZE_STREAMING_LATENCY: process.env.ELEVENLABS_OPTIMIZE_STREAMING_LATENCY || "0",
     ELEVENLABS_OUTPUT_FORMAT: process.env.ELEVENLABS_OUTPUT_FORMAT || "mp3_44100_128",
     ELEVENLABS_LANGUAGE_CODE: process.env.ELEVENLABS_LANGUAGE_CODE || "en",
+    // ElevenLabs STT Configuration
+    ELEVENLABS_STT_MODEL_ID: process.env.ELEVENLABS_STT_MODEL_ID || "scribe_v1",
+    ELEVENLABS_STT_LANGUAGE_CODE: process.env.ELEVENLABS_STT_LANGUAGE_CODE || "en",
+    ELEVENLABS_STT_TIMESTAMPS_GRANULARITY: process.env.ELEVENLABS_STT_TIMESTAMPS_GRANULARITY || "word",
+    ELEVENLABS_STT_DIARIZE: process.env.ELEVENLABS_STT_DIARIZE || "false",
+    ...(process.env.ELEVENLABS_STT_NUM_SPEAKERS && { ELEVENLABS_STT_NUM_SPEAKERS: process.env.ELEVENLABS_STT_NUM_SPEAKERS }),
+    ELEVENLABS_STT_TAG_AUDIO_EVENTS: process.env.ELEVENLABS_STT_TAG_AUDIO_EVENTS || "false",
     avatarUrl:
       "https://raw.githubusercontent.com/elizaOS/eliza-avatars/refs/heads/master/Eliza/portrait.png",
   },
@@ -101,21 +106,18 @@ const character: Character = {
 const agent = {
   character,
   // Now using full plugin architecture with events, providers, and actions
-  // Includes OpenAI for LLM, ElevenLabs for TTS, and custom voice plugin for STT
+  // Includes OpenAI for LLM, and ElevenLabs for both TTS and STT
   plugins: [
     openaiPlugin,
     elevenLabsPlugin,
-    voicePlugin,
     assistantPlugin,
   ],
   providers: [
     ...(elevenLabsPlugin.providers || []),
-    ...(voicePlugin.providers || []),
     ...(assistantPlugin.providers || []),
   ].flat(),
   actions: [
     ...(elevenLabsPlugin.actions || []),
-    ...(voicePlugin.actions || []),
     ...(assistantPlugin.actions || []),
   ].flat(),
 };

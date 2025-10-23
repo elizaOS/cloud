@@ -3,8 +3,13 @@
 import { useState, useEffect, useRef, useCallback } from "react";
 import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { Loader2, Send, Bot, User, Clock, MessageSquare } from "lucide-react";
+import { Loader2, Send, Bot, User, Clock, MessageSquare, Mic, Square, Play, Volume2 } from "lucide-react";
 import { ElizaAvatar } from "./eliza-avatar";
+import { useAudioRecorder } from "./hooks/use-audio-recorder";
+import { useAudioPlayer } from "./hooks/use-audio-player";
+import { toast } from "sonner";
+import { Switch } from "@/components/ui/switch";
+import { Label } from "@/components/ui/label";
 
 interface Message {
   id: string;
@@ -42,6 +47,13 @@ export function ElizaChatInterface() {
   const pollIntervalRef = useRef<NodeJS.Timeout | null>(null);
   const roomsIntervalRef = useRef<NodeJS.Timeout | null>(null);
   const thinkingTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const [autoPlayTTS, setAutoPlayTTS] = useState(false);
+  const [currentPlayingId, setCurrentPlayingId] = useState<string | null>(null);
+  const [isProcessingSTT, setIsProcessingSTT] = useState(false);
+  const messageAudioUrls = useRef<Map<string, string>>(new Map());
+
+  const recorder = useAudioRecorder();
+  const player = useAudioPlayer();
 
   // Generate a unique entity ID for this session
   const entityId = useRef<string>("");
@@ -201,6 +213,140 @@ export function ElizaChatInterface() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  const generateSpeech = useCallback(
+    async (text: string, messageId: string) => {
+      try {
+        const response = await fetch("/api/elevenlabs/tts", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ text }),
+        });
+
+        if (!response.ok) {
+          throw new Error("Failed to generate speech");
+        }
+
+        const audioBlob = await response.blob();
+        const audioUrl = URL.createObjectURL(audioBlob);
+        messageAudioUrls.current.set(messageId, audioUrl);
+
+        if (autoPlayTTS) {
+          setCurrentPlayingId(messageId);
+          await player.playAudio(audioUrl);
+        }
+
+        return audioUrl;
+      } catch (error) {
+        console.error("TTS error:", error);
+        toast.error("Failed to generate speech");
+      }
+    },
+    [autoPlayTTS, player],
+  );
+
+  const handleVoiceInput = useCallback(() => {
+    if (recorder.isRecording) {
+      recorder.stopRecording();
+    } else {
+      recorder.startRecording();
+      if (recorder.error) {
+        toast.error(recorder.error);
+      }
+    }
+  }, [recorder]);
+
+  // Process audio blob when it becomes available after recording stops
+  useEffect(() => {
+    const processAudioBlob = async () => {
+      // Guard: Don't process if no audio blob or already processing
+      if (!recorder.audioBlob || isProcessingSTT) return;
+
+      console.log("[ElizaChat STT] Starting transcription...");
+      setIsProcessingSTT(true);
+
+      try {
+        // Create FormData with audio file
+        const formData = new FormData();
+        const audioFile = new File([recorder.audioBlob], "recording.webm", {
+          type: recorder.audioBlob.type || "audio/webm"
+        });
+        formData.append("audio", audioFile);
+
+        console.log("[ElizaChat STT] Sending audio to API...", {
+          size: audioFile.size,
+          type: audioFile.type
+        });
+
+        // Call STT API
+        const response = await fetch("/api/elevenlabs/stt", {
+          method: "POST",
+          body: formData,
+        });
+
+        if (!response.ok) {
+          const error = await response.json();
+          throw new Error(error.error || "Failed to transcribe audio");
+        }
+
+        // Parse response - API returns { transcript, duration_ms }
+        const { transcript, duration_ms } = await response.json();
+
+        console.log("[ElizaChat STT] Transcription received:", {
+          transcript,
+          duration_ms,
+          length: transcript?.length || 0
+        });
+
+        // Validate transcript
+        if (!transcript || transcript.trim().length === 0) {
+          toast.error("No speech detected. Please try again.");
+          console.warn("[ElizaChat STT] Empty transcript received");
+          return;
+        }
+
+        console.log("[ElizaChat STT] Transcription successful:", transcript);
+
+        // Auto-send the transcribed message directly (like /dashboard/text does)
+        if (roomId) {
+          console.log("[ElizaChat STT] Auto-sending transcribed message...");
+          await sendMessage(transcript);
+        } else {
+          console.warn("[ElizaChat STT] No roomId available, skipping auto-send");
+        }
+
+      } catch (error) {
+        console.error("[ElizaChat STT] Error:", error);
+        toast.error(
+          error instanceof Error ? error.message : "Failed to transcribe audio",
+        );
+      } finally {
+        // Cleanup: Clear recording and reset processing state
+        recorder.clearRecording();
+        setIsProcessingSTT(false);
+        console.log("[ElizaChat STT] Processing complete");
+      }
+    };
+
+    processAudioBlob();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [recorder.audioBlob, isProcessingSTT, recorder, roomId]);
+
+  // Generate TTS for new agent messages
+  useEffect(() => {
+    const newAgentMessages = messages.filter(
+      (msg) =>
+        msg.isAgent &&
+        !msg.id.startsWith("thinking-") &&
+        !messageAudioUrls.current.has(msg.id),
+    );
+
+    newAgentMessages.forEach((msg) => {
+      if (msg.content.text) {
+        generateSpeech(msg.content.text, msg.id).catch(console.error);
+      }
+    });
+  }, [messages, generateSpeech]);
+
   // Poll for new messages
   useEffect(() => {
     if (!roomId) return;
@@ -277,11 +423,13 @@ export function ElizaChatInterface() {
     }
   }, [messages]);
 
-  const sendMessage = async () => {
-    if (!inputText.trim() || !roomId || isLoading) return;
+  const sendMessage = async (textOverride?: string) => {
+    const messageText = textOverride?.trim() || inputText.trim();
+    if (!messageText || !roomId || isLoading) return;
 
-    const messageText = inputText.trim();
-    setInputText("");
+    if (!textOverride) {
+      setInputText("");
+    }
     setIsLoading(true);
     setError(null);
 
@@ -513,13 +661,25 @@ export function ElizaChatInterface() {
       <div className="flex flex-col flex-1 h-full">
         {/* Header */}
         <div className="border-b p-4">
-          <div className="flex items-center gap-3">
-            <div className="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center">
-              <Bot className="h-5 w-5 text-primary" />
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              <div className="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center">
+                <Bot className="h-5 w-5 text-primary" />
+              </div>
+              <div>
+                <h3 className="text-sm font-semibold">Eliza</h3>
+                <p className="text-xs text-muted-foreground">AI Assistant</p>
+              </div>
             </div>
-            <div>
-              <h3 className="text-sm font-semibold">Eliza</h3>
-              <p className="text-xs text-muted-foreground">AI Assistant</p>
+            <div className="flex items-center gap-2">
+              <Label htmlFor="auto-tts" className="text-xs cursor-pointer">
+                Auto-play
+              </Label>
+              <Switch
+                id="auto-tts"
+                checked={autoPlayTTS}
+                onCheckedChange={setAutoPlayTTS}
+              />
             </div>
           </div>
         </div>
@@ -592,14 +752,41 @@ export function ElizaChatInterface() {
                           {message.content.text}
                         </div>
                         <div
-                          className={`flex items-center gap-2 text-xs mt-2 pt-2 border-t ${
+                          className={`flex items-center justify-between gap-2 text-xs mt-2 pt-2 border-t ${
                             message.isAgent
                               ? "border-border text-muted-foreground"
                               : "border-primary-foreground/20 text-primary-foreground/80"
                           }`}
                         >
-                          <Clock className="h-3 w-3" />
-                          <span>{formatTimestamp(message.createdAt)}</span>
+                          <div className="flex items-center gap-2">
+                            <Clock className="h-3 w-3" />
+                            <span>{formatTimestamp(message.createdAt)}</span>
+                          </div>
+                          {message.isAgent && messageAudioUrls.current.has(message.id) && (
+                            <Button
+                              size="sm"
+                              variant="ghost"
+                              className="h-6 w-6 p-0"
+                              onClick={() => {
+                                const url = messageAudioUrls.current.get(message.id);
+                                if (url) {
+                                  if (currentPlayingId === message.id && player.isPlaying) {
+                                    player.stopAudio();
+                                    setCurrentPlayingId(null);
+                                  } else {
+                                    setCurrentPlayingId(message.id);
+                                    player.playAudio(url);
+                                  }
+                                }
+                              }}
+                            >
+                              {currentPlayingId === message.id && player.isPlaying ? (
+                                <Square className="h-3 w-3" />
+                              ) : (
+                                <Volume2 className="h-3 w-3" />
+                              )}
+                            </Button>
+                          )}
                         </div>
                       </>
                     )}
@@ -625,6 +812,19 @@ export function ElizaChatInterface() {
           className="border-t p-4"
         >
           <div className="flex gap-2">
+            <Button
+              type="button"
+              variant={recorder.isRecording ? "destructive" : "outline"}
+              size="lg"
+              disabled={isLoading || !roomId}
+              onClick={handleVoiceInput}
+            >
+              {recorder.isRecording ? (
+                <Square className="h-5 w-5" />
+              ) : (
+                <Mic className="h-5 w-5" />
+              )}
+            </Button>
             <div className="flex-1 relative">
               <input
                 value={inputText}
@@ -635,14 +835,18 @@ export function ElizaChatInterface() {
                     sendMessage();
                   }
                 }}
-                placeholder="Type your message..."
-                disabled={isLoading || !roomId}
+                placeholder={
+                  recorder.isRecording
+                    ? "Recording... Click stop when done"
+                    : "Type your message or use voice input..."
+                }
+                disabled={isLoading || !roomId || recorder.isRecording}
                 className="w-full rounded-lg border bg-background px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-ring disabled:opacity-50"
               />
             </div>
             <Button
               type="submit"
-              disabled={isLoading || !roomId || !inputText.trim()}
+              disabled={isLoading || !roomId || !inputText.trim() || recorder.isRecording}
               size="lg"
             >
               {isLoading ? (
