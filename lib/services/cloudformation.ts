@@ -37,6 +37,8 @@ export interface StackOutputs {
   clusterArn: string;
   instanceId: string;
   instancePublicIp: string;
+  instancePublicDns: string;
+  directAccessUrl: string;
   serviceArn: string;
   taskDefinitionArn: string;
   targetGroupArn: string;
@@ -468,8 +470,10 @@ export class CloudFormationService {
     return {
       clusterName: getOutput("ClusterName"),
       clusterArn: getOutput("ClusterArn"),
-      instanceId: getOutput("InstanceId"),
-      instancePublicIp: getOutput("InstancePublicIp"),
+      instanceId: getOutput("EC2InstanceId"),
+      instancePublicIp: getOutput("EC2InstancePublicIP"),
+      instancePublicDns: getOutput("EC2InstancePublicDNS"),
+      directAccessUrl: getOutput("DirectAccessUrl"),
       serviceArn: getOutput("ServiceArn"),
       taskDefinitionArn: getOutput("TaskDefinitionArn"),
       targetGroupArn: getOutput("TargetGroupArn"),
