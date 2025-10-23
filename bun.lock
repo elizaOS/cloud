@@ -17,7 +17,7 @@
         "@aws-sdk/s3-request-presigner": "^3.913.0",
         "@elevenlabs/elevenlabs-js": "^2.20.1",
         "@elizaos/core": "^1.6.2",
-        "@elizaos/plugin-elevenlabs": "^1.5.13",
+        "@elizaos/plugin-elevenlabs": "^1.6.0",
         "@elizaos/plugin-openai": "^1.5.16",
         "@elizaos/plugin-sql": "^1.6.2",
         "@fal-ai/client": "^1.7.0",
@@ -329,7 +329,7 @@
 
     "@elizaos/core": ["@elizaos/core@1.6.2", "", { "dependencies": { "adze": "^2.2.5", "crypto-browserify": "^3.12.0", "dotenv": "17.2.3", "glob": "11.0.3", "handlebars": "^4.7.8", "langchain": "^0.3.35", "pdfjs-dist": "^5.2.133", "unique-names-generator": "4.7.1", "uuid": "13.0.0", "zod": "4.1.11" } }, "sha512-Q2DJZyDHF2EHEoeLr4HMCEfx6De16Jhs4Mr4VmMGpzrcx7OFmzEO/zr4o1Z86nusZRxs+qRCuNeFrU4+2vpJYA=="],
 
-    "@elizaos/plugin-elevenlabs": ["@elizaos/plugin-elevenlabs@1.5.13", "", { "dependencies": { "@elevenlabs/elevenlabs-js": "^2.16.0", "@elizaos/core": "1.5.10" } }, "sha512-lFNbKc2DjzBOlafABhZK75wnNSSmvmh1o8Fq/lnl/QefLGXjjL01X00uSreu6WIFLkANMWjh2Ue8k1oyAomCWQ=="],
+    "@elizaos/plugin-elevenlabs": ["@elizaos/plugin-elevenlabs@1.6.0", "", { "dependencies": { "@elevenlabs/elevenlabs-js": "^2.16.0", "@elizaos/core": "1.5.10" } }, "sha512-sXxFWCxa3F3Wx2gKWLYlM11Usj5NGSC7znt0I2DwnPGAvhfVYcCMfOHqbkpN+KtJOAJTxZf51eZKDZse3Y5Cmg=="],
 
     "@elizaos/plugin-openai": ["@elizaos/plugin-openai@1.5.16", "", { "dependencies": { "@ai-sdk/openai": "^2.0.32", "@elizaos/core": "^1.6.0-alpha.4", "ai": "^5.0.47", "js-tiktoken": "^1.0.21", "undici": "^7.16.0" }, "peerDependencies": { "zod": "^3.25.76 || ^4.1.8" } }, "sha512-CtKlqT+M27yLC7kOJJSJHwcttjpU0pvgZQf7ohj8qmVmdgbHHnGKWEl52YlXqzOrdsXs1lqHFEOs/8DxDIpODg=="],
 
