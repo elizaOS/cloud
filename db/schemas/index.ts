@@ -15,3 +15,4 @@ export * from "./containers";
 export * from "./alb-priorities";
 export * from "./relations";
 export * from "./eliza";
+export * from "./eliza-room-characters";
