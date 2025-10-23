@@ -188,148 +188,53 @@
         "Roles": ["elizaos-ecs-instance-role"]
       }
     },
-    "LaunchTemplate": {
-      "Type": "AWS::EC2::LaunchTemplate",
+    "EC2Instance": {
+      "Type": "AWS::EC2::Instance",
       "Properties": {
-        "LaunchTemplateName": {
-          "Fn::Sub": "elizaos-user-${UserId}-lt"
+        "ImageId": {
+          "Fn::Sub": "{{resolve:ssm:/aws/service/ecs/optimized-ami/amazon-linux-2/arm64/recommended/image_id}}"
         },
-        "LaunchTemplateData": {
-          "ImageId": {
-            "Fn::Sub": "{{resolve:ssm:/aws/service/ecs/optimized-ami/amazon-linux-2/arm64/recommended/image_id}}"
-          },
-          "InstanceType": "t4g.small",
-          "IamInstanceProfile": {
-            "Arn": { "Fn::GetAtt": ["InstanceProfile", "Arn"] }
-          },
-          "KeyName": {
-            "Fn::If": [
-              "HasKeyPair",
-              { "Ref": "KeyName" },
-              { "Ref": "AWS::NoValue" }
-            ]
-          },
-          "SecurityGroupIds": [{ "Ref": "UserSecurityGroup" }],
-          "UserData": {
-            "Fn::Base64": {
-              "Fn::Sub": "#!/bin/bash\nset -x\n\n# Configure ECS to join the cluster\nmkdir -p /etc/ecs\necho \"ECS_CLUSTER=elizaos-user-${UserId}\" > /etc/ecs/ecs.config\necho \"ECS_ENABLE_CONTAINER_METADATA=true\" >> /etc/ecs/ecs.config\necho \"ECS_RESERVED_MEMORY=256\" >> /etc/ecs/ecs.config\n\n# Ensure Docker is running (AL2 ECS-optimized AMI)\nsystemctl enable --now docker || true\nfor i in {1..30}; do\n  if systemctl is-active docker >/dev/null 2>&1; then break; fi\n  sleep 2\ndone\n\n# Restart ECS agent cleanly\nsystemctl stop ecs 2>/dev/null || true\nrm -rf /var/lib/ecs/data/* 2>/dev/null || true\nsystemctl enable --now ecs || true\n\n# Wait for ECS agent to be ready\nfor i in {1..60}; do\n  if curl -sf http://localhost:51678/v1/metadata >/dev/null 2>&1; then break; fi\n  sleep 2\ndone\n"
+        "InstanceType": "t4g.small",
+        "IamInstanceProfile": { "Ref": "InstanceProfile" },
+        "KeyName": {
+          "Fn::If": [
+            "HasKeyPair",
+            { "Ref": "KeyName" },
+            { "Ref": "AWS::NoValue" }
+          ]
+        },
+        "SubnetId": { "Ref": "SharedSubnetId" },
+        "SecurityGroupIds": [{ "Ref": "UserSecurityGroup" }],
+        "BlockDeviceMappings": [
+          {
+            "DeviceName": "/dev/xvda",
+            "Ebs": {
+              "VolumeSize": 35,
+              "VolumeType": "gp3",
+              "DeleteOnTermination": true,
+              "Encrypted": true,
+              "Iops": 3000,
+              "Throughput": 125
             }
-          },
-          "BlockDeviceMappings": [
-            {
-              "DeviceName": "/dev/xvda",
-              "Ebs": {
-                "VolumeSize": 35,
-                "VolumeType": "gp3",
-                "DeleteOnTermination": true,
-                "Encrypted": true,
-                "Iops": 3000,
-                "Throughput": 125
-              }
-            }
-          ],
-          "TagSpecifications": [
-            {
-              "ResourceType": "instance",
-              "Tags": [
-                {
-                  "Key": "Name",
-                  "Value": { "Fn::Sub": "elizaos-user-${UserId}" }
-                },
-                { "Key": "UserId", "Value": { "Ref": "UserId" } },
-                { "Key": "UserEmail", "Value": { "Ref": "UserEmail" } },
-                { "Key": "Project", "Value": "ElizaOS" },
-                { "Key": "Environment", "Value": "production" },
-                { "Key": "BillingEntity", "Value": "ElizaOS" },
-                { "Key": "CostCenter", "Value": { "Ref": "UserId" } },
-                { "Key": "ManagedBy", "Value": "CloudFormation" }
-              ]
-            },
-            {
-              "ResourceType": "volume",
-              "Tags": [
-                {
-                  "Key": "Name",
-                  "Value": { "Fn::Sub": "elizaos-user-${UserId}-ebs" }
-                },
-                { "Key": "UserId", "Value": { "Ref": "UserId" } },
-                { "Key": "Project", "Value": "ElizaOS" },
-                { "Key": "BillingEntity", "Value": "ElizaOS" },
-                { "Key": "CostCenter", "Value": { "Ref": "UserId" } },
-                { "Key": "ManagedBy", "Value": "CloudFormation" }
-              ]
-            }
-          ],
-          "MetadataOptions": {
-            "HttpTokens": "required",
-            "HttpPutResponseHopLimit": 2
           }
-        }
-      }
-    },
-    "AutoScalingGroup": {
-      "Type": "AWS::AutoScaling::AutoScalingGroup",
-      "UpdatePolicy": {
-        "AutoScalingReplacingUpdate": {
-          "WillReplace": true
-        }
-      },
-      "Properties": {
-        "AutoScalingGroupName": {
-          "Fn::Sub": "elizaos-user-${UserId}-asg"
+        ],
+        "UserData": {
+          "Fn::Base64": {
+            "Fn::Sub": "#!/bin/bash\necho ECS_CLUSTER=elizaos-user-${UserId} >> /etc/ecs/ecs.config\necho ECS_ENABLE_CONTAINER_METADATA=true >> /etc/ecs/ecs.config\nsystemctl enable --now ecs\n"
+          }
         },
-        "VPCZoneIdentifier": [{ "Ref": "SharedSubnetId" }],
-        "LaunchTemplate": {
-          "LaunchTemplateId": { "Ref": "LaunchTemplate" },
-          "Version": { "Fn::GetAtt": ["LaunchTemplate", "LatestVersionNumber"] }
-        },
-        "MinSize": "1",
-        "MaxSize": "1",
-        "DesiredCapacity": "1",
-        "HealthCheckType": "EC2",
-        "HealthCheckGracePeriod": 300,
-        "NewInstancesProtectedFromScaleIn": false,
         "Tags": [
           {
             "Key": "Name",
-            "Value": { "Fn::Sub": "elizaos-user-${UserId}" },
-            "PropagateAtLaunch": true
+            "Value": { "Fn::Sub": "elizaos-user-${UserId}" }
           },
-          {
-            "Key": "UserId",
-            "Value": { "Ref": "UserId" },
-            "PropagateAtLaunch": true
-          },
-          {
-            "Key": "UserEmail",
-            "Value": { "Ref": "UserEmail" },
-            "PropagateAtLaunch": true
-          },
-          {
-            "Key": "Project",
-            "Value": "ElizaOS",
-            "PropagateAtLaunch": true
-          },
-          {
-            "Key": "Environment",
-            "Value": "production",
-            "PropagateAtLaunch": true
-          },
-          {
-            "Key": "BillingEntity",
-            "Value": "ElizaOS",
-            "PropagateAtLaunch": true
-          },
-          {
-            "Key": "CostCenter",
-            "Value": { "Ref": "UserId" },
-            "PropagateAtLaunch": true
-          },
-          {
-            "Key": "ManagedBy",
-            "Value": "CloudFormation",
-            "PropagateAtLaunch": true
-          }
+          { "Key": "UserId", "Value": { "Ref": "UserId" } },
+          { "Key": "UserEmail", "Value": { "Ref": "UserEmail" } },
+          { "Key": "Project", "Value": "ElizaOS" },
+          { "Key": "Environment", "Value": "production" },
+          { "Key": "BillingEntity", "Value": "ElizaOS" },
+          { "Key": "CostCenter", "Value": { "Ref": "UserId" } },
+          { "Key": "ManagedBy", "Value": "CloudFormation" }
         ]
       }
     },
@@ -546,7 +451,7 @@
     },
     "ECSService": {
       "Type": "AWS::ECS::Service",
-      "DependsOn": ["AutoScalingGroup", "ListenerRule", "TargetGroup"],
+      "DependsOn": ["EC2Instance", "ListenerRule", "TargetGroup"],
       "Properties": {
         "ServiceName": {
           "Fn::Sub": "elizaos-user-${UserId}"
@@ -573,8 +478,8 @@
         },
         "PlacementStrategies": [
           {
-            "Type": "spread",
-            "Field": "instanceId"
+            "Type": "binpack",
+            "Field": "cpu"
           }
         ],
         "Tags": [
@@ -596,9 +501,13 @@
       "Description": "ECS Cluster ARN",
       "Value": { "Fn::GetAtt": ["ECSCluster", "Arn"] }
     },
-    "AutoScalingGroupName": {
-      "Description": "Auto Scaling Group Name",
-      "Value": { "Ref": "AutoScalingGroup" }
+    "EC2InstanceId": {
+      "Description": "EC2 Instance ID",
+      "Value": { "Ref": "EC2Instance" }
+    },
+    "EC2InstancePublicIP": {
+      "Description": "EC2 Instance Public IP",
+      "Value": { "Fn::GetAtt": ["EC2Instance", "PublicIp"] }
     },
     "ServiceArn": {
       "Description": "ECS Service ARN",
