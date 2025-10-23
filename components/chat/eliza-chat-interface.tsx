@@ -10,6 +10,8 @@ import { useAudioPlayer } from "./hooks/use-audio-player";
 import { toast } from "sonner";
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import type { ElizaCharacter } from "@/lib/types";
 
 interface Message {
   id: string;
@@ -25,6 +27,7 @@ interface RoomItem {
   id: string;
   lastText?: string;
   lastTime?: number;
+  characterId?: string;
 }
 
 interface AgentInfo {
@@ -33,8 +36,18 @@ interface AgentInfo {
   avatarUrl?: string;
 }
 
-export function ElizaChatInterface() {
+interface ElizaChatInterfaceProps {
+  availableCharacters?: ElizaCharacter[];
+}
+
+export function ElizaChatInterface({ availableCharacters = [] }: ElizaChatInterfaceProps) {
+  const [selectedCharacterId, setSelectedCharacterId] = useState<string | null>(null);
   const [roomId, setRoomId] = useState<string | null>(null);
+
+  // Debug: Log character selection changes
+  useEffect(() => {
+    console.log("[ElizaChat] Character selection changed:", selectedCharacterId || "default");
+  }, [selectedCharacterId]);
   const [messages, setMessages] = useState<Message[]>([]);
   const [rooms, setRooms] = useState<RoomItem[]>([]);
   const [agentInfo, setAgentInfo] = useState<AgentInfo | null>(null);
@@ -75,7 +88,9 @@ export function ElizaChatInterface() {
       if (res.ok) {
         const data = await res.json();
         if (Array.isArray(data.rooms)) {
-          const list = data.rooms.slice(0, 12) as { id: string }[];
+          const list = data.rooms.slice(0, 12) as { id: string; characterId?: string }[];
+          console.log("[ElizaChat] Loaded rooms from API:", list.map(r => ({ id: r.id.substring(0, 8), characterId: r.characterId })));
+
           // Fetch last message preview per room (best-effort)
           const enriched: RoomItem[] = await Promise.all(
             list.map(async (r) => {
@@ -92,14 +107,19 @@ export function ElizaChatInterface() {
                   const last = msgs[msgs.length - 1];
                   return {
                     id: r.id,
+                    characterId: r.characterId,  // CRITICAL: Preserve characterId from API
                     lastText: last?.content?.text || "",
                     lastTime: last?.createdAt || 0,
                   } as RoomItem;
                 }
               } catch {}
-              return { id: r.id } as RoomItem;
+              return {
+                id: r.id,
+                characterId: r.characterId,  // CRITICAL: Preserve characterId even on error
+              } as RoomItem;
             }),
           );
+          console.log("[ElizaChat] Enriched rooms:", enriched.map(r => ({ id: r.id.substring(0, 8), characterId: r.characterId })));
           setRooms(enriched);
         }
       }
@@ -119,6 +139,14 @@ export function ElizaChatInterface() {
         if (data.agent) {
           setAgentInfo(data.agent);
         }
+        // Update selected character based on room's assignment
+        if (data.characterId) {
+          console.log("[ElizaChat] Room uses character:", data.characterId);
+          setSelectedCharacterId(data.characterId);
+        } else {
+          console.log("[ElizaChat] Room uses default character");
+          setSelectedCharacterId(null);
+        }
       }
     } catch (err) {
       console.error("Error loading messages:", err);
@@ -126,13 +154,17 @@ export function ElizaChatInterface() {
   }, []);
 
   const createRoom = useCallback(async () => {
+    console.log("[ElizaChat] Creating room with character:", selectedCharacterId || "default");
     setIsInitializing(true);
     setError(null);
     try {
       const response = await fetch("/api/eliza/rooms", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ entityId: entityId.current }),
+        body: JSON.stringify({
+          entityId: entityId.current,
+          characterId: selectedCharacterId || undefined,
+        }),
       });
 
       if (!response.ok) {
@@ -140,21 +172,27 @@ export function ElizaChatInterface() {
       }
 
       const data = await response.json();
+      console.log("[ElizaChat] Room created:", {
+        roomId: data.roomId,
+        characterId: data.characterId,
+        requestedCharacterId: selectedCharacterId,
+      });
+
       setRoomId(data.roomId);
       if (typeof window !== "undefined") {
         window.localStorage.setItem("elizaRoomId", data.roomId);
       }
 
-      // Load initial messages
+      // Load initial messages (this will also update selectedCharacterId based on room's character)
       await loadMessages(data.roomId);
       await loadRooms();
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to create room");
-      console.error("Error creating room:", err);
+      console.error("[ElizaChat] Error creating room:", err);
     } finally {
       setIsInitializing(false);
     }
-  }, [loadMessages, loadRooms]);
+  }, [loadMessages, loadRooms, selectedCharacterId]);
 
   // Initialize room: restore saved room or use most recent existing room
   useEffect(() => {
@@ -595,6 +633,34 @@ export function ElizaChatInterface() {
               New
             </Button>
           </div>
+
+          {/* Character Selector */}
+          {availableCharacters.length > 0 && (
+            <div className="space-y-2">
+              <Label htmlFor="character-select" className="text-xs text-muted-foreground">
+                Character
+              </Label>
+              <Select
+                value={selectedCharacterId || "default"}
+                onValueChange={(value) =>
+                  setSelectedCharacterId(value === "default" ? null : value)
+                }
+              >
+                <SelectTrigger id="character-select" className="h-8 text-xs">
+                  <SelectValue placeholder="Default (Eliza)" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="default">Default (Eliza)</SelectItem>
+                  {availableCharacters.map((char) => (
+                    <SelectItem key={char.id} value={char.id!}>
+                      {char.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          )}
+
           <Button
             size="sm"
             variant="outline"
@@ -612,38 +678,50 @@ export function ElizaChatInterface() {
               </div>
             ) : (
               <>
-                {rooms.map((r) => (
-                  <button
-                    key={r.id}
-                    className={`w-full rounded-lg px-3 py-3 text-left transition-all hover:bg-accent/50 ${
-                      r.id === roomId ? "bg-accent" : ""
-                    }`}
-                    onClick={() => {
-                      setRoomId(r.id);
-                      if (typeof window !== "undefined") {
-                        window.localStorage.setItem("elizaRoomId", r.id);
-                      }
-                      setMessages([]);
-                      loadMessages(r.id);
-                    }}
-                  >
-                    <div className="flex items-center justify-between mb-1">
-                      <div className="text-xs font-semibold truncate flex-1">
-                        Room {r.id.substring(0, 8)}...
-                      </div>
+                {rooms.map((r) => {
+                  const roomCharacter = r.characterId
+                    ? availableCharacters.find(c => c.id === r.characterId)
+                    : null;
+                  const characterName = roomCharacter?.name || "Default";
+
+                  return (
+                    <button
+                      key={r.id}
+                      className={`w-full rounded-lg px-3 py-3 text-left transition-all hover:bg-accent/50 ${
+                        r.id === roomId ? "bg-accent" : ""
+                      }`}
+                      onClick={() => {
+                        setRoomId(r.id);
+                        if (typeof window !== "undefined") {
+                          window.localStorage.setItem("elizaRoomId", r.id);
+                        }
+                        setMessages([]);
+                        loadMessages(r.id);
+                      }}
+                    >
+                      <div className="flex items-center justify-between mb-1">
+                        <div className="text-xs font-semibold truncate flex-1">
+                          Room {r.id.substring(0, 8)}...
+                        </div>
                       {r.lastTime ? (
                         <div className="text-[10px] text-muted-foreground whitespace-nowrap ml-2">
                           {formatTimestamp(r.lastTime)}
                         </div>
                       ) : null}
                     </div>
-                    {r.lastText && (
-                      <div className="text-xs text-muted-foreground truncate">
-                        {r.lastText}
+                    <div className="flex items-center gap-2">
+                      <div className="text-[10px] px-1.5 py-0.5 rounded bg-primary/10 text-primary font-medium">
+                        {characterName}
                       </div>
-                    )}
+                      {r.lastText && (
+                        <div className="text-xs text-muted-foreground truncate flex-1">
+                          {r.lastText}
+                        </div>
+                      )}
+                    </div>
                   </button>
-                ))}
+                );
+                })}
                 {rooms.length === 0 && !isLoadingRooms && (
                   <div className="px-3 py-8 text-center">
                     <p className="text-xs text-muted-foreground">

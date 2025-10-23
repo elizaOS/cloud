@@ -11,3 +11,4 @@ export * from "./user-characters";
 export * from "./model-pricing";
 export * from "./provider-health";
 export * from "./containers";
+export * from "./eliza-room-characters";
