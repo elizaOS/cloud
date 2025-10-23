@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { requireAuth } from "@/lib/auth";
 import { ElizaPageClient } from "@/components/chat/eliza-page-client";
+import { listCharacters } from "@/app/actions/characters";
 
 export const metadata: Metadata = {
   title: "Eliza Agent",
@@ -14,5 +15,8 @@ export const dynamic = "force-dynamic";
 export default async function ElizaPage() {
   await requireAuth();
 
-  return <ElizaPageClient />;
+  // Load available characters for selection
+  const characters = await listCharacters();
+
+  return <ElizaPageClient initialCharacters={characters} />;
 }

@@ -15,6 +15,7 @@ import {
 } from "@/lib/pricing";
 import { logger } from "@/lib/utils/logger";
 import type { NextRequest } from "next/server";
+import { elizaRoomCharactersRepository } from "@/db/repositories";
 
 export const maxDuration = 60;
 
@@ -96,11 +97,31 @@ export async function POST(
       );
     }
 
+    // Look up character for this room
+    let characterId: string | undefined;
+    try {
+      const roomCharacter = await elizaRoomCharactersRepository.findByRoomId(roomId);
+      if (roomCharacter) {
+        characterId = roomCharacter.character_id;
+        logger.info("[Eliza Messages API] ✓ Using custom character:", characterId, "for room:", roomId);
+      } else {
+        logger.info("[Eliza Messages API] ⓘ No character mapping found for room:", roomId, "- using default character");
+      }
+    } catch (lookupError) {
+      logger.error("[Eliza Messages API] ✗ Failed to lookup character mapping:", lookupError);
+      // Continue with default character
+    }
+
     // Handle the message and get usage information
-    const result = await agentRuntime.handleMessage(roomId, entityId, {
-      text,
-      attachments: attachments || [],
-    });
+    const result = await agentRuntime.handleMessage(
+      roomId,
+      entityId,
+      {
+        text,
+        attachments: attachments || [],
+      },
+      characterId,
+    );
 
     const { message, usage } = result;
 
