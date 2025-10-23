@@ -1000,7 +1000,7 @@ const mcpHandler = createMcpHandler(
             // Sanitize each tag
             sanitizedTags = tags
               .map(
-                (tag) =>
+                (tag: string) =>
                   DOMPurify.sanitize(tag, {
                     ALLOWED_TAGS: [],
                     ALLOWED_ATTR: [],
@@ -1009,7 +1009,7 @@ const mcpHandler = createMcpHandler(
                     .trim()
                     .substring(0, 50) // Limit tag length to 50 chars
               )
-              .filter((tag) => tag.length > 0); // Remove empty tags
+              .filter((tag: string) => tag.length > 0); // Remove empty tags
           }
 
           // CRITICAL FIX: Deduct credits BEFORE expensive operation to prevent race conditions
