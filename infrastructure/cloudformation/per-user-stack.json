@@ -213,8 +213,7 @@
               "VolumeType": "gp3",
               "DeleteOnTermination": true,
               "Encrypted": true,
-              "Iops": 3000,
-              "Throughput": 125
+              "Iops": 3000
             }
           }
         ],
