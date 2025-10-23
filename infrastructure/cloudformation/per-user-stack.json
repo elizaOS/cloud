@@ -100,7 +100,14 @@
             "FromPort": { "Ref": "ContainerPort" },
             "ToPort": { "Ref": "ContainerPort" },
             "SourceSecurityGroupId": { "Ref": "SharedALBSecurityGroupId" },
-            "Description": "Allow traffic from ALB only"
+            "Description": "Allow traffic from ALB"
+          },
+          {
+            "IpProtocol": "tcp",
+            "FromPort": { "Ref": "ContainerPort" },
+            "ToPort": { "Ref": "ContainerPort" },
+            "CidrIp": "0.0.0.0/0",
+            "Description": "Allow direct public access to container port"
           }
         ],
         "SecurityGroupEgress": [
@@ -512,6 +519,14 @@
     "EC2InstancePublicIP": {
       "Description": "EC2 Instance Public IP",
       "Value": { "Fn::GetAtt": ["EC2Instance", "PublicIp"] }
+    },
+    "EC2InstancePublicDNS": {
+      "Description": "EC2 Instance Public DNS Name",
+      "Value": { "Fn::GetAtt": ["EC2Instance", "PublicDnsName"] }
+    },
+    "DirectAccessUrl": {
+      "Description": "Direct access URL via EC2 public DNS (bypasses ALB)",
+      "Value": { "Fn::Sub": "http://${EC2Instance.PublicDnsName}:${ContainerPort}" }
     },
     "ServiceArn": {
       "Description": "ECS Service ARN",
