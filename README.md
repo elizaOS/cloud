@@ -88,7 +88,7 @@ Eliza Cloud V2 is a full-stack AI-as-a-Service platform that combines:
   - Deploy ElizaOS projects via `elizaos deploy` CLI
   - Docker-based deployments to AWS ECS (Elastic Container Service)
   - ECR (Elastic Container Registry) for Docker image storage
-  - EC2-based ECS (t3g.small ARM instances, 1 per user)
+  - EC2-based ECS (t4g.small ARM instances, 1 per user)
   - Health checks and monitoring via ECS
 
 ### 📊 Management & Analytics
@@ -639,8 +639,9 @@ BLOB_READ_WRITE_TOKEN=vercel_blob_rw_your_token
 - Deploy ElizaOS projects via `elizaos deploy` CLI
 - Docker-based deployments to AWS ECS (Elastic Container Service)
 - ECR (Elastic Container Registry) for Docker image storage
-- EC2-based ECS (t3g.small ARM instances, 1 per user, no auto-scaling)
-- Health checks and monitoring via ECS
+- EC2-based ECS (t4g.small ARM instances, 1 per user, no auto-scaling)
+- Optimized health checks (15s interval, 5min grace period)
+- Health monitoring via CloudWatch and ECS
 - Quota enforcement (prevents race conditions)
 - Environment variable injection
 - Credit-based billing with automatic deduction
@@ -1502,7 +1503,7 @@ See `docs/DEPLOYMENT_TROUBLESHOOTING.md` for detailed troubleshooting.
 
 ## 🚀 AWS ECS Container Deployment
 
-Deploy ElizaOS agents to AWS ECS (Elastic Container Service) using Docker containers. Each user gets a dedicated EC2 instance (t3g.small ARM) managed via CloudFormation.
+Deploy ElizaOS agents to AWS ECS (Elastic Container Service) using Docker containers. Each user gets a dedicated EC2 instance (t4g.small ARM, Graviton2) managed via CloudFormation.
 
 ### Quick Start
 
@@ -1528,7 +1529,7 @@ elizaos deploy
 2. **CLI** builds Docker image locally
 3. **CLI** pushes image to AWS ECR (Elastic Container Registry)
 4. **CLI** creates container deployment via cloud API
-5. **Cloud** deploys to dedicated EC2 instance (t3g.small ARM) with ECS
+5. **Cloud** deploys to dedicated EC2 instance (t4g.small ARM) with ECS
 6. **Agent** runs on AWS with health checks and monitoring
 
 ### AWS Infrastructure Setup (Platform Maintainers)
@@ -1626,12 +1627,12 @@ Container deployments are billed based on:
 
 - **Deployment**: 1000 credits (one-time per deployment)
 - **Running Costs**: Charged per hour based on resources
-  - t3g.small (1.75 vCPU + 1.75 GB RAM): Default, ~10-20 credits/hour
+  - t4g.small (1.75 vCPU + 1.75 GB RAM): Default, ~10-20 credits/hour
   - Higher CPU/memory allocations: Additional charges
 
 **AWS Infrastructure Costs** (billed directly by AWS, not through credits):
 
-- **EC2 Instances**: ~$13/month per t3g.small (1 per user)
+- **EC2 Instances**: ~$12.41/month per t4g.small (1 per user)
 - **ECR Storage**: First 50 GB free, then $0.10/GB/month
 - **Data Transfer**: First 100 GB free per month
 - **Application Load Balancer**: ~$16/month (shared across all users)
