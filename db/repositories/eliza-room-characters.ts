@@ -1,4 +1,4 @@
-import { eq } from "drizzle-orm";
+import { eq, inArray } from "drizzle-orm";
 import { db } from "../client";
 import {
   elizaRoomCharactersTable,
@@ -15,6 +15,24 @@ export const elizaRoomCharactersRepository = {
       .limit(1);
 
     return result[0];
+  },
+
+  async findByRoomIds(roomIds: string[]): Promise<Map<string, string>> {
+    if (roomIds.length === 0) {
+      return new Map();
+    }
+
+    const results = await db
+      .select()
+      .from(elizaRoomCharactersTable)
+      .where(inArray(elizaRoomCharactersTable.room_id, roomIds));
+
+    const mappings = new Map<string, string>();
+    for (const result of results) {
+      mappings.set(result.room_id, result.character_id);
+    }
+
+    return mappings;
   },
 
   async create(data: NewElizaRoomCharacter): Promise<ElizaRoomCharacter> {

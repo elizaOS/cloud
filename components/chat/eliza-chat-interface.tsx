@@ -58,8 +58,8 @@ export function ElizaChatInterface({ availableCharacters = [] }: ElizaChatInterf
   const [error, setError] = useState<string | null>(null);
   const scrollAreaRef = useRef<HTMLDivElement>(null);
   const pollIntervalRef = useRef<NodeJS.Timeout | null>(null);
-  const roomsIntervalRef = useRef<NodeJS.Timeout | null>(null);
   const thinkingTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const isPollingRef = useRef(false);
   const [autoPlayTTS, setAutoPlayTTS] = useState(false);
   const [currentPlayingId, setCurrentPlayingId] = useState<string | null>(null);
   const [isProcessingSTT, setIsProcessingSTT] = useState(false);
@@ -91,36 +91,12 @@ export function ElizaChatInterface({ availableCharacters = [] }: ElizaChatInterf
           const list = data.rooms.slice(0, 12) as { id: string; characterId?: string }[];
           console.log("[ElizaChat] Loaded rooms from API:", list.map(r => ({ id: r.id.substring(0, 8), characterId: r.characterId })));
 
-          // Fetch last message preview per room (best-effort)
-          const enriched: RoomItem[] = await Promise.all(
-            list.map(async (r) => {
-              try {
-                const resp = await fetch(
-                  `/api/eliza/rooms/${r.id}/messages?limit=1`,
-                );
-                if (resp.ok) {
-                  const js = await resp.json();
-                  const msgs = (js.messages || []) as {
-                    content: { text?: string };
-                    createdAt: number;
-                  }[];
-                  const last = msgs[msgs.length - 1];
-                  return {
-                    id: r.id,
-                    characterId: r.characterId,  // CRITICAL: Preserve characterId from API
-                    lastText: last?.content?.text || "",
-                    lastTime: last?.createdAt || 0,
-                  } as RoomItem;
-                }
-              } catch {}
-              return {
-                id: r.id,
-                characterId: r.characterId,  // CRITICAL: Preserve characterId even on error
-              } as RoomItem;
-            }),
-          );
-          console.log("[ElizaChat] Enriched rooms:", enriched.map(r => ({ id: r.id.substring(0, 8), characterId: r.characterId })));
-          setRooms(enriched);
+          const rooms: RoomItem[] = list.map((r) => ({
+            id: r.id,
+            characterId: r.characterId,
+          }));
+
+          setRooms(rooms);
         }
       }
     } catch {
@@ -239,13 +215,9 @@ export function ElizaChatInterface({ availableCharacters = [] }: ElizaChatInterf
     };
 
     initializeRoom();
-    roomsIntervalRef.current = setInterval(loadRooms, 10000);
     return () => {
       if (pollIntervalRef.current) {
         clearInterval(pollIntervalRef.current);
-      }
-      if (roomsIntervalRef.current) {
-        clearInterval(roomsIntervalRef.current);
       }
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -390,6 +362,11 @@ export function ElizaChatInterface({ availableCharacters = [] }: ElizaChatInterf
     if (!roomId) return;
 
     const pollMessages = async () => {
+      if (isPollingRef.current) {
+        return;
+      }
+
+      isPollingRef.current = true;
       try {
         const lastTimestamp =
           messages.length > 0
@@ -423,11 +400,25 @@ export function ElizaChatInterface({ availableCharacters = [] }: ElizaChatInterf
                 return true;
               });
 
+              // Deduplicate messages by ID
               const byId = new Map<string, Message>();
               for (const m of cleaned) byId.set(m.id, m);
-              for (const incoming of data.messages as Message[]) {
+
+              const incomingMessages = data.messages as Message[];
+              const newMessages = incomingMessages.filter(msg => !byId.has(msg.id));
+
+              if (newMessages.length > 0) {
+                console.log("[Chat] New messages from poll:", newMessages.length, newMessages.map(m => ({
+                  id: m.id.substring(0, 8),
+                  isAgent: m.isAgent,
+                  text: m.content.text?.substring(0, 30)
+                })));
+              }
+
+              for (const incoming of incomingMessages) {
                 byId.set(incoming.id, incoming);
               }
+
               const merged = Array.from(byId.values());
               merged.sort((a, b) => a.createdAt - b.createdAt);
               return merged;
@@ -436,6 +427,8 @@ export function ElizaChatInterface({ availableCharacters = [] }: ElizaChatInterf
         }
       } catch (err) {
         console.error("Error polling messages:", err);
+      } finally {
+        isPollingRef.current = false;
       }
     };
 
@@ -443,7 +436,7 @@ export function ElizaChatInterface({ availableCharacters = [] }: ElizaChatInterf
     const hasThinkingMessage = messages.some((m) =>
       m.id.startsWith("thinking-"),
     );
-    const pollInterval = hasThinkingMessage ? 500 : 2000; // 500ms when thinking, 2s otherwise
+    const pollInterval = hasThinkingMessage ? 1000 : 3000; // 1s when thinking, 3s otherwise
 
     pollIntervalRef.current = setInterval(pollMessages, pollInterval);
 
@@ -457,7 +450,11 @@ export function ElizaChatInterface({ availableCharacters = [] }: ElizaChatInterf
   // Auto-scroll to bottom when messages change
   useEffect(() => {
     if (scrollAreaRef.current) {
-      scrollAreaRef.current.scrollTop = scrollAreaRef.current.scrollHeight;
+      // ScrollArea wraps content in a viewport div with data-radix-scroll-area-viewport
+      const viewport = scrollAreaRef.current.querySelector('[data-radix-scroll-area-viewport]');
+      if (viewport) {
+        viewport.scrollTop = viewport.scrollHeight;
+      }
     }
   }, [messages]);
 
@@ -517,54 +514,8 @@ export function ElizaChatInterface({ availableCharacters = [] }: ElizaChatInterf
         prev.filter((msg) => msg.id !== tempUserMessage.id),
       );
 
-      // Trigger immediate poll to catch response faster
-      setTimeout(async () => {
-        try {
-          const lastTimestamp =
-            messages.length > 0
-              ? Math.max(...messages.map((m) => m.createdAt))
-              : 0;
-          const pollResponse = await fetch(
-            `/api/eliza/rooms/${roomId}/messages?afterTimestamp=${lastTimestamp}`,
-          );
-          if (pollResponse.ok) {
-            const data = await pollResponse.json();
-            if (data.messages && data.messages.length > 0) {
-              setMessages((prev) => {
-                // Check if any new message is from the agent
-                const hasAgentResponse = (data.messages as Message[]).some(
-                  (msg) => msg.isAgent,
-                );
-
-                // Only remove thinking placeholder if we have an agent response
-                const cleaned = prev.filter((m) => {
-                  if (m.id.startsWith("temp-")) return false;
-                  if (m.id.startsWith("thinking-") && hasAgentResponse) {
-                    // Clear the thinking timeout since we got a response
-                    if (thinkingTimeoutRef.current) {
-                      clearTimeout(thinkingTimeoutRef.current);
-                      thinkingTimeoutRef.current = null;
-                    }
-                    return false;
-                  }
-                  return true;
-                });
-
-                const byId = new Map<string, Message>();
-                for (const m of cleaned) byId.set(m.id, m);
-                for (const incoming of data.messages as Message[]) {
-                  byId.set(incoming.id, incoming);
-                }
-                const merged = Array.from(byId.values());
-                merged.sort((a, b) => a.createdAt - b.createdAt);
-                return merged;
-              });
-            }
-          }
-        } catch (pollErr) {
-          console.error("Error in immediate poll:", pollErr);
-        }
-      }, 100); // Poll after 100ms
+      // The polling interval will catch the response automatically
+      // No immediate poll needed - this prevents race conditions and duplicate messages
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to send message");
       console.error("Error sending message:", err);
@@ -620,9 +571,9 @@ export function ElizaChatInterface({ availableCharacters = [] }: ElizaChatInterf
   }
 
   return (
-    <div className="flex h-full w-full">
+    <div className="flex h-full w-full min-h-0">
       {/* Left Sidebar - Rooms */}
-      <div className="hidden md:flex md:flex-col w-80 border-r bg-card/50">
+      <div className="hidden md:flex md:flex-col w-80 border-r bg-card/50 min-h-0">
         <div className="border-b p-4">
           <div className="flex items-center justify-between mb-3">
             <div className="flex items-center gap-2">
@@ -670,8 +621,9 @@ export function ElizaChatInterface({ availableCharacters = [] }: ElizaChatInterf
             Refresh
           </Button>
         </div>
-        <ScrollArea className="flex-1">
-          <div className="p-2 space-y-1">
+        <div className="flex-1 min-h-0 overflow-hidden">
+          <ScrollArea className="h-full">
+            <div className="p-2 space-y-1">
             {isLoadingRooms && rooms.length === 0 ? (
               <div className="flex items-center justify-center py-8">
                 <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
@@ -731,12 +683,13 @@ export function ElizaChatInterface({ availableCharacters = [] }: ElizaChatInterf
                 )}
               </>
             )}
-          </div>
-        </ScrollArea>
+            </div>
+          </ScrollArea>
+        </div>
       </div>
 
       {/* Main Chat Area */}
-      <div className="flex flex-col flex-1 h-full">
+      <div className="flex flex-col flex-1 min-h-0">
         {/* Header */}
         <div className="border-b p-4">
           <div className="flex items-center justify-between">
@@ -763,8 +716,9 @@ export function ElizaChatInterface({ availableCharacters = [] }: ElizaChatInterf
         </div>
 
         {/* Messages Area */}
-        <ScrollArea className="flex-1 p-4" ref={scrollAreaRef}>
-          <div className="space-y-4">
+        <div className="flex-1 min-h-0 overflow-hidden">
+          <ScrollArea className="h-full p-4" ref={scrollAreaRef}>
+            <div className="space-y-4">
             {error && (
               <div className="rounded-lg border border-destructive bg-destructive/10 p-3">
                 <p className="text-sm text-destructive">{error}</p>
@@ -878,8 +832,9 @@ export function ElizaChatInterface({ availableCharacters = [] }: ElizaChatInterf
                 </div>
               );
             })}
-          </div>
-        </ScrollArea>
+            </div>
+          </ScrollArea>
+        </div>
 
         {/* Input Area */}
         <form
