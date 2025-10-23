@@ -279,7 +279,6 @@
     },
     "AutoScalingGroup": {
       "Type": "AWS::AutoScaling::AutoScalingGroup",
-      "DependsOn": ["ECSCluster"],
       "UpdatePolicy": {
         "AutoScalingReplacingUpdate": {
           "WillReplace": true
