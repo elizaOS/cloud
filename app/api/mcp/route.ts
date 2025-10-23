@@ -1589,8 +1589,7 @@ const mcpHandler = createMcpHandler(
         model: z
           .string()
           .optional()
-          .default("gpt-4o")
-          .describe("Default model to use"),
+          .describe("Default model to use (default: gpt-4o)"),
         systemPrompt: z
           .string()
           .optional()
@@ -1606,7 +1605,8 @@ const mcpHandler = createMcpHandler(
           .optional()
           .describe("Model settings"),
       },
-      async ({ title, model = "gpt-4o", systemPrompt, settings }) => {
+      async ({ title, model, systemPrompt, settings }) => {
+        const actualModel = model || "gpt-4o";
         try {
           const { user } = getAuthContext();
 
@@ -1651,7 +1651,7 @@ const mcpHandler = createMcpHandler(
             organization_id: user.organization_id,
             user_id: user.id,
             title,
-            model,
+            model: actualModel,
             settings: {
               ...settings,
               systemPrompt,
