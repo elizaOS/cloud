@@ -107,6 +107,7 @@ export function supportsGetUserMedia(): boolean {
 
 /**
  * Get supported MIME type for MediaRecorder
+ * Prioritizes audio-only formats to avoid video/webm containers on Safari/macOS
  */
 export function getSupportedMimeType(): string {
   const types = [
@@ -115,6 +116,7 @@ export function getSupportedMimeType(): string {
     "audio/ogg;codecs=opus",
     "audio/ogg",
     "audio/mp4",
+    "audio/wav",
   ];
 
   for (const type of types) {
@@ -124,4 +126,24 @@ export function getSupportedMimeType(): string {
   }
 
   return ""; // Browser doesn't support any of these
+}
+
+/**
+ * Convert audio blob to proper audio format if needed
+ * Safari/macOS may create video/webm containers for audio recordings
+ */
+export async function ensureAudioFormat(blob: Blob): Promise<Blob> {
+  // If it's already an audio format, return as-is
+  if (blob.type.startsWith("audio/")) {
+    return blob;
+  }
+
+  // If it's a video/webm that might contain audio, we need to convert it
+  // For now, we'll just change the MIME type since it's actually audio data
+  // The actual container is still WebM with audio track
+  if (blob.type.startsWith("video/webm")) {
+    return new Blob([blob], { type: "audio/webm" });
+  }
+
+  return blob;
 }
