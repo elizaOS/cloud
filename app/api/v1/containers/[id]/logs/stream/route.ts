@@ -1,4 +1,4 @@
-import { NextRequest, NextResponse } from "next/server";
+import { NextRequest } from "next/server";
 import { requireAuthOrApiKey } from "@/lib/auth";
 import { getContainer } from "@/lib/services";
 import {
@@ -8,6 +8,7 @@ import {
 } from "@aws-sdk/client-cloudwatch-logs";
 
 export const dynamic = "force-dynamic";
+export const runtime = "nodejs";
 
 type LogLevel = "error" | "warn" | "info" | "debug";
 
@@ -19,8 +20,8 @@ interface ParsedLogEntry {
 }
 
 /**
- * GET /api/v1/containers/[id]/logs
- * Get container logs from AWS CloudWatch
+ * GET /api/v1/containers/[id]/logs/stream
+ * Stream container logs in real-time using Server-Sent Events
  */
 export async function GET(
   request: NextRequest,
@@ -34,90 +35,136 @@ export async function GET(
     const container = await getContainer(id, user.organization_id);
 
     if (!container) {
-      return NextResponse.json(
-        {
+      return new Response(
+        JSON.stringify({
           success: false,
           error: "Container not found",
+        }),
+        {
+          status: 404,
+          headers: { "Content-Type": "application/json" },
         },
-        { status: 404 },
       );
     }
 
     // Check if container has been deployed to ECS
     if (!container.ecs_service_arn) {
-      return NextResponse.json(
-        {
+      return new Response(
+        JSON.stringify({
           success: false,
           error:
             "Container has not been deployed to ECS yet. Logs will be available once deployment is complete.",
+        }),
+        {
+          status: 400,
+          headers: { "Content-Type": "application/json" },
         },
-        { status: 400 },
       );
     }
 
     // Parse query parameters for filtering
     const searchParams = request.nextUrl.searchParams;
-    const limit = parseInt(searchParams.get("limit") || "100");
-    const since = searchParams.get("since"); // ISO timestamp
-    const level = searchParams.get("level") || "all"; // Log level filter
+    const level = searchParams.get("level") || "all";
 
-    // Get logs from CloudWatch
-    const rawLogs = await getCloudWatchLogs(container.name, {
-      limit,
-      since: since ? new Date(since) : undefined,
+    // Create a ReadableStream for Server-Sent Events
+    const stream = new ReadableStream({
+      async start(controller) {
+        const encoder = new TextEncoder();
+        let lastTimestamp: number | undefined;
+
+        const sendEvent = (data: unknown) => {
+          const message = `data: ${JSON.stringify(data)}\n\n`;
+          controller.enqueue(encoder.encode(message));
+        };
+
+        const sendKeepAlive = () => {
+          controller.enqueue(encoder.encode(": keepalive\n\n"));
+        };
+
+        // Keep-alive interval (every 15 seconds)
+        const keepAliveInterval = setInterval(sendKeepAlive, 15000);
+
+        // Poll for new logs every 2 seconds
+        const pollInterval = setInterval(async () => {
+          try {
+            const newLogs = await getCloudWatchLogs(
+              container.name,
+              {
+                limit: 50,
+                since: lastTimestamp
+                  ? new Date(lastTimestamp + 1)
+                  : undefined,
+              },
+              level,
+            );
+
+            if (newLogs.length > 0) {
+              // Update last timestamp
+              const timestamps = newLogs
+                .map((log) => new Date(log.timestamp).getTime())
+                .filter((t) => !isNaN(t));
+
+              if (timestamps.length > 0) {
+                lastTimestamp = Math.max(...timestamps);
+              }
+
+              // Send each log as a separate event
+              for (const log of newLogs) {
+                sendEvent({
+                  type: "log",
+                  data: log,
+                });
+              }
+            }
+          } catch (error) {
+            console.error("Error streaming logs:", error);
+            sendEvent({
+              type: "error",
+              message:
+                error instanceof Error
+                  ? error.message
+                  : "Failed to fetch logs",
+            });
+          }
+        }, 2000);
+
+        // Clean up on close
+        request.signal.addEventListener("abort", () => {
+          clearInterval(pollInterval);
+          clearInterval(keepAliveInterval);
+          controller.close();
+        });
+      },
     });
 
-    // Parse and filter logs
-    const parsedLogs = rawLogs
-      .map((log) => parseLogMessage(log))
-      .filter((log) => level === "all" || log.level === level);
-
-    // Return success even if no logs (empty logs is valid, not an error)
-    return NextResponse.json({
-      success: true,
-      data: {
-        container: {
-          id: container.id,
-          name: container.name,
-          status: container.status,
-          ecs_service_arn: container.ecs_service_arn,
-        },
-        logs: parsedLogs,
-        total: parsedLogs.length,
-        hasLogs: rawLogs.length > 0,
-        message:
-          rawLogs.length === 0
-            ? "No logs available yet. Logs may take a few moments to appear after deployment."
-            : undefined,
-        filters: {
-          limit,
-          since,
-          level,
-        },
+    return new Response(stream, {
+      headers: {
+        "Content-Type": "text/event-stream",
+        "Cache-Control": "no-cache, no-transform",
+        Connection: "keep-alive",
+        "X-Accel-Buffering": "no",
       },
     });
   } catch (error) {
-    console.error("Error fetching container logs:", error);
-    return NextResponse.json(
-      {
+    console.error("Error setting up log stream:", error);
+    return new Response(
+      JSON.stringify({
         success: false,
         error:
           error instanceof Error
             ? error.message
-            : "Failed to fetch container logs",
+            : "Failed to set up log stream",
+      }),
+      {
+        status: 500,
+        headers: { "Content-Type": "application/json" },
       },
-      { status: 500 },
     );
   }
 }
 
 /**
  * Parse a log message to extract level, clean message, and metadata
- * Handles various log formats:
- * - [ERROR] message
- * - ERROR: message
- * - {"level":"error","message":"..."}
- * - Plain text (defaults to info)
  */
 function parseLogMessage(log: {
   timestamp: string;
@@ -161,7 +208,6 @@ function parseLogMessage(log: {
   // Check for LEVEL: prefix (e.g., ERROR:, INFO:)
   const colonMatch = cleanMessage.match(/^(\w+):\s*(.*)$/);
   if (colonMatch && colonMatch[1].length <= 8) {
-    // Avoid matching URLs
     level = normalizeLogLevel(colonMatch[1]);
     cleanMessage = colonMatch[2];
     return { timestamp, level, message: cleanMessage };
@@ -208,7 +254,6 @@ function normalizeLogLevel(levelStr: string): LogLevel {
 
 /**
  * Get logs from CloudWatch for a container
- * PRODUCTION FIX: Dynamically discovers log streams instead of hardcoding
  */
 async function getCloudWatchLogs(
   containerName: string,
@@ -216,12 +261,8 @@ async function getCloudWatchLogs(
     limit?: number;
     since?: Date;
   },
-): Promise<
-  Array<{
-    timestamp: string;
-    message: string;
-  }>
-> {
+  levelFilter: string = "all",
+): Promise<ParsedLogEntry[]> {
   const region = process.env.AWS_REGION || "us-east-1";
   const accessKeyId = process.env.AWS_ACCESS_KEY_ID;
   const secretAccessKey = process.env.AWS_SECRET_ACCESS_KEY;
@@ -241,7 +282,6 @@ async function getCloudWatchLogs(
   const logGroupName = `/ecs/elizaos-user-${containerName}`;
 
   try {
-    // First, discover the latest log streams
     const { DescribeLogStreamsCommand } = await import(
       "@aws-sdk/client-cloudwatch-logs"
     );
@@ -251,18 +291,16 @@ async function getCloudWatchLogs(
         logGroupName,
         orderBy: "LastEventTime",
         descending: true,
-        limit: 5, // Get up to 5 most recent streams
+        limit: 5,
       }),
     );
 
     const logStreams = streamsResponse.logStreams || [];
 
     if (logStreams.length === 0) {
-      console.warn(`No log streams found for ${logGroupName}`);
       return [];
     }
 
-    // Aggregate logs from all recent streams (in case of task restarts)
     const allLogs: Array<{ timestamp: string; message: string }> = [];
 
     for (const stream of logStreams) {
@@ -272,9 +310,9 @@ async function getCloudWatchLogs(
         const command = new GetLogEventsCommand({
           logGroupName,
           logStreamName: stream.logStreamName,
-          limit: Math.ceil((options.limit || 100) / logStreams.length),
+          limit: Math.ceil((options.limit || 50) / logStreams.length),
           startTime: options.since?.getTime(),
-          startFromHead: false, // Get most recent logs first
+          startFromHead: false,
         });
 
         const response = await client.send(command);
@@ -291,27 +329,29 @@ async function getCloudWatchLogs(
           `Failed to fetch logs from stream ${stream.logStreamName}:`,
           streamError,
         );
-        // Continue with other streams
       }
     }
 
-    // Sort by timestamp descending and limit
-    return allLogs
+    // Parse logs and filter by level
+    const parsedLogs = allLogs
+      .map((log) => parseLogMessage(log))
+      .filter((log) => levelFilter === "all" || log.level === levelFilter);
+
+    // Sort by timestamp descending
+    return parsedLogs
       .sort(
         (a, b) =>
           new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime(),
       )
-      .slice(0, options.limit || 100);
+      .slice(0, options.limit || 50);
   } catch (error) {
     console.error("Error fetching CloudWatch logs:", error);
-
-    // Check if log group doesn't exist
     if (error instanceof Error && error.name === "ResourceNotFoundException") {
       console.warn(
         `Log group ${logGroupName} not found - container may not be deployed yet`,
       );
     }
-
     return [];
   }
 }
+
