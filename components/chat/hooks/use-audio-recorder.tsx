@@ -47,7 +47,7 @@ export function useAudioRecorder(): UseAudioRecorderReturn {
     }
 
     try {
-      // Request microphone access
+      // Request microphone access - explicitly only audio, no video
       const stream = await navigator.mediaDevices.getUserMedia({
         audio: {
           channelCount: 1,
@@ -56,6 +56,7 @@ export function useAudioRecorder(): UseAudioRecorderReturn {
           noiseSuppression: true,
           autoGainControl: true,
         },
+        video: false, // Explicitly disable video to prevent video/webm containers
       });
 
       streamRef.current = stream;
@@ -68,8 +69,13 @@ export function useAudioRecorder(): UseAudioRecorderReturn {
         return;
       }
 
-      // Create MediaRecorder
-      const mediaRecorder = new MediaRecorder(stream, { mimeType });
+      // Create MediaRecorder with audio-only constraints
+      const options: MediaRecorderOptions = {
+        mimeType,
+        audioBitsPerSecond: 128000, // 128kbps
+      };
+
+      const mediaRecorder = new MediaRecorder(stream, options);
       mediaRecorderRef.current = mediaRecorder;
 
       // Collect audio chunks
@@ -108,13 +114,17 @@ export function useAudioRecorder(): UseAudioRecorderReturn {
       timerRef.current = setInterval(() => {
         setRecordingTime((prev) => prev + 1);
       }, 1000);
-
     } catch (err) {
       console.error("Error starting recording:", err);
 
       if (err instanceof Error) {
-        if (err.name === "NotAllowedError" || err.name === "PermissionDeniedError") {
-          setError("Microphone permission denied. Please allow microphone access.");
+        if (
+          err.name === "NotAllowedError" ||
+          err.name === "PermissionDeniedError"
+        ) {
+          setError(
+            "Microphone permission denied. Please allow microphone access."
+          );
         } else if (err.name === "NotFoundError") {
           setError("No microphone found. Please connect a microphone.");
         } else {
