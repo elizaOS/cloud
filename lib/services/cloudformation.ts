@@ -99,10 +99,6 @@ export class CloudFormationService {
     // Find the first path that exists
     this.templatePath =
       possiblePaths.find((p) => fs.existsSync(p)) || possiblePaths[0];
-    
-    console.log(`[CloudFormation] Template path: ${this.templatePath}`);
-    console.log(`[CloudFormation] Template exists: ${fs.existsSync(this.templatePath)}`);
-    console.log(`[CloudFormation] AWS credentials: ${accessKeyId ? 'SET' : 'NOT SET'}`);
   }
 
   /**
@@ -188,18 +184,11 @@ export class CloudFormationService {
    * Create a new CloudFormation stack for a user with ALB priority management
    */
   async createUserStack(config: UserStackConfig): Promise<string> {
-    console.log(`[CloudFormation] createUserStack called for user: ${config.userId}`);
-    
     this.ensureCredentials();
-    console.log(`[CloudFormation] Credentials validated`);
-    
     this.validateTemplateExists();
-    console.log(`[CloudFormation] Template validated`);
 
     return this.withRetry(async () => {
       const stackName = this.getStackName(config.userId);
-
-      console.log(`[CloudFormation] Creating stack: ${stackName}`);
 
       // Allocate unique ALB priority
       const albPriority = await dbPriorityManager.allocatePriority(
@@ -212,16 +201,6 @@ export class CloudFormationService {
 
       // Get shared infrastructure outputs
       const sharedOutputs = await this.getSharedInfrastructureOutputs();
-      
-      console.log(`[CloudFormation] Shared infrastructure outputs:`, {
-        vpcId: sharedOutputs.vpcId,
-        subnetId: sharedOutputs.subnetId,
-        albArn: sharedOutputs.albArn?.substring(0, 50) + '...',
-        listenerArn: sharedOutputs.listenerArn?.substring(0, 50) + '...',
-        executionRoleArn: sharedOutputs.executionRoleArn?.substring(0, 50) + '...',
-        taskRoleArn: sharedOutputs.taskRoleArn?.substring(0, 50) + '...',
-        albSecurityGroupId: sharedOutputs.albSecurityGroupId,
-      });
 
       const command = new CreateStackCommand({
         StackName: stackName,
@@ -288,18 +267,8 @@ export class CloudFormationService {
         OnFailure: "ROLLBACK",
       });
 
-      console.log(`[CloudFormation] Sending CreateStack command with parameters:`, {
-        stackName,
-        containerImage: config.containerImage,
-        port: config.containerPort,
-        cpu: config.containerCpu,
-        memory: config.containerMemory,
-        albPriority,
-      });
-
       try {
         const response = await this.client.send(command);
-        console.log(`✅ [CloudFormation] Stack creation initiated: ${response.StackId}`);
         return response.StackId!;
       } catch (createError) {
         console.error(`❌ [CloudFormation] CreateStack API call failed:`, {
@@ -389,8 +358,6 @@ export class CloudFormationService {
       const response = await this.client.send(command);
       const events = response.StackEvents || [];
 
-      console.log(`[CloudFormation] Fetched ${events.length} stack events for ${stackName}`);
-
       // Find CREATE_FAILED events (these are the actual failures, not rollback events)
       const failedEvents = events.filter((event) => {
         const isFailed = event.ResourceStatus === "CREATE_FAILED";
@@ -398,16 +365,12 @@ export class CloudFormationService {
         return isFailed && isNotStack; // Only resource failures, not stack-level status
       });
 
-      console.log(`[CloudFormation] Found ${failedEvents.length} CREATE_FAILED resource events`);
-
       // If no CREATE_FAILED, also check for rollback events to get more context
       if (failedEvents.length === 0) {
         const rollbackEvents = events.filter((event) =>
           event.ResourceStatus?.includes("ROLLBACK") &&
           event.ResourceType !== "AWS::CloudFormation::Stack"
         ).slice(0, 10);
-        
-        console.log(`[CloudFormation] No CREATE_FAILED events, showing ${rollbackEvents.length} rollback events`);
         
         return rollbackEvents.map((event) => ({
           resource: `${event.LogicalResourceId} (${event.ResourceType})` || "Unknown",
@@ -489,8 +452,6 @@ export class CloudFormationService {
 
     return this.withRetry(async () => {
       const stackName = this.getStackName(userId);
-
-      console.log(`Deleting CloudFormation stack: ${stackName}`);
 
       const command = new DeleteStackCommand({
         StackName: stackName,
@@ -638,8 +599,6 @@ export class CloudFormationService {
 
     return this.withRetry(async () => {
       const stackName = this.getStackName(userId);
-
-      console.log(`Updating CloudFormation stack: ${stackName}`);
 
       // Get current stack to preserve existing parameters
       const stack = await this.getStack(userId);
