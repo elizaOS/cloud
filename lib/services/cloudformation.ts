@@ -30,6 +30,7 @@ export interface UserStackConfig {
   containerCpu: number;
   containerMemory: number;
   keyName?: string;
+  environmentVars?: Record<string, string>;
 }
 
 export interface StackOutputs {
@@ -196,8 +197,30 @@ export class CloudFormationService {
       );
       console.log(`Allocated ALB priority ${albPriority} for ${config.userId}`);
 
-      // Load template
-      const templateBody = fs.readFileSync(this.templatePath, "utf-8");
+      // Load template and parse as JSON for dynamic modification
+      const templateJson = JSON.parse(fs.readFileSync(this.templatePath, "utf-8"));
+
+      // Inject environment variables into container definition if provided
+      if (config.environmentVars && Object.keys(config.environmentVars).length > 0) {
+        const envArray = Object.entries(config.environmentVars).map(([name, value]) => ({
+          Name: name,
+          Value: value,
+        }));
+
+        // Find the TaskDefinition resource and inject environment variables
+        if (
+          templateJson.Resources?.TaskDefinition?.Properties?.ContainerDefinitions?.[0]
+        ) {
+          templateJson.Resources.TaskDefinition.Properties.ContainerDefinitions[0].Environment =
+            envArray;
+          console.log(
+            `Injected ${envArray.length} environment variables into task definition`,
+          );
+        }
+      }
+
+      // Convert modified template back to string
+      const templateBody = JSON.stringify(templateJson);
 
       // Get shared infrastructure outputs
       const sharedOutputs = await this.getSharedInfrastructureOutputs();
@@ -593,6 +616,7 @@ export class CloudFormationService {
       containerCpu?: number;
       containerMemory?: number;
       containerPort?: number;
+      environmentVars?: Record<string, string>;
     },
   ): Promise<string> {
     this.ensureCredentials();
@@ -606,8 +630,30 @@ export class CloudFormationService {
         throw new Error(`Stack ${stackName} not found`);
       }
 
-      // Load template
-      const templateBody = fs.readFileSync(this.templatePath, "utf-8");
+      // Load template and parse as JSON for dynamic modification
+      const templateJson = JSON.parse(fs.readFileSync(this.templatePath, "utf-8"));
+
+      // Inject environment variables into container definition if provided
+      if (updates.environmentVars && Object.keys(updates.environmentVars).length > 0) {
+        const envArray = Object.entries(updates.environmentVars).map(([name, value]) => ({
+          Name: name,
+          Value: value,
+        }));
+
+        // Find the TaskDefinition resource and inject environment variables
+        if (
+          templateJson.Resources?.TaskDefinition?.Properties?.ContainerDefinitions?.[0]
+        ) {
+          templateJson.Resources.TaskDefinition.Properties.ContainerDefinitions[0].Environment =
+            envArray;
+          console.log(
+            `[Update] Injected ${envArray.length} environment variables into task definition`,
+          );
+        }
+      }
+
+      // Convert modified template back to string
+      const templateBody = JSON.stringify(templateJson);
 
       // Get shared infrastructure outputs
       const sharedOutputs = await this.getSharedInfrastructureOutputs();
