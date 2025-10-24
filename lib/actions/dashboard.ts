@@ -129,11 +129,6 @@ async function fetchDashboardDataInternal(
       ? ((yesterdayBurn - avgDailyBurnLastWeek) / avgDailyBurnLastWeek) * 100
       : 0;
 
-  const duration = Date.now() - start;
-  if (duration > 200) {
-    logger.warn(`[Dashboard] Slow data fetch: ${duration}ms for org=${organizationId}`);
-  }
-
   return {
     user: {
       name: user.name || "User",

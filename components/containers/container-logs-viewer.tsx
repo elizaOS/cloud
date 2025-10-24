@@ -19,7 +19,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { RefreshCw, Download } from "lucide-react";
+import { RefreshCw, Download, Wifi, WifiOff } from "lucide-react";
 
 interface LogEntry {
   timestamp: string;
@@ -40,9 +40,14 @@ export function ContainerLogsViewer({
   const [logs, setLogs] = useState<LogEntry[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [infoMessage, setInfoMessage] = useState<string | null>(null);
   const [level, setLevel] = useState<string>("all");
   const [autoRefresh, setAutoRefresh] = useState(false);
+  const [useStreaming, setUseStreaming] = useState(true);
+  const [isStreaming, setIsStreaming] = useState(false);
   const scrollRef = useRef<HTMLDivElement>(null);
+  const eventSourceRef = useRef<EventSource | null>(null);
+  const abortControllerRef = useRef<AbortController | null>(null);
 
   const fetchLogs = useCallback(async () => {
     try {
@@ -62,10 +67,12 @@ export function ContainerLogsViewer({
 
       const data = await response.json();
       if (data.success) {
-        setLogs(data.data.logs);
+        setLogs(data.data.logs || []);
+        setInfoMessage(data.data.message || null);
         setError(null);
       } else {
         setError(data.error || "Failed to load logs");
+        setInfoMessage(null);
       }
     } catch (err) {
       console.error("Error fetching logs:", err);
@@ -75,16 +82,109 @@ export function ContainerLogsViewer({
     }
   }, [containerId, level]);
 
+  const startStreaming = useCallback(() => {
+    // Close existing connection
+    if (eventSourceRef.current) {
+      eventSourceRef.current.close();
+    }
+
+    const params = new URLSearchParams({
+      ...(level !== "all" && { level }),
+    });
+
+    const eventSource = new EventSource(
+      `/api/v1/containers/${containerId}/logs/stream?${params}`,
+    );
+
+    eventSource.onopen = () => {
+      console.log("Log stream connected");
+      setIsStreaming(true);
+      setError(null);
+    };
+
+    eventSource.onmessage = (event) => {
+      try {
+        const parsed = JSON.parse(event.data);
+
+        if (parsed.type === "log") {
+          setLogs((prevLogs) => {
+            const newLog = parsed.data;
+            // Check if log already exists
+            const exists = prevLogs.some(
+              (log) =>
+                log.timestamp === newLog.timestamp &&
+                log.message === newLog.message,
+            );
+            if (exists) return prevLogs;
+
+            // Add new log and keep only last 500 logs
+            const updated = [newLog, ...prevLogs];
+            return updated.slice(0, 500);
+          });
+        } else if (parsed.type === "error") {
+          console.error("Stream error:", parsed.message);
+          setError(parsed.message);
+        }
+      } catch (err) {
+        console.error("Error parsing stream data:", err);
+      }
+    };
+
+    eventSource.onerror = (err) => {
+      console.error("EventSource error:", err);
+      setIsStreaming(false);
+      eventSource.close();
+
+      // Fallback to polling
+      if (useStreaming) {
+        console.log("Streaming failed, falling back to polling");
+        setUseStreaming(false);
+        setAutoRefresh(true);
+      }
+    };
+
+    eventSourceRef.current = eventSource;
+  }, [containerId, level, useStreaming]);
+
+  const stopStreaming = useCallback(() => {
+    if (eventSourceRef.current) {
+      eventSourceRef.current.close();
+      eventSourceRef.current = null;
+    }
+    setIsStreaming(false);
+  }, []);
+
+  // Initial load
   useEffect(() => {
     fetchLogs();
   }, [fetchLogs]);
 
+  // Handle streaming vs polling
   useEffect(() => {
-    if (autoRefresh) {
-      const interval = setInterval(fetchLogs, 5000); // Refresh every 5 seconds
+    if (autoRefresh && useStreaming) {
+      // Start streaming
+      startStreaming();
+      return () => stopStreaming();
+    } else if (autoRefresh && !useStreaming) {
+      // Fallback to polling
+      const interval = setInterval(fetchLogs, 5000);
       return () => clearInterval(interval);
+    } else {
+      // Stop streaming if auto-refresh is off
+      stopStreaming();
     }
-  }, [autoRefresh, fetchLogs]);
+  }, [autoRefresh, useStreaming, startStreaming, stopStreaming, fetchLogs]);
+
+  // Cleanup on unmount
+  useEffect(() => {
+    const abortController = abortControllerRef.current;
+    return () => {
+      stopStreaming();
+      if (abortController) {
+        abortController.abort();
+      }
+    };
+  }, [stopStreaming]);
 
   const getLevelColor = (logLevel: string) => {
     switch (logLevel) {
@@ -165,10 +265,21 @@ export function ContainerLogsViewer({
               variant="outline"
               size="sm"
               onClick={() => setAutoRefresh(!autoRefresh)}
+              title={
+                autoRefresh
+                  ? isStreaming
+                    ? "Streaming (click to stop)"
+                    : "Polling (click to stop)"
+                  : "Start auto-refresh"
+              }
             >
-              <RefreshCw
-                className={`h-4 w-4 ${autoRefresh ? "animate-spin" : ""}`}
-              />
+              {isStreaming ? (
+                <Wifi className="h-4 w-4" />
+              ) : autoRefresh ? (
+                <RefreshCw className="h-4 w-4 animate-spin" />
+              ) : (
+                <WifiOff className="h-4 w-4" />
+              )}
             </Button>
             <Button
               variant="outline"
@@ -190,19 +301,49 @@ export function ContainerLogsViewer({
           </div>
         ) : error ? (
           <div className="text-center py-8">
-            <p className="text-red-500">{error}</p>
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={fetchLogs}
-              className="mt-4"
-            >
-              Retry
-            </Button>
+            <div className="mb-4">
+              <p className="text-red-500 font-semibold mb-2">
+                {error.includes("not been deployed")
+                  ? "Container Not Yet Deployed"
+                  : error.includes("not found")
+                    ? "Container Logs Not Found"
+                    : "Error Loading Logs"}
+              </p>
+              <p className="text-sm text-muted-foreground">{error}</p>
+            </div>
+            {!error.includes("not been deployed") && (
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={fetchLogs}
+                className="mt-4"
+              >
+                <RefreshCw className="h-4 w-4 mr-2" />
+                Retry
+              </Button>
+            )}
           </div>
         ) : logs.length === 0 ? (
-          <div className="text-center py-8 text-muted-foreground">
-            No logs available for this container
+          <div className="text-center py-8">
+            <div className="space-y-2">
+              <p className="text-muted-foreground">
+                {infoMessage || "No logs available for this container"}
+              </p>
+              {!infoMessage && (
+                <p className="text-xs text-muted-foreground">
+                  Logs may take a few moments to appear after deployment
+                </p>
+              )}
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={fetchLogs}
+                className="mt-4"
+              >
+                <RefreshCw className="h-4 w-4 mr-2" />
+                Refresh
+              </Button>
+            </div>
           </div>
         ) : (
           <ScrollArea
@@ -241,10 +382,21 @@ export function ContainerLogsViewer({
             </div>
           </ScrollArea>
         )}
-        {autoRefresh && (
+        {(autoRefresh || isStreaming) && (
           <div className="flex items-center justify-center gap-2 mt-2 text-xs text-muted-foreground">
-            <RefreshCw className="h-3 w-3 animate-spin" />
-            Auto-refreshing every 5 seconds
+            {isStreaming ? (
+              <>
+                <Wifi className="h-3 w-3 text-green-500" />
+                <span className="text-green-600 dark:text-green-400">
+                  Live streaming enabled
+                </span>
+              </>
+            ) : (
+              <>
+                <RefreshCw className="h-3 w-3 animate-spin" />
+                Auto-refreshing every 5 seconds
+              </>
+            )}
           </div>
         )}
       </CardContent>

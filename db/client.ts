@@ -28,8 +28,6 @@ function getDb() {
 
     if (isNeonDatabase(databaseUrl)) {
       // Production: Use Neon serverless driver with WebSocket support
-      console.log("[Database] Using Neon serverless driver for production");
-
       // Configure WebSocket for Node.js environment
       if (typeof WebSocket === "undefined") {
         neonConfig.webSocketConstructor = ws;
@@ -39,10 +37,6 @@ function getDb() {
       _db = drizzleNeon(pool, { schema }) as Database;
     } else {
       // Local development: Use regular PostgreSQL driver
-      console.log(
-        "[Database] Using node-postgres driver for local development",
-      );
-
       const pool = new PgPool({ connectionString: databaseUrl });
       _db = drizzleNode(pool, { schema }) as Database;
     }
