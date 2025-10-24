@@ -655,7 +655,7 @@ BLOB_READ_WRITE_TOKEN=vercel_blob_rw_your_token
 5. CLI pushes Docker image to ECR
 6. CLI creates container deployment via cloud API with ECR image URI
 7. Cloud deploys container to dedicated EC2 instance with ECS
-8. Container accessible via AWS Load Balancer URL (https://{userId}.elizacloud.ai)
+8. Container accessible via AWS Load Balancer URL (https://{userId}.containers.elizacloud.ai)
 9. Credits automatically deducted based on container resources (CPU/memory)
 
 **Deployment Architecture**:
