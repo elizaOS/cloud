@@ -1,4 +1,5 @@
-import { NextRequest, NextResponse } from "next/server";
+import type { NextRequest } from "next/server";
+import { NextResponse } from "next/server";
 import { requireAuth } from "@/lib/auth";
 import { getElevenLabsService } from "@/lib/services/elevenlabs";
 import { logger } from "@/lib/utils/logger";
@@ -17,6 +18,8 @@ const SUPPORTED_MIME_TYPES = [
 ];
 
 // Magic number validation - map expected file signatures
+// Note: Safari/macOS may create video/webm containers for audio-only recordings
+// These are valid and contain audio data, so we accept them
 const ALLOWED_AUDIO_SIGNATURES = new Set([
   "audio/mpeg",
   "audio/mp4",
@@ -25,6 +28,7 @@ const ALLOWED_AUDIO_SIGNATURES = new Set([
   "audio/x-wav",
   "audio/webm",
   "audio/ogg",
+  "video/webm", // Safari/macOS creates this for audio recordings
 ]);
 
 export async function POST(request: NextRequest) {
@@ -47,7 +51,9 @@ export async function POST(request: NextRequest) {
     // Validate file size
     if (audioFile.size > MAX_FILE_SIZE) {
       return NextResponse.json(
-        { error: `File too large. Maximum size is ${MAX_FILE_SIZE / 1024 / 1024}MB` },
+        {
+          error: `File too large. Maximum size is ${MAX_FILE_SIZE / 1024 / 1024}MB`,
+        },
         { status: 400 }
       );
     }
@@ -57,7 +63,7 @@ export async function POST(request: NextRequest) {
     if (!SUPPORTED_MIME_TYPES.includes(baseMimeType)) {
       return NextResponse.json(
         {
-          error: `Unsupported audio format: ${audioFile.type}. Supported: mp3, mp4, m4a, wav, webm, ogg`
+          error: `Unsupported audio format: ${audioFile.type}. Supported: mp3, mp4, m4a, wav, webm, ogg`,
         },
         { status: 400 }
       );
@@ -66,15 +72,18 @@ export async function POST(request: NextRequest) {
     // SECURITY FIX: Validate actual file content using magic numbers
     // MIME type headers can be spoofed, so we need to check the actual file signature
     const buffer = Buffer.from(await audioFile.arrayBuffer());
-    
+
     // Check magic numbers (file signature)
     const fileTypeResult = await fileTypeFromBuffer(buffer);
-    
+
     if (!fileTypeResult) {
-      logger.warn(`[STT API] Unable to detect file type for ${audioFile.name} - rejecting`);
+      logger.warn(
+        `[STT API] Unable to detect file type for ${audioFile.name} - rejecting`
+      );
       return NextResponse.json(
         {
-          error: "Unable to verify file type. The file may be corrupted or of an unsupported format."
+          error:
+            "Unable to verify file type. The file may be corrupted or of an unsupported format.",
         },
         { status: 400 }
       );
@@ -86,14 +95,24 @@ export async function POST(request: NextRequest) {
       );
       return NextResponse.json(
         {
-          error: `File content does not match the declared format. Detected: ${fileTypeResult.mime}, Expected audio format.`
+          error: `File content does not match the declared format. Detected: ${fileTypeResult.mime}, Expected audio format.`,
         },
         { status: 400 }
       );
     }
 
+    // Handle video/webm containers (Safari/macOS audio recordings)
+    // Convert to audio/webm for processing
+    let finalMimeType = fileTypeResult.mime;
+    if (fileTypeResult.mime === "video/webm") {
+      logger.info(
+        "[STT API] Converting video/webm container to audio/webm (Safari/macOS audio recording)"
+      );
+      finalMimeType = "audio/webm";
+    }
+
     logger.info(
-      `[STT API] Processing for user ${user.id}: ${audioFile.name} (${audioFile.size} bytes, verified: ${fileTypeResult.mime})`
+      `[STT API] Processing for user ${user.id}: ${audioFile.name} (${audioFile.size} bytes, verified: ${fileTypeResult.mime}, final: ${finalMimeType})`
     );
 
     // Get ElevenLabs service
@@ -101,26 +120,32 @@ export async function POST(request: NextRequest) {
 
     // Transcribe audio (convert buffer back to File for the service)
     const startTime = Date.now();
-    const validatedFile = new File([buffer], audioFile.name, { type: fileTypeResult.mime });
+    const validatedFile = new File([buffer], audioFile.name, {
+      type: finalMimeType,
+    });
     const transcript = await elevenlabs.speechToText({
       audioFile: validatedFile,
       languageCode,
     });
     const duration = Date.now() - startTime;
 
-    logger.info(`[STT API] Completed in ${duration}ms: "${transcript.substring(0, 100)}..."`);
+    logger.info(
+      `[STT API] Completed in ${duration}ms: "${transcript.substring(0, 100)}..."`
+    );
 
     return NextResponse.json({
       transcript,
       duration_ms: duration,
     });
-
   } catch (error) {
     logger.error("[STT API] Error:", error);
 
     if (error instanceof Error) {
       const errorMessage = error.message.toLowerCase();
-      const errorWithBody = error as Error & { body?: { detail?: { message?: string } }; statusCode?: number };
+      const errorWithBody = error as Error & {
+        body?: { detail?: { message?: string } };
+        statusCode?: number;
+      };
       const errorBody = errorWithBody.body?.detail?.message || "";
 
       if (errorMessage.includes("rate limit")) {
@@ -131,10 +156,15 @@ export async function POST(request: NextRequest) {
       }
 
       if (errorMessage.includes("quota") || errorWithBody.statusCode === 403) {
-        if (errorBody.includes("enterprise") || errorBody.includes("trial tier") || errorBody.includes("ZRM mode")) {
+        if (
+          errorBody.includes("enterprise") ||
+          errorBody.includes("trial tier") ||
+          errorBody.includes("ZRM mode")
+        ) {
           return NextResponse.json(
             {
-              error: "Speech-to-Text requires a paid ElevenLabs plan (Starter tier or higher). The free tier does not support STT API access. Please upgrade at https://elevenlabs.io/pricing"
+              error:
+                "Speech-to-Text requires a paid ElevenLabs plan (Starter tier or higher). The free tier does not support STT API access. Please upgrade at https://elevenlabs.io/pricing",
             },
             { status: 402 }
           );
