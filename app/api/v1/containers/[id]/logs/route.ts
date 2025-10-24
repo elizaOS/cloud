@@ -62,7 +62,7 @@ export async function GET(
     const level = searchParams.get("level") || "all"; // Log level filter
 
     // Get logs from CloudWatch
-    const rawLogs = await getCloudWatchLogs(container.name, {
+    const rawLogs = await getCloudWatchLogs(container.id, {
       limit,
       since: since ? new Date(since) : undefined,
     });
@@ -209,9 +209,10 @@ function normalizeLogLevel(levelStr: string): LogLevel {
 /**
  * Get logs from CloudWatch for a container
  * PRODUCTION FIX: Dynamically discovers log streams instead of hardcoding
+ * Uses container ID (UUID) to match CloudFormation stack naming
  */
 async function getCloudWatchLogs(
-  containerName: string,
+  containerId: string,
   options: {
     limit?: number;
     since?: Date;
@@ -238,7 +239,7 @@ async function getCloudWatchLogs(
     },
   });
 
-  const logGroupName = `/ecs/elizaos-user-${containerName}`;
+  const logGroupName = `/ecs/elizaos-user-${containerId}`;
 
   try {
     // First, discover the latest log streams
