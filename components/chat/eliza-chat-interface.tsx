@@ -3,15 +3,32 @@
 import { useState, useEffect, useRef, useCallback } from "react";
 import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { Loader2, Send, Bot, User, Clock, MessageSquare, Mic, Square, Volume2 } from "lucide-react";
+import {
+  Loader2,
+  Send,
+  Bot,
+  User,
+  Clock,
+  MessageSquare,
+  Mic,
+  Square,
+  Volume2,
+} from "lucide-react";
 import { ElizaAvatar } from "./eliza-avatar";
 import { useAudioRecorder } from "./hooks/use-audio-recorder";
 import { useAudioPlayer } from "./hooks/use-audio-player";
 import { toast } from "sonner";
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import type { ElizaCharacter } from "@/lib/types";
+import { ensureAudioFormat } from "@/lib/utils/audio";
 
 interface Message {
   id: string;
@@ -40,13 +57,20 @@ interface ElizaChatInterfaceProps {
   availableCharacters?: ElizaCharacter[];
 }
 
-export function ElizaChatInterface({ availableCharacters = [] }: ElizaChatInterfaceProps) {
-  const [selectedCharacterId, setSelectedCharacterId] = useState<string | null>(null);
+export function ElizaChatInterface({
+  availableCharacters = [],
+}: ElizaChatInterfaceProps) {
+  const [selectedCharacterId, setSelectedCharacterId] = useState<string | null>(
+    null
+  );
   const [roomId, setRoomId] = useState<string | null>(null);
 
   // Debug: Log character selection changes
   useEffect(() => {
-    console.log("[ElizaChat] Character selection changed:", selectedCharacterId || "default");
+    console.log(
+      "[ElizaChat] Character selection changed:",
+      selectedCharacterId || "default"
+    );
   }, [selectedCharacterId]);
   const [messages, setMessages] = useState<Message[]>([]);
   const [rooms, setRooms] = useState<RoomItem[]>([]);
@@ -88,8 +112,17 @@ export function ElizaChatInterface({ availableCharacters = [] }: ElizaChatInterf
       if (res.ok) {
         const data = await res.json();
         if (Array.isArray(data.rooms)) {
-          const list = data.rooms.slice(0, 12) as { id: string; characterId?: string }[];
-          console.log("[ElizaChat] Loaded rooms from API:", list.map(r => ({ id: r.id.substring(0, 8), characterId: r.characterId })));
+          const list = data.rooms.slice(0, 12) as {
+            id: string;
+            characterId?: string;
+          }[];
+          console.log(
+            "[ElizaChat] Loaded rooms from API:",
+            list.map((r) => ({
+              id: r.id.substring(0, 8),
+              characterId: r.characterId,
+            }))
+          );
 
           const rooms: RoomItem[] = list.map((r) => ({
             id: r.id,
@@ -130,7 +163,10 @@ export function ElizaChatInterface({ availableCharacters = [] }: ElizaChatInterf
   }, []);
 
   const createRoom = useCallback(async () => {
-    console.log("[ElizaChat] Creating room with character:", selectedCharacterId || "default");
+    console.log(
+      "[ElizaChat] Creating room with character:",
+      selectedCharacterId || "default"
+    );
     setIsInitializing(true);
     setError(null);
     try {
@@ -251,7 +287,7 @@ export function ElizaChatInterface({ availableCharacters = [] }: ElizaChatInterf
         toast.error("Failed to generate speech");
       }
     },
-    [autoPlayTTS, player],
+    [autoPlayTTS, player]
   );
 
   const handleVoiceInput = useCallback(() => {
@@ -275,16 +311,25 @@ export function ElizaChatInterface({ availableCharacters = [] }: ElizaChatInterf
       setIsProcessingSTT(true);
 
       try {
+        // Ensure the blob is in proper audio format (fix Safari/macOS video/webm issue)
+        const audioBlob = await ensureAudioFormat(recorder.audioBlob);
+
+        console.log("[ElizaChat STT] Audio format:", {
+          originalType: recorder.audioBlob.type,
+          finalType: audioBlob.type,
+          size: audioBlob.size,
+        });
+
         // Create FormData with audio file
         const formData = new FormData();
-        const audioFile = new File([recorder.audioBlob], "recording.webm", {
-          type: recorder.audioBlob.type || "audio/webm"
+        const audioFile = new File([audioBlob], "recording.webm", {
+          type: audioBlob.type || "audio/webm",
         });
         formData.append("audio", audioFile);
 
         console.log("[ElizaChat STT] Sending audio to API...", {
           size: audioFile.size,
-          type: audioFile.type
+          type: audioFile.type,
         });
 
         // Call STT API
@@ -304,7 +349,7 @@ export function ElizaChatInterface({ availableCharacters = [] }: ElizaChatInterf
         console.log("[ElizaChat STT] Transcription received:", {
           transcript,
           duration_ms,
-          length: transcript?.length || 0
+          length: transcript?.length || 0,
         });
 
         // Validate transcript
@@ -321,13 +366,14 @@ export function ElizaChatInterface({ availableCharacters = [] }: ElizaChatInterf
           console.log("[ElizaChat STT] Auto-sending transcribed message...");
           await sendMessage(transcript);
         } else {
-          console.warn("[ElizaChat STT] No roomId available, skipping auto-send");
+          console.warn(
+            "[ElizaChat STT] No roomId available, skipping auto-send"
+          );
         }
-
       } catch (error) {
         console.error("[ElizaChat STT] Error:", error);
         toast.error(
-          error instanceof Error ? error.message : "Failed to transcribe audio",
+          error instanceof Error ? error.message : "Failed to transcribe audio"
         );
       } finally {
         // Cleanup: Clear recording and reset processing state
@@ -347,7 +393,7 @@ export function ElizaChatInterface({ availableCharacters = [] }: ElizaChatInterf
       (msg) =>
         msg.isAgent &&
         !msg.id.startsWith("thinking-") &&
-        !messageAudioUrls.current.has(msg.id),
+        !messageAudioUrls.current.has(msg.id)
     );
 
     newAgentMessages.forEach((msg) => {
@@ -374,7 +420,7 @@ export function ElizaChatInterface({ availableCharacters = [] }: ElizaChatInterf
             : 0;
 
         const response = await fetch(
-          `/api/eliza/rooms/${roomId}/messages?afterTimestamp=${lastTimestamp}`,
+          `/api/eliza/rooms/${roomId}/messages?afterTimestamp=${lastTimestamp}`
         );
 
         if (response.ok) {
@@ -383,7 +429,7 @@ export function ElizaChatInterface({ availableCharacters = [] }: ElizaChatInterf
             setMessages((prev) => {
               // Check if any new message is from the agent
               const hasAgentResponse = (data.messages as Message[]).some(
-                (msg) => msg.isAgent,
+                (msg) => msg.isAgent
               );
 
               // Only remove thinking placeholder if we have an agent response
@@ -405,14 +451,20 @@ export function ElizaChatInterface({ availableCharacters = [] }: ElizaChatInterf
               for (const m of cleaned) byId.set(m.id, m);
 
               const incomingMessages = data.messages as Message[];
-              const newMessages = incomingMessages.filter(msg => !byId.has(msg.id));
+              const newMessages = incomingMessages.filter(
+                (msg) => !byId.has(msg.id)
+              );
 
               if (newMessages.length > 0) {
-                console.log("[Chat] New messages from poll:", newMessages.length, newMessages.map(m => ({
-                  id: m.id.substring(0, 8),
-                  isAgent: m.isAgent,
-                  text: m.content.text?.substring(0, 30)
-                })));
+                console.log(
+                  "[Chat] New messages from poll:",
+                  newMessages.length,
+                  newMessages.map((m) => ({
+                    id: m.id.substring(0, 8),
+                    isAgent: m.isAgent,
+                    text: m.content.text?.substring(0, 30),
+                  }))
+                );
               }
 
               for (const incoming of incomingMessages) {
@@ -434,7 +486,7 @@ export function ElizaChatInterface({ availableCharacters = [] }: ElizaChatInterf
 
     // Check if there's a thinking message - if so, poll faster
     const hasThinkingMessage = messages.some((m) =>
-      m.id.startsWith("thinking-"),
+      m.id.startsWith("thinking-")
     );
     const pollInterval = hasThinkingMessage ? 1000 : 3000; // 1s when thinking, 3s otherwise
 
@@ -451,7 +503,9 @@ export function ElizaChatInterface({ availableCharacters = [] }: ElizaChatInterf
   useEffect(() => {
     if (scrollAreaRef.current) {
       // ScrollArea wraps content in a viewport div with data-radix-scroll-area-viewport
-      const viewport = scrollAreaRef.current.querySelector('[data-radix-scroll-area-viewport]');
+      const viewport = scrollAreaRef.current.querySelector(
+        "[data-radix-scroll-area-viewport]"
+      );
       if (viewport) {
         viewport.scrollTop = viewport.scrollHeight;
       }
@@ -489,7 +543,7 @@ export function ElizaChatInterface({ availableCharacters = [] }: ElizaChatInterf
     thinkingTimeoutRef.current = setTimeout(() => {
       setMessages((prev) => prev.filter((m) => !m.id.startsWith("thinking-")));
       console.warn(
-        "[Chat] Thinking indicator timeout - agent took too long to respond",
+        "[Chat] Thinking indicator timeout - agent took too long to respond"
       );
     }, 30000);
 
@@ -511,7 +565,7 @@ export function ElizaChatInterface({ availableCharacters = [] }: ElizaChatInterf
 
       // Remove only the temp user message; keep thinking indicator until real response arrives via polling
       setMessages((prev) =>
-        prev.filter((msg) => msg.id !== tempUserMessage.id),
+        prev.filter((msg) => msg.id !== tempUserMessage.id)
       );
 
       // The polling interval will catch the response automatically
@@ -523,8 +577,8 @@ export function ElizaChatInterface({ availableCharacters = [] }: ElizaChatInterf
       setMessages((prev) =>
         prev.filter(
           (msg) =>
-            msg.id !== tempUserMessage.id && !msg.id.startsWith("thinking-"),
-        ),
+            msg.id !== tempUserMessage.id && !msg.id.startsWith("thinking-")
+        )
       );
       // Clear thinking timeout on error
       if (thinkingTimeoutRef.current) {
@@ -588,7 +642,10 @@ export function ElizaChatInterface({ availableCharacters = [] }: ElizaChatInterf
           {/* Character Selector */}
           {availableCharacters.length > 0 && (
             <div className="space-y-2">
-              <Label htmlFor="character-select" className="text-xs text-muted-foreground">
+              <Label
+                htmlFor="character-select"
+                className="text-xs text-muted-foreground"
+              >
                 Character
               </Label>
               <Select
@@ -624,65 +681,65 @@ export function ElizaChatInterface({ availableCharacters = [] }: ElizaChatInterf
         <div className="flex-1 min-h-0 overflow-hidden">
           <ScrollArea className="h-full">
             <div className="p-2 space-y-1">
-            {isLoadingRooms && rooms.length === 0 ? (
-              <div className="flex items-center justify-center py-8">
-                <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
-              </div>
-            ) : (
-              <>
-                {rooms.map((r) => {
-                  const roomCharacter = r.characterId
-                    ? availableCharacters.find(c => c.id === r.characterId)
-                    : null;
-                  const characterName = roomCharacter?.name || "Default";
+              {isLoadingRooms && rooms.length === 0 ? (
+                <div className="flex items-center justify-center py-8">
+                  <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
+                </div>
+              ) : (
+                <>
+                  {rooms.map((r) => {
+                    const roomCharacter = r.characterId
+                      ? availableCharacters.find((c) => c.id === r.characterId)
+                      : null;
+                    const characterName = roomCharacter?.name || "Default";
 
-                  return (
-                    <button
-                      key={r.id}
-                      className={`w-full rounded-lg px-3 py-3 text-left transition-all hover:bg-accent/50 ${
-                        r.id === roomId ? "bg-accent" : ""
-                      }`}
-                      onClick={() => {
-                        setRoomId(r.id);
-                        if (typeof window !== "undefined") {
-                          window.localStorage.setItem("elizaRoomId", r.id);
-                        }
-                        setMessages([]);
-                        loadMessages(r.id);
-                      }}
-                    >
-                      <div className="flex items-center justify-between mb-1">
-                        <div className="text-xs font-semibold truncate flex-1">
-                          Room {r.id.substring(0, 8)}...
+                    return (
+                      <button
+                        key={r.id}
+                        className={`w-full rounded-lg px-3 py-3 text-left transition-all hover:bg-accent/50 ${
+                          r.id === roomId ? "bg-accent" : ""
+                        }`}
+                        onClick={() => {
+                          setRoomId(r.id);
+                          if (typeof window !== "undefined") {
+                            window.localStorage.setItem("elizaRoomId", r.id);
+                          }
+                          setMessages([]);
+                          loadMessages(r.id);
+                        }}
+                      >
+                        <div className="flex items-center justify-between mb-1">
+                          <div className="text-xs font-semibold truncate flex-1">
+                            Room {r.id.substring(0, 8)}...
+                          </div>
+                          {r.lastTime ? (
+                            <div className="text-[10px] text-muted-foreground whitespace-nowrap ml-2">
+                              {formatTimestamp(r.lastTime)}
+                            </div>
+                          ) : null}
                         </div>
-                      {r.lastTime ? (
-                        <div className="text-[10px] text-muted-foreground whitespace-nowrap ml-2">
-                          {formatTimestamp(r.lastTime)}
+                        <div className="flex items-center gap-2">
+                          <div className="text-[10px] px-1.5 py-0.5 rounded bg-primary/10 text-primary font-medium">
+                            {characterName}
+                          </div>
+                          {r.lastText && (
+                            <div className="text-xs text-muted-foreground truncate flex-1">
+                              {r.lastText}
+                            </div>
+                          )}
                         </div>
-                      ) : null}
+                      </button>
+                    );
+                  })}
+                  {rooms.length === 0 && !isLoadingRooms && (
+                    <div className="px-3 py-8 text-center">
+                      <p className="text-xs text-muted-foreground">
+                        No conversations yet
+                      </p>
                     </div>
-                    <div className="flex items-center gap-2">
-                      <div className="text-[10px] px-1.5 py-0.5 rounded bg-primary/10 text-primary font-medium">
-                        {characterName}
-                      </div>
-                      {r.lastText && (
-                        <div className="text-xs text-muted-foreground truncate flex-1">
-                          {r.lastText}
-                        </div>
-                      )}
-                    </div>
-                  </button>
-                );
-                })}
-                {rooms.length === 0 && !isLoadingRooms && (
-                  <div className="px-3 py-8 text-center">
-                    <p className="text-xs text-muted-foreground">
-                      No conversations yet
-                    </p>
-                  </div>
-                )}
-              </>
-            )}
+                  )}
+                </>
+              )}
             </div>
           </ScrollArea>
         </div>
@@ -719,119 +776,126 @@ export function ElizaChatInterface({ availableCharacters = [] }: ElizaChatInterf
         <div className="flex-1 min-h-0 overflow-hidden">
           <ScrollArea className="h-full p-4" ref={scrollAreaRef}>
             <div className="space-y-4">
-            {error && (
-              <div className="rounded-lg border border-destructive bg-destructive/10 p-3">
-                <p className="text-sm text-destructive">{error}</p>
-              </div>
-            )}
+              {error && (
+                <div className="rounded-lg border border-destructive bg-destructive/10 p-3">
+                  <p className="text-sm text-destructive">{error}</p>
+                </div>
+              )}
 
-            {messages.length === 0 && !error && (
-              <div className="flex flex-col items-center justify-center h-full text-center">
-                <ElizaAvatar
-                  avatarUrl={agentInfo?.avatarUrl}
-                  name={agentInfo?.name}
-                  className="h-12 w-12 mb-4"
-                  fallbackClassName="bg-muted"
-                  iconClassName="h-6 w-6 text-muted-foreground"
-                />
-                <h3 className="text-lg font-semibold mb-2">
-                  Start a conversation
-                </h3>
-                <p className="text-sm text-muted-foreground max-w-md">
-                  Ask me anything about AI, development, or how elizaOS can help
-                  you build intelligent agents.
-                </p>
-              </div>
-            )}
+              {messages.length === 0 && !error && (
+                <div className="flex flex-col items-center justify-center h-full text-center">
+                  <ElizaAvatar
+                    avatarUrl={agentInfo?.avatarUrl}
+                    name={agentInfo?.name}
+                    className="h-12 w-12 mb-4"
+                    fallbackClassName="bg-muted"
+                    iconClassName="h-6 w-6 text-muted-foreground"
+                  />
+                  <h3 className="text-lg font-semibold mb-2">
+                    Start a conversation
+                  </h3>
+                  <p className="text-sm text-muted-foreground max-w-md">
+                    Ask me anything about AI, development, or how elizaOS can
+                    help you build intelligent agents.
+                  </p>
+                </div>
+              )}
 
-            {messages.map((message, index) => {
-              const isThinking = message.id.startsWith("thinking-");
-              return (
-                <div
-                  key={message.id}
-                  className={`flex gap-3 ${
-                    message.isAgent ? "justify-start" : "justify-end"
-                  } animate-in fade-in slide-in-from-bottom-4 duration-500`}
-                  style={{ animationDelay: `${index * 50}ms` }}
-                >
-                  {message.isAgent && (
-                    <ElizaAvatar
-                      avatarUrl={agentInfo?.avatarUrl}
-                      name={agentInfo?.name}
-                      className="flex-shrink-0 w-9 h-9"
-                      iconClassName="h-5 w-5"
-                      animate={isThinking}
-                    />
-                  )}
-
+              {messages.map((message, index) => {
+                const isThinking = message.id.startsWith("thinking-");
+                return (
                   <div
-                    className={`rounded-2xl px-4 py-3 max-w-[80%] ${
-                      message.isAgent
-                        ? "bg-card border"
-                        : "bg-primary text-primary-foreground"
-                    }`}
+                    key={message.id}
+                    className={`flex gap-3 ${
+                      message.isAgent ? "justify-start" : "justify-end"
+                    } animate-in fade-in slide-in-from-bottom-4 duration-500`}
+                    style={{ animationDelay: `${index * 50}ms` }}
                   >
-                    {isThinking ? (
-                      <div className="flex items-center gap-3">
-                        <Loader2 className="h-4 w-4 animate-spin" />
-                        <p className="text-sm text-muted-foreground">
-                          Eliza is thinking...
-                        </p>
-                      </div>
-                    ) : (
-                      <>
-                        <div className="text-sm whitespace-pre-wrap mb-2">
-                          {message.content.text}
+                    {message.isAgent && (
+                      <ElizaAvatar
+                        avatarUrl={agentInfo?.avatarUrl}
+                        name={agentInfo?.name}
+                        className="flex-shrink-0 w-9 h-9"
+                        iconClassName="h-5 w-5"
+                        animate={isThinking}
+                      />
+                    )}
+
+                    <div
+                      className={`rounded-2xl px-4 py-3 max-w-[80%] ${
+                        message.isAgent
+                          ? "bg-card border"
+                          : "bg-primary text-primary-foreground"
+                      }`}
+                    >
+                      {isThinking ? (
+                        <div className="flex items-center gap-3">
+                          <Loader2 className="h-4 w-4 animate-spin" />
+                          <p className="text-sm text-muted-foreground">
+                            Eliza is thinking...
+                          </p>
                         </div>
-                        <div
-                          className={`flex items-center justify-between gap-2 text-xs mt-2 pt-2 border-t ${
-                            message.isAgent
-                              ? "border-border text-muted-foreground"
-                              : "border-primary-foreground/20 text-primary-foreground/80"
-                          }`}
-                        >
-                          <div className="flex items-center gap-2">
-                            <Clock className="h-3 w-3" />
-                            <span>{formatTimestamp(message.createdAt)}</span>
+                      ) : (
+                        <>
+                          <div className="text-sm whitespace-pre-wrap mb-2">
+                            {message.content.text}
                           </div>
-                          {message.isAgent && messageAudioUrls.current.has(message.id) && (
-                            <Button
-                              size="sm"
-                              variant="ghost"
-                              className="h-6 w-6 p-0"
-                              onClick={() => {
-                                const url = messageAudioUrls.current.get(message.id);
-                                if (url) {
-                                  if (currentPlayingId === message.id && player.isPlaying) {
-                                    player.stopAudio();
-                                    setCurrentPlayingId(null);
-                                  } else {
-                                    setCurrentPlayingId(message.id);
-                                    player.playAudio(url);
-                                  }
-                                }
-                              }}
-                            >
-                              {currentPlayingId === message.id && player.isPlaying ? (
-                                <Square className="h-3 w-3" />
-                              ) : (
-                                <Volume2 className="h-3 w-3" />
+                          <div
+                            className={`flex items-center justify-between gap-2 text-xs mt-2 pt-2 border-t ${
+                              message.isAgent
+                                ? "border-border text-muted-foreground"
+                                : "border-primary-foreground/20 text-primary-foreground/80"
+                            }`}
+                          >
+                            <div className="flex items-center gap-2">
+                              <Clock className="h-3 w-3" />
+                              <span>{formatTimestamp(message.createdAt)}</span>
+                            </div>
+                            {message.isAgent &&
+                              messageAudioUrls.current.has(message.id) && (
+                                <Button
+                                  size="sm"
+                                  variant="ghost"
+                                  className="h-6 w-6 p-0"
+                                  onClick={() => {
+                                    const url = messageAudioUrls.current.get(
+                                      message.id
+                                    );
+                                    if (url) {
+                                      if (
+                                        currentPlayingId === message.id &&
+                                        player.isPlaying
+                                      ) {
+                                        player.stopAudio();
+                                        setCurrentPlayingId(null);
+                                      } else {
+                                        setCurrentPlayingId(message.id);
+                                        player.playAudio(url);
+                                      }
+                                    }
+                                  }}
+                                >
+                                  {currentPlayingId === message.id &&
+                                  player.isPlaying ? (
+                                    <Square className="h-3 w-3" />
+                                  ) : (
+                                    <Volume2 className="h-3 w-3" />
+                                  )}
+                                </Button>
                               )}
-                            </Button>
-                          )}
-                        </div>
-                      </>
+                          </div>
+                        </>
+                      )}
+                    </div>
+
+                    {!message.isAgent && (
+                      <div className="flex-shrink-0 w-9 h-9 rounded-full bg-primary flex items-center justify-center">
+                        <User className="h-5 w-5 text-primary-foreground" />
+                      </div>
                     )}
                   </div>
-
-                  {!message.isAgent && (
-                    <div className="flex-shrink-0 w-9 h-9 rounded-full bg-primary flex items-center justify-center">
-                      <User className="h-5 w-5 text-primary-foreground" />
-                    </div>
-                  )}
-                </div>
-              );
-            })}
+                );
+              })}
             </div>
           </ScrollArea>
         </div>
@@ -879,7 +943,12 @@ export function ElizaChatInterface({ availableCharacters = [] }: ElizaChatInterf
             </div>
             <Button
               type="submit"
-              disabled={isLoading || !roomId || !inputText.trim() || recorder.isRecording}
+              disabled={
+                isLoading ||
+                !roomId ||
+                !inputText.trim() ||
+                recorder.isRecording
+              }
               size="lg"
             >
               {isLoading ? (
