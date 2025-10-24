@@ -197,6 +197,7 @@
     },
     "EC2Instance": {
       "Type": "AWS::EC2::Instance",
+      "DependsOn": "ECSCluster",
       "CreationPolicy": {
         "ResourceSignal": {
           "Timeout": "PT10M"
