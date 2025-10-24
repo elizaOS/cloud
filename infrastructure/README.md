@@ -189,7 +189,7 @@ curl http://ec2-xx-xxx-xxx-xxx.compute-1.amazonaws.com:3000/health
 └─────────────────────────────────────────────────────────┘
                           │
                           ▼
-              https://{userId}.elizacloud.ai
+              https://{userId}.containers.elizacloud.ai
 ```
 
 ### Key Features
@@ -206,7 +206,7 @@ curl http://ec2-xx-xxx-xxx-xxx.compute-1.amazonaws.com:3000/health
 
 **Two ways to access your containers**:
 
-1. **Via ALB (Production)**: `https://{userId}.elizacloud.ai`
+1. **Via ALB (Production)**: `https://{userId}.containers.elizacloud.ai`
    - HTTPS with ACM certificate
    - Host-based routing
    - Automatic health checks
@@ -255,10 +255,10 @@ curl http://ec2-xx-xxx-xxx-xxx.compute-1.amazonaws.com:3000/health
 ### Prerequisites
 
 1. **AWS Account** with administrator access
-2. **ACM Certificate** for `*.elizacloud.ai`:
+2. **ACM Certificate** for `*.containers.elizacloud.ai`:
    ```bash
    aws acm request-certificate \
-     --domain-name '*.elizacloud.ai' \
+     --domain-name '*.containers.elizacloud.ai' \
      --validation-method DNS \
      --region us-east-1
    ```
@@ -285,7 +285,7 @@ bash deploy-shared.sh
 - **Internet Gateway**: For public internet access
 - **Route Table**: Public routing to IGW
 - **Application Load Balancer**: Internet-facing, 60s idle timeout
-- **HTTPS Listener**: Port 443 with ACM certificate for `*.elizacloud.ai`
+- **HTTPS Listener**: Port 443 with ACM certificate for `*.containers.elizacloud.ai`
 - **HTTP Listener**: Port 80 with automatic redirect to HTTPS
 - **IAM Roles**:
   - ECS Instance Role (for EC2 instances)
@@ -320,13 +320,13 @@ ALB_DNS=$(aws cloudformation describe-stacks \
   --output text)
 
 echo "ALB DNS: $ALB_DNS"
-echo "Create DNS record: *.elizacloud.ai → CNAME → $ALB_DNS"
+echo "Create DNS record: *.containers.elizacloud.ai → CNAME → $ALB_DNS"
 ```
 
 **Add this to your DNS provider** (e.g., Cloudflare, Route53, etc.):
 ```
 Type: CNAME
-Name: *.elizacloud.ai
+Name: *.containers.elizacloud.ai
 Target: <ALB_DNS from above>
 TTL: 300 (or Auto)
 Proxy: Disabled (DNS only)
@@ -705,7 +705,7 @@ elizaos deploy \
 10. ECS pulls image from ECR
 11. Container starts and registers with ALB
 12. Health checks pass (/health endpoint)
-13. URL becomes accessible: https://{userId}.elizacloud.ai
+13. URL becomes accessible: https://{userId}.containers.elizacloud.ai
 
 Duration: 10-15 minutes
 ```
@@ -760,7 +760,7 @@ Duration: 10-15 minutes
 │  Application Load Balancer (ALB)                      │
 │  - Internet-facing                                    │
 │  - Security Group: Allow 0.0.0.0/0 on 80, 443        │
-│  - Routes by host: {userId}.elizacloud.ai            │
+│  - Routes by host: {userId}.containers.elizacloud.ai            │
 └────────────────┬─────────────────────────────────────┘
                  │
                  ▼
@@ -787,7 +787,7 @@ Duration: 10-15 minutes
 
 **Security Layers**:
 - ✅ **Dual Access**:
-  - Production: `https://{userId}.elizacloud.ai` (via ALB, HTTPS)
+  - Production: `https://{userId}.containers.elizacloud.ai` (via ALB, HTTPS)
   - Development: `http://{ec2-dns}:{port}` (direct to EC2, HTTP)
 - ✅ **VPC Isolation**: Containers are in VPC (10.0.0.0/16)
 - ✅ **Security Groups**: 
@@ -1181,7 +1181,7 @@ aws cloudformation describe-stack-events \
 
 **The architecture provides public internet access via ALB**:
 ```
-Internet → ALB (https://{userId}.elizacloud.ai) → Target Group → EC2/ECS Container
+Internet → ALB (https://{userId}.containers.elizacloud.ai) → Target Group → EC2/ECS Container
 ```
 
 **Verify step-by-step**:
@@ -1189,7 +1189,7 @@ Internet → ALB (https://{userId}.elizacloud.ai) → Target Group → EC2/ECS C
 1. **Check DNS resolution**:
 ```bash
 # Should resolve to ALB IP addresses
-dig {userId}.elizacloud.ai
+dig {userId}.containers.elizacloud.ai
 
 # Get ALB DNS name
 aws cloudformation describe-stacks \
@@ -1226,12 +1226,12 @@ ALB_DNS=$(aws cloudformation describe-stacks \
   --output text)
 
 # Test with Host header
-curl -H "Host: {userId}.elizacloud.ai" https://$ALB_DNS/health
+curl -H "Host: {userId}.containers.elizacloud.ai" https://$ALB_DNS/health
 ```
 
 **Common issues**:
 
-- ❌ **DNS not configured**: Add `*.elizacloud.ai → CNAME → ALB DNS name`
+- ❌ **DNS not configured**: Add `*.containers.elizacloud.ai → CNAME → ALB DNS name`
 - ❌ **Container not healthy**: Check if container has `/health` endpoint
 - ❌ **Wrong port**: Container must listen on the configured port (default 3000)
 - ❌ **Health check failing**: Container takes >15 minutes to start (grace period exceeded)
@@ -1351,7 +1351,7 @@ Before going live:
 
 - [ ] Deploy shared infrastructure successfully
 - [ ] Apply all database migrations (0005, 0006, 0007)
-- [ ] Configure DNS (\*.elizacloud.ai → ALB)
+- [ ] Configure DNS (\*.containers.elizacloud.ai → ALB)
 - [ ] Verify DNS propagation
 - [ ] Set up SNS topic for alerts (optional but recommended)
 
