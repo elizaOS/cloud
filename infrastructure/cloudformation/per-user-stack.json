@@ -197,6 +197,7 @@
     },
     "EC2Instance": {
       "Type": "AWS::EC2::Instance",
+      "DependsOn": "ECSCluster",
       "CreationPolicy": {
         "ResourceSignal": {
           "Timeout": "PT10M"
@@ -383,7 +384,7 @@
           {
             "Field": "host-header",
             "HostHeaderConfig": {
-              "Values": [{ "Fn::Sub": "${UserId}.elizacloud.ai" }]
+              "Values": [{ "Fn::Sub": "${UserId}.containers.elizacloud.ai" }]
             }
           }
         ],
@@ -544,7 +545,7 @@
     },
     "ContainerUrl": {
       "Description": "Container URL",
-      "Value": { "Fn::Sub": "https://${UserId}.elizacloud.ai" }
+      "Value": { "Fn::Sub": "https://${UserId}.containers.elizacloud.ai" }
     }
   }
 }

@@ -25,9 +25,6 @@ class AgentEventEmitter {
 
   private initialize(): void {
     if (!process.env.KV_REST_API_URL || !process.env.KV_REST_API_TOKEN) {
-      logger.warn(
-        "[Agent Events] Missing Redis credentials. Real-time agent events will not work.",
-      );
       this.enabled = false;
       return;
     }
@@ -38,7 +35,6 @@ class AgentEventEmitter {
     });
 
     this.enabled = true;
-    logger.info("[Agent Events] Redis event emitter initialized");
   }
 
   public static getInstance(): AgentEventEmitter {

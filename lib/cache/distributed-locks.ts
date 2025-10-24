@@ -21,9 +21,6 @@ export class DistributedLockService {
 
   private initialize(): void {
     if (!process.env.KV_REST_API_URL || !process.env.KV_REST_API_TOKEN) {
-      logger.warn(
-        "[Distributed Locks] Missing Redis credentials. Distributed locking disabled."
-      );
       this.enabled = false;
       return;
     }
@@ -34,7 +31,6 @@ export class DistributedLockService {
     });
 
     this.enabled = true;
-    logger.info("[Distributed Locks] Service initialized");
   }
 
   public static getInstance(): DistributedLockService {
