@@ -11,6 +11,7 @@ const character: Character = {
   id: "b850bc30-45f8-0041-a00a-83df46d8555d", // existing agent id in DB
   name: "Eliza",
   plugins: [
+    "@elizaos/plugin-openai",
     "@elizaos/plugin-elevenlabs",
   ],
   settings: {
