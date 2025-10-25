@@ -406,61 +406,46 @@ async function handleCreateContainer(request: NextRequest) {
       });
     }
 
-    // Deploy container synchronously - wait for completion before returning
-    // This ensures the function stays alive for the entire deployment
-    try {
-      await deployContainerAsync(
-        container.id,
-        validatedData,
-        deploymentCost,
-        user.organization_id
-      );
+    // Deploy container ASYNCHRONOUSLY - return immediately to prevent API timeout
+    // CloudFormation deployments take 8-12 minutes, which exceeds API gateway timeouts
+    // Client will poll GET /api/v1/containers/:id for status updates
+    
+    console.log(
+      `🚀 [handleCreateContainer] Starting background deployment for container: ${container.id}`
+    );
 
-      // Fetch updated container status
-      const deployedContainer = await getContainer(
-        container.id,
-        user.organization_id
-      );
-
-      return NextResponse.json(
-        {
-          success: true,
-          data: deployedContainer || container,
-          message:
-            deployedContainer?.status === "running"
-              ? "Container deployed successfully"
-              : "Container deployment in progress. Check status for updates.",
-          creditsDeducted: deploymentCost,
-          creditsRemaining: newBalance,
-        },
-        { status: 201 }
-      );
-    } catch (deployError) {
+    // Start deployment in background (no await)
+    deployContainerAsync(
+      container.id,
+      validatedData,
+      deploymentCost,
+      user.organization_id
+    ).catch((error) => {
       console.error(
-        "❌ [handleCreateContainer] Deployment failed:",
-        deployError
+        "❌ [handleCreateContainer] Background deployment failed:",
+        error
       );
+      // Error handling is already done inside deployContainerAsync
+      // Container status will be set to "failed" with error message
+    });
 
-      // Return with current container status (likely "failed")
-      const failedContainer = await getContainer(
-        container.id,
-        user.organization_id
-      );
-
-      return NextResponse.json(
-        {
-          success: false,
-          data: failedContainer || container,
-          error:
-            deployError instanceof Error
-              ? deployError.message
-              : "Deployment failed",
-          message:
-            "Deployment failed. Check container error_message for details.",
+    // Return immediately with container info and polling instructions
+    return NextResponse.json(
+      {
+        success: true,
+        data: container,
+        message:
+          "Container deployment started. Poll GET /api/v1/containers/:id to check status. CloudFormation deployment typically takes 8-12 minutes.",
+        creditsDeducted: deploymentCost,
+        creditsRemaining: newBalance,
+        polling: {
+          endpoint: `/api/v1/containers/${container.id}`,
+          intervalMs: 10000, // Suggest polling every 10 seconds
+          expectedDurationMs: 600000, // 10 minutes
         },
-        { status: 500 }
-      );
-    }
+      },
+      { status: 202 } // 202 Accepted - request accepted, processing asynchronously
+    );
   } catch (error) {
     console.error("Error creating container:", error);
 
