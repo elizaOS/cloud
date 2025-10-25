@@ -58,11 +58,18 @@ export class ElevenLabsService {
       apiKey,
       voiceId: process.env.ELEVENLABS_VOICE_ID || "EXAVITQu4vr4xnSDxMaL",
       modelId: process.env.ELEVENLABS_MODEL_ID || "eleven_flash_v2_5",
-      voiceStability: parseFloat(process.env.ELEVENLABS_VOICE_STABILITY || "0.5"),
-      voiceSimilarityBoost: parseFloat(process.env.ELEVENLABS_VOICE_SIMILARITY_BOOST || "0.75"),
-      voiceStyle: parseFloat(process.env.ELEVENLABS_VOICE_STYLE || "0"),
-      voiceUseSpeakerBoost: process.env.ELEVENLABS_VOICE_USE_SPEAKER_BOOST !== "false",
-      optimizeStreamingLatency: parseInt(process.env.ELEVENLABS_OPTIMIZE_STREAMING_LATENCY || "4"),
+      voiceStability: Number.parseFloat(
+        process.env.ELEVENLABS_VOICE_STABILITY || "0.5"
+      ),
+      voiceSimilarityBoost: Number.parseFloat(
+        process.env.ELEVENLABS_VOICE_SIMILARITY_BOOST || "0.75"
+      ),
+      voiceStyle: Number.parseFloat(process.env.ELEVENLABS_VOICE_STYLE || "0"),
+      voiceUseSpeakerBoost:
+        process.env.ELEVENLABS_VOICE_USE_SPEAKER_BOOST !== "false",
+      optimizeStreamingLatency: Number.parseInt(
+        process.env.ELEVENLABS_OPTIMIZE_STREAMING_LATENCY || "4"
+      ),
       outputFormat: process.env.ELEVENLABS_OUTPUT_FORMAT || "mp3_44100_128",
     };
 
@@ -73,16 +80,20 @@ export class ElevenLabsService {
    * Convert text to speech (streaming)
    */
   async textToSpeech(options: TTSOptions): Promise<ReadableStream<Uint8Array>> {
-    const voiceId = options.voiceId || this.config.voiceId || "EXAVITQu4vr4xnSDxMaL";
-    const modelId = options.modelId || this.config.modelId || "eleven_flash_v2_5";
+    const voiceId =
+      options.voiceId || this.config.voiceId || "EXAVITQu4vr4xnSDxMaL";
+    const modelId =
+      options.modelId || this.config.modelId || "eleven_flash_v2_5";
 
-    logger.info(`[ElevenLabs TTS] Generating speech: voice=${voiceId}, model=${modelId}, length=${options.text.length}`);
+    logger.info(
+      `[ElevenLabs TTS] Generating speech: voice=${voiceId}, model=${modelId}, length=${options.text.length}`
+    );
 
     try {
       const audioStream = await this.client.textToSpeech.stream(voiceId, {
         text: options.text,
         modelId,
-        outputFormat: this.config.outputFormat as  "mp3_44100_128" | "pcm_16000",
+        outputFormat: this.config.outputFormat as "mp3_44100_128" | "pcm_16000",
         optimizeStreamingLatency: this.config.optimizeStreamingLatency,
         voiceSettings: {
           stability: this.config.voiceStability,
@@ -145,6 +156,116 @@ export class ElevenLabsService {
       return response.voices || [];
     } catch (error) {
       logger.error("[ElevenLabs] Error fetching voices:", error);
+      throw error;
+    }
+  }
+
+  /**
+   * Create an instant voice clone
+   */
+  async createInstantVoiceClone(options: {
+    name: string;
+    description?: string;
+    files: File[];
+  }): Promise<{ voiceId: string; name: string }> {
+    logger.info(`[ElevenLabs] Creating instant voice clone: ${options.name}`);
+
+    try {
+      // Use IVC (Instant Voice Cloning) endpoint
+      const voice = await this.client.voices.ivc.create({
+        name: options.name,
+        description: options.description,
+        files: options.files,
+      });
+
+      return {
+        voiceId: voice.voiceId, // Response uses camelCase
+        name: options.name, // Name not returned, use the input name
+      };
+    } catch (error) {
+      logger.error("[ElevenLabs] Error creating instant voice clone:", error);
+      throw error;
+    }
+  }
+
+  /**
+   * Create a professional voice clone
+   * Note: This may be async on ElevenLabs side depending on their API
+   */
+  async createProfessionalVoiceClone(options: {
+    name: string;
+    description?: string;
+    files: File[];
+  }): Promise<{ voiceId: string; name: string }> {
+    logger.info(
+      `[ElevenLabs] Creating professional voice clone: ${options.name}`
+    );
+
+    try {
+      // Use PVC (Professional Voice Cloning) endpoint
+      const voice = await this.client.voices.pvc.create({
+        name: options.name,
+        description: options.description,
+        files: options.files,
+      });
+
+      return {
+        voiceId: voice.voiceId, // Response uses camelCase
+        name: options.name, // Name not returned, use the input name
+      };
+    } catch (error) {
+      logger.error(
+        "[ElevenLabs] Error creating professional voice clone:",
+        error
+      );
+      throw error;
+    }
+  }
+
+  /**
+   * Delete a voice by ID
+   */
+  async deleteVoice(voiceId: string): Promise<void> {
+    logger.info(`[ElevenLabs] Deleting voice: ${voiceId}`);
+
+    try {
+      await this.client.voices.delete(voiceId);
+    } catch (error) {
+      logger.error("[ElevenLabs] Error deleting voice:", error);
+      throw error;
+    }
+  }
+
+  /**
+   * Get voice details from ElevenLabs
+   */
+  async getVoiceById(voiceId: string) {
+    try {
+      return await this.client.voices.get(voiceId);
+    } catch (error) {
+      logger.error("[ElevenLabs] Error fetching voice:", error);
+      throw error;
+    }
+  }
+
+  /**
+   * Update voice settings
+   */
+  async updateVoiceSettings(
+    voiceId: string,
+    settings: {
+      name?: string;
+      description?: string;
+      stability?: number;
+      similarityBoost?: number;
+    }
+  ) {
+    logger.info(`[ElevenLabs] Updating voice settings: ${voiceId}`);
+
+    try {
+      return await this.client.voices.edit(voiceId, settings);
+    } catch (error) {
+      logger.error("[ElevenLabs] Error updating voice:", error);
       throw error;
     }
   }
