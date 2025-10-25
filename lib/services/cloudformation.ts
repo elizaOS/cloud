@@ -24,6 +24,7 @@ import { dbPriorityManager } from "./alb-priority-manager";
 
 export interface UserStackConfig {
   userId: string;
+  projectName: string; // Project name for multi-project support
   userEmail: string;
   containerImage: string;
   containerPort: number;
@@ -141,10 +142,18 @@ export class CloudFormationService {
   }
 
   /**
-   * Get stack name for a user
+   * Get stack name for a user and project
+   * Supports multiple projects per user by including projectName
    */
-  getStackName(userId: string): string {
-    return `elizaos-user-${userId}`;
+  getStackName(userId: string, projectName: string): string {
+    // Sanitize project name for CloudFormation stack naming
+    const sanitizedProject = projectName
+      .toLowerCase()
+      .replace(/[^a-z0-9-]/g, '-')
+      .replace(/^-+|-+$/g, '')
+      .substring(0, 30); // Limit length for stack name constraints
+    
+    return `elizaos-${userId}-${sanitizedProject}`;
   }
 
   /**
@@ -189,7 +198,7 @@ export class CloudFormationService {
     this.validateTemplateExists();
 
     return this.withRetry(async () => {
-      const stackName = this.getStackName(config.userId);
+      const stackName = this.getStackName(config.userId, config.projectName);
 
       // Allocate unique ALB priority
       const albPriority = await dbPriorityManager.allocatePriority(
@@ -231,6 +240,7 @@ export class CloudFormationService {
         Capabilities: ["CAPABILITY_NAMED_IAM"], // Required for IAM role creation
         Parameters: [
           { ParameterKey: "UserId", ParameterValue: config.userId },
+          { ParameterKey: "ProjectName", ParameterValue: config.projectName },
           { ParameterKey: "UserEmail", ParameterValue: config.userEmail },
           {
             ParameterKey: "ContainerImage",
@@ -281,6 +291,7 @@ export class CloudFormationService {
         ],
         Tags: [
           { Key: "UserId", Value: config.userId },
+          { Key: "ProjectName", Value: config.projectName },
           { Key: "UserEmail", Value: config.userEmail },
           { Key: "ManagedBy", Value: "ElizaOS" },
           { Key: "Environment", Value: this.environment },
@@ -305,18 +316,161 @@ export class CloudFormationService {
   }
 
   /**
+   * Update an existing CloudFormation stack for a user
+   * This is used when re-deploying an existing project
+   */
+  async updateUserStack(config: UserStackConfig): Promise<string> {
+    this.ensureCredentials();
+    this.validateTemplateExists();
+
+    return this.withRetry(async () => {
+      const stackName = this.getStackName(config.userId, config.projectName);
+
+      // Load template and parse as JSON for dynamic modification
+      const templateJson = JSON.parse(fs.readFileSync(this.templatePath, "utf-8"));
+
+      // Inject environment variables into container definition if provided
+      if (config.environmentVars && Object.keys(config.environmentVars).length > 0) {
+        const envArray = Object.entries(config.environmentVars).map(([name, value]) => ({
+          Name: name,
+          Value: value,
+        }));
+
+        // Find the TaskDefinition resource and inject environment variables
+        if (
+          templateJson.Resources?.TaskDefinition?.Properties?.ContainerDefinitions?.[0]
+        ) {
+          templateJson.Resources.TaskDefinition.Properties.ContainerDefinitions[0].Environment =
+            envArray;
+          console.log(
+            `Injected ${envArray.length} environment variables into task definition for update`,
+          );
+        }
+      }
+
+      // Convert modified template back to string
+      const templateBody = JSON.stringify(templateJson);
+
+      // Get shared infrastructure outputs
+      const sharedOutputs = await this.getSharedInfrastructureOutputs();
+
+      // Get current ALB priority for this stack (don't allocate a new one for updates)
+      const currentStack = await this.getStack(config.userId, config.projectName);
+      let albPriority: number;
+      
+      if (!currentStack) {
+        throw new Error(`Stack ${stackName} not found for update`);
+      }
+
+      // Extract ALB priority from existing stack parameters
+      const priorityParam = currentStack.Parameters?.find(p => p.ParameterKey === 'ListenerRulePriority');
+      if (priorityParam?.ParameterValue) {
+        albPriority = parseInt(priorityParam.ParameterValue, 10);
+      } else {
+        throw new Error(`Unable to find existing ALB priority for stack ${stackName}`);
+      }
+
+      const command = new UpdateStackCommand({
+        StackName: stackName,
+        TemplateBody: templateBody,
+        Capabilities: ["CAPABILITY_NAMED_IAM"], // Required for IAM role creation
+        Parameters: [
+          { ParameterKey: "UserId", ParameterValue: config.userId },
+          { ParameterKey: "ProjectName", ParameterValue: config.projectName },
+          { ParameterKey: "UserEmail", ParameterValue: config.userEmail },
+          {
+            ParameterKey: "ContainerImage",
+            ParameterValue: config.containerImage,
+          },
+          {
+            ParameterKey: "ContainerPort",
+            ParameterValue: config.containerPort.toString(),
+          },
+          {
+            ParameterKey: "ContainerCpu",
+            ParameterValue: config.containerCpu.toString(),
+          },
+          {
+            ParameterKey: "ContainerMemory",
+            ParameterValue: config.containerMemory.toString(),
+          },
+          { ParameterKey: "SharedVPCId", ParameterValue: sharedOutputs.vpcId },
+          {
+            ParameterKey: "SharedSubnetId",
+            ParameterValue: sharedOutputs.subnetId,
+          },
+          {
+            ParameterKey: "SharedALBArn",
+            ParameterValue: sharedOutputs.albArn,
+          },
+          {
+            ParameterKey: "SharedListenerArn",
+            ParameterValue: sharedOutputs.listenerArn,
+          },
+          {
+            ParameterKey: "ECSExecutionRoleArn",
+            ParameterValue: sharedOutputs.executionRoleArn,
+          },
+          {
+            ParameterKey: "ECSTaskRoleArn",
+            ParameterValue: sharedOutputs.taskRoleArn,
+          },
+          {
+            ParameterKey: "SharedALBSecurityGroupId",
+            ParameterValue: sharedOutputs.albSecurityGroupId,
+          },
+          { ParameterKey: "KeyName", ParameterValue: config.keyName || "" },
+          {
+            ParameterKey: "ListenerRulePriority",
+            ParameterValue: albPriority.toString(),
+          },
+        ],
+        Tags: [
+          { Key: "UserId", Value: config.userId },
+          { Key: "ProjectName", Value: config.projectName },
+          { Key: "UserEmail", Value: config.userEmail },
+          { Key: "ManagedBy", Value: "ElizaOS" },
+          { Key: "Environment", Value: this.environment },
+          { Key: "BillingEntity", Value: "ElizaOS" },
+          { Key: "CostCenter", Value: config.userId },
+        ],
+      });
+
+      try {
+        const response = await this.client.send(command);
+        console.log(`✅ Stack update initiated for ${stackName}`);
+        return response.StackId!;
+      } catch (updateError: any) {
+        // Handle "No updates to perform" case gracefully
+        if (updateError.message?.includes('No updates are to be performed')) {
+          console.log(`ℹ️ No updates needed for stack ${stackName}`);
+          return stackName;
+        }
+        
+        console.error(`❌ [CloudFormation] UpdateStack API call failed:`, {
+          error: updateError instanceof Error ? updateError.message : String(updateError),
+          stack: updateError instanceof Error ? updateError.stack : undefined,
+          name: updateError instanceof Error ? updateError.name : undefined,
+        });
+        throw updateError;
+      }
+    });
+  }
+
+  /**
    * Wait for stack to reach a complete state
    */
   async waitForStackComplete(
     userId: string,
+    projectName: string,
     timeoutMinutes: number = 15,
   ): Promise<StackStatus> {
-    const stackName = this.getStackName(userId);
+    const stackName = this.getStackName(userId, projectName);
     const startTime = Date.now();
     const timeoutMs = timeoutMinutes * 60 * 1000;
 
     while (Date.now() - startTime < timeoutMs) {
-      const stack = await this.getStack(userId);
+      const stack = await this.getStack(userId, projectName);
 
       if (!stack) {
         throw new Error(`Stack ${stackName} not found`);
@@ -418,10 +572,10 @@ export class CloudFormationService {
   /**
    * Get stack details
    */
-  async getStack(userId: string): Promise<Stack | null> {
+  async getStack(userId: string, projectName: string): Promise<Stack | null> {
     this.ensureCredentials();
 
-    const stackName = this.getStackName(userId);
+    const stackName = this.getStackName(userId, projectName);
 
     try {
       const command = new DescribeStacksCommand({
@@ -441,8 +595,8 @@ export class CloudFormationService {
   /**
    * Get stack outputs
    */
-  async getStackOutputs(userId: string): Promise<StackOutputs | null> {
-    const stack = await this.getStack(userId);
+  async getStackOutputs(userId: string, projectName: string): Promise<StackOutputs | null> {
+    const stack = await this.getStack(userId, projectName);
 
     if (!stack || !stack.Outputs) {
       return null;
@@ -470,11 +624,11 @@ export class CloudFormationService {
   /**
    * Delete a user's stack and release ALB priority
    */
-  async deleteUserStack(userId: string): Promise<void> {
+  async deleteUserStack(userId: string, projectName: string): Promise<void> {
     this.ensureCredentials();
 
     return this.withRetry(async () => {
-      const stackName = this.getStackName(userId);
+      const stackName = this.getStackName(userId, projectName);
 
       const command = new DeleteStackCommand({
         StackName: stackName,
@@ -499,14 +653,15 @@ export class CloudFormationService {
    */
   async waitForStackDeletion(
     userId: string,
+    projectName: string,
     timeoutMinutes: number = 15,
   ): Promise<void> {
-    const stackName = this.getStackName(userId);
+    const stackName = this.getStackName(userId, projectName);
     const startTime = Date.now();
     const timeoutMs = timeoutMinutes * 60 * 1000;
 
     while (Date.now() - startTime < timeoutMs) {
-      const stack = await this.getStack(userId);
+      const stack = await this.getStack(userId, projectName);
 
       if (!stack) {
         console.log(`Stack ${stackName} deleted successfully`);
@@ -606,165 +761,18 @@ export class CloudFormationService {
   }
 
   /**
-   * Update an existing CloudFormation stack with new parameters
-   * Allows updating: CPU, Memory, Container Image, Environment Variables
-   */
-  async updateUserStack(
-    userId: string,
-    updates: {
-      containerImage?: string;
-      containerCpu?: number;
-      containerMemory?: number;
-      containerPort?: number;
-      environmentVars?: Record<string, string>;
-    },
-  ): Promise<string> {
-    this.ensureCredentials();
-
-    return this.withRetry(async () => {
-      const stackName = this.getStackName(userId);
-
-      // Get current stack to preserve existing parameters
-      const stack = await this.getStack(userId);
-      if (!stack) {
-        throw new Error(`Stack ${stackName} not found`);
-      }
-
-      // Load template and parse as JSON for dynamic modification
-      const templateJson = JSON.parse(fs.readFileSync(this.templatePath, "utf-8"));
-
-      // Inject environment variables into container definition if provided
-      if (updates.environmentVars && Object.keys(updates.environmentVars).length > 0) {
-        const envArray = Object.entries(updates.environmentVars).map(([name, value]) => ({
-          Name: name,
-          Value: value,
-        }));
-
-        // Find the TaskDefinition resource and inject environment variables
-        if (
-          templateJson.Resources?.TaskDefinition?.Properties?.ContainerDefinitions?.[0]
-        ) {
-          templateJson.Resources.TaskDefinition.Properties.ContainerDefinitions[0].Environment =
-            envArray;
-          console.log(
-            `[Update] Injected ${envArray.length} environment variables into task definition`,
-          );
-        }
-      }
-
-      // Convert modified template back to string
-      const templateBody = JSON.stringify(templateJson);
-
-      // Get shared infrastructure outputs
-      const sharedOutputs = await this.getSharedInfrastructureOutputs();
-
-      // Extract current parameters from stack
-      const currentParams = stack.Parameters || [];
-      const getParam = (key: string): string => {
-        const param = currentParams.find((p) => p.ParameterKey === key);
-        return param?.ParameterValue || "";
-      };
-
-      // Build parameters list - use new values or preserve existing
-      const parameters = [
-        { ParameterKey: "UserId", ParameterValue: getParam("UserId") },
-        { ParameterKey: "UserEmail", ParameterValue: getParam("UserEmail") },
-        {
-          ParameterKey: "ContainerImage",
-          ParameterValue: updates.containerImage || getParam("ContainerImage"),
-        },
-        {
-          ParameterKey: "ContainerPort",
-          ParameterValue: updates.containerPort
-            ? updates.containerPort.toString()
-            : getParam("ContainerPort"),
-        },
-        {
-          ParameterKey: "ContainerCpu",
-          ParameterValue: updates.containerCpu
-            ? updates.containerCpu.toString()
-            : getParam("ContainerCpu"),
-        },
-        {
-          ParameterKey: "ContainerMemory",
-          ParameterValue: updates.containerMemory
-            ? updates.containerMemory.toString()
-            : getParam("ContainerMemory"),
-        },
-        { ParameterKey: "SharedVPCId", ParameterValue: sharedOutputs.vpcId },
-        {
-          ParameterKey: "SharedSubnetId",
-          ParameterValue: sharedOutputs.subnetId,
-        },
-        { ParameterKey: "SharedALBArn", ParameterValue: sharedOutputs.albArn },
-        {
-          ParameterKey: "SharedListenerArn",
-          ParameterValue: sharedOutputs.listenerArn,
-        },
-        {
-          ParameterKey: "ECSExecutionRoleArn",
-          ParameterValue: sharedOutputs.executionRoleArn,
-        },
-        {
-          ParameterKey: "ECSTaskRoleArn",
-          ParameterValue: sharedOutputs.taskRoleArn,
-        },
-        {
-          ParameterKey: "SharedALBSecurityGroupId",
-          ParameterValue: sharedOutputs.albSecurityGroupId,
-        },
-        { ParameterKey: "KeyName", ParameterValue: getParam("KeyName") },
-        {
-          ParameterKey: "ListenerRulePriority",
-          ParameterValue: getParam("ListenerRulePriority"),
-        },
-      ];
-
-      const command = new UpdateStackCommand({
-        StackName: stackName,
-        TemplateBody: templateBody,
-        Capabilities: ["CAPABILITY_NAMED_IAM"], // Required for IAM role updates
-        Parameters: parameters,
-        Tags: [
-          { Key: "UserId", Value: getParam("UserId") },
-          { Key: "UserEmail", Value: getParam("UserEmail") },
-          { Key: "ManagedBy", Value: "ElizaOS" },
-          { Key: "Environment", Value: this.environment },
-          { Key: "BillingEntity", Value: "ElizaOS" },
-          { Key: "CostCenter", Value: getParam("UserId") },
-        ],
-      });
-
-      try {
-        const response = await this.client.send(command);
-        console.log(`Stack update initiated: ${response.StackId}`);
-        return response.StackId!;
-      } catch (error: unknown) {
-        // If no changes needed, CloudFormation throws an error
-        if (
-          error instanceof Error &&
-          error.message.includes("No updates are to be performed")
-        ) {
-          console.log(`No changes needed for stack ${stackName}`);
-          return stack.StackId || stackName;
-        }
-        throw error;
-      }
-    });
-  }
-
-  /**
    * Wait for stack update to complete
    */
   async waitForStackUpdate(
     userId: string,
+    projectName: string,
     timeoutMinutes: number = 15,
   ): Promise<StackStatus> {
-    const stackName = this.getStackName(userId);
+    const stackName = this.getStackName(userId, projectName);
     const maxAttempts = (timeoutMinutes * 60) / 10; // Check every 10 seconds
 
     for (let attempt = 0; attempt < maxAttempts; attempt++) {
-      const stack = await this.getStack(userId);
+      const stack = await this.getStack(userId, projectName);
 
       if (!stack) {
         throw new Error(`Stack ${stackName} not found during update`);

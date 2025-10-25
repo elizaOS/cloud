@@ -27,6 +27,7 @@ export const maxDuration = 780; // 13 minutes - allows full CloudFormation deplo
 
 const createContainerSchema = z.object({
   name: z.string().min(1).max(100),
+  project_name: z.string().min(1).max(50), // Project identifier for multi-project support
   description: z.string().optional(),
   port: z.number().int().min(1).max(65535).default(3000),
   desired_count: z.number().int().min(1).max(10).default(1),
@@ -181,9 +182,22 @@ async function handleCreateContainer(request: NextRequest) {
       );
     }
 
+    // Check if a container with this project_name already exists for this user
+    const existingContainers = await listContainers(user.organization_id);
+    const existingProject = existingContainers.find(
+      (c) => c.user_id === user.id && c.project_name === validatedData.project_name
+    );
+
+    const isUpdate = !!existingProject;
+
+    console.log(
+      `🔍 [handleCreateContainer] Project "${validatedData.project_name}" ${isUpdate ? "EXISTS - will update" : "is NEW - will create"}`
+    );
+
     // Prepare container data for ECS deployment
     const containerData: NewContainer = {
       name: validatedData.name,
+      project_name: validatedData.project_name,
       description: validatedData.description,
       organization_id: user.organization_id,
       user_id: user.id,
@@ -198,8 +212,10 @@ async function handleCreateContainer(request: NextRequest) {
       environment_vars: validatedData.environment_vars || {},
       health_check_path: validatedData.health_check_path,
       status: "pending",
+      is_update: isUpdate ? "true" : "false",
       metadata: {
         ecr_image_uri: validatedData.ecr_image_uri,
+        is_update: isUpdate,
       },
     };
 
@@ -482,8 +498,13 @@ async function deployContainerAsync(
       `🔐 [deployContainerAsync] Injecting ${Object.keys(environmentVars).length} environment variables (including OPENAI_API_KEY and DATABASE_URL)`
     );
 
-    const stackId = await cloudFormationService.createUserStack({
+    // Get container to check if this is an update
+    const container = await getContainer(containerId, organizationId);
+    const isUpdate = container?.is_update === "true";
+
+    const stackConfig = {
       userId: containerId,
+      projectName: config.project_name,
       userEmail: config.name, // Using container name as identifier
       containerImage: config.ecr_image_uri,
       containerPort: config.port,
@@ -491,34 +512,51 @@ async function deployContainerAsync(
       containerMemory: config.memory,
       keyName: process.env.EC2_KEY_NAME,
       environmentVars: environmentVars,
-    });
+    };
+
+    // Use update or create based on whether project exists
+    let stackId: string;
+    if (isUpdate) {
+      console.log(`🔄 [deployContainerAsync] Updating existing CloudFormation stack for project "${config.project_name}"...`);
+      stackId = await cloudFormationService.updateUserStack(stackConfig);
+    } else {
+      console.log(`🆕 [deployContainerAsync] Creating new CloudFormation stack for project "${config.project_name}"...`);
+      stackId = await cloudFormationService.createUserStack(stackConfig);
+    }
 
     console.log(
-      `✅ [deployContainerAsync] CloudFormation stack initiated: ${stackId}`
+      `✅ [deployContainerAsync] CloudFormation stack ${isUpdate ? "update" : "creation"} initiated: ${stackId}`
     );
 
-    // Wait for stack creation to complete (with timeout)
+    // Store the stack name in container metadata for future reference
+    const stackName = cloudFormationService.getStackName(containerId, config.project_name);
+    await updateContainerStatus(containerId, "deploying", {
+      cloudformationStackName: stackName,
+    });
+
+    // Wait for stack creation/update to complete (with timeout)
     // With Vercel Pro/Enterprise maxDuration of 800s (13.33 min), we can wait for full deployment
     // UserData waits 5 min + CloudFormation overhead = typically 7-10 min total
     // We set 12 min timeout to handle slower AWS regions and edge cases
     // This fits comfortably within the 13 min Vercel limit
     const STACK_TIMEOUT_MINUTES = 12;
     console.log(
-      `⏳ [deployContainerAsync] Waiting for stack creation (max ${STACK_TIMEOUT_MINUTES} minutes)...`
+      `⏳ [deployContainerAsync] Waiting for stack ${isUpdate ? "update" : "creation"} (max ${STACK_TIMEOUT_MINUTES} minutes)...`
     );
 
     await withTimeout(
       async () =>
         cloudFormationService.waitForStackComplete(
           containerId,
+          config.project_name,
           STACK_TIMEOUT_MINUTES
         ),
       STACK_TIMEOUT_MINUTES * 60 * 1000,
-      "CloudFormation stack creation"
+      `CloudFormation stack ${isUpdate ? "update" : "creation"}`
     );
 
     // Get stack outputs
-    const outputs = await cloudFormationService.getStackOutputs(containerId);
+    const outputs = await cloudFormationService.getStackOutputs(containerId, config.project_name);
 
     if (!outputs) {
       throw new Error("Failed to get stack outputs");
@@ -597,7 +635,7 @@ async function deployContainerAsync(
       try {
         // Delete CloudFormation stack first
         try {
-          await cloudFormationService.deleteUserStack(containerId);
+          await cloudFormationService.deleteUserStack(containerId, config.project_name);
           console.log(
             `✅ CloudFormation stack deletion initiated for ${containerId}`
           );
