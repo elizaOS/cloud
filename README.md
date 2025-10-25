@@ -641,7 +641,7 @@ BLOB_READ_WRITE_TOKEN=vercel_blob_rw_your_token
 - **Smart update detection**: Automatically detects and updates existing deployments
 - Docker-based deployments to AWS ECS (Elastic Container Service)
 - ECR (Elastic Container Registry) for Docker image storage with project-specific repositories
-- EC2-based ECS (t4g.small ARM instances, 1 per project, no auto-scaling)
+- EC2-based ECS (**t4g.micro ARM instances**: 2 vCPU, 1 GiB, ~$6/month)
 - CloudFormation stack per project: `elizaos-{userId}-{projectName}`
 - Optimized health checks (15s interval, 5min grace period)
 - Health monitoring via CloudWatch and ECS
@@ -649,6 +649,7 @@ BLOB_READ_WRITE_TOKEN=vercel_blob_rw_your_token
 - Environment variable injection
 - Credit-based billing with automatic deduction
 - Container management CLI: `elizaos containers list|delete|logs`
+- **Async deployment**: API returns immediately, CLI polls with beautiful progress
 
 **How It Works**:
 
@@ -688,6 +689,12 @@ elizaos deploy --project-name chatbot  # Auto-detected as update
 - Format: `https://{userId-prefix}-{project-name}.containers.elizacloud.ai`
 - Example: `https://fc51b251-chatbot.containers.elizacloud.ai`
 - Uses first segment of UUID + project name for easy recognition
+
+**Instance Specs (t4g.micro)**:
+- **2 vCPUs** (ARM Graviton2)
+- **1 GiB RAM** (1024 MB)
+- **~$6/month** (~$0.0084/hour)
+- Default container allocation: 1.75 vCPU (1792 units), 896 MB RAM (87.5% of instance)
 
 **Container Management**:
 ```bash
