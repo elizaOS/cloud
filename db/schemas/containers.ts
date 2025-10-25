@@ -49,8 +49,8 @@ export const containers = pgTable(
       .default({})
       .notNull(),
     desired_count: integer("desired_count").default(1).notNull(),
-    cpu: integer("cpu").default(1792).notNull(), // CPU units (1792 = 1.75 vCPU, 87.5% of t3g.small)
-    memory: integer("memory").default(1792).notNull(), // Memory in MB (1792 = 1.75 GB, 87.5% of t3g.small)
+    cpu: integer("cpu").default(1792).notNull(), // CPU units (1792 = 1.75 vCPU, 87.5% of t4g.micro's 2 vCPUs)
+    memory: integer("memory").default(896).notNull(), // Memory in MB (896 MB = 87.5% of t4g.micro's 1 GiB)
     port: integer("port").default(3000).notNull(),
     health_check_path: text("health_check_path").default("/health"),
     last_deployed_at: timestamp("last_deployed_at"),

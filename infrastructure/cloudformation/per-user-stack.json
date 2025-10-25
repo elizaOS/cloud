@@ -27,12 +27,12 @@
     "ContainerCpu": {
       "Type": "Number",
       "Default": 1792,
-      "Description": "CPU units (1792 = 1.75 vCPU, 87.5% of t3.small)"
+      "Description": "CPU units (1792 = 1.75 vCPU, 87.5% of t4g.micro 2 vCPUs)"
     },
     "ContainerMemory": {
       "Type": "Number",
-      "Default": 1792,
-      "Description": "Memory in MB (1792 = 1.75 GB, 87.5% of t3.small)"
+      "Default": 896,
+      "Description": "Memory in MB (896 MB = 87.5% of t4g.micro 1 GiB)"
     },
     "SharedVPCId": {
       "Type": "String",
@@ -211,7 +211,7 @@
         "ImageId": {
           "Fn::Sub": "{{resolve:ssm:/aws/service/ecs/optimized-ami/amazon-linux-2/arm64/recommended/image_id}}"
         },
-        "InstanceType": "t4g.small",
+        "InstanceType": "t4g.micro",
         "IamInstanceProfile": { "Ref": "InstanceProfile" },
         "KeyName": {
           "Fn::If": [
@@ -245,6 +245,7 @@
             "Value": { "Fn::Sub": "elizaos-user-${UserId}" }
           },
           { "Key": "UserId", "Value": { "Ref": "UserId" } },
+          { "Key": "ProjectName", "Value": { "Ref": "ProjectName" } },
           { "Key": "UserEmail", "Value": { "Ref": "UserEmail" } },
           { "Key": "Project", "Value": "ElizaOS" },
           { "Key": "Environment", "Value": "production" },

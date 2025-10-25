@@ -31,8 +31,8 @@ const createContainerSchema = z.object({
   description: z.string().optional(),
   port: z.number().int().min(1).max(65535).default(3000),
   desired_count: z.number().int().min(1).max(10).default(1),
-  cpu: z.number().int().min(256).max(2048).default(1792), // CPU units (1792 = 1.75 vCPU, 87.5% of t3g.small)
-  memory: z.number().int().min(512).max(2048).default(1792), // Memory in MB (1792 = 1.75 GB, 87.5% of t3g.small)
+  cpu: z.number().int().min(256).max(2048).default(1792), // CPU units (1792 = 1.75 vCPU, 87.5% of t4g.micro's 2 vCPUs)
+  memory: z.number().int().min(256).max(2048).default(896), // Memory in MB (896 MB = 87.5% of t4g.micro's 1 GiB)
   environment_vars: z.record(z.string(), z.string()).optional(),
   health_check_path: z.string().default("/health"),
 
