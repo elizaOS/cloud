@@ -194,101 +194,217 @@ async function handleCreateContainer(request: NextRequest) {
       `🔍 [handleCreateContainer] Project "${validatedData.project_name}" ${isUpdate ? "EXISTS - will update" : "is NEW - will create"}`
     );
 
-    // Prepare container data for ECS deployment
-    const containerData: NewContainer = {
-      name: validatedData.name,
-      project_name: validatedData.project_name,
-      description: validatedData.description,
-      organization_id: user.organization_id,
-      user_id: user.id,
-      api_key_id: apiKey?.id || null,
-      ecr_repository_uri: validatedData.ecr_repository_uri,
-      ecr_image_tag: validatedData.image_tag,
-      image_tag: validatedData.image_tag,
-      port: validatedData.port,
-      desired_count: validatedData.desired_count,
-      cpu: validatedData.cpu,
-      memory: validatedData.memory,
-      environment_vars: validatedData.environment_vars || {},
-      health_check_path: validatedData.health_check_path,
-      status: "pending",
-      is_update: isUpdate ? "true" : "false",
-      metadata: {
-        ecr_image_uri: validatedData.ecr_image_uri,
-        is_update: isUpdate,
-      },
-    };
-
-    // Calculate deployment cost upfront (ECS is more expensive than Cloudflare)
-    const deploymentCost = calculateDeploymentCost({
-      desiredCount: validatedData.desired_count,
-      cpu: validatedData.cpu,
-      memory: validatedData.memory,
-      includeUpload: false, // Image build/push is charged separately
-    });
-
-    // CRITICAL: Wrap container creation AND credit deduction in a single transaction
-    // This prevents race condition where container exists but credits fail to deduct
     let container;
-    let newBalance;
+    let newBalance: number;
+    let deploymentCost: number;
+    
+    if (isUpdate && existingProject) {
+      // UPDATE: Update the existing container record
+      console.log(`🔄 [handleCreateContainer] Updating existing container: ${existingProject.id}`);
+      
+      const updateData = {
+        name: validatedData.name,
+        description: validatedData.description,
+        ecr_repository_uri: validatedData.ecr_repository_uri,
+        ecr_image_tag: validatedData.image_tag,
+        image_tag: validatedData.image_tag,
+        port: validatedData.port,
+        desired_count: validatedData.desired_count,
+        cpu: validatedData.cpu,
+        memory: validatedData.memory,
+        environment_vars: validatedData.environment_vars || {},
+        health_check_path: validatedData.health_check_path,
+        status: "pending",
+        is_update: "true",
+        metadata: {
+          ecr_image_uri: validatedData.ecr_image_uri,
+          is_update: true,
+          previous_image: existingProject.metadata?.ecr_image_uri,
+        },
+      };
 
-    try {
-      const result = await containersService.createContainerWithCreditDeduction(
-        containerData,
-        user.id,
-        deploymentCost
+      const updatedContainer = await containersService.update(
+        existingProject.id,
+        user.organization_id,
+        updateData
       );
 
-      container = result.container;
-      newBalance = result.newBalance;
+      if (!updatedContainer) {
+        throw new Error("Failed to update existing container");
+      }
 
-      // Emit credit update event for real-time balance updates
-      creditEventEmitter.emitCreditUpdate({
-        organizationId: user.organization_id,
-        newBalance: newBalance,
-        delta: -deploymentCost,
-        reason: `Container deployment: ${validatedData.name}`,
-        userId: user.id,
-        timestamp: new Date(),
+      container = updatedContainer;
+      
+      // For updates, still need to calculate cost and deduct credits
+      deploymentCost = calculateDeploymentCost({
+        desiredCount: validatedData.desired_count,
+        cpu: validatedData.cpu,
+        memory: validatedData.memory,
+        includeUpload: false,
       });
-    } catch (error) {
-      // Transaction rolled back - no orphaned container or credit inconsistency
-      const errorMessage =
-        error instanceof Error ? error.message : "Unknown error";
 
-      if (errorMessage.includes("Insufficient credits")) {
+      // Deduct credits for update deployment
+      const creditResult = await creditsService.deductCredits({
+        organizationId: user.organization_id,
+        amount: deploymentCost,
+        description: `Container update deployment: ${validatedData.name}`,
+        metadata: {
+          type: "container_update",
+          containerId: container.id,
+          projectName: validatedData.project_name,
+        },
+      });
+
+      if (!creditResult.success) {
         return NextResponse.json(
           {
             success: false,
-            error: errorMessage,
+            error: "Insufficient credits for update deployment",
             requiredCredits: deploymentCost,
           },
           { status: 402 } // Payment Required
         );
       }
 
-      throw error; // Re-throw for outer error handler
-    }
+      newBalance = creditResult.newBalance;
 
-    // Create usage record for audit trail
-    await usageService.create({
-      organization_id: user.organization_id,
-      user_id: user.id,
-      api_key_id: apiKey?.id,
-      type: "container_deployment",
-      provider: "aws_ecs",
-      input_cost: deploymentCost,
-      output_cost: 0,
-      is_successful: true,
-      metadata: {
-        container_id: container.id,
-        container_name: validatedData.name,
+      creditEventEmitter.emitCreditUpdate({
+        organizationId: user.organization_id,
+        newBalance: newBalance,
+        delta: -deploymentCost,
+        reason: `Container update: ${validatedData.name}`,
+        userId: user.id,
+        timestamp: new Date(),
+      });
+    } else {
+      // FRESH: Create a new container record
+      console.log(`🆕 [handleCreateContainer] Creating new container for project "${validatedData.project_name}"`);
+      
+      const containerData: NewContainer = {
+        name: validatedData.name,
+        project_name: validatedData.project_name,
+        description: validatedData.description,
+        organization_id: user.organization_id,
+        user_id: user.id,
+        api_key_id: apiKey?.id || null,
+        ecr_repository_uri: validatedData.ecr_repository_uri,
+        ecr_image_tag: validatedData.image_tag,
+        image_tag: validatedData.image_tag,
+        port: validatedData.port,
         desired_count: validatedData.desired_count,
         cpu: validatedData.cpu,
         memory: validatedData.memory,
-        port: validatedData.port,
-      },
-    });
+        environment_vars: validatedData.environment_vars || {},
+        health_check_path: validatedData.health_check_path,
+        status: "pending",
+        is_update: "false",
+        metadata: {
+          ecr_image_uri: validatedData.ecr_image_uri,
+          is_update: false,
+        },
+      };
+
+      // Calculate deployment cost upfront (ECS is more expensive than Cloudflare)
+      deploymentCost = calculateDeploymentCost({
+        desiredCount: validatedData.desired_count,
+        cpu: validatedData.cpu,
+        memory: validatedData.memory,
+        includeUpload: false, // Image build/push is charged separately
+      });
+
+      // CRITICAL: Wrap container creation AND credit deduction in a single transaction
+      // This prevents race condition where container exists but credits fail to deduct
+      try {
+        const result = await containersService.createContainerWithCreditDeduction(
+          containerData,
+          user.id,
+          deploymentCost
+        );
+
+        container = result.container;
+        newBalance = result.newBalance;
+
+        // Emit credit update event for real-time balance updates
+        creditEventEmitter.emitCreditUpdate({
+          organizationId: user.organization_id,
+          newBalance: newBalance,
+          delta: -deploymentCost,
+          reason: `Container deployment: ${validatedData.name}`,
+          userId: user.id,
+          timestamp: new Date(),
+        });
+      } catch (error) {
+        // Transaction rolled back - no orphaned container or credit inconsistency
+        const errorMessage =
+          error instanceof Error ? error.message : "Unknown error";
+
+        if (errorMessage.includes("Insufficient credits")) {
+          return NextResponse.json(
+            {
+              success: false,
+              error: errorMessage,
+              requiredCredits: deploymentCost,
+            },
+            { status: 402 } // Payment Required
+          );
+        }
+
+        throw error; // Re-throw for outer error handler
+      }
+
+      // Create usage record for audit trail
+      await usageService.create({
+        organization_id: user.organization_id,
+        user_id: user.id,
+        api_key_id: apiKey?.id,
+        type: "container_deployment",
+        provider: "aws_ecs",
+        input_cost: deploymentCost,
+        output_cost: 0,
+        is_successful: true,
+        metadata: {
+          container_id: container.id,
+          container_name: validatedData.name,
+          project_name: validatedData.project_name,
+          desired_count: validatedData.desired_count,
+          cpu: validatedData.cpu,
+          memory: validatedData.memory,
+          port: validatedData.port,
+          is_update: false,
+        },
+      });
+    }
+
+    // Create usage record for updates
+    if (isUpdate) {
+      const deploymentCost = calculateDeploymentCost({
+        desiredCount: validatedData.desired_count,
+        cpu: validatedData.cpu,
+        memory: validatedData.memory,
+        includeUpload: false,
+      });
+
+      await usageService.create({
+        organization_id: user.organization_id,
+        user_id: user.id,
+        api_key_id: apiKey?.id,
+        type: "container_update",
+        provider: "aws_ecs",
+        input_cost: deploymentCost,
+        output_cost: 0,
+        is_successful: true,
+        metadata: {
+          container_id: container.id,
+          container_name: validatedData.name,
+          project_name: validatedData.project_name,
+          desired_count: validatedData.desired_count,
+          cpu: validatedData.cpu,
+          memory: validatedData.memory,
+          port: validatedData.port,
+          is_update: true,
+        },
+      });
+    }
 
     // Deploy container synchronously - wait for completion before returning
     // This ensures the function stays alive for the entire deployment
