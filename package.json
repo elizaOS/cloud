@@ -39,6 +39,8 @@
     "@aws-sdk/client-elastic-load-balancing-v2": "^3.916.0",
     "@aws-sdk/client-s3": "^3.916.0",
     "@aws-sdk/s3-request-presigner": "^3.916.0",
+    "@coinbase/cdp-sdk": "^1.38.4",
+    "@coinbase/x402": "^0.6.6",
     "@elevenlabs/elevenlabs-js": "^2.20.1",
     "@elizaos/core": "^1.6.3",
     "@elizaos/plugin-elevenlabs": "^1.6.0",
@@ -126,6 +128,8 @@
     "use-stick-to-bottom": "^1.1.1",
     "uuid": "^13.0.0",
     "vaul": "^1.1.2",
+    "viem": "^2.38.4",
+    "x402-mcp": "^0.1.1",
     "xlsx": "^0.18.5",
     "zod": "^4.1.12",
     "zod3": "npm:zod@3.25.76"
