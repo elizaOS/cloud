@@ -101,6 +101,13 @@ export function MCPPlaygroundClient() {
     fetchMCPs();
   }, []);
 
+  // Ensure first tool is selected when MCP changes
+  useEffect(() => {
+    if (selectedMcp && selectedMcp.tools.length > 0 && !selectedTool) {
+      setSelectedTool(selectedMcp.tools[0]);
+    }
+  }, [selectedMcp, selectedTool]);
+
   const fetchMCPs = async () => {
     try {
       const response = await fetch("/api/mcp/list");
@@ -486,7 +493,7 @@ export function MCPPlaygroundClient() {
             </CardHeader>
             <CardContent>
               <Tabs
-                defaultValue={selectedTool?.name || selectedMcp.tools[0]?.name}
+                value={selectedTool?.name || selectedMcp.tools[0]?.name}
                 onValueChange={(value) => {
                   const tool = selectedMcp.tools.find((t) => t.name === value);
                   if (tool) {
