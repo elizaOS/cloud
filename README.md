@@ -637,26 +637,71 @@ BLOB_READ_WRITE_TOKEN=vercel_blob_rw_your_token
 **Features**:
 
 - Deploy ElizaOS projects via `elizaos deploy` CLI
+- **Multi-project support**: Deploy multiple different projects per user
+- **Smart update detection**: Automatically detects and updates existing deployments
 - Docker-based deployments to AWS ECS (Elastic Container Service)
-- ECR (Elastic Container Registry) for Docker image storage
-- EC2-based ECS (t4g.small ARM instances, 1 per user, no auto-scaling)
+- ECR (Elastic Container Registry) for Docker image storage with project-specific repositories
+- EC2-based ECS (t4g.small ARM instances, 1 per project, no auto-scaling)
+- CloudFormation stack per project: `elizaos-{userId}-{projectName}`
 - Optimized health checks (15s interval, 5min grace period)
 - Health monitoring via CloudWatch and ECS
 - Quota enforcement (prevents race conditions)
 - Environment variable injection
 - Credit-based billing with automatic deduction
+- Container management CLI: `elizaos containers list|delete|logs`
 
 **How It Works**:
 
 1. User gets API key from `/dashboard/api-keys`
-2. User runs `elizaos deploy --api-key eliza_xxxxx` from their project directory
-3. CLI requests ECR credentials from the cloud API
-4. CLI builds Docker image locally using project's Dockerfile (or generates one)
-5. CLI pushes Docker image to ECR
-6. CLI creates container deployment via cloud API with ECR image URI
-7. Cloud deploys container to dedicated EC2 instance with ECS
-8. Container accessible via AWS Load Balancer URL (https://{userId}.containers.elizacloud.ai)
-9. Credits automatically deducted based on container resources (CPU/memory)
+2. User runs `elizaos deploy --project-name my-project --api-key eliza_xxxxx` from project directory
+3. CLI auto-detects if project already deployed (checks `project_name`)
+4. CLI requests ECR credentials from the cloud API
+5. CLI builds Docker image locally using project's Dockerfile (or generates one)
+6. CLI pushes Docker image to project-specific ECR repository
+7. CLI creates/updates container deployment via cloud API:
+   - **Fresh deployment**: Creates new CloudFormation stack
+   - **Update deployment**: Updates existing CloudFormation stack (zero-downtime)
+8. Cloud provisions/updates dedicated EC2 instance with ECS
+9. Container accessible via AWS Load Balancer URL
+10. Credits automatically deducted based on container resources (CPU/memory)
+
+**Multi-Project Example**:
+```bash
+# Deploy first project
+cd ~/chatbot
+elizaos deploy --project-name chatbot --api-key eliza_xxx
+# URL: https://fc51b251-chatbot.containers.elizacloud.ai
+
+# Deploy second project (same user, different project)
+cd ~/assistant
+elizaos deploy --project-name assistant --api-key eliza_xxx
+# URL: https://fc51b251-assistant.containers.elizacloud.ai
+
+# Update chatbot
+cd ~/chatbot
+# ... make changes ...
+elizaos deploy --project-name chatbot  # Auto-detected as update
+# URL unchanged: https://fc51b251-chatbot.containers.elizacloud.ai
+```
+
+**Human-Readable URLs**:
+- Format: `https://{userId-prefix}-{project-name}.containers.elizacloud.ai`
+- Example: `https://fc51b251-chatbot.containers.elizacloud.ai`
+- Uses first segment of UUID + project name for easy recognition
+
+**Container Management**:
+```bash
+# List all containers (with project names)
+elizaos containers list --api-key eliza_xxx
+
+# View logs (auto-detects from current directory)
+cd ~/chatbot
+elizaos containers logs  # Finds chatbot project automatically
+
+# Delete container (auto-detects from current directory)
+cd ~/chatbot
+elizaos containers delete  # Finds and deletes chatbot project
+```
 
 **Deployment Architecture**:
 

@@ -267,13 +267,15 @@ export class ECRManager {
 
   /**
    * Generate repository name from project details
+   * Includes project name for multi-project support per user
    */
   static generateRepositoryName(
     organizationId: string,
-    projectId: string,
+    userId: string,
+    projectName: string,
   ): string {
-    // ECR repository names must be lowercase
-    const sanitized = `${organizationId}/${projectId}`
+    // ECR repository names must be lowercase and support multiple projects per user
+    const sanitized = `${organizationId}/${userId}/${projectName}`
       .toLowerCase()
       .replace(/[^a-z0-9/_-]/g, "-")
       .replace(/^-+|-+$/g, "")
