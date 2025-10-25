@@ -250,10 +250,13 @@ CREATE TABLE "user_characters" (
 CREATE TABLE "containers" (
 	"id" uuid PRIMARY KEY DEFAULT gen_random_uuid() NOT NULL,
 	"name" text NOT NULL,
+	"project_name" text NOT NULL,
 	"description" text,
 	"organization_id" uuid NOT NULL,
 	"user_id" uuid NOT NULL,
 	"api_key_id" uuid,
+	"character_id" uuid,
+	"cloudformation_stack_name" text,
 	"ecr_repository_uri" text,
 	"ecr_image_tag" text,
 	"ecs_cluster_arn" text,
@@ -261,6 +264,7 @@ CREATE TABLE "containers" (
 	"ecs_task_definition_arn" text,
 	"ecs_task_arn" text,
 	"load_balancer_url" text,
+	"is_update" text DEFAULT 'false' NOT NULL,
 	"status" text DEFAULT 'pending' NOT NULL,
 	"image_tag" text,
 	"dockerfile_path" text,
@@ -305,8 +309,7 @@ CREATE TABLE "agents" (
 	"knowledge" jsonb DEFAULT '[]'::jsonb NOT NULL,
 	"plugins" jsonb DEFAULT '[]'::jsonb NOT NULL,
 	"settings" jsonb DEFAULT '{}'::jsonb NOT NULL,
-	"style" jsonb DEFAULT '{}'::jsonb NOT NULL,
-	CONSTRAINT "name_unique" UNIQUE("name")
+	"style" jsonb DEFAULT '{}'::jsonb NOT NULL
 );
 --> statement-breakpoint
 CREATE TABLE "cache" (
@@ -494,6 +497,14 @@ CREATE TABLE "worlds" (
 	"createdAt" timestamp DEFAULT now() NOT NULL
 );
 --> statement-breakpoint
+CREATE TABLE "eliza_room_characters" (
+	"room_id" uuid PRIMARY KEY NOT NULL,
+	"character_id" uuid NOT NULL,
+	"user_id" uuid NOT NULL,
+	"created_at" timestamp DEFAULT now() NOT NULL,
+	"updated_at" timestamp DEFAULT now() NOT NULL
+);
+--> statement-breakpoint
 ALTER TABLE "users" ADD CONSTRAINT "users_organization_id_organizations_id_fk" FOREIGN KEY ("organization_id") REFERENCES "public"."organizations"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "api_keys" ADD CONSTRAINT "api_keys_organization_id_organizations_id_fk" FOREIGN KEY ("organization_id") REFERENCES "public"."organizations"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "api_keys" ADD CONSTRAINT "api_keys_user_id_users_id_fk" FOREIGN KEY ("user_id") REFERENCES "public"."users"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
@@ -519,6 +530,7 @@ ALTER TABLE "user_characters" ADD CONSTRAINT "user_characters_user_id_users_id_f
 ALTER TABLE "containers" ADD CONSTRAINT "containers_organization_id_organizations_id_fk" FOREIGN KEY ("organization_id") REFERENCES "public"."organizations"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "containers" ADD CONSTRAINT "containers_user_id_users_id_fk" FOREIGN KEY ("user_id") REFERENCES "public"."users"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "containers" ADD CONSTRAINT "containers_api_key_id_api_keys_id_fk" FOREIGN KEY ("api_key_id") REFERENCES "public"."api_keys"("id") ON DELETE set null ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE "containers" ADD CONSTRAINT "containers_character_id_user_characters_id_fk" FOREIGN KEY ("character_id") REFERENCES "public"."user_characters"("id") ON DELETE set null ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "cache" ADD CONSTRAINT "cache_agent_id_agents_id_fk" FOREIGN KEY ("agent_id") REFERENCES "public"."agents"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "channel_participants" ADD CONSTRAINT "channel_participants_channel_id_channels_id_fk" FOREIGN KEY ("channel_id") REFERENCES "public"."channels"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "channels" ADD CONSTRAINT "channels_server_id_message_servers_id_fk" FOREIGN KEY ("server_id") REFERENCES "public"."message_servers"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
@@ -557,6 +569,7 @@ ALTER TABLE "server_agents" ADD CONSTRAINT "server_agents_server_id_message_serv
 ALTER TABLE "server_agents" ADD CONSTRAINT "server_agents_agent_id_agents_id_fk" FOREIGN KEY ("agent_id") REFERENCES "public"."agents"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "tasks" ADD CONSTRAINT "tasks_agent_id_agents_id_fk" FOREIGN KEY ("agent_id") REFERENCES "public"."agents"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "worlds" ADD CONSTRAINT "worlds_agentId_agents_id_fk" FOREIGN KEY ("agentId") REFERENCES "public"."agents"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE "eliza_room_characters" ADD CONSTRAINT "eliza_room_characters_character_id_user_characters_id_fk" FOREIGN KEY ("character_id") REFERENCES "public"."user_characters"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
 CREATE INDEX "organizations_slug_idx" ON "organizations" USING btree ("slug");--> statement-breakpoint
 CREATE INDEX "organizations_stripe_customer_idx" ON "organizations" USING btree ("stripe_customer_id");--> statement-breakpoint
 CREATE INDEX "users_email_idx" ON "users" USING btree ("email");--> statement-breakpoint
@@ -611,8 +624,11 @@ CREATE INDEX "user_characters_name_idx" ON "user_characters" USING btree ("name"
 CREATE INDEX "containers_organization_idx" ON "containers" USING btree ("organization_id");--> statement-breakpoint
 CREATE INDEX "containers_user_idx" ON "containers" USING btree ("user_id");--> statement-breakpoint
 CREATE INDEX "containers_status_idx" ON "containers" USING btree ("status");--> statement-breakpoint
+CREATE INDEX "containers_character_idx" ON "containers" USING btree ("character_id");--> statement-breakpoint
 CREATE INDEX "containers_ecs_service_idx" ON "containers" USING btree ("ecs_service_arn");--> statement-breakpoint
 CREATE INDEX "containers_ecr_repository_idx" ON "containers" USING btree ("ecr_repository_uri");--> statement-breakpoint
+CREATE INDEX "containers_project_name_idx" ON "containers" USING btree ("project_name");--> statement-breakpoint
+CREATE INDEX "containers_user_project_idx" ON "containers" USING btree ("user_id","project_name");--> statement-breakpoint
 CREATE INDEX "idx_embedding_memory" ON "embeddings" USING btree ("memory_id");--> statement-breakpoint
 CREATE INDEX "idx_memories_type_room" ON "memories" USING btree ("type","roomId");--> statement-breakpoint
 CREATE INDEX "idx_memories_world_id" ON "memories" USING btree ("worldId");--> statement-breakpoint
