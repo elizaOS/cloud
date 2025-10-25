@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button";
 import * as ScrollAreaPrimitive from "@radix-ui/react-scroll-area";
 import { Loader2, Send, Bot, User, Clock, MessageSquare } from "lucide-react";
 import { ElizaAvatar } from "./eliza-avatar";
+import { KnowledgeDrawer } from "./knowledge-drawer";
 
 interface Message {
   id: string;
@@ -523,14 +524,17 @@ export function ElizaChatInterface() {
       <div className="flex flex-col flex-1 h-full">
         {/* Header */}
         <div className="border-b p-4">
-          <div className="flex items-center gap-3">
-            <div className="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center">
-              <Bot className="h-5 w-5 text-primary" />
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              <div className="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center">
+                <Bot className="h-5 w-5 text-primary" />
+              </div>
+              <div>
+                <h3 className="text-sm font-semibold">Eliza</h3>
+                <p className="text-xs text-muted-foreground">AI Assistant</p>
+              </div>
             </div>
-            <div>
-              <h3 className="text-sm font-semibold">Eliza</h3>
-              <p className="text-xs text-muted-foreground">AI Assistant</p>
-            </div>
+            <KnowledgeDrawer />
           </div>
         </div>
 

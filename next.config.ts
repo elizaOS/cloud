@@ -17,6 +17,18 @@ const nextConfig: NextConfig = {
       bodySizeLimit: "2gb",
     },
   },
+  // Handle pdfjs-dist and other problematic packages in serverless
+  serverExternalPackages: ["pdfjs-dist", "canvas", "pdf-parse"],
+  webpack: (config, { isServer }) => {
+    if (isServer) {
+      // Alias canvas to false to prevent it from being bundled
+      config.resolve.alias = {
+        ...config.resolve.alias,
+        canvas: false,
+      };
+    }
+    return config;
+  },
 };
 
 export default nextConfig;

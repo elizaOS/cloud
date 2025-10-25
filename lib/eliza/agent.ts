@@ -1,6 +1,7 @@
 import type { Character } from "@elizaos/core";
 import { openaiPlugin } from "@elizaos/plugin-openai";
 import { memoryPlugin } from "@elizaos/plugin-memory";
+import { knowledgePluginCore } from "@elizaos/plugin-knowledge";
 import { assistantPlugin } from "./plugin-assistant";
 // NOTE: plugin-sql is provided via a pre-initialized adapter in agent-runtime
 
@@ -85,7 +86,7 @@ const character: Character = {
 
 const agent = {
   character,
-  plugins: [openaiPlugin, assistantPlugin, memoryPlugin],
+  plugins: [openaiPlugin, assistantPlugin, memoryPlugin, knowledgePluginCore],
 };
 
 export default agent;
