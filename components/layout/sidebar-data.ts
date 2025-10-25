@@ -19,6 +19,7 @@ import {
   UserCog,
   Bot,
   Code,
+  Zap,
 } from "lucide-react";
 import { ComponentType } from "react";
 
@@ -98,6 +99,13 @@ export const sidebarSections: SidebarSection[] = [
         label: "API Explorer",
         href: "/dashboard/api-explorer",
         icon: Code,
+        isNew: true,
+      },
+      {
+        id: "mcp-playground",
+        label: "MCP Playground",
+        href: "/dashboard/mcp-playground",
+        icon: Zap,
         isNew: true,
       },
     ],
