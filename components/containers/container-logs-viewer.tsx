@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState, useRef, useCallback } from "react";
+import { toast } from "sonner";
 import {
   Card,
   CardContent,
@@ -19,7 +20,8 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { RefreshCw, Download, Wifi, WifiOff } from "lucide-react";
+import { RefreshCw, Download, Wifi, WifiOff, Search, Copy, Check } from "lucide-react";
+import { Input } from "@/components/ui/input";
 
 interface LogEntry {
   timestamp: string;
@@ -45,6 +47,7 @@ export function ContainerLogsViewer({
   const [autoRefresh, setAutoRefresh] = useState(false);
   const [useStreaming, setUseStreaming] = useState(true);
   const [isStreaming, setIsStreaming] = useState(false);
+  const [searchQuery, setSearchQuery] = useState("");
   const scrollRef = useRef<HTMLDivElement>(null);
   const eventSourceRef = useRef<EventSource | null>(null);
   const abortControllerRef = useRef<AbortController | null>(null);
@@ -238,10 +241,46 @@ export function ContainerLogsViewer({
     URL.revokeObjectURL(url);
   };
 
+  const copyAllLogs = async () => {
+    const logsText = logs
+      .map((log) => {
+        const timestamp = new Date(log.timestamp).toISOString();
+        const metadata = log.metadata
+          ? ` | ${JSON.stringify(log.metadata)}`
+          : "";
+        return `[${timestamp}] [${log.level.toUpperCase()}] ${log.message}${metadata}`;
+      })
+      .join("\n");
+
+    await navigator.clipboard.writeText(logsText);
+    toast.success("Logs copied to clipboard");
+  };
+
+  const copyLogLine = async (log: LogEntry) => {
+    const timestamp = new Date(log.timestamp).toISOString();
+    const metadata = log.metadata
+      ? ` | ${JSON.stringify(log.metadata)}`
+      : "";
+    const text = `[${timestamp}] [${log.level.toUpperCase()}] ${log.message}${metadata}`;
+    await navigator.clipboard.writeText(text);
+    toast.success("Log line copied");
+  };
+
+  const filteredLogs = logs.filter((log) => {
+    if (!searchQuery) return true;
+    const searchLower = searchQuery.toLowerCase();
+    return (
+      log.message.toLowerCase().includes(searchLower) ||
+      log.level.toLowerCase().includes(searchLower) ||
+      (log.metadata &&
+        JSON.stringify(log.metadata).toLowerCase().includes(searchLower))
+    );
+  });
+
   return (
     <Card>
       <CardHeader>
-        <div className="flex items-center justify-between">
+        <div className="flex items-center justify-between mb-4">
           <div>
             <CardTitle>Container Logs</CardTitle>
             <CardDescription>
@@ -249,18 +288,6 @@ export function ContainerLogsViewer({
             </CardDescription>
           </div>
           <div className="flex items-center gap-2">
-            <Select value={level} onValueChange={setLevel}>
-              <SelectTrigger className="w-32">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">All Levels</SelectItem>
-                <SelectItem value="error">Errors</SelectItem>
-                <SelectItem value="warn">Warnings</SelectItem>
-                <SelectItem value="info">Info</SelectItem>
-                <SelectItem value="debug">Debug</SelectItem>
-              </SelectContent>
-            </Select>
             <Button
               variant="outline"
               size="sm"
@@ -284,13 +311,54 @@ export function ContainerLogsViewer({
             <Button
               variant="outline"
               size="sm"
+              onClick={copyAllLogs}
+              disabled={logs.length === 0}
+              title="Copy all logs"
+            >
+              <Copy className="h-4 w-4" />
+            </Button>
+            <Button
+              variant="outline"
+              size="sm"
               onClick={downloadLogs}
               disabled={logs.length === 0}
+              title="Download logs"
             >
               <Download className="h-4 w-4" />
             </Button>
           </div>
         </div>
+
+        {/* Search and Filter Bar */}
+        <div className="flex flex-col sm:flex-row gap-3">
+          <div className="relative flex-1">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+            <Input
+              placeholder="Search logs..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="pl-9"
+            />
+          </div>
+          <Select value={level} onValueChange={setLevel}>
+            <SelectTrigger className="w-full sm:w-[140px]">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All Levels</SelectItem>
+              <SelectItem value="error">Errors</SelectItem>
+              <SelectItem value="warn">Warnings</SelectItem>
+              <SelectItem value="info">Info</SelectItem>
+              <SelectItem value="debug">Debug</SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
+
+        {(searchQuery || level !== "all") && filteredLogs.length < logs.length && (
+          <div className="text-sm text-muted-foreground mt-2">
+            Showing {filteredLogs.length} of {logs.length} logs
+          </div>
+        )}
       </CardHeader>
       <CardContent>
         {loading && logs.length === 0 ? (
@@ -345,16 +413,33 @@ export function ContainerLogsViewer({
               </Button>
             </div>
           </div>
+        ) : filteredLogs.length === 0 ? (
+          <div className="text-center py-8">
+            <p className="text-muted-foreground">
+              No logs match your search criteria
+            </p>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => {
+                setSearchQuery("");
+                setLevel("all");
+              }}
+              className="mt-4"
+            >
+              Clear Filters
+            </Button>
+          </div>
         ) : (
           <ScrollArea
             className="h-[400px] w-full rounded-md border"
             ref={scrollRef}
           >
             <div className="p-4 font-mono text-sm space-y-1">
-              {logs.map((log, index) => (
+              {filteredLogs.map((log, index) => (
                 <div
                   key={`${log.timestamp}-${index}`}
-                  className={`flex gap-3 p-2 hover:bg-muted/50 rounded ${getLevelColor(log.level)}`}
+                  className={`group flex gap-3 p-2 hover:bg-muted/50 rounded transition-colors ${getLevelColor(log.level)}`}
                 >
                   <Badge
                     variant={
@@ -364,19 +449,30 @@ export function ContainerLogsViewer({
                         | "outline"
                         | "secondary"
                     }
-                    className="shrink-0 h-5"
+                    className="shrink-0 h-5 text-xs"
                   >
                     {log.level.toUpperCase()}
                   </Badge>
-                  <span className="text-xs text-muted-foreground shrink-0">
+                  <span className="text-xs text-muted-foreground shrink-0 min-w-[70px]">
                     {new Date(log.timestamp).toLocaleTimeString()}
                   </span>
-                  <span className="flex-1 break-all">{log.message}</span>
+                  <span className="flex-1 break-all whitespace-pre-wrap">
+                    {log.message}
+                  </span>
                   {log.metadata && Object.keys(log.metadata).length > 0 && (
-                    <span className="text-xs text-muted-foreground">
+                    <span className="text-xs text-muted-foreground max-w-[200px] truncate">
                       {JSON.stringify(log.metadata)}
                     </span>
                   )}
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => copyLogLine(log)}
+                    className="opacity-0 group-hover:opacity-100 transition-opacity h-6 w-6 p-0 shrink-0"
+                    title="Copy log line"
+                  >
+                    <Copy className="h-3 w-3" />
+                  </Button>
                 </div>
               ))}
             </div>
