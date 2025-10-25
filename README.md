@@ -91,6 +91,21 @@ Eliza Cloud V2 is a full-stack AI-as-a-Service platform that combines:
   - EC2-based ECS (t4g.small ARM instances, 1 per user)
   - Health checks and monitoring via ECS
 
+- **MCP Playground** (NEW ⚡):
+  - Interactive explorer for Model Context Protocol (MCP) integrations
+  - Test and experiment with 4+ MCP servers (ElizaOS Cloud, CoinGecko, Twitter/X, OpenAI Image)
+  - Live parameter editor with validation and type checking
+  - Real-time execution with JSON response viewer
+  - Copy-to-clipboard for results and code examples
+  - Comprehensive tool documentation with pricing info
+  - Category filtering (Platform, Crypto, Social, AI)
+  - **x402 Protocol Integration**: Visual indicators and filtering for cryptocurrency-based payments
+    - Wallet badges on x402-enabled MCPs
+    - Credit card badges for credit-based MCPs
+    - Payment type filter dropdown
+    - Inline x402 protocol explanations
+  - Support for both credit-based and x402 payment protocols
+
 ### 📊 Management & Analytics
 
 - **Dashboard**:
