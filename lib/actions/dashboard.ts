@@ -7,9 +7,10 @@ import {
   generationsService,
   providerHealthService,
 } from "@/lib/services";
-import { cache } from "@/lib/cache/client";
-import { CacheKeys, CacheTTL } from "@/lib/cache/keys";
+import { cache as cacheClient } from "@/lib/cache/client";
+import { CacheKeys, CacheStaleTTL } from "@/lib/cache/keys";
 import { logger } from "@/lib/utils/logger";
+import { cache } from "react";
 
 export interface DashboardData {
   user: {
@@ -78,16 +79,12 @@ export interface DashboardData {
   }>;
 }
 
-export async function getDashboardData(): Promise<DashboardData> {
-  const user = await requireAuth();
+// Internal function to fetch dashboard data (not cached at React level)
+async function fetchDashboardDataInternal(
+  user: Awaited<ReturnType<typeof requireAuth>>,
+): Promise<DashboardData> {
   const organizationId = user.organization_id;
-
-  const cacheKey = CacheKeys.org.dashboard(organizationId);
-  const cached = await cache.get<DashboardData>(cacheKey);
-  if (cached) {
-    logger.debug(`[Dashboard] Cache hit for org=${organizationId}`);
-    return cached;
-  }
+  const start = Date.now();
 
   const now = new Date();
   const yesterday = new Date(now.getTime() - 24 * 60 * 60 * 1000);
@@ -132,7 +129,7 @@ export async function getDashboardData(): Promise<DashboardData> {
       ? ((yesterdayBurn - avgDailyBurnLastWeek) / avgDailyBurnLastWeek) * 100
       : 0;
 
-  const dashboardData = {
+  return {
     user: {
       name: user.name || "User",
       email: user.email,
@@ -198,8 +195,25 @@ export async function getDashboardData(): Promise<DashboardData> {
       completed_at: g.completed_at,
     })),
   };
-
-  await cache.set(cacheKey, dashboardData, CacheTTL.org.dashboard);
-
-  return dashboardData;
 }
+
+// React-cached version for request deduplication
+export const getDashboardData = cache(async (): Promise<DashboardData> => {
+  const user = await requireAuth();
+  const organizationId = user.organization_id;
+  const cacheKey = CacheKeys.org.dashboard(organizationId);
+
+  // Use stale-while-revalidate pattern
+  const data = await cacheClient.getWithSWR(
+    cacheKey,
+    CacheStaleTTL.org.dashboard,
+    () => fetchDashboardDataInternal(user),
+  );
+
+  // Fallback to direct fetch if cache returns null
+  if (data === null) {
+    return await fetchDashboardDataInternal(user);
+  }
+
+  return data;
+});
