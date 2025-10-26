@@ -447,41 +447,6 @@ class AgentRuntimeManager {
       await dbAdapter.init();
       elizaLogger.info("#Eliza", "Database adapter initialized");
 
-      // Run migrations if needed
-      if (
-        typeof (dbAdapter as { runPluginMigrations?: unknown })
-          .runPluginMigrations === "function"
-      ) {
-        if (sqlPlugin?.schema) {
-          elizaLogger.info(
-            "#Eliza",
-            "Running plugin-sql migrations...",
-          );
-          try {
-            await (
-              dbAdapter as {
-                runPluginMigrations: (
-                  plugins: Array<{ name: string; schema: unknown }>,
-                  options?: {
-                    verbose?: boolean;
-                    force?: boolean;
-                    dryRun?: boolean;
-                  },
-                ) => Promise<void>;
-              }
-            ).runPluginMigrations(
-              [{ name: "@elizaos/plugin-sql", schema: sqlPlugin.schema }],
-              { verbose: false },
-            );
-            elizaLogger.success("#Eliza", "Migrations completed");
-          } catch (error) {
-            const errorMsg =
-              error instanceof Error ? error.message : String(error);
-            elizaLogger.info("#Eliza", `Migrations: ${errorMsg}`);
-          }
-        }
-      }
-
       globalAny.__elizaDatabaseAdapter = dbAdapter;
     }
 
