@@ -35,7 +35,7 @@ const protectedPaths = [
   "/api/v1/containers",
 ];
 
-export async function middleware(request: NextRequest) {
+export async function proxy(request: NextRequest) {
   const { pathname } = request.nextUrl;
 
   // Check if path is explicitly public

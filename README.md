@@ -88,8 +88,23 @@ Eliza Cloud V2 is a full-stack AI-as-a-Service platform that combines:
   - Deploy ElizaOS projects via `elizaos deploy` CLI
   - Docker-based deployments to AWS ECS (Elastic Container Service)
   - ECR (Elastic Container Registry) for Docker image storage
-  - EC2-based ECS (t3g.small ARM instances, 1 per user)
+  - EC2-based ECS (t4g.small ARM instances, 1 per user)
   - Health checks and monitoring via ECS
+
+- **MCP Playground** (NEW ⚡):
+  - Interactive explorer for Model Context Protocol (MCP) integrations
+  - Test and experiment with 4+ MCP servers (ElizaOS Cloud, CoinGecko, Twitter/X, OpenAI Image)
+  - Live parameter editor with validation and type checking
+  - Real-time execution with JSON response viewer
+  - Copy-to-clipboard for results and code examples
+  - Comprehensive tool documentation with pricing info
+  - Category filtering (Platform, Crypto, Social, AI)
+  - **x402 Protocol Integration**: Visual indicators and filtering for cryptocurrency-based payments
+    - Wallet badges on x402-enabled MCPs
+    - Credit card badges for credit-based MCPs
+    - Payment type filter dropdown
+    - Inline x402 protocol explanations
+  - Support for both credit-based and x402 payment protocols
 
 ### 📊 Management & Analytics
 
@@ -637,25 +652,78 @@ BLOB_READ_WRITE_TOKEN=vercel_blob_rw_your_token
 **Features**:
 
 - Deploy ElizaOS projects via `elizaos deploy` CLI
+- **Multi-project support**: Deploy multiple different projects per user
+- **Smart update detection**: Automatically detects and updates existing deployments
 - Docker-based deployments to AWS ECS (Elastic Container Service)
-- ECR (Elastic Container Registry) for Docker image storage
-- EC2-based ECS (t3g.small ARM instances, 1 per user, no auto-scaling)
-- Health checks and monitoring via ECS
+- ECR (Elastic Container Registry) for Docker image storage with project-specific repositories
+- EC2-based ECS (**t4g.micro ARM instances**: 2 vCPU, 1 GiB, ~$6/month)
+- CloudFormation stack per project: `elizaos-{userId}-{projectName}`
+- Optimized health checks (15s interval, 5min grace period)
+- Health monitoring via CloudWatch and ECS
 - Quota enforcement (prevents race conditions)
 - Environment variable injection
 - Credit-based billing with automatic deduction
+- Container management CLI: `elizaos containers list|delete|logs`
+- **Async deployment**: API returns immediately, CLI polls with beautiful progress
 
 **How It Works**:
 
 1. User gets API key from `/dashboard/api-keys`
-2. User runs `elizaos deploy --api-key eliza_xxxxx` from their project directory
-3. CLI requests ECR credentials from the cloud API
-4. CLI builds Docker image locally using project's Dockerfile (or generates one)
-5. CLI pushes Docker image to ECR
-6. CLI creates container deployment via cloud API with ECR image URI
-7. Cloud deploys container to dedicated EC2 instance with ECS
-8. Container accessible via AWS Load Balancer URL (https://{userId}.elizacloud.ai)
-9. Credits automatically deducted based on container resources (CPU/memory)
+2. User runs `elizaos deploy --project-name my-project --api-key eliza_xxxxx` from project directory
+3. CLI auto-detects if project already deployed (checks `project_name`)
+4. CLI requests ECR credentials from the cloud API
+5. CLI builds Docker image locally using project's Dockerfile (or generates one)
+6. CLI pushes Docker image to project-specific ECR repository
+7. CLI creates/updates container deployment via cloud API:
+   - **Fresh deployment**: Creates new CloudFormation stack
+   - **Update deployment**: Updates existing CloudFormation stack (zero-downtime)
+8. Cloud provisions/updates dedicated EC2 instance with ECS
+9. Container accessible via AWS Load Balancer URL
+10. Credits automatically deducted based on container resources (CPU/memory)
+
+**Multi-Project Example**:
+```bash
+# Deploy first project
+cd ~/chatbot
+elizaos deploy --project-name chatbot --api-key eliza_xxx
+# URL: https://fc51b251-chatbot.containers.elizacloud.ai
+
+# Deploy second project (same user, different project)
+cd ~/assistant
+elizaos deploy --project-name assistant --api-key eliza_xxx
+# URL: https://fc51b251-assistant.containers.elizacloud.ai
+
+# Update chatbot
+cd ~/chatbot
+# ... make changes ...
+elizaos deploy --project-name chatbot  # Auto-detected as update
+# URL unchanged: https://fc51b251-chatbot.containers.elizacloud.ai
+```
+
+**Human-Readable URLs**:
+- Format: `https://{userId-prefix}-{project-name}.containers.elizacloud.ai`
+- Example: `https://fc51b251-chatbot.containers.elizacloud.ai`
+- Uses first segment of UUID + project name for easy recognition
+
+**Instance Specs (t4g.micro)**:
+- **2 vCPUs** (ARM Graviton2)
+- **1 GiB RAM** (1024 MB)
+- **~$6/month** (~$0.0084/hour)
+- Default container allocation: 1.75 vCPU (1792 units), 896 MB RAM (87.5% of instance)
+
+**Container Management**:
+```bash
+# List all containers (with project names)
+elizaos containers list --api-key eliza_xxx
+
+# View logs (auto-detects from current directory)
+cd ~/chatbot
+elizaos containers logs  # Finds chatbot project automatically
+
+# Delete container (auto-detects from current directory)
+cd ~/chatbot
+elizaos containers delete  # Finds and deletes chatbot project
+```
 
 **Deployment Architecture**:
 
@@ -913,6 +981,112 @@ See `docs/STRIPE_SETUP.md` for detailed Stripe configuration.
 - Status: healthy, degraded, unhealthy
 - Response time percentiles
 - Error rate calculation
+
+### 11. MCP (Model Context Protocol) Integration
+
+**Location**: `/app/api/mcp/route.ts` and `docs/MCP_INTEGRATION.md`
+
+**Features**:
+
+- Standards-based MCP server implementation
+- 4 AI-powered tools exposed via MCP protocol
+- Bearer token authentication using API keys
+- Compatible with any MCP client (Claude Desktop, MCP Inspector, etc.)
+- Automatic credit deduction for tool usage
+- Full request/response logging
+
+**Available MCP Tools**:
+
+1. **check_credits**: View organization credit balance and recent transactions
+   - Optional parameters: `includeTransactions` (boolean), `limit` (number)
+
+2. **get_recent_usage**: View recent API usage statistics with model and cost details
+   - Optional parameter: `limit` (number, 1-50)
+
+3. **generate_text**: Generate text using AI models (GPT-4, Claude, Gemini)
+   - Required: `prompt` (string)
+   - Optional: `model` (enum), `maxLength` (number)
+   - Automatically deducts credits based on token usage
+
+4. **generate_image**: Generate images using Google Gemini 2.5
+   - Required: `prompt` (string)
+   - Optional: `aspectRatio` (enum: 1:1, 16:9, 9:16, 4:3, 3:4)
+   - Cost: 100 credits per image
+
+**Using MCP Inspector**:
+
+```bash
+# Launch MCP Inspector UI
+npm run mcp:inspector
+```
+
+**MCP Inspector Setup**:
+
+1. **Transport Type**: Select `Streamable HTTP`
+2. **URL**: `http://localhost:3000/api/mcp`
+3. **Connection Type**: Select `Via Proxy`
+4. **Configuration**:
+   - Paste the session token shown in the inspector
+5. **Authentication**:
+   - Header Name: `Authorization`
+   - Header Value: `Bearer eliza_your_api_key_here`
+6. Click **Connect**
+
+**Using with Claude Desktop**:
+
+Add to your Claude Desktop config (`~/Library/Application Support/Claude/claude_desktop_config.json` on macOS):
+
+```json
+{
+  "mcpServers": {
+    "eliza-cloud": {
+      "url": "http://localhost:3000/api/mcp",
+      "transport": {
+        "type": "streamableHttp"
+      },
+      "headers": {
+        "Authorization": "Bearer eliza_your_api_key_here"
+      }
+    }
+  }
+}
+```
+
+**API Endpoint**:
+
+```bash
+POST http://localhost:3000/api/mcp
+Content-Type: application/json
+Authorization: Bearer eliza_your_api_key
+Accept: application/json, text/event-stream
+
+# List tools
+{
+  "jsonrpc": "2.0",
+  "id": 1,
+  "method": "tools/list"
+}
+
+# Call a tool
+{
+  "jsonrpc": "2.0",
+  "id": 2,
+  "method": "tools/call",
+  "params": {
+    "name": "check_credits",
+    "arguments": {
+      "includeTransactions": true,
+      "limit": 5
+    }
+  }
+}
+```
+
+**Documentation**:
+
+- Full setup guide: `docs/MCP_INTEGRATION.md`
+- MCP Inspector setup: `MCP_INSPECTOR_SETUP.md`
+- Model Context Protocol spec: [modelcontextprotocol.io](https://modelcontextprotocol.io)
 
 ## 🗄 Database Architecture
 
@@ -1502,7 +1676,7 @@ See `docs/DEPLOYMENT_TROUBLESHOOTING.md` for detailed troubleshooting.
 
 ## 🚀 AWS ECS Container Deployment
 
-Deploy ElizaOS agents to AWS ECS (Elastic Container Service) using Docker containers. Each user gets a dedicated EC2 instance (t3g.small ARM) managed via CloudFormation.
+Deploy ElizaOS agents to AWS ECS (Elastic Container Service) using Docker containers. Each user gets a dedicated EC2 instance (t4g.small ARM, Graviton2) managed via CloudFormation.
 
 ### Quick Start
 
@@ -1528,7 +1702,7 @@ elizaos deploy
 2. **CLI** builds Docker image locally
 3. **CLI** pushes image to AWS ECR (Elastic Container Registry)
 4. **CLI** creates container deployment via cloud API
-5. **Cloud** deploys to dedicated EC2 instance (t3g.small ARM) with ECS
+5. **Cloud** deploys to dedicated EC2 instance (t4g.small ARM) with ECS
 6. **Agent** runs on AWS with health checks and monitoring
 
 ### AWS Infrastructure Setup (Platform Maintainers)
@@ -1626,12 +1800,12 @@ Container deployments are billed based on:
 
 - **Deployment**: 1000 credits (one-time per deployment)
 - **Running Costs**: Charged per hour based on resources
-  - t3g.small (1.75 vCPU + 1.75 GB RAM): Default, ~10-20 credits/hour
+  - t4g.small (1.75 vCPU + 1.75 GB RAM): Default, ~10-20 credits/hour
   - Higher CPU/memory allocations: Additional charges
 
 **AWS Infrastructure Costs** (billed directly by AWS, not through credits):
 
-- **EC2 Instances**: ~$13/month per t3g.small (1 per user)
+- **EC2 Instances**: ~$12.41/month per t4g.small (1 per user)
 - **ECR Storage**: First 50 GB free, then $0.10/GB/month
 - **Data Transfer**: First 100 GB free per month
 - **Application Load Balancer**: ~$16/month (shared across all users)

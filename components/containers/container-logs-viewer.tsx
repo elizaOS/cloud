@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState, useRef, useCallback } from "react";
+import { toast } from "sonner";
 import {
   Card,
   CardContent,
@@ -19,7 +20,8 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { RefreshCw, Download } from "lucide-react";
+import { RefreshCw, Download, Wifi, WifiOff, Search, Copy, Check } from "lucide-react";
+import { Input } from "@/components/ui/input";
 
 interface LogEntry {
   timestamp: string;
@@ -40,9 +42,15 @@ export function ContainerLogsViewer({
   const [logs, setLogs] = useState<LogEntry[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [infoMessage, setInfoMessage] = useState<string | null>(null);
   const [level, setLevel] = useState<string>("all");
   const [autoRefresh, setAutoRefresh] = useState(false);
+  const [useStreaming, setUseStreaming] = useState(true);
+  const [isStreaming, setIsStreaming] = useState(false);
+  const [searchQuery, setSearchQuery] = useState("");
   const scrollRef = useRef<HTMLDivElement>(null);
+  const eventSourceRef = useRef<EventSource | null>(null);
+  const abortControllerRef = useRef<AbortController | null>(null);
 
   const fetchLogs = useCallback(async () => {
     try {
@@ -62,10 +70,12 @@ export function ContainerLogsViewer({
 
       const data = await response.json();
       if (data.success) {
-        setLogs(data.data.logs);
+        setLogs(data.data.logs || []);
+        setInfoMessage(data.data.message || null);
         setError(null);
       } else {
         setError(data.error || "Failed to load logs");
+        setInfoMessage(null);
       }
     } catch (err) {
       console.error("Error fetching logs:", err);
@@ -75,16 +85,109 @@ export function ContainerLogsViewer({
     }
   }, [containerId, level]);
 
+  const startStreaming = useCallback(() => {
+    // Close existing connection
+    if (eventSourceRef.current) {
+      eventSourceRef.current.close();
+    }
+
+    const params = new URLSearchParams({
+      ...(level !== "all" && { level }),
+    });
+
+    const eventSource = new EventSource(
+      `/api/v1/containers/${containerId}/logs/stream?${params}`,
+    );
+
+    eventSource.onopen = () => {
+      console.log("Log stream connected");
+      setIsStreaming(true);
+      setError(null);
+    };
+
+    eventSource.onmessage = (event) => {
+      try {
+        const parsed = JSON.parse(event.data);
+
+        if (parsed.type === "log") {
+          setLogs((prevLogs) => {
+            const newLog = parsed.data;
+            // Check if log already exists
+            const exists = prevLogs.some(
+              (log) =>
+                log.timestamp === newLog.timestamp &&
+                log.message === newLog.message,
+            );
+            if (exists) return prevLogs;
+
+            // Add new log and keep only last 500 logs
+            const updated = [newLog, ...prevLogs];
+            return updated.slice(0, 500);
+          });
+        } else if (parsed.type === "error") {
+          console.error("Stream error:", parsed.message);
+          setError(parsed.message);
+        }
+      } catch (err) {
+        console.error("Error parsing stream data:", err);
+      }
+    };
+
+    eventSource.onerror = (err) => {
+      console.error("EventSource error:", err);
+      setIsStreaming(false);
+      eventSource.close();
+
+      // Fallback to polling
+      if (useStreaming) {
+        console.log("Streaming failed, falling back to polling");
+        setUseStreaming(false);
+        setAutoRefresh(true);
+      }
+    };
+
+    eventSourceRef.current = eventSource;
+  }, [containerId, level, useStreaming]);
+
+  const stopStreaming = useCallback(() => {
+    if (eventSourceRef.current) {
+      eventSourceRef.current.close();
+      eventSourceRef.current = null;
+    }
+    setIsStreaming(false);
+  }, []);
+
+  // Initial load
   useEffect(() => {
     fetchLogs();
   }, [fetchLogs]);
 
+  // Handle streaming vs polling
   useEffect(() => {
-    if (autoRefresh) {
-      const interval = setInterval(fetchLogs, 5000); // Refresh every 5 seconds
+    if (autoRefresh && useStreaming) {
+      // Start streaming
+      startStreaming();
+      return () => stopStreaming();
+    } else if (autoRefresh && !useStreaming) {
+      // Fallback to polling
+      const interval = setInterval(fetchLogs, 5000);
       return () => clearInterval(interval);
+    } else {
+      // Stop streaming if auto-refresh is off
+      stopStreaming();
     }
-  }, [autoRefresh, fetchLogs]);
+  }, [autoRefresh, useStreaming, startStreaming, stopStreaming, fetchLogs]);
+
+  // Cleanup on unmount
+  useEffect(() => {
+    const abortController = abortControllerRef.current;
+    return () => {
+      stopStreaming();
+      if (abortController) {
+        abortController.abort();
+      }
+    };
+  }, [stopStreaming]);
 
   const getLevelColor = (logLevel: string) => {
     switch (logLevel) {
@@ -138,10 +241,46 @@ export function ContainerLogsViewer({
     URL.revokeObjectURL(url);
   };
 
+  const copyAllLogs = async () => {
+    const logsText = logs
+      .map((log) => {
+        const timestamp = new Date(log.timestamp).toISOString();
+        const metadata = log.metadata
+          ? ` | ${JSON.stringify(log.metadata)}`
+          : "";
+        return `[${timestamp}] [${log.level.toUpperCase()}] ${log.message}${metadata}`;
+      })
+      .join("\n");
+
+    await navigator.clipboard.writeText(logsText);
+    toast.success("Logs copied to clipboard");
+  };
+
+  const copyLogLine = async (log: LogEntry) => {
+    const timestamp = new Date(log.timestamp).toISOString();
+    const metadata = log.metadata
+      ? ` | ${JSON.stringify(log.metadata)}`
+      : "";
+    const text = `[${timestamp}] [${log.level.toUpperCase()}] ${log.message}${metadata}`;
+    await navigator.clipboard.writeText(text);
+    toast.success("Log line copied");
+  };
+
+  const filteredLogs = logs.filter((log) => {
+    if (!searchQuery) return true;
+    const searchLower = searchQuery.toLowerCase();
+    return (
+      log.message.toLowerCase().includes(searchLower) ||
+      log.level.toLowerCase().includes(searchLower) ||
+      (log.metadata &&
+        JSON.stringify(log.metadata).toLowerCase().includes(searchLower))
+    );
+  });
+
   return (
     <Card>
       <CardHeader>
-        <div className="flex items-center justify-between">
+        <div className="flex items-center justify-between mb-4">
           <div>
             <CardTitle>Container Logs</CardTitle>
             <CardDescription>
@@ -149,37 +288,77 @@ export function ContainerLogsViewer({
             </CardDescription>
           </div>
           <div className="flex items-center gap-2">
-            <Select value={level} onValueChange={setLevel}>
-              <SelectTrigger className="w-32">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">All Levels</SelectItem>
-                <SelectItem value="error">Errors</SelectItem>
-                <SelectItem value="warn">Warnings</SelectItem>
-                <SelectItem value="info">Info</SelectItem>
-                <SelectItem value="debug">Debug</SelectItem>
-              </SelectContent>
-            </Select>
             <Button
               variant="outline"
               size="sm"
               onClick={() => setAutoRefresh(!autoRefresh)}
+              title={
+                autoRefresh
+                  ? isStreaming
+                    ? "Streaming (click to stop)"
+                    : "Polling (click to stop)"
+                  : "Start auto-refresh"
+              }
             >
-              <RefreshCw
-                className={`h-4 w-4 ${autoRefresh ? "animate-spin" : ""}`}
-              />
+              {isStreaming ? (
+                <Wifi className="h-4 w-4" />
+              ) : autoRefresh ? (
+                <RefreshCw className="h-4 w-4 animate-spin" />
+              ) : (
+                <WifiOff className="h-4 w-4" />
+              )}
+            </Button>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={copyAllLogs}
+              disabled={logs.length === 0}
+              title="Copy all logs"
+            >
+              <Copy className="h-4 w-4" />
             </Button>
             <Button
               variant="outline"
               size="sm"
               onClick={downloadLogs}
               disabled={logs.length === 0}
+              title="Download logs"
             >
               <Download className="h-4 w-4" />
             </Button>
           </div>
         </div>
+
+        {/* Search and Filter Bar */}
+        <div className="flex flex-col sm:flex-row gap-3">
+          <div className="relative flex-1">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+            <Input
+              placeholder="Search logs..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="pl-9"
+            />
+          </div>
+          <Select value={level} onValueChange={setLevel}>
+            <SelectTrigger className="w-full sm:w-[140px]">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All Levels</SelectItem>
+              <SelectItem value="error">Errors</SelectItem>
+              <SelectItem value="warn">Warnings</SelectItem>
+              <SelectItem value="info">Info</SelectItem>
+              <SelectItem value="debug">Debug</SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
+
+        {(searchQuery || level !== "all") && filteredLogs.length < logs.length && (
+          <div className="text-sm text-muted-foreground mt-2">
+            Showing {filteredLogs.length} of {logs.length} logs
+          </div>
+        )}
       </CardHeader>
       <CardContent>
         {loading && logs.length === 0 ? (
@@ -190,19 +369,66 @@ export function ContainerLogsViewer({
           </div>
         ) : error ? (
           <div className="text-center py-8">
-            <p className="text-red-500">{error}</p>
+            <div className="mb-4">
+              <p className="text-red-500 font-semibold mb-2">
+                {error.includes("not been deployed")
+                  ? "Container Not Yet Deployed"
+                  : error.includes("not found")
+                    ? "Container Logs Not Found"
+                    : "Error Loading Logs"}
+              </p>
+              <p className="text-sm text-muted-foreground">{error}</p>
+            </div>
+            {!error.includes("not been deployed") && (
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={fetchLogs}
+                className="mt-4"
+              >
+                <RefreshCw className="h-4 w-4 mr-2" />
+                Retry
+              </Button>
+            )}
+          </div>
+        ) : logs.length === 0 ? (
+          <div className="text-center py-8">
+            <div className="space-y-2">
+              <p className="text-muted-foreground">
+                {infoMessage || "No logs available for this container"}
+              </p>
+              {!infoMessage && (
+                <p className="text-xs text-muted-foreground">
+                  Logs may take a few moments to appear after deployment
+                </p>
+              )}
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={fetchLogs}
+                className="mt-4"
+              >
+                <RefreshCw className="h-4 w-4 mr-2" />
+                Refresh
+              </Button>
+            </div>
+          </div>
+        ) : filteredLogs.length === 0 ? (
+          <div className="text-center py-8">
+            <p className="text-muted-foreground">
+              No logs match your search criteria
+            </p>
             <Button
               variant="outline"
               size="sm"
-              onClick={fetchLogs}
+              onClick={() => {
+                setSearchQuery("");
+                setLevel("all");
+              }}
               className="mt-4"
             >
-              Retry
+              Clear Filters
             </Button>
-          </div>
-        ) : logs.length === 0 ? (
-          <div className="text-center py-8 text-muted-foreground">
-            No logs available for this container
           </div>
         ) : (
           <ScrollArea
@@ -210,10 +436,10 @@ export function ContainerLogsViewer({
             ref={scrollRef}
           >
             <div className="p-4 font-mono text-sm space-y-1">
-              {logs.map((log, index) => (
+              {filteredLogs.map((log, index) => (
                 <div
                   key={`${log.timestamp}-${index}`}
-                  className={`flex gap-3 p-2 hover:bg-muted/50 rounded ${getLevelColor(log.level)}`}
+                  className={`group flex gap-3 p-2 hover:bg-muted/50 rounded transition-colors ${getLevelColor(log.level)}`}
                 >
                   <Badge
                     variant={
@@ -223,28 +449,50 @@ export function ContainerLogsViewer({
                         | "outline"
                         | "secondary"
                     }
-                    className="shrink-0 h-5"
+                    className="shrink-0 h-5 text-xs"
                   >
                     {log.level.toUpperCase()}
                   </Badge>
-                  <span className="text-xs text-muted-foreground shrink-0">
+                  <span className="text-xs text-muted-foreground shrink-0 min-w-[70px]">
                     {new Date(log.timestamp).toLocaleTimeString()}
                   </span>
-                  <span className="flex-1 break-all">{log.message}</span>
+                  <span className="flex-1 break-all whitespace-pre-wrap">
+                    {log.message}
+                  </span>
                   {log.metadata && Object.keys(log.metadata).length > 0 && (
-                    <span className="text-xs text-muted-foreground">
+                    <span className="text-xs text-muted-foreground max-w-[200px] truncate">
                       {JSON.stringify(log.metadata)}
                     </span>
                   )}
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => copyLogLine(log)}
+                    className="opacity-0 group-hover:opacity-100 transition-opacity h-6 w-6 p-0 shrink-0"
+                    title="Copy log line"
+                  >
+                    <Copy className="h-3 w-3" />
+                  </Button>
                 </div>
               ))}
             </div>
           </ScrollArea>
         )}
-        {autoRefresh && (
+        {(autoRefresh || isStreaming) && (
           <div className="flex items-center justify-center gap-2 mt-2 text-xs text-muted-foreground">
-            <RefreshCw className="h-3 w-3 animate-spin" />
-            Auto-refreshing every 5 seconds
+            {isStreaming ? (
+              <>
+                <Wifi className="h-3 w-3 text-green-500" />
+                <span className="text-green-600 dark:text-green-400">
+                  Live streaming enabled
+                </span>
+              </>
+            ) : (
+              <>
+                <RefreshCw className="h-3 w-3 animate-spin" />
+                Auto-refreshing every 5 seconds
+              </>
+            )}
           </div>
         )}
       </CardContent>
