@@ -26,8 +26,8 @@ echo ""
 # Validate required parameters
 if [ -z "$CERTIFICATE_ARN" ]; then
   echo "❌ Error: ACM_CERTIFICATE_ARN environment variable is required"
-  echo "   Create an ACM certificate for *.elizacloud.ai first:"
-  echo "   aws acm request-certificate --domain-name '*.elizacloud.ai' --validation-method DNS --region $REGION"
+  echo "   Create an ACM certificate for *.containers.elizacloud.ai first:"
+  echo "   aws acm request-certificate --domain-name '*.containers.elizacloud.ai' --validation-method DNS --region $REGION"
   exit 1
 fi
 
@@ -136,7 +136,7 @@ aws cloudformation describe-stacks \
 echo ""
 echo "🎯 Next Steps:"
 echo "1. Save the ALB DNS name and update your DNS:"
-echo "   *.elizacloud.ai → CNAME → <ALB DNS>"
+echo "   *.containers.elizacloud.ai → CNAME → <ALB DNS>"
 echo "2. Verify DNS propagation: dig $(aws cloudformation describe-stacks --stack-name "$STACK_NAME" --region "$REGION" --query 'Stacks[0].Outputs[?OutputKey==`SharedALBDNS`].OutputValue' --output text)"
 echo "3. Update your eliza-cloud-v2/.env file with the outputs above"
 echo "4. Users can now run 'elizaos deploy' to get their own EC2 instance"

@@ -9,7 +9,7 @@
     },
     "CertificateArn": {
       "Type": "String",
-      "Description": "ACM Certificate ARN for *.elizacloud.ai"
+      "Description": "ACM Certificate ARN for *.containers.elizacloud.ai"
     }
   },
   "Resources": {

@@ -18,7 +18,7 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
-import { CheckCircle2, XCircle, Clock } from "lucide-react";
+import { CheckCircle2, XCircle, Clock, TrendingUp, Cpu, HardDrive, Network } from "lucide-react";
 
 interface Deployment {
   id: string;
@@ -112,120 +112,170 @@ export function ContainerDeploymentHistory({
     );
   }
 
+  const successRate = deployments.length > 0
+    ? (deployments.filter(d => d.status === "success").length / deployments.length) * 100
+    : 0;
+
+  const avgDuration = deployments.length > 0 && deployments.some(d => d.duration_ms)
+    ? deployments
+        .filter(d => d.duration_ms)
+        .reduce((sum, d) => sum + (d.duration_ms || 0), 0) / 
+        deployments.filter(d => d.duration_ms).length
+    : null;
+
+  const totalCost = deployments.reduce((sum, d) => sum + d.cost, 0);
+
   return (
     <Card>
       <CardHeader>
-        <CardTitle>Deployment History</CardTitle>
-        <CardDescription>Past deployments for {containerName}</CardDescription>
+        <div className="flex items-center justify-between">
+          <div>
+            <CardTitle>Deployment History</CardTitle>
+            <CardDescription>Past deployments for {containerName}</CardDescription>
+          </div>
+          {deployments.length > 0 && (
+            <div className="flex items-center gap-4 text-sm">
+              <div className="flex items-center gap-2">
+                <TrendingUp className="h-4 w-4 text-green-500" />
+                <span className="text-muted-foreground">Success Rate:</span>
+                <span className="font-semibold">{successRate.toFixed(0)}%</span>
+              </div>
+            </div>
+          )}
+        </div>
       </CardHeader>
       <CardContent>
         {deployments.length === 0 ? (
-          <div className="text-center py-8 text-muted-foreground">
-            No deployment history available
+          <div className="flex flex-col items-center justify-center py-12 text-center">
+            <div className="rounded-full bg-muted p-4 mb-4">
+              <Clock className="h-8 w-8 text-muted-foreground" />
+            </div>
+            <p className="text-muted-foreground">No deployment history available</p>
+            <p className="text-sm text-muted-foreground mt-2">
+              Deployment records will appear here after your first deployment
+            </p>
           </div>
         ) : (
-          <div className="rounded-md border">
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Status</TableHead>
-                  <TableHead>Date</TableHead>
-                  <TableHead>Duration</TableHead>
-                  <TableHead>Cost</TableHead>
-                  <TableHead>Config</TableHead>
-                  <TableHead>Details</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {deployments.map((deployment) => (
-                  <TableRow key={deployment.id}>
-                    <TableCell>
-                      <div className="flex items-center gap-2">
-                        {deployment.status === "success" ? (
-                          <CheckCircle2 className="h-4 w-4 text-green-500" />
-                        ) : (
-                          <XCircle className="h-4 w-4 text-red-500" />
-                        )}
+          <div className="space-y-4">
+            {/* Stats Overview */}
+            <div className="grid grid-cols-3 gap-4 pb-4 border-b">
+              <div className="text-center">
+                <p className="text-2xl font-bold text-green-500">
+                  {deployments.filter(d => d.status === "success").length}
+                </p>
+                <p className="text-xs text-muted-foreground mt-1">Successful</p>
+              </div>
+              <div className="text-center">
+                <p className="text-2xl font-bold text-red-500">
+                  {deployments.filter(d => d.status === "failed").length}
+                </p>
+                <p className="text-xs text-muted-foreground mt-1">Failed</p>
+              </div>
+              <div className="text-center">
+                <p className="text-2xl font-bold text-blue-500">{totalCost}</p>
+                <p className="text-xs text-muted-foreground mt-1">Total Credits</p>
+              </div>
+            </div>
+
+            {/* Timeline */}
+            <div className="space-y-3">
+              {deployments.map((deployment, index) => (
+                <div
+                  key={deployment.id}
+                  className="relative pl-8 pb-4 border-l-2 border-muted last:border-l-0 last:pb-0"
+                >
+                  {/* Timeline dot */}
+                  <div className="absolute left-[-9px] top-1">
+                    {deployment.status === "success" ? (
+                      <div className="p-1 bg-background rounded-full">
+                        <CheckCircle2 className="h-4 w-4 text-green-500" />
+                      </div>
+                    ) : (
+                      <div className="p-1 bg-background rounded-full">
+                        <XCircle className="h-4 w-4 text-red-500" />
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Deployment card */}
+                  <div className="bg-muted/30 rounded-lg p-4 hover:bg-muted/50 transition-colors">
+                    <div className="flex items-start justify-between mb-3">
+                      <div className="flex items-center gap-3">
                         <Badge
                           variant={
                             deployment.status === "success"
                               ? "default"
                               : "destructive"
                           }
+                          className="font-semibold"
                         >
                           {deployment.status}
                         </Badge>
+                        <span className="text-sm text-muted-foreground">
+                          {new Date(deployment.deployed_at).toLocaleString()}
+                        </span>
                       </div>
-                    </TableCell>
-                    <TableCell>
-                      <div className="text-sm">
-                        <div>
-                          {new Date(
-                            deployment.deployed_at,
-                          ).toLocaleDateString()}
-                        </div>
-                        <div className="text-muted-foreground">
-                          {new Date(
-                            deployment.deployed_at,
-                          ).toLocaleTimeString()}
-                        </div>
+                      <div className="flex items-center gap-4 text-xs text-muted-foreground">
+                        {deployment.duration_ms && (
+                          <div className="flex items-center gap-1">
+                            <Clock className="h-3 w-3" />
+                            <span>{(deployment.duration_ms / 1000).toFixed(1)}s</span>
+                          </div>
+                        )}
+                        <span className="font-mono font-semibold">
+                          {deployment.cost} credits
+                        </span>
                       </div>
-                    </TableCell>
-                    <TableCell>
-                      {deployment.duration_ms ? (
-                        <div className="flex items-center gap-1">
-                          <Clock className="h-3 w-3" />
-                          <span className="text-sm">
-                            {(deployment.duration_ms / 1000).toFixed(1)}s
-                          </span>
-                        </div>
-                      ) : (
-                        <span className="text-muted-foreground">-</span>
-                      )}
-                    </TableCell>
-                    <TableCell>
-                      <span className="text-sm font-mono">
-                        {deployment.cost} credits
-                      </span>
-                    </TableCell>
-                    <TableCell>
-                      <div className="text-xs space-y-1">
-                        <div>
-                          Count: {deployment.metadata.desired_count || 1}
-                        </div>
-                        <div className="text-muted-foreground">
-                          CPU: {deployment.metadata.cpu || 256} / Mem:{" "}
+                    </div>
+
+                    <div className="grid grid-cols-2 md:grid-cols-4 gap-3 text-xs">
+                      <div className="flex items-center gap-2">
+                        <Network className="h-3 w-3 text-muted-foreground" />
+                        <span className="text-muted-foreground">Instances:</span>
+                        <span className="font-medium">
+                          {deployment.metadata.desired_count || 1}
+                        </span>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <Cpu className="h-3 w-3 text-muted-foreground" />
+                        <span className="text-muted-foreground">CPU:</span>
+                        <span className="font-medium">
+                          {deployment.metadata.cpu || 256}
+                        </span>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <HardDrive className="h-3 w-3 text-muted-foreground" />
+                        <span className="text-muted-foreground">Memory:</span>
+                        <span className="font-medium">
                           {deployment.metadata.memory || 512}MB
-                        </div>
-                        <div className="text-muted-foreground">
-                          Port: {deployment.metadata.port || 3000}
-                        </div>
+                        </span>
                       </div>
-                    </TableCell>
-                    <TableCell>
-                      {deployment.error && (
-                        <div className="text-xs text-red-500 max-w-xs truncate">
-                          {deployment.error}
-                        </div>
-                      )}
-                      {deployment.metadata.ecs_service_arn && (
-                        <div className="text-xs text-muted-foreground font-mono">
-                          ECS:{" "}
-                          {deployment.metadata.ecs_service_arn
-                            .substring(
-                              deployment.metadata.ecs_service_arn.lastIndexOf(
-                                "/",
-                              ) + 1,
-                            )
-                            .substring(0, 12)}
-                          ...
-                        </div>
-                      )}
-                    </TableCell>
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
+                      <div className="flex items-center gap-2">
+                        <Network className="h-3 w-3 text-muted-foreground" />
+                        <span className="text-muted-foreground">Port:</span>
+                        <span className="font-medium">
+                          {deployment.metadata.port || 3000}
+                        </span>
+                      </div>
+                    </div>
+
+                    {deployment.error && (
+                      <div className="mt-3 p-2 bg-red-50 dark:bg-red-950/20 rounded text-xs text-red-500">
+                        <strong>Error:</strong> {deployment.error}
+                      </div>
+                    )}
+
+                    {deployment.metadata.image_tag && (
+                      <div className="mt-2 text-xs text-muted-foreground">
+                        <span className="font-mono">
+                          Tag: {deployment.metadata.image_tag}
+                        </span>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              ))}
+            </div>
           </div>
         )}
       </CardContent>
