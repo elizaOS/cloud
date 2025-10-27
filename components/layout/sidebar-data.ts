@@ -20,6 +20,7 @@ import {
   Bot,
   Code,
   Mic,
+  Zap,
 } from "lucide-react";
 import type { ComponentType } from "react";
 
@@ -106,6 +107,13 @@ export const sidebarSections: SidebarSection[] = [
         label: "API Explorer",
         href: "/dashboard/api-explorer",
         icon: Code,
+        isNew: true,
+      },
+      {
+        id: "mcp-playground",
+        label: "MCP Playground",
+        href: "/dashboard/mcp-playground",
+        icon: Zap,
         isNew: true,
       },
     ],

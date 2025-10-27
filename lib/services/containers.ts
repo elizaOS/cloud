@@ -118,6 +118,7 @@ export const updateContainerStatus = async (
         ecsTaskArn?: string;
         ecsClusterArn?: string;
         loadBalancerUrl?: string;
+        cloudformationStackName?: string;
       },
 ): Promise<Container> => {
   // Handle both old string format and new options object format
@@ -160,6 +161,10 @@ export const updateContainerStatus = async (
 
   if (options?.loadBalancerUrl) {
     updateData.load_balancer_url = options.loadBalancerUrl;
+  }
+
+  if (options?.cloudformationStackName) {
+    updateData.cloudformation_stack_name = options.cloudformationStackName;
   }
 
   if (status === "running") {

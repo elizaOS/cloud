@@ -5,22 +5,8 @@
     {
       "idx": 0,
       "version": "7",
-      "when": 1760957141563,
-      "tag": "0000_unique_skin",
-      "breakpoints": true
-    },
-    {
-      "idx": 1,
-      "version": "7",
-      "when": 1761052478836,
-      "tag": "0001_woozy_joseph",
-      "breakpoints": true
-    },
-    {
-      "idx": 2,
-      "version": "7",
-      "when": 1761314360145,
-      "tag": "0002_perpetual_war_machine",
+      "when": 1761368505527,
+      "tag": "0000_silly_dreadnoughts",
       "breakpoints": true
     }
   ]
