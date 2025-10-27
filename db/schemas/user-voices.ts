@@ -7,55 +7,81 @@ import {
   timestamp,
   decimal,
   jsonb,
+  index,
 } from "drizzle-orm/pg-core";
 import { organizations } from "./organizations";
 import { users } from "./users";
 import type { InferSelectModel, InferInsertModel } from "drizzle-orm";
 
-export const userVoices = pgTable("user_voices", {
-  id: uuid("id").primaryKey().defaultRandom(),
+export const userVoices = pgTable(
+  "user_voices",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
 
-  // Ownership
-  organizationId: uuid("organization_id")
-    .notNull()
-    .references(() => organizations.id, { onDelete: "cascade" }),
-  userId: uuid("user_id")
-    .notNull()
-    .references(() => users.id, { onDelete: "cascade" }),
+    // Ownership
+    organizationId: uuid("organization_id")
+      .notNull()
+      .references(() => organizations.id, { onDelete: "cascade" }),
+    userId: uuid("user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
 
-  // ElevenLabs Integration
-  elevenlabsVoiceId: text("elevenlabs_voice_id").notNull().unique(),
+    // ElevenLabs Integration
+    elevenlabsVoiceId: text("elevenlabs_voice_id").notNull().unique(),
 
-  // Voice Metadata
-  name: text("name").notNull(),
-  description: text("description"),
-  cloneType: text("clone_type", {
-    enum: ["instant", "professional"],
-  }).notNull(),
+    // Voice Metadata
+    name: text("name").notNull(),
+    description: text("description"),
+    cloneType: text("clone_type", {
+      enum: ["instant", "professional"],
+    }).notNull(),
 
-  // Settings (stability, similarity_boost, style, use_speaker_boost, language, etc.)
-  settings: jsonb("settings").notNull().default({}),
+    // Settings (stability, similarity_boost, style, use_speaker_boost, language, etc.)
+    settings: jsonb("settings").notNull().default({}),
 
-  // Metadata
-  sampleCount: integer("sample_count").notNull().default(0),
-  totalAudioDurationSeconds: integer("total_audio_duration_seconds"),
-  audioQualityScore: decimal("audio_quality_score", { precision: 3, scale: 2 }), // 0.00 - 10.00
+    // Metadata
+    sampleCount: integer("sample_count").notNull().default(0),
+    totalAudioDurationSeconds: integer("total_audio_duration_seconds"),
+    audioQualityScore: decimal("audio_quality_score", {
+      precision: 3,
+      scale: 2,
+    }), // 0.00 - 10.00
 
-  // Usage Tracking
-  usageCount: integer("usage_count").notNull().default(0),
-  lastUsedAt: timestamp("last_used_at"),
+    // Usage Tracking
+    usageCount: integer("usage_count").notNull().default(0),
+    lastUsedAt: timestamp("last_used_at"),
 
-  // Status
-  isActive: boolean("is_active").notNull().default(true),
-  isPublic: boolean("is_public").notNull().default(false), // Allow sharing in gallery
+    // Status
+    isActive: boolean("is_active").notNull().default(true),
+    isPublic: boolean("is_public").notNull().default(false), // Allow sharing in gallery
 
-  // Cost Tracking
-  creationCost: integer("creation_cost").notNull(), // Credits spent to create
+    // Cost Tracking
+    creationCost: integer("creation_cost").notNull(), // Credits spent to create
 
-  // Audit
-  createdAt: timestamp("created_at").notNull().defaultNow(),
-  updatedAt: timestamp("updated_at").notNull().defaultNow(),
-});
+    // Audit
+    createdAt: timestamp("created_at").notNull().defaultNow(),
+    updatedAt: timestamp("updated_at").notNull().defaultNow(),
+  },
+  (table) => ({
+    // Index for organization queries (listing user voices)
+    organization_idx: index("user_voices_organization_idx").on(
+      table.organizationId
+    ),
+    // Index for user queries
+    user_idx: index("user_voices_user_idx").on(table.userId),
+    // Index for finding voices by organization and clone type (slot counting)
+    org_type_idx: index("user_voices_org_type_idx").on(
+      table.organizationId,
+      table.cloneType
+    ),
+    // Index for organization + usage analytics (most used voices)
+    org_usage_idx: index("user_voices_org_usage_idx").on(
+      table.organizationId,
+      table.usageCount,
+      table.lastUsedAt
+    ),
+  })
+);
 
 export const voiceCloningJobs = pgTable("voice_cloning_jobs", {
   id: uuid("id").primaryKey().defaultRandom(),

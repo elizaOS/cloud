@@ -43,28 +43,12 @@ import {
   VOICE_CLONE_PROFESSIONAL_COST,
 } from "@/lib/pricing-constants";
 import { useAudioRecorder } from "@/components/chat/hooks/use-audio-recorder";
+import type { Voice } from "./types";
 
 interface VoiceCloneFormProps {
   creditBalance: number;
   onSuccess: (newVoice: Voice) => void;
   onCreditBalanceChange: (newBalance: number) => void;
-}
-
-interface Voice {
-  id: string;
-  elevenlabsVoiceId: string;
-  name: string;
-  description: string | null;
-  cloneType: "instant" | "professional";
-  sampleCount: number;
-  usageCount: number;
-  isActive: boolean;
-  createdAt: Date | string;
-  lastUsedAt?: Date | string | null;
-  audioQualityScore?: string | null;
-  totalAudioDurationSeconds?: number | null;
-  status?: "processing" | "completed" | "failed";
-  jobId?: string;
 }
 
 interface UploadedFile {
