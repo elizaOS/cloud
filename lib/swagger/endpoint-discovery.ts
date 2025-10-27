@@ -741,7 +741,7 @@ export const API_ENDPOINTS: ApiEndpoint[] = [
           type: "string",
           required: true,
           description:
-            "Cloning type: instant (50 credits, 30s) or professional (500 credits, 1-3hrs)",
+            "Cloning type: instant (500 credits, 30s) or professional (5000 credits, 30-60min)",
           enum: ["instant", "professional"],
           example: "instant",
         },
