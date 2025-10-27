@@ -10,6 +10,9 @@ import {
   ModelType,
   type Plugin,
   type UUID,
+  type State,
+  type Content,
+  parseKeyValueXml,
 } from "@elizaos/core";
 import { v4 } from "uuid";
 
@@ -18,6 +21,36 @@ const messageUsageMap = new Map<
   string,
   { inputTokens: number; outputTokens: number; model: string }
 >();
+
+/**
+ * Multi-step workflow execution result
+ */
+interface MultiStepActionResult {
+  data: { actionName: string };
+  success: boolean;
+  text?: string;
+  error?: string | Error;
+  values?: Record<string, unknown>;
+}
+
+/**
+ * Multi-step workflow state
+ */
+interface MultiStepState extends State {
+  data: {
+    actionResults: MultiStepActionResult[];
+    [key: string]: unknown;
+  };
+}
+
+/**
+ * Message processing options
+ */
+interface MessageProcessingOptions {
+  useMultiStep?: boolean;
+  maxMultiStepIterations?: number;
+  maxRetries?: number;
+}
 
 interface MessageReceivedHandlerParams {
   runtime: IAgentRuntime;
@@ -92,6 +125,100 @@ Respond using XML format like this:
 Your response must ONLY include the <response></response> XML block.
 </output>`;
 
+/**
+ * Multi-step decision template - used for each iteration in multi-step workflow
+ */
+export const multiStepDecisionTemplate = `<task>
+Determine the next step the assistant should take in this conversation to help the user reach their goal.
+</task>
+
+{{recentMessages}}
+
+# Multi-Step Workflow
+
+In each step, decide:
+
+1. **Which providers (if any)** should be called to gather necessary data.
+2. **Which action (if any)** should be executed after providers return.
+3. Decide whether the task is complete. If so, set \`isFinish: true\`. Do not select the \`REPLY\` action; replies are handled separately after task completion.
+
+You can select **multiple providers** and at most **one action** per step.
+
+If the task is fully resolved and no further steps are needed, mark the step as \`isFinish: true\`.
+
+---
+
+{{actionsWithDescriptions}}
+
+{{providersWithDescriptions}}
+
+These are the actions or data provider calls that have already been used in this run. Use this to avoid redundancy and guide your next move.
+
+{{actionResults}}
+
+<keys>
+"thought" Clearly explain your reasoning for the selected providers and/or action, and how this step contributes to resolving the user's request.
+"action"  Name of the action to execute after providers return (can be empty if no action is needed).
+"providers" List of provider names to call in this step (can be empty if none are needed).
+"isFinish" Set to true only if the task is fully complete.
+</keys>
+
+IMPORTANT: 
+- Do **not** mark the task as \`isFinish: true\` immediately after calling an action. Wait for the action to complete before deciding the task is finished.
+- If a provider was called but returned NO results or failed, it means that information is NOT AVAILABLE in the system. This is a limitation. Do NOT call the same provider again. Instead, set \`isFinish: true\` and provide the best answer you can with available information.
+- Avoid redundant provider calls - if you've already called a provider and it didn't have the information, calling it again won't help.
+
+<output>
+<response>
+  <thought>Your thought here</thought>
+  <action>ACTION</action>
+  <providers>PROVIDER1,PROVIDER2</providers>
+  <isFinish>true | false</isFinish>
+</response>
+</output>`;
+
+/**
+ * Multi-step summary template - used to generate final user-facing response
+ */
+export const multiStepSummaryTemplate = `<task>
+Summarize what the assistant has done so far and provide a final response to the user based on the completed steps.
+</task>
+
+# Context Information
+{{bio}}
+
+---
+
+{{system}}
+
+---
+
+{{messageDirections}}
+
+# Conversation Summary
+Below is the user's original request and conversation so far:
+{{recentMessages}}
+
+# Execution Trace
+Here are the actions taken by the assistant to fulfill the request:
+{{actionResults}}
+
+# Assistant's Last Reasoning Step
+{{recentMessage}}
+
+# Instructions
+
+ - Review the execution trace and last reasoning step carefully
+
+ - Your final output MUST be in this XML format:
+<output>
+<response>
+  <thought>Your thought here</thought>
+  <text>Your final message to the user</text>
+</response>
+</output>
+`;
+
 // Helper functions for response ID tracking
 async function getLatestResponseId(
   runtime: IAgentRuntime,
@@ -143,6 +270,329 @@ function estimateTokens(text: string): number {
 }
 
 /**
+ * Multi-step workflow: iterative action execution with final summary
+ */
+async function runMultiStepWorkflow(
+  runtime: IAgentRuntime,
+  message: Memory,
+  callback:
+    | ((result: {
+        text?: string;
+        usage?: { inputTokens: number; outputTokens: number; model: string };
+      }) => Promise<Memory[]>)
+    | undefined,
+  opts: Required<MessageProcessingOptions>,
+): Promise<{
+  responseContent: string;
+  totalInputTokens: number;
+  totalOutputTokens: number;
+}> {
+  const traceActionResult: MultiStepActionResult[] = [];
+  const executedProviders = new Set<string>(); // Track which providers were used
+  let totalInputTokens = 0;
+  let totalOutputTokens = 0;
+  let iterationCount = 0;
+
+  logger.info(`[MultiStep] Starting multi-step workflow (max ${opts.maxMultiStepIterations} iterations)`);
+
+  while (iterationCount < opts.maxMultiStepIterations) {
+    iterationCount++;
+    logger.debug(`[MultiStep] Starting iteration ${iterationCount}/${opts.maxMultiStepIterations}`);
+
+    // Compose state with action results from previous iterations
+    const accumulatedState = (await runtime.composeState(message, [
+      "RECENT_MESSAGES",
+      "ACTIONS",
+    ])) as MultiStepState;
+
+    // Add action results to state
+    if (!accumulatedState.data) {
+      accumulatedState.data = { actionResults: [] };
+    }
+    accumulatedState.data.actionResults = traceActionResult;
+
+    // Format action results for the prompt
+    const actionResultsText =
+      traceActionResult.length > 0
+        ? traceActionResult
+            .map(
+              (r) =>
+                `- ${r.data.actionName}: ${r.success ? "✓ " + (r.text || "Success") : "✗ " + (r.error || "Failed")}`,
+            )
+            .join("\n")
+        : "No actions executed yet";
+
+    // Format actions with descriptions
+    const actionsWithDescriptions = (runtime.actions || [])
+      .map((a: { name: string; description?: string }) => 
+        `- ${a.name}${a.description ? `: ${a.description}` : ""}`
+      )
+      .join("\n");
+
+    // Format providers with descriptions
+    const providersWithDescriptions = (runtime.providers || [])
+      .map((p: { name: string; description?: string }) => 
+        `- ${p.name}${p.description ? `: ${p.description}` : ""}`
+      )
+      .join("\n");
+
+    // Prepare state for template
+    const stateForTemplate = {
+      ...accumulatedState,
+      values: {
+        ...accumulatedState.values,
+        actionResults: actionResultsText,
+        actionsWithDescriptions: actionsWithDescriptions || "No actions available",
+        providersWithDescriptions: providersWithDescriptions || "No providers available",
+      },
+    };
+
+    const prompt = composePromptFromState({
+      state: stateForTemplate,
+      template:
+        runtime.character.templates?.multiStepDecisionTemplate ||
+        multiStepDecisionTemplate,
+    });
+
+    logger.debug(`[MultiStep] Iteration ${iterationCount} prompt length: ${prompt.length} chars`);
+    totalInputTokens += estimateTokens(prompt);
+
+    const stepResultRaw = await runtime.useModel(ModelType.TEXT_LARGE, {
+      prompt,
+    });
+    totalOutputTokens += estimateTokens(stepResultRaw);
+
+    logger.debug(`[MultiStep] Raw LLM response:\n${stepResultRaw}`);
+
+    const parsedStep = parseKeyValueXml(stepResultRaw);
+
+    if (!parsedStep) {
+      logger.warn(`[MultiStep] Failed to parse step result at iteration ${iterationCount}`);
+      traceActionResult.push({
+        data: { actionName: "parse_error" },
+        success: false,
+        error: "Failed to parse step result",
+      });
+      break;
+    }
+
+    const { thought, providers = [], action, isFinish } = parsedStep;
+    logger.debug(
+      `[MultiStep] Step decision: thought="${thought}", providers=${JSON.stringify(providers)}, action=${action}, isFinish=${isFinish}`,
+    );
+
+    // Notify user of progress
+    if (callback && thought) {
+      await callback({
+        text: thought,
+      });
+    }
+
+    // Check for completion condition
+    if (isFinish === "true" || isFinish === true) {
+      logger.info(`[MultiStep] Task marked as complete at iteration ${iterationCount}`);
+      break;
+    }
+
+    // Validate that we have something to do
+    if ((!providers || providers.length === 0) && !action) {
+      logger.warn(
+        `[MultiStep] No providers or action specified at iteration ${iterationCount}, forcing completion`,
+      );
+      break;
+    }
+
+    try {
+      // Execute providers if specified
+      if (providers && providers.length > 0) {
+        const providerList = Array.isArray(providers)
+          ? providers
+          : String(providers).split(",").map((s) => s.trim());
+
+        for (const providerName of providerList) {
+          const provider = runtime.providers.find((p: { name: string }) => p.name === providerName);
+          if (!provider) {
+            logger.warn(`[MultiStep] Provider not found: ${providerName}`);
+            traceActionResult.push({
+              data: { actionName: providerName },
+              success: false,
+              error: `Provider not found: ${providerName}`,
+            });
+            continue;
+          }
+
+          logger.debug(`[MultiStep] Executing provider: ${providerName}`);
+          const providerResult = await (provider as { get: (runtime: IAgentRuntime, message: Memory, state: State) => Promise<{ text?: string }> }).get(runtime, message, accumulatedState);
+          
+          if (!providerResult) {
+            logger.warn(`[MultiStep] Provider returned no result: ${providerName}`);
+            traceActionResult.push({
+              data: { actionName: providerName },
+              success: false,
+              error: "Provider returned no result",
+            });
+            continue;
+          }
+
+          const success = !!providerResult.text;
+
+          // Track successful provider executions
+          if (success) {
+            executedProviders.add(providerName);
+          }
+
+          traceActionResult.push({
+            data: { actionName: providerName },
+            success,
+            text: success ? providerResult.text : undefined,
+            error: success ? undefined : "Provider returned no result",
+          });
+
+          if (callback) {
+            await callback({
+              text: `Searched ${providerName}`,
+            });
+          }
+
+          logger.debug(`[MultiStep] Provider ${providerName} result: ${success ? "success" : "failed"}`);
+        }
+      }
+
+      // Execute action if specified
+      if (action) {
+        logger.debug(`[MultiStep] Executing action: ${action}`);
+        
+        const actionContent: Content = {
+          text: `Executing action: ${action}`,
+          actions: [action],
+          thought: thought ?? "",
+        };
+
+        await runtime.processActions(
+          message,
+          [
+            {
+              id: v4() as UUID,
+              entityId: runtime.agentId,
+              roomId: message.roomId,
+              createdAt: Date.now(),
+              content: actionContent,
+            },
+          ],
+          accumulatedState,
+          async () => {
+            return [];
+          },
+        );
+
+        // Get cached action results from runtime
+        const cachedState = runtime.stateCache?.get(`${message.id}_action_results`);
+        const actionResults = cachedState?.values?.actionResults || [];
+        const result = actionResults.length > 0 ? actionResults[0] : null;
+        const success = result?.success ?? false;
+
+        traceActionResult.push({
+          data: { actionName: action },
+          success,
+          text: result?.text,
+          values: result?.values,
+          error: success ? undefined : result?.text,
+        });
+
+        if (callback) {
+          await callback({
+            text: `Executed ${action}`,
+          });
+        }
+
+        logger.debug(`[MultiStep] Action ${action} result: ${success ? "success" : "failed"}`);
+      }
+    } catch (err) {
+      logger.error({ err }, "[MultiStep] Error executing step");
+      traceActionResult.push({
+        data: { actionName: action || "unknown" },
+        success: false,
+        error: err instanceof Error ? err.message : String(err),
+      });
+    }
+  }
+
+  if (iterationCount >= opts.maxMultiStepIterations) {
+    logger.warn(
+      `[MultiStep] Reached maximum iterations (${opts.maxMultiStepIterations}), forcing completion`,
+    );
+  }
+
+  logger.info(`[MultiStep] Workflow complete after ${iterationCount} iterations. Generating summary...`);
+
+  // Generate final summary with dynamic providers
+  // Always include SHORT_TERM_MEMORY, LONG_TERM_MEMORY, RECENT_MESSAGES, and ACTION_STATE
+  // Plus any providers that were executed during the workflow
+  const providersForSummary = [
+    "SHORT_TERM_MEMORY",
+    "LONG_TERM_MEMORY",
+    // "ACTION_STATE", TODO: Add action state when needed.
+    ...Array.from(executedProviders),
+  ];
+
+  logger.debug(`[MultiStep] Composing final state with providers: ${providersForSummary.join(", ")}`);
+
+  const finalState = await runtime.composeState(message, providersForSummary);
+
+  // Add action results to final state for summary
+  const actionResultsText =
+    traceActionResult.length > 0
+      ? traceActionResult
+          .map(
+            (r) =>
+              `- ${r.data.actionName}: ${r.success ? (r.text || "Success") : (r.error || "Failed")}`,
+          )
+          .join("\n")
+      : "No actions were needed";
+
+  const stateForSummary = {
+    ...finalState,
+    values: {
+      ...finalState.values,
+      actionResults: actionResultsText,
+    },
+  };
+
+  const summaryPrompt = composePromptFromState({
+    state: stateForSummary,
+    template:
+      runtime.character.templates?.multiStepSummaryTemplate ||
+      multiStepSummaryTemplate,
+  });
+
+  totalInputTokens += estimateTokens(summaryPrompt);
+
+  const finalOutput = await runtime.useModel(ModelType.TEXT_LARGE, {
+    prompt: summaryPrompt,
+  });
+  totalOutputTokens += estimateTokens(finalOutput);
+
+  logger.debug(`[MultiStep] Summary response:\n${finalOutput}`);
+
+  const summary = parseKeyValueXml(finalOutput);
+
+  let responseContent = "";
+  if (summary?.text) {
+    responseContent = summary.text;
+    logger.info(`[MultiStep] Generated final response: ${responseContent.substring(0, 100)}...`);
+  } else {
+    logger.warn("[MultiStep] Failed to parse summary, using fallback");
+    responseContent = "I've completed the task, but encountered an issue generating the summary.";
+  }
+
+  return {
+    responseContent,
+    totalInputTokens,
+    totalOutputTokens,
+  };
+}
+
+/**
  * Handles incoming messages using the full ElizaOS pipeline
  */
 const messageReceivedHandler = async ({
@@ -150,6 +600,22 @@ const messageReceivedHandler = async ({
   message,
   callback,
 }: MessageReceivedHandlerParams): Promise<void> => {
+  // Configuration options - can be overridden via character settings
+  const useMultiStep = 
+    runtime.character.settings?.USE_MULTI_STEP === true ||
+    runtime.character.settings?.USE_MULTI_STEP === "true";
+  
+  const opts: Required<MessageProcessingOptions> = {
+    useMultiStep,
+    maxMultiStepIterations: 
+      (runtime.character.settings?.MAX_MULTISTEP_ITERATIONS as number) || 6,
+    maxRetries: 3,
+  };
+
+  logger.info(
+    `[ElizaAssistant] Processing mode: ${useMultiStep ? "MULTI-STEP" : "SINGLE-SHOT"}`,
+  );
+
   // Generate a new response ID
   const responseId = v4();
   console.log(
@@ -188,49 +654,73 @@ const messageReceivedHandler = async ({
     // Save the incoming message
     await runtime.createMemory(message, "messages");
 
-    // Compose state using providers (this is the key difference from manual approach!)
-    const state = await runtime.composeState(message, ["SHORT_TERM_MEMORY","LONG_TERM_MEMORY"]);
-
-    const prompt = composePromptFromState({
-      state,
-      template:
-        runtime.character.templates?.messageHandlerTemplate ||
-        messageHandlerTemplate,
-    });
-
-    console.log("*** PROMPT ***\n", prompt);
-
-    // Estimate input tokens from prompt
-    const estimatedInputTokens = estimateTokens(prompt);
-
     let responseContent: string = "";
+    let estimatedInputTokens = 0;
+    let estimatedOutputTokens = 0;
 
-    // Retry if missing required fields
-    let retries = 0;
-    const maxRetries = 3;
+    // Choose processing mode
+    if (opts.useMultiStep) {
+      // Multi-step workflow
+      logger.info("[ElizaAssistant] Using multi-step workflow");
+      
+      const multiStepResult = await runMultiStepWorkflow(
+        runtime,
+        message,
+        callback,
+        opts,
+      );
 
-    while (retries < maxRetries && !responseContent) {
-      const response = await runtime.useModel(ModelType.TEXT_LARGE, {
-        prompt,
+      responseContent = multiStepResult.responseContent;
+      estimatedInputTokens = multiStepResult.totalInputTokens;
+      estimatedOutputTokens = multiStepResult.totalOutputTokens;
+    } else {
+      // Single-shot mode (original behavior)
+      logger.info("[ElizaAssistant] Using single-shot mode");
+
+      // Compose state using providers
+      const state = await runtime.composeState(message, [
+        "SHORT_TERM_MEMORY",
+        "LONG_TERM_MEMORY",
+      ]);
+
+      const prompt = composePromptFromState({
+        state,
+        template:
+          runtime.character.templates?.messageHandlerTemplate ||
+          messageHandlerTemplate,
       });
 
-      logger.debug(`*** Raw LLM Response ***\n${response}`);
+      console.log("*** PROMPT ***\n", prompt);
 
-      // Attempt to parse the XML response
-      const extractedContent = extractResponseText(response);
+      // Estimate input tokens from prompt
+      estimatedInputTokens = estimateTokens(prompt);
 
-      if (!extractedContent) {
-        logger.warn("*** Missing response content, retrying... ***");
-        responseContent = "";
-      } else {
-        responseContent = extractedContent;
-        break;
+      // Retry if missing required fields
+      let retries = 0;
+
+      while (retries < opts.maxRetries && !responseContent) {
+        const response = await runtime.useModel(ModelType.TEXT_LARGE, {
+          prompt,
+        });
+
+        logger.debug(`*** Raw LLM Response ***\n${response}`);
+
+        // Attempt to parse the XML response
+        const extractedContent = extractResponseText(response);
+
+        if (!extractedContent) {
+          logger.warn("*** Missing response content, retrying... ***");
+          responseContent = "";
+        } else {
+          responseContent = extractedContent;
+          break;
+        }
+        retries++;
       }
-      retries++;
-    }
 
-    // Estimate output tokens from response
-    const estimatedOutputTokens = estimateTokens(responseContent);
+      // Estimate output tokens from response
+      estimatedOutputTokens = estimateTokens(responseContent);
+    }
 
     // Check if this is still the latest response ID for this room
     const currentResponseId = await getLatestResponseId(
@@ -285,10 +775,16 @@ const messageReceivedHandler = async ({
     const responseMessages: Memory[] = [];
     responseMessages.push(responseMemory);
 
+    // Compose state for evaluators
+    const evalState = await runtime.composeState(message, [
+      "SHORT_TERM_MEMORY",
+      "LONG_TERM_MEMORY",
+    ]);
+
     // Run evaluators
     await runtime.evaluate(
       message,
-      state,
+      evalState,
       true,
       async (content) => {
         if (callback) {
