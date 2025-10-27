@@ -87,6 +87,17 @@ export class ContainersRepository {
     return results[0] || null;
   }
 
+  async findByCharacterId(characterId: string): Promise<Container | null> {
+    const results = await db
+      .select()
+      .from(containers)
+      .where(eq(containers.character_id, characterId))
+      .orderBy(desc(containers.created_at))
+      .limit(1);
+
+    return results[0] || null;
+  }
+
   async create(data: NewContainer): Promise<Container> {
     const [container] = await db
       .insert(containers)

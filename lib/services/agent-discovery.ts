@@ -5,6 +5,7 @@ import { logger } from "@/lib/utils/logger";
 import { createHash } from "crypto";
 import type { UserCharacter } from "@/db/repositories";
 import type { Memory } from "@elizaos/core";
+import { db } from "@/db/client";
 
 export interface AgentDiscoveryFilters {
   deployed?: boolean;
@@ -214,7 +215,23 @@ export class AgentDiscoveryService {
         return cached;
       }
 
-      // Fetch real statistics from ElizaOS database
+      // Check if character is deployed by looking for a container
+      const container = await containersService.getByCharacterId(agentId);
+
+      // If no container exists, character is not deployed - return empty stats
+      if (!container) {
+        const emptyStats: AgentStats = {
+          agentId,
+          messageCount: 0,
+          lastActiveAt: null,
+          uptime: 0,
+          status: "draft",
+        };
+        await agentStateCache.setAgentStats(agentId, emptyStats);
+        return emptyStats;
+      }
+
+      // Character is deployed - fetch statistics from ElizaOS database
       const { agentRuntime } = await import("@/lib/eliza/agent-runtime");
       const runtime = await agentRuntime.getRuntime();
       const adapter = runtime.adapter as unknown as {
@@ -235,9 +252,18 @@ export class AgentDiscoveryService {
           agentId,
           count: true,
         });
-        messageCount = typeof result === "number" ? result : (result as Memory[]).length;
+
+        if (result === null || result === undefined) {
+          messageCount = 0;
+        } else if (typeof result === "number") {
+          messageCount = result;
+        } else if (Array.isArray(result)) {
+          messageCount = result.length;
+        } else {
+          messageCount = 0;
+        }
       } catch (error) {
-        logger.warn(`[Agent Discovery] Unable to fetch message count for ${agentId}:`, error);
+        logger.warn(`[Agent Discovery] Error fetching message count for ${agentId}:`, error);
         messageCount = 0;
       }
 
@@ -250,16 +276,16 @@ export class AgentDiscoveryService {
           count: false,
         })) as Memory[];
 
-        if (recentMessages && recentMessages.length > 0) {
+        if (recentMessages && Array.isArray(recentMessages) && recentMessages.length > 0) {
           const sortedMessages = recentMessages.sort((a, b) =>
             (b.createdAt || 0) - (a.createdAt || 0)
           );
-          if (sortedMessages[0].createdAt) {
+          if (sortedMessages[0]?.createdAt) {
             lastActiveAt = new Date(sortedMessages[0].createdAt);
           }
         }
       } catch (error) {
-        logger.warn(`[Agent Discovery] Unable to fetch last active time for ${agentId}:`, error);
+        logger.warn(`[Agent Discovery] Error fetching last active time for ${agentId}:`, error);
       }
 
       // Calculate uptime (time since last deployment)
@@ -288,18 +314,23 @@ export class AgentDiscoveryService {
 
       return stats;
     } catch (error) {
-      logger.error(
-        `[Agent Discovery] Error getting stats for ${agentId}:`,
-        error,
+      logger.debug(
+        `[Agent Discovery] Could not fetch stats for ${agentId} (likely not deployed)`,
       );
-      // Return default stats on error
-      return {
+
+      // Return and cache empty stats for non-deployed characters
+      const emptyStats: AgentStats = {
         agentId,
         messageCount: 0,
         lastActiveAt: null,
         uptime: 0,
         status: "draft",
       };
+
+      // Cache to avoid repeated failed lookups
+      await agentStateCache.setAgentStats(agentId, emptyStats);
+
+      return emptyStats;
     }
   }
 

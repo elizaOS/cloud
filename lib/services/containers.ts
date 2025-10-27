@@ -31,6 +31,10 @@ export class ContainersService {
     return await containersRepository.findById(id, organizationId);
   }
 
+  async getByCharacterId(characterId: string): Promise<Container | null> {
+    return await containersRepository.findByCharacterId(characterId);
+  }
+
   async create(data: NewContainer): Promise<Container> {
     return await containersRepository.create(data);
   }

@@ -16,7 +16,7 @@ interface UseInfiniteCharactersOptions {
 export function useInfiniteCharacters({
   filters,
   sortBy,
-  includeStats = true,
+  includeStats = false,
 }: UseInfiniteCharactersOptions) {
   const [characters, setCharacters] = useState<ExtendedCharacter[]>([]);
   const [page, setPage] = useState(1);
@@ -107,7 +107,7 @@ export function useInfiniteCharacters({
         setIsLoadingMore(false);
       }
     },
-    [sortBy, includeStats]
+    [filters, sortBy, includeStats]
   );
 
   useEffect(() => {
