@@ -4,11 +4,29 @@ import { useState, useEffect, useRef, useCallback } from "react";
 import { useChat, type UIMessage } from "@ai-sdk/react";
 import { DefaultChatTransport } from "ai";
 import type { Conversation, ConversationMessage } from "@/lib/types";
-import { Send, Loader2, Bot, User, Clock, Settings, Mic, Square, Play, Volume2 } from "lucide-react";
+import {
+  Send,
+  Loader2,
+  Bot,
+  User,
+  Clock,
+  Settings,
+  Mic,
+  Square,
+  Play,
+  Volume2,
+} from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { createConversationAction } from "@/app/actions/conversations";
 import { cn } from "@/lib/utils";
 import { useAudioRecorder } from "./hooks/use-audio-recorder";
@@ -32,7 +50,7 @@ export function ChatInterfaceWithPersistence({
     { id: string; name: string; provider?: string }[]
   >([]);
   const [selectedModel, setSelectedModel] = useState(
-    conversation?.model || "gpt-4o",
+    conversation?.model || "gpt-4o"
   );
   const [isProcessing, setIsProcessing] = useState(false);
   const [activeConversationId, setActiveConversationId] = useState<
@@ -47,6 +65,15 @@ export function ChatInterfaceWithPersistence({
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [autoPlayTTS, setAutoPlayTTS] = useState(false);
   const [currentPlayingId, setCurrentPlayingId] = useState<string | null>(null);
+  const [customVoices, setCustomVoices] = useState<
+    Array<{
+      id: string;
+      elevenlabsVoiceId: string;
+      name: string;
+      cloneType: string;
+    }>
+  >([]);
+  const [selectedVoiceId, setSelectedVoiceId] = useState<string | null>(null);
 
   // Audio hooks
   const recorder = useAudioRecorder();
@@ -59,7 +86,7 @@ export function ChatInterfaceWithPersistence({
     }),
     onError: (error: Error) => {
       setErrorMessage(
-        error.message || "Failed to send message. Please try again.",
+        error.message || "Failed to send message. Please try again."
       );
       setIsProcessing(false);
       if (loadingTimeoutRef.current) {
@@ -146,7 +173,7 @@ export function ChatInterfaceWithPersistence({
   useEffect(() => {
     // Store the current ref value in a variable for cleanup
     const currentAudioUrls = messageAudioUrls.current;
-    
+
     return () => {
       if (loadingTimeoutRef.current) {
         clearTimeout(loadingTimeoutRef.current);
@@ -170,105 +197,142 @@ export function ChatInterfaceWithPersistence({
     }
   }, [player.error]);
 
+  // Load custom voices on mount
+  useEffect(() => {
+    const fetchCustomVoices = async () => {
+      try {
+        const response = await fetch("/api/elevenlabs/voices/user");
+        if (response.ok) {
+          const data = await response.json();
+          if (data.success && Array.isArray(data.voices)) {
+            setCustomVoices(data.voices);
+          }
+        }
+      } catch (error) {
+        console.error("Failed to load custom voices:", error);
+      }
+    };
+
+    fetchCustomVoices();
+  }, []);
+
   // Generate TTS for assistant message
-  const generateTTS = useCallback(async (text: string, messageId: string) => {
-    try {
-      const response = await fetch("/api/elevenlabs/tts", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ text }),
-      });
-
-      if (!response.ok) {
-        throw new Error("Failed to generate speech");
-      }
-
-      const audioBlob = await response.blob();
-      const audioUrl = URL.createObjectURL(audioBlob);
-      messageAudioUrls.current.set(messageId, audioUrl);
-
-      // Auto-play if enabled
-      if (autoPlayTTS) {
-        setCurrentPlayingId(messageId);
-        await player.playAudio(audioBlob);
-        setCurrentPlayingId(null);
-      }
-    } catch (error) {
-      console.error("Error generating TTS:", error);
-      toast.error("Failed to generate speech");
-    }
-  }, [autoPlayTTS, player]);
-
-  // Handle voice message (STT → AI → TTS)
-  const handleVoiceMessage = useCallback(async (audioBlob: Blob) => {
-    if (isProcessing) return;
-    setIsProcessing(true);
-
-    try {
-      // Step 1: Transcribe audio
-      const formData = new FormData();
-      const audioFile = new File([audioBlob], "recording.webm", {
-        type: audioBlob.type || "audio/webm"
-      });
-      formData.append("audio", audioFile);
-
-      const sttResponse = await fetch("/api/elevenlabs/stt", {
-        method: "POST",
-        body: formData,
-      });
-
-      if (!sttResponse.ok) {
-        const error = await sttResponse.json();
-        throw new Error(error.error || "Failed to transcribe audio");
-      }
-
-      const { transcript } = await sttResponse.json();
-
-      if (!transcript || transcript.trim().length === 0) {
-        toast.error("No speech detected. Please try again.");
-        setIsProcessing(false);
-        return;
-      }
-
-      // Step 2: Send transcribed text to AI (same as text input)
-      let conversationId = conversation?.id;
-
-      if (!conversationId) {
-        const result = await createConversationAction({
-          title: transcript.substring(0, 50),
-          model: selectedModel,
+  const generateTTS = useCallback(
+    async (text: string, messageId: string) => {
+      try {
+        const response = await fetch("/api/elevenlabs/tts", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            text,
+            ...(selectedVoiceId && { voiceId: selectedVoiceId }),
+          }),
         });
 
-        if (!result.success || !result.conversation) {
-          throw new Error("Failed to create conversation");
+        if (!response.ok) {
+          throw new Error("Failed to generate speech");
         }
 
-        conversationId = result.conversation.id;
-        setActiveConversationId(conversationId);
+        const audioBlob = await response.blob();
+        const audioUrl = URL.createObjectURL(audioBlob);
+        messageAudioUrls.current.set(messageId, audioUrl);
 
-        if (onConversationCreated) {
-          onConversationCreated(result.conversation);
+        // Auto-play if enabled
+        if (autoPlayTTS) {
+          setCurrentPlayingId(messageId);
+          await player.playAudio(audioBlob);
+          setCurrentPlayingId(null);
         }
+      } catch (error) {
+        console.error("Error generating TTS:", error);
+        toast.error("Failed to generate speech");
       }
+    },
+    [autoPlayTTS, player, selectedVoiceId]
+  );
 
-      if (loadingTimeoutRef.current) {
-        clearTimeout(loadingTimeoutRef.current);
-      }
-      loadingTimeoutRef.current = setTimeout(() => {
+  // Handle voice message (STT → AI → TTS)
+  const handleVoiceMessage = useCallback(
+    async (audioBlob: Blob) => {
+      if (isProcessing) return;
+      setIsProcessing(true);
+
+      try {
+        // Step 1: Transcribe audio
+        const formData = new FormData();
+        const audioFile = new File([audioBlob], "recording.webm", {
+          type: audioBlob.type || "audio/webm",
+        });
+        formData.append("audio", audioFile);
+
+        const sttResponse = await fetch("/api/elevenlabs/stt", {
+          method: "POST",
+          body: formData,
+        });
+
+        if (!sttResponse.ok) {
+          const error = await sttResponse.json();
+          throw new Error(error.error || "Failed to transcribe audio");
+        }
+
+        const { transcript } = await sttResponse.json();
+
+        if (!transcript || transcript.trim().length === 0) {
+          toast.error("No speech detected. Please try again.");
+          setIsProcessing(false);
+          return;
+        }
+
+        // Step 2: Send transcribed text to AI (same as text input)
+        let conversationId = conversation?.id;
+
+        if (!conversationId) {
+          const result = await createConversationAction({
+            title: transcript.substring(0, 50),
+            model: selectedModel,
+          });
+
+          if (!result.success || !result.conversation) {
+            throw new Error("Failed to create conversation");
+          }
+
+          conversationId = result.conversation.id;
+          setActiveConversationId(conversationId);
+
+          if (onConversationCreated) {
+            onConversationCreated(result.conversation);
+          }
+        }
+
+        if (loadingTimeoutRef.current) {
+          clearTimeout(loadingTimeoutRef.current);
+        }
+        loadingTimeoutRef.current = setTimeout(() => {
+          setIsProcessing(false);
+        }, 30000);
+
+        sendMessage({
+          text: transcript,
+          metadata: { conversationId },
+        });
+      } catch (error) {
+        console.error("Error processing voice message:", error);
+        toast.error(
+          error instanceof Error
+            ? error.message
+            : "Failed to process voice message"
+        );
         setIsProcessing(false);
-      }, 30000);
-
-      sendMessage({
-        text: transcript,
-        metadata: { conversationId },
-      });
-
-    } catch (error) {
-      console.error("Error processing voice message:", error);
-      toast.error(error instanceof Error ? error.message : "Failed to process voice message");
-      setIsProcessing(false);
-    }
-  }, [isProcessing, conversation, selectedModel, onConversationCreated, sendMessage]);
+      }
+    },
+    [
+      isProcessing,
+      conversation,
+      selectedModel,
+      onConversationCreated,
+      sendMessage,
+    ]
+  );
 
   // Monitor for completed recording
   useEffect(() => {
@@ -286,7 +350,8 @@ export function ChatInterfaceWithPersistence({
     if (lastMessage && lastMessage.role === "assistant" && !isProcessing) {
       // Check if we already generated audio for this message
       if (!messageAudioUrls.current.has(lastMessage.id)) {
-        const text = lastMessage.parts.find((p) => p.type === "text")?.text || "";
+        const text =
+          lastMessage.parts.find((p) => p.type === "text")?.text || "";
         if (text) {
           generateTTS(text, lastMessage.id);
         }
@@ -440,6 +505,39 @@ export function ChatInterfaceWithPersistence({
             </Label>
           </div>
 
+          {/* Custom Voice Selector */}
+          {customVoices.length > 0 && (
+            <div className="flex items-center gap-2">
+              <Label
+                htmlFor="voice-select-chat"
+                className="text-xs whitespace-nowrap"
+              >
+                Voice:
+              </Label>
+              <Select
+                value={selectedVoiceId || "default"}
+                onValueChange={(value) =>
+                  setSelectedVoiceId(value === "default" ? null : value)
+                }
+              >
+                <SelectTrigger
+                  id="voice-select-chat"
+                  className="h-8 text-xs w-[140px]"
+                >
+                  <SelectValue placeholder="Default" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="default">Default Voice</SelectItem>
+                  {customVoices.map((voice) => (
+                    <SelectItem key={voice.id} value={voice.elevenlabsVoiceId}>
+                      {voice.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          )}
+
           <div className="relative">
             <Button
               variant="outline"
@@ -457,41 +555,41 @@ export function ChatInterfaceWithPersistence({
               </Badge>
             </Button>
 
-          {showModelSelector && availableModels.length > 0 && (
-            <div className="absolute right-0 top-full z-50 mt-2 w-72 overflow-hidden rounded-xl border border-border/60 bg-popover shadow-xl">
-              <div className="border-b bg-muted/40 px-4 py-3">
-                <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-                  Select model
-                </p>
+            {showModelSelector && availableModels.length > 0 && (
+              <div className="absolute right-0 top-full z-50 mt-2 w-72 overflow-hidden rounded-xl border border-border/60 bg-popover shadow-xl">
+                <div className="border-b bg-muted/40 px-4 py-3">
+                  <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                    Select model
+                  </p>
+                </div>
+                <div className="max-h-64 overflow-y-auto px-2 py-2">
+                  {availableModels.map((model) => (
+                    <button
+                      key={model.id}
+                      type="button"
+                      onClick={() => {
+                        setSelectedModel(model.id);
+                        setShowModelSelector(false);
+                      }}
+                      className={cn(
+                        "w-full rounded-lg px-3 py-2 text-left text-sm transition-colors",
+                        selectedModel === model.id
+                          ? "bg-muted text-foreground"
+                          : "hover:bg-muted/60"
+                      )}
+                    >
+                      <div className="font-medium">{model.name}</div>
+                      {model.provider && (
+                        <div className="text-xs text-muted-foreground">
+                          {model.provider}
+                        </div>
+                      )}
+                    </button>
+                  ))}
+                </div>
               </div>
-              <div className="max-h-64 overflow-y-auto px-2 py-2">
-                {availableModels.map((model) => (
-                  <button
-                    key={model.id}
-                    type="button"
-                    onClick={() => {
-                      setSelectedModel(model.id);
-                      setShowModelSelector(false);
-                    }}
-                    className={cn(
-                      "w-full rounded-lg px-3 py-2 text-left text-sm transition-colors",
-                      selectedModel === model.id
-                        ? "bg-muted text-foreground"
-                        : "hover:bg-muted/60",
-                    )}
-                  >
-                    <div className="font-medium">{model.name}</div>
-                    {model.provider && (
-                      <div className="text-xs text-muted-foreground">
-                        {model.provider}
-                      </div>
-                    )}
-                  </button>
-                ))}
-              </div>
-            </div>
-          )}
-        </div>
+            )}
+          </div>
         </div>
       </div>
 
@@ -532,7 +630,7 @@ export function ChatInterfaceWithPersistence({
               key={message.id}
               className={cn(
                 "flex gap-3",
-                message.role === "user" ? "justify-end" : "justify-start",
+                message.role === "user" ? "justify-end" : "justify-start"
               )}
             >
               {message.role === "assistant" && (
@@ -546,7 +644,7 @@ export function ChatInterfaceWithPersistence({
                   "max-w-[min(760px,82%)] rounded-2xl border px-4 py-3 text-sm leading-relaxed shadow-sm",
                   message.role === "user"
                     ? "border-primary/40 bg-primary text-primary-foreground"
-                    : "border-border bg-background",
+                    : "border-border bg-background"
                 )}
               >
                 <div className="whitespace-pre-wrap">
@@ -567,7 +665,7 @@ export function ChatInterfaceWithPersistence({
                     "mt-3 flex items-center justify-between gap-2 text-xs",
                     message.role === "user"
                       ? "text-primary-foreground/80"
-                      : "text-muted-foreground",
+                      : "text-muted-foreground"
                   )}
                 >
                   <div className="flex items-center gap-2">
@@ -575,7 +673,7 @@ export function ChatInterfaceWithPersistence({
                     <span>
                       {formatTimestamp(
                         messageTimestamps.current.get(message.id)?.getTime() ||
-                          Date.now(),
+                          Date.now()
                       )}
                     </span>
                   </div>
@@ -647,7 +745,10 @@ export function ChatInterfaceWithPersistence({
         {recorder.isRecording && (
           <div className="flex items-center justify-center gap-2 text-sm text-muted-foreground">
             <div className="w-2 h-2 rounded-full bg-red-500 animate-pulse" />
-            <span>Recording... {Math.floor(recorder.recordingTime / 60)}:{(recorder.recordingTime % 60).toString().padStart(2, '0')}</span>
+            <span>
+              Recording... {Math.floor(recorder.recordingTime / 60)}:
+              {(recorder.recordingTime % 60).toString().padStart(2, "0")}
+            </span>
           </div>
         )}
 
@@ -661,7 +762,11 @@ export function ChatInterfaceWithPersistence({
               "h-11 w-11 rounded-xl",
               recorder.isRecording && "animate-pulse"
             )}
-            onClick={recorder.isRecording ? recorder.stopRecording : recorder.startRecording}
+            onClick={
+              recorder.isRecording
+                ? recorder.stopRecording
+                : recorder.startRecording
+            }
             disabled={isProcessing && !recorder.isRecording}
           >
             {recorder.isRecording ? (

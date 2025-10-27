@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { VoiceManager } from "./voice-manager";
+import { VoiceStudioAdvanced } from "./voice-studio-advanced";
 import { useSetPageHeader } from "@/components/layout/page-header-context";
 
 interface Voice {
@@ -28,7 +28,6 @@ export function VoicePageClient({
   initialVoices,
   creditBalance: initialCreditBalance,
 }: VoicePageClientProps) {
-  const [voices, setVoices] = useState<Voice[]>(initialVoices);
   const [creditBalance, setCreditBalance] = useState(initialCreditBalance);
 
   useSetPageHeader({
@@ -37,11 +36,10 @@ export function VoicePageClient({
   });
 
   return (
-    <div className="flex flex-col w-full h-full overflow-y-auto">
-      <div className="w-full max-w-[1400px] mx-auto px-6 py-6">
-        <VoiceManager
-          voices={voices}
-          onVoicesChange={setVoices}
+    <div className="flex flex-col w-full">
+      <div className="w-full max-w-[1800px] mx-auto px-6 py-6">
+        <VoiceStudioAdvanced
+          initialVoices={initialVoices}
           creditBalance={creditBalance}
           onCreditBalanceChange={setCreditBalance}
         />

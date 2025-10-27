@@ -44,15 +44,18 @@ export function VoiceManager({
   creditBalance,
   onCreditBalanceChange,
 }: VoiceManagerProps) {
-  const [isFormExpanded, setIsFormExpanded] = useState(voices.length === 0);
+  const [isFormExpanded, setIsFormExpanded] = useState(false); // Default collapsed
   const [previewVoice, setPreviewVoice] = useState<Voice | null>(null);
   const [previewAudioUrl, setPreviewAudioUrl] = useState<string | null>(null);
   const [isLoadingPreview, setIsLoadingPreview] = useState(false);
 
   const handleVoiceCreated = (newVoice: Voice) => {
     onVoicesChange([newVoice, ...voices]);
-    setIsFormExpanded(false);
+    setIsFormExpanded(false); // Collapse form after creation
     toast.success(`Voice "${newVoice.name}" created successfully!`);
+
+    // Scroll to top to show the new voice
+    window.scrollTo({ top: 0, behavior: "smooth" });
   };
 
   const handleVoiceDeleted = (voiceId: string) => {
@@ -102,29 +105,28 @@ export function VoiceManager({
   };
 
   return (
-    <div className="space-y-8">
-      {/* Voice Clone Form */}
-      <div>
-        <div className="flex items-center justify-between mb-4">
-          <div>
-            <h2 className="text-2xl font-semibold">
-              {isFormExpanded ? "Create New Voice" : "Voice Library"}
-            </h2>
-            <p className="text-sm text-muted-foreground mt-1">
-              {isFormExpanded
-                ? "Upload audio samples to create your voice clone"
-                : `You have ${voices.length} voice${voices.length !== 1 ? "s" : ""}`}
-            </p>
-          </div>
-          {voices.length > 0 && (
+    <div className="space-y-6">
+      {/* Voice List - Always show first */}
+      {voices.length === 0 ? (
+        <VoiceEmptyState onCreateClick={() => setIsFormExpanded(true)} />
+      ) : (
+        <div className="space-y-4">
+          <div className="flex items-center justify-between">
+            <div>
+              <h2 className="text-2xl font-semibold">My Voices</h2>
+              <p className="text-sm text-muted-foreground mt-1">
+                {voices.length} custom voice{voices.length !== 1 ? "s" : ""} •
+                Use them in text-to-speech generation
+              </p>
+            </div>
             <Button
-              variant="outline"
               onClick={() => setIsFormExpanded(!isFormExpanded)}
+              size="lg"
             >
               {isFormExpanded ? (
                 <>
                   <ChevronUp className="mr-2 h-4 w-4" />
-                  Hide Form
+                  Cancel
                 </>
               ) : (
                 <>
@@ -133,31 +135,9 @@ export function VoiceManager({
                 </>
               )}
             </Button>
-          )}
-        </div>
+          </div>
 
-        {isFormExpanded && (
-          <VoiceCloneForm
-            creditBalance={creditBalance}
-            onSuccess={handleVoiceCreated}
-            onCreditBalanceChange={onCreditBalanceChange}
-          />
-        )}
-      </div>
-
-      {/* Voice List */}
-      {voices.length === 0 ? (
-        <VoiceEmptyState onCreateClick={() => setIsFormExpanded(true)} />
-      ) : (
-        <div>
-          {!isFormExpanded && (
-            <div className="mb-4">
-              <h3 className="text-lg font-semibold mb-2">My Voices</h3>
-              <p className="text-sm text-muted-foreground">
-                Manage your custom voice clones and use them in text-to-speech
-              </p>
-            </div>
-          )}
+          {/* Voice Grid */}
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
             {voices.map((voice) => (
               <VoiceCard
@@ -168,6 +148,27 @@ export function VoiceManager({
               />
             ))}
           </div>
+        </div>
+      )}
+
+      {/* Voice Clone Form - Collapsible */}
+      {(isFormExpanded || voices.length === 0) && (
+        <div className="space-y-4">
+          {voices.length > 0 && (
+            <div className="flex items-center gap-2">
+              <div className="h-px flex-1 bg-border" />
+              <span className="text-sm text-muted-foreground">
+                Create New Voice
+              </span>
+              <div className="h-px flex-1 bg-border" />
+            </div>
+          )}
+
+          <VoiceCloneForm
+            creditBalance={creditBalance}
+            onSuccess={handleVoiceCreated}
+            onCreditBalanceChange={onCreditBalanceChange}
+          />
         </div>
       )}
 

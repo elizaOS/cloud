@@ -151,16 +151,22 @@ export class VoiceCloningService {
 
       // Create voice clone in ElevenLabs (use original files)
       const elevenlabs = getElevenLabsService();
+
+      // Extract language from settings if provided, otherwise default to 'en'
+      const language = (settings.language as string) || "en";
+
       const result =
         cloneType === "instant"
           ? await elevenlabs.createInstantVoiceClone({
               name,
               description,
+              language,
               files,
             })
           : await elevenlabs.createProfessionalVoiceClone({
               name,
               description,
+              language,
               files,
             });
 

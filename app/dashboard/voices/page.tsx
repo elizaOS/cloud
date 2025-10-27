@@ -14,24 +14,34 @@ export const metadata: Metadata = {
 export default async function VoicesPage() {
   const user = await requireAuth();
 
-  // Fetch user's voices
+  // Fetch user's voices directly from service (server-side)
+  const { voiceCloningService } = await import("@/lib/services/voice-cloning");
+
   let voices = [];
   try {
-    const response = await fetch(
-      `${process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000"}/api/elevenlabs/voices/user`,
-      {
-        headers: {
-          // Pass auth via internal request
-          "x-user-id": user.id,
-        },
-        cache: "no-store",
-      }
-    );
+    const userVoices = await voiceCloningService.getUserVoices({
+      organizationId: user.organization_id,
+      includeInactive: false,
+    });
 
-    if (response.ok) {
-      const data = await response.json();
-      voices = data.voices || [];
-    }
+    // Format for client component - ensure dates are properly serialized
+    voices = userVoices.map((voice) => ({
+      id: voice.id,
+      elevenlabsVoiceId: voice.elevenlabsVoiceId,
+      name: voice.name,
+      description: voice.description,
+      cloneType: voice.cloneType,
+      sampleCount: voice.sampleCount,
+      totalAudioDurationSeconds: voice.totalAudioDurationSeconds,
+      audioQualityScore: voice.audioQualityScore,
+      usageCount: voice.usageCount,
+      lastUsedAt: voice.lastUsedAt
+        ? new Date(voice.lastUsedAt).toISOString()
+        : null,
+      isActive: voice.isActive,
+      isPublic: voice.isPublic,
+      createdAt: new Date(voice.createdAt).toISOString(), // Convert to ISO string for consistent parsing
+    }));
   } catch (error) {
     console.error("Failed to fetch voices:", error);
   }

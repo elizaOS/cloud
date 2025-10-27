@@ -239,11 +239,10 @@ export async function POST(request: NextRequest) {
 
       await creditsService.addCredits({
         organizationId: user.organization_id,
-        userId: user.id,
         amount: cost,
-        type: "refund",
         description: `Refund for failed voice cloning: ${name}`,
         metadata: {
+          user_id: user.id,
           reason: "voice_cloning_failed",
           originalError: error instanceof Error ? error.message : "Unknown",
         },
@@ -283,6 +282,17 @@ export async function POST(request: NextRequest) {
           return NextResponse.json(
             { error: "ElevenLabs quota exceeded. Please contact support." },
             { status: 429 }
+          );
+        }
+
+        if (error.message.includes("professional_voice_limit_reached")) {
+          return NextResponse.json(
+            {
+              error:
+                "Professional voice limit reached. Delete an existing professional voice or use instant cloning instead.",
+              details: error.message,
+            },
+            { status: 400 }
           );
         }
 

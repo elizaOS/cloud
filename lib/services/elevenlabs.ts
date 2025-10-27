@@ -167,16 +167,19 @@ export class ElevenLabsService {
     name: string;
     description?: string;
     files: File[];
+    language?: string;
   }): Promise<{ voiceId: string; name: string }> {
     logger.info(`[ElevenLabs] Creating instant voice clone: ${options.name}`);
 
     try {
       // Use IVC (Instant Voice Cloning) endpoint
+      // Language parameter is required by ElevenLabs API (SDK types are outdated)
       const voice = await this.client.voices.ivc.create({
         name: options.name,
         description: options.description,
+        language: options.language || "en",
         files: options.files,
-      });
+      } as Parameters<typeof this.client.voices.ivc.create>[0]);
 
       return {
         voiceId: voice.voiceId, // Response uses camelCase
@@ -196,6 +199,7 @@ export class ElevenLabsService {
     name: string;
     description?: string;
     files: File[];
+    language?: string;
   }): Promise<{ voiceId: string; name: string }> {
     logger.info(
       `[ElevenLabs] Creating professional voice clone: ${options.name}`
@@ -203,11 +207,13 @@ export class ElevenLabsService {
 
     try {
       // Use PVC (Professional Voice Cloning) endpoint
+      // Language parameter is required by ElevenLabs API (SDK types are outdated)
       const voice = await this.client.voices.pvc.create({
         name: options.name,
         description: options.description,
+        language: options.language || "en",
         files: options.files,
-      });
+      } as Parameters<typeof this.client.voices.pvc.create>[0]);
 
       return {
         voiceId: voice.voiceId, // Response uses camelCase
@@ -263,7 +269,11 @@ export class ElevenLabsService {
     logger.info(`[ElevenLabs] Updating voice settings: ${voiceId}`);
 
     try {
-      return await this.client.voices.edit(voiceId, settings);
+      // Use update method to modify voice settings
+      return await this.client.voices.update(voiceId, {
+        ...settings,
+        name: settings.name || undefined,
+      } as Parameters<typeof this.client.voices.update>[1]);
     } catch (error) {
       logger.error("[ElevenLabs] Error updating voice:", error);
       throw error;

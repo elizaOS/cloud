@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useRef } from "react";
+import { useState, useRef, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -34,6 +34,7 @@ import {
   Clock,
   CheckCircle,
   Info,
+  Sparkles,
 } from "lucide-react";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
@@ -59,6 +60,11 @@ interface Voice {
   usageCount: number;
   isActive: boolean;
   createdAt: Date | string;
+  lastUsedAt?: Date | string | null;
+  audioQualityScore?: string | null;
+  totalAudioDurationSeconds?: number | null;
+  status?: "processing" | "completed" | "failed";
+  jobId?: string;
 }
 
 interface UploadedFile {
@@ -80,6 +86,9 @@ export function VoiceCloneForm({
   const [isUploading, setIsUploading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [isDragging, setIsDragging] = useState(false);
+  const [professionalVoiceCount, setProfessionalVoiceCount] = useState<
+    number | null
+  >(null);
 
   // Advanced settings
   const [stability, setStability] = useState(0.5);
@@ -99,6 +108,28 @@ export function VoiceCloneForm({
       ? VOICE_CLONE_INSTANT_COST
       : VOICE_CLONE_PROFESSIONAL_COST;
   const hasEnoughCredits = creditBalance >= cost;
+
+  // Fetch professional voice count on mount
+  useEffect(() => {
+    const fetchVoiceCount = async () => {
+      try {
+        const response = await fetch("/api/elevenlabs/voices/user");
+        if (response.ok) {
+          const data = await response.json();
+          if (data.success && data.voices) {
+            const proCount = data.voices.filter(
+              (v: Voice) => v.cloneType === "professional"
+            ).length;
+            setProfessionalVoiceCount(proCount);
+          }
+        }
+      } catch (error) {
+        console.error("Failed to fetch voice count:", error);
+      }
+    };
+
+    fetchVoiceCount();
+  }, []);
 
   const handleFileSelect = (selectedFiles: FileList | null) => {
     if (!selectedFiles) return;
@@ -266,7 +297,15 @@ export function VoiceCloneForm({
         throw new Error(data.error || "Failed to create voice clone");
       }
 
-      toast.success("Voice clone created successfully!");
+      // Show appropriate success message based on clone type
+      if (cloneType === "professional") {
+        toast.success(
+          `Voice "${name}" is being created. Professional cloning takes 30-60 minutes. Check back later!`,
+          { duration: 10000 }
+        );
+      } else {
+        toast.success(`Voice "${name}" created successfully and ready to use!`);
+      }
 
       // Update credit balance
       if (data.newBalance !== undefined) {
@@ -304,15 +343,22 @@ export function VoiceCloneForm({
   };
 
   return (
-    <Card>
-      <CardHeader>
-        <CardTitle>Create Voice Clone</CardTitle>
-        <CardDescription>
-          Upload audio samples to create a custom AI voice clone
+    <Card className="h-full border-border/60 bg-background/70 shadow-sm">
+      <CardHeader className="space-y-1 pb-4">
+        <div className="flex items-center justify-between">
+          <CardTitle className="text-xl font-semibold">
+            Create Voice Clone
+          </CardTitle>
+          <Badge variant="outline" className="text-xs font-medium">
+            {creditBalance.toLocaleString()} credits
+          </Badge>
+        </div>
+        <CardDescription className="text-sm">
+          Upload audio or record your voice to create a custom AI voice
         </CardDescription>
       </CardHeader>
-      <CardContent>
-        <form onSubmit={handleSubmit} className="space-y-6">
+      <CardContent className="overflow-y-auto max-h-[calc(100vh-300px)] px-6">
+        <form onSubmit={handleSubmit} className="space-y-7">
           {/* Voice Name */}
           <div className="space-y-2">
             <Label htmlFor="name">
@@ -342,30 +388,62 @@ export function VoiceCloneForm({
           </div>
 
           {/* Clone Type */}
-          <div className="space-y-2">
-            <Label>Clone Type</Label>
-            <div className="grid grid-cols-2 gap-4">
+          <div className="space-y-3">
+            <div>
+              <Label className="text-base font-semibold">Clone Type</Label>
+              <p className="text-xs text-muted-foreground mt-1">
+                Choose between instant or professional quality cloning
+              </p>
+            </div>
+            <div className="grid grid-cols-1 gap-3">
               <button
                 type="button"
                 onClick={() => setCloneType("instant")}
                 disabled={isUploading}
                 className={cn(
-                  "relative rounded-lg border-2 p-4 text-left transition-colors",
+                  "relative rounded-xl border-2 p-5 text-left transition-all hover:shadow-sm",
                   cloneType === "instant"
-                    ? "border-primary bg-primary/5"
-                    : "border-muted hover:border-muted-foreground/50"
+                    ? "border-primary bg-primary/5 shadow-sm"
+                    : "border-border hover:border-muted-foreground/50 hover:bg-muted/30"
                 )}
               >
-                <div className="flex items-start justify-between">
-                  <div>
-                    <p className="font-semibold">Instant Clone</p>
-                    <p className="text-sm text-muted-foreground mt-1">
-                      1-3 min audio, ~30s processing
-                    </p>
+                <div className="space-y-3">
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="flex-1 space-y-1">
+                      <div className="flex items-center gap-2">
+                        <p className="font-semibold text-base">Instant Clone</p>
+                        <Badge
+                          variant="secondary"
+                          className="bg-green-500/10 text-green-600 border-green-500/20"
+                        >
+                          Recommended
+                        </Badge>
+                      </div>
+                      <p className="text-xs text-muted-foreground">
+                        Fast and unlimited voice cloning
+                      </p>
+                    </div>
+                    <Badge
+                      variant="outline"
+                      className="shrink-0 font-semibold text-xs"
+                    >
+                      {VOICE_CLONE_INSTANT_COST} credits
+                    </Badge>
                   </div>
-                  <Badge variant="secondary">
-                    {VOICE_CLONE_INSTANT_COST} credits
-                  </Badge>
+                  <div className="flex items-center gap-4 text-xs text-muted-foreground">
+                    <div className="flex items-center gap-1.5">
+                      <span>⏱️</span>
+                      <span>~30s processing</span>
+                    </div>
+                    <div className="flex items-center gap-1.5">
+                      <span>🎤</span>
+                      <span>1-3 min audio</span>
+                    </div>
+                    <div className="flex items-center gap-1.5">
+                      <span className="text-green-600">✓</span>
+                      <span className="text-green-600">Unlimited</span>
+                    </div>
+                  </div>
                 </div>
               </button>
 
@@ -374,32 +452,88 @@ export function VoiceCloneForm({
                 onClick={() => setCloneType("professional")}
                 disabled={isUploading}
                 className={cn(
-                  "relative rounded-lg border-2 p-4 text-left transition-colors",
+                  "relative rounded-xl border-2 p-5 text-left transition-all hover:shadow-sm",
                   cloneType === "professional"
-                    ? "border-primary bg-primary/5"
-                    : "border-muted hover:border-muted-foreground/50"
+                    ? "border-primary bg-primary/5 shadow-sm"
+                    : "border-border hover:border-muted-foreground/50 hover:bg-muted/30"
                 )}
               >
-                <div className="flex items-start justify-between">
-                  <div>
-                    <p className="font-semibold">Professional</p>
-                    <p className="text-sm text-muted-foreground mt-1">
-                      30+ min audio, studio quality
-                    </p>
+                <div className="space-y-3">
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="flex-1 space-y-1">
+                      <div className="flex items-center gap-2 flex-wrap">
+                        <p className="font-semibold text-base">Professional</p>
+                        {professionalVoiceCount !== null && (
+                          <Badge
+                            variant={
+                              professionalVoiceCount >= 1
+                                ? "secondary"
+                                : "outline"
+                            }
+                            className={cn(
+                              "text-xs",
+                              professionalVoiceCount >= 1 &&
+                                "border-amber-500/50 bg-amber-500/10 text-amber-600"
+                            )}
+                          >
+                            {professionalVoiceCount}/1 slots
+                          </Badge>
+                        )}
+                      </div>
+                      <p className="text-xs text-muted-foreground">
+                        Studio-quality voice cloning
+                      </p>
+                    </div>
+                    <Badge
+                      variant="outline"
+                      className="shrink-0 font-semibold text-xs"
+                    >
+                      {VOICE_CLONE_PROFESSIONAL_COST} credits
+                    </Badge>
                   </div>
-                  <Badge variant="secondary">
-                    {VOICE_CLONE_PROFESSIONAL_COST} credits
-                  </Badge>
+
+                  <div className="flex items-center gap-4 text-xs text-muted-foreground flex-wrap">
+                    <div className="flex items-center gap-1.5">
+                      <span>⏱️</span>
+                      <span>30-60 min</span>
+                    </div>
+                    <div className="flex items-center gap-1.5">
+                      <span>🎤</span>
+                      <span>30+ min audio</span>
+                    </div>
+                    <div className="flex items-center gap-1.5">
+                      <span className="text-amber-600">⚠</span>
+                      <span className="text-amber-600">Limited to 1</span>
+                    </div>
+                  </div>
+
+                  {professionalVoiceCount !== null &&
+                    professionalVoiceCount >= 1 && (
+                      <div className="pt-2 border-t border-amber-500/20">
+                        <p className="text-xs text-amber-600 flex items-start gap-1.5">
+                          <span className="shrink-0">⚠</span>
+                          <span>
+                            Slot full - delete existing professional voice to
+                            create new
+                          </span>
+                        </p>
+                      </div>
+                    )}
                 </div>
               </button>
             </div>
           </div>
 
           {/* Audio Source - Tabs for Upload or Record */}
-          <div className="space-y-2">
-            <Label>
-              Audio Samples <span className="text-destructive">*</span>
-            </Label>
+          <div className="space-y-3">
+            <div>
+              <Label className="text-base font-semibold">
+                Audio Samples <span className="text-destructive">*</span>
+              </Label>
+              <p className="text-xs text-muted-foreground mt-1">
+                Upload files or record directly in your browser
+              </p>
+            </div>
 
             <Tabs defaultValue="upload" className="w-full">
               <TabsList className="grid w-full grid-cols-2">
@@ -715,20 +849,26 @@ export function VoiceCloneForm({
           )}
 
           {/* Credit Info */}
-          <div className="flex items-center justify-between p-4 rounded-lg bg-muted">
-            <div className="flex items-center gap-2">
-              <Coins className="h-5 w-5 text-muted-foreground" />
+          <div className="flex items-center justify-between p-4 rounded-xl bg-muted/50 border border-border">
+            <div className="flex items-center gap-3">
+              <div className="p-2 rounded-lg bg-background">
+                <Coins className="h-5 w-5 text-primary" />
+              </div>
               <div>
-                <p className="text-sm font-medium">Credit Balance</p>
+                <p className="text-sm font-semibold">Credit Balance</p>
                 <p className="text-xs text-muted-foreground">
-                  {creditBalance} credits available
+                  {creditBalance.toLocaleString()} available
                 </p>
               </div>
             </div>
             <div className="text-right">
-              <p className="text-sm font-medium">Cost: {cost} credits</p>
+              <p className="text-sm font-semibold">
+                Cost: {cost.toLocaleString()} credits
+              </p>
               {!hasEnoughCredits && (
-                <p className="text-xs text-destructive">Insufficient credits</p>
+                <p className="text-xs text-destructive font-medium">
+                  Insufficient credits
+                </p>
               )}
             </div>
           </div>
@@ -736,17 +876,20 @@ export function VoiceCloneForm({
           {/* Submit Button */}
           <Button
             type="submit"
-            disabled={isUploading || !hasEnoughCredits}
-            className="w-full"
+            disabled={isUploading || !hasEnoughCredits || files.length === 0}
+            className="w-full font-semibold"
             size="lg"
           >
             {isUploading ? (
               <>
-                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                <Loader2 className="mr-2 h-5 w-5 animate-spin" />
                 Creating Voice Clone...
               </>
             ) : (
-              `Create Voice Clone (${cost} credits)`
+              <>
+                <Sparkles className="mr-2 h-5 w-5" />
+                Create Voice Clone ({cost.toLocaleString()} credits)
+              </>
             )}
           </Button>
         </form>
