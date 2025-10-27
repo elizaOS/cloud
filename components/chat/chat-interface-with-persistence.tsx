@@ -71,9 +71,28 @@ export function ChatInterfaceWithPersistence({
       elevenlabsVoiceId: string;
       name: string;
       cloneType: string;
+      createdAt: Date | string;
     }>
   >([]);
-  const [selectedVoiceId, setSelectedVoiceId] = useState<string | null>(null);
+  const [selectedVoiceId, setSelectedVoiceId] = useState<string | null>(() => {
+    // Load voice selection from localStorage on mount
+    if (typeof window !== "undefined") {
+      const saved = localStorage.getItem("eliza-selected-voice-id");
+      console.log("[Voice Init] Loaded from localStorage:", saved);
+      return saved;
+    }
+    return null;
+  });
+
+  // Clear audio cache when voice changes (so messages regenerate with new voice)
+  useEffect(() => {
+    if (messageAudioUrls.current.size > 0) {
+      console.log(
+        "[Voice Change] Clearing audio cache - messages will regenerate with new voice"
+      );
+      messageAudioUrls.current.clear();
+    }
+  }, [selectedVoiceId]);
 
   // Audio hooks
   const recorder = useAudioRecorder();
@@ -197,6 +216,24 @@ export function ChatInterfaceWithPersistence({
     }
   }, [player.error]);
 
+  // Helper function to check if voice is ready
+  const isVoiceReady = useCallback(
+    (voice: { cloneType: string; createdAt: Date | string }) => {
+      // Instant voices are always ready
+      if (voice.cloneType === "instant") return true;
+
+      // Professional voices need 30-60 minutes to process
+      const minutesElapsed = Math.max(
+        0,
+        (Date.now() - new Date(voice.createdAt).getTime()) / 1000 / 60
+      );
+
+      // Consider ready after 60 minutes
+      return minutesElapsed >= 60;
+    },
+    []
+  );
+
   // Load custom voices on mount
   useEffect(() => {
     const fetchCustomVoices = async () => {
@@ -205,7 +242,19 @@ export function ChatInterfaceWithPersistence({
         if (response.ok) {
           const data = await response.json();
           if (data.success && Array.isArray(data.voices)) {
-            setCustomVoices(data.voices);
+            // Filter to only show ready voices
+            const readyVoices = data.voices.filter(
+              (voice: { cloneType: string; createdAt: Date | string }) =>
+                isVoiceReady(voice)
+            );
+
+            setCustomVoices(readyVoices);
+
+            console.log("[Custom Voices] Loaded voices:", {
+              total: data.voices.length,
+              ready: readyVoices.length,
+              processing: data.voices.length - readyVoices.length,
+            });
           }
         }
       } catch (error) {
@@ -214,19 +263,91 @@ export function ChatInterfaceWithPersistence({
     };
 
     fetchCustomVoices();
-  }, []);
+
+    // Refresh voices every 5 minutes to catch newly ready professional voices
+    const refreshInterval = setInterval(
+      () => {
+        fetchCustomVoices();
+      },
+      5 * 60 * 1000
+    ); // 5 minutes
+
+    return () => clearInterval(refreshInterval);
+  }, [isVoiceReady]);
+
+  // Validate selected voice is still available (in case it becomes unavailable)
+  useEffect(() => {
+    if (selectedVoiceId && customVoices.length > 0) {
+      const voiceExists = customVoices.some(
+        (v) => v.elevenlabsVoiceId === selectedVoiceId
+      );
+
+      if (!voiceExists) {
+        console.log(
+          "[Voice Validation] Selected voice no longer available, resetting to default"
+        );
+        setSelectedVoiceId(null);
+      }
+    }
+  }, [customVoices, selectedVoiceId]);
+
+  // Clear cached audio when voice changes (force regeneration with new voice)
+  useEffect(() => {
+    // Clear all cached audio URLs when voice selection changes
+    // This ensures that clicking play will regenerate audio with the new voice
+    const currentUrls = messageAudioUrls.current;
+
+    // Revoke all existing blob URLs to free memory
+    for (const url of currentUrls.values()) {
+      URL.revokeObjectURL(url);
+    }
+
+    // Clear the cache
+    messageAudioUrls.current.clear();
+
+    console.log(
+      "[Voice Change] Cleared audio cache, will regenerate with new voice:",
+      {
+        selectedVoiceId,
+        voiceName: selectedVoiceId
+          ? customVoices.find((v) => v.elevenlabsVoiceId === selectedVoiceId)
+              ?.name
+          : "Default",
+      }
+    );
+  }, [selectedVoiceId, customVoices]);
 
   // Generate TTS for assistant message
   const generateTTS = useCallback(
     async (text: string, messageId: string) => {
       try {
+        // Use selectedVoiceId directly from closure (callback recreates when it changes)
+        const currentVoiceId = selectedVoiceId;
+        const voiceName = currentVoiceId
+          ? customVoices.find((v) => v.elevenlabsVoiceId === currentVoiceId)
+              ?.name || "Custom Voice"
+          : "Default Voice";
+
+        // Build request body - IMPORTANT: Only add voiceId if we actually have one
+        const requestBody: { text: string; voiceId?: string } = { text };
+        if (currentVoiceId) {
+          requestBody.voiceId = currentVoiceId;
+        }
+
+        console.log("[TTS] 🎤 Generating speech:", {
+          currentVoiceId: currentVoiceId || "(none - using default)",
+          voiceName,
+          messageId,
+          textLength: text.length,
+          requestBody,
+          willSendVoiceId: !!requestBody.voiceId,
+          timestamp: new Date().toISOString(),
+        });
+
         const response = await fetch("/api/elevenlabs/tts", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            text,
-            ...(selectedVoiceId && { voiceId: selectedVoiceId }),
-          }),
+          body: JSON.stringify(requestBody),
         });
 
         if (!response.ok) {
@@ -248,7 +369,7 @@ export function ChatInterfaceWithPersistence({
         toast.error("Failed to generate speech");
       }
     },
-    [autoPlayTTS, player, selectedVoiceId]
+    [autoPlayTTS, player, selectedVoiceId, customVoices]
   );
 
   // Handle voice message (STT → AI → TTS)
@@ -363,12 +484,14 @@ export function ChatInterfaceWithPersistence({
     const existingUrl = messageAudioUrls.current.get(messageId);
 
     if (existingUrl) {
-      // Play existing audio
+      // Play existing cached audio
+      console.log("[Play Audio] Using cached audio for message:", messageId);
       setCurrentPlayingId(messageId);
       await player.playAudio(existingUrl);
       setCurrentPlayingId(null);
     } else {
-      // Generate and play new audio
+      // Generate and play new audio with current voice
+      console.log("[Play Audio] Generating new audio for message:", messageId);
       const message = messages.find((m) => m.id === messageId);
       if (message && message.role === "assistant") {
         const text = message.parts.find((p) => p.type === "text")?.text || "";
@@ -515,22 +638,56 @@ export function ChatInterfaceWithPersistence({
                 Voice:
               </Label>
               <Select
+                key={`voice-${selectedVoiceId || "default"}`}
                 value={selectedVoiceId || "default"}
-                onValueChange={(value) =>
-                  setSelectedVoiceId(value === "default" ? null : value)
-                }
+                onValueChange={(value) => {
+                  const newVoiceId = value === "default" ? null : value;
+                  setSelectedVoiceId(newVoiceId);
+
+                  // Persist voice selection to localStorage
+                  if (typeof window !== "undefined") {
+                    if (newVoiceId) {
+                      localStorage.setItem(
+                        "eliza-selected-voice-id",
+                        newVoiceId
+                      );
+                    } else {
+                      localStorage.removeItem("eliza-selected-voice-id");
+                    }
+                  }
+
+                  const voiceName = newVoiceId
+                    ? customVoices.find(
+                        (v) => v.elevenlabsVoiceId === newVoiceId
+                      )?.name || "Custom Voice"
+                    : "Default Voice";
+
+                  console.log("[Voice Selector] Voice changed to:", value, {
+                    newVoiceId,
+                    voiceName,
+                    persisted: true,
+                  });
+
+                  // Show toast confirmation
+                  toast.success(`Voice changed to: ${voiceName}`);
+                }}
               >
                 <SelectTrigger
                   id="voice-select-chat"
                   className="h-8 text-xs w-[140px]"
                 >
-                  <SelectValue placeholder="Default" />
+                  <SelectValue placeholder="Default Voice" />
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="default">Default Voice</SelectItem>
                   {customVoices.map((voice) => (
                     <SelectItem key={voice.id} value={voice.elevenlabsVoiceId}>
                       {voice.name}
+                      {voice.cloneType === "professional" && (
+                        <span className="ml-1 text-[10px] text-muted-foreground">
+                          (Pro)
+                        </span>
+                      )}
                     </SelectItem>
                   ))}
                 </SelectContent>

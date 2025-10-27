@@ -96,7 +96,25 @@ export function ElizaChatInterface({
       cloneType: string;
     }>
   >([]);
-  const [selectedVoiceId, setSelectedVoiceId] = useState<string | null>(null);
+  const [selectedVoiceId, setSelectedVoiceId] = useState<string | null>(() => {
+    // Load voice selection from localStorage on mount
+    if (typeof window !== "undefined") {
+      const saved = localStorage.getItem("eliza-selected-voice-id");
+      console.log("[Voice Init] Loaded from localStorage:", saved);
+      return saved;
+    }
+    return null;
+  });
+
+  // Clear audio cache when voice changes (so messages regenerate with new voice)
+  useEffect(() => {
+    if (messageAudioUrls.current.size > 0) {
+      console.log(
+        "[Voice Change] Clearing audio cache - messages will regenerate with new voice"
+      );
+      messageAudioUrls.current.clear();
+    }
+  }, [selectedVoiceId]);
 
   const recorder = useAudioRecorder();
   const player = useAudioPlayer();
@@ -271,13 +289,33 @@ export function ElizaChatInterface({
   const generateSpeech = useCallback(
     async (text: string, messageId: string) => {
       try {
+        // Use selectedVoiceId directly (callback will recreate when it changes)
+        const currentVoiceId = selectedVoiceId;
+        const voiceName = currentVoiceId
+          ? customVoices.find((v) => v.elevenlabsVoiceId === currentVoiceId)
+              ?.name || "Custom Voice"
+          : "Default Voice";
+
+        // Build request body - IMPORTANT: Only add voiceId if we actually have one
+        const requestBody: { text: string; voiceId?: string } = { text };
+        if (currentVoiceId) {
+          requestBody.voiceId = currentVoiceId;
+        }
+
+        console.log("[TTS] 🎤 Generating speech:", {
+          currentVoiceId: currentVoiceId || "(none - using default)",
+          voiceName,
+          messageId,
+          textLength: text.length,
+          requestBody,
+          willSendVoiceId: !!requestBody.voiceId,
+          timestamp: new Date().toISOString(),
+        });
+
         const response = await fetch("/api/elevenlabs/tts", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            text,
-            ...(selectedVoiceId && { voiceId: selectedVoiceId }),
-          }),
+          body: JSON.stringify(requestBody),
         });
 
         if (!response.ok) {
@@ -299,7 +337,7 @@ export function ElizaChatInterface({
         toast.error("Failed to generate speech");
       }
     },
-    [autoPlayTTS, player, selectedVoiceId]
+    [autoPlayTTS, player, selectedVoiceId, customVoices]
   );
 
   // Load custom voices on mount
@@ -807,9 +845,37 @@ export function ElizaChatInterface({
                 </Label>
                 <Select
                   value={selectedVoiceId || "default"}
-                  onValueChange={(value) =>
-                    setSelectedVoiceId(value === "default" ? null : value)
-                  }
+                  onValueChange={(value) => {
+                    const newVoiceId = value === "default" ? null : value;
+                    setSelectedVoiceId(newVoiceId);
+
+                    // Persist voice selection to localStorage
+                    if (typeof window !== "undefined") {
+                      if (newVoiceId) {
+                        localStorage.setItem(
+                          "eliza-selected-voice-id",
+                          newVoiceId
+                        );
+                      } else {
+                        localStorage.removeItem("eliza-selected-voice-id");
+                      }
+                    }
+
+                    const voiceName = newVoiceId
+                      ? customVoices.find(
+                          (v) => v.elevenlabsVoiceId === newVoiceId
+                        )?.name || "Custom Voice"
+                      : "Default Voice";
+
+                    console.log("[Voice Selector] Voice changed to:", value, {
+                      newVoiceId,
+                      voiceName,
+                      persisted: true,
+                    });
+
+                    // Show toast confirmation
+                    toast.success(`Voice changed to: ${voiceName}`);
+                  }}
                 >
                   <SelectTrigger
                     id="voice-select"
