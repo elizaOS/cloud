@@ -12,6 +12,10 @@ import { eq, and, desc } from "drizzle-orm";
 import { getElevenLabsService } from "./elevenlabs";
 import { logger } from "@/lib/utils/logger";
 import { put } from "@vercel/blob";
+import {
+  VOICE_CLONE_INSTANT_COST,
+  VOICE_CLONE_PROFESSIONAL_COST,
+} from "@/lib/pricing-constants";
 
 export interface CreateVoiceCloneParams {
   organizationId: string;
@@ -175,8 +179,11 @@ export class VoiceCloningService {
         elevenlabsVoiceId: result.voiceId,
       });
 
-      // Determine creation cost
-      const creationCost = cloneType === "instant" ? 500 : 5000;
+      // Determine creation cost using constants for consistency
+      const creationCost =
+        cloneType === "instant"
+          ? VOICE_CLONE_INSTANT_COST
+          : VOICE_CLONE_PROFESSIONAL_COST;
 
       // Create user_voices record
       const [userVoice] = await db
