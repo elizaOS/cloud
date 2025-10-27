@@ -227,7 +227,7 @@ export async function POST(request: NextRequest) {
           creditsDeducted: cost,
           newBalance: deductionResult.newBalance,
           estimatedCompletionTime:
-            cloneType === "professional" ? "1-3 hours" : "30 seconds",
+            cloneType === "professional" ? "30-60 minutes" : "30 seconds",
         },
         { status: 201 }
       );
