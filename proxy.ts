@@ -14,6 +14,8 @@ const publicPaths = [
   "/api/models",
   "/api/fal/proxy",
   "/auth/error",
+  "/auth/cli-login", // CLI login page
+  "/api/auth/cli-session", // CLI session endpoints (public for polling)
   "/api/v1/generate-image",
   "/api/v1/generate-video",
   "/api/v1/chat",
