@@ -68,8 +68,7 @@ export function useAudioPlayer(): UseAudioPlayerReturn {
           setCurrentTime(0);
         });
 
-        audioRef.current.addEventListener("error", (e) => {
-          console.error("Audio playback error:", e);
+        audioRef.current.addEventListener("error", () => {
           setError("Failed to play audio");
           setIsPlaying(false);
         });
@@ -89,13 +88,12 @@ export function useAudioPlayer(): UseAudioPlayerReturn {
       // Play audio
       await audioRef.current.play();
       setIsPlaying(true);
-
     } catch (err) {
-      console.error("Error playing audio:", err);
-
       if (err instanceof Error) {
         if (err.name === "NotAllowedError") {
-          setError("Audio playback not allowed. Please interact with the page first.");
+          setError(
+            "Audio playback not allowed. Please interact with the page first."
+          );
         } else {
           setError("Failed to play audio. Please try again.");
         }
@@ -115,9 +113,8 @@ export function useAudioPlayer(): UseAudioPlayerReturn {
   }, []);
 
   const resumeAudio = useCallback(() => {
-    if (audioRef.current && audioRef.current.paused) {
-      audioRef.current.play().catch((err) => {
-        console.error("Error resuming audio:", err);
+    if (audioRef.current?.paused) {
+      audioRef.current.play().catch(() => {
         setError("Failed to resume audio");
         setIsPlaying(false);
       });
