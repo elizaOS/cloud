@@ -126,7 +126,7 @@ export function ApiTester({
     if (newFiles.length < audioFiles.length) {
       toast({
         message: "Maximum 10 audio files allowed",
-        mode: "warning",
+        mode: "info",
       });
     }
 
