@@ -31,6 +31,14 @@ export class ContainersService {
     return await containersRepository.findById(id, organizationId);
   }
 
+  async getByCharacterId(characterId: string): Promise<Container | null> {
+    return await containersRepository.findByCharacterId(characterId);
+  }
+
+  async listByCharacterIds(characterIds: string[]): Promise<Container[]> {
+    return await containersRepository.findByCharacterIds(characterIds);
+  }
+
   async create(data: NewContainer): Promise<Container> {
     return await containersRepository.create(data);
   }
@@ -38,7 +46,7 @@ export class ContainersService {
   async update(
     id: string,
     organizationId: string,
-    data: Partial<NewContainer>,
+    data: Partial<NewContainer>
   ): Promise<Container | null> {
     return await containersRepository.update(id, organizationId, data);
   }
@@ -50,7 +58,7 @@ export class ContainersService {
   async updateStatus(
     id: string,
     status: ContainerStatus,
-    errorMessage?: string,
+    errorMessage?: string
   ): Promise<Container | null> {
     return await containersRepository.updateStatus(id, status, errorMessage);
   }
@@ -65,7 +73,7 @@ export class ContainersService {
 
   async createWithQuotaCheck(
     data: NewContainer,
-    transaction?: Database,
+    transaction?: Database
   ): Promise<Container> {
     return await containersRepository.createWithQuotaCheck(data, transaction);
   }
@@ -73,12 +81,12 @@ export class ContainersService {
   async createContainerWithCreditDeduction(
     containerData: NewContainer,
     userId: string,
-    deploymentCost: number,
+    deploymentCost: number
   ): Promise<{ container: Container; newBalance: number }> {
     return await containersRepository.createContainerWithCreditDeduction(
       containerData,
       userId,
-      deploymentCost,
+      deploymentCost
     );
   }
 }
@@ -99,7 +107,7 @@ export const createContainer = (data: NewContainer) =>
 export const updateContainer = (
   id: string,
   organizationId: string,
-  data: Partial<NewContainer>,
+  data: Partial<NewContainer>
 ) => containersService.update(id, organizationId, data);
 
 export const deleteContainer = (id: string, organizationId: string) =>
@@ -119,7 +127,7 @@ export const updateContainerStatus = async (
         ecsClusterArn?: string;
         loadBalancerUrl?: string;
         cloudformationStackName?: string;
-      },
+      }
 ): Promise<Container> => {
   // Handle both old string format and new options object format
   if (typeof options === "string") {
@@ -186,10 +194,10 @@ export const updateContainerHealth = (id: string) =>
 export const createContainerWithCreditDeduction = (
   containerData: NewContainer,
   userId: string,
-  deploymentCost: number,
+  deploymentCost: number
 ) =>
   containersService.createContainerWithCreditDeduction(
     containerData,
     userId,
-    deploymentCost,
+    deploymentCost
   );

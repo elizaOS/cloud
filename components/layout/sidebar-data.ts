@@ -21,6 +21,7 @@ import {
   Code,
   Mic,
   Zap,
+  Store,
 } from "lucide-react";
 import type { ComponentType } from "react";
 
@@ -94,6 +95,13 @@ export const sidebarSections: SidebarSection[] = [
         href: "/dashboard/eliza",
         icon: Bot,
         isNew: false,
+      },
+      {
+        id: "agent-marketplace",
+        label: "Agent Marketplace",
+        href: "/dashboard/agent-marketplace",
+        icon: Store,
+        isNew: true,
       },
       {
         id: "character-creator",
