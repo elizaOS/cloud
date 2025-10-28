@@ -10,19 +10,14 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { CheckCircle, ArrowRight } from "lucide-react";
-import { requireAuth } from "@/lib/auth";
 import { CreditBalanceDisplay } from "@/components/billing/success-client";
-
-// Force dynamic rendering since we use server-side auth (cookies)
-export const dynamic = "force-dynamic";
 
 export const metadata: Metadata = {
   title: "Purchase Successful",
   description: "Your credit purchase was successful",
 };
 
-export default async function BillingSuccessPage() {
-  await requireAuth();
+export default function BillingSuccessPage() {
 
   return (
     <div className="flex items-center justify-center min-h-[80vh]">
