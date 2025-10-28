@@ -24,6 +24,8 @@ const publicPaths = [
   "/api/v1/models",
   "/api/stripe/webhook",
   "/api/privy/webhook", // Privy webhook endpoint
+  "/api/cron", // Cron endpoints (protected by CRON_SECRET)
+  "/api/v1/cron", // V1 Cron endpoints (protected by CRON_SECRET)
 ];
 
 // Paths that should be checked for authentication
