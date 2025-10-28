@@ -653,10 +653,12 @@ BLOB_READ_WRITE_TOKEN=vercel_blob_rw_your_token
 
 - Deploy ElizaOS projects via `elizaos deploy` CLI
 - **Multi-project support**: Deploy multiple different projects per user
+- **Multi-architecture support**: Auto-detects platform and deploys to matching AWS instance type
+  - **ARM64**: t4g.micro (AWS Graviton2, $9.63/month) - Recommended for cost savings
+  - **x86_64**: t3.micro (Intel/AMD, $11.09/month) - Universal compatibility
 - **Smart update detection**: Automatically detects and updates existing deployments
 - Docker-based deployments to AWS ECS (Elastic Container Service)
 - ECR (Elastic Container Registry) for Docker image storage with project-specific repositories
-- EC2-based ECS (**t4g.micro ARM instances**: 2 vCPU, 1 GiB, ~$6/month)
 - CloudFormation stack per project: `elizaos-{userId}-{projectName}`
 - Optimized health checks (15s interval, 5min grace period)
 - Health monitoring via CloudWatch and ECS
@@ -705,11 +707,21 @@ elizaos deploy --project-name chatbot  # Auto-detected as update
 - Example: `https://fc51b251-chatbot.containers.elizacloud.ai`
 - Uses first segment of UUID + project name for easy recognition
 
-**Instance Specs (t4g.micro)**:
+**Instance Specs (Auto-Selected)**:
+
+**ARM64 (t4g.micro - Recommended)**:
 - **2 vCPUs** (ARM Graviton2)
 - **1 GiB RAM** (1024 MB)
-- **~$6/month** (~$0.0084/hour)
+- **$9.63/month** ($6.13 instance + $3.50 storage/monitoring)
 - Default container allocation: 1.75 vCPU (1792 units), 896 MB RAM (87.5% of instance)
+
+**x86_64 (t3.micro - Universal)**:
+- **2 vCPUs** (Intel/AMD)
+- **1 GiB RAM** (1024 MB)
+- **$11.09/month** ($7.59 instance + $3.50 storage/monitoring)
+- Default container allocation: 1.75 vCPU (1792 units), 896 MB RAM (87.5% of instance)
+
+Platform is automatically detected from your system. ARM64 provides better cost efficiency ($1.46/month savings) while x86_64 ensures universal compatibility.
 
 **Container Management**:
 ```bash
@@ -1805,12 +1817,15 @@ Container deployments are billed based on:
 
 **AWS Infrastructure Costs** (billed directly by AWS, not through credits):
 
-- **EC2 Instances**: ~$12.41/month per t4g.small (1 per user)
+- **EC2 Instances**:
+  - ARM64 (t4g.micro): $6.13/month compute + $3.50 storage/monitoring = $9.63/month per container
+  - x86_64 (t3.micro): $7.59/month compute + $3.50 storage/monitoring = $11.09/month per container
 - **ECR Storage**: First 50 GB free, then $0.10/GB/month
 - **Data Transfer**: First 100 GB free per month
 - **Application Load Balancer**: ~$16/month (shared across all users)
 
-**Total**: ~$15-30/month per active container (EC2 + credits)
+**Total**: $9.63-11.09/month per active container (varies by architecture)
+**💰 Tip**: ARM64 saves $1.46/month (13.2%) per container on compute costs
 
 ---
 

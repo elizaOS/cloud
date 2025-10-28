@@ -77,6 +77,24 @@
       "Type": "String",
       "Description": "SNS Topic ARN for alerts (optional)",
       "Default": ""
+    },
+    "Architecture": {
+      "Type": "String",
+      "Description": "CPU Architecture (arm64 for Graviton/t4g, x86_64 for Intel-AMD/t3)",
+      "Default": "arm64",
+      "AllowedValues": ["arm64", "x86_64"]
+    }
+  },
+  "Mappings": {
+    "ArchitectureConfig": {
+      "arm64": {
+        "InstanceType": "t4g.micro",
+        "AMIParameter": "/aws/service/ecs/optimized-ami/amazon-linux-2/arm64/recommended/image_id"
+      },
+      "x86_64": {
+        "InstanceType": "t3.micro",
+        "AMIParameter": "/aws/service/ecs/optimized-ami/amazon-linux-2/recommended/image_id"
+      }
     }
   },
   "Conditions": {
@@ -209,9 +227,18 @@
       },
       "Properties": {
         "ImageId": {
-          "Fn::Sub": "{{resolve:ssm:/aws/service/ecs/optimized-ami/amazon-linux-2/arm64/recommended/image_id}}"
+          "Fn::Sub": [
+            "{{resolve:ssm:${AMIParameter}}}",
+            {
+              "AMIParameter": {
+                "Fn::FindInMap": ["ArchitectureConfig", { "Ref": "Architecture" }, "AMIParameter"]
+              }
+            }
+          ]
         },
-        "InstanceType": "t4g.micro",
+        "InstanceType": {
+          "Fn::FindInMap": ["ArchitectureConfig", { "Ref": "Architecture" }, "InstanceType"]
+        },
         "IamInstanceProfile": { "Ref": "InstanceProfile" },
         "KeyName": {
           "Fn::If": [
