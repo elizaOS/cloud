@@ -31,8 +31,8 @@ const createContainerSchema = z.object({
   description: z.string().optional(),
   port: z.number().int().min(1).max(65535).default(3000),
   desired_count: z.number().int().min(1).max(10).default(1),
-  cpu: z.number().int().min(256).max(2048).default(1792), // CPU units (1792 = 1.75 vCPU, 87.5% of t4g.micro's 2 vCPUs)
-  memory: z.number().int().min(256).max(2048).default(896), // Memory in MB (896 MB = 87.5% of t4g.micro's 1 GiB)
+  cpu: z.number().int().min(256).max(2048).default(1792), // CPU units (1792 = 1.75 vCPU, 87.5% of t4g.small's 2 vCPUs)
+  memory: z.number().int().min(256).max(2048).default(1792), // Memory in MB (1792 MB = 1.75 GiB, 87.5% of t4g.small's 2 GiB)
   environment_vars: z.record(z.string(), z.string()).optional(),
   health_check_path: z.string().default("/health"),
 
@@ -40,6 +40,9 @@ const createContainerSchema = z.object({
   ecr_image_uri: z.string(), // Required: Full ECR image URI with tag
   ecr_repository_uri: z.string().optional(),
   image_tag: z.string().optional(),
+  
+  // Architecture field for multi-platform support
+  architecture: z.enum(['arm64', 'x86_64']).optional().default('arm64'),
 });
 
 /**
@@ -212,6 +215,7 @@ async function handleCreateContainer(request: NextRequest) {
         desired_count: validatedData.desired_count,
         cpu: validatedData.cpu,
         memory: validatedData.memory,
+        architecture: validatedData.architecture,
         environment_vars: validatedData.environment_vars || {},
         health_check_path: validatedData.health_check_path,
         status: "pending",
@@ -220,6 +224,7 @@ async function handleCreateContainer(request: NextRequest) {
           ecr_image_uri: validatedData.ecr_image_uri,
           is_update: true,
           previous_image: existingProject.metadata?.ecr_image_uri,
+          architecture: validatedData.architecture,
         },
       };
 
@@ -294,6 +299,7 @@ async function handleCreateContainer(request: NextRequest) {
         desired_count: validatedData.desired_count,
         cpu: validatedData.cpu,
         memory: validatedData.memory,
+        architecture: validatedData.architecture,
         environment_vars: validatedData.environment_vars || {},
         health_check_path: validatedData.health_check_path,
         status: "pending",
@@ -301,6 +307,7 @@ async function handleCreateContainer(request: NextRequest) {
         metadata: {
           ecr_image_uri: validatedData.ecr_image_uri,
           is_update: false,
+          architecture: validatedData.architecture,
         },
       };
 
@@ -568,10 +575,13 @@ async function deployContainerAsync(
     }
 
     // Create CloudFormation stack for this user
+    const architecture = config.architecture || 'arm64';
+    const instanceType = architecture === 'arm64' ? 't4g.small' : 't3.small';
+    
     console.log(`📝 [deployContainerAsync] Updating status to 'deploying'`);
     await updateContainerStatus(containerId, "deploying", {
       deploymentLog:
-        "Creating CloudFormation stack (1x t3g.small ARM instance)...",
+        `Creating CloudFormation stack (1x ${instanceType} ${architecture === 'arm64' ? 'ARM' : 'x86_64'} instance)...`,
     });
 
     console.log(`☁️ [deployContainerAsync] Creating CloudFormation stack...`, {
@@ -611,6 +621,7 @@ async function deployContainerAsync(
       containerPort: config.port,
       containerCpu: config.cpu,
       containerMemory: config.memory,
+      architecture: architecture, // Pass architecture for instance type selection
       keyName: process.env.EC2_KEY_NAME,
       environmentVars: environmentVars,
     };

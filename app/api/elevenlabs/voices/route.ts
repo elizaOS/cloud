@@ -8,16 +8,29 @@ export async function GET() {
     // Authenticate user
     const user = await requireAuth();
 
-    logger.info(`[Voices API] Fetching voices for user ${user.id}`);
+    logger.info(`[Voices API] Fetching public voices for user ${user.id}`);
 
     // Get ElevenLabs service
     const elevenlabs = getElevenLabsService();
 
-    // Fetch voices
-    const voices = await elevenlabs.getVoices();
+    // Fetch all voices
+    const allVoices = await elevenlabs.getVoices();
+
+    // Filter to only show pre-built/public ElevenLabs voices
+    // Exclude custom cloned voices (category: "cloned" or "generated")
+    // Only show premade voices that everyone can use
+    const publicVoices = allVoices.filter((voice) => {
+      const category = (voice as { category?: string }).category;
+      // Only include premade voices, exclude cloned/generated/custom voices
+      return category === "premade" || category === "professional";
+    });
+
+    logger.info(
+      `[Voices API] Returning ${publicVoices.length} public voices (filtered from ${allVoices.length} total)`
+    );
 
     return NextResponse.json({
-      voices,
+      voices: publicVoices,
     });
   } catch (error) {
     logger.error("[Voices API] Error:", error);

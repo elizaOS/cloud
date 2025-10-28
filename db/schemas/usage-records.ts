@@ -48,7 +48,7 @@ export const usageRecords = pgTable(
   },
   (table) => ({
     organization_idx: index("usage_records_organization_idx").on(
-      table.organization_id,
+      table.organization_id
     ),
     user_idx: index("usage_records_user_idx").on(table.user_id),
     api_key_idx: index("usage_records_api_key_idx").on(table.api_key_id),
@@ -57,9 +57,15 @@ export const usageRecords = pgTable(
     created_at_idx: index("usage_records_created_at_idx").on(table.created_at),
     org_created_idx: index("usage_records_org_created_idx").on(
       table.organization_id,
-      table.created_at,
+      table.created_at
     ),
-  }),
+    // Voice usage tracking indexes
+    org_type_created_idx: index("usage_records_org_type_created_idx").on(
+      table.organization_id,
+      table.type,
+      table.created_at
+    ),
+  })
 );
 
 // Type inference
