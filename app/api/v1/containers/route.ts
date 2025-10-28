@@ -31,8 +31,8 @@ const createContainerSchema = z.object({
   description: z.string().optional(),
   port: z.number().int().min(1).max(65535).default(3000),
   desired_count: z.number().int().min(1).max(10).default(1),
-  cpu: z.number().int().min(256).max(2048).default(1792), // CPU units (1792 = 1.75 vCPU, 87.5% of t4g.micro's 2 vCPUs)
-  memory: z.number().int().min(256).max(2048).default(896), // Memory in MB (896 MB = 87.5% of t4g.micro's 1 GiB)
+  cpu: z.number().int().min(256).max(2048).default(1792), // CPU units (1792 = 1.75 vCPU, 87.5% of t4g.small's 2 vCPUs)
+  memory: z.number().int().min(256).max(2048).default(1792), // Memory in MB (1792 MB = 1.75 GiB, 87.5% of t4g.small's 2 GiB)
   environment_vars: z.record(z.string(), z.string()).optional(),
   health_check_path: z.string().default("/health"),
 
@@ -576,7 +576,7 @@ async function deployContainerAsync(
 
     // Create CloudFormation stack for this user
     const architecture = config.architecture || 'arm64';
-    const instanceType = architecture === 'arm64' ? 't4g.micro' : 't3.micro';
+    const instanceType = architecture === 'arm64' ? 't4g.small' : 't3.small';
     
     console.log(`📝 [deployContainerAsync] Updating status to 'deploying'`);
     await updateContainerStatus(containerId, "deploying", {
