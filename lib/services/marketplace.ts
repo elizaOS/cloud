@@ -447,6 +447,165 @@ export class MarketplaceService {
     return extendedCharacters;
   }
 
+  async searchCharactersPublic(options: {
+    filters: Omit<SearchFilters, "myCharacters" | "deployed">;
+    sortOptions: SortOptions;
+    pagination: PaginationOptions;
+    includeStats: boolean;
+  }): Promise<MarketplaceSearchResult> {
+    const { filters, sortOptions, pagination, includeStats } = options;
+
+    const organizationId = "public";
+
+    const cacheKey = marketplaceCache.createFilterHash({
+      ...filters,
+      ...sortOptions,
+      ...pagination,
+      includeStats,
+      mode: "public",
+    });
+
+    const cached = await marketplaceCache.getSearchResult(
+      organizationId,
+      cacheKey
+    );
+    if (cached) {
+      logger.debug("[Marketplace Service] Public cache hit");
+      return { ...cached, cached: true };
+    }
+
+    logger.debug("[Marketplace Service] Public search:", filters);
+
+    const offset = (pagination.page - 1) * pagination.limit;
+
+    const [characters, total] = await Promise.all([
+      userCharactersRepository.searchPublic(
+        filters,
+        sortOptions,
+        pagination.limit,
+        offset
+      ),
+      userCharactersRepository.countPublic(filters),
+    ]);
+
+    logger.debug(
+      `[Marketplace Service] Found ${characters.length} public characters (${total} total)`
+    );
+
+    let enrichedCharacters = characters.map((char) =>
+      this.toExtendedCharacter(char)
+    );
+
+    if (includeStats) {
+      enrichedCharacters = await Promise.all(
+        enrichedCharacters.map(async (char) => {
+          try {
+            const stats = await agentDiscoveryService.getAgentStatistics(
+              char.id
+            );
+            return {
+              ...char,
+              stats: {
+                messageCount: stats.messageCount,
+                roomCount: 0,
+                lastActiveAt: stats.lastActiveAt,
+                deploymentStatus: stats.status,
+                uptime: stats.uptime,
+              },
+            };
+          } catch (error) {
+            logger.warn(
+              `[Marketplace Service] Failed to get stats for ${char.id}:`,
+              error
+            );
+            return char;
+          }
+        })
+      );
+    }
+
+    const result: MarketplaceSearchResult = {
+      characters: enrichedCharacters,
+      pagination: {
+        page: pagination.page,
+        limit: pagination.limit,
+        total,
+        totalPages: Math.ceil(total / pagination.limit),
+        hasMore: offset + characters.length < total,
+      },
+      filters: {
+        appliedFilters: filters as SearchFilters,
+        availableCategories: await this.getCategoriesPublic(),
+      },
+      cached: false,
+    };
+
+    await marketplaceCache.setSearchResult(
+      organizationId,
+      cacheKey,
+      result,
+      30 * 60
+    );
+
+    return result;
+  }
+
+  async getCategoriesPublic(): Promise<CategoryInfo[]> {
+    const organizationId = "public";
+    const cached = await marketplaceCache.getCategories(organizationId);
+    if (cached) {
+      return cached;
+    }
+
+    const allCategories = getAllCategories();
+
+    const categoriesWithCounts = await Promise.all(
+      allCategories.map(async (category) => {
+        try {
+          const count = await userCharactersRepository.countPublic({
+            category: category.id,
+          });
+
+          return {
+            id: category.id,
+            name: category.name,
+            description: category.description,
+            icon: category.icon,
+            color: category.color,
+            characterCount: count,
+            featured: false,
+          };
+        } catch (error) {
+          logger.error(
+            `[Marketplace Service] Error getting count for category ${category.id}:`,
+            error
+          );
+          return {
+            id: category.id,
+            name: category.name,
+            description: category.description,
+            icon: category.icon,
+            color: category.color,
+            characterCount: 0,
+            featured: false,
+          };
+        }
+      })
+    );
+
+    const nonEmptyCategories = categoriesWithCounts.filter(
+      (cat) => cat.characterCount > 0
+    );
+
+    await marketplaceCache.setCategories(
+      organizationId,
+      nonEmptyCategories,
+      60 * 60
+    );
+
+    return nonEmptyCategories;
+  }
+
   private toExtendedCharacter(character: UserCharacter): ExtendedCharacter {
     return {
       id: character.id,

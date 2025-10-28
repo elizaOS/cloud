@@ -265,6 +265,137 @@ export class UserCharactersRepository {
       limit,
     });
   }
+
+  async searchPublic(
+    filters: Omit<SearchFilters, "myCharacters" | "deployed">,
+    sortOptions: SortOptions,
+    limit: number,
+    offset: number
+  ): Promise<UserCharacter[]> {
+    const conditions: SQL[] = [];
+
+    conditions.push(
+      or(
+        eq(userCharacters.is_template, true),
+        eq(userCharacters.is_public, true)
+      )!
+    );
+
+    if (filters.search) {
+      conditions.push(
+        or(
+          ilike(userCharacters.name, `%${filters.search}%`),
+          sql`${userCharacters.bio}::text ILIKE ${"%" + filters.search + "%"}`
+        )!
+      );
+    }
+
+    if (filters.category) {
+      conditions.push(eq(userCharacters.category, filters.category));
+    }
+
+    if (filters.hasVoice) {
+      conditions.push(
+        sql`${userCharacters.plugins}::jsonb @> '["@elizaos/plugin-elevenlabs"]'::jsonb`
+      );
+    }
+
+    if (filters.template !== undefined) {
+      conditions.push(eq(userCharacters.is_template, filters.template));
+    }
+
+    if (filters.featured !== undefined) {
+      conditions.push(eq(userCharacters.featured, filters.featured));
+    }
+
+    const { sortBy, order } = sortOptions;
+    const direction = order === "asc" ? "asc" : "desc";
+
+    let secondaryOrderBy;
+    switch (sortBy) {
+      case "popularity":
+        secondaryOrderBy =
+          direction === "asc"
+            ? userCharacters.popularity_score
+            : desc(userCharacters.popularity_score);
+        break;
+      case "newest":
+        secondaryOrderBy =
+          direction === "asc"
+            ? userCharacters.created_at
+            : desc(userCharacters.created_at);
+        break;
+      case "name":
+        secondaryOrderBy =
+          direction === "asc"
+            ? userCharacters.name
+            : desc(userCharacters.name);
+        break;
+      case "updated":
+        secondaryOrderBy =
+          direction === "asc"
+            ? userCharacters.updated_at
+            : desc(userCharacters.updated_at);
+        break;
+      default:
+        secondaryOrderBy = desc(userCharacters.popularity_score);
+    }
+
+    return await db
+      .select()
+      .from(userCharacters)
+      .where(and(...conditions))
+      .orderBy(desc(userCharacters.featured), secondaryOrderBy)
+      .limit(limit)
+      .offset(offset);
+  }
+
+  async countPublic(
+    filters: Omit<SearchFilters, "myCharacters" | "deployed">
+  ): Promise<number> {
+    const conditions: SQL[] = [];
+
+    conditions.push(
+      or(
+        eq(userCharacters.is_template, true),
+        eq(userCharacters.is_public, true)
+      )!
+    );
+
+    if (filters.search) {
+      conditions.push(
+        or(
+          ilike(userCharacters.name, `%${filters.search}%`),
+          sql`${userCharacters.bio}::text ILIKE ${"%" + filters.search + "%"}`
+        )!
+      );
+    }
+
+    if (filters.category) {
+      conditions.push(eq(userCharacters.category, filters.category));
+    }
+
+    if (filters.hasVoice) {
+      conditions.push(
+        sql`${userCharacters.plugins}::jsonb @> '["@elizaos/plugin-elevenlabs"]'::jsonb`
+      );
+    }
+
+    if (filters.template !== undefined) {
+      conditions.push(eq(userCharacters.is_template, filters.template));
+    }
+
+    if (filters.featured !== undefined) {
+      conditions.push(eq(userCharacters.featured, filters.featured));
+    }
+
+    const result = await db
+      .select({ count: sql<number>`count(*)` })
+      .from(userCharacters)
+      .where(and(...conditions));
+
+    return result[0]?.count || 0;
+  }
 }
 
 // Export singleton instance
