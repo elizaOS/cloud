@@ -156,9 +156,9 @@ export default function UserMenu() {
             >
               <Coins className="h-3.5 w-3.5" />
               <span className="font-semibold">
-                {creditBalance !== null ? creditBalance.toLocaleString() : "0"}
+                ${creditBalance !== null ? creditBalance.toFixed(2) : "0.00"}
               </span>
-              <span className="text-xs opacity-80">credits</span>
+              <span className="text-xs opacity-80">balance</span>
             </Badge>
           )}
         </div>

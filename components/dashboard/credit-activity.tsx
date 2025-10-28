@@ -26,7 +26,12 @@ export interface CreditActivityProps {
   description?: string;
 }
 
-const numberFormatter = new Intl.NumberFormat("en-US");
+const currencyFormatter = new Intl.NumberFormat("en-US", {
+  style: "currency",
+  currency: "USD",
+  minimumFractionDigits: 2,
+  maximumFractionDigits: 2,
+});
 
 export function CreditActivity({
   transactions,
@@ -97,7 +102,7 @@ export function CreditActivity({
                       )}
                     >
                       {isCredit ? "+" : ""}
-                      {numberFormatter.format(transaction.amount)}
+                      {currencyFormatter.format(transaction.amount)}
                     </span>
                   </div>
                   {index < items.length - 1 && <Separator className="my-3" />}

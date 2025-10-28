@@ -9,7 +9,12 @@ interface CostInsightsCardProps {
   creditBalance: number;
 }
 
-const numberFormatter = new Intl.NumberFormat();
+const currencyFormatter = new Intl.NumberFormat("en-US", {
+  style: "currency",
+  currency: "USD",
+  minimumFractionDigits: 2,
+  maximumFractionDigits: 2,
+});
 
 export function CostInsightsCard({
   costTrending,
@@ -62,8 +67,7 @@ export function CostInsightsCard({
                   Daily burn (last 24h)
                 </p>
                 <p className="text-2xl font-semibold text-foreground">
-                  {numberFormatter.format(costTrending.currentDailyBurn)}{" "}
-                  credits
+                  {currencyFormatter.format(costTrending.currentDailyBurn)}
                 </p>
               </div>
               <Badge
@@ -88,14 +92,13 @@ export function CostInsightsCard({
             <div className="flex items-center justify-between text-xs uppercase tracking-wide text-muted-foreground/80">
               <span>Projected monthly spend</span>
               <span>
-                {numberFormatter.format(costTrending.projectedMonthlyBurn)}{" "}
-                credits
+                {currencyFormatter.format(costTrending.projectedMonthlyBurn)}
               </span>
             </div>
             <Progress value={projectedSpendPercent} />
             <p className="text-xs text-muted-foreground">
               {projectedSpendPercent.toFixed(0)}% of current balance (
-              {numberFormatter.format(creditBalance)} credits on hand)
+              {currencyFormatter.format(creditBalance)} on hand)
             </p>
           </div>
           <div className="grid grid-cols-2 gap-4 text-sm sm:gap-5">
@@ -112,7 +115,7 @@ export function CostInsightsCard({
                 Previous daily burn
               </p>
               <p className="text-lg font-semibold text-foreground">
-                {numberFormatter.format(costTrending.previousDailyBurn)} credits
+                {currencyFormatter.format(costTrending.previousDailyBurn)}
               </p>
             </div>
           </div>

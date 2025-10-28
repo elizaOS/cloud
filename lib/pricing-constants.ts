@@ -10,13 +10,13 @@
 export const API_KEY_PREFIX_LENGTH = 12;
 
 /**
- * Credit Costs (in credits, not dollars)
+ * Service Costs (in USD, where 1 credit = $1.00)
  */
-export const IMAGE_GENERATION_COST = 100;
-export const VIDEO_GENERATION_COST = 500;
-export const VIDEO_GENERATION_FALLBACK_COST = 250;
+export const IMAGE_GENERATION_COST = 1.0;
+export const VIDEO_GENERATION_COST = 5.0;
+export const VIDEO_GENERATION_FALLBACK_COST = 2.5;
 
 /**
- * Credit Limits
+ * Credit Limits (in USD)
  */
-export const MONTHLY_CREDIT_CAP = 240;
+export const MONTHLY_CREDIT_CAP = 2.4;
