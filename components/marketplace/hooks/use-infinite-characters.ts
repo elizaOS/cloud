@@ -6,6 +6,7 @@ import type {
   MarketplaceSearchResult,
 } from "@/lib/types/marketplace";
 import { logger } from "@/lib/utils/logger";
+import { MARKETPLACE_CONFIG } from "@/lib/config/marketplace";
 
 interface UseInfiniteCharactersOptions {
   filters: SearchFilters;
@@ -78,7 +79,20 @@ export function useInfiniteCharacters({
           const result = data.data;
 
           if (append) {
-            setCharacters((prev) => [...prev, ...result.characters]);
+            setCharacters((prev) => {
+              const newCharacters = [...prev, ...result.characters];
+              const maxCached =
+                MARKETPLACE_CONFIG.infiniteScroll.maxCachedCharacters;
+              // Enforce max cache size to prevent memory issues
+              if (newCharacters.length > maxCached) {
+                logger.debug(
+                  `[useInfiniteCharacters] Max cache size reached (${newCharacters.length}). Consider resetting to page 1.`
+                );
+                // Keep only the most recent maxCached characters
+                return newCharacters.slice(-maxCached);
+              }
+              return newCharacters;
+            });
           } else {
             setCharacters(result.characters);
           }
