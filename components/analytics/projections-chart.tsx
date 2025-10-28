@@ -37,8 +37,13 @@ const chartConfig = {
   },
 } as const;
 
-const formatCurrency = (credits: number) => {
-  return `$${(credits / 100).toFixed(2)}`;
+const formatCurrency = (amount: number) => {
+  return new Intl.NumberFormat("en-US", {
+    style: "currency",
+    currency: "USD",
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  }).format(amount);
 };
 
 export function ProjectionsChart({ data }: ProjectionsChartProps) {
@@ -166,9 +171,12 @@ export function ProjectionsChart({ data }: ProjectionsChartProps) {
                   tickLine={false}
                   axisLine={false}
                   width={70}
-                  tickFormatter={(value) =>
-                    value >= 1000 ? `${(value / 1000).toFixed(1)}k` : `${value}`
-                  }
+                  tickFormatter={(value) => {
+                    if (value >= 1000) {
+                      return `$${(value / 1000).toFixed(1)}k`;
+                    }
+                    return `$${value.toFixed(0)}`;
+                  }}
                 />
                 <ChartTooltip
                   cursor={{ strokeDasharray: "4 4" }}
@@ -177,7 +185,7 @@ export function ProjectionsChart({ data }: ProjectionsChartProps) {
                       hideIndicator
                       formatter={(value) => {
                         const numeric = Number(value);
-                        return numeric.toLocaleString();
+                        return formatCurrency(numeric);
                       }}
                       labelFormatter={(_, payload) => {
                         const source = payload?.[0];

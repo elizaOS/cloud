@@ -29,7 +29,7 @@ export async function updateProfile(formData: FormData) {
     });
 
     // Revalidate cache
-    revalidateTag("user-auth", {});
+    revalidateTag("user-auth");
     revalidatePath("/dashboard/account");
 
     return {
@@ -94,7 +94,7 @@ export async function uploadAvatar(formData: FormData) {
       avatar: avatarUrl,
     });
 
-    revalidateTag("user-auth", {});
+    revalidateTag("user-auth");
     revalidatePath("/dashboard/account");
 
     return {

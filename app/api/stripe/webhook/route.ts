@@ -95,7 +95,7 @@ export async function POST(req: NextRequest) {
             stripePaymentIntentId: paymentIntentId,
           });
 
-          revalidateTag("user-auth", {});
+          revalidateTag("user-auth");
 
           console.log(
             `✓ Added ${credits} credits to organization ${organizationId} (payment intent: ${paymentIntentId})`,

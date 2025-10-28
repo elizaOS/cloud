@@ -35,7 +35,7 @@ export function CreditPackCard({
   loading = false,
 }: CreditPackCardProps) {
   const price = (priceCents / 100).toFixed(2);
-  const pricePerCredit = (priceCents / credits / 1000).toFixed(4);
+  const pricePerCredit = (priceCents / credits / 100).toFixed(3);
 
   return (
     <Card
@@ -62,14 +62,14 @@ export function CreditPackCard({
         <div>
           <div className="text-4xl font-bold">${price}</div>
           <div className="text-sm text-muted-foreground">
-            ${pricePerCredit} per 1k credits
+            ${pricePerCredit} per credit
           </div>
         </div>
 
         <div className="space-y-2">
           <div className="flex items-center gap-2 text-sm">
             <Check className="h-4 w-4 text-primary" />
-            <span>{credits.toLocaleString()} credits</span>
+            <span>${credits.toFixed(2)} in credits</span>
           </div>
           <div className="flex items-center gap-2 text-sm">
             <Check className="h-4 w-4 text-primary" />
