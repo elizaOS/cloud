@@ -43,16 +43,23 @@ export function CharacterMarketplace({
   const { searchQuery, setSearchQuery, debouncedSearchQuery } =
     useCharacterSearch();
 
-  const { characters, isLoading, isLoadingMore, hasMore, error, loadMore, refetch } =
-    useInfiniteCharacters({
-      filters: {
-        ...filters,
-        category: activeCategory || undefined,
-        search: debouncedSearchQuery || undefined,
-      },
-      sortBy,
-      includeStats: true,
-    });
+  const {
+    characters,
+    isLoading,
+    isLoadingMore,
+    hasMore,
+    error,
+    loadMore,
+    refetch,
+  } = useInfiniteCharacters({
+    filters: {
+      ...filters,
+      category: activeCategory || undefined,
+      search: debouncedSearchQuery || undefined,
+    },
+    sortBy,
+    includeStats: true,
+  });
 
   const handleStartChat = useCallback(
     async (character: ExtendedCharacter) => {
@@ -60,31 +67,34 @@ export function CharacterMarketplace({
         // Track interaction
         await fetch(
           `/api/marketplace/characters/${character.id}/track-interaction`,
-          { method: "POST" },
+          { method: "POST" }
         );
 
         onSelectCharacter(character);
-        toast.success(`Started chat with ${character.name}`);
+        // Note: Toast is shown in agent-marketplace-client.tsx to avoid duplicate
       } catch (error) {
         console.error("Error tracking interaction:", error);
         onSelectCharacter(character);
       }
     },
-    [onSelectCharacter],
+    [onSelectCharacter]
   );
 
-  const handleViewDetails = useCallback(async (character: ExtendedCharacter) => {
-    try {
-      // Track view
-      await fetch(`/api/marketplace/characters/${character.id}/track-view`, {
-        method: "POST",
-      });
-    } catch (error) {
-      console.error("Error tracking view:", error);
-    }
+  const handleViewDetails = useCallback(
+    async (character: ExtendedCharacter) => {
+      try {
+        // Track view
+        await fetch(`/api/marketplace/characters/${character.id}/track-view`, {
+          method: "POST",
+        });
+      } catch (error) {
+        console.error("Error tracking view:", error);
+      }
 
-    setSelectedCharacter(character);
-  }, []);
+      setSelectedCharacter(character);
+    },
+    []
+  );
 
   const handleClone = useCallback(
     async (character: ExtendedCharacter) => {
@@ -95,11 +105,11 @@ export function CharacterMarketplace({
       } catch (error) {
         console.error("Error cloning character:", error);
         toast.error(
-          error instanceof Error ? error.message : "Failed to clone character",
+          error instanceof Error ? error.message : "Failed to clone character"
         );
       }
     },
-    [onCloneCharacter, refetch],
+    [onCloneCharacter, refetch]
   );
 
   if (isCollapsed) {

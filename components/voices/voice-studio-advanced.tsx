@@ -1,0 +1,656 @@
+"use client";
+
+import { useState, useCallback } from "react";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
+import { ScrollArea } from "@/components/ui/scroll-area";
+import { Separator } from "@/components/ui/separator";
+import { Alert, AlertDescription } from "@/components/ui/alert";
+import {
+  Mic,
+  Sparkles,
+  Play,
+  Trash2,
+  ExternalLink,
+  BarChart3,
+  Loader2,
+  AlertCircle,
+} from "lucide-react";
+import { VoiceCloneForm } from "./voice-clone-form";
+import { VoiceAudioPlayer } from "./voice-audio-player";
+import {
+  VoiceStatusBadge,
+  getEstimatedReadyMessage,
+} from "./voice-status-badge";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
+import { formatDistanceToNow } from "date-fns";
+import { toast } from "sonner";
+import { useRouter } from "next/navigation";
+
+interface Voice {
+  id: string;
+  elevenlabsVoiceId: string;
+  name: string;
+  description: string | null;
+  cloneType: "instant" | "professional";
+  sampleCount: number;
+  usageCount: number;
+  isActive: boolean;
+  createdAt: Date | string;
+  lastUsedAt?: Date | string | null;
+  audioQualityScore?: string | null;
+  totalAudioDurationSeconds?: number | null;
+  status?: "processing" | "completed" | "failed";
+  jobId?: string;
+}
+
+interface VoiceStudioAdvancedProps {
+  initialVoices: Voice[];
+  creditBalance: number;
+  onCreditBalanceChange: (balance: number) => void;
+}
+
+export function VoiceStudioAdvanced({
+  initialVoices,
+  creditBalance,
+  onCreditBalanceChange,
+}: VoiceStudioAdvancedProps) {
+  const router = useRouter();
+  const [voices, setVoices] = useState<Voice[]>(initialVoices);
+  const [selectedVoice, setSelectedVoice] = useState<Voice | null>(
+    voices[0] || null
+  );
+  const [previewVoice, setPreviewVoice] = useState<Voice | null>(null);
+  const [previewAudioUrl, setPreviewAudioUrl] = useState<string | null>(null);
+  const [isLoadingPreview, setIsLoadingPreview] = useState(false);
+  const [deleteDialogVoice, setDeleteDialogVoice] = useState<Voice | null>(
+    null
+  );
+  const [isDeleting, setIsDeleting] = useState(false);
+  const [isRefreshing, setIsRefreshing] = useState(false);
+
+  // Manual refresh function
+  const manualRefresh = useCallback(async () => {
+    setIsRefreshing(true);
+    try {
+      const response = await fetch("/api/elevenlabs/voices/user");
+      if (response.ok) {
+        const data = await response.json();
+        if (data.success) {
+          setVoices(data.voices);
+          toast.success("Voices refreshed");
+        }
+      }
+    } catch (error) {
+      toast.error("Failed to refresh voices");
+      console.error("Refresh error:", error);
+    } finally {
+      setIsRefreshing(false);
+    }
+  }, []);
+
+  const handleVoiceCreated = (newVoice: Voice) => {
+    // Check if it's a professional clone (will be processing)
+    if (newVoice.cloneType === "professional") {
+      toast.success(
+        `Voice "${newVoice.name}" is being processed. This may take 30-60 minutes. Refresh the page to check status.`,
+        { duration: 8000 }
+      );
+      // Add with processing status
+      setVoices([{ ...newVoice, status: "processing" }, ...voices]);
+    } else {
+      toast.success(
+        `Voice "${newVoice.name}" created successfully and ready to use!`
+      );
+      setVoices([newVoice, ...voices]);
+      setSelectedVoice(newVoice);
+    }
+  };
+
+  const handlePreview = async (voice: Voice) => {
+    // Check if professional voice is still processing based on time
+    const minutesElapsed = Math.max(
+      0,
+      (new Date().getTime() - new Date(voice.createdAt).getTime()) / 1000 / 60
+    );
+    const isProcessing =
+      voice.cloneType === "professional" && minutesElapsed < 30;
+
+    if (isProcessing) {
+      toast.error(
+        "Voice is still being processed. Professional voice clones typically take 30-60 minutes. Please check back later.",
+        { duration: 6000 }
+      );
+      return;
+    }
+
+    if (!voice.elevenlabsVoiceId) {
+      toast.error("Voice ID not available. Voice may still be processing.");
+      return;
+    }
+
+    setPreviewVoice(voice);
+    setIsLoadingPreview(true);
+
+    try {
+      const response = await fetch("/api/elevenlabs/tts", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          text: "Hello! This is a preview of your custom voice clone.",
+          voiceId: voice.elevenlabsVoiceId,
+        }),
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || "Failed to generate preview");
+      }
+
+      const blob = await response.blob();
+      const url = URL.createObjectURL(blob);
+      setPreviewAudioUrl(url);
+    } catch (error) {
+      toast.error(
+        error instanceof Error ? error.message : "Failed to load voice preview"
+      );
+      console.error("Preview error:", error);
+      setPreviewVoice(null);
+    } finally {
+      setIsLoadingPreview(false);
+    }
+  };
+
+  const handleDelete = async (voice: Voice) => {
+    setIsDeleting(true);
+    try {
+      const response = await fetch(`/api/elevenlabs/voices/${voice.id}`, {
+        method: "DELETE",
+      });
+
+      if (!response.ok) throw new Error("Failed to delete voice");
+
+      toast.success("Voice deleted successfully");
+      setVoices(voices.filter((v) => v.id !== voice.id));
+      if (selectedVoice?.id === voice.id) {
+        setSelectedVoice(voices[0] || null);
+      }
+      setDeleteDialogVoice(null);
+    } catch (error) {
+      toast.error(
+        error instanceof Error ? error.message : "Failed to delete voice"
+      );
+    } finally {
+      setIsDeleting(false);
+    }
+  };
+
+  const handleUseInTTS = (voice: Voice) => {
+    router.push(`/dashboard/text?voiceId=${voice.elevenlabsVoiceId}`);
+  };
+
+  const formatDuration = (seconds: number | null) => {
+    if (!seconds) return "N/A";
+    const mins = Math.floor(seconds / 60);
+    const secs = Math.floor(seconds % 60);
+    return `${mins}:${secs.toString().padStart(2, "0")}`;
+  };
+
+  // Count professional voices
+  const professionalVoiceCount = voices.filter(
+    (v) => v.cloneType === "professional"
+  ).length;
+  const professionalVoicesRemaining = Math.max(0, 1 - professionalVoiceCount);
+
+  return (
+    <div className="grid gap-6 md:grid-cols-[minmax(420px,480px)_minmax(0,1fr)] h-[calc(100vh-180px)]">
+      {/* Left Panel - Creation Form */}
+      <div className="flex flex-col max-h-full">
+        <VoiceCloneForm
+          creditBalance={creditBalance}
+          onSuccess={handleVoiceCreated}
+          onCreditBalanceChange={onCreditBalanceChange}
+        />
+      </div>
+
+      {/* Right Panel - Voice Library */}
+      <div className="flex flex-col max-h-full overflow-hidden">
+        <Card className="border-border/60 bg-background/70 flex flex-col h-full overflow-hidden">
+          <CardHeader className="shrink-0">
+            <div className="flex items-center justify-between">
+              <div className="flex-1">
+                <CardTitle className="text-xl font-semibold">
+                  Voice Library
+                </CardTitle>
+                <CardDescription>
+                  {voices.length} voice{voices.length !== 1 ? "s" : ""}
+                  {voices.some((v) => {
+                    const mins = Math.max(
+                      0,
+                      (new Date().getTime() - new Date(v.createdAt).getTime()) /
+                        1000 /
+                        60
+                    );
+                    return v.cloneType === "professional" && mins < 60;
+                  }) && " • Some may still be processing"}
+                </CardDescription>
+              </div>
+              <div className="flex items-center gap-2">
+                <Badge variant="outline" className="flex items-center gap-1">
+                  <BarChart3 className="h-3 w-3" />
+                  {voices.reduce((sum, v) => sum + v.usageCount, 0)} uses
+                </Badge>
+                <Badge
+                  variant={
+                    professionalVoicesRemaining === 0 ? "secondary" : "outline"
+                  }
+                  className={
+                    professionalVoicesRemaining === 0
+                      ? "border-amber-500/50 bg-amber-500/10 text-amber-600"
+                      : ""
+                  }
+                  title="Professional voice slots (ElevenLabs limitation)"
+                >
+                  Pro: {professionalVoiceCount}/1
+                </Badge>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={manualRefresh}
+                  disabled={isRefreshing}
+                  className="h-8"
+                >
+                  {isRefreshing ? (
+                    <Loader2 className="h-3 w-3 animate-spin" />
+                  ) : (
+                    "Refresh"
+                  )}
+                </Button>
+              </div>
+            </div>
+          </CardHeader>
+
+          <Separator className="shrink-0" />
+
+          <CardContent className="flex-1 p-0 overflow-hidden">
+            {voices.length === 0 ? (
+              <div className="flex flex-col items-center justify-center h-full py-12 px-6 text-center">
+                <div className="rounded-full bg-primary/10 p-6 mb-4">
+                  <Mic className="h-10 w-10 text-primary" />
+                </div>
+                <h3 className="text-lg font-semibold mb-2">No voices yet</h3>
+                <p className="text-sm text-muted-foreground max-w-sm">
+                  Create your first voice clone using the form on the left.
+                  Upload audio or record your voice to get started.
+                </p>
+              </div>
+            ) : (
+              <ScrollArea className="h-full">
+                <div className="p-6 space-y-6 pb-12">
+                  {/* All Voices (processing status shown via badge) */}
+                  {voices.map((voice) => {
+                    const now = new Date();
+                    return (
+                      <Card
+                        key={voice.id}
+                        className={`cursor-pointer transition-all hover:shadow-md ${
+                          selectedVoice?.id === voice.id
+                            ? "ring-2 ring-primary"
+                            : ""
+                        }`}
+                        onClick={() => setSelectedVoice(voice)}
+                      >
+                        <CardHeader className="pb-3">
+                          <div className="flex items-start justify-between">
+                            <div className="flex-1 min-w-0">
+                              <CardTitle className="text-base truncate">
+                                {voice.name}
+                              </CardTitle>
+                              <CardDescription className="line-clamp-1 text-xs">
+                                {voice.description || "No description"}
+                              </CardDescription>
+                            </div>
+                            <div className="ml-2 shrink-0">
+                              <VoiceStatusBadge voice={voice} />
+                            </div>
+                          </div>
+                        </CardHeader>
+
+                        <CardContent className="pb-3 space-y-3">
+                          {/* Stats */}
+                          <div className="grid grid-cols-3 gap-2 text-xs">
+                            <div className="flex flex-col">
+                              <span className="text-muted-foreground">
+                                Uses
+                              </span>
+                              <span className="font-medium">
+                                {voice.usageCount}
+                              </span>
+                            </div>
+                            <div className="flex flex-col">
+                              <span className="text-muted-foreground">
+                                Samples
+                              </span>
+                              <span className="font-medium">
+                                {voice.sampleCount}
+                              </span>
+                            </div>
+                            {voice.audioQualityScore && (
+                              <div className="flex flex-col">
+                                <span className="text-muted-foreground">
+                                  Quality
+                                </span>
+                                <span className="font-medium">
+                                  {voice.audioQualityScore}/10
+                                </span>
+                              </div>
+                            )}
+                          </div>
+
+                          {/* Metadata & Status */}
+                          <div className="pt-2 border-t space-y-2">
+                            {/* Processing Status Message */}
+                            {(() => {
+                              const mins = Math.max(
+                                0,
+                                (now.getTime() -
+                                  new Date(voice.createdAt).getTime()) /
+                                  1000 /
+                                  60
+                              );
+                              const isProcessing =
+                                voice.cloneType === "professional" && mins < 60;
+
+                              if (isProcessing) {
+                                let message = "";
+                                if (mins < 30) {
+                                  message =
+                                    "Processing... Professional voices typically take 30-60 minutes.";
+                                } else {
+                                  message =
+                                    "Finalizing... Click Refresh to check if ready.";
+                                }
+
+                                return (
+                                  <Alert variant="default" className="py-2">
+                                    <AlertCircle className="h-3 w-3" />
+                                    <AlertDescription className="text-xs">
+                                      {message}
+                                    </AlertDescription>
+                                  </Alert>
+                                );
+                              }
+                              return null;
+                            })()}
+                          </div>
+
+                          {/* Actions */}
+                          <div className="flex gap-2 pt-2">
+                            {(() => {
+                              const mins = Math.max(
+                                0,
+                                (now.getTime() -
+                                  new Date(voice.createdAt).getTime()) /
+                                  1000 /
+                                  60
+                              );
+                              const isProcessing =
+                                voice.cloneType === "professional" && mins < 60;
+
+                              return (
+                                <>
+                                  <Button
+                                    variant="outline"
+                                    size="sm"
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      handlePreview(voice);
+                                    }}
+                                    disabled={isProcessing}
+                                    className="flex-1 h-8 text-xs"
+                                    title={
+                                      isProcessing
+                                        ? getEstimatedReadyMessage(voice)
+                                        : "Preview voice"
+                                    }
+                                  >
+                                    <Play className="mr-1 h-3 w-3" />
+                                    Preview
+                                  </Button>
+                                  <Button
+                                    variant="default"
+                                    size="sm"
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      handleUseInTTS(voice);
+                                    }}
+                                    disabled={isProcessing}
+                                    className="flex-1 h-8 text-xs"
+                                    title={
+                                      isProcessing
+                                        ? "Voice not ready yet"
+                                        : "Use in text-to-speech"
+                                    }
+                                  >
+                                    <ExternalLink className="mr-1 h-3 w-3" />
+                                    Use in TTS
+                                  </Button>
+                                  <Button
+                                    variant="ghost"
+                                    size="sm"
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      setDeleteDialogVoice(voice);
+                                    }}
+                                    className="h-8 px-2 text-destructive hover:text-destructive hover:bg-destructive/10"
+                                  >
+                                    <Trash2 className="h-3 w-3" />
+                                  </Button>
+                                </>
+                              );
+                            })()}
+                          </div>
+                        </CardContent>
+                      </Card>
+                    );
+                  })}
+
+                  {/* Voice Insights - Scrollable with the voices */}
+                  {selectedVoice && (
+                    <>
+                      <Separator className="my-6" />
+                      <div className="pb-4">
+                        <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground mb-3">
+                          <Sparkles className="h-4 w-4" />
+                          Voice Insights
+                        </div>
+                        <div className="grid gap-3 rounded-lg bg-muted/20 p-4 text-xs">
+                          <div className="flex items-center justify-between gap-2">
+                            <span className="text-muted-foreground">
+                              Clone Type
+                            </span>
+                            <span className="font-medium capitalize">
+                              {selectedVoice.cloneType}
+                            </span>
+                          </div>
+                          <div className="flex items-center justify-between gap-2">
+                            <span className="text-muted-foreground">
+                              Voice ID
+                            </span>
+                            <span
+                              className="font-mono text-xs truncate max-w-[180px]"
+                              title={selectedVoice.elevenlabsVoiceId}
+                            >
+                              {selectedVoice.elevenlabsVoiceId}
+                            </span>
+                          </div>
+                          <div className="flex items-center justify-between gap-2">
+                            <span className="text-muted-foreground">
+                              Usage Count
+                            </span>
+                            <span className="font-medium">
+                              {selectedVoice.usageCount} times
+                            </span>
+                          </div>
+                          <div className="flex items-center justify-between gap-2">
+                            <span className="text-muted-foreground">
+                              Sample Files
+                            </span>
+                            <span className="font-medium">
+                              {selectedVoice.sampleCount} files
+                            </span>
+                          </div>
+                          <div className="flex items-center justify-between gap-2">
+                            <span className="text-muted-foreground">
+                              Total Duration
+                            </span>
+                            <span className="font-medium">
+                              {formatDuration(
+                                selectedVoice.totalAudioDurationSeconds ?? null
+                              )}
+                            </span>
+                          </div>
+                          {selectedVoice.audioQualityScore && (
+                            <div className="flex items-center justify-between gap-2">
+                              <span className="text-muted-foreground">
+                                Quality Score
+                              </span>
+                              <span className="font-medium">
+                                {selectedVoice.audioQualityScore}/10
+                              </span>
+                            </div>
+                          )}
+                          <div className="flex items-center justify-between gap-2">
+                            <span className="text-muted-foreground">
+                              Created
+                            </span>
+                            <span className="font-medium">
+                              {formatDistanceToNow(
+                                new Date(selectedVoice.createdAt),
+                                {
+                                  addSuffix: true,
+                                }
+                              )}
+                            </span>
+                          </div>
+                          {selectedVoice.lastUsedAt && (
+                            <div className="flex items-center justify-between gap-2">
+                              <span className="text-muted-foreground">
+                                Last Used
+                              </span>
+                              <span className="font-medium">
+                                {formatDistanceToNow(
+                                  new Date(selectedVoice.lastUsedAt),
+                                  {
+                                    addSuffix: true,
+                                  }
+                                )}
+                              </span>
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    </>
+                  )}
+                </div>
+              </ScrollArea>
+            )}
+          </CardContent>
+        </Card>
+      </div>
+
+      {/* Preview Dialog */}
+      <Dialog
+        open={!!previewVoice}
+        onOpenChange={() => {
+          if (previewAudioUrl) {
+            URL.revokeObjectURL(previewAudioUrl);
+          }
+          setPreviewVoice(null);
+          setPreviewAudioUrl(null);
+        }}
+      >
+        <DialogContent className="sm:max-w-[500px]">
+          <DialogHeader>
+            <DialogTitle>{previewVoice?.name}</DialogTitle>
+            <DialogDescription>
+              {previewVoice?.description || "Voice preview"}
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-4">
+            {isLoadingPreview ? (
+              <div className="flex items-center justify-center py-8">
+                <Loader2 className="h-8 w-8 animate-spin text-primary" />
+              </div>
+            ) : previewAudioUrl ? (
+              <div className="p-4 rounded-lg bg-muted">
+                <p className="text-sm text-muted-foreground mb-3">
+                  Preview Text: &ldquo;Hello! This is a preview of your custom
+                  voice clone.&rdquo;
+                </p>
+                <VoiceAudioPlayer audioUrl={previewAudioUrl} />
+              </div>
+            ) : (
+              <div className="text-center text-muted-foreground py-8">
+                Failed to load audio preview
+              </div>
+            )}
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Delete Confirmation */}
+      <AlertDialog
+        open={!!deleteDialogVoice}
+        onOpenChange={() => setDeleteDialogVoice(null)}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete Voice Clone?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Are you sure you want to delete &ldquo;
+              {deleteDialogVoice?.name}&rdquo;? This action cannot be undone and
+              the voice will be permanently removed.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={isDeleting}>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={() =>
+                deleteDialogVoice && handleDelete(deleteDialogVoice)
+              }
+              disabled={isDeleting}
+              className="bg-destructive hover:bg-destructive/90"
+            >
+              {isDeleting ? "Deleting..." : "Delete Voice"}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+    </div>
+  );
+}
