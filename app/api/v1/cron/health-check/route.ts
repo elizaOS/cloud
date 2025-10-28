@@ -6,7 +6,7 @@ export const dynamic = "force-dynamic";
 export const maxDuration = 60;
 
 /**
- * POST /api/v1/cron/health-check
+ * Health check cron handler
  * Serverless-compatible health check endpoint
  *
  * This endpoint should be called by a cron service (e.g., Vercel Cron, GitHub Actions)
@@ -22,7 +22,7 @@ export const maxDuration = 60;
  *   }]
  * }
  */
-export async function POST(request: NextRequest) {
+async function handleHealthCheck(request: NextRequest) {
   try {
     const authHeader = request.headers.get("authorization");
     const cronSecret = process.env.CRON_SECRET;
@@ -104,4 +104,20 @@ export async function POST(request: NextRequest) {
       { status: 500 },
     );
   }
+}
+
+/**
+ * GET /api/v1/cron/health-check
+ * Vercel cron jobs use GET by default
+ */
+export async function GET(request: NextRequest) {
+  return handleHealthCheck(request);
+}
+
+/**
+ * POST /api/v1/cron/health-check
+ * Support POST for manual testing and other cron services
+ */
+export async function POST(request: NextRequest) {
+  return handleHealthCheck(request);
 }
