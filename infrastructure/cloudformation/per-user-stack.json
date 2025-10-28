@@ -27,12 +27,12 @@
     "ContainerCpu": {
       "Type": "Number",
       "Default": 1792,
-      "Description": "CPU units (1792 = 1.75 vCPU, 87.5% of t4g.micro 2 vCPUs)"
+      "Description": "CPU units (1792 = 1.75 vCPU, 87.5% of t4g.small 2 vCPUs)"
     },
     "ContainerMemory": {
       "Type": "Number",
-      "Default": 896,
-      "Description": "Memory in MB (896 MB = 87.5% of t4g.micro 1 GiB)"
+      "Default": 1792,
+      "Description": "Memory in MB (1792 MB = 1.75 GiB, 87.5% of t4g.small 2 GiB)"
     },
     "SharedVPCId": {
       "Type": "String",
@@ -88,11 +88,11 @@
   "Mappings": {
     "ArchitectureConfig": {
       "arm64": {
-        "InstanceType": "t4g.micro",
+        "InstanceType": "t4g.small",
         "AMIParameter": "/aws/service/ecs/optimized-ami/amazon-linux-2/arm64/recommended/image_id"
       },
       "x86_64": {
-        "InstanceType": "t3.micro",
+        "InstanceType": "t3.small",
         "AMIParameter": "/aws/service/ecs/optimized-ami/amazon-linux-2/recommended/image_id"
       }
     }

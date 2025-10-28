@@ -11,12 +11,12 @@
 This infrastructure enables **ElizaOS project deployment to AWS** via `elizaos deploy` CLI command:
 
 - **Architecture**: 1 user = 1 dedicated EC2 instance + 1 ECS container
-  - **ARM64**: t4g.micro (AWS Graviton2, $9.63/month) - Recommended for cost savings
-  - **x86_64**: t3.micro (Intel/AMD, $11.09/month) - Universal compatibility
+  - **ARM64**: t4g.small (AWS Graviton2, $15.76/month) - Recommended for cost savings
+  - **x86_64**: t3.small (Intel/AMD, $18.68/month) - Universal compatibility
   - Automatically selected based on Docker image platform
 - **Shared Resources**: VPC, ALB, IAM roles (deployed once via `deploy-shared.sh`)
 - **Per-User Resources**: EC2, ECS cluster/service, target group, CloudFormation stack
-- **Cost**: $9.63-11.09/month per container + $21-36/month shared infrastructure
+- **Cost**: $15.76-18.68/month per container + $21-36/month shared infrastructure
 - **Monitoring**: CloudWatch logs and metrics via API and UI dashboard
 - **Database**: PostgreSQL tables for containers and ALB priority tracking
 - **Automation**: Hourly cron job for ALB priority cleanup (configured in `vercel.json`)
@@ -31,13 +31,13 @@ This infrastructure enables **ElizaOS project deployment to AWS** via `elizaos d
 **1 User = 1 EC2 Instance + 1 ECS Container (Multi-Architecture Support)**
 
 - ✅ **EC2 launch type** (no Fargate) - Supports both ARM64 and x86_64
-  - **ARM64**: t4g.micro (AWS Graviton2) - 20-40% more cost-effective
-  - **x86_64**: t3.micro (Intel/AMD) - Universal compatibility
+  - **ARM64**: t4g.small (AWS Graviton2) - 20-40% more cost-effective
+  - **x86_64**: t3.small (Intel/AMD) - Universal compatibility
   - Automatic instance type selection based on Docker image platform
 - ✅ No auto-scaling (fixed single instance per user)
 - ✅ Simple, cost-effective deployment via CloudFormation
 - ✅ Shared Application Load Balancer (ALB) with unique routing rules per user
-- ✅ Optimized resource allocation: 1792 CPU units / 896 MB (87.5% of instance capacity)
+- ✅ Optimized resource allocation: 1792 CPU units / 1792 MB (87.5% of instance capacity)
 - ✅ CloudWatch monitoring, metrics, and logs integrated
 - ✅ Sequential ALB priority allocation with database tracking
 
@@ -176,13 +176,13 @@ curl http://ec2-xx-xxx-xxx-xxx.compute-1.amazonaws.com:3000/health
 │            Per-User Stack (Deploy Per User)              │
 ├─────────────────────────────────────────────────────────┤
 │  • 1x EC2 instance (auto-selected based on platform):  │
-│    - ARM64: t4g.micro (2 vCPU Graviton2, 1 GiB RAM)   │
-│    - x86_64: t3.micro (2 vCPU Intel/AMD, 1 GiB RAM)   │
+│    - ARM64: t4g.small (2 vCPU Graviton2, 2 GiB RAM)   │
+│    - x86_64: t3.small (2 vCPU Intel/AMD, 2 GiB RAM)   │
 │  • ECS Cluster (EC2 launch type, Container Insights)   │
 │  • ECS Task Definition:                                 │
 │    - CPU: 1792 units (1.75 vCPU, 87.5% utilization)   │
-│    - Memory: 896 MB (87.5% utilization)                │
-│    - Overhead: 256 CPU + 128 MB (ECS agent + OS)      │
+│    - Memory: 1792 MB (1.75 GiB, 87.5% utilization)    │
+│    - Overhead: 256 CPU + 256 MB (ECS agent + OS)      │
 │  • ECS Service (desired count: 1, circuit breaker)     │
 │  • ALB Target Group + Unique Listener Rule             │
 │  • Security Group (allows ALB traffic only)             │
@@ -193,7 +193,7 @@ curl http://ec2-xx-xxx-xxx-xxx.compute-1.amazonaws.com:3000/health
 │    - High CPU (>80%)                                    │
 │    - High memory (>80%)                                 │
 │                                                          │
-│  Cost: $9.63-11.09/month per user (architecture dependent) │
+│  Cost: $15.76-18.68/month per user (architecture dependent) │
 └─────────────────────────────────────────────────────────┘
                           │
                           ▼
@@ -485,16 +485,16 @@ elizaos deploy --name test-container
 
 ✅ **`per-user-stack.json`** - Per-user resources (deploy per container)
   - EC2 instance (multi-architecture support):
-    - ARM64: t4g.micro (2 vCPU Graviton2, 1 GiB RAM, ~$6.05/month)
-    - x86_64: t3.micro (2 vCPU Intel/AMD, 1 GiB RAM, ~$7.49/month)
+    - ARM64: t4g.small (2 vCPU Graviton2, 2 GiB RAM, ~$12.26/month)
+    - x86_64: t3.small (2 vCPU Intel/AMD, 2 GiB RAM, ~$15.18/month)
   - ECS cluster with EC2 launch type
-  - ECS task definition (1792 CPU / 896 MB - 87.5% utilization)
+  - ECS task definition (1792 CPU / 1792 MB - 87.5% utilization)
   - ECS service with rolling deployment
   - ALB target group with health checks (/health endpoint)
   - ALB listener rule with unique priority (sequential allocation)
   - Security group (allows ALB → container traffic only)
   - CloudWatch log group (/ecs/elizaos-user-{userId})
-  - Cost: $9.63-11.09/month per user (architecture dependent)
+  - Cost: $15.76-18.68/month per user (architecture dependent)
 
 **Deployment Scripts**:
 
@@ -726,18 +726,18 @@ Duration: 10-15 minutes
 
 ### Multi-Architecture Instance Specs
 
-#### ARM64: t4g.micro (AWS Graviton2) - Recommended ⭐
+#### ARM64: t4g.small (AWS Graviton2) - Recommended ⭐
 
 - **CPU**: 2 vCPU (ARM64 Graviton2) = 2048 ECS CPU units
-- **RAM**: 1 GiB = 1024 MB
-- **Cost**: $0.0084/hour = **$6.13/month** (on-demand pricing, 730 hours/month)
+- **RAM**: 2 GiB = 2048 MB
+- **Cost**: $0.0168/hour = **$12.26/month** (on-demand pricing, 730 hours/month)
 - **Best for**: Cost optimization, most workloads
 
-#### x86_64: t3.micro (Intel/AMD) - Universal Compatibility
+#### x86_64: t3.small (Intel/AMD) - Universal Compatibility
 
 - **CPU**: 2 vCPU (Intel/AMD) = 2048 ECS CPU units
-- **RAM**: 1 GiB = 1024 MB
-- **Cost**: $0.0104/hour = **$7.59/month** (on-demand pricing, 730 hours/month)
+- **RAM**: 2 GiB = 2048 MB
+- **Cost**: $0.0208/hour = **$15.18/month** (on-demand pricing, 730 hours/month)
 - **Best for**: x86-only dependencies, legacy compatibility
 
 ### Container Allocation (Optimized ✅)
@@ -745,22 +745,22 @@ Duration: 10-15 minutes
 | Component          | Units    | Percentage | Notes                     |
 | ------------------ | -------- | ---------- | ------------------------- |
 | **Container Task** | 1792 CPU | 87.5%      | Maximum for user workload |
-| **Container Task** | 896 MB   | 87.5%      | Maximum for user workload |
+| **Container Task** | 1792 MB  | 87.5%      | Maximum for user workload |
 | **ECS Agent + OS** | 256 CPU  | 12.5%      | Required overhead         |
-| **ECS Agent + OS** | 128 MB   | 12.5%      | Required overhead         |
+| **ECS Agent + OS** | 256 MB   | 12.5%      | Required overhead         |
 | **Total**          | 2048 CPU | 100%       | Fully utilized ✅         |
-| **Total**          | 1024 MB  | 100%       | Fully utilized ✅         |
+| **Total**          | 2048 MB  | 100%       | Fully utilized ✅         |
 
 **Why 87.5%?**
 
-- You pay for the **full micro instance** regardless of container allocation
-- ECS agent + OS overhead needs ~256 CPU and 128 MB minimum
-- Allocating 1792/896 to container maximizes value for users
+- You pay for the **full small instance** regardless of container allocation
+- ECS agent + OS overhead needs ~256 CPU and 256 MB minimum
+- Allocating 1792/1792 to container maximizes value for users
 - No performance penalty since each instance is dedicated to one user
 
 **Architecture Selection**: Automatic based on Docker image platform:
-- `linux/arm64` image → t4g.micro (ARM64)
-- `linux/amd64` image → t3.micro (x86_64)
+- `linux/arm64` image → t4g.small (ARM64)
+- `linux/amd64` image → t3.small (x86_64)
 
 ---
 
@@ -1089,53 +1089,53 @@ bash teardown-all-user-stacks.sh
 
 ### Per-User Container (Variable Cost)
 
-#### ARM64 (t4g.micro) - Recommended ⭐
+#### ARM64 (t4g.small) - Recommended ⭐
 
 | Component             | Monthly Cost | Notes               |
 | --------------------- | ------------ | ------------------- |
-| EC2 t4g.micro (24/7)  | $6.13        | $0.0084/hour × 730 hours    |
+| EC2 t4g.small (24/7)  | $12.26       | $0.0168/hour × 730 hours    |
 | EBS 35GB gp3          | $2.80        | 3000 IOPS, 125 MB/s |
 | CloudWatch Logs (5GB) | $0.50        | 7 day retention     |
 | Container Insights    | $0.20        | Enhanced metrics    |
-| **Total**             | **$9.63**    | Fixed per container |
+| **Total**             | **$15.76**   | Fixed per container |
 
-#### x86_64 (t3.micro) - Universal Compatibility
+#### x86_64 (t3.small) - Universal Compatibility
 
 | Component             | Monthly Cost | Notes               |
 | --------------------- | ------------ | ------------------- |
-| EC2 t3.micro (24/7)   | $7.59        | $0.0104/hour × 730 hours |
+| EC2 t3.small (24/7)   | $15.18       | $0.0208/hour × 730 hours |
 | EBS 35GB gp3          | $2.80        | 3000 IOPS, 125 MB/s |
 | CloudWatch Logs (5GB) | $0.50        | 7 day retention     |
 | Container Insights    | $0.20        | Enhanced metrics    |
-| **Total**             | **$11.09**   | Fixed per container |
+| **Total**             | **$18.68**   | Fixed per container |
 
-**💰 Savings with ARM64**: $1.46/month per container (13.2% reduction)
+**💰 Savings with ARM64**: $2.92/month per container (15.6% reduction)
 
 ### Scaling Economics
 
-#### ARM64 (t4g.micro) - Recommended
+#### ARM64 (t4g.small) - Recommended
 
 | Users | Infrastructure | Per-User | Total/Month | Cost/User |
 | ----- | -------------- | -------- | ----------- | --------- |
-| 1     | $36            | $9.63    | **$45.63**  | $45.63    |
-| 10    | $36            | $9.63    | **$132.30** | $13.23    |
-| 50    | $36            | $9.63    | **$517.50** | $10.35    |
-| 100   | $36            | $9.63    | **$999**    | $9.99     |
-| 500   | $36            | $9.63    | **$4,851**  | $9.70     |
-| 1000  | $36            | $9.63    | **$9,666**  | $9.67     |
+| 1     | $36            | $15.76   | **$51.76**  | $51.76    |
+| 10    | $36            | $15.76   | **$193.60** | $19.36    |
+| 50    | $36            | $15.76   | **$824.00** | $16.48    |
+| 100   | $36            | $15.76   | **$1,612**  | $16.12    |
+| 500   | $36            | $15.76   | **$7,916**  | $15.83    |
+| 1000  | $36            | $15.76   | **$15,796** | $15.80    |
 
-#### x86_64 (t3.micro) - Universal Compatibility
+#### x86_64 (t3.small) - Universal Compatibility
 
-| Users | Infrastructure | Per-User | Total/Month | Cost/User |
-| ----- | -------------- | -------- | ----------- | --------- |
-| 1     | $36            | $11.09   | **$47.09**  | $47.09    |
-| 10    | $36            | $11.09   | **$146.90** | $14.69    |
-| 50    | $36            | $11.09   | **$590.50** | $11.81    |
-| 100   | $36            | $11.09   | **$1,145**  | $11.45    |
-| 500   | $36            | $11.09   | **$5,581**  | $11.16    |
-| 1000  | $36            | $11.09   | **$11,126** | $11.13    |
+| Users | Infrastructure | Per-User | Total/Month  | Cost/User |
+| ----- | -------------- | -------- | ------------ | --------- |
+| 1     | $36            | $18.68   | **$54.68**   | $54.68    |
+| 10    | $36            | $18.68   | **$222.80**  | $22.28    |
+| 50    | $36            | $18.68   | **$970.00**  | $19.40    |
+| 100   | $36            | $18.68   | **$1,904**   | $19.04    |
+| 500   | $36            | $18.68   | **$9,376**   | $18.75    |
+| 1000  | $36            | $18.68   | **$18,716**  | $18.72    |
 
-**Key insight**: Cost approaches per-user price at scale. ARM64 saves $1.46/container/month (13.2% reduction).
+**Key insight**: Cost approaches per-user price at scale. ARM64 saves $2.92/container/month (15.6% reduction).
 
 ### Revenue Model (Recommended)
 

@@ -654,8 +654,8 @@ BLOB_READ_WRITE_TOKEN=vercel_blob_rw_your_token
 - Deploy ElizaOS projects via `elizaos deploy` CLI
 - **Multi-project support**: Deploy multiple different projects per user
 - **Multi-architecture support**: Auto-detects platform and deploys to matching AWS instance type
-  - **ARM64**: t4g.micro (AWS Graviton2, $9.63/month) - Recommended for cost savings
-  - **x86_64**: t3.micro (Intel/AMD, $11.09/month) - Universal compatibility
+  - **ARM64**: t4g.small (AWS Graviton2, $15.76/month) - Recommended for cost savings
+  - **x86_64**: t3.small (Intel/AMD, $18.68/month) - Universal compatibility
 - **Smart update detection**: Automatically detects and updates existing deployments
 - Docker-based deployments to AWS ECS (Elastic Container Service)
 - ECR (Elastic Container Registry) for Docker image storage with project-specific repositories
@@ -709,19 +709,19 @@ elizaos deploy --project-name chatbot  # Auto-detected as update
 
 **Instance Specs (Auto-Selected)**:
 
-**ARM64 (t4g.micro - Recommended)**:
+**ARM64 (t4g.small - Recommended)**:
 - **2 vCPUs** (ARM Graviton2)
-- **1 GiB RAM** (1024 MB)
-- **$9.63/month** ($6.13 instance + $3.50 storage/monitoring)
-- Default container allocation: 1.75 vCPU (1792 units), 896 MB RAM (87.5% of instance)
+- **2 GiB RAM** (2048 MB)
+- **$15.76/month** ($12.26 instance + $3.50 storage/monitoring)
+- Default container allocation: 1.75 vCPU (1792 units), 1.75 GiB RAM (1792 MB, 87.5% of instance)
 
-**x86_64 (t3.micro - Universal)**:
+**x86_64 (t3.small - Universal)**:
 - **2 vCPUs** (Intel/AMD)
-- **1 GiB RAM** (1024 MB)
-- **$11.09/month** ($7.59 instance + $3.50 storage/monitoring)
-- Default container allocation: 1.75 vCPU (1792 units), 896 MB RAM (87.5% of instance)
+- **2 GiB RAM** (2048 MB)
+- **$18.68/month** ($15.18 instance + $3.50 storage/monitoring)
+- Default container allocation: 1.75 vCPU (1792 units), 1.75 GiB RAM (1792 MB, 87.5% of instance)
 
-Platform is automatically detected from your system. ARM64 provides better cost efficiency ($1.46/month savings) while x86_64 ensures universal compatibility.
+Platform is automatically detected from your system. ARM64 provides better cost efficiency ($2.92/month savings) while x86_64 ensures universal compatibility.
 
 **Container Management**:
 ```bash
@@ -1818,14 +1818,14 @@ Container deployments are billed based on:
 **AWS Infrastructure Costs** (billed directly by AWS, not through credits):
 
 - **EC2 Instances**:
-  - ARM64 (t4g.micro): $6.13/month compute + $3.50 storage/monitoring = $9.63/month per container
-  - x86_64 (t3.micro): $7.59/month compute + $3.50 storage/monitoring = $11.09/month per container
+  - ARM64 (t4g.small): $12.26/month compute + $3.50 storage/monitoring = $15.76/month per container
+  - x86_64 (t3.small): $15.18/month compute + $3.50 storage/monitoring = $18.68/month per container
 - **ECR Storage**: First 50 GB free, then $0.10/GB/month
 - **Data Transfer**: First 100 GB free per month
 - **Application Load Balancer**: ~$16/month (shared across all users)
 
-**Total**: $9.63-11.09/month per active container (varies by architecture)
-**💰 Tip**: ARM64 saves $1.46/month (13.2%) per container on compute costs
+**Total**: $15.76-18.68/month per active container (varies by architecture)
+**💰 Tip**: ARM64 saves $2.92/month (15.6%) per container on compute costs
 
 ---
 
