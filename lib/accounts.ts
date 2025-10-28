@@ -11,7 +11,14 @@ export const env = {
   CDP_WALLET_SECRET: process.env.CDP_WALLET_SECRET || "",
 } as const;
 
-const cdp = new CdpClient();
+let cdpInstance: CdpClient | null = null;
+
+function getCdpClient(): CdpClient {
+  if (!cdpInstance) {
+    cdpInstance = new CdpClient();
+  }
+  return cdpInstance;
+}
 
 const chainMap = {
   "base-sepolia": baseSepolia,
@@ -24,6 +31,7 @@ const publicClient = createPublicClient({
 });
 
 export async function getOrCreatePurchaserAccount(): Promise<Account> {
+  const cdp = getCdpClient();
   const account = await cdp.evm.getOrCreateAccount({
     name: "Purchaser",
   });
@@ -40,7 +48,7 @@ export async function getOrCreatePurchaserAccount(): Promise<Account> {
     env.NETWORK === "base-sepolia" &&
     (!usdcBalance || Number(usdcBalance.amount) < 500000)
   ) {
-    const { transactionHash } = await cdp.evm.requestFaucet({
+    const { transactionHash } = await getCdpClient().evm.requestFaucet({
       address: account.address,
       network: env.NETWORK,
       token: "usdc",
@@ -57,6 +65,7 @@ export async function getOrCreatePurchaserAccount(): Promise<Account> {
 }
 
 export async function getOrCreateSellerAccount(): Promise<Account> {
+  const cdp = getCdpClient();
   const account = await cdp.evm.getOrCreateAccount({
     name: "Seller",
   });

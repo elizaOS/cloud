@@ -2,6 +2,7 @@
 export * from "./organizations";
 export * from "./users";
 export * from "./api-keys";
+export * from "./cli-auth-sessions";
 export * from "./credits";
 export * from "./usage";
 export * from "./generations";
@@ -22,3 +23,6 @@ export * from "./alb-priority-manager";
 
 // Marketplace services
 export * from "./marketplace";
+
+// Voice services
+export { voiceCloningService } from "./voice-cloning";
