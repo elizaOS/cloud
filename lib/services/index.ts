@@ -21,5 +21,8 @@ export * from "./ecr";
 export * from "./cloudformation";
 export * from "./alb-priority-manager";
 
+// Marketplace services
+export * from "./marketplace";
+
 // Voice services
 export { voiceCloningService } from "./voice-cloning";

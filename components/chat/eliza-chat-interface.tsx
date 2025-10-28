@@ -55,13 +55,15 @@ interface AgentInfo {
 
 interface ElizaChatInterfaceProps {
   availableCharacters?: ElizaCharacter[];
+  initialCharacterId?: string | null;
 }
 
 export function ElizaChatInterface({
   availableCharacters = [],
+  initialCharacterId = null,
 }: ElizaChatInterfaceProps) {
   const [selectedCharacterId, setSelectedCharacterId] = useState<string | null>(
-    null
+    initialCharacterId
   );
   const [roomId, setRoomId] = useState<string | null>(null);
 
@@ -189,10 +191,11 @@ export function ElizaChatInterface({
     }
   }, []);
 
-  const createRoom = useCallback(async () => {
+  const createRoom = useCallback(async (characterId?: string | null) => {
+    const charIdToUse = characterId !== undefined ? characterId : selectedCharacterId;
     console.log(
       "[ElizaChat] Creating room with character:",
-      selectedCharacterId || "default"
+      charIdToUse || "default"
     );
     setIsInitializing(true);
     setError(null);
@@ -202,7 +205,7 @@ export function ElizaChatInterface({
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           entityId: entityId.current,
-          characterId: selectedCharacterId || undefined,
+          characterId: charIdToUse || undefined,
         }),
       });
 
@@ -214,7 +217,7 @@ export function ElizaChatInterface({
       console.log("[ElizaChat] Room created:", {
         roomId: data.roomId,
         characterId: data.characterId,
-        requestedCharacterId: selectedCharacterId,
+        requestedCharacterId: charIdToUse,
       });
 
       setRoomId(data.roomId);
@@ -236,6 +239,16 @@ export function ElizaChatInterface({
   // Initialize room: restore saved room or use most recent existing room
   useEffect(() => {
     const initializeRoom = async () => {
+      // If initialCharacterId is provided from URL, create a new room immediately
+      if (initialCharacterId) {
+        console.log(
+          "[ElizaChat] Initializing with character from URL:",
+          initialCharacterId
+        );
+        await createRoom(initialCharacterId);
+        return;
+      }
+
       // First check for saved room in localStorage
       const savedRoom =
         typeof window !== "undefined"
@@ -284,7 +297,7 @@ export function ElizaChatInterface({
       }
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [initialCharacterId]);
 
   const generateSpeech = useCallback(
     async (text: string, messageId: string) => {
@@ -703,7 +716,7 @@ export function ElizaChatInterface({
               <MessageSquare className="h-4 w-4 text-muted-foreground" />
               <p className="text-sm font-semibold">Conversations</p>
             </div>
-            <Button size="sm" variant="ghost" onClick={createRoom}>
+            <Button size="sm" variant="ghost" onClick={() => createRoom()}>
               New
             </Button>
           </div>
