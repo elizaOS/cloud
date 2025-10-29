@@ -1,8 +1,7 @@
-import { NextRequest, NextResponse } from "next/server";
+import { type NextRequest, NextResponse } from "next/server";
 import { requireAuth } from "@/lib/auth";
 import { usersService } from "@/lib/services";
 import { z } from "zod";
-import { revalidateTag } from "next/cache";
 import { withRateLimit, RateLimitPresets } from "@/lib/middleware/rate-limit";
 
 const updateUserSchema = z.object({
@@ -55,7 +54,7 @@ async function handleGET() {
           error instanceof Error && error.message.includes("Forbidden")
             ? 403
             : 500,
-      },
+      }
     );
   }
 }
@@ -86,12 +85,9 @@ async function handlePATCH(request: NextRequest) {
           success: false,
           error: "Failed to update user",
         },
-        { status: 500 },
+        { status: 500 }
       );
     }
-
-    // Revalidate cache
-    revalidateTag("user-auth");
 
     return NextResponse.json({
       success: true,
@@ -118,7 +114,7 @@ async function handlePATCH(request: NextRequest) {
           error: "Validation error",
           details: error.issues,
         },
-        { status: 400 },
+        { status: 400 }
       );
     }
 
@@ -133,7 +129,7 @@ async function handlePATCH(request: NextRequest) {
           error instanceof Error && error.message.includes("Forbidden")
             ? 403
             : 500,
-      },
+      }
     );
   }
 }
