@@ -8,7 +8,7 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Info, CheckCircle2, XCircle, Calendar } from "lucide-react";
+import { Info, CheckCircle2, XCircle, Calendar, Wallet } from "lucide-react";
 import type { UserWithOrganization } from "@/lib/types";
 
 interface AccountDetailsProps {
@@ -48,34 +48,68 @@ export function AccountDetails({ user }: AccountDetailsProps) {
               </p>
             </div>
 
-            <div className="space-y-1">
-              <p className="text-sm text-muted-foreground">
-                Email Verification
-              </p>
-              <div className="flex items-center gap-2">
-                {user.email_verified ? (
-                  <>
-                    <CheckCircle2 className="h-4 w-4 text-green-500" />
-                    <Badge
-                      variant="outline"
-                      className="border-green-500/50 text-green-700 dark:text-green-400"
-                    >
-                      Verified
-                    </Badge>
-                  </>
-                ) : (
-                  <>
-                    <XCircle className="h-4 w-4 text-yellow-500" />
-                    <Badge
-                      variant="outline"
-                      className="border-yellow-500/50 text-yellow-700 dark:text-yellow-400"
-                    >
-                      Not Verified
-                    </Badge>
-                  </>
-                )}
+            {user.email && (
+              <div className="space-y-1">
+                <p className="text-sm text-muted-foreground">
+                  Email Verification
+                </p>
+                <div className="flex items-center gap-2">
+                  {user.email_verified ? (
+                    <>
+                      <CheckCircle2 className="h-4 w-4 text-green-500" />
+                      <Badge
+                        variant="outline"
+                        className="border-green-500/50 text-green-700 dark:text-green-400"
+                      >
+                        Verified
+                      </Badge>
+                    </>
+                  ) : (
+                    <>
+                      <XCircle className="h-4 w-4 text-yellow-500" />
+                      <Badge
+                        variant="outline"
+                        className="border-yellow-500/50 text-yellow-700 dark:text-yellow-400"
+                      >
+                        Not Verified
+                      </Badge>
+                    </>
+                  )}
+                </div>
               </div>
-            </div>
+            )}
+
+            {user.wallet_address && (
+              <div className="space-y-1">
+                <p className="text-sm text-muted-foreground flex items-center gap-2">
+                  <Wallet className="h-4 w-4" />
+                  Wallet Status
+                </p>
+                <div className="flex items-center gap-2">
+                  {user.wallet_verified ? (
+                    <>
+                      <CheckCircle2 className="h-4 w-4 text-green-500" />
+                      <Badge
+                        variant="outline"
+                        className="border-green-500/50 text-green-700 dark:text-green-400"
+                      >
+                        Verified
+                      </Badge>
+                    </>
+                  ) : (
+                    <>
+                      <XCircle className="h-4 w-4 text-yellow-500" />
+                      <Badge
+                        variant="outline"
+                        className="border-yellow-500/50 text-yellow-700 dark:text-yellow-400"
+                      >
+                        Not Verified
+                      </Badge>
+                    </>
+                  )}
+                </div>
+              </div>
+            )}
 
             <div className="space-y-1">
               <p className="text-sm text-muted-foreground">Account Status</p>
@@ -108,16 +142,35 @@ export function AccountDetails({ user }: AccountDetailsProps) {
             </div>
           </div>
 
-          {user.privy_user_id && (
-            <div className="pt-4 border-t space-y-1">
-              <p className="text-sm text-muted-foreground">
-                Authentication Provider
-              </p>
-              <p className="text-xs font-mono text-muted-foreground">
-                Privy ID: {user.privy_user_id}
-              </p>
-            </div>
-          )}
+          <div className="pt-4 border-t space-y-3">
+            {user.wallet_address && (
+              <div className="space-y-1">
+                <p className="text-sm text-muted-foreground flex items-center gap-2">
+                  <Wallet className="h-4 w-4" />
+                  Wallet Address
+                </p>
+                <p className="font-mono text-xs break-all">
+                  {user.wallet_address}
+                </p>
+                {user.wallet_chain_type && (
+                  <Badge variant="secondary" className="capitalize text-xs">
+                    {user.wallet_chain_type}
+                  </Badge>
+                )}
+              </div>
+            )}
+
+            {user.privy_user_id && (
+              <div className="space-y-1">
+                <p className="text-sm text-muted-foreground">
+                  Authentication Provider
+                </p>
+                <p className="text-xs font-mono text-muted-foreground">
+                  Privy ID: {user.privy_user_id}
+                </p>
+              </div>
+            )}
+          </div>
         </div>
       </CardContent>
     </Card>

@@ -18,13 +18,26 @@ function generateSlugFromEmail(email: string): string {
   return `${sanitized}-${timestamp}${random}`;
 }
 
+function generateSlugFromWallet(walletAddress: string): string {
+  const shortAddress = walletAddress.substring(0, 8);
+  const sanitized = shortAddress.toLowerCase().replace(/[^a-z0-9]/g, "-");
+  const random = Math.random().toString(36).substring(2, 8);
+  const timestamp = Date.now().toString(36).slice(-4);
+  return `wallet-${sanitized}-${timestamp}${random}`;
+}
+
 // Define flexible interface for Privy user data
 // Handles both webhook payload and SDK User type
 interface PrivyUserData {
   id: string;
   email?: { address: string };
   name?: string | null;
-  linkedAccounts?: Array<Record<string, unknown>>; // Privy's linked accounts are complex union types
+  linkedAccounts?: Array<Record<string, unknown>>;
+  wallet?: {
+    address: string;
+    chainType: "ethereum" | "solana";
+    verified?: boolean;
+  };
 }
 
 /**
@@ -61,8 +74,44 @@ export async function syncUserFromPrivy(
     }
   }
 
-  if (!email) {
-    throw new Error(`User ${privyUserId} has no email address - cannot sync`);
+  // Extract wallet address from linkedAccounts
+  let walletAddress: string | undefined;
+  let walletChainType: "ethereum" | "solana" | undefined;
+  let walletVerified = false;
+
+  if (privyUser.linkedAccounts) {
+    for (const account of privyUser.linkedAccounts) {
+      // Check for wallet account types
+      if (
+        (account.type === "wallet" ||
+          account.type === "ethereum_wallet" ||
+          account.type === "solana_wallet") &&
+        "address" in account &&
+        typeof account.address === "string"
+      ) {
+        walletAddress = account.address.toLowerCase();
+        // Determine chain type from account type or chainType field
+        if ("chainType" in account && typeof account.chainType === "string") {
+          walletChainType = account.chainType.includes("solana")
+            ? "solana"
+            : "ethereum";
+        } else if (account.type === "solana_wallet") {
+          walletChainType = "solana";
+        } else {
+          walletChainType = "ethereum";
+        }
+        walletVerified =
+          "verified" in account && account.verified === true;
+        break;
+      }
+    }
+  }
+
+  // Validation: User must have email OR wallet (hybrid approach)
+  if (!email && !walletAddress) {
+    throw new Error(
+      `User ${privyUserId} has neither email nor wallet - cannot sync`,
+    );
   }
 
   // Extract name from various sources
@@ -75,8 +124,10 @@ export async function syncUserFromPrivy(
       }
     }
   }
-  if (!name) {
+  if (!name && email) {
     name = email.split("@")[0];
+  } else if (!name && walletAddress) {
+    name = `${walletAddress.substring(0, 6)}...${walletAddress.substring(walletAddress.length - 4)}`;
   }
 
   // Check if user already exists
@@ -85,13 +136,20 @@ export async function syncUserFromPrivy(
   if (user) {
     // Update user if needed
     const shouldUpdate =
-      user.name !== name || user.email !== email || !user.email_verified;
+      user.name !== name ||
+      user.email !== email ||
+      user.wallet_address !== walletAddress ||
+      (email && !user.email_verified) ||
+      (walletAddress && !user.wallet_verified);
 
     if (shouldUpdate) {
       await usersService.update(user.id, {
         name,
-        email,
-        email_verified: true,
+        email: email || user.email,
+        email_verified: email ? true : user.email_verified,
+        wallet_address: walletAddress || user.wallet_address,
+        wallet_chain_type: walletChainType || user.wallet_chain_type,
+        wallet_verified: walletVerified,
         updated_at: new Date(),
       });
 
@@ -103,7 +161,14 @@ export async function syncUserFromPrivy(
   }
 
   // Create new user and organization
-  let orgSlug = generateSlugFromEmail(email);
+  let orgSlug: string;
+  if (email) {
+    orgSlug = generateSlugFromEmail(email);
+  } else if (walletAddress) {
+    orgSlug = generateSlugFromWallet(walletAddress);
+  } else {
+    throw new Error("Cannot generate org slug without email or wallet");
+  }
 
   // Ensure slug is unique
   let attempts = 0;
@@ -111,10 +176,12 @@ export async function syncUserFromPrivy(
     attempts++;
     if (attempts > 10) {
       throw new Error(
-        `Failed to generate unique organization slug for ${email}`,
+        `Failed to generate unique organization slug for user ${privyUserId}`,
       );
     }
-    orgSlug = generateSlugFromEmail(email);
+    orgSlug = email
+      ? generateSlugFromEmail(email)
+      : generateSlugFromWallet(walletAddress!);
   }
 
   // Create organization
@@ -128,8 +195,11 @@ export async function syncUserFromPrivy(
   try {
     await usersService.create({
       privy_user_id: privyUserId,
-      email,
-      email_verified: true,
+      email: email || null,
+      email_verified: email ? true : false,
+      wallet_address: walletAddress || null,
+      wallet_chain_type: walletChainType || null,
+      wallet_verified: walletVerified,
       name,
       organization_id: organization.id,
       role: "owner",
@@ -176,7 +246,9 @@ export async function syncUserFromPrivy(
         }
 
         // If not found by Privy ID, try by email (edge case: email constraint violated)
-        existingUser = await usersService.getByEmailWithOrganization(email);
+        if (email) {
+          existingUser = await usersService.getByEmailWithOrganization(email);
+        }
         if (existingUser) {
           // Check if it's the same Privy user or a different one
           if (existingUser.privy_user_id !== privyUserId) {
