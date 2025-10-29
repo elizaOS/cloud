@@ -1,6 +1,6 @@
 "use server";
 
-import { revalidatePath, revalidateTag } from "next/cache";
+import { revalidatePath } from "next/cache";
 import { requireAuth } from "@/lib/auth";
 import { usersService } from "@/lib/services";
 import { z } from "zod";
@@ -29,7 +29,6 @@ export async function updateProfile(formData: FormData) {
     });
 
     // Revalidate cache
-    revalidateTag("user-auth");
     revalidatePath("/dashboard/account");
 
     return {
@@ -100,7 +99,6 @@ export async function uploadAvatar(formData: FormData) {
       avatar: avatarUrl,
     });
 
-    revalidateTag("user-auth");
     revalidatePath("/dashboard/account");
 
     return {
