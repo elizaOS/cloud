@@ -25,7 +25,14 @@ export function AccountPageClient({ user }: AccountPageClientProps) {
           <div className="flex-1">
             <p className="text-sm">
               Welcome back,{" "}
-              <span className="font-semibold">{user.name || user.email}</span>!
+              <span className="font-semibold">
+                {user.name ||
+                  user.email ||
+                  (user.wallet_address
+                    ? `${user.wallet_address.substring(0, 6)}...${user.wallet_address.substring(user.wallet_address.length - 4)}`
+                    : "User")}
+              </span>
+              !
             </p>
             <p className="text-xs text-muted-foreground mt-1">
               You&apos;re part of{" "}

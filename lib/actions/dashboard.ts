@@ -15,7 +15,8 @@ import { cache } from "react";
 export interface DashboardData {
   user: {
     name: string;
-    email: string;
+    email: string | null;
+    walletAddress?: string | null;
   };
   organization: {
     name: string;
@@ -133,6 +134,7 @@ async function fetchDashboardDataInternal(
     user: {
       name: user.name || "User",
       email: user.email,
+      walletAddress: user.wallet_address,
     },
     organization: {
       name: user.organization.name,

@@ -33,6 +33,18 @@ export class UsersService {
     return await usersRepository.findByEmailWithOrganization(email);
   }
 
+  async getByWalletAddress(
+    walletAddress: string,
+  ): Promise<User | undefined> {
+    return await usersRepository.findByWalletAddress(walletAddress);
+  }
+
+  async getByWalletAddressWithOrganization(
+    walletAddress: string,
+  ): Promise<UserWithOrganization | undefined> {
+    return await usersRepository.findByWalletAddressWithOrganization(walletAddress);
+  }
+
   async listByOrganization(organizationId: string): Promise<User[]> {
     return await usersRepository.listByOrganization(organizationId);
   }

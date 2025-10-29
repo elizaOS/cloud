@@ -88,7 +88,13 @@ export async function uploadAvatar(formData: FormData) {
     // TODO: Implement actual file upload to your storage service
     // For now, we'll just return a placeholder URL
     // In production, you'd upload to S3, Cloudflare R2, etc.
-    const avatarUrl = `https://api.dicebear.com/7.x/initials/svg?seed=${encodeURIComponent(user.name || user.email)}`;
+    const seed =
+      user.name ||
+      user.email ||
+      (user.wallet_address
+        ? `${user.wallet_address.substring(0, 6)}...${user.wallet_address.substring(user.wallet_address.length - 4)}`
+        : "User");
+    const avatarUrl = `https://api.dicebear.com/7.x/initials/svg?seed=${encodeURIComponent(seed)}`;
 
     await usersService.update(user.id, {
       avatar: avatarUrl,
