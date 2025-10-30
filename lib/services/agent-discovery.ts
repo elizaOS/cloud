@@ -1,10 +1,17 @@
 import { charactersService } from "./characters";
 import { containersService } from "./containers";
-import { agentStateCache, type AgentStats } from "@/lib/cache/agent-state-cache";
+import {
+  agentStateCache,
+  type AgentStats,
+} from "@/lib/cache/agent-state-cache";
 import { logger } from "@/lib/utils/logger";
-import { createHash } from "crypto";
+import { createHash } from "node:crypto";
 import type { UserCharacter } from "@/db/repositories";
 import type { Memory } from "@elizaos/core";
+import { db } from "@/db/client";
+
+// Re-export AgentStats for convenience
+export type { AgentStats };
 
 export interface AgentDiscoveryFilters {
   deployed?: boolean;
@@ -45,7 +52,7 @@ export class AgentDiscoveryService {
     organizationId: string,
     userId: string,
     filters?: AgentDiscoveryFilters,
-    includeStats: boolean = false,
+    includeStats: boolean = false
   ): Promise<AgentListResult> {
     try {
       // Create filter hash for caching
@@ -54,11 +61,11 @@ export class AgentDiscoveryService {
       // Check cache first
       const cached = await agentStateCache.getAgentList(
         organizationId,
-        filterHash,
+        filterHash
       );
       if (cached) {
         logger.debug(
-          `[Agent Discovery] Cache hit for org ${organizationId} with filters ${filterHash}`,
+          `[Agent Discovery] Cache hit for org ${organizationId} with filters ${filterHash}`
         );
         return {
           agents: cached as AgentInfo[],
@@ -68,7 +75,7 @@ export class AgentDiscoveryService {
       }
 
       logger.debug(
-        `[Agent Discovery] Cache miss, fetching agents for org ${organizationId}`,
+        `[Agent Discovery] Cache miss, fetching agents for org ${organizationId}`
       );
 
       // Fetch characters and containers in parallel
@@ -79,16 +86,16 @@ export class AgentDiscoveryService {
 
       // Build agent info from characters
       const agents = await Promise.all(
-        characters.map((char) => this.buildAgentInfo(char, containers, includeStats)),
+        characters.map((char) =>
+          this.buildAgentInfo(char, containers, includeStats)
+        )
       );
 
       // Filter by deployment status if requested
       let filteredAgents = agents;
       if (filters?.deployed !== undefined) {
         filteredAgents = agents.filter((a) =>
-          filters.deployed
-            ? a.status === "deployed"
-            : a.status !== "deployed",
+          filters.deployed ? a.status === "deployed" : a.status !== "deployed"
         );
       }
 
@@ -96,7 +103,7 @@ export class AgentDiscoveryService {
       await agentStateCache.setAgentList(
         organizationId,
         filterHash,
-        filteredAgents,
+        filteredAgents
       );
 
       return {
@@ -116,7 +123,7 @@ export class AgentDiscoveryService {
   private async fetchCharacters(
     organizationId: string,
     userId: string,
-    filters?: AgentDiscoveryFilters,
+    filters?: AgentDiscoveryFilters
   ): Promise<UserCharacter[]> {
     if (filters?.template) {
       // Fetch templates
@@ -146,7 +153,7 @@ export class AgentDiscoveryService {
       return await containersService.listByOrganization(organizationId);
     } catch (error) {
       logger.warn(
-        `[Agent Discovery] Error fetching containers: ${error instanceof Error ? error.message : "Unknown error"}`,
+        `[Agent Discovery] Error fetching containers: ${error instanceof Error ? error.message : "Unknown error"}`
       );
       return [];
     }
@@ -157,12 +164,14 @@ export class AgentDiscoveryService {
    */
   private async buildAgentInfo(
     character: UserCharacter,
-    containers: Awaited<ReturnType<typeof containersService.listByOrganization>>,
-    includeStats: boolean,
+    containers: Awaited<
+      ReturnType<typeof containersService.listByOrganization>
+    >,
+    includeStats: boolean
   ): Promise<AgentInfo> {
     // Find deployment container by character_id FK
     const container = containers.find(
-      (c) => c.character_id === character.id && c.status === "running",
+      (c) => c.character_id === character.id && c.status === "running"
     );
 
     // Determine status
@@ -172,7 +181,7 @@ export class AgentDiscoveryService {
     } else {
       // Check if there's a stopped container
       const stoppedContainer = containers.find(
-        (c) => c.character_id === character.id && c.status !== "running",
+        (c) => c.character_id === character.id && c.status !== "running"
       );
       if (stoppedContainer) {
         status = "stopped";
@@ -188,7 +197,9 @@ export class AgentDiscoveryService {
       status,
       isTemplate: character.is_template || false,
       ownerId: character.user_id,
-      ...(container?.load_balancer_url && { deploymentUrl: container.load_balancer_url }),
+      ...(container?.load_balancer_url && {
+        deploymentUrl: container.load_balancer_url,
+      }),
     };
 
     // Fetch statistics if requested
@@ -214,7 +225,23 @@ export class AgentDiscoveryService {
         return cached;
       }
 
-      // Fetch real statistics from ElizaOS database
+      // Check if character is deployed by looking for a container
+      const container = await containersService.getByCharacterId(agentId);
+
+      // If no container exists, character is not deployed - return empty stats
+      if (!container) {
+        const emptyStats: AgentStats = {
+          agentId,
+          messageCount: 0,
+          lastActiveAt: null,
+          uptime: 0,
+          status: "draft",
+        };
+        await agentStateCache.setAgentStats(agentId, emptyStats);
+        return emptyStats;
+      }
+
+      // Character is deployed - fetch statistics from ElizaOS database
       const { agentRuntime } = await import("@/lib/eliza/agent-runtime");
       const runtime = await agentRuntime.getRuntime();
       const adapter = runtime.adapter as unknown as {
@@ -223,7 +250,9 @@ export class AgentDiscoveryService {
           agentId?: string;
           count?: boolean;
         }) => Promise<Memory[] | number>;
-        getRoomsByIds: (roomIds: string[]) => Promise<{ id: string; createdAt?: Date }[]>;
+        getRoomsByIds: (
+          roomIds: string[]
+        ) => Promise<{ id: string; createdAt?: Date }[]>;
       };
 
       // Get message count for this agent across all rooms
@@ -235,9 +264,21 @@ export class AgentDiscoveryService {
           agentId,
           count: true,
         });
-        messageCount = typeof result === "number" ? result : (result as Memory[]).length;
+
+        if (result === null || result === undefined) {
+          messageCount = 0;
+        } else if (typeof result === "number") {
+          messageCount = result;
+        } else if (Array.isArray(result)) {
+          messageCount = result.length;
+        } else {
+          messageCount = 0;
+        }
       } catch (error) {
-        logger.warn(`[Agent Discovery] Unable to fetch message count for ${agentId}:`, error);
+        logger.warn(
+          `[Agent Discovery] Error fetching message count for ${agentId}:`,
+          error
+        );
         messageCount = 0;
       }
 
@@ -250,29 +291,42 @@ export class AgentDiscoveryService {
           count: false,
         })) as Memory[];
 
-        if (recentMessages && recentMessages.length > 0) {
-          const sortedMessages = recentMessages.sort((a, b) =>
-            (b.createdAt || 0) - (a.createdAt || 0)
+        if (
+          recentMessages &&
+          Array.isArray(recentMessages) &&
+          recentMessages.length > 0
+        ) {
+          const sortedMessages = recentMessages.sort(
+            (a, b) => (b.createdAt || 0) - (a.createdAt || 0)
           );
-          if (sortedMessages[0].createdAt) {
+          if (sortedMessages[0]?.createdAt) {
             lastActiveAt = new Date(sortedMessages[0].createdAt);
           }
         }
       } catch (error) {
-        logger.warn(`[Agent Discovery] Unable to fetch last active time for ${agentId}:`, error);
+        logger.warn(
+          `[Agent Discovery] Error fetching last active time for ${agentId}:`,
+          error
+        );
       }
 
       // Calculate uptime (time since last deployment)
       let uptime = 0;
       try {
         const containers = await containersService.listByOrganization(agentId);
-        const activeContainer = containers.find((c) => c.character_id === agentId && c.status === "running");
+        const activeContainer = containers.find(
+          (c) => c.character_id === agentId && c.status === "running"
+        );
 
         if (activeContainer?.last_deployed_at) {
-          uptime = Date.now() - new Date(activeContainer.last_deployed_at).getTime();
+          uptime =
+            Date.now() - new Date(activeContainer.last_deployed_at).getTime();
         }
       } catch (error) {
-        logger.warn(`[Agent Discovery] Unable to calculate uptime for ${agentId}:`, error);
+        logger.warn(
+          `[Agent Discovery] Unable to calculate uptime for ${agentId}:`,
+          error
+        );
       }
 
       const stats: AgentStats = {
@@ -288,19 +342,99 @@ export class AgentDiscoveryService {
 
       return stats;
     } catch (error) {
-      logger.error(
-        `[Agent Discovery] Error getting stats for ${agentId}:`,
-        error,
+      logger.debug(
+        `[Agent Discovery] Could not fetch stats for ${agentId} (likely not deployed)`
       );
-      // Return default stats on error
-      return {
+
+      // Return and cache empty stats for non-deployed characters
+      const emptyStats: AgentStats = {
         agentId,
         messageCount: 0,
         lastActiveAt: null,
         uptime: 0,
         status: "draft",
       };
+
+      // Cache to avoid repeated failed lookups
+      await agentStateCache.setAgentStats(agentId, emptyStats);
+
+      return emptyStats;
     }
+  }
+
+  /**
+   * Get agent statistics for multiple agents in a single batch operation
+   * @param agentIds - Array of agent/character IDs
+   * @returns Map of agent ID to stats
+   */
+  async getAgentStatisticsBatch(
+    agentIds: string[]
+  ): Promise<Map<string, AgentStats>> {
+    const statsMap = new Map<string, AgentStats>();
+
+    // First, try to get all from cache
+    const uncachedIds: string[] = [];
+    for (const agentId of agentIds) {
+      const cached = await agentStateCache.getAgentStats(agentId);
+      if (cached) {
+        statsMap.set(agentId, cached);
+      } else {
+        uncachedIds.push(agentId);
+      }
+    }
+
+    // If all were cached, return early
+    if (uncachedIds.length === 0) {
+      return statsMap;
+    }
+
+    try {
+      // Get containers for all uncached agents in one query
+      const containers =
+        await containersService.listByCharacterIds(uncachedIds);
+      const containerMap = new Map(containers.map((c) => [c.character_id!, c]));
+
+      // Process each uncached agent
+      for (const agentId of uncachedIds) {
+        const container = containerMap.get(agentId);
+
+        // If no container, return empty stats
+        if (!container) {
+          const emptyStats: AgentStats = {
+            agentId,
+            messageCount: 0,
+            lastActiveAt: null,
+            uptime: 0,
+            status: "draft",
+          };
+          await agentStateCache.setAgentStats(agentId, emptyStats);
+          statsMap.set(agentId, emptyStats);
+          continue;
+        }
+
+        // For deployed agents, we still need individual stats (ElizaOS limitation)
+        // But at least we batched the container lookups
+        const stats = await this.getAgentStatistics(agentId);
+        statsMap.set(agentId, stats);
+      }
+    } catch (error) {
+      logger.warn(`[Agent Discovery] Error in batch stats fetch:`, error);
+      // Return empty stats for remaining agents
+      for (const agentId of uncachedIds) {
+        if (!statsMap.has(agentId)) {
+          const emptyStats: AgentStats = {
+            agentId,
+            messageCount: 0,
+            lastActiveAt: null,
+            uptime: 0,
+            status: "draft",
+          };
+          statsMap.set(agentId, emptyStats);
+        }
+      }
+    }
+
+    return statsMap;
   }
 
   /**
@@ -310,7 +444,7 @@ export class AgentDiscoveryService {
   async invalidateAgentListCache(organizationId: string): Promise<void> {
     await agentStateCache.invalidateAgentList(organizationId);
     logger.debug(
-      `[Agent Discovery] Invalidated agent list cache for org ${organizationId}`,
+      `[Agent Discovery] Invalidated agent list cache for org ${organizationId}`
     );
   }
 
