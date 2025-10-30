@@ -3,6 +3,7 @@ import { openaiPlugin } from "@elizaos/plugin-openai";
 import { memoryPlugin } from "@elizaos/plugin-memory";
 import { knowledgePluginCore } from "@elizaos/plugin-knowledge";
 import { assistantPlugin } from "./plugin-assistant";
+import { openrouterPlugin } from "@elizaos/plugin-openrouter";
 // NOTE: plugin-sql is provided via a pre-initialized adapter in agent-runtime
 
 /**
@@ -18,9 +19,6 @@ const character: Character = {
     OPENAI_API_KEY: process.env.OPENAI_API_KEY!,
     avatarUrl:
       "https://raw.githubusercontent.com/elizaOS/eliza-avatars/refs/heads/master/Eliza/portrait.png",
-    // Multi-step reasoning configuration
-    USE_MULTI_STEP: true,
-    MAX_MULTISTEP_ITERATIONS: 6,
   },
   system:
     "You are Eliza, a friendly and helpful AI assistant. You engage in thoughtful conversations and provide useful information. You are professional yet warm, and always aim to be helpful while being concise and clear in your responses.",
@@ -84,12 +82,12 @@ const character: Character = {
     ],
     chat: [],
   },
-  knowledge: [],
 };
 
 const agent = {
   character,
-  plugins: [openaiPlugin, assistantPlugin, memoryPlugin, knowledgePluginCore],
+  // TODO: change llm plugins to internal llm provider
+  plugins: [openaiPlugin, openrouterPlugin, assistantPlugin, memoryPlugin, knowledgePluginCore],
 };
 
 export default agent;

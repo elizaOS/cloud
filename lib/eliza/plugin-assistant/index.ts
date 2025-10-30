@@ -10,47 +10,18 @@ import {
   ModelType,
   type Plugin,
   type UUID,
-  type State,
-  type Content,
   parseKeyValueXml,
 } from "@elizaos/core";
 import { v4 } from "uuid";
+import { providersProvider } from "./providers/providers";
+import { actionsProvider } from "./providers/actions";
+import { characterProvider } from "./providers/character";
 
 // Track usage per message for credit deduction
 const messageUsageMap = new Map<
   string,
   { inputTokens: number; outputTokens: number; model: string }
 >();
-
-/**
- * Multi-step workflow execution result
- */
-interface MultiStepActionResult {
-  data: { actionName: string };
-  success: boolean;
-  text?: string;
-  error?: string | Error;
-  values?: Record<string, unknown>;
-}
-
-/**
- * Multi-step workflow state
- */
-interface MultiStepState extends State {
-  data: {
-    actionResults: MultiStepActionResult[];
-    [key: string]: unknown;
-  };
-}
-
-/**
- * Message processing options
- */
-interface MessageProcessingOptions {
-  useMultiStep?: boolean;
-  maxMultiStepIterations?: number;
-  maxRetries?: number;
-}
 
 interface MessageReceivedHandlerParams {
   runtime: IAgentRuntime;
@@ -62,54 +33,55 @@ interface MessageReceivedHandlerParams {
 }
 
 /**
- * Extracts the text content from within a <response> XML tag.
+ * Planning template - determines if we can respond immediately or need additional context
  */
-function extractResponseText(text: string): string | null {
-  if (!text) return null;
+export const planningTemplate = `
+<providers>
+{{providers}}
+</providers>
 
-  const responseMatch = text.match(/<response>([\s\S]*?)<\/response>/);
+<instructions>
+You are planning how to respond to the user's message. First, determine if you can provide a complete, helpful response RIGHT NOW with ONLY the context above.
 
-  if (!responseMatch || responseMatch[1] === undefined) {
-    logger.warn("Could not find <response> tag, using raw text");
-    return text.trim() || null;
-  }
+**Can respond immediately (short-circuit) if:**
+- Simple greeting, thanks, or social interaction
+- General question you can answer from existing context
+- You have all necessary information already
+- No external data, calculations, or tools needed
 
-  const responseContent = responseMatch[1].trim();
+**Need additional context if:**
+- Question requires specific data from providers
+- Need to execute actions or use tools
+- Context is insufficient to give a complete answer
 
-  if (!responseContent) {
-    logger.warn("Found <response> tag, but its content is empty");
-    return null;
-  }
+Be selective - only request what's truly necessary.
+</instructions>
 
-  // Basic unescaping for common XML entities
-  const unescapedContent = responseContent
-    .replace(/&lt;/g, "<")
-    .replace(/&gt;/g, ">")
-    .replace(/&amp;/g, "&")
-    .replace(/&quot;/g, '"')
-    .replace(/&apos;/g, "'");
+<output>
+Respond using XML format:
+<plan>
+  <thought>Your reasoning about the request</thought>
+  <canRespondNow>YES or NO</canRespondNow>
+  <providers>PROVIDER_1,PROVIDER_2</providers>
+  <actions>ACTION_1,ACTION_2</actions>
+</plan>
 
-  return unescapedContent;
-}
+If you can respond now (short-circuit), set canRespondNow to YES and leave providers/actions empty.
+If you need more context, set canRespondNow to NO and specify what you need.
+</output>`;
 
+/**
+ * Final response template - generates the actual response
+ */
 export const messageHandlerTemplate = `
 <providers>
 {{providers}}
 </providers>
 
 <instructions>
-You are a friendly companion and assistant. Your goal is to build a genuine connection with the user.
-
-Response Guidelines:
-- Keep your responses SHORT and CONVERSATIONAL (1-3 sentences typically)
-- Ask thoughtful questions to understand the user and their needs better
-- Show genuine curiosity about the user's situation, goals, and challenges
-- Listen actively before offering solutions
-- Only provide detailed/longer responses if the user asks a complex question or explicitly requests more detail
-- Match the user's message length and tone - if they write long, you can elaborate more; if they write short, keep it brief
-- Be warm, authentic, and supportive like a trusted friend
-
-Think of yourself as a companion first, helper second. Build rapport before diving into solutions.
+Respond to the user's message thoroughly and helpfully.
+Be concise, clear, and friendly.
+Use the provided context and memories to personalize your response.
 </instructions>
 
 <keys>
@@ -119,105 +91,12 @@ Think of yourself as a companion first, helper second. Build rapport before divi
 <output>
 Respond using XML format like this:
 <response>
-    Your response text here
+  <thought>Your internal reasoning</thought>
+  <text>Your response text here</text>
 </response>
 
 Your response must ONLY include the <response></response> XML block.
 </output>`;
-
-/**
- * Multi-step decision template - used for each iteration in multi-step workflow
- */
-export const multiStepDecisionTemplate = `<task>
-Determine the next step the assistant should take in this conversation to help the user reach their goal.
-</task>
-
-{{recentMessages}}
-
-# Multi-Step Workflow
-
-In each step, decide:
-
-1. **Which providers (if any)** should be called to gather necessary data.
-2. **Which action (if any)** should be executed after providers return.
-3. Decide whether the task is complete. If so, set \`isFinish: true\`. Do not select the \`REPLY\` action; replies are handled separately after task completion.
-
-You can select **multiple providers** and at most **one action** per step.
-
-If the task is fully resolved and no further steps are needed, mark the step as \`isFinish: true\`.
-
----
-
-{{actionsWithDescriptions}}
-
-{{providersWithDescriptions}}
-
-These are the actions or data provider calls that have already been used in this run. Use this to avoid redundancy and guide your next move.
-
-{{actionResults}}
-
-<keys>
-"thought" Clearly explain your reasoning for the selected providers and/or action, and how this step contributes to resolving the user's request.
-"action"  Name of the action to execute after providers return (can be empty if no action is needed).
-"providers" List of provider names to call in this step (can be empty if none are needed).
-"isFinish" Set to true only if the task is fully complete.
-</keys>
-
-IMPORTANT: 
-- Do **not** mark the task as \`isFinish: true\` immediately after calling an action. Wait for the action to complete before deciding the task is finished.
-- If a provider was called but returned NO results or failed, it means that information is NOT AVAILABLE in the system. This is a limitation. Do NOT call the same provider again. Instead, set \`isFinish: true\` and provide the best answer you can with available information.
-- Avoid redundant provider calls - if you've already called a provider and it didn't have the information, calling it again won't help.
-
-<output>
-<response>
-  <thought>Your thought here</thought>
-  <action>ACTION</action>
-  <providers>PROVIDER1,PROVIDER2</providers>
-  <isFinish>true | false</isFinish>
-</response>
-</output>`;
-
-/**
- * Multi-step summary template - used to generate final user-facing response
- */
-export const multiStepSummaryTemplate = `<task>
-Summarize what the assistant has done so far and provide a final response to the user based on the completed steps.
-</task>
-
-# Context Information
-{{bio}}
-
----
-
-{{system}}
-
----
-
-{{messageDirections}}
-
-# Conversation Summary
-Below is the user's original request and conversation so far:
-{{recentMessages}}
-
-# Execution Trace
-Here are the actions taken by the assistant to fulfill the request:
-{{actionResults}}
-
-# Assistant's Last Reasoning Step
-{{recentMessage}}
-
-# Instructions
-
- - Review the execution trace and last reasoning step carefully
-
- - Your final output MUST be in this XML format:
-<output>
-<response>
-  <thought>Your thought here</thought>
-  <text>Your final message to the user</text>
-</response>
-</output>
-`;
 
 // Helper functions for response ID tracking
 async function getLatestResponseId(
@@ -237,18 +116,19 @@ async function setLatestResponseId(
   responseId: string,
 ): Promise<void> {
   if (!responseId || typeof responseId !== "string") {
-    console.error("[setLatestResponseId] Invalid responseId:", responseId);
+    logger.error("[setLatestResponseId] Invalid responseId:", responseId);
     throw new Error(`Invalid responseId: ${responseId}`);
   }
   const key = `response_id:${runtime.agentId}:${roomId}`;
-  console.log("[setLatestResponseId] Setting cache:", {
-    key,
-    responseId: responseId.substring(0, 8),
-  });
+  logger.debug(
+    `[setLatestResponseId] Setting cache: ${key}, responseId: ${responseId.substring(0, 8)}`,
+  );
   try {
     await runtime.setCache(key, responseId);
   } catch (error) {
-    console.error("[setLatestResponseId] Error setting cache:", error);
+    logger.error(
+      `[setLatestResponseId] Error setting cache: ${error instanceof Error ? error.message : String(error)}`,
+    );
     throw error;
   }
 }
@@ -258,7 +138,7 @@ async function clearLatestResponseId(
   roomId: string,
 ): Promise<void> {
   const key = `response_id:${runtime.agentId}:${roomId}`;
-  console.log("[clearLatestResponseId] Deleting cache key:", key);
+  logger.debug("[clearLatestResponseId] Deleting cache key:", key);
   await runtime.deleteCache(key);
 }
 
@@ -270,355 +150,16 @@ function estimateTokens(text: string): number {
 }
 
 /**
- * Multi-step workflow: iterative action execution with final summary
- */
-async function runMultiStepWorkflow(
-  runtime: IAgentRuntime,
-  message: Memory,
-  callback:
-    | ((result: {
-        text?: string;
-        usage?: { inputTokens: number; outputTokens: number; model: string };
-      }) => Promise<Memory[]>)
-    | undefined,
-  opts: Required<MessageProcessingOptions>,
-): Promise<{
-  responseContent: string;
-  totalInputTokens: number;
-  totalOutputTokens: number;
-}> {
-  const traceActionResult: MultiStepActionResult[] = [];
-  const executedProviders = new Set<string>(); // Track which providers were used
-  let totalInputTokens = 0;
-  let totalOutputTokens = 0;
-  let iterationCount = 0;
-
-  logger.info(`[MultiStep] Starting multi-step workflow (max ${opts.maxMultiStepIterations} iterations)`);
-
-  while (iterationCount < opts.maxMultiStepIterations) {
-    iterationCount++;
-    logger.debug(`[MultiStep] Starting iteration ${iterationCount}/${opts.maxMultiStepIterations}`);
-
-    // Compose state with action results from previous iterations
-    const accumulatedState = (await runtime.composeState(message, [
-      "RECENT_MESSAGES",
-      "ACTIONS",
-    ])) as MultiStepState;
-
-    // Add action results to state
-    if (!accumulatedState.data) {
-      accumulatedState.data = { actionResults: [] };
-    }
-    accumulatedState.data.actionResults = traceActionResult;
-
-    // Format action results for the prompt
-    const actionResultsText =
-      traceActionResult.length > 0
-        ? traceActionResult
-            .map(
-              (r) =>
-                `- ${r.data.actionName}: ${r.success ? "✓ " + (r.text || "Success") : "✗ " + (r.error || "Failed")}`,
-            )
-            .join("\n")
-        : "No actions executed yet";
-
-    // Format actions with descriptions
-    const actionsWithDescriptions = (runtime.actions || [])
-      .map((a: { name: string; description?: string }) => 
-        `- ${a.name}${a.description ? `: ${a.description}` : ""}`
-      )
-      .join("\n");
-
-    // Format providers with descriptions
-    const providersWithDescriptions = (runtime.providers || [])
-      .map((p: { name: string; description?: string }) => 
-        `- ${p.name}${p.description ? `: ${p.description}` : ""}`
-      )
-      .join("\n");
-
-    // Prepare state for template
-    const stateForTemplate = {
-      ...accumulatedState,
-      values: {
-        ...accumulatedState.values,
-        actionResults: actionResultsText,
-        actionsWithDescriptions: actionsWithDescriptions || "No actions available",
-        providersWithDescriptions: providersWithDescriptions || "No providers available",
-      },
-    };
-
-    const prompt = composePromptFromState({
-      state: stateForTemplate,
-      template:
-        runtime.character.templates?.multiStepDecisionTemplate ||
-        multiStepDecisionTemplate,
-    });
-
-    logger.debug(`[MultiStep] Iteration ${iterationCount} prompt length: ${prompt.length} chars`);
-    totalInputTokens += estimateTokens(prompt);
-
-    const stepResultRaw = await runtime.useModel(ModelType.TEXT_LARGE, {
-      prompt,
-    });
-    totalOutputTokens += estimateTokens(stepResultRaw);
-
-    logger.debug(`[MultiStep] Raw LLM response:\n${stepResultRaw}`);
-
-    const parsedStep = parseKeyValueXml(stepResultRaw);
-
-    if (!parsedStep) {
-      logger.warn(`[MultiStep] Failed to parse step result at iteration ${iterationCount}`);
-      traceActionResult.push({
-        data: { actionName: "parse_error" },
-        success: false,
-        error: "Failed to parse step result",
-      });
-      break;
-    }
-
-    const { thought, providers = [], action, isFinish } = parsedStep;
-    logger.debug(
-      `[MultiStep] Step decision: thought="${thought}", providers=${JSON.stringify(providers)}, action=${action}, isFinish=${isFinish}`,
-    );
-
-    // Notify user of progress
-    if (callback && thought) {
-      await callback({
-        text: thought,
-      });
-    }
-
-    // Check for completion condition
-    if (isFinish === "true" || isFinish === true) {
-      logger.info(`[MultiStep] Task marked as complete at iteration ${iterationCount}`);
-      break;
-    }
-
-    // Validate that we have something to do
-    if ((!providers || providers.length === 0) && !action) {
-      logger.warn(
-        `[MultiStep] No providers or action specified at iteration ${iterationCount}, forcing completion`,
-      );
-      break;
-    }
-
-    try {
-      // Execute providers if specified
-      if (providers && providers.length > 0) {
-        const providerList = Array.isArray(providers)
-          ? providers
-          : String(providers).split(",").map((s) => s.trim());
-
-        for (const providerName of providerList) {
-          const provider = runtime.providers.find((p: { name: string }) => p.name === providerName);
-          if (!provider) {
-            logger.warn(`[MultiStep] Provider not found: ${providerName}`);
-            traceActionResult.push({
-              data: { actionName: providerName },
-              success: false,
-              error: `Provider not found: ${providerName}`,
-            });
-            continue;
-          }
-
-          logger.debug(`[MultiStep] Executing provider: ${providerName}`);
-          const providerResult = await (provider as { get: (runtime: IAgentRuntime, message: Memory, state: State) => Promise<{ text?: string }> }).get(runtime, message, accumulatedState);
-          
-          if (!providerResult) {
-            logger.warn(`[MultiStep] Provider returned no result: ${providerName}`);
-            traceActionResult.push({
-              data: { actionName: providerName },
-              success: false,
-              error: "Provider returned no result",
-            });
-            continue;
-          }
-
-          const success = !!providerResult.text;
-
-          // Track successful provider executions
-          if (success) {
-            executedProviders.add(providerName);
-          }
-
-          traceActionResult.push({
-            data: { actionName: providerName },
-            success,
-            text: success ? providerResult.text : undefined,
-            error: success ? undefined : "Provider returned no result",
-          });
-
-          if (callback) {
-            await callback({
-              text: `Searched ${providerName}`,
-            });
-          }
-
-          logger.debug(`[MultiStep] Provider ${providerName} result: ${success ? "success" : "failed"}`);
-        }
-      }
-
-      // Execute action if specified
-      if (action) {
-        logger.debug(`[MultiStep] Executing action: ${action}`);
-        
-        const actionContent: Content = {
-          text: `Executing action: ${action}`,
-          actions: [action],
-          thought: thought ?? "",
-        };
-
-        await runtime.processActions(
-          message,
-          [
-            {
-              id: v4() as UUID,
-              entityId: runtime.agentId,
-              roomId: message.roomId,
-              createdAt: Date.now(),
-              content: actionContent,
-            },
-          ],
-          accumulatedState,
-          async () => {
-            return [];
-          },
-        );
-
-        // Get cached action results from runtime
-        const cachedState = runtime.stateCache?.get(`${message.id}_action_results`);
-        const actionResults = cachedState?.values?.actionResults || [];
-        const result = actionResults.length > 0 ? actionResults[0] : null;
-        const success = result?.success ?? false;
-
-        traceActionResult.push({
-          data: { actionName: action },
-          success,
-          text: result?.text,
-          values: result?.values,
-          error: success ? undefined : result?.text,
-        });
-
-        if (callback) {
-          await callback({
-            text: `Executed ${action}`,
-          });
-        }
-
-        logger.debug(`[MultiStep] Action ${action} result: ${success ? "success" : "failed"}`);
-      }
-    } catch (err) {
-      logger.error({ err }, "[MultiStep] Error executing step");
-      traceActionResult.push({
-        data: { actionName: action || "unknown" },
-        success: false,
-        error: err instanceof Error ? err.message : String(err),
-      });
-    }
-  }
-
-  if (iterationCount >= opts.maxMultiStepIterations) {
-    logger.warn(
-      `[MultiStep] Reached maximum iterations (${opts.maxMultiStepIterations}), forcing completion`,
-    );
-  }
-
-  logger.info(`[MultiStep] Workflow complete after ${iterationCount} iterations. Generating summary...`);
-
-  // Generate final summary with dynamic providers
-  // Always include SHORT_TERM_MEMORY, LONG_TERM_MEMORY, RECENT_MESSAGES, and ACTION_STATE
-  // Plus any providers that were executed during the workflow
-  const providersForSummary = [
-    "SHORT_TERM_MEMORY",
-    "LONG_TERM_MEMORY",
-    // "ACTION_STATE", TODO: Add action state when needed.
-    ...Array.from(executedProviders),
-  ];
-
-  logger.debug(`[MultiStep] Composing final state with providers: ${providersForSummary.join(", ")}`);
-
-  const finalState = await runtime.composeState(message, providersForSummary);
-
-  // Add action results to final state for summary
-  const actionResultsText =
-    traceActionResult.length > 0
-      ? traceActionResult
-          .map(
-            (r) =>
-              `- ${r.data.actionName}: ${r.success ? (r.text || "Success") : (r.error || "Failed")}`,
-          )
-          .join("\n")
-      : "No actions were needed";
-
-  const stateForSummary = {
-    ...finalState,
-    values: {
-      ...finalState.values,
-      actionResults: actionResultsText,
-    },
-  };
-
-  const summaryPrompt = composePromptFromState({
-    state: stateForSummary,
-    template:
-      runtime.character.templates?.multiStepSummaryTemplate ||
-      multiStepSummaryTemplate,
-  });
-
-  totalInputTokens += estimateTokens(summaryPrompt);
-
-  const finalOutput = await runtime.useModel(ModelType.TEXT_LARGE, {
-    prompt: summaryPrompt,
-  });
-  totalOutputTokens += estimateTokens(finalOutput);
-
-  logger.debug(`[MultiStep] Summary response:\n${finalOutput}`);
-
-  const summary = parseKeyValueXml(finalOutput);
-
-  let responseContent = "";
-  if (summary?.text) {
-    responseContent = summary.text;
-    logger.info(`[MultiStep] Generated final response: ${responseContent.substring(0, 100)}...`);
-  } else {
-    logger.warn("[MultiStep] Failed to parse summary, using fallback");
-    responseContent = "I've completed the task, but encountered an issue generating the summary.";
-  }
-
-  return {
-    responseContent,
-    totalInputTokens,
-    totalOutputTokens,
-  };
-}
-
-/**
- * Handles incoming messages using the full ElizaOS pipeline
+ * Handles incoming messages using single-shot approach with planning
  */
 const messageReceivedHandler = async ({
   runtime,
   message,
   callback,
 }: MessageReceivedHandlerParams): Promise<void> => {
-  // Configuration options - can be overridden via character settings
-  const useMultiStep = 
-    runtime.character.settings?.USE_MULTI_STEP === true ||
-    runtime.character.settings?.USE_MULTI_STEP === "true";
-  
-  const opts: Required<MessageProcessingOptions> = {
-    useMultiStep,
-    maxMultiStepIterations: 
-      (runtime.character.settings?.MAX_MULTISTEP_ITERATIONS as number) || 6,
-    maxRetries: 3,
-  };
-
-  logger.info(
-    `[ElizaAssistant] Processing mode: ${useMultiStep ? "MULTI-STEP" : "SINGLE-SHOT"}`,
-  );
-
   // Generate a new response ID
   const responseId = v4();
-  console.log(
+  logger.debug(
     "[ElizaAssistant] Generated response ID:",
     responseId.substring(0, 8),
   );
@@ -630,9 +171,11 @@ const messageReceivedHandler = async ({
   const runId = asUUID(v4());
   const startTime = Date.now();
 
-  // Track usage for this message - we'll estimate based on text length
+  // Track usage for this message
   const messageKey = message.id || v4();
   const modelUsed = "gpt-4o"; // Default model used by ElizaOS
+  let totalInputTokens = 0;
+  let totalOutputTokens = 0;
 
   // Emit run started event
   await runtime.emitEvent(EventType.RUN_STARTED, {
@@ -652,74 +195,143 @@ const messageReceivedHandler = async ({
     }
 
     // Save the incoming message
+    logger.debug("[ElizaAssistant] Saving message to memory");
     await runtime.createMemory(message, "messages");
 
-    let responseContent: string = "";
-    let estimatedInputTokens = 0;
-    let estimatedOutputTokens = 0;
+    // PHASE 1: Compose initial state with memory providers
+    logger.debug("[ElizaAssistant] Composing state with memory providers");
+    const initialState = await runtime.composeState(message, [
+      "SHORT_TERM_MEMORY",
+      "LONG_TERM_MEMORY",
+      "AVAILABLE_DOCUMENTS",
+    ]);
 
-    // Choose processing mode
-    if (opts.useMultiStep) {
-      // Multi-step workflow
-      logger.info("[ElizaAssistant] Using multi-step workflow");
-      
-      const multiStepResult = await runMultiStepWorkflow(
-        runtime,
-        message,
-        callback,
-        opts,
+    logger.debug("*** INITIAL STATE ***\n", JSON.stringify(initialState));
+
+    // PHASE 2: Planning - Determine which providers/actions to use
+    logger.info("[ElizaAssistant] Phase 1: Planning");
+    const planningPrompt = composePromptFromState({
+      state: initialState,
+      template:
+        runtime.character.templates?.planningTemplate || planningTemplate,
+    });
+
+    logger.debug("*** PLANNING PROMPT ***\n", planningPrompt);
+    const planningInputTokens = estimateTokens(planningPrompt);
+    totalInputTokens += planningInputTokens;
+
+    const planningResponse = await runtime.useModel(ModelType.TEXT_LARGE, {
+      prompt: planningPrompt,
+    });
+
+    logger.debug("*** PLANNING RESPONSE ***\n", planningResponse);
+    const planningOutputTokens = estimateTokens(planningResponse);
+    totalOutputTokens += planningOutputTokens;
+
+    const plan = parseKeyValueXml(planningResponse);
+    const canRespondNow =
+      plan?.canRespondNow?.toUpperCase() === "YES" ||
+      plan?.canRespondNow === "true";
+
+    logger.info(
+      `[ElizaAssistant] Plan - canRespondNow: ${canRespondNow}, thought: ${plan?.thought}`,
+    );
+
+    let updatedState = { ...initialState };
+
+    // PHASE 3: Execute planned providers and actions (only if we can't short-circuit)
+    if (!canRespondNow) {
+      logger.info("[ElizaAssistant] Phase 2: Executing providers and actions");
+      logger.debug(
+        `[ElizaAssistant] Providers: ${plan?.providers}, Actions: ${plan?.actions}`,
       );
 
-      responseContent = multiStepResult.responseContent;
-      estimatedInputTokens = multiStepResult.totalInputTokens;
-      estimatedOutputTokens = multiStepResult.totalOutputTokens;
-    } else {
-      // Single-shot mode (original behavior)
-      logger.info("[ElizaAssistant] Using single-shot mode");
+      // Execute providers if any were planned
+      const plannedProviders = plan?.providers
+        ? (Array.isArray(plan.providers)
+            ? plan.providers
+            : plan.providers.split(",").map((p: string) => p.trim())
+          ).filter((p: string) => p && p !== "")
+        : [];
 
-      // Compose state using providers
-      const state = await runtime.composeState(message, [
-        "SHORT_TERM_MEMORY",
-        "LONG_TERM_MEMORY",
-      ]);
-
-      const prompt = composePromptFromState({
-        state,
-        template:
-          runtime.character.templates?.messageHandlerTemplate ||
-          messageHandlerTemplate,
-      });
-
-      console.log("*** PROMPT ***\n", prompt);
-
-      // Estimate input tokens from prompt
-      estimatedInputTokens = estimateTokens(prompt);
-
-      // Retry if missing required fields
-      let retries = 0;
-
-      while (retries < opts.maxRetries && !responseContent) {
-        const response = await runtime.useModel(ModelType.TEXT_LARGE, {
-          prompt,
-        });
-
-        logger.debug(`*** Raw LLM Response ***\n${response}`);
-
-        // Attempt to parse the XML response
-        const extractedContent = extractResponseText(response);
-
-        if (!extractedContent) {
-          logger.warn("*** Missing response content, retrying... ***");
-          responseContent = "";
-        } else {
-          responseContent = extractedContent;
-          break;
-        }
-        retries++;
+      if (plannedProviders.length > 0) {
+        logger.debug(
+          "[ElizaAssistant] Executing providers:",
+          plannedProviders,
+        );
+        const providerState = await runtime.composeState(
+          message,
+          [...plannedProviders,  "CHARACTER"],
+        );
+        updatedState = { ...updatedState, ...providerState };
       }
 
-      // Estimate output tokens from response
-      estimatedOutputTokens = estimateTokens(responseContent);
+      // Execute actions if any were planned
+      const plannedActions = plan?.actions
+        ? (Array.isArray(plan.actions)
+            ? plan.actions
+            : plan.actions.split(",").map((a: string) => a.trim())
+          ).filter((a: string) => a && a !== "")
+        : [];
+
+      if (plannedActions.length > 0) {
+        logger.debug("[ElizaAssistant] Executing actions:", plannedActions);
+        // Actions will be executed via processActions if needed
+        // For now, we just note them in state
+        updatedState.data = {
+          ...updatedState.data,
+          plannedActions,
+        };
+      }
+    } else {
+      logger.info(
+        "[ElizaAssistant] Short-circuit: Responding immediately with existing context",
+      );
+    }
+
+    // PHASE 4: Generate final response using updated state
+    const responsePhase = canRespondNow ? "Phase 2" : "Phase 3";
+    logger.info(`[ElizaAssistant] ${responsePhase}: Generating final response`);
+    const responsePrompt = composePromptFromState({
+      state: updatedState,
+      template:
+        runtime.character.templates?.messageHandlerTemplate ||
+        messageHandlerTemplate,
+    });
+
+    logger.debug("*** RESPONSE PROMPT ***\n", responsePrompt);
+    const responseInputTokens = estimateTokens(responsePrompt);
+    totalInputTokens += responseInputTokens;
+
+    let responseContent = "";
+    let thought = "";
+
+    // Retry if missing required fields
+    let retries = 0;
+    const maxRetries = 3;
+
+    while (retries < maxRetries && !responseContent) {
+      const response = await runtime.useModel(ModelType.TEXT_LARGE, {
+        prompt: responsePrompt,
+      });
+
+      logger.debug("*** RAW LLM RESPONSE ***\n", response);
+      const responseOutputTokens = estimateTokens(response);
+      if (retries === 0) {
+        totalOutputTokens += responseOutputTokens;
+      }
+
+      const parsedResponse = parseKeyValueXml(response);
+
+      if (!parsedResponse?.text) {
+        logger.warn("*** Missing response text, retrying... ***");
+        responseContent = "";
+      } else {
+        responseContent = parsedResponse.text;
+        thought = parsedResponse.thought || "";
+        break;
+      }
+      retries++;
     }
 
     // Check if this is still the latest response ID for this room
@@ -745,55 +357,38 @@ const messageReceivedHandler = async ({
       worldId: message.worldId,
       content: {
         text: responseContent,
+        thought,
         source: "agent",
         inReplyTo: message.id,
       },
     };
 
-    // Save response and trigger callback
+    // Save response
+    logger.debug("[ElizaAssistant] Saving response to memory");
     await runtime.createMemory(responseMemory, "messages");
 
     // Store usage in map for retrieval by API endpoint
     messageUsageMap.set(messageKey, {
-      inputTokens: estimatedInputTokens,
-      outputTokens: estimatedOutputTokens,
+      inputTokens: totalInputTokens,
+      outputTokens: totalOutputTokens,
       model: modelUsed,
     });
 
-    // Trigger callback if provided (returns empty array as we already saved the message)
+    logger.info(
+      `[ElizaAssistant] Token usage - input: ${totalInputTokens}, output: ${totalOutputTokens}, model: ${modelUsed}`,
+    );
+
+    // Trigger callback if provided
     if (callback) {
       await callback({
         text: responseContent,
         usage: {
-          inputTokens: estimatedInputTokens,
-          outputTokens: estimatedOutputTokens,
+          inputTokens: totalInputTokens,
+          outputTokens: totalOutputTokens,
           model: modelUsed,
         },
       });
     }
-
-    const responseMessages: Memory[] = [];
-    responseMessages.push(responseMemory);
-
-    // Compose state for evaluators
-    const evalState = await runtime.composeState(message, [
-      "SHORT_TERM_MEMORY",
-      "LONG_TERM_MEMORY",
-    ]);
-
-    // Run evaluators
-    await runtime.evaluate(
-      message,
-      evalState,
-      true,
-      async (content) => {
-        if (callback) {
-          return callback(content);
-        }
-        return [];
-      },
-      responseMessages
-    );
 
     // Emit run ended event
     await runtime.emitEvent(EventType.RUN_ENDED, {
@@ -807,6 +402,11 @@ const messageReceivedHandler = async ({
       endTime: Date.now(),
       duration: Date.now() - startTime,
       source: "messageHandler",
+      metadata: {
+        inputTokens: totalInputTokens,
+        outputTokens: totalOutputTokens,
+        model: modelUsed,
+      },
     });
   } catch (error) {
     // Emit run ended event with error
@@ -851,7 +451,7 @@ export const assistantPlugin: Plugin = {
   name: "eliza-assistant",
   description: "Core assistant plugin with message handling and context",
   events,
-  providers: [],
+  providers: [providersProvider, actionsProvider, characterProvider],
   actions: [],
   services: [],
 };
