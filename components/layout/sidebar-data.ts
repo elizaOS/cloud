@@ -19,9 +19,11 @@ import {
   UserCog,
   Bot,
   Code,
+  Mic,
   Zap,
+  Store,
 } from "lucide-react";
-import { ComponentType } from "react";
+import type { ComponentType } from "react";
 
 export interface SidebarItem {
   id: string;
@@ -70,6 +72,13 @@ export const sidebarSections: SidebarSection[] = [
         icon: Video,
       },
       {
+        id: "voices",
+        label: "Voices",
+        href: "/dashboard/voices",
+        icon: Mic,
+        isNew: true,
+      },
+      {
         id: "gallery",
         label: "Gallery",
         href: "/dashboard/gallery",
@@ -86,6 +95,13 @@ export const sidebarSections: SidebarSection[] = [
         href: "/dashboard/eliza",
         icon: Bot,
         isNew: false,
+      },
+      {
+        id: "agent-marketplace",
+        label: "Agent Marketplace",
+        href: "/dashboard/agent-marketplace",
+        icon: Store,
+        isNew: true,
       },
       {
         id: "character-creator",

@@ -1,6 +1,7 @@
 import {
   boolean,
   index,
+  integer,
   jsonb,
   pgTable,
   text,
@@ -54,6 +55,13 @@ export const userCharacters = pgTable(
       .notNull(),
     is_template: boolean("is_template").default(false).notNull(),
     is_public: boolean("is_public").default(false).notNull(),
+    avatar_url: text("avatar_url"),
+    category: text("category"),
+    tags: jsonb("tags").$type<string[]>().default([]),
+    featured: boolean("featured").default(false).notNull(),
+    view_count: integer("view_count").default(0).notNull(),
+    interaction_count: integer("interaction_count").default(0).notNull(),
+    popularity_score: integer("popularity_score").default(0).notNull(),
     created_at: timestamp("created_at").notNull().defaultNow(),
     updated_at: timestamp("updated_at").notNull().defaultNow(),
   },
@@ -63,6 +71,11 @@ export const userCharacters = pgTable(
     ),
     user_idx: index("user_characters_user_idx").on(table.user_id),
     name_idx: index("user_characters_name_idx").on(table.name),
+    category_idx: index("user_characters_category_idx").on(table.category),
+    featured_idx: index("user_characters_featured_idx").on(table.featured),
+    template_idx: index("user_characters_is_template_idx").on(table.is_template),
+    public_idx: index("user_characters_is_public_idx").on(table.is_public),
+    popularity_idx: index("user_characters_popularity_idx").on(table.popularity_score),
   }),
 );
 

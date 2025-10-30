@@ -17,6 +17,9 @@ import {
   Settings,
   MessageSquare,
   TrendingUp,
+  Bot,
+  Users,
+  Copy,
 } from "lucide-react";
 import { Boxes } from "@/components/ui/background-boxes";
 import { TextGenerateEffect } from "@/components/ui/text-generate-effect";
@@ -416,6 +419,79 @@ export function LandingPage() {
             title="How elizaOS Cloud Works"
             description="Deploy your AI agents to production in three simple steps. From local development to global scale in minutes."
           />
+        </div>
+      </section>
+
+      {/* AI Marketplace Section */}
+      <section className="relative border-t bg-background py-20">
+        <div className="container mx-auto px-4 md:px-6">
+          <div className="mx-auto max-w-6xl">
+            {/* Section Header */}
+            <div className="mb-12 text-center">
+              <div className="mb-6 inline-flex items-center gap-2 rounded-full border bg-muted/80 backdrop-blur-sm px-4 py-2 text-sm">
+                <Bot className="h-4 w-4 text-primary" />
+                <span>AI Agent Marketplace</span>
+              </div>
+              <h2 className="mb-4 text-3xl font-bold md:text-4xl lg:text-5xl">
+                Discover Pre-Built AI Characters
+              </h2>
+              <p className="text-lg text-muted-foreground max-w-2xl mx-auto">
+                Explore hundreds of ready-to-use AI agents. From creative assistants to gaming companions,
+                find the perfect character for your needs—or clone and customize one to make it your own.
+              </p>
+            </div>
+
+            {/* Feature Grid */}
+            <div className="grid gap-6 md:grid-cols-3 mb-12">
+              <div className="relative overflow-hidden rounded-xl border bg-card p-6 transition-all hover:shadow-lg">
+                <div className="mb-4 flex h-12 w-12 items-center justify-center rounded-lg bg-gradient-to-br from-violet-500/10 to-purple-500/10">
+                  <Users className="h-6 w-6 text-violet-500" />
+                </div>
+                <h3 className="mb-2 font-semibold text-lg">500+ Characters</h3>
+                <p className="text-sm text-muted-foreground">
+                  Access a vast library of pre-configured AI agents across multiple categories
+                </p>
+              </div>
+
+              <div className="relative overflow-hidden rounded-xl border bg-card p-6 transition-all hover:shadow-lg">
+                <div className="mb-4 flex h-12 w-12 items-center justify-center rounded-lg bg-gradient-to-br from-blue-500/10 to-cyan-500/10">
+                  <MessageSquare className="h-6 w-6 text-blue-500" />
+                </div>
+                <h3 className="mb-2 font-semibold text-lg">Instant Chat</h3>
+                <p className="text-sm text-muted-foreground">
+                  Start conversations immediately with any character—no configuration required
+                </p>
+              </div>
+
+              <div className="relative overflow-hidden rounded-xl border bg-card p-6 transition-all hover:shadow-lg">
+                <div className="mb-4 flex h-12 w-12 items-center justify-center rounded-lg bg-gradient-to-br from-pink-500/10 to-rose-500/10">
+                  <Copy className="h-6 w-6 text-pink-500" />
+                </div>
+                <h3 className="mb-2 font-semibold text-lg">Clone & Customize</h3>
+                <p className="text-sm text-muted-foreground">
+                  Make any character your own by cloning and modifying it to fit your needs
+                </p>
+              </div>
+            </div>
+
+            {/* CTA Button */}
+            <div className="text-center">
+              <Button
+                size="lg"
+                asChild
+                className="gap-2 bg-gradient-to-r from-primary via-purple-600 to-pink-600 hover:opacity-90 transition-opacity"
+              >
+                <Link href="/marketplace">
+                  <Bot className="h-5 w-5" />
+                  Explore Marketplace
+                  <ArrowRight className="h-4 w-4" />
+                </Link>
+              </Button>
+              <p className="mt-4 text-sm text-muted-foreground">
+                Browse our collection of AI characters • No account required to explore
+              </p>
+            </div>
+          </div>
         </div>
       </section>
 

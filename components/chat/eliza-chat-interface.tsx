@@ -55,13 +55,15 @@ interface AgentInfo {
 
 interface ElizaChatInterfaceProps {
   availableCharacters?: ElizaCharacter[];
+  initialCharacterId?: string | null;
 }
 
 export function ElizaChatInterface({
   availableCharacters = [],
+  initialCharacterId = null,
 }: ElizaChatInterfaceProps) {
   const [selectedCharacterId, setSelectedCharacterId] = useState<string | null>(
-    null
+    initialCharacterId
   );
   const [roomId, setRoomId] = useState<string | null>(null);
 
@@ -88,6 +90,33 @@ export function ElizaChatInterface({
   const [currentPlayingId, setCurrentPlayingId] = useState<string | null>(null);
   const [isProcessingSTT, setIsProcessingSTT] = useState(false);
   const messageAudioUrls = useRef<Map<string, string>>(new Map());
+  const [customVoices, setCustomVoices] = useState<
+    Array<{
+      id: string;
+      elevenlabsVoiceId: string;
+      name: string;
+      cloneType: string;
+    }>
+  >([]);
+  const [selectedVoiceId, setSelectedVoiceId] = useState<string | null>(() => {
+    // Load voice selection from localStorage on mount
+    if (typeof window !== "undefined") {
+      const saved = localStorage.getItem("eliza-selected-voice-id");
+      console.log("[Voice Init] Loaded from localStorage:", saved);
+      return saved;
+    }
+    return null;
+  });
+
+  // Clear audio cache when voice changes (so messages regenerate with new voice)
+  useEffect(() => {
+    if (messageAudioUrls.current.size > 0) {
+      console.log(
+        "[Voice Change] Clearing audio cache - messages will regenerate with new voice"
+      );
+      messageAudioUrls.current.clear();
+    }
+  }, [selectedVoiceId]);
 
   const recorder = useAudioRecorder();
   const player = useAudioPlayer();
@@ -162,10 +191,11 @@ export function ElizaChatInterface({
     }
   }, []);
 
-  const createRoom = useCallback(async () => {
+  const createRoom = useCallback(async (characterId?: string | null) => {
+    const charIdToUse = characterId !== undefined ? characterId : selectedCharacterId;
     console.log(
       "[ElizaChat] Creating room with character:",
-      selectedCharacterId || "default"
+      charIdToUse || "default"
     );
     setIsInitializing(true);
     setError(null);
@@ -175,7 +205,7 @@ export function ElizaChatInterface({
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           entityId: entityId.current,
-          characterId: selectedCharacterId || undefined,
+          characterId: charIdToUse || undefined,
         }),
       });
 
@@ -187,7 +217,7 @@ export function ElizaChatInterface({
       console.log("[ElizaChat] Room created:", {
         roomId: data.roomId,
         characterId: data.characterId,
-        requestedCharacterId: selectedCharacterId,
+        requestedCharacterId: charIdToUse,
       });
 
       setRoomId(data.roomId);
@@ -209,6 +239,16 @@ export function ElizaChatInterface({
   // Initialize room: restore saved room or use most recent existing room
   useEffect(() => {
     const initializeRoom = async () => {
+      // If initialCharacterId is provided from URL, create a new room immediately
+      if (initialCharacterId) {
+        console.log(
+          "[ElizaChat] Initializing with character from URL:",
+          initialCharacterId
+        );
+        await createRoom(initialCharacterId);
+        return;
+      }
+
       // First check for saved room in localStorage
       const savedRoom =
         typeof window !== "undefined"
@@ -257,15 +297,38 @@ export function ElizaChatInterface({
       }
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [initialCharacterId]);
 
   const generateSpeech = useCallback(
     async (text: string, messageId: string) => {
       try {
+        // Use selectedVoiceId directly (callback will recreate when it changes)
+        const currentVoiceId = selectedVoiceId;
+        const voiceName = currentVoiceId
+          ? customVoices.find((v) => v.elevenlabsVoiceId === currentVoiceId)
+              ?.name || "Custom Voice"
+          : "Default Voice";
+
+        // Build request body - IMPORTANT: Only add voiceId if we actually have one
+        const requestBody: { text: string; voiceId?: string } = { text };
+        if (currentVoiceId) {
+          requestBody.voiceId = currentVoiceId;
+        }
+
+        console.log("[TTS] 🎤 Generating speech:", {
+          currentVoiceId: currentVoiceId || "(none - using default)",
+          voiceName,
+          messageId,
+          textLength: text.length,
+          requestBody,
+          willSendVoiceId: !!requestBody.voiceId,
+          timestamp: new Date().toISOString(),
+        });
+
         const response = await fetch("/api/elevenlabs/tts", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ text }),
+          body: JSON.stringify(requestBody),
         });
 
         if (!response.ok) {
@@ -287,8 +350,27 @@ export function ElizaChatInterface({
         toast.error("Failed to generate speech");
       }
     },
-    [autoPlayTTS, player]
+    [autoPlayTTS, player, selectedVoiceId, customVoices]
   );
+
+  // Load custom voices on mount
+  useEffect(() => {
+    const fetchCustomVoices = async () => {
+      try {
+        const response = await fetch("/api/elevenlabs/voices/user");
+        if (response.ok) {
+          const data = await response.json();
+          if (data.success && Array.isArray(data.voices)) {
+            setCustomVoices(data.voices);
+          }
+        }
+      } catch (error) {
+        console.error("Failed to load custom voices:", error);
+      }
+    };
+
+    fetchCustomVoices();
+  }, []);
 
   const handleVoiceInput = useCallback(() => {
     if (recorder.isRecording) {
@@ -634,7 +716,7 @@ export function ElizaChatInterface({
               <MessageSquare className="h-4 w-4 text-muted-foreground" />
               <p className="text-sm font-semibold">Conversations</p>
             </div>
-            <Button size="sm" variant="ghost" onClick={createRoom}>
+            <Button size="sm" variant="ghost" onClick={() => createRoom()}>
               New
             </Button>
           </div>
@@ -769,6 +851,65 @@ export function ElizaChatInterface({
                 onCheckedChange={setAutoPlayTTS}
               />
             </div>
+            {customVoices.length > 0 && (
+              <div className="flex items-center gap-2">
+                <Label htmlFor="voice-select" className="text-xs">
+                  Voice:
+                </Label>
+                <Select
+                  value={selectedVoiceId || "default"}
+                  onValueChange={(value) => {
+                    const newVoiceId = value === "default" ? null : value;
+                    setSelectedVoiceId(newVoiceId);
+
+                    // Persist voice selection to localStorage
+                    if (typeof window !== "undefined") {
+                      if (newVoiceId) {
+                        localStorage.setItem(
+                          "eliza-selected-voice-id",
+                          newVoiceId
+                        );
+                      } else {
+                        localStorage.removeItem("eliza-selected-voice-id");
+                      }
+                    }
+
+                    const voiceName = newVoiceId
+                      ? customVoices.find(
+                          (v) => v.elevenlabsVoiceId === newVoiceId
+                        )?.name || "Custom Voice"
+                      : "Default Voice";
+
+                    console.log("[Voice Selector] Voice changed to:", value, {
+                      newVoiceId,
+                      voiceName,
+                      persisted: true,
+                    });
+
+                    // Show toast confirmation
+                    toast.success(`Voice changed to: ${voiceName}`);
+                  }}
+                >
+                  <SelectTrigger
+                    id="voice-select"
+                    className="h-8 text-xs w-[140px]"
+                  >
+                    <SelectValue placeholder="Default" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="default">Default Voice</SelectItem>
+                    {customVoices.map((voice) => (
+                      <SelectItem
+                        key={voice.id}
+                        value={voice.elevenlabsVoiceId}
+                      >
+                        {voice.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            )}
           </div>
         </div>
 

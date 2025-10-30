@@ -30,6 +30,7 @@ export interface UserStackConfig {
   containerPort: number;
   containerCpu: number;
   containerMemory: number;
+  architecture?: 'arm64' | 'x86_64'; // CPU architecture for instance type selection
   keyName?: string;
   environmentVars?: Record<string, string>;
 }
@@ -258,6 +259,10 @@ export class CloudFormationService {
             ParameterKey: "ContainerMemory",
             ParameterValue: config.containerMemory.toString(),
           },
+          {
+            ParameterKey: "Architecture",
+            ParameterValue: config.architecture || 'arm64',
+          },
           { ParameterKey: "SharedVPCId", ParameterValue: sharedOutputs.vpcId },
           {
             ParameterKey: "SharedSubnetId",
@@ -393,6 +398,10 @@ export class CloudFormationService {
           {
             ParameterKey: "ContainerMemory",
             ParameterValue: config.containerMemory.toString(),
+          },
+          {
+            ParameterKey: "Architecture",
+            ParameterValue: config.architecture || 'arm64',
           },
           { ParameterKey: "SharedVPCId", ParameterValue: sharedOutputs.vpcId },
           {
