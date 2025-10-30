@@ -5,7 +5,7 @@ import { BillingPageWrapper } from "@/components/billing/billing-page-wrapper";
 
 export const metadata: Metadata = {
   title: "Billing",
-  description: "Purchase credits and manage your billing",
+  description: "Add funds and manage your billing",
 };
 
 // Force dynamic rendering since we use server-side auth (cookies)

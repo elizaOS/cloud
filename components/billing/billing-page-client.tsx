@@ -67,14 +67,14 @@ export function BillingPageClient({
           <div>
             <h3 className="text-lg font-semibold">Current Balance</h3>
             <p className="text-sm text-muted-foreground">
-              Available credits in your account
+              Available balance in your account
             </p>
           </div>
           <div className="text-right">
             <div className="text-3xl font-bold">
-              {currentCredits.toLocaleString()}
+              ${Number(currentCredits).toFixed(2)}
             </div>
-            <div className="text-sm text-muted-foreground">credits</div>
+            <div className="text-sm text-muted-foreground">USD</div>
           </div>
         </div>
       </div>
