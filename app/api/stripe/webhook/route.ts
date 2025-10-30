@@ -85,7 +85,7 @@ export async function POST(req: NextRequest) {
           await creditsService.addCredits({
             organizationId,
             amount: credits,
-            description: `Credit pack purchase - ${credits.toLocaleString()} credits`,
+            description: `Balance top-up - $${Number(credits).toFixed(2)}`,
             metadata: {
               user_id: userId,
               payment_intent_id: paymentIntentId,

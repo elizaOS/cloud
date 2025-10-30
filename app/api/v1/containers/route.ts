@@ -40,9 +40,9 @@ const createContainerSchema = z.object({
   ecr_image_uri: z.string(), // Required: Full ECR image URI with tag
   ecr_repository_uri: z.string().optional(),
   image_tag: z.string().optional(),
-  
+
   // Architecture field for multi-platform support
-  architecture: z.enum(['arm64', 'x86_64']).optional().default('arm64'),
+  architecture: z.enum(["arm64", "x86_64"]).optional().default("arm64"),
 });
 
 /**
@@ -188,7 +188,8 @@ async function handleCreateContainer(request: NextRequest) {
     // Check if a container with this project_name already exists for this user
     const existingContainers = await listContainers(user.organization_id);
     const existingProject = existingContainers.find(
-      (c) => c.user_id === user.id && c.project_name === validatedData.project_name
+      (c) =>
+        c.user_id === user.id && c.project_name === validatedData.project_name
     );
 
     const isUpdate = !!existingProject;
@@ -200,11 +201,13 @@ async function handleCreateContainer(request: NextRequest) {
     let container;
     let newBalance: number;
     let deploymentCost: number;
-    
+
     if (isUpdate && existingProject) {
       // UPDATE: Update the existing container record
-      console.log(`🔄 [handleCreateContainer] Updating existing container: ${existingProject.id}`);
-      
+      console.log(
+        `🔄 [handleCreateContainer] Updating existing container: ${existingProject.id}`
+      );
+
       const updateData = {
         name: validatedData.name,
         description: validatedData.description,
@@ -239,7 +242,7 @@ async function handleCreateContainer(request: NextRequest) {
       }
 
       container = updatedContainer;
-      
+
       // For updates, still need to calculate cost and deduct credits
       deploymentCost = calculateDeploymentCost({
         desiredCount: validatedData.desired_count,
@@ -264,7 +267,7 @@ async function handleCreateContainer(request: NextRequest) {
         return NextResponse.json(
           {
             success: false,
-            error: "Insufficient credits for update deployment",
+            error: "Insufficient balance for update deployment",
             requiredCredits: deploymentCost,
           },
           { status: 402 } // Payment Required
@@ -283,8 +286,10 @@ async function handleCreateContainer(request: NextRequest) {
       });
     } else {
       // FRESH: Create a new container record
-      console.log(`🆕 [handleCreateContainer] Creating new container for project "${validatedData.project_name}"`);
-      
+      console.log(
+        `🆕 [handleCreateContainer] Creating new container for project "${validatedData.project_name}"`
+      );
+
       const containerData: NewContainer = {
         name: validatedData.name,
         project_name: validatedData.project_name,
@@ -322,11 +327,12 @@ async function handleCreateContainer(request: NextRequest) {
       // CRITICAL: Wrap container creation AND credit deduction in a single transaction
       // This prevents race condition where container exists but credits fail to deduct
       try {
-        const result = await containersService.createContainerWithCreditDeduction(
-          containerData,
-          user.id,
-          deploymentCost
-        );
+        const result =
+          await containersService.createContainerWithCreditDeduction(
+            containerData,
+            user.id,
+            deploymentCost
+          );
 
         container = result.container;
         newBalance = result.newBalance;
@@ -345,7 +351,7 @@ async function handleCreateContainer(request: NextRequest) {
         const errorMessage =
           error instanceof Error ? error.message : "Unknown error";
 
-        if (errorMessage.includes("Insufficient credits")) {
+        if (errorMessage.includes("Insufficient balance")) {
           return NextResponse.json(
             {
               success: false,
@@ -416,7 +422,7 @@ async function handleCreateContainer(request: NextRequest) {
     // Deploy container ASYNCHRONOUSLY - return immediately to prevent API timeout
     // CloudFormation deployments take 8-12 minutes, which exceeds API gateway timeouts
     // Client will poll GET /api/v1/containers/:id for status updates
-    
+
     console.log(
       `🚀 [handleCreateContainer] Starting background deployment for container: ${container.id}`
     );
@@ -575,13 +581,12 @@ async function deployContainerAsync(
     }
 
     // Create CloudFormation stack for this user
-    const architecture = config.architecture || 'arm64';
-    const instanceType = architecture === 'arm64' ? 't4g.small' : 't3.small';
-    
+    const architecture = config.architecture || "arm64";
+    const instanceType = architecture === "arm64" ? "t4g.small" : "t3.small";
+
     console.log(`📝 [deployContainerAsync] Updating status to 'deploying'`);
     await updateContainerStatus(containerId, "deploying", {
-      deploymentLog:
-        `Creating CloudFormation stack (1x ${instanceType} ${architecture === 'arm64' ? 'ARM' : 'x86_64'} instance)...`,
+      deploymentLog: `Creating CloudFormation stack (1x ${instanceType} ${architecture === "arm64" ? "ARM" : "x86_64"} instance)...`,
     });
 
     console.log(`☁️ [deployContainerAsync] Creating CloudFormation stack...`, {
@@ -629,10 +634,14 @@ async function deployContainerAsync(
     // Use update or create based on whether project exists
     let stackId: string;
     if (isUpdate) {
-      console.log(`🔄 [deployContainerAsync] Updating existing CloudFormation stack for project "${config.project_name}"...`);
+      console.log(
+        `🔄 [deployContainerAsync] Updating existing CloudFormation stack for project "${config.project_name}"...`
+      );
       stackId = await cloudFormationService.updateUserStack(stackConfig);
     } else {
-      console.log(`🆕 [deployContainerAsync] Creating new CloudFormation stack for project "${config.project_name}"...`);
+      console.log(
+        `🆕 [deployContainerAsync] Creating new CloudFormation stack for project "${config.project_name}"...`
+      );
       stackId = await cloudFormationService.createUserStack(stackConfig);
     }
 
@@ -641,7 +650,10 @@ async function deployContainerAsync(
     );
 
     // Store the stack name in container metadata for future reference
-    const stackName = cloudFormationService.getStackName(containerId, config.project_name);
+    const stackName = cloudFormationService.getStackName(
+      containerId,
+      config.project_name
+    );
     await updateContainerStatus(containerId, "deploying", {
       cloudformationStackName: stackName,
     });
@@ -668,7 +680,10 @@ async function deployContainerAsync(
     );
 
     // Get stack outputs
-    const outputs = await cloudFormationService.getStackOutputs(containerId, config.project_name);
+    const outputs = await cloudFormationService.getStackOutputs(
+      containerId,
+      config.project_name
+    );
 
     if (!outputs) {
       throw new Error("Failed to get stack outputs");
@@ -747,7 +762,10 @@ async function deployContainerAsync(
       try {
         // Delete CloudFormation stack first
         try {
-          await cloudFormationService.deleteUserStack(containerId, config.project_name);
+          await cloudFormationService.deleteUserStack(
+            containerId,
+            config.project_name
+          );
           console.log(
             `✅ CloudFormation stack deletion initiated for ${containerId}`
           );

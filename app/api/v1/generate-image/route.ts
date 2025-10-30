@@ -323,7 +323,7 @@ async function handlePOST(req: NextRequest) {
     }
 
     console.log(
-      `[IMAGE GENERATION] Generated ${successfulResults.length} image(s), Credits deducted: ${actualCost}, New balance: ${deductionResult.newBalance}`,
+      `[IMAGE GENERATION] Generated ${successfulResults.length} image(s), Cost: $${actualCost.toFixed(2)}, New balance: $${deductionResult.newBalance.toFixed(2)}`,
     );
 
     return Response.json({

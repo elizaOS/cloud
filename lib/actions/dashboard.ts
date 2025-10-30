@@ -138,7 +138,7 @@ async function fetchDashboardDataInternal(
     },
     organization: {
       name: user.organization.name,
-      creditBalance: user.organization.credit_balance,
+      creditBalance: Number.parseFloat(String(user.organization.credit_balance)),
       maxApiRequests: user.organization.max_api_requests || null,
       maxTokensPerRequest: user.organization.max_tokens_per_request || null,
       allowedProviders: user.organization.allowed_providers || [],

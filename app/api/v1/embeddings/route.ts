@@ -110,9 +110,9 @@ async function handlePOST(req: NextRequest) {
     }
 
     const creditCheck = {
-      sufficient: org.credit_balance >= requiredCredits,
+      sufficient: Number(org.credit_balance) >= requiredCredits,
       required: requiredCredits,
-      balance: org.credit_balance,
+      balance: Number(org.credit_balance),
     };
 
     if (!creditCheck.sufficient) {
@@ -125,9 +125,9 @@ async function handlePOST(req: NextRequest) {
       return Response.json(
         {
           error: {
-            message: `Insufficient credits. Required: ${creditCheck.required}, Available: ${creditCheck.balance}`,
+            message: `Insufficient balance. Required: ${creditCheck.required}, Available: ${creditCheck.balance}`,
             type: "insufficient_quota",
-            code: "insufficient_credits",
+            code: "insufficient_balance",
           },
         },
         { status: 402 },
