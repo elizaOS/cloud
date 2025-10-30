@@ -88,7 +88,7 @@ async function handlePATCH(request: NextRequest) {
     }
 
     // Revalidate cache
-    revalidateTag("user-auth");
+    revalidateTag("user-auth", {});
 
     return NextResponse.json({
       success: true,

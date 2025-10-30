@@ -1,5 +1,4 @@
 import { EventEmitter } from "events";
-import { logger } from "@/lib/utils/logger";
 
 export interface CreditUpdateEvent {
   organizationId: string;
@@ -39,10 +38,6 @@ class CreditEventEmitter extends EventEmitter {
     this.cleanupInterval = setInterval(() => {
       this.cleanupStaleListeners();
     }, this.CLEANUP_INTERVAL);
-
-    logger.info(
-      `[Credit Events] Auto-cleanup enabled (stale threshold: ${this.STALE_THRESHOLD}ms, interval: ${this.CLEANUP_INTERVAL}ms)`,
-    );
   }
 
   public static getInstance(): CreditEventEmitter {
@@ -54,7 +49,6 @@ class CreditEventEmitter extends EventEmitter {
 
   public emitCreditUpdate(event: CreditUpdateEvent): void {
     const channel = `credits:${event.organizationId}`;
-    logger.debug(`[Credit Events] Emitting event on channel ${channel}`, event);
 
     // Update last activity for all listeners on this channel
     const listeners = this.listeners(channel) as Array<
@@ -86,16 +80,9 @@ class CreditEventEmitter extends EventEmitter {
 
     this.on(channel, handler);
 
-    logger.debug(
-      `[Credit Events] Subscribed to ${channel} (total listeners: ${this.listenerCount(channel)})`,
-    );
-
     return () => {
       this.off(channel, handler);
       this.listenerMetadata.delete(listenerId);
-      logger.debug(
-        `[Credit Events] Unsubscribed from ${channel} (remaining: ${this.listenerCount(channel)})`,
-      );
     };
   }
 
@@ -104,7 +91,6 @@ class CreditEventEmitter extends EventEmitter {
    */
   private cleanupStaleListeners(): void {
     const now = Date.now();
-    let cleanedCount = 0;
 
     // Collect stale listener IDs
     const staleListenerIds: string[] = [];
@@ -123,26 +109,9 @@ class CreditEventEmitter extends EventEmitter {
       if (channel) {
         // Remove all listeners for this channel if any are stale
         // This is a conservative approach to prevent memory leaks
-        const listenerCount = this.listenerCount(channel);
-        const metadata = this.listenerMetadata.get(listenerId);
-        const inactiveDuration = metadata ? now - metadata.lastActivity : 0;
-
         this.removeAllListeners(channel);
         this.listenerMetadata.delete(listenerId);
-        cleanedCount++;
-
-        logger.warn(
-          `[Credit Events] Cleaned up stale listener on ${channel} ` +
-            `(removed ${listenerCount} listeners, inactive for ${Math.round(inactiveDuration / 1000)}s)`,
-        );
       }
-    }
-
-    if (cleanedCount > 0) {
-      logger.info(
-        `[Credit Events] Cleanup completed: removed ${cleanedCount} stale channels ` +
-          `(total remaining: ${this.listenerMetadata.size})`,
-      );
     }
   }
 
@@ -167,17 +136,11 @@ class CreditEventEmitter extends EventEmitter {
   public incrementConnections(organizationId: string): void {
     const count = this.activeConnections.get(organizationId) || 0;
     this.activeConnections.set(organizationId, count + 1);
-    logger.info(
-      `[Credit Events] Active connections for org ${organizationId}: ${count + 1}`,
-    );
   }
 
   public decrementConnections(organizationId: string): void {
     const count = this.activeConnections.get(organizationId) || 0;
     this.activeConnections.set(organizationId, Math.max(0, count - 1));
-    logger.info(
-      `[Credit Events] Active connections for org ${organizationId}: ${count - 1}`,
-    );
   }
 
   public getActiveConnections(organizationId: string): number {
@@ -221,7 +184,6 @@ class CreditEventEmitter extends EventEmitter {
    * Force cleanup of all stale listeners (for testing/debugging)
    */
   public forceCleanup(): void {
-    logger.info("[Credit Events] Force cleanup triggered");
     this.cleanupStaleListeners();
   }
 
@@ -231,7 +193,6 @@ class CreditEventEmitter extends EventEmitter {
   public shutdown(): void {
     if (this.cleanupInterval) {
       clearInterval(this.cleanupInterval);
-      logger.info("[Credit Events] Cleanup interval stopped");
     }
   }
 }

@@ -27,11 +27,12 @@ export const maxDuration = 780; // 13 minutes - allows full CloudFormation deplo
 
 const createContainerSchema = z.object({
   name: z.string().min(1).max(100),
+  project_name: z.string().min(1).max(50), // Project identifier for multi-project support
   description: z.string().optional(),
   port: z.number().int().min(1).max(65535).default(3000),
   desired_count: z.number().int().min(1).max(10).default(1),
-  cpu: z.number().int().min(256).max(2048).default(1792), // CPU units (1792 = 1.75 vCPU, 87.5% of t3g.small)
-  memory: z.number().int().min(512).max(2048).default(1792), // Memory in MB (1792 = 1.75 GB, 87.5% of t3g.small)
+  cpu: z.number().int().min(256).max(2048).default(1792), // CPU units (1792 = 1.75 vCPU, 87.5% of t4g.small's 2 vCPUs)
+  memory: z.number().int().min(256).max(2048).default(1792), // Memory in MB (1792 MB = 1.75 GiB, 87.5% of t4g.small's 2 GiB)
   environment_vars: z.record(z.string(), z.string()).optional(),
   health_check_path: z.string().default("/health"),
 
@@ -39,6 +40,9 @@ const createContainerSchema = z.object({
   ecr_image_uri: z.string(), // Required: Full ECR image URI with tag
   ecr_repository_uri: z.string().optional(),
   image_tag: z.string().optional(),
+  
+  // Architecture field for multi-platform support
+  architecture: z.enum(['arm64', 'x86_64']).optional().default('arm64'),
 });
 
 /**
@@ -63,7 +67,7 @@ export async function GET(request: NextRequest) {
         error:
           error instanceof Error ? error.message : "Failed to fetch containers",
       },
-      { status: 500 },
+      { status: 500 }
     );
   }
 }
@@ -83,7 +87,7 @@ async function handleCreateContainer(request: NextRequest) {
           error:
             "Container deployments are not configured. Please set AWS_REGION, AWS_ACCESS_KEY_ID, AWS_SECRET_ACCESS_KEY, and ECS configuration.",
         },
-        { status: 503 },
+        { status: 503 }
       );
     }
 
@@ -106,13 +110,13 @@ async function handleCreateContainer(request: NextRequest) {
               provided: envVarCount,
             },
           },
-          { status: 400 },
+          { status: 400 }
         );
       }
 
       // Validate each env var name and value size
       for (const [key, value] of Object.entries(
-        validatedData.environment_vars,
+        validatedData.environment_vars
       )) {
         // Validate key format
         if (!/^[A-Za-z_][A-Za-z0-9_]*$/.test(key)) {
@@ -121,7 +125,7 @@ async function handleCreateContainer(request: NextRequest) {
               success: false,
               error: `Invalid environment variable name: '${key}'. Must start with letter/underscore and contain only alphanumeric and underscores.`,
             },
-            { status: 400 },
+            { status: 400 }
           );
         }
 
@@ -133,7 +137,7 @@ async function handleCreateContainer(request: NextRequest) {
               success: false,
               error: `Environment variable '${key}' value exceeds maximum size of ${CONTAINER_LIMITS.MAX_ENV_VAR_SIZE} bytes (got ${valueSize} bytes)`,
             },
-            { status: 400 },
+            { status: 400 }
           );
         }
       }
@@ -149,7 +153,7 @@ async function handleCreateContainer(request: NextRequest) {
             hint: "Call POST /api/v1/containers/credentials to get ECR credentials and push your Docker image to ECR first",
           },
         },
-        { status: 400 },
+        { status: 400 }
       );
     }
 
@@ -158,7 +162,7 @@ async function handleCreateContainer(request: NextRequest) {
       const { getECRManager } = await import("@/lib/services/ecr");
       const ecrManager = getECRManager();
       const imageExists = await ecrManager.verifyImageExists(
-        validatedData.ecr_image_uri,
+        validatedData.ecr_image_uri
       );
 
       if (!imageExists) {
@@ -170,151 +174,285 @@ async function handleCreateContainer(request: NextRequest) {
               hint: "Ensure the Docker image was successfully pushed to ECR before deploying",
             },
           },
-          { status: 404 },
+          { status: 404 }
         );
       }
     } catch (error) {
       console.error("Failed to verify ECR image:", error);
       // Log but don't block deployment - image might exist but verification failed
       console.warn(
-        "Proceeding with deployment despite image verification failure",
+        "Proceeding with deployment despite image verification failure"
       );
     }
 
-    // Prepare container data for ECS deployment
-    const containerData: NewContainer = {
-      name: validatedData.name,
-      description: validatedData.description,
-      organization_id: user.organization_id,
-      user_id: user.id,
-      api_key_id: apiKey?.id || null,
-      ecr_repository_uri: validatedData.ecr_repository_uri,
-      ecr_image_tag: validatedData.image_tag,
-      image_tag: validatedData.image_tag,
-      port: validatedData.port,
-      desired_count: validatedData.desired_count,
-      cpu: validatedData.cpu,
-      memory: validatedData.memory,
-      environment_vars: validatedData.environment_vars || {},
-      health_check_path: validatedData.health_check_path,
-      status: "pending",
-      metadata: {
-        ecr_image_uri: validatedData.ecr_image_uri,
-      },
-    };
+    // Check if a container with this project_name already exists for this user
+    const existingContainers = await listContainers(user.organization_id);
+    const existingProject = existingContainers.find(
+      (c) => c.user_id === user.id && c.project_name === validatedData.project_name
+    );
 
-    // Calculate deployment cost upfront (ECS is more expensive than Cloudflare)
-    const deploymentCost = calculateDeploymentCost({
-      desiredCount: validatedData.desired_count,
-      cpu: validatedData.cpu,
-      memory: validatedData.memory,
-      includeUpload: false, // Image build/push is charged separately
-    });
+    const isUpdate = !!existingProject;
 
-    // CRITICAL: Wrap container creation AND credit deduction in a single transaction
-    // This prevents race condition where container exists but credits fail to deduct
+    console.log(
+      `🔍 [handleCreateContainer] Project "${validatedData.project_name}" ${isUpdate ? "EXISTS - will update" : "is NEW - will create"}`
+    );
+
     let container;
-    let newBalance;
+    let newBalance: number;
+    let deploymentCost: number;
+    
+    if (isUpdate && existingProject) {
+      // UPDATE: Update the existing container record
+      console.log(`🔄 [handleCreateContainer] Updating existing container: ${existingProject.id}`);
+      
+      const updateData = {
+        name: validatedData.name,
+        description: validatedData.description,
+        ecr_repository_uri: validatedData.ecr_repository_uri,
+        ecr_image_tag: validatedData.image_tag,
+        image_tag: validatedData.image_tag,
+        port: validatedData.port,
+        desired_count: validatedData.desired_count,
+        cpu: validatedData.cpu,
+        memory: validatedData.memory,
+        architecture: validatedData.architecture,
+        environment_vars: validatedData.environment_vars || {},
+        health_check_path: validatedData.health_check_path,
+        status: "pending",
+        is_update: "true",
+        metadata: {
+          ecr_image_uri: validatedData.ecr_image_uri,
+          is_update: true,
+          previous_image: existingProject.metadata?.ecr_image_uri,
+          architecture: validatedData.architecture,
+        },
+      };
 
-    try {
-      const result = await containersService.createContainerWithCreditDeduction(
-        containerData,
-        user.id,
-        deploymentCost,
+      const updatedContainer = await containersService.update(
+        existingProject.id,
+        user.organization_id,
+        updateData
       );
 
-      container = result.container;
-      newBalance = result.newBalance;
+      if (!updatedContainer) {
+        throw new Error("Failed to update existing container");
+      }
 
-      // Emit credit update event for real-time balance updates
+      container = updatedContainer;
+      
+      // For updates, still need to calculate cost and deduct credits
+      deploymentCost = calculateDeploymentCost({
+        desiredCount: validatedData.desired_count,
+        cpu: validatedData.cpu,
+        memory: validatedData.memory,
+        includeUpload: false,
+      });
+
+      // Deduct credits for update deployment
+      const creditResult = await creditsService.deductCredits({
+        organizationId: user.organization_id,
+        amount: deploymentCost,
+        description: `Container update deployment: ${validatedData.name}`,
+        metadata: {
+          type: "container_update",
+          containerId: container.id,
+          projectName: validatedData.project_name,
+        },
+      });
+
+      if (!creditResult.success) {
+        return NextResponse.json(
+          {
+            success: false,
+            error: "Insufficient credits for update deployment",
+            requiredCredits: deploymentCost,
+          },
+          { status: 402 } // Payment Required
+        );
+      }
+
+      newBalance = creditResult.newBalance;
+
       creditEventEmitter.emitCreditUpdate({
         organizationId: user.organization_id,
         newBalance: newBalance,
         delta: -deploymentCost,
-        reason: `Container deployment: ${validatedData.name}`,
+        reason: `Container update: ${validatedData.name}`,
         userId: user.id,
         timestamp: new Date(),
       });
-    } catch (error) {
-      // Transaction rolled back - no orphaned container or credit inconsistency
-      const errorMessage =
-        error instanceof Error ? error.message : "Unknown error";
-
-      if (errorMessage.includes("Insufficient credits")) {
-        return NextResponse.json(
-          {
-            success: false,
-            error: errorMessage,
-            requiredCredits: deploymentCost,
-          },
-          { status: 402 }, // Payment Required
-        );
-      }
-
-      throw error; // Re-throw for outer error handler
-    }
-
-    // Create usage record for audit trail
-    await usageService.create({
-      organization_id: user.organization_id,
-      user_id: user.id,
-      api_key_id: apiKey?.id,
-      type: "container_deployment",
-      provider: "aws_ecs",
-      input_cost: deploymentCost,
-      output_cost: 0,
-      is_successful: true,
-      metadata: {
-        container_id: container.id,
-        container_name: validatedData.name,
+    } else {
+      // FRESH: Create a new container record
+      console.log(`🆕 [handleCreateContainer] Creating new container for project "${validatedData.project_name}"`);
+      
+      const containerData: NewContainer = {
+        name: validatedData.name,
+        project_name: validatedData.project_name,
+        description: validatedData.description,
+        organization_id: user.organization_id,
+        user_id: user.id,
+        api_key_id: apiKey?.id || null,
+        ecr_repository_uri: validatedData.ecr_repository_uri,
+        ecr_image_tag: validatedData.image_tag,
+        image_tag: validatedData.image_tag,
+        port: validatedData.port,
         desired_count: validatedData.desired_count,
         cpu: validatedData.cpu,
         memory: validatedData.memory,
-        port: validatedData.port,
-      },
+        architecture: validatedData.architecture,
+        environment_vars: validatedData.environment_vars || {},
+        health_check_path: validatedData.health_check_path,
+        status: "pending",
+        is_update: "false",
+        metadata: {
+          ecr_image_uri: validatedData.ecr_image_uri,
+          is_update: false,
+          architecture: validatedData.architecture,
+        },
+      };
+
+      // Calculate deployment cost upfront (ECS is more expensive than Cloudflare)
+      deploymentCost = calculateDeploymentCost({
+        desiredCount: validatedData.desired_count,
+        cpu: validatedData.cpu,
+        memory: validatedData.memory,
+        includeUpload: false, // Image build/push is charged separately
+      });
+
+      // CRITICAL: Wrap container creation AND credit deduction in a single transaction
+      // This prevents race condition where container exists but credits fail to deduct
+      try {
+        const result = await containersService.createContainerWithCreditDeduction(
+          containerData,
+          user.id,
+          deploymentCost
+        );
+
+        container = result.container;
+        newBalance = result.newBalance;
+
+        // Emit credit update event for real-time balance updates
+        creditEventEmitter.emitCreditUpdate({
+          organizationId: user.organization_id,
+          newBalance: newBalance,
+          delta: -deploymentCost,
+          reason: `Container deployment: ${validatedData.name}`,
+          userId: user.id,
+          timestamp: new Date(),
+        });
+      } catch (error) {
+        // Transaction rolled back - no orphaned container or credit inconsistency
+        const errorMessage =
+          error instanceof Error ? error.message : "Unknown error";
+
+        if (errorMessage.includes("Insufficient credits")) {
+          return NextResponse.json(
+            {
+              success: false,
+              error: errorMessage,
+              requiredCredits: deploymentCost,
+            },
+            { status: 402 } // Payment Required
+          );
+        }
+
+        throw error; // Re-throw for outer error handler
+      }
+
+      // Create usage record for audit trail
+      await usageService.create({
+        organization_id: user.organization_id,
+        user_id: user.id,
+        api_key_id: apiKey?.id,
+        type: "container_deployment",
+        provider: "aws_ecs",
+        input_cost: deploymentCost,
+        output_cost: 0,
+        is_successful: true,
+        metadata: {
+          container_id: container.id,
+          container_name: validatedData.name,
+          project_name: validatedData.project_name,
+          desired_count: validatedData.desired_count,
+          cpu: validatedData.cpu,
+          memory: validatedData.memory,
+          port: validatedData.port,
+          is_update: false,
+        },
+      });
+    }
+
+    // Create usage record for updates
+    if (isUpdate) {
+      const deploymentCost = calculateDeploymentCost({
+        desiredCount: validatedData.desired_count,
+        cpu: validatedData.cpu,
+        memory: validatedData.memory,
+        includeUpload: false,
+      });
+
+      await usageService.create({
+        organization_id: user.organization_id,
+        user_id: user.id,
+        api_key_id: apiKey?.id,
+        type: "container_update",
+        provider: "aws_ecs",
+        input_cost: deploymentCost,
+        output_cost: 0,
+        is_successful: true,
+        metadata: {
+          container_id: container.id,
+          container_name: validatedData.name,
+          project_name: validatedData.project_name,
+          desired_count: validatedData.desired_count,
+          cpu: validatedData.cpu,
+          memory: validatedData.memory,
+          port: validatedData.port,
+          is_update: true,
+        },
+      });
+    }
+
+    // Deploy container ASYNCHRONOUSLY - return immediately to prevent API timeout
+    // CloudFormation deployments take 8-12 minutes, which exceeds API gateway timeouts
+    // Client will poll GET /api/v1/containers/:id for status updates
+    
+    console.log(
+      `🚀 [handleCreateContainer] Starting background deployment for container: ${container.id}`
+    );
+
+    // Start deployment in background (no await)
+    deployContainerAsync(
+      container.id,
+      validatedData,
+      deploymentCost,
+      user.organization_id
+    ).catch((error) => {
+      console.error(
+        "❌ [handleCreateContainer] Background deployment failed:",
+        error
+      );
+      // Error handling is already done inside deployContainerAsync
+      // Container status will be set to "failed" with error message
     });
 
-    // Deploy container synchronously - wait for completion before returning
-    // This ensures the function stays alive for the entire deployment
-    try {
-      await deployContainerAsync(
-        container.id,
-        validatedData,
-        deploymentCost,
-        user.organization_id,
-      );
-      
-      // Fetch updated container status
-      const deployedContainer = await getContainer(container.id, user.organization_id);
-      
-      return NextResponse.json(
-        {
-          success: true,
-          data: deployedContainer || container,
-          message: deployedContainer?.status === "running" 
-            ? "Container deployed successfully"
-            : "Container deployment in progress. Check status for updates.",
-          creditsDeducted: deploymentCost,
-          creditsRemaining: newBalance,
+    // Return immediately with container info and polling instructions
+    return NextResponse.json(
+      {
+        success: true,
+        data: container,
+        message:
+          "Container deployment started. Poll GET /api/v1/containers/:id to check status. CloudFormation deployment typically takes 8-12 minutes.",
+        creditsDeducted: deploymentCost,
+        creditsRemaining: newBalance,
+        polling: {
+          endpoint: `/api/v1/containers/${container.id}`,
+          intervalMs: 10000, // Suggest polling every 10 seconds
+          expectedDurationMs: 600000, // 10 minutes
         },
-        { status: 201 },
-      );
-    } catch (deployError) {
-      console.error("❌ [handleCreateContainer] Deployment failed:", deployError);
-      
-      // Return with current container status (likely "failed")
-      const failedContainer = await getContainer(container.id, user.organization_id);
-      
-      return NextResponse.json(
-        {
-          success: false,
-          data: failedContainer || container,
-          error: deployError instanceof Error ? deployError.message : "Deployment failed",
-          message: "Deployment failed. Check container error_message for details.",
-        },
-        { status: 500 },
-      );
-    }
+      },
+      { status: 202 } // 202 Accepted - request accepted, processing asynchronously
+    );
   } catch (error) {
     console.error("Error creating container:", error);
 
@@ -326,7 +464,7 @@ async function handleCreateContainer(request: NextRequest) {
           error: "Invalid request data",
           details: error.issues,
         },
-        { status: 400 },
+        { status: 400 }
       );
     }
 
@@ -341,7 +479,7 @@ async function handleCreateContainer(request: NextRequest) {
             max: error.max,
           },
         },
-        { status: 403 },
+        { status: 403 }
       );
     }
 
@@ -357,7 +495,7 @@ async function handleCreateContainer(request: NextRequest) {
           error:
             "A container with this name already exists in your organization",
         },
-        { status: 409 },
+        { status: 409 }
       );
     }
 
@@ -368,7 +506,7 @@ async function handleCreateContainer(request: NextRequest) {
         error:
           error instanceof Error ? error.message : "Failed to create container",
       },
-      { status: 500 },
+      { status: 500 }
     );
   }
 }
@@ -376,7 +514,7 @@ async function handleCreateContainer(request: NextRequest) {
 // Export rate-limited handler for POST
 export const POST = withRateLimit(
   handleCreateContainer,
-  RateLimitPresets.CRITICAL,
+  RateLimitPresets.CRITICAL
 );
 
 /**
@@ -387,10 +525,12 @@ async function deployContainerAsync(
   containerId: string,
   config: z.infer<typeof createContainerSchema>,
   deploymentCost: number,
-  organizationId: string,
+  organizationId: string
 ): Promise<void> {
-  console.log(`🚀 [deployContainerAsync] Starting deployment for container: ${containerId}`);
-  
+  console.log(
+    `🚀 [deployContainerAsync] Starting deployment for container: ${containerId}`
+  );
+
   const { TimeoutError, withTimeout } = await import(
     "@/lib/errors/deployment-errors"
   );
@@ -415,24 +555,33 @@ async function deployContainerAsync(
     console.log(`🔍 [deployContainerAsync] Checking shared infrastructure...`);
     let sharedInfraExists: boolean;
     try {
-      sharedInfraExists = await cloudFormationService.isSharedInfrastructureDeployed();
-      console.log(`📊 [deployContainerAsync] Shared infrastructure exists: ${sharedInfraExists}`);
+      sharedInfraExists =
+        await cloudFormationService.isSharedInfrastructureDeployed();
+      console.log(
+        `📊 [deployContainerAsync] Shared infrastructure exists: ${sharedInfraExists}`
+      );
     } catch (cfError) {
-      console.error(`❌ [deployContainerAsync] CloudFormation check failed:`, cfError);
+      console.error(
+        `❌ [deployContainerAsync] CloudFormation check failed:`,
+        cfError
+      );
       throw cfError;
     }
-    
+
     if (!sharedInfraExists) {
       throw new Error(
-        "Shared infrastructure not deployed. Contact support or deploy infrastructure first.",
+        "Shared infrastructure not deployed. Contact support or deploy infrastructure first."
       );
     }
 
     // Create CloudFormation stack for this user
+    const architecture = config.architecture || 'arm64';
+    const instanceType = architecture === 'arm64' ? 't4g.small' : 't3.small';
+    
     console.log(`📝 [deployContainerAsync] Updating status to 'deploying'`);
     await updateContainerStatus(containerId, "deploying", {
       deploymentLog:
-        "Creating CloudFormation stack (1x t3g.small ARM instance)...",
+        `Creating CloudFormation stack (1x ${instanceType} ${architecture === 'arm64' ? 'ARM' : 'x86_64'} instance)...`,
     });
 
     console.log(`☁️ [deployContainerAsync] Creating CloudFormation stack...`, {
@@ -444,38 +593,82 @@ async function deployContainerAsync(
       memory: config.memory,
     });
 
-    const stackId = await cloudFormationService.createUserStack({
+    // Prepare environment variables for the container
+    // Include platform-level vars (OPENAI_API_KEY) + user-provided vars
+    const environmentVars: Record<string, string> = {
+      // Platform-level environment variables
+      ...(process.env.OPENAI_API_KEY && {
+        OPENAI_API_KEY: process.env.OPENAI_API_KEY,
+      }),
+
+      // User-provided environment variables from container config
+      ...(config.environment_vars || {}),
+    };
+
+    console.log(
+      `🔐 [deployContainerAsync] Injecting ${Object.keys(environmentVars).length} environment variables (including OPENAI_API_KEY and DATABASE_URL)`
+    );
+
+    // Get container to check if this is an update
+    const container = await getContainer(containerId, organizationId);
+    const isUpdate = container?.is_update === "true";
+
+    const stackConfig = {
       userId: containerId,
+      projectName: config.project_name,
       userEmail: config.name, // Using container name as identifier
       containerImage: config.ecr_image_uri,
       containerPort: config.port,
       containerCpu: config.cpu,
       containerMemory: config.memory,
+      architecture: architecture, // Pass architecture for instance type selection
       keyName: process.env.EC2_KEY_NAME,
+      environmentVars: environmentVars,
+    };
+
+    // Use update or create based on whether project exists
+    let stackId: string;
+    if (isUpdate) {
+      console.log(`🔄 [deployContainerAsync] Updating existing CloudFormation stack for project "${config.project_name}"...`);
+      stackId = await cloudFormationService.updateUserStack(stackConfig);
+    } else {
+      console.log(`🆕 [deployContainerAsync] Creating new CloudFormation stack for project "${config.project_name}"...`);
+      stackId = await cloudFormationService.createUserStack(stackConfig);
+    }
+
+    console.log(
+      `✅ [deployContainerAsync] CloudFormation stack ${isUpdate ? "update" : "creation"} initiated: ${stackId}`
+    );
+
+    // Store the stack name in container metadata for future reference
+    const stackName = cloudFormationService.getStackName(containerId, config.project_name);
+    await updateContainerStatus(containerId, "deploying", {
+      cloudformationStackName: stackName,
     });
 
-    console.log(`✅ [deployContainerAsync] CloudFormation stack initiated: ${stackId}`);
-
-    // Wait for stack creation to complete (with timeout)
+    // Wait for stack creation/update to complete (with timeout)
     // With Vercel Pro/Enterprise maxDuration of 800s (13.33 min), we can wait for full deployment
     // UserData waits 5 min + CloudFormation overhead = typically 7-10 min total
     // We set 12 min timeout to handle slower AWS regions and edge cases
     // This fits comfortably within the 13 min Vercel limit
     const STACK_TIMEOUT_MINUTES = 12;
-    console.log(`⏳ [deployContainerAsync] Waiting for stack creation (max ${STACK_TIMEOUT_MINUTES} minutes)...`);
-    
+    console.log(
+      `⏳ [deployContainerAsync] Waiting for stack ${isUpdate ? "update" : "creation"} (max ${STACK_TIMEOUT_MINUTES} minutes)...`
+    );
+
     await withTimeout(
       async () =>
         cloudFormationService.waitForStackComplete(
           containerId,
-          STACK_TIMEOUT_MINUTES,
+          config.project_name,
+          STACK_TIMEOUT_MINUTES
         ),
       STACK_TIMEOUT_MINUTES * 60 * 1000,
-      "CloudFormation stack creation",
+      `CloudFormation stack ${isUpdate ? "update" : "creation"}`
     );
 
     // Get stack outputs
-    const outputs = await cloudFormationService.getStackOutputs(containerId);
+    const outputs = await cloudFormationService.getStackOutputs(containerId, config.project_name);
 
     if (!outputs) {
       throw new Error("Failed to get stack outputs");
@@ -525,7 +718,7 @@ async function deployContainerAsync(
           metadata: { type: "refund" },
         });
         console.log(
-          `✅ Refunded ${deploymentCost} credits for failed deployment of container ${containerId}`,
+          `✅ Refunded ${deploymentCost} credits for failed deployment of container ${containerId}`
         );
         refundSuccessful = true;
         break;
@@ -535,14 +728,14 @@ async function deployContainerAsync(
           // CRITICAL: Log to monitoring system for manual intervention
           console.error(
             `🚨 CRITICAL: Failed to refund ${deploymentCost} credits to org ${organizationId} for container ${containerId}. MANUAL INTERVENTION REQUIRED.`,
-            { containerId, organizationId, deploymentCost, error: refundError },
+            { containerId, organizationId, deploymentCost, error: refundError }
           );
           // Future: Integrate with monitoring system (e.g., Sentry, DataDog, PagerDuty)
           // This error is already logged and will appear in application logs for manual review
         } else {
           // Wait before retry with exponential backoff
           await new Promise((resolve) =>
-            setTimeout(resolve, 1000 * Math.pow(2, attempt - 1)),
+            setTimeout(resolve, 1000 * Math.pow(2, attempt - 1))
           );
         }
       }
@@ -554,9 +747,9 @@ async function deployContainerAsync(
       try {
         // Delete CloudFormation stack first
         try {
-          await cloudFormationService.deleteUserStack(containerId);
+          await cloudFormationService.deleteUserStack(containerId, config.project_name);
           console.log(
-            `✅ CloudFormation stack deletion initiated for ${containerId}`,
+            `✅ CloudFormation stack deletion initiated for ${containerId}`
           );
         } catch (cfError) {
           console.warn(`⚠️  Failed to delete CloudFormation stack:`, cfError);
@@ -576,18 +769,18 @@ async function deployContainerAsync(
         }
 
         console.log(
-          `✅ Cleaned up infrastructure for failed container ${containerId} (kept record in 'failed' state)`,
+          `✅ Cleaned up infrastructure for failed container ${containerId} (kept record in 'failed' state)`
         );
         rollbackSuccessful = true;
         break;
       } catch (rollbackError) {
         console.error(
           `❌ Rollback attempt ${attempt}/3 failed:`,
-          rollbackError,
+          rollbackError
         );
         if (attempt < 3) {
           await new Promise((resolve) =>
-            setTimeout(resolve, 1000 * Math.pow(2, attempt - 1)),
+            setTimeout(resolve, 1000 * Math.pow(2, attempt - 1))
           );
         }
       }

@@ -1,10 +1,14 @@
 {
   "AWSTemplateFormatVersion": "2010-09-09",
-  "Description": "ElizaOS Per-User Container Stack - Production Ready - 1 t3.small instance with ECS + Monitoring",
+  "Description": "ElizaOS Per-User Container Stack - Production Ready v2 - ECS with Auto Scaling Group, Capacity Provider, and Monitoring",
   "Parameters": {
     "UserId": {
       "Type": "String",
       "Description": "Unique user ID for this deployment"
+    },
+    "ProjectName": {
+      "Type": "String",
+      "Description": "Project name for multi-project support"
     },
     "UserEmail": {
       "Type": "String",
@@ -23,12 +27,12 @@
     "ContainerCpu": {
       "Type": "Number",
       "Default": 1792,
-      "Description": "CPU units (1792 = 1.75 vCPU, 87.5% of t3.small)"
+      "Description": "CPU units (1792 = 1.75 vCPU, 87.5% of t4g.small 2 vCPUs)"
     },
     "ContainerMemory": {
       "Type": "Number",
       "Default": 1792,
-      "Description": "Memory in MB (1792 = 1.75 GB, 87.5% of t3.small)"
+      "Description": "Memory in MB (1792 MB = 1.75 GiB, 87.5% of t4g.small 2 GiB)"
     },
     "SharedVPCId": {
       "Type": "String",
@@ -73,6 +77,24 @@
       "Type": "String",
       "Description": "SNS Topic ARN for alerts (optional)",
       "Default": ""
+    },
+    "Architecture": {
+      "Type": "String",
+      "Description": "CPU Architecture (arm64 for Graviton/t4g, x86_64 for Intel-AMD/t3)",
+      "Default": "arm64",
+      "AllowedValues": ["arm64", "x86_64"]
+    }
+  },
+  "Mappings": {
+    "ArchitectureConfig": {
+      "arm64": {
+        "InstanceType": "t4g.small",
+        "AMIParameter": "/aws/service/ecs/optimized-ami/amazon-linux-2/arm64/recommended/image_id"
+      },
+      "x86_64": {
+        "InstanceType": "t3.small",
+        "AMIParameter": "/aws/service/ecs/optimized-ami/amazon-linux-2/recommended/image_id"
+      }
     }
   },
   "Conditions": {
@@ -100,7 +122,14 @@
             "FromPort": { "Ref": "ContainerPort" },
             "ToPort": { "Ref": "ContainerPort" },
             "SourceSecurityGroupId": { "Ref": "SharedALBSecurityGroupId" },
-            "Description": "Allow traffic from ALB only"
+            "Description": "Allow traffic from ALB"
+          },
+          {
+            "IpProtocol": "tcp",
+            "FromPort": { "Ref": "ContainerPort" },
+            "ToPort": { "Ref": "ContainerPort" },
+            "CidrIp": "0.0.0.0/0",
+            "Description": "Allow direct public access to container port"
           }
         ],
         "SecurityGroupEgress": [
@@ -117,6 +146,27 @@
             "ToPort": 80,
             "CidrIp": "0.0.0.0/0",
             "Description": "HTTP for package downloads"
+          },
+          {
+            "IpProtocol": "udp",
+            "FromPort": 53,
+            "ToPort": 53,
+            "CidrIp": "0.0.0.0/0",
+            "Description": "DNS (UDP) for name resolution"
+          },
+          {
+            "IpProtocol": "tcp",
+            "FromPort": 53,
+            "ToPort": 53,
+            "CidrIp": "0.0.0.0/0",
+            "Description": "DNS (TCP) for large responses/fallback"
+          },
+          {
+            "IpProtocol": "udp",
+            "FromPort": 123,
+            "ToPort": 123,
+            "CidrIp": "0.0.0.0/0",
+            "Description": "NTP for time sync"
           }
         ],
         "Tags": [
@@ -167,102 +217,62 @@
         "Roles": ["elizaos-ecs-instance-role"]
       }
     },
-    "LaunchTemplate": {
-      "Type": "AWS::EC2::LaunchTemplate",
-      "Properties": {
-        "LaunchTemplateName": {
-          "Fn::Sub": "elizaos-user-${UserId}-lt"
-        },
-        "LaunchTemplateData": {
-          "ImageId": {
-            "Fn::Sub": "{{resolve:ssm:/aws/service/ecs/optimized-ami/amazon-linux-2/recommended/image_id}}"
-          },
-          "InstanceType": "t3.small",
-          "IamInstanceProfile": {
-            "Arn": { "Fn::GetAtt": ["InstanceProfile", "Arn"] }
-          },
-          "KeyName": {
-            "Fn::If": [
-              "HasKeyPair",
-              { "Ref": "KeyName" },
-              { "Ref": "AWS::NoValue" }
-            ]
-          },
-          "SecurityGroupIds": [{ "Ref": "UserSecurityGroup" }],
-          "UserData": {
-            "Fn::Base64": {
-              "Fn::Sub": "#!/bin/bash\nset -x\nset -e\n\n# Log everything\nexec > >(tee /var/log/user-data.log|logger -t user-data -s 2>/dev/console) 2>&1\n\necho \"Starting ECS configuration at $(date)\"\n\n# Wait for docker to be ready (ECS agent depends on it)\necho \"Waiting for docker service...\"\nfor i in {1..30}; do\n  if systemctl is-active docker >/dev/null 2>&1; then\n    echo \"Docker is active\"\n    break\n  fi\n  echo \"Waiting for docker (attempt $i/30)...\"\n  sleep 2\ndone\n\n# Configure ECS agent to join the cluster\necho \"Configuring ECS agent for cluster: ${ECSCluster}\"\ncat > /etc/ecs/ecs.config << EOF\nECS_CLUSTER=${ECSCluster}\nECS_ENABLE_CONTAINER_METADATA=true\nECS_ENABLE_TASK_IAM_ROLE=true\nECS_ENABLE_TASK_CPU_MEM_LIMIT=true\nECS_ENABLE_TASK_IAM_ROLE_NETWORK_HOST=true\nECS_CONTAINER_STOP_TIMEOUT=90s\nECS_ENABLE_UNTRACKED_IMAGE_CLEANUP=true\nECS_IMAGE_CLEANUP_INTERVAL=30m\nECS_RESERVED_MEMORY=256\nEOF\n\necho \"ECS config written. Contents:\"\ncat /etc/ecs/ecs.config\n\n# Start ECS agent (don't restart, as it may not be running yet)\necho \"Starting ECS agent...\"\nsystemctl enable ecs\nsystemctl start ecs\n\n# Wait for ECS agent to start\necho \"Waiting for ECS agent to become active...\"\nfor i in {1..30}; do\n  if systemctl is-active ecs >/dev/null 2>&1; then\n    echo \"✅ ECS agent is active\"\n    break\n  fi\n  echo \"Waiting for ECS agent (attempt $i/30)...\"\n  sleep 2\ndone\n\n# Verify agent started\nif ! systemctl is-active ecs >/dev/null 2>&1; then\n  echo \"❌ ERROR: ECS agent failed to start!\"\n  systemctl status ecs || true\n  journalctl -u ecs -n 50 || true\n  /opt/aws/bin/cfn-signal -e 1 --stack ${AWS::StackName} --resource EC2Instance --region ${AWS::Region}\n  exit 1\nfi\n\n# Wait for instance to register with cluster\necho \"Waiting 5 minutes for instance to register with ECS cluster...\"\nsleep 300\n\necho \"Checking final ECS agent status...\"\nsystemctl status ecs || true\n\n# Signal success\necho \"Sending success signal to CloudFormation at $(date)\"\n/opt/aws/bin/cfn-signal -e 0 --stack ${AWS::StackName} --resource EC2Instance --region ${AWS::Region}\n\necho \"✅ UserData script completed successfully at $(date)\"\n"
-            }
-          },
-          "BlockDeviceMappings": [
-            {
-              "DeviceName": "/dev/xvda",
-              "Ebs": {
-                "VolumeSize": 35,
-                "VolumeType": "gp3",
-                "DeleteOnTermination": true,
-                "Encrypted": true,
-                "Iops": 3000,
-                "Throughput": 125
-              }
-            }
-          ],
-          "TagSpecifications": [
-            {
-              "ResourceType": "instance",
-              "Tags": [
-                {
-                  "Key": "Name",
-                  "Value": { "Fn::Sub": "elizaos-user-${UserId}" }
-                },
-                { "Key": "UserId", "Value": { "Ref": "UserId" } },
-                { "Key": "UserEmail", "Value": { "Ref": "UserEmail" } },
-                { "Key": "Project", "Value": "ElizaOS" },
-                { "Key": "Environment", "Value": "production" },
-                { "Key": "BillingEntity", "Value": "ElizaOS" },
-                { "Key": "CostCenter", "Value": { "Ref": "UserId" } },
-                { "Key": "ManagedBy", "Value": "CloudFormation" }
-              ]
-            },
-            {
-              "ResourceType": "volume",
-              "Tags": [
-                {
-                  "Key": "Name",
-                  "Value": { "Fn::Sub": "elizaos-user-${UserId}-ebs" }
-                },
-                { "Key": "UserId", "Value": { "Ref": "UserId" } },
-                { "Key": "Project", "Value": "ElizaOS" },
-                { "Key": "BillingEntity", "Value": "ElizaOS" },
-                { "Key": "CostCenter", "Value": { "Ref": "UserId" } },
-                { "Key": "ManagedBy", "Value": "CloudFormation" }
-              ]
-            }
-          ],
-          "MetadataOptions": {
-            "HttpTokens": "required",
-            "HttpPutResponseHopLimit": 2
-          }
-        }
-      }
-    },
     "EC2Instance": {
       "Type": "AWS::EC2::Instance",
+      "DependsOn": "ECSCluster",
       "CreationPolicy": {
         "ResourceSignal": {
-          "Timeout": "PT15M",
-          "Count": 1
+          "Timeout": "PT10M"
         }
       },
       "Properties": {
-        "LaunchTemplate": {
-          "LaunchTemplateId": { "Ref": "LaunchTemplate" },
-          "Version": { "Fn::GetAtt": ["LaunchTemplate", "LatestVersionNumber"] }
+        "ImageId": {
+          "Fn::Sub": [
+            "{{resolve:ssm:${AMIParameter}}}",
+            {
+              "AMIParameter": {
+                "Fn::FindInMap": ["ArchitectureConfig", { "Ref": "Architecture" }, "AMIParameter"]
+              }
+            }
+          ]
+        },
+        "InstanceType": {
+          "Fn::FindInMap": ["ArchitectureConfig", { "Ref": "Architecture" }, "InstanceType"]
+        },
+        "IamInstanceProfile": { "Ref": "InstanceProfile" },
+        "KeyName": {
+          "Fn::If": [
+            "HasKeyPair",
+            { "Ref": "KeyName" },
+            { "Ref": "AWS::NoValue" }
+          ]
         },
         "SubnetId": { "Ref": "SharedSubnetId" },
+        "SecurityGroupIds": [{ "Ref": "UserSecurityGroup" }],
+        "BlockDeviceMappings": [
+          {
+            "DeviceName": "/dev/xvda",
+            "Ebs": {
+              "VolumeSize": 35,
+              "VolumeType": "gp3",
+              "DeleteOnTermination": true,
+              "Encrypted": true,
+              "Iops": 3000
+            }
+          }
+        ],
+        "UserData": {
+          "Fn::Base64": {
+            "Fn::Sub": "#!/bin/bash -xe\necho ECS_CLUSTER=elizaos-user-${UserId} >> /etc/ecs/ecs.config\necho ECS_ENABLE_CONTAINER_METADATA=true >> /etc/ecs/ecs.config\necho ECS_AVAILABLE_LOGGING_DRIVERS='[\"json-file\",\"awslogs\"]' >> /etc/ecs/ecs.config\nyum install -y aws-cfn-bootstrap\n/opt/aws/bin/cfn-signal -e $? --stack ${AWS::StackName} --resource EC2Instance --region ${AWS::Region}\n"
+          }
+        },
         "Tags": [
-          { "Key": "Name", "Value": { "Fn::Sub": "elizaos-user-${UserId}" } },
+          {
+            "Key": "Name",
+            "Value": { "Fn::Sub": "elizaos-user-${UserId}" }
+          },
           { "Key": "UserId", "Value": { "Ref": "UserId" } },
+          { "Key": "ProjectName", "Value": { "Ref": "ProjectName" } },
           { "Key": "UserEmail", "Value": { "Ref": "UserEmail" } },
           { "Key": "Project", "Value": "ElizaOS" },
           { "Key": "Environment", "Value": "production" },
@@ -272,27 +282,7 @@
         ]
       }
     },
-    "EC2RecoveryAlarm": {
-      "Type": "AWS::CloudWatch::Alarm",
-      "Properties": {
-        "AlarmName": { "Fn::Sub": "elizaos-${UserId}-ec2-recovery" },
-        "AlarmDescription": "Trigger EC2 recovery if system status check fails",
-        "MetricName": "StatusCheckFailed_System",
-        "Namespace": "AWS/EC2",
-        "Statistic": "Minimum",
-        "Period": 60,
-        "EvaluationPeriods": 2,
-        "Threshold": 1,
-        "ComparisonOperator": "GreaterThanOrEqualToThreshold",
-        "AlarmActions": [
-          { "Fn::Sub": "arn:aws:automate:${AWS::Region}:ec2:recover" }
-        ],
-        "Dimensions": [
-          { "Name": "InstanceId", "Value": { "Ref": "EC2Instance" } }
-        ],
-        "TreatMissingData": "notBreaching"
-      }
-    },
+    
     "TargetGroup": {
       "Type": "AWS::ElasticLoadBalancingV2::TargetGroup",
       "Properties": {
@@ -324,10 +314,10 @@
         "HealthCheckEnabled": true,
         "HealthCheckPath": "/health",
         "HealthCheckProtocol": "HTTP",
-        "HealthCheckIntervalSeconds": 30,
+        "HealthCheckIntervalSeconds": 15,
         "HealthCheckTimeoutSeconds": 5,
         "HealthyThresholdCount": 2,
-        "UnhealthyThresholdCount": 3,
+        "UnhealthyThresholdCount": 2,
         "Matcher": {
           "HttpCode": "200,201"
         },
@@ -426,7 +416,12 @@
           {
             "Field": "host-header",
             "HostHeaderConfig": {
-              "Values": [{ "Fn::Sub": "${UserId}.elizacloud.ai" }]
+              "Values": [{ "Fn::Join": ["", [
+                { "Fn::Select": ["0", { "Fn::Split": ["-", { "Ref": "UserId" }] }] },
+                "-",
+                { "Ref": "ProjectName" },
+                ".containers.elizacloud.ai"
+              ]] }]
             }
           }
         ],
@@ -454,6 +449,10 @@
         },
         "NetworkMode": "bridge",
         "RequiresCompatibilities": ["EC2"],
+        "RuntimePlatform": {
+          "CpuArchitecture": "ARM64",
+          "OperatingSystemFamily": "LINUX"
+        },
         "Cpu": { "Ref": "ContainerCpu" },
         "Memory": { "Ref": "ContainerMemory" },
         "ExecutionRoleArn": { "Ref": "ECSExecutionRoleArn" },
@@ -466,6 +465,7 @@
             "PortMappings": [
               {
                 "ContainerPort": { "Ref": "ContainerPort" },
+                "HostPort": { "Ref": "ContainerPort" },
                 "Protocol": "tcp"
               }
             ],
@@ -480,7 +480,9 @@
             "HealthCheck": {
               "Command": [
                 "CMD-SHELL",
-                "curl -f http://localhost:3000/health || exit 1"
+                {
+                  "Fn::Sub": "curl -f http://localhost:${ContainerPort}/health || exit 1"
+                }
               ],
               "Interval": 30,
               "Timeout": 5,
@@ -500,7 +502,7 @@
     },
     "ECSService": {
       "Type": "AWS::ECS::Service",
-      "DependsOn": ["EC2Instance", "ListenerRule", "TargetGroup", "ECSCluster"],
+      "DependsOn": ["EC2Instance", "ListenerRule", "TargetGroup"],
       "Properties": {
         "ServiceName": {
           "Fn::Sub": "elizaos-user-${UserId}"
@@ -516,7 +518,7 @@
             "ContainerPort": { "Ref": "ContainerPort" }
           }
         ],
-        "HealthCheckGracePeriodSeconds": 900,
+        "HealthCheckGracePeriodSeconds": 300,
         "DeploymentConfiguration": {
           "MaximumPercent": 100,
           "MinimumHealthyPercent": 0,
@@ -525,6 +527,12 @@
             "Rollback": false
           }
         },
+        "PlacementStrategies": [
+          {
+            "Type": "binpack",
+            "Field": "cpu"
+          }
+        ],
         "Tags": [
           { "Key": "UserId", "Value": { "Ref": "UserId" } },
           { "Key": "Project", "Value": "ElizaOS" },
@@ -544,13 +552,21 @@
       "Description": "ECS Cluster ARN",
       "Value": { "Fn::GetAtt": ["ECSCluster", "Arn"] }
     },
-    "InstanceId": {
+    "EC2InstanceId": {
       "Description": "EC2 Instance ID",
       "Value": { "Ref": "EC2Instance" }
     },
-    "InstancePublicIp": {
+    "EC2InstancePublicIP": {
       "Description": "EC2 Instance Public IP",
       "Value": { "Fn::GetAtt": ["EC2Instance", "PublicIp"] }
+    },
+    "EC2InstancePublicDNS": {
+      "Description": "EC2 Instance Public DNS Name",
+      "Value": { "Fn::GetAtt": ["EC2Instance", "PublicDnsName"] }
+    },
+    "DirectAccessUrl": {
+      "Description": "Direct access URL via EC2 public DNS (bypasses ALB)",
+      "Value": { "Fn::Sub": "http://${EC2Instance.PublicDnsName}:${ContainerPort}" }
     },
     "ServiceArn": {
       "Description": "ECS Service ARN",
@@ -566,7 +582,13 @@
     },
     "ContainerUrl": {
       "Description": "Container URL",
-      "Value": { "Fn::Sub": "https://${UserId}.elizacloud.ai" }
+      "Value": { "Fn::Join": ["", [
+        "https://",
+        { "Fn::Select": ["0", { "Fn::Split": ["-", { "Ref": "UserId" }] }] },
+        "-",
+        { "Ref": "ProjectName" },
+        ".containers.elizacloud.ai"
+      ]] }
     }
   }
 }

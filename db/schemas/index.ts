@@ -2,6 +2,7 @@
 export * from "./organizations";
 export * from "./users";
 export * from "./api-keys";
+export * from "./cli-auth-sessions";
 export * from "./usage-records";
 export * from "./credit-transactions";
 export * from "./credit-packs";
@@ -11,7 +12,9 @@ export * from "./model-pricing";
 export * from "./provider-health";
 export * from "./conversations";
 export * from "./user-characters";
+export * from "./user-voices";
 export * from "./containers";
 export * from "./alb-priorities";
 export * from "./relations";
 export * from "./eliza";
+export * from "./eliza-room-characters";

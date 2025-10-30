@@ -14,6 +14,8 @@ const publicPaths = [
   "/api/models",
   "/api/fal/proxy",
   "/auth/error",
+  "/auth/cli-login", // CLI login page
+  "/api/auth/cli-session", // CLI session endpoints (public for polling)
   "/api/v1/generate-image",
   "/api/v1/generate-video",
   "/api/v1/chat",
@@ -22,6 +24,8 @@ const publicPaths = [
   "/api/v1/models",
   "/api/stripe/webhook",
   "/api/privy/webhook", // Privy webhook endpoint
+  "/api/cron", // Cron endpoints (protected by CRON_SECRET)
+  "/api/v1/cron", // V1 Cron endpoints (protected by CRON_SECRET)
 ];
 
 // Paths that should be checked for authentication
@@ -35,7 +39,7 @@ const protectedPaths = [
   "/api/v1/containers",
 ];
 
-export async function middleware(request: NextRequest) {
+export async function proxy(request: NextRequest) {
   const { pathname } = request.nextUrl;
 
   // Check if path is explicitly public

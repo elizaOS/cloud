@@ -2,6 +2,7 @@
 export * from "./organizations";
 export * from "./users";
 export * from "./api-keys";
+export * from "./cli-auth-sessions";
 export * from "./credit-transactions";
 export * from "./credit-packs";
 export * from "./usage-records";
@@ -11,3 +12,4 @@ export * from "./user-characters";
 export * from "./model-pricing";
 export * from "./provider-health";
 export * from "./containers";
+export * from "./eliza-room-characters";

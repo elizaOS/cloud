@@ -19,8 +19,11 @@ import {
   UserCog,
   Bot,
   Code,
+  Mic,
+  Zap,
+  Store,
 } from "lucide-react";
-import { ComponentType } from "react";
+import type { ComponentType } from "react";
 
 export interface SidebarItem {
   id: string;
@@ -69,6 +72,13 @@ export const sidebarSections: SidebarSection[] = [
         icon: Video,
       },
       {
+        id: "voices",
+        label: "Voices",
+        href: "/dashboard/voices",
+        icon: Mic,
+        isNew: true,
+      },
+      {
         id: "gallery",
         label: "Gallery",
         href: "/dashboard/gallery",
@@ -87,6 +97,13 @@ export const sidebarSections: SidebarSection[] = [
         isNew: false,
       },
       {
+        id: "agent-marketplace",
+        label: "Agent Marketplace",
+        href: "/dashboard/agent-marketplace",
+        icon: Store,
+        isNew: true,
+      },
+      {
         id: "character-creator",
         label: "Character Creator",
         href: "/dashboard/character-creator",
@@ -98,6 +115,13 @@ export const sidebarSections: SidebarSection[] = [
         label: "API Explorer",
         href: "/dashboard/api-explorer",
         icon: Code,
+        isNew: true,
+      },
+      {
+        id: "mcp-playground",
+        label: "MCP Playground",
+        href: "/dashboard/mcp-playground",
+        icon: Zap,
         isNew: true,
       },
     ],
