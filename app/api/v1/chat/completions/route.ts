@@ -141,7 +141,7 @@ async function handlePOST(req: NextRequest) {
       return Response.json(
         {
           error: {
-            message: `Insufficient balance. Required: ${creditCheck.required}, Available: ${creditCheck.balance}`,
+            message: `Insufficient balance. Required: $${Number(creditCheck.required).toFixed(2)}, Available: $${Number(creditCheck.balance).toFixed(2)}`,
             type: "insufficient_quota",
             code: "insufficient_balance",
           },

@@ -123,7 +123,7 @@ export class OrganizationsRepository {
 
       if (currentBalance < amount) {
         throw new Error(
-          `Insufficient balance. Required: ${amount}, Available: ${currentBalance.toFixed(2)}`
+          `Insufficient balance. Required: $${amount.toFixed(2)}, Available: $${currentBalance.toFixed(2)}`
         );
       }
 

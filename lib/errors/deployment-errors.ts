@@ -33,7 +33,7 @@ export class InsufficientBalanceError extends DeploymentError {
     details?: Record<string, unknown>,
   ) {
     super(
-      `Insufficient balance. Required: ${required}, Available: ${available}`,
+      `Insufficient balance. Required: $${required.toFixed(2)}, Available: $${available.toFixed(2)}`,
       "INSUFFICIENT_BALANCE",
       402,
       { required, available, ...details },
