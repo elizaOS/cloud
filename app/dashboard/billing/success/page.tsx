@@ -11,13 +11,15 @@ import {
 } from "@/components/ui/card";
 import { CheckCircle, ArrowRight } from "lucide-react";
 import { CreditBalanceDisplay } from "@/components/billing/success-client";
+import { requireAuth } from "@/lib/auth";
 
 export const metadata: Metadata = {
   title: "Purchase Successful",
   description: "Your credit purchase was successful",
 };
 
-export default function BillingSuccessPage() {
+export default async function BillingSuccessPage() {
+  await requireAuth();
 
   return (
     <div className="flex items-center justify-center min-h-[80vh]">

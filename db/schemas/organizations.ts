@@ -16,7 +16,9 @@ export const organizations = pgTable(
     id: uuid("id").defaultRandom().primaryKey(),
     name: text("name").notNull(),
     slug: text("slug").notNull().unique(),
-    credit_balance: integer("credit_balance").notNull().default(10000),
+    // credit_balance: 1 credit = $1.00 USD (stored as integer)
+    // Default: 100 = $100.00 (for backward compatibility, but new users get INITIAL_CREDIT_BALANCE via app code)
+    credit_balance: integer("credit_balance").notNull().default(100),
     webhook_url: text("webhook_url"),
     webhook_secret: text("webhook_secret"),
     stripe_customer_id: text("stripe_customer_id"),

@@ -9,6 +9,7 @@
 
 import { usersService, organizationsService } from "@/lib/services";
 import type { UserWithOrganization } from "@/lib/types";
+import { INITIAL_CREDIT_BALANCE } from "@/lib/pricing-constants";
 
 function generateSlugFromEmail(email: string): string {
   const username = email.split("@")[0];
@@ -188,7 +189,7 @@ export async function syncUserFromPrivy(
   const organization = await organizationsService.create({
     name: `${name}'s Organization`,
     slug: orgSlug,
-    credit_balance: 5.0, // Initial $5.00 USD
+    credit_balance: INITIAL_CREDIT_BALANCE,
   });
 
   // Create user - handle race condition where another request created the user

@@ -3,6 +3,13 @@
  * All costs are in USD (1 credit = $1.00 USD)
  */
 
+/**
+ * Helper function to round a value to 2 decimal places (USD format)
+ */
+function roundToUSD(amount: number): number {
+  return Math.round(amount * 100) / 100;
+}
+
 export const CONTAINER_PRICING = {
   // One-time costs
   DEPLOYMENT: 10.0, // $10.00 per deployment
@@ -42,7 +49,7 @@ export const CONTAINER_LIMITS = {
  */
 export function getMaxContainersForOrg(
   creditBalance: number,
-  orgSettings?: Record<string, unknown>,
+  orgSettings?: Record<string, unknown>
 ): number {
   // Check if org has custom limit in settings
   const customLimit = orgSettings?.max_containers as number | undefined;
@@ -92,13 +99,13 @@ export function calculateDeploymentCost(config: {
   if (config.cpu && config.cpu > 256) {
     // Base is 256 CPU, charge extra for higher tiers
     const cpuMultiplier = config.cpu / 256;
-    totalCost += Math.round(((cpuMultiplier - 1) * 2.0) * 100) / 100;
+    totalCost += roundToUSD((cpuMultiplier - 1) * 2.0);
   }
 
   if (config.memory && config.memory > 512) {
     // Base is 512MB, charge extra for more memory
     const memoryMultiplier = config.memory / 512;
-    totalCost += Math.round(((memoryMultiplier - 1) * 1.0) * 100) / 100;
+    totalCost += roundToUSD((memoryMultiplier - 1) * 1.0);
   }
 
   return totalCost;

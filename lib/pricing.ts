@@ -46,8 +46,8 @@ export async function calculateCost(
       100,
   );
 
-  const inputCost = Math.round(inputCostCents) / 100;
-  const outputCost = Math.round(outputCostCents) / 100;
+  const inputCost = inputCostCents / 100;
+  const outputCost = outputCostCents / 100;
 
   return {
     inputCost,
@@ -76,8 +76,8 @@ function getFallbackPricing(
   const inputCostCents = Math.ceil((inputTokens / 1000) * pricing.input * 100);
   const outputCostCents = Math.ceil((outputTokens / 1000) * pricing.output * 100);
 
-  const inputCost = Math.round(inputCostCents) / 100;
-  const outputCost = Math.round(outputCostCents) / 100;
+  const inputCost = inputCostCents / 100;
+  const outputCost = outputCostCents / 100;
 
   return {
     inputCost,

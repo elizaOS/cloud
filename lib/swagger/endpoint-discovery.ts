@@ -718,7 +718,7 @@ export const API_ENDPOINTS: ApiEndpoint[] = [
     category: "Voice Cloning",
     name: "Clone Voice",
     description:
-      "Create a custom voice clone using audio samples. Supports instant cloning (30s, 50 credits) and professional cloning (1-3hrs, 500 credits). Upload 1-10 audio files (max 100MB total). The API Explorer provides a built-in file uploader for easy testing.",
+      "Create a custom voice clone using audio samples. Supports instant cloning (30s, $5.00) and professional cloning (1-3hrs, $50.00). Upload 1-10 audio files (max 100MB total). The API Explorer provides a built-in file uploader for easy testing.",
     requiresAuth: true,
     parameters: {
       body: [
@@ -741,7 +741,7 @@ export const API_ENDPOINTS: ApiEndpoint[] = [
           type: "string",
           required: true,
           description:
-            "Cloning type: instant (500 credits, 30s) or professional (5000 credits, 30-60min)",
+            "Cloning type: instant ($5.00, 30s) or professional ($50.00, 30-60min)",
           enum: ["instant", "professional"],
           example: "instant",
         },

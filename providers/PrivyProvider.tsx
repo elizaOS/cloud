@@ -31,6 +31,8 @@ export default function PrivyProvider({
       appId={process.env.NEXT_PUBLIC_PRIVY_APP_ID!}
       clientId={process.env.NEXT_PUBLIC_PRIVY_CLIENT_ID!}
       config={{
+        // Login methods ordered by priority: wallet-first for Web3 UX
+        // Users can still choose email, but wallet is presented as primary option
         loginMethods: ["wallet", "email"],
         embeddedWallets: {
           ethereum: {
