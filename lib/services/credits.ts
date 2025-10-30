@@ -104,7 +104,8 @@ export class CreditsService {
         throw new Error("Organization not found");
       }
 
-      const newBalance = org.credit_balance + amount;
+      const currentBalance = Number.parseFloat(String(org.credit_balance));
+      const newBalance = currentBalance + amount;
 
       // Update organization balance atomically
       await tx
@@ -146,13 +147,14 @@ export class CreditsService {
         throw new Error("Organization not found");
       }
 
-      const newBalance = org.credit_balance - amount;
+      const currentBalance = Number.parseFloat(String(org.credit_balance));
+      const newBalance = currentBalance - amount;
 
       // Return early if insufficient credits, without creating a transaction
       if (newBalance < 0) {
         return {
           success: false,
-          newBalance: org.credit_balance,
+          newBalance: currentBalance,
           transaction: null,
         };
       }
@@ -209,7 +211,8 @@ export class CreditsService {
         throw new Error("Organization not found");
       }
 
-      const newBalance = org.credit_balance + amount;
+      const currentBalance = Number.parseFloat(String(org.credit_balance));
+      const newBalance = currentBalance + amount;
 
       // Update balance
       await tx

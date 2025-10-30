@@ -49,27 +49,29 @@ export const SSE_BACKOFF_MULTIPLIER = Number.parseFloat(
 );
 
 /**
- * Credit Costs for MCP Operations
+ * Credit Costs for MCP Operations (in USD)
+ * These are micro-operations and should be very affordable
  */
-export const MEMORY_SAVE_COST = 1;
-export const MEMORY_RETRIEVAL_COST_PER_ITEM = 0.1;
-export const MEMORY_RETRIEVAL_MAX_COST = 5;
-export const CONTEXT_RETRIEVAL_COST = 1;
-export const CONVERSATION_CREATE_COST = 1;
-export const CONVERSATION_SEARCH_COST = 2;
-export const CONVERSATION_CLONE_COST = 2;
-export const CONVERSATION_EXPORT_COST = 5;
-export const CONTEXT_OPTIMIZATION_COST = 5;
-export const MEMORY_ANALYSIS_COST = 20;
+export const MEMORY_SAVE_COST = 0.001; // $0.001 - Saving a memory
+export const MEMORY_RETRIEVAL_COST_PER_ITEM = 0.0001; // $0.0001 per memory
+export const MEMORY_RETRIEVAL_MAX_COST = 0.01; // $0.01 max
+export const CONTEXT_RETRIEVAL_COST = 0.005; // $0.005 - Context retrieval
+export const CONVERSATION_CREATE_COST = 0.01; // $0.01 - Create conversation
+export const CONVERSATION_SEARCH_COST = 0.01; // $0.01 - Search conversations
+export const CONVERSATION_CLONE_COST = 0.02; // $0.02 - Clone conversation
+export const CONVERSATION_EXPORT_COST = 0.05; // $0.05 - Export conversation
+export const CONTEXT_OPTIMIZATION_COST = 0.05; // $0.05 - Optimize context
+export const MEMORY_ANALYSIS_COST = 0.10; // $0.10 - Analyze memories
 
 /**
- * Agent and Chat Configuration
+ * Agent and Chat Configuration (in USD)
+ * Token-based pricing for actual AI usage
  */
-export const AGENT_CHAT_MIN_COST = 5;
-export const AGENT_CHAT_INPUT_TOKEN_COST = 0.01;
-export const AGENT_CHAT_OUTPUT_TOKEN_COST = 0.03;
-export const CONVERSATION_SUMMARY_BASE_COST = 10;
-export const CONVERSATION_SUMMARY_MAX_COST = 50;
+export const AGENT_CHAT_MIN_COST = 0.001; // $0.001 minimum
+export const AGENT_CHAT_INPUT_TOKEN_COST = 0.000001; // $0.000001 per input token
+export const AGENT_CHAT_OUTPUT_TOKEN_COST = 0.000003; // $0.000003 per output token
+export const CONVERSATION_SUMMARY_BASE_COST = 0.01; // $0.01 base
+export const CONVERSATION_SUMMARY_MAX_COST = 0.10; // $0.10 max
 
 /**
  * Supported MCP Event Types for SSE Streaming

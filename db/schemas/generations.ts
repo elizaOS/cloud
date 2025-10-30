@@ -3,6 +3,7 @@ import {
   index,
   integer,
   jsonb,
+  numeric,
   pgTable,
   text,
   timestamp,
@@ -55,8 +56,8 @@ export const generations = pgTable(
       duration?: number;
     }>(),
     tokens: integer("tokens"),
-    cost: integer("cost").notNull().default(0),
-    credits: integer("credits").notNull().default(0),
+    cost: numeric("cost", { precision: 10, scale: 2 }).notNull().default("0.00"),
+    credits: numeric("credits", { precision: 10, scale: 2 }).notNull().default("0.00"),
     usage_record_id: uuid("usage_record_id").references(() => usageRecords.id, {
       onDelete: "set null",
     }),

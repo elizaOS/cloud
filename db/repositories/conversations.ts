@@ -144,7 +144,7 @@ export class ConversationsRepository {
           .set({
             message_count: conversation.message_count + 1,
             last_message_at: new Date(),
-            total_cost: conversation.total_cost + (data.cost || 0),
+            total_cost: Number(conversation.total_cost) + Number(data.cost || 0),
             updated_at: new Date(),
           })
           .where(eq(conversations.id, conversationId));

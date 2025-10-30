@@ -332,9 +332,9 @@ export class ContainersRepository {
         throw new Error("Organization not found");
       }
 
-      if (org.credit_balance < deploymentCost) {
+      if (Number(org.credit_balance) < deploymentCost) {
         throw new Error(
-          `Insufficient credits. Required: ${deploymentCost}, Available: ${org.credit_balance}`
+          `Insufficient balance. Required: ${deploymentCost}, Available: ${Number(org.credit_balance).toFixed(2)}`
         );
       }
 
