@@ -185,10 +185,11 @@ export async function syncUserFromPrivy(
   }
 
   // Create organization
+  const INITIAL_BALANCE = 5.00; // $5.00 USD starting balance
   const organization = await organizationsService.create({
     name: `${name}'s Organization`,
     slug: orgSlug,
-    credit_balance: "5.00", // Initial $5.00 USD
+    credit_balance: String(INITIAL_BALANCE),
   });
 
   // Create user - handle race condition where another request created the user
