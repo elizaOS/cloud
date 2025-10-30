@@ -9,6 +9,15 @@ import {
 
 export const dynamic = "force-dynamic";
 
+type LogLevel = "error" | "warn" | "info" | "debug";
+
+interface ParsedLogEntry {
+  timestamp: string;
+  level: LogLevel;
+  message: string;
+  metadata?: Record<string, unknown>;
+}
+
 /**
  * GET /api/v1/containers/[id]/logs
  * Get container logs from AWS CloudWatch
@@ -39,7 +48,8 @@ export async function GET(
       return NextResponse.json(
         {
           success: false,
-          error: "Container has not been deployed to ECS yet",
+          error:
+            "Container has not been deployed to ECS yet. Logs will be available once deployment is complete.",
         },
         { status: 400 },
       );
@@ -49,13 +59,20 @@ export async function GET(
     const searchParams = request.nextUrl.searchParams;
     const limit = parseInt(searchParams.get("limit") || "100");
     const since = searchParams.get("since"); // ISO timestamp
+    const level = searchParams.get("level") || "all"; // Log level filter
 
     // Get logs from CloudWatch
-    const logs = await getCloudWatchLogs(container.name, {
+    const rawLogs = await getCloudWatchLogs(container.id, {
       limit,
       since: since ? new Date(since) : undefined,
     });
 
+    // Parse and filter logs
+    const parsedLogs = rawLogs
+      .map((log) => parseLogMessage(log))
+      .filter((log) => level === "all" || log.level === level);
+
+    // Return success even if no logs (empty logs is valid, not an error)
     return NextResponse.json({
       success: true,
       data: {
@@ -65,11 +82,17 @@ export async function GET(
           status: container.status,
           ecs_service_arn: container.ecs_service_arn,
         },
-        logs,
-        total: logs.length,
+        logs: parsedLogs,
+        total: parsedLogs.length,
+        hasLogs: rawLogs.length > 0,
+        message:
+          rawLogs.length === 0
+            ? "No logs available yet. Logs may take a few moments to appear after deployment."
+            : undefined,
         filters: {
           limit,
           since,
+          level,
         },
       },
     });
@@ -89,11 +112,107 @@ export async function GET(
 }
 
 /**
+ * Parse a log message to extract level, clean message, and metadata
+ * Handles various log formats:
+ * - [ERROR] message
+ * - ERROR: message
+ * - {"level":"error","message":"..."}
+ * - Plain text (defaults to info)
+ */
+function parseLogMessage(log: {
+  timestamp: string;
+  message: string;
+}): ParsedLogEntry {
+  const { timestamp, message } = log;
+  let level: LogLevel = "info";
+  let cleanMessage = message.trim();
+  let metadata: Record<string, unknown> | undefined;
+
+  // Try to parse as JSON first
+  if (cleanMessage.startsWith("{")) {
+    try {
+      const parsed = JSON.parse(cleanMessage);
+      if (parsed.level) {
+        level = normalizeLogLevel(parsed.level);
+      }
+      if (parsed.message) {
+        cleanMessage = parsed.message;
+      }
+      // Extract other fields as metadata
+      // eslint-disable-next-line @typescript-eslint/no-unused-vars
+      const { level: _levelField, message: _messageField, ...rest } = parsed;
+      if (Object.keys(rest).length > 0) {
+        metadata = rest;
+      }
+      return { timestamp, level, message: cleanMessage, metadata };
+    } catch {
+      // Not valid JSON, continue with text parsing
+    }
+  }
+
+  // Check for [LEVEL] prefix (e.g., [ERROR], [INFO])
+  const bracketMatch = cleanMessage.match(/^\[(\w+)\]\s*(.*)$/);
+  if (bracketMatch) {
+    level = normalizeLogLevel(bracketMatch[1]);
+    cleanMessage = bracketMatch[2];
+    return { timestamp, level, message: cleanMessage };
+  }
+
+  // Check for LEVEL: prefix (e.g., ERROR:, INFO:)
+  const colonMatch = cleanMessage.match(/^(\w+):\s*(.*)$/);
+  if (colonMatch && colonMatch[1].length <= 8) {
+    // Avoid matching URLs
+    level = normalizeLogLevel(colonMatch[1]);
+    cleanMessage = colonMatch[2];
+    return { timestamp, level, message: cleanMessage };
+  }
+
+  // Check for common error patterns
+  if (
+    cleanMessage.toLowerCase().includes("error") ||
+    cleanMessage.toLowerCase().includes("exception") ||
+    cleanMessage.toLowerCase().includes("failed")
+  ) {
+    level = "error";
+  } else if (
+    cleanMessage.toLowerCase().includes("warn") ||
+    cleanMessage.toLowerCase().includes("warning")
+  ) {
+    level = "warn";
+  } else if (
+    cleanMessage.toLowerCase().includes("debug") ||
+    cleanMessage.toLowerCase().includes("trace")
+  ) {
+    level = "debug";
+  }
+
+  return { timestamp, level, message: cleanMessage };
+}
+
+/**
+ * Normalize various log level strings to our standard levels
+ */
+function normalizeLogLevel(levelStr: string): LogLevel {
+  const normalized = levelStr.toLowerCase();
+  if (normalized.includes("err") || normalized.includes("fatal")) {
+    return "error";
+  }
+  if (normalized.includes("warn")) {
+    return "warn";
+  }
+  if (normalized.includes("debug") || normalized.includes("trace")) {
+    return "debug";
+  }
+  return "info";
+}
+
+/**
  * Get logs from CloudWatch for a container
  * PRODUCTION FIX: Dynamically discovers log streams instead of hardcoding
+ * Uses container ID (UUID) to match CloudFormation stack naming
  */
 async function getCloudWatchLogs(
-  containerName: string,
+  containerId: string,
   options: {
     limit?: number;
     since?: Date;
@@ -120,7 +239,7 @@ async function getCloudWatchLogs(
     },
   });
 
-  const logGroupName = `/ecs/elizaos-user-${containerName}`;
+  const logGroupName = `/ecs/elizaos-user-${containerId}`;
 
   try {
     // First, discover the latest log streams

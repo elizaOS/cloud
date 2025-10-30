@@ -3,6 +3,8 @@ import { agentRuntime } from "@/lib/eliza/agent-runtime";
 import type { UUID } from "@elizaos/core";
 import { requireAuthOrApiKey } from "@/lib/auth";
 import type { NextRequest } from "next/server";
+import { elizaRoomCharactersRepository } from "@/db/repositories";
+import { logger } from "@/lib/utils/logger";
 
 // GET /api/eliza/rooms/[roomId] - Get room details and messages
 export async function GET(
@@ -56,12 +58,25 @@ export async function GET(
     const agent = await runtime.getAgent(runtime.agentId);
     const avatarUrl = agent?.settings?.avatarUrl as string | undefined;
 
+    // Look up character for this room
+    let characterId: string | undefined;
+    try {
+      const roomCharacter = await elizaRoomCharactersRepository.findByRoomId(roomId);
+      if (roomCharacter) {
+        characterId = roomCharacter.character_id;
+        logger.debug("[Eliza Room API] Room has character:", characterId);
+      }
+    } catch (err) {
+      logger.warn("[Eliza Room API] Failed to get character for room:", roomId, err);
+    }
+
     return NextResponse.json(
       {
         success: true,
         roomId,
         messages: simple,
         count: simple.length,
+        characterId,
         agent: {
           id: agent?.id,
           name: agent?.name,

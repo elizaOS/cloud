@@ -113,12 +113,13 @@ export async function DELETE(
     try {
       console.log(`Deleting CloudFormation stack for ${containerId}...`);
 
-      await cloudFormationService.deleteUserStack(containerId);
+      await cloudFormationService.deleteUserStack(containerId, container.project_name);
 
       // Wait for deletion with timeout
       const DELETION_TIMEOUT_MINUTES = 15;
       await cloudFormationService.waitForStackDeletion(
         containerId,
+        container.project_name,
         DELETION_TIMEOUT_MINUTES,
       );
 
@@ -355,10 +356,22 @@ export async function PATCH(
 
     // Update CloudFormation stack
     try {
-      await cloudFormationService.updateUserStack(containerId, updates);
+      // Build the update config
+      const updateConfig = {
+        userId: containerId,
+        projectName: container.project_name,
+        userEmail: container.name,
+        containerImage: updates.containerImage || container.metadata?.ecr_image_uri as string,
+        containerPort: updates.containerPort || container.port,
+        containerCpu: updates.containerCpu || container.cpu,
+        containerMemory: updates.containerMemory || container.memory,
+        environmentVars: container.environment_vars || {},
+      };
+
+      await cloudFormationService.updateUserStack(updateConfig);
 
       // Wait for update to complete (with timeout)
-      await cloudFormationService.waitForStackUpdate(containerId, 15);
+      await cloudFormationService.waitForStackUpdate(containerId, container.project_name, 15);
 
       // Update database with new values
       const dbUpdates: Partial<{

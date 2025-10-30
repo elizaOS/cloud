@@ -4,6 +4,7 @@ import { v4 as uuidv4 } from "uuid";
 import { stringToUuid, UUID, ChannelType } from "@elizaos/core";
 import { logger } from "@/lib/utils/logger";
 import { requireAuthOrApiKey } from "@/lib/auth";
+import { elizaRoomCharactersRepository } from "@/db/repositories";
 
 // GET /api/eliza/rooms - Get user's rooms
 export async function GET(request: NextRequest) {
@@ -26,16 +27,30 @@ export async function GET(request: NextRequest) {
       stringToUuid(entityId) as UUID,
     ]);
 
-    // Get room details
+    // Batch load character mappings for all rooms in a single query
+    let characterMappings: Map<string, string> = new Map();
+    try {
+      characterMappings = await elizaRoomCharactersRepository.findByRoomIds(roomIds);
+      logger.debug("[Eliza Rooms API] Batch loaded character mappings:", characterMappings.size);
+    } catch (err) {
+      logger.error("[Eliza Rooms API] ✗ Failed to batch load character mappings:", err);
+    }
+
+    // Get room details with character mappings
     const rooms = await Promise.all(
       roomIds.map(async (roomId) => {
         const room = await runtime.getRoom(roomId);
+        const characterId = characterMappings.get(roomId);
+
         return {
           id: roomId,
           ...room,
+          characterId,
         };
       }),
     );
+
+    logger.debug("[Eliza Rooms API] Returning rooms:", rooms.map(r => ({ id: r.id, characterId: r.characterId })));
 
     return NextResponse.json({
       success: true,
@@ -57,11 +72,12 @@ export async function GET(request: NextRequest) {
 export async function POST(request: NextRequest) {
   try {
     // Authenticate user or validate API key
-    await requireAuthOrApiKey(request);
+    const authResult = await requireAuthOrApiKey(request);
+    const { user } = authResult;
 
     const body = await request.json();
-    const { entityId } = body;
-    logger.debug("[Eliza Rooms API] Creating room for entity:", entityId);
+    const { entityId, characterId } = body;
+    logger.debug("[Eliza Rooms API] Creating room for entity:", entityId, "with character:", characterId, "userId:", user.id);
 
     if (!entityId) {
       return NextResponse.json(
@@ -122,21 +138,51 @@ export async function POST(request: NextRequest) {
       roomId,
       "for entity:",
       entityId,
+      "with character:",
+      characterId || "default",
     );
 
-    // Send initial greeting message
+    // CRITICAL: Store character mapping FIRST (before greeting message)
+    if (characterId) {
+      try {
+        logger.debug("[Eliza Rooms API] Attempting to store character mapping:", {
+          room_id: roomId,
+          character_id: characterId,
+          user_id: user.id,
+        });
+        await elizaRoomCharactersRepository.create({
+          room_id: roomId,
+          character_id: characterId,
+          user_id: user.id,
+        });
+        logger.info("[Eliza Rooms API] ✓ Character mapping stored:", roomId, "→", characterId);
+      } catch (mappingError) {
+        logger.error("[Eliza Rooms API] ✗ Failed to create character mapping:", mappingError);
+        // Continue anyway - room is created even if mapping fails
+      }
+    } else {
+      logger.debug("[Eliza Rooms API] No character specified, using default");
+    }
+
+    // Send initial greeting message using the character's runtime
     try {
-      logger.debug("[Eliza Rooms API] Sending initial greeting");
+      logger.debug("[Eliza Rooms API] Generating initial greeting...");
 
+      // Get character-specific runtime if characterId was provided
+      const greetingRuntime = characterId
+        ? await agentRuntime.getRuntimeForCharacter(characterId)
+        : runtime;
+
+      const characterName = greetingRuntime.character?.name || "Eliza";
       const greetingText =
-        "Hello! I'm Eliza, your friendly AI assistant. How can I help you today?";
+        `Hello! I'm ${characterName}, your friendly AI assistant. How can I help you today?`;
 
-      await runtime.createMemory(
+      await greetingRuntime.createMemory(
         {
           id: uuidv4() as UUID,
           roomId: roomId as UUID,
-          entityId: runtime.agentId,
-          agentId: runtime.agentId,
+          entityId: greetingRuntime.agentId,
+          agentId: greetingRuntime.agentId,
           content: {
             text: greetingText,
             type: "agent",
@@ -145,10 +191,10 @@ export async function POST(request: NextRequest) {
         },
         "messages",
       );
-      logger.debug("[Eliza Rooms API] Initial greeting message saved to room");
+      logger.info("[Eliza Rooms API] ✓ Greeting message saved (character:", characterName, ")");
     } catch (initErr) {
       logger.error(
-        "[Eliza Rooms API] Failed to create initial greeting:",
+        "[Eliza Rooms API] ✗ Failed to create initial greeting:",
         initErr,
       );
     }
@@ -156,6 +202,7 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({
       success: true,
       roomId,
+      characterId: characterId || null,
       createdAt: Date.now(),
     });
   } catch (error) {
