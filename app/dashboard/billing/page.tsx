@@ -23,7 +23,7 @@ export default async function BillingPage({
   return (
     <BillingPageWrapper
       creditPacks={creditPacks}
-      currentCredits={user.organization.credit_balance}
+      currentCredits={Number(user.organization.credit_balance)}
       canceled={params.canceled}
     />
   );

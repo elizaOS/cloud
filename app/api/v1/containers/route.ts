@@ -372,8 +372,8 @@ async function handleCreateContainer(request: NextRequest) {
         api_key_id: apiKey?.id,
         type: "container_deployment",
         provider: "aws_ecs",
-        input_cost: deploymentCost,
-        output_cost: 0,
+        input_cost: String(deploymentCost),
+        output_cost: String(0),
         is_successful: true,
         metadata: {
           container_id: container.id,
@@ -403,8 +403,8 @@ async function handleCreateContainer(request: NextRequest) {
         api_key_id: apiKey?.id,
         type: "container_update",
         provider: "aws_ecs",
-        input_cost: deploymentCost,
-        output_cost: 0,
+        input_cost: String(deploymentCost),
+        output_cost: String(0),
         is_successful: true,
         metadata: {
           container_id: container.id,

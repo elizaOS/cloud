@@ -222,7 +222,7 @@ export class ContainersRepository {
       );
 
     const maxContainers = getMaxContainersForOrg(
-      org.credit_balance,
+      Number(org.credit_balance),
       org.settings as Record<string, unknown> | undefined
     );
 
@@ -276,7 +276,7 @@ export class ContainersRepository {
 
       // 3. Get max allowed containers for this org
       const maxContainers = getMaxContainersForOrg(
-        org.credit_balance,
+        Number(org.credit_balance),
         org.settings as Record<string, unknown> | undefined
       );
 
@@ -332,18 +332,20 @@ export class ContainersRepository {
         throw new Error("Organization not found");
       }
 
-      if (Number(org.credit_balance) < deploymentCost) {
+      const currentBalance = Number(org.credit_balance);
+
+      if (currentBalance < deploymentCost) {
         throw new Error(
-          `Insufficient balance. Required: ${deploymentCost}, Available: ${Number(org.credit_balance).toFixed(2)}`
+          `Insufficient balance. Required: ${deploymentCost}, Available: ${currentBalance.toFixed(2)}`
         );
       }
 
-      const newBalance = org.credit_balance - deploymentCost;
+      const newBalance = currentBalance - deploymentCost;
 
       await tx
         .update(organizations)
         .set({
-          credit_balance: newBalance,
+          credit_balance: String(newBalance),
           updated_at: new Date(),
         })
         .where(eq(organizations.id, containerData.organization_id));
@@ -351,7 +353,7 @@ export class ContainersRepository {
       await tx.insert(creditTransactions).values({
         organization_id: containerData.organization_id,
         user_id: userId,
-        amount: -deploymentCost,
+        amount: String(-deploymentCost),
         type: "debit",
         description: `Container deployment: ${containerData.name}`,
         created_at: new Date(),

@@ -114,7 +114,7 @@ async function handlePOST(req: NextRequest) {
               {
                 userId: user.id,
                 organizationId: user.organization_id,
-                cost: totalCost,
+                cost: String(totalCost),
                 balance: deductionResult.newBalance,
               }
             );
@@ -131,7 +131,7 @@ async function handlePOST(req: NextRequest) {
                 .join(""),
               model: selectedModel,
               tokens: usage.inputTokens,
-              cost: inputCost,
+              cost: String(inputCost),
             });
 
             // Add assistant message
@@ -140,7 +140,7 @@ async function handlePOST(req: NextRequest) {
               content: text,
               model: selectedModel,
               tokens: usage.outputTokens,
-              cost: outputCost,
+              cost: String(outputCost),
             });
           }
 
@@ -153,8 +153,8 @@ async function handlePOST(req: NextRequest) {
             provider: provider,
             input_tokens: usage.inputTokens,
             output_tokens: usage.outputTokens,
-            input_cost: inputCost,
-            output_cost: outputCost,
+            input_cost: String(inputCost),
+            output_cost: String(outputCost),
             is_successful: true,
           });
 
@@ -174,8 +174,8 @@ async function handlePOST(req: NextRequest) {
               status: "completed",
               content: text,
               tokens: (usage.inputTokens || 0) + (usage.outputTokens || 0),
-              cost: totalCost,
-              credits: totalCost,
+              cost: String(totalCost),
+              credits: String(totalCost),
               usage_record_id: usageRecord.id,
               completed_at: new Date(),
               result: {
@@ -212,8 +212,8 @@ async function handlePOST(req: NextRequest) {
                 provider: provider,
                 input_tokens: usage.inputTokens || 0,
                 output_tokens: usage.outputTokens || 0,
-                input_cost: 0,
-                output_cost: 0,
+                input_cost: String(0),
+                output_cost: String(0),
                 is_successful: false,
                 error_message:
                   error instanceof Error ? error.message : "Unknown error",

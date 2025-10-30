@@ -260,7 +260,7 @@ export default async function DashboardPage() {
   const creditTransactions: CreditActivityProps["transactions"] =
     data.creditTransactions.map((t) => ({
       id: t.id,
-      amount: t.amount,
+      amount: Number(t.amount),
       type: t.type as "purchase" | "usage" | "adjustment" | "refund",
       description: t.description,
       created_at: t.created_at,

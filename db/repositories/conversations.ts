@@ -28,7 +28,7 @@ export class ConversationsRepository {
   }
 
   async findWithMessages(
-    id: string,
+    id: string
   ): Promise<ConversationWithMessages | undefined> {
     const conversation = await db.query.conversations.findFirst({
       where: eq(conversations.id, id),
@@ -52,7 +52,7 @@ export class ConversationsRepository {
 
   async listByOrganization(
     organizationId: string,
-    limit?: number,
+    limit?: number
   ): Promise<Conversation[]> {
     return await db.query.conversations.findMany({
       where: eq(conversations.organization_id, organizationId),
@@ -71,7 +71,7 @@ export class ConversationsRepository {
 
   async update(
     id: string,
-    data: Partial<NewConversation>,
+    data: Partial<NewConversation>
   ): Promise<Conversation | undefined> {
     const [updated] = await db
       .update(conversations)
@@ -115,7 +115,7 @@ export class ConversationsRepository {
 
   async addMessageWithSequence(
     conversationId: string,
-    data: Omit<NewConversationMessage, "sequence_number" | "conversation_id">,
+    data: Omit<NewConversationMessage, "sequence_number" | "conversation_id">
   ): Promise<ConversationMessage> {
     return await db.transaction(async (tx) => {
       const lastMessage = await tx.query.conversationMessages.findFirst({
@@ -144,7 +144,9 @@ export class ConversationsRepository {
           .set({
             message_count: conversation.message_count + 1,
             last_message_at: new Date(),
-            total_cost: Number(conversation.total_cost) + Number(data.cost || 0),
+            total_cost: String(
+              Number(conversation.total_cost) + Number(data.cost || 0)
+            ),
             updated_at: new Date(),
           })
           .where(eq(conversations.id, conversationId));

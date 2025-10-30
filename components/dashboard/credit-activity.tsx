@@ -13,14 +13,14 @@ import { Clock } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 export interface CreditActivityProps {
-  transactions: Array<
-    Pick<
-      CreditTransaction,
-      "id" | "amount" | "type" | "description" | "created_at"
-    > & {
-      actor?: string | null;
-    }
-  >;
+  transactions: Array<{
+    id: string;
+    amount: number; // Converted from NUMERIC
+    type: string;
+    description: string;
+    created_at: Date;
+    actor?: string | null;
+  }>;
   className?: string;
   title?: string;
   description?: string;
@@ -63,7 +63,7 @@ export function CreditActivity({
         ) : (
           <div className="space-y-3">
             {items.map((transaction, index) => {
-              const isCredit = transaction.amount > 0;
+              const isCredit = Number(transaction.amount) > 0;
               return (
                 <div key={transaction.id}>
                   <div className="flex items-start justify-between rounded-xl border border-border/50 bg-muted/30 px-4 py-3 transition-all hover:border-primary/40 hover:bg-muted/40">
@@ -102,7 +102,7 @@ export function CreditActivity({
                       )}
                     >
                       {isCredit ? "+" : ""}
-                      {currencyFormatter.format(transaction.amount)}
+                      {currencyFormatter.format(Number(transaction.amount))}
                     </span>
                   </div>
                   {index < items.length - 1 && <Separator className="my-3" />}

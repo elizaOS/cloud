@@ -65,8 +65,8 @@ async function handlePOST(req: NextRequest) {
       provider: "google",
       prompt: prompt,
       status: "pending",
-      credits: totalCost,
-      cost: totalCost,
+      credits: String(totalCost),
+      cost: String(totalCost),
     });
 
     generationId = generation.id;
@@ -186,8 +186,8 @@ async function handlePOST(req: NextRequest) {
         provider: "google",
         input_tokens: 0,
         output_tokens: 0,
-        input_cost: 0,
-        output_cost: 0,
+        input_cost: String(0),
+        output_cost: String(0),
         is_successful: false,
         error_message: "No images were generated",
       });
@@ -222,7 +222,7 @@ async function handlePOST(req: NextRequest) {
         "[IMAGE GENERATION] Failed to deduct credits - insufficient balance",
         {
           organizationId: user.organization_id,
-          cost: actualCost,
+          cost: String(actualCost),
           balance: deductionResult.newBalance,
         },
       );
@@ -246,8 +246,8 @@ async function handlePOST(req: NextRequest) {
       provider: "google",
       input_tokens: 0,
       output_tokens: 0,
-      input_cost: actualCost,
-      output_cost: 0,
+      input_cost: String(actualCost),
+      output_cost: String(0),
       is_successful: true,
     });
 

@@ -23,7 +23,7 @@ export class OrganizationsRepository {
   }
 
   async findByStripeCustomerId(
-    stripeCustomerId: string,
+    stripeCustomerId: string
   ): Promise<Organization | undefined> {
     return await db.query.organizations.findFirst({
       where: eq(organizations.stripe_customer_id, stripeCustomerId),
@@ -49,7 +49,7 @@ export class OrganizationsRepository {
 
   async update(
     id: string,
-    data: Partial<NewOrganization>,
+    data: Partial<NewOrganization>
   ): Promise<Organization | undefined> {
     const [updated] = await db
       .update(organizations)
@@ -64,7 +64,7 @@ export class OrganizationsRepository {
 
   async updateCreditBalance(
     organizationId: string,
-    amount: number,
+    amount: number
   ): Promise<{ success: boolean; newBalance: number }> {
     const result = await db.transaction(async (tx) => {
       const org = await tx.query.organizations.findFirst({
@@ -75,7 +75,8 @@ export class OrganizationsRepository {
         throw new Error("Organization not found");
       }
 
-      const newBalance = org.credit_balance + amount;
+      const currentBalance = Number(org.credit_balance);
+      const newBalance = currentBalance + amount;
 
       if (newBalance < 0) {
         throw new Error("Insufficient balance");
@@ -84,7 +85,7 @@ export class OrganizationsRepository {
       await tx
         .update(organizations)
         .set({
-          credit_balance: newBalance,
+          credit_balance: String(newBalance),
           updated_at: new Date(),
         })
         .where(eq(organizations.id, organizationId));
@@ -103,7 +104,7 @@ export class OrganizationsRepository {
     organizationId: string,
     amount: number,
     description: string,
-    userId?: string,
+    userId?: string
   ): Promise<{
     success: boolean;
     newBalance: number;
@@ -118,18 +119,20 @@ export class OrganizationsRepository {
         throw new Error("Organization not found");
       }
 
-      if (Number(org.credit_balance) < amount) {
+      const currentBalance = Number(org.credit_balance);
+
+      if (currentBalance < amount) {
         throw new Error(
-          `Insufficient balance. Required: ${amount}, Available: ${Number(org.credit_balance).toFixed(2)}`,
+          `Insufficient balance. Required: ${amount}, Available: ${currentBalance.toFixed(2)}`
         );
       }
 
-      const newBalance = org.credit_balance - amount;
+      const newBalance = currentBalance - amount;
 
       await tx
         .update(organizations)
         .set({
-          credit_balance: newBalance,
+          credit_balance: String(newBalance),
           updated_at: new Date(),
         })
         .where(eq(organizations.id, organizationId));
@@ -143,7 +146,7 @@ export class OrganizationsRepository {
         .values({
           organization_id: organizationId,
           user_id: userId || null,
-          amount: -amount,
+          amount: String(-amount),
           type: "debit",
           description,
           created_at: new Date(),

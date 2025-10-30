@@ -166,7 +166,7 @@ async function handlePOST(req: NextRequest) {
           "[OpenAI Proxy] CRITICAL: Failed to deduct credits for embeddings after completion",
           {
             organizationId: user.organization_id,
-            cost: totalCost,
+            cost: String(totalCost),
             balance: deductResult.newBalance,
           },
         );
@@ -196,8 +196,8 @@ async function handlePOST(req: NextRequest) {
             provider: providerName,
             input_tokens: data.usage.prompt_tokens,
             output_tokens: 0,
-            input_cost: inputCost,
-            output_cost: 0,
+            input_cost: String(inputCost),
+            output_cost: String(0),
             is_successful: true,
           });
 
@@ -206,7 +206,7 @@ async function handlePOST(req: NextRequest) {
             normalizedModel,
             provider: providerName,
             tokens: tokensUsed,
-            cost: totalCost,
+            cost: String(totalCost),
           });
         } catch (error) {
           logger.error("[OpenAI Proxy] Embeddings analytics error:", error);

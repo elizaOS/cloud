@@ -209,8 +209,8 @@ export async function createUsageRecord(
     provider: params.provider,
     input_tokens: params.input_tokens || 0,
     output_tokens: params.output_tokens || 0,
-    input_cost: params.input_cost || 0,
-    output_cost: params.output_cost || 0,
+    input_cost: String(params.input_cost || 0),
+    output_cost: String(params.output_cost || 0),
     is_successful: params.is_successful,
     error_message: params.error_message || null,
     metadata: params.metadata,
@@ -233,8 +233,9 @@ export async function hasSufficientCredits(
     };
   }
 
+  const balance = Number(org.credit_balance);
   return {
-    sufficient: Number(org.credit_balance) >= requiredAmount,
-    currentBalance: Number(org.credit_balance),
+    sufficient: balance >= requiredAmount,
+    currentBalance: balance,
   };
 }
