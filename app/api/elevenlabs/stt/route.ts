@@ -170,8 +170,12 @@ export async function POST(request: NextRequest) {
           );
         }
         return NextResponse.json(
-          { error: "Service quota exceeded. Please contact support." },
-          { status: 429 }
+          { 
+            error: "Speech-to-text service is temporarily unavailable due to high demand. Please try again shortly.",
+            type: "service_unavailable",
+            retryAfter: "5 minutes"
+          },
+          { status: 503 } // Service Unavailable
         );
       }
 

@@ -30,7 +30,7 @@ const chartConfig = {
     color: "#6366F1",
   },
   cost: {
-    label: "Cost (credits)",
+    label: "Cost (USD)",
     color: "#22C55E",
   },
   successRate: {
@@ -41,7 +41,7 @@ const chartConfig = {
 
 const metricDescriptions: Record<MetricKey, string> = {
   requests: "Raw throughput captured at the selected cadence.",
-  cost: "Total credits consumed for the interval.",
+  cost: "Total cost in USD for the interval.",
   successRate: "Share of successful calls over total attempts.",
 };
 
@@ -86,6 +86,14 @@ export function UsageChart({ data, granularity }: UsageChartProps) {
     if (value === undefined) return "–";
     if (activeMetric === "successRate") {
       return `${value.toFixed(1)}%`;
+    }
+    if (activeMetric === "cost") {
+      return new Intl.NumberFormat("en-US", {
+        style: "currency",
+        currency: "USD",
+        minimumFractionDigits: 2,
+        maximumFractionDigits: 2,
+      }).format(value);
     }
     return value.toLocaleString();
   };
@@ -187,6 +195,14 @@ export function UsageChart({ data, granularity }: UsageChartProps) {
                   const numeric = Number(value);
                   if (activeMetric === "successRate") {
                     return `${numeric.toFixed(1)}%`;
+                  }
+                  if (activeMetric === "cost") {
+                    return new Intl.NumberFormat("en-US", {
+                      style: "currency",
+                      currency: "USD",
+                      minimumFractionDigits: 2,
+                      maximumFractionDigits: 2,
+                    }).format(numeric);
                   }
                   return numeric.toLocaleString();
                 }}

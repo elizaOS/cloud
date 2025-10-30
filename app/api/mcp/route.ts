@@ -65,10 +65,10 @@ function getAuthContext(): AuthResult {
 // Create MCP handler with tools
 const mcpHandler = createMcpHandler(
   (server) => {
-    // Tool 1: Check Credits - View credit balance and recent transactions
+    // Tool 1: Check Credits - View balance and recent transactions
     server.tool(
       "check_credits",
-      "Check credit balance and recent transactions for your organization",
+      "Check balance and recent transactions for your organization",
       {
         includeTransactions: z
           .boolean()
@@ -117,7 +117,7 @@ const mcpHandler = createMcpHandler(
               createdAt: string;
             }>;
           } = {
-            balance: org.credit_balance,
+            balance: Number(org.credit_balance),
             organizationId: org.id,
             organizationName: org.name,
           };
@@ -130,7 +130,7 @@ const mcpHandler = createMcpHandler(
               );
             response.transactions = transactions.map((t) => ({
               id: t.id,
-              amount: t.amount,
+              amount: Number(t.amount),
               type: t.type,
               description: t.description || "No description",
               createdAt: t.created_at.toISOString(),
@@ -200,7 +200,7 @@ const mcpHandler = createMcpHandler(
             outputTokens: record.output_tokens,
             inputCost: record.input_cost || 0,
             outputCost: record.output_cost || 0,
-            totalCost: (record.input_cost || 0) + (record.output_cost || 0),
+            totalCost: Number(record.input_cost || 0) + Number(record.output_cost || 0),
             isSuccessful: record.is_successful,
             errorMessage: record.error_message,
             createdAt: record.created_at.toISOString(),
@@ -335,7 +335,7 @@ const mcpHandler = createMcpHandler(
                   type: "text" as const,
                   text: JSON.stringify(
                     {
-                      error: "Insufficient credits",
+                      error: "Insufficient balance",
                       required: estimatedCost,
                       available: deductionResult.newBalance,
                     },
@@ -361,8 +361,8 @@ const mcpHandler = createMcpHandler(
             provider: provider,
             prompt: prompt,
             status: "pending",
-            credits: estimatedCost,
-            cost: estimatedCost,
+            credits: String(estimatedCost),
+            cost: String(estimatedCost),
           });
 
           generationId = generation.id;
@@ -412,7 +412,7 @@ const mcpHandler = createMcpHandler(
               await creditsService.refundCredits({
                 organizationId: user.organization_id,
                 amount: deductedAmount,
-                description: `MCP text generation refund (insufficient credits): ${model}`,
+                description: `MCP text generation refund (insufficient balance): ${model}`,
                 metadata: { user_id: user.id, generation_id: generationId },
               });
               return {
@@ -421,7 +421,7 @@ const mcpHandler = createMcpHandler(
                     type: "text" as const,
                     text: JSON.stringify(
                       {
-                        error: "Insufficient credits for actual cost",
+                        error: "Insufficient balance for actual cost",
                         estimated: deductedAmount,
                         actual: totalCost,
                         refunded: deductedAmount,
@@ -454,8 +454,8 @@ const mcpHandler = createMcpHandler(
             provider: provider,
             input_tokens: usage?.inputTokens || 0,
             output_tokens: usage?.outputTokens || 0,
-            input_cost: inputCost,
-            output_cost: outputCost,
+            input_cost: String(inputCost),
+            output_cost: String(outputCost),
             is_successful: true,
           });
 
@@ -464,8 +464,8 @@ const mcpHandler = createMcpHandler(
             status: "completed",
             content: fullText,
             tokens: (usage?.inputTokens || 0) + (usage?.outputTokens || 0),
-            cost: totalCost,
-            credits: totalCost,
+            cost: String(totalCost),
+            credits: String(totalCost),
             usage_record_id: usageRecord.id,
             completed_at: new Date(),
             result: {
@@ -600,7 +600,7 @@ const mcpHandler = createMcpHandler(
                   type: "text" as const,
                   text: JSON.stringify(
                     {
-                      error: "Insufficient credits",
+                      error: "Insufficient balance",
                       required: IMAGE_GENERATION_COST,
                       available: initialDeduction.newBalance,
                     },
@@ -626,8 +626,8 @@ const mcpHandler = createMcpHandler(
             provider: "google",
             prompt: prompt,
             status: "pending",
-            credits: IMAGE_GENERATION_COST,
-            cost: IMAGE_GENERATION_COST,
+            credits: String(IMAGE_GENERATION_COST),
+            cost: String(IMAGE_GENERATION_COST),
           });
 
           generationId = generation.id;
@@ -701,8 +701,8 @@ const mcpHandler = createMcpHandler(
               provider: "google",
               input_tokens: 0,
               output_tokens: 0,
-              input_cost: 0,
-              output_cost: 0,
+              input_cost: String(0),
+              output_cost: String(0),
               is_successful: false,
               error_message: "No image was generated",
             });
@@ -743,8 +743,8 @@ const mcpHandler = createMcpHandler(
             provider: "google",
             input_tokens: 0,
             output_tokens: 0,
-            input_cost: IMAGE_GENERATION_COST,
-            output_cost: 0,
+            input_cost: String(IMAGE_GENERATION_COST),
+            output_cost: String(0),
             is_successful: true,
           });
 
@@ -790,7 +790,7 @@ const mcpHandler = createMcpHandler(
                     message: "Image generated successfully",
                     url: blobUrl !== imageBase64 ? blobUrl : undefined,
                     aspectRatio,
-                    cost: IMAGE_GENERATION_COST,
+                    cost: String(IMAGE_GENERATION_COST),
                     newBalance: initialDeduction.newBalance,
                   },
                   null,
@@ -1031,7 +1031,7 @@ const mcpHandler = createMcpHandler(
                   type: "text" as const,
                   text: JSON.stringify(
                     {
-                      error: "Insufficient credits",
+                      error: "Insufficient balance",
                       required: MEMORY_SAVE_COST,
                       available: deductionResult.newBalance,
                     },
@@ -1083,8 +1083,8 @@ const mcpHandler = createMcpHandler(
             provider: "internal",
             input_tokens: 0,
             output_tokens: 0,
-            input_cost: MEMORY_SAVE_COST,
-            output_cost: 0,
+            input_cost: String(MEMORY_SAVE_COST),
+            output_cost: String(0),
             is_successful: true,
           });
 
@@ -1098,7 +1098,7 @@ const mcpHandler = createMcpHandler(
                     memoryId: result.memoryId,
                     storage: result.storage,
                     expiresAt: result.expiresAt?.toISOString(),
-                    cost: MEMORY_SAVE_COST,
+                    cost: String(MEMORY_SAVE_COST),
                     newBalance: deductionResult.newBalance,
                   },
                   null,
@@ -1205,7 +1205,7 @@ const mcpHandler = createMcpHandler(
                   type: "text" as const,
                   text: JSON.stringify(
                     {
-                      error: "Insufficient credits",
+                      error: "Insufficient balance",
                       required: estimatedMaxCost,
                       available: initialDeduction.newBalance,
                     },
@@ -1281,8 +1281,8 @@ const mcpHandler = createMcpHandler(
               provider: "internal",
               input_tokens: 0,
               output_tokens: 0,
-              input_cost: actualCost,
-              output_cost: 0,
+              input_cost: String(actualCost),
+              output_cost: String(0),
               is_successful: true,
             });
           }
@@ -1300,7 +1300,7 @@ const mcpHandler = createMcpHandler(
                       createdAt: m.memory.createdAt,
                     })),
                     count: memories.length,
-                    cost: actualCost,
+                    cost: String(actualCost),
                   },
                   null,
                   2
@@ -1369,8 +1369,8 @@ const mcpHandler = createMcpHandler(
             provider: "internal",
             input_tokens: 0,
             output_tokens: 0,
-            input_cost: 0,
-            output_cost: 0,
+            input_cost: String(0),
+            output_cost: String(0),
             is_successful: true,
           });
 
@@ -1458,14 +1458,14 @@ const mcpHandler = createMcpHandler(
             };
           }
 
-          if (org.credit_balance < CONTEXT_RETRIEVAL_COST) {
+          if (Number(org.credit_balance) < CONTEXT_RETRIEVAL_COST) {
             return {
               content: [
                 {
                   type: "text" as const,
                   text: JSON.stringify(
                     {
-                      error: "Insufficient credits",
+                      error: "Insufficient balance",
                       required: CONTEXT_RETRIEVAL_COST,
                       available: org.credit_balance,
                     },
@@ -1524,8 +1524,8 @@ const mcpHandler = createMcpHandler(
             provider: "internal",
             input_tokens: 0,
             output_tokens: 0,
-            input_cost: CONTEXT_RETRIEVAL_COST,
-            output_cost: 0,
+            input_cost: String(CONTEXT_RETRIEVAL_COST),
+            output_cost: String(0),
             is_successful: true,
           });
 
@@ -1544,7 +1544,7 @@ const mcpHandler = createMcpHandler(
                     participants: context.participants.length,
                     metadata: context.metadata,
                     tokenEstimate,
-                    cost: CONTEXT_RETRIEVAL_COST,
+                    cost: String(CONTEXT_RETRIEVAL_COST),
                     messages: context.messages.map((m) => ({
                       id: m.id,
                       content: m.content,
@@ -1627,14 +1627,14 @@ const mcpHandler = createMcpHandler(
             };
           }
 
-          if (org.credit_balance < CONVERSATION_CREATE_COST) {
+          if (Number(org.credit_balance) < CONVERSATION_CREATE_COST) {
             return {
               content: [
                 {
                   type: "text" as const,
                   text: JSON.stringify(
                     {
-                      error: "Insufficient credits",
+                      error: "Insufficient balance",
                       required: CONVERSATION_CREATE_COST,
                       available: org.credit_balance,
                     },
@@ -1697,8 +1697,8 @@ const mcpHandler = createMcpHandler(
             provider: "internal",
             input_tokens: 0,
             output_tokens: 0,
-            input_cost: CONVERSATION_CREATE_COST,
-            output_cost: 0,
+            input_cost: String(CONVERSATION_CREATE_COST),
+            output_cost: String(0),
             is_successful: true,
           });
 
@@ -1712,7 +1712,7 @@ const mcpHandler = createMcpHandler(
                     conversationId: conversation.id,
                     title: conversation.title,
                     model: conversation.model,
-                    cost: CONVERSATION_CREATE_COST,
+                    cost: String(CONVERSATION_CREATE_COST),
                     newBalance: deductionResult.newBalance,
                   },
                   null,
@@ -1785,14 +1785,14 @@ const mcpHandler = createMcpHandler(
             };
           }
 
-          if (org.credit_balance < CONVERSATION_SEARCH_COST) {
+          if (Number(org.credit_balance) < CONVERSATION_SEARCH_COST) {
             return {
               content: [
                 {
                   type: "text" as const,
                   text: JSON.stringify(
                     {
-                      error: "Insufficient credits",
+                      error: "Insufficient balance",
                       required: CONVERSATION_SEARCH_COST,
                       available: org.credit_balance,
                     },
@@ -1849,8 +1849,8 @@ const mcpHandler = createMcpHandler(
             provider: "internal",
             input_tokens: 0,
             output_tokens: 0,
-            input_cost: CONVERSATION_SEARCH_COST,
-            output_cost: 0,
+            input_cost: String(CONVERSATION_SEARCH_COST),
+            output_cost: String(0),
             is_successful: true,
           });
 
@@ -1870,7 +1870,7 @@ const mcpHandler = createMcpHandler(
                       createdAt: c.created_at,
                     })),
                     count: conversations.length,
-                    cost: CONVERSATION_SEARCH_COST,
+                    cost: String(CONVERSATION_SEARCH_COST),
                   },
                   null,
                   2
@@ -1955,14 +1955,14 @@ const mcpHandler = createMcpHandler(
             CONVERSATION_SUMMARY_BASE_COST + Math.floor(lastN / 10),
             CONVERSATION_SUMMARY_MAX_COST
           );
-          if (org.credit_balance < estimatedCost) {
+          if (Number(org.credit_balance) < estimatedCost) {
             return {
               content: [
                 {
                   type: "text" as const,
                   text: JSON.stringify(
                     {
-                      error: "Insufficient credits",
+                      error: "Insufficient balance",
                       estimated: estimatedCost,
                       available: org.credit_balance,
                     },
@@ -2029,8 +2029,8 @@ const mcpHandler = createMcpHandler(
             provider: "openai",
             input_tokens: summary.tokenCount,
             output_tokens: 0,
-            input_cost: actualCost,
-            output_cost: 0,
+            input_cost: String(actualCost),
+            output_cost: String(0),
             is_successful: true,
           });
 
@@ -2044,7 +2044,7 @@ const mcpHandler = createMcpHandler(
                     tokenCount: summary.tokenCount,
                     keyTopics: summary.keyTopics,
                     participants: summary.participants,
-                    cost: actualCost,
+                    cost: String(actualCost),
                     newBalance: deductionResult.newBalance,
                   },
                   null,
@@ -2121,14 +2121,14 @@ const mcpHandler = createMcpHandler(
             };
           }
 
-          if (org.credit_balance < CONTEXT_OPTIMIZATION_COST) {
+          if (Number(org.credit_balance) < CONTEXT_OPTIMIZATION_COST) {
             return {
               content: [
                 {
                   type: "text" as const,
                   text: JSON.stringify(
                     {
-                      error: "Insufficient credits",
+                      error: "Insufficient balance",
                       required: CONTEXT_OPTIMIZATION_COST,
                       available: org.credit_balance,
                     },
@@ -2189,8 +2189,8 @@ const mcpHandler = createMcpHandler(
             provider: "internal",
             input_tokens: 0,
             output_tokens: 0,
-            input_cost: CONTEXT_OPTIMIZATION_COST,
-            output_cost: 0,
+            input_cost: String(CONTEXT_OPTIMIZATION_COST),
+            output_cost: String(0),
             is_successful: true,
           });
 
@@ -2208,7 +2208,7 @@ const mcpHandler = createMcpHandler(
                     totalTokens: optimized.totalTokens,
                     messageCount: optimized.messageCount,
                     relevanceScores: optimized.relevanceScores,
-                    cost: CONTEXT_OPTIMIZATION_COST,
+                    cost: String(CONTEXT_OPTIMIZATION_COST),
                     newBalance: deductionResult.newBalance,
                   },
                   null,
@@ -2278,14 +2278,14 @@ const mcpHandler = createMcpHandler(
             };
           }
 
-          if (org.credit_balance < CONVERSATION_EXPORT_COST) {
+          if (Number(org.credit_balance) < CONVERSATION_EXPORT_COST) {
             return {
               content: [
                 {
                   type: "text" as const,
                   text: JSON.stringify(
                     {
-                      error: "Insufficient credits",
+                      error: "Insufficient balance",
                       required: CONVERSATION_EXPORT_COST,
                       available: org.credit_balance,
                     },
@@ -2344,8 +2344,8 @@ const mcpHandler = createMcpHandler(
             provider: "internal",
             input_tokens: 0,
             output_tokens: 0,
-            input_cost: CONVERSATION_EXPORT_COST,
-            output_cost: 0,
+            input_cost: String(CONVERSATION_EXPORT_COST),
+            output_cost: String(0),
             is_successful: true,
           });
 
@@ -2358,7 +2358,7 @@ const mcpHandler = createMcpHandler(
                     content: exportData.content,
                     format: exportData.format,
                     size: exportData.size,
-                    cost: CONVERSATION_EXPORT_COST,
+                    cost: String(CONVERSATION_EXPORT_COST),
                     newBalance: deductionResult.newBalance,
                   },
                   null,
@@ -2438,14 +2438,14 @@ const mcpHandler = createMcpHandler(
             };
           }
 
-          if (org.credit_balance < CONVERSATION_CLONE_COST) {
+          if (Number(org.credit_balance) < CONVERSATION_CLONE_COST) {
             return {
               content: [
                 {
                   type: "text" as const,
                   text: JSON.stringify(
                     {
-                      error: "Insufficient credits",
+                      error: "Insufficient balance",
                       required: CONVERSATION_CLONE_COST,
                       available: org.credit_balance,
                     },
@@ -2510,8 +2510,8 @@ const mcpHandler = createMcpHandler(
             provider: "internal",
             input_tokens: 0,
             output_tokens: 0,
-            input_cost: CONVERSATION_CLONE_COST,
-            output_cost: 0,
+            input_cost: String(CONVERSATION_CLONE_COST),
+            output_cost: String(0),
             is_successful: true,
           });
 
@@ -2524,7 +2524,7 @@ const mcpHandler = createMcpHandler(
                     success: true,
                     conversationId: cloneResult.conversationId,
                     clonedMessageCount: cloneResult.clonedMessageCount,
-                    cost: CONVERSATION_CLONE_COST,
+                    cost: String(CONVERSATION_CLONE_COST),
                     newBalance: deductionResult.newBalance,
                   },
                   null,
@@ -2596,14 +2596,14 @@ const mcpHandler = createMcpHandler(
             };
           }
 
-          if (org.credit_balance < MEMORY_ANALYSIS_COST) {
+          if (Number(org.credit_balance) < MEMORY_ANALYSIS_COST) {
             return {
               content: [
                 {
                   type: "text" as const,
                   text: JSON.stringify(
                     {
-                      error: "Insufficient credits",
+                      error: "Insufficient balance",
                       required: MEMORY_ANALYSIS_COST,
                       available: org.credit_balance,
                     },
@@ -2660,8 +2660,8 @@ const mcpHandler = createMcpHandler(
             provider: "internal",
             input_tokens: 0,
             output_tokens: 0,
-            input_cost: MEMORY_ANALYSIS_COST,
-            output_cost: 0,
+            input_cost: String(MEMORY_ANALYSIS_COST),
+            output_cost: String(0),
             is_successful: true,
           });
 
@@ -2675,7 +2675,7 @@ const mcpHandler = createMcpHandler(
                     insights: analysis.insights,
                     data: analysis.data,
                     chartData: analysis.chartData,
-                    cost: MEMORY_ANALYSIS_COST,
+                    cost: String(MEMORY_ANALYSIS_COST),
                     newBalance: deductionResult.newBalance,
                   },
                   null,
@@ -2710,7 +2710,7 @@ const mcpHandler = createMcpHandler(
     // Tool 16: Chat with Agent - Direct agent conversation
     server.tool(
       "chat_with_agent",
-      "Send a message to your deployed ElizaOS agent and receive a response. Supports streaming via SSE. Deducts 5-100 credits based on token usage.",
+      "Send a message to your deployed ElizaOS agent and receive a response. Supports streaming via SSE. Charges $0.0001-$0.01 based on token usage.",
       {
         message: z
           .string()
@@ -2761,14 +2761,14 @@ const mcpHandler = createMcpHandler(
             Math.ceil(estimatedInputTokens * AGENT_CHAT_INPUT_TOKEN_COST)
           );
 
-          if (org.credit_balance < estimatedCost) {
+          if (Number(org.credit_balance) < estimatedCost) {
             return {
               content: [
                 {
                   type: "text" as const,
                   text: JSON.stringify(
                     {
-                      error: "Insufficient credits",
+                      error: "Insufficient balance",
                       required: estimatedCost,
                       available: org.credit_balance,
                     },
@@ -2820,8 +2820,8 @@ const mcpHandler = createMcpHandler(
             provider: "eliza",
             input_tokens: response.usage?.inputTokens || 0,
             output_tokens: response.usage?.outputTokens || 0,
-            input_cost: actualCost,
-            output_cost: 0,
+            input_cost: String(actualCost),
+            output_cost: String(0),
             is_successful: true,
             error_message: null,
             metadata: { tool: "chat_with_agent", room_id: actualRoomId },

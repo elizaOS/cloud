@@ -78,6 +78,27 @@ export class UsersRepository {
     return user as UserWithOrganization | undefined;
   }
 
+  async findByWalletAddress(
+    walletAddress: string,
+  ): Promise<User | undefined> {
+    return await db.query.users.findFirst({
+      where: eq(users.wallet_address, walletAddress.toLowerCase()),
+    });
+  }
+
+  async findByWalletAddressWithOrganization(
+    walletAddress: string,
+  ): Promise<UserWithOrganization | undefined> {
+    const user = await db.query.users.findFirst({
+      where: eq(users.wallet_address, walletAddress.toLowerCase()),
+      with: {
+        organization: true,
+      },
+    });
+
+    return user as UserWithOrganization | undefined;
+  }
+
   async listByOrganization(organizationId: string): Promise<User[]> {
     return await db.query.users.findMany({
       where: eq(users.organization_id, organizationId),

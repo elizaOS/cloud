@@ -121,7 +121,7 @@ export async function getProjectionsData(periods: number = 7) {
     organizationsService.getById(organizationId),
   ]);
 
-  const creditBalance = org?.credit_balance || 0;
+  const creditBalance = Number(org?.credit_balance || 0);
   const projections = generateProjections(historicalData, periods);
   const alerts = generateProjectionAlerts(
     historicalData,

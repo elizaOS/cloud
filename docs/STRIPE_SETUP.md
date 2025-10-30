@@ -265,7 +265,7 @@ http://localhost:3000/dashboard/billing
 
 ### Step 3: Initiate a Test Purchase
 
-1. Click **"Purchase Credits"** on any credit pack
+1. Click **"Add Funds"** on any balance pack
 2. You'll be redirected to Stripe Checkout
 
 ### Step 4: Complete Test Payment
@@ -284,7 +284,7 @@ Use Stripe test card details:
 After clicking "Pay":
 
 1. You should be redirected to `/dashboard/billing/success`
-2. Your credit balance should be updated
+2. Your balance should be updated
 3. Check your Stripe CLI output for the webhook event:
    ```
    2024-01-15 10:30:00   --> checkout.session.completed [evt_123...]
@@ -367,8 +367,8 @@ Follow the [Production Webhook Setup](#for-production) steps to create a webhook
 
 | Scenario                    | Card Number         | Expected Result                    |
 | --------------------------- | ------------------- | ---------------------------------- |
-| **Successful Payment**      | 4242 4242 4242 4242 | Payment succeeds, credits added    |
-| **Declined Payment**        | 4000 0000 0000 0002 | Payment declined, no credits added |
+| **Successful Payment**      | 4242 4242 4242 4242 | Payment succeeds, balance added    |
+| **Declined Payment**        | 4000 0000 0000 0002 | Payment declined, no balance added |
 | **Requires Authentication** | 4000 0025 0000 3155 | 3D Secure authentication required  |
 | **Insufficient Funds**      | 4000 0000 0000 9995 | Insufficient funds error           |
 | **Processing Error**        | 4000 0000 0000 0127 | Processing error                   |

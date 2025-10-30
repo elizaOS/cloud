@@ -45,7 +45,7 @@ const STATUS_BADGE: Record<NonNullable<ActivityFeedItem["status"]>, string> = {
 
 export function ActivityFeed({
   title = "Recent activity",
-  description = "Stay informed about the latest agent runs, API calls, and credit updates.",
+  description = "Stay informed about the latest agent runs, API calls, and balance updates.",
   items,
   emptyState,
   footerAction,
