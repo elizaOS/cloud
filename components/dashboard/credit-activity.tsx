@@ -36,8 +36,8 @@ const currencyFormatter = new Intl.NumberFormat("en-US", {
 export function CreditActivity({
   transactions,
   className,
-  title = "Credit ledger",
-  description = "Recent adjustments to your organization credit balance.",
+  title = "Transaction History",
+  description = "Recent adjustments to your organization balance.",
 }: CreditActivityProps) {
   const items = transactions.slice(0, 6);
 
@@ -58,7 +58,7 @@ export function CreditActivity({
       <CardContent className="pt-6">
         {items.length === 0 ? (
           <p className="py-8 text-center text-sm text-muted-foreground">
-            No credit transactions recorded.
+            No transactions recorded.
           </p>
         ) : (
           <div className="space-y-3">

@@ -102,8 +102,8 @@ export function AnalyticsPageClient({
     },
     {
       label: "Total cost",
-      value: `${data.overallStats.totalCost.toLocaleString()} credits`,
-      helper: `≈ ${averageCostPerRequest.toFixed(2)} credits per request`,
+      value: `$${data.overallStats.totalCost.toFixed(2)}`,
+      helper: `≈ $${averageCostPerRequest.toFixed(2)} per request`,
       delta:
         trendDelta.cost !== 0
           ? {

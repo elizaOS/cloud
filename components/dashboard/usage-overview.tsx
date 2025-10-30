@@ -29,7 +29,7 @@ export interface UsageOverviewProps {
 
 export function UsageOverview({
   title = "Usage overview",
-  description = "Monitor how your team is consuming credits and track associated costs.",
+  description = "Monitor your team's usage and track associated costs.",
   metrics,
   className,
   footnote,

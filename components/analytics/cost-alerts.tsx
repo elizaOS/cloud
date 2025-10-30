@@ -25,8 +25,8 @@ export function CostAlerts({ costTrending, creditBalance }: CostAlertsProps) {
   ) {
     alerts.push({
       type: "error",
-      title: "Low Credit Balance",
-      description: `Your organization will run out of credits in ${costTrending.daysUntilBalanceZero} days at current burn rate. Consider purchasing more credits.`,
+      title: "Low Balance",
+      description: `Your organization will run out of balance in ${costTrending.daysUntilBalanceZero} days at current burn rate. Consider adding funds.`,
     });
   }
 
@@ -38,11 +38,13 @@ export function CostAlerts({ costTrending, creditBalance }: CostAlertsProps) {
     });
   }
 
-  if (costTrending.projectedMonthlyBurn > creditBalance * 0.8) {
+  const numericBalance = Number(creditBalance);
+
+  if (costTrending.projectedMonthlyBurn > numericBalance * 0.8) {
     alerts.push({
       type: "warning",
       title: "High Projected Monthly Cost",
-      description: `At current burn rate, you'll spend ${costTrending.projectedMonthlyBurn.toLocaleString()} credits this month, which is ${((costTrending.projectedMonthlyBurn / creditBalance) * 100).toFixed(0)}% of your current balance.`,
+      description: `At current burn rate, you'll spend $${costTrending.projectedMonthlyBurn.toFixed(2)} this month, which is ${((costTrending.projectedMonthlyBurn / numericBalance) * 100).toFixed(0)}% of your current balance.`,
     });
   }
 
@@ -84,7 +86,7 @@ export function CostAlerts({ costTrending, creditBalance }: CostAlertsProps) {
           key={`${alert.title}-${index}`}
           className={cn(
             "rounded-xl border bg-background/80 p-5 text-sm shadow-sm",
-            toneClasses[alert.type],
+            toneClasses[alert.type]
           )}
         >
           <div className="flex items-start gap-4">

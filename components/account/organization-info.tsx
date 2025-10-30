@@ -25,8 +25,8 @@ export function OrganizationInfo({ organization }: OrganizationInfoProps) {
     });
   };
 
-  const formatCredits = (credits: number) => {
-    return new Intl.NumberFormat("en-US").format(credits);
+  const formatBalance = (balance: number) => {
+    return `$${Number(balance).toFixed(2)}`;
   };
 
   return (
@@ -54,10 +54,10 @@ export function OrganizationInfo({ organization }: OrganizationInfoProps) {
             <div className="space-y-1">
               <p className="text-sm text-muted-foreground flex items-center gap-2">
                 <CreditCard className="h-4 w-4" />
-                Credit Balance
+                Balance
               </p>
               <p className="font-semibold text-lg">
-                {formatCredits(organization.credit_balance)} credits
+                {formatBalance(organization.credit_balance)}
               </p>
             </div>
 

@@ -18,8 +18,8 @@ export function BillingPageWrapper({
   canceled,
 }: BillingPageWrapperProps) {
   useSetPageHeader({
-    title: "Billing & Credits",
-    description: "Purchase credit packs to power your AI generations",
+    title: "Billing & Balance",
+    description: "Add funds to power your AI generations",
   });
 
   return (
@@ -36,12 +36,11 @@ export function BillingPageWrapper({
 
       <Alert>
         <Info className="h-4 w-4" />
-        <AlertTitle>How Credits Work</AlertTitle>
+        <AlertTitle>How Billing Works</AlertTitle>
         <AlertDescription>
-          Credits are used to power all AI operations including text generation,
-          image creation, and video rendering. Purchase credits in bulk to get
-          better rates. Credits never expire and are shared across your
-          organization.
+          You are charged for all AI operations including text generation, image
+          creation, and video rendering. Add funds in bulk to get better rates.
+          Your balance never expires and is shared across your organization.
         </AlertDescription>
       </Alert>
 
