@@ -101,7 +101,7 @@ export async function executeWithCreditGuard<T>({
     if (!deductionResult.success) {
       return {
         success: false,
-        error: "Insufficient credits",
+        error: "Insufficient balance",
         actualCost: estimatedCost,
       };
     }
@@ -141,7 +141,7 @@ export async function executeWithCreditGuard<T>({
 
         return {
           success: false,
-          error: "Insufficient credits for actual cost",
+          error: "Insufficient balance for actual cost",
           actualCost,
         };
       }
@@ -234,7 +234,7 @@ export async function hasSufficientCredits(
   }
 
   return {
-    sufficient: org.credit_balance >= requiredAmount,
-    currentBalance: org.credit_balance,
+    sufficient: Number(org.credit_balance) >= requiredAmount,
+    currentBalance: Number(org.credit_balance),
   };
 }

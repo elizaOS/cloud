@@ -82,7 +82,7 @@ export async function POST(
       );
     }
 
-    if (org.credit_balance < estimatedCost) {
+    if (Number(org.credit_balance) < estimatedCost) {
       logger.warn("[Eliza Messages API] Insufficient credits", {
         organizationId: user.organization_id,
         required: estimatedCost,
@@ -90,7 +90,7 @@ export async function POST(
       });
       return NextResponse.json(
         {
-          error: "Insufficient credits",
+          error: "Insufficient balance",
           details: `Required: ${estimatedCost}, Available: ${org.credit_balance}`,
         },
         { status: 402 },
@@ -218,7 +218,7 @@ export async function POST(
       }
 
       logger.debug(
-        `[Eliza Messages API] Credits deducted: ${totalCost} (Input: ${inputCost}, Output: ${outputCost}), New balance: ${deductionResult.newBalance}`,
+        `[Eliza Messages API] Cost charged: $${totalCost.toFixed(4)} (Input: $${inputCost.toFixed(4)}, Output: $${outputCost.toFixed(4)}), New balance: $${deductionResult.newBalance.toFixed(2)}`,
       );
     } catch (error) {
       logger.error(

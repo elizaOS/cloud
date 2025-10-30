@@ -37,7 +37,7 @@ async function handlePOST(req: NextRequest) {
     // Estimate cost based on input messages
     const messageText = messages
       .map((m) =>
-        m.parts.map((p) => (p.type === "text" ? p.text : "")).join(""),
+        m.parts.map((p) => (p.type === "text" ? p.text : "")).join("")
       )
       .join(" ");
     const estimatedInputTokens = estimateTokens(messageText);
@@ -47,7 +47,7 @@ async function handlePOST(req: NextRequest) {
       selectedModel,
       provider,
       estimatedInputTokens,
-      estimatedOutputTokens,
+      estimatedOutputTokens
     );
 
     // Check organization balance
@@ -58,22 +58,22 @@ async function handlePOST(req: NextRequest) {
       });
       return NextResponse.json(
         { error: "Organization not found" },
-        { status: 404 },
+        { status: 404 }
       );
     }
 
-    if (org.credit_balance < estimatedCost) {
+    if (Number(org.credit_balance) < estimatedCost) {
       logger.warn("chat-api", "Insufficient credits", {
         organizationId: user.organization_id,
         required: estimatedCost,
-        balance: org.credit_balance,
+        balance: Number(org.credit_balance),
       });
       return NextResponse.json(
         {
-          error: "Insufficient credits",
-          details: `Required: ${estimatedCost}, Available: ${org.credit_balance}`,
+          error: "Insufficient balance",
+          details: `Required: ${estimatedCost}, Available: ${Number(org.credit_balance).toFixed(2)}`,
         },
-        { status: 402 },
+        { status: 402 }
       );
     }
 
@@ -92,7 +92,7 @@ async function handlePOST(req: NextRequest) {
             selectedModel,
             provider,
             usage.inputTokens || 0,
-            usage.outputTokens || 0,
+            usage.outputTokens || 0
           );
 
           const deductionResult = await creditsService.deductCredits({
@@ -116,7 +116,7 @@ async function handlePOST(req: NextRequest) {
                 organizationId: user.organization_id,
                 cost: totalCost,
                 balance: deductionResult.newBalance,
-              },
+              }
             );
             // Stream has already completed, so we can't return an error
             // This should trigger an alert for manual review
@@ -188,7 +188,7 @@ async function handlePOST(req: NextRequest) {
             });
           }
 
-          logger.info("chat-api", "Credits deducted", {
+          logger.info("chat-api", "Cost charged", {
             totalCost,
             inputCost,
             outputCost,
@@ -198,7 +198,7 @@ async function handlePOST(req: NextRequest) {
           logger.error(
             "chat-api",
             "Error persisting messages or deducting credits",
-            { error: error instanceof Error ? error.message : "Unknown error" },
+            { error: error instanceof Error ? error.message : "Unknown error" }
           );
 
           if (usage) {

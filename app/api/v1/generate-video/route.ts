@@ -231,7 +231,7 @@ async function handlePOST(request: NextRequest) {
     }
 
     console.log(
-      `[VIDEO GENERATION] Credits deducted: ${VIDEO_GENERATION_COST}, New balance: ${deductionResult.newBalance}`,
+      `[VIDEO GENERATION] Cost: $${VIDEO_GENERATION_COST.toFixed(2)}, New balance: $${deductionResult.newBalance.toFixed(2)}`,
     );
 
     return NextResponse.json(
@@ -317,7 +317,7 @@ async function handlePOST(request: NextRequest) {
       }
 
       console.log(
-        `[VIDEO GENERATION] Fallback credits deducted: ${VIDEO_GENERATION_FALLBACK_COST}, New balance: ${fallbackDeduction.newBalance}`,
+        `[VIDEO GENERATION] Fallback cost: $${VIDEO_GENERATION_FALLBACK_COST.toFixed(2)}, New balance: $${fallbackDeduction.newBalance.toFixed(2)}`,
       );
     } catch (authError) {
       console.error(

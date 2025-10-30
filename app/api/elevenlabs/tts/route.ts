@@ -151,8 +151,12 @@ export async function POST(request: NextRequest) {
 
       if (error.message.includes("quota")) {
         return NextResponse.json(
-          { error: "Service quota exceeded. Please contact support." },
-          { status: 429 }
+          { 
+            error: "Voice service is temporarily unavailable due to high demand. Please try again in a few moments.",
+            type: "service_unavailable",
+            retryAfter: "5 minutes"
+          },
+          { status: 503 } // Service Unavailable (not 429 - makes it feel like platform issue)
         );
       }
 

@@ -65,10 +65,10 @@ function getAuthContext(): AuthResult {
 // Create MCP handler with tools
 const mcpHandler = createMcpHandler(
   (server) => {
-    // Tool 1: Check Credits - View credit balance and recent transactions
+    // Tool 1: Check Credits - View balance and recent transactions
     server.tool(
       "check_credits",
-      "Check credit balance and recent transactions for your organization",
+      "Check balance and recent transactions for your organization",
       {
         includeTransactions: z
           .boolean()
@@ -335,7 +335,7 @@ const mcpHandler = createMcpHandler(
                   type: "text" as const,
                   text: JSON.stringify(
                     {
-                      error: "Insufficient credits",
+                      error: "Insufficient balance",
                       required: estimatedCost,
                       available: deductionResult.newBalance,
                     },
@@ -412,7 +412,7 @@ const mcpHandler = createMcpHandler(
               await creditsService.refundCredits({
                 organizationId: user.organization_id,
                 amount: deductedAmount,
-                description: `MCP text generation refund (insufficient credits): ${model}`,
+                description: `MCP text generation refund (insufficient balance): ${model}`,
                 metadata: { user_id: user.id, generation_id: generationId },
               });
               return {
@@ -421,7 +421,7 @@ const mcpHandler = createMcpHandler(
                     type: "text" as const,
                     text: JSON.stringify(
                       {
-                        error: "Insufficient credits for actual cost",
+                        error: "Insufficient balance for actual cost",
                         estimated: deductedAmount,
                         actual: totalCost,
                         refunded: deductedAmount,
@@ -600,7 +600,7 @@ const mcpHandler = createMcpHandler(
                   type: "text" as const,
                   text: JSON.stringify(
                     {
-                      error: "Insufficient credits",
+                      error: "Insufficient balance",
                       required: IMAGE_GENERATION_COST,
                       available: initialDeduction.newBalance,
                     },
@@ -1031,7 +1031,7 @@ const mcpHandler = createMcpHandler(
                   type: "text" as const,
                   text: JSON.stringify(
                     {
-                      error: "Insufficient credits",
+                      error: "Insufficient balance",
                       required: MEMORY_SAVE_COST,
                       available: deductionResult.newBalance,
                     },
@@ -1205,7 +1205,7 @@ const mcpHandler = createMcpHandler(
                   type: "text" as const,
                   text: JSON.stringify(
                     {
-                      error: "Insufficient credits",
+                      error: "Insufficient balance",
                       required: estimatedMaxCost,
                       available: initialDeduction.newBalance,
                     },
@@ -1458,14 +1458,14 @@ const mcpHandler = createMcpHandler(
             };
           }
 
-          if (org.credit_balance < CONTEXT_RETRIEVAL_COST) {
+          if (Number(org.credit_balance) < CONTEXT_RETRIEVAL_COST) {
             return {
               content: [
                 {
                   type: "text" as const,
                   text: JSON.stringify(
                     {
-                      error: "Insufficient credits",
+                      error: "Insufficient balance",
                       required: CONTEXT_RETRIEVAL_COST,
                       available: org.credit_balance,
                     },
@@ -1627,14 +1627,14 @@ const mcpHandler = createMcpHandler(
             };
           }
 
-          if (org.credit_balance < CONVERSATION_CREATE_COST) {
+          if (Number(org.credit_balance) < CONVERSATION_CREATE_COST) {
             return {
               content: [
                 {
                   type: "text" as const,
                   text: JSON.stringify(
                     {
-                      error: "Insufficient credits",
+                      error: "Insufficient balance",
                       required: CONVERSATION_CREATE_COST,
                       available: org.credit_balance,
                     },
@@ -1785,14 +1785,14 @@ const mcpHandler = createMcpHandler(
             };
           }
 
-          if (org.credit_balance < CONVERSATION_SEARCH_COST) {
+          if (Number(org.credit_balance) < CONVERSATION_SEARCH_COST) {
             return {
               content: [
                 {
                   type: "text" as const,
                   text: JSON.stringify(
                     {
-                      error: "Insufficient credits",
+                      error: "Insufficient balance",
                       required: CONVERSATION_SEARCH_COST,
                       available: org.credit_balance,
                     },
@@ -1955,14 +1955,14 @@ const mcpHandler = createMcpHandler(
             CONVERSATION_SUMMARY_BASE_COST + Math.floor(lastN / 10),
             CONVERSATION_SUMMARY_MAX_COST
           );
-          if (org.credit_balance < estimatedCost) {
+          if (Number(org.credit_balance) < estimatedCost) {
             return {
               content: [
                 {
                   type: "text" as const,
                   text: JSON.stringify(
                     {
-                      error: "Insufficient credits",
+                      error: "Insufficient balance",
                       estimated: estimatedCost,
                       available: org.credit_balance,
                     },
@@ -2121,14 +2121,14 @@ const mcpHandler = createMcpHandler(
             };
           }
 
-          if (org.credit_balance < CONTEXT_OPTIMIZATION_COST) {
+          if (Number(org.credit_balance) < CONTEXT_OPTIMIZATION_COST) {
             return {
               content: [
                 {
                   type: "text" as const,
                   text: JSON.stringify(
                     {
-                      error: "Insufficient credits",
+                      error: "Insufficient balance",
                       required: CONTEXT_OPTIMIZATION_COST,
                       available: org.credit_balance,
                     },
@@ -2278,14 +2278,14 @@ const mcpHandler = createMcpHandler(
             };
           }
 
-          if (org.credit_balance < CONVERSATION_EXPORT_COST) {
+          if (Number(org.credit_balance) < CONVERSATION_EXPORT_COST) {
             return {
               content: [
                 {
                   type: "text" as const,
                   text: JSON.stringify(
                     {
-                      error: "Insufficient credits",
+                      error: "Insufficient balance",
                       required: CONVERSATION_EXPORT_COST,
                       available: org.credit_balance,
                     },
@@ -2438,14 +2438,14 @@ const mcpHandler = createMcpHandler(
             };
           }
 
-          if (org.credit_balance < CONVERSATION_CLONE_COST) {
+          if (Number(org.credit_balance) < CONVERSATION_CLONE_COST) {
             return {
               content: [
                 {
                   type: "text" as const,
                   text: JSON.stringify(
                     {
-                      error: "Insufficient credits",
+                      error: "Insufficient balance",
                       required: CONVERSATION_CLONE_COST,
                       available: org.credit_balance,
                     },
@@ -2596,14 +2596,14 @@ const mcpHandler = createMcpHandler(
             };
           }
 
-          if (org.credit_balance < MEMORY_ANALYSIS_COST) {
+          if (Number(org.credit_balance) < MEMORY_ANALYSIS_COST) {
             return {
               content: [
                 {
                   type: "text" as const,
                   text: JSON.stringify(
                     {
-                      error: "Insufficient credits",
+                      error: "Insufficient balance",
                       required: MEMORY_ANALYSIS_COST,
                       available: org.credit_balance,
                     },
@@ -2710,7 +2710,7 @@ const mcpHandler = createMcpHandler(
     // Tool 16: Chat with Agent - Direct agent conversation
     server.tool(
       "chat_with_agent",
-      "Send a message to your deployed ElizaOS agent and receive a response. Supports streaming via SSE. Deducts 5-100 credits based on token usage.",
+      "Send a message to your deployed ElizaOS agent and receive a response. Supports streaming via SSE. Charges $0.0001-$0.01 based on token usage.",
       {
         message: z
           .string()
@@ -2761,14 +2761,14 @@ const mcpHandler = createMcpHandler(
             Math.ceil(estimatedInputTokens * AGENT_CHAT_INPUT_TOKEN_COST)
           );
 
-          if (org.credit_balance < estimatedCost) {
+          if (Number(org.credit_balance) < estimatedCost) {
             return {
               content: [
                 {
                   type: "text" as const,
                   text: JSON.stringify(
                     {
-                      error: "Insufficient credits",
+                      error: "Insufficient balance",
                       required: estimatedCost,
                       available: org.credit_balance,
                     },
