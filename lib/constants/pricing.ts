@@ -1,23 +1,23 @@
 /**
  * Pricing constants for container deployments and operations
- * All costs are in USD (1 credit = $1.00 USD)
+ * All costs are in USD stored as decimal values in credit_balance
  */
 
 export const CONTAINER_PRICING = {
   // One-time costs
-  DEPLOYMENT: 10.0, // $10.00 per deployment
-  IMAGE_UPLOAD: 5.0, // $5.00 per image upload
+  DEPLOYMENT: 0.50, // $0.50 per deployment
+  IMAGE_UPLOAD: 0.25, // $0.25 per image upload
 
   // Recurring costs (per hour, charged daily)
-  RUNNING_COST_PER_HOUR: 0.1, // $0.10/hour
-  RUNNING_COST_PER_DAY: 2.4, // $2.40/day
+  RUNNING_COST_PER_HOUR: 0.01, // $0.01/hour
+  RUNNING_COST_PER_DAY: 0.24, // $0.24/day
 
   // Resource-based costs
-  COST_PER_GB_STORAGE: 1.0, // $1.00/GB/month
-  COST_PER_GB_BANDWIDTH: 0.5, // $0.50/GB outbound
+  COST_PER_GB_STORAGE: 0.10, // $0.10/GB/month
+  COST_PER_GB_BANDWIDTH: 0.05, // $0.05/GB outbound
 
   // Scaling costs
-  COST_PER_ADDITIONAL_INSTANCE: 0.5, // $0.50 per instance per hour
+  COST_PER_ADDITIONAL_INSTANCE: 0.05, // $0.05 per instance per hour
 } as const;
 
 export const CONTAINER_LIMITS = {
@@ -51,17 +51,18 @@ export function getMaxContainersForOrg(
   }
 
   // Default tiering based on credit balance (USD)
-  if (creditBalance >= 1000) {
-    return CONTAINER_LIMITS.ENTERPRISE_MAX_CONTAINERS; // $1000+
+  const balance = Number(creditBalance);
+  if (balance >= 100.00) {
+    return CONTAINER_LIMITS.ENTERPRISE_MAX_CONTAINERS; // $100+
   }
-  if (creditBalance >= 100) {
-    return CONTAINER_LIMITS.PRO_MAX_CONTAINERS; // $100+
+  if (balance >= 10.00) {
+    return CONTAINER_LIMITS.PRO_MAX_CONTAINERS; // $10+
   }
-  if (creditBalance >= 10) {
-    return CONTAINER_LIMITS.STARTER_MAX_CONTAINERS; // $10+
+  if (balance >= 1.00) {
+    return CONTAINER_LIMITS.STARTER_MAX_CONTAINERS; // $1+
   }
 
-  return CONTAINER_LIMITS.FREE_TIER_CONTAINERS; // Below $10
+  return CONTAINER_LIMITS.FREE_TIER_CONTAINERS; // Below $1
 }
 
 /**

@@ -78,7 +78,7 @@ export class OrganizationsRepository {
       const newBalance = org.credit_balance + amount;
 
       if (newBalance < 0) {
-        throw new Error("Insufficient credits");
+        throw new Error("Insufficient balance");
       }
 
       await tx
@@ -118,9 +118,9 @@ export class OrganizationsRepository {
         throw new Error("Organization not found");
       }
 
-      if (org.credit_balance < amount) {
+      if (Number(org.credit_balance) < amount) {
         throw new Error(
-          `Insufficient credits. Required: ${amount}, Available: ${org.credit_balance}`,
+          `Insufficient balance. Required: ${amount}, Available: ${Number(org.credit_balance).toFixed(2)}`,
         );
       }
 
