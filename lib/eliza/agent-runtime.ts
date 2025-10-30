@@ -13,10 +13,7 @@ import {
   type IDatabaseAdapter,
   type Plugin,
 } from "@elizaos/core";
-import {
-  createDatabaseAdapter,
-  plugin as sqlPlugin,
-} from "@elizaos/plugin-sql";
+import { createDatabaseAdapter } from "@elizaos/plugin-sql";
 import agent from "./agent";
 import { characterLoader } from "./character-loader";
 import type { Character } from "@elizaos/core";
@@ -189,51 +186,6 @@ class AgentRuntimeManager {
         // Initialize the adapter connection
         await dbAdapter.init();
         elizaLogger.info("#Eliza", "Database adapter initialized");
-
-        // Run plugin-sql migrations ONCE to create ElizaOS tables (agents, memories, etc.)
-        // The adapter is cached globally, so migrations only run on first initialization
-        if (
-          typeof (dbAdapter as { runPluginMigrations?: unknown })
-            .runPluginMigrations === "function"
-        ) {
-          if (sqlPlugin?.schema) {
-            elizaLogger.info(
-              "#Eliza",
-              "Running plugin-sql migrations to create ElizaOS tables...",
-            );
-            try {
-              await (
-                dbAdapter as {
-                  runPluginMigrations: (
-                    plugins: Array<{ name: string; schema: unknown }>,
-                    options?: {
-                      verbose?: boolean;
-                      force?: boolean;
-                      dryRun?: boolean;
-                    },
-                  ) => Promise<void>;
-                }
-              ).runPluginMigrations(
-                [{ name: "@elizaos/plugin-sql", schema: sqlPlugin.schema }],
-                { verbose: false },
-              );
-              elizaLogger.success(
-                "#Eliza",
-                "ElizaOS migrations completed - all tables ready",
-              );
-            } catch (error) {
-              const errorMsg =
-                error instanceof Error ? error.message : String(error);
-              // Tables may already exist - this is fine
-              elizaLogger.info("#Eliza", `Migrations: ${errorMsg}`);
-            }
-          } else {
-            elizaLogger.warn(
-              "#Eliza",
-              "plugin-sql schema not found - migrations skipped",
-            );
-          }
-        }
 
         // Cache globally for warm containers (adapter init runs only ONCE)
         globalAny.__elizaDatabaseAdapter = dbAdapter;
@@ -494,41 +446,6 @@ class AgentRuntimeManager {
 
       await dbAdapter.init();
       elizaLogger.info("#Eliza", "Database adapter initialized");
-
-      // Run migrations if needed
-      if (
-        typeof (dbAdapter as { runPluginMigrations?: unknown })
-          .runPluginMigrations === "function"
-      ) {
-        if (sqlPlugin?.schema) {
-          elizaLogger.info(
-            "#Eliza",
-            "Running plugin-sql migrations...",
-          );
-          try {
-            await (
-              dbAdapter as {
-                runPluginMigrations: (
-                  plugins: Array<{ name: string; schema: unknown }>,
-                  options?: {
-                    verbose?: boolean;
-                    force?: boolean;
-                    dryRun?: boolean;
-                  },
-                ) => Promise<void>;
-              }
-            ).runPluginMigrations(
-              [{ name: "@elizaos/plugin-sql", schema: sqlPlugin.schema }],
-              { verbose: false },
-            );
-            elizaLogger.success("#Eliza", "Migrations completed");
-          } catch (error) {
-            const errorMsg =
-              error instanceof Error ? error.message : String(error);
-            elizaLogger.info("#Eliza", `Migrations: ${errorMsg}`);
-          }
-        }
-      }
 
       globalAny.__elizaDatabaseAdapter = dbAdapter;
     }
