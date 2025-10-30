@@ -7,7 +7,7 @@
  * 2. Just-in-time sync (fallback for race conditions)
  */
 
-import { usersService, organizationsService } from "@/lib/services";
+import { usersService, organizationsService, emailService } from "@/lib/services";
 import type { UserWithOrganization } from "@/lib/types";
 
 function generateSlugFromEmail(email: string): string {
@@ -316,5 +316,39 @@ export async function syncUserFromPrivy(
     throw new Error(`Failed to fetch newly created user ${privyUserId}`);
   }
 
+  // Send welcome email asynchronously (fire-and-forget)
+  const recipientEmail = email || userWithOrg.organization.billing_email;
+  if (recipientEmail) {
+    queueWelcomeEmail({
+      email: recipientEmail,
+      userName: name || "there",
+      organizationName: userWithOrg.organization.name,
+      creditBalance: userWithOrg.organization.credit_balance,
+    }).catch((error) => {
+      console.error("[PrivySync] Failed to send welcome email:", error);
+    });
+  } else {
+    console.warn("[PrivySync] No email available for welcome email", {
+      userId: userWithOrg.id,
+      walletAddress: walletAddress,
+    });
+  }
+
   return userWithOrg;
+}
+
+async function queueWelcomeEmail(data: {
+  email: string;
+  userName: string;
+  organizationName: string;
+  creditBalance: number;
+}): Promise<void> {
+  try {
+    await emailService.sendWelcomeEmail({
+      ...data,
+      dashboardUrl: `${process.env.NEXT_PUBLIC_APP_URL}/dashboard`,
+    });
+  } catch (error) {
+    console.error("[PrivySync] Error sending welcome email:", error);
+  }
 }
