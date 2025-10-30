@@ -33,7 +33,7 @@ interface MessageReceivedHandlerParams {
 }
 
 /**
- * Planning template - determines if we can respond immediately or need additional context
+ * Planning template - decides if we can respond immediately and generates response if possible
  */
 export const planningTemplate = `
 <providers>
@@ -41,33 +41,42 @@ export const planningTemplate = `
 </providers>
 
 <instructions>
-You are planning how to respond to the user's message. First, determine if you can provide a complete, helpful response RIGHT NOW with ONLY the context above.
+You are analyzing the user's message to determine the best approach.
 
-**Can respond immediately (short-circuit) if:**
+**Option 1 - Respond Immediately (1 LLM call):**
+If you have all the information needed to provide a complete, helpful response RIGHT NOW:
 - Simple greeting, thanks, or social interaction
-- General question you can answer from existing context
-- You have all necessary information already
+- General question answerable from existing context
 - No external data, calculations, or tools needed
 
-**Need additional context if:**
-- Question requires specific data from providers
-- Need to execute actions or use tools
-- Context is insufficient to give a complete answer
+Then generate your response immediately and skip additional context gathering.
 
-Be selective - only request what's truly necessary.
+**Option 2 - Gather More Context (2+ LLM calls):**
+If the request requires:
+- Specific data from providers (e.g., knowledge documents, user data)
+- Execution of actions or tools
+- Additional context you don't currently have
+
+Then specify which providers/actions are needed, and you'll generate the response later.
 </instructions>
 
 <output>
 Respond using XML format:
+
+**If you can respond immediately:**
 <plan>
-  <thought>Your reasoning about the request</thought>
-  <canRespondNow>YES or NO</canRespondNow>
+  <thought>Brief reasoning why you can respond now</thought>
+  <canRespondNow>YES</canRespondNow>
+  <text>Your complete response to the user here</text>
+</plan>
+
+**If you need more context:**
+<plan>
+  <thought>Reasoning about what additional context you need</thought>
+  <canRespondNow>NO</canRespondNow>
   <providers>PROVIDER_1,PROVIDER_2</providers>
   <actions>ACTION_1,ACTION_2</actions>
 </plan>
-
-If you can respond now (short-circuit), set canRespondNow to YES and leave providers/actions empty.
-If you need more context, set canRespondNow to NO and specify what you need.
 </output>`;
 
 /**
@@ -237,101 +246,113 @@ const messageReceivedHandler = async ({
       `[ElizaAssistant] Plan - canRespondNow: ${canRespondNow}, thought: ${plan?.thought}`,
     );
 
-    let updatedState = { ...initialState };
-
-    // PHASE 3: Execute planned providers and actions (only if we can't short-circuit)
-    if (!canRespondNow) {
-      logger.info("[ElizaAssistant] Phase 2: Executing providers and actions");
-      logger.debug(
-        `[ElizaAssistant] Providers: ${plan?.providers}, Actions: ${plan?.actions}`,
-      );
-
-      // Execute providers if any were planned
-      const plannedProviders = plan?.providers
-        ? (Array.isArray(plan.providers)
-            ? plan.providers
-            : plan.providers.split(",").map((p: string) => p.trim())
-          ).filter((p: string) => p && p !== "")
-        : [];
-
-      if (plannedProviders.length > 0) {
-        logger.debug(
-          "[ElizaAssistant] Executing providers:",
-          plannedProviders,
-        );
-        const providerState = await runtime.composeState(
-          message,
-          [...plannedProviders,  "CHARACTER"],
-        );
-        updatedState = { ...updatedState, ...providerState };
-      }
-
-      // Execute actions if any were planned
-      const plannedActions = plan?.actions
-        ? (Array.isArray(plan.actions)
-            ? plan.actions
-            : plan.actions.split(",").map((a: string) => a.trim())
-          ).filter((a: string) => a && a !== "")
-        : [];
-
-      if (plannedActions.length > 0) {
-        logger.debug("[ElizaAssistant] Executing actions:", plannedActions);
-        // Actions will be executed via processActions if needed
-        // For now, we just note them in state
-        updatedState.data = {
-          ...updatedState.data,
-          plannedActions,
-        };
-      }
-    } else {
-      logger.info(
-        "[ElizaAssistant] Short-circuit: Responding immediately with existing context",
-      );
-    }
-
-    // PHASE 4: Generate final response using updated state
-    const responsePhase = canRespondNow ? "Phase 2" : "Phase 3";
-    logger.info(`[ElizaAssistant] ${responsePhase}: Generating final response`);
-    const responsePrompt = composePromptFromState({
-      state: updatedState,
-      template:
-        runtime.character.templates?.messageHandlerTemplate ||
-        messageHandlerTemplate,
-    });
-
-    logger.debug("*** RESPONSE PROMPT ***\n", responsePrompt);
-    const responseInputTokens = estimateTokens(responsePrompt);
-    totalInputTokens += responseInputTokens;
-
     let responseContent = "";
     let thought = "";
 
-    // Retry if missing required fields
-    let retries = 0;
-    const maxRetries = 3;
+    // Check if the planning call already generated a response (1 LLM call optimization)
+    if (canRespondNow && plan?.text) {
+      logger.info(
+        "[ElizaAssistant] ⚡ Single-call optimization: Using response from planning phase",
+      );
+      responseContent = plan.text;
+      thought = plan.thought || "";
+    } else {
+      // Need to gather more context and generate response (2+ LLM calls)
+      let updatedState = { ...initialState };
 
-    while (retries < maxRetries && !responseContent) {
-      const response = await runtime.useModel(ModelType.TEXT_LARGE, {
-        prompt: responsePrompt,
+      // PHASE 3: Execute planned providers and actions
+      if (!canRespondNow) {
+        logger.info("[ElizaAssistant] Phase 2: Executing providers and actions");
+        logger.debug(
+          `[ElizaAssistant] Providers: ${plan?.providers}, Actions: ${plan?.actions}`,
+        );
+
+        // Execute providers if any were planned
+        const plannedProviders = plan?.providers
+          ? (Array.isArray(plan.providers)
+              ? plan.providers
+              : plan.providers.split(",").map((p: string) => p.trim())
+            ).filter((p: string) => p && p !== "")
+          : [];
+
+        if (plannedProviders.length > 0) {
+          logger.debug(
+            "[ElizaAssistant] Executing providers:",
+            plannedProviders,
+          );
+          const providerState = await runtime.composeState(
+            message,
+            [...plannedProviders, "CHARACTER"],
+          );
+          updatedState = { ...updatedState, ...providerState };
+        }
+
+        // Execute actions if any were planned
+        const plannedActions = plan?.actions
+          ? (Array.isArray(plan.actions)
+              ? plan.actions
+              : plan.actions.split(",").map((a: string) => a.trim())
+            ).filter((a: string) => a && a !== "")
+          : [];
+
+        if (plannedActions.length > 0) {
+          logger.debug("[ElizaAssistant] Executing actions:", plannedActions);
+          // Actions will be executed via processActions if needed
+          // For now, we just note them in state
+          updatedState.data = {
+            ...updatedState.data,
+            plannedActions,
+          };
+        }
+      } else {
+        logger.info(
+          "[ElizaAssistant] Short-circuit: Responding with existing context",
+        );
+      }
+
+      // PHASE 4: Generate final response using updated state
+      const responsePhase = canRespondNow ? "Phase 2" : "Phase 3";
+      logger.info(
+        `[ElizaAssistant] ${responsePhase}: Generating final response`,
+      );
+      const responsePrompt = composePromptFromState({
+        state: updatedState,
+        template:
+          runtime.character.templates?.messageHandlerTemplate ||
+          messageHandlerTemplate,
       });
 
-      logger.debug("*** RAW LLM RESPONSE ***\n", response);
-      const responseOutputTokens = estimateTokens(response);
-      if (retries === 0) {
-        totalOutputTokens += responseOutputTokens;
-      }
+      logger.debug("*** RESPONSE PROMPT ***\n", responsePrompt);
+      const responseInputTokens = estimateTokens(responsePrompt);
+      totalInputTokens += responseInputTokens;
 
-      const parsedResponse = parseKeyValueXml(response);
+      // Retry if missing required fields
+      let retries = 0;
+      const maxRetries = 3;
 
-      if (!parsedResponse?.text) {
-        logger.warn("*** Missing response text, retrying... ***");
-        responseContent = "";
-      } else {
-        responseContent = parsedResponse.text;
-        thought = parsedResponse.thought || "";
-        break;
+      while (retries < maxRetries && !responseContent) {
+        const response = await runtime.useModel(ModelType.TEXT_LARGE, {
+          prompt: responsePrompt,
+        });
+
+        logger.debug("*** RAW LLM RESPONSE ***\n", response);
+        const responseOutputTokens = estimateTokens(response);
+        if (retries === 0) {
+          totalOutputTokens += responseOutputTokens;
+        }
+
+        const parsedResponse = parseKeyValueXml(response);
+
+        if (!parsedResponse?.text) {
+          logger.warn("*** Missing response text, retrying... ***");
+          responseContent = "";
+        } else {
+          responseContent = parsedResponse.text;
+          thought = parsedResponse.thought || "";
+          break;
+        }
+        retries++;
       }
-      retries++;
     }
 
     // Check if this is still the latest response ID for this room
