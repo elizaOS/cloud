@@ -105,8 +105,8 @@ export async function POST(request: NextRequest) {
           provider: "elevenlabs",
           input_tokens: Math.ceil(text.length / 4), // Approximate character to token conversion
           output_tokens: 0,
-          input_cost: 0, // Free for now, can add pricing later
-          output_cost: 0,
+          input_cost: String(0), // Free for now, can add pricing later
+          output_cost: String(0),
           duration_ms: duration,
           is_successful: true,
           metadata: {

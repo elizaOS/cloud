@@ -17,7 +17,7 @@ interface CreditPackCardProps {
   id: string;
   name: string;
   description: string | null;
-  credits: number;
+  credits: number | string; // NUMERIC from DB returns string
   priceCents: number;
   isPopular?: boolean;
   onPurchase: (id: string) => void;

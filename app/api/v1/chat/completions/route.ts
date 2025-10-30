@@ -259,7 +259,7 @@ async function handleNonStreamingResponse(
       // But it can happen if credits were spent elsewhere between check and now
       logger.error("[OpenAI Proxy] Failed to deduct credits after completion", {
         organizationId: user.organization_id,
-        cost: totalCost,
+        cost: String(totalCost),
         balance: deductResult.newBalance,
       });
 
@@ -289,8 +289,8 @@ async function handleNonStreamingResponse(
           provider: "vercel-gateway",
           input_tokens: usage.prompt_tokens,
           output_tokens: usage.completion_tokens,
-          input_cost: inputCost,
-          output_cost: outputCost,
+          input_cost: String(inputCost),
+          output_cost: String(outputCost),
           is_successful: true,
         });
 
@@ -306,8 +306,8 @@ async function handleNonStreamingResponse(
             status: "completed",
             content,
             tokens: usage.total_tokens,
-            cost: totalCost,
-            credits: totalCost,
+            cost: String(totalCost),
+            credits: String(totalCost),
             usage_record_id: usageRecord.id,
             completed_at: new Date(),
             result: {
@@ -322,7 +322,7 @@ async function handleNonStreamingResponse(
         logger.info("[OpenAI Proxy] Chat completion completed", {
           durationMs: Date.now() - startTime,
           tokens: usage.total_tokens,
-          cost: totalCost,
+          cost: String(totalCost),
         });
       } catch (error) {
         logger.error("[OpenAI Proxy] Analytics error:", error);
@@ -450,7 +450,7 @@ function handleStreamingResponse(
             {
               organizationId: user.organization_id,
               userId: user.id,
-              cost: totalCost,
+              cost: String(totalCost),
               balance: deductResult.newBalance,
             }
           );
@@ -467,8 +467,8 @@ function handleStreamingResponse(
           provider: "vercel-gateway",
           input_tokens: inputTokens,
           output_tokens: outputTokens,
-          input_cost: inputCost,
-          output_cost: outputCost,
+          input_cost: String(inputCost),
+          output_cost: String(outputCost),
           is_successful: true,
         });
 
@@ -484,8 +484,8 @@ function handleStreamingResponse(
             status: "completed",
             content: fullContent,
             tokens: totalTokens,
-            cost: totalCost,
-            credits: totalCost,
+            cost: String(totalCost),
+            credits: String(totalCost),
             usage_record_id: usageRecord.id,
             completed_at: new Date(),
             result: {
@@ -500,7 +500,7 @@ function handleStreamingResponse(
         logger.info("[OpenAI Proxy] Streaming chat completed", {
           durationMs: Date.now() - startTime,
           tokens: totalTokens,
-          cost: totalCost,
+          cost: String(totalCost),
         });
       }
     } catch (error) {

@@ -188,7 +188,7 @@ export async function syncUserFromPrivy(
   const organization = await organizationsService.create({
     name: `${name}'s Organization`,
     slug: orgSlug,
-    credit_balance: 5.0, // Initial $5.00 USD
+    credit_balance: "5.00", // Initial $5.00 USD
   });
 
   // Create user - handle race condition where another request created the user

@@ -4,10 +4,23 @@ import { useSetPageHeader } from "@/components/layout/page-header-context";
 import { BillingPageClient } from "./billing-page-client";
 import { Info } from "lucide-react";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
-import type { CreditPack } from "@/lib/types";
+import type { CreditPack as DBCreditPack } from "@/lib/types";
+
+// Local interface with credits as number for display
+interface CreditPack {
+  id: string;
+  name: string;
+  description: string | null;
+  credits: number; // Converted from NUMERIC string
+  price_cents: number;
+  stripe_price_id: string;
+  stripe_product_id: string;
+  is_active: boolean;
+  sort_order: number;
+}
 
 interface BillingPageWrapperProps {
-  creditPacks: CreditPack[];
+  creditPacks: DBCreditPack[];
   currentCredits: number;
   canceled?: string;
 }
@@ -45,7 +58,10 @@ export function BillingPageWrapper({
       </Alert>
 
       <BillingPageClient
-        creditPacks={creditPacks}
+        creditPacks={creditPacks.map((p) => ({
+          ...p,
+          credits: Number(p.credits),
+        }))}
         currentCredits={currentCredits}
       />
     </div>

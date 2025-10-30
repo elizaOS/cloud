@@ -57,7 +57,7 @@ export function OrganizationInfo({ organization }: OrganizationInfoProps) {
                 Balance
               </p>
               <p className="font-semibold text-lg">
-                {formatBalance(organization.credit_balance)}
+                {formatBalance(Number(organization.credit_balance))}
               </p>
             </div>
 

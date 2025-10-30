@@ -194,8 +194,8 @@ export async function POST(request: NextRequest) {
         provider: "elevenlabs",
         input_tokens: 0,
         output_tokens: 0,
-        input_cost: cost,
-        output_cost: 0,
+        input_cost: String(cost),
+        output_cost: String(0),
         is_successful: true,
         duration_ms: duration,
         metadata: {
@@ -263,8 +263,8 @@ export async function POST(request: NextRequest) {
         provider: "elevenlabs",
         input_tokens: 0,
         output_tokens: 0,
-        input_cost: 0,
-        output_cost: 0,
+        input_cost: String(0),
+        output_cost: String(0),
         is_successful: false,
         error_message: error instanceof Error ? error.message : "Unknown error",
       });

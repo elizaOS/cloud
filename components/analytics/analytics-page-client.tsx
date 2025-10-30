@@ -212,7 +212,7 @@ export function AnalyticsPageClient({
 
           <CostInsightsCard
             costTrending={data.costTrending}
-            creditBalance={data.organization.creditBalance}
+            creditBalance={Number(data.organization.creditBalance)}
           />
         </section>
 
