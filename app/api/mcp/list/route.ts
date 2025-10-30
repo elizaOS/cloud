@@ -81,7 +81,7 @@ const mcpDefinitions = [
             max: 4000,
           },
         },
-        cost: "5-100 credits",
+        cost: "$0.0001-$0.01",
       },
       {
         name: "generate_image",
@@ -181,7 +181,7 @@ const mcpDefinitions = [
             description: "Enable streaming response via SSE",
           },
         },
-        cost: "5-100 credits",
+        cost: "$0.0001-$0.01",
       },
       {
         name: "list_agents",

@@ -115,7 +115,7 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    if (org.credit_balance < cost) {
+    if (Number(org.credit_balance) < cost) {
       logger.warn("[Voice Clone API] Insufficient credits", {
         organizationId: user.organization_id,
         required: cost,
@@ -123,7 +123,7 @@ export async function POST(request: NextRequest) {
       });
       return NextResponse.json(
         {
-          error: "Insufficient credits",
+          error: "Insufficient balance",
           details: {
             required: cost,
             available: org.credit_balance,
@@ -158,7 +158,7 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    logger.info("[Voice Clone API] Credits deducted successfully", {
+    logger.info("[Voice Clone API] Cost charged successfully", {
       organizationId: user.organization_id,
       amount: cost,
       newBalance: deductionResult.newBalance,
@@ -194,8 +194,8 @@ export async function POST(request: NextRequest) {
         provider: "elevenlabs",
         input_tokens: 0,
         output_tokens: 0,
-        input_cost: cost,
-        output_cost: 0,
+        input_cost: String(cost),
+        output_cost: String(0),
         is_successful: true,
         duration_ms: duration,
         metadata: {
@@ -263,8 +263,8 @@ export async function POST(request: NextRequest) {
         provider: "elevenlabs",
         input_tokens: 0,
         output_tokens: 0,
-        input_cost: 0,
-        output_cost: 0,
+        input_cost: String(0),
+        output_cost: String(0),
         is_successful: false,
         error_message: error instanceof Error ? error.message : "Unknown error",
       });
@@ -280,8 +280,12 @@ export async function POST(request: NextRequest) {
 
         if (error.message.includes("quota")) {
           return NextResponse.json(
-            { error: "ElevenLabs quota exceeded. Please contact support." },
-            { status: 429 }
+            { 
+              error: "Voice cloning service is temporarily unavailable due to high demand. Please try again shortly.",
+              type: "service_unavailable",
+              retryAfter: "1 hour"
+            },
+            { status: 503 } // Service Unavailable
           );
         }
 

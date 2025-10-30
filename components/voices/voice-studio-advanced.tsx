@@ -174,9 +174,14 @@ export function VoiceStudioAdvanced({
       const url = URL.createObjectURL(blob);
       setPreviewAudioUrl(url);
     } catch (error) {
-      toast.error(
-        error instanceof Error ? error.message : "Failed to load voice preview"
-      );
+      // Check for service unavailable
+      if (error instanceof Error && error.message.includes("temporarily unavailable")) {
+        toast.error(error.message, { duration: 6000 });
+      } else {
+        toast.error(
+          error instanceof Error ? error.message : "Failed to load voice preview"
+        );
+      }
       console.error("Preview error:", error);
       setPreviewVoice(null);
     } finally {

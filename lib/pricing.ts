@@ -35,16 +35,19 @@ export async function calculateCost(
     return fallbackCosts;
   }
 
-  const inputCost = Math.ceil(
+  const inputCostCents = Math.ceil(
     (inputTokens / 1000) *
       parseFloat(pricing.input_cost_per_1k.toString()) *
       100,
   );
-  const outputCost = Math.ceil(
+  const outputCostCents = Math.ceil(
     (outputTokens / 1000) *
       parseFloat(pricing.output_cost_per_1k.toString()) *
       100,
   );
+
+  const inputCost = Math.round(inputCostCents) / 100;
+  const outputCost = Math.round(outputCostCents) / 100;
 
   return {
     inputCost,
@@ -70,8 +73,11 @@ function getFallbackPricing(
 
   const pricing = pricingMap[model] || { input: 0.0025, output: 0.01 };
 
-  const inputCost = Math.ceil((inputTokens / 1000) * pricing.input * 100);
-  const outputCost = Math.ceil((outputTokens / 1000) * pricing.output * 100);
+  const inputCostCents = Math.ceil((inputTokens / 1000) * pricing.input * 100);
+  const outputCostCents = Math.ceil((outputTokens / 1000) * pricing.output * 100);
+
+  const inputCost = Math.round(inputCostCents) / 100;
+  const outputCost = Math.round(outputCostCents) / 100;
 
   return {
     inputCost,

@@ -91,7 +91,7 @@ export function VoiceCloneForm({
     cloneType === "instant"
       ? VOICE_CLONE_INSTANT_COST
       : VOICE_CLONE_PROFESSIONAL_COST;
-  const hasEnoughCredits = creditBalance >= cost;
+  const hasEnoughCredits = Number(creditBalance) >= cost;
 
   // Fetch professional voice count on mount
   useEffect(() => {
@@ -239,7 +239,7 @@ export function VoiceCloneForm({
 
     if (!hasEnoughCredits) {
       setError(
-        `Insufficient credits. You need ${cost} credits but have ${creditBalance}`
+        `Insufficient balance. You need $${cost.toFixed(2)} but have $${Number(creditBalance).toFixed(2)}`
       );
       return;
     }
@@ -278,6 +278,13 @@ export function VoiceCloneForm({
       const data = await response.json();
 
       if (!response.ok) {
+        // Check for service unavailable (quota issues)
+        if (response.status === 503 || data.type === "service_unavailable") {
+          const friendlyError =
+            data.error ||
+            "Voice service is temporarily unavailable. Please try again in a few minutes.";
+          throw new Error(friendlyError);
+        }
         throw new Error(data.error || "Failed to create voice clone");
       }
 
@@ -334,7 +341,7 @@ export function VoiceCloneForm({
             Create Voice Clone
           </CardTitle>
           <Badge variant="outline" className="text-xs font-medium">
-            {creditBalance.toLocaleString()} credits
+            ${Number(creditBalance).toFixed(2)}
           </Badge>
         </div>
         <CardDescription className="text-sm">
@@ -411,7 +418,7 @@ export function VoiceCloneForm({
                       variant="outline"
                       className="shrink-0 font-semibold text-xs"
                     >
-                      {VOICE_CLONE_INSTANT_COST} credits
+                      ${VOICE_CLONE_INSTANT_COST.toFixed(2)}
                     </Badge>
                   </div>
                   <div className="flex items-center gap-4 text-xs text-muted-foreground">
@@ -472,7 +479,7 @@ export function VoiceCloneForm({
                       variant="outline"
                       className="shrink-0 font-semibold text-xs"
                     >
-                      {VOICE_CLONE_PROFESSIONAL_COST} credits
+                      ${VOICE_CLONE_PROFESSIONAL_COST.toFixed(2)}
                     </Badge>
                   </div>
 
@@ -839,19 +846,17 @@ export function VoiceCloneForm({
                 <Coins className="h-5 w-5 text-primary" />
               </div>
               <div>
-                <p className="text-sm font-semibold">Credit Balance</p>
+                <p className="text-sm font-semibold">Balance</p>
                 <p className="text-xs text-muted-foreground">
-                  {creditBalance.toLocaleString()} available
+                  ${Number(creditBalance).toFixed(2)} available
                 </p>
               </div>
             </div>
             <div className="text-right">
-              <p className="text-sm font-semibold">
-                Cost: {cost.toLocaleString()} credits
-              </p>
+              <p className="text-sm font-semibold">Cost: ${cost.toFixed(2)}</p>
               {!hasEnoughCredits && (
                 <p className="text-xs text-destructive font-medium">
-                  Insufficient credits
+                  Insufficient balance
                 </p>
               )}
             </div>
@@ -872,7 +877,7 @@ export function VoiceCloneForm({
             ) : (
               <>
                 <Sparkles className="mr-2 h-5 w-5" />
-                Create Voice Clone ({cost.toLocaleString()} credits)
+                Create Voice Clone (${cost.toFixed(2)})
               </>
             )}
           </Button>

@@ -6,6 +6,7 @@ import {
   boolean,
   timestamp,
   decimal,
+  numeric,
   jsonb,
   index,
 } from "drizzle-orm/pg-core";
@@ -56,7 +57,10 @@ export const userVoices = pgTable(
     isPublic: boolean("is_public").notNull().default(false), // Allow sharing in gallery
 
     // Cost Tracking
-    creationCost: integer("creation_cost").notNull(), // Credits spent to create
+    creationCost: numeric("creation_cost", {
+      precision: 10,
+      scale: 2,
+    }).notNull(), // Cost in USD to create
 
     // Audit
     createdAt: timestamp("created_at").notNull().defaultNow(),

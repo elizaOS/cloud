@@ -172,8 +172,8 @@ export function ContainerDeploymentHistory({
                 <p className="text-xs text-muted-foreground mt-1">Failed</p>
               </div>
               <div className="text-center">
-                <p className="text-2xl font-bold text-blue-500">{totalCost}</p>
-                <p className="text-xs text-muted-foreground mt-1">Total Credits</p>
+                <p className="text-2xl font-bold text-blue-500">${totalCost.toFixed(2)}</p>
+                <p className="text-xs text-muted-foreground mt-1">Total Cost</p>
               </div>
             </div>
 
@@ -223,7 +223,7 @@ export function ContainerDeploymentHistory({
                           </div>
                         )}
                         <span className="font-mono font-semibold">
-                          {deployment.cost} credits
+                          ${Number(deployment.cost).toFixed(2)}
                         </span>
                       </div>
                     </div>

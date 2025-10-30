@@ -38,9 +38,9 @@ export function CreditBalanceDisplay() {
     <div className="rounded-lg border bg-muted/50 p-4">
       <div className="text-sm text-muted-foreground">Current Balance</div>
       <div className="text-3xl font-bold mt-1">
-        {creditBalance !== null ? creditBalance.toLocaleString() : "0"}
+        ${creditBalance !== null ? Number(creditBalance).toFixed(2) : "0.00"}
       </div>
-      <div className="text-sm text-muted-foreground">credits</div>
+      <div className="text-sm text-muted-foreground">USD</div>
     </div>
   );
 }

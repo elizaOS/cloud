@@ -4,10 +4,23 @@ import { useSetPageHeader } from "@/components/layout/page-header-context";
 import { BillingPageClient } from "./billing-page-client";
 import { Info } from "lucide-react";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
-import type { CreditPack } from "@/lib/types";
+import type { CreditPack as DBCreditPack } from "@/lib/types";
+
+// Local interface with credits as number for display
+interface CreditPack {
+  id: string;
+  name: string;
+  description: string | null;
+  credits: number; // Converted from NUMERIC string
+  price_cents: number;
+  stripe_price_id: string;
+  stripe_product_id: string;
+  is_active: boolean;
+  sort_order: number;
+}
 
 interface BillingPageWrapperProps {
-  creditPacks: CreditPack[];
+  creditPacks: DBCreditPack[];
   currentCredits: number;
   canceled?: string;
 }
@@ -18,8 +31,8 @@ export function BillingPageWrapper({
   canceled,
 }: BillingPageWrapperProps) {
   useSetPageHeader({
-    title: "Billing & Credits",
-    description: "Purchase credit packs to power your AI generations",
+    title: "Billing & Balance",
+    description: "Add funds to power your AI generations",
   });
 
   return (
@@ -36,17 +49,19 @@ export function BillingPageWrapper({
 
       <Alert>
         <Info className="h-4 w-4" />
-        <AlertTitle>How Credits Work</AlertTitle>
+        <AlertTitle>How Billing Works</AlertTitle>
         <AlertDescription>
-          Credits are used to power all AI operations including text generation,
-          image creation, and video rendering. Purchase credits in bulk to get
-          better rates. Credits never expire and are shared across your
-          organization.
+          You are charged for all AI operations including text generation, image
+          creation, and video rendering. Add funds in bulk to get better rates.
+          Your balance never expires and is shared across your organization.
         </AlertDescription>
       </Alert>
 
       <BillingPageClient
-        creditPacks={creditPacks}
+        creditPacks={creditPacks.map((p) => ({
+          ...p,
+          credits: Number(p.credits),
+        }))}
         currentCredits={currentCredits}
       />
     </div>
