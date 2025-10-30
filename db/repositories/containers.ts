@@ -336,7 +336,7 @@ export class ContainersRepository {
 
       if (currentBalance < deploymentCost) {
         throw new Error(
-          `Insufficient balance. Required: ${deploymentCost}, Available: ${currentBalance.toFixed(2)}`
+          `Insufficient balance. Required: $${deploymentCost.toFixed(2)}, Available: $${currentBalance.toFixed(2)}`
         );
       }
 
