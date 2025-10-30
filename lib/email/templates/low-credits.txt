@@ -1,0 +1,22 @@
+⚠️ LOW CREDITS ALERT
+
+Action required for {{organizationName}}
+
+Your credit balance is running low. To avoid service interruption, please add credits to your account soon.
+
+CURRENT BALANCE: {{currentBalance}} credits remaining
+
+WHAT HAPPENS WHEN CREDITS RUN OUT?
+• AI agent requests will be rejected
+• API calls will return "insufficient credits" errors
+• Your containers will continue running (read-only mode)
+
+→ Add Credits Now: {{billingUrl}}
+
+💡 PRO TIP:
+Set up automatic top-ups to ensure uninterrupted service. You can configure this in your billing settings.
+
+---
+© {{currentYear}} Eliza Cloud. All rights reserved.
+
+You received this alert because your credit balance fell below {{threshold}} credits.
