@@ -43,9 +43,6 @@ export const characterProvider: Provider = {
         ? character.topics[Math.floor(Math.random() * character.topics.length)]
         : null;
 
-    // postCreationTemplate in core prompts.ts
-    // Write a post that is {{adjective}} about {{topic}} (without mentioning {{topic}} directly), from the perspective of {{agentName}}. Do not add commentary or acknowledge this request, just write the post.
-    // Write a post that is {{Spartan is dirty}} about {{Spartan is currently}}
     const topic = topicString || '';
 
     // Format topics list
@@ -75,79 +72,6 @@ export const characterProvider: Provider = {
 
     const adjective = adjectiveString || '';
 
-    // Format post examples
-    const formattedCharacterPostExamples = !character.postExamples
-      ? ''
-      : character.postExamples
-          .sort(() => 0.5 - Math.random())
-          .map((post) => {
-            const messageString = `${post}`;
-            return messageString;
-          })
-          .slice(0, 50)
-          .join('\n');
-
-    const characterPostExamples =
-      formattedCharacterPostExamples &&
-      formattedCharacterPostExamples.replaceAll('\n', '').length > 0
-        ? addHeader(`# Example Posts for ${character.name}`, formattedCharacterPostExamples)
-        : '';
-
-    // Format message examples
-    const formattedCharacterMessageExamples = !character.messageExamples
-      ? ''
-      : character.messageExamples
-          .sort(() => 0.5 - Math.random())
-          .slice(0, 5)
-          .map((example) => {
-            const exampleNames = Array.from({ length: 5 }, () =>
-              Math.random().toString(36).substring(2, 8)
-            );
-
-            return example
-              .map((message) => {
-                let messageString = `${message.name}: ${message.content.text}${
-                  message.content.action || message.content.actions
-                    ? ` (actions: ${message.content.action || message.content.actions?.join(', ')})`
-                    : ''
-                }`;
-                exampleNames.forEach((name, index) => {
-                  const placeholder = `{{name${index + 1}}}`;
-                  messageString = messageString.replaceAll(placeholder, name);
-                });
-                return messageString;
-              })
-              .join('\n');
-          })
-          .join('\n\n');
-
-    const characterMessageExamples =
-      formattedCharacterMessageExamples &&
-      formattedCharacterMessageExamples.replaceAll('\n', '').length > 0
-        ? addHeader(
-            `# Example Conversations for ${character.name}`,
-            formattedCharacterMessageExamples
-          )
-        : '';
-
-    const room = state.data.room ?? (await runtime.getRoom(message.roomId));
-
-    const isPostFormat = room?.type === ChannelType.FEED || room?.type === ChannelType.THREAD;
-
-    // Style directions
-    const postDirections =
-      (character?.style?.all?.length && character?.style?.all?.length > 0) ||
-      (character?.style?.post?.length && character?.style?.post?.length > 0)
-        ? addHeader(
-            `# Post Directions for ${character.name}`,
-            (() => {
-              const all = character?.style?.all || [];
-              const post = character?.style?.post || [];
-              return [...all, ...post].join('\n');
-            })()
-          )
-        : '';
-
     const messageDirections =
       (character?.style?.all?.length && character?.style?.all?.length > 0) ||
       (character?.style?.chat?.length && character?.style?.chat?.length > 0)
@@ -161,8 +85,7 @@ export const characterProvider: Provider = {
           )
         : '';
 
-    const directions = isPostFormat ? postDirections : messageDirections;
-    const examples = isPostFormat ? characterPostExamples : characterMessageExamples;
+    const directions = messageDirections;
 
     const values = {
       agentName,
@@ -172,11 +95,7 @@ export const characterProvider: Provider = {
       topics,
       adjective,
       messageDirections,
-      postDirections,
       directions,
-      examples,
-      characterPostExamples,
-      characterMessageExamples,
     };
 
     const data = {
@@ -186,7 +105,6 @@ export const characterProvider: Provider = {
       topics,
       character,
       directions,
-      examples,
       system,
     };
 
@@ -195,7 +113,7 @@ export const characterProvider: Provider = {
       : '';
     const adjectiveSentence = adjectiveString ? `${character.name} is ${adjectiveString}` : '';
     // Combine all text sections
-    const text = [bio, adjectiveSentence, topicSentence, topics, directions, examples, system]
+    const text = [bio, adjectiveSentence, topicSentence, topics, directions, system]
       .filter(Boolean)
       .join('\n\n');
 
