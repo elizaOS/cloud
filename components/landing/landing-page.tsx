@@ -4,6 +4,7 @@ import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import LandingHeader from "@/components/layout/landing-header";
 import TopHero from "@/components/landing/TopHero";
+import RouterSection from "@/components/landing/RouterSection";
 import {
   Cloud,
   Code,
@@ -271,6 +272,9 @@ export function LandingPage() {
 
       {/* Hero Section */}
       <TopHero />
+
+      {/* Router Section */}
+      <RouterSection />
 
       {/* Tech Stack Marquee */}
       <section className="py-20 bg-gradient-to-b from-background via-muted/20 to-background border-y">

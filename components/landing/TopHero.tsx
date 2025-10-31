@@ -57,10 +57,9 @@ const TopHero = () => {
             "linear-gradient(to bottom, rgba(0,0,0,1) 40%, rgba(0,0,0,0) 100%)",
         }}
       />
-      
+
       <div className="container mx-auto px-4 md:px-6 relative z-10">
         <div className="mx-auto max-w-6xl text-center">
-
           <h1
             className="mb-6 text-2xl sm:text-3xl md:text-4xl lg:text-5xl xl:text-6xl font-normal tracking-tight relative z-10"
             style={{ textShadow: "0 2px 10px rgba(0,0,0,0.5)" }}
