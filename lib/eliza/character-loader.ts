@@ -71,14 +71,16 @@ export class CharacterLoader {
 
   /**
    * Get the default character (from lib/eliza/agent.ts)
+   * Note: This method is async to support lazy-loaded plugins
    */
-  getDefaultCharacter(): {
+  async getDefaultCharacter(): Promise<{
     character: Character;
     plugins: Plugin[];
-  } {
+  }> {
+    const plugins = await defaultAgent.getPlugins();
     return {
       character: defaultAgent.character,
-      plugins: defaultAgent.plugins as unknown as Plugin[],
+      plugins: plugins as unknown as Plugin[],
     };
   }
 

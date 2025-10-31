@@ -1,4 +1,7 @@
 // CORRECTED Serverless-compatible agent runtime with Drizzle ORM for Next.js
+// Initialize DOM polyfills first (before any imports that might need them)
+import "@/lib/polyfills/dom-polyfills";
+
 import { v4 as uuidv4 } from "uuid";
 import {
   AgentRuntime,
@@ -194,17 +197,20 @@ class AgentRuntimeManager {
       // ========================================================================
       // Create runtime WITHOUT plugin-sql (we already have the adapter)
       // ========================================================================
+      // Load plugins asynchronously (including lazy-loaded knowledge plugin)
+      const allPlugins = await agent.getPlugins();
+
       elizaLogger.info(
         "#Eliza",
         "Creating AgentRuntime with plugins:",
-        agent.plugins
+        allPlugins
           .filter((p) => p.name !== "@elizaos/plugin-sql")
           .map((p) => p.name)
           .join(", "),
       );
 
       // Filter out plugin-sql since we're providing our own adapter
-      const pluginsWithoutSql = agent.plugins.filter(
+      const pluginsWithoutSql = allPlugins.filter(
         (p) => p.name !== "@elizaos/plugin-sql",
       );
 
