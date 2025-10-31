@@ -24,8 +24,8 @@ export async function GET(request: NextRequest) {
 
     // Get max allowed containers
     const maxContainers = getMaxContainersForOrg(
-      user.organization.credit_balance,
-      user.organization.settings as Record<string, unknown> | undefined,
+      Number(user.organization.credit_balance),
+      user.organization.settings as Record<string, unknown> | undefined
     );
 
     // Calculate costs (base container: 1 instance, 256 CPU, 512 MB RAM)
@@ -46,8 +46,8 @@ export async function GET(request: NextRequest) {
           percentage: (currentCount / maxContainers) * 100,
         },
         credits: {
-          balance: user.organization.credit_balance,
-          canDeploy: user.organization.credit_balance >= baseCost,
+          balance: Number(user.organization.credit_balance),
+          canDeploy: Number(user.organization.credit_balance) >= baseCost,
         },
         pricing: {
           imageUpload: CONTAINER_PRICING.IMAGE_UPLOAD,
@@ -73,7 +73,7 @@ export async function GET(request: NextRequest) {
         success: false,
         error: error instanceof Error ? error.message : "Failed to fetch quota",
       },
-      { status: 500 },
+      { status: 500 }
     );
   }
 }

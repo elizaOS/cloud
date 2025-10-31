@@ -30,7 +30,11 @@ export function ProfileForm({ user }: ProfileFormProps) {
   const [success, setSuccess] = useState<string | null>(null);
   const [isUploadingAvatar, setIsUploadingAvatar] = useState(false);
 
-  const getInitials = (name: string | null, email: string) => {
+  const getInitials = (
+    name: string | null,
+    email: string | null,
+    walletAddress: string | null,
+  ) => {
     if (name) {
       return name
         .split(" ")
@@ -39,7 +43,13 @@ export function ProfileForm({ user }: ProfileFormProps) {
         .toUpperCase()
         .slice(0, 2);
     }
-    return email.slice(0, 2).toUpperCase();
+    if (email) {
+      return email.slice(0, 2).toUpperCase();
+    }
+    if (walletAddress) {
+      return walletAddress.slice(0, 2).toUpperCase();
+    }
+    return "U";
   };
 
   const handleAvatarUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -118,10 +128,16 @@ export function ProfileForm({ user }: ProfileFormProps) {
             <Avatar className="h-20 w-20 ring-2 ring-border">
               <AvatarImage
                 src={user.avatar || undefined}
-                alt={user.name || user.email}
+                alt={
+                  user.name ||
+                  user.email ||
+                  (user.wallet_address
+                    ? `${user.wallet_address.substring(0, 6)}...${user.wallet_address.substring(user.wallet_address.length - 4)}`
+                    : "User")
+                }
               />
               <AvatarFallback className="text-lg">
-                {getInitials(user.name, user.email)}
+                {getInitials(user.name, user.email, user.wallet_address)}
               </AvatarFallback>
             </Avatar>
             <div className="flex-1 space-y-2">
@@ -183,23 +199,45 @@ export function ProfileForm({ user }: ProfileFormProps) {
               />
             </div>
 
-            <div className="space-y-2">
-              <Label htmlFor="email" className="flex items-center gap-2">
-                <Mail className="h-4 w-4" />
-                Email Address
-              </Label>
-              <Input
-                id="email"
-                type="email"
-                value={user.email}
-                disabled
-                className="bg-muted"
-              />
-              <p className="text-xs text-muted-foreground">
-                Email cannot be changed. Please contact support if you need to
-                update this.
-              </p>
-            </div>
+            {user.email && (
+              <div className="space-y-2">
+                <Label htmlFor="email" className="flex items-center gap-2">
+                  <Mail className="h-4 w-4" />
+                  Email Address
+                </Label>
+                <Input
+                  id="email"
+                  type="email"
+                  value={user.email}
+                  disabled
+                  className="bg-muted"
+                />
+                <p className="text-xs text-muted-foreground">
+                  Email cannot be changed. Please contact support if you need
+                  to update this.
+                </p>
+              </div>
+            )}
+
+            {user.wallet_address && (
+              <div className="space-y-2">
+                <Label className="flex items-center gap-2">
+                  <User className="h-4 w-4" />
+                  Wallet Address
+                </Label>
+                <Input
+                  type="text"
+                  value={user.wallet_address}
+                  disabled
+                  className="bg-muted font-mono text-xs"
+                />
+                {user.wallet_chain_type && (
+                  <p className="text-xs text-muted-foreground capitalize">
+                    Connected via {user.wallet_chain_type} wallet
+                  </p>
+                )}
+              </div>
+            )}
 
             <div className="space-y-2">
               <Label htmlFor="avatar">Avatar URL (Optional)</Label>

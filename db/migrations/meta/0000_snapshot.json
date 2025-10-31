@@ -1,5 +1,5 @@
 {
-  "id": "7d8d42ff-8583-4789-a194-8206fe924161",
+  "id": "95e4119a-3bdf-498d-99a7-66b3dae7992a",
   "prevId": "00000000-0000-0000-0000-000000000000",
   "version": "7",
   "dialect": "postgresql",
@@ -29,10 +29,10 @@
         },
         "credit_balance": {
           "name": "credit_balance",
-          "type": "integer",
+          "type": "numeric(10, 2)",
           "primaryKey": false,
           "notNull": true,
-          "default": 10000
+          "default": "'100.00'"
         },
         "webhook_url": {
           "name": "webhook_url",
@@ -200,10 +200,29 @@
           "name": "email",
           "type": "text",
           "primaryKey": false,
-          "notNull": true
+          "notNull": false
         },
         "email_verified": {
           "name": "email_verified",
+          "type": "boolean",
+          "primaryKey": false,
+          "notNull": false,
+          "default": false
+        },
+        "wallet_address": {
+          "name": "wallet_address",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "wallet_chain_type": {
+          "name": "wallet_chain_type",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "wallet_verified": {
+          "name": "wallet_verified",
           "type": "boolean",
           "primaryKey": false,
           "notNull": true,
@@ -262,6 +281,36 @@
           "columns": [
             {
               "expression": "email",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "users_wallet_address_idx": {
+          "name": "users_wallet_address_idx",
+          "columns": [
+            {
+              "expression": "wallet_address",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "users_wallet_chain_type_idx": {
+          "name": "users_wallet_chain_type_idx",
+          "columns": [
+            {
+              "expression": "wallet_chain_type",
               "isExpression": false,
               "asc": true,
               "nulls": "last"
@@ -347,6 +396,13 @@
           "nullsNotDistinct": false,
           "columns": [
             "email"
+          ]
+        },
+        "users_wallet_address_unique": {
+          "name": "users_wallet_address_unique",
+          "nullsNotDistinct": false,
+          "columns": [
+            "wallet_address"
           ]
         }
       },
@@ -811,24 +867,24 @@
         },
         "input_cost": {
           "name": "input_cost",
-          "type": "integer",
+          "type": "numeric(10, 2)",
           "primaryKey": false,
           "notNull": false,
-          "default": 0
+          "default": "'0.00'"
         },
         "output_cost": {
           "name": "output_cost",
-          "type": "integer",
+          "type": "numeric(10, 2)",
           "primaryKey": false,
           "notNull": false,
-          "default": 0
+          "default": "'0.00'"
         },
         "markup": {
           "name": "markup",
-          "type": "integer",
+          "type": "numeric(10, 2)",
           "primaryKey": false,
           "notNull": false,
-          "default": 0
+          "default": "'0.00'"
         },
         "request_id": {
           "name": "request_id",
@@ -1094,7 +1150,7 @@
         },
         "amount": {
           "name": "amount",
-          "type": "integer",
+          "type": "numeric(10, 2)",
           "primaryKey": false,
           "notNull": true
         },
@@ -1267,7 +1323,7 @@
         },
         "credits": {
           "name": "credits",
-          "type": "integer",
+          "type": "numeric(10, 2)",
           "primaryKey": false,
           "notNull": true
         },
@@ -1529,17 +1585,17 @@
         },
         "cost": {
           "name": "cost",
-          "type": "integer",
+          "type": "numeric(10, 2)",
           "primaryKey": false,
           "notNull": true,
-          "default": 0
+          "default": "'0.00'"
         },
         "credits": {
           "name": "credits",
-          "type": "integer",
+          "type": "numeric(10, 2)",
           "primaryKey": false,
           "notNull": true,
-          "default": 0
+          "default": "'0.00'"
         },
         "usage_record_id": {
           "name": "usage_record_id",
@@ -2295,10 +2351,10 @@
         },
         "cost": {
           "name": "cost",
-          "type": "integer",
+          "type": "numeric(10, 2)",
           "primaryKey": false,
           "notNull": false,
-          "default": 0
+          "default": "'0.00'"
         },
         "usage_record_id": {
           "name": "usage_record_id",
@@ -2477,10 +2533,10 @@
         },
         "total_cost": {
           "name": "total_cost",
-          "type": "integer",
+          "type": "numeric(10, 2)",
           "primaryKey": false,
           "notNull": true,
-          "default": 0
+          "default": "'0.00'"
         },
         "last_message_at": {
           "name": "last_message_at",
@@ -3049,7 +3105,7 @@
         },
         "creation_cost": {
           "name": "creation_cost",
-          "type": "integer",
+          "type": "numeric(10, 2)",
           "primaryKey": false,
           "notNull": true
         },

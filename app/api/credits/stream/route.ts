@@ -19,7 +19,7 @@ const HEARTBEAT_INTERVAL = 30000;
 // Vercel Pro max: 300s (5 minutes)
 const CONNECTION_TIMEOUT = parseInt(
   process.env.SSE_CONNECTION_TIMEOUT || "300000",
-  10,
+  10
 );
 
 export async function GET(request: NextRequest) {
@@ -45,7 +45,7 @@ export async function GET(request: NextRequest) {
 
         try {
           const org = await organizationsService.getById(organizationId);
-          const initialBalance = org?.credit_balance ?? 0;
+          const initialBalance = Number(org?.credit_balance ?? 0);
           sendEvent("initial", {
             balance: initialBalance,
             timestamp: new Date(),
@@ -64,7 +64,7 @@ export async function GET(request: NextRequest) {
               reason: event.reason,
               timestamp: event.timestamp,
             });
-          },
+          }
         );
 
         creditEventEmitter.incrementConnections(organizationId);

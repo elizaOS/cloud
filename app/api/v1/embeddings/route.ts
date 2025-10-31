@@ -110,9 +110,9 @@ async function handlePOST(req: NextRequest) {
     }
 
     const creditCheck = {
-      sufficient: org.credit_balance >= requiredCredits,
+      sufficient: Number(org.credit_balance) >= requiredCredits,
       required: requiredCredits,
-      balance: org.credit_balance,
+      balance: Number(org.credit_balance),
     };
 
     if (!creditCheck.sufficient) {
@@ -125,9 +125,9 @@ async function handlePOST(req: NextRequest) {
       return Response.json(
         {
           error: {
-            message: `Insufficient credits. Required: ${creditCheck.required}, Available: ${creditCheck.balance}`,
+            message: `Insufficient balance. Required: $${Number(creditCheck.required).toFixed(2)}, Available: $${Number(creditCheck.balance).toFixed(2)}`,
             type: "insufficient_quota",
-            code: "insufficient_credits",
+            code: "insufficient_balance",
           },
         },
         { status: 402 },
@@ -166,7 +166,7 @@ async function handlePOST(req: NextRequest) {
           "[OpenAI Proxy] CRITICAL: Failed to deduct credits for embeddings after completion",
           {
             organizationId: user.organization_id,
-            cost: totalCost,
+            cost: String(totalCost),
             balance: deductResult.newBalance,
           },
         );
@@ -196,8 +196,8 @@ async function handlePOST(req: NextRequest) {
             provider: providerName,
             input_tokens: data.usage.prompt_tokens,
             output_tokens: 0,
-            input_cost: inputCost,
-            output_cost: 0,
+            input_cost: String(inputCost),
+            output_cost: String(0),
             is_successful: true,
           });
 
@@ -206,7 +206,7 @@ async function handlePOST(req: NextRequest) {
             normalizedModel,
             provider: providerName,
             tokens: tokensUsed,
-            cost: totalCost,
+            cost: String(totalCost),
           });
         } catch (error) {
           logger.error("[OpenAI Proxy] Embeddings analytics error:", error);

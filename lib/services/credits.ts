@@ -33,35 +33,35 @@ export class CreditsService {
   }
 
   async getTransactionByStripePaymentIntent(
-    paymentIntentId: string,
+    paymentIntentId: string
   ): Promise<CreditTransaction | undefined> {
     return await creditTransactionsRepository.findByStripePaymentIntent(
-      paymentIntentId,
+      paymentIntentId
     );
   }
 
   async listTransactionsByOrganization(
     organizationId: string,
-    limit?: number,
+    limit?: number
   ): Promise<CreditTransaction[]> {
     return await creditTransactionsRepository.listByOrganization(
       organizationId,
-      limit,
+      limit
     );
   }
 
   async listTransactionsByOrganizationAndType(
     organizationId: string,
-    type: string,
+    type: string
   ): Promise<CreditTransaction[]> {
     return await creditTransactionsRepository.listByOrganizationAndType(
       organizationId,
-      type,
+      type
     );
   }
 
   async createTransaction(
-    data: NewCreditTransaction,
+    data: NewCreditTransaction
   ): Promise<CreditTransaction> {
     return await creditTransactionsRepository.create(data);
   }
@@ -86,7 +86,7 @@ export class CreditsService {
         .insert(creditTransactions)
         .values({
           organization_id: organizationId,
-          amount,
+          amount: String(amount),
           type: "credit",
           description,
           metadata: metadata || {},
@@ -104,13 +104,14 @@ export class CreditsService {
         throw new Error("Organization not found");
       }
 
-      const newBalance = org.credit_balance + amount;
+      const currentBalance = Number.parseFloat(String(org.credit_balance));
+      const newBalance = currentBalance + amount;
 
       // Update organization balance atomically
       await tx
         .update(organizations)
         .set({
-          credit_balance: newBalance,
+          credit_balance: String(newBalance),
           updated_at: new Date(),
         })
         .where(eq(organizations.id, organizationId));
@@ -146,13 +147,14 @@ export class CreditsService {
         throw new Error("Organization not found");
       }
 
-      const newBalance = org.credit_balance - amount;
+      const currentBalance = Number.parseFloat(String(org.credit_balance));
+      const newBalance = currentBalance - amount;
 
       // Return early if insufficient credits, without creating a transaction
       if (newBalance < 0) {
         return {
           success: false,
-          newBalance: org.credit_balance,
+          newBalance: currentBalance,
           transaction: null,
         };
       }
@@ -161,7 +163,7 @@ export class CreditsService {
       await tx
         .update(organizations)
         .set({
-          credit_balance: newBalance,
+          credit_balance: String(newBalance),
           updated_at: new Date(),
         })
         .where(eq(organizations.id, organizationId));
@@ -171,7 +173,7 @@ export class CreditsService {
         .insert(creditTransactions)
         .values({
           organization_id: organizationId,
-          amount: -amount,
+          amount: String(-amount),
           type: "debit",
           description,
           metadata: metadata || {},
@@ -209,13 +211,14 @@ export class CreditsService {
         throw new Error("Organization not found");
       }
 
-      const newBalance = org.credit_balance + amount;
+      const currentBalance = Number.parseFloat(String(org.credit_balance));
+      const newBalance = currentBalance + amount;
 
       // Update balance
       await tx
         .update(organizations)
         .set({
-          credit_balance: newBalance,
+          credit_balance: String(newBalance),
           updated_at: new Date(),
         })
         .where(eq(organizations.id, organizationId));
@@ -225,7 +228,7 @@ export class CreditsService {
         .insert(creditTransactions)
         .values({
           organization_id: organizationId,
-          amount: amount,
+          amount: String(amount),
           type: "refund",
           description,
           metadata: metadata || {},
@@ -243,7 +246,7 @@ export class CreditsService {
   }
 
   async getCreditPackByStripePriceId(
-    stripePriceId: string,
+    stripePriceId: string
   ): Promise<CreditPack | undefined> {
     return await creditPacksRepository.findByStripePriceId(stripePriceId);
   }

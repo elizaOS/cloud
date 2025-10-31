@@ -29,13 +29,30 @@ async function handleCheckoutSession(req: NextRequest) {
     let customerId = user.organization.stripe_customer_id;
 
     if (!customerId) {
-      const customer = await stripe.customers.create({
-        email: user.organization.billing_email || user.email,
+      const customerData: {
+        name: string;
+        email?: string;
+        metadata: {
+          organization_id: string;
+          wallet_address?: string;
+        };
+      } = {
         name: user.organization.name,
         metadata: {
           organization_id: user.organization_id,
         },
-      });
+      };
+
+      const email = user.organization.billing_email || user.email;
+      if (email) {
+        customerData.email = email;
+      }
+
+      if (user.wallet_address) {
+        customerData.metadata.wallet_address = user.wallet_address;
+      }
+
+      const customer = await stripe.customers.create(customerData);
       customerId = customer.id;
 
       // Save customer ID to database

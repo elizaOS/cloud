@@ -43,12 +43,12 @@ export const metadata: Metadata = {
 export const dynamic = "force-dynamic";
 
 function generateUsageAlerts(
-  data: Awaited<ReturnType<typeof getDashboardData>>,
+  data: Awaited<ReturnType<typeof getDashboardData>>
 ): UsageAlertItem[] {
   const alerts: UsageAlertItem[] = [];
 
   const degradedProviders = data.providerHealth.filter(
-    (p) => p.status === "degraded",
+    (p) => p.status === "degraded"
   );
   for (const provider of degradedProviders) {
     alerts.push({
@@ -61,25 +61,25 @@ function generateUsageAlerts(
   }
 
   const daysRemaining = Math.floor(
-    data.organization.creditBalance / (data.usage.dailyBurnCredits || 1),
+    Number(data.organization.creditBalance) / (data.usage.dailyBurnCredits || 1)
   );
   if (daysRemaining < 90 && daysRemaining > 0) {
     alerts.push({
       id: "alert-budget-horizon",
       title: `Projected budget runway: ${daysRemaining} days`,
-      description: `Daily burn of ${data.usage.dailyBurnCredits.toLocaleString()} credits. Consider reviewing usage patterns and optimizing API calls.`,
+      description: `Daily spend of $${data.usage.dailyBurnCredits.toFixed(2)}. Consider reviewing usage patterns and optimizing API calls.`,
       severity: daysRemaining < 30 ? "warning" : "info",
       actionLabel: "Open spend report",
     });
   }
 
-  if (data.organization.creditBalance < 10000) {
+  if (Number(data.organization.creditBalance) < 100) {
     alerts.push({
-      id: "alert-low-credits",
-      title: "Credit balance running low",
-      description: `Current balance: ${data.organization.creditBalance.toLocaleString()} credits. Consider purchasing more credits to avoid service interruption.`,
+      id: "alert-low-balance",
+      title: "Balance running low",
+      description: `Current balance: $${Number(data.organization.creditBalance).toFixed(2)}. Consider adding funds to avoid service interruption.`,
       severity: "warning",
-      actionLabel: "Purchase credits",
+      actionLabel: "Add funds",
     });
   }
 
@@ -88,7 +88,7 @@ function generateUsageAlerts(
       id: "alert-all-good",
       title: "All systems operational",
       description:
-        "Your infrastructure is running smoothly. All providers are healthy and credit balance is sufficient.",
+        "Your infrastructure is running smoothly. All providers are healthy and balance is sufficient.",
       severity: "info",
       actionLabel: "View analytics",
     });
@@ -98,7 +98,7 @@ function generateUsageAlerts(
 }
 
 function generateActivityFeed(
-  data: Awaited<ReturnType<typeof getDashboardData>>,
+  data: Awaited<ReturnType<typeof getDashboardData>>
 ): ActivityFeedItem[] {
   const activities: ActivityFeedItem[] = [];
 
@@ -187,20 +187,20 @@ export default async function DashboardPage() {
 
   const usageMetrics: UsageMetric[] = [
     {
-      label: "Credits remaining",
-      value: data.organization.creditBalance.toLocaleString(),
-      description: "Current organization credit balance",
+      label: "Balance",
+      value: `$${Number(data.organization.creditBalance).toFixed(2)}`,
+      description: "Current organization balance",
       icon: "fuel",
       accent: "border-primary/60 bg-primary/10",
       trend: {
         direction: "neutral",
-        label: `${data.usage.dailyBurnCredits.toLocaleString()} daily burn`,
+        label: `$${data.usage.dailyBurnCredits.toFixed(2)} daily spend`,
       },
     },
     {
       label: "Daily spend",
-      value: `${data.usage.dailyBurnCredits.toLocaleString()} cr`,
-      description: "Credits spent in last 24 hours",
+      value: `$${data.usage.dailyBurnCredits.toFixed(2)}`,
+      description: "Spent in last 24 hours",
       icon: "creditCard",
       accent: "border-emerald-500/60 bg-emerald-500/10",
       trend: {
@@ -233,8 +233,7 @@ export default async function DashboardPage() {
 
   const usageFootnote = (
     <span>
-      Track your credit usage and spending patterns. Manage billing settings in
-      the{" "}
+      Track your usage and spending patterns. Manage billing settings in the{" "}
       <Link
         href="/dashboard/account"
         className="text-primary underline-offset-2 hover:underline"
@@ -261,7 +260,7 @@ export default async function DashboardPage() {
   const creditTransactions: CreditActivityProps["transactions"] =
     data.creditTransactions.map((t) => ({
       id: t.id,
-      amount: t.amount,
+      amount: Number(t.amount),
       type: t.type as "purchase" | "usage" | "adjustment" | "refund",
       description: t.description,
       created_at: t.created_at,

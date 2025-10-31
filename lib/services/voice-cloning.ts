@@ -197,7 +197,7 @@ export class VoiceCloningService {
           cloneType,
           settings,
           sampleCount: files.length,
-          creationCost,
+          creationCost: String(creationCost),
         })
         .returning();
 

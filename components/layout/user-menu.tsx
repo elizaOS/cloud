@@ -67,6 +67,23 @@ export default function UserMenu() {
   };
 
   // Get user details
+  const getUserWallet = () => {
+    // Check linked accounts for wallet
+    if (user?.linkedAccounts) {
+      for (const account of user.linkedAccounts) {
+        // Type guard: check if account is a wallet
+        if (
+          account.type === "wallet" &&
+          "address" in account &&
+          typeof account.address === "string"
+        ) {
+          return account.address;
+        }
+      }
+    }
+    return null;
+  };
+
   const getUserEmail = () => {
     if (user?.email?.address) {
       return user.email.address;
@@ -83,7 +100,7 @@ export default function UserMenu() {
         }
       }
     }
-    return "user@example.com";
+    return null;
   };
 
   const getUserName = () => {
@@ -106,9 +123,29 @@ export default function UserMenu() {
         }
       }
     }
-    // Fall back to email
+    // Fall back to email or wallet
     const email = getUserEmail();
-    return email.split("@")[0];
+    if (email) {
+      return email.split("@")[0];
+    }
+    const wallet = getUserWallet();
+    if (wallet) {
+      return `${wallet.substring(0, 6)}...${wallet.substring(wallet.length - 4)}`;
+    }
+    return "User";
+  };
+
+  const getUserIdentifier = () => {
+    // Show wallet (preferred) or email
+    const wallet = getUserWallet();
+    if (wallet) {
+      return `${wallet.substring(0, 8)}...${wallet.substring(wallet.length - 6)}`;
+    }
+    const email = getUserEmail();
+    if (email) {
+      return email;
+    }
+    return "No identifier";
   };
 
   // Get user initials for avatar
@@ -138,7 +175,7 @@ export default function UserMenu() {
           <div className="flex flex-col space-y-1">
             <p className="text-sm font-medium leading-none">{getUserName()}</p>
             <p className="text-xs leading-none text-muted-foreground">
-              {getUserEmail()}
+              {getUserIdentifier()}
             </p>
           </div>
         </DropdownMenuLabel>
@@ -156,9 +193,9 @@ export default function UserMenu() {
             >
               <Coins className="h-3.5 w-3.5" />
               <span className="font-semibold">
-                {creditBalance !== null ? creditBalance.toLocaleString() : "0"}
+                ${creditBalance !== null ? Number(creditBalance).toFixed(2) : "0.00"}
               </span>
-              <span className="text-xs opacity-80">credits</span>
+              <span className="text-xs opacity-80">balance</span>
             </Badge>
           )}
         </div>

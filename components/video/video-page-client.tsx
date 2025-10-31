@@ -464,14 +464,14 @@ export function VideoPageClient({
 
             <div className="space-y-3">
               <div className="flex items-center justify-between text-sm">
-                <span className="text-muted-foreground">Credit usage</span>
+                <span className="text-muted-foreground">Monthly spend</span>
                 <span className="font-medium text-foreground">
                   {creditProgress}%
                 </span>
               </div>
               <Progress value={creditProgress} className="h-2" />
               <p className="text-xs text-muted-foreground">
-                Credits reset on the 1st of every month. Reach out if you need a
+                Budget resets on the 1st of every month. Reach out if you need a
                 larger allocation.
               </p>
             </div>

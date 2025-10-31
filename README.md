@@ -72,8 +72,8 @@ Eliza Cloud V2 is a full-stack AI-as-a-Service platform that combines:
 
 ### 💳 SaaS Platform Features
 
-- **Credit System**:
-  - Purchase credits via Stripe integration
+- **Billing System**:
+  - Add funds via Stripe integration
   - Automatic deduction for AI operations
   - Usage tracking per organization/user
   - Credit packs with volume pricing
@@ -583,7 +583,7 @@ Authorization: Bearer eliza_your_api_key
 }
 ```
 
-**Cost**: 100 credits per image
+**Cost**: $0.01 per image
 
 ### 3. AI Video Generation
 
@@ -613,7 +613,7 @@ Authorization: Bearer eliza_your_api_key
 }
 ```
 
-**Cost**: 500 credits per video (250 for fallback)
+**Cost**: $0.05 per video ($0.025 for fallback)
 
 ### 4. Gallery & Media Storage
 
@@ -937,12 +937,14 @@ curl https://your-app.com/api/v1/chat \
 - Transaction history
 - Organization-level balance
 
-**Credit Costs**:
+**Pricing**:
 
 - **Text Chat**: Token-based (varies by model)
-- **Image Generation**: 100 credits
-- **Video Generation**: 500 credits
-- **Container Deployment**: Based on instance hours
+- **Image Generation**: $0.01 per image
+- **Video Generation**: $0.05 per video
+- **Container Deployment**: $0.50 base + instance hours
+- **Voice Clone (Instant)**: $0.50
+- **Voice Clone (Professional)**: $2.00
 
 **Stripe Integration**:
 
@@ -1004,12 +1006,12 @@ See `docs/STRIPE_SETUP.md` for detailed Stripe configuration.
 - 4 AI-powered tools exposed via MCP protocol
 - Bearer token authentication using API keys
 - Compatible with any MCP client (Claude Desktop, MCP Inspector, etc.)
-- Automatic credit deduction for tool usage
+- Automatic billing for tool usage
 - Full request/response logging
 
 **Available MCP Tools**:
 
-1. **check_credits**: View organization credit balance and recent transactions
+1. **check_credits**: View organization balance and recent transactions
    - Optional parameters: `includeTransactions` (boolean), `limit` (number)
 
 2. **get_recent_usage**: View recent API usage statistics with model and cost details
@@ -1023,7 +1025,7 @@ See `docs/STRIPE_SETUP.md` for detailed Stripe configuration.
 4. **generate_image**: Generate images using Google Gemini 2.5
    - Required: `prompt` (string)
    - Optional: `aspectRatio` (enum: 1:1, 16:9, 9:16, 4:3, 3:4)
-   - Cost: 100 credits per image
+   - Cost: $0.01 per image
 
 **Using MCP Inspector**:
 
@@ -1126,7 +1128,7 @@ Accept: application/json, text/event-stream
   - type: purchase, deduction, refund, adjustment
   - stripe_payment_intent_id for reconciliation
 
-- **credit_packs**: Purchasable credit packages
+- **credit_packs**: Balance top-up packages
   - stripe_price_id, stripe_product_id
   - sort_order for display
 
@@ -1810,7 +1812,7 @@ curl https://elizacloud.ai/api/v1/containers \
 
 Container deployments are billed based on:
 
-- **Deployment**: 1000 credits (one-time per deployment)
+- **Deployment**: $0.50 (one-time per deployment)
 - **Running Costs**: Charged per hour based on resources
   - t4g.small (1.75 vCPU + 1.75 GB RAM): Default, ~10-20 credits/hour
   - Higher CPU/memory allocations: Additional charges

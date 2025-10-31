@@ -192,7 +192,7 @@ export function VideoGenerationForm({
               <p className="text-foreground/80">{statusMessage}</p>
             ) : null}
             <p>
-              Generation credits refresh as renders finish—wire this panel to
+              Your balance updates as renders finish—wire this panel to
               your usage service during backend integration.
             </p>
           </div>
