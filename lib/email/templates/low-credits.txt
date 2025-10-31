@@ -4,7 +4,7 @@ Action required for {{organizationName}}
 
 Your account balance is running low. To avoid service interruption, please add funds to your account soon.
 
-CURRENT BALANCE: ${{currentBalance}} USD remaining
+CURRENT BALANCE: ${{currentBalance}} remaining
 
 WHAT HAPPENS WHEN BALANCE RUNS OUT?
 • AI agent requests will be rejected
