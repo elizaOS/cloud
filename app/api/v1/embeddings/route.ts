@@ -4,6 +4,7 @@ import {
   creditsService,
   usageService,
   organizationsService,
+  modelRouter,
 } from "@/lib/services";
 import {
   calculateCost,
@@ -79,7 +80,67 @@ async function handlePOST(req: NextRequest) {
     const providerName = getProviderFromModel(request.model);
     const normalizedModel = normalizeModelName(request.model);
 
-    // Estimate cost before making API call
+    // Route to appropriate provider (free or paid)
+    const routing = await modelRouter.routeRequest({
+      organizationId: user.organization_id,
+      userId: user.id,
+      model: request.model,
+      requestType: "embeddings",
+    });
+
+    // If free model but rate limit exceeded, return error
+    if (!routing.rateLimitCheck.allowed && !routing.shouldChargeCredits) {
+      logger.warn("[OpenAI Proxy] Free tier rate limit exceeded for embeddings", {
+        userId: user.id,
+        model: request.model,
+        reason: routing.rateLimitCheck.reason,
+      });
+
+      return Response.json(
+        {
+          error: {
+            message: routing.rateLimitCheck.reason || "Rate limit exceeded for free tier",
+            type: "rate_limit_exceeded",
+            code: "free_tier_limit",
+            resetAt: routing.rateLimitCheck.resetAt?.toISOString(),
+            currentUsage: routing.rateLimitCheck.currentUsage,
+            limit: routing.rateLimitCheck.limit,
+          },
+        },
+        { status: 429 },
+      );
+    }
+
+    // If using free model, skip credit check and go directly to provider
+    if (!routing.shouldChargeCredits) {
+      logger.info("[OpenAI Proxy] Using free embedding model", {
+        model: request.model,
+        provider: routing.modelCategory?.provider,
+        userId: user.id,
+      });
+
+      const response = await routing.provider.embeddings(request);
+      const data: OpenAIEmbeddingsResponse = await response.json();
+
+      // Track usage for analytics (no credit deduction)
+      (async () => {
+        try {
+          await modelRouter.trackFreeModelUsage({
+            organizationId: user.organization_id,
+            userId: user.id,
+            model: request.model,
+            provider: routing.modelCategory?.provider || providerName,
+            tokenCount: data.usage?.total_tokens || 0,
+          });
+        } catch (error) {
+          logger.error("[OpenAI Proxy] Error tracking free model usage:", error);
+        }
+      })();
+
+      return Response.json(data);
+    }
+
+    // Paid model flow - estimate cost and check credits
     const inputText = Array.isArray(request.input)
       ? request.input.join(" ")
       : request.input;
@@ -88,13 +149,11 @@ async function handlePOST(req: NextRequest) {
       normalizedModel,
       providerName,
       estimatedTokens,
-      0, // embeddings don't have output tokens
+      0,
     );
 
-    // Add 50% buffer for safety (increased from 20% to handle usage spikes)
     const requiredCredits = Math.ceil(estimatedCost * 1.5);
 
-    // Check credits before making API call
     const org = await organizationsService.getById(user.organization_id);
     if (!org) {
       return Response.json(
@@ -135,8 +194,7 @@ async function handlePOST(req: NextRequest) {
     }
 
     // Forward via provider
-    const gatewayProvider = getProvider();
-    const response = await gatewayProvider.embeddings(request);
+    const response = await routing.provider.embeddings(request);
     const data: OpenAIEmbeddingsResponse = await response.json();
 
     // CRITICAL FIX: Deduct credits SYNCHRONOUSLY before returning response

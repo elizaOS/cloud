@@ -15,8 +15,18 @@ export async function GET(request: NextRequest) {
     const response = await provider.listModels();
     const data: OpenAIModelsResponse = await response.json();
 
-    // Return OpenAI-compatible format
-    return Response.json(data);
+    // Transform to expected format for UI compatibility
+    const models = data.data.map((model) => ({
+      id: model.id,
+      name: model.id,
+      provider: model.owned_by,
+    }));
+
+    // Return both OpenAI format and UI-friendly format
+    return Response.json({
+      ...data,
+      models, // UI-friendly format
+    });
   } catch (error) {
     console.error("Error fetching models:", error);
     return Response.json(

@@ -9,6 +9,8 @@ export * from "./credit-packs";
 export * from "./generations";
 export * from "./jobs";
 export * from "./model-pricing";
+export * from "./model-categories";
+export * from "./free-model-usage";
 export * from "./provider-health";
 export * from "./conversations";
 export * from "./user-characters";

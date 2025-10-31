@@ -26,3 +26,7 @@ export * from "./marketplace";
 
 // Voice services
 export { voiceCloningService } from "./voice-cloning";
+
+// Free tier services
+export { modelRouter } from "./model-router";
+export { freeModelRateLimiter } from "./free-model-rate-limiter";

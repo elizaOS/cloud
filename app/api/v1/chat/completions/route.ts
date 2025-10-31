@@ -6,6 +6,7 @@ import {
   usageService,
   generationsService,
   organizationsService,
+  modelRouter,
 } from "@/lib/services";
 import {
   calculateCost,
@@ -106,11 +107,68 @@ async function handlePOST(req: NextRequest) {
     const normalizedModel = normalizeModelName(model);
     const isStreaming = request.stream ?? false;
 
-    // 4. Check credits BEFORE making API call
-    // estimateRequestCost now handles both string and multimodal content
+    // 4. Route to appropriate provider (free or paid)
+    const routing = await modelRouter.routeRequest({
+      organizationId: user.organization_id,
+      userId: user.id,
+      model,
+      requestType: "chat",
+    });
+
+    // If free model but rate limit exceeded, return error
+    if (!routing.rateLimitCheck.allowed && !routing.shouldChargeCredits) {
+      logger.warn("[OpenAI Proxy] Free tier rate limit exceeded", {
+        userId: user.id,
+        model,
+        reason: routing.rateLimitCheck.reason,
+      });
+
+      return Response.json(
+        {
+          error: {
+            message: routing.rateLimitCheck.reason || "Rate limit exceeded for free tier",
+            type: "rate_limit_exceeded",
+            code: "free_tier_limit",
+            resetAt: routing.rateLimitCheck.resetAt?.toISOString(),
+            currentUsage: routing.rateLimitCheck.currentUsage,
+            limit: routing.rateLimitCheck.limit,
+          },
+        },
+        { status: 429 }
+      );
+    }
+
+    // If using free model, skip credit check and go directly to provider
+    if (!routing.shouldChargeCredits) {
+      logger.info("[OpenAI Proxy] Using free model", {
+        model,
+        provider: routing.modelCategory?.provider,
+        userId: user.id,
+      });
+
+      const providerResponse = await routing.provider.chatCompletions(request);
+
+      // Track usage for analytics (no credit deduction)
+      (async () => {
+        try {
+          await modelRouter.trackFreeModelUsage({
+            organizationId: user.organization_id,
+            userId: user.id,
+            model,
+            provider: routing.modelCategory?.provider || provider,
+          });
+        } catch (error) {
+          logger.error("[OpenAI Proxy] Error tracking free model usage:", error);
+        }
+      })();
+
+      // Return response directly without credit deduction
+      return providerResponse;
+    }
+
+    // Paid model flow - check credits and deduct
     const estimatedCost = await estimateRequestCost(model, request.messages);
 
-    // Check if organization has sufficient credits
     const org = await organizationsService.getById(user.organization_id);
     if (!org) {
       return Response.json(
@@ -161,8 +219,8 @@ async function handlePOST(req: NextRequest) {
       estimatedCost,
     });
 
-    // 5. Forward to Vercel AI Gateway
-    const providerInstance = getProvider();
+    // 5. Forward to provider
+    const providerInstance = routing.provider;
     const providerResponse = await providerInstance.chatCompletions(request);
 
     // 6. Handle streaming vs non-streaming

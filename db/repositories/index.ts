@@ -10,6 +10,8 @@ export * from "./generations";
 export * from "./conversations";
 export * from "./user-characters";
 export * from "./model-pricing";
+export * from "./model-categories";
+export * from "./free-model-usage";
 export * from "./provider-health";
 export * from "./containers";
 export * from "./eliza-room-characters";
