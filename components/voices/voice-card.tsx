@@ -192,7 +192,7 @@ export function VoiceCard({ voice, onDelete, onPreview }: VoiceCardProps) {
           <AlertDialogHeader>
             <AlertDialogTitle>Delete Voice Clone?</AlertDialogTitle>
             <AlertDialogDescription>
-              Are you sure you want to delete "{voice.name}"? This action cannot
+              Are you sure you want to delete &quot;{voice.name}&quot;? This action cannot
               be undone and the voice will be permanently removed from both
               Eliza Cloud and ElevenLabs.
             </AlertDialogDescription>

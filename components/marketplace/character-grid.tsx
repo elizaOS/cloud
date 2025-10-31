@@ -112,7 +112,7 @@ export function CharacterGrid({
           {/* End of Results */}
           {!hasMore && characters.length > 0 && (
             <div className="flex justify-center py-8 text-sm text-muted-foreground">
-              You've reached the end
+              You&apos;ve reached the end
             </div>
           )}
         </div>

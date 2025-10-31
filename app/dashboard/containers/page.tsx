@@ -151,7 +151,7 @@ export default async function ContainersPage() {
                 </div>
               </div>
               <p className="text-sm text-muted-foreground">
-                Once deployed, you'll be able to view deployment history, logs,
+                Once deployed, you&apos;ll be able to view deployment history, logs,
                 and metrics for your container right here.
               </p>
             </div>
