@@ -458,7 +458,7 @@ const messageReceivedHandler = async ({
       });
     }
 
-    // Emit run ended event
+    // Emit run ended event (before evaluators to not delay response)
     await runtime.emitEvent(EventType.RUN_ENDED, {
       runtime,
       runId,
@@ -476,6 +476,51 @@ const messageReceivedHandler = async ({
         model: modelUsed,
       },
     });
+
+    // Run evaluators in background (non-blocking)
+    // This ensures evaluators don't delay the response
+    if (typeof runtime.evaluate === "function") {
+      logger.debug("[ElizaAssistant] Running evaluators in background");
+
+      // Run evaluators asynchronously without blocking the response
+      runtime
+        .evaluate(
+          message,
+          { ...initialState }, // Use the initial state for evaluators
+          true, // shouldRespondToMessage
+          async (content) => {
+            logger.debug(
+              "[ElizaAssistant] Evaluator callback:",
+              JSON.stringify(content),
+            );
+            // Evaluator callbacks can be used for side effects
+            // (e.g., updating memory, logging, etc.)
+            if (callback) {
+              return callback(content);
+            }
+            return [];
+          },
+          [responseMemory],
+        )
+        .then(async () => {
+          logger.debug("[ElizaAssistant] Evaluators completed");
+
+          // Note: Token tracking for evaluators will need to be implemented
+          // at the framework level (runtime.getRunTokenUsage is not available)
+          // For now, evaluators run but their token usage is not tracked
+          // TODO: Add evaluator token tracking when framework support is available
+        })
+        .catch((error) => {
+          logger.error(
+            "[ElizaAssistant] Error in evaluators:",
+            error instanceof Error ? error.message : String(error),
+          );
+        });
+    } else {
+      logger.debug(
+        "[ElizaAssistant] runtime.evaluate not available - skipping evaluators",
+      );
+    }
   } catch (error) {
     // Emit run ended event with error
     await runtime.emitEvent(EventType.RUN_ENDED, {
