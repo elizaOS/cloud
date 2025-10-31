@@ -5,6 +5,7 @@ An interactive dashboard to explore, test, and integrate with Model Context Prot
 ## Overview
 
 The MCP Playground provides a comprehensive interface for developers to:
+
 - Discover available MCP servers and their capabilities
 - Test MCP tools with live parameter validation
 - View real-time execution results
@@ -14,6 +15,7 @@ The MCP Playground provides a comprehensive interface for developers to:
 ## Features
 
 ### 🔍 MCP Explorer
+
 - Browse all available MCP servers by category
 - View detailed tool documentation
 - Filter by category (Platform, Crypto, Social, AI)
@@ -21,6 +23,7 @@ The MCP Playground provides a comprehensive interface for developers to:
 - Search across MCPs and tools
 
 ### 🔌 Connection Information
+
 - **Raw endpoint URLs** displayed for each MCP
 - **MCP configuration templates** for Claude Desktop and custom agents
 - One-click copy for endpoint URLs
@@ -28,6 +31,7 @@ The MCP Playground provides a comprehensive interface for developers to:
 - Connection instructions for agent integration
 
 ### ⚡ Interactive Testing
+
 - Dynamic parameter editor with type validation
 - Support for all parameter types:
   - String (text input / textarea)
@@ -39,18 +43,21 @@ The MCP Playground provides a comprehensive interface for developers to:
 - Comprehensive error handling
 
 ### 📊 Results Viewer
+
 - Formatted JSON response display
 - Success/Error status badges
 - Copy-to-clipboard functionality
 - Syntax highlighting
 
 ### 💻 Code Generation
+
 - Auto-generated integration examples
 - MCP protocol-compliant request format
 - Copy-ready code snippets
 - Support for both credit-based and x402 payment protocols
 
 ### 💳 x402 Visual Indicators
+
 - Wallet badges on x402-enabled MCPs
 - Credit card badges for credit-based MCPs
 - Payment type filter dropdown
@@ -60,11 +67,13 @@ The MCP Playground provides a comprehensive interface for developers to:
 ## Available MCPs
 
 ### 1. ElizaOS Cloud MCP
+
 **Category:** Platform  
 **Endpoint:** `/api/mcp`  
 **Pricing:** Credit-based (varies per tool)
 
 **Tools:**
+
 - `check_credits` - View credit balance and transactions (FREE)
 - `get_recent_usage` - API usage statistics (FREE)
 - `generate_text` - AI text generation (token-based, ~$0.0001-$0.01)
@@ -80,11 +89,13 @@ The MCP Playground provides a comprehensive interface for developers to:
 - `list_containers` - View deployments (FREE)
 
 ### 2. CoinGecko Crypto API
+
 **Category:** Crypto  
 **Endpoint:** `/api/mcp/coingecko`  
 **Pricing:** x402 ($0.01-$0.05 per call)
 
 **Tools:**
+
 - `get_coin_price` - Real-time crypto prices ($0.02)
 - `get_market_chart` - Historical price data ($0.05)
 - `get_trending_coins` - Top trending cryptos ($0.03)
@@ -92,21 +103,25 @@ The MCP Playground provides a comprehensive interface for developers to:
 - `get_global_market_data` - Market statistics ($0.02)
 
 ### 3. Twitter/X Data API
+
 **Category:** Social  
 **Endpoint:** `/api/mcp/twitter`  
 **Pricing:** x402 ($0.03-$0.10 per call)
 
 **Tools:**
+
 - `get_trending_topics` - Trending hashtags ($0.10)
 - `search_tweets` - Search recent tweets ($0.05)
 - `get_user_info` - User profile data ($0.03)
 
 ### 4. OpenAI Image Generator
+
 **Category:** AI  
 **Endpoint:** `/api/mcp/openai`  
 **Pricing:** x402 ($0.50 per image)
 
 **Tools:**
+
 - `generate_image` - High-quality AI images with gpt-image-1 ($0.50)
   - Supports custom sizes, quality levels, backgrounds, and formats
 
@@ -125,6 +140,7 @@ Each MCP displays its connection information in the header:
 3. **Expand "Connect Your Agent"** - Shows MCP configuration template
 
 **Example MCP Configuration:**
+
 ```json
 {
   "mcpServers": {
@@ -139,6 +155,7 @@ Each MCP displays its connection information in the header:
 ```
 
 Add this to:
+
 - **Claude Desktop**: `~/Library/Application Support/Claude/claude_desktop_config.json`
 - **Custom Agents**: Your MCP client configuration
 - **ElizaOS**: Plugin MCP configuration
@@ -168,7 +185,7 @@ const response = await fetch("/api/mcp/coingecko", {
   method: "POST",
   headers: {
     "Content-Type": "application/json",
-    "Authorization": "Bearer YOUR_API_KEY"
+    Authorization: "Bearer YOUR_API_KEY",
   },
   body: JSON.stringify({
     method: "tools/call",
@@ -177,10 +194,10 @@ const response = await fetch("/api/mcp/coingecko", {
       arguments: {
         coin_id: "bitcoin",
         vs_currency: "usd",
-        include_24hr_change: true
-      }
-    }
-  })
+        include_24hr_change: true,
+      },
+    },
+  }),
 });
 
 const data = await response.json();
@@ -189,12 +206,14 @@ const data = await response.json();
 ## Payment Protocols
 
 ### Credit-Based (ElizaOS Cloud MCP)
+
 - Uses internal credit system
 - Credits purchased via Stripe
 - Automatic deduction on execution
 - Balance visible in dashboard
 
 ### x402 Protocol (External MCPs)
+
 - Pay-per-call via Coinbase x402
 - Cryptocurrency payments (Base network)
 - Transparent pricing per tool
@@ -227,6 +246,7 @@ app/api/mcp/
 ### Adding a New MCP
 
 1. **Create the MCP handler:**
+
 ```typescript
 // app/api/mcp/your-mcp/route.ts
 import { createPaidMcpHandler } from "x402-mcp";
@@ -241,22 +261,25 @@ const handler = createPaidMcpHandler(
       "your_tool",
       "Tool description",
       { price: 0.01 },
-      { /* parameters */ },
+      {
+        /* parameters */
+      },
       {},
       async (args) => {
         // Tool implementation
         return { content: [{ type: "text", text: "Result" }] };
-      }
+      },
     );
   },
   { serverInfo: { name: "your-mcp", version: "1.0.0" } },
-  { recipient: sellerAccount.address, facilitator, network: env.NETWORK }
+  { recipient: sellerAccount.address, facilitator, network: env.NETWORK },
 );
 
 export { handler as GET, handler as POST };
 ```
 
 2. **Register in the list endpoint:**
+
 ```typescript
 // app/api/mcp/list/route.ts
 const mcpDefinitions = [
@@ -267,8 +290,10 @@ const mcpDefinitions = [
     description: "MCP description",
     endpoint: "/api/mcp/your-mcp",
     category: "your-category",
-    tools: [ /* tool definitions */ ]
-  }
+    tools: [
+      /* tool definitions */
+    ],
+  },
 ];
 ```
 
@@ -288,17 +313,20 @@ The playground supports automatic rendering for:
 ## Troubleshooting
 
 ### Tool execution fails
+
 - Check API key is valid
 - Verify sufficient credits (for credit-based MCPs)
 - Ensure parameters match required schema
 - Check network connectivity
 
 ### MCP not appearing
+
 - Verify MCP is registered in `/api/mcp/list`
 - Check MCP handler is deployed
 - Clear browser cache
 
 ### Payment issues
+
 - For credit-based: Check credit balance in dashboard
 - For x402: Ensure wallet is connected and funded
 
@@ -323,7 +351,7 @@ The playground supports automatic rendering for:
 ## Support
 
 For issues or questions:
+
 - GitHub Issues: [eliza-cloud-v2](https://github.com/your-org/eliza-cloud-v2)
 - Discord: [ElizaOS Community](https://discord.gg/elizaos)
 - Email: support@elizaos.ai
-

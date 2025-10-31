@@ -17,13 +17,27 @@ export const organizations = pgTable(
     id: uuid("id").defaultRandom().primaryKey(),
     name: text("name").notNull(),
     slug: text("slug").notNull().unique(),
-    credit_balance: numeric("credit_balance", { precision: 10, scale: 2 }).notNull().default("100.00"),
+    credit_balance: numeric("credit_balance", { precision: 10, scale: 2 })
+      .notNull()
+      .default("100.00"),
     tier: text("tier").notNull().default("free"),
     tier_started_at: timestamp("tier_started_at").notNull().defaultNow(),
     tier_expires_at: timestamp("tier_expires_at"),
-    monthly_free_credits: numeric("monthly_free_credits", { precision: 10, scale: 2 }).notNull().default("0.00"),
-    free_credits_used_this_month: numeric("free_credits_used_this_month", { precision: 10, scale: 2 }).notNull().default("0.00"),
-    free_credits_reset_at: timestamp("free_credits_reset_at").notNull().defaultNow(),
+    monthly_free_credits: numeric("monthly_free_credits", {
+      precision: 10,
+      scale: 2,
+    })
+      .notNull()
+      .default("0.00"),
+    free_credits_used_this_month: numeric("free_credits_used_this_month", {
+      precision: 10,
+      scale: 2,
+    })
+      .notNull()
+      .default("0.00"),
+    free_credits_reset_at: timestamp("free_credits_reset_at")
+      .notNull()
+      .defaultNow(),
     webhook_url: text("webhook_url"),
     webhook_secret: text("webhook_secret"),
     stripe_customer_id: text("stripe_customer_id"),
@@ -52,9 +66,9 @@ export const organizations = pgTable(
   (table) => ({
     slug_idx: index("organizations_slug_idx").on(table.slug),
     stripe_customer_idx: index("organizations_stripe_customer_idx").on(
-      table.stripe_customer_id,
+      table.stripe_customer_id
     ),
-  }),
+  })
 );
 
 // Type inference

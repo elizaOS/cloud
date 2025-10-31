@@ -41,7 +41,7 @@ export class QuotaExceededError extends Error {
   constructor(
     message: string,
     public current: number,
-    public max: number
+    public max: number,
   ) {
     super(message);
     this.name = "QuotaExceededError";
@@ -54,7 +54,7 @@ export class QuotaExceededError extends Error {
 export class DuplicateContainerNameError extends Error {
   constructor(
     message: string,
-    public containerName: string
+    public containerName: string,
   ) {
     super(message);
     this.name = "DuplicateContainerNameError";
@@ -72,7 +72,7 @@ export class ContainersRepository {
 
   async findById(
     id: string,
-    organizationId: string
+    organizationId: string,
   ): Promise<Container | null> {
     const results = await db
       .select()
@@ -80,8 +80,8 @@ export class ContainersRepository {
       .where(
         and(
           eq(containers.id, id),
-          eq(containers.organization_id, organizationId)
-        )
+          eq(containers.organization_id, organizationId),
+        ),
       )
       .limit(1);
 
@@ -126,7 +126,7 @@ export class ContainersRepository {
   async update(
     id: string,
     organizationId: string,
-    data: Partial<NewContainer>
+    data: Partial<NewContainer>,
   ): Promise<Container | null> {
     const [updated] = await db
       .update(containers)
@@ -137,8 +137,8 @@ export class ContainersRepository {
       .where(
         and(
           eq(containers.id, id),
-          eq(containers.organization_id, organizationId)
-        )
+          eq(containers.organization_id, organizationId),
+        ),
       )
       .returning();
 
@@ -151,8 +151,8 @@ export class ContainersRepository {
       .where(
         and(
           eq(containers.id, id),
-          eq(containers.organization_id, organizationId)
-        )
+          eq(containers.organization_id, organizationId),
+        ),
       )
       .returning();
 
@@ -162,7 +162,7 @@ export class ContainersRepository {
   async updateStatus(
     id: string,
     status: ContainerStatus,
-    errorMessage?: string
+    errorMessage?: string,
   ): Promise<Container | null> {
     const [updated] = await db
       .update(containers)
@@ -217,13 +217,13 @@ export class ContainersRepository {
       .where(
         and(
           eq(containers.organization_id, organizationId),
-          notInArray(containers.status, ["deleting", "deleted"])
-        )
+          notInArray(containers.status, ["deleting", "deleted"]),
+        ),
       );
 
     const maxContainers = getMaxContainersForOrg(
       Number(org.credit_balance),
-      org.settings as Record<string, unknown> | undefined
+      org.settings as Record<string, unknown> | undefined,
     );
 
     const allowed = count < maxContainers;
@@ -245,7 +245,7 @@ export class ContainersRepository {
    */
   async createWithQuotaCheck(
     data: NewContainer,
-    transaction?: Database
+    transaction?: Database,
   ): Promise<Container> {
     const executeInTransaction = async (tx: Database) => {
       // 1. Lock the organization row to prevent concurrent quota checks
@@ -270,14 +270,14 @@ export class ContainersRepository {
         .where(
           and(
             eq(containers.organization_id, data.organization_id),
-            notInArray(containers.status, ["deleting", "deleted"])
-          )
+            notInArray(containers.status, ["deleting", "deleted"]),
+          ),
         );
 
       // 3. Get max allowed containers for this org
       const maxContainers = getMaxContainersForOrg(
         Number(org.credit_balance),
-        org.settings as Record<string, unknown> | undefined
+        org.settings as Record<string, unknown> | undefined,
       );
 
       // 4. Check quota
@@ -285,7 +285,7 @@ export class ContainersRepository {
         throw new QuotaExceededError(
           `Container quota exceeded. Current: ${count}, Max: ${maxContainers}`,
           count,
-          maxContainers
+          maxContainers,
         );
       }
 
@@ -314,13 +314,13 @@ export class ContainersRepository {
   async createContainerWithCreditDeduction(
     containerData: NewContainer,
     userId: string,
-    deploymentCost: number
+    deploymentCost: number,
   ): Promise<{ container: Container; newBalance: number }> {
     return await db.transaction(async (tx) => {
       // Create container with quota check
       const container = await this.createWithQuotaCheck(
         containerData,
-        tx as typeof db
+        tx as typeof db,
       );
 
       // Check and deduct credits
@@ -336,7 +336,7 @@ export class ContainersRepository {
 
       if (currentBalance < deploymentCost) {
         throw new Error(
-          `Insufficient balance. Required: $${deploymentCost.toFixed(2)}, Available: $${currentBalance.toFixed(2)}`
+          `Insufficient balance. Required: $${deploymentCost.toFixed(2)}, Available: $${currentBalance.toFixed(2)}`,
         );
       }
 

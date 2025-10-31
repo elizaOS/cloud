@@ -40,7 +40,7 @@ export async function getOrCreatePurchaserAccount(): Promise<Account> {
   });
 
   const usdcBalance = balances.balances.find(
-    (balance) => balance.token.symbol === "USDC"
+    (balance) => balance.token.symbol === "USDC",
   );
 
   // if under $0.50 while on testnet, request more

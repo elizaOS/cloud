@@ -69,22 +69,22 @@ export const userVoices = pgTable(
   (table) => ({
     // Index for organization queries (listing user voices)
     organization_idx: index("user_voices_organization_idx").on(
-      table.organizationId
+      table.organizationId,
     ),
     // Index for user queries
     user_idx: index("user_voices_user_idx").on(table.userId),
     // Index for finding voices by organization and clone type (slot counting)
     org_type_idx: index("user_voices_org_type_idx").on(
       table.organizationId,
-      table.cloneType
+      table.cloneType,
     ),
     // Index for organization + usage analytics (most used voices)
     org_usage_idx: index("user_voices_org_usage_idx").on(
       table.organizationId,
       table.usageCount,
-      table.lastUsedAt
+      table.lastUsedAt,
     ),
-  })
+  }),
 );
 
 export const voiceCloningJobs = pgTable("voice_cloning_jobs", {

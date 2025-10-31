@@ -1,6 +1,10 @@
 import { v4 as uuidv4 } from "uuid";
 import { agentRuntime } from "@/lib/eliza/agent-runtime";
-import { memoryCache, type MemoryRoomContext, type SearchResult } from "@/lib/cache/memory-cache";
+import {
+  memoryCache,
+  type MemoryRoomContext,
+  type SearchResult,
+} from "@/lib/cache/memory-cache";
 import { CacheKeys, CacheTTL } from "@/lib/cache/keys";
 import { logger } from "@/lib/utils/logger";
 import { streamText } from "ai";
@@ -207,7 +211,8 @@ export class MemoryService {
           logger.error(
             `[Memory Service] PostgreSQL insert failed with full error:`,
             {
-              error: dbError instanceof Error ? dbError.message : String(dbError),
+              error:
+                dbError instanceof Error ? dbError.message : String(dbError),
               errorName: dbError instanceof Error ? dbError.name : "Unknown",
               errorStack: dbError instanceof Error ? dbError.stack : undefined,
               errorCause:
@@ -260,18 +265,24 @@ export class MemoryService {
     try {
       logger.info(
         `[Memory Service] retrieveMemories called with input:`,
-        JSON.stringify({
-          organizationId: input.organizationId,
-          roomId: input.roomId,
-          query: input.query,
-          limit: input.limit,
-          type: input.type,
-          tags: input.tags,
-        }, null, 2),
+        JSON.stringify(
+          {
+            organizationId: input.organizationId,
+            roomId: input.roomId,
+            query: input.query,
+            limit: input.limit,
+            type: input.type,
+            tags: input.tags,
+          },
+          null,
+          2,
+        ),
       );
 
       const runtime = await agentRuntime.getRuntime();
-      logger.info(`[Memory Service] Runtime initialized, agentId: ${runtime.agentId}`);
+      logger.info(
+        `[Memory Service] Runtime initialized, agentId: ${runtime.agentId}`,
+      );
 
       if (input.query) {
         const queryHash = this.hashQuery(input.query, input);
@@ -311,7 +322,9 @@ export class MemoryService {
 
         if (input.query) {
           const embedding = new Array(1536).fill(0);
-          logger.info(`[Memory Service] Calling searchMemories with roomId: ${input.roomId}`);
+          logger.info(
+            `[Memory Service] Calling searchMemories with roomId: ${input.roomId}`,
+          );
           memories = await runtime.adapter.searchMemories({
             embedding,
             tableName: "memories",
@@ -320,7 +333,9 @@ export class MemoryService {
             match_threshold: 0.7,
           });
         } else {
-          logger.info(`[Memory Service] Querying database directly for roomId: ${input.roomId}`);
+          logger.info(
+            `[Memory Service] Querying database directly for roomId: ${input.roomId}`,
+          );
 
           const results = await db
             .select()
@@ -328,23 +343,26 @@ export class MemoryService {
             .where(
               and(
                 eq(memoryTable.roomId, input.roomId),
-                eq(memoryTable.agentId, runtime.agentId)
-              )
+                eq(memoryTable.agentId, runtime.agentId),
+              ),
             )
             .orderBy(desc(memoryTable.createdAt))
             .limit(input.limit || 10);
 
-          memories = results.map((row) => ({
-            id: row.id as UUID,
-            type: row.type,
-            createdAt: new Date(row.createdAt).getTime(),
-            content: row.content,
-            entityId: row.entityId as UUID,
-            agentId: row.agentId as UUID,
-            roomId: row.roomId as UUID,
-            worldId: row.worldId as UUID | undefined,
-            unique: row.unique,
-          } as Memory));
+          memories = results.map(
+            (row) =>
+              ({
+                id: row.id as UUID,
+                type: row.type,
+                createdAt: new Date(row.createdAt).getTime(),
+                content: row.content,
+                entityId: row.entityId as UUID,
+                agentId: row.agentId as UUID,
+                roomId: row.roomId as UUID,
+                worldId: row.worldId as UUID | undefined,
+                unique: row.unique,
+              }) as Memory,
+          );
         }
 
         logger.info(
@@ -354,7 +372,7 @@ export class MemoryService {
         logger.info(
           `[Memory Service] No specific roomId, fetching from all allowed rooms`,
         );
-        
+
         // Fetch all room IDs for the organization when no specific room is requested
         const allowedRoomIds = await this.getRoomIdsForOrganization(
           input.organizationId,
@@ -383,23 +401,26 @@ export class MemoryService {
             .where(
               and(
                 eq(memoryTable.roomId, roomId),
-                eq(memoryTable.agentId, runtime.agentId)
-              )
+                eq(memoryTable.agentId, runtime.agentId),
+              ),
             )
             .orderBy(desc(memoryTable.createdAt))
             .limit(limit);
 
-          const roomMemories = results.map((row) => ({
-            id: row.id as UUID,
-            type: row.type,
-            createdAt: new Date(row.createdAt).getTime(),
-            content: row.content,
-            entityId: row.entityId as UUID,
-            agentId: row.agentId as UUID,
-            roomId: row.roomId as UUID,
-            worldId: row.worldId as UUID | undefined,
-            unique: row.unique,
-          } as Memory));
+          const roomMemories = results.map(
+            (row) =>
+              ({
+                id: row.id as UUID,
+                type: row.type,
+                createdAt: new Date(row.createdAt).getTime(),
+                content: row.content,
+                entityId: row.entityId as UUID,
+                agentId: row.agentId as UUID,
+                roomId: row.roomId as UUID,
+                worldId: row.worldId as UUID | undefined,
+                unique: row.unique,
+              }) as Memory,
+          );
 
           logger.info(
             `[Memory Service] Room ${roomId} returned ${roomMemories.length} memories`,
@@ -528,10 +549,7 @@ export class MemoryService {
     try {
       const cacheKey = `${input.roomId}:${input.lastN}:${input.style}`;
       const cached = await memoryCache.getMemory(
-        CacheKeys.memory.conversationSummary(
-          input.organizationId,
-          cacheKey,
-        ),
+        CacheKeys.memory.conversationSummary(input.organizationId, cacheKey),
       );
       if (cached) {
         logger.debug(
@@ -605,7 +623,10 @@ export class MemoryService {
     return hash.substring(0, 16);
   }
 
-  private buildSummaryPrompt(context: MemoryRoomContext, style: string): string {
+  private buildSummaryPrompt(
+    context: MemoryRoomContext,
+    style: string,
+  ): string {
     const messages = context.messages
       .slice(0, 50)
       .map((m) => `${m.entityId}: ${m.content.text}`)
@@ -615,8 +636,7 @@ export class MemoryService {
       brief: "Provide a concise 2-3 sentence summary.",
       detailed:
         "Provide a comprehensive summary with key points and discussion flow.",
-      "bullet-points":
-        "Provide a bulleted list of the main topics discussed.",
+      "bullet-points": "Provide a bulleted list of the main topics discussed.",
     };
 
     return `Summarize the following conversation in ${style} style. ${styleInstructions[style as keyof typeof styleInstructions] || styleInstructions.brief}
@@ -645,9 +665,7 @@ Summary:`;
   }
 
   async estimateTokenCount(messages: Memory[]): Promise<number> {
-    const totalText = messages
-      .map((m) => m.content.text || "")
-      .join(" ");
+    const totalText = messages.map((m) => m.content.text || "").join(" ");
     return Math.ceil(totalText.length / 4);
   }
 
@@ -741,9 +759,8 @@ Summary:`;
     format: string;
   }> {
     try {
-      const conversation = await conversationsService.getWithMessages(
-        conversationId,
-      );
+      const conversation =
+        await conversationsService.getWithMessages(conversationId);
 
       if (!conversation) {
         throw new Error("Conversation not found");
@@ -836,9 +853,8 @@ Summary:`;
     clonedMessageCount: number;
   }> {
     try {
-      const sourceConversation = await conversationsService.getWithMessages(
-        conversationId,
-      );
+      const sourceConversation =
+        await conversationsService.getWithMessages(conversationId);
 
       if (!sourceConversation) {
         throw new Error("Source conversation not found");
@@ -997,7 +1013,11 @@ Summary:`;
               ? "Overall positive sentiment detected"
               : "Overall negative sentiment detected",
           ];
-          data = { positive: positiveCount, neutral: neutralCount, negative: negativeCount };
+          data = {
+            positive: positiveCount,
+            neutral: neutralCount,
+            negative: negativeCount,
+          };
           break;
       }
 
@@ -1012,7 +1032,10 @@ Summary:`;
         chartData,
       };
     } catch (error) {
-      logger.error("[Memory Service] Failed to analyze memory patterns:", error);
+      logger.error(
+        "[Memory Service] Failed to analyze memory patterns:",
+        error,
+      );
       throw error;
     }
   }

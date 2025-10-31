@@ -13,7 +13,7 @@ interface ElizaPageClientProps {
 export function ElizaPageClient({ initialCharacters }: ElizaPageClientProps) {
   const searchParams = useSearchParams();
   const [initialCharacterId, setInitialCharacterId] = useState<string | null>(
-    null
+    null,
   );
 
   useSetPageHeader({
@@ -25,16 +25,16 @@ export function ElizaPageClient({ initialCharacters }: ElizaPageClientProps) {
   useEffect(() => {
     const characterId = searchParams.get("characterId");
     if (characterId) {
-      console.log(
-        "[Eliza Page] Character ID from URL:",
-        characterId
-      );
-      setInitialCharacterId(characterId);
+      console.log("[Eliza Page] Character ID from URL:", characterId);
+      // Set character ID asynchronously to avoid cascading renders
+      Promise.resolve().then(() => {
+        setInitialCharacterId(characterId);
+      });
     }
   }, [searchParams]);
 
   return (
-    <div className="flex h-full min-h-0 flex-col gap-6 overflow-hidden">
+    <div className="flex h-[calc(100vh-8rem)] min-h-0 flex-col gap-6 overflow-hidden">
       <div className="flex flex-1 min-h-0 overflow-hidden rounded-2xl border bg-card shadow-sm">
         <ElizaChatInterface
           availableCharacters={initialCharacters}

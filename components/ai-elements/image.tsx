@@ -1,3 +1,4 @@
+import NextImage from "next/image";
 import { cn } from "@/lib/utils";
 import type { Experimental_GeneratedImage } from "ai";
 
@@ -8,15 +9,17 @@ export type ImageProps = Experimental_GeneratedImage & {
 
 export const Image = ({ base64, mediaType, ...props }: ImageProps) => {
   return (
-    /* eslint-disable-next-line @next/next/no-img-element */
-    <img
+    <NextImage
       {...props}
-      alt={props.alt}
+      alt={props.alt || "Generated image"}
       className={cn(
         "h-auto max-w-full overflow-hidden rounded-md",
         props.className,
       )}
       src={`data:${mediaType};base64,${base64}`}
+      width={800}
+      height={600}
+      unoptimized
     />
   );
 };

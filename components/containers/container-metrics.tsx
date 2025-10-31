@@ -187,7 +187,9 @@ export function ContainerMetrics({
               </Badge>
             </div>
             <div className="space-y-1">
-              <p className="text-sm font-medium text-muted-foreground">CPU Usage</p>
+              <p className="text-sm font-medium text-muted-foreground">
+                CPU Usage
+              </p>
               <p
                 className={`text-3xl font-bold ${getUtilizationColor(metrics.cpu_utilization)}`}
               >
@@ -222,7 +224,9 @@ export function ContainerMetrics({
               </Badge>
             </div>
             <div className="space-y-1">
-              <p className="text-sm font-medium text-muted-foreground">Memory Usage</p>
+              <p className="text-sm font-medium text-muted-foreground">
+                Memory Usage
+              </p>
               <p
                 className={`text-3xl font-bold ${getUtilizationColor(metrics.memory_utilization)}`}
               >
@@ -233,7 +237,9 @@ export function ContainerMetrics({
             <div className="mt-3 h-2 bg-muted rounded-full overflow-hidden">
               <div
                 className={`h-full transition-all duration-500 ${getUtilizationColor(metrics.memory_utilization).replace("text-", "bg-")}`}
-                style={{ width: `${Math.min(metrics.memory_utilization, 100)}%` }}
+                style={{
+                  width: `${Math.min(metrics.memory_utilization, 100)}%`,
+                }}
               />
             </div>
           </div>
@@ -249,7 +255,9 @@ export function ContainerMetrics({
               </Badge>
             </div>
             <div className="space-y-1">
-              <p className="text-sm font-medium text-muted-foreground">Network In</p>
+              <p className="text-sm font-medium text-muted-foreground">
+                Network In
+              </p>
               <p className="text-3xl font-bold text-emerald-500">
                 {formatBytes(metrics.network_rx_bytes)}
               </p>
@@ -267,7 +275,9 @@ export function ContainerMetrics({
               </Badge>
             </div>
             <div className="space-y-1">
-              <p className="text-sm font-medium text-muted-foreground">Network Out</p>
+              <p className="text-sm font-medium text-muted-foreground">
+                Network Out
+              </p>
               <p className="text-3xl font-bold text-amber-500">
                 {formatBytes(metrics.network_tx_bytes)}
               </p>
@@ -301,7 +311,11 @@ export function ContainerMetrics({
                 </span>
               </div>
               <p className="text-xs text-muted-foreground mt-1">
-                {((metrics.healthy_task_count / metrics.task_count) * 100).toFixed(0)}% healthy
+                {(
+                  (metrics.healthy_task_count / metrics.task_count) *
+                  100
+                ).toFixed(0)}
+                % healthy
               </p>
             </div>
           </div>

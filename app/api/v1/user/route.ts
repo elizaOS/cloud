@@ -54,7 +54,7 @@ async function handleGET() {
           error instanceof Error && error.message.includes("Forbidden")
             ? 403
             : 500,
-      }
+      },
     );
   }
 }
@@ -85,7 +85,7 @@ async function handlePATCH(request: NextRequest) {
           success: false,
           error: "Failed to update user",
         },
-        { status: 500 }
+        { status: 500 },
       );
     }
 
@@ -114,7 +114,7 @@ async function handlePATCH(request: NextRequest) {
           error: "Validation error",
           details: error.issues,
         },
-        { status: 400 }
+        { status: 400 },
       );
     }
 
@@ -129,7 +129,7 @@ async function handlePATCH(request: NextRequest) {
           error instanceof Error && error.message.includes("Forbidden")
             ? 403
             : 500,
-      }
+      },
     );
   }
 }

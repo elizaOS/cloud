@@ -31,6 +31,7 @@ export function useCreditsStream(): UseCreditsStreamResult {
   const reconnectAttemptsRef = useRef(0);
   const reconnectTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const broadcastChannelRef = useRef<BroadcastChannel | null>(null);
+  const connectRef = useRef<(() => void) | null>(null);
 
   useEffect(() => {
     if (typeof window !== "undefined" && "BroadcastChannel" in window) {
@@ -59,8 +60,11 @@ export function useCreditsStream(): UseCreditsStreamResult {
       return;
     }
 
-    setIsLoading(true);
-    setError(null);
+    // Defer state updates to avoid cascading renders when called from effect
+    Promise.resolve().then(() => {
+      setIsLoading(true);
+      setError(null);
+    });
 
     const eventSource = new EventSource("/api/credits/stream");
     eventSourceRef.current = eventSource;
@@ -112,7 +116,7 @@ export function useCreditsStream(): UseCreditsStreamResult {
         );
 
         reconnectTimeoutRef.current = setTimeout(() => {
-          connect();
+          connectRef.current?.();
         }, delay);
       } else {
         setError("Connection failed. Please refresh the page.");

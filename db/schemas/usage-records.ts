@@ -32,8 +32,12 @@ export const usageRecords = pgTable(
     provider: text("provider").notNull(),
     input_tokens: integer("input_tokens").notNull().default(0),
     output_tokens: integer("output_tokens").notNull().default(0),
-    input_cost: numeric("input_cost", { precision: 10, scale: 2 }).default("0.00"),
-    output_cost: numeric("output_cost", { precision: 10, scale: 2 }).default("0.00"),
+    input_cost: numeric("input_cost", { precision: 10, scale: 2 }).default(
+      "0.00",
+    ),
+    output_cost: numeric("output_cost", { precision: 10, scale: 2 }).default(
+      "0.00",
+    ),
     markup: numeric("markup", { precision: 10, scale: 2 }).default("0.00"),
     request_id: text("request_id"),
     duration_ms: integer("duration_ms"),
@@ -49,7 +53,7 @@ export const usageRecords = pgTable(
   },
   (table) => ({
     organization_idx: index("usage_records_organization_idx").on(
-      table.organization_id
+      table.organization_id,
     ),
     user_idx: index("usage_records_user_idx").on(table.user_id),
     api_key_idx: index("usage_records_api_key_idx").on(table.api_key_id),
@@ -58,15 +62,15 @@ export const usageRecords = pgTable(
     created_at_idx: index("usage_records_created_at_idx").on(table.created_at),
     org_created_idx: index("usage_records_org_created_idx").on(
       table.organization_id,
-      table.created_at
+      table.created_at,
     ),
     // Voice usage tracking indexes
     org_type_created_idx: index("usage_records_org_type_created_idx").on(
       table.organization_id,
       table.type,
-      table.created_at
+      table.created_at,
     ),
-  })
+  }),
 );
 
 // Type inference

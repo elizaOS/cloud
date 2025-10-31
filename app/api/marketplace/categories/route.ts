@@ -9,7 +9,10 @@ export async function GET(request: NextRequest) {
   try {
     const user = await requireAuth();
 
-    logger.debug("[Marketplace API] Getting categories for:", user.organization_id);
+    logger.debug(
+      "[Marketplace API] Getting categories for:",
+      user.organization_id,
+    );
 
     const categories = await marketplaceService.getCategories(
       user.organization_id,

@@ -122,7 +122,9 @@ export function ContainersTable({ containers }: ContainersTableProps) {
       const matchesSearch =
         searchQuery === "" ||
         container.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        container.description?.toLowerCase().includes(searchQuery.toLowerCase());
+        container.description
+          ?.toLowerCase()
+          .includes(searchQuery.toLowerCase());
 
       const matchesStatus =
         statusFilter === "all" || container.status === statusFilter;
@@ -212,7 +214,9 @@ export function ContainersTable({ containers }: ContainersTableProps) {
         <div className="bg-muted p-4 rounded-lg font-mono text-sm space-y-2 max-w-lg w-full">
           <div className="text-muted-foreground"># Install ElizaOS CLI</div>
           <div className="text-foreground">bun install -g @elizaos/cli</div>
-          <div className="text-muted-foreground mt-3"># Deploy your project</div>
+          <div className="text-muted-foreground mt-3">
+            # Deploy your project
+          </div>
           <div className="text-foreground">cd your-elizaos-project</div>
           <div className="text-foreground">elizaos deploy</div>
         </div>
@@ -351,7 +355,9 @@ export function ContainersTable({ containers }: ContainersTableProps) {
                           variant="outline"
                           className={`${getStatusColor(container.status)} text-white border-none w-fit`}
                         >
-                          <span className="mr-1">{getStatusIcon(container.status)}</span>
+                          <span className="mr-1">
+                            {getStatusIcon(container.status)}
+                          </span>
                           {container.status}
                         </Badge>
                         {container.error_message && (
@@ -376,14 +382,18 @@ export function ContainersTable({ containers }: ContainersTableProps) {
                         </div>
                         <div className="flex items-center gap-1">
                           <span className="text-muted-foreground">RAM:</span>
-                          <span className="font-medium">{container.memory}MB</span>
+                          <span className="font-medium">
+                            {container.memory}MB
+                          </span>
                         </div>
                       </div>
                     </TableCell>
                     <TableCell>
                       <div className="flex items-center gap-1">
                         <Server className="h-3 w-3 text-muted-foreground" />
-                        <span className="font-medium">{container.desired_count}</span>
+                        <span className="font-medium">
+                          {container.desired_count}
+                        </span>
                       </div>
                     </TableCell>
                     <TableCell>
@@ -393,10 +403,12 @@ export function ContainersTable({ containers }: ContainersTableProps) {
                         </div>
                         {container.last_deployed_at && (
                           <div className="text-xs text-muted-foreground">
-                            {new Date(container.last_deployed_at).toLocaleTimeString(
-                              [],
-                              { hour: "2-digit", minute: "2-digit" }
-                            )}
+                            {new Date(
+                              container.last_deployed_at,
+                            ).toLocaleTimeString([], {
+                              hour: "2-digit",
+                              minute: "2-digit",
+                            })}
                           </div>
                         )}
                       </div>
@@ -405,7 +417,9 @@ export function ContainersTable({ containers }: ContainersTableProps) {
                       <div className="flex justify-end gap-1">
                         <Tooltip>
                           <TooltipTrigger asChild>
-                            <Link href={`/dashboard/containers/${container.id}`}>
+                            <Link
+                              href={`/dashboard/containers/${container.id}`}
+                            >
                               <Button variant="ghost" size="sm">
                                 <FileText className="h-4 w-4" />
                               </Button>
@@ -421,7 +435,10 @@ export function ContainersTable({ containers }: ContainersTableProps) {
                                 variant="ghost"
                                 size="sm"
                                 onClick={() => {
-                                  window.open(container.load_balancer_url!, "_blank");
+                                  window.open(
+                                    container.load_balancer_url!,
+                                    "_blank",
+                                  );
                                 }}
                               >
                                 <ExternalLink className="h-4 w-4" />

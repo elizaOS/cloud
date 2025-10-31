@@ -20,7 +20,7 @@ import type {
  */
 async function generateSpeech(
   options: SpeechGenerationOptions,
-  settings: VoiceSettings
+  settings: VoiceSettings,
 ): Promise<SpeechGenerationResult> {
   const client = new ElevenLabsClient({ apiKey: settings.apiKey });
 
@@ -91,7 +91,7 @@ export const voiceProvider: Provider = {
         apiKey: String(
           runtime.character?.settings?.ELEVENLABS_API_KEY ||
             process.env.ELEVENLABS_API_KEY ||
-            ""
+            "",
         ),
         voiceId: runtime.character?.settings?.ELEVENLABS_VOICE_ID
           ? String(runtime.character.settings.ELEVENLABS_VOICE_ID)

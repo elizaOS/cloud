@@ -78,9 +78,7 @@ export class UsersRepository {
     return user as UserWithOrganization | undefined;
   }
 
-  async findByWalletAddress(
-    walletAddress: string,
-  ): Promise<User | undefined> {
+  async findByWalletAddress(walletAddress: string): Promise<User | undefined> {
     return await db.query.users.findFirst({
       where: eq(users.wallet_address, walletAddress.toLowerCase()),
     });

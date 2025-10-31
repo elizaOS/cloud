@@ -21,7 +21,7 @@ const openai = new OpenAI({
 // Configurable delay between API calls (in milliseconds)
 const AVATAR_GENERATION_DELAY_MS = Number.parseInt(
   process.env.AVATAR_GENERATION_DELAY_MS || "5000",
-  10
+  10,
 );
 
 interface CharacterAvatarPrompt {
@@ -133,11 +133,11 @@ async function downloadImage(url: string, filepath: string): Promise<void> {
 }
 
 async function generateAvatar(
-  character: CharacterAvatarPrompt
+  character: CharacterAvatarPrompt,
 ): Promise<boolean> {
   const outputPath = resolve(
     __dirname,
-    `../public/avatars/${character.filename}`
+    `../public/avatars/${character.filename}`,
   );
 
   if (existsSync(outputPath)) {
@@ -189,7 +189,7 @@ async function generateAllAvatars() {
 
   for (const character of CHARACTER_PROMPTS) {
     const existed = existsSync(
-      resolve(__dirname, `../public/avatars/${character.filename}`)
+      resolve(__dirname, `../public/avatars/${character.filename}`),
     );
     const success = await generateAvatar(character);
 
@@ -201,10 +201,10 @@ async function generateAllAvatars() {
         // Rate limiting: Wait between API calls to avoid rate limits
         if (successCount < CHARACTER_PROMPTS.length - skippedCount) {
           console.log(
-            `  ⏳ Waiting ${AVATAR_GENERATION_DELAY_MS}ms before next generation...`
+            `  ⏳ Waiting ${AVATAR_GENERATION_DELAY_MS}ms before next generation...`,
           );
           await new Promise((resolve) =>
-            setTimeout(resolve, AVATAR_GENERATION_DELAY_MS)
+            setTimeout(resolve, AVATAR_GENERATION_DELAY_MS),
           );
         }
       }
@@ -225,7 +225,7 @@ async function generateAllAvatars() {
 
   if (failedCount > 0) {
     console.log(
-      "⚠️  Some avatars failed to generate. You can re-run this script to retry."
+      "⚠️  Some avatars failed to generate. You can re-run this script to retry.",
     );
   } else {
     console.log("🎉 All avatars generated successfully!");

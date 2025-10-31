@@ -111,7 +111,7 @@ export type CreditMetadata =
  * Type guard to check if metadata is text generation metadata
  */
 export function isTextGenerationMetadata(
-  metadata: unknown
+  metadata: unknown,
 ): metadata is TextGenerationMetadata {
   return (
     typeof metadata === "object" &&
@@ -125,7 +125,7 @@ export function isTextGenerationMetadata(
  * Type guard to check if metadata is image generation metadata
  */
 export function isImageGenerationMetadata(
-  metadata: unknown
+  metadata: unknown,
 ): metadata is ImageGenerationMetadata {
   return (
     typeof metadata === "object" &&
@@ -139,7 +139,7 @@ export function isImageGenerationMetadata(
  * Helper function to create type-safe text generation metadata
  */
 export function createTextGenerationMetadata(
-  data: TextGenerationMetadata
+  data: TextGenerationMetadata,
 ): TextGenerationMetadata {
   return data;
 }
@@ -148,7 +148,7 @@ export function createTextGenerationMetadata(
  * Helper function to create type-safe image generation metadata
  */
 export function createImageGenerationMetadata(
-  data: ImageGenerationMetadata
+  data: ImageGenerationMetadata,
 ): ImageGenerationMetadata {
   return data;
 }
@@ -157,7 +157,7 @@ export function createImageGenerationMetadata(
  * Helper function to create type-safe memory operation metadata
  */
 export function createMemoryOperationMetadata(
-  data: MemoryOperationMetadata
+  data: MemoryOperationMetadata,
 ): MemoryOperationMetadata {
   return data;
 }
@@ -166,7 +166,7 @@ export function createMemoryOperationMetadata(
  * Helper function to create type-safe conversation metadata
  */
 export function createConversationMetadata(
-  data: ConversationMetadata
+  data: ConversationMetadata,
 ): ConversationMetadata {
   return data;
 }
