@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button";
 import LandingHeader from "@/components/layout/landing-header";
 import TopHero from "@/components/landing/TopHero";
 import RouterSection from "@/components/landing/RouterSection";
+import Agents from "@/components/landing/Agents";
 import {
   Cloud,
   Code,
@@ -272,6 +273,9 @@ export function LandingPage() {
 
       {/* Hero Section */}
       <TopHero />
+
+      {/* Agents Section */}
+      <Agents />
 
       {/* Router Section */}
       <RouterSection />
