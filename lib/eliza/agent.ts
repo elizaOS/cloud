@@ -1,7 +1,10 @@
 import type { Character } from "@elizaos/core";
 import { openaiPlugin } from "@elizaos/plugin-openai";
+import { memoryPlugin } from "@elizaos/plugin-memory";
+import { knowledgePluginCore } from "@elizaos/plugin-knowledge";
 import { elevenLabsPlugin } from "@elizaos/plugin-elevenlabs";
 import { assistantPlugin } from "./plugin-assistant";
+import { openrouterPlugin } from "@elizaos/plugin-openrouter";
 // NOTE: plugin-sql is provided via a pre-initialized adapter in agent-runtime
 
 /**
@@ -10,10 +13,7 @@ import { assistantPlugin } from "./plugin-assistant";
 const character: Character = {
   id: "b850bc30-45f8-0041-a00a-83df46d8555d", // existing agent id in DB
   name: "Eliza",
-  plugins: [
-    "@elizaos/plugin-openai",
-    "@elizaos/plugin-elevenlabs",
-  ],
+  plugins: [],
   settings: {
     POSTGRES_URL: process.env.DATABASE_URL!,
     DATABASE_URL: process.env.DATABASE_URL!,
@@ -101,17 +101,19 @@ const character: Character = {
     ],
     chat: [],
   },
-  knowledge: [],
 };
 
 const agent = {
   character,
-  // Now using full plugin architecture with events, providers, and actions
-  // Includes OpenAI for LLM, and ElevenLabs for both TTS and STT
+  // Full plugin architecture with events, providers, and actions
+  // Includes OpenAI for LLM, ElevenLabs for TTS/STT, and knowledge/memory plugins
   plugins: [
     openaiPlugin,
+    openrouterPlugin,
     elevenLabsPlugin,
     assistantPlugin,
+    memoryPlugin,
+    knowledgePluginCore,
   ],
   providers: [
     ...(elevenLabsPlugin.providers || []),

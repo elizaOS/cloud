@@ -34,7 +34,7 @@ export function ElizaPageClient({ initialCharacters }: ElizaPageClientProps) {
   }, [searchParams]);
 
   return (
-    <div className="flex h-full min-h-0 flex-col gap-6 overflow-hidden">
+    <div className="flex h-[calc(100vh-8rem)] min-h-0 flex-col gap-6 overflow-hidden">
       <div className="flex flex-1 min-h-0 overflow-hidden rounded-2xl border bg-card shadow-sm">
         <ElizaChatInterface
           availableCharacters={initialCharacters}
