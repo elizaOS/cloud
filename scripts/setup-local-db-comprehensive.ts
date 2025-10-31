@@ -173,7 +173,6 @@ async function checkTables() {
 
 // Note: This function is available for manual development seeding but not called by default
 // Uncomment the call at the end of main() if you want to seed data
-// eslint-disable-next-line @typescript-eslint/no-unused-vars
 async function seedData() {
   log("Seeding development data...");
   try {

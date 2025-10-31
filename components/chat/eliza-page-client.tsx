@@ -29,7 +29,10 @@ export function ElizaPageClient({ initialCharacters }: ElizaPageClientProps) {
         "[Eliza Page] Character ID from URL:",
         characterId
       );
-      setInitialCharacterId(characterId);
+      // Set character ID asynchronously to avoid cascading renders
+      Promise.resolve().then(() => {
+        setInitialCharacterId(characterId);
+      });
     }
   }, [searchParams]);
 

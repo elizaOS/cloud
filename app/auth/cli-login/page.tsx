@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, Suspense } from "react";
+import { useEffect, useState, useCallback, Suspense } from "react";
 import { useSearchParams } from "next/navigation";
 import { usePrivy } from "@privy-io/react-auth";
 import {
@@ -24,25 +24,7 @@ function CliLoginContent() {
   const [errorMessage, setErrorMessage] = useState<string>("");
   const [apiKeyPrefix, setApiKeyPrefix] = useState<string>("");
 
-  useEffect(() => {
-    // Validate session ID
-    if (!sessionId) {
-      setStatus("error");
-      setErrorMessage("Invalid authentication link. Missing session ID.");
-      return;
-    }
-
-    // If not authenticated, prompt for login
-    if (!authenticated) {
-      setStatus("waiting_auth");
-      return;
-    }
-
-    // User is authenticated, complete the CLI login
-    completeCliLogin();
-  }, [authenticated, sessionId]);
-
-  const completeCliLogin = async () => {
+  const completeCliLogin = useCallback(async () => {
     if (!sessionId) {
       setStatus("error");
       setErrorMessage("Session ID is missing");
@@ -80,7 +62,25 @@ function CliLoginContent() {
           : "Failed to complete authentication",
       );
     }
-  };
+  }, [sessionId]);
+
+  useEffect(() => {
+    // Validate session ID
+    if (!sessionId) {
+      setStatus("error");
+      setErrorMessage("Invalid authentication link. Missing session ID.");
+      return;
+    }
+
+    // If not authenticated, prompt for login
+    if (!authenticated) {
+      setStatus("waiting_auth");
+      return;
+    }
+
+    // User is authenticated, complete the CLI login
+    completeCliLogin();
+  }, [authenticated, sessionId, completeCliLogin]);
 
   if (status === "loading") {
     return (

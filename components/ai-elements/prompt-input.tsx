@@ -710,7 +710,6 @@ export const PromptInput = ({
 
     // Convert blob URLs to data URLs asynchronously
     Promise.all(
-      // eslint-disable-next-line @typescript-eslint/no-unused-vars
       files.map(async ({ id: _id, ...item }) => {
         if (item.url && item.url.startsWith("blob:")) {
           return {
@@ -1107,7 +1106,10 @@ export const PromptInputSpeechButton = ({
       };
 
       recognitionRef.current = speechRecognition;
-      setRecognition(speechRecognition);
+      // Set recognition state asynchronously to avoid cascading renders
+      Promise.resolve().then(() => {
+        setRecognition(speechRecognition);
+      });
     }
 
     return () => {
