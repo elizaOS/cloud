@@ -3,6 +3,7 @@
 import LandingHeader from "@/components/layout/landing-header";
 import TopHero from "@/components/landing/TopHero";
 import RouterSection from "@/components/landing/RouterSection";
+import OnChainTrust from "@/components/landing/OnChainTrust";
 import Agents from "@/components/landing/Agents";
 import Installation from "@/components/landing/Installation";
 import Footer from "@/components/landing/Footer";
@@ -35,6 +36,9 @@ export function LandingPage() {
 
       {/* Router Section */}
       <RouterSection />
+
+      {/* OnChain Trust Section */}
+      <OnChainTrust />
 
       {/* Installation Section */}
       <Installation />
