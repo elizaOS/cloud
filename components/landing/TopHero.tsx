@@ -39,29 +39,30 @@ const TopHero = () => {
 
   return (
     <section
-      className="w-full py-20 md:py-32"
+      className="w-full py-20 md:py-32 relative overflow-hidden"
       style={{ backgroundColor: "#0A0A0A" }}
     >
-      <div className="container mx-auto px-4 md:px-6">
+      {/* Fullscreen background video */}
+      <video
+        src="/videos/crazy.mp4"
+        autoPlay
+        loop
+        muted
+        playsInline
+        className="absolute inset-0 w-full h-full object-cover opacity-30"
+        style={{
+          maskImage:
+            "linear-gradient(to bottom, rgba(0,0,0,1) 40%, rgba(0,0,0,0) 100%)",
+          WebkitMaskImage:
+            "linear-gradient(to bottom, rgba(0,0,0,1) 40%, rgba(0,0,0,0) 100%)",
+        }}
+      />
+      
+      <div className="container mx-auto px-4 md:px-6 relative z-10">
         <div className="mx-auto max-w-6xl text-center">
-          <div className="mb-0 inline-flex items-center gap-2">
-            <video
-              src="/videos/eliza.mp4"
-              autoPlay
-              loop
-              muted
-              className="w-150 h-80 rounded-3xl opacity-90"
-              style={{
-                maskImage:
-                  "linear-gradient(to bottom, rgba(0,0,0,1) 60%, rgba(0,0,0,0) 100%)",
-                WebkitMaskImage:
-                  "linear-gradient(to bottom, rgba(0,0,0,1) 60%, rgba(0,0,0,0) 100%)",
-              }}
-            />
-          </div>
 
           <h1
-            className="-mt-25 mb-6 text-2xl sm:text-3xl md:text-4xl lg:text-5xl xl:text-6xl font-normal tracking-tight relative z-10"
+            className="mb-6 text-2xl sm:text-3xl md:text-4xl lg:text-5xl xl:text-6xl font-normal tracking-tight relative z-10"
             style={{ textShadow: "0 2px 10px rgba(0,0,0,0.5)" }}
           >
             <span className="inline-flex items-center justify-center gap-2 sm:gap-3 md:gap-4">
