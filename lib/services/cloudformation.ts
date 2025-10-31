@@ -30,7 +30,7 @@ export interface UserStackConfig {
   containerPort: number;
   containerCpu: number;
   containerMemory: number;
-  architecture?: 'arm64' | 'x86_64'; // CPU architecture for instance type selection
+  architecture?: "arm64" | "x86_64"; // CPU architecture for instance type selection
   keyName?: string;
   environmentVars?: Record<string, string>;
 }
@@ -150,10 +150,10 @@ export class CloudFormationService {
     // Sanitize project name for CloudFormation stack naming
     const sanitizedProject = projectName
       .toLowerCase()
-      .replace(/[^a-z0-9-]/g, '-')
-      .replace(/^-+|-+$/g, '')
+      .replace(/[^a-z0-9-]/g, "-")
+      .replace(/^-+|-+$/g, "")
       .substring(0, 30); // Limit length for stack name constraints
-    
+
     return `elizaos-${userId}-${sanitizedProject}`;
   }
 
@@ -208,18 +208,26 @@ export class CloudFormationService {
       console.log(`Allocated ALB priority ${albPriority} for ${config.userId}`);
 
       // Load template and parse as JSON for dynamic modification
-      const templateJson = JSON.parse(fs.readFileSync(this.templatePath, "utf-8"));
+      const templateJson = JSON.parse(
+        fs.readFileSync(this.templatePath, "utf-8"),
+      );
 
       // Inject environment variables into container definition if provided
-      if (config.environmentVars && Object.keys(config.environmentVars).length > 0) {
-        const envArray = Object.entries(config.environmentVars).map(([name, value]) => ({
-          Name: name,
-          Value: value,
-        }));
+      if (
+        config.environmentVars &&
+        Object.keys(config.environmentVars).length > 0
+      ) {
+        const envArray = Object.entries(config.environmentVars).map(
+          ([name, value]) => ({
+            Name: name,
+            Value: value,
+          }),
+        );
 
         // Find the TaskDefinition resource and inject environment variables
         if (
-          templateJson.Resources?.TaskDefinition?.Properties?.ContainerDefinitions?.[0]
+          templateJson.Resources?.TaskDefinition?.Properties
+            ?.ContainerDefinitions?.[0]
         ) {
           templateJson.Resources.TaskDefinition.Properties.ContainerDefinitions[0].Environment =
             envArray;
@@ -261,7 +269,7 @@ export class CloudFormationService {
           },
           {
             ParameterKey: "Architecture",
-            ParameterValue: config.architecture || 'arm64',
+            ParameterValue: config.architecture || "arm64",
           },
           { ParameterKey: "SharedVPCId", ParameterValue: sharedOutputs.vpcId },
           {
@@ -311,7 +319,10 @@ export class CloudFormationService {
         return response.StackId!;
       } catch (createError) {
         console.error(`❌ [CloudFormation] CreateStack API call failed:`, {
-          error: createError instanceof Error ? createError.message : String(createError),
+          error:
+            createError instanceof Error
+              ? createError.message
+              : String(createError),
           stack: createError instanceof Error ? createError.stack : undefined,
           name: createError instanceof Error ? createError.name : undefined,
         });
@@ -332,18 +343,26 @@ export class CloudFormationService {
       const stackName = this.getStackName(config.userId, config.projectName);
 
       // Load template and parse as JSON for dynamic modification
-      const templateJson = JSON.parse(fs.readFileSync(this.templatePath, "utf-8"));
+      const templateJson = JSON.parse(
+        fs.readFileSync(this.templatePath, "utf-8"),
+      );
 
       // Inject environment variables into container definition if provided
-      if (config.environmentVars && Object.keys(config.environmentVars).length > 0) {
-        const envArray = Object.entries(config.environmentVars).map(([name, value]) => ({
-          Name: name,
-          Value: value,
-        }));
+      if (
+        config.environmentVars &&
+        Object.keys(config.environmentVars).length > 0
+      ) {
+        const envArray = Object.entries(config.environmentVars).map(
+          ([name, value]) => ({
+            Name: name,
+            Value: value,
+          }),
+        );
 
         // Find the TaskDefinition resource and inject environment variables
         if (
-          templateJson.Resources?.TaskDefinition?.Properties?.ContainerDefinitions?.[0]
+          templateJson.Resources?.TaskDefinition?.Properties
+            ?.ContainerDefinitions?.[0]
         ) {
           templateJson.Resources.TaskDefinition.Properties.ContainerDefinitions[0].Environment =
             envArray;
@@ -360,19 +379,26 @@ export class CloudFormationService {
       const sharedOutputs = await this.getSharedInfrastructureOutputs();
 
       // Get current ALB priority for this stack (don't allocate a new one for updates)
-      const currentStack = await this.getStack(config.userId, config.projectName);
+      const currentStack = await this.getStack(
+        config.userId,
+        config.projectName,
+      );
       let albPriority: number;
-      
+
       if (!currentStack) {
         throw new Error(`Stack ${stackName} not found for update`);
       }
 
       // Extract ALB priority from existing stack parameters
-      const priorityParam = currentStack.Parameters?.find(p => p.ParameterKey === 'ListenerRulePriority');
+      const priorityParam = currentStack.Parameters?.find(
+        (p) => p.ParameterKey === "ListenerRulePriority",
+      );
       if (priorityParam?.ParameterValue) {
         albPriority = parseInt(priorityParam.ParameterValue, 10);
       } else {
-        throw new Error(`Unable to find existing ALB priority for stack ${stackName}`);
+        throw new Error(
+          `Unable to find existing ALB priority for stack ${stackName}`,
+        );
       }
 
       const command = new UpdateStackCommand({
@@ -401,7 +427,7 @@ export class CloudFormationService {
           },
           {
             ParameterKey: "Architecture",
-            ParameterValue: config.architecture || 'arm64',
+            ParameterValue: config.architecture || "arm64",
           },
           { ParameterKey: "SharedVPCId", ParameterValue: sharedOutputs.vpcId },
           {
@@ -451,13 +477,16 @@ export class CloudFormationService {
         return response.StackId!;
       } catch (updateError: any) {
         // Handle "No updates to perform" case gracefully
-        if (updateError.message?.includes('No updates are to be performed')) {
+        if (updateError.message?.includes("No updates are to be performed")) {
           console.log(`ℹ️ No updates needed for stack ${stackName}`);
           return stackName;
         }
-        
+
         console.error(`❌ [CloudFormation] UpdateStack API call failed:`, {
-          error: updateError instanceof Error ? updateError.message : String(updateError),
+          error:
+            updateError instanceof Error
+              ? updateError.message
+              : String(updateError),
           stack: updateError instanceof Error ? updateError.stack : undefined,
           name: updateError instanceof Error ? updateError.name : undefined,
         });
@@ -504,21 +533,24 @@ export class CloudFormationService {
         // Get detailed failure reason from stack events
         const failureDetails = await this.getStackFailureDetails(stackName);
         const failureReason = stack.StackStatusReason || "Unknown failure";
-        
+
         console.error(`❌ [CloudFormation] Stack ${stackName} failed:`, {
           status,
           reason: failureReason,
           failedResources: failureDetails,
         });
-        
-        const failureMessage = failureDetails.length > 0
-          ? failureDetails.map(f => `\n  • ${f.resource}: ${f.reason}`).join('')
-          : '\n  (No detailed failure events found - check AWS CloudFormation console)';
-        
+
+        const failureMessage =
+          failureDetails.length > 0
+            ? failureDetails
+                .map((f) => `\n  • ${f.resource}: ${f.reason}`)
+                .join("")
+            : "\n  (No detailed failure events found - check AWS CloudFormation console)";
+
         throw new Error(
           `CloudFormation stack failed with status: ${status}\n` +
-          `Stack reason: ${failureReason}\n` +
-          `Failed resources:${failureMessage}`,
+            `Stack reason: ${failureReason}\n` +
+            `Failed resources:${failureMessage}`,
         );
       }
 
@@ -535,7 +567,9 @@ export class CloudFormationService {
   /**
    * Get detailed failure reasons from stack events
    */
-  async getStackFailureDetails(stackName: string): Promise<Array<{ resource: string; reason: string; status: string }>> {
+  async getStackFailureDetails(
+    stackName: string,
+  ): Promise<Array<{ resource: string; reason: string; status: string }>> {
     try {
       const command = new DescribeStackEventsCommand({
         StackName: stackName,
@@ -553,13 +587,17 @@ export class CloudFormationService {
 
       // If no CREATE_FAILED, also check for rollback events to get more context
       if (failedEvents.length === 0) {
-        const rollbackEvents = events.filter((event) =>
-          event.ResourceStatus?.includes("ROLLBACK") &&
-          event.ResourceType !== "AWS::CloudFormation::Stack"
-        ).slice(0, 10);
-        
+        const rollbackEvents = events
+          .filter(
+            (event) =>
+              event.ResourceStatus?.includes("ROLLBACK") &&
+              event.ResourceType !== "AWS::CloudFormation::Stack",
+          )
+          .slice(0, 10);
+
         return rollbackEvents.map((event) => ({
-          resource: `${event.LogicalResourceId} (${event.ResourceType})` || "Unknown",
+          resource:
+            `${event.LogicalResourceId} (${event.ResourceType})` || "Unknown",
           reason: event.ResourceStatusReason || "No reason provided",
           status: event.ResourceStatus || "Unknown",
         }));
@@ -568,13 +606,20 @@ export class CloudFormationService {
       return failedEvents
         .slice(0, 10) // Get top 10 failures
         .map((event) => ({
-          resource: `${event.LogicalResourceId} (${event.ResourceType})` || "Unknown",
+          resource:
+            `${event.LogicalResourceId} (${event.ResourceType})` || "Unknown",
           reason: event.ResourceStatusReason || "No reason provided",
           status: event.ResourceStatus || "Unknown",
         }));
     } catch (error) {
       console.error("Failed to fetch stack events:", error);
-      return [{ resource: "Unknown", reason: "Could not fetch stack events", status: "ERROR" }];
+      return [
+        {
+          resource: "Unknown",
+          reason: "Could not fetch stack events",
+          status: "ERROR",
+        },
+      ];
     }
   }
 
@@ -604,7 +649,10 @@ export class CloudFormationService {
   /**
    * Get stack outputs
    */
-  async getStackOutputs(userId: string, projectName: string): Promise<StackOutputs | null> {
+  async getStackOutputs(
+    userId: string,
+    projectName: string,
+  ): Promise<StackOutputs | null> {
     const stack = await this.getStack(userId, projectName);
 
     if (!stack || !stack.Outputs) {

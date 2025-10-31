@@ -25,8 +25,8 @@ interface Particle {
 }
 
 export function EnhancedLoading({ message, progress }: EnhancedLoadingProps) {
-  const [randomMessage] = useState(() =>
-    LOADING_MESSAGES[Math.floor(Math.random() * LOADING_MESSAGES.length)]
+  const [randomMessage] = useState(
+    () => LOADING_MESSAGES[Math.floor(Math.random() * LOADING_MESSAGES.length)],
   );
   const [particles] = useState<Particle[]>(() =>
     [...Array(12)].map(() => ({
@@ -34,7 +34,7 @@ export function EnhancedLoading({ message, progress }: EnhancedLoadingProps) {
       top: `${Math.random() * 100}%`,
       animationDelay: `${Math.random() * 2}s`,
       animationDuration: `${3 + Math.random() * 2}s`,
-    }))
+    })),
   );
   const displayMessage = message || randomMessage;
 
@@ -50,7 +50,7 @@ export function EnhancedLoading({ message, progress }: EnhancedLoadingProps) {
             key={i}
             className={cn(
               "absolute w-2 h-2 rounded-full bg-primary/30",
-              "animate-float"
+              "animate-float",
             )}
             style={particle}
           />

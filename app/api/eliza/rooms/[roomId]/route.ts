@@ -61,13 +61,18 @@ export async function GET(
     // Look up character for this room
     let characterId: string | undefined;
     try {
-      const roomCharacter = await elizaRoomCharactersRepository.findByRoomId(roomId);
+      const roomCharacter =
+        await elizaRoomCharactersRepository.findByRoomId(roomId);
       if (roomCharacter) {
         characterId = roomCharacter.character_id;
         logger.debug("[Eliza Room API] Room has character:", characterId);
       }
     } catch (err) {
-      logger.warn("[Eliza Room API] Failed to get character for room:", roomId, err);
+      logger.warn(
+        "[Eliza Room API] Failed to get character for room:",
+        roomId,
+        err,
+      );
     }
 
     return NextResponse.json(

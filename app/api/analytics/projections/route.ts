@@ -56,7 +56,7 @@ export async function GET(req: NextRequest) {
     const alerts = generateProjectionAlerts(
       historicalData,
       projections,
-      Number(org?.credit_balance || 0)
+      Number(org?.credit_balance || 0),
     );
 
     return NextResponse.json({
@@ -94,7 +94,7 @@ export async function GET(req: NextRequest) {
             ? error.message
             : "Failed to generate projections",
       },
-      { status: 500 }
+      { status: 500 },
     );
   }
 }

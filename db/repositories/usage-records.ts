@@ -385,7 +385,10 @@ export class UsageRecordsRepository {
         ),
       );
 
-    const totalCost = result.reduce((sum, row) => sum + Number(row.totalCost || 0), 0);
+    const totalCost = result.reduce(
+      (sum, row) => sum + Number(row.totalCost || 0),
+      0,
+    );
 
     return result.map((row) => ({
       provider: row.provider,
@@ -393,7 +396,8 @@ export class UsageRecordsRepository {
       totalCost: Number(row.totalCost || 0),
       totalTokens: row.totalTokens,
       successRate: row.successRate,
-      percentage: totalCost > 0 ? (Number(row.totalCost || 0) / totalCost) * 100 : 0,
+      percentage:
+        totalCost > 0 ? (Number(row.totalCost || 0) / totalCost) * 100 : 0,
     }));
   }
 

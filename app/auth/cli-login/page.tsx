@@ -110,7 +110,11 @@ function CliLoginContent() {
             <CardDescription>{errorMessage}</CardDescription>
           </CardHeader>
           <CardContent>
-            <Button onClick={() => window.close()} variant="outline" className="w-full">
+            <Button
+              onClick={() => window.close()}
+              variant="outline"
+              className="w-full"
+            >
               Close Window
             </Button>
           </CardContent>
@@ -190,7 +194,8 @@ function CliLoginContent() {
                   <span className="font-medium">Prefix:</span> {apiKeyPrefix}
                 </p>
                 <p>
-                  <span className="font-medium">Created for:</span> {user?.email?.address || "Your account"}
+                  <span className="font-medium">Created for:</span>{" "}
+                  {user?.email?.address || "Your account"}
                 </p>
               </div>
             </div>
@@ -238,4 +243,3 @@ export default function CliLoginPage() {
     </Suspense>
   );
 }
-

@@ -49,7 +49,7 @@ export class MarketplaceService {
 
     const cached = await marketplaceCache.getSearchResult(
       organizationId,
-      cacheKey
+      cacheKey,
     );
     if (cached) {
       return { ...cached, cached: true };
@@ -57,7 +57,7 @@ export class MarketplaceService {
 
     logger.debug(
       `[Marketplace Service] Searching characters with filters:`,
-      filters
+      filters,
     );
 
     const offset = (pagination.page - 1) * pagination.limit;
@@ -69,17 +69,17 @@ export class MarketplaceService {
         organizationId,
         sortOptions,
         pagination.limit,
-        offset
+        offset,
       ),
       userCharactersRepository.count(filters, userId, organizationId),
     ]);
 
     logger.debug(
-      `[Marketplace Service] Found ${characters.length} characters (${total} total)`
+      `[Marketplace Service] Found ${characters.length} characters (${total} total)`,
     );
 
     let enrichedCharacters = characters.map((char) =>
-      this.toExtendedCharacter(char)
+      this.toExtendedCharacter(char),
     );
 
     if (includeStats) {
@@ -92,7 +92,7 @@ export class MarketplaceService {
       } catch (error) {
         logger.warn(
           `[Marketplace Service] Failed to batch fetch stats:`,
-          error
+          error,
         );
         statsMap = new Map();
       }
@@ -151,7 +151,7 @@ export class MarketplaceService {
           const count = await userCharactersRepository.count(
             { category: category.id },
             "",
-            organizationId
+            organizationId,
           );
 
           return {
@@ -166,7 +166,7 @@ export class MarketplaceService {
         } catch (error) {
           logger.error(
             `[Marketplace Service] Error getting count for category ${category.id}:`,
-            error
+            error,
           );
           return {
             id: category.id,
@@ -178,7 +178,7 @@ export class MarketplaceService {
             featured: false,
           };
         }
-      })
+      }),
     );
 
     await marketplaceCache.setCategories(organizationId, categoriesWithCounts);
@@ -188,7 +188,7 @@ export class MarketplaceService {
 
   async getCharacterById(
     characterId: string,
-    includeStats: boolean = false
+    includeStats: boolean = false,
   ): Promise<ExtendedCharacter | null> {
     const cached = await marketplaceCache.getCharacter(characterId);
     if (cached && (!includeStats || cached.stats)) {
@@ -219,7 +219,7 @@ export class MarketplaceService {
       } catch (error) {
         logger.warn(
           `[Marketplace Service] Failed to get stats for ${characterId}:`,
-          error
+          error,
         );
       }
     }
@@ -233,10 +233,10 @@ export class MarketplaceService {
     characterId: string,
     userId: string,
     organizationId: string,
-    options?: CloneCharacterOptions
+    options?: CloneCharacterOptions,
   ): Promise<ExtendedCharacter> {
     logger.info(
-      `[Marketplace Service] Cloning character ${characterId} for user ${userId}`
+      `[Marketplace Service] Cloning character ${characterId} for user ${userId}`,
     );
 
     const sourceCharacter =
@@ -283,7 +283,7 @@ export class MarketplaceService {
     await this.invalidateUserCache(userId, organizationId);
 
     logger.info(
-      `[Marketplace Service] Successfully cloned character: ${clonedCharacter.id}`
+      `[Marketplace Service] Successfully cloned character: ${clonedCharacter.id}`,
     );
 
     return this.toExtendedCharacter(clonedCharacter);
@@ -299,7 +299,7 @@ export class MarketplaceService {
       await marketplaceCache.invalidateCharacter(characterId);
 
       logger.debug(
-        `[Marketplace Service] Tracked view for character: ${characterId}`
+        `[Marketplace Service] Tracked view for character: ${characterId}`,
       );
 
       return {
@@ -309,7 +309,7 @@ export class MarketplaceService {
     } catch (error) {
       logger.error(
         `[Marketplace Service] Error tracking view for ${characterId}:`,
-        error
+        error,
       );
       return {
         success: false,
@@ -330,7 +330,7 @@ export class MarketplaceService {
       await marketplaceCache.invalidateCharacter(characterId);
 
       logger.debug(
-        `[Marketplace Service] Tracked interaction for character: ${characterId}`
+        `[Marketplace Service] Tracked interaction for character: ${characterId}`,
       );
 
       return {
@@ -340,7 +340,7 @@ export class MarketplaceService {
     } catch (error) {
       logger.error(
         `[Marketplace Service] Error tracking interaction for ${characterId}:`,
-        error
+        error,
       );
       return {
         success: false,
@@ -363,16 +363,16 @@ export class MarketplaceService {
       this.calculateRecencyScore(character.updated_at) * recencyWeight;
 
     const popularityScore = Math.round(
-      viewScore + interactionScore + recencyScore
+      viewScore + interactionScore + recencyScore,
     );
 
     await userCharactersRepository.updatePopularityScore(
       characterId,
-      popularityScore
+      popularityScore,
     );
 
     logger.debug(
-      `[Marketplace Service] Updated popularity score for ${characterId}: ${popularityScore}`
+      `[Marketplace Service] Updated popularity score for ${characterId}: ${popularityScore}`,
     );
   }
 
@@ -385,12 +385,12 @@ export class MarketplaceService {
 
   async getFeaturedCharacters(
     limit: number = 10,
-    includeStats: boolean = false
+    includeStats: boolean = false,
   ): Promise<ExtendedCharacter[]> {
     const featured = await userCharactersRepository.getFeatured(limit);
 
     let extendedCharacters = featured.map((char) =>
-      this.toExtendedCharacter(char)
+      this.toExtendedCharacter(char),
     );
 
     if (includeStats) {
@@ -398,7 +398,7 @@ export class MarketplaceService {
         extendedCharacters.map(async (char) => {
           try {
             const stats = await agentDiscoveryService.getAgentStatistics(
-              char.id
+              char.id,
             );
             return {
               ...char,
@@ -413,7 +413,7 @@ export class MarketplaceService {
           } catch (error) {
             return char;
           }
-        })
+        }),
       );
     }
 
@@ -422,12 +422,12 @@ export class MarketplaceService {
 
   async getPopularCharacters(
     limit: number = 20,
-    includeStats: boolean = false
+    includeStats: boolean = false,
   ): Promise<ExtendedCharacter[]> {
     const popular = await userCharactersRepository.getPopular(limit);
 
     let extendedCharacters = popular.map((char) =>
-      this.toExtendedCharacter(char)
+      this.toExtendedCharacter(char),
     );
 
     if (includeStats) {
@@ -435,7 +435,7 @@ export class MarketplaceService {
         extendedCharacters.map(async (char) => {
           try {
             const stats = await agentDiscoveryService.getAgentStatistics(
-              char.id
+              char.id,
             );
             return {
               ...char,
@@ -450,7 +450,7 @@ export class MarketplaceService {
           } catch (error) {
             return char;
           }
-        })
+        }),
       );
     }
 
@@ -477,7 +477,7 @@ export class MarketplaceService {
 
     const cached = await marketplaceCache.getSearchResult(
       organizationId,
-      cacheKey
+      cacheKey,
     );
     if (cached) {
       logger.debug("[Marketplace Service] Public cache hit");
@@ -493,17 +493,17 @@ export class MarketplaceService {
         filters,
         sortOptions,
         pagination.limit,
-        offset
+        offset,
       ),
       userCharactersRepository.countPublic(filters),
     ]);
 
     logger.debug(
-      `[Marketplace Service] Found ${characters.length} public characters (${total} total)`
+      `[Marketplace Service] Found ${characters.length} public characters (${total} total)`,
     );
 
     let enrichedCharacters = characters.map((char) =>
-      this.toExtendedCharacter(char)
+      this.toExtendedCharacter(char),
     );
 
     if (includeStats) {
@@ -511,7 +511,7 @@ export class MarketplaceService {
         enrichedCharacters.map(async (char) => {
           try {
             const stats = await agentDiscoveryService.getAgentStatistics(
-              char.id
+              char.id,
             );
             return {
               ...char,
@@ -526,11 +526,11 @@ export class MarketplaceService {
           } catch (error) {
             logger.warn(
               `[Marketplace Service] Failed to get stats for ${char.id}:`,
-              error
+              error,
             );
             return char;
           }
-        })
+        }),
       );
     }
 
@@ -554,7 +554,7 @@ export class MarketplaceService {
       organizationId,
       cacheKey,
       result,
-      30 * 60
+      30 * 60,
     );
 
     return result;
@@ -588,7 +588,7 @@ export class MarketplaceService {
         } catch (error) {
           logger.error(
             `[Marketplace Service] Error getting count for category ${category.id}:`,
-            error
+            error,
           );
           return {
             id: category.id,
@@ -600,17 +600,17 @@ export class MarketplaceService {
             featured: false,
           };
         }
-      })
+      }),
     );
 
     const nonEmptyCategories = categoriesWithCounts.filter(
-      (cat) => cat.characterCount > 0
+      (cat) => cat.characterCount > 0,
     );
 
     await marketplaceCache.setCategories(
       organizationId,
       nonEmptyCategories,
-      60 * 60
+      60 * 60,
     );
 
     return nonEmptyCategories;
@@ -649,7 +649,7 @@ export class MarketplaceService {
 
   private async invalidateUserCache(
     userId: string,
-    organizationId: string
+    organizationId: string,
   ): Promise<void> {
     await Promise.all([
       marketplaceCache.invalidateSearchResults(organizationId),
@@ -658,7 +658,7 @@ export class MarketplaceService {
     ]);
 
     logger.debug(
-      `[Marketplace Service] Invalidated caches for user: ${userId}`
+      `[Marketplace Service] Invalidated caches for user: ${userId}`,
     );
   }
 }

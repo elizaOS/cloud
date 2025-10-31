@@ -33,35 +33,35 @@ export class CreditsService {
   }
 
   async getTransactionByStripePaymentIntent(
-    paymentIntentId: string
+    paymentIntentId: string,
   ): Promise<CreditTransaction | undefined> {
     return await creditTransactionsRepository.findByStripePaymentIntent(
-      paymentIntentId
+      paymentIntentId,
     );
   }
 
   async listTransactionsByOrganization(
     organizationId: string,
-    limit?: number
+    limit?: number,
   ): Promise<CreditTransaction[]> {
     return await creditTransactionsRepository.listByOrganization(
       organizationId,
-      limit
+      limit,
     );
   }
 
   async listTransactionsByOrganizationAndType(
     organizationId: string,
-    type: string
+    type: string,
   ): Promise<CreditTransaction[]> {
     return await creditTransactionsRepository.listByOrganizationAndType(
       organizationId,
-      type
+      type,
     );
   }
 
   async createTransaction(
-    data: NewCreditTransaction
+    data: NewCreditTransaction,
   ): Promise<CreditTransaction> {
     return await creditTransactionsRepository.create(data);
   }
@@ -246,7 +246,7 @@ export class CreditsService {
   }
 
   async getCreditPackByStripePriceId(
-    stripePriceId: string
+    stripePriceId: string,
   ): Promise<CreditPack | undefined> {
     return await creditPacksRepository.findByStripePriceId(stripePriceId);
   }

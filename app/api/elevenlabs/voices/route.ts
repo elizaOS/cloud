@@ -26,7 +26,7 @@ export async function GET() {
     });
 
     logger.info(
-      `[Voices API] Returning ${publicVoices.length} public voices (filtered from ${allVoices.length} total)`
+      `[Voices API] Returning ${publicVoices.length} public voices (filtered from ${allVoices.length} total)`,
     );
 
     return NextResponse.json({
@@ -41,13 +41,13 @@ export async function GET() {
     ) {
       return NextResponse.json(
         { error: "Service not configured" },
-        { status: 500 }
+        { status: 500 },
       );
     }
 
     return NextResponse.json(
       { error: "Failed to fetch voices. Please try again." },
-      { status: 500 }
+      { status: 500 },
     );
   }
 }

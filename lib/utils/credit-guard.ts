@@ -198,7 +198,7 @@ export async function executeWithCreditGuard<T>({
  * Helper function to standardize usage record creation
  */
 export async function createUsageRecord(
-  params: UsageRecordParams
+  params: UsageRecordParams,
 ): Promise<void> {
   await usageService.create({
     organization_id: params.organization_id,
@@ -223,7 +223,7 @@ export async function createUsageRecord(
  */
 export async function hasSufficientCredits(
   organizationId: string,
-  requiredAmount: number
+  requiredAmount: number,
 ): Promise<{ sufficient: boolean; currentBalance: number }> {
   const org = await organizationsService.getById(organizationId);
   if (!org) {

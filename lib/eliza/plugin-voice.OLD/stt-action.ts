@@ -21,7 +21,7 @@ import type {
  */
 async function transcribeAudio(
   options: TranscriptionOptions,
-  settings: VoiceSettings
+  settings: VoiceSettings,
 ): Promise<TranscriptionResult> {
   const client = new ElevenLabsClient({ apiKey: settings.apiKey });
 
@@ -86,7 +86,7 @@ export const speechToTextAction: Action = {
 
     // Check if any attachment is audio
     const hasAudioAttachment = message.content.attachments.some((att) =>
-      att.contentType?.startsWith("audio/")
+      att.contentType?.startsWith("audio/"),
     );
 
     if (!hasAudioAttachment) {
@@ -106,7 +106,7 @@ export const speechToTextAction: Action = {
     message,
     state?: State,
     options?: { [key: string]: unknown },
-    callback?: HandlerCallback
+    callback?: HandlerCallback,
   ): Promise<void> => {
     try {
       // Get voice settings from character config
@@ -114,7 +114,7 @@ export const speechToTextAction: Action = {
         apiKey: String(
           runtime.character?.settings?.ELEVENLABS_API_KEY ||
             process.env.ELEVENLABS_API_KEY ||
-            ""
+            "",
         ),
         languageCode: runtime.character?.settings?.ELEVENLABS_LANGUAGE_CODE
           ? String(runtime.character.settings.ELEVENLABS_LANGUAGE_CODE)
@@ -123,7 +123,7 @@ export const speechToTextAction: Action = {
 
       // Find audio attachment
       const audioAttachment = message.content?.attachments?.find((att) =>
-        att.contentType?.startsWith("audio/")
+        att.contentType?.startsWith("audio/"),
       );
 
       if (!audioAttachment) {
@@ -147,7 +147,7 @@ export const speechToTextAction: Action = {
           audioFile: audioBlob,
           languageCode: settings.languageCode,
         },
-        settings
+        settings,
       );
 
       if (!result.transcript) {

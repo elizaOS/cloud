@@ -63,13 +63,13 @@ export async function GET(request: NextRequest) {
     if (!checkRateLimit(ip)) {
       return NextResponse.json(
         { error: "Rate limit exceeded. Please try again later." },
-        { status: 429 }
+        { status: 429 },
       );
     }
 
     const { searchParams } = new URL(request.url);
     const parsed = PublicMarketplaceQuerySchema.safeParse(
-      Object.fromEntries(searchParams.entries())
+      Object.fromEntries(searchParams.entries()),
     );
 
     if (!parsed.success) {
@@ -78,7 +78,7 @@ export async function GET(request: NextRequest) {
           error: "Invalid parameters",
           details: parsed.error.issues,
         },
-        { status: 400 }
+        { status: 400 },
       );
     }
 
@@ -122,11 +122,9 @@ export async function GET(request: NextRequest) {
       {
         success: false,
         error:
-          error instanceof Error
-            ? error.message
-            : "Failed to fetch characters",
+          error instanceof Error ? error.message : "Failed to fetch characters",
       },
-      { status: 500 }
+      { status: 500 },
     );
   }
 }

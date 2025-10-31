@@ -193,11 +193,11 @@ export function CharacterDetailsModal({
                 </h3>
                 <div className="space-y-1">
                   {character.plugins.map((plugin) => (
-                    <div
-                      key={plugin}
-                      className="text-sm text-muted-foreground"
-                    >
-                      • {plugin.replace("@elizaos/plugin-", "").replace(/-/g, " ")}
+                    <div key={plugin} className="text-sm text-muted-foreground">
+                      •{" "}
+                      {plugin
+                        .replace("@elizaos/plugin-", "")
+                        .replace(/-/g, " ")}
                     </div>
                   ))}
                 </div>

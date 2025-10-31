@@ -407,8 +407,7 @@ const mcpDefinitions = [
             options: ["1024x1024", "1536x1024", "1024x1536", "auto"],
             optional: true,
             default: "auto",
-            description:
-              "Image size: square, landscape, portrait, or auto",
+            description: "Image size: square, landscape, portrait, or auto",
           },
           quality: {
             type: "enum",
@@ -445,4 +444,3 @@ export async function GET() {
     categories: ["platform", "crypto", "social", "ai"],
   });
 }
-

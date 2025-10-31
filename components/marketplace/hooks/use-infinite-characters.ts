@@ -65,7 +65,7 @@ export function useInfiniteCharacters({
 
         const response = await fetch(
           `/api/marketplace/characters?${params.toString()}`,
-          { signal: abortControllerRef.current.signal }
+          { signal: abortControllerRef.current.signal },
         );
 
         if (!response.ok) {
@@ -86,7 +86,7 @@ export function useInfiniteCharacters({
               // Enforce max cache size to prevent memory issues
               if (newCharacters.length > maxCached) {
                 logger.debug(
-                  `[useInfiniteCharacters] Max cache size reached (${newCharacters.length}). Consider resetting to page 1.`
+                  `[useInfiniteCharacters] Max cache size reached (${newCharacters.length}). Consider resetting to page 1.`,
                 );
                 // Keep only the most recent maxCached characters
                 return newCharacters.slice(-maxCached);
@@ -121,7 +121,7 @@ export function useInfiniteCharacters({
         setIsLoadingMore(false);
       }
     },
-    [filters, sortBy, includeStats]
+    [filters, sortBy, includeStats],
   );
 
   useEffect(() => {

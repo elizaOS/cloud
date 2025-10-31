@@ -75,8 +75,8 @@ class AgentEventEmitter {
     };
 
     // Fire-and-forget: don't await Redis operations
-    this.publishEvent(roomId, event).catch(err =>
-      logger.error("[Agent Events] Failed to emit response_started:", err)
+    this.publishEvent(roomId, event).catch((err) =>
+      logger.error("[Agent Events] Failed to emit response_started:", err),
     );
   }
 
@@ -119,8 +119,8 @@ class AgentEventEmitter {
     };
 
     // Fire-and-forget: don't await Redis operations
-    this.publishEvent(roomId, event).catch(err =>
-      logger.error("[Agent Events] Failed to emit response_complete:", err)
+    this.publishEvent(roomId, event).catch((err) =>
+      logger.error("[Agent Events] Failed to emit response_complete:", err),
     );
   }
 
@@ -140,10 +140,7 @@ class AgentEventEmitter {
     await this.publishEvent(roomId, event);
   }
 
-  private async publishEvent(
-    roomId: string,
-    event: AgentEvent,
-  ): Promise<void> {
+  private async publishEvent(roomId: string, event: AgentEvent): Promise<void> {
     if (!this.redis) return;
 
     try {
@@ -156,9 +153,7 @@ class AgentEventEmitter {
       await this.redis.rpush(channel, message);
       await this.redis.expire(channel, 300);
 
-      logger.debug(
-        `[Agent Events] Published ${event.type} to ${channel}`,
-      );
+      logger.debug(`[Agent Events] Published ${event.type} to ${channel}`);
     } catch (error) {
       logger.error("[Agent Events] Failed to publish event:", error);
     }

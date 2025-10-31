@@ -31,8 +31,12 @@ export const users = pgTable(
   },
   (table) => ({
     email_idx: index("users_email_idx").on(table.email),
-    wallet_address_idx: index("users_wallet_address_idx").on(table.wallet_address),
-    wallet_chain_type_idx: index("users_wallet_chain_type_idx").on(table.wallet_chain_type),
+    wallet_address_idx: index("users_wallet_address_idx").on(
+      table.wallet_address,
+    ),
+    wallet_chain_type_idx: index("users_wallet_chain_type_idx").on(
+      table.wallet_chain_type,
+    ),
     organization_idx: index("users_organization_idx").on(table.organization_id),
     is_active_idx: index("users_is_active_idx").on(table.is_active),
     privy_user_id_idx: index("users_privy_user_id_idx").on(table.privy_user_id),

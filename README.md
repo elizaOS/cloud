@@ -684,6 +684,7 @@ BLOB_READ_WRITE_TOKEN=vercel_blob_rw_your_token
 10. Credits automatically deducted based on container resources (CPU/memory)
 
 **Multi-Project Example**:
+
 ```bash
 # Deploy first project
 cd ~/chatbot
@@ -703,6 +704,7 @@ elizaos deploy --project-name chatbot  # Auto-detected as update
 ```
 
 **Human-Readable URLs**:
+
 - Format: `https://{userId-prefix}-{project-name}.containers.elizacloud.ai`
 - Example: `https://fc51b251-chatbot.containers.elizacloud.ai`
 - Uses first segment of UUID + project name for easy recognition
@@ -710,12 +712,14 @@ elizaos deploy --project-name chatbot  # Auto-detected as update
 **Instance Specs (Auto-Selected)**:
 
 **ARM64 (t4g.small - Recommended)**:
+
 - **2 vCPUs** (ARM Graviton2)
 - **2 GiB RAM** (2048 MB)
 - **$15.76/month** ($12.26 instance + $3.50 storage/monitoring)
 - Default container allocation: 1.75 vCPU (1792 units), 1.75 GiB RAM (1792 MB, 87.5% of instance)
 
 **x86_64 (t3.small - Universal)**:
+
 - **2 vCPUs** (Intel/AMD)
 - **2 GiB RAM** (2048 MB)
 - **$18.68/month** ($15.18 instance + $3.50 storage/monitoring)
@@ -724,6 +728,7 @@ elizaos deploy --project-name chatbot  # Auto-detected as update
 Platform is automatically detected from your system. ARM64 provides better cost efficiency ($2.92/month savings) while x86_64 ensures universal compatibility.
 
 **Container Management**:
+
 ```bash
 # List all containers (with project names)
 elizaos containers list --api-key eliza_xxx

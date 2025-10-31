@@ -5,7 +5,7 @@
 
 export const CONTAINER_PRICING = {
   // One-time costs
-  DEPLOYMENT: 0.50, // $0.50 per deployment
+  DEPLOYMENT: 0.5, // $0.50 per deployment
   IMAGE_UPLOAD: 0.25, // $0.25 per image upload
 
   // Recurring costs (per hour, charged daily)
@@ -13,7 +13,7 @@ export const CONTAINER_PRICING = {
   RUNNING_COST_PER_DAY: 0.24, // $0.24/day
 
   // Resource-based costs
-  COST_PER_GB_STORAGE: 0.10, // $0.10/GB/month
+  COST_PER_GB_STORAGE: 0.1, // $0.10/GB/month
   COST_PER_GB_BANDWIDTH: 0.05, // $0.05/GB outbound
 
   // Scaling costs
@@ -52,13 +52,13 @@ export function getMaxContainersForOrg(
 
   // Default tiering based on credit balance (USD)
   const balance = Number(creditBalance);
-  if (balance >= 100.00) {
+  if (balance >= 100.0) {
     return CONTAINER_LIMITS.ENTERPRISE_MAX_CONTAINERS; // $100+
   }
-  if (balance >= 10.00) {
+  if (balance >= 10.0) {
     return CONTAINER_LIMITS.PRO_MAX_CONTAINERS; // $10+
   }
-  if (balance >= 1.00) {
+  if (balance >= 1.0) {
     return CONTAINER_LIMITS.STARTER_MAX_CONTAINERS; // $1+
   }
 
@@ -93,13 +93,13 @@ export function calculateDeploymentCost(config: {
   if (config.cpu && config.cpu > 256) {
     // Base is 256 CPU, charge extra for higher tiers
     const cpuMultiplier = config.cpu / 256;
-    totalCost += Math.round(((cpuMultiplier - 1) * 2.0) * 100) / 100;
+    totalCost += Math.round((cpuMultiplier - 1) * 2.0 * 100) / 100;
   }
 
   if (config.memory && config.memory > 512) {
     // Base is 512MB, charge extra for more memory
     const memoryMultiplier = config.memory / 512;
-    totalCost += Math.round(((memoryMultiplier - 1) * 1.0) * 100) / 100;
+    totalCost += Math.round((memoryMultiplier - 1) * 1.0 * 100) / 100;
   }
 
   return totalCost;

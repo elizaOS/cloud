@@ -53,7 +53,7 @@ export class VoiceCloningService {
    * Create a voice clone (instant or professional)
    */
   async createVoiceClone(
-    params: CreateVoiceCloneParams
+    params: CreateVoiceCloneParams,
   ): Promise<VoiceCloneResult> {
     const {
       organizationId,
@@ -109,7 +109,7 @@ export class VoiceCloningService {
                 {
                   access: "public",
                   addRandomSuffix: true,
-                }
+                },
               );
 
               logger.info("[VoiceCloning] Uploaded sample to blob storage", {
@@ -135,17 +135,17 @@ export class VoiceCloningService {
                   jobId: job.id,
                   fileName: file.name,
                   error: error instanceof Error ? error.message : "Unknown",
-                }
+                },
               );
             }
-          })
+          }),
         );
       } else {
         logger.info(
           "[VoiceCloning] Skipping blob storage (no token configured)",
           {
             jobId: job.id,
-          }
+          },
         );
       }
 
@@ -288,8 +288,8 @@ export class VoiceCloningService {
       .where(
         and(
           eq(userVoices.id, voiceId),
-          eq(userVoices.organizationId, organizationId)
-        )
+          eq(userVoices.organizationId, organizationId),
+        ),
       );
 
     if (!voice) {
@@ -317,7 +317,7 @@ export class VoiceCloningService {
       settings?: Record<string, unknown>;
       isActive?: boolean;
       isPublic?: boolean;
-    }
+    },
   ) {
     const [updatedVoice] = await db
       .update(userVoices)
@@ -328,8 +328,8 @@ export class VoiceCloningService {
       .where(
         and(
           eq(userVoices.id, voiceId),
-          eq(userVoices.organizationId, organizationId)
-        )
+          eq(userVoices.organizationId, organizationId),
+        ),
       )
       .returning();
 
@@ -423,8 +423,8 @@ export class VoiceCloningService {
       .where(
         and(
           eq(voiceCloningJobs.id, jobId),
-          eq(voiceCloningJobs.organizationId, organizationId)
-        )
+          eq(voiceCloningJobs.organizationId, organizationId),
+        ),
       );
 
     return job || null;
@@ -459,7 +459,7 @@ export class VoiceCloningService {
       // Check file size
       if (file.size > this.MAX_FILE_SIZE) {
         throw new Error(
-          `File "${file.name}" exceeds maximum size of ${this.MAX_FILE_SIZE / 1024 / 1024}MB`
+          `File "${file.name}" exceeds maximum size of ${this.MAX_FILE_SIZE / 1024 / 1024}MB`,
         );
       }
 
@@ -467,12 +467,12 @@ export class VoiceCloningService {
       const isValidType =
         file.type.startsWith("audio/") ||
         this.ALLOWED_TYPES.some((type) =>
-          file.type.includes(type.split(";")[0])
+          file.type.includes(type.split(";")[0]),
         );
 
       if (!isValidType) {
         throw new Error(
-          `File "${file.name}" has invalid type "${file.type}". Only audio files are allowed.`
+          `File "${file.name}" has invalid type "${file.type}". Only audio files are allowed.`,
         );
       }
 
@@ -488,7 +488,7 @@ export class VoiceCloningService {
 
     if (totalSize > maxTotalSize) {
       throw new Error(
-        `Total file size exceeds maximum of ${maxTotalSize / 1024 / 1024}MB`
+        `Total file size exceeds maximum of ${maxTotalSize / 1024 / 1024}MB`,
       );
     }
   }

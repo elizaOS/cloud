@@ -108,7 +108,7 @@ export function ApiTester({
 
     const fileArray = Array.from(files);
     const audioFiles = fileArray.filter((file) =>
-      file.type.startsWith("audio/")
+      file.type.startsWith("audio/"),
     );
 
     if (audioFiles.length === 0) {
@@ -192,7 +192,7 @@ export function ApiTester({
           if (parameters[param.name]) {
             url = url.replace(
               `{${param.name}}`,
-              encodeURIComponent(String(parameters[param.name]))
+              encodeURIComponent(String(parameters[param.name])),
             );
           }
         });
@@ -279,7 +279,7 @@ export function ApiTester({
                       mode: "error",
                     });
                     throw new Error(
-                      `Invalid JSON for required parameter: ${param.name}`
+                      `Invalid JSON for required parameter: ${param.name}`,
                     );
                   }
                   bodyData[param.name] = value;
@@ -393,7 +393,7 @@ export function ApiTester({
         if (parameters[param.name]) {
           url = url.replace(
             `{${param.name}}`,
-            encodeURIComponent(String(parameters[param.name]))
+            encodeURIComponent(String(parameters[param.name])),
           );
         }
       });
@@ -458,7 +458,7 @@ export function ApiTester({
       format?: string;
       defaultValue?: unknown;
     },
-    value: unknown
+    value: unknown,
   ) => {
     const inputId = `param-${param.name}`;
 
@@ -516,14 +516,14 @@ export function ApiTester({
                 : JSON.stringify(
                     value || param.defaultValue || param.example,
                     null,
-                    2
+                    2,
                   )
             }
             onChange={(e) => handleParameterChange(param.name, e.target.value)}
             placeholder={JSON.stringify(
               param.defaultValue || param.example,
               null,
-              2
+              2,
             )}
             rows={4}
             className="font-mono"
@@ -778,7 +778,7 @@ export function ApiTester({
                         {(
                           uploadedFiles.reduce(
                             (acc, file) => acc + file.size,
-                            0
+                            0,
                           ) /
                           1024 /
                           1024
@@ -810,7 +810,7 @@ export function ApiTester({
               <CardContent>
                 <div className="space-y-4">
                   {endpoint.parameters.path.map((param) =>
-                    renderParameterInput(param, parameters[param.name])
+                    renderParameterInput(param, parameters[param.name]),
                   )}
                 </div>
               </CardContent>
@@ -829,7 +829,7 @@ export function ApiTester({
                 <CardContent>
                   <div className="space-y-4">
                     {endpoint.parameters.query.map((param) =>
-                      renderParameterInput(param, parameters[param.name])
+                      renderParameterInput(param, parameters[param.name]),
                     )}
                   </div>
                 </CardContent>
@@ -858,10 +858,10 @@ export function ApiTester({
                           !(
                             endpoint.path === "/api/elevenlabs/voices/clone" &&
                             param.name.startsWith("file")
-                          )
+                          ),
                       )
                       .map((param) =>
-                        renderParameterInput(param, parameters[param.name])
+                        renderParameterInput(param, parameters[param.name]),
                       )}
                   </div>
                 </CardContent>
@@ -901,7 +901,7 @@ export function ApiTester({
                           "rounded-full px-2.5 py-1 text-xs font-medium",
                           response.success
                             ? "bg-emerald-500/10 text-emerald-600 ring-1 ring-inset ring-emerald-500/30 dark:text-emerald-300"
-                            : "bg-rose-500/10 text-rose-600 ring-1 ring-inset ring-rose-500/30 dark:text-rose-300"
+                            : "bg-rose-500/10 text-rose-600 ring-1 ring-inset ring-rose-500/30 dark:text-rose-300",
                         )}
                       >
                         {response.status} {response.statusText}
@@ -937,7 +937,7 @@ export function ApiTester({
                           className="gap-2"
                           onClick={() => {
                             navigator.clipboard.writeText(
-                              formatResponseData(response.data)
+                              formatResponseData(response.data),
                             );
                             toast({
                               message: "Response copied to clipboard",

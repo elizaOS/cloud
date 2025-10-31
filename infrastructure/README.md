@@ -47,18 +47,18 @@ This infrastructure enables **ElizaOS project deployment to AWS** via `elizaos d
 
 **All core features are fully implemented and production-ready:**
 
-| Component | Status | Notes |
-|-----------|--------|-------|
-| CloudFormation Templates | ✅ Complete | `shared-infrastructure.json`, `per-user-stack.json` |
-| Deployment Scripts | ✅ Complete | Deploy, teardown, list scripts with validation |
-| CloudFormation Service | ✅ Complete | Stack creation, deletion, updates, monitoring |
-| ALB Priority Manager | ✅ Complete | Sequential allocation, database-backed, cleanup cron |
-| ECR Integration | ✅ Complete | Repository management, auth tokens, lifecycle policies |
-| Container APIs | ✅ Complete | CRUD, quota, credentials, health, deployments |
-| Monitoring APIs | ✅ Complete | CloudWatch metrics and logs with dynamic discovery |
-| UI Components | ✅ Complete | Tables, metrics dashboard, log viewer, history |
-| Cron Jobs | ✅ Complete | Hourly priority cleanup configured in `vercel.json` |
-| Database Schema | ✅ Complete | Containers, ALB priorities with migrations |
+| Component                | Status      | Notes                                                  |
+| ------------------------ | ----------- | ------------------------------------------------------ |
+| CloudFormation Templates | ✅ Complete | `shared-infrastructure.json`, `per-user-stack.json`    |
+| Deployment Scripts       | ✅ Complete | Deploy, teardown, list scripts with validation         |
+| CloudFormation Service   | ✅ Complete | Stack creation, deletion, updates, monitoring          |
+| ALB Priority Manager     | ✅ Complete | Sequential allocation, database-backed, cleanup cron   |
+| ECR Integration          | ✅ Complete | Repository management, auth tokens, lifecycle policies |
+| Container APIs           | ✅ Complete | CRUD, quota, credentials, health, deployments          |
+| Monitoring APIs          | ✅ Complete | CloudWatch metrics and logs with dynamic discovery     |
+| UI Components            | ✅ Complete | Tables, metrics dashboard, log viewer, history         |
+| Cron Jobs                | ✅ Complete | Hourly priority cleanup configured in `vercel.json`    |
+| Database Schema          | ✅ Complete | Containers, ALB priorities with migrations             |
 
 **Known Limitations (by design)**:
 
@@ -80,6 +80,7 @@ This infrastructure enables **ElizaOS project deployment to AWS** via `elizaos d
 ### For Platform Operators
 
 **Deploy Shared Infrastructure (one time)**:
+
 ```bash
 cd infrastructure/cloudformation
 export AWS_REGION=us-east-1
@@ -89,16 +90,19 @@ export ENVIRONMENT=production
 ```
 
 **List Deployed Containers**:
+
 ```bash
 ./list-user-stacks.sh
 ```
 
 **Delete Single User Container**:
+
 ```bash
 ./teardown-user-stack.sh <userId>
 ```
 
 **Monitor ALB Priority Usage** (via API):
+
 ```bash
 curl https://your-domain.com/api/cron/cleanup-priorities \
   -H "Authorization: Bearer $CRON_SECRET"
@@ -107,6 +111,7 @@ curl https://your-domain.com/api/cron/cleanup-priorities \
 ### For End Users
 
 **Deploy ElizaOS Project**:
+
 ```bash
 export ELIZAOS_API_KEY="eliza_your_key_here"
 cd your-elizaos-project
@@ -114,6 +119,7 @@ elizaos deploy
 ```
 
 **View Logs**:
+
 ```bash
 # Via UI: https://your-domain.com/dashboard/containers/{id}
 # Via API:
@@ -122,12 +128,14 @@ curl https://your-domain.com/api/v1/containers/{id}/logs \
 ```
 
 **View Metrics**:
+
 ```bash
 curl https://your-domain.com/api/v1/containers/{id}/metrics \
   -H "Authorization: Bearer $ELIZAOS_API_KEY"
 ```
 
 **Get Direct EC2 Access URL**:
+
 ```bash
 # Via CloudFormation stack outputs
 aws cloudformation describe-stacks \
@@ -227,6 +235,7 @@ curl http://ec2-xx-xxx-xxx-xxx.compute-1.amazonaws.com:3000/health
    - Example: `http://ec2-54-123-45-67.compute-1.amazonaws.com:3000`
 
 **Network Configuration**:
+
 - ✅ ALB security group: Allows **0.0.0.0/0** on ports 80 and 443
 - ✅ Container security group: Allows **0.0.0.0/0** on container port (direct access)
 - ✅ Container security group: Allows traffic from ALB (routed access)
@@ -332,6 +341,7 @@ echo "Create DNS record: *.containers.elizacloud.ai → CNAME → $ALB_DNS"
 ```
 
 **Add this to your DNS provider** (e.g., Cloudflare, Route53, etc.):
+
 ```
 Type: CNAME
 Name: *.containers.elizacloud.ai
@@ -351,6 +361,7 @@ dig test.elizacloud.ai
 ```
 
 **Test public access**:
+
 ```bash
 # After DNS propagates, test with any subdomain
 curl https://test.elizacloud.ai
@@ -452,7 +463,8 @@ elizaos deploy --name test-container
 2. **View metrics**: Wait 5 minutes for CloudWatch data to populate
 3. **View logs**: Should show container startup messages
 4. **Test ALB access**: `curl https://<userId>.elizacloud.ai/health`
-5. **Test direct EC2 access**: 
+5. **Test direct EC2 access**:
+
    ```bash
    # Get EC2 public DNS from stack outputs
    aws cloudformation describe-stacks \
@@ -460,7 +472,7 @@ elizaos deploy --name test-container
      --region us-east-1 \
      --query 'Stacks[0].Outputs[?OutputKey==`DirectAccessUrl`].OutputValue' \
      --output text
-   
+
    # Test direct access (HTTP, no HTTPS)
    curl http://ec2-xx-xxx-xxx-xxx.compute-1.amazonaws.com:3000/health
    ```
@@ -474,27 +486,29 @@ elizaos deploy --name test-container
 **Production Templates**:
 
 ✅ **`shared-infrastructure.json`** - Shared resources (deploy once)
-  - VPC with 2 public subnets across availability zones
-  - Internet Gateway and routing
-  - Application Load Balancer (internet-facing)
-  - HTTPS listener (port 443) with ACM certificate
-  - HTTP→HTTPS redirect (port 80)
-  - IAM roles: ECS Instance, Task Execution, Task
-  - Security groups for ALB and container isolation
-  - Cost: ~$21-36/month (fixed, shared across all users)
+
+- VPC with 2 public subnets across availability zones
+- Internet Gateway and routing
+- Application Load Balancer (internet-facing)
+- HTTPS listener (port 443) with ACM certificate
+- HTTP→HTTPS redirect (port 80)
+- IAM roles: ECS Instance, Task Execution, Task
+- Security groups for ALB and container isolation
+- Cost: ~$21-36/month (fixed, shared across all users)
 
 ✅ **`per-user-stack.json`** - Per-user resources (deploy per container)
-  - EC2 instance (multi-architecture support):
-    - ARM64: t4g.small (2 vCPU Graviton2, 2 GiB RAM, ~$12.26/month)
-    - x86_64: t3.small (2 vCPU Intel/AMD, 2 GiB RAM, ~$15.18/month)
-  - ECS cluster with EC2 launch type
-  - ECS task definition (1792 CPU / 1792 MB - 87.5% utilization)
-  - ECS service with rolling deployment
-  - ALB target group with health checks (/health endpoint)
-  - ALB listener rule with unique priority (sequential allocation)
-  - Security group (allows ALB → container traffic only)
-  - CloudWatch log group (/ecs/elizaos-user-{userId})
-  - Cost: $15.76-18.68/month per user (architecture dependent)
+
+- EC2 instance (multi-architecture support):
+  - ARM64: t4g.small (2 vCPU Graviton2, 2 GiB RAM, ~$12.26/month)
+  - x86_64: t3.small (2 vCPU Intel/AMD, 2 GiB RAM, ~$15.18/month)
+- ECS cluster with EC2 launch type
+- ECS task definition (1792 CPU / 1792 MB - 87.5% utilization)
+- ECS service with rolling deployment
+- ALB target group with health checks (/health endpoint)
+- ALB listener rule with unique priority (sequential allocation)
+- Security group (allows ALB → container traffic only)
+- CloudWatch log group (/ecs/elizaos-user-{userId})
+- Cost: $15.76-18.68/month per user (architecture dependent)
 
 **Deployment Scripts**:
 
@@ -510,31 +524,34 @@ elizaos deploy --name test-container
 **AWS Integration Services**:
 
 ✅ **`cloudformation.ts`** - CloudFormation stack orchestration
-  - `createUserStack()` - Provision EC2 + ECS per-user infrastructure
-  - `deleteUserStack()` - Teardown and cleanup with ALB priority release
-  - `updateUserStack()` - Update container image, CPU, memory
-  - `waitForStackComplete()` - Poll stack status with detailed failure reporting
-  - `getSharedInfrastructureOutputs()` - Retrieve VPC, ALB, IAM role ARNs
-  - Retry logic with exponential backoff (3 attempts)
-  - Template validation and credential checks
-  - Comprehensive error logging with CloudFormation event details
+
+- `createUserStack()` - Provision EC2 + ECS per-user infrastructure
+- `deleteUserStack()` - Teardown and cleanup with ALB priority release
+- `updateUserStack()` - Update container image, CPU, memory
+- `waitForStackComplete()` - Poll stack status with detailed failure reporting
+- `getSharedInfrastructureOutputs()` - Retrieve VPC, ALB, IAM role ARNs
+- Retry logic with exponential backoff (3 attempts)
+- Template validation and credential checks
+- Comprehensive error logging with CloudFormation event details
 
 ✅ **`alb-priority-manager.ts`** - ALB listener rule priority allocation
-  - Sequential allocation: `next_priority = MAX(priority) + 1`
-  - Database-backed with PostgreSQL transaction safety
-  - Soft deletes: `expires_at = NOW() + 1 hour` for audit trail
-  - `allocatePriority(userId)` - Allocate next available priority (1-50,000)
-  - `releasePriority(userId)` - Mark priority for cleanup
-  - `cleanupExpiredPriorities()` - Delete expired records (called by cron)
-  - `getStats()` - Usage statistics and available slots
-  - No collision handling needed (sequential is deterministic)
+
+- Sequential allocation: `next_priority = MAX(priority) + 1`
+- Database-backed with PostgreSQL transaction safety
+- Soft deletes: `expires_at = NOW() + 1 hour` for audit trail
+- `allocatePriority(userId)` - Allocate next available priority (1-50,000)
+- `releasePriority(userId)` - Mark priority for cleanup
+- `cleanupExpiredPriorities()` - Delete expired records (called by cron)
+- `getStats()` - Usage statistics and available slots
+- No collision handling needed (sequential is deterministic)
 
 ✅ **`ecr.ts`** - AWS Elastic Container Registry management
-  - Repository creation per organization (`elizaos/{orgId}`)
-  - ECR auth token generation for Docker CLI
-  - Image tag verification and existence checks
-  - Lifecycle policies (retain 10 most recent images)
-  - Auto-cleanup of old images
+
+- Repository creation per organization (`elizaos/{orgId}`)
+- ECR auth token generation for Docker CLI
+- Image tag verification and existence checks
+- Lifecycle policies (retain 10 most recent images)
+- Auto-cleanup of old images
 
 **Container Management Services**:
 
@@ -548,33 +565,39 @@ elizaos deploy --name test-container
 **Container Management APIs**:
 
 ✅ **`route.ts`** - Container lifecycle operations
-  - `POST /api/v1/containers` - Create new container deployment
-  - `GET /api/v1/containers` - List all user's containers with filters
+
+- `POST /api/v1/containers` - Create new container deployment
+- `GET /api/v1/containers` - List all user's containers with filters
 
 ✅ **`credentials/route.ts`** - ECR authentication
-  - `POST /api/v1/containers/credentials` - Get ECR login credentials and repository URI
+
+- `POST /api/v1/containers/credentials` - Get ECR login credentials and repository URI
 
 ✅ **`quota/route.ts`** - Quota validation
-  - `GET /api/v1/containers/quota` - Check remaining container quota
+
+- `GET /api/v1/containers/quota` - Check remaining container quota
 
 ✅ **`[id]/route.ts`** - Individual container operations
-  - `GET /api/v1/containers/{id}` - Get container details with CloudFormation status
-  - `DELETE /api/v1/containers/{id}` - Delete container and release resources
-  - `PATCH /api/v1/containers/{id}` - Update container configuration
+
+- `GET /api/v1/containers/{id}` - Get container details with CloudFormation status
+- `DELETE /api/v1/containers/{id}` - Delete container and release resources
+- `PATCH /api/v1/containers/{id}` - Update container configuration
 
 **Monitoring & Observability APIs**:
 
 ✅ **`[id]/logs/route.ts`** - CloudWatch log streaming
-  - Dynamic log stream discovery (handles task restarts)
-  - Aggregates logs from all task instances
-  - Query params: `limit` (max 100), `since` (ISO timestamp)
-  - Returns sorted logs with timestamps
+
+- Dynamic log stream discovery (handles task restarts)
+- Aggregates logs from all task instances
+- Query params: `limit` (max 100), `since` (ISO timestamp)
+- Returns sorted logs with timestamps
 
 ✅ **`[id]/metrics/route.ts`** - CloudWatch metrics aggregation
-  - Real-time metrics: CPU%, memory%, network RX/TX bytes
-  - Task count and health status
-  - Query params: `period` (minutes, default 60)
-  - Returns latest datapoint from CloudWatch
+
+- Real-time metrics: CPU%, memory%, network RX/TX bytes
+- Task count and health status
+- Query params: `period` (minutes, default 60)
+- Returns latest datapoint from CloudWatch
 
 ✅ **`[id]/health/route.ts`** - Container health check endpoint
 
@@ -583,67 +606,77 @@ elizaos deploy --name test-container
 **Automation & Cron Jobs**:
 
 ✅ **`../api/cron/cleanup-priorities/route.ts`** - Hourly ALB priority cleanup
-  - Protected by `CRON_SECRET` environment variable
-  - Deletes priorities where `expires_at < NOW()`
-  - Returns stats before/after cleanup
-  - Configured in `vercel.json` to run hourly (`0 * * * *`)
+
+- Protected by `CRON_SECRET` environment variable
+- Deletes priorities where `expires_at < NOW()`
+- Returns stats before/after cleanup
+- Configured in `vercel.json` to run hourly (`0 * * * *`)
 
 ### UI Components (`../components/containers/`)
 
 ✅ **`containers-table.tsx`** - Main container list view
-  - Table with container name, status, URL, created date
-  - Quick actions: view details, delete, open URL
-  - Real-time status indicators with color coding
-  - Responsive design with mobile support
+
+- Table with container name, status, URL, created date
+- Quick actions: view details, delete, open URL
+- Real-time status indicators with color coding
+- Responsive design with mobile support
 
 ✅ **`container-metrics.tsx`** - Real-time metrics dashboard
-  - Live CPU and memory utilization charts
-  - Network I/O (RX/TX bytes) visualization
-  - Task count and health status
-  - Auto-refresh every 10 seconds
-  - Responsive card-based layout
+
+- Live CPU and memory utilization charts
+- Network I/O (RX/TX bytes) visualization
+- Task count and health status
+- Auto-refresh every 10 seconds
+- Responsive card-based layout
 
 ✅ **`container-logs-viewer.tsx`** - CloudWatch log viewer
-  - Real-time log streaming from CloudWatch
-  - Timestamp and message display
-  - Auto-scroll to latest logs
-  - Refresh controls and filtering
-  - Monospace font for readability
+
+- Real-time log streaming from CloudWatch
+- Timestamp and message display
+- Auto-scroll to latest logs
+- Refresh controls and filtering
+- Monospace font for readability
 
 ✅ **`container-deployment-history.tsx`** - Deployment timeline
-  - Chronological deployment history
-  - Status tracking (pending → deploying → running → failed)
-  - Deployment duration and timestamps
+
+- Chronological deployment history
+- Status tracking (pending → deploying → running → failed)
+- Deployment duration and timestamps
 
 ✅ **`containers-page-client.tsx`** - Page wrapper with state management
-  - Integrates table, metrics, and logs
-  - Client-side routing and data fetching
-  - Error boundaries and loading states
+
+- Integrates table, metrics, and logs
+- Client-side routing and data fetching
+- Error boundaries and loading states
 
 ✅ **`containers-skeleton.tsx`** - Loading placeholders
-  - Skeleton screens for all container components
-  - Smooth loading transitions
+
+- Skeleton screens for all container components
+- Smooth loading transitions
 
 ### Database Schema (`../db/schemas/`)
 
 ✅ **`containers.ts`** - Container deployment records
-  - Tracks ECR image URI, ECS cluster/service ARNs, ALB URL
-  - Status: pending, building, deploying, running, failed, stopped
-  - Resource configuration: CPU (1792), memory (1792), port, desired_count
-  - Environment variables (encrypted at rest)
-  - Unique constraint on (organization_id, name)
+
+- Tracks ECR image URI, ECS cluster/service ARNs, ALB URL
+- Status: pending, building, deploying, running, failed, stopped
+- Resource configuration: CPU (1792), memory (1792), port, desired_count
+- Environment variables (encrypted at rest)
+- Unique constraint on (organization_id, name)
 
 ✅ **`alb-priorities.ts`** - ALB listener rule priority tracking
-  - Columns: `userId`, `priority` (1-50,000), `createdAt`, `expiresAt`
-  - Unique constraint on `priority` (prevents conflicts)
-  - Soft deletes with 1-hour expiry for audit trail
-  - Supports cleanup cron job
+
+- Columns: `userId`, `priority` (1-50,000), `createdAt`, `expiresAt`
+- Unique constraint on `priority` (prevents conflicts)
+- Soft deletes with 1-hour expiry for audit trail
+- Supports cleanup cron job
 
 **Database Migrations**: Located in `../db/migrations/`
-  - Initial containers table with ECR/ECS columns
-  - ALB priorities table with expiry logic
-  - Resource allocation defaults (1792 CPU / 1792 MB)
-  - Status enum values and indexes
+
+- Initial containers table with ECR/ECS columns
+- ALB priorities table with expiry logic
+- Resource allocation defaults (1792 CPU / 1792 MB)
+- Status enum values and indexes
 
 ---
 
@@ -759,6 +792,7 @@ Duration: 10-15 minutes
 - No performance penalty since each instance is dedicated to one user
 
 **Architecture Selection**: Automatic based on Docker image platform:
+
 - `linux/arm64` image → t4g.small (ARM64)
 - `linux/amd64` image → t3.small (x86_64)
 
@@ -769,6 +803,7 @@ Duration: 10-15 minutes
 ### Network Security ✅
 
 **Public Internet Access Architecture**:
+
 ```
 ┌──────────────────────────────────────────────────────┐
 │  Internet (Public Users)                              │
@@ -806,11 +841,12 @@ Duration: 10-15 minutes
 ```
 
 **Security Layers**:
+
 - ✅ **Dual Access**:
   - Production: `https://{userId}.containers.elizacloud.ai` (via ALB, HTTPS)
   - Development: `http://{ec2-dns}:{port}` (direct to EC2, HTTP)
 - ✅ **VPC Isolation**: Containers are in VPC (10.0.0.0/16)
-- ✅ **Security Groups**: 
+- ✅ **Security Groups**:
   - Allow traffic from ALB security group (for routed access)
   - Allow 0.0.0.0/0 on container port (for direct EC2 access)
 - ✅ **HTTPS on ALB**: ACM certificate, HTTP→HTTPS redirect
@@ -889,7 +925,7 @@ curl https://elizacloud.ai/api/v1/containers/<id>/metrics \
 **Access Methods**:
 
 1. **UI**: `/dashboard/containers/[id]` (logs tab with auto-refresh)
-2. **API**: 
+2. **API**:
    ```bash
    GET /api/v1/containers/{id}/logs?limit=100&since=2025-01-17T00:00:00Z
    ```
@@ -927,11 +963,13 @@ The `per-user-stack.json` template does **not** currently include CloudWatch ala
 **To implement alarms** (requires SNS topic):
 
 1. Create SNS topic:
+
    ```bash
    aws sns create-topic --name elizaos-alerts --region us-east-1
    ```
 
 2. Subscribe email:
+
    ```bash
    aws sns subscribe \
      --topic-arn arn:aws:sns:us-east-1:ACCOUNT:elizaos-alerts \
@@ -1091,23 +1129,23 @@ bash teardown-all-user-stacks.sh
 
 #### ARM64 (t4g.small) - Recommended ⭐
 
-| Component             | Monthly Cost | Notes               |
-| --------------------- | ------------ | ------------------- |
-| EC2 t4g.small (24/7)  | $12.26       | $0.0168/hour × 730 hours    |
-| EBS 35GB gp3          | $2.80        | 3000 IOPS, 125 MB/s |
-| CloudWatch Logs (5GB) | $0.50        | 7 day retention     |
-| Container Insights    | $0.20        | Enhanced metrics    |
-| **Total**             | **$15.76**   | Fixed per container |
+| Component             | Monthly Cost | Notes                    |
+| --------------------- | ------------ | ------------------------ |
+| EC2 t4g.small (24/7)  | $12.26       | $0.0168/hour × 730 hours |
+| EBS 35GB gp3          | $2.80        | 3000 IOPS, 125 MB/s      |
+| CloudWatch Logs (5GB) | $0.50        | 7 day retention          |
+| Container Insights    | $0.20        | Enhanced metrics         |
+| **Total**             | **$15.76**   | Fixed per container      |
 
 #### x86_64 (t3.small) - Universal Compatibility
 
-| Component             | Monthly Cost | Notes               |
-| --------------------- | ------------ | ------------------- |
+| Component             | Monthly Cost | Notes                    |
+| --------------------- | ------------ | ------------------------ |
 | EC2 t3.small (24/7)   | $15.18       | $0.0208/hour × 730 hours |
-| EBS 35GB gp3          | $2.80        | 3000 IOPS, 125 MB/s |
-| CloudWatch Logs (5GB) | $0.50        | 7 day retention     |
-| Container Insights    | $0.20        | Enhanced metrics    |
-| **Total**             | **$18.68**   | Fixed per container |
+| EBS 35GB gp3          | $2.80        | 3000 IOPS, 125 MB/s      |
+| CloudWatch Logs (5GB) | $0.50        | 7 day retention          |
+| Container Insights    | $0.20        | Enhanced metrics         |
+| **Total**             | **$18.68**   | Fixed per container      |
 
 **💰 Savings with ARM64**: $2.92/month per container (15.6% reduction)
 
@@ -1126,14 +1164,14 @@ bash teardown-all-user-stacks.sh
 
 #### x86_64 (t3.small) - Universal Compatibility
 
-| Users | Infrastructure | Per-User | Total/Month  | Cost/User |
-| ----- | -------------- | -------- | ------------ | --------- |
-| 1     | $36            | $18.68   | **$54.68**   | $54.68    |
-| 10    | $36            | $18.68   | **$222.80**  | $22.28    |
-| 50    | $36            | $18.68   | **$970.00**  | $19.40    |
-| 100   | $36            | $18.68   | **$1,904**   | $19.04    |
-| 500   | $36            | $18.68   | **$9,376**   | $18.75    |
-| 1000  | $36            | $18.68   | **$18,716**  | $18.72    |
+| Users | Infrastructure | Per-User | Total/Month | Cost/User |
+| ----- | -------------- | -------- | ----------- | --------- |
+| 1     | $36            | $18.68   | **$54.68**  | $54.68    |
+| 10    | $36            | $18.68   | **$222.80** | $22.28    |
+| 50    | $36            | $18.68   | **$970.00** | $19.40    |
+| 100   | $36            | $18.68   | **$1,904**  | $19.04    |
+| 500   | $36            | $18.68   | **$9,376**  | $18.75    |
+| 1000  | $36            | $18.68   | **$18,716** | $18.72    |
 
 **Key insight**: Cost approaches per-user price at scale. ARM64 saves $2.92/container/month (15.6% reduction).
 
@@ -1227,6 +1265,7 @@ aws cloudformation describe-stack-events \
 ### Container Not Accessible via URL
 
 **The architecture provides public internet access via ALB**:
+
 ```
 Internet → ALB (https://{userId}.containers.elizacloud.ai) → Target Group → EC2/ECS Container
 ```
@@ -1234,6 +1273,7 @@ Internet → ALB (https://{userId}.containers.elizacloud.ai) → Target Group �
 **Verify step-by-step**:
 
 1. **Check DNS resolution**:
+
 ```bash
 # Should resolve to ALB IP addresses
 dig {userId}.containers.elizacloud.ai
@@ -1247,15 +1287,17 @@ aws cloudformation describe-stacks \
 ```
 
 2. **Check target health**:
+
 ```bash
 aws elbv2 describe-target-health \
   --target-group-arn <arn-from-stack-outputs>
-  
+
 # Healthy status should show:
 # "State": "healthy"
 ```
 
 3. **Check listener rules**:
+
 ```bash
 # Verify listener rule exists for your userId
 aws elbv2 describe-rules \
@@ -1264,6 +1306,7 @@ aws elbv2 describe-rules \
 ```
 
 4. **Test ALB directly**:
+
 ```bash
 # Get ALB DNS
 ALB_DNS=$(aws cloudformation describe-stacks \
@@ -1463,35 +1506,41 @@ Before going live:
 ### v2.0 (Current) - Fully Implemented ✅
 
 **Infrastructure**:
+
 - ✅ Shared CloudFormation stack (VPC, ALB, IAM, security groups)
 - ✅ Per-user CloudFormation stack (EC2 t4g.small, ECS cluster, service, task)
 - ✅ Resource optimization: 1792 CPU / 1792 MB (87.5% of t4g.small capacity)
 - ✅ Deployment scripts: deploy, teardown, list with validation and error handling
 
 **Backend Services**:
+
 - ✅ CloudFormation service with retry logic and detailed failure reporting
 - ✅ ALB priority manager with sequential allocation (simple, no collisions)
 - ✅ ECR integration for Docker image storage and lifecycle management
 - ✅ Container quota enforcement with database transaction locking
 
 **Monitoring & Observability**:
+
 - ✅ CloudWatch logs API with dynamic stream discovery (handles restarts)
 - ✅ CloudWatch metrics API (CPU, memory, network I/O)
 - ✅ Health check endpoints for containers and deployments
 - ✅ Deployment history tracking
 
 **UI Components**:
+
 - ✅ Container table with real-time status
 - ✅ Metrics dashboard with live charts (CPU, memory, network)
 - ✅ Log viewer with auto-refresh and filtering
 - ✅ Deployment timeline visualization
 
 **Automation**:
+
 - ✅ Hourly cron job for ALB priority cleanup (configured in `vercel.json`)
 - ✅ Automatic CloudFormation stack monitoring and failure detection
 - ✅ Prorated credit refunds for early container deletion
 
 **Database**:
+
 - ✅ Containers schema with ECS/ECR metadata
 - ✅ ALB priorities schema with soft deletes and expiry
 - ✅ Migrations for schema evolution

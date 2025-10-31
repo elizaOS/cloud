@@ -18,7 +18,15 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
-import { CheckCircle2, XCircle, Clock, TrendingUp, Cpu, HardDrive, Network } from "lucide-react";
+import {
+  CheckCircle2,
+  XCircle,
+  Clock,
+  TrendingUp,
+  Cpu,
+  HardDrive,
+  Network,
+} from "lucide-react";
 
 interface Deployment {
   id: string;
@@ -112,16 +120,20 @@ export function ContainerDeploymentHistory({
     );
   }
 
-  const successRate = deployments.length > 0
-    ? (deployments.filter(d => d.status === "success").length / deployments.length) * 100
-    : 0;
+  const successRate =
+    deployments.length > 0
+      ? (deployments.filter((d) => d.status === "success").length /
+          deployments.length) *
+        100
+      : 0;
 
-  const avgDuration = deployments.length > 0 && deployments.some(d => d.duration_ms)
-    ? deployments
-        .filter(d => d.duration_ms)
-        .reduce((sum, d) => sum + (d.duration_ms || 0), 0) / 
-        deployments.filter(d => d.duration_ms).length
-    : null;
+  const avgDuration =
+    deployments.length > 0 && deployments.some((d) => d.duration_ms)
+      ? deployments
+          .filter((d) => d.duration_ms)
+          .reduce((sum, d) => sum + (d.duration_ms || 0), 0) /
+        deployments.filter((d) => d.duration_ms).length
+      : null;
 
   const totalCost = deployments.reduce((sum, d) => sum + d.cost, 0);
 
@@ -131,7 +143,9 @@ export function ContainerDeploymentHistory({
         <div className="flex items-center justify-between">
           <div>
             <CardTitle>Deployment History</CardTitle>
-            <CardDescription>Past deployments for {containerName}</CardDescription>
+            <CardDescription>
+              Past deployments for {containerName}
+            </CardDescription>
           </div>
           {deployments.length > 0 && (
             <div className="flex items-center gap-4 text-sm">
@@ -150,7 +164,9 @@ export function ContainerDeploymentHistory({
             <div className="rounded-full bg-muted p-4 mb-4">
               <Clock className="h-8 w-8 text-muted-foreground" />
             </div>
-            <p className="text-muted-foreground">No deployment history available</p>
+            <p className="text-muted-foreground">
+              No deployment history available
+            </p>
             <p className="text-sm text-muted-foreground mt-2">
               Deployment records will appear here after your first deployment
             </p>
@@ -161,18 +177,20 @@ export function ContainerDeploymentHistory({
             <div className="grid grid-cols-3 gap-4 pb-4 border-b">
               <div className="text-center">
                 <p className="text-2xl font-bold text-green-500">
-                  {deployments.filter(d => d.status === "success").length}
+                  {deployments.filter((d) => d.status === "success").length}
                 </p>
                 <p className="text-xs text-muted-foreground mt-1">Successful</p>
               </div>
               <div className="text-center">
                 <p className="text-2xl font-bold text-red-500">
-                  {deployments.filter(d => d.status === "failed").length}
+                  {deployments.filter((d) => d.status === "failed").length}
                 </p>
                 <p className="text-xs text-muted-foreground mt-1">Failed</p>
               </div>
               <div className="text-center">
-                <p className="text-2xl font-bold text-blue-500">${totalCost.toFixed(2)}</p>
+                <p className="text-2xl font-bold text-blue-500">
+                  ${totalCost.toFixed(2)}
+                </p>
                 <p className="text-xs text-muted-foreground mt-1">Total Cost</p>
               </div>
             </div>
@@ -219,7 +237,9 @@ export function ContainerDeploymentHistory({
                         {deployment.duration_ms && (
                           <div className="flex items-center gap-1">
                             <Clock className="h-3 w-3" />
-                            <span>{(deployment.duration_ms / 1000).toFixed(1)}s</span>
+                            <span>
+                              {(deployment.duration_ms / 1000).toFixed(1)}s
+                            </span>
                           </div>
                         )}
                         <span className="font-mono font-semibold">
@@ -231,7 +251,9 @@ export function ContainerDeploymentHistory({
                     <div className="grid grid-cols-2 md:grid-cols-4 gap-3 text-xs">
                       <div className="flex items-center gap-2">
                         <Network className="h-3 w-3 text-muted-foreground" />
-                        <span className="text-muted-foreground">Instances:</span>
+                        <span className="text-muted-foreground">
+                          Instances:
+                        </span>
                         <span className="font-medium">
                           {deployment.metadata.desired_count || 1}
                         </span>

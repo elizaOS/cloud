@@ -29,8 +29,7 @@ export async function POST(
     return NextResponse.json(
       {
         success: false,
-        error:
-          error instanceof Error ? error.message : "Failed to track view",
+        error: error instanceof Error ? error.message : "Failed to track view",
       },
       { status: 500 },
     );
