@@ -1,8 +1,7 @@
-import { NextRequest, NextResponse } from "next/server";
+import { type NextRequest, NextResponse } from "next/server";
 import { requireAuth } from "@/lib/auth";
 import { usersService } from "@/lib/services";
 import { z } from "zod";
-import { revalidateTag } from "next/cache";
 import { withRateLimit, RateLimitPresets } from "@/lib/middleware/rate-limit";
 
 const updateUserSchema = z.object({
@@ -27,6 +26,9 @@ async function handleGET() {
         avatar: user.avatar,
         role: user.role,
         email_verified: user.email_verified,
+        wallet_address: user.wallet_address,
+        wallet_chain_type: user.wallet_chain_type,
+        wallet_verified: user.wallet_verified,
         is_active: user.is_active,
         created_at: user.created_at,
         updated_at: user.updated_at,
@@ -52,7 +54,7 @@ async function handleGET() {
           error instanceof Error && error.message.includes("Forbidden")
             ? 403
             : 500,
-      },
+      }
     );
   }
 }
@@ -83,12 +85,9 @@ async function handlePATCH(request: NextRequest) {
           success: false,
           error: "Failed to update user",
         },
-        { status: 500 },
+        { status: 500 }
       );
     }
-
-    // Revalidate cache
-    revalidateTag("user-auth", {});
 
     return NextResponse.json({
       success: true,
@@ -98,6 +97,9 @@ async function handlePATCH(request: NextRequest) {
         name: updated.name,
         avatar: updated.avatar,
         role: updated.role,
+        wallet_address: updated.wallet_address,
+        wallet_chain_type: updated.wallet_chain_type,
+        wallet_verified: updated.wallet_verified,
         updated_at: updated.updated_at,
       },
       message: "Profile updated successfully",
@@ -112,7 +114,7 @@ async function handlePATCH(request: NextRequest) {
           error: "Validation error",
           details: error.issues,
         },
-        { status: 400 },
+        { status: 400 }
       );
     }
 
@@ -127,7 +129,7 @@ async function handlePATCH(request: NextRequest) {
           error instanceof Error && error.message.includes("Forbidden")
             ? 403
             : 500,
-      },
+      }
     );
   }
 }

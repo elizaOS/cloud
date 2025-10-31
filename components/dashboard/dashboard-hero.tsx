@@ -97,7 +97,7 @@ export function DashboardHero({
                 className="gap-2 rounded-full border-border/50 bg-background/70 font-medium"
               >
                 <CreditCard className="h-4 w-4 text-primary" />
-                {creditBalance.toLocaleString()} credits
+                ${Number(creditBalance).toFixed(2)} balance
               </Badge>
             </div>
           </div>

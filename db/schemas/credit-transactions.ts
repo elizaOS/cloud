@@ -2,6 +2,7 @@ import {
   index,
   integer,
   jsonb,
+  numeric,
   pgTable,
   text,
   timestamp,
@@ -22,7 +23,7 @@ export const creditTransactions = pgTable(
     user_id: uuid("user_id").references(() => users.id, {
       onDelete: "set null",
     }),
-    amount: integer("amount").notNull(),
+    amount: numeric("amount", { precision: 10, scale: 2 }).notNull(),
     type: text("type").notNull(),
     description: text("description"),
     metadata: jsonb("metadata")

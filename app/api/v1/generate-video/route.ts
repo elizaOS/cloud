@@ -58,7 +58,7 @@ async function handlePOST(request: NextRequest) {
       console.error("[VIDEO GENERATION] FAL_KEY is not configured");
       return NextResponse.json(
         { error: "Video generation service is not configured" },
-        { status: 503 },
+        { status: 503 }
       );
     }
 
@@ -68,7 +68,7 @@ async function handlePOST(request: NextRequest) {
     if (!prompt || typeof prompt !== "string" || prompt.trim().length === 0) {
       return NextResponse.json(
         { error: "Prompt is required and must be a non-empty string" },
-        { status: 400 },
+        { status: 400 }
       );
     }
 
@@ -78,7 +78,7 @@ async function handlePOST(request: NextRequest) {
           error: "Invalid model specified",
           validModels: VALID_MODELS,
         },
-        { status: 400 },
+        { status: 400 }
       );
     }
 
@@ -91,14 +91,14 @@ async function handlePOST(request: NextRequest) {
       provider: "fal",
       prompt: prompt.trim(),
       status: "pending",
-      credits: VIDEO_GENERATION_COST,
-      cost: VIDEO_GENERATION_COST,
+      credits: String(VIDEO_GENERATION_COST),
+      cost: String(VIDEO_GENERATION_COST),
     });
 
     generationId = generation.id;
 
     console.log(
-      `[VIDEO GENERATION] Starting generation for user ${user.id}, model: ${model}`,
+      `[VIDEO GENERATION] Starting generation for user ${user.id}, model: ${model}`
     );
 
     const result = await fal.subscribe(model, {
@@ -112,7 +112,7 @@ async function handlePOST(request: NextRequest) {
             ?.map((log: { message: string }) => log.message)
             .join(", ");
           console.log(
-            `[VIDEO GENERATION] Progress: ${logMessages || "Processing..."}`,
+            `[VIDEO GENERATION] Progress: ${logMessages || "Processing..."}`
           );
         }
       },
@@ -124,12 +124,12 @@ async function handlePOST(request: NextRequest) {
       console.error("[VIDEO GENERATION] No video URL in response:", data);
       return NextResponse.json(
         { error: "No video URL was returned from the generation service" },
-        { status: 500 },
+        { status: 500 }
       );
     }
 
     console.log(
-      `[VIDEO GENERATION] Success for user ${user.id}, requestId: ${result.requestId}`,
+      `[VIDEO GENERATION] Success for user ${user.id}, requestId: ${result.requestId}`
     );
 
     // Upload video to Vercel Blob
@@ -151,12 +151,12 @@ async function handlePOST(request: NextRequest) {
       blobUrl = blobResult.url;
       blobFileSize = blobResult.size ? BigInt(blobResult.size) : null;
       console.log(
-        `[VIDEO GENERATION] Uploaded to Vercel Blob: ${blobUrl} (${blobResult.size} bytes)`,
+        `[VIDEO GENERATION] Uploaded to Vercel Blob: ${blobUrl} (${blobResult.size} bytes)`
       );
     } catch (blobError) {
       console.error(
         "[VIDEO GENERATION] Failed to upload to Vercel Blob:",
-        blobError,
+        blobError
       );
       // Continue with original URL as fallback
     }
@@ -174,9 +174,9 @@ async function handlePOST(request: NextRequest) {
         "[VIDEO GENERATION] Failed to deduct credits - insufficient balance",
         {
           organizationId: user.organization_id,
-          cost: VIDEO_GENERATION_COST,
+          cost: String(VIDEO_GENERATION_COST),
           balance: deductionResult.newBalance,
-        },
+        }
       );
 
       return NextResponse.json(
@@ -185,7 +185,7 @@ async function handlePOST(request: NextRequest) {
           required: VIDEO_GENERATION_COST,
           available: deductionResult.newBalance,
         },
-        { status: 402 }, // Payment Required
+        { status: 402 } // Payment Required
       );
     }
 
@@ -198,8 +198,8 @@ async function handlePOST(request: NextRequest) {
       provider: "fal",
       input_tokens: 0,
       output_tokens: 0,
-      input_cost: VIDEO_GENERATION_COST,
-      output_cost: 0,
+      input_cost: String(VIDEO_GENERATION_COST),
+      output_cost: String(0),
       is_successful: true,
     });
 
@@ -231,7 +231,7 @@ async function handlePOST(request: NextRequest) {
     }
 
     console.log(
-      `[VIDEO GENERATION] Credits deducted: ${VIDEO_GENERATION_COST}, New balance: ${deductionResult.newBalance}`,
+      `[VIDEO GENERATION] Cost: $${VIDEO_GENERATION_COST.toFixed(2)}, New balance: $${deductionResult.newBalance.toFixed(2)}`
     );
 
     return NextResponse.json(
@@ -246,7 +246,7 @@ async function handlePOST(request: NextRequest) {
         timings: data.timings,
         requestId: result.requestId,
       },
-      { status: 200 },
+      { status: 200 }
     );
   } catch (error) {
     console.error("[VIDEO GENERATION] Error:", error);
@@ -269,7 +269,7 @@ async function handlePOST(request: NextRequest) {
 
       if (!fallbackDeduction.success) {
         console.error(
-          "[VIDEO GENERATION] Failed to deduct fallback credits - insufficient balance",
+          "[VIDEO GENERATION] Failed to deduct fallback credits - insufficient balance"
         );
       }
 
@@ -282,8 +282,8 @@ async function handlePOST(request: NextRequest) {
         provider: "fal",
         input_tokens: 0,
         output_tokens: 0,
-        input_cost: VIDEO_GENERATION_FALLBACK_COST,
-        output_cost: 0,
+        input_cost: String(VIDEO_GENERATION_FALLBACK_COST),
+        output_cost: String(0),
         is_successful: false,
         error_message: errorMessage,
       });
@@ -299,8 +299,8 @@ async function handlePOST(request: NextRequest) {
             width: 1920,
             height: 1080,
           },
-          credits: VIDEO_GENERATION_FALLBACK_COST,
-          cost: VIDEO_GENERATION_FALLBACK_COST,
+          credits: String(VIDEO_GENERATION_FALLBACK_COST),
+          cost: String(VIDEO_GENERATION_FALLBACK_COST),
           usage_record_id: fallbackUsageRecord.id,
           completed_at: new Date(),
           result: {
@@ -317,12 +317,12 @@ async function handlePOST(request: NextRequest) {
       }
 
       console.log(
-        `[VIDEO GENERATION] Fallback credits deducted: ${VIDEO_GENERATION_FALLBACK_COST}, New balance: ${fallbackDeduction.newBalance}`,
+        `[VIDEO GENERATION] Fallback cost: $${VIDEO_GENERATION_FALLBACK_COST.toFixed(2)}, New balance: $${fallbackDeduction.newBalance.toFixed(2)}`
       );
     } catch (authError) {
       console.error(
         "[VIDEO GENERATION] Auth error during fallback logging:",
-        authError,
+        authError
       );
     }
 
@@ -341,7 +341,7 @@ async function handlePOST(request: NextRequest) {
         isFallback: true,
         originalError: errorMessage,
       },
-      { status: 200 },
+      { status: 200 }
     );
   }
 }

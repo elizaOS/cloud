@@ -52,7 +52,7 @@ export function VoiceEmptyState({ onCreateClick }: VoiceEmptyStateProps) {
       </Button>
 
       <p className="text-xs text-muted-foreground mt-4">
-        Instant clone: 500 credits • Professional: 5,000 credits
+        Instant clone: $0.50 • Professional: $2.00
       </p>
     </div>
   );

@@ -1,10 +1,8 @@
-CREATE EXTENSION IF NOT EXISTS "vector";
---> statement-breakpoint
 CREATE TABLE "organizations" (
 	"id" uuid PRIMARY KEY DEFAULT gen_random_uuid() NOT NULL,
 	"name" text NOT NULL,
 	"slug" text NOT NULL,
-	"credit_balance" integer DEFAULT 10000 NOT NULL,
+	"credit_balance" numeric(10, 2) DEFAULT '100.00' NOT NULL,
 	"webhook_url" text,
 	"webhook_secret" text,
 	"stripe_customer_id" text,
@@ -26,8 +24,11 @@ CREATE TABLE "organizations" (
 CREATE TABLE "users" (
 	"id" uuid PRIMARY KEY DEFAULT gen_random_uuid() NOT NULL,
 	"privy_user_id" text NOT NULL,
-	"email" text NOT NULL,
-	"email_verified" boolean DEFAULT false NOT NULL,
+	"email" text,
+	"email_verified" boolean DEFAULT false,
+	"wallet_address" text,
+	"wallet_chain_type" text,
+	"wallet_verified" boolean DEFAULT false NOT NULL,
 	"name" text,
 	"organization_id" uuid NOT NULL,
 	"role" text DEFAULT 'member' NOT NULL,
@@ -36,7 +37,8 @@ CREATE TABLE "users" (
 	"created_at" timestamp DEFAULT now() NOT NULL,
 	"updated_at" timestamp DEFAULT now() NOT NULL,
 	CONSTRAINT "users_privy_user_id_unique" UNIQUE("privy_user_id"),
-	CONSTRAINT "users_email_unique" UNIQUE("email")
+	CONSTRAINT "users_email_unique" UNIQUE("email"),
+	CONSTRAINT "users_wallet_address_unique" UNIQUE("wallet_address")
 );
 --> statement-breakpoint
 CREATE TABLE "api_keys" (
@@ -84,9 +86,9 @@ CREATE TABLE "usage_records" (
 	"provider" text NOT NULL,
 	"input_tokens" integer DEFAULT 0 NOT NULL,
 	"output_tokens" integer DEFAULT 0 NOT NULL,
-	"input_cost" integer DEFAULT 0,
-	"output_cost" integer DEFAULT 0,
-	"markup" integer DEFAULT 0,
+	"input_cost" numeric(10, 2) DEFAULT '0.00',
+	"output_cost" numeric(10, 2) DEFAULT '0.00',
+	"markup" numeric(10, 2) DEFAULT '0.00',
 	"request_id" text,
 	"duration_ms" integer,
 	"is_successful" boolean DEFAULT true NOT NULL,
@@ -101,7 +103,7 @@ CREATE TABLE "credit_transactions" (
 	"id" uuid PRIMARY KEY DEFAULT gen_random_uuid() NOT NULL,
 	"organization_id" uuid NOT NULL,
 	"user_id" uuid,
-	"amount" integer NOT NULL,
+	"amount" numeric(10, 2) NOT NULL,
 	"type" text NOT NULL,
 	"description" text,
 	"metadata" jsonb DEFAULT '{}'::jsonb NOT NULL,
@@ -113,7 +115,7 @@ CREATE TABLE "credit_packs" (
 	"id" uuid PRIMARY KEY DEFAULT gen_random_uuid() NOT NULL,
 	"name" text NOT NULL,
 	"description" text,
-	"credits" integer NOT NULL,
+	"credits" numeric(10, 2) NOT NULL,
 	"price_cents" integer NOT NULL,
 	"stripe_price_id" text NOT NULL,
 	"stripe_product_id" text NOT NULL,
@@ -148,8 +150,8 @@ CREATE TABLE "generations" (
 	"metadata" jsonb DEFAULT '{}'::jsonb NOT NULL,
 	"dimensions" jsonb,
 	"tokens" integer,
-	"cost" integer DEFAULT 0 NOT NULL,
-	"credits" integer DEFAULT 0 NOT NULL,
+	"cost" numeric(10, 2) DEFAULT '0.00' NOT NULL,
+	"credits" numeric(10, 2) DEFAULT '0.00' NOT NULL,
 	"usage_record_id" uuid,
 	"job_id" text,
 	"created_at" timestamp DEFAULT now() NOT NULL,
@@ -216,7 +218,7 @@ CREATE TABLE "conversation_messages" (
 	"sequence_number" integer NOT NULL,
 	"model" text,
 	"tokens" integer,
-	"cost" integer DEFAULT 0,
+	"cost" numeric(10, 2) DEFAULT '0.00',
 	"usage_record_id" uuid,
 	"api_request" jsonb,
 	"api_response" jsonb,
@@ -233,7 +235,7 @@ CREATE TABLE "conversations" (
 	"settings" jsonb DEFAULT '{"temperature":0.7,"maxTokens":2000,"topP":1,"frequencyPenalty":0,"presencePenalty":0,"systemPrompt":"You are a helpful AI assistant."}'::jsonb NOT NULL,
 	"status" text DEFAULT 'active' NOT NULL,
 	"message_count" integer DEFAULT 0 NOT NULL,
-	"total_cost" integer DEFAULT 0 NOT NULL,
+	"total_cost" numeric(10, 2) DEFAULT '0.00' NOT NULL,
 	"last_message_at" timestamp,
 	"created_at" timestamp DEFAULT now() NOT NULL,
 	"updated_at" timestamp DEFAULT now() NOT NULL
@@ -286,7 +288,7 @@ CREATE TABLE "user_voices" (
 	"last_used_at" timestamp,
 	"is_active" boolean DEFAULT true NOT NULL,
 	"is_public" boolean DEFAULT false NOT NULL,
-	"creation_cost" integer NOT NULL,
+	"creation_cost" numeric(10, 2) NOT NULL,
 	"created_at" timestamp DEFAULT now() NOT NULL,
 	"updated_at" timestamp DEFAULT now() NOT NULL,
 	CONSTRAINT "user_voices_elevenlabs_voice_id_unique" UNIQUE("elevenlabs_voice_id")
@@ -668,6 +670,8 @@ ALTER TABLE "eliza_room_characters" ADD CONSTRAINT "eliza_room_characters_charac
 CREATE INDEX "organizations_slug_idx" ON "organizations" USING btree ("slug");--> statement-breakpoint
 CREATE INDEX "organizations_stripe_customer_idx" ON "organizations" USING btree ("stripe_customer_id");--> statement-breakpoint
 CREATE INDEX "users_email_idx" ON "users" USING btree ("email");--> statement-breakpoint
+CREATE INDEX "users_wallet_address_idx" ON "users" USING btree ("wallet_address");--> statement-breakpoint
+CREATE INDEX "users_wallet_chain_type_idx" ON "users" USING btree ("wallet_chain_type");--> statement-breakpoint
 CREATE INDEX "users_organization_idx" ON "users" USING btree ("organization_id");--> statement-breakpoint
 CREATE INDEX "users_is_active_idx" ON "users" USING btree ("is_active");--> statement-breakpoint
 CREATE INDEX "users_privy_user_id_idx" ON "users" USING btree ("privy_user_id");--> statement-breakpoint
