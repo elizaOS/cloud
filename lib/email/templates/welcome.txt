@@ -4,8 +4,8 @@ Hi {{userName}}, we're excited to have you here!
 
 Your organization "{{organizationName}}" has been successfully created, and you're ready to start building amazing AI agents.
 
-🎁 STARTING BALANCE: ${{creditBalance}} USD
-Enough to get you started with your first agents!
+🎁 STARTING BALANCE: ${{creditBalance}}
+Perfect for building your first agents!
 
 GET STARTED IN 3 EASY STEPS:
 
