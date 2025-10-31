@@ -92,7 +92,7 @@ export function useAudioPlayer(): UseAudioPlayerReturn {
       if (err instanceof Error) {
         if (err.name === "NotAllowedError") {
           setError(
-            "Audio playback not allowed. Please interact with the page first."
+            "Audio playback not allowed. Please interact with the page first.",
           );
         } else {
           setError("Failed to play audio. Please try again.");

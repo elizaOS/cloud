@@ -67,7 +67,7 @@ export function VoiceCard({ voice, onDelete, onPreview }: VoiceCardProps) {
       setIsDeleteDialogOpen(false);
     } catch (error) {
       toast.error(
-        error instanceof Error ? error.message : "Failed to delete voice"
+        error instanceof Error ? error.message : "Failed to delete voice",
       );
     } finally {
       setIsDeleting(false);
@@ -192,9 +192,9 @@ export function VoiceCard({ voice, onDelete, onPreview }: VoiceCardProps) {
           <AlertDialogHeader>
             <AlertDialogTitle>Delete Voice Clone?</AlertDialogTitle>
             <AlertDialogDescription>
-              Are you sure you want to delete &quot;{voice.name}&quot;? This action cannot
-              be undone and the voice will be permanently removed from both
-              Eliza Cloud and ElevenLabs.
+              Are you sure you want to delete &quot;{voice.name}&quot;? This
+              action cannot be undone and the voice will be permanently removed
+              from both Eliza Cloud and ElevenLabs.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>

@@ -1,5 +1,5 @@
-import type { IAgentRuntime, Memory, Provider, State } from '@elizaos/core';
-import { addHeader, ChannelType } from '@elizaos/core';
+import type { IAgentRuntime, Memory, Provider, State } from "@elizaos/core";
+import { addHeader, ChannelType } from "@elizaos/core";
 
 /**
  * Character provider object.
@@ -16,8 +16,8 @@ import { addHeader, ChannelType } from '@elizaos/core';
  * @returns {Object} Object containing values, data, and text sections.
  */
 export const characterProvider: Provider = {
-  name: 'CHARACTER',
-  description: 'Character information',
+  name: "CHARACTER",
+  description: "Character information",
   get: async (runtime: IAgentRuntime, message: Memory, state: State) => {
     const character = runtime.character;
 
@@ -29,13 +29,13 @@ export const characterProvider: Provider = {
       ? character.bio
           .sort(() => 0.5 - Math.random())
           .slice(0, 10)
-          .join(' ')
-      : character.bio || '';
+          .join(" ")
+      : character.bio || "";
 
     const bio = addHeader(`# About ${character.name}`, bioText);
 
     // System prompt
-    const system = character.system ?? '';
+    const system = character.system ?? "";
 
     // Select random topic if available
     const topicString =
@@ -43,7 +43,7 @@ export const characterProvider: Provider = {
         ? character.topics[Math.floor(Math.random() * character.topics.length)]
         : null;
 
-    const topic = topicString || '';
+    const topic = topicString || "";
 
     // Format topics list
     const topics =
@@ -61,16 +61,18 @@ export const characterProvider: Provider = {
               }
               return `${topic}, `;
             })
-            .join('')}`
-        : '';
+            .join("")}`
+        : "";
 
     // Select random adjective if available
     const adjectiveString =
       character.adjectives && character.adjectives.length > 0
-        ? character.adjectives[Math.floor(Math.random() * character.adjectives.length)]
-        : '';
+        ? character.adjectives[
+            Math.floor(Math.random() * character.adjectives.length)
+          ]
+        : "";
 
-    const adjective = adjectiveString || '';
+    const adjective = adjectiveString || "";
 
     const messageDirections =
       (character?.style?.all?.length && character?.style?.all?.length > 0) ||
@@ -80,10 +82,10 @@ export const characterProvider: Provider = {
             (() => {
               const all = character?.style?.all || [];
               const chat = character?.style?.chat || [];
-              return [...all, ...chat].join('\n');
-            })()
+              return [...all, ...chat].join("\n");
+            })(),
           )
-        : '';
+        : "";
 
     const directions = messageDirections;
 
@@ -110,12 +112,21 @@ export const characterProvider: Provider = {
 
     const topicSentence = topicString
       ? `${character.name} is currently interested in ${topicString}`
-      : '';
-    const adjectiveSentence = adjectiveString ? `${character.name} is ${adjectiveString}` : '';
+      : "";
+    const adjectiveSentence = adjectiveString
+      ? `${character.name} is ${adjectiveString}`
+      : "";
     // Combine all text sections
-    const text = [bio, adjectiveSentence, topicSentence, topics, directions, system]
+    const text = [
+      bio,
+      adjectiveSentence,
+      topicSentence,
+      topics,
+      directions,
+      system,
+    ]
       .filter(Boolean)
-      .join('\n\n');
+      .join("\n\n");
 
     return {
       values,

@@ -6,7 +6,7 @@ import { logger } from "@/lib/utils/logger";
 
 export async function GET(
   request: NextRequest,
-  context: { params: Promise<{ id: string }> }
+  context: { params: Promise<{ id: string }> },
 ) {
   try {
     const user = await requireAuth();
@@ -20,7 +20,7 @@ export async function GET(
       /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
     if (!uuidRegex.test(voiceId)) {
       logger.warn(
-        `[Voice API] Invalid voice ID format: ${voiceId}. Expected UUID format.`
+        `[Voice API] Invalid voice ID format: ${voiceId}. Expected UUID format.`,
       );
       return NextResponse.json(
         {
@@ -29,13 +29,13 @@ export async function GET(
             "Please use the internal voice ID (UUID format) from the 'List User Voices' endpoint, not the ElevenLabs voice ID. Example: Get your voice list first, then use the 'id' field (not 'elevenlabsVoiceId').",
           hint: "Call GET /api/elevenlabs/voices/user to get your voice IDs",
         },
-        { status: 400 }
+        { status: 400 },
       );
     }
 
     const voice = await voiceCloningService.getVoiceById(
       voiceId,
-      user.organization_id
+      user.organization_id,
     );
 
     if (!voice) {
@@ -45,7 +45,7 @@ export async function GET(
           message:
             "Voice not found in your organization. Make sure you're using the correct voice ID from 'List User Voices'.",
         },
-        { status: 404 }
+        { status: 404 },
       );
     }
 
@@ -73,20 +73,20 @@ export async function GET(
             "The voice ID must be in UUID format. Use the 'id' field from 'List User Voices' response, not the 'elevenlabsVoiceId'.",
           hint: "Call GET /api/elevenlabs/voices/user to get your voice IDs",
         },
-        { status: 400 }
+        { status: 400 },
       );
     }
 
     return NextResponse.json(
       { error: "Failed to fetch voice. Please try again." },
-      { status: 500 }
+      { status: 500 },
     );
   }
 }
 
 export async function DELETE(
   request: NextRequest,
-  context: { params: Promise<{ id: string }> }
+  context: { params: Promise<{ id: string }> },
 ) {
   try {
     const user = await requireAuth();
@@ -100,7 +100,7 @@ export async function DELETE(
       /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
     if (!uuidRegex.test(voiceId)) {
       logger.warn(
-        `[Voice API] Invalid voice ID format for deletion: ${voiceId}`
+        `[Voice API] Invalid voice ID format for deletion: ${voiceId}`,
       );
       return NextResponse.json(
         {
@@ -109,7 +109,7 @@ export async function DELETE(
             "Please use the internal voice ID (UUID format) from the 'List User Voices' endpoint, not the ElevenLabs voice ID.",
           hint: "Call GET /api/elevenlabs/voices/user to get your voice IDs",
         },
-        { status: 400 }
+        { status: 400 },
       );
     }
 
@@ -130,7 +130,7 @@ export async function DELETE(
             message:
               "Voice not found in your organization. Make sure you're using the correct voice ID from 'List User Voices'.",
           },
-          { status: 404 }
+          { status: 404 },
         );
       }
 
@@ -150,21 +150,21 @@ export async function DELETE(
               "The voice ID must be in UUID format. Use the 'id' field from 'List User Voices' response, not the 'elevenlabsVoiceId'.",
             hint: "Call GET /api/elevenlabs/voices/user to get your voice IDs",
           },
-          { status: 400 }
+          { status: 400 },
         );
       }
     }
 
     return NextResponse.json(
       { error: "Failed to delete voice. Please try again." },
-      { status: 500 }
+      { status: 500 },
     );
   }
 }
 
 export async function PATCH(
   request: NextRequest,
-  context: { params: Promise<{ id: string }> }
+  context: { params: Promise<{ id: string }> },
 ) {
   try {
     const user = await requireAuth();
@@ -184,7 +184,7 @@ export async function PATCH(
         description,
         settings,
         isActive,
-      }
+      },
     );
 
     return NextResponse.json({
@@ -206,7 +206,7 @@ export async function PATCH(
 
     return NextResponse.json(
       { error: "Failed to update voice. Please try again." },
-      { status: 500 }
+      { status: 500 },
     );
   }
 }

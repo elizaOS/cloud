@@ -36,7 +36,6 @@ async function clearAllCaches() {
 
     console.log("\n✅ All caches cleared successfully!");
     console.log("Restart the server and reload the page.\n");
-
   } catch (error) {
     console.error("\n❌ Error clearing caches:", error);
     process.exit(1);

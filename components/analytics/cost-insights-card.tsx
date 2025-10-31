@@ -23,7 +23,10 @@ export function CostInsightsCard({
   const numericBalance = Number(creditBalance);
   const projectedSpendPercent =
     numericBalance > 0
-      ? Math.min(100, (costTrending.projectedMonthlyBurn / numericBalance) * 100)
+      ? Math.min(
+          100,
+          (costTrending.projectedMonthlyBurn / numericBalance) * 100,
+        )
       : 0;
 
   const runwayLabel =

@@ -64,7 +64,7 @@ export function VoiceCloneForm({
   const [name, setName] = useState("");
   const [description, setDescription] = useState("");
   const [cloneType, setCloneType] = useState<"instant" | "professional">(
-    "instant"
+    "instant",
   );
   const [files, setFiles] = useState<UploadedFile[]>([]);
   const [isUploading, setIsUploading] = useState(false);
@@ -102,7 +102,7 @@ export function VoiceCloneForm({
           const data = await response.json();
           if (data.success && data.voices) {
             const proCount = data.voices.filter(
-              (v: Voice) => v.cloneType === "professional"
+              (v: Voice) => v.cloneType === "professional",
             ).length;
             setProfessionalVoiceCount(proCount);
           }
@@ -239,7 +239,7 @@ export function VoiceCloneForm({
 
     if (!hasEnoughCredits) {
       setError(
-        `Insufficient balance. You need $${cost.toFixed(2)} but have $${Number(creditBalance).toFixed(2)}`
+        `Insufficient balance. You need $${cost.toFixed(2)} but have $${Number(creditBalance).toFixed(2)}`,
       );
       return;
     }
@@ -262,7 +262,7 @@ export function VoiceCloneForm({
           similarityBoost,
           style,
           useSpeakerBoost,
-        })
+        }),
       );
 
       // Add files
@@ -292,7 +292,7 @@ export function VoiceCloneForm({
       if (cloneType === "professional") {
         toast.success(
           `Voice "${name}" is being created. Professional cloning takes 30-60 minutes. Check back later!`,
-          { duration: 10000 }
+          { duration: 10000 },
         );
       } else {
         toast.success(`Voice "${name}" created successfully and ready to use!`);
@@ -395,7 +395,7 @@ export function VoiceCloneForm({
                   "relative rounded-xl border-2 p-5 text-left transition-all hover:shadow-sm",
                   cloneType === "instant"
                     ? "border-primary bg-primary/5 shadow-sm"
-                    : "border-border hover:border-muted-foreground/50 hover:bg-muted/30"
+                    : "border-border hover:border-muted-foreground/50 hover:bg-muted/30",
                 )}
               >
                 <div className="space-y-3">
@@ -446,7 +446,7 @@ export function VoiceCloneForm({
                   "relative rounded-xl border-2 p-5 text-left transition-all hover:shadow-sm",
                   cloneType === "professional"
                     ? "border-primary bg-primary/5 shadow-sm"
-                    : "border-border hover:border-muted-foreground/50 hover:bg-muted/30"
+                    : "border-border hover:border-muted-foreground/50 hover:bg-muted/30",
                 )}
               >
                 <div className="space-y-3">
@@ -464,7 +464,7 @@ export function VoiceCloneForm({
                             className={cn(
                               "text-xs",
                               professionalVoiceCount >= 1 &&
-                                "border-amber-500/50 bg-amber-500/10 text-amber-600"
+                                "border-amber-500/50 bg-amber-500/10 text-amber-600",
                             )}
                           >
                             {professionalVoiceCount}/1 slots
@@ -543,7 +543,7 @@ export function VoiceCloneForm({
                     "border-2 border-dashed rounded-lg p-8 text-center transition-colors cursor-pointer w-full",
                     isDragging
                       ? "border-primary bg-primary/5"
-                      : "border-muted hover:border-muted-foreground/50"
+                      : "border-muted hover:border-muted-foreground/50",
                   )}
                   onClick={() => fileInputRef.current?.click()}
                   disabled={isUploading}

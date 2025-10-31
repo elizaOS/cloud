@@ -17,7 +17,9 @@ export const organizations = pgTable(
     id: uuid("id").defaultRandom().primaryKey(),
     name: text("name").notNull(),
     slug: text("slug").notNull().unique(),
-    credit_balance: numeric("credit_balance", { precision: 10, scale: 2 }).notNull().default("100.00"),
+    credit_balance: numeric("credit_balance", { precision: 10, scale: 2 })
+      .notNull()
+      .default("100.00"),
     webhook_url: text("webhook_url"),
     webhook_secret: text("webhook_secret"),
     stripe_customer_id: text("stripe_customer_id"),

@@ -49,7 +49,9 @@ export async function GET(
           timestamp: new Date(),
         });
 
-        logger.info(`[Message SSE] 🔌 Creating subscription for room=${roomId}`);
+        logger.info(
+          `[Message SSE] 🔌 Creating subscription for room=${roomId}`,
+        );
 
         // Subscribe to message events for this room
         unsubscribe = messageEventEmitter.subscribeToMessages(
@@ -61,7 +63,9 @@ export async function GET(
               type: event.type,
             });
 
-            logger.info(`[Message SSE] 📨 SENDING message event to client via SSE`);
+            logger.info(
+              `[Message SSE] 📨 SENDING message event to client via SSE`,
+            );
             sendEvent("message", {
               id: event.messageId,
               entityId: event.entityId,

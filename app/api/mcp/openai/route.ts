@@ -33,25 +33,25 @@ async function getHandler() {
             .enum(["1024x1024", "1536x1024", "1024x1536", "auto"])
             .optional()
             .describe(
-              "Image size: square (1024x1024), landscape (1536x1024), portrait (1024x1536), or auto (default: auto)"
+              "Image size: square (1024x1024), landscape (1536x1024), portrait (1024x1536), or auto (default: auto)",
             ) as any,
           quality: z
             .enum(["low", "medium", "high", "auto"])
             .optional()
             .describe(
-              "Image quality: low (fast), medium, high (best), or auto (default: auto)"
+              "Image quality: low (fast), medium, high (best), or auto (default: auto)",
             ) as any,
           background: z
             .enum(["transparent", "opaque", "auto"])
             .optional()
             .describe(
-              "Background type: transparent (PNG only), opaque, or auto (default: auto)"
+              "Background type: transparent (PNG only), opaque, or auto (default: auto)",
             ) as any,
           output_format: z
             .enum(["png", "jpeg", "webp"])
             .optional()
             .describe(
-              "Output format: png (default), jpeg (faster), or webp"
+              "Output format: png (default), jpeg (faster), or webp",
             ) as any,
         },
         {},
@@ -124,7 +124,7 @@ async function getHandler() {
               isError: true,
             };
           }
-        }
+        },
       );
     },
     {
@@ -137,7 +137,7 @@ async function getHandler() {
       recipient: sellerAccount.address,
       facilitator,
       network: env.NETWORK,
-    }
+    },
   );
 
   return cachedHandler;

@@ -91,9 +91,7 @@ export async function GET(
               container.name,
               {
                 limit: 50,
-                since: lastTimestamp
-                  ? new Date(lastTimestamp + 1)
-                  : undefined,
+                since: lastTimestamp ? new Date(lastTimestamp + 1) : undefined,
               },
               level,
             );
@@ -121,9 +119,7 @@ export async function GET(
             sendEvent({
               type: "error",
               message:
-                error instanceof Error
-                  ? error.message
-                  : "Failed to fetch logs",
+                error instanceof Error ? error.message : "Failed to fetch logs",
             });
           }
         }, 2000);
@@ -353,4 +349,3 @@ async function getCloudWatchLogs(
     return [];
   }
 }
-

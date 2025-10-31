@@ -436,8 +436,9 @@ export function LandingPage() {
                 Discover Pre-Built AI Characters
               </h2>
               <p className="text-lg text-muted-foreground max-w-2xl mx-auto">
-                Explore hundreds of ready-to-use AI agents. From creative assistants to gaming companions,
-                find the perfect character for your needs—or clone and customize one to make it your own.
+                Explore hundreds of ready-to-use AI agents. From creative
+                assistants to gaming companions, find the perfect character for
+                your needs—or clone and customize one to make it your own.
               </p>
             </div>
 
@@ -449,7 +450,8 @@ export function LandingPage() {
                 </div>
                 <h3 className="mb-2 font-semibold text-lg">500+ Characters</h3>
                 <p className="text-sm text-muted-foreground">
-                  Access a vast library of pre-configured AI agents across multiple categories
+                  Access a vast library of pre-configured AI agents across
+                  multiple categories
                 </p>
               </div>
 
@@ -459,7 +461,8 @@ export function LandingPage() {
                 </div>
                 <h3 className="mb-2 font-semibold text-lg">Instant Chat</h3>
                 <p className="text-sm text-muted-foreground">
-                  Start conversations immediately with any character—no configuration required
+                  Start conversations immediately with any character—no
+                  configuration required
                 </p>
               </div>
 
@@ -467,9 +470,12 @@ export function LandingPage() {
                 <div className="mb-4 flex h-12 w-12 items-center justify-center rounded-lg bg-gradient-to-br from-pink-500/10 to-rose-500/10">
                   <Copy className="h-6 w-6 text-pink-500" />
                 </div>
-                <h3 className="mb-2 font-semibold text-lg">Clone & Customize</h3>
+                <h3 className="mb-2 font-semibold text-lg">
+                  Clone & Customize
+                </h3>
                 <p className="text-sm text-muted-foreground">
-                  Make any character your own by cloning and modifying it to fit your needs
+                  Make any character your own by cloning and modifying it to fit
+                  your needs
                 </p>
               </div>
             </div>
@@ -488,7 +494,8 @@ export function LandingPage() {
                 </Link>
               </Button>
               <p className="mt-4 text-sm text-muted-foreground">
-                Browse our collection of AI characters • No account required to explore
+                Browse our collection of AI characters • No account required to
+                explore
               </p>
             </div>
           </div>

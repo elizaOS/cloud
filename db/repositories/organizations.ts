@@ -23,7 +23,7 @@ export class OrganizationsRepository {
   }
 
   async findByStripeCustomerId(
-    stripeCustomerId: string
+    stripeCustomerId: string,
   ): Promise<Organization | undefined> {
     return await db.query.organizations.findFirst({
       where: eq(organizations.stripe_customer_id, stripeCustomerId),
@@ -49,7 +49,7 @@ export class OrganizationsRepository {
 
   async update(
     id: string,
-    data: Partial<NewOrganization>
+    data: Partial<NewOrganization>,
   ): Promise<Organization | undefined> {
     const [updated] = await db
       .update(organizations)
@@ -64,7 +64,7 @@ export class OrganizationsRepository {
 
   async updateCreditBalance(
     organizationId: string,
-    amount: number
+    amount: number,
   ): Promise<{ success: boolean; newBalance: number }> {
     const result = await db.transaction(async (tx) => {
       const org = await tx.query.organizations.findFirst({
@@ -104,7 +104,7 @@ export class OrganizationsRepository {
     organizationId: string,
     amount: number,
     description: string,
-    userId?: string
+    userId?: string,
   ): Promise<{
     success: boolean;
     newBalance: number;
@@ -123,7 +123,7 @@ export class OrganizationsRepository {
 
       if (currentBalance < amount) {
         throw new Error(
-          `Insufficient balance. Required: $${amount.toFixed(2)}, Available: $${currentBalance.toFixed(2)}`
+          `Insufficient balance. Required: $${amount.toFixed(2)}, Available: $${currentBalance.toFixed(2)}`,
         );
       }
 

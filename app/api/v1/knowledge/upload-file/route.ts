@@ -40,10 +40,13 @@ async function handlePOST(req: NextRequest) {
     const files = formData.getAll("files") as File[];
 
     if (!files || files.length === 0) {
-      return NextResponse.json({ 
-        error: "No files provided",
-        details: "Please upload at least one file" 
-      }, { status: 400 });
+      return NextResponse.json(
+        {
+          error: "No files provided",
+          details: "Please upload at least one file",
+        },
+        { status: 400 },
+      );
     }
 
     // Process all files
@@ -95,22 +98,24 @@ async function handlePOST(req: NextRequest) {
             size: file.size,
             uploadedAt: Date.now(),
             status: "error_processing",
-            error: fileError instanceof Error ? fileError.message : "Unknown error",
+            error:
+              fileError instanceof Error ? fileError.message : "Unknown error",
           };
         }
-      })
+      }),
     );
 
     // Check if any files failed
-    const successCount = results.filter(r => r.status === "success").length;
+    const successCount = results.filter((r) => r.status === "success").length;
     const failedCount = results.length - successCount;
 
     return NextResponse.json({
       success: successCount > 0,
       data: results,
-      message: failedCount === 0 
-        ? `Successfully uploaded ${successCount} file(s)` 
-        : `Uploaded ${successCount} file(s), ${failedCount} failed`,
+      message:
+        failedCount === 0
+          ? `Successfully uploaded ${successCount} file(s)`
+          : `Uploaded ${successCount} file(s), ${failedCount} failed`,
       successCount,
       failedCount,
       totalCount: results.length,

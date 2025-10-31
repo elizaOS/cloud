@@ -15,7 +15,10 @@ import {
   Star,
 } from "lucide-react";
 import type { ExtendedCharacter } from "@/lib/types/marketplace";
-import { getCategoryIcon, getCategoryColor } from "@/lib/constants/character-categories";
+import {
+  getCategoryIcon,
+  getCategoryColor,
+} from "@/lib/constants/character-categories";
 import { formatDistanceToNow } from "date-fns";
 
 interface CharacterCardProps {
@@ -35,9 +38,7 @@ export function CharacterCard({
     ? character.bio[0]
     : character.bio;
 
-  const hasVoice = character.plugins?.includes(
-    "@elizaos/plugin-elevenlabs",
-  );
+  const hasVoice = character.plugins?.includes("@elizaos/plugin-elevenlabs");
 
   const isDeployed = character.stats?.deploymentStatus === "deployed";
 

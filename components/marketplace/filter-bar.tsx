@@ -46,7 +46,10 @@ export function FilterBar({
         <span className="text-sm text-muted-foreground hidden sm:inline">
           Sort:
         </span>
-        <Select value={sortBy} onValueChange={(value) => onSortChange(value as SortBy)}>
+        <Select
+          value={sortBy}
+          onValueChange={(value) => onSortChange(value as SortBy)}
+        >
           <SelectTrigger className="w-[180px] h-9">
             <SelectValue />
           </SelectTrigger>

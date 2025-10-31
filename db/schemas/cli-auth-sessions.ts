@@ -43,4 +43,3 @@ export const cliAuthSessions = pgTable(
 // Type inference
 export type CliAuthSession = InferSelectModel<typeof cliAuthSessions>;
 export type NewCliAuthSession = InferInsertModel<typeof cliAuthSessions>;
-

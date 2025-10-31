@@ -13,7 +13,7 @@ interface ElizaPageClientProps {
 export function ElizaPageClient({ initialCharacters }: ElizaPageClientProps) {
   const searchParams = useSearchParams();
   const [initialCharacterId, setInitialCharacterId] = useState<string | null>(
-    null
+    null,
   );
 
   useSetPageHeader({
@@ -25,10 +25,7 @@ export function ElizaPageClient({ initialCharacters }: ElizaPageClientProps) {
   useEffect(() => {
     const characterId = searchParams.get("characterId");
     if (characterId) {
-      console.log(
-        "[Eliza Page] Character ID from URL:",
-        characterId
-      );
+      console.log("[Eliza Page] Character ID from URL:", characterId);
       // Set character ID asynchronously to avoid cascading renders
       Promise.resolve().then(() => {
         setInitialCharacterId(characterId);
