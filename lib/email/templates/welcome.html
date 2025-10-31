@@ -5,136 +5,300 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Welcome to Eliza Cloud</title>
   <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
     body {
       font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
       line-height: 1.6;
-      color: #333;
+      color: #1f2937;
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      padding: 40px 20px;
+    }
+    .email-wrapper {
       max-width: 600px;
       margin: 0 auto;
-      padding: 20px;
-      background-color: #f4f4f4;
-    }
-    .container {
       background: white;
-      border-radius: 10px;
-      padding: 40px;
-      box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+      border-radius: 16px;
+      overflow: hidden;
+      box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
     }
-    .header {
+    .header-banner {
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      padding: 50px 40px;
       text-align: center;
-      margin-bottom: 30px;
+      color: white;
     }
-    .header h1 {
-      color: #6366f1;
-      font-size: 28px;
-      margin: 0 0 10px 0;
+    .header-banner h1 {
+      font-size: 32px;
+      font-weight: 700;
+      margin-bottom: 12px;
+      letter-spacing: -0.5px;
+    }
+    .header-banner p {
+      font-size: 18px;
+      opacity: 0.95;
+      margin: 0;
+    }
+    .celebration-icon {
+      font-size: 56px;
+      margin-bottom: 20px;
+      animation: bounce 1s ease infinite;
+    }
+    @keyframes bounce {
+      0%, 100% { transform: translateY(0); }
+      50% { transform: translateY(-10px); }
     }
     .content {
-      margin: 30px 0;
+      padding: 40px;
     }
-    .highlight-box {
-      background: #f0f9ff;
-      border-left: 4px solid #6366f1;
-      padding: 20px;
-      margin: 20px 0;
-      border-radius: 5px;
+    .welcome-text {
+      font-size: 16px;
+      color: #4b5563;
+      margin-bottom: 30px;
+      line-height: 1.8;
     }
-    .cta-button {
-      display: inline-block;
-      background: #6366f1;
-      color: white;
-      padding: 14px 30px;
-      text-decoration: none;
-      border-radius: 5px;
-      margin: 10px 5px;
+    .organization-name {
+      color: #6366f1;
       font-weight: 600;
     }
-    .cta-button:hover {
-      background: #4f46e5;
-    }
-    .steps {
+    .credit-card {
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      border-radius: 12px;
+      padding: 30px;
+      text-align: center;
       margin: 30px 0;
-    }
-    .step {
-      margin: 20px 0;
-      padding-left: 40px;
-      position: relative;
-    }
-    .step-number {
-      position: absolute;
-      left: 0;
-      top: 0;
-      background: #6366f1;
       color: white;
-      width: 30px;
-      height: 30px;
-      border-radius: 50%;
+      box-shadow: 0 10px 30px rgba(102, 126, 234, 0.3);
+    }
+    .credit-label {
+      font-size: 14px;
+      opacity: 0.9;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+      margin-bottom: 8px;
+    }
+    .credit-amount {
+      font-size: 42px;
+      font-weight: 700;
+      margin: 10px 0;
+      text-shadow: 0 2px 10px rgba(0, 0, 0, 0.2);
+    }
+    .credit-subtitle {
+      font-size: 14px;
+      opacity: 0.85;
+    }
+    .steps-section {
+      margin: 40px 0;
+    }
+    .steps-title {
+      font-size: 22px;
+      font-weight: 700;
+      color: #1f2937;
+      margin-bottom: 25px;
+      text-align: center;
+    }
+    .step-card {
+      background: #f9fafb;
+      border-radius: 12px;
+      padding: 24px;
+      margin-bottom: 16px;
+      display: flex;
+      align-items: flex-start;
+      gap: 20px;
+      transition: transform 0.2s, box-shadow 0.2s;
+    }
+    .step-card:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 8px 20px rgba(0, 0, 0, 0.08);
+    }
+    .step-icon {
+      flex-shrink: 0;
+      width: 44px;
+      height: 44px;
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      color: white;
+      border-radius: 12px;
       display: flex;
       align-items: center;
       justify-content: center;
-      font-weight: bold;
+      font-size: 20px;
+      font-weight: 700;
+      box-shadow: 0 4px 12px rgba(102, 126, 234, 0.3);
+    }
+    .step-content {
+      flex: 1;
+    }
+    .step-title {
+      font-size: 17px;
+      font-weight: 600;
+      color: #1f2937;
+      margin-bottom: 6px;
+    }
+    .step-description {
+      font-size: 14px;
+      color: #6b7280;
+      line-height: 1.6;
+    }
+    .cta-section {
+      text-align: center;
+      margin: 40px 0;
+      padding: 30px 0;
+    }
+    .cta-button {
+      display: inline-block;
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      color: white;
+      padding: 16px 36px;
+      text-decoration: none;
+      border-radius: 10px;
+      margin: 8px;
+      font-weight: 600;
+      font-size: 16px;
+      box-shadow: 0 8px 20px rgba(102, 126, 234, 0.4);
+      transition: transform 0.2s, box-shadow 0.2s;
+    }
+    .cta-button:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 12px 28px rgba(102, 126, 234, 0.5);
+    }
+    .cta-button.secondary {
+      background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+      box-shadow: 0 8px 20px rgba(16, 185, 129, 0.4);
+    }
+    .cta-button.secondary:hover {
+      box-shadow: 0 12px 28px rgba(16, 185, 129, 0.5);
+    }
+    .help-section {
+      background: #fef3c7;
+      border-left: 4px solid #f59e0b;
+      border-radius: 8px;
+      padding: 20px;
+      margin: 30px 0;
+    }
+    .help-section strong {
+      color: #92400e;
+      font-size: 15px;
+    }
+    .help-section p {
+      color: #78350f;
+      font-size: 14px;
+      margin: 8px 0 0 0;
+    }
+    .help-section a {
+      color: #b45309;
+      text-decoration: underline;
+      font-weight: 600;
     }
     .footer {
+      background: #f9fafb;
+      padding: 30px 40px;
       text-align: center;
-      margin-top: 40px;
-      padding-top: 20px;
       border-top: 1px solid #e5e7eb;
+    }
+    .footer p {
       color: #6b7280;
-      font-size: 14px;
+      font-size: 13px;
+      margin: 8px 0;
+    }
+    .footer-logo {
+      font-size: 20px;
+      font-weight: 700;
+      color: #6366f1;
+      margin-bottom: 12px;
+    }
+    @media only screen and (max-width: 600px) {
+      .header-banner {
+        padding: 40px 24px;
+      }
+      .header-banner h1 {
+        font-size: 26px;
+      }
+      .content {
+        padding: 30px 24px;
+      }
+      .credit-amount {
+        font-size: 36px;
+      }
+      .cta-button {
+        display: block;
+        margin: 12px 0;
+      }
     }
   </style>
 </head>
 <body>
-  <div class="container">
-    <div class="header">
-      <h1>🎉 Welcome to Eliza Cloud!</h1>
+  <div class="email-wrapper">
+    <div class="header-banner">
+      <div class="celebration-icon">🎉</div>
+      <h1>Welcome to Eliza Cloud!</h1>
       <p>Hi {{userName}}, we're excited to have you here!</p>
     </div>
 
     <div class="content">
-      <p>Your organization <strong>{{organizationName}}</strong> has been successfully created, and you're ready to start building amazing AI agents.</p>
-
-      <div class="highlight-box">
-        <strong>🎁 Starting Balance:</strong><br>
-        <span style="font-size: 24px; color: #6366f1; font-weight: bold;">{{creditBalance}} credits</span><br>
-        <span style="color: #6b7280; font-size: 14px;">Enough to get you started with your first agents!</span>
-      </div>
-
-      <div class="steps">
-        <h3>Get Started in 3 Easy Steps:</h3>
-
-        <div class="step">
-          <div class="step-number">1</div>
-          <strong>Explore Your Dashboard</strong><br>
-          <span style="color: #6b7280;">View your credit balance, usage analytics, and account settings</span>
-        </div>
-
-        <div class="step">
-          <div class="step-number">2</div>
-          <strong>Create Your First Agent</strong><br>
-          <span style="color: #6b7280;">Deploy intelligent AI agents with custom personalities and capabilities</span>
-        </div>
-
-        <div class="step">
-          <div class="step-number">3</div>
-          <strong>Integrate with Your App</strong><br>
-          <span style="color: #6b7280;">Use our API to connect Eliza agents to your applications</span>
-        </div>
-      </div>
-
-      <div style="text-align: center; margin: 30px 0;">
-        <a href="{{dashboardUrl}}" class="cta-button">View Dashboard →</a>
-        <a href="{{docsUrl}}" class="cta-button" style="background: #10b981;">Read Docs →</a>
-      </div>
-
-      <p style="color: #6b7280; font-size: 14px; margin-top: 30px;">
-        <strong>Need help?</strong> Check out our <a href="{{docsUrl}}" style="color: #6366f1;">documentation</a> or reach out to our support team.
+      <p class="welcome-text">
+        Congratulations! Your organization <span class="organization-name">{{organizationName}}</span> has been successfully created. You're now ready to start building powerful AI agents that will transform how you work.
       </p>
+
+      <div class="credit-card">
+        <div class="credit-label">🎁 Your Starting Balance</div>
+        <div class="credit-amount">${{creditBalance}}</div>
+        <div class="credit-subtitle">USD — Perfect for building your first agents!</div>
+      </div>
+
+      <div class="steps-section">
+        <h2 class="steps-title">Get Started in 3 Easy Steps</h2>
+
+        <div class="step-card">
+          <div class="step-icon">1</div>
+          <div class="step-content">
+            <div class="step-title">📊 Explore Your Dashboard</div>
+            <div class="step-description">
+              Monitor your balance, track usage analytics, and manage your account settings — all in one place.
+            </div>
+          </div>
+        </div>
+
+        <div class="step-card">
+          <div class="step-icon">2</div>
+          <div class="step-content">
+            <div class="step-title">🤖 Create Your First Agent</div>
+            <div class="step-description">
+              Deploy intelligent AI agents with custom personalities, capabilities, and integrations tailored to your needs.
+            </div>
+          </div>
+        </div>
+
+        <div class="step-card">
+          <div class="step-icon">3</div>
+          <div class="step-content">
+            <div class="step-title">🔗 Integrate with Your Apps</div>
+            <div class="step-description">
+              Use our powerful API to seamlessly connect Eliza agents to your applications and workflows.
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="cta-section">
+        <a href="{{dashboardUrl}}" class="cta-button">View Dashboard →</a>
+        <a href="{{docsUrl}}" class="cta-button secondary">Read Documentation →</a>
+      </div>
+
+      <div class="help-section">
+        <strong>💡 Need Help Getting Started?</strong>
+        <p>
+          Check out our comprehensive <a href="{{docsUrl}}">documentation</a> or reach out to our support team. We're here to help you succeed!
+        </p>
+      </div>
     </div>
 
     <div class="footer">
+      <div class="footer-logo">Eliza Cloud</div>
       <p>© {{currentYear}} Eliza Cloud. All rights reserved.</p>
-      <p style="font-size: 12px; margin-top: 10px;">
+      <p style="margin-top: 12px;">
         You received this email because you created an account at Eliza Cloud.
       </p>
     </div>

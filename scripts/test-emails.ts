@@ -40,15 +40,15 @@ async function main() {
       email,
       userName: "Test User",
       organizationName: "Test Organization",
-      creditBalance: 10000,
+      creditBalance: 5.0,
       dashboardUrl: process.env.NEXT_PUBLIC_APP_URL + "/dashboard",
     });
   } else if (command === "low-credits") {
     result = await emailService.sendLowCreditsEmail({
       email,
       organizationName: "Test Organization",
-      currentBalance: 500,
-      threshold: 1000,
+      currentBalance: 0.5,
+      threshold: 1.0,
       billingUrl: process.env.NEXT_PUBLIC_APP_URL + "/dashboard/billing",
     });
   } else {
