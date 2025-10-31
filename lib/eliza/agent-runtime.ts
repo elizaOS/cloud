@@ -208,6 +208,16 @@ class AgentRuntimeManager {
         (p) => p.name !== "@elizaos/plugin-sql",
       );
 
+      elizaLogger.info(
+        "#Eliza",
+        "Plugins being loaded:",
+        pluginsWithoutSql.map((p) => ({
+          name: p.name,
+          hasServices: !!(p.services && p.services.length > 0),
+          serviceCount: p.services?.length || 0,
+        })),
+      );
+
       // Construct settings with proper fallback for API keys
       const openaiKeyRaw = process.env.OPENAI_API_KEY ||
         agent.character.secrets?.OPENAI_API_KEY ||
@@ -275,6 +285,16 @@ class AgentRuntimeManager {
         try {
           await this.runtime.initialize();
           elizaLogger.success("#Eliza", "Runtime initialized successfully");
+          
+          // Log available services
+          const services = (this.runtime as never)["services"];
+          if (services) {
+            elizaLogger.info(
+              "#Eliza",
+              "Available services:",
+              Object.keys(services),
+            );
+          }
         } catch (initError) {
           const errorMsg =
             initError instanceof Error ? initError.message : String(initError);
@@ -594,7 +614,8 @@ class AgentRuntimeManager {
       userName: entityId,
     });
 
-    // Create and save user message
+    // Create user message
+    // Note: The plugin (assistantPlugin) will save this to the database via the event handler
     const userMessage: Memory = {
       id: uuidv4() as UUID,
       roomId: roomId as UUID,
@@ -613,9 +634,6 @@ class AgentRuntimeManager {
           : {}),
       },
     };
-
-    // Save user message to database
-    await runtime.createMemory(userMessage, "messages");
 
     // Track usage and response
     let usage:

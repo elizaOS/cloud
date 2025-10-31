@@ -10,9 +10,13 @@ import {
   ModelType,
   type Plugin,
   type UUID,
+  parseKeyValueXml,
 } from "@elizaos/core";
 import { v4 } from "uuid";
-import { recentMessagesProvider } from "./providers/recentMessages";
+import { providersProvider } from "./providers/providers";
+import { actionsProvider } from "./providers/actions";
+import { characterProvider } from "./providers/character";
+import { messageEventEmitter } from "@/lib/events/message-events";
 
 // Track usage per message for credit deduction
 const messageUsageMap = new Map<
@@ -30,44 +34,64 @@ interface MessageReceivedHandlerParams {
 }
 
 /**
- * Extracts the text content from within a <response> XML tag.
+ * Planning template - decides if we can respond immediately and generates response if possible
  */
-function extractResponseText(text: string): string | null {
-  if (!text) return null;
+export const planningTemplate = `
+<providers>
+{{providers}}
+</providers>
 
-  const responseMatch = text.match(/<response>([\s\S]*?)<\/response>/);
+<instructions>
+You are analyzing the user's message to determine the best approach.
 
-  if (!responseMatch || responseMatch[1] === undefined) {
-    logger.warn("Could not find <response> tag, using raw text");
-    return text.trim() || null;
-  }
+**Option 1 - Respond Immediately (1 LLM call):**
+If you have all the information needed to provide a complete, helpful response RIGHT NOW:
+- Simple greeting, thanks, or social interaction
+- General question answerable from existing context
+- No external data, calculations, or tools needed
 
-  const responseContent = responseMatch[1].trim();
+Then generate your response immediately and skip additional context gathering.
 
-  if (!responseContent) {
-    logger.warn("Found <response> tag, but its content is empty");
-    return null;
-  }
+**Option 2 - Gather More Context (2+ LLM calls):**
+If the request requires:
+- Specific data from providers (e.g., knowledge documents, user data)
+- Execution of actions or tools
+- Additional context you don't currently have
 
-  // Basic unescaping for common XML entities
-  const unescapedContent = responseContent
-    .replace(/&lt;/g, "<")
-    .replace(/&gt;/g, ">")
-    .replace(/&amp;/g, "&")
-    .replace(/&quot;/g, '"')
-    .replace(/&apos;/g, "'");
+Then specify which providers/actions are needed, and you'll generate the response later.
+</instructions>
 
-  return unescapedContent;
-}
+<output>
+Respond using XML format:
 
+**If you can respond immediately:**
+<plan>
+  <thought>Brief reasoning why you can respond now</thought>
+  <canRespondNow>YES</canRespondNow>
+  <text>Your complete response to the user here</text>
+</plan>
+
+**If you need more context:**
+<plan>
+  <thought>Reasoning about what additional context you need</thought>
+  <canRespondNow>NO</canRespondNow>
+  <providers>PROVIDER_1,PROVIDER_2</providers>
+  <actions>ACTION_1,ACTION_2</actions>
+</plan>
+</output>`;
+
+/**
+ * Final response template - generates the actual response
+ */
 export const messageHandlerTemplate = `
 <providers>
 {{providers}}
 </providers>
 
 <instructions>
-Respond to the user's message and answer their question thoroughly and helpfully.
+Respond to the user's message thoroughly and helpfully.
 Be concise, clear, and friendly.
+Use the provided context and memories to personalize your response.
 </instructions>
 
 <keys>
@@ -77,7 +101,8 @@ Be concise, clear, and friendly.
 <output>
 Respond using XML format like this:
 <response>
-    Your response text here
+  <thought>Your internal reasoning</thought>
+  <text>Your response text here</text>
 </response>
 
 Your response must ONLY include the <response></response> XML block.
@@ -101,18 +126,19 @@ async function setLatestResponseId(
   responseId: string,
 ): Promise<void> {
   if (!responseId || typeof responseId !== "string") {
-    console.error("[setLatestResponseId] Invalid responseId:", responseId);
+    logger.error("[setLatestResponseId] Invalid responseId:", responseId);
     throw new Error(`Invalid responseId: ${responseId}`);
   }
   const key = `response_id:${runtime.agentId}:${roomId}`;
-  console.log("[setLatestResponseId] Setting cache:", {
-    key,
-    responseId: responseId.substring(0, 8),
-  });
+  logger.debug(
+    `[setLatestResponseId] Setting cache: ${key}, responseId: ${responseId.substring(0, 8)}`,
+  );
   try {
     await runtime.setCache(key, responseId);
   } catch (error) {
-    console.error("[setLatestResponseId] Error setting cache:", error);
+    logger.error(
+      `[setLatestResponseId] Error setting cache: ${error instanceof Error ? error.message : String(error)}`,
+    );
     throw error;
   }
 }
@@ -122,7 +148,7 @@ async function clearLatestResponseId(
   roomId: string,
 ): Promise<void> {
   const key = `response_id:${runtime.agentId}:${roomId}`;
-  console.log("[clearLatestResponseId] Deleting cache key:", key);
+  logger.debug("[clearLatestResponseId] Deleting cache key:", key);
   await runtime.deleteCache(key);
 }
 
@@ -134,7 +160,7 @@ function estimateTokens(text: string): number {
 }
 
 /**
- * Handles incoming messages using the full ElizaOS pipeline
+ * Handles incoming messages using single-shot approach with planning
  */
 const messageReceivedHandler = async ({
   runtime,
@@ -143,7 +169,7 @@ const messageReceivedHandler = async ({
 }: MessageReceivedHandlerParams): Promise<void> => {
   // Generate a new response ID
   const responseId = v4();
-  console.log(
+  logger.debug(
     "[ElizaAssistant] Generated response ID:",
     responseId.substring(0, 8),
   );
@@ -155,9 +181,11 @@ const messageReceivedHandler = async ({
   const runId = asUUID(v4());
   const startTime = Date.now();
 
-  // Track usage for this message - we'll estimate based on text length
+  // Track usage for this message
   const messageKey = message.id || v4();
   const modelUsed = "gpt-4o"; // Default model used by ElizaOS
+  let totalInputTokens = 0;
+  let totalOutputTokens = 0;
 
   // Emit run started event
   await runtime.emitEvent(EventType.RUN_STARTED, {
@@ -177,51 +205,185 @@ const messageReceivedHandler = async ({
     }
 
     // Save the incoming message
+    logger.debug("[ElizaAssistant] Saving message to memory");
     await runtime.createMemory(message, "messages");
 
-    // Compose state using providers (this is the key difference from manual approach!)
-    const state = await runtime.composeState(message, ["RECENT_MESSAGES"]);
-
-    const prompt = composePromptFromState({
-      state,
-      template:
-        runtime.character.templates?.messageHandlerTemplate ||
-        messageHandlerTemplate,
+    // Emit user message event via SSE
+    messageEventEmitter.emitMessage({
+      roomId: message.roomId,
+      messageId: message.id || v4(),
+      entityId: message.entityId,
+      agentId: runtime.agentId,
+      content: {
+        text: message.content.text || "",
+        source: message.content.source,
+      },
+      createdAt: message.createdAt || Date.now(),
+      isAgent: false,
+      type: "user",
     });
 
-    console.log("*** PROMPT ***\n", prompt);
+    // Emit thinking event
+    messageEventEmitter.emitMessage({
+      roomId: message.roomId,
+      messageId: `thinking-${Date.now()}`,
+      entityId: runtime.agentId,
+      agentId: runtime.agentId,
+      content: {
+        text: "",
+      },
+      createdAt: Date.now(),
+      isAgent: true,
+      type: "thinking",
+    });
 
-    // Estimate input tokens from prompt
-    const estimatedInputTokens = estimateTokens(prompt);
+    // PHASE 1: Compose initial state with memory providers
+    logger.debug("[ElizaAssistant] Composing state with memory providers");
+    const initialState = await runtime.composeState(message, [
+      "SHORT_TERM_MEMORY",
+      "LONG_TERM_MEMORY",
+      "AVAILABLE_DOCUMENTS",
+    ]);
 
-    let responseContent: string = "";
+    logger.debug("*** INITIAL STATE ***\n", JSON.stringify(initialState));
 
-    // Retry if missing required fields
-    let retries = 0;
-    const maxRetries = 3;
+    // PHASE 2: Planning - Determine which providers/actions to use
+    logger.info("[ElizaAssistant] Phase 1: Planning");
+    const planningPrompt = composePromptFromState({
+      state: initialState,
+      template:
+        runtime.character.templates?.planningTemplate || planningTemplate,
+    });
 
-    while (retries < maxRetries && !responseContent) {
-      const response = await runtime.useModel(ModelType.TEXT_LARGE, {
-        prompt,
+    logger.debug("*** PLANNING PROMPT ***\n", planningPrompt);
+    const planningInputTokens = estimateTokens(planningPrompt);
+    totalInputTokens += planningInputTokens;
+
+    const planningResponse = await runtime.useModel(ModelType.TEXT_LARGE, {
+      prompt: planningPrompt,
+    });
+
+    logger.debug("*** PLANNING RESPONSE ***\n", planningResponse);
+    const planningOutputTokens = estimateTokens(planningResponse);
+    totalOutputTokens += planningOutputTokens;
+
+    const plan = parseKeyValueXml(planningResponse);
+    const canRespondNow =
+      plan?.canRespondNow?.toUpperCase() === "YES" ||
+      plan?.canRespondNow === "true";
+
+    logger.info(
+      `[ElizaAssistant] Plan - canRespondNow: ${canRespondNow}, thought: ${plan?.thought}`,
+    );
+
+    let responseContent = "";
+    let thought = "";
+
+    // Check if the planning call already generated a response (1 LLM call optimization)
+    if (canRespondNow && plan?.text) {
+      logger.info(
+        "[ElizaAssistant] ⚡ Single-call optimization: Using response from planning phase",
+      );
+      responseContent = plan.text;
+      thought = plan.thought || "";
+    } else {
+      // Need to gather more context and generate response (2+ LLM calls)
+      let updatedState = { ...initialState };
+
+      // PHASE 3: Execute planned providers and actions
+      if (!canRespondNow) {
+        logger.info("[ElizaAssistant] Phase 2: Executing providers and actions");
+        logger.debug(
+          `[ElizaAssistant] Providers: ${plan?.providers}, Actions: ${plan?.actions}`,
+        );
+
+        // Execute providers if any were planned
+        const plannedProviders = plan?.providers
+          ? (Array.isArray(plan.providers)
+              ? plan.providers
+              : plan.providers.split(",").map((p: string) => p.trim())
+            ).filter((p: string) => p && p !== "")
+          : [];
+
+        if (plannedProviders.length > 0) {
+          logger.debug(
+            "[ElizaAssistant] Executing providers:",
+            plannedProviders,
+          );
+          const providerState = await runtime.composeState(
+            message,
+            [...plannedProviders, "CHARACTER"],
+          );
+          updatedState = { ...updatedState, ...providerState };
+        }
+
+        // Execute actions if any were planned
+        const plannedActions = plan?.actions
+          ? (Array.isArray(plan.actions)
+              ? plan.actions
+              : plan.actions.split(",").map((a: string) => a.trim())
+            ).filter((a: string) => a && a !== "")
+          : [];
+
+        if (plannedActions.length > 0) {
+          logger.debug("[ElizaAssistant] Executing actions:", plannedActions);
+          // Actions will be executed via processActions if needed
+          // For now, we just note them in state
+          updatedState.data = {
+            ...updatedState.data,
+            plannedActions,
+          };
+        }
+      } else {
+        logger.info(
+          "[ElizaAssistant] Short-circuit: Responding with existing context",
+        );
+      }
+
+      // PHASE 4: Generate final response using updated state
+      const responsePhase = canRespondNow ? "Phase 2" : "Phase 3";
+      logger.info(
+        `[ElizaAssistant] ${responsePhase}: Generating final response`,
+      );
+      const responsePrompt = composePromptFromState({
+        state: updatedState,
+        template:
+          runtime.character.templates?.messageHandlerTemplate ||
+          messageHandlerTemplate,
       });
 
-      logger.debug(`*** Raw LLM Response ***\n${response}`);
+      logger.debug("*** RESPONSE PROMPT ***\n", responsePrompt);
+      const responseInputTokens = estimateTokens(responsePrompt);
+      totalInputTokens += responseInputTokens;
 
-      // Attempt to parse the XML response
-      const extractedContent = extractResponseText(response);
+      // Retry if missing required fields
+      let retries = 0;
+      const maxRetries = 3;
 
-      if (!extractedContent) {
-        logger.warn("*** Missing response content, retrying... ***");
-        responseContent = "";
-      } else {
-        responseContent = extractedContent;
-        break;
+      while (retries < maxRetries && !responseContent) {
+        const response = await runtime.useModel(ModelType.TEXT_LARGE, {
+          prompt: responsePrompt,
+        });
+
+        logger.debug("*** RAW LLM RESPONSE ***\n", response);
+        const responseOutputTokens = estimateTokens(response);
+        if (retries === 0) {
+          totalOutputTokens += responseOutputTokens;
+        }
+
+        const parsedResponse = parseKeyValueXml(response);
+
+        if (!parsedResponse?.text) {
+          logger.warn("*** Missing response text, retrying... ***");
+          responseContent = "";
+        } else {
+          responseContent = parsedResponse.text;
+          thought = parsedResponse.thought || "";
+          break;
+        }
+        retries++;
       }
-      retries++;
     }
-
-    // Estimate output tokens from response
-    const estimatedOutputTokens = estimateTokens(responseContent);
 
     // Check if this is still the latest response ID for this room
     const currentResponseId = await getLatestResponseId(
@@ -246,28 +408,51 @@ const messageReceivedHandler = async ({
       worldId: message.worldId,
       content: {
         text: responseContent,
+        thought,
         source: "agent",
         inReplyTo: message.id,
       },
     };
 
-    // Save response and trigger callback
+    // Save response
+    logger.debug("[ElizaAssistant] Saving response to memory");
     await runtime.createMemory(responseMemory, "messages");
+
+    // Emit agent response event via SSE
+    messageEventEmitter.emitMessage({
+      roomId: message.roomId,
+      messageId: responseMemory.id as string,
+      entityId: runtime.agentId,
+      agentId: runtime.agentId,
+      content: {
+        text: responseContent,
+        thought,
+        source: "agent",
+        inReplyTo: message.id,
+      },
+      createdAt: responseMemory.createdAt || Date.now(),
+      isAgent: true,
+      type: "agent",
+    });
 
     // Store usage in map for retrieval by API endpoint
     messageUsageMap.set(messageKey, {
-      inputTokens: estimatedInputTokens,
-      outputTokens: estimatedOutputTokens,
+      inputTokens: totalInputTokens,
+      outputTokens: totalOutputTokens,
       model: modelUsed,
     });
 
-    // Trigger callback if provided (returns empty array as we already saved the message)
+    logger.info(
+      `[ElizaAssistant] Token usage - input: ${totalInputTokens}, output: ${totalOutputTokens}, model: ${modelUsed}`,
+    );
+
+    // Trigger callback if provided
     if (callback) {
       await callback({
         text: responseContent,
         usage: {
-          inputTokens: estimatedInputTokens,
-          outputTokens: estimatedOutputTokens,
+          inputTokens: totalInputTokens,
+          outputTokens: totalOutputTokens,
           model: modelUsed,
         },
       });
@@ -285,6 +470,11 @@ const messageReceivedHandler = async ({
       endTime: Date.now(),
       duration: Date.now() - startTime,
       source: "messageHandler",
+      metadata: {
+        inputTokens: totalInputTokens,
+        outputTokens: totalOutputTokens,
+        model: modelUsed,
+      },
     });
   } catch (error) {
     // Emit run ended event with error
@@ -329,7 +519,7 @@ export const assistantPlugin: Plugin = {
   name: "eliza-assistant",
   description: "Core assistant plugin with message handling and context",
   events,
-  providers: [recentMessagesProvider],
+  providers: [providersProvider, actionsProvider, characterProvider],
   actions: [],
   services: [],
 };

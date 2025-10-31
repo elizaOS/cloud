@@ -2,7 +2,7 @@ CREATE TABLE "organizations" (
 	"id" uuid PRIMARY KEY DEFAULT gen_random_uuid() NOT NULL,
 	"name" text NOT NULL,
 	"slug" text NOT NULL,
-	"credit_balance" integer DEFAULT 10000 NOT NULL,
+	"credit_balance" numeric(10, 2) DEFAULT '100.00' NOT NULL,
 	"webhook_url" text,
 	"webhook_secret" text,
 	"stripe_customer_id" text,
@@ -24,8 +24,11 @@ CREATE TABLE "organizations" (
 CREATE TABLE "users" (
 	"id" uuid PRIMARY KEY DEFAULT gen_random_uuid() NOT NULL,
 	"privy_user_id" text NOT NULL,
-	"email" text NOT NULL,
-	"email_verified" boolean DEFAULT false NOT NULL,
+	"email" text,
+	"email_verified" boolean DEFAULT false,
+	"wallet_address" text,
+	"wallet_chain_type" text,
+	"wallet_verified" boolean DEFAULT false NOT NULL,
 	"name" text,
 	"organization_id" uuid NOT NULL,
 	"role" text DEFAULT 'member' NOT NULL,
@@ -34,7 +37,8 @@ CREATE TABLE "users" (
 	"created_at" timestamp DEFAULT now() NOT NULL,
 	"updated_at" timestamp DEFAULT now() NOT NULL,
 	CONSTRAINT "users_privy_user_id_unique" UNIQUE("privy_user_id"),
-	CONSTRAINT "users_email_unique" UNIQUE("email")
+	CONSTRAINT "users_email_unique" UNIQUE("email"),
+	CONSTRAINT "users_wallet_address_unique" UNIQUE("wallet_address")
 );
 --> statement-breakpoint
 CREATE TABLE "api_keys" (
@@ -58,6 +62,20 @@ CREATE TABLE "api_keys" (
 	CONSTRAINT "api_keys_key_hash_unique" UNIQUE("key_hash")
 );
 --> statement-breakpoint
+CREATE TABLE "cli_auth_sessions" (
+	"id" uuid PRIMARY KEY DEFAULT gen_random_uuid() NOT NULL,
+	"session_id" text NOT NULL,
+	"user_id" uuid,
+	"api_key_id" uuid,
+	"api_key_plain" text,
+	"status" text DEFAULT 'pending' NOT NULL,
+	"expires_at" timestamp NOT NULL,
+	"authenticated_at" timestamp,
+	"created_at" timestamp DEFAULT now() NOT NULL,
+	"updated_at" timestamp DEFAULT now() NOT NULL,
+	CONSTRAINT "cli_auth_sessions_session_id_unique" UNIQUE("session_id")
+);
+--> statement-breakpoint
 CREATE TABLE "usage_records" (
 	"id" uuid PRIMARY KEY DEFAULT gen_random_uuid() NOT NULL,
 	"organization_id" uuid NOT NULL,
@@ -68,9 +86,9 @@ CREATE TABLE "usage_records" (
 	"provider" text NOT NULL,
 	"input_tokens" integer DEFAULT 0 NOT NULL,
 	"output_tokens" integer DEFAULT 0 NOT NULL,
-	"input_cost" integer DEFAULT 0,
-	"output_cost" integer DEFAULT 0,
-	"markup" integer DEFAULT 0,
+	"input_cost" numeric(10, 2) DEFAULT '0.00',
+	"output_cost" numeric(10, 2) DEFAULT '0.00',
+	"markup" numeric(10, 2) DEFAULT '0.00',
 	"request_id" text,
 	"duration_ms" integer,
 	"is_successful" boolean DEFAULT true NOT NULL,
@@ -85,7 +103,7 @@ CREATE TABLE "credit_transactions" (
 	"id" uuid PRIMARY KEY DEFAULT gen_random_uuid() NOT NULL,
 	"organization_id" uuid NOT NULL,
 	"user_id" uuid,
-	"amount" integer NOT NULL,
+	"amount" numeric(10, 2) NOT NULL,
 	"type" text NOT NULL,
 	"description" text,
 	"metadata" jsonb DEFAULT '{}'::jsonb NOT NULL,
@@ -97,7 +115,7 @@ CREATE TABLE "credit_packs" (
 	"id" uuid PRIMARY KEY DEFAULT gen_random_uuid() NOT NULL,
 	"name" text NOT NULL,
 	"description" text,
-	"credits" integer NOT NULL,
+	"credits" numeric(10, 2) NOT NULL,
 	"price_cents" integer NOT NULL,
 	"stripe_price_id" text NOT NULL,
 	"stripe_product_id" text NOT NULL,
@@ -132,8 +150,8 @@ CREATE TABLE "generations" (
 	"metadata" jsonb DEFAULT '{}'::jsonb NOT NULL,
 	"dimensions" jsonb,
 	"tokens" integer,
-	"cost" integer DEFAULT 0 NOT NULL,
-	"credits" integer DEFAULT 0 NOT NULL,
+	"cost" numeric(10, 2) DEFAULT '0.00' NOT NULL,
+	"credits" numeric(10, 2) DEFAULT '0.00' NOT NULL,
 	"usage_record_id" uuid,
 	"job_id" text,
 	"created_at" timestamp DEFAULT now() NOT NULL,
@@ -200,7 +218,7 @@ CREATE TABLE "conversation_messages" (
 	"sequence_number" integer NOT NULL,
 	"model" text,
 	"tokens" integer,
-	"cost" integer DEFAULT 0,
+	"cost" numeric(10, 2) DEFAULT '0.00',
 	"usage_record_id" uuid,
 	"api_request" jsonb,
 	"api_response" jsonb,
@@ -217,7 +235,7 @@ CREATE TABLE "conversations" (
 	"settings" jsonb DEFAULT '{"temperature":0.7,"maxTokens":2000,"topP":1,"frequencyPenalty":0,"presencePenalty":0,"systemPrompt":"You are a helpful AI assistant."}'::jsonb NOT NULL,
 	"status" text DEFAULT 'active' NOT NULL,
 	"message_count" integer DEFAULT 0 NOT NULL,
-	"total_cost" integer DEFAULT 0 NOT NULL,
+	"total_cost" numeric(10, 2) DEFAULT '0.00' NOT NULL,
 	"last_message_at" timestamp,
 	"created_at" timestamp DEFAULT now() NOT NULL,
 	"updated_at" timestamp DEFAULT now() NOT NULL
@@ -243,8 +261,76 @@ CREATE TABLE "user_characters" (
 	"character_data" jsonb NOT NULL,
 	"is_template" boolean DEFAULT false NOT NULL,
 	"is_public" boolean DEFAULT false NOT NULL,
+	"avatar_url" text,
+	"category" text,
+	"tags" jsonb DEFAULT '[]'::jsonb,
+	"featured" boolean DEFAULT false NOT NULL,
+	"view_count" integer DEFAULT 0 NOT NULL,
+	"interaction_count" integer DEFAULT 0 NOT NULL,
+	"popularity_score" integer DEFAULT 0 NOT NULL,
 	"created_at" timestamp DEFAULT now() NOT NULL,
 	"updated_at" timestamp DEFAULT now() NOT NULL
+);
+--> statement-breakpoint
+CREATE TABLE "user_voices" (
+	"id" uuid PRIMARY KEY DEFAULT gen_random_uuid() NOT NULL,
+	"organization_id" uuid NOT NULL,
+	"user_id" uuid NOT NULL,
+	"elevenlabs_voice_id" text NOT NULL,
+	"name" text NOT NULL,
+	"description" text,
+	"clone_type" text NOT NULL,
+	"settings" jsonb DEFAULT '{}'::jsonb NOT NULL,
+	"sample_count" integer DEFAULT 0 NOT NULL,
+	"total_audio_duration_seconds" integer,
+	"audio_quality_score" numeric(3, 2),
+	"usage_count" integer DEFAULT 0 NOT NULL,
+	"last_used_at" timestamp,
+	"is_active" boolean DEFAULT true NOT NULL,
+	"is_public" boolean DEFAULT false NOT NULL,
+	"creation_cost" numeric(10, 2) NOT NULL,
+	"created_at" timestamp DEFAULT now() NOT NULL,
+	"updated_at" timestamp DEFAULT now() NOT NULL,
+	CONSTRAINT "user_voices_elevenlabs_voice_id_unique" UNIQUE("elevenlabs_voice_id")
+);
+--> statement-breakpoint
+CREATE TABLE "voice_cloning_jobs" (
+	"id" uuid PRIMARY KEY DEFAULT gen_random_uuid() NOT NULL,
+	"organization_id" uuid NOT NULL,
+	"user_id" uuid NOT NULL,
+	"job_type" text NOT NULL,
+	"voice_name" text NOT NULL,
+	"voice_description" text,
+	"status" text DEFAULT 'pending' NOT NULL,
+	"progress" integer DEFAULT 0 NOT NULL,
+	"user_voice_id" uuid,
+	"elevenlabs_voice_id" text,
+	"error_message" text,
+	"retry_count" integer DEFAULT 0 NOT NULL,
+	"metadata" jsonb DEFAULT '{}'::jsonb NOT NULL,
+	"started_at" timestamp,
+	"completed_at" timestamp,
+	"created_at" timestamp DEFAULT now() NOT NULL,
+	"updated_at" timestamp DEFAULT now() NOT NULL
+);
+--> statement-breakpoint
+CREATE TABLE "voice_samples" (
+	"id" uuid PRIMARY KEY DEFAULT gen_random_uuid() NOT NULL,
+	"user_voice_id" uuid,
+	"job_id" uuid,
+	"organization_id" uuid NOT NULL,
+	"user_id" uuid NOT NULL,
+	"file_name" text NOT NULL,
+	"file_size" integer NOT NULL,
+	"file_type" text NOT NULL,
+	"blob_url" text NOT NULL,
+	"duration_seconds" numeric(10, 2),
+	"sample_rate" integer,
+	"channels" integer,
+	"quality_score" numeric(3, 2),
+	"is_processed" boolean DEFAULT false NOT NULL,
+	"transcription" text,
+	"created_at" timestamp DEFAULT now() NOT NULL
 );
 --> statement-breakpoint
 CREATE TABLE "containers" (
@@ -274,6 +360,7 @@ CREATE TABLE "containers" (
 	"memory" integer DEFAULT 1792 NOT NULL,
 	"port" integer DEFAULT 3000 NOT NULL,
 	"health_check_path" text DEFAULT '/health',
+	"architecture" text DEFAULT 'arm64' NOT NULL,
 	"last_deployed_at" timestamp,
 	"last_health_check" timestamp,
 	"deployment_log" text,
@@ -508,6 +595,7 @@ CREATE TABLE "eliza_room_characters" (
 ALTER TABLE "users" ADD CONSTRAINT "users_organization_id_organizations_id_fk" FOREIGN KEY ("organization_id") REFERENCES "public"."organizations"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "api_keys" ADD CONSTRAINT "api_keys_organization_id_organizations_id_fk" FOREIGN KEY ("organization_id") REFERENCES "public"."organizations"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "api_keys" ADD CONSTRAINT "api_keys_user_id_users_id_fk" FOREIGN KEY ("user_id") REFERENCES "public"."users"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE "cli_auth_sessions" ADD CONSTRAINT "cli_auth_sessions_user_id_users_id_fk" FOREIGN KEY ("user_id") REFERENCES "public"."users"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "usage_records" ADD CONSTRAINT "usage_records_organization_id_organizations_id_fk" FOREIGN KEY ("organization_id") REFERENCES "public"."organizations"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "usage_records" ADD CONSTRAINT "usage_records_user_id_users_id_fk" FOREIGN KEY ("user_id") REFERENCES "public"."users"("id") ON DELETE set null ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "usage_records" ADD CONSTRAINT "usage_records_api_key_id_api_keys_id_fk" FOREIGN KEY ("api_key_id") REFERENCES "public"."api_keys"("id") ON DELETE set null ON UPDATE no action;--> statement-breakpoint
@@ -527,6 +615,15 @@ ALTER TABLE "conversations" ADD CONSTRAINT "conversations_organization_id_organi
 ALTER TABLE "conversations" ADD CONSTRAINT "conversations_user_id_users_id_fk" FOREIGN KEY ("user_id") REFERENCES "public"."users"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "user_characters" ADD CONSTRAINT "user_characters_organization_id_organizations_id_fk" FOREIGN KEY ("organization_id") REFERENCES "public"."organizations"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "user_characters" ADD CONSTRAINT "user_characters_user_id_users_id_fk" FOREIGN KEY ("user_id") REFERENCES "public"."users"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE "user_voices" ADD CONSTRAINT "user_voices_organization_id_organizations_id_fk" FOREIGN KEY ("organization_id") REFERENCES "public"."organizations"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE "user_voices" ADD CONSTRAINT "user_voices_user_id_users_id_fk" FOREIGN KEY ("user_id") REFERENCES "public"."users"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE "voice_cloning_jobs" ADD CONSTRAINT "voice_cloning_jobs_organization_id_organizations_id_fk" FOREIGN KEY ("organization_id") REFERENCES "public"."organizations"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE "voice_cloning_jobs" ADD CONSTRAINT "voice_cloning_jobs_user_id_users_id_fk" FOREIGN KEY ("user_id") REFERENCES "public"."users"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE "voice_cloning_jobs" ADD CONSTRAINT "voice_cloning_jobs_user_voice_id_user_voices_id_fk" FOREIGN KEY ("user_voice_id") REFERENCES "public"."user_voices"("id") ON DELETE set null ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE "voice_samples" ADD CONSTRAINT "voice_samples_user_voice_id_user_voices_id_fk" FOREIGN KEY ("user_voice_id") REFERENCES "public"."user_voices"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE "voice_samples" ADD CONSTRAINT "voice_samples_job_id_voice_cloning_jobs_id_fk" FOREIGN KEY ("job_id") REFERENCES "public"."voice_cloning_jobs"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE "voice_samples" ADD CONSTRAINT "voice_samples_organization_id_organizations_id_fk" FOREIGN KEY ("organization_id") REFERENCES "public"."organizations"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE "voice_samples" ADD CONSTRAINT "voice_samples_user_id_users_id_fk" FOREIGN KEY ("user_id") REFERENCES "public"."users"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "containers" ADD CONSTRAINT "containers_organization_id_organizations_id_fk" FOREIGN KEY ("organization_id") REFERENCES "public"."organizations"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "containers" ADD CONSTRAINT "containers_user_id_users_id_fk" FOREIGN KEY ("user_id") REFERENCES "public"."users"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "containers" ADD CONSTRAINT "containers_api_key_id_api_keys_id_fk" FOREIGN KEY ("api_key_id") REFERENCES "public"."api_keys"("id") ON DELETE set null ON UPDATE no action;--> statement-breakpoint
@@ -573,6 +670,8 @@ ALTER TABLE "eliza_room_characters" ADD CONSTRAINT "eliza_room_characters_charac
 CREATE INDEX "organizations_slug_idx" ON "organizations" USING btree ("slug");--> statement-breakpoint
 CREATE INDEX "organizations_stripe_customer_idx" ON "organizations" USING btree ("stripe_customer_id");--> statement-breakpoint
 CREATE INDEX "users_email_idx" ON "users" USING btree ("email");--> statement-breakpoint
+CREATE INDEX "users_wallet_address_idx" ON "users" USING btree ("wallet_address");--> statement-breakpoint
+CREATE INDEX "users_wallet_chain_type_idx" ON "users" USING btree ("wallet_chain_type");--> statement-breakpoint
 CREATE INDEX "users_organization_idx" ON "users" USING btree ("organization_id");--> statement-breakpoint
 CREATE INDEX "users_is_active_idx" ON "users" USING btree ("is_active");--> statement-breakpoint
 CREATE INDEX "users_privy_user_id_idx" ON "users" USING btree ("privy_user_id");--> statement-breakpoint
@@ -581,6 +680,10 @@ CREATE UNIQUE INDEX "api_keys_key_hash_idx" ON "api_keys" USING btree ("key_hash
 CREATE INDEX "api_keys_key_prefix_idx" ON "api_keys" USING btree ("key_prefix");--> statement-breakpoint
 CREATE INDEX "api_keys_organization_idx" ON "api_keys" USING btree ("organization_id");--> statement-breakpoint
 CREATE INDEX "api_keys_user_idx" ON "api_keys" USING btree ("user_id");--> statement-breakpoint
+CREATE INDEX "cli_auth_sessions_session_id_idx" ON "cli_auth_sessions" USING btree ("session_id");--> statement-breakpoint
+CREATE INDEX "cli_auth_sessions_status_idx" ON "cli_auth_sessions" USING btree ("status");--> statement-breakpoint
+CREATE INDEX "cli_auth_sessions_user_id_idx" ON "cli_auth_sessions" USING btree ("user_id");--> statement-breakpoint
+CREATE INDEX "cli_auth_sessions_expires_at_idx" ON "cli_auth_sessions" USING btree ("expires_at");--> statement-breakpoint
 CREATE INDEX "usage_records_organization_idx" ON "usage_records" USING btree ("organization_id");--> statement-breakpoint
 CREATE INDEX "usage_records_user_idx" ON "usage_records" USING btree ("user_id");--> statement-breakpoint
 CREATE INDEX "usage_records_api_key_idx" ON "usage_records" USING btree ("api_key_id");--> statement-breakpoint
@@ -588,6 +691,7 @@ CREATE INDEX "usage_records_type_idx" ON "usage_records" USING btree ("type");--
 CREATE INDEX "usage_records_provider_idx" ON "usage_records" USING btree ("provider");--> statement-breakpoint
 CREATE INDEX "usage_records_created_at_idx" ON "usage_records" USING btree ("created_at");--> statement-breakpoint
 CREATE INDEX "usage_records_org_created_idx" ON "usage_records" USING btree ("organization_id","created_at");--> statement-breakpoint
+CREATE INDEX "usage_records_org_type_created_idx" ON "usage_records" USING btree ("organization_id","type","created_at");--> statement-breakpoint
 CREATE INDEX "credit_transactions_organization_idx" ON "credit_transactions" USING btree ("organization_id");--> statement-breakpoint
 CREATE INDEX "credit_transactions_user_idx" ON "credit_transactions" USING btree ("user_id");--> statement-breakpoint
 CREATE INDEX "credit_transactions_type_idx" ON "credit_transactions" USING btree ("type");--> statement-breakpoint
@@ -621,6 +725,15 @@ CREATE INDEX "conversations_status_idx" ON "conversations" USING btree ("status"
 CREATE INDEX "user_characters_organization_idx" ON "user_characters" USING btree ("organization_id");--> statement-breakpoint
 CREATE INDEX "user_characters_user_idx" ON "user_characters" USING btree ("user_id");--> statement-breakpoint
 CREATE INDEX "user_characters_name_idx" ON "user_characters" USING btree ("name");--> statement-breakpoint
+CREATE INDEX "user_characters_category_idx" ON "user_characters" USING btree ("category");--> statement-breakpoint
+CREATE INDEX "user_characters_featured_idx" ON "user_characters" USING btree ("featured");--> statement-breakpoint
+CREATE INDEX "user_characters_is_template_idx" ON "user_characters" USING btree ("is_template");--> statement-breakpoint
+CREATE INDEX "user_characters_is_public_idx" ON "user_characters" USING btree ("is_public");--> statement-breakpoint
+CREATE INDEX "user_characters_popularity_idx" ON "user_characters" USING btree ("popularity_score");--> statement-breakpoint
+CREATE INDEX "user_voices_organization_idx" ON "user_voices" USING btree ("organization_id");--> statement-breakpoint
+CREATE INDEX "user_voices_user_idx" ON "user_voices" USING btree ("user_id");--> statement-breakpoint
+CREATE INDEX "user_voices_org_type_idx" ON "user_voices" USING btree ("organization_id","clone_type");--> statement-breakpoint
+CREATE INDEX "user_voices_org_usage_idx" ON "user_voices" USING btree ("organization_id","usage_count","last_used_at");--> statement-breakpoint
 CREATE INDEX "containers_organization_idx" ON "containers" USING btree ("organization_id");--> statement-breakpoint
 CREATE INDEX "containers_user_idx" ON "containers" USING btree ("user_id");--> statement-breakpoint
 CREATE INDEX "containers_status_idx" ON "containers" USING btree ("status");--> statement-breakpoint
