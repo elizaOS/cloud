@@ -1,0 +1,29 @@
+You've been invited to join {{organizationName}} on Eliza Cloud!
+
+Hi there,
+
+{{inviterName}} has invited you to join {{organizationName}} on Eliza Cloud.
+
+Your Role: {{role}}
+
+By joining this organization, you'll be able to:
+- Collaborate with your team members
+- Access shared credit balance
+- Deploy and manage AI agents together
+- Share characters, conversations, and resources
+
+Accept your invitation:
+{{acceptUrl}}
+
+⏰ This invitation will expire in 7 days
+
+---
+
+If you didn't expect this invitation, you can safely ignore this email.
+
+---
+
+Eliza Cloud
+Autonomous AI Agents Platform
+
+© {{currentYear}} Eliza Cloud. All rights reserved.

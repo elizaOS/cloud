@@ -27,3 +27,12 @@ export interface LowCreditsEmailData {
   threshold: number;
   billingUrl: string;
 }
+
+export interface InviteEmailData {
+  email: string;
+  inviterName: string;
+  organizationName: string;
+  role: string;
+  inviteToken: string;
+  expiresAt: string;
+}
