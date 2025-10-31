@@ -53,16 +53,16 @@ export default function LandingHeader() {
           </div>
         </Link>
         <div className="flex items-center gap-3">
-          <Button 
-            variant="ghost" 
-            size="sm" 
+          <Button
+            variant="ghost"
+            size="sm"
             onClick={handleAuth}
             className="text-white/70 hover:text-white hover:bg-white/5"
           >
             Log in
           </Button>
-          <Button 
-            size="sm" 
+          <Button
+            size="sm"
             onClick={handleAuth}
             className="bg-[#FF5800] hover:bg-[#FF5800]/90 text-white"
           >

@@ -90,7 +90,10 @@ export default function OnChainTrust() {
                     </div>
                     <p className="text-sm text-white/60">{agent.description}</p>
                     <div className="flex items-center gap-4 text-xs">
-                      <div className="flex items-center gap-1" style={{ color: "#FF5800" }}>
+                      <div
+                        className="flex items-center gap-1"
+                        style={{ color: "#FF5800" }}
+                      >
                         <Check className="h-3 w-3" />
                         <span>ERC-8004 Verified</span>
                       </div>
@@ -225,4 +228,3 @@ export default function OnChainTrust() {
     </section>
   );
 }
-
