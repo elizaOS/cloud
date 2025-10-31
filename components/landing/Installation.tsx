@@ -81,7 +81,9 @@ export default function Installation() {
           {/* Command display */}
           <div className="bg-white text-black p-6 flex items-center justify-between gap-4 border border-white/10">
             <div className="flex items-center gap-3 flex-1 min-w-0">
-              <span className="shrink-0" style={{ color: "#FF5800" }}>▸</span>
+              <span className="shrink-0" style={{ color: "#FF5800" }}>
+                ▸
+              </span>
               <code className="text-base truncate">{command}</code>
             </div>
             <Button
@@ -90,7 +92,11 @@ export default function Installation() {
               onClick={handleCopy}
               className="shrink-0 hover:bg-gray-200 text-black"
             >
-              {copied ? <Check className="w-5 h-5" /> : <Copy className="w-5 h-5" />}
+              {copied ? (
+                <Check className="w-5 h-5" />
+              ) : (
+                <Copy className="w-5 h-5" />
+              )}
             </Button>
           </div>
         </div>
@@ -115,8 +121,8 @@ export default function Installation() {
                 style={{ backgroundColor: "#FF5800" }}
               />
               <p className="text-lg md:text-xl text-white/70 leading-relaxed uppercase tracking-wide">
-                ELIZA CLOUD RUNS YOUR CONTAINERS ON HIGH-PERFORMANCE INFRASTRUCTURE
-                WITH BUILT-IN LOGS AND METRICS.
+                ELIZA CLOUD RUNS YOUR CONTAINERS ON HIGH-PERFORMANCE
+                INFRASTRUCTURE WITH BUILT-IN LOGS AND METRICS.
               </p>
               <span
                 className="inline-block w-2 h-2 rounded-full shrink-0"
@@ -143,7 +149,9 @@ export default function Installation() {
                   <span className="text-green-500">Deploying... ✓</span>
                 </div>
                 <div className="text-white/70">Running on Eliza Cloud</div>
-                <div className="text-blue-400">→ https://your-agent.eliza.cloud</div>
+                <div className="text-blue-400">
+                  → https://your-agent.eliza.cloud
+                </div>
               </div>
             </div>
           </div>
@@ -152,4 +160,3 @@ export default function Installation() {
     </section>
   );
 }
-
