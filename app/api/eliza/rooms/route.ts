@@ -5,6 +5,7 @@ import { stringToUuid, UUID, ChannelType } from "@elizaos/core";
 import { logger } from "@/lib/utils/logger";
 import { requireAuthOrApiKey } from "@/lib/auth";
 import { elizaRoomCharactersRepository } from "@/db/repositories";
+import { connectionCache } from "@/lib/cache/connection-cache";
 
 // GET /api/eliza/rooms - Get user's rooms
 export async function GET(request: NextRequest) {
@@ -132,6 +133,9 @@ export async function POST(request: NextRequest) {
       serverId: "eliza-server",
       userName: entityId,
     });
+
+    // OPTIMIZATION: Cache the connection to avoid DB queries on future messages
+    await connectionCache.markEstablished(roomId, entityId);
 
     logger.debug(
       "[Eliza Rooms API] Created room:",

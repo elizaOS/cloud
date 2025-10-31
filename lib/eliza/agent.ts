@@ -108,8 +108,8 @@ const agent = {
   // Full plugin architecture with events, providers, and actions
   // Includes OpenAI for LLM, ElevenLabs for TTS/STT, and knowledge/memory plugins
   plugins: [
-    openaiPlugin,
     openrouterPlugin,
+    openaiPlugin,
     elevenLabsPlugin,
     assistantPlugin,
     memoryPlugin,
