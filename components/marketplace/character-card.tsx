@@ -1,5 +1,6 @@
 "use client";
 
+import Image from "next/image";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -46,10 +47,11 @@ export function CharacterCard({
         {/* Character Avatar/Header */}
         <div className="relative h-48 bg-gradient-to-br from-primary/20 to-secondary/20 flex items-center justify-center">
           {character.avatarUrl ? (
-            <img
+            <Image
               src={character.avatarUrl}
               alt={character.name}
-              className="w-full h-full object-cover"
+              fill
+              className="object-cover"
             />
           ) : (
             <Bot className="h-20 w-20 text-muted-foreground" />
