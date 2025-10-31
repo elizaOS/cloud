@@ -34,11 +34,7 @@ export interface SearchResult {
 }
 
 export class MemoryCache {
-  async cacheMemory(
-    key: string,
-    memory: Memory,
-    ttl: number,
-  ): Promise<void> {
+  async cacheMemory(key: string, memory: Memory, ttl: number): Promise<void> {
     try {
       await cache.set(key, memory, ttl);
       logger.debug(`[Memory Cache] Cached memory: ${key}`);
@@ -108,9 +104,9 @@ export class MemoryCache {
     try {
       const keys = await this.getRoomContextKeys(roomId, organizationId);
       for (const key of keys) {
-        const cached = await cache.get<MemoryRoomContext & { timestamp: string }>(
-          key,
-        );
+        const cached = await cache.get<
+          MemoryRoomContext & { timestamp: string }
+        >(key);
         if (cached) {
           logger.debug(`[Memory Cache] Room context HIT: ${key}`);
           return {
@@ -130,10 +126,7 @@ export class MemoryCache {
     }
   }
 
-  async invalidateRoom(
-    roomId: string,
-    organizationId: string,
-  ): Promise<void> {
+  async invalidateRoom(roomId: string, organizationId: string): Promise<void> {
     try {
       const pattern = `memory:${organizationId}:room:${roomId}:*`;
       await cache.delPattern(pattern);
@@ -210,9 +203,7 @@ export class MemoryCache {
         promises.push(cache.set(key, memory, CacheTTL.memory.item));
       }
       await Promise.all(promises);
-      logger.debug(
-        `[Memory Cache] Bulk cached ${memories.size} memories`,
-      );
+      logger.debug(`[Memory Cache] Bulk cached ${memories.size} memories`);
     } catch (error) {
       logger.error("[Memory Cache] Error bulk caching memories:", error);
     }

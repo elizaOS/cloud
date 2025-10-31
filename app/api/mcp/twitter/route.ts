@@ -34,7 +34,7 @@ async function getHandler() {
             .int()
             .optional()
             .describe(
-              "Where On Earth ID for location (default: 1 for worldwide). Common: 1=Worldwide, 2459115=New York, 2487956=San Francisco, 2442047=Los Angeles"
+              "Where On Earth ID for location (default: 1 for worldwide). Common: 1=Worldwide, 2459115=New York, 2487956=San Francisco, 2442047=Los Angeles",
             ) as any,
         },
         {},
@@ -50,7 +50,7 @@ async function getHandler() {
                 max_results: 10,
                 "tweet.fields": ["public_metrics", "created_at"],
                 sort_order: "relevancy",
-              }
+              },
             );
 
             const trends = tweets.data.data.map((tweet) => ({
@@ -73,7 +73,7 @@ async function getHandler() {
                       timestamp: new Date().toISOString(),
                     },
                     null,
-                    2
+                    2,
                   ),
                 },
               ],
@@ -90,7 +90,7 @@ async function getHandler() {
               isError: true,
             };
           }
-        }
+        },
       );
 
       // Tool 2: Search Tweets
@@ -102,7 +102,7 @@ async function getHandler() {
           query: z
             .string()
             .describe(
-              "Search query (supports operators like from:username, #hashtag, lang:en)"
+              "Search query (supports operators like from:username, #hashtag, lang:en)",
             ) as any,
           max_results: z
             .number()
@@ -115,7 +115,7 @@ async function getHandler() {
             .enum(["recency", "relevancy"])
             .optional()
             .describe(
-              "Sort order: recency or relevancy (default: recency)"
+              "Sort order: recency or relevancy (default: recency)",
             ) as any,
         },
         {},
@@ -150,7 +150,7 @@ async function getHandler() {
 
             const tweets = result.data.data.map((tweet) => {
               const author = result.includes?.users?.find(
-                (u) => u.id === tweet.author_id
+                (u) => u.id === tweet.author_id,
               );
               return {
                 id: tweet.id,
@@ -183,7 +183,7 @@ async function getHandler() {
                       tweets: tweets,
                     },
                     null,
-                    2
+                    2,
                   ),
                 },
               ],
@@ -200,7 +200,7 @@ async function getHandler() {
               isError: true,
             };
           }
-        }
+        },
       );
 
       // Tool 3: Get User Info
@@ -259,7 +259,7 @@ async function getHandler() {
                       url: `https://twitter.com/${user.data.username}`,
                     },
                     null,
-                    2
+                    2,
                   ),
                 },
               ],
@@ -276,7 +276,7 @@ async function getHandler() {
               isError: true,
             };
           }
-        }
+        },
       );
     },
     {
@@ -289,7 +289,7 @@ async function getHandler() {
       recipient: sellerAccount.address,
       facilitator,
       network: env.NETWORK,
-    }
+    },
   );
 
   return cachedHandler;

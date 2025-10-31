@@ -163,7 +163,6 @@ export async function generateExcel(
 }
 
 export async function generatePDF(
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   ..._args: [
     data: Array<Record<string, unknown>>,
     columns: Array<ExportColumn>,

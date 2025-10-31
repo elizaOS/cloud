@@ -301,12 +301,13 @@ export function generateProjectionAlerts(
       ? historicalData.reduce((sum, d) => sum + d.totalCost, 0) /
         historicalData.length
       : 0;
-  if (avgDailyCost > 0 && creditBalance / avgDailyCost < 7) {
-    const daysRemaining = Math.floor(creditBalance / avgDailyCost);
+  const numericBalance = Number(creditBalance);
+  if (avgDailyCost > 0 && numericBalance / avgDailyCost < 7) {
+    const daysRemaining = Math.floor(numericBalance / avgDailyCost);
     alerts.push({
       type: "danger",
-      title: "Low Credit Balance",
-      message: `At current usage rates, credits will be depleted in approximately ${daysRemaining} days.`,
+      title: "Low Balance",
+      message: `At current usage rates, balance will be depleted in approximately ${daysRemaining} days.`,
       projectedValue: creditBalance,
     });
   }

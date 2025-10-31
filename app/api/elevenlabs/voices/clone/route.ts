@@ -33,14 +33,14 @@ export async function POST(request: NextRequest) {
     if (!name || !cloneType) {
       return NextResponse.json(
         { error: "Missing required fields: name, cloneType" },
-        { status: 400 }
+        { status: 400 },
       );
     }
 
     if (!["instant", "professional"].includes(cloneType)) {
       return NextResponse.json(
         { error: "Invalid cloneType. Must be 'instant' or 'professional'" },
-        { status: 400 }
+        { status: 400 },
       );
     }
 
@@ -59,21 +59,21 @@ export async function POST(request: NextRequest) {
     if (files.length === 0) {
       return NextResponse.json(
         { error: "At least one audio file is required" },
-        { status: 400 }
+        { status: 400 },
       );
     }
 
     if (files.length > MAX_FILES) {
       return NextResponse.json(
         { error: `Maximum ${MAX_FILES} files allowed` },
-        { status: 400 }
+        { status: 400 },
       );
     }
 
     if (totalSize > MAX_TOTAL_SIZE) {
       return NextResponse.json(
         { error: "Total file size exceeds 100MB limit" },
-        { status: 400 }
+        { status: 400 },
       );
     }
 
@@ -85,7 +85,7 @@ export async function POST(request: NextRequest) {
       } catch {
         return NextResponse.json(
           { error: "Invalid settings JSON" },
-          { status: 400 }
+          { status: 400 },
         );
       }
     }
@@ -97,7 +97,7 @@ export async function POST(request: NextRequest) {
         organizationId: user.organization_id,
         fileCount: files.length,
         totalSize,
-      }
+      },
     );
 
     // Calculate cost
@@ -111,11 +111,11 @@ export async function POST(request: NextRequest) {
     if (!org) {
       return NextResponse.json(
         { error: "Organization not found" },
-        { status: 404 }
+        { status: 404 },
       );
     }
 
-    if (org.credit_balance < cost) {
+    if (Number(org.credit_balance) < cost) {
       logger.warn("[Voice Clone API] Insufficient credits", {
         organizationId: user.organization_id,
         required: cost,
@@ -123,14 +123,14 @@ export async function POST(request: NextRequest) {
       });
       return NextResponse.json(
         {
-          error: "Insufficient credits",
+          error: "Insufficient balance",
           details: {
             required: cost,
             available: org.credit_balance,
             cloneType,
           },
         },
-        { status: 402 }
+        { status: 402 },
       );
     }
 
@@ -154,11 +154,11 @@ export async function POST(request: NextRequest) {
       });
       return NextResponse.json(
         { error: "Failed to deduct credits. Please try again." },
-        { status: 500 }
+        { status: 500 },
       );
     }
 
-    logger.info("[Voice Clone API] Credits deducted successfully", {
+    logger.info("[Voice Clone API] Cost charged successfully", {
       organizationId: user.organization_id,
       amount: cost,
       newBalance: deductionResult.newBalance,
@@ -194,8 +194,8 @@ export async function POST(request: NextRequest) {
         provider: "elevenlabs",
         input_tokens: 0,
         output_tokens: 0,
-        input_cost: cost,
-        output_cost: 0,
+        input_cost: String(cost),
+        output_cost: String(0),
         is_successful: true,
         duration_ms: duration,
         metadata: {
@@ -229,7 +229,7 @@ export async function POST(request: NextRequest) {
           estimatedCompletionTime:
             cloneType === "professional" ? "30-60 minutes" : "30 seconds",
         },
-        { status: 201 }
+        { status: 201 },
       );
     } catch (error) {
       // Refund credits on failure
@@ -263,8 +263,8 @@ export async function POST(request: NextRequest) {
         provider: "elevenlabs",
         input_tokens: 0,
         output_tokens: 0,
-        input_cost: 0,
-        output_cost: 0,
+        input_cost: String(0),
+        output_cost: String(0),
         is_successful: false,
         error_message: error instanceof Error ? error.message : "Unknown error",
       });
@@ -274,14 +274,19 @@ export async function POST(request: NextRequest) {
         if (error.message.includes("rate limit")) {
           return NextResponse.json(
             { error: "Rate limit exceeded. Please try again later." },
-            { status: 429 }
+            { status: 429 },
           );
         }
 
         if (error.message.includes("quota")) {
           return NextResponse.json(
-            { error: "ElevenLabs quota exceeded. Please contact support." },
-            { status: 429 }
+            {
+              error:
+                "Voice cloning service is temporarily unavailable due to high demand. Please try again shortly.",
+              type: "service_unavailable",
+              retryAfter: "1 hour",
+            },
+            { status: 503 }, // Service Unavailable
           );
         }
 
@@ -292,7 +297,7 @@ export async function POST(request: NextRequest) {
                 "Professional voice limit reached. Delete an existing professional voice or use instant cloning instead.",
               details: error.message,
             },
-            { status: 400 }
+            { status: 400 },
           );
         }
 
@@ -306,7 +311,7 @@ export async function POST(request: NextRequest) {
           error: "Failed to create voice clone. Credits have been refunded.",
           details: error instanceof Error ? error.message : "Unknown error",
         },
-        { status: 500 }
+        { status: 500 },
       );
     }
   } catch (error) {
@@ -318,7 +323,7 @@ export async function POST(request: NextRequest) {
 
     return NextResponse.json(
       { error: "An unexpected error occurred. Please try again." },
-      { status: 500 }
+      { status: 500 },
     );
   }
 }

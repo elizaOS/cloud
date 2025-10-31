@@ -50,7 +50,7 @@ export function ChatInterfaceWithPersistence({
     { id: string; name: string; provider?: string }[]
   >([]);
   const [selectedModel, setSelectedModel] = useState(
-    conversation?.model || "gpt-4o"
+    conversation?.model || "gpt-4o",
   );
   const [isProcessing, setIsProcessing] = useState(false);
   const [activeConversationId, setActiveConversationId] = useState<
@@ -88,7 +88,7 @@ export function ChatInterfaceWithPersistence({
   useEffect(() => {
     if (messageAudioUrls.current.size > 0) {
       console.log(
-        "[Voice Change] Clearing audio cache - messages will regenerate with new voice"
+        "[Voice Change] Clearing audio cache - messages will regenerate with new voice",
       );
       messageAudioUrls.current.clear();
     }
@@ -105,7 +105,7 @@ export function ChatInterfaceWithPersistence({
     }),
     onError: (error: Error) => {
       setErrorMessage(
-        error.message || "Failed to send message. Please try again."
+        error.message || "Failed to send message. Please try again.",
       );
       setIsProcessing(false);
       if (loadingTimeoutRef.current) {
@@ -225,13 +225,13 @@ export function ChatInterfaceWithPersistence({
       // Professional voices need 30-60 minutes to process
       const minutesElapsed = Math.max(
         0,
-        (Date.now() - new Date(voice.createdAt).getTime()) / 1000 / 60
+        (Date.now() - new Date(voice.createdAt).getTime()) / 1000 / 60,
       );
 
       // Consider ready after 60 minutes
       return minutesElapsed >= 60;
     },
-    []
+    [],
   );
 
   // Load custom voices on mount
@@ -245,7 +245,7 @@ export function ChatInterfaceWithPersistence({
             // Filter to only show ready voices
             const readyVoices = data.voices.filter(
               (voice: { cloneType: string; createdAt: Date | string }) =>
-                isVoiceReady(voice)
+                isVoiceReady(voice),
             );
 
             setCustomVoices(readyVoices);
@@ -269,7 +269,7 @@ export function ChatInterfaceWithPersistence({
       () => {
         fetchCustomVoices();
       },
-      5 * 60 * 1000
+      5 * 60 * 1000,
     ); // 5 minutes
 
     return () => clearInterval(refreshInterval);
@@ -279,12 +279,12 @@ export function ChatInterfaceWithPersistence({
   useEffect(() => {
     if (selectedVoiceId && customVoices.length > 0) {
       const voiceExists = customVoices.some(
-        (v) => v.elevenlabsVoiceId === selectedVoiceId
+        (v) => v.elevenlabsVoiceId === selectedVoiceId,
       );
 
       if (!voiceExists) {
         console.log(
-          "[Voice Validation] Selected voice no longer available, resetting to default"
+          "[Voice Validation] Selected voice no longer available, resetting to default",
         );
         setSelectedVoiceId(null);
       }
@@ -313,7 +313,7 @@ export function ChatInterfaceWithPersistence({
           ? customVoices.find((v) => v.elevenlabsVoiceId === selectedVoiceId)
               ?.name
           : "Default",
-      }
+      },
     );
   }, [selectedVoiceId, customVoices]);
 
@@ -369,7 +369,7 @@ export function ChatInterfaceWithPersistence({
         toast.error("Failed to generate speech");
       }
     },
-    [autoPlayTTS, player, selectedVoiceId, customVoices]
+    [autoPlayTTS, player, selectedVoiceId, customVoices],
   );
 
   // Handle voice message (STT → AI → TTS)
@@ -441,7 +441,7 @@ export function ChatInterfaceWithPersistence({
         toast.error(
           error instanceof Error
             ? error.message
-            : "Failed to process voice message"
+            : "Failed to process voice message",
         );
         setIsProcessing(false);
       }
@@ -452,7 +452,7 @@ export function ChatInterfaceWithPersistence({
       selectedModel,
       onConversationCreated,
       sendMessage,
-    ]
+    ],
   );
 
   // Monitor for completed recording
@@ -649,7 +649,7 @@ export function ChatInterfaceWithPersistence({
                     if (newVoiceId) {
                       localStorage.setItem(
                         "eliza-selected-voice-id",
-                        newVoiceId
+                        newVoiceId,
                       );
                     } else {
                       localStorage.removeItem("eliza-selected-voice-id");
@@ -658,7 +658,7 @@ export function ChatInterfaceWithPersistence({
 
                   const voiceName = newVoiceId
                     ? customVoices.find(
-                        (v) => v.elevenlabsVoiceId === newVoiceId
+                        (v) => v.elevenlabsVoiceId === newVoiceId,
                       )?.name || "Custom Voice"
                     : "Default Voice";
 
@@ -732,7 +732,7 @@ export function ChatInterfaceWithPersistence({
                         "w-full rounded-lg px-3 py-2 text-left text-sm transition-colors",
                         selectedModel === model.id
                           ? "bg-muted text-foreground"
-                          : "hover:bg-muted/60"
+                          : "hover:bg-muted/60",
                       )}
                     >
                       <div className="font-medium">{model.name}</div>
@@ -787,7 +787,7 @@ export function ChatInterfaceWithPersistence({
               key={message.id}
               className={cn(
                 "flex gap-3",
-                message.role === "user" ? "justify-end" : "justify-start"
+                message.role === "user" ? "justify-end" : "justify-start",
               )}
             >
               {message.role === "assistant" && (
@@ -801,7 +801,7 @@ export function ChatInterfaceWithPersistence({
                   "max-w-[min(760px,82%)] rounded-2xl border px-4 py-3 text-sm leading-relaxed shadow-sm",
                   message.role === "user"
                     ? "border-primary/40 bg-primary text-primary-foreground"
-                    : "border-border bg-background"
+                    : "border-border bg-background",
                 )}
               >
                 <div className="whitespace-pre-wrap">
@@ -822,7 +822,7 @@ export function ChatInterfaceWithPersistence({
                     "mt-3 flex items-center justify-between gap-2 text-xs",
                     message.role === "user"
                       ? "text-primary-foreground/80"
-                      : "text-muted-foreground"
+                      : "text-muted-foreground",
                   )}
                 >
                   <div className="flex items-center gap-2">
@@ -830,7 +830,7 @@ export function ChatInterfaceWithPersistence({
                     <span>
                       {formatTimestamp(
                         messageTimestamps.current.get(message.id)?.getTime() ||
-                          Date.now()
+                          Date.now(),
                       )}
                     </span>
                   </div>
@@ -917,7 +917,7 @@ export function ChatInterfaceWithPersistence({
             size="lg"
             className={cn(
               "h-11 w-11 rounded-xl",
-              recorder.isRecording && "animate-pulse"
+              recorder.isRecording && "animate-pulse",
             )}
             onClick={
               recorder.isRecording

@@ -176,7 +176,10 @@ export function MCPPlaygroundClient() {
     }));
   };
 
-  const copyToClipboard = async (text: string, type: "result" | "code" | "endpoint") => {
+  const copyToClipboard = async (
+    text: string,
+    type: "result" | "code" | "endpoint",
+  ) => {
     try {
       await navigator.clipboard.writeText(text);
       if (type === "result") {
@@ -204,9 +207,7 @@ export function MCPPlaygroundClient() {
           onValueChange={(val) => handleParamChange(paramName, val)}
         >
           <SelectTrigger>
-            <SelectValue
-              placeholder={`Select ${paramName}`}
-            />
+            <SelectValue placeholder={`Select ${paramName}`} />
           </SelectTrigger>
           <SelectContent>
             {paramConfig.options.map((option: string) => (
@@ -311,7 +312,10 @@ export function MCPPlaygroundClient() {
                 className="pl-10"
               />
             </div>
-            <Select value={selectedCategory} onValueChange={setSelectedCategory}>
+            <Select
+              value={selectedCategory}
+              onValueChange={setSelectedCategory}
+            >
               <SelectTrigger className="w-full md:w-[180px]">
                 <SelectValue placeholder="Category" />
               </SelectTrigger>
@@ -323,7 +327,10 @@ export function MCPPlaygroundClient() {
                 <SelectItem value="ai">AI</SelectItem>
               </SelectContent>
             </Select>
-            <Select value={selectedPaymentType} onValueChange={setSelectedPaymentType}>
+            <Select
+              value={selectedPaymentType}
+              onValueChange={setSelectedPaymentType}
+            >
               <SelectTrigger className="w-full md:w-[180px]">
                 <SelectValue placeholder="Payment Type" />
               </SelectTrigger>
@@ -380,7 +387,9 @@ export function MCPPlaygroundClient() {
                           <Icon className="size-4" />
                         </div>
                         <div className="flex-1 min-w-0">
-                          <CardTitle className="text-sm truncate">{mcp.name}</CardTitle>
+                          <CardTitle className="text-sm truncate">
+                            {mcp.name}
+                          </CardTitle>
                           <div className="flex items-center gap-1.5 mt-1 flex-wrap">
                             <Badge variant="outline" className="text-xs">
                               {mcp.tools.length} tools
@@ -457,7 +466,7 @@ export function MCPPlaygroundClient() {
                   </Badge>
                   <Badge variant="outline">v{selectedMcp.version}</Badge>
                 </div>
-                
+
                 {/* Endpoint URL */}
                 <div className="rounded-lg border bg-muted/30 p-3">
                   <div className="flex items-center justify-between gap-2 mb-2">
@@ -473,7 +482,7 @@ export function MCPPlaygroundClient() {
                       onClick={() =>
                         copyToClipboard(
                           `${typeof window !== "undefined" ? window.location.origin : ""}${selectedMcp.endpoint}`,
-                          "endpoint"
+                          "endpoint",
                         )
                       }
                     >
@@ -485,7 +494,9 @@ export function MCPPlaygroundClient() {
                     </Button>
                   </div>
                   <code className="text-xs text-foreground/80 break-all">
-                    {typeof window !== "undefined" ? window.location.origin : "https://your-domain.com"}
+                    {typeof window !== "undefined"
+                      ? window.location.origin
+                      : "https://your-domain.com"}
                     {selectedMcp.endpoint}
                   </code>
                 </div>
@@ -513,7 +524,11 @@ export function MCPPlaygroundClient() {
                 </TabsList>
 
                 {selectedMcp.tools.map((tool) => (
-                  <TabsContent key={tool.name} value={tool.name} className="space-y-4">
+                  <TabsContent
+                    key={tool.name}
+                    value={tool.name}
+                    className="space-y-4"
+                  >
                     <div className="rounded-lg bg-muted/50 p-4 space-y-3 border">
                       <div className="flex items-center justify-between gap-2">
                         <h3 className="font-semibold">{tool.name}</h3>
@@ -537,9 +552,9 @@ export function MCPPlaygroundClient() {
                         <div className="flex items-start gap-2 rounded-md bg-blue-500/5 border border-blue-500/20 p-2.5 text-xs">
                           <Wallet className="size-3.5 text-blue-600 dark:text-blue-400 mt-0.5 shrink-0" />
                           <p className="text-blue-600 dark:text-blue-400">
-                            <span className="font-medium">x402 Protocol:</span> Pay
-                            per call with cryptocurrency via Coinbase x402. No
-                            subscription required.
+                            <span className="font-medium">x402 Protocol:</span>{" "}
+                            Pay per call with cryptocurrency via Coinbase x402.
+                            No subscription required.
                           </p>
                         </div>
                       )}
@@ -560,7 +575,9 @@ export function MCPPlaygroundClient() {
                                 <Label htmlFor={paramName}>
                                   {paramName}
                                   {!paramConfig.optional && (
-                                    <span className="text-destructive ml-1">*</span>
+                                    <span className="text-destructive ml-1">
+                                      *
+                                    </span>
                                   )}
                                 </Label>
                                 <div>
@@ -572,7 +589,7 @@ export function MCPPlaygroundClient() {
                                   </p>
                                 )}
                               </div>
-                            )
+                            ),
                           )}
                         </div>
                       )}
@@ -628,7 +645,7 @@ export function MCPPlaygroundClient() {
                               onClick={() =>
                                 copyToClipboard(
                                   error || JSON.stringify(result, null, 2),
-                                  "result"
+                                  "result",
                                 )
                               }
                             >
@@ -662,7 +679,7 @@ export function MCPPlaygroundClient() {
                               MCP Configuration (Claude Desktop / Agent)
                             </p>
                             <pre className="text-xs overflow-x-auto p-3 rounded bg-background/50 border">
-{`{
+                              {`{
   "mcpServers": {
     "${selectedMcp.id}": {
       "url": "${typeof window !== "undefined" ? window.location.origin : "https://your-domain.com"}${selectedMcp.endpoint}",
@@ -677,8 +694,9 @@ export function MCPPlaygroundClient() {
                           <div className="flex items-start gap-2 text-xs text-muted-foreground">
                             <Server className="size-3.5 mt-0.5 shrink-0" />
                             <p>
-                              Add this configuration to your MCP client (Claude Desktop, 
-                              custom agent, etc.) to connect to this MCP server.
+                              Add this configuration to your MCP client (Claude
+                              Desktop, custom agent, etc.) to connect to this
+                              MCP server.
                             </p>
                           </div>
                         </div>
@@ -690,14 +708,14 @@ export function MCPPlaygroundClient() {
                           <Code2 className="size-4" />
                           View Code Example
                         </summary>
-                      <div className="rounded-lg bg-muted/50 p-4 border relative">
-                        <Button
-                          size="icon-sm"
-                          variant="ghost"
-                          className="absolute top-2 right-2"
-                          onClick={() =>
-                            copyToClipboard(
-                              `// MCP Tool Call Example
+                        <div className="rounded-lg bg-muted/50 p-4 border relative">
+                          <Button
+                            size="icon-sm"
+                            variant="ghost"
+                            className="absolute top-2 right-2"
+                            onClick={() =>
+                              copyToClipboard(
+                                `// MCP Tool Call Example
 const response = await fetch("${selectedMcp.endpoint}", {
   method: "POST",
   headers: {
@@ -715,18 +733,18 @@ const response = await fetch("${selectedMcp.endpoint}", {
 
 const data = await response.json();
 console.log(data);`,
-                              "code"
-                            )
-                          }
-                        >
-                          {copiedCode ? (
-                            <Check className="size-3 text-emerald-600" />
-                          ) : (
-                            <Copy className="size-3" />
-                          )}
-                        </Button>
-                        <pre className="text-xs overflow-x-auto pr-8">
-                          {`// MCP Tool Call Example
+                                "code",
+                              )
+                            }
+                          >
+                            {copiedCode ? (
+                              <Check className="size-3 text-emerald-600" />
+                            ) : (
+                              <Copy className="size-3" />
+                            )}
+                          </Button>
+                          <pre className="text-xs overflow-x-auto pr-8">
+                            {`// MCP Tool Call Example
 const response = await fetch("${selectedMcp.endpoint}", {
   method: "POST",
   headers: {
@@ -744,10 +762,10 @@ const response = await fetch("${selectedMcp.endpoint}", {
 
 const data = await response.json();
 console.log(data);`}
-                        </pre>
-                      </div>
-                    </details>
-                  </div>
+                          </pre>
+                        </div>
+                      </details>
+                    </div>
                   </TabsContent>
                 ))}
               </Tabs>
@@ -758,4 +776,3 @@ console.log(data);`}
     </div>
   );
 }
-

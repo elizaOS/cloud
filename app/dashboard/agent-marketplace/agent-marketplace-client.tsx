@@ -22,25 +22,20 @@ export function AgentMarketplaceClient() {
         console.log(
           "[Agent Marketplace] Character selected for chat:",
           character.name,
-          character.id
+          character.id,
         );
 
         toast.success(`Opening chat with ${character.name}...`);
 
         router.push(`/dashboard/eliza?characterId=${character.id}`);
       } catch (error) {
-        console.error(
-          "[Agent Marketplace] Error navigating to chat:",
-          error
-        );
+        console.error("[Agent Marketplace] Error navigating to chat:", error);
         toast.error(
-          error instanceof Error
-            ? error.message
-            : "Failed to open chat"
+          error instanceof Error ? error.message : "Failed to open chat",
         );
       }
     },
-    [router]
+    [router],
   );
 
   const handleCloneCharacter = useCallback(
@@ -49,7 +44,7 @@ export function AgentMarketplaceClient() {
         console.log(
           "[Agent Marketplace] Cloning character:",
           character.name,
-          character.id
+          character.id,
         );
 
         const response = await fetch(
@@ -57,7 +52,7 @@ export function AgentMarketplaceClient() {
           {
             method: "POST",
             headers: { "Content-Type": "application/json" },
-          }
+          },
         );
 
         if (!response.ok) {
@@ -68,7 +63,7 @@ export function AgentMarketplaceClient() {
         const result = await response.json();
         console.log(
           "[Agent Marketplace] Character cloned successfully:",
-          result.data
+          result.data,
         );
         toast.success(`Cloned ${character.name} to your library`);
       } catch (error) {
@@ -76,7 +71,7 @@ export function AgentMarketplaceClient() {
         throw error;
       }
     },
-    []
+    [],
   );
 
   return (

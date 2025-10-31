@@ -2,6 +2,7 @@ import {
   index,
   integer,
   jsonb,
+  numeric,
   pgTable,
   text,
   timestamp,
@@ -44,7 +45,9 @@ export const conversations = pgTable(
       }),
     status: text("status").notNull().default("active"),
     message_count: integer("message_count").notNull().default(0),
-    total_cost: integer("total_cost").notNull().default(0),
+    total_cost: numeric("total_cost", { precision: 10, scale: 2 })
+      .notNull()
+      .default("0.00"),
     last_message_at: timestamp("last_message_at"),
     created_at: timestamp("created_at").notNull().defaultNow(),
     updated_at: timestamp("updated_at").notNull().defaultNow(),
@@ -71,7 +74,7 @@ export const conversationMessages = pgTable(
     sequence_number: integer("sequence_number").notNull(),
     model: text("model"),
     tokens: integer("tokens"),
-    cost: integer("cost").default(0),
+    cost: numeric("cost", { precision: 10, scale: 2 }).default("0.00"),
     usage_record_id: uuid("usage_record_id").references(() => usageRecords.id, {
       onDelete: "set null",
     }),

@@ -96,8 +96,8 @@ export function DashboardHero({
                 variant="outline"
                 className="gap-2 rounded-full border-border/50 bg-background/70 font-medium"
               >
-                <CreditCard className="h-4 w-4 text-primary" />
-                ${creditBalance.toFixed(2)} balance
+                <CreditCard className="h-4 w-4 text-primary" />$
+                {Number(creditBalance).toFixed(2)} balance
               </Badge>
             </div>
           </div>

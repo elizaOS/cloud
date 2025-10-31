@@ -1,7 +1,10 @@
 import type { Character } from "@elizaos/core";
 import { openaiPlugin } from "@elizaos/plugin-openai";
+import { memoryPlugin } from "@elizaos/plugin-memory";
+import { knowledgePluginCore } from "@elizaos/plugin-knowledge";
 import { elevenLabsPlugin } from "@elizaos/plugin-elevenlabs";
 import { assistantPlugin } from "./plugin-assistant";
+import { openrouterPlugin } from "@elizaos/plugin-openrouter";
 // NOTE: plugin-sql is provided via a pre-initialized adapter in agent-runtime
 
 /**
@@ -10,32 +13,40 @@ import { assistantPlugin } from "./plugin-assistant";
 const character: Character = {
   id: "b850bc30-45f8-0041-a00a-83df46d8555d", // existing agent id in DB
   name: "Eliza",
-  plugins: [
-    "@elizaos/plugin-openai",
-    "@elizaos/plugin-elevenlabs",
-  ],
+  plugins: [],
   settings: {
     POSTGRES_URL: process.env.DATABASE_URL!,
     DATABASE_URL: process.env.DATABASE_URL!,
     OPENAI_API_KEY: process.env.OPENAI_API_KEY!,
     // ElevenLabs Voice Configuration
     ELEVENLABS_API_KEY: process.env.ELEVENLABS_API_KEY!,
-    ELEVENLABS_VOICE_ID: process.env.ELEVENLABS_VOICE_ID || "EXAVITQu4vr4xnSDxMaL", // Rachel voice (default)
-    ELEVENLABS_MODEL_ID: process.env.ELEVENLABS_MODEL_ID || "eleven_multilingual_v2",
+    ELEVENLABS_VOICE_ID:
+      process.env.ELEVENLABS_VOICE_ID || "EXAVITQu4vr4xnSDxMaL", // Rachel voice (default)
+    ELEVENLABS_MODEL_ID:
+      process.env.ELEVENLABS_MODEL_ID || "eleven_multilingual_v2",
     ELEVENLABS_VOICE_STABILITY: process.env.ELEVENLABS_VOICE_STABILITY || "0.5",
-    ELEVENLABS_VOICE_SIMILARITY_BOOST: process.env.ELEVENLABS_VOICE_SIMILARITY_BOOST || "0.75",
+    ELEVENLABS_VOICE_SIMILARITY_BOOST:
+      process.env.ELEVENLABS_VOICE_SIMILARITY_BOOST || "0.75",
     ELEVENLABS_VOICE_STYLE: process.env.ELEVENLABS_VOICE_STYLE || "0",
-    ELEVENLABS_VOICE_USE_SPEAKER_BOOST: process.env.ELEVENLABS_VOICE_USE_SPEAKER_BOOST || "true",
-    ELEVENLABS_OPTIMIZE_STREAMING_LATENCY: process.env.ELEVENLABS_OPTIMIZE_STREAMING_LATENCY || "0",
-    ELEVENLABS_OUTPUT_FORMAT: process.env.ELEVENLABS_OUTPUT_FORMAT || "mp3_44100_128",
+    ELEVENLABS_VOICE_USE_SPEAKER_BOOST:
+      process.env.ELEVENLABS_VOICE_USE_SPEAKER_BOOST || "true",
+    ELEVENLABS_OPTIMIZE_STREAMING_LATENCY:
+      process.env.ELEVENLABS_OPTIMIZE_STREAMING_LATENCY || "0",
+    ELEVENLABS_OUTPUT_FORMAT:
+      process.env.ELEVENLABS_OUTPUT_FORMAT || "mp3_44100_128",
     ELEVENLABS_LANGUAGE_CODE: process.env.ELEVENLABS_LANGUAGE_CODE || "en",
     // ElevenLabs STT Configuration
     ELEVENLABS_STT_MODEL_ID: process.env.ELEVENLABS_STT_MODEL_ID || "scribe_v1",
-    ELEVENLABS_STT_LANGUAGE_CODE: process.env.ELEVENLABS_STT_LANGUAGE_CODE || "en",
-    ELEVENLABS_STT_TIMESTAMPS_GRANULARITY: process.env.ELEVENLABS_STT_TIMESTAMPS_GRANULARITY || "word",
+    ELEVENLABS_STT_LANGUAGE_CODE:
+      process.env.ELEVENLABS_STT_LANGUAGE_CODE || "en",
+    ELEVENLABS_STT_TIMESTAMPS_GRANULARITY:
+      process.env.ELEVENLABS_STT_TIMESTAMPS_GRANULARITY || "word",
     ELEVENLABS_STT_DIARIZE: process.env.ELEVENLABS_STT_DIARIZE || "false",
-    ...(process.env.ELEVENLABS_STT_NUM_SPEAKERS && { ELEVENLABS_STT_NUM_SPEAKERS: process.env.ELEVENLABS_STT_NUM_SPEAKERS }),
-    ELEVENLABS_STT_TAG_AUDIO_EVENTS: process.env.ELEVENLABS_STT_TAG_AUDIO_EVENTS || "false",
+    ...(process.env.ELEVENLABS_STT_NUM_SPEAKERS && {
+      ELEVENLABS_STT_NUM_SPEAKERS: process.env.ELEVENLABS_STT_NUM_SPEAKERS,
+    }),
+    ELEVENLABS_STT_TAG_AUDIO_EVENTS:
+      process.env.ELEVENLABS_STT_TAG_AUDIO_EVENTS || "false",
     avatarUrl:
       "https://raw.githubusercontent.com/elizaOS/eliza-avatars/refs/heads/master/Eliza/portrait.png",
   },
@@ -101,17 +112,19 @@ const character: Character = {
     ],
     chat: [],
   },
-  knowledge: [],
 };
 
 const agent = {
   character,
-  // Now using full plugin architecture with events, providers, and actions
-  // Includes OpenAI for LLM, and ElevenLabs for both TTS and STT
+  // Full plugin architecture with events, providers, and actions
+  // Includes OpenAI for LLM, ElevenLabs for TTS/STT, and knowledge/memory plugins
   plugins: [
     openaiPlugin,
+    openrouterPlugin,
     elevenLabsPlugin,
     assistantPlugin,
+    memoryPlugin,
+    knowledgePluginCore,
   ],
   providers: [
     ...(elevenLabsPlugin.providers || []),

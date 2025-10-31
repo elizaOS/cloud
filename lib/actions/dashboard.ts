@@ -138,7 +138,9 @@ async function fetchDashboardDataInternal(
     },
     organization: {
       name: user.organization.name,
-      creditBalance: user.organization.credit_balance,
+      creditBalance: Number.parseFloat(
+        String(user.organization.credit_balance),
+      ),
       maxApiRequests: user.organization.max_api_requests || null,
       maxTokensPerRequest: user.organization.max_tokens_per_request || null,
       allowedProviders: user.organization.allowed_providers || [],
@@ -170,7 +172,7 @@ async function fetchDashboardDataInternal(
     })),
     creditTransactions: creditTransactions.map((t) => ({
       id: t.id,
-      amount: t.amount,
+      amount: Number(t.amount),
       type: t.type,
       description: t.description || `Credit ${t.type}`,
       created_at: t.created_at,
@@ -190,8 +192,8 @@ async function fetchDashboardDataInternal(
       provider: g.provider,
       prompt: g.prompt,
       status: g.status,
-      credits: g.credits,
-      cost: g.cost,
+      credits: Number(g.credits),
+      cost: Number(g.cost),
       error: g.error,
       created_at: g.created_at,
       completed_at: g.completed_at,

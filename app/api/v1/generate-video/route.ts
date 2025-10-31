@@ -91,8 +91,8 @@ async function handlePOST(request: NextRequest) {
       provider: "fal",
       prompt: prompt.trim(),
       status: "pending",
-      credits: VIDEO_GENERATION_COST,
-      cost: VIDEO_GENERATION_COST,
+      credits: String(VIDEO_GENERATION_COST),
+      cost: String(VIDEO_GENERATION_COST),
     });
 
     generationId = generation.id;
@@ -174,7 +174,7 @@ async function handlePOST(request: NextRequest) {
         "[VIDEO GENERATION] Failed to deduct credits - insufficient balance",
         {
           organizationId: user.organization_id,
-          cost: VIDEO_GENERATION_COST,
+          cost: String(VIDEO_GENERATION_COST),
           balance: deductionResult.newBalance,
         },
       );
@@ -198,8 +198,8 @@ async function handlePOST(request: NextRequest) {
       provider: "fal",
       input_tokens: 0,
       output_tokens: 0,
-      input_cost: VIDEO_GENERATION_COST,
-      output_cost: 0,
+      input_cost: String(VIDEO_GENERATION_COST),
+      output_cost: String(0),
       is_successful: true,
     });
 
@@ -231,7 +231,7 @@ async function handlePOST(request: NextRequest) {
     }
 
     console.log(
-      `[VIDEO GENERATION] Credits deducted: ${VIDEO_GENERATION_COST}, New balance: ${deductionResult.newBalance}`,
+      `[VIDEO GENERATION] Cost: $${VIDEO_GENERATION_COST.toFixed(2)}, New balance: $${deductionResult.newBalance.toFixed(2)}`,
     );
 
     return NextResponse.json(
@@ -282,8 +282,8 @@ async function handlePOST(request: NextRequest) {
         provider: "fal",
         input_tokens: 0,
         output_tokens: 0,
-        input_cost: VIDEO_GENERATION_FALLBACK_COST,
-        output_cost: 0,
+        input_cost: String(VIDEO_GENERATION_FALLBACK_COST),
+        output_cost: String(0),
         is_successful: false,
         error_message: errorMessage,
       });
@@ -299,8 +299,8 @@ async function handlePOST(request: NextRequest) {
             width: 1920,
             height: 1080,
           },
-          credits: VIDEO_GENERATION_FALLBACK_COST,
-          cost: VIDEO_GENERATION_FALLBACK_COST,
+          credits: String(VIDEO_GENERATION_FALLBACK_COST),
+          cost: String(VIDEO_GENERATION_FALLBACK_COST),
           usage_record_id: fallbackUsageRecord.id,
           completed_at: new Date(),
           result: {
@@ -317,7 +317,7 @@ async function handlePOST(request: NextRequest) {
       }
 
       console.log(
-        `[VIDEO GENERATION] Fallback credits deducted: ${VIDEO_GENERATION_FALLBACK_COST}, New balance: ${fallbackDeduction.newBalance}`,
+        `[VIDEO GENERATION] Fallback cost: $${VIDEO_GENERATION_FALLBACK_COST.toFixed(2)}, New balance: $${fallbackDeduction.newBalance.toFixed(2)}`,
       );
     } catch (authError) {
       console.error(

@@ -16,7 +16,7 @@ import { userCharacters } from "../db/schemas/user-characters";
 import { eq, inArray, notInArray, and } from "drizzle-orm";
 import { marketplaceCache } from "../lib/cache/marketplace-cache";
 
-const FEATURED_USERNAMES = ['edad', 'mysticoracle', 'amara'];
+const FEATURED_USERNAMES = ["edad", "mysticoracle", "amara"];
 
 async function updateFeaturedStatus() {
   console.log("🔄 Updating Featured Status for Characters\n");
@@ -36,44 +36,48 @@ async function updateFeaturedStatus() {
       where: eq(userCharacters.is_template, true),
     });
 
-    const currentFeatured = allChars.filter(c => c.featured);
+    const currentFeatured = allChars.filter((c) => c.featured);
     console.log(`  Featured characters: ${currentFeatured.length}`);
-    currentFeatured.forEach(c => {
+    currentFeatured.forEach((c) => {
       console.log(`    - ${c.name} (@${c.username})`);
     });
 
     console.log("\n🔨 Applying updates...\n");
 
     console.log("1. Unfeaturing all old characters...");
-    const unfeaturedResult = await db.update(userCharacters)
+    const unfeaturedResult = await db
+      .update(userCharacters)
       .set({ featured: false })
       .where(
         and(
           eq(userCharacters.is_template, true),
-          notInArray(userCharacters.username, FEATURED_USERNAMES)
-        )
+          notInArray(userCharacters.username, FEATURED_USERNAMES),
+        ),
       )
       .returning();
 
     console.log(`   ✓ Unfeatured ${unfeaturedResult.length} characters`);
 
     console.log("\n2. Featuring new characters with high popularity...");
-    const featuredResult = await db.update(userCharacters)
+    const featuredResult = await db
+      .update(userCharacters)
       .set({
         featured: true,
-        popularity_score: 9000 + Math.floor(Math.random() * 1000)
+        popularity_score: 9000 + Math.floor(Math.random() * 1000),
       })
       .where(
         and(
           eq(userCharacters.is_template, true),
-          inArray(userCharacters.username, FEATURED_USERNAMES)
-        )
+          inArray(userCharacters.username, FEATURED_USERNAMES),
+        ),
       )
       .returning();
 
     console.log(`   ✓ Featured ${featuredResult.length} characters:`);
-    featuredResult.forEach(c => {
-      console.log(`     - ${c.name} (@${c.username}) - popularity: ${c.popularity_score}`);
+    featuredResult.forEach((c) => {
+      console.log(
+        `     - ${c.name} (@${c.username}) - popularity: ${c.popularity_score}`,
+      );
     });
 
     console.log("\n3. Clearing marketplace cache...");
@@ -85,21 +89,20 @@ async function updateFeaturedStatus() {
       where: eq(userCharacters.is_template, true),
     });
 
-    const newFeatured = updatedChars.filter(c => c.featured);
+    const newFeatured = updatedChars.filter((c) => c.featured);
     console.log(`  Featured characters: ${newFeatured.length}`);
-    newFeatured.forEach(c => {
+    newFeatured.forEach((c) => {
       console.log(`    - ${c.name} (@${c.username}) ⭐`);
     });
 
-    const nonFeatured = updatedChars.filter(c => !c.featured);
+    const nonFeatured = updatedChars.filter((c) => !c.featured);
     console.log(`\n  Non-featured characters: ${nonFeatured.length}`);
-    nonFeatured.forEach(c => {
+    nonFeatured.forEach((c) => {
       console.log(`    - ${c.name} (@${c.username})`);
     });
 
     console.log("\n✅ Featured status updated successfully!");
     console.log("🎉 Only Edad, Mystic Oracle, and Amara are now featured.\n");
-
   } catch (error) {
     console.error("\n❌ Error updating featured status:", error);
     if (error instanceof Error) {

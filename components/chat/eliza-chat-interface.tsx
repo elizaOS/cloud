@@ -15,6 +15,7 @@ import {
   Volume2,
 } from "lucide-react";
 import { ElizaAvatar } from "./eliza-avatar";
+import { KnowledgeDrawer } from "./knowledge-drawer";
 import { useAudioRecorder } from "./hooks/use-audio-recorder";
 import { useAudioPlayer } from "./hooks/use-audio-player";
 import { toast } from "sonner";
@@ -63,7 +64,7 @@ export function ElizaChatInterface({
   initialCharacterId = null,
 }: ElizaChatInterfaceProps) {
   const [selectedCharacterId, setSelectedCharacterId] = useState<string | null>(
-    initialCharacterId
+    initialCharacterId,
   );
   const [roomId, setRoomId] = useState<string | null>(null);
 
@@ -71,7 +72,7 @@ export function ElizaChatInterface({
   useEffect(() => {
     console.log(
       "[ElizaChat] Character selection changed:",
-      selectedCharacterId || "default"
+      selectedCharacterId || "default",
     );
   }, [selectedCharacterId]);
   const [messages, setMessages] = useState<Message[]>([]);
@@ -83,9 +84,9 @@ export function ElizaChatInterface({
   const [isLoadingRooms, setIsLoadingRooms] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const scrollAreaRef = useRef<HTMLDivElement>(null);
-  const pollIntervalRef = useRef<NodeJS.Timeout | null>(null);
+  const scrollViewportRef = useRef<HTMLDivElement>(null);
+  const eventSourceRef = useRef<EventSource | null>(null);
   const thinkingTimeoutRef = useRef<NodeJS.Timeout | null>(null);
-  const isPollingRef = useRef(false);
   const [autoPlayTTS, setAutoPlayTTS] = useState(false);
   const [currentPlayingId, setCurrentPlayingId] = useState<string | null>(null);
   const [isProcessingSTT, setIsProcessingSTT] = useState(false);
@@ -112,7 +113,7 @@ export function ElizaChatInterface({
   useEffect(() => {
     if (messageAudioUrls.current.size > 0) {
       console.log(
-        "[Voice Change] Clearing audio cache - messages will regenerate with new voice"
+        "[Voice Change] Clearing audio cache - messages will regenerate with new voice",
       );
       messageAudioUrls.current.clear();
     }
@@ -150,7 +151,7 @@ export function ElizaChatInterface({
             list.map((r) => ({
               id: r.id.substring(0, 8),
               characterId: r.characterId,
-            }))
+            })),
           );
 
           const rooms: RoomItem[] = list.map((r) => ({
@@ -191,50 +192,54 @@ export function ElizaChatInterface({
     }
   }, []);
 
-  const createRoom = useCallback(async (characterId?: string | null) => {
-    const charIdToUse = characterId !== undefined ? characterId : selectedCharacterId;
-    console.log(
-      "[ElizaChat] Creating room with character:",
-      charIdToUse || "default"
-    );
-    setIsInitializing(true);
-    setError(null);
-    try {
-      const response = await fetch("/api/eliza/rooms", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          entityId: entityId.current,
-          characterId: charIdToUse || undefined,
-        }),
-      });
+  const createRoom = useCallback(
+    async (characterId?: string | null) => {
+      const charIdToUse =
+        characterId !== undefined ? characterId : selectedCharacterId;
+      console.log(
+        "[ElizaChat] Creating room with character:",
+        charIdToUse || "default",
+      );
+      setIsInitializing(true);
+      setError(null);
+      try {
+        const response = await fetch("/api/eliza/rooms", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            entityId: entityId.current,
+            characterId: charIdToUse || undefined,
+          }),
+        });
 
-      if (!response.ok) {
-        throw new Error("Failed to create room");
+        if (!response.ok) {
+          throw new Error("Failed to create room");
+        }
+
+        const data = await response.json();
+        console.log("[ElizaChat] Room created:", {
+          roomId: data.roomId,
+          characterId: data.characterId,
+          requestedCharacterId: charIdToUse,
+        });
+
+        setRoomId(data.roomId);
+        if (typeof window !== "undefined") {
+          window.localStorage.setItem("elizaRoomId", data.roomId);
+        }
+
+        // Load initial messages (this will also update selectedCharacterId based on room's character)
+        await loadMessages(data.roomId);
+        await loadRooms();
+      } catch (err) {
+        setError(err instanceof Error ? err.message : "Failed to create room");
+        console.error("[ElizaChat] Error creating room:", err);
+      } finally {
+        setIsInitializing(false);
       }
-
-      const data = await response.json();
-      console.log("[ElizaChat] Room created:", {
-        roomId: data.roomId,
-        characterId: data.characterId,
-        requestedCharacterId: charIdToUse,
-      });
-
-      setRoomId(data.roomId);
-      if (typeof window !== "undefined") {
-        window.localStorage.setItem("elizaRoomId", data.roomId);
-      }
-
-      // Load initial messages (this will also update selectedCharacterId based on room's character)
-      await loadMessages(data.roomId);
-      await loadRooms();
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to create room");
-      console.error("[ElizaChat] Error creating room:", err);
-    } finally {
-      setIsInitializing(false);
-    }
-  }, [loadMessages, loadRooms, selectedCharacterId]);
+    },
+    [loadMessages, loadRooms, selectedCharacterId],
+  );
 
   // Initialize room: restore saved room or use most recent existing room
   useEffect(() => {
@@ -243,7 +248,7 @@ export function ElizaChatInterface({
       if (initialCharacterId) {
         console.log(
           "[ElizaChat] Initializing with character from URL:",
-          initialCharacterId
+          initialCharacterId,
         );
         await createRoom(initialCharacterId);
         return;
@@ -292,8 +297,8 @@ export function ElizaChatInterface({
 
     initializeRoom();
     return () => {
-      if (pollIntervalRef.current) {
-        clearInterval(pollIntervalRef.current);
+      if (eventSourceRef.current) {
+        eventSourceRef.current.close();
       }
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -350,7 +355,7 @@ export function ElizaChatInterface({
         toast.error("Failed to generate speech");
       }
     },
-    [autoPlayTTS, player, selectedVoiceId, customVoices]
+    [autoPlayTTS, player, selectedVoiceId, customVoices],
   );
 
   // Load custom voices on mount
@@ -449,13 +454,13 @@ export function ElizaChatInterface({
           await sendMessage(transcript);
         } else {
           console.warn(
-            "[ElizaChat STT] No roomId available, skipping auto-send"
+            "[ElizaChat STT] No roomId available, skipping auto-send",
           );
         }
       } catch (error) {
         console.error("[ElizaChat STT] Error:", error);
         toast.error(
-          error instanceof Error ? error.message : "Failed to transcribe audio"
+          error instanceof Error ? error.message : "Failed to transcribe audio",
         );
       } finally {
         // Cleanup: Clear recording and reset processing state
@@ -469,13 +474,16 @@ export function ElizaChatInterface({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [recorder.audioBlob, isProcessingSTT, recorder, roomId]);
 
-  // Generate TTS for new agent messages
+  // Auto-generate TTS for new agent messages (only if autoPlayTTS is enabled)
   useEffect(() => {
+    // Only generate TTS if auto-play is enabled
+    if (!autoPlayTTS) return;
+
     const newAgentMessages = messages.filter(
       (msg) =>
         msg.isAgent &&
         !msg.id.startsWith("thinking-") &&
-        !messageAudioUrls.current.has(msg.id)
+        !messageAudioUrls.current.has(msg.id),
     );
 
     newAgentMessages.forEach((msg) => {
@@ -483,110 +491,144 @@ export function ElizaChatInterface({
         generateSpeech(msg.content.text, msg.id).catch(console.error);
       }
     });
-  }, [messages, generateSpeech]);
+  }, [messages, generateSpeech, autoPlayTTS]);
 
-  // Poll for new messages
+  // Real-time message streaming via SSE (Server-Sent Events) - NO MORE POLLING! ⚡
   useEffect(() => {
     if (!roomId) return;
 
-    const pollMessages = async () => {
-      if (isPollingRef.current) {
-        return;
-      }
+    console.log(`[SSE] Connecting to room: ${roomId}`);
 
-      isPollingRef.current = true;
-      try {
-        const lastTimestamp =
-          messages.length > 0
-            ? Math.max(...messages.map((m) => m.createdAt))
-            : 0;
+    // Create EventSource for real-time updates
+    const eventSource = new EventSource(`/api/eliza/rooms/${roomId}/stream`);
+    eventSourceRef.current = eventSource;
 
-        const response = await fetch(
-          `/api/eliza/rooms/${roomId}/messages?afterTimestamp=${lastTimestamp}`
-        );
-
-        if (response.ok) {
-          const data = await response.json();
-          if (data.messages && data.messages.length > 0) {
-            setMessages((prev) => {
-              // Check if any new message is from the agent
-              const hasAgentResponse = (data.messages as Message[]).some(
-                (msg) => msg.isAgent
-              );
-
-              // Only remove thinking placeholder if we have an agent response
-              const cleaned = prev.filter((m) => {
-                if (m.id.startsWith("temp-")) return false; // Always remove temp user messages
-                if (m.id.startsWith("thinking-") && hasAgentResponse) {
-                  // Clear the thinking timeout since we got a response
-                  if (thinkingTimeoutRef.current) {
-                    clearTimeout(thinkingTimeoutRef.current);
-                    thinkingTimeoutRef.current = null;
-                  }
-                  return false; // Remove thinking only if agent responded
-                }
-                return true;
-              });
-
-              // Deduplicate messages by ID
-              const byId = new Map<string, Message>();
-              for (const m of cleaned) byId.set(m.id, m);
-
-              const incomingMessages = data.messages as Message[];
-              const newMessages = incomingMessages.filter(
-                (msg) => !byId.has(msg.id)
-              );
-
-              if (newMessages.length > 0) {
-                console.log(
-                  "[Chat] New messages from poll:",
-                  newMessages.length,
-                  newMessages.map((m) => ({
-                    id: m.id.substring(0, 8),
-                    isAgent: m.isAgent,
-                    text: m.content.text?.substring(0, 30),
-                  }))
-                );
-              }
-
-              for (const incoming of incomingMessages) {
-                byId.set(incoming.id, incoming);
-              }
-
-              const merged = Array.from(byId.values());
-              merged.sort((a, b) => a.createdAt - b.createdAt);
-              return merged;
-            });
-          }
-        }
-      } catch (err) {
-        console.error("Error polling messages:", err);
-      } finally {
-        isPollingRef.current = false;
-      }
+    eventSource.onopen = () => {
+      console.log("[SSE] ⚡ Connection opened - real-time messaging active");
     };
 
-    // Check if there's a thinking message - if so, poll faster
-    const hasThinkingMessage = messages.some((m) =>
-      m.id.startsWith("thinking-")
-    );
-    const pollInterval = hasThinkingMessage ? 1000 : 3000; // 1s when thinking, 3s otherwise
+    eventSource.addEventListener("connected", (event) => {
+      const data = JSON.parse(event.data);
+      console.log("[SSE] ✅ Connected to room:", data.roomId);
+    });
 
-    pollIntervalRef.current = setInterval(pollMessages, pollInterval);
+    eventSource.addEventListener("message", (event) => {
+      try {
+        const messageData = JSON.parse(event.data);
+        console.log("[SSE] 📨 Message received:", {
+          id: messageData.id.substring(0, 8),
+          type: messageData.type,
+          text: messageData.content.text?.substring(0, 30),
+        });
+
+        setMessages((prev) => {
+          // Handle agent response - remove thinking indicator
+          if (messageData.type === "agent") {
+            const withoutThinking = prev.filter(
+              (m) => !m.id.startsWith("thinking-"),
+            );
+
+            // Clear thinking timeout
+            if (thinkingTimeoutRef.current) {
+              clearTimeout(thinkingTimeoutRef.current);
+              thinkingTimeoutRef.current = null;
+            }
+
+            // Check if message already exists (prevent duplicates)
+            if (withoutThinking.some((m) => m.id === messageData.id)) {
+              console.log("[SSE] Skipping duplicate agent message");
+              return prev;
+            }
+
+            // Remove temp message if this is a reply
+            const filtered = withoutThinking.filter((m) => {
+              if (m.id.startsWith("temp-")) {
+                return messageData.content.inReplyTo !== m.id;
+              }
+              return true;
+            });
+
+            console.log("[SSE] ✅ Added agent response");
+            return [...filtered, messageData];
+          }
+
+          // Handle thinking indicator - replace any existing thinking message
+          if (messageData.type === "thinking") {
+            const withoutThinking = prev.filter(
+              (m) => !m.id.startsWith("thinking-"),
+            );
+            console.log("[SSE] 🤔 Agent is thinking...");
+            return [...withoutThinking, messageData];
+          }
+
+          // Handle user messages - replace temp message or check for duplicates
+          if (messageData.type === "user") {
+            // Check if this is replacing a temp message (same text content)
+            const tempMessageIndex = prev.findIndex(
+              (m) =>
+                m.id.startsWith("temp-") &&
+                m.content.text === messageData.content.text,
+            );
+
+            if (tempMessageIndex !== -1) {
+              console.log(
+                "[SSE] ✅ Replacing temp message with real user message",
+              );
+              const updated = [...prev];
+              updated[tempMessageIndex] = messageData;
+              return updated;
+            }
+
+            // Check for duplicate
+            if (prev.some((m) => m.id === messageData.id)) {
+              console.log("[SSE] Skipping duplicate user message");
+              return prev;
+            }
+
+            console.log("[SSE] ✅ Added user message");
+            return [...prev, messageData];
+          }
+
+          // For any other message types
+          if (prev.some((m) => m.id === messageData.id)) {
+            return prev;
+          }
+
+          return [...prev, messageData];
+        });
+      } catch (error) {
+        console.error("[SSE] ❌ Error parsing message:", error);
+      }
+    });
+
+    eventSource.addEventListener("heartbeat", () => {
+      console.log("[SSE] 💓 Heartbeat");
+    });
+
+    eventSource.onerror = (error) => {
+      console.error("[SSE] ❌ Connection error:", error);
+      eventSource.close();
+
+      // Attempt to reconnect after 2 seconds
+      setTimeout(() => {
+        console.log("[SSE] 🔄 Reconnecting...");
+        // The useEffect will re-run and create a new connection
+      }, 2000);
+    };
 
     return () => {
-      if (pollIntervalRef.current) {
-        clearInterval(pollIntervalRef.current);
-      }
+      console.log("[SSE] 🔌 Closing connection");
+      eventSource.close();
+      eventSourceRef.current = null;
     };
-  }, [roomId, messages]);
+  }, [roomId]);
 
   // Auto-scroll to bottom when messages change
   useEffect(() => {
     if (scrollAreaRef.current) {
       // ScrollArea wraps content in a viewport div with data-radix-scroll-area-viewport
       const viewport = scrollAreaRef.current.querySelector(
-        "[data-radix-scroll-area-viewport]"
+        "[data-radix-scroll-area-viewport]",
       );
       if (viewport) {
         viewport.scrollTop = viewport.scrollHeight;
@@ -625,7 +667,7 @@ export function ElizaChatInterface({
     thinkingTimeoutRef.current = setTimeout(() => {
       setMessages((prev) => prev.filter((m) => !m.id.startsWith("thinking-")));
       console.warn(
-        "[Chat] Thinking indicator timeout - agent took too long to respond"
+        "[Chat] Thinking indicator timeout - agent took too long to respond",
       );
     }, 30000);
 
@@ -647,7 +689,7 @@ export function ElizaChatInterface({
 
       // Remove only the temp user message; keep thinking indicator until real response arrives via polling
       setMessages((prev) =>
-        prev.filter((msg) => msg.id !== tempUserMessage.id)
+        prev.filter((msg) => msg.id !== tempUserMessage.id),
       );
 
       // The polling interval will catch the response automatically
@@ -659,8 +701,8 @@ export function ElizaChatInterface({
       setMessages((prev) =>
         prev.filter(
           (msg) =>
-            msg.id !== tempUserMessage.id && !msg.id.startsWith("thinking-")
-        )
+            msg.id !== tempUserMessage.id && !msg.id.startsWith("thinking-"),
+        ),
       );
       // Clear thinking timeout on error
       if (thinkingTimeoutRef.current) {
@@ -841,75 +883,78 @@ export function ElizaChatInterface({
                 <p className="text-xs text-muted-foreground">AI Assistant</p>
               </div>
             </div>
-            <div className="flex items-center gap-2">
-              <Label htmlFor="auto-tts" className="text-xs cursor-pointer">
-                Auto-play
-              </Label>
-              <Switch
-                id="auto-tts"
-                checked={autoPlayTTS}
-                onCheckedChange={setAutoPlayTTS}
-              />
-            </div>
-            {customVoices.length > 0 && (
+            <div className="flex items-center gap-4">
               <div className="flex items-center gap-2">
-                <Label htmlFor="voice-select" className="text-xs">
-                  Voice:
+                <Label htmlFor="auto-tts" className="text-xs cursor-pointer">
+                  Auto-play
                 </Label>
-                <Select
-                  value={selectedVoiceId || "default"}
-                  onValueChange={(value) => {
-                    const newVoiceId = value === "default" ? null : value;
-                    setSelectedVoiceId(newVoiceId);
-
-                    // Persist voice selection to localStorage
-                    if (typeof window !== "undefined") {
-                      if (newVoiceId) {
-                        localStorage.setItem(
-                          "eliza-selected-voice-id",
-                          newVoiceId
-                        );
-                      } else {
-                        localStorage.removeItem("eliza-selected-voice-id");
-                      }
-                    }
-
-                    const voiceName = newVoiceId
-                      ? customVoices.find(
-                          (v) => v.elevenlabsVoiceId === newVoiceId
-                        )?.name || "Custom Voice"
-                      : "Default Voice";
-
-                    console.log("[Voice Selector] Voice changed to:", value, {
-                      newVoiceId,
-                      voiceName,
-                      persisted: true,
-                    });
-
-                    // Show toast confirmation
-                    toast.success(`Voice changed to: ${voiceName}`);
-                  }}
-                >
-                  <SelectTrigger
-                    id="voice-select"
-                    className="h-8 text-xs w-[140px]"
-                  >
-                    <SelectValue placeholder="Default" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="default">Default Voice</SelectItem>
-                    {customVoices.map((voice) => (
-                      <SelectItem
-                        key={voice.id}
-                        value={voice.elevenlabsVoiceId}
-                      >
-                        {voice.name}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+                <Switch
+                  id="auto-tts"
+                  checked={autoPlayTTS}
+                  onCheckedChange={setAutoPlayTTS}
+                />
               </div>
-            )}
+              {customVoices.length > 0 && (
+                <div className="flex items-center gap-2">
+                  <Label htmlFor="voice-select" className="text-xs">
+                    Voice:
+                  </Label>
+                  <Select
+                    value={selectedVoiceId || "default"}
+                    onValueChange={(value) => {
+                      const newVoiceId = value === "default" ? null : value;
+                      setSelectedVoiceId(newVoiceId);
+
+                      // Persist voice selection to localStorage
+                      if (typeof window !== "undefined") {
+                        if (newVoiceId) {
+                          localStorage.setItem(
+                            "eliza-selected-voice-id",
+                            newVoiceId,
+                          );
+                        } else {
+                          localStorage.removeItem("eliza-selected-voice-id");
+                        }
+                      }
+
+                      const voiceName = newVoiceId
+                        ? customVoices.find(
+                            (v) => v.elevenlabsVoiceId === newVoiceId,
+                          )?.name || "Custom Voice"
+                        : "Default Voice";
+
+                      console.log("[Voice Selector] Voice changed to:", value, {
+                        newVoiceId,
+                        voiceName,
+                        persisted: true,
+                      });
+
+                      // Show toast confirmation
+                      toast.success(`Voice changed to: ${voiceName}`);
+                    }}
+                  >
+                    <SelectTrigger
+                      id="voice-select"
+                      className="h-8 text-xs w-[140px]"
+                    >
+                      <SelectValue placeholder="Default" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="default">Default Voice</SelectItem>
+                      {customVoices.map((voice) => (
+                        <SelectItem
+                          key={voice.id}
+                          value={voice.elevenlabsVoiceId}
+                        >
+                          {voice.name}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+              )}
+              <KnowledgeDrawer />
+            </div>
           </div>
         </div>
 
@@ -1000,7 +1045,7 @@ export function ElizaChatInterface({
                                   className="h-6 w-6 p-0"
                                   onClick={() => {
                                     const url = messageAudioUrls.current.get(
-                                      message.id
+                                      message.id,
                                     );
                                     if (url) {
                                       if (

@@ -54,7 +54,7 @@ export class UserCharactersRepository {
 
   async update(
     id: string,
-    data: Partial<NewUserCharacter>
+    data: Partial<NewUserCharacter>,
   ): Promise<UserCharacter | undefined> {
     const [updated] = await db
       .update(userCharacters)
@@ -77,7 +77,7 @@ export class UserCharactersRepository {
     organizationId: string,
     sortOptions: SortOptions,
     limit: number,
-    offset: number
+    offset: number,
   ): Promise<UserCharacter[]> {
     const conditions: SQL[] = [];
 
@@ -85,8 +85,8 @@ export class UserCharactersRepository {
       conditions.push(
         or(
           ilike(userCharacters.name, `%${filters.search}%`),
-          sql`${userCharacters.bio}::text ILIKE ${"%" + filters.search + "%"}`
-        )!
+          sql`${userCharacters.bio}::text ILIKE ${"%" + filters.search + "%"}`,
+        )!,
       );
     }
 
@@ -96,7 +96,7 @@ export class UserCharactersRepository {
 
     if (filters.hasVoice) {
       conditions.push(
-        sql`${userCharacters.plugins}::jsonb @> '["@elizaos/plugin-elevenlabs"]'::jsonb`
+        sql`${userCharacters.plugins}::jsonb @> '["@elizaos/plugin-elevenlabs"]'::jsonb`,
       );
     }
 
@@ -119,8 +119,8 @@ export class UserCharactersRepository {
         or(
           eq(userCharacters.organization_id, organizationId),
           eq(userCharacters.is_template, true),
-          eq(userCharacters.is_public, true)
-        )!
+          eq(userCharacters.is_public, true),
+        )!,
       );
     }
 
@@ -167,7 +167,7 @@ export class UserCharactersRepository {
   async count(
     filters: SearchFilters,
     userId: string,
-    organizationId: string
+    organizationId: string,
   ): Promise<number> {
     const conditions: SQL[] = [];
 
@@ -175,8 +175,8 @@ export class UserCharactersRepository {
       conditions.push(
         or(
           ilike(userCharacters.name, `%${filters.search}%`),
-          sql`${userCharacters.bio}::text ILIKE ${"%" + filters.search + "%"}`
-        )!
+          sql`${userCharacters.bio}::text ILIKE ${"%" + filters.search + "%"}`,
+        )!,
       );
     }
 
@@ -186,7 +186,7 @@ export class UserCharactersRepository {
 
     if (filters.hasVoice) {
       conditions.push(
-        sql`${userCharacters.plugins}::jsonb @> '["@elizaos/plugin-elevenlabs"]'::jsonb`
+        sql`${userCharacters.plugins}::jsonb @> '["@elizaos/plugin-elevenlabs"]'::jsonb`,
       );
     }
 
@@ -209,8 +209,8 @@ export class UserCharactersRepository {
         or(
           eq(userCharacters.organization_id, organizationId),
           eq(userCharacters.is_template, true),
-          eq(userCharacters.is_public, true)
-        )!
+          eq(userCharacters.is_public, true),
+        )!,
       );
     }
 
@@ -261,7 +261,7 @@ export class UserCharactersRepository {
     return await db.query.userCharacters.findMany({
       where: or(
         eq(userCharacters.is_template, true),
-        eq(userCharacters.is_public, true)
+        eq(userCharacters.is_public, true),
       ),
       orderBy: desc(userCharacters.popularity_score),
       limit,
@@ -272,23 +272,23 @@ export class UserCharactersRepository {
     filters: Omit<SearchFilters, "myCharacters" | "deployed">,
     sortOptions: SortOptions,
     limit: number,
-    offset: number
+    offset: number,
   ): Promise<UserCharacter[]> {
     const conditions: SQL[] = [];
 
     conditions.push(
       or(
         eq(userCharacters.is_template, true),
-        eq(userCharacters.is_public, true)
-      )!
+        eq(userCharacters.is_public, true),
+      )!,
     );
 
     if (filters.search) {
       conditions.push(
         or(
           ilike(userCharacters.name, `%${filters.search}%`),
-          sql`${userCharacters.bio}::text ILIKE ${"%" + filters.search + "%"}`
-        )!
+          sql`${userCharacters.bio}::text ILIKE ${"%" + filters.search + "%"}`,
+        )!,
       );
     }
 
@@ -298,7 +298,7 @@ export class UserCharactersRepository {
 
     if (filters.hasVoice) {
       conditions.push(
-        sql`${userCharacters.plugins}::jsonb @> '["@elizaos/plugin-elevenlabs"]'::jsonb`
+        sql`${userCharacters.plugins}::jsonb @> '["@elizaos/plugin-elevenlabs"]'::jsonb`,
       );
     }
 
@@ -351,23 +351,23 @@ export class UserCharactersRepository {
   }
 
   async countPublic(
-    filters: Omit<SearchFilters, "myCharacters" | "deployed">
+    filters: Omit<SearchFilters, "myCharacters" | "deployed">,
   ): Promise<number> {
     const conditions: SQL[] = [];
 
     conditions.push(
       or(
         eq(userCharacters.is_template, true),
-        eq(userCharacters.is_public, true)
-      )!
+        eq(userCharacters.is_public, true),
+      )!,
     );
 
     if (filters.search) {
       conditions.push(
         or(
           ilike(userCharacters.name, `%${filters.search}%`),
-          sql`${userCharacters.bio}::text ILIKE ${"%" + filters.search + "%"}`
-        )!
+          sql`${userCharacters.bio}::text ILIKE ${"%" + filters.search + "%"}`,
+        )!,
       );
     }
 
@@ -377,7 +377,7 @@ export class UserCharactersRepository {
 
     if (filters.hasVoice) {
       conditions.push(
-        sql`${userCharacters.plugins}::jsonb @> '["@elizaos/plugin-elevenlabs"]'::jsonb`
+        sql`${userCharacters.plugins}::jsonb @> '["@elizaos/plugin-elevenlabs"]'::jsonb`,
       );
     }
 

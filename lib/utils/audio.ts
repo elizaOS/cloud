@@ -47,7 +47,7 @@ export function validateAudioFile(
   options?: {
     maxSize?: number;
     allowedTypes?: string[];
-  }
+  },
 ): { valid: boolean; error?: string } {
   const maxSize = options?.maxSize || 25 * 1024 * 1024; // 25MB default
   const allowedTypes = options?.allowedTypes || [

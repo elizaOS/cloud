@@ -53,7 +53,7 @@ export default async function VoicesPage() {
   return (
     <VoicePageClient
       initialVoices={voices}
-      creditBalance={organization?.credit_balance || 0}
+      creditBalance={Number(organization?.credit_balance || 0)}
     />
   );
 }

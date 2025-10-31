@@ -40,7 +40,7 @@ export function VoiceStatusBadge({ voice }: VoiceStatusBadgeProps) {
   const now = new Date();
   const minutesElapsed = Math.max(
     0,
-    (now.getTime() - createdAt.getTime()) / 1000 / 60
+    (now.getTime() - createdAt.getTime()) / 1000 / 60,
   );
 
   const minProcessingTime = 30; // 30 minutes minimum
@@ -98,7 +98,7 @@ export function getEstimatedReadyMessage(voice: {
   const now = new Date();
   const minutesElapsed = Math.max(
     0,
-    (now.getTime() - createdAt.getTime()) / 1000 / 60
+    (now.getTime() - createdAt.getTime()) / 1000 / 60,
   );
 
   const minMinutes = 30;

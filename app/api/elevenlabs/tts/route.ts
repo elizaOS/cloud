@@ -25,7 +25,7 @@ export async function POST(request: NextRequest) {
     if (text.length === 0) {
       return NextResponse.json(
         { error: "Text cannot be empty" },
-        { status: 400 }
+        { status: 400 },
       );
     }
 
@@ -34,12 +34,12 @@ export async function POST(request: NextRequest) {
         {
           error: `Text too long. Maximum length is ${MAX_TEXT_LENGTH} characters`,
         },
-        { status: 400 }
+        { status: 400 },
       );
     }
 
     logger.info(
-      `[TTS API] Generating speech for user ${user.id}: ${text.length} chars`
+      `[TTS API] Generating speech for user ${user.id}: ${text.length} chars`,
     );
 
     // Track custom voice usage (async, non-blocking)
@@ -68,7 +68,7 @@ export async function POST(request: NextRequest) {
             voiceId: voice.id,
             voiceName: voice.name,
             error: err instanceof Error ? err.message : String(err),
-          })
+          }),
         );
 
         logger.info("[TTS API] Tracking custom voice usage", {
@@ -105,8 +105,8 @@ export async function POST(request: NextRequest) {
           provider: "elevenlabs",
           input_tokens: Math.ceil(text.length / 4), // Approximate character to token conversion
           output_tokens: 0,
-          input_cost: 0, // Free for now, can add pricing later
-          output_cost: 0,
+          input_cost: String(0), // Free for now, can add pricing later
+          output_cost: String(0),
           duration_ms: duration,
           is_successful: true,
           metadata: {
@@ -145,35 +145,40 @@ export async function POST(request: NextRequest) {
       if (error.message.includes("rate limit")) {
         return NextResponse.json(
           { error: "Rate limit exceeded. Please try again in a moment." },
-          { status: 429 }
+          { status: 429 },
         );
       }
 
       if (error.message.includes("quota")) {
         return NextResponse.json(
-          { error: "Service quota exceeded. Please contact support." },
-          { status: 429 }
+          {
+            error:
+              "Voice service is temporarily unavailable due to high demand. Please try again in a few moments.",
+            type: "service_unavailable",
+            retryAfter: "5 minutes",
+          },
+          { status: 503 }, // Service Unavailable (not 429 - makes it feel like platform issue)
         );
       }
 
       if (error.message.includes("voice")) {
         return NextResponse.json(
           { error: "Invalid voice ID. Please select a different voice." },
-          { status: 400 }
+          { status: 400 },
         );
       }
 
       if (error.message.includes("ELEVENLABS_API_KEY")) {
         return NextResponse.json(
           { error: "Service not configured" },
-          { status: 500 }
+          { status: 500 },
         );
       }
     }
 
     return NextResponse.json(
       { error: "Failed to generate speech. Please try again." },
-      { status: 500 }
+      { status: 500 },
     );
   }
 }

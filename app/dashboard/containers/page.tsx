@@ -27,7 +27,7 @@ export default async function ContainersPage() {
       (c) =>
         c.status === "building" ||
         c.status === "deploying" ||
-        c.status === "pending"
+        c.status === "pending",
     ).length,
   };
 
@@ -151,8 +151,8 @@ export default async function ContainersPage() {
                 </div>
               </div>
               <p className="text-sm text-muted-foreground">
-                Once deployed, you'll be able to view deployment history, logs,
-                and metrics for your container right here.
+                Once deployed, you&apos;ll be able to view deployment history,
+                logs, and metrics for your container right here.
               </p>
             </div>
           </CardContent>

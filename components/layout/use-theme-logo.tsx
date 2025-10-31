@@ -19,7 +19,10 @@ export function useThemeLogo() {
   const [mounted, setMounted] = useState(false);
 
   useEffect(() => {
-    setMounted(true);
+    // Set mounted state asynchronously to avoid cascading renders
+    Promise.resolve().then(() => {
+      setMounted(true);
+    });
   }, []);
 
   const isLightMode =

@@ -96,10 +96,7 @@ export function CharacterGrid({
 
           {/* Infinite Scroll Trigger */}
           {hasMore && (
-            <div
-              ref={loadMoreTriggerRef}
-              className="flex justify-center py-8"
-            >
+            <div ref={loadMoreTriggerRef} className="flex justify-center py-8">
               {isLoadingMore && (
                 <div className="flex items-center gap-2 text-muted-foreground">
                   <Loader2 className="h-4 w-4 animate-spin" />
@@ -112,7 +109,7 @@ export function CharacterGrid({
           {/* End of Results */}
           {!hasMore && characters.length > 0 && (
             <div className="flex justify-center py-8 text-sm text-muted-foreground">
-              You've reached the end
+              You&apos;ve reached the end
             </div>
           )}
         </div>

@@ -56,7 +56,7 @@ export async function GET(req: NextRequest) {
     const alerts = generateProjectionAlerts(
       historicalData,
       projections,
-      org?.credit_balance || 0,
+      Number(org?.credit_balance || 0),
     );
 
     return NextResponse.json({
@@ -80,7 +80,7 @@ export async function GET(req: NextRequest) {
         metadata: {
           timeRange,
           periods,
-          creditBalance: org?.credit_balance || 0,
+          creditBalance: Number(org?.credit_balance || 0),
         },
       },
     });
