@@ -71,6 +71,11 @@ export const CacheKeys = {
     metrics: (containerId: string, period: string) =>
       `container:metrics:${containerId}:${period}:v1`,
   },
+  eliza: {
+    roomCharacter: (roomId: string) => `eliza:room:${roomId}:character:v1`,
+    orgBalance: (orgId: string) => `eliza:org:${orgId}:balance:v1`,
+    pattern: () => `eliza:*`,
+  },
 } as const;
 
 export const CacheTTL = {
@@ -120,6 +125,10 @@ export const CacheTTL = {
     list: 60, // 1 minute (was 30s)
     logs: 60, // 1 minute (was 30s)
     metrics: 300, // 5 minutes
+  },
+  eliza: {
+    roomCharacter: 600, // 10 minutes - room character mappings rarely change
+    orgBalance: 30, // 30 seconds - balance changes frequently but we can tolerate slight staleness
   },
 } as const;
 
