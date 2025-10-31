@@ -105,8 +105,7 @@ export async function syncUserFromPrivy(
         } else {
           walletChainType = "ethereum";
         }
-        walletVerified =
-          "verified" in account && account.verified === true;
+        walletVerified = "verified" in account && account.verified === true;
         break;
       }
     }
@@ -244,10 +243,11 @@ export async function syncUserFromPrivy(
   }
 
   // Create organization
+  const INITIAL_BALANCE = 5.0; // $5.00 USD starting balance
   const organization = await organizationsService.create({
     name: `${name}'s Organization`,
     slug: orgSlug,
-    credit_balance: 5.0, // Initial $5.00 USD
+    credit_balance: String(INITIAL_BALANCE),
   });
 
   // Create user - handle race condition where another request created the user

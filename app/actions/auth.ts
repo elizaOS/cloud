@@ -9,5 +9,8 @@ import { organizationsService } from "@/lib/services";
 export async function getCreditBalance(): Promise<number> {
   const user = await requireAuth();
   const organization = await organizationsService.getById(user.organization_id);
-  return organization?.credit_balance || 0;
+  // Convert numeric type (string) to number for UI display
+  return organization?.credit_balance
+    ? Number.parseFloat(String(organization.credit_balance))
+    : 0;
 }

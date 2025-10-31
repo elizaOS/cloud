@@ -213,8 +213,8 @@ export function ProfileForm({ user }: ProfileFormProps) {
                   className="bg-muted"
                 />
                 <p className="text-xs text-muted-foreground">
-                  Email cannot be changed. Please contact support if you need
-                  to update this.
+                  Email cannot be changed. Please contact support if you need to
+                  update this.
                 </p>
               </div>
             )}

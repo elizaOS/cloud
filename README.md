@@ -72,8 +72,8 @@ Eliza Cloud V2 is a full-stack AI-as-a-Service platform that combines:
 
 ### 💳 SaaS Platform Features
 
-- **Credit System**:
-  - Purchase credits via Stripe integration
+- **Billing System**:
+  - Add funds via Stripe integration
   - Automatic deduction for AI operations
   - Usage tracking per organization/user
   - Credit packs with volume pricing
@@ -583,7 +583,7 @@ Authorization: Bearer eliza_your_api_key
 }
 ```
 
-**Cost**: 100 credits per image
+**Cost**: $0.01 per image
 
 ### 3. AI Video Generation
 
@@ -613,7 +613,7 @@ Authorization: Bearer eliza_your_api_key
 }
 ```
 
-**Cost**: 500 credits per video (250 for fallback)
+**Cost**: $0.05 per video ($0.025 for fallback)
 
 ### 4. Gallery & Media Storage
 
@@ -684,6 +684,7 @@ BLOB_READ_WRITE_TOKEN=vercel_blob_rw_your_token
 10. Credits automatically deducted based on container resources (CPU/memory)
 
 **Multi-Project Example**:
+
 ```bash
 # Deploy first project
 cd ~/chatbot
@@ -703,6 +704,7 @@ elizaos deploy --project-name chatbot  # Auto-detected as update
 ```
 
 **Human-Readable URLs**:
+
 - Format: `https://{userId-prefix}-{project-name}.containers.elizacloud.ai`
 - Example: `https://fc51b251-chatbot.containers.elizacloud.ai`
 - Uses first segment of UUID + project name for easy recognition
@@ -710,12 +712,14 @@ elizaos deploy --project-name chatbot  # Auto-detected as update
 **Instance Specs (Auto-Selected)**:
 
 **ARM64 (t4g.small - Recommended)**:
+
 - **2 vCPUs** (ARM Graviton2)
 - **2 GiB RAM** (2048 MB)
 - **$15.76/month** ($12.26 instance + $3.50 storage/monitoring)
 - Default container allocation: 1.75 vCPU (1792 units), 1.75 GiB RAM (1792 MB, 87.5% of instance)
 
 **x86_64 (t3.small - Universal)**:
+
 - **2 vCPUs** (Intel/AMD)
 - **2 GiB RAM** (2048 MB)
 - **$18.68/month** ($15.18 instance + $3.50 storage/monitoring)
@@ -724,6 +728,7 @@ elizaos deploy --project-name chatbot  # Auto-detected as update
 Platform is automatically detected from your system. ARM64 provides better cost efficiency ($2.92/month savings) while x86_64 ensures universal compatibility.
 
 **Container Management**:
+
 ```bash
 # List all containers (with project names)
 elizaos containers list --api-key eliza_xxx
@@ -937,12 +942,14 @@ curl https://your-app.com/api/v1/chat \
 - Transaction history
 - Organization-level balance
 
-**Credit Costs**:
+**Pricing**:
 
 - **Text Chat**: Token-based (varies by model)
-- **Image Generation**: 100 credits
-- **Video Generation**: 500 credits
-- **Container Deployment**: Based on instance hours
+- **Image Generation**: $0.01 per image
+- **Video Generation**: $0.05 per video
+- **Container Deployment**: $0.50 base + instance hours
+- **Voice Clone (Instant)**: $0.50
+- **Voice Clone (Professional)**: $2.00
 
 **Stripe Integration**:
 
@@ -1004,12 +1011,12 @@ See `docs/STRIPE_SETUP.md` for detailed Stripe configuration.
 - 4 AI-powered tools exposed via MCP protocol
 - Bearer token authentication using API keys
 - Compatible with any MCP client (Claude Desktop, MCP Inspector, etc.)
-- Automatic credit deduction for tool usage
+- Automatic billing for tool usage
 - Full request/response logging
 
 **Available MCP Tools**:
 
-1. **check_credits**: View organization credit balance and recent transactions
+1. **check_credits**: View organization balance and recent transactions
    - Optional parameters: `includeTransactions` (boolean), `limit` (number)
 
 2. **get_recent_usage**: View recent API usage statistics with model and cost details
@@ -1023,7 +1030,7 @@ See `docs/STRIPE_SETUP.md` for detailed Stripe configuration.
 4. **generate_image**: Generate images using Google Gemini 2.5
    - Required: `prompt` (string)
    - Optional: `aspectRatio` (enum: 1:1, 16:9, 9:16, 4:3, 3:4)
-   - Cost: 100 credits per image
+   - Cost: $0.01 per image
 
 **Using MCP Inspector**:
 
@@ -1126,7 +1133,7 @@ Accept: application/json, text/event-stream
   - type: purchase, deduction, refund, adjustment
   - stripe_payment_intent_id for reconciliation
 
-- **credit_packs**: Purchasable credit packages
+- **credit_packs**: Balance top-up packages
   - stripe_price_id, stripe_product_id
   - sort_order for display
 
@@ -1810,7 +1817,7 @@ curl https://elizacloud.ai/api/v1/containers \
 
 Container deployments are billed based on:
 
-- **Deployment**: 1000 credits (one-time per deployment)
+- **Deployment**: $0.50 (one-time per deployment)
 - **Running Costs**: Charged per hour based on resources
   - t4g.small (1.75 vCPU + 1.75 GB RAM): Default, ~10-20 credits/hour
   - Higher CPU/memory allocations: Additional charges

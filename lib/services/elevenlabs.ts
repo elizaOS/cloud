@@ -59,16 +59,16 @@ export class ElevenLabsService {
       voiceId: process.env.ELEVENLABS_VOICE_ID || "EXAVITQu4vr4xnSDxMaL",
       modelId: process.env.ELEVENLABS_MODEL_ID || "eleven_flash_v2_5",
       voiceStability: Number.parseFloat(
-        process.env.ELEVENLABS_VOICE_STABILITY || "0.5"
+        process.env.ELEVENLABS_VOICE_STABILITY || "0.5",
       ),
       voiceSimilarityBoost: Number.parseFloat(
-        process.env.ELEVENLABS_VOICE_SIMILARITY_BOOST || "0.75"
+        process.env.ELEVENLABS_VOICE_SIMILARITY_BOOST || "0.75",
       ),
       voiceStyle: Number.parseFloat(process.env.ELEVENLABS_VOICE_STYLE || "0"),
       voiceUseSpeakerBoost:
         process.env.ELEVENLABS_VOICE_USE_SPEAKER_BOOST !== "false",
       optimizeStreamingLatency: Number.parseInt(
-        process.env.ELEVENLABS_OPTIMIZE_STREAMING_LATENCY || "4"
+        process.env.ELEVENLABS_OPTIMIZE_STREAMING_LATENCY || "4",
       ),
       outputFormat: process.env.ELEVENLABS_OUTPUT_FORMAT || "mp3_44100_128",
     };
@@ -86,7 +86,7 @@ export class ElevenLabsService {
       options.modelId || this.config.modelId || "eleven_flash_v2_5";
 
     logger.info(
-      `[ElevenLabs TTS] Generating speech: voice=${voiceId}, model=${modelId}, length=${options.text.length}`
+      `[ElevenLabs TTS] Generating speech: voice=${voiceId}, model=${modelId}, length=${options.text.length}`,
     );
 
     try {
@@ -202,7 +202,7 @@ export class ElevenLabsService {
     language?: string;
   }): Promise<{ voiceId: string; name: string }> {
     logger.info(
-      `[ElevenLabs] Creating professional voice clone: ${options.name}`
+      `[ElevenLabs] Creating professional voice clone: ${options.name}`,
     );
 
     try {
@@ -222,7 +222,7 @@ export class ElevenLabsService {
     } catch (error) {
       logger.error(
         "[ElevenLabs] Error creating professional voice clone:",
-        error
+        error,
       );
       throw error;
     }
@@ -264,7 +264,7 @@ export class ElevenLabsService {
       description?: string;
       stability?: number;
       similarityBoost?: number;
-    }
+    },
   ) {
     logger.info(`[ElevenLabs] Updating voice settings: ${voiceId}`);
 

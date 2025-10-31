@@ -54,7 +54,10 @@ async function updateAvatarUrls() {
     const missingFiles: string[] = [];
 
     for (const mapping of AVATAR_MAPPINGS) {
-      const filepath = resolve(__dirname, `../public/avatars/${mapping.avatarFilename}`);
+      const filepath = resolve(
+        __dirname,
+        `../public/avatars/${mapping.avatarFilename}`,
+      );
       if (!existsSync(filepath)) {
         missingFiles.push(mapping.avatarFilename);
       }
@@ -62,8 +65,10 @@ async function updateAvatarUrls() {
 
     if (missingFiles.length > 0) {
       console.error("\n❌ Missing avatar files:");
-      missingFiles.forEach(file => console.error(`   - ${file}`));
-      console.error("\n💡 Run 'bun scripts/generate-avatars.ts' first to generate all avatars.");
+      missingFiles.forEach((file) => console.error(`   - ${file}`));
+      console.error(
+        "\n💡 Run 'bun scripts/generate-avatars.ts' first to generate all avatars.",
+      );
       process.exit(1);
     }
 
@@ -78,13 +83,14 @@ async function updateAvatarUrls() {
       const avatarUrl = `/avatars/${mapping.avatarFilename}`;
 
       try {
-        const result = await db.update(userCharacters)
+        const result = await db
+          .update(userCharacters)
           .set({ avatar_url: avatarUrl })
           .where(
             and(
               eq(userCharacters.username, mapping.username),
-              eq(userCharacters.is_template, true)
-            )
+              eq(userCharacters.is_template, true),
+            ),
           )
           .returning();
 
@@ -105,9 +111,9 @@ async function updateAvatarUrls() {
     await marketplaceCache.invalidateAll(firstOrg.id);
     console.log("✓ Cache cleared");
 
-    console.log("\n" + "=" .repeat(70));
+    console.log("\n" + "=".repeat(70));
     console.log("📊 Update Summary");
-    console.log("=" .repeat(70));
+    console.log("=".repeat(70));
     console.log(`✅ Successfully updated: ${updatedCount}`);
     console.log(`⚠️  Not found: ${notFoundCount}`);
     console.log(`📁 Total avatars: ${updatedCount}`);
@@ -116,14 +122,15 @@ async function updateAvatarUrls() {
     if (updatedCount === AVATAR_MAPPINGS.length) {
       console.log("🎉 All character avatars updated successfully!");
     } else {
-      console.log(`⚠️  Only ${updatedCount}/${AVATAR_MAPPINGS.length} characters were updated.`);
+      console.log(
+        `⚠️  Only ${updatedCount}/${AVATAR_MAPPINGS.length} characters were updated.`,
+      );
     }
 
     console.log("\n📝 Next steps:");
     console.log("   1. Restart the server to clear any server-side caches");
     console.log("   2. Reload the marketplace page in your browser");
     console.log("   3. Verify all character avatars are displaying\n");
-
   } catch (error) {
     console.error("\n❌ Error updating avatar URLs:", error);
     if (error instanceof Error) {

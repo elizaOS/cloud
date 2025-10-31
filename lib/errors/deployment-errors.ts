@@ -26,21 +26,24 @@ export class ContainerDeploymentError extends DeploymentError {
   }
 }
 
-export class InsufficientCreditsError extends DeploymentError {
+export class InsufficientBalanceError extends DeploymentError {
   constructor(
     required: number,
     available: number,
     details?: Record<string, unknown>,
   ) {
     super(
-      `Insufficient credits. Required: ${required}, Available: ${available}`,
-      "INSUFFICIENT_CREDITS",
+      `Insufficient balance. Required: $${required.toFixed(2)}, Available: $${available.toFixed(2)}`,
+      "INSUFFICIENT_BALANCE",
       402,
       { required, available, ...details },
     );
-    this.name = "InsufficientCreditsError";
+    this.name = "InsufficientBalanceError";
   }
 }
+
+// Backwards compatibility alias
+export const InsufficientCreditsError = InsufficientBalanceError;
 
 export class TimeoutError extends DeploymentError {
   constructor(operation: string, timeoutMs: number) {

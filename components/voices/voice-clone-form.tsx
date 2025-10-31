@@ -64,7 +64,7 @@ export function VoiceCloneForm({
   const [name, setName] = useState("");
   const [description, setDescription] = useState("");
   const [cloneType, setCloneType] = useState<"instant" | "professional">(
-    "instant"
+    "instant",
   );
   const [files, setFiles] = useState<UploadedFile[]>([]);
   const [isUploading, setIsUploading] = useState(false);
@@ -91,7 +91,7 @@ export function VoiceCloneForm({
     cloneType === "instant"
       ? VOICE_CLONE_INSTANT_COST
       : VOICE_CLONE_PROFESSIONAL_COST;
-  const hasEnoughCredits = creditBalance >= cost;
+  const hasEnoughCredits = Number(creditBalance) >= cost;
 
   // Fetch professional voice count on mount
   useEffect(() => {
@@ -102,7 +102,7 @@ export function VoiceCloneForm({
           const data = await response.json();
           if (data.success && data.voices) {
             const proCount = data.voices.filter(
-              (v: Voice) => v.cloneType === "professional"
+              (v: Voice) => v.cloneType === "professional",
             ).length;
             setProfessionalVoiceCount(proCount);
           }
@@ -239,7 +239,7 @@ export function VoiceCloneForm({
 
     if (!hasEnoughCredits) {
       setError(
-        `Insufficient credits. You need ${cost} credits but have ${creditBalance}`
+        `Insufficient balance. You need $${cost.toFixed(2)} but have $${Number(creditBalance).toFixed(2)}`,
       );
       return;
     }
@@ -262,7 +262,7 @@ export function VoiceCloneForm({
           similarityBoost,
           style,
           useSpeakerBoost,
-        })
+        }),
       );
 
       // Add files
@@ -278,6 +278,13 @@ export function VoiceCloneForm({
       const data = await response.json();
 
       if (!response.ok) {
+        // Check for service unavailable (quota issues)
+        if (response.status === 503 || data.type === "service_unavailable") {
+          const friendlyError =
+            data.error ||
+            "Voice service is temporarily unavailable. Please try again in a few minutes.";
+          throw new Error(friendlyError);
+        }
         throw new Error(data.error || "Failed to create voice clone");
       }
 
@@ -285,7 +292,7 @@ export function VoiceCloneForm({
       if (cloneType === "professional") {
         toast.success(
           `Voice "${name}" is being created. Professional cloning takes 30-60 minutes. Check back later!`,
-          { duration: 10000 }
+          { duration: 10000 },
         );
       } else {
         toast.success(`Voice "${name}" created successfully and ready to use!`);
@@ -334,7 +341,7 @@ export function VoiceCloneForm({
             Create Voice Clone
           </CardTitle>
           <Badge variant="outline" className="text-xs font-medium">
-            {creditBalance.toLocaleString()} credits
+            ${Number(creditBalance).toFixed(2)}
           </Badge>
         </div>
         <CardDescription className="text-sm">
@@ -388,7 +395,7 @@ export function VoiceCloneForm({
                   "relative rounded-xl border-2 p-5 text-left transition-all hover:shadow-sm",
                   cloneType === "instant"
                     ? "border-primary bg-primary/5 shadow-sm"
-                    : "border-border hover:border-muted-foreground/50 hover:bg-muted/30"
+                    : "border-border hover:border-muted-foreground/50 hover:bg-muted/30",
                 )}
               >
                 <div className="space-y-3">
@@ -411,7 +418,7 @@ export function VoiceCloneForm({
                       variant="outline"
                       className="shrink-0 font-semibold text-xs"
                     >
-                      {VOICE_CLONE_INSTANT_COST} credits
+                      ${VOICE_CLONE_INSTANT_COST.toFixed(2)}
                     </Badge>
                   </div>
                   <div className="flex items-center gap-4 text-xs text-muted-foreground">
@@ -439,7 +446,7 @@ export function VoiceCloneForm({
                   "relative rounded-xl border-2 p-5 text-left transition-all hover:shadow-sm",
                   cloneType === "professional"
                     ? "border-primary bg-primary/5 shadow-sm"
-                    : "border-border hover:border-muted-foreground/50 hover:bg-muted/30"
+                    : "border-border hover:border-muted-foreground/50 hover:bg-muted/30",
                 )}
               >
                 <div className="space-y-3">
@@ -457,7 +464,7 @@ export function VoiceCloneForm({
                             className={cn(
                               "text-xs",
                               professionalVoiceCount >= 1 &&
-                                "border-amber-500/50 bg-amber-500/10 text-amber-600"
+                                "border-amber-500/50 bg-amber-500/10 text-amber-600",
                             )}
                           >
                             {professionalVoiceCount}/1 slots
@@ -472,7 +479,7 @@ export function VoiceCloneForm({
                       variant="outline"
                       className="shrink-0 font-semibold text-xs"
                     >
-                      {VOICE_CLONE_PROFESSIONAL_COST} credits
+                      ${VOICE_CLONE_PROFESSIONAL_COST.toFixed(2)}
                     </Badge>
                   </div>
 
@@ -536,7 +543,7 @@ export function VoiceCloneForm({
                     "border-2 border-dashed rounded-lg p-8 text-center transition-colors cursor-pointer w-full",
                     isDragging
                       ? "border-primary bg-primary/5"
-                      : "border-muted hover:border-muted-foreground/50"
+                      : "border-muted hover:border-muted-foreground/50",
                   )}
                   onClick={() => fileInputRef.current?.click()}
                   disabled={isUploading}
@@ -839,19 +846,17 @@ export function VoiceCloneForm({
                 <Coins className="h-5 w-5 text-primary" />
               </div>
               <div>
-                <p className="text-sm font-semibold">Credit Balance</p>
+                <p className="text-sm font-semibold">Balance</p>
                 <p className="text-xs text-muted-foreground">
-                  {creditBalance.toLocaleString()} available
+                  ${Number(creditBalance).toFixed(2)} available
                 </p>
               </div>
             </div>
             <div className="text-right">
-              <p className="text-sm font-semibold">
-                Cost: {cost.toLocaleString()} credits
-              </p>
+              <p className="text-sm font-semibold">Cost: ${cost.toFixed(2)}</p>
               {!hasEnoughCredits && (
                 <p className="text-xs text-destructive font-medium">
-                  Insufficient credits
+                  Insufficient balance
                 </p>
               )}
             </div>
@@ -872,7 +877,7 @@ export function VoiceCloneForm({
             ) : (
               <>
                 <Sparkles className="mr-2 h-5 w-5" />
-                Create Voice Clone ({cost.toLocaleString()} credits)
+                Create Voice Clone (${cost.toFixed(2)})
               </>
             )}
           </Button>

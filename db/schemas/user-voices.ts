@@ -6,6 +6,7 @@ import {
   boolean,
   timestamp,
   decimal,
+  numeric,
   jsonb,
   index,
 } from "drizzle-orm/pg-core";
@@ -56,7 +57,10 @@ export const userVoices = pgTable(
     isPublic: boolean("is_public").notNull().default(false), // Allow sharing in gallery
 
     // Cost Tracking
-    creationCost: integer("creation_cost").notNull(), // Credits spent to create
+    creationCost: numeric("creation_cost", {
+      precision: 10,
+      scale: 2,
+    }).notNull(), // Cost in USD to create
 
     // Audit
     createdAt: timestamp("created_at").notNull().defaultNow(),
@@ -65,22 +69,22 @@ export const userVoices = pgTable(
   (table) => ({
     // Index for organization queries (listing user voices)
     organization_idx: index("user_voices_organization_idx").on(
-      table.organizationId
+      table.organizationId,
     ),
     // Index for user queries
     user_idx: index("user_voices_user_idx").on(table.userId),
     // Index for finding voices by organization and clone type (slot counting)
     org_type_idx: index("user_voices_org_type_idx").on(
       table.organizationId,
-      table.cloneType
+      table.cloneType,
     ),
     // Index for organization + usage analytics (most used voices)
     org_usage_idx: index("user_voices_org_usage_idx").on(
       table.organizationId,
       table.usageCount,
-      table.lastUsedAt
+      table.lastUsedAt,
     ),
-  })
+  }),
 );
 
 export const voiceCloningJobs = pgTable("voice_cloning_jobs", {

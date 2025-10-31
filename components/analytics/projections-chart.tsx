@@ -111,7 +111,7 @@ export function ProjectionsChart({ data }: ProjectionsChartProps) {
             <div className="grid grid-cols-2 gap-4 sm:grid-cols-3">
               <div className="rounded-lg border border-border/60 bg-muted/30 p-4">
                 <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
-                  Credit balance
+                  Balance
                 </p>
                 <p className="mt-1 text-lg font-semibold text-foreground">
                   {formatCurrency(creditBalance)}

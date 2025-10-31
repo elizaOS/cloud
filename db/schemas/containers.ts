@@ -78,7 +78,12 @@ export const containers = pgTable(
     ecr_repository_idx: index("containers_ecr_repository_idx").on(
       table.ecr_repository_uri,
     ),
-    project_name_idx: index("containers_project_name_idx").on(table.project_name),
-    user_project_idx: index("containers_user_project_idx").on(table.user_id, table.project_name),
+    project_name_idx: index("containers_project_name_idx").on(
+      table.project_name,
+    ),
+    user_project_idx: index("containers_user_project_idx").on(
+      table.user_id,
+      table.project_name,
+    ),
   }),
 );

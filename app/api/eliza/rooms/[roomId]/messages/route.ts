@@ -82,7 +82,7 @@ export async function POST(
       );
     }
 
-    if (org.credit_balance < estimatedCost) {
+    if (Number(org.credit_balance) < estimatedCost) {
       logger.warn("[Eliza Messages API] Insufficient credits", {
         organizationId: user.organization_id,
         required: estimatedCost,
@@ -90,7 +90,7 @@ export async function POST(
       });
       return NextResponse.json(
         {
-          error: "Insufficient credits",
+          error: "Insufficient balance",
           details: `Required: ${estimatedCost}, Available: ${org.credit_balance}`,
         },
         { status: 402 },
@@ -100,15 +100,28 @@ export async function POST(
     // Look up character for this room
     let characterId: string | undefined;
     try {
-      const roomCharacter = await elizaRoomCharactersRepository.findByRoomId(roomId);
+      const roomCharacter =
+        await elizaRoomCharactersRepository.findByRoomId(roomId);
       if (roomCharacter) {
         characterId = roomCharacter.character_id;
-        logger.info("[Eliza Messages API] ✓ Using custom character:", characterId, "for room:", roomId);
+        logger.info(
+          "[Eliza Messages API] ✓ Using custom character:",
+          characterId,
+          "for room:",
+          roomId,
+        );
       } else {
-        logger.info("[Eliza Messages API] ⓘ No character mapping found for room:", roomId, "- using default character");
+        logger.info(
+          "[Eliza Messages API] ⓘ No character mapping found for room:",
+          roomId,
+          "- using default character",
+        );
       }
     } catch (lookupError) {
-      logger.error("[Eliza Messages API] ✗ Failed to lookup character mapping:", lookupError);
+      logger.error(
+        "[Eliza Messages API] ✗ Failed to lookup character mapping:",
+        lookupError,
+      );
       // Continue with default character
     }
 
@@ -172,7 +185,7 @@ export async function POST(
           "[Eliza Messages API] CRITICAL: Failed to deduct credits after message processing - race condition detected",
           {
             organizationId: user.organization_id,
-            cost: totalCost,
+            cost: String(totalCost),
             balance: deductionResult.newBalance,
             messageId: message.id,
           },
@@ -191,8 +204,8 @@ export async function POST(
         provider,
         input_tokens: effectiveUsage.inputTokens || 0,
         output_tokens: effectiveUsage.outputTokens || 0,
-        input_cost: inputCost,
-        output_cost: outputCost,
+        input_cost: String(inputCost),
+        output_cost: String(outputCost),
         is_successful: true,
       });
 
@@ -210,15 +223,15 @@ export async function POST(
           tokens:
             (effectiveUsage.inputTokens || 0) +
             (effectiveUsage.outputTokens || 0),
-          cost: totalCost,
-          credits: totalCost,
+          cost: String(totalCost),
+          credits: String(totalCost),
           usage_record_id: usageRecord.id,
           completed_at: new Date(),
         });
       }
 
       logger.debug(
-        `[Eliza Messages API] Credits deducted: ${totalCost} (Input: ${inputCost}, Output: ${outputCost}), New balance: ${deductionResult.newBalance}`,
+        `[Eliza Messages API] Cost charged: $${totalCost.toFixed(4)} (Input: $${inputCost.toFixed(4)}, Output: $${outputCost.toFixed(4)}), New balance: $${deductionResult.newBalance.toFixed(2)}`,
       );
     } catch (error) {
       logger.error(
@@ -237,8 +250,8 @@ export async function POST(
           provider: getProviderFromModel(effectiveUsage.model || "gpt-4o"),
           input_tokens: effectiveUsage.inputTokens || 0,
           output_tokens: effectiveUsage.outputTokens || 0,
-          input_cost: 0,
-          output_cost: 0,
+          input_cost: String(0),
+          output_cost: String(0),
           is_successful: false,
           error_message:
             error instanceof Error ? error.message : "Unknown error",

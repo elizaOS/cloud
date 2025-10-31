@@ -65,10 +65,10 @@ function getAuthContext(): AuthResult {
 // Create MCP handler with tools
 const mcpHandler = createMcpHandler(
   (server) => {
-    // Tool 1: Check Credits - View credit balance and recent transactions
+    // Tool 1: Check Credits - View balance and recent transactions
     server.tool(
       "check_credits",
-      "Check credit balance and recent transactions for your organization",
+      "Check balance and recent transactions for your organization",
       {
         includeTransactions: z
           .boolean()
@@ -97,7 +97,7 @@ const mcpHandler = createMcpHandler(
                   text: JSON.stringify(
                     { error: "Organization not found" },
                     null,
-                    2
+                    2,
                   ),
                 },
               ],
@@ -117,7 +117,7 @@ const mcpHandler = createMcpHandler(
               createdAt: string;
             }>;
           } = {
-            balance: org.credit_balance,
+            balance: Number(org.credit_balance),
             organizationId: org.id,
             organizationName: org.name,
           };
@@ -126,11 +126,11 @@ const mcpHandler = createMcpHandler(
             const transactions =
               await creditsService.listTransactionsByOrganization(
                 user.organization_id,
-                limit
+                limit,
               );
             response.transactions = transactions.map((t) => ({
               id: t.id,
-              amount: t.amount,
+              amount: Number(t.amount),
               type: t.type,
               description: t.description || "No description",
               createdAt: t.created_at.toISOString(),
@@ -158,14 +158,14 @@ const mcpHandler = createMcpHandler(
                         : "Failed to check credits",
                   },
                   null,
-                  2
+                  2,
                 ),
               },
             ],
             isError: true,
           };
         }
-      }
+      },
     );
 
     // Tool 2: Get Recent Usage - View API usage statistics
@@ -188,7 +188,7 @@ const mcpHandler = createMcpHandler(
 
           const usageRecords = await usageService.listByOrganization(
             user.organization_id,
-            limit
+            limit,
           );
 
           const formattedUsage = usageRecords.map((record) => ({
@@ -200,7 +200,8 @@ const mcpHandler = createMcpHandler(
             outputTokens: record.output_tokens,
             inputCost: record.input_cost || 0,
             outputCost: record.output_cost || 0,
-            totalCost: (record.input_cost || 0) + (record.output_cost || 0),
+            totalCost:
+              Number(record.input_cost || 0) + Number(record.output_cost || 0),
             isSuccessful: record.is_successful,
             errorMessage: record.error_message,
             createdAt: record.created_at.toISOString(),
@@ -208,7 +209,7 @@ const mcpHandler = createMcpHandler(
 
           const totalCost = formattedUsage.reduce(
             (sum, record) => sum + record.totalCost,
-            0
+            0,
           );
 
           return {
@@ -224,7 +225,7 @@ const mcpHandler = createMcpHandler(
                     },
                   },
                   null,
-                  2
+                  2,
                 ),
               },
             ],
@@ -242,14 +243,14 @@ const mcpHandler = createMcpHandler(
                         : "Failed to fetch usage",
                   },
                   null,
-                  2
+                  2,
                 ),
               },
             ],
             isError: true,
           };
         }
-      }
+      },
     );
 
     // Tool 3: Generate Text - Generate text using AI models
@@ -302,7 +303,7 @@ const mcpHandler = createMcpHandler(
                   text: JSON.stringify(
                     { error: "Organization not found" },
                     null,
-                    2
+                    2,
                   ),
                 },
               ],
@@ -335,12 +336,12 @@ const mcpHandler = createMcpHandler(
                   type: "text" as const,
                   text: JSON.stringify(
                     {
-                      error: "Insufficient credits",
+                      error: "Insufficient balance",
                       required: estimatedCost,
                       available: deductionResult.newBalance,
                     },
                     null,
-                    2
+                    2,
                   ),
                 },
               ],
@@ -361,8 +362,8 @@ const mcpHandler = createMcpHandler(
             provider: provider,
             prompt: prompt,
             status: "pending",
-            credits: estimatedCost,
-            cost: estimatedCost,
+            credits: String(estimatedCost),
+            cost: String(estimatedCost),
           });
 
           generationId = generation.id;
@@ -390,7 +391,7 @@ const mcpHandler = createMcpHandler(
             model,
             provider,
             usage?.inputTokens || 0,
-            usage?.outputTokens || 0
+            usage?.outputTokens || 0,
           );
 
           // Handle cost difference: refund excess or deduct additional
@@ -412,7 +413,7 @@ const mcpHandler = createMcpHandler(
               await creditsService.refundCredits({
                 organizationId: user.organization_id,
                 amount: deductedAmount,
-                description: `MCP text generation refund (insufficient credits): ${model}`,
+                description: `MCP text generation refund (insufficient balance): ${model}`,
                 metadata: { user_id: user.id, generation_id: generationId },
               });
               return {
@@ -421,13 +422,13 @@ const mcpHandler = createMcpHandler(
                     type: "text" as const,
                     text: JSON.stringify(
                       {
-                        error: "Insufficient credits for actual cost",
+                        error: "Insufficient balance for actual cost",
                         estimated: deductedAmount,
                         actual: totalCost,
                         refunded: deductedAmount,
                       },
                       null,
-                      2
+                      2,
                     ),
                   },
                 ],
@@ -454,8 +455,8 @@ const mcpHandler = createMcpHandler(
             provider: provider,
             input_tokens: usage?.inputTokens || 0,
             output_tokens: usage?.outputTokens || 0,
-            input_cost: inputCost,
-            output_cost: outputCost,
+            input_cost: String(inputCost),
+            output_cost: String(outputCost),
             is_successful: true,
           });
 
@@ -464,8 +465,8 @@ const mcpHandler = createMcpHandler(
             status: "completed",
             content: fullText,
             tokens: (usage?.inputTokens || 0) + (usage?.outputTokens || 0),
-            cost: totalCost,
-            credits: totalCost,
+            cost: String(totalCost),
+            credits: String(totalCost),
             usage_record_id: usageRecord.id,
             completed_at: new Date(),
             result: {
@@ -530,14 +531,14 @@ const mcpHandler = createMcpHandler(
                     refunded: creditsDeducted ? deductedAmount : 0,
                   },
                   null,
-                  2
+                  2,
                 ),
               },
             ],
             isError: true,
           };
         }
-      }
+      },
     );
 
     // Tool 4: Generate Image - Generate images using Gemini
@@ -575,7 +576,7 @@ const mcpHandler = createMcpHandler(
                   text: JSON.stringify(
                     { error: "Organization not found" },
                     null,
-                    2
+                    2,
                   ),
                 },
               ],
@@ -600,12 +601,12 @@ const mcpHandler = createMcpHandler(
                   type: "text" as const,
                   text: JSON.stringify(
                     {
-                      error: "Insufficient credits",
+                      error: "Insufficient balance",
                       required: IMAGE_GENERATION_COST,
                       available: initialDeduction.newBalance,
                     },
                     null,
-                    2
+                    2,
                   ),
                 },
               ],
@@ -626,8 +627,8 @@ const mcpHandler = createMcpHandler(
             provider: "google",
             prompt: prompt,
             status: "pending",
-            credits: IMAGE_GENERATION_COST,
-            cost: IMAGE_GENERATION_COST,
+            credits: String(IMAGE_GENERATION_COST),
+            cost: String(IMAGE_GENERATION_COST),
           });
 
           generationId = generation.id;
@@ -701,8 +702,8 @@ const mcpHandler = createMcpHandler(
               provider: "google",
               input_tokens: 0,
               output_tokens: 0,
-              input_cost: 0,
-              output_cost: 0,
+              input_cost: String(0),
+              output_cost: String(0),
               is_successful: false,
               error_message: "No image was generated",
             });
@@ -726,7 +727,7 @@ const mcpHandler = createMcpHandler(
                       refunded: deductedAmount,
                     },
                     null,
-                    2
+                    2,
                   ),
                 },
               ],
@@ -743,8 +744,8 @@ const mcpHandler = createMcpHandler(
             provider: "google",
             input_tokens: 0,
             output_tokens: 0,
-            input_cost: IMAGE_GENERATION_COST,
-            output_cost: 0,
+            input_cost: String(IMAGE_GENERATION_COST),
+            output_cost: String(0),
             is_successful: true,
           });
 
@@ -790,11 +791,11 @@ const mcpHandler = createMcpHandler(
                     message: "Image generated successfully",
                     url: blobUrl !== imageBase64 ? blobUrl : undefined,
                     aspectRatio,
-                    cost: IMAGE_GENERATION_COST,
+                    cost: String(IMAGE_GENERATION_COST),
                     newBalance: initialDeduction.newBalance,
                   },
                   null,
-                  2
+                  2,
                 ),
               },
             ],
@@ -845,14 +846,14 @@ const mcpHandler = createMcpHandler(
                     refunded: creditsDeducted ? deductedAmount : 0,
                   },
                   null,
-                  2
+                  2,
                 ),
               },
             ],
             isError: true,
           };
         }
-      }
+      },
     );
 
     server.tool(
@@ -911,7 +912,7 @@ const mcpHandler = createMcpHandler(
                   text: JSON.stringify(
                     { error: "Organization not found" },
                     null,
-                    2
+                    2,
                   ),
                 },
               ],
@@ -930,7 +931,7 @@ const mcpHandler = createMcpHandler(
                         "roomId is required. Memory must be associated with a room/conversation.",
                     },
                     null,
-                    2
+                    2,
                   ),
                 },
               ],
@@ -964,7 +965,7 @@ const mcpHandler = createMcpHandler(
                         actualSize: metadataSize,
                       },
                       null,
-                      2
+                      2,
                     ),
                   },
                 ],
@@ -989,7 +990,7 @@ const mcpHandler = createMcpHandler(
                         provided: tags.length,
                       },
                       null,
-                      2
+                      2,
                     ),
                   },
                 ],
@@ -1007,7 +1008,7 @@ const mcpHandler = createMcpHandler(
                     KEEP_CONTENT: true,
                   })
                     .trim()
-                    .substring(0, 50) // Limit tag length to 50 chars
+                    .substring(0, 50), // Limit tag length to 50 chars
               )
               .filter((tag: string) => tag.length > 0); // Remove empty tags
           }
@@ -1031,12 +1032,12 @@ const mcpHandler = createMcpHandler(
                   type: "text" as const,
                   text: JSON.stringify(
                     {
-                      error: "Insufficient credits",
+                      error: "Insufficient balance",
                       required: MEMORY_SAVE_COST,
                       available: deductionResult.newBalance,
                     },
                     null,
-                    2
+                    2,
                   ),
                 },
               ],
@@ -1083,8 +1084,8 @@ const mcpHandler = createMcpHandler(
             provider: "internal",
             input_tokens: 0,
             output_tokens: 0,
-            input_cost: MEMORY_SAVE_COST,
-            output_cost: 0,
+            input_cost: String(MEMORY_SAVE_COST),
+            output_cost: String(0),
             is_successful: true,
           });
 
@@ -1098,11 +1099,11 @@ const mcpHandler = createMcpHandler(
                     memoryId: result.memoryId,
                     storage: result.storage,
                     expiresAt: result.expiresAt?.toISOString(),
-                    cost: MEMORY_SAVE_COST,
+                    cost: String(MEMORY_SAVE_COST),
                     newBalance: deductionResult.newBalance,
                   },
                   null,
-                  2
+                  2,
                 ),
               },
             ],
@@ -1120,14 +1121,14 @@ const mcpHandler = createMcpHandler(
                         : "Failed to save memory",
                   },
                   null,
-                  2
+                  2,
                 ),
               },
             ],
             isError: true,
           };
         }
-      }
+      },
     );
 
     server.tool(
@@ -1175,7 +1176,7 @@ const mcpHandler = createMcpHandler(
                   text: JSON.stringify(
                     { error: "Organization not found" },
                     null,
-                    2
+                    2,
                   ),
                 },
               ],
@@ -1205,12 +1206,12 @@ const mcpHandler = createMcpHandler(
                   type: "text" as const,
                   text: JSON.stringify(
                     {
-                      error: "Insufficient credits",
+                      error: "Insufficient balance",
                       required: estimatedMaxCost,
                       available: initialDeduction.newBalance,
                     },
                     null,
-                    2
+                    2,
                   ),
                 },
               ],
@@ -1251,7 +1252,7 @@ const mcpHandler = createMcpHandler(
           // Calculate actual cost and refund difference if lower than estimated
           const actualCost = Math.min(
             Math.ceil(memories.length * MEMORY_RETRIEVAL_COST_PER_ITEM),
-            MEMORY_RETRIEVAL_MAX_COST
+            MEMORY_RETRIEVAL_MAX_COST,
           );
 
           const costDifference = estimatedMaxCost - actualCost;
@@ -1281,8 +1282,8 @@ const mcpHandler = createMcpHandler(
               provider: "internal",
               input_tokens: 0,
               output_tokens: 0,
-              input_cost: actualCost,
-              output_cost: 0,
+              input_cost: String(actualCost),
+              output_cost: String(0),
               is_successful: true,
             });
           }
@@ -1300,10 +1301,10 @@ const mcpHandler = createMcpHandler(
                       createdAt: m.memory.createdAt,
                     })),
                     count: memories.length,
-                    cost: actualCost,
+                    cost: String(actualCost),
                   },
                   null,
-                  2
+                  2,
                 ),
               },
             ],
@@ -1321,14 +1322,14 @@ const mcpHandler = createMcpHandler(
                         : "Failed to retrieve memories",
                   },
                   null,
-                  2
+                  2,
                 ),
               },
             ],
             isError: true,
           };
         }
-      }
+      },
     );
 
     server.tool(
@@ -1369,8 +1370,8 @@ const mcpHandler = createMcpHandler(
             provider: "internal",
             input_tokens: 0,
             output_tokens: 0,
-            input_cost: 0,
-            output_cost: 0,
+            input_cost: String(0),
+            output_cost: String(0),
             is_successful: true,
           });
 
@@ -1385,7 +1386,7 @@ const mcpHandler = createMcpHandler(
                     storageFreed: result.storageFreed,
                   },
                   null,
-                  2
+                  2,
                 ),
               },
             ],
@@ -1403,14 +1404,14 @@ const mcpHandler = createMcpHandler(
                         : "Failed to delete memory",
                   },
                   null,
-                  2
+                  2,
                 ),
               },
             ],
             isError: true,
           };
         }
-      }
+      },
     );
 
     server.tool(
@@ -1450,7 +1451,7 @@ const mcpHandler = createMcpHandler(
                   text: JSON.stringify(
                     { error: "Organization not found" },
                     null,
-                    2
+                    2,
                   ),
                 },
               ],
@@ -1458,19 +1459,19 @@ const mcpHandler = createMcpHandler(
             };
           }
 
-          if (org.credit_balance < CONTEXT_RETRIEVAL_COST) {
+          if (Number(org.credit_balance) < CONTEXT_RETRIEVAL_COST) {
             return {
               content: [
                 {
                   type: "text" as const,
                   text: JSON.stringify(
                     {
-                      error: "Insufficient credits",
+                      error: "Insufficient balance",
                       required: CONTEXT_RETRIEVAL_COST,
                       available: org.credit_balance,
                     },
                     null,
-                    2
+                    2,
                   ),
                 },
               ],
@@ -1481,7 +1482,7 @@ const mcpHandler = createMcpHandler(
           const context = await memoryService.getRoomContext(
             roomId,
             user.organization_id,
-            depth
+            depth,
           );
 
           const deductionResult = await creditsService.deductCredits({
@@ -1507,7 +1508,7 @@ const mcpHandler = createMcpHandler(
                       available: deductionResult.newBalance,
                     },
                     null,
-                    2
+                    2,
                   ),
                 },
               ],
@@ -1524,13 +1525,13 @@ const mcpHandler = createMcpHandler(
             provider: "internal",
             input_tokens: 0,
             output_tokens: 0,
-            input_cost: CONTEXT_RETRIEVAL_COST,
-            output_cost: 0,
+            input_cost: String(CONTEXT_RETRIEVAL_COST),
+            output_cost: String(0),
             is_successful: true,
           });
 
           const tokenEstimate = await memoryService.estimateTokenCount(
-            context.messages
+            context.messages,
           );
 
           return {
@@ -1544,7 +1545,7 @@ const mcpHandler = createMcpHandler(
                     participants: context.participants.length,
                     metadata: context.metadata,
                     tokenEstimate,
-                    cost: CONTEXT_RETRIEVAL_COST,
+                    cost: String(CONTEXT_RETRIEVAL_COST),
                     messages: context.messages.map((m) => ({
                       id: m.id,
                       content: m.content,
@@ -1553,7 +1554,7 @@ const mcpHandler = createMcpHandler(
                     })),
                   },
                   null,
-                  2
+                  2,
                 ),
               },
             ],
@@ -1571,14 +1572,14 @@ const mcpHandler = createMcpHandler(
                         : "Failed to get conversation context",
                   },
                   null,
-                  2
+                  2,
                 ),
               },
             ],
             isError: true,
           };
         }
-      }
+      },
     );
 
     server.tool(
@@ -1619,7 +1620,7 @@ const mcpHandler = createMcpHandler(
                   text: JSON.stringify(
                     { error: "Organization not found" },
                     null,
-                    2
+                    2,
                   ),
                 },
               ],
@@ -1627,19 +1628,19 @@ const mcpHandler = createMcpHandler(
             };
           }
 
-          if (org.credit_balance < CONVERSATION_CREATE_COST) {
+          if (Number(org.credit_balance) < CONVERSATION_CREATE_COST) {
             return {
               content: [
                 {
                   type: "text" as const,
                   text: JSON.stringify(
                     {
-                      error: "Insufficient credits",
+                      error: "Insufficient balance",
                       required: CONVERSATION_CREATE_COST,
                       available: org.credit_balance,
                     },
                     null,
-                    2
+                    2,
                   ),
                 },
               ],
@@ -1680,7 +1681,7 @@ const mcpHandler = createMcpHandler(
                       available: deductionResult.newBalance,
                     },
                     null,
-                    2
+                    2,
                   ),
                 },
               ],
@@ -1697,8 +1698,8 @@ const mcpHandler = createMcpHandler(
             provider: "internal",
             input_tokens: 0,
             output_tokens: 0,
-            input_cost: CONVERSATION_CREATE_COST,
-            output_cost: 0,
+            input_cost: String(CONVERSATION_CREATE_COST),
+            output_cost: String(0),
             is_successful: true,
           });
 
@@ -1712,11 +1713,11 @@ const mcpHandler = createMcpHandler(
                     conversationId: conversation.id,
                     title: conversation.title,
                     model: conversation.model,
-                    cost: CONVERSATION_CREATE_COST,
+                    cost: String(CONVERSATION_CREATE_COST),
                     newBalance: deductionResult.newBalance,
                   },
                   null,
-                  2
+                  2,
                 ),
               },
             ],
@@ -1734,14 +1735,14 @@ const mcpHandler = createMcpHandler(
                         : "Failed to create conversation",
                   },
                   null,
-                  2
+                  2,
                 ),
               },
             ],
             isError: true,
           };
         }
-      }
+      },
     );
 
     server.tool(
@@ -1777,7 +1778,7 @@ const mcpHandler = createMcpHandler(
                   text: JSON.stringify(
                     { error: "Organization not found" },
                     null,
-                    2
+                    2,
                   ),
                 },
               ],
@@ -1785,19 +1786,19 @@ const mcpHandler = createMcpHandler(
             };
           }
 
-          if (org.credit_balance < CONVERSATION_SEARCH_COST) {
+          if (Number(org.credit_balance) < CONVERSATION_SEARCH_COST) {
             return {
               content: [
                 {
                   type: "text" as const,
                   text: JSON.stringify(
                     {
-                      error: "Insufficient credits",
+                      error: "Insufficient balance",
                       required: CONVERSATION_SEARCH_COST,
                       available: org.credit_balance,
                     },
                     null,
-                    2
+                    2,
                   ),
                 },
               ],
@@ -1807,7 +1808,7 @@ const mcpHandler = createMcpHandler(
 
           const conversations = await conversationsService.listByOrganization(
             user.organization_id,
-            limit
+            limit,
           );
 
           const deductionResult = await creditsService.deductCredits({
@@ -1832,7 +1833,7 @@ const mcpHandler = createMcpHandler(
                       available: deductionResult.newBalance,
                     },
                     null,
-                    2
+                    2,
                   ),
                 },
               ],
@@ -1849,8 +1850,8 @@ const mcpHandler = createMcpHandler(
             provider: "internal",
             input_tokens: 0,
             output_tokens: 0,
-            input_cost: CONVERSATION_SEARCH_COST,
-            output_cost: 0,
+            input_cost: String(CONVERSATION_SEARCH_COST),
+            output_cost: String(0),
             is_successful: true,
           });
 
@@ -1870,10 +1871,10 @@ const mcpHandler = createMcpHandler(
                       createdAt: c.created_at,
                     })),
                     count: conversations.length,
-                    cost: CONVERSATION_SEARCH_COST,
+                    cost: String(CONVERSATION_SEARCH_COST),
                   },
                   null,
-                  2
+                  2,
                 ),
               },
             ],
@@ -1891,14 +1892,14 @@ const mcpHandler = createMcpHandler(
                         : "Failed to search conversations",
                   },
                   null,
-                  2
+                  2,
                 ),
               },
             ],
             isError: true,
           };
         }
-      }
+      },
     );
 
     server.tool(
@@ -1943,7 +1944,7 @@ const mcpHandler = createMcpHandler(
                   text: JSON.stringify(
                     { error: "Organization not found" },
                     null,
-                    2
+                    2,
                   ),
                 },
               ],
@@ -1953,21 +1954,21 @@ const mcpHandler = createMcpHandler(
 
           const estimatedCost = Math.min(
             CONVERSATION_SUMMARY_BASE_COST + Math.floor(lastN / 10),
-            CONVERSATION_SUMMARY_MAX_COST
+            CONVERSATION_SUMMARY_MAX_COST,
           );
-          if (org.credit_balance < estimatedCost) {
+          if (Number(org.credit_balance) < estimatedCost) {
             return {
               content: [
                 {
                   type: "text" as const,
                   text: JSON.stringify(
                     {
-                      error: "Insufficient credits",
+                      error: "Insufficient balance",
                       estimated: estimatedCost,
                       available: org.credit_balance,
                     },
                     null,
-                    2
+                    2,
                   ),
                 },
               ],
@@ -1986,7 +1987,7 @@ const mcpHandler = createMcpHandler(
           const actualCost = Math.min(
             CONVERSATION_SUMMARY_BASE_COST +
               Math.ceil(summary.tokenCount / 1000),
-            CONVERSATION_SUMMARY_MAX_COST
+            CONVERSATION_SUMMARY_MAX_COST,
           );
 
           const deductionResult = await creditsService.deductCredits({
@@ -2012,7 +2013,7 @@ const mcpHandler = createMcpHandler(
                       available: deductionResult.newBalance,
                     },
                     null,
-                    2
+                    2,
                   ),
                 },
               ],
@@ -2029,8 +2030,8 @@ const mcpHandler = createMcpHandler(
             provider: "openai",
             input_tokens: summary.tokenCount,
             output_tokens: 0,
-            input_cost: actualCost,
-            output_cost: 0,
+            input_cost: String(actualCost),
+            output_cost: String(0),
             is_successful: true,
           });
 
@@ -2044,11 +2045,11 @@ const mcpHandler = createMcpHandler(
                     tokenCount: summary.tokenCount,
                     keyTopics: summary.keyTopics,
                     participants: summary.participants,
-                    cost: actualCost,
+                    cost: String(actualCost),
                     newBalance: deductionResult.newBalance,
                   },
                   null,
-                  2
+                  2,
                 ),
               },
             ],
@@ -2066,14 +2067,14 @@ const mcpHandler = createMcpHandler(
                         : "Failed to summarize conversation",
                   },
                   null,
-                  2
+                  2,
                 ),
               },
             ],
             isError: true,
           };
         }
-      }
+      },
     );
 
     server.tool(
@@ -2113,7 +2114,7 @@ const mcpHandler = createMcpHandler(
                   text: JSON.stringify(
                     { error: "Organization not found" },
                     null,
-                    2
+                    2,
                   ),
                 },
               ],
@@ -2121,19 +2122,19 @@ const mcpHandler = createMcpHandler(
             };
           }
 
-          if (org.credit_balance < CONTEXT_OPTIMIZATION_COST) {
+          if (Number(org.credit_balance) < CONTEXT_OPTIMIZATION_COST) {
             return {
               content: [
                 {
                   type: "text" as const,
                   text: JSON.stringify(
                     {
-                      error: "Insufficient credits",
+                      error: "Insufficient balance",
                       required: CONTEXT_OPTIMIZATION_COST,
                       available: org.credit_balance,
                     },
                     null,
-                    2
+                    2,
                   ),
                 },
               ],
@@ -2146,7 +2147,7 @@ const mcpHandler = createMcpHandler(
             user.organization_id,
             maxTokens,
             query,
-            preserveRecent
+            preserveRecent,
           );
 
           const deductionResult = await creditsService.deductCredits({
@@ -2172,7 +2173,7 @@ const mcpHandler = createMcpHandler(
                       available: deductionResult.newBalance,
                     },
                     null,
-                    2
+                    2,
                   ),
                 },
               ],
@@ -2189,8 +2190,8 @@ const mcpHandler = createMcpHandler(
             provider: "internal",
             input_tokens: 0,
             output_tokens: 0,
-            input_cost: CONTEXT_OPTIMIZATION_COST,
-            output_cost: 0,
+            input_cost: String(CONTEXT_OPTIMIZATION_COST),
+            output_cost: String(0),
             is_successful: true,
           });
 
@@ -2208,11 +2209,11 @@ const mcpHandler = createMcpHandler(
                     totalTokens: optimized.totalTokens,
                     messageCount: optimized.messageCount,
                     relevanceScores: optimized.relevanceScores,
-                    cost: CONTEXT_OPTIMIZATION_COST,
+                    cost: String(CONTEXT_OPTIMIZATION_COST),
                     newBalance: deductionResult.newBalance,
                   },
                   null,
-                  2
+                  2,
                 ),
               },
             ],
@@ -2230,14 +2231,14 @@ const mcpHandler = createMcpHandler(
                         : "Failed to optimize context window",
                   },
                   null,
-                  2
+                  2,
                 ),
               },
             ],
             isError: true,
           };
         }
-      }
+      },
     );
 
     server.tool(
@@ -2270,7 +2271,7 @@ const mcpHandler = createMcpHandler(
                   text: JSON.stringify(
                     { error: "Organization not found" },
                     null,
-                    2
+                    2,
                   ),
                 },
               ],
@@ -2278,19 +2279,19 @@ const mcpHandler = createMcpHandler(
             };
           }
 
-          if (org.credit_balance < CONVERSATION_EXPORT_COST) {
+          if (Number(org.credit_balance) < CONVERSATION_EXPORT_COST) {
             return {
               content: [
                 {
                   type: "text" as const,
                   text: JSON.stringify(
                     {
-                      error: "Insufficient credits",
+                      error: "Insufficient balance",
                       required: CONVERSATION_EXPORT_COST,
                       available: org.credit_balance,
                     },
                     null,
-                    2
+                    2,
                   ),
                 },
               ],
@@ -2301,7 +2302,7 @@ const mcpHandler = createMcpHandler(
           const exportData = await memoryService.exportConversation(
             conversationId,
             user.organization_id,
-            format
+            format,
           );
 
           const deductionResult = await creditsService.deductCredits({
@@ -2327,7 +2328,7 @@ const mcpHandler = createMcpHandler(
                       available: deductionResult.newBalance,
                     },
                     null,
-                    2
+                    2,
                   ),
                 },
               ],
@@ -2344,8 +2345,8 @@ const mcpHandler = createMcpHandler(
             provider: "internal",
             input_tokens: 0,
             output_tokens: 0,
-            input_cost: CONVERSATION_EXPORT_COST,
-            output_cost: 0,
+            input_cost: String(CONVERSATION_EXPORT_COST),
+            output_cost: String(0),
             is_successful: true,
           });
 
@@ -2358,11 +2359,11 @@ const mcpHandler = createMcpHandler(
                     content: exportData.content,
                     format: exportData.format,
                     size: exportData.size,
-                    cost: CONVERSATION_EXPORT_COST,
+                    cost: String(CONVERSATION_EXPORT_COST),
                     newBalance: deductionResult.newBalance,
                   },
                   null,
-                  2
+                  2,
                 ),
               },
             ],
@@ -2380,14 +2381,14 @@ const mcpHandler = createMcpHandler(
                         : "Failed to export conversation",
                   },
                   null,
-                  2
+                  2,
                 ),
               },
             ],
             isError: true,
           };
         }
-      }
+      },
     );
 
     server.tool(
@@ -2430,7 +2431,7 @@ const mcpHandler = createMcpHandler(
                   text: JSON.stringify(
                     { error: "Organization not found" },
                     null,
-                    2
+                    2,
                   ),
                 },
               ],
@@ -2438,19 +2439,19 @@ const mcpHandler = createMcpHandler(
             };
           }
 
-          if (org.credit_balance < CONVERSATION_CLONE_COST) {
+          if (Number(org.credit_balance) < CONVERSATION_CLONE_COST) {
             return {
               content: [
                 {
                   type: "text" as const,
                   text: JSON.stringify(
                     {
-                      error: "Insufficient credits",
+                      error: "Insufficient balance",
                       required: CONVERSATION_CLONE_COST,
                       available: org.credit_balance,
                     },
                     null,
-                    2
+                    2,
                   ),
                 },
               ],
@@ -2467,7 +2468,7 @@ const mcpHandler = createMcpHandler(
               preserveMessages,
               preserveMemories,
               newModel,
-            }
+            },
           );
 
           const deductionResult = await creditsService.deductCredits({
@@ -2493,7 +2494,7 @@ const mcpHandler = createMcpHandler(
                       available: deductionResult.newBalance,
                     },
                     null,
-                    2
+                    2,
                   ),
                 },
               ],
@@ -2510,8 +2511,8 @@ const mcpHandler = createMcpHandler(
             provider: "internal",
             input_tokens: 0,
             output_tokens: 0,
-            input_cost: CONVERSATION_CLONE_COST,
-            output_cost: 0,
+            input_cost: String(CONVERSATION_CLONE_COST),
+            output_cost: String(0),
             is_successful: true,
           });
 
@@ -2524,11 +2525,11 @@ const mcpHandler = createMcpHandler(
                     success: true,
                     conversationId: cloneResult.conversationId,
                     clonedMessageCount: cloneResult.clonedMessageCount,
-                    cost: CONVERSATION_CLONE_COST,
+                    cost: String(CONVERSATION_CLONE_COST),
                     newBalance: deductionResult.newBalance,
                   },
                   null,
-                  2
+                  2,
                 ),
               },
             ],
@@ -2546,14 +2547,14 @@ const mcpHandler = createMcpHandler(
                         : "Failed to clone conversation",
                   },
                   null,
-                  2
+                  2,
                 ),
               },
             ],
             isError: true,
           };
         }
-      }
+      },
     );
 
     server.tool(
@@ -2588,7 +2589,7 @@ const mcpHandler = createMcpHandler(
                   text: JSON.stringify(
                     { error: "Organization not found" },
                     null,
-                    2
+                    2,
                   ),
                 },
               ],
@@ -2596,19 +2597,19 @@ const mcpHandler = createMcpHandler(
             };
           }
 
-          if (org.credit_balance < MEMORY_ANALYSIS_COST) {
+          if (Number(org.credit_balance) < MEMORY_ANALYSIS_COST) {
             return {
               content: [
                 {
                   type: "text" as const,
                   text: JSON.stringify(
                     {
-                      error: "Insufficient credits",
+                      error: "Insufficient balance",
                       required: MEMORY_ANALYSIS_COST,
                       available: org.credit_balance,
                     },
                     null,
-                    2
+                    2,
                   ),
                 },
               ],
@@ -2618,7 +2619,7 @@ const mcpHandler = createMcpHandler(
 
           const analysis = await memoryService.analyzeMemoryPatterns(
             user.organization_id,
-            analysisType
+            analysisType,
           );
 
           const deductionResult = await creditsService.deductCredits({
@@ -2643,7 +2644,7 @@ const mcpHandler = createMcpHandler(
                       available: deductionResult.newBalance,
                     },
                     null,
-                    2
+                    2,
                   ),
                 },
               ],
@@ -2660,8 +2661,8 @@ const mcpHandler = createMcpHandler(
             provider: "internal",
             input_tokens: 0,
             output_tokens: 0,
-            input_cost: MEMORY_ANALYSIS_COST,
-            output_cost: 0,
+            input_cost: String(MEMORY_ANALYSIS_COST),
+            output_cost: String(0),
             is_successful: true,
           });
 
@@ -2675,11 +2676,11 @@ const mcpHandler = createMcpHandler(
                     insights: analysis.insights,
                     data: analysis.data,
                     chartData: analysis.chartData,
-                    cost: MEMORY_ANALYSIS_COST,
+                    cost: String(MEMORY_ANALYSIS_COST),
                     newBalance: deductionResult.newBalance,
                   },
                   null,
-                  2
+                  2,
                 ),
               },
             ],
@@ -2697,20 +2698,20 @@ const mcpHandler = createMcpHandler(
                         : "Failed to analyze memory patterns",
                   },
                   null,
-                  2
+                  2,
                 ),
               },
             ],
             isError: true,
           };
         }
-      }
+      },
     );
 
     // Tool 16: Chat with Agent - Direct agent conversation
     server.tool(
       "chat_with_agent",
-      "Send a message to your deployed ElizaOS agent and receive a response. Supports streaming via SSE. Deducts 5-100 credits based on token usage.",
+      "Send a message to your deployed ElizaOS agent and receive a response. Supports streaming via SSE. Charges $0.0001-$0.01 based on token usage.",
       {
         message: z
           .string()
@@ -2722,7 +2723,7 @@ const mcpHandler = createMcpHandler(
           .uuid()
           .optional()
           .describe(
-            "Existing conversation room ID (creates new if not provided)"
+            "Existing conversation room ID (creates new if not provided)",
           ),
         entityId: z
           .string()
@@ -2747,7 +2748,7 @@ const mcpHandler = createMcpHandler(
                   text: JSON.stringify(
                     { error: "Organization not found" },
                     null,
-                    2
+                    2,
                   ),
                 },
               ],
@@ -2758,22 +2759,22 @@ const mcpHandler = createMcpHandler(
           const estimatedInputTokens = Math.ceil(message.length / 4);
           const estimatedCost = Math.max(
             AGENT_CHAT_MIN_COST,
-            Math.ceil(estimatedInputTokens * AGENT_CHAT_INPUT_TOKEN_COST)
+            Math.ceil(estimatedInputTokens * AGENT_CHAT_INPUT_TOKEN_COST),
           );
 
-          if (org.credit_balance < estimatedCost) {
+          if (Number(org.credit_balance) < estimatedCost) {
             return {
               content: [
                 {
                   type: "text" as const,
                   text: JSON.stringify(
                     {
-                      error: "Insufficient credits",
+                      error: "Insufficient balance",
                       required: estimatedCost,
                       available: org.credit_balance,
                     },
                     null,
-                    2
+                    2,
                   ),
                 },
               ],
@@ -2796,7 +2797,8 @@ const mcpHandler = createMcpHandler(
           const actualCost = Math.ceil(
             (response.usage?.inputTokens || estimatedInputTokens) *
               AGENT_CHAT_INPUT_TOKEN_COST +
-              (response.usage?.outputTokens || 0) * AGENT_CHAT_OUTPUT_TOKEN_COST
+              (response.usage?.outputTokens || 0) *
+                AGENT_CHAT_OUTPUT_TOKEN_COST,
           );
 
           await creditsService.deductCredits({
@@ -2820,8 +2822,8 @@ const mcpHandler = createMcpHandler(
             provider: "eliza",
             input_tokens: response.usage?.inputTokens || 0,
             output_tokens: response.usage?.outputTokens || 0,
-            input_cost: actualCost,
-            output_cost: 0,
+            input_cost: String(actualCost),
+            output_cost: String(0),
             is_successful: true,
             error_message: null,
             metadata: { tool: "chat_with_agent", room_id: actualRoomId },
@@ -2846,7 +2848,7 @@ const mcpHandler = createMcpHandler(
                     usage: response.usage,
                   },
                   null,
-                  2
+                  2,
                 ),
               },
             ],
@@ -2864,14 +2866,14 @@ const mcpHandler = createMcpHandler(
                         : "Failed to chat with agent",
                   },
                   null,
-                  2
+                  2,
                 ),
               },
             ],
             isError: true,
           };
         }
-      }
+      },
     );
 
     // Tool 17: List Agents
@@ -2896,7 +2898,7 @@ const mcpHandler = createMcpHandler(
             user.organization_id,
             user.id,
             filters,
-            includeStats
+            includeStats,
           );
 
           return {
@@ -2911,7 +2913,7 @@ const mcpHandler = createMcpHandler(
                     cached: result.cached,
                   },
                   null,
-                  2
+                  2,
                 ),
               },
             ],
@@ -2929,14 +2931,14 @@ const mcpHandler = createMcpHandler(
                         : "Failed to list agents",
                   },
                   null,
-                  2
+                  2,
                 ),
               },
             ],
             isError: true,
           };
         }
-      }
+      },
     );
 
     // Tool 18: Subscribe Agent Events
@@ -2970,7 +2972,7 @@ const mcpHandler = createMcpHandler(
                     ],
                   },
                   null,
-                  2
+                  2,
                 ),
               },
             ],
@@ -2988,14 +2990,14 @@ const mcpHandler = createMcpHandler(
                         : "Failed to generate SSE URL",
                   },
                   null,
-                  2
+                  2,
                 ),
               },
             ],
             isError: true,
           };
         }
-      }
+      },
     );
 
     // Tool 19: Stream Credit Updates
@@ -3025,7 +3027,7 @@ const mcpHandler = createMcpHandler(
                     includeTransactions,
                   },
                   null,
-                  2
+                  2,
                 ),
               },
             ],
@@ -3043,14 +3045,14 @@ const mcpHandler = createMcpHandler(
                         : "Failed to generate SSE URL",
                   },
                   null,
-                  2
+                  2,
                 ),
               },
             ],
             isError: true,
           };
         }
-      }
+      },
     );
 
     // Tool 20: List Containers
@@ -3067,7 +3069,7 @@ const mcpHandler = createMcpHandler(
         try {
           const { user } = getAuthContext();
           let containers = await containersService.listByOrganization(
-            user.organization_id
+            user.organization_id,
           );
 
           if (status) {
@@ -3083,7 +3085,7 @@ const mcpHandler = createMcpHandler(
               createdAt: container.created_at,
               errorMessage: container.error_message,
               ecsServiceArn: container.ecs_service_arn,
-            })
+            }),
           );
 
           return {
@@ -3097,7 +3099,7 @@ const mcpHandler = createMcpHandler(
                     total: formattedContainers.length,
                   },
                   null,
-                  2
+                  2,
                 ),
               },
             ],
@@ -3115,18 +3117,18 @@ const mcpHandler = createMcpHandler(
                         : "Failed to list containers",
                   },
                   null,
-                  2
+                  2,
                 ),
               },
             ],
             isError: true,
           };
         }
-      }
+      },
     );
   },
   {},
-  { basePath: "/api" }
+  { basePath: "/api" },
 );
 
 // Manual authentication wrapper using AsyncLocalStorage
@@ -3156,7 +3158,7 @@ async function handleRequest(req: NextRequest) {
             "X-RateLimit-Reset": rateLimit.resetAt.toString(),
             "Retry-After": (rateLimit.retryAfter || 60).toString(),
           },
-        }
+        },
       );
     }
 
@@ -3180,7 +3182,7 @@ async function handleRequest(req: NextRequest) {
           "WWW-Authenticate":
             'Bearer realm="MCP Server", error="invalid_token"',
         },
-      }
+      },
     );
   }
 }

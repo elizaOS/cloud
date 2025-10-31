@@ -47,7 +47,7 @@ export default function ApiExplorerPage() {
   });
 
   const [selectedEndpoint, setSelectedEndpoint] = useState<ApiEndpoint | null>(
-    null
+    null,
   );
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedCategory, setSelectedCategory] = useState<string>("All");
@@ -64,7 +64,7 @@ export default function ApiExplorerPage() {
   useEffect(() => {
     try {
       const spec = generateOpenAPISpec(
-        process.env.NEXT_PUBLIC_API_URL || "http://localhost:3000"
+        process.env.NEXT_PUBLIC_API_URL || "http://localhost:3000",
       );
       setOpenApiSpec(spec);
     } catch {
@@ -154,7 +154,7 @@ export default function ApiExplorerPage() {
                         "flex w-full items-center gap-2 rounded-lg px-3 py-2 text-left text-sm transition-colors",
                         selectedCategory === category
                           ? "bg-primary/10 text-primary ring-1 ring-inset ring-primary/20"
-                          : "text-muted-foreground hover:bg-muted"
+                          : "text-muted-foreground hover:bg-muted",
                       )}
                     >
                       {category !== "All" && getCategoryIcon(category)}
@@ -296,7 +296,7 @@ export default function ApiExplorerPage() {
                         onClick={() => {
                           if (openApiSpec) {
                             navigator.clipboard.writeText(
-                              JSON.stringify(openApiSpec, null, 2)
+                              JSON.stringify(openApiSpec, null, 2),
                             );
                             toast({
                               message: "OpenAPI spec copied to clipboard",

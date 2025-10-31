@@ -91,9 +91,7 @@ export async function GET(
               container.name,
               {
                 limit: 50,
-                since: lastTimestamp
-                  ? new Date(lastTimestamp + 1)
-                  : undefined,
+                since: lastTimestamp ? new Date(lastTimestamp + 1) : undefined,
               },
               level,
             );
@@ -121,9 +119,7 @@ export async function GET(
             sendEvent({
               type: "error",
               message:
-                error instanceof Error
-                  ? error.message
-                  : "Failed to fetch logs",
+                error instanceof Error ? error.message : "Failed to fetch logs",
             });
           }
         }, 2000);
@@ -186,7 +182,6 @@ function parseLogMessage(log: {
         cleanMessage = parsed.message;
       }
       // Extract other fields as metadata
-      // eslint-disable-next-line @typescript-eslint/no-unused-vars
       const { level: _levelField, message: _messageField, ...rest } = parsed;
       if (Object.keys(rest).length > 0) {
         metadata = rest;
@@ -354,4 +349,3 @@ async function getCloudWatchLogs(
     return [];
   }
 }
-

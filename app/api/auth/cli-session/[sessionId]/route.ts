@@ -5,7 +5,7 @@ import { cliAuthSessionsService } from "@/lib/services";
  * GET /api/auth/cli-session/[sessionId]
  * Get the status of a CLI authentication session
  * Used by CLI to poll for authentication completion
- * 
+ *
  * NOTE: This endpoint is PUBLIC (no auth required) for CLI polling
  */
 export async function GET(
@@ -73,4 +73,3 @@ export async function GET(
     );
   }
 }
-

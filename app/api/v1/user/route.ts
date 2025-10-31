@@ -1,8 +1,7 @@
-import { NextRequest, NextResponse } from "next/server";
+import { type NextRequest, NextResponse } from "next/server";
 import { requireAuth } from "@/lib/auth";
 import { usersService } from "@/lib/services";
 import { z } from "zod";
-import { revalidateTag } from "next/cache";
 import { withRateLimit, RateLimitPresets } from "@/lib/middleware/rate-limit";
 
 const updateUserSchema = z.object({
@@ -89,9 +88,6 @@ async function handlePATCH(request: NextRequest) {
         { status: 500 },
       );
     }
-
-    // Revalidate cache
-    revalidateTag("user-auth", {});
 
     return NextResponse.json({
       success: true,

@@ -10,7 +10,7 @@ const COINGECKO_API_KEY = process.env.COINGECKO_API_KEY || "";
 
 async function fetchCoinGeckoAPI(
   endpoint: string,
-  params?: Record<string, string>
+  params?: Record<string, string>,
 ) {
   const url = new URL(`${COINGECKO_API_BASE}${endpoint}`);
   if (params) {
@@ -58,7 +58,7 @@ async function getHandler() {
           coin_id: z
             .string()
             .describe(
-              "CoinGecko coin ID (e.g., 'bitcoin', 'ethereum', 'solana')"
+              "CoinGecko coin ID (e.g., 'bitcoin', 'ethereum', 'solana')",
             ) as any,
           vs_currency: z
             .string()
@@ -141,7 +141,7 @@ async function getHandler() {
               isError: true,
             };
           }
-        }
+        },
       );
 
       // Tool 2: Get Market Chart
@@ -153,7 +153,7 @@ async function getHandler() {
           coin_id: z
             .string()
             .describe(
-              "CoinGecko coin ID (e.g., 'bitcoin', 'ethereum', 'solana')"
+              "CoinGecko coin ID (e.g., 'bitcoin', 'ethereum', 'solana')",
             ) as any,
           vs_currency: z
             .string()
@@ -163,7 +163,7 @@ async function getHandler() {
             .enum(["1", "7", "14", "30", "90", "180", "365", "max"])
             .optional()
             .describe(
-              "Number of days to fetch (1, 7, 14, 30, 90, 180, 365, max) (default: '7')"
+              "Number of days to fetch (1, 7, 14, 30, 90, 180, 365, max) (default: '7')",
             ) as any,
         },
         {},
@@ -188,16 +188,16 @@ async function getHandler() {
               {
                 vs_currency: vs_currency,
                 days: days,
-              }
+              },
             );
 
             // Sample data to reduce size (take every nth point)
             const sampleRate = Math.max(
               1,
-              Math.floor(data.prices.length / 100)
+              Math.floor(data.prices.length / 100),
             );
             const sampledPrices = data.prices.filter(
-              (_: any, i: number) => i % sampleRate === 0
+              (_: any, i: number) => i % sampleRate === 0,
             );
 
             const result = {
@@ -213,10 +213,10 @@ async function getHandler() {
                 current_price: data.prices[data.prices.length - 1][1],
                 start_price: data.prices[0][1],
                 highest_price: Math.max(
-                  ...data.prices.map((p: [number, number]) => p[1])
+                  ...data.prices.map((p: [number, number]) => p[1]),
                 ),
                 lowest_price: Math.min(
-                  ...data.prices.map((p: [number, number]) => p[1])
+                  ...data.prices.map((p: [number, number]) => p[1]),
                 ),
                 change_percentage:
                   ((data.prices[data.prices.length - 1][1] -
@@ -246,7 +246,7 @@ async function getHandler() {
               isError: true,
             };
           }
-        }
+        },
       );
 
       // Tool 3: Get Trending Coins
@@ -281,7 +281,7 @@ async function getHandler() {
                       timestamp: new Date().toISOString(),
                     },
                     null,
-                    2
+                    2,
                   ),
                 },
               ],
@@ -298,7 +298,7 @@ async function getHandler() {
               isError: true,
             };
           }
-        }
+        },
       );
 
       // Tool 4: Search Coins
@@ -353,7 +353,7 @@ async function getHandler() {
               isError: true,
             };
           }
-        }
+        },
       );
 
       // Tool 5: Get Global Market Data
@@ -398,7 +398,7 @@ async function getHandler() {
               isError: true,
             };
           }
-        }
+        },
       );
     },
     {
@@ -411,7 +411,7 @@ async function getHandler() {
       recipient: sellerAccount.address,
       facilitator,
       network: env.NETWORK,
-    }
+    },
   );
 
   return cachedHandler;

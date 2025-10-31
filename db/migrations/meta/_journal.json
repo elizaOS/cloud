@@ -5,22 +5,8 @@
     {
       "idx": 0,
       "version": "7",
-      "when": 1761368505527,
-      "tag": "0000_silly_dreadnoughts",
-      "breakpoints": true
-    },
-    {
-      "idx": 1,
-      "version": "7",
-      "when": 1761581819368,
-      "tag": "0001_fluffy_proteus",
-      "breakpoints": true
-    },
-    {
-      "idx": 2,
-      "version": "7",
-      "when": 1761718423868,
-      "tag": "0002_cuddly_firebrand",
+      "when": 1761896518442,
+      "tag": "0000_init",
       "breakpoints": true
     },
     {

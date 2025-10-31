@@ -75,16 +75,17 @@ export class OrganizationsRepository {
         throw new Error("Organization not found");
       }
 
-      const newBalance = org.credit_balance + amount;
+      const currentBalance = Number(org.credit_balance);
+      const newBalance = currentBalance + amount;
 
       if (newBalance < 0) {
-        throw new Error("Insufficient credits");
+        throw new Error("Insufficient balance");
       }
 
       await tx
         .update(organizations)
         .set({
-          credit_balance: newBalance,
+          credit_balance: String(newBalance),
           updated_at: new Date(),
         })
         .where(eq(organizations.id, organizationId));
@@ -118,18 +119,20 @@ export class OrganizationsRepository {
         throw new Error("Organization not found");
       }
 
-      if (org.credit_balance < amount) {
+      const currentBalance = Number(org.credit_balance);
+
+      if (currentBalance < amount) {
         throw new Error(
-          `Insufficient credits. Required: ${amount}, Available: ${org.credit_balance}`,
+          `Insufficient balance. Required: $${amount.toFixed(2)}, Available: $${currentBalance.toFixed(2)}`,
         );
       }
 
-      const newBalance = org.credit_balance - amount;
+      const newBalance = currentBalance - amount;
 
       await tx
         .update(organizations)
         .set({
-          credit_balance: newBalance,
+          credit_balance: String(newBalance),
           updated_at: new Date(),
         })
         .where(eq(organizations.id, organizationId));
@@ -143,7 +146,7 @@ export class OrganizationsRepository {
         .values({
           organization_id: organizationId,
           user_id: userId || null,
-          amount: -amount,
+          amount: String(-amount),
           type: "debit",
           description,
           created_at: new Date(),

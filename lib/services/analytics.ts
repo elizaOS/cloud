@@ -36,11 +36,12 @@ export class AnalyticsService {
     const data = await cacheClient.getWithSWR(
       cacheKey,
       CacheStaleTTL.analytics.stats,
-      () => usageRecordsRepository.getStatsByOrganization(
-        organizationId,
-        options?.startDate,
-        options?.endDate,
-      ),
+      () =>
+        usageRecordsRepository.getStatsByOrganization(
+          organizationId,
+          options?.startDate,
+          options?.endDate,
+        ),
     );
 
     if (data === null) {
@@ -76,7 +77,12 @@ export class AnalyticsService {
       () => usageRecordsRepository.getUsageTimeSeries(organizationId, options),
     );
 
-    const result = data || await usageRecordsRepository.getUsageTimeSeries(organizationId, options);
+    const result =
+      data ||
+      (await usageRecordsRepository.getUsageTimeSeries(
+        organizationId,
+        options,
+      ));
 
     if (options.maxRows && result.length > options.maxRows) {
       return result.slice(0, options.maxRows);
@@ -103,7 +109,9 @@ export class AnalyticsService {
       () => usageRecordsRepository.getUsageByUser(organizationId, options),
     );
 
-    const result = data || await usageRecordsRepository.getUsageByUser(organizationId, options);
+    const result =
+      data ||
+      (await usageRecordsRepository.getUsageByUser(organizationId, options));
 
     if (options?.maxRows && result.length > options.maxRows) {
       return result.slice(0, options.maxRows);
@@ -129,10 +137,16 @@ export class AnalyticsService {
     const data = await cacheClient.getWithSWR(
       cacheKey,
       CacheStaleTTL.analytics.breakdown,
-      () => usageRecordsRepository.getProviderBreakdown(organizationId, options),
+      () =>
+        usageRecordsRepository.getProviderBreakdown(organizationId, options),
     );
 
-    const result = data || await usageRecordsRepository.getProviderBreakdown(organizationId, options);
+    const result =
+      data ||
+      (await usageRecordsRepository.getProviderBreakdown(
+        organizationId,
+        options,
+      ));
 
     if (options?.maxRows && result.length > options.maxRows) {
       return result.slice(0, options.maxRows);
@@ -162,7 +176,9 @@ export class AnalyticsService {
       () => usageRecordsRepository.getModelBreakdown(organizationId, options),
     );
 
-    const result = data || await usageRecordsRepository.getModelBreakdown(organizationId, options);
+    const result =
+      data ||
+      (await usageRecordsRepository.getModelBreakdown(organizationId, options));
 
     if (options?.maxRows && result.length > options.maxRows) {
       return result.slice(0, options.maxRows);
@@ -204,11 +220,12 @@ export class AnalyticsService {
     const data = await cacheClient.getWithSWR(
       cacheKey,
       CacheStaleTTL.analytics.breakdown,
-      () => usageRecordsRepository.getCostBreakdown(
-        organizationId,
-        dimension,
-        options,
-      ),
+      () =>
+        usageRecordsRepository.getCostBreakdown(
+          organizationId,
+          dimension,
+          options,
+        ),
     );
 
     if (data === null) {

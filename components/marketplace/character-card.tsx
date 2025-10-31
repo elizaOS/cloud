@@ -1,5 +1,6 @@
 "use client";
 
+import Image from "next/image";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -14,7 +15,10 @@ import {
   Star,
 } from "lucide-react";
 import type { ExtendedCharacter } from "@/lib/types/marketplace";
-import { getCategoryIcon, getCategoryColor } from "@/lib/constants/character-categories";
+import {
+  getCategoryIcon,
+  getCategoryColor,
+} from "@/lib/constants/character-categories";
 import { formatDistanceToNow } from "date-fns";
 
 interface CharacterCardProps {
@@ -34,9 +38,7 @@ export function CharacterCard({
     ? character.bio[0]
     : character.bio;
 
-  const hasVoice = character.plugins?.includes(
-    "@elizaos/plugin-elevenlabs",
-  );
+  const hasVoice = character.plugins?.includes("@elizaos/plugin-elevenlabs");
 
   const isDeployed = character.stats?.deploymentStatus === "deployed";
 
@@ -46,10 +48,11 @@ export function CharacterCard({
         {/* Character Avatar/Header */}
         <div className="relative h-48 bg-gradient-to-br from-primary/20 to-secondary/20 flex items-center justify-center">
           {character.avatarUrl ? (
-            <img
+            <Image
               src={character.avatarUrl}
               alt={character.name}
-              className="w-full h-full object-cover"
+              fill
+              className="object-cover"
             />
           ) : (
             <Bot className="h-20 w-20 text-muted-foreground" />

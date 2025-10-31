@@ -24,7 +24,7 @@ export async function GET(request: NextRequest) {
 
     // Get max allowed containers
     const maxContainers = getMaxContainersForOrg(
-      user.organization.credit_balance,
+      Number(user.organization.credit_balance),
       user.organization.settings as Record<string, unknown> | undefined,
     );
 
@@ -46,8 +46,8 @@ export async function GET(request: NextRequest) {
           percentage: (currentCount / maxContainers) * 100,
         },
         credits: {
-          balance: user.organization.credit_balance,
-          canDeploy: user.organization.credit_balance >= baseCost,
+          balance: Number(user.organization.credit_balance),
+          canDeploy: Number(user.organization.credit_balance) >= baseCost,
         },
         pricing: {
           imageUpload: CONTAINER_PRICING.IMAGE_UPLOAD,

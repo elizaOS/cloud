@@ -20,7 +20,15 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { RefreshCw, Download, Wifi, WifiOff, Search, Copy, Check } from "lucide-react";
+import {
+  RefreshCw,
+  Download,
+  Wifi,
+  WifiOff,
+  Search,
+  Copy,
+  Check,
+} from "lucide-react";
 import { Input } from "@/components/ui/input";
 
 interface LogEntry {
@@ -258,9 +266,7 @@ export function ContainerLogsViewer({
 
   const copyLogLine = async (log: LogEntry) => {
     const timestamp = new Date(log.timestamp).toISOString();
-    const metadata = log.metadata
-      ? ` | ${JSON.stringify(log.metadata)}`
-      : "";
+    const metadata = log.metadata ? ` | ${JSON.stringify(log.metadata)}` : "";
     const text = `[${timestamp}] [${log.level.toUpperCase()}] ${log.message}${metadata}`;
     await navigator.clipboard.writeText(text);
     toast.success("Log line copied");
@@ -354,11 +360,12 @@ export function ContainerLogsViewer({
           </Select>
         </div>
 
-        {(searchQuery || level !== "all") && filteredLogs.length < logs.length && (
-          <div className="text-sm text-muted-foreground mt-2">
-            Showing {filteredLogs.length} of {logs.length} logs
-          </div>
-        )}
+        {(searchQuery || level !== "all") &&
+          filteredLogs.length < logs.length && (
+            <div className="text-sm text-muted-foreground mt-2">
+              Showing {filteredLogs.length} of {logs.length} logs
+            </div>
+          )}
       </CardHeader>
       <CardContent>
         {loading && logs.length === 0 ? (

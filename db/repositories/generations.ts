@@ -143,7 +143,7 @@ export class GenerationsRepository {
       .select({
         type: generations.type,
         count: sql<number>`count(*)::int`,
-        totalCredits: sql<number>`sum(${generations.credits})::int`,
+        totalCredits: sql<number>`sum(${generations.credits})::numeric`,
       })
       .from(generations)
       .where(and(...conditions))

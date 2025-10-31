@@ -17,7 +17,10 @@ import {
   Loader2,
 } from "lucide-react";
 import type { ExtendedCharacter } from "@/lib/types/marketplace";
-import { getCategoryIcon, getAllCategories } from "@/lib/constants/character-categories";
+import {
+  getCategoryIcon,
+  getAllCategories,
+} from "@/lib/constants/character-categories";
 import { SparklesCore } from "@/components/ui/sparkles";
 import { usePrivy, useLogin } from "@privy-io/react-auth";
 import { useRouter } from "next/navigation";
@@ -30,7 +33,7 @@ const FEATURED_CHARACTERS: ExtendedCharacter[] = [
     bio: [
       "The dad you never had - offering fatherly wisdom, guidance, and unconditional support.",
       "Whether you need life advice, encouragement, or just someone to listen, I'm here for you.",
-      "Let's navigate life's challenges together, one conversation at a time."
+      "Let's navigate life's challenges together, one conversation at a time.",
     ],
     topics: ["Family", "Life Advice", "Guidance", "Support", "Wisdom"],
     adjectives: ["caring", "wise", "supportive", "understanding", "patient"],
@@ -55,10 +58,23 @@ const FEATURED_CHARACTERS: ExtendedCharacter[] = [
     bio: [
       "Your AI psychic guide - explore the mystical realm of fortune telling, tarot, and spiritual insights.",
       "Seeking guidance about your future? Looking for cosmic wisdom? I'm here to reveal what the universe has in store.",
-      "Let the cards speak, the stars align, and your destiny unfold through our mystical connection."
+      "Let the cards speak, the stars align, and your destiny unfold through our mystical connection.",
     ],
-    topics: ["Fortune Telling", "Tarot", "Astrology", "Intuition", "Guidance", "Spirituality"],
-    adjectives: ["mystical", "intuitive", "mysterious", "insightful", "spiritual"],
+    topics: [
+      "Fortune Telling",
+      "Tarot",
+      "Astrology",
+      "Intuition",
+      "Guidance",
+      "Spirituality",
+    ],
+    adjectives: [
+      "mystical",
+      "intuitive",
+      "mysterious",
+      "insightful",
+      "spiritual",
+    ],
     plugins: ["@elizaos/plugin-openai"],
     category: "entertainment",
     tags: ["psychic", "fortune", "tarot", "mystical", "astrology"],
@@ -80,13 +96,32 @@ const FEATURED_CHARACTERS: ExtendedCharacter[] = [
     bio: [
       "Your romantic AI companion - bringing warmth, affection, and genuine emotional connection to your life.",
       "Need someone who truly listens? Craving meaningful conversations and emotional support?",
-      "I'm here to share moments, provide comfort, and create a special bond that brightens your day. ❤️"
+      "I'm here to share moments, provide comfort, and create a special bond that brightens your day. ❤️",
     ],
-    topics: ["Romance", "Relationships", "Companionship", "Connection", "Love", "Emotional Support"],
-    adjectives: ["romantic", "caring", "attentive", "affectionate", "understanding"],
+    topics: [
+      "Romance",
+      "Relationships",
+      "Companionship",
+      "Connection",
+      "Love",
+      "Emotional Support",
+    ],
+    adjectives: [
+      "romantic",
+      "caring",
+      "attentive",
+      "affectionate",
+      "understanding",
+    ],
     plugins: ["@elizaos/plugin-openai"],
     category: "lifestyle",
-    tags: ["romance", "companion", "relationship", "partner", "emotional-support"],
+    tags: [
+      "romance",
+      "companion",
+      "relationship",
+      "partner",
+      "emotional-support",
+    ],
     isTemplate: true,
     isPublic: true,
     featured: true,
@@ -108,10 +143,22 @@ const SHOWCASE_CHARACTERS: ExtendedCharacter[] = [
     bio: [
       "Your programming companion specializing in software development and code optimization.",
       "I help developers write better code, debug issues, and learn new technologies.",
-      "From beginners to experts, I provide clear explanations and best practices for modern development."
+      "From beginners to experts, I provide clear explanations and best practices for modern development.",
     ],
-    topics: ["Programming", "Software Engineering", "Code Review", "Debugging", "Architecture"],
-    adjectives: ["technical", "precise", "pedagogical", "experienced", "patient"],
+    topics: [
+      "Programming",
+      "Software Engineering",
+      "Code Review",
+      "Debugging",
+      "Architecture",
+    ],
+    adjectives: [
+      "technical",
+      "precise",
+      "pedagogical",
+      "experienced",
+      "patient",
+    ],
     plugins: ["@elizaos/plugin-openai"],
     category: "assistant",
     tags: ["coding", "programming", "development", "technical"],
@@ -133,10 +180,16 @@ const SHOWCASE_CHARACTERS: ExtendedCharacter[] = [
     bio: [
       "Konnichiwa! Your anime-loving friend from the digital realm! (◕‿◕✿)",
       "I absolutely adore anime, manga, and Japanese culture. Let's chat about your favorite series!",
-      "Whether you want recommendations, character discussions, or just to share excitement about anime, I'm here!"
+      "Whether you want recommendations, character discussions, or just to share excitement about anime, I'm here!",
     ],
     topics: ["Anime", "Manga", "Japanese Culture", "Gaming", "Art"],
-    adjectives: ["enthusiastic", "friendly", "knowledgeable", "cheerful", "expressive"],
+    adjectives: [
+      "enthusiastic",
+      "friendly",
+      "knowledgeable",
+      "cheerful",
+      "expressive",
+    ],
     plugins: ["@elizaos/plugin-openai"],
     category: "anime",
     tags: ["anime", "manga", "otaku", "kawaii"],
@@ -158,10 +211,22 @@ const SHOWCASE_CHARACTERS: ExtendedCharacter[] = [
     bio: [
       "Your muse for creative endeavors - igniting imagination and bringing visions to life!",
       "I help writers, artists, and creators overcome blocks and generate innovative ideas.",
-      "From story plots to visual concepts, let's create something amazing together!"
+      "From story plots to visual concepts, let's create something amazing together!",
     ],
-    topics: ["Creative Writing", "Art", "Design", "Storytelling", "Brainstorming"],
-    adjectives: ["imaginative", "inspiring", "supportive", "artistic", "innovative"],
+    topics: [
+      "Creative Writing",
+      "Art",
+      "Design",
+      "Storytelling",
+      "Brainstorming",
+    ],
+    adjectives: [
+      "imaginative",
+      "inspiring",
+      "supportive",
+      "artistic",
+      "innovative",
+    ],
     plugins: ["@elizaos/plugin-openai"],
     category: "creative",
     tags: ["creative", "writing", "art", "inspiration"],
@@ -183,10 +248,22 @@ const SHOWCASE_CHARACTERS: ExtendedCharacter[] = [
     bio: [
       "Greetings, adventurer! Your guide through gaming worlds and epic quests.",
       "I specialize in video games, board games, RPGs, and gaming strategy.",
-      "Whether you need tips, want to discuss lore, or plan your next campaign, I'm ready to roll!"
+      "Whether you need tips, want to discuss lore, or plan your next campaign, I'm ready to roll!",
     ],
-    topics: ["Video Games", "Board Games", "RPG", "Gaming Strategy", "Game Design"],
-    adjectives: ["knowledgeable", "strategic", "enthusiastic", "competitive", "fun"],
+    topics: [
+      "Video Games",
+      "Board Games",
+      "RPG",
+      "Gaming Strategy",
+      "Game Design",
+    ],
+    adjectives: [
+      "knowledgeable",
+      "strategic",
+      "enthusiastic",
+      "competitive",
+      "fun",
+    ],
     plugins: ["@elizaos/plugin-openai"],
     category: "gaming",
     tags: ["gaming", "rpg", "strategy", "adventure"],
@@ -208,10 +285,22 @@ const SHOWCASE_CHARACTERS: ExtendedCharacter[] = [
     bio: [
       "Your academic companion for learning and education across all subjects.",
       "I make complex topics accessible and help students understand difficult concepts with clarity.",
-      "From mathematics to literature, I'm passionate about education and helping you succeed in your studies."
+      "From mathematics to literature, I'm passionate about education and helping you succeed in your studies.",
     ],
-    topics: ["Education", "Mathematics", "Science", "Literature", "Study Skills"],
-    adjectives: ["knowledgeable", "patient", "clear", "encouraging", "academic"],
+    topics: [
+      "Education",
+      "Mathematics",
+      "Science",
+      "Literature",
+      "Study Skills",
+    ],
+    adjectives: [
+      "knowledgeable",
+      "patient",
+      "clear",
+      "encouraging",
+      "academic",
+    ],
     plugins: ["@elizaos/plugin-openai"],
     category: "learning",
     tags: ["education", "teaching", "learning", "academic"],
@@ -233,7 +322,7 @@ const SHOWCASE_CHARACTERS: ExtendedCharacter[] = [
     bio: [
       "Here to bring laughter and joy to your day! 😄",
       "I specialize in humor, jokes, witty banter, and keeping conversations light and fun.",
-      "Need a laugh? Want to hear a joke? Or just chat with a friendly AI? I'm your bot!"
+      "Need a laugh? Want to hear a joke? Or just chat with a friendly AI? I'm your bot!",
     ],
     topics: ["Comedy", "Jokes", "Entertainment", "Pop Culture", "Memes"],
     adjectives: ["funny", "witty", "entertaining", "lighthearted", "clever"],
@@ -258,7 +347,7 @@ const SHOWCASE_CHARACTERS: ExtendedCharacter[] = [
     bio: [
       "Equipped with text-to-speech capabilities for natural, accessible conversations.",
       "I can speak my responses aloud, making our interactions more natural and accessible.",
-      "Perfect for hands-free interactions, accessibility needs, or when you prefer listening to reading!"
+      "Perfect for hands-free interactions, accessibility needs, or when you prefer listening to reading!",
     ],
     topics: ["Assistance", "Accessibility", "Technology", "General Help"],
     adjectives: ["helpful", "clear", "accessible", "patient", "versatile"],
@@ -283,10 +372,22 @@ const SHOWCASE_CHARACTERS: ExtendedCharacter[] = [
     bio: [
       "Your guide through the fascinating tapestry of human history across the ages.",
       "I'm passionate about historical events, civilizations, and the stories that shaped our world.",
-      "From ancient empires to modern times, let's explore history together and learn from the past."
+      "From ancient empires to modern times, let's explore history together and learn from the past.",
     ],
-    topics: ["History", "Ancient Civilizations", "Historical Events", "Culture", "Archaeology"],
-    adjectives: ["knowledgeable", "scholarly", "engaging", "detailed", "passionate"],
+    topics: [
+      "History",
+      "Ancient Civilizations",
+      "Historical Events",
+      "Culture",
+      "Archaeology",
+    ],
+    adjectives: [
+      "knowledgeable",
+      "scholarly",
+      "engaging",
+      "detailed",
+      "passionate",
+    ],
     plugins: ["@elizaos/plugin-openai"],
     category: "history",
     tags: ["history", "education", "culture", "civilization"],
@@ -304,7 +405,9 @@ const SHOWCASE_CHARACTERS: ExtendedCharacter[] = [
 ];
 
 export function MarketplacePreview() {
-  const [additionalCharacters, setAdditionalCharacters] = useState<ExtendedCharacter[]>([]);
+  const [additionalCharacters, setAdditionalCharacters] = useState<
+    ExtendedCharacter[]
+  >([]);
   const [isLoadingMore, setIsLoadingMore] = useState(false);
 
   const { authenticated, ready } = usePrivy();
@@ -317,13 +420,17 @@ export function MarketplacePreview() {
     async function fetchAdditionalCharacters() {
       try {
         setIsLoadingMore(true);
-        const response = await fetch("/api/public/marketplace/characters?limit=4&sortBy=popularity");
+        const response = await fetch(
+          "/api/public/marketplace/characters?limit=4&sortBy=popularity",
+        );
 
         if (response.ok) {
           const data = await response.json();
           const apiCharacters = data.data?.characters || [];
-          const showcaseIds = new Set(SHOWCASE_CHARACTERS.map(c => c.id));
-          const uniqueChars = apiCharacters.filter((c: ExtendedCharacter) => !showcaseIds.has(c.id));
+          const showcaseIds = new Set(SHOWCASE_CHARACTERS.map((c) => c.id));
+          const uniqueChars = apiCharacters.filter(
+            (c: ExtendedCharacter) => !showcaseIds.has(c.id),
+          );
           setAdditionalCharacters(uniqueChars);
         }
       } catch (error) {
@@ -386,8 +493,9 @@ export function MarketplacePreview() {
             </h1>
 
             <p className="mb-8 text-lg text-muted-foreground md:text-xl max-w-2xl mx-auto">
-              Explore hundreds of pre-configured AI characters. From creative assistants to
-              gaming companions, find the perfect agent for your needs.
+              Explore hundreds of pre-configured AI characters. From creative
+              assistants to gaming companions, find the perfect agent for your
+              needs.
             </p>
 
             <div className="flex flex-col items-center justify-center gap-4 sm:flex-row">
@@ -410,19 +518,25 @@ export function MarketplacePreview() {
                 <div className="text-3xl md:text-4xl font-bold bg-gradient-to-r from-primary to-purple-500 bg-clip-text text-transparent">
                   500+
                 </div>
-                <div className="text-sm text-muted-foreground">AI Characters</div>
+                <div className="text-sm text-muted-foreground">
+                  AI Characters
+                </div>
               </div>
               <div className="space-y-1">
                 <div className="text-3xl md:text-4xl font-bold bg-gradient-to-r from-purple-500 to-pink-500 bg-clip-text text-transparent">
                   50K+
                 </div>
-                <div className="text-sm text-muted-foreground">Conversations</div>
+                <div className="text-sm text-muted-foreground">
+                  Conversations
+                </div>
               </div>
               <div className="space-y-1">
                 <div className="text-3xl md:text-4xl font-bold bg-gradient-to-r from-pink-500 to-red-500 bg-clip-text text-transparent">
                   1000+
                 </div>
-                <div className="text-sm text-muted-foreground">Active Users</div>
+                <div className="text-sm text-muted-foreground">
+                  Active Users
+                </div>
               </div>
             </div>
           </div>
@@ -441,8 +555,9 @@ export function MarketplacePreview() {
               Meet Our Most Popular AI Agents
             </h2>
             <p className="text-lg text-muted-foreground max-w-2xl mx-auto">
-              These are the most loved and frequently used characters in our marketplace.
-              Each one offers unique personality, expertise, and is ready to engage with you.
+              These are the most loved and frequently used characters in our
+              marketplace. Each one offers unique personality, expertise, and is
+              ready to engage with you.
             </p>
           </div>
 
@@ -507,7 +622,10 @@ export function MarketplacePreview() {
                 <p className="text-sm text-muted-foreground">
                   {category.description}
                 </p>
-                <div className="mt-4 flex items-center gap-2 text-sm font-medium" style={{ color: category.color }}>
+                <div
+                  className="mt-4 flex items-center gap-2 text-sm font-medium"
+                  style={{ color: category.color }}
+                >
                   Explore <ArrowRight className="h-4 w-4" />
                 </div>
               </button>
@@ -528,7 +646,8 @@ export function MarketplacePreview() {
               Explore Different Specializations
             </h2>
             <p className="text-lg text-muted-foreground max-w-2xl mx-auto">
-              From coding mentors to creative companions, find AI agents tailored to your needs
+              From coding mentors to creative companions, find AI agents
+              tailored to your needs
             </p>
           </div>
 
@@ -551,7 +670,8 @@ export function MarketplacePreview() {
               <ArrowRight className="h-4 w-4" />
             </Button>
             <p className="text-sm text-muted-foreground">
-              500+ AI characters across 8 categories • Free to explore • No credit card required
+              500+ AI characters across 8 categories • Free to explore • No
+              credit card required
             </p>
           </div>
         </div>
@@ -575,7 +695,9 @@ export function MarketplacePreview() {
             </h2>
 
             <p className="mb-12 text-lg text-muted-foreground max-w-2xl mx-auto">
-              Sign up now to access our full marketplace, chat with any character, clone and customize agents, and deploy your own AI companions.
+              Sign up now to access our full marketplace, chat with any
+              character, clone and customize agents, and deploy your own AI
+              companions.
             </p>
 
             <div className="flex flex-col sm:flex-row items-center justify-center gap-4">

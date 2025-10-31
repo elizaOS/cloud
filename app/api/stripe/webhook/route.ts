@@ -2,7 +2,6 @@ import { type NextRequest, NextResponse } from "next/server";
 import { stripe } from "@/lib/stripe";
 import { creditsService } from "@/lib/services";
 import { headers } from "next/headers";
-import { revalidateTag } from "next/cache";
 import type Stripe from "stripe";
 
 export async function POST(req: NextRequest) {
@@ -86,7 +85,7 @@ export async function POST(req: NextRequest) {
           await creditsService.addCredits({
             organizationId,
             amount: credits,
-            description: `Credit pack purchase - ${credits.toLocaleString()} credits`,
+            description: `Balance top-up - $${Number(credits).toFixed(2)}`,
             metadata: {
               user_id: userId,
               payment_intent_id: paymentIntentId,
@@ -94,8 +93,6 @@ export async function POST(req: NextRequest) {
             },
             stripePaymentIntentId: paymentIntentId,
           });
-
-          revalidateTag("user-auth", {});
 
           console.log(
             `✓ Added ${credits} credits to organization ${organizationId} (payment intent: ${paymentIntentId})`,

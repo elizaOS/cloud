@@ -17,7 +17,7 @@ interface CreditPackCardProps {
   id: string;
   name: string;
   description: string | null;
-  credits: number;
+  credits: number | string; // NUMERIC from DB returns string
   priceCents: number;
   isPopular?: boolean;
   onPurchase: (id: string) => void;
@@ -35,7 +35,8 @@ export function CreditPackCard({
   loading = false,
 }: CreditPackCardProps) {
   const price = (priceCents / 100).toFixed(2);
-  const pricePerCredit = (priceCents / credits / 100).toFixed(3);
+  const creditsValue = Number(credits);
+  const pricePerCredit = (priceCents / creditsValue / 100).toFixed(3);
 
   return (
     <Card
@@ -62,14 +63,14 @@ export function CreditPackCard({
         <div>
           <div className="text-4xl font-bold">${price}</div>
           <div className="text-sm text-muted-foreground">
-            ${pricePerCredit} per credit
+            ${pricePerCredit} per dollar
           </div>
         </div>
 
         <div className="space-y-2">
           <div className="flex items-center gap-2 text-sm">
             <Check className="h-4 w-4 text-primary" />
-            <span>${credits.toFixed(2)} in credits</span>
+            <span>${creditsValue.toFixed(2)} balance</span>
           </div>
           <div className="flex items-center gap-2 text-sm">
             <Check className="h-4 w-4 text-primary" />
@@ -94,7 +95,7 @@ export function CreditPackCard({
           size="lg"
           variant={isPopular ? "default" : "outline"}
         >
-          {loading ? "Processing..." : "Purchase Credits"}
+          {loading ? "Processing..." : "Add Funds"}
         </Button>
       </CardFooter>
     </Card>

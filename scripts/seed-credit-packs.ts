@@ -8,8 +8,8 @@ const creditPacks = [
   {
     name: "Small Pack",
     description: "Perfect for testing and small projects",
-    credits: 500,
-    price_cents: 4999,
+    credits: 5.0, // $5.00 in credits
+    price_cents: 4999, // $49.99 USD
     stripe_price_id: process.env.STRIPE_SMALL_PACK_PRICE_ID!,
     stripe_product_id: process.env.STRIPE_SMALL_PACK_PRODUCT_ID!,
     sort_order: 1,
@@ -17,8 +17,8 @@ const creditPacks = [
   {
     name: "Medium Pack",
     description: "Best value for regular usage",
-    credits: 1500,
-    price_cents: 12999,
+    credits: 15.0, // $15.00 in credits
+    price_cents: 12999, // $129.99 USD
     stripe_price_id: process.env.STRIPE_MEDIUM_PACK_PRICE_ID!,
     stripe_product_id: process.env.STRIPE_MEDIUM_PACK_PRODUCT_ID!,
     sort_order: 2,
@@ -26,8 +26,8 @@ const creditPacks = [
   {
     name: "Large Pack",
     description: "Maximum savings for power users",
-    credits: 5000,
-    price_cents: 39999,
+    credits: 50.0, // $50.00 in credits
+    price_cents: 39999, // $399.99 USD
     stripe_price_id: process.env.STRIPE_LARGE_PACK_PRICE_ID!,
     stripe_product_id: process.env.STRIPE_LARGE_PACK_PRODUCT_ID!,
     sort_order: 3,
