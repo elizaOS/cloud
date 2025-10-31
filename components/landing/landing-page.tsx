@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import LandingHeader from "@/components/layout/landing-header";
+import TopHero from "@/components/landing/TopHero";
 import {
   Cloud,
   Code,
@@ -21,10 +22,6 @@ import {
   Users,
   Copy,
 } from "lucide-react";
-import { Boxes } from "@/components/ui/background-boxes";
-import { TextGenerateEffect } from "@/components/ui/text-generate-effect";
-import { SparklesCore } from "@/components/ui/sparkles";
-import { Spotlight } from "@/components/ui/spotlight";
 import { BentoGrid, BentoGridItem } from "@/components/ui/bento-grid";
 import { InfiniteMovingCards } from "@/components/ui/infinite-moving-cards";
 import { Timeline } from "@/components/ui/timeline";
@@ -272,69 +269,8 @@ export function LandingPage() {
       {/* Header */}
       <LandingHeader />
 
-      {/* Hero Section with Background Boxes, Spotlight, and Sparkles */}
-      <section className="relative w-full overflow-hidden bg-background py-20 md:py-32">
-        {/* Spotlight effect */}
-        <Spotlight
-          className="-top-40 left-0 md:left-60 md:-top-20"
-          fill="white"
-        />
-
-        {/* Background overlay mask */}
-        <div className="absolute inset-0 z-10 bg-background [mask-image:radial-gradient(transparent,white)] pointer-events-none" />
-
-        {/* Animated background boxes */}
-        <Boxes />
-
-        {/* Sparkles effect - pointer-events-none so it doesn't block hover */}
-        <div className="absolute inset-0 w-full h-full pointer-events-none">
-          <SparklesCore
-            id="hero-sparkles"
-            background="transparent"
-            minSize={0.4}
-            maxSize={1}
-            particleDensity={50}
-            className="w-full h-full"
-            particleColor="#FFFFFF"
-          />
-        </div>
-
-        {/* Hero content - pointer-events-none on container to allow box hover */}
-        <div className="container relative z-20 mx-auto px-4 md:px-6 pointer-events-none">
-          <div className="mx-auto max-w-4xl text-center">
-            <div className="mb-6 inline-flex items-center gap-2 rounded-full border bg-muted/80 backdrop-blur-sm px-3 py-1 text-sm">
-              <Brain className="h-4 w-4" />
-              <span>The Future of AI Agent Development</span>
-            </div>
-
-            <h1 className="mb-6 text-4xl font-bold tracking-tight md:text-6xl lg:text-7xl">
-              Build, Deploy & Scale
-              <br />
-              <span className="bg-gradient-to-r from-primary via-primary/90 to-primary/70 bg-clip-text text-transparent">
-                Intelligent AI Agents
-              </span>
-            </h1>
-
-            <div>
-              <TextGenerateEffect
-                words="Complete AI agent development platform with inference, hosting, storage, and rapid deployment. Build powerful autonomous agents with ease."
-                className="mb-8 text-lg text-muted-foreground md:text-xl mx-auto"
-              />
-            </div>
-
-            {/* Buttons with pointer events re-enabled */}
-            <div className="flex flex-col items-center justify-center gap-4 sm:flex-row pointer-events-auto">
-              <Button size="lg" onClick={handleAuth} className="gap-2">
-                Start Building Free
-                <ArrowRight className="h-4 w-4" />
-              </Button>
-              <Button size="lg" variant="outline" onClick={handleAuth}>
-                Sign In
-              </Button>
-            </div>
-          </div>
-        </div>
-      </section>
+      {/* Hero Section */}
+      <TopHero />
 
       {/* Tech Stack Marquee */}
       <section className="py-20 bg-gradient-to-b from-background via-muted/20 to-background border-y">

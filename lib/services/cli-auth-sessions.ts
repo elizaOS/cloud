@@ -110,9 +110,7 @@ export class CliAuthSessionsService {
    * Get API key from authenticated session and clear it
    * This ensures the plain key is only retrieved once
    */
-  async getAndClearApiKey(
-    sessionId: string,
-  ): Promise<{
+  async getAndClearApiKey(sessionId: string): Promise<{
     apiKey: string;
     keyPrefix: string;
     expiresAt: Date | null;
