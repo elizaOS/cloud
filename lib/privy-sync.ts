@@ -382,7 +382,7 @@ export async function syncUserFromPrivy(
       email: recipientEmail,
       userName: name || "there",
       organizationName: userWithOrg.organization.name,
-      creditBalance: userWithOrg.organization.credit_balance,
+      creditBalance: Number(userWithOrg.organization.credit_balance),
     }).catch((error) => {
       console.error("[PrivySync] Failed to send welcome email:", error);
     });

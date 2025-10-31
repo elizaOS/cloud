@@ -6,20 +6,22 @@ Hi there,
 
 Your Role: {{role}}
 
-By joining this organization, you'll be able to:
-- Collaborate with your team members
-- Access shared credit balance
+🚀 What You'll Get Access To:
+- Collaborate seamlessly with your team members
+- Access shared account balance and resources
 - Deploy and manage AI agents together
-- Share characters, conversations, and resources
+- Share characters, conversations, and integrations
+- Track team analytics and usage insights
 
 Accept your invitation:
 {{acceptUrl}}
 
-⏰ This invitation will expire in 7 days
+⏰ This invitation expires in 7 days
 
 ---
 
-If you didn't expect this invitation, you can safely ignore this email.
+Didn't expect this invitation?
+You can safely ignore this email. No account will be created without your acceptance.
 
 ---
 

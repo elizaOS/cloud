@@ -1,17 +1,17 @@
-⚠️ LOW CREDITS ALERT
+⚠️ LOW BALANCE ALERT
 
 Action required for {{organizationName}}
 
-Your credit balance is running low. To avoid service interruption, please add credits to your account soon.
+Your account balance is running low. To avoid service interruption, please add funds to your account soon.
 
-CURRENT BALANCE: {{currentBalance}} credits remaining
+CURRENT BALANCE: ${{currentBalance}} USD remaining
 
-WHAT HAPPENS WHEN CREDITS RUN OUT?
+WHAT HAPPENS WHEN BALANCE RUNS OUT?
 • AI agent requests will be rejected
-• API calls will return "insufficient credits" errors
+• API calls will return "insufficient funds" errors
 • Your containers will continue running (read-only mode)
 
-→ Add Credits Now: {{billingUrl}}
+→ Add Funds Now: {{billingUrl}}
 
 💡 PRO TIP:
 Set up automatic top-ups to ensure uninterrupted service. You can configure this in your billing settings.
@@ -19,4 +19,4 @@ Set up automatic top-ups to ensure uninterrupted service. You can configure this
 ---
 © {{currentYear}} Eliza Cloud. All rights reserved.
 
-You received this alert because your credit balance fell below {{threshold}} credits.
+You received this alert because your account balance fell below ${{threshold}}.

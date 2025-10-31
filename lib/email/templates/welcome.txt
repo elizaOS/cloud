@@ -4,13 +4,13 @@ Hi {{userName}}, we're excited to have you here!
 
 Your organization "{{organizationName}}" has been successfully created, and you're ready to start building amazing AI agents.
 
-🎁 STARTING BALANCE: {{creditBalance}} credits
+🎁 STARTING BALANCE: ${{creditBalance}} USD
 Enough to get you started with your first agents!
 
 GET STARTED IN 3 EASY STEPS:
 
 1. Explore Your Dashboard
-   View your credit balance, usage analytics, and account settings
+   View your balance, usage analytics, and account settings
 
 2. Create Your First Agent
    Deploy intelligent AI agents with custom personalities and capabilities
