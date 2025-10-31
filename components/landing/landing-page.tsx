@@ -6,6 +6,7 @@ import LandingHeader from "@/components/layout/landing-header";
 import TopHero from "@/components/landing/TopHero";
 import RouterSection from "@/components/landing/RouterSection";
 import Agents from "@/components/landing/Agents";
+import Installation from "@/components/landing/Installation";
 import {
   Cloud,
   Code,
@@ -279,6 +280,9 @@ export function LandingPage() {
 
       {/* Router Section */}
       <RouterSection />
+
+      {/* Installation Section */}
+      <Installation />
 
       {/* Tech Stack Marquee */}
       <section className="py-20 bg-gradient-to-b from-background via-muted/20 to-background border-y">
