@@ -7,7 +7,12 @@
  * 2. Just-in-time sync (fallback for race conditions)
  */
 
-import { usersService, organizationsService, emailService } from "@/lib/services";
+import {
+  usersService,
+  organizationsService,
+  emailService,
+  invitesService,
+} from "@/lib/services";
 import type { UserWithOrganization } from "@/lib/types";
 
 function generateSlugFromEmail(email: string): string {
@@ -158,6 +163,60 @@ export async function syncUserFromPrivy(
     }
 
     return user;
+  }
+
+  // Check for pending invite first (before creating new organization)
+  if (email) {
+    const pendingInvite = await invitesService.findPendingInviteByEmail(email);
+
+    if (pendingInvite) {
+      console.log(
+        `Found pending invite for ${email}, joining organization ${pendingInvite.organization_id}`,
+      );
+
+      try {
+        const newUser = await usersService.create({
+          privy_user_id: privyUserId,
+          email: email || null,
+          email_verified: email ? true : false,
+          wallet_address: walletAddress || null,
+          wallet_chain_type: walletChainType || null,
+          wallet_verified: walletVerified,
+          name,
+          organization_id: pendingInvite.organization_id,
+          role: pendingInvite.invited_role,
+          is_active: true,
+        });
+
+        const { organizationInvitesRepository } = await import(
+          "@/db/repositories"
+        );
+        await organizationInvitesRepository.markAsAccepted(
+          pendingInvite.id,
+          newUser.id,
+        );
+
+        const userWithOrg = await usersService.getByPrivyId(privyUserId);
+
+        if (!userWithOrg) {
+          throw new Error(
+            `Failed to fetch newly created user ${privyUserId} after accepting invite`,
+          );
+        }
+
+        console.log(
+          `User ${privyUserId} successfully joined organization ${pendingInvite.organization_id} via invite`,
+        );
+
+        return userWithOrg;
+      } catch (error) {
+        console.error(
+          `Failed to create user from invite for ${privyUserId}:`,
+          error,
+        );
+        throw error;
+      }
+    }
   }
 
   // Create new user and organization

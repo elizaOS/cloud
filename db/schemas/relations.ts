@@ -1,11 +1,13 @@
 import { relations } from "drizzle-orm";
 import { organizations } from "./organizations";
+import { organizationInvites } from "./organization-invites";
 import { users } from "./users";
 import { conversations, conversationMessages } from "./conversations";
 import { userCharacters } from "./user-characters";
 
 export const organizationsRelations = relations(organizations, ({ many }) => ({
   users: many(users),
+  invites: many(organizationInvites),
 }));
 
 export const usersRelations = relations(users, ({ one, many }) => ({
@@ -51,3 +53,21 @@ export const userCharactersRelations = relations(userCharacters, ({ one }) => ({
     references: [organizations.id],
   }),
 }));
+
+export const organizationInvitesRelations = relations(
+  organizationInvites,
+  ({ one }) => ({
+    organization: one(organizations, {
+      fields: [organizationInvites.organization_id],
+      references: [organizations.id],
+    }),
+    inviter: one(users, {
+      fields: [organizationInvites.inviter_user_id],
+      references: [users.id],
+    }),
+    acceptedBy: one(users, {
+      fields: [organizationInvites.accepted_by_user_id],
+      references: [users.id],
+    }),
+  }),
+);
