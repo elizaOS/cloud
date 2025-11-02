@@ -1,15 +1,19 @@
 "use client";
 
 import { useState } from "react";
-import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
 import { X, Plus } from "lucide-react";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import type { ElizaCharacter } from "@/lib/types";
+import {
+  BrandTabs,
+  BrandTabsList,
+  BrandTabsTrigger,
+  BrandTabsContent,
+  BrandCard,
+  BrandButton,
+  CornerBrackets,
+} from "@/components/brand";
 
 interface CharacterFormProps {
   character: ElizaCharacter;
@@ -47,68 +51,81 @@ export function CharacterForm({ character, onChange }: CharacterFormProps) {
       : character.bio?.join("\n\n") || "";
 
   return (
-    <Card className="h-full overflow-auto">
-      <CardHeader>
-        <CardTitle>Character Details</CardTitle>
-      </CardHeader>
-      <CardContent>
-        <Tabs defaultValue="basics" className="w-full">
-          <TabsList className="grid w-full grid-cols-4">
-            <TabsTrigger value="basics">Basics</TabsTrigger>
-            <TabsTrigger value="personality">Personality</TabsTrigger>
-            <TabsTrigger value="style">Style</TabsTrigger>
-            <TabsTrigger value="advanced">Advanced</TabsTrigger>
-          </TabsList>
+    <BrandCard className="relative h-full overflow-auto">
+      <CornerBrackets size="sm" className="opacity-50" />
+      
+      <div className="relative z-10 space-y-6">
+        <h3 className="text-lg font-bold text-white">Character Details</h3>
+        
+        <BrandTabs defaultValue="basics" className="w-full">
+          <BrandTabsList className="grid w-full grid-cols-4">
+            <BrandTabsTrigger value="basics" className="flex-1">Basics</BrandTabsTrigger>
+            <BrandTabsTrigger value="personality" className="flex-1">Personality</BrandTabsTrigger>
+            <BrandTabsTrigger value="style" className="flex-1">Style</BrandTabsTrigger>
+            <BrandTabsTrigger value="advanced" className="flex-1">Advanced</BrandTabsTrigger>
+          </BrandTabsList>
 
           {/* Basics Tab */}
-          <TabsContent value="basics" className="space-y-4">
+          <BrandTabsContent value="basics" className="space-y-4">
             <div className="space-y-2">
-              <Label htmlFor="name">Name *</Label>
+              <label htmlFor="name" className="text-xs font-medium text-white/70 uppercase tracking-wide">
+                Name *
+              </label>
               <Input
                 id="name"
                 value={character.name || ""}
                 onChange={(e) => updateField("name", e.target.value)}
                 placeholder="Character name"
+                className="rounded-none border-white/10 bg-black/40 text-white placeholder:text-white/40 focus:ring-1 focus:ring-[#FF5800] focus:border-[#FF5800]"
               />
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="username">Username</Label>
+              <label htmlFor="username" className="text-xs font-medium text-white/70 uppercase tracking-wide">
+                Username
+              </label>
               <Input
                 id="username"
                 value={character.username || ""}
                 onChange={(e) => updateField("username", e.target.value)}
                 placeholder="@username"
+                className="rounded-none border-white/10 bg-black/40 text-white placeholder:text-white/40 focus:ring-1 focus:ring-[#FF5800] focus:border-[#FF5800]"
               />
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="bio">Bio *</Label>
+              <label htmlFor="bio" className="text-xs font-medium text-white/70 uppercase tracking-wide">
+                Bio *
+              </label>
               <Textarea
                 id="bio"
                 value={bioText}
                 onChange={(e) => updateField("bio", e.target.value)}
                 placeholder="Describe the character's background and purpose..."
-                className="min-h-[120px]"
+                className="min-h-[120px] rounded-none border-white/10 bg-black/40 text-white placeholder:text-white/40 focus:ring-1 focus:ring-[#FF5800] focus:border-[#FF5800]"
               />
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="system">System Prompt</Label>
+              <label htmlFor="system" className="text-xs font-medium text-white/70 uppercase tracking-wide">
+                System Prompt
+              </label>
               <Textarea
                 id="system"
                 value={character.system || ""}
                 onChange={(e) => updateField("system", e.target.value)}
                 placeholder="System-level instructions for the agent..."
-                className="min-h-[80px]"
+                className="min-h-[80px] rounded-none border-white/10 bg-black/40 text-white placeholder:text-white/40 focus:ring-1 focus:ring-[#FF5800] focus:border-[#FF5800]"
               />
             </div>
-          </TabsContent>
+          </BrandTabsContent>
 
           {/* Personality Tab */}
-          <TabsContent value="personality" className="space-y-4">
+          <BrandTabsContent value="personality" className="space-y-4">
             <div className="space-y-2">
-              <Label>Topics</Label>
+              <label className="text-xs font-medium text-white/70 uppercase tracking-wide">
+                Topics
+              </label>
               <div className="flex gap-2">
                 <Input
                   value={newTag}
@@ -120,32 +137,39 @@ export function CharacterForm({ character, onChange }: CharacterFormProps) {
                       addTag("topics");
                     }
                   }}
+                  className="rounded-none border-white/10 bg-black/40 text-white placeholder:text-white/40 focus:ring-1 focus:ring-[#FF5800] focus:border-[#FF5800]"
                 />
-                <Button
+                <BrandButton
                   type="button"
+                  variant="icon-primary"
                   size="icon"
                   onClick={() => addTag("topics")}
                 >
-                  <Plus className="h-4 w-4" />
-                </Button>
+                  <Plus className="h-4 w-4" style={{ color: "#FF5800" }} />
+                </BrandButton>
               </div>
               <div className="flex flex-wrap gap-2">
                 {character.topics?.map((topic, index) => (
-                  <Badge key={index} variant="secondary">
+                  <span
+                    key={index}
+                    className="inline-flex items-center gap-2 rounded-none bg-white/10 px-2 py-1 text-xs text-white"
+                  >
                     {topic}
                     <button
                       onClick={() => removeTag("topics", index)}
-                      className="ml-2 hover:text-destructive"
+                      className="hover:text-rose-400 transition-colors"
                     >
                       <X className="h-3 w-3" />
                     </button>
-                  </Badge>
+                  </span>
                 ))}
               </div>
             </div>
 
             <div className="space-y-2">
-              <Label>Adjectives (Personality Traits)</Label>
+              <label className="text-xs font-medium text-white/70 uppercase tracking-wide">
+                Adjectives (Personality Traits)
+              </label>
               <div className="flex gap-2">
                 <Input
                   value={newTag}
@@ -157,32 +181,39 @@ export function CharacterForm({ character, onChange }: CharacterFormProps) {
                       addTag("adjectives");
                     }
                   }}
+                  className="rounded-none border-white/10 bg-black/40 text-white placeholder:text-white/40 focus:ring-1 focus:ring-[#FF5800] focus:border-[#FF5800]"
                 />
-                <Button
+                <BrandButton
                   type="button"
+                  variant="icon-primary"
                   size="icon"
                   onClick={() => addTag("adjectives")}
                 >
-                  <Plus className="h-4 w-4" />
-                </Button>
+                  <Plus className="h-4 w-4" style={{ color: "#FF5800" }} />
+                </BrandButton>
               </div>
               <div className="flex flex-wrap gap-2">
                 {character.adjectives?.map((adj, index) => (
-                  <Badge key={index} variant="secondary">
+                  <span
+                    key={index}
+                    className="inline-flex items-center gap-2 rounded-none bg-white/10 px-2 py-1 text-xs text-white"
+                  >
                     {adj}
                     <button
                       onClick={() => removeTag("adjectives", index)}
-                      className="ml-2 hover:text-destructive"
+                      className="hover:text-rose-400 transition-colors"
                     >
                       <X className="h-3 w-3" />
                     </button>
-                  </Badge>
+                  </span>
                 ))}
               </div>
             </div>
 
             <div className="space-y-2">
-              <Label>Post Examples</Label>
+              <label className="text-xs font-medium text-white/70 uppercase tracking-wide">
+                Post Examples
+              </label>
               <div className="flex gap-2">
                 <Input
                   value={newTag}
@@ -194,38 +225,42 @@ export function CharacterForm({ character, onChange }: CharacterFormProps) {
                       addTag("postExamples");
                     }
                   }}
+                  className="rounded-none border-white/10 bg-black/40 text-white placeholder:text-white/40 focus:ring-1 focus:ring-[#FF5800] focus:border-[#FF5800]"
                 />
-                <Button
+                <BrandButton
                   type="button"
+                  variant="icon-primary"
                   size="icon"
                   onClick={() => addTag("postExamples")}
                 >
-                  <Plus className="h-4 w-4" />
-                </Button>
+                  <Plus className="h-4 w-4" style={{ color: "#FF5800" }} />
+                </BrandButton>
               </div>
               <div className="space-y-2">
                 {character.postExamples?.map((post, index) => (
                   <div
                     key={index}
-                    className="flex items-start gap-2 rounded-md bg-muted p-2"
+                    className="flex items-start gap-2 rounded-none bg-black/40 border border-white/10 p-2"
                   >
-                    <p className="flex-1 text-sm">{post}</p>
+                    <p className="flex-1 text-sm text-white">{post}</p>
                     <button
                       onClick={() => removeTag("postExamples", index)}
-                      className="hover:text-destructive"
+                      className="hover:text-rose-400 transition-colors"
                     >
-                      <X className="h-4 w-4" />
+                      <X className="h-4 w-4 text-white/70" />
                     </button>
                   </div>
                 ))}
               </div>
             </div>
-          </TabsContent>
+          </BrandTabsContent>
 
           {/* Style Tab */}
-          <TabsContent value="style" className="space-y-4">
+          <BrandTabsContent value="style" className="space-y-4">
             <div className="space-y-2">
-              <Label htmlFor="style-all">General Style Guidelines</Label>
+              <label htmlFor="style-all" className="text-xs font-medium text-white/70 uppercase tracking-wide">
+                General Style Guidelines
+              </label>
               <Textarea
                 id="style-all"
                 value={
@@ -242,12 +277,14 @@ export function CharacterForm({ character, onChange }: CharacterFormProps) {
                   })
                 }
                 placeholder="One guideline per line..."
-                className="min-h-[80px]"
+                className="min-h-[80px] rounded-none border-white/10 bg-black/40 text-white placeholder:text-white/40 focus:ring-1 focus:ring-[#FF5800] focus:border-[#FF5800]"
               />
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="style-chat">Chat Style Guidelines</Label>
+              <label htmlFor="style-chat" className="text-xs font-medium text-white/70 uppercase tracking-wide">
+                Chat Style Guidelines
+              </label>
               <Textarea
                 id="style-chat"
                 value={
@@ -264,12 +301,14 @@ export function CharacterForm({ character, onChange }: CharacterFormProps) {
                   })
                 }
                 placeholder="One guideline per line..."
-                className="min-h-[80px]"
+                className="min-h-[80px] rounded-none border-white/10 bg-black/40 text-white placeholder:text-white/40 focus:ring-1 focus:ring-[#FF5800] focus:border-[#FF5800]"
               />
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="style-post">Post Style Guidelines</Label>
+              <label htmlFor="style-post" className="text-xs font-medium text-white/70 uppercase tracking-wide">
+                Post Style Guidelines
+              </label>
               <Textarea
                 id="style-post"
                 value={
@@ -286,15 +325,17 @@ export function CharacterForm({ character, onChange }: CharacterFormProps) {
                   })
                 }
                 placeholder="One guideline per line..."
-                className="min-h-[80px]"
+                className="min-h-[80px] rounded-none border-white/10 bg-black/40 text-white placeholder:text-white/40 focus:ring-1 focus:ring-[#FF5800] focus:border-[#FF5800]"
               />
             </div>
-          </TabsContent>
+          </BrandTabsContent>
 
           {/* Advanced Tab */}
-          <TabsContent value="advanced" className="space-y-4">
+          <BrandTabsContent value="advanced" className="space-y-4">
             <div className="space-y-2">
-              <Label>Plugins</Label>
+              <label className="text-xs font-medium text-white/70 uppercase tracking-wide">
+                Plugins
+              </label>
               <div className="flex gap-2">
                 <Input
                   value={newTag}
@@ -306,40 +347,45 @@ export function CharacterForm({ character, onChange }: CharacterFormProps) {
                       addTag("plugins");
                     }
                   }}
+                  className="rounded-none border-white/10 bg-black/40 text-white placeholder:text-white/40 focus:ring-1 focus:ring-[#FF5800] focus:border-[#FF5800]"
                 />
-                <Button
+                <BrandButton
                   type="button"
+                  variant="icon-primary"
                   size="icon"
                   onClick={() => addTag("plugins")}
                 >
-                  <Plus className="h-4 w-4" />
-                </Button>
+                  <Plus className="h-4 w-4" style={{ color: "#FF5800" }} />
+                </BrandButton>
               </div>
               <div className="flex flex-wrap gap-2">
                 {character.plugins?.map((plugin, index) => (
-                  <Badge key={index} variant="outline">
+                  <span
+                    key={index}
+                    className="inline-flex items-center gap-2 rounded-none bg-white/10 border border-white/20 px-2 py-1 text-xs text-white"
+                  >
                     {plugin}
                     <button
                       onClick={() => removeTag("plugins", index)}
-                      className="ml-2 hover:text-destructive"
+                      className="hover:text-rose-400 transition-colors"
                     >
                       <X className="h-3 w-3" />
                     </button>
-                  </Badge>
+                  </span>
                 ))}
               </div>
             </div>
 
-            <div className="rounded-md bg-muted p-4">
-              <p className="text-sm text-muted-foreground">
-                Additional settings like <code>knowledge</code>,{" "}
-                <code>settings</code>, and <code>messageExamples</code> can be
+            <div className="rounded-none bg-black/40 border border-white/10 p-4">
+              <p className="text-sm text-white/60">
+                Additional settings like <code className="text-[#FF5800]">knowledge</code>,{" "}
+                <code className="text-[#FF5800]">settings</code>, and <code className="text-[#FF5800]">messageExamples</code> can be
                 configured directly in the JSON editor.
               </p>
             </div>
-          </TabsContent>
-        </Tabs>
-      </CardContent>
-    </Card>
+          </BrandTabsContent>
+        </BrandTabs>
+      </div>
+    </BrandCard>
   );
 }
