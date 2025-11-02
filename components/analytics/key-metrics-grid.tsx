@@ -1,7 +1,6 @@
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
 import type { LucideIcon } from "lucide-react";
+import { BrandCard } from "@/components/brand";
 
 export interface KeyMetric {
   label: string;
@@ -22,22 +21,19 @@ interface KeyMetricsGridProps {
 }
 
 const accentClasses: Record<NonNullable<KeyMetric["accent"]>, string> = {
-  violet:
-    "border-violet-500/40 bg-gradient-to-br from-violet-500/10 via-violet-500/5 to-transparent dark:from-violet-500/15 dark:border-violet-500/30",
-  sky: "border-sky-500/40 bg-gradient-to-br from-sky-500/10 via-sky-500/5 to-transparent dark:from-sky-500/15 dark:border-sky-500/30",
-  emerald:
-    "border-emerald-500/40 bg-gradient-to-br from-emerald-500/10 via-emerald-500/5 to-transparent dark:from-emerald-500/15 dark:border-emerald-500/30",
-  amber:
-    "border-amber-500/40 bg-gradient-to-br from-amber-500/10 via-amber-500/5 to-transparent dark:from-amber-500/15 dark:border-amber-500/30",
-  rose: "border-rose-500/40 bg-gradient-to-br from-rose-500/10 via-rose-500/5 to-transparent dark:from-rose-500/15 dark:border-rose-500/30",
+  violet: "border-violet-500/40",
+  sky: "border-sky-500/40",
+  emerald: "border-emerald-500/40",
+  amber: "border-amber-500/40",
+  rose: "border-rose-500/40",
 };
 
 type TrendTone = "up" | "down" | "neutral";
 
 const deltaToneClasses: Record<TrendTone, string> = {
-  up: "text-emerald-600 dark:text-emerald-400",
-  down: "text-rose-600 dark:text-rose-400",
-  neutral: "text-muted-foreground",
+  up: "bg-emerald-500/20 text-emerald-400 border-emerald-500/40",
+  down: "bg-rose-500/20 text-rose-400 border-rose-500/40",
+  neutral: "bg-white/10 text-white/60 border-white/20",
 };
 
 export function KeyMetricsGrid({ metrics, columns = 4 }: KeyMetricsGridProps) {
@@ -53,44 +49,44 @@ export function KeyMetricsGrid({ metrics, columns = 4 }: KeyMetricsGridProps) {
         const tone: TrendTone = metric.delta?.trend ?? "neutral";
 
         return (
-          <Card
+          <BrandCard
             key={metric.label}
+            corners={false}
             className={cn(
-              "relative overflow-hidden border-border/70 bg-background/60 shadow-sm transition-colors hover:border-foreground/40",
+              "relative overflow-hidden transition-colors hover:border-[#FF5800]/40",
               metric.accent ? accentClasses[metric.accent] : "",
             )}
           >
-            <div className="absolute right-5 top-5 text-muted-foreground/60">
+            <div className="absolute right-5 top-5 text-white/30">
               <metric.icon className="h-5 w-5" />
             </div>
-            <CardHeader className="space-y-2 p-6 pb-4">
-              <CardTitle className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+            <div className="space-y-2 p-6 pb-4">
+              <h4 className="text-xs font-medium uppercase tracking-wide text-white/50">
                 {metric.label}
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="flex flex-col gap-4 p-6 pt-3">
-              <div className="text-3xl font-semibold leading-tight">
+              </h4>
+            </div>
+            <div className="flex flex-col gap-4 p-6 pt-3">
+              <div className="text-3xl font-semibold leading-tight text-white">
                 {metric.value}
               </div>
               {metric.delta ? (
-                <Badge
-                  variant="outline"
+                <span
                   className={cn(
-                    "w-fit border-transparent bg-background/60 font-medium",
+                    "w-fit rounded-none border px-2 py-1 text-xs font-bold uppercase tracking-wide",
                     deltaToneClasses[tone],
                   )}
                 >
                   {metric.delta.value}
                   {metric.delta.label ? ` · ${metric.delta.label}` : null}
-                </Badge>
+                </span>
               ) : null}
               {metric.helper ? (
-                <p className="text-sm text-muted-foreground/80">
+                <p className="text-sm text-white/60">
                   {metric.helper}
                 </p>
               ) : null}
-            </CardContent>
-          </Card>
+            </div>
+          </BrandCard>
         );
       })}
     </div>
