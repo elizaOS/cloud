@@ -12,6 +12,7 @@ import {
 } from "@xyflow/react";
 import "@xyflow/react/dist/style.css";
 import { Bot, Github, Twitter, Slack, Database, Zap } from "lucide-react";
+import { SectionLabel, BrandCard } from "@/components/brand";
 
 const CustomNode = ({ data, sourcePosition, targetPosition }: any) => {
   const glowColor = data.glowColor || "#3b82f6";
@@ -252,14 +253,8 @@ const RouterSection = () => {
     <section className="w-full py-20 md:py-32 bg-[#0A0A0A] relative">
       <div className="container mx-auto px-4 md:px-6">
         <div className="mb-12">
-          <div className="flex items-center gap-3 mb-4">
-            <span
-              className="inline-block w-2 h-2 rounded-full"
-              style={{ backgroundColor: "#FF5800" }}
-            />
-            <p className="text-lg md:text-xl uppercase tracking-wider text-white font-medium">
-              SMART, CONNECTED INTELLIGENCE
-            </p>
+          <div className="mb-4">
+            <SectionLabel>SMART, CONNECTED INTELLIGENCE</SectionLabel>
           </div>
           <h2 className="text-3xl md:text-4xl lg:text-5xl font-bold mb-4">
             <span style={{ color: "#0B35F1" }}>
@@ -277,7 +272,7 @@ const RouterSection = () => {
           </p>
         </div>
 
-        <div className="w-full h-[600px] bg-black/40 border border-white/10 rounded-lg overflow-hidden cursor-default pointer-events-none">
+        <BrandCard corners={false} className="w-full h-[600px] rounded-lg overflow-hidden cursor-default pointer-events-none">
           <ReactFlow
             nodes={nodes}
             edges={edges}
@@ -353,7 +348,7 @@ const RouterSection = () => {
             </svg>
             <Background color="#ffffff10" gap={16} />
           </ReactFlow>
-        </div>
+        </BrandCard>
 
         <div className="mt-8">
           <button className="inline-flex items-center gap-2 text-white hover:text-white/80 transition-colors">
