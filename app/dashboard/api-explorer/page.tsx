@@ -1,12 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { Separator } from "@/components/ui/separator";
-import { Button } from "@/components/ui/button";
 import {
   BookIcon,
   SearchIcon,
@@ -17,8 +12,17 @@ import {
   MicIcon,
   AudioLinesIcon,
 } from "lucide-react";
-import { Input } from "@/components/ui/input";
 import { toast } from "@/lib/utils/toast-adapter";
+import {
+  BrandTabs,
+  BrandTabsList,
+  BrandTabsTrigger,
+  BrandTabsContent,
+  BrandCard,
+  BrandButton,
+  SectionLabel,
+  CornerBrackets,
+} from "@/components/brand";
 
 import {
   API_ENDPOINTS,
@@ -98,21 +102,20 @@ export default function ApiExplorerPage() {
   };
 
   const getMethodColor = (method: string) => {
-    const base =
-      "ring-1 ring-inset rounded-full px-2.5 py-1 text-xs font-medium";
+    const base = "rounded-none px-2.5 py-1 text-xs font-bold uppercase tracking-wide border";
     switch (method) {
       case "GET":
-        return `${base} bg-emerald-500/10 text-emerald-600 ring-emerald-500/30 dark:text-emerald-300`;
+        return `${base} bg-emerald-500/20 text-emerald-400 border-emerald-500/40`;
       case "POST":
-        return `${base} bg-blue-500/10 text-blue-600 ring-blue-500/30 dark:text-blue-300`;
+        return `${base} bg-blue-500/20 text-blue-400 border-blue-500/40`;
       case "PUT":
-        return `${base} bg-amber-500/10 text-amber-600 ring-amber-500/30 dark:text-amber-300`;
+        return `${base} bg-amber-500/20 text-amber-400 border-amber-500/40`;
       case "DELETE":
-        return `${base} bg-rose-500/10 text-rose-600 ring-rose-500/30 dark:text-rose-300`;
+        return `${base} bg-rose-500/20 text-rose-400 border-rose-500/40`;
       case "PATCH":
-        return `${base} bg-violet-500/10 text-violet-600 ring-violet-500/30 dark:text-violet-300`;
+        return `${base} bg-violet-500/20 text-violet-400 border-violet-500/40`;
       default:
-        return `${base} bg-muted text-muted-foreground`;
+        return `${base} bg-white/10 text-white/60 border-white/20`;
     }
   };
 
@@ -120,129 +123,134 @@ export default function ApiExplorerPage() {
     <div className="flex w-full flex-col gap-6 px-4 pb-8 lg:px-8">
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-4 lg:gap-8">
         <div className="lg:col-span-1">
-          <Card className="border-border/70 bg-background/60 shadow-sm">
-            <CardHeader className="pb-4">
-              <CardTitle className="text-lg font-semibold">
-                Browse APIs
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-6">
+          <BrandCard className="relative">
+            <CornerBrackets size="sm" className="opacity-50" />
+            
+            <div className="relative z-10 space-y-6">
+              <SectionLabel>Browse APIs</SectionLabel>
+
               <div className="relative">
-                <SearchIcon className="absolute left-3 top-3 h-4 w-4 text-muted-foreground/60" />
-                <Input
+                <SearchIcon className="absolute left-3 top-3 h-4 w-4 text-white/40 pointer-events-none" />
+                <input
                   placeholder="Search endpoints..."
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
-                  className="pl-10"
+                  className="w-full rounded-none border border-white/10 bg-black/40 px-3 py-2 pl-10 text-sm text-white placeholder:text-white/40 focus:outline-none focus:ring-1 focus:ring-[#FF5800] focus:border-[#FF5800]"
                 />
               </div>
 
               <AuthManager authToken={authToken} onTokenChange={setAuthToken} />
 
-              <Separator />
+              <div className="border-t border-white/10" />
 
               <div className="space-y-3">
-                <h3 className="text-xs font-semibold uppercase text-muted-foreground/80">
-                  Categories
-                </h3>
-                <div className="space-y-2">
+                <div className="flex items-center gap-2">
+                  <span className="w-1.5 h-1.5 rounded-full bg-[#FF5800]" />
+                  <h3 className="text-xs font-semibold uppercase text-white/50 tracking-wider">
+                    Categories
+                  </h3>
+                </div>
+                <div className="space-y-1">
                   {categories.map((category) => (
                     <button
                       key={category}
                       onClick={() => setSelectedCategory(category)}
                       className={cn(
-                        "flex w-full items-center gap-2 rounded-lg px-3 py-2 text-left text-sm transition-colors",
+                        "flex w-full items-center gap-2 rounded-none px-3 py-2.5 text-left text-sm transition-all border-l-2",
                         selectedCategory === category
-                          ? "bg-primary/10 text-primary ring-1 ring-inset ring-primary/20"
-                          : "text-muted-foreground hover:bg-muted",
+                          ? "bg-white/10 text-white border-[#FF5800]"
+                          : "text-white/60 border-transparent hover:bg-white/5 hover:text-white",
                       )}
                     >
                       {category !== "All" && getCategoryIcon(category)}
                       {category}
-                      <Badge variant="outline" className="ml-auto rounded-full">
+                      <span className="ml-auto rounded-none bg-[#FF580020] px-2 py-0.5 text-[10px] font-semibold text-[#FF5800] border border-[#FF580040]">
                         {category === "All"
                           ? API_ENDPOINTS.length
                           : getEndpointsByCategory(category).length}
-                      </Badge>
+                      </span>
                     </button>
                   ))}
                 </div>
               </div>
-            </CardContent>
-          </Card>
+            </div>
+          </BrandCard>
         </div>
 
         <div className="lg:col-span-3">
-          <Tabs defaultValue="endpoints" className="w-full space-y-6">
-            <TabsList className="w-full justify-start rounded-lg bg-muted/80 p-1">
-              <TabsTrigger value="endpoints">Endpoints</TabsTrigger>
-              <TabsTrigger value="schemas">Schemas</TabsTrigger>
-              <TabsTrigger value="openapi">OpenAPI Spec</TabsTrigger>
-            </TabsList>
+          <BrandTabs defaultValue="endpoints" className="w-full space-y-6">
+            <BrandTabsList className="w-full justify-start">
+              <BrandTabsTrigger value="endpoints">Endpoints</BrandTabsTrigger>
+              <BrandTabsTrigger value="schemas">Schemas</BrandTabsTrigger>
+              <BrandTabsTrigger value="openapi">OpenAPI Spec</BrandTabsTrigger>
+            </BrandTabsList>
 
-            <TabsContent value="endpoints">
+            <BrandTabsContent value="endpoints">
               {selectedEndpoint ? (
                 <div className="space-y-6">
                   <div className="flex items-center justify-between">
-                    <Button
+                    <BrandButton
                       variant="ghost"
                       size="sm"
                       onClick={() => setSelectedEndpoint(null)}
-                      className="gap-1 rounded-full text-xs"
+                      className="gap-1"
                     >
                       ← Back to endpoints
-                    </Button>
+                    </BrandButton>
                     <div className="flex items-center gap-2">
                       <span className={getMethodColor(selectedEndpoint.method)}>
                         {selectedEndpoint.method}
                       </span>
-                      <code className="rounded-lg bg-muted px-2 py-1 font-mono text-xs">
+                      <code className="rounded-none bg-black/60 border border-white/10 px-2 py-1 font-mono text-xs text-white">
                         {selectedEndpoint.path}
                       </code>
                     </div>
                   </div>
 
-                  <Card className="border-border/70 bg-background/60 shadow-sm">
-                    <CardHeader>
-                      <CardTitle className="flex items-center gap-2">
-                        {getCategoryIcon(selectedEndpoint.category)}
-                        {selectedEndpoint.name}
-                      </CardTitle>
-                      <p className="text-sm text-muted-foreground">
-                        {selectedEndpoint.description}
-                      </p>
-                    </CardHeader>
-                    <CardContent>
+                  <BrandCard className="relative">
+                    <CornerBrackets size="sm" className="opacity-50" />
+                    
+                    <div className="relative z-10 space-y-4">
+                      <div>
+                        <div className="flex items-center gap-2 mb-2">
+                          {getCategoryIcon(selectedEndpoint.category)}
+                          <h3 className="text-lg font-bold text-white">{selectedEndpoint.name}</h3>
+                        </div>
+                        <p className="text-sm text-white/60">
+                          {selectedEndpoint.description}
+                        </p>
+                      </div>
+                      
                       <ApiTester
                         endpoint={selectedEndpoint}
                         authToken={authToken}
                       />
-                    </CardContent>
-                  </Card>
+                    </div>
+                  </BrandCard>
                 </div>
               ) : (
                 <div className="space-y-5">
                   <div className="flex items-center justify-between">
-                    <h2 className="text-xl font-semibold">
+                    <h2 className="text-xl font-semibold text-white">
                       {selectedCategory === "All"
                         ? "All Endpoints"
                         : selectedCategory}
-                      <span className="ml-2 text-sm font-normal text-muted-foreground">
+                      <span className="ml-2 text-sm font-normal text-white/50">
                         ({filteredEndpoints.length})
                       </span>
                     </h2>
                     {searchQuery && (
-                      <Button
+                      <BrandButton
                         variant="outline"
                         size="sm"
                         onClick={() => setSearchQuery("")}
                       >
                         Clear search
-                      </Button>
+                      </BrandButton>
                     )}
                   </div>
 
-                  <ScrollArea className="h-[600px] rounded-xl border border-border/60 bg-background/60 p-4">
+                  <ScrollArea className="h-[600px] rounded-none border border-white/10 bg-black/40 p-4">
                     <div className="space-y-4">
                       {filteredEndpoints.map((endpoint) => (
                         <EndpointCard
@@ -257,12 +265,12 @@ export default function ApiExplorerPage() {
                   </ScrollArea>
 
                   {filteredEndpoints.length === 0 && (
-                    <div className="rounded-xl border border-dashed border-border/60 py-12 text-center">
-                      <SearchIcon className="mx-auto mb-4 h-12 w-12 text-muted-foreground/60" />
-                      <h3 className="text-lg font-semibold text-foreground">
+                    <div className="rounded-none border border-dashed border-white/10 py-12 text-center">
+                      <SearchIcon className="mx-auto mb-4 h-12 w-12 text-white/30" />
+                      <h3 className="text-lg font-semibold text-white">
                         No endpoints found
                       </h3>
-                      <p className="text-sm text-muted-foreground">
+                      <p className="text-sm text-white/60">
                         {searchQuery
                           ? `No endpoints match "${searchQuery}"`
                           : "No endpoints available in this category"}
@@ -271,77 +279,78 @@ export default function ApiExplorerPage() {
                   )}
                 </div>
               )}
-            </TabsContent>
+            </BrandTabsContent>
 
-            <TabsContent value="schemas">
+            <BrandTabsContent value="schemas">
               <SchemaViewer spec={openApiSpec} />
-            </TabsContent>
+            </BrandTabsContent>
 
-            <TabsContent value="openapi">
-              <Card className="border-border/70 bg-background/60 shadow-sm">
-                <CardHeader>
-                  <CardTitle className="text-xl font-semibold">
-                    OpenAPI 3.0 Specification
-                  </CardTitle>
-                  <p className="text-sm text-muted-foreground">
-                    Raw OpenAPI specification that can be imported into other
-                    tools
-                  </p>
-                </CardHeader>
-                <CardContent>
-                  <div className="space-y-4">
-                    <div className="flex flex-wrap gap-2">
-                      <Button
-                        size="sm"
-                        onClick={() => {
-                          if (openApiSpec) {
-                            navigator.clipboard.writeText(
-                              JSON.stringify(openApiSpec, null, 2),
-                            );
-                            toast({
-                              message: "OpenAPI spec copied to clipboard",
-                              mode: "success",
-                            });
-                          }
-                        }}
-                      >
-                        Copy JSON
-                      </Button>
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={async () => {
-                          if (openApiSpec) {
-                            const { generateOpenAPIYAML } = await import(
-                              "@/lib/swagger/openapi-generator"
-                            );
-                            const yaml = generateOpenAPIYAML();
-                            navigator.clipboard.writeText(yaml);
-                            toast({
-                              message: "OpenAPI YAML copied to clipboard",
-                              mode: "success",
-                            });
-                          }
-                        }}
-                      >
-                        Copy YAML
-                      </Button>
-                    </div>
-
-                    <ScrollArea className="h-[500px] rounded-xl border border-border/60 bg-muted/40">
-                      <pre className="overflow-x-auto whitespace-pre-wrap break-all p-4 text-xs font-mono text-muted-foreground">
-                        <code>
-                          {openApiSpec
-                            ? JSON.stringify(openApiSpec, null, 2)
-                            : "Loading..."}
-                        </code>
-                      </pre>
-                    </ScrollArea>
+            <BrandTabsContent value="openapi">
+              <BrandCard className="relative">
+                <CornerBrackets size="sm" className="opacity-50" />
+                
+                <div className="relative z-10 space-y-4">
+                  <div>
+                    <h3 className="text-xl font-semibold text-white mb-2">
+                      OpenAPI 3.0 Specification
+                    </h3>
+                    <p className="text-sm text-white/60">
+                      Raw OpenAPI specification that can be imported into other tools
+                    </p>
                   </div>
-                </CardContent>
-              </Card>
-            </TabsContent>
-          </Tabs>
+                  
+                  <div className="flex flex-wrap gap-2">
+                    <BrandButton
+                      variant="primary"
+                      size="sm"
+                      onClick={() => {
+                        if (openApiSpec) {
+                          navigator.clipboard.writeText(
+                            JSON.stringify(openApiSpec, null, 2),
+                          );
+                          toast({
+                            message: "OpenAPI spec copied to clipboard",
+                            mode: "success",
+                          });
+                        }
+                      }}
+                    >
+                      Copy JSON
+                    </BrandButton>
+                    <BrandButton
+                      variant="outline"
+                      size="sm"
+                      onClick={async () => {
+                        if (openApiSpec) {
+                          const { generateOpenAPIYAML } = await import(
+                            "@/lib/swagger/openapi-generator"
+                          );
+                          const yaml = generateOpenAPIYAML();
+                          navigator.clipboard.writeText(yaml);
+                          toast({
+                            message: "OpenAPI YAML copied to clipboard",
+                            mode: "success",
+                          });
+                        }
+                      }}
+                    >
+                      Copy YAML
+                    </BrandButton>
+                  </div>
+
+                  <ScrollArea className="h-[500px] rounded-none border border-white/10 bg-black/60">
+                    <pre className="overflow-x-auto whitespace-pre-wrap break-all p-4 text-xs font-mono text-white/70">
+                      <code>
+                        {openApiSpec
+                          ? JSON.stringify(openApiSpec, null, 2)
+                          : "Loading..."}
+                      </code>
+                    </pre>
+                  </ScrollArea>
+                </div>
+              </BrandCard>
+            </BrandTabsContent>
+          </BrandTabs>
         </div>
       </div>
     </div>
