@@ -10,8 +10,6 @@ import { ApiKeyEmptyState } from "./api-key-empty-state";
 import { ApiKeysSummary } from "./api-keys-summary";
 import { ApiKeysTable } from "./api-keys-table";
 import type { ApiKeyDisplay, ApiKeysSummaryData } from "./types";
-import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import {
   Dialog,
   DialogContent,
@@ -21,7 +19,6 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 import {
   Select,
   SelectContent,
@@ -30,6 +27,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
+import { BrandButton, BrandCard, CornerBrackets } from "@/components/brand";
 
 interface ApiKeysPageClientProps {
   keys: ApiKeyDisplay[];
@@ -93,14 +91,15 @@ export function ApiKeysPageClient({ keys, summary }: ApiKeysPageClientProps) {
     description:
       "Securely manage programmatic access to the Eliza Cloud platform",
     actions: (
-      <Button
+      <BrandButton
+        variant="primary"
         size="sm"
         className="gap-2"
         onClick={() => setCreateDialogOpen(true)}
       >
         <Plus className="h-4 w-4" />
         Create API Key
-      </Button>
+      </BrandButton>
     ),
   });
 
@@ -285,7 +284,7 @@ export function ApiKeysPageClient({ keys, summary }: ApiKeysPageClientProps) {
           </DialogHeader>
           <div className="grid gap-6">
             <div className="grid gap-2">
-              <Label htmlFor="api-key-name">Name</Label>
+              <label htmlFor="api-key-name" className="text-xs font-medium text-white/70 uppercase tracking-wide">Name</label>
               <Input
                 id="api-key-name"
                 placeholder="Production integration"
@@ -294,15 +293,16 @@ export function ApiKeysPageClient({ keys, summary }: ApiKeysPageClientProps) {
                   setFormData({ ...formData, name: e.target.value })
                 }
                 autoFocus
+                className="rounded-none border-white/10 bg-black/40 text-white placeholder:text-white/40 focus:ring-1 focus:ring-[#FF5800] focus:border-[#FF5800]"
               />
-              <p className="text-xs text-muted-foreground">
+              <p className="text-xs text-white/50">
                 Choose a descriptive name for this key so your team can
                 recognize its purpose.
               </p>
             </div>
 
             <div className="grid gap-2">
-              <Label htmlFor="api-key-description">Description</Label>
+              <label htmlFor="api-key-description" className="text-xs font-medium text-white/70 uppercase tracking-wide">Description</label>
               <Textarea
                 id="api-key-description"
                 placeholder="Used by our backend services for customer facing features"
@@ -311,15 +311,16 @@ export function ApiKeysPageClient({ keys, summary }: ApiKeysPageClientProps) {
                   setFormData({ ...formData, description: e.target.value })
                 }
                 rows={3}
+                className="rounded-none border-white/10 bg-black/40 text-white placeholder:text-white/40 focus:ring-1 focus:ring-[#FF5800] focus:border-[#FF5800]"
               />
             </div>
 
             <div className="grid gap-2">
-              <Label>Permissions</Label>
-              <div className="grid gap-3 rounded-lg border p-4">
+              <label className="text-xs font-medium text-white/70 uppercase tracking-wide">Permissions</label>
+              <div className="grid gap-3 rounded-none border border-white/10 bg-black/40 p-4">
                 {permissionGroups.map((group) => (
                   <div key={group.title} className="space-y-2">
-                    <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+                    <p className="text-xs font-medium uppercase tracking-wide text-white/50">
                       {group.title}
                     </p>
                     <div className="flex flex-wrap gap-2">
@@ -328,12 +329,12 @@ export function ApiKeysPageClient({ keys, summary }: ApiKeysPageClientProps) {
                           permission.id,
                         );
                         return (
-                          <Button
+                          <BrandButton
                             key={permission.id}
                             type="button"
-                            variant={isSelected ? "default" : "outline"}
+                            variant={isSelected ? "primary" : "outline"}
                             size="sm"
-                            className="rounded-full text-xs"
+                            className="text-xs"
                             onClick={() => {
                               setSelectedPermissions((prev) =>
                                 isSelected
@@ -343,7 +344,7 @@ export function ApiKeysPageClient({ keys, summary }: ApiKeysPageClientProps) {
                             }}
                           >
                             {permission.label}
-                          </Button>
+                          </BrandButton>
                         );
                       })}
                     </div>
@@ -353,7 +354,7 @@ export function ApiKeysPageClient({ keys, summary }: ApiKeysPageClientProps) {
             </div>
 
             <div className="grid gap-2">
-              <Label>Rate limit</Label>
+              <label className="text-xs font-medium text-white/70 uppercase tracking-wide">Rate limit</label>
               <Select
                 value={rateLimitPreset}
                 onValueChange={(value) =>
@@ -362,22 +363,22 @@ export function ApiKeysPageClient({ keys, summary }: ApiKeysPageClientProps) {
                   )
                 }
               >
-                <SelectTrigger>
+                <SelectTrigger className="rounded-none border-white/10 bg-black/40 text-white focus:ring-1 focus:ring-[#FF5800]">
                   <SelectValue placeholder="Select a limit" />
                 </SelectTrigger>
-                <SelectContent>
+                <SelectContent className="rounded-none border-white/10 bg-black/90">
                   {rateLimitPresets.map((preset) => (
-                    <SelectItem key={preset.value} value={preset.value}>
+                    <SelectItem key={preset.value} value={preset.value} className="rounded-none text-white hover:bg-white/10 focus:bg-white/10">
                       {preset.label}
                     </SelectItem>
                   ))}
                 </SelectContent>
               </Select>
               {rateLimitPreset === "custom" && (
-                <div className="grid gap-2 rounded-lg border border-dashed p-4">
-                  <Label htmlFor="api-key-rate-custom">
+                <div className="grid gap-2 rounded-none border border-dashed border-white/10 bg-black/40 p-4">
+                  <label htmlFor="api-key-rate-custom" className="text-xs font-medium text-white/70 uppercase tracking-wide">
                     Custom requests / minute
-                  </Label>
+                  </label>
                   <Input
                     id="api-key-rate-custom"
                     type="number"
@@ -393,25 +394,27 @@ export function ApiKeysPageClient({ keys, summary }: ApiKeysPageClientProps) {
                     }
                     min={100}
                     step={100}
+                    className="rounded-none border-white/10 bg-black/60 text-white placeholder:text-white/40 focus:ring-1 focus:ring-[#FF5800] focus:border-[#FF5800]"
                   />
                 </div>
               )}
             </div>
           </div>
           <DialogFooter className="gap-2">
-            <Button
+            <BrandButton
               variant="outline"
               onClick={() => setCreateDialogOpen(false)}
               disabled={isCreating}
             >
               Cancel
-            </Button>
-            <Button
+            </BrandButton>
+            <BrandButton
+              variant="primary"
               onClick={handleCreateKey}
               disabled={isCreating || !formData.name.trim()}
             >
               {isCreating ? "Creating..." : "Create key"}
-            </Button>
+            </BrandButton>
           </DialogFooter>
         </DialogContent>
       </Dialog>
@@ -430,37 +433,38 @@ export function ApiKeysPageClient({ keys, summary }: ApiKeysPageClientProps) {
             </DialogHeader>
             <div className="space-y-4">
               <div className="grid gap-2">
-                <Label>Key name</Label>
-                <div className="font-mono text-sm font-semibold">
+                <label className="text-xs font-medium text-white/70 uppercase tracking-wide">Key name</label>
+                <div className="font-mono text-sm font-semibold text-white">
                   {createdKey.name}
                 </div>
               </div>
               <div className="grid gap-2">
-                <Label>API Key</Label>
+                <label className="text-xs font-medium text-white/70 uppercase tracking-wide">API Key</label>
                 <div className="flex gap-2">
                   <Input
                     value={createdKey.plainKey}
                     readOnly
-                    className="font-mono text-sm"
+                    className="font-mono text-sm rounded-none border-white/10 bg-black/40 text-white"
                   />
-                  <Button
+                  <BrandButton
                     variant="outline"
                     onClick={() => handleCopyKey(createdKey.plainKey)}
                   >
                     <Copy className="h-4 w-4" />
-                  </Button>
+                  </BrandButton>
                 </div>
               </div>
             </div>
             <DialogFooter>
-              <Button
+              <BrandButton
+                variant="primary"
                 onClick={() => {
                   setCreatedKey(null);
                   setCreateDialogOpen(false);
                 }}
               >
                 Done
-              </Button>
+              </BrandButton>
             </DialogFooter>
           </DialogContent>
         </Dialog>
@@ -485,71 +489,76 @@ export function ApiKeysPageClient({ keys, summary }: ApiKeysPageClientProps) {
         </div>
 
         <aside className="space-y-6">
-          <Card className="border-muted-foreground/10 bg-muted/40">
-            <CardHeader>
-              <CardTitle className="text-base font-semibold">
+          <BrandCard className="relative">
+            <CornerBrackets size="sm" className="opacity-50" />
+            <div className="relative z-10 space-y-4">
+              <h3 className="text-base font-semibold text-white">
                 Best practices
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-4 text-sm text-muted-foreground">
-              <div>
-                <p className="font-medium text-foreground">Rotate regularly</p>
-                <p>Re-issue keys every 60-90 days to reduce exposure risk.</p>
+              </h3>
+              <div className="space-y-4 text-sm text-white/60">
+                <div>
+                  <p className="font-medium text-white">Rotate regularly</p>
+                  <p>Re-issue keys every 60-90 days to reduce exposure risk.</p>
+                </div>
+                <div>
+                  <p className="font-medium text-white">
+                    Keep secrets secure
+                  </p>
+                  <p>
+                    Store key values in your secret manager, not in source
+                    control.
+                  </p>
+                </div>
+                <div>
+                  <p className="font-medium text-white">
+                    Scope intentionally
+                  </p>
+                  <p>
+                    Use permission presets to limit access to only what each
+                    integration needs.
+                  </p>
+                </div>
               </div>
-              <div>
-                <p className="font-medium text-foreground">
-                  Keep secrets secure
-                </p>
-                <p>
-                  Store key values in your secret manager, not in source
-                  control.
-                </p>
-              </div>
-              <div>
-                <p className="font-medium text-foreground">
-                  Scope intentionally
-                </p>
-                <p>
-                  Use permission presets to limit access to only what each
-                  integration needs.
-                </p>
-              </div>
-            </CardContent>
-          </Card>
+            </div>
+          </BrandCard>
 
-          <Card className="border-muted-foreground/10">
-            <CardHeader>
-              <CardTitle className="text-base font-semibold">
+          <BrandCard className="relative">
+            <CornerBrackets size="sm" className="opacity-50" />
+            <div className="relative z-10 space-y-3">
+              <h3 className="text-base font-semibold text-white">
                 Quick reference
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-3 text-sm text-muted-foreground">
-              <p>
-                API keys are prefixed for safe sharing. The full secret is
-                visible only once after creation.
-              </p>
-              <p>
-                Need to collaborate? Invite teammates from the organization
-                settings to share access.
-              </p>
-              <p className="text-xs uppercase tracking-wide text-muted-foreground">
-                Example scopes
-              </p>
-              <div className="flex flex-wrap gap-2">
-                {permissionsPreview.map((scope) => (
-                  <span
-                    key={scope}
-                    className="rounded-full border border-dashed border-muted-foreground/40 px-3 py-1 text-xs font-medium text-muted-foreground"
-                  >
-                    {scope}
+              </h3>
+              <div className="space-y-3 text-sm text-white/60">
+                <p>
+                  API keys are prefixed for safe sharing. The full secret is
+                  visible only once after creation.
+                </p>
+                <p>
+                  Need to collaborate? Invite teammates from the organization
+                  settings to share access.
+                </p>
+                <div className="flex items-center gap-2">
+                  <span className="w-1.5 h-1.5 rounded-full bg-[#FF5800]" />
+                  <p className="text-xs uppercase tracking-wide text-white/50">
+                    Example scopes
+                  </p>
+                </div>
+                <div className="flex flex-wrap gap-2">
+                  {permissionsPreview.map((scope) => (
+                    <span
+                      key={scope}
+                      className="rounded-none border border-dashed border-white/20 px-3 py-1 text-xs font-medium text-white/60"
+                    >
+                      {scope}
+                    </span>
+                  ))}
+                  <span className="rounded-none border border-dashed border-white/20 px-3 py-1 text-xs font-medium text-white/50">
+                    + more
                   </span>
-                ))}
-                <span className="rounded-full border border-dashed border-muted-foreground/40 px-3 py-1 text-xs font-medium text-muted-foreground/70">
-                  + more
-                </span>
+                </div>
               </div>
-            </CardContent>
-          </Card>
+            </div>
+          </BrandCard>
         </aside>
       </div>
     </div>
