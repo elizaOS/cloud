@@ -50,7 +50,7 @@ export default function DashboardLayout({
 
   return (
     <PageHeaderProvider>
-      <div className="flex h-screen w-full bg-background">
+      <div className="flex h-screen w-full bg-[#0A0A0A]">
         {/* Sidebar */}
         <Sidebar
           isOpen={sidebarOpen}
@@ -63,7 +63,7 @@ export default function DashboardLayout({
           <Header onToggleSidebar={() => setSidebarOpen(!sidebarOpen)} />
 
           {/* Main Content Area */}
-          <main className="flex-1 overflow-y-auto bg-background">
+          <main className="flex-1 overflow-y-auto bg-[#0A0A0A]">
             <div className="h-full px-4 py-4 md:px-6 md:py-6">{children}</div>
           </main>
         </div>
