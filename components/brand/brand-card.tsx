@@ -3,10 +3,11 @@
  * Reusable card component with brand styling and corner decorations
  */
 
+import * as React from "react";
 import { cn } from "@/lib/utils";
 import { CornerBrackets } from "./corner-brackets";
 
-interface BrandCardProps {
+interface BrandCardProps extends React.HTMLAttributes<HTMLDivElement> {
   children: React.ReactNode;
   className?: string;
   hover?: boolean;
@@ -24,6 +25,7 @@ export function BrandCard({
   cornerSize = "md",
   cornerColor = "#E1E1E1",
   asChild = false,
+  ...props
 }: BrandCardProps) {
   const Component = asChild ? "div" : "div";
 
@@ -34,6 +36,7 @@ export function BrandCard({
         hover && "group hover:border-white/30 transition-all duration-300",
         className
       )}
+      {...props}
     >
       {corners && <CornerBrackets size={cornerSize} color={cornerColor} />}
       {children}

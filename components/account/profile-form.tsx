@@ -2,22 +2,14 @@
 
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
-import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { updateProfile, uploadAvatar } from "@/app/actions/users";
 import { Loader2, Upload, User, Mail, Shield } from "lucide-react";
 import type { UserWithOrganization } from "@/lib/types";
 import { toast } from "sonner";
+import { BrandCard, BrandButton, CornerBrackets } from "@/components/brand";
 
 interface ProfileFormProps {
   user: UserWithOrganization;
@@ -111,21 +103,24 @@ export function ProfileForm({ user }: ProfileFormProps) {
   };
 
   return (
-    <Card>
-      <CardHeader>
-        <CardTitle className="flex items-center gap-2">
-          <User className="h-5 w-5" />
-          Profile Information
-        </CardTitle>
-        <CardDescription>
-          Update your profile information and manage your account settings
-        </CardDescription>
-      </CardHeader>
-      <CardContent>
+    <BrandCard className="relative">
+      <CornerBrackets size="sm" className="opacity-50" />
+      
+      <div className="relative z-10 space-y-6">
+        <div>
+          <div className="flex items-center gap-2 mb-2">
+            <User className="h-5 w-5 text-[#FF5800]" />
+            <h3 className="text-lg font-bold text-white">Profile Information</h3>
+          </div>
+          <p className="text-sm text-white/60">
+            Update your profile information and manage your account settings
+          </p>
+        </div>
+        
         <form onSubmit={handleSubmit} className="space-y-6">
           {/* Avatar Section */}
-          <div className="flex flex-col sm:flex-row items-start sm:items-center gap-4 pb-6 border-b">
-            <Avatar className="h-20 w-20 ring-2 ring-border">
+          <div className="flex flex-col sm:flex-row items-start sm:items-center gap-4 pb-6 border-b border-white/10">
+            <Avatar className="h-20 w-20 ring-2 ring-[#FF5800]">
               <AvatarImage
                 src={user.avatar || undefined}
                 alt={
@@ -142,8 +137,10 @@ export function ProfileForm({ user }: ProfileFormProps) {
             </Avatar>
             <div className="flex-1 space-y-2">
               <div>
-                <Label className="text-sm font-medium">Profile Picture</Label>
-                <p className="text-xs text-muted-foreground mt-1">
+                <label className="text-xs font-medium text-white/70 uppercase tracking-wide">
+                  Profile Picture
+                </label>
+                <p className="text-xs text-white/50 mt-1">
                   PNG, JPG or WEBP. Max 5MB.
                 </p>
               </div>
@@ -156,7 +153,7 @@ export function ProfileForm({ user }: ProfileFormProps) {
                   disabled={isUploadingAvatar}
                   className="hidden"
                 />
-                <Button
+                <BrandButton
                   type="button"
                   variant="outline"
                   size="sm"
@@ -176,7 +173,7 @@ export function ProfileForm({ user }: ProfileFormProps) {
                       Upload New
                     </>
                   )}
-                </Button>
+                </BrandButton>
               </div>
             </div>
           </div>
@@ -184,9 +181,9 @@ export function ProfileForm({ user }: ProfileFormProps) {
           {/* Form Fields */}
           <div className="space-y-4">
             <div className="space-y-2">
-              <Label htmlFor="name">
-                Full Name <span className="text-destructive">*</span>
-              </Label>
+              <label htmlFor="name" className="text-xs font-medium text-white/70 uppercase tracking-wide">
+                Full Name <span className="text-rose-400">*</span>
+              </label>
               <Input
                 id="name"
                 name="name"
@@ -196,23 +193,24 @@ export function ProfileForm({ user }: ProfileFormProps) {
                 required
                 maxLength={100}
                 disabled={isPending}
+                className="rounded-none border-white/10 bg-black/40 text-white placeholder:text-white/40 focus:ring-1 focus:ring-[#FF5800] focus:border-[#FF5800]"
               />
             </div>
 
             {user.email && (
               <div className="space-y-2">
-                <Label htmlFor="email" className="flex items-center gap-2">
+                <label htmlFor="email" className="text-xs font-medium text-white/70 uppercase tracking-wide flex items-center gap-2">
                   <Mail className="h-4 w-4" />
                   Email Address
-                </Label>
+                </label>
                 <Input
                   id="email"
                   type="email"
                   value={user.email}
                   disabled
-                  className="bg-muted"
+                  className="rounded-none border-white/10 bg-black/60 text-white/50"
                 />
-                <p className="text-xs text-muted-foreground">
+                <p className="text-xs text-white/50">
                   Email cannot be changed. Please contact support if you need to
                   update this.
                 </p>
@@ -221,18 +219,18 @@ export function ProfileForm({ user }: ProfileFormProps) {
 
             {user.wallet_address && (
               <div className="space-y-2">
-                <Label className="flex items-center gap-2">
+                <label className="text-xs font-medium text-white/70 uppercase tracking-wide flex items-center gap-2">
                   <User className="h-4 w-4" />
                   Wallet Address
-                </Label>
+                </label>
                 <Input
                   type="text"
                   value={user.wallet_address}
                   disabled
-                  className="bg-muted font-mono text-xs"
+                  className="rounded-none border-white/10 bg-black/60 text-white/50 font-mono text-xs"
                 />
                 {user.wallet_chain_type && (
-                  <p className="text-xs text-muted-foreground capitalize">
+                  <p className="text-xs text-white/50 capitalize">
                     Connected via {user.wallet_chain_type} wallet
                   </p>
                 )}
@@ -240,7 +238,9 @@ export function ProfileForm({ user }: ProfileFormProps) {
             )}
 
             <div className="space-y-2">
-              <Label htmlFor="avatar">Avatar URL (Optional)</Label>
+              <label htmlFor="avatar" className="text-xs font-medium text-white/70 uppercase tracking-wide">
+                Avatar URL (Optional)
+              </label>
               <Input
                 id="avatar"
                 name="avatar"
@@ -248,24 +248,25 @@ export function ProfileForm({ user }: ProfileFormProps) {
                 defaultValue={user.avatar || ""}
                 placeholder="https://example.com/avatar.jpg"
                 disabled={isPending}
+                className="rounded-none border-white/10 bg-black/40 text-white placeholder:text-white/40 focus:ring-1 focus:ring-[#FF5800] focus:border-[#FF5800]"
               />
-              <p className="text-xs text-muted-foreground">
+              <p className="text-xs text-white/50">
                 Or use the upload button above to add a profile picture.
               </p>
             </div>
 
             <div className="space-y-2">
-              <Label className="flex items-center gap-2">
+              <label className="text-xs font-medium text-white/70 uppercase tracking-wide flex items-center gap-2">
                 <Shield className="h-4 w-4" />
                 Role
-              </Label>
+              </label>
               <Input
                 type="text"
                 value={user.role}
                 disabled
-                className="bg-muted capitalize"
+                className="rounded-none border-white/10 bg-black/60 text-white/50 capitalize"
               />
-              <p className="text-xs text-muted-foreground">
+              <p className="text-xs text-white/50">
                 Your role in the organization. Contact an admin to change this.
               </p>
             </div>
@@ -273,20 +274,20 @@ export function ProfileForm({ user }: ProfileFormProps) {
 
           {/* Messages */}
           {error && (
-            <Alert variant="destructive">
-              <AlertDescription>{error}</AlertDescription>
+            <Alert variant="destructive" className="rounded-none border-rose-500/40 bg-rose-500/10">
+              <AlertDescription className="text-rose-400">{error}</AlertDescription>
             </Alert>
           )}
 
           {success && (
-            <Alert className="border-green-500/50 text-green-700 dark:text-green-400">
-              <AlertDescription>{success}</AlertDescription>
+            <Alert className="rounded-none border-green-500/40 bg-green-500/10">
+              <AlertDescription className="text-green-400">{success}</AlertDescription>
             </Alert>
           )}
 
           {/* Actions */}
           <div className="flex items-center gap-3 pt-4">
-            <Button type="submit" disabled={isPending}>
+            <BrandButton type="submit" variant="primary" disabled={isPending}>
               {isPending ? (
                 <>
                   <Loader2 className="h-4 w-4 mr-2 animate-spin" />
@@ -295,18 +296,18 @@ export function ProfileForm({ user }: ProfileFormProps) {
               ) : (
                 "Save Changes"
               )}
-            </Button>
-            <Button
+            </BrandButton>
+            <BrandButton
               type="button"
               variant="outline"
               onClick={() => router.refresh()}
               disabled={isPending}
             >
               Cancel
-            </Button>
+            </BrandButton>
           </div>
         </form>
-      </CardContent>
-    </Card>
+      </div>
+    </BrandCard>
   );
 }
