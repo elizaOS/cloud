@@ -7,17 +7,8 @@ import {
   TrendingUp,
 } from "lucide-react";
 
-import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
-import {
-  Card,
-  CardContent,
-  CardHeader,
-  CardTitle,
-  CardDescription,
-} from "@/components/ui/card";
-import { Separator } from "@/components/ui/separator";
 import { cn } from "@/lib/utils";
+import { BrandCard, BrandButton, CornerBrackets } from "@/components/brand";
 
 interface HeroStat {
   label: string;
@@ -58,117 +49,100 @@ export function DashboardHero({
   className,
 }: DashboardHeroProps) {
   return (
-    <Card
+    <BrandCard
       className={cn(
-        "relative overflow-hidden border-border/50 bg-gradient-to-br from-card/95 via-card/90 to-muted/50 backdrop-blur-sm shadow-md",
+        "relative overflow-hidden",
         className,
       )}
     >
-      <CardHeader className="relative z-10 pb-4">
+      <CornerBrackets size="lg" className="opacity-50" />
+      
+      <div className="relative z-10 pb-4">
         <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
           <div className="space-y-3">
-            <Badge
-              variant="secondary"
-              className="w-fit rounded-full border border-border/60 bg-background/80 px-3 py-1"
-            >
-              <Sparkles className="mr-1.5 h-3.5 w-3.5 text-primary" />
-              <span>Good to see you, {userName}</span>
-            </Badge>
+            <div className="w-fit flex items-center gap-2 rounded-none border border-white/20 bg-white/10 px-3 py-1">
+              <Sparkles className="h-3.5 w-3.5 text-[#FF5800]" />
+              <span className="text-white text-sm">Good to see you, {userName}</span>
+            </div>
             <div className="space-y-2">
-              <CardTitle className="text-3xl font-semibold tracking-tight md:text-4xl">
+              <h1 className="text-3xl font-semibold tracking-tight md:text-4xl text-white">
                 Build, deploy, and monitor your AI agents
-              </CardTitle>
-              <CardDescription className="max-w-2xl text-sm md:text-base">
+              </h1>
+              <p className="max-w-2xl text-sm md:text-base text-white/60">
                 Stay on top of credits, observe generation activity, and jump
                 into the tools you use the most—all from one streamlined
                 dashboard.
-              </CardDescription>
+              </p>
             </div>
             <div className="flex flex-wrap items-center gap-3 text-sm">
-              <Badge
-                variant="default"
-                className="gap-1.5 rounded-full bg-primary/10 text-primary hover:bg-primary/20"
-              >
+              <span className="flex items-center gap-1.5 rounded-none bg-[#FF580020] border border-[#FF5800]/40 text-[#FF5800] px-3 py-1">
                 <Building2 className="h-4 w-4" />
                 {organizationName}
-              </Badge>
-              <Badge
-                variant="outline"
-                className="gap-2 rounded-full border-border/50 bg-background/70 font-medium"
-              >
-                <CreditCard className="h-4 w-4 text-primary" />$
+              </span>
+              <span className="flex items-center gap-2 rounded-none border border-white/20 bg-white/10 font-medium px-3 py-1 text-white">
+                <CreditCard className="h-4 w-4 text-[#FF5800]" />$
                 {Number(creditBalance).toFixed(2)} balance
-              </Badge>
+              </span>
             </div>
           </div>
 
           <div className="flex flex-col gap-3 sm:flex-row">
             {primaryAction ? (
-              <Button asChild size="lg" className="w-full rounded-xl sm:w-auto">
+              <BrandButton asChild variant="primary" size="lg" className="w-full sm:w-auto">
                 <Link href={primaryAction.href}>
                   {primaryAction.label}
                   <ArrowUpRight className="ml-2 h-4 w-4" />
                 </Link>
-              </Button>
+              </BrandButton>
             ) : null}
             {secondaryAction ? (
-              <Button
+              <BrandButton
                 asChild
                 variant="outline"
                 size="lg"
-                className="w-full rounded-xl border-border/70 bg-background sm:w-auto"
+                className="w-full sm:w-auto"
               >
                 <Link href={secondaryAction.href}>{secondaryAction.label}</Link>
-              </Button>
+              </BrandButton>
             ) : null}
           </div>
         </div>
-      </CardHeader>
+      </div>
 
-      <Separator className="relative z-10" />
+      <div className="relative z-10 border-t border-white/10 my-6" />
 
-      <CardContent className="relative z-10 pt-6">
+      <div className="relative z-10 pt-6">
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
           {stats.map((stat) => (
-            <Card
+            <div
               key={stat.label}
-              className="group border-border/40 bg-muted/30 backdrop-blur-sm shadow-sm transition-all hover:border-primary/40 hover:bg-muted/40 hover:shadow-md"
+              className="group rounded-none border border-white/10 bg-black/40 p-4 transition-all hover:border-[#FF5800]/40 hover:bg-black/50"
             >
-              <CardContent className="p-4">
-                <div className="flex items-center justify-between gap-2">
-                  <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-                    {stat.label}
-                  </p>
-                  {stat.badge ? (
-                    <Badge
-                      variant="outline"
-                      className="rounded-full border-border/50 text-[11px]"
-                    >
-                      {stat.badge}
-                    </Badge>
-                  ) : null}
-                </div>
-                <div className="mt-3 flex items-baseline gap-2">
-                  <p className="text-2xl font-semibold text-foreground">
-                    {stat.value}
-                  </p>
-                  <TrendingUp className="h-4 w-4 text-emerald-500 opacity-0 transition-opacity group-hover:opacity-100" />
-                </div>
-                {stat.hint ? (
-                  <p className="mt-1 text-xs text-muted-foreground">
-                    {stat.hint}
-                  </p>
+              <div className="flex items-center justify-between gap-2">
+                <p className="text-xs font-semibold uppercase tracking-wide text-white/50">
+                  {stat.label}
+                </p>
+                {stat.badge ? (
+                  <span className="rounded-none border border-white/20 bg-white/10 px-2 py-0.5 text-[11px] text-white/70">
+                    {stat.badge}
+                  </span>
                 ) : null}
-              </CardContent>
-            </Card>
+              </div>
+              <div className="mt-3 flex items-baseline gap-2">
+                <p className="text-2xl font-semibold text-white">
+                  {stat.value}
+                </p>
+                <TrendingUp className="h-4 w-4 text-[#FF5800] opacity-0 transition-opacity group-hover:opacity-100" />
+              </div>
+              {stat.hint ? (
+                <p className="mt-1 text-xs text-white/50">
+                  {stat.hint}
+                </p>
+              ) : null}
+            </div>
           ))}
         </div>
-      </CardContent>
-
-      <div className="pointer-events-none absolute inset-0 opacity-60">
-        <div className="absolute -left-24 top-10 h-48 w-48 rounded-full bg-primary/10 blur-3xl" />
-        <div className="absolute bottom-0 right-0 h-56 w-56 rounded-full bg-blue-500/10 blur-3xl" />
       </div>
-    </Card>
+    </BrandCard>
   );
 }
