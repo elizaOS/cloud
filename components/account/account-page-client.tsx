@@ -6,6 +6,7 @@ import { OrganizationInfo } from "./organization-info";
 import { AccountDetails } from "./account-details";
 import { SecurityPreferences } from "./security-preferences";
 import type { UserWithOrganization } from "@/lib/types";
+import { BrandCard, CornerBrackets } from "@/components/brand";
 
 interface AccountPageClientProps {
   user: UserWithOrganization;
@@ -20,10 +21,11 @@ export function AccountPageClient({ user }: AccountPageClientProps) {
   return (
     <div className="flex flex-col gap-6 max-w-6xl">
       {/* Welcome Message */}
-      <div className="rounded-lg border bg-card p-4 shadow-sm">
-        <div className="flex items-start gap-3">
+      <BrandCard className="relative">
+        <CornerBrackets size="sm" className="opacity-50" />
+        <div className="relative z-10 flex items-start gap-3">
           <div className="flex-1">
-            <p className="text-sm">
+            <p className="text-sm text-white">
               Welcome back,{" "}
               <span className="font-semibold">
                 {user.name ||
@@ -34,14 +36,14 @@ export function AccountPageClient({ user }: AccountPageClientProps) {
               </span>
               !
             </p>
-            <p className="text-xs text-muted-foreground mt-1">
+            <p className="text-xs text-white/60 mt-1">
               You&apos;re part of{" "}
               <span className="font-medium">{user.organization.name}</span>{" "}
               organization
             </p>
           </div>
         </div>
-      </div>
+      </BrandCard>
 
       {/* Main Content Grid */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
