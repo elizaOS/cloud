@@ -3,17 +3,7 @@
 import { useMemo } from "react";
 import { Loader2, Sparkles, Timer } from "lucide-react";
 
-import { Button } from "@/components/ui/button";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardFooter,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 import {
   Select,
   SelectContent,
@@ -23,6 +13,7 @@ import {
 } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import type { VideoModelOption } from "./types";
+import { BrandCard, BrandButton, CornerBrackets } from "@/components/brand";
 
 interface VideoGenerationFormProps {
   prompt: string;
@@ -61,9 +52,11 @@ export function VideoGenerationForm({
   );
 
   return (
-    <Card className="h-full border-border/60 bg-background/70">
+    <BrandCard className="relative h-full">
+      <CornerBrackets size="md" className="opacity-50" />
+      
       <form
-        className="flex h-full flex-col gap-6"
+        className="relative z-10 flex h-full flex-col gap-6"
         onSubmit={(event) => {
           event.preventDefault();
           onGenerate?.({
@@ -73,48 +66,50 @@ export function VideoGenerationForm({
           });
         }}
       >
-        <CardHeader className="pb-0">
-          <CardTitle className="text-xl font-semibold">
-            Generate a video
-          </CardTitle>
-          <CardDescription>
+        <div className="pb-0 space-y-2">
+          <h3 className="text-xl font-bold text-white">Generate a video</h3>
+          <p className="text-sm text-white/60">
             Describe the scene you have in mind, choose the model preset, and
             submit to send a generation job to the Fal runtime.
-          </CardDescription>
+          </p>
           {errorMessage ? (
-            <p className="text-sm text-destructive" role="alert">
+            <p className="text-sm text-rose-400" role="alert">
               {errorMessage}
             </p>
           ) : null}
-        </CardHeader>
+        </div>
 
-        <CardContent className="flex-1 space-y-5 overflow-y-auto px-6">
+        <div className="flex-1 space-y-5 overflow-y-auto">
           <div className="space-y-2">
-            <Label htmlFor="video-prompt">Prompt</Label>
+            <label htmlFor="video-prompt" className="text-xs font-medium text-white/70 uppercase tracking-wide">
+              Prompt
+            </label>
             <Textarea
               id="video-prompt"
               placeholder="A cinematic drone shot over a futuristic coastal city at sunset"
               rows={4}
               value={prompt}
               onChange={(event) => onPromptChange(event.target.value)}
-              className="min-h-[120px] resize-none rounded-xl border-border/70 bg-background"
+              className="min-h-[120px] resize-none rounded-none border-white/10 bg-black/40 text-white placeholder:text-white/40 focus:ring-1 focus:ring-[#FF5800] focus:border-[#FF5800]"
             />
           </div>
 
           <div className="space-y-2">
-            <Label>Model preset</Label>
+            <label className="text-xs font-medium text-white/70 uppercase tracking-wide">
+              Model preset
+            </label>
             <Select value={selectedModel} onValueChange={onModelChange}>
-              <SelectTrigger className="rounded-xl border-border/70 bg-background">
+              <SelectTrigger className="rounded-none border-white/10 bg-black/40 text-white focus:ring-1 focus:ring-[#FF5800]">
                 <SelectValue placeholder="Select a model" />
               </SelectTrigger>
-              <SelectContent>
+              <SelectContent className="rounded-none border-white/10 bg-black/90">
                 {models.map((model) => (
-                  <SelectItem key={model.id} value={model.id}>
+                  <SelectItem key={model.id} value={model.id} className="rounded-none text-white hover:bg-white/10 focus:bg-white/10">
                     <div className="flex flex-col">
-                      <span className="text-sm font-medium text-foreground">
+                      <span className="text-sm font-medium text-white">
                         {model.label}
                       </span>
-                      <span className="text-xs text-muted-foreground">
+                      <span className="text-xs text-white/60">
                         {model.description}
                       </span>
                     </div>
@@ -124,24 +119,24 @@ export function VideoGenerationForm({
             </Select>
           </div>
 
-          <div className="grid gap-3 rounded-xl border border-dashed border-border/60 bg-muted/20 p-4 text-sm text-muted-foreground">
-            <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-              <Sparkles className="h-4 w-4" />
+          <div className="grid gap-3 rounded-none border border-dashed border-white/10 bg-black/40 p-4 text-sm text-white/60">
+            <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-wide text-white/70">
+              <Sparkles className="h-4 w-4 text-[#FF5800]" />
               Model insights
             </div>
-            <div className="grid gap-2 rounded-lg bg-background/60 p-3">
-              <div className="flex items-center justify-between text-xs text-muted-foreground">
+            <div className="grid gap-2 rounded-none bg-black/60 border border-white/10 p-3">
+              <div className="flex items-center justify-between text-xs text-white/60">
                 <span>Resolution</span>
-                <span className="font-medium text-foreground">
+                <span className="font-medium text-white">
                   {activeModel.dimensions}
                 </span>
               </div>
-              <div className="flex items-center justify-between text-xs text-muted-foreground">
+              <div className="flex items-center justify-between text-xs text-white/60">
                 <span className="flex items-center gap-2">
-                  <Timer className="h-4 w-4" />
+                  <Timer className="h-4 w-4 text-[#FF5800]" />
                   Est. duration
                 </span>
-                <span className="font-medium text-foreground">
+                <span className="font-medium text-white">
                   {activeModel.durationEstimate}
                 </span>
               </div>
@@ -153,26 +148,29 @@ export function VideoGenerationForm({
           </div>
 
           <div className="grid gap-2">
-            <Label htmlFor="video-reference">Reference image (optional)</Label>
+            <label htmlFor="video-reference" className="text-xs font-medium text-white/70 uppercase tracking-wide">
+              Reference image (optional)
+            </label>
             <Input
               id="video-reference"
               type="url"
               placeholder="https://..."
-              className="rounded-xl border-border/70 bg-background"
+              className="rounded-none border-white/10 bg-black/40 text-white placeholder:text-white/40 focus:ring-1 focus:ring-[#FF5800] focus:border-[#FF5800]"
               value={referenceUrl}
               onChange={(event) => onReferenceChange(event.target.value)}
             />
-            <p className="text-xs text-muted-foreground">
+            <p className="text-xs text-white/50">
               Paste a reference image URL to anchor motion or framing.
             </p>
           </div>
-        </CardContent>
+        </div>
 
-        <CardFooter className="flex flex-col gap-2 border-t border-border/60 bg-background/80 py-4">
-          <Button
+        <div className="flex flex-col gap-2 border-t border-white/10 pt-4">
+          <BrandButton
             type="submit"
+            variant="primary"
             size="lg"
-            className="w-full rounded-xl"
+            className="w-full"
             disabled={isSubmitting}
           >
             {isSubmitting ? (
@@ -183,21 +181,21 @@ export function VideoGenerationForm({
             ) : (
               "Generate video"
             )}
-          </Button>
+          </BrandButton>
           <div
-            className="space-y-1 text-center text-xs text-muted-foreground"
+            className="space-y-1 text-center text-xs text-white/50"
             aria-live="polite"
           >
             {statusMessage ? (
-              <p className="text-foreground/80">{statusMessage}</p>
+              <p className="text-white/80">{statusMessage}</p>
             ) : null}
             <p>
               Your balance updates as renders finish—wire this panel to your
               usage service during backend integration.
             </p>
           </div>
-        </CardFooter>
+        </div>
       </form>
-    </Card>
+    </BrandCard>
   );
 }
