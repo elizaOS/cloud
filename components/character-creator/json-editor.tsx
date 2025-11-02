@@ -2,11 +2,10 @@
 
 import { useState, useEffect } from "react";
 import { Textarea } from "@/components/ui/textarea";
-import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Download, Save, AlertCircle, CheckCircle } from "lucide-react";
 import { toast } from "sonner";
 import type { ElizaCharacter } from "@/lib/types";
+import { BrandButton } from "@/components/brand";
 
 interface JsonEditorProps {
   character: ElizaCharacter;
@@ -70,19 +69,19 @@ export function JsonEditor({ character, onChange, onSave }: JsonEditorProps) {
   };
 
   return (
-    <Card className="flex h-full flex-col">
-      <CardHeader className="flex-shrink-0">
+    <div className="flex h-full flex-col bg-black/60">
+      <div className="flex-shrink-0 border-b border-white/10 p-4">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2">
-            <CardTitle>Character JSON</CardTitle>
+            <h3 className="text-lg font-bold text-white">Character JSON</h3>
             {isValid ? (
-              <CheckCircle className="h-5 w-5 text-green-500" />
+              <CheckCircle className="h-5 w-5 text-green-400" />
             ) : (
-              <AlertCircle className="h-5 w-5 text-red-500" />
+              <AlertCircle className="h-5 w-5 text-rose-400" />
             )}
           </div>
           <div className="flex gap-2">
-            <Button
+            <BrandButton
               variant="outline"
               size="sm"
               onClick={handleExport}
@@ -90,33 +89,34 @@ export function JsonEditor({ character, onChange, onSave }: JsonEditorProps) {
             >
               <Download className="mr-2 h-4 w-4" />
               Export
-            </Button>
-            <Button
+            </BrandButton>
+            <BrandButton
+              variant="primary"
               size="sm"
               onClick={handleSave}
               disabled={!isValid || isSaving}
             >
               <Save className="mr-2 h-4 w-4" />
               {isSaving ? "Saving..." : "Save"}
-            </Button>
+            </BrandButton>
           </div>
         </div>
         {error && (
-          <p className="mt-2 text-sm text-destructive">
+          <p className="mt-2 text-sm text-rose-400">
             <strong>Error:</strong> {error}
           </p>
         )}
-      </CardHeader>
-      <CardContent className="flex-1 overflow-hidden p-0">
+      </div>
+      <div className="flex-1 overflow-hidden">
         <Textarea
           value={jsonText}
           onChange={(e) => handleJsonChange(e.target.value)}
-          className={`h-full resize-none rounded-none border-0 font-mono text-sm ${
-            isValid ? "" : "border-destructive"
+          className={`h-full resize-none rounded-none border-0 bg-transparent font-mono text-sm text-white ${
+            isValid ? "" : "border-rose-500"
           }`}
           placeholder="Character JSON will appear here..."
         />
-      </CardContent>
-    </Card>
+      </div>
+    </div>
   );
 }
