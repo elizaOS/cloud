@@ -1,15 +1,8 @@
 import { type LucideIcon, TrendingUp, TrendingDown, Minus } from "lucide-react";
 
-import {
-  Card,
-  CardContent,
-  CardHeader,
-  CardTitle,
-  CardDescription,
-} from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
 import { cn } from "@/lib/utils";
+import { BrandCard } from "@/components/brand";
 
 export interface MetricCardProps {
   label: string;
@@ -31,9 +24,9 @@ const TREND_STYLES: Record<
   "up" | "down" | "neutral",
   { bg: string; text: string; icon: LucideIcon }
 > = {
-  up: { bg: "bg-emerald-500/12", text: "text-emerald-500", icon: TrendingUp },
-  down: { bg: "bg-rose-500/12", text: "text-rose-500", icon: TrendingDown },
-  neutral: { bg: "bg-muted/40", text: "text-muted-foreground", icon: Minus },
+  up: { bg: "bg-emerald-500/20 border-emerald-500/40", text: "text-emerald-400", icon: TrendingUp },
+  down: { bg: "bg-rose-500/20 border-rose-500/40", text: "text-rose-400", icon: TrendingDown },
+  neutral: { bg: "bg-white/10 border-white/20", text: "text-white/60", icon: Minus },
 };
 
 export function MetricCard({
@@ -51,22 +44,22 @@ export function MetricCard({
   const TrendIcon = trend ? TREND_STYLES[trend.direction].icon : null;
 
   return (
-    <Card
+    <BrandCard
+      corners={false}
       className={cn(
-        "group border-border/50 bg-card/95 backdrop-blur-sm shadow-md transition-all hover:border-primary/40 hover:shadow-lg",
+        "group transition-all hover:border-[#FF5800]/40",
         className,
       )}
     >
-      <CardHeader className={cn("space-y-0 pb-2", isCompact ? "p-4" : "p-5")}>
+      <div className={cn("space-y-0 pb-2", isCompact ? "p-4" : "p-5")}>
         <div className="flex items-center justify-between gap-3">
-          <CardTitle className="text-[11px] font-semibold uppercase tracking-[0.18em] text-muted-foreground/85">
+          <h4 className="text-[11px] font-semibold uppercase tracking-[0.18em] text-white/50">
             {label}
-          </CardTitle>
+          </h4>
           {trend && (
-            <Badge
-              variant="secondary"
+            <span
               className={cn(
-                "gap-1 rounded-full border-0 px-2 py-0.5 text-[10px] font-medium uppercase tracking-wide",
+                "gap-1 rounded-none border px-2 py-0.5 text-[10px] font-medium uppercase tracking-wide flex items-center",
                 TREND_STYLES[trend.direction].bg,
                 TREND_STYLES[trend.direction].text,
               )}
@@ -75,45 +68,45 @@ export function MetricCard({
               {trend.percentage !== undefined
                 ? `${trend.percentage}%`
                 : trend.label}
-            </Badge>
+            </span>
           )}
         </div>
-      </CardHeader>
-      <CardContent
-        className={cn("space-y-3", isCompact ? "px-4 pb-4" : "px-5 pb-5")}
-      >
+      </div>
+      <div className={cn("space-y-3", isCompact ? "px-4 pb-4" : "px-5 pb-5")}>
         <div className="flex items-center gap-3">
           {Icon && (
             <div
               className={cn(
-                "flex items-center justify-center rounded-xl bg-gradient-to-br from-muted/50 via-muted/30 to-background/80 text-foreground/80 ring-1 ring-border/60 transition-all group-hover:ring-primary/40",
+                "flex items-center justify-center rounded-none bg-black/60 text-white border transition-all group-hover:border-[#FF5800]/40",
                 isCompact ? "h-9 w-9" : "h-11 w-11",
-                accent,
+                accent || "border-white/10",
               )}
             >
-              <Icon className={cn(isCompact ? "h-4 w-4" : "h-5 w-5")} />
+              <Icon className={cn(isCompact ? "h-4 w-4" : "h-5 w-5", "text-[#FF5800]")} />
             </div>
           )}
           <div className="flex-1 space-y-1">
-            <p className="text-2xl font-semibold leading-tight text-foreground">
+            <p className="text-2xl font-semibold leading-tight text-white">
               {value}
             </p>
             {description && (
-              <CardDescription className="text-xs">
+              <p className="text-xs text-white/60">
                 {description}
-              </CardDescription>
+              </p>
             )}
           </div>
         </div>
         {progress !== undefined && (
           <div className="space-y-1">
-            <Progress value={progress} className="h-1.5" />
-            <p className="text-[10px] text-muted-foreground/70">
+            <Progress value={progress} className="h-1.5 bg-white/10">
+              <div className="h-full bg-[#FF5800] transition-all" style={{ width: `${progress}%` }} />
+            </Progress>
+            <p className="text-[10px] text-white/50">
               {progress}% capacity
             </p>
           </div>
         )}
-      </CardContent>
-    </Card>
+      </div>
+    </BrandCard>
   );
 }
