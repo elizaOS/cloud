@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { Copy, Check } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { SectionLabel } from "@/components/brand";
 
 export default function Installation() {
   const [activeTab, setActiveTab] = useState<"macos" | "windows">("macos");
@@ -37,14 +38,8 @@ export default function Installation() {
 
       <div className="relative container mx-auto px-6 py-20 md:py-32">
         {/* Top badge */}
-        <div className="flex items-center justify-center gap-3 mb-12">
-          <span
-            className="inline-block w-2 h-2 rounded-full"
-            style={{ backgroundColor: "#FF5800" }}
-          />
-          <span className="text-lg md:text-xl uppercase tracking-wider text-white font-medium">
-            INSTALL IN SECONDS
-          </span>
+        <div className="flex justify-center mb-12">
+          <SectionLabel>INSTALL IN SECONDS</SectionLabel>
         </div>
 
         {/* Hero heading */}
@@ -58,20 +53,16 @@ export default function Installation() {
           <div className="flex gap-0 mb-4">
             <button
               onClick={() => setActiveTab("macos")}
-              className={`px-6 py-3 text-sm font-medium transition-all border border-white/10 rounded-none ${
-                activeTab === "macos"
-                  ? "bg-[#252527] text-white"
-                  : "bg-transparent text-white/70 hover:bg-white/5"
+              className={`brand-tab ${
+                activeTab === "macos" ? "brand-tab-active" : ""
               }`}
             >
               MACOS / LINUX
             </button>
             <button
               onClick={() => setActiveTab("windows")}
-              className={`px-6 py-3 text-sm font-medium transition-all border border-white/10 rounded-none ${
-                activeTab === "windows"
-                  ? "bg-[#252527] text-white"
-                  : "bg-transparent text-white/70 hover:bg-white/5"
+              className={`brand-tab ${
+                activeTab === "windows" ? "brand-tab-active" : ""
               }`}
             >
               WINDOWS
@@ -119,6 +110,7 @@ export default function Installation() {
               <span
                 className="inline-block w-2 h-2 rounded-full shrink-0"
                 style={{ backgroundColor: "#FF5800" }}
+                aria-hidden="true"
               />
               <p className="text-lg md:text-xl text-white/70 leading-relaxed uppercase tracking-wide">
                 ELIZA CLOUD RUNS YOUR CONTAINERS ON HIGH-PERFORMANCE
@@ -127,6 +119,7 @@ export default function Installation() {
               <span
                 className="inline-block w-2 h-2 rounded-full shrink-0"
                 style={{ backgroundColor: "#FF5800" }}
+                aria-hidden="true"
               />
             </div>
 

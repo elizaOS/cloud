@@ -2,6 +2,7 @@
 
 import { Button } from "@/components/ui/button";
 import { ArrowUpRight, Check } from "lucide-react";
+import { CornerBrackets, SectionLabel, BrandCard } from "@/components/brand";
 
 const agents = [
   {
@@ -28,23 +29,14 @@ export default function OnChainTrust() {
   return (
     <section className="relative border-t border-white/10 bg-[#0A0A0A] py-16 md:py-24">
       {/* Corner brackets */}
-      <div className="pointer-events-none absolute left-8 top-8 h-12 w-12 border-l-2 border-t-2 border-[#E1E1E1]" />
-      <div className="pointer-events-none absolute right-8 top-8 h-12 w-12 border-r-2 border-t-2 border-[#E1E1E1]" />
-      <div className="pointer-events-none absolute bottom-8 left-8 h-12 w-12 border-b-2 border-l-2 border-[#E1E1E1]" />
-      <div className="pointer-events-none absolute bottom-8 right-8 h-12 w-12 border-b-2 border-r-2 border-[#E1E1E1]" />
+      <CornerBrackets size="xl" variant="full-border" className="m-8" />
 
       <div className="container mx-auto px-4">
         {/* Header */}
         <div className="mb-12 flex items-start justify-between">
           <div className="max-w-4xl">
-            <div className="mb-6 flex items-center gap-3">
-              <span
-                className="inline-block w-2 h-2 rounded-full"
-                style={{ backgroundColor: "#FF5800" }}
-              />
-              <p className="text-lg md:text-xl uppercase tracking-wider text-white font-medium">
-                ON-CHAIN TRUST & ECONOMY
-              </p>
+            <div className="mb-6">
+              <SectionLabel>ON-CHAIN TRUST & ECONOMY</SectionLabel>
             </div>
 
             <h2 className="mb-6 text-3xl md:text-4xl lg:text-5xl font-bold leading-tight text-white">
@@ -72,7 +64,7 @@ export default function OnChainTrust() {
         <div className="grid gap-8 lg:grid-cols-2">
           {/* Left: Agent list */}
           <div className="space-y-6">
-            <div className="space-y-4 rounded-sm border border-white/10 bg-black/40 p-6">
+            <BrandCard corners={false} className="space-y-4 rounded-sm">
               {agents.map((agent, index) => (
                 <div
                   key={index}
@@ -117,7 +109,7 @@ export default function OnChainTrust() {
                   </div>
                 </div>
               ))}
-            </div>
+            </BrandCard>
 
             <p className="text-sm leading-relaxed text-white/70">
               Every agent on Eliza Cloud has a verifiable on-chain identity,
@@ -126,7 +118,7 @@ export default function OnChainTrust() {
           </div>
 
           {/* Right: Network visualization */}
-          <div className="relative flex min-h-[400px] items-center justify-center rounded-sm border border-white/10 bg-black/40 p-8">
+          <BrandCard corners={false} className="flex min-h-[400px] items-center justify-center rounded-sm">
             <div className="text-center">
               <p className="mb-8 text-sm text-white/70">
                 Agents can also send and receive micropayments instantly.
@@ -214,7 +206,7 @@ export default function OnChainTrust() {
                 />
               </div>
             </div>
-          </div>
+          </BrandCard>
         </div>
 
         {/* Bottom tagline */}

@@ -1,15 +1,13 @@
 "use client";
 
 import { Github } from "lucide-react";
+import { CornerBrackets } from "@/components/brand";
 
 export default function Footer() {
   return (
     <footer className="relative border-t border-white/10 bg-[#0A0A0A]">
       {/* Corner brackets */}
-      <div className="absolute left-4 top-4 h-8 w-8 border-l-2 border-t-2 border-[#E1E1E1]" />
-      <div className="absolute right-4 top-4 h-8 w-8 border-r-2 border-t-2 border-[#E1E1E1]" />
-      <div className="absolute bottom-4 left-4 h-8 w-8 border-b-2 border-l-2 border-[#E1E1E1]" />
-      <div className="absolute bottom-4 right-4 h-8 w-8 border-b-2 border-r-2 border-[#E1E1E1]" />
+      <CornerBrackets size="lg" variant="full-border" className="m-4" />
 
       <div className="container mx-auto px-6 py-16">
         <div className="grid grid-cols-1 gap-12 md:grid-cols-3 md:gap-8">
