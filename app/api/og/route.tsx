@@ -48,6 +48,7 @@ export async function GET(request: NextRequest) {
               >
                 <div
                   style={{
+                    display: "flex",
                     fontSize: 72,
                     fontWeight: "bold",
                     color: "#1a1a1a",
@@ -60,6 +61,7 @@ export async function GET(request: NextRequest) {
                 </div>
                 <div
                   style={{
+                    display: "flex",
                     fontSize: 32,
                     color: "#666",
                     textAlign: "center",
@@ -131,6 +133,7 @@ export async function GET(request: NextRequest) {
               >
                 <div
                   style={{
+                    display: "flex",
                     fontSize: 48,
                     fontWeight: 600,
                     color: "#8b5cf6",
@@ -141,6 +144,7 @@ export async function GET(request: NextRequest) {
                 </div>
                 <div
                   style={{
+                    display: "flex",
                     fontSize: 64,
                     fontWeight: "bold",
                     color: "#1a1a1a",
@@ -152,6 +156,7 @@ export async function GET(request: NextRequest) {
                 </div>
                 <div
                   style={{
+                    display: "flex",
                     fontSize: 32,
                     color: "#666",
                     marginBottom: 32,
@@ -210,6 +215,7 @@ export async function GET(request: NextRequest) {
               >
                 <div
                   style={{
+                    display: "flex",
                     fontSize: 48,
                     fontWeight: 600,
                     color: "#667eea",
@@ -220,6 +226,7 @@ export async function GET(request: NextRequest) {
                 </div>
                 <div
                   style={{
+                    display: "flex",
                     fontSize: 64,
                     fontWeight: "bold",
                     color: "#1a1a1a",
@@ -232,6 +239,7 @@ export async function GET(request: NextRequest) {
                 {characterName && (
                   <div
                     style={{
+                      display: "flex",
                       fontSize: 36,
                       color: "#666",
                       marginBottom: 32,
@@ -291,6 +299,7 @@ export async function GET(request: NextRequest) {
               >
                 <div
                   style={{
+                    display: "flex",
                     fontSize: 96,
                     marginBottom: 24,
                   }}
@@ -299,6 +308,7 @@ export async function GET(request: NextRequest) {
                 </div>
                 <div
                   style={{
+                    display: "flex",
                     fontSize: 72,
                     fontWeight: "bold",
                     color: "#1a1a1a",
@@ -310,6 +320,7 @@ export async function GET(request: NextRequest) {
                 </div>
                 <div
                   style={{
+                    display: "flex",
                     fontSize: 36,
                     color: "#666",
                     textAlign: "center",
@@ -358,6 +369,7 @@ export async function GET(request: NextRequest) {
               >
                 <div
                   style={{
+                    display: "flex",
                     fontSize: 84,
                     fontWeight: "bold",
                     background: ELIZA_GRADIENT,
@@ -372,6 +384,7 @@ export async function GET(request: NextRequest) {
                 </div>
                 <div
                   style={{
+                    display: "flex",
                     fontSize: 48,
                     fontWeight: 600,
                     color: "#1a1a1a",
@@ -384,6 +397,7 @@ export async function GET(request: NextRequest) {
                 </div>
                 <div
                   style={{
+                    display: "flex",
                     fontSize: 32,
                     color: "#666",
                     textAlign: "center",
@@ -421,6 +435,7 @@ export async function GET(request: NextRequest) {
         >
           <div
             style={{
+              display: "flex",
               fontSize: 72,
               fontWeight: "bold",
               color: "white",
