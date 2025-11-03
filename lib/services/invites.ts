@@ -18,15 +18,17 @@ export interface CreateInviteParams {
   invitedRole: "admin" | "member";
 }
 
+export interface InviteWithOrganization extends OrganizationInvite {
+  organization: {
+    id: string;
+    name: string;
+    slug: string;
+  };
+}
+
 export interface ValidateTokenResult {
   valid: boolean;
-  invite?: OrganizationInvite & {
-    organization: {
-      id: string;
-      name: string;
-      slug: string;
-    };
-  };
+  invite?: InviteWithOrganization;
   error?: string;
 }
 
@@ -146,7 +148,7 @@ export class InvitesService {
       return { valid: false, error: "Invite expired" };
     }
 
-    return { valid: true, invite: invite as any };
+    return { valid: true, invite: invite as InviteWithOrganization };
   }
 
   async acceptInvite(

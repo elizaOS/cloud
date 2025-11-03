@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { useSetPageHeader } from "@/components/layout/page-header-context";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Users, Settings, UserPlus } from "lucide-react";
+import { Users, Settings } from "lucide-react";
 import type { UserWithOrganization } from "@/lib/types";
 import { MembersTab } from "./members-tab";
 import { OrganizationGeneralTab } from "./organization-general-tab";
