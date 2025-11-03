@@ -14,7 +14,7 @@ import { Button } from "@/components/ui/button";
 import { Loader2, Terminal, CheckCircle2, AlertCircle } from "lucide-react";
 
 function CliLoginContent() {
-  const { authenticated, login, user } = usePrivy();
+  const { authenticated, login, user, ready } = usePrivy();
   const searchParams = useSearchParams();
   const sessionId = searchParams.get("session");
 
@@ -23,6 +23,7 @@ function CliLoginContent() {
   >("loading");
   const [errorMessage, setErrorMessage] = useState<string>("");
   const [apiKeyPrefix, setApiKeyPrefix] = useState<string>("");
+  const [isLoggingIn, setIsLoggingIn] = useState(false);
 
   const completeCliLogin = useCallback(async () => {
     if (!sessionId) {
@@ -146,8 +147,26 @@ function CliLoginContent() {
                 <li>You can close this window</li>
               </ol>
             </div>
-            <Button onClick={login} className="w-full">
-              Sign In
+            <Button 
+              onClick={async () => {
+                setIsLoggingIn(true);
+                try {
+                  await login();
+                } finally {
+                  setTimeout(() => setIsLoggingIn(false), 1000);
+                }
+              }} 
+              className="w-full"
+              disabled={!ready || isLoggingIn}
+            >
+              {!ready || isLoggingIn ? (
+                <>
+                  <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                  Loading...
+                </>
+              ) : (
+                "Sign In"
+              )}
             </Button>
           </CardContent>
         </Card>
