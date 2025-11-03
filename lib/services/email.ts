@@ -1,0 +1,159 @@
+import sgMail from "@sendgrid/mail";
+import nodemailer from "nodemailer";
+import { logger } from "@/lib/utils/logger";
+import type {
+  EmailOptions,
+  WelcomeEmailData,
+  LowCreditsEmailData,
+  InviteEmailData,
+} from "@/lib/email/types";
+
+class EmailService {
+  private initialized = false;
+  private fromEmail: string | null = null;
+  private smtpTransporter: any = null;
+  private useSmtp = false;
+
+  private initialize(): void {
+    if (this.initialized) return;
+
+    this.fromEmail =
+      process.env.SENDGRID_FROM_EMAIL || process.env.SMTP_FROM || "noreply@eliza.cloud";
+
+    if (process.env.SMTP_HOST && process.env.SMTP_PORT && process.env.SMTP_PASSWORD) {
+      console.log("[EmailService] Using SMTP configuration");
+      this.smtpTransporter = nodemailer.createTransport({
+        host: process.env.SMTP_HOST,
+        port: parseInt(process.env.SMTP_PORT),
+        secure: false,
+        auth: {
+          user: process.env.SMTP_USERNAME || "apikey",
+          pass: process.env.SMTP_PASSWORD,
+        },
+      });
+      this.useSmtp = true;
+      this.initialized = true;
+      logger.info("[EmailService] Initialized with SMTP");
+      return;
+    }
+
+    const apiKey = process.env.SENDGRID_API_KEY;
+    if (!apiKey) {
+      logger.warn("[EmailService] No email configuration found");
+      this.initialized = false;
+      return;
+    }
+
+    console.log("[EmailService] Using SendGrid API configuration");
+    sgMail.setApiKey(apiKey);
+    this.initialized = true;
+    logger.info("[EmailService] Initialized with SendGrid API");
+  }
+
+  async send(options: EmailOptions): Promise<boolean> {
+    this.initialize();
+
+    if (!this.initialized) {
+      logger.warn("[EmailService] Not initialized, skipping email send");
+      return false;
+    }
+
+    try {
+      if (this.useSmtp) {
+        await this.smtpTransporter.sendMail({
+          from: options.from || this.fromEmail!,
+          to: options.to,
+          subject: options.subject,
+          text: options.text,
+          html: options.html,
+          replyTo: options.replyTo,
+          attachments: options.attachments?.map(att => ({
+            filename: att.filename,
+            content: Buffer.from(att.content, 'base64'),
+            contentType: att.type,
+          })),
+        });
+
+        logger.info("[EmailService] Email sent via SMTP", {
+          to: options.to,
+          subject: options.subject,
+        });
+
+        return true;
+      } else {
+        const msg = {
+          to: options.to,
+          from: options.from || this.fromEmail!,
+          subject: options.subject,
+          text: options.text,
+          html: options.html,
+          replyTo: options.replyTo,
+          attachments: options.attachments,
+        };
+
+        await sgMail.send(msg);
+
+        logger.info("[EmailService] Email sent via API", {
+          to: options.to,
+          subject: options.subject,
+        });
+
+        return true;
+      }
+    } catch (error: any) {
+      logger.error("[EmailService] Failed to send email", {
+        method: this.useSmtp ? "SMTP" : "API",
+        error: error.message,
+        code: error.code,
+        to: options.to,
+        subject: options.subject,
+      });
+
+      return false;
+    }
+  }
+
+  async sendWelcomeEmail(data: WelcomeEmailData): Promise<boolean> {
+    const { renderWelcomeTemplate } = await import(
+      "@/lib/email/utils/template-renderer"
+    );
+    const { html, text } = renderWelcomeTemplate(data);
+
+    return this.send({
+      to: data.email,
+      subject: "🎉 Welcome to Eliza Cloud - Let's Get Started!",
+      html,
+      text,
+    });
+  }
+
+  async sendLowCreditsEmail(data: LowCreditsEmailData): Promise<boolean> {
+    const { renderLowCreditsTemplate } = await import(
+      "@/lib/email/utils/template-renderer"
+    );
+    const { html, text } = renderLowCreditsTemplate(data);
+
+    return this.send({
+      to: data.email,
+      subject: "⚠️ Low Credits Alert - Action Required",
+      html,
+      text,
+    });
+  }
+
+  async sendInviteEmail(data: InviteEmailData): Promise<boolean> {
+    const { renderInviteTemplate } = await import(
+      "@/lib/email/utils/template-renderer"
+    );
+    const { html, text } = renderInviteTemplate(data);
+
+    return this.send({
+      to: data.email,
+      subject: `🎉 You've been invited to join ${data.organizationName} on Eliza Cloud`,
+      html,
+      text,
+    });
+  }
+}
+
+export const emailService = new EmailService();

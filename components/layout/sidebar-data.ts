@@ -22,6 +22,7 @@ import {
   Mic,
   Zap,
   Store,
+  Building2,
 } from "lucide-react";
 import type { ComponentType } from "react";
 
@@ -153,6 +154,12 @@ export const sidebarSections: SidebarSection[] = [
         label: "Account",
         href: "/dashboard/account",
         icon: PersonIcon,
+      },
+      {
+        id: "organization",
+        label: "Organization",
+        href: "/dashboard/organization",
+        icon: Building2,
       },
       {
         id: "billing",
