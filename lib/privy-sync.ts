@@ -212,12 +212,12 @@ export async function syncUserFromPrivy(
         discordService
           .logUserSignup({
             userId: userWithOrg.id,
-            privyUserId: userWithOrg.privy_user_id,
+            privyUserId: userWithOrg.privy_user_id!,
             email: userWithOrg.email || null,
             name: userWithOrg.name || null,
             walletAddress: userWithOrg.wallet_address || null,
-            organizationId: userWithOrg.organization.id,
-            organizationName: userWithOrg.organization.name,
+            organizationId: userWithOrg.organization?.id || "",
+            organizationName: userWithOrg.organization?.name || "",
             role: userWithOrg.role,
             isNewOrganization: false,
           })
@@ -397,13 +397,13 @@ export async function syncUserFromPrivy(
   }
 
   // Send welcome email asynchronously (fire-and-forget)
-  const recipientEmail = email || userWithOrg.organization.billing_email;
+  const recipientEmail = email || userWithOrg.organization?.billing_email;
   if (recipientEmail) {
     queueWelcomeEmail({
       email: recipientEmail,
       userName: name || "there",
-      organizationName: userWithOrg.organization.name,
-      creditBalance: Number(userWithOrg.organization.credit_balance),
+      organizationName: userWithOrg.organization?.name || "",
+      creditBalance: Number(userWithOrg.organization?.credit_balance || 0),
     }).catch((error) => {
       console.error("[PrivySync] Failed to send welcome email:", error);
     });
@@ -418,12 +418,12 @@ export async function syncUserFromPrivy(
   discordService
     .logUserSignup({
       userId: userWithOrg.id,
-      privyUserId: userWithOrg.privy_user_id,
+      privyUserId: userWithOrg.privy_user_id!,
       email: userWithOrg.email || null,
       name: userWithOrg.name || null,
       walletAddress: userWithOrg.wallet_address || null,
-      organizationId: userWithOrg.organization.id,
-      organizationName: userWithOrg.organization.name,
+      organizationId: userWithOrg.organization?.id || "",
+      organizationName: userWithOrg.organization?.name || "",
       role: userWithOrg.role,
       isNewOrganization: true,
     })

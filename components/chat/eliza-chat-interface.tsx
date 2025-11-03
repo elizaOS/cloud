@@ -304,6 +304,24 @@ export function ElizaChatInterface({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [initialCharacterId]);
 
+  // Check for pending message from landing page and auto-send it
+  useEffect(() => {
+    const pendingMessage = localStorage.getItem("eliza-pending-message");
+    if (pendingMessage && roomId && messages.length === 0 && !isLoading) {
+      // Clear from localStorage
+      localStorage.removeItem("eliza-pending-message");
+      
+      // Auto-send after a short delay (wait for room to be fully ready)
+      setTimeout(() => {
+        setInputText(pendingMessage);
+        setTimeout(() => {
+          sendMessage(pendingMessage);
+        }, 100);
+      }, 500);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [roomId, messages.length, isLoading]);
+
   const generateSpeech = useCallback(
     async (text: string, messageId: string) => {
       try {
@@ -448,7 +466,7 @@ export function ElizaChatInterface({
 
         console.log("[ElizaChat STT] Transcription successful:", transcript);
 
-        // Auto-send the transcribed message directly (like /dashboard/text does)
+        // Auto-send the transcribed message directly (like /dashboard/eliza does)
         if (roomId) {
           console.log("[ElizaChat STT] Auto-sending transcribed message...");
           await sendMessage(transcript);

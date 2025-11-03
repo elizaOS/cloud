@@ -1,13 +1,13 @@
 import type { NextRequest } from "next/server";
 import { NextResponse } from "next/server";
-import { requireAuth } from "@/lib/auth";
+import { requireAuthWithOrg } from "@/lib/auth";
 import { voiceCloningService } from "@/lib/services/voice-cloning";
 import { logger } from "@/lib/utils/logger";
 
 export async function GET(request: NextRequest) {
   try {
     // Authenticate user
-    const user = await requireAuth();
+    const user = await requireAuthWithOrg();
 
     // Parse query parameters
     const { searchParams } = new URL(request.url);
@@ -20,7 +20,7 @@ export async function GET(request: NextRequest) {
     const offset = Number.parseInt(searchParams.get("offset") || "0");
 
     logger.info(`[User Voices API] Fetching voices for user ${user.id}`, {
-      organizationId: user.organization_id,
+      organizationId: user.organization_id!!,
       includeInactive,
       cloneType,
       limit,
@@ -29,7 +29,7 @@ export async function GET(request: NextRequest) {
 
     // Get user's voices
     const allVoices = await voiceCloningService.getUserVoices({
-      organizationId: user.organization_id,
+      organizationId: user.organization_id!!,
       includeInactive,
       cloneType,
     });

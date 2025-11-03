@@ -1,7 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
-import { headers } from "next/headers";
+import { headers, cookies } from "next/headers";
 import crypto from "crypto";
 import { syncUserFromPrivy } from "@/lib/privy-sync";
+import { convertAnonymousToReal } from "@/lib/auth-anonymous";
+import { anonymousSessionsService } from "@/lib/services";
 
 // Verify webhook signature from Privy using their recommended method
 async function verifyWebhookSignature(
@@ -85,6 +87,40 @@ export async function POST(request: NextRequest) {
         // Sync user on creation, linking new account, or authentication
         const user = await syncUserFromPrivy(payload.user);
         console.log("User synced via webhook:", user.id);
+
+        // Check for anonymous session cookie and migrate data
+        const cookieStore = await cookies();
+        const anonSessionToken = cookieStore.get("eliza-anon-session")?.value;
+
+        if (anonSessionToken) {
+          console.log(
+            "Anonymous session detected during signup, initiating migration...",
+          );
+
+          try {
+            const anonSession =
+              await anonymousSessionsService.getByToken(anonSessionToken);
+
+            if (anonSession) {
+              // Migrate anonymous data to real account
+              await convertAnonymousToReal(
+                anonSession.user_id,
+                payload.user.id,
+              );
+
+              console.log("Successfully migrated anonymous user to real account", {
+                anonymousUserId: anonSession.user_id,
+                realUserId: user.id,
+                privyUserId: payload.user.id,
+                messageCount: anonSession.message_count,
+              });
+            }
+          } catch (migrationError) {
+            // Log error but don't fail the webhook
+            console.error("Error migrating anonymous user:", migrationError);
+          }
+        }
+
         break;
       }
 

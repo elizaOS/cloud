@@ -1,0 +1,150 @@
+/**
+ * Signup Prompt Banner for Anonymous Users
+ * 
+ * Shows progressive signup prompts based on message count
+ * - After 3 messages: Subtle encouragement
+ * - After 5 messages: Show remaining count
+ * - After 8 messages: Urgent prompt
+ * - At 10 messages: Final prompt (handled in chat API)
+ */
+
+"use client";
+
+import { useState, useEffect } from "react";
+import { usePrivy } from "@privy-io/react-auth";
+import { X, Sparkles, Clock, Zap } from "lucide-react";
+import { BrandButton } from "@/components/brand";
+import { cn } from "@/lib/utils";
+
+interface SignupPromptBannerProps {
+  messageCount: number;
+  messagesLimit: number;
+  onDismiss?: () => void;
+}
+
+export function SignupPromptBanner({
+  messageCount,
+  messagesLimit,
+  onDismiss,
+}: SignupPromptBannerProps) {
+  const { login } = usePrivy();
+  const [dismissed, setDismissed] = useState(false);
+
+  const remaining = messagesLimit - messageCount;
+
+  // Determine which prompt to show based on message count
+  const getPromptConfig = () => {
+    if (messageCount >= 8) {
+      return {
+        icon: Zap,
+        iconColor: "#FF5800",
+        title: "Only 2 messages left!",
+        description: "Sign up now to keep chatting without limits.",
+        bgColor: "bg-[#FF5800]/10",
+        borderColor: "border-[#FF5800]/30",
+        urgent: true,
+      };
+    } else if (messageCount >= 5) {
+      return {
+        icon: Clock,
+        iconColor: "#FF5800",
+        title: `${remaining} free messages remaining`,
+        description: "Create a free account to unlock unlimited access.",
+        bgColor: "bg-[#FF5800]/5",
+        borderColor: "border-[#FF5800]/20",
+        urgent: false,
+      };
+    } else if (messageCount >= 3) {
+      return {
+        icon: Sparkles,
+        iconColor: "#6366F1",
+        title: "Enjoying Eliza?",
+        description:
+          "Sign up for free to save your conversations and unlock all features.",
+        bgColor: "bg-indigo-500/5",
+        borderColor: "border-indigo-500/20",
+        urgent: false,
+      };
+    }
+
+    return null;
+  };
+
+  const config = getPromptConfig();
+
+  // Don't show banner if dismissed or no config
+  if (dismissed || !config) {
+    return null;
+  }
+
+  const Icon = config.icon;
+
+  const handleDismiss = () => {
+    setDismissed(true);
+    onDismiss?.();
+  };
+
+  return (
+    <div
+      className={cn(
+        "relative overflow-hidden border-b transition-all duration-300 animate-in fade-in slide-in-from-top-4",
+        config.bgColor,
+        config.borderColor,
+      )}
+    >
+      {/* Animated background gradient */}
+      <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/5 to-transparent animate-shimmer" />
+
+      <div className="relative flex items-center justify-between gap-4 px-4 py-3 md:px-6">
+        {/* Left: Icon + Text */}
+        <div className="flex items-center gap-3 flex-1 min-w-0">
+          <div
+            className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-full"
+            style={{ backgroundColor: `${config.iconColor}20` }}
+          >
+            <Icon
+              className={cn(
+                "h-5 w-5",
+                config.urgent && "animate-pulse",
+              )}
+              style={{ color: config.iconColor }}
+            />
+          </div>
+
+          <div className="flex flex-col min-w-0">
+            <p className="text-sm font-semibold text-white truncate">
+              {config.title}
+            </p>
+            <p className="text-xs text-white/60 truncate hidden sm:block">
+              {config.description}
+            </p>
+          </div>
+        </div>
+
+        {/* Right: CTA + Dismiss */}
+        <div className="flex items-center gap-2 flex-shrink-0">
+          <BrandButton
+            variant={config.urgent ? "primary" : "outline"}
+            size="sm"
+            onClick={login}
+            className={cn(
+              "whitespace-nowrap",
+              config.urgent && "animate-pulse",
+            )}
+          >
+            {config.urgent ? "Sign Up Now" : "Sign Up Free"}
+          </BrandButton>
+
+          <button
+            onClick={handleDismiss}
+            className="p-1.5 rounded hover:bg-white/10 transition-colors"
+            aria-label="Dismiss"
+          >
+            <X className="h-4 w-4 text-white/40 hover:text-white/60" />
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+

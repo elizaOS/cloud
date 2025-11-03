@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
-import { requireAuth } from "@/lib/auth";
+import { getCurrentUser } from "@/lib/auth";
+import { getOrCreateAnonymousUserAction } from "@/app/actions/anonymous";
 import { ElizaPageClient } from "@/components/chat/eliza-page-client";
 import { listCharacters } from "@/app/actions/characters";
 import {
@@ -78,10 +79,17 @@ export async function generateMetadata({
 }
 
 export default async function ElizaPage({ searchParams }: PageProps) {
-  await requireAuth();
+  // Check if user is authenticated (don't create anonymous here - let client handle it)
+  const user = await getCurrentUser();
+  const isAnonymous = !user;
 
-  // Load available characters for selection
-  const characters = await listCharacters();
+  // Load available characters for authenticated users only
+  const characters = isAnonymous ? [] : await listCharacters();
 
-  return <ElizaPageClient initialCharacters={characters} />;
+  return (
+    <ElizaPageClient
+      initialCharacters={characters}
+      isAuthenticated={!isAnonymous}
+    />
+  );
 }

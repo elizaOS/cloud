@@ -1,6 +1,6 @@
 import type { NextRequest } from "next/server";
 import { NextResponse } from "next/server";
-import { requireAuth } from "@/lib/auth";
+import { requireAuthWithOrg } from "@/lib/auth";
 import { voiceCloningService } from "@/lib/services/voice-cloning";
 import { getElevenLabsService } from "@/lib/services/elevenlabs";
 import { logger } from "@/lib/utils/logger";
@@ -14,7 +14,7 @@ export async function GET(
   context: { params: Promise<{ id: string }> },
 ) {
   try {
-    const user = await requireAuth();
+    const user = await requireAuthWithOrg();
     const params = await context.params;
     const voiceId = params.id;
 
@@ -23,7 +23,7 @@ export async function GET(
     // Get voice from database
     const voice = await voiceCloningService.getVoiceById(
       voiceId,
-      user.organization_id,
+      user.organization_id!,
     );
 
     if (!voice) {

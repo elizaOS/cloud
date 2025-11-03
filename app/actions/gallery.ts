@@ -1,6 +1,6 @@
 "use server";
 
-import { requireAuth } from "@/lib/auth";
+import { requireAuthWithOrg } from "@/lib/auth";
 import { generationsService } from "@/lib/services";
 import { deleteBlob } from "@/lib/blob";
 import { revalidatePath } from "next/cache";
@@ -32,11 +32,11 @@ export async function listUserMedia(options?: {
   limit?: number;
   offset?: number;
 }): Promise<GalleryItem[]> {
-  const user = await requireAuth();
+  const user = await requireAuthWithOrg();
 
   // Fetch with database-level filtering
   const generations = await generationsService.listByOrganizationAndStatus(
-    user.organization_id,
+    user.organization_id!,
     "completed",
     {
       userId: user.id,
@@ -69,7 +69,7 @@ export async function listUserMedia(options?: {
  * Delete a media item from the gallery
  */
 export async function deleteMedia(generationId: string): Promise<boolean> {
-  const user = await requireAuth();
+  const user = await requireAuthWithOrg();
 
   // Get the generation to verify ownership
   const generation = await generationsService.getById(generationId);
@@ -106,11 +106,11 @@ export async function getUserMediaStats(): Promise<{
   totalVideos: number;
   totalSize: number;
 }> {
-  const user = await requireAuth();
+  const user = await requireAuthWithOrg();
 
   // Get completed generations for the user with storage_url
   const generations = await generationsService.listByOrganizationAndStatus(
-    user.organization_id,
+    user.organization_id!,
     "completed",
     {
       userId: user.id,

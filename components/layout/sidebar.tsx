@@ -19,12 +19,14 @@ interface SidebarProps {
   className?: string;
   isOpen?: boolean;
   onToggle?: () => void;
+  isAnonymous?: boolean;
 }
 
 export default function Sidebar({
   className,
   isOpen = false,
   onToggle,
+  isAnonymous = false,
 }: SidebarProps) {
   const [isMobile, setIsMobile] = useState(false);
   const logoSrc = useThemeLogo();

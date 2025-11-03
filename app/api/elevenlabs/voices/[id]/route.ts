@@ -1,6 +1,6 @@
 import type { NextRequest } from "next/server";
 import { NextResponse } from "next/server";
-import { requireAuth } from "@/lib/auth";
+import { requireAuthWithOrg } from "@/lib/auth";
 import { voiceCloningService } from "@/lib/services/voice-cloning";
 import { logger } from "@/lib/utils/logger";
 
@@ -9,7 +9,7 @@ export async function GET(
   context: { params: Promise<{ id: string }> },
 ) {
   try {
-    const user = await requireAuth();
+    const user = await requireAuthWithOrg();
     const params = await context.params;
     const voiceId = params.id;
 
@@ -35,7 +35,7 @@ export async function GET(
 
     const voice = await voiceCloningService.getVoiceById(
       voiceId,
-      user.organization_id,
+      user.organization_id!,
     );
 
     if (!voice) {
@@ -89,7 +89,7 @@ export async function DELETE(
   context: { params: Promise<{ id: string }> },
 ) {
   try {
-    const user = await requireAuth();
+    const user = await requireAuthWithOrg();
     const params = await context.params;
     const voiceId = params.id;
 
@@ -113,7 +113,7 @@ export async function DELETE(
       );
     }
 
-    await voiceCloningService.deleteVoice(voiceId, user.organization_id);
+    await voiceCloningService.deleteVoice(voiceId, user.organization_id!);
 
     return NextResponse.json({
       success: true,
@@ -167,7 +167,7 @@ export async function PATCH(
   context: { params: Promise<{ id: string }> },
 ) {
   try {
-    const user = await requireAuth();
+    const user = await requireAuthWithOrg();
     const params = await context.params;
     const voiceId = params.id;
     const body = await request.json();
@@ -178,7 +178,7 @@ export async function PATCH(
 
     const updatedVoice = await voiceCloningService.updateVoice(
       voiceId,
-      user.organization_id,
+      user.organization_id!,
       {
         name,
         description,

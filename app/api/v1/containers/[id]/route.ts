@@ -5,7 +5,7 @@
  */
 
 import { NextRequest, NextResponse } from "next/server";
-import { requireAuthOrApiKey } from "@/lib/auth";
+import { requireAuthOrApiKeyWithOrg } from "@/lib/auth";
 import {
   getContainer,
   deleteContainer,
@@ -28,10 +28,10 @@ export async function GET(
   { params }: { params: Promise<{ id: string }> },
 ) {
   try {
-    const { user } = await requireAuthOrApiKey(request);
+    const { user } = await requireAuthOrApiKeyWithOrg(request);
     const { id: containerId } = await params;
 
-    const container = await getContainer(containerId, user.organization_id);
+    const container = await getContainer(containerId, user.organization_id!);
 
     if (!container) {
       return NextResponse.json(
@@ -75,11 +75,11 @@ export async function DELETE(
   { params }: { params: Promise<{ id: string }> },
 ) {
   try {
-    const { user } = await requireAuthOrApiKey(request);
+    const { user } = await requireAuthOrApiKeyWithOrg(request);
     const { id: containerId } = await params;
 
     // Get container details
-    const container = await getContainer(containerId, user.organization_id);
+    const container = await getContainer(containerId, user.organization_id!);
 
     if (!container) {
       return NextResponse.json(
@@ -92,7 +92,7 @@ export async function DELETE(
     }
 
     // Check ownership
-    if (container.organization_id !== user.organization_id) {
+    if (container.organization_id !== user.organization_id!) {
       return NextResponse.json(
         {
           success: false,
@@ -172,7 +172,7 @@ export async function DELETE(
 
         if (refundAmount > 0) {
           await creditsService.addCredits({
-            organizationId: user.organization_id,
+            organizationId: user.organization_id!!,
             amount: refundAmount,
             description: `Prorated refund for container ${container.name} (ran ${runtimeHours.toFixed(2)} hours)`,
             metadata: {
@@ -191,7 +191,7 @@ export async function DELETE(
     }
 
     // Step 5: Delete from database
-    await deleteContainer(containerId, user.organization_id);
+    await deleteContainer(containerId, user.organization_id!);
 
     console.log(`✅ Container ${containerId} deleted successfully`);
 
@@ -242,12 +242,12 @@ export async function PATCH(
   { params }: { params: Promise<{ id: string }> },
 ) {
   try {
-    const { user } = await requireAuthOrApiKey(request);
+    const { user } = await requireAuthOrApiKeyWithOrg(request);
     const { id: containerId } = await params;
     const body = await request.json();
 
     // Get container
-    const container = await getContainer(containerId, user.organization_id);
+    const container = await getContainer(containerId, user.organization_id!);
 
     if (!container) {
       return NextResponse.json(
@@ -260,7 +260,7 @@ export async function PATCH(
     }
 
     // Check ownership
-    if (container.organization_id !== user.organization_id) {
+    if (container.organization_id !== user.organization_id!) {
       return NextResponse.json(
         {
           success: false,
@@ -398,7 +398,7 @@ export async function PATCH(
       // Update container in database
       const updatedContainer = await containersService.update(
         containerId,
-        user.organization_id,
+        user.organization_id!,
         dbUpdates,
       );
 

@@ -1,5 +1,5 @@
 import { type NextRequest, NextResponse } from "next/server";
-import { requireAuthOrApiKey } from "@/lib/auth";
+import { requireAuthOrApiKeyWithOrg } from "@/lib/auth";
 import { logger } from "@/lib/utils/logger";
 import { getUsageTimeSeries, type TimeGranularity } from "@/lib/services";
 import {
@@ -12,7 +12,7 @@ export const maxDuration = 60;
 
 export async function GET(req: NextRequest) {
   try {
-    const { user } = await requireAuthOrApiKey(req);
+    const { user } = await requireAuthOrApiKeyWithOrg(req);
     const searchParams = req.nextUrl.searchParams;
 
     const timeRange =
@@ -43,12 +43,12 @@ export async function GET(req: NextRequest) {
     }
 
     const [historicalData, org] = await Promise.all([
-      getUsageTimeSeries(user.organization_id, {
+      getUsageTimeSeries(user.organization_id!, {
         startDate,
         endDate: now,
         granularity,
       }),
-      organizationsService.getById(user.organization_id),
+      organizationsService.getById(user.organization_id!),
     ]);
 
     const projections = generateProjections(historicalData, periods);

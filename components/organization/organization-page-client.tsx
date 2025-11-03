@@ -24,7 +24,7 @@ export function OrganizationPageClient({ user }: OrganizationPageClientProps) {
 
   useSetPageHeader({
     title: "Organization Settings",
-    description: `Manage ${user.organization.name}`,
+    description: `Manage ${user.organization?.name}`,
   });
 
   return (
@@ -35,16 +35,16 @@ export function OrganizationPageClient({ user }: OrganizationPageClientProps) {
         <div className="relative z-10 flex items-start justify-between">
           <div>
             <h2 className="text-2xl font-semibold text-white">
-              {user.organization.name}
+              {user.organization?.name}
             </h2>
             <p className="text-sm text-white/60 mt-1">
-              {user.organization.slug}
+              {user.organization?.slug}
             </p>
           </div>
           <div className="flex items-center gap-2">
             <div className="text-right">
               <p className="text-2xl font-bold text-white">
-                {user.organization.credit_balance.toLocaleString()}
+                {user.organization?.credit_balance.toLocaleString()}
               </p>
               <p className="text-xs text-white/50 uppercase tracking-wide">
                 Credits Available
@@ -82,7 +82,9 @@ export function OrganizationPageClient({ user }: OrganizationPageClientProps) {
         </BrandTabsContent>
 
         <BrandTabsContent value="general" className="mt-6">
-          <OrganizationGeneralTab organization={user.organization} />
+          {user.organization && (
+            <OrganizationGeneralTab organization={user.organization} />
+          )}
         </BrandTabsContent>
       </BrandTabs>
     </div>

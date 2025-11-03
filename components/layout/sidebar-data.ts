@@ -33,6 +33,7 @@ export interface SidebarItem {
   icon: ComponentType<{ className?: string }>;
   badge?: string | number;
   isNew?: boolean;
+  freeAllowed?: boolean; // Whether anonymous users can access this
 }
 
 export interface SidebarSection {
@@ -55,22 +56,18 @@ export const sidebarSections: SidebarSection[] = [
     title: "Generation Studio",
     items: [
       {
-        id: "text-generation",
-        label: "Text & Chat",
-        href: "/dashboard/text",
-        icon: ChatBubbleIcon,
-      },
-      {
         id: "image-generation",
         label: "Images",
         href: "/dashboard/image",
         icon: ImageIcon,
+        freeAllowed: false, // Requires signup
       },
       {
         id: "video-generation",
         label: "Videos",
         href: "/dashboard/video",
         icon: Video,
+        freeAllowed: false, // Requires signup
       },
       {
         id: "voices",
@@ -78,12 +75,14 @@ export const sidebarSections: SidebarSection[] = [
         href: "/dashboard/voices",
         icon: Mic,
         isNew: true,
+        freeAllowed: false, // Requires signup
       },
       {
         id: "gallery",
         label: "Gallery",
         href: "/dashboard/gallery",
         icon: LayersIcon,
+        freeAllowed: false, // Requires signup
       },
     ],
   },
@@ -96,6 +95,7 @@ export const sidebarSections: SidebarSection[] = [
         href: "/dashboard/eliza",
         icon: Bot,
         isNew: false,
+        freeAllowed: true, // Free tier can access Eliza chat
       },
       {
         id: "agent-marketplace",
@@ -103,6 +103,7 @@ export const sidebarSections: SidebarSection[] = [
         href: "/dashboard/agent-marketplace",
         icon: Store,
         isNew: true,
+        freeAllowed: false, // Requires signup
       },
       {
         id: "character-creator",
@@ -110,6 +111,7 @@ export const sidebarSections: SidebarSection[] = [
         href: "/dashboard/character-creator",
         icon: UserCog,
         isNew: false,
+        freeAllowed: false, // Requires signup
       },
       {
         id: "api-explorer",
@@ -117,6 +119,7 @@ export const sidebarSections: SidebarSection[] = [
         href: "/dashboard/api-explorer",
         icon: Code,
         isNew: true,
+        freeAllowed: false, // Requires signup
       },
       {
         id: "mcp-playground",
@@ -124,6 +127,7 @@ export const sidebarSections: SidebarSection[] = [
         href: "/dashboard/mcp-playground",
         icon: Zap,
         isNew: true,
+        freeAllowed: false, // Requires signup
       },
     ],
   },
@@ -136,6 +140,7 @@ export const sidebarSections: SidebarSection[] = [
         href: "/dashboard/containers",
         icon: Server,
         isNew: true,
+        freeAllowed: false, // Requires signup
       },
       {
         id: "storage",
@@ -143,6 +148,7 @@ export const sidebarSections: SidebarSection[] = [
         href: "/dashboard/storage",
         icon: HardDrive,
         isNew: false,
+        freeAllowed: false, // Requires signup
       },
     ],
   },
@@ -154,30 +160,35 @@ export const sidebarSections: SidebarSection[] = [
         label: "Account",
         href: "/dashboard/account",
         icon: PersonIcon,
+        freeAllowed: false, // Requires signup
       },
       {
         id: "organization",
         label: "Organization",
         href: "/dashboard/organization",
         icon: Building2,
+        freeAllowed: false, // Requires signup
       },
       {
         id: "billing",
         label: "Billing",
         href: "/dashboard/billing",
         icon: CreditCard,
+        freeAllowed: false, // Requires signup
       },
       {
         id: "api-keys",
         label: "API Keys",
         href: "/dashboard/api-keys",
         icon: TokensIcon,
+        freeAllowed: false, // Requires signup
       },
       {
         id: "analytics",
         label: "Analytics",
         href: "/dashboard/analytics",
         icon: BarChartIcon,
+        freeAllowed: false, // Requires signup
       },
     ],
   },

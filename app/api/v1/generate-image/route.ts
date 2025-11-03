@@ -1,5 +1,5 @@
 import { streamText } from "ai";
-import { requireAuthOrApiKey } from "@/lib/auth";
+import { requireAuthOrApiKeyWithOrg } from "@/lib/auth";
 import {
   usageService,
   creditsService,
@@ -39,7 +39,7 @@ interface GenerateImageRequest {
 async function handlePOST(req: NextRequest) {
   let generationId: string | undefined;
   try {
-    const { user, apiKey } = await requireAuthOrApiKey(req);
+    const { user, apiKey } = await requireAuthOrApiKeyWithOrg(req);
     const {
       prompt,
       numImages = 1,
@@ -58,7 +58,7 @@ async function handlePOST(req: NextRequest) {
     const totalCost = IMAGE_GENERATION_COST * numImages;
 
     const generation = await generationsService.create({
-      organization_id: user.organization_id,
+      organization_id: user.organization_id!!,
       user_id: user.id,
       api_key_id: apiKey?.id || null,
       type: "image",
@@ -179,7 +179,7 @@ async function handlePOST(req: NextRequest) {
 
     if (successfulResults.length === 0) {
       const usageRecord = await usageService.create({
-        organization_id: user.organization_id,
+        organization_id: user.organization_id!!,
         user_id: user.id,
         api_key_id: apiKey?.id || null,
         type: "image",
@@ -211,7 +211,7 @@ async function handlePOST(req: NextRequest) {
     // Deduct credits for actual number of successful images
     const actualCost = IMAGE_GENERATION_COST * successfulResults.length;
     const deductionResult = await creditsService.deductCredits({
-      organizationId: user.organization_id,
+      organizationId: user.organization_id!!,
       amount: actualCost,
       description: `Image generation (${successfulResults.length}x): google/gemini-2.5-flash-image-preview`,
       metadata: { user_id: user.id },
@@ -222,7 +222,7 @@ async function handlePOST(req: NextRequest) {
       console.error(
         "[IMAGE GENERATION] Failed to deduct credits - insufficient balance",
         {
-          organizationId: user.organization_id,
+          organizationId: user.organization_id!!,
           cost: String(actualCost),
           balance: deductionResult.newBalance,
         },
@@ -239,7 +239,7 @@ async function handlePOST(req: NextRequest) {
     }
 
     const usageRecord = await usageService.create({
-      organization_id: user.organization_id,
+      organization_id: user.organization_id!!,
       user_id: user.id,
       api_key_id: apiKey?.id || null,
       type: "image",

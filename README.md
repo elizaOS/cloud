@@ -536,7 +536,7 @@ npm run bootstrapper:build  # Build container bootstrapper
 
 ### 1. AI Text Generation
 
-**Location**: `/dashboard/text` and `/app/api/v1/chat/route.ts`
+**Location**: `/dashboard/eliza` and `/app/api/v1/chat/route.ts`
 
 **Features**:
 

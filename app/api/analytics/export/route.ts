@@ -1,5 +1,5 @@
 import { type NextRequest, NextResponse } from "next/server";
-import { requireAuthOrApiKey } from "@/lib/auth";
+import { requireAuthOrApiKeyWithOrg } from "@/lib/auth";
 import { logger } from "@/lib/utils/logger";
 import { withRateLimit, RateLimitPresets } from "@/lib/middleware/rate-limit";
 import {
@@ -35,7 +35,7 @@ const EXPORT_LIMITS = {
 
 async function handleGET(req: NextRequest) {
   try {
-    const { user } = await requireAuthOrApiKey(req);
+    const { user } = await requireAuthOrApiKeyWithOrg(req);
     const searchParams = req.nextUrl.searchParams;
 
     const format = searchParams.get("format") || "csv";
@@ -92,7 +92,7 @@ async function handleGET(req: NextRequest) {
     let filename: string;
 
     if (dataType === "users") {
-      const userBreakdown = await getUsageByUser(user.organization_id, {
+      const userBreakdown = await getUsageByUser(user.organization_id!, {
         startDate,
         endDate,
         limit: EXPORT_LIMITS.MAX_ROWS,
@@ -118,7 +118,7 @@ async function handleGET(req: NextRequest) {
       filename = `user-analytics-${startDate.toISOString().split("T")[0]}-to-${endDate.toISOString().split("T")[0]}`;
     } else if (dataType === "providers") {
       const providerBreakdown = await getProviderBreakdown(
-        user.organization_id,
+        user.organization_id!,
         {
           startDate,
           endDate,
@@ -150,7 +150,7 @@ async function handleGET(req: NextRequest) {
       ];
       filename = `provider-analytics-${startDate.toISOString().split("T")[0]}-to-${endDate.toISOString().split("T")[0]}`;
     } else if (dataType === "models") {
-      const modelBreakdown = await getModelBreakdown(user.organization_id, {
+      const modelBreakdown = await getModelBreakdown(user.organization_id!, {
         startDate,
         endDate,
         limit: EXPORT_LIMITS.MAX_ROWS,
@@ -184,7 +184,7 @@ async function handleGET(req: NextRequest) {
       filename = `model-analytics-${startDate.toISOString().split("T")[0]}-to-${endDate.toISOString().split("T")[0]}`;
     } else {
       // Time series export with DOS protection
-      const timeSeriesData = await getUsageTimeSeries(user.organization_id, {
+      const timeSeriesData = await getUsageTimeSeries(user.organization_id!, {
         startDate,
         endDate,
         granularity,
