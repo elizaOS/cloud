@@ -14,6 +14,10 @@ const BRAND_BORDER = "#E1E1E1";
 const BRAND_GRADIENT = `linear-gradient(135deg, ${BRAND_BG} 0%, ${BRAND_SURFACE} 100%)`;
 const BRAND_ACCENT_GRADIENT = `linear-gradient(135deg, ${BRAND_ORANGE} 0%, #FF7A33 100%)`;
 
+// System monospace font stack - works reliably in edge runtime
+// Optimized for technical/code aesthetic matching platform
+const MONO_FONT = "'SF Mono', 'Monaco', 'Inconsolata', 'Roboto Mono', 'Courier New', monospace";
+
 export async function GET(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url);
@@ -23,11 +27,6 @@ export async function GET(request: NextRequest) {
     const description = searchParams.get("description") || "AI Agent Development Platform";
     const name = searchParams.get("name");
     const characterName = searchParams.get("characterName");
-
-    // Load Roboto Mono font
-    const fontData = await fetch(
-      new URL("https://fonts.gstatic.com/s/robotomono/v23/L0xuDF4xlVMF-BfR8bXMIhJHg45mwgGEFl0_3vuPQ--5Ip2sSQ.woff", import.meta.url)
-    ).then((res) => res.arrayBuffer());
 
     switch (type) {
       case "character":
@@ -80,7 +79,7 @@ export async function GET(request: NextRequest) {
                     marginBottom: 24,
                     textAlign: "center",
                     lineHeight: 1.2,
-                    fontFamily: "Roboto Mono, monospace",
+                    fontFamily: MONO_FONT,
                   }}
                 >
                   {name || title}
@@ -94,7 +93,7 @@ export async function GET(request: NextRequest) {
                     marginBottom: 32,
                     lineHeight: 1.5,
                     maxWidth: "700px",
-                    fontFamily: "Roboto Mono, monospace",
+                    fontFamily: MONO_FONT,
                   }}
                 >
                   {description.slice(0, 120)}
@@ -108,7 +107,7 @@ export async function GET(request: NextRequest) {
                     fontSize: 18,
                     color: BRAND_ORANGE,
                     fontWeight: 600,
-                    fontFamily: "Roboto Mono, monospace",
+                    fontFamily: MONO_FONT,
                   }}
                 >
                   <div
@@ -127,14 +126,6 @@ export async function GET(request: NextRequest) {
           {
             width: 1200,
             height: 630,
-            fonts: [
-              {
-                name: "Roboto Mono",
-                data: fontData,
-                style: "normal",
-                weight: 700,
-              },
-            ],
           },
         );
 
@@ -186,7 +177,7 @@ export async function GET(request: NextRequest) {
                     fontWeight: 600,
                     color: BRAND_ORANGE,
                     marginBottom: 24,
-                    fontFamily: "Roboto Mono, monospace",
+                    fontFamily: MONO_FONT,
                   }}
                 >
                   💬 Chat Conversation
@@ -199,7 +190,7 @@ export async function GET(request: NextRequest) {
                     color: "white",
                     marginBottom: 24,
                     lineHeight: 1.2,
-                    fontFamily: "Roboto Mono, monospace",
+                    fontFamily: MONO_FONT,
                   }}
                 >
                   {characterName || name || "AI Agent"}
@@ -210,7 +201,7 @@ export async function GET(request: NextRequest) {
                     fontSize: 24,
                     color: "rgba(255, 255, 255, 0.6)",
                     marginBottom: 32,
-                    fontFamily: "Roboto Mono, monospace",
+                    fontFamily: MONO_FONT,
                   }}
                 >
                   Join the conversation on elizaOS
@@ -222,7 +213,7 @@ export async function GET(request: NextRequest) {
                     gap: 8,
                     fontSize: 18,
                     color: "rgba(255, 255, 255, 0.5)",
-                    fontFamily: "Roboto Mono, monospace",
+                    fontFamily: MONO_FONT,
                   }}
                 >
                   <div
@@ -241,14 +232,6 @@ export async function GET(request: NextRequest) {
           {
             width: 1200,
             height: 630,
-            fonts: [
-              {
-                name: "Roboto Mono",
-                data: fontData,
-                style: "normal",
-                weight: 700,
-              },
-            ],
           },
         );
 
@@ -300,7 +283,7 @@ export async function GET(request: NextRequest) {
                     fontWeight: 600,
                     color: BRAND_ORANGE,
                     marginBottom: 24,
-                    fontFamily: "Roboto Mono, monospace",
+                    fontFamily: MONO_FONT,
                   }}
                 >
                   🐳 Container Deployment
@@ -313,7 +296,7 @@ export async function GET(request: NextRequest) {
                     color: "white",
                     marginBottom: 24,
                     lineHeight: 1.2,
-                    fontFamily: "Roboto Mono, monospace",
+                    fontFamily: MONO_FONT,
                   }}
                 >
                   {name || title}
@@ -325,7 +308,7 @@ export async function GET(request: NextRequest) {
                       fontSize: 28,
                       color: "rgba(255, 255, 255, 0.7)",
                       marginBottom: 32,
-                      fontFamily: "Roboto Mono, monospace",
+                      fontFamily: MONO_FONT,
                     }}
                   >
                     Running: {characterName}
@@ -338,7 +321,7 @@ export async function GET(request: NextRequest) {
                     gap: 8,
                     fontSize: 18,
                     color: "rgba(255, 255, 255, 0.5)",
-                    fontFamily: "Roboto Mono, monospace",
+                    fontFamily: MONO_FONT,
                   }}
                 >
                   <div
@@ -357,14 +340,6 @@ export async function GET(request: NextRequest) {
           {
             width: 1200,
             height: 630,
-            fonts: [
-              {
-                name: "Roboto Mono",
-                data: fontData,
-                style: "normal",
-                weight: 700,
-              },
-            ],
           },
         );
 
@@ -426,7 +401,7 @@ export async function GET(request: NextRequest) {
                     color: "white",
                     marginBottom: 24,
                     textAlign: "center",
-                    fontFamily: "Roboto Mono, monospace",
+                    fontFamily: MONO_FONT,
                   }}
                 >
                   AI Agent Marketplace
@@ -438,7 +413,7 @@ export async function GET(request: NextRequest) {
                     color: "rgba(255, 255, 255, 0.7)",
                     textAlign: "center",
                     maxWidth: "700px",
-                    fontFamily: "Roboto Mono, monospace",
+                    fontFamily: MONO_FONT,
                   }}
                 >
                   Discover intelligent AI characters and agents
@@ -449,14 +424,6 @@ export async function GET(request: NextRequest) {
           {
             width: 1200,
             height: 630,
-            fonts: [
-              {
-                name: "Roboto Mono",
-                data: fontData,
-                style: "normal",
-                weight: 700,
-              },
-            ],
           },
         );
 
@@ -512,7 +479,7 @@ export async function GET(request: NextRequest) {
                     marginBottom: 32,
                     textTransform: "uppercase",
                     letterSpacing: "0.15em",
-                    fontFamily: "Roboto Mono, monospace",
+                    fontFamily: MONO_FONT,
                   }}
                 >
                   <div
@@ -535,7 +502,7 @@ export async function GET(request: NextRequest) {
                     marginBottom: 20,
                     textAlign: "center",
                     lineHeight: 1.2,
-                    fontFamily: "Roboto Mono, monospace",
+                    fontFamily: MONO_FONT,
                   }}
                 >
                   {title}
@@ -548,7 +515,7 @@ export async function GET(request: NextRequest) {
                     textAlign: "center",
                     maxWidth: "700px",
                     lineHeight: 1.5,
-                    fontFamily: "Roboto Mono, monospace",
+                    fontFamily: MONO_FONT,
                     fontWeight: 400,
                   }}
                 >
@@ -561,14 +528,6 @@ export async function GET(request: NextRequest) {
           {
             width: 1200,
             height: 630,
-            fonts: [
-              {
-                name: "Roboto Mono",
-                data: fontData,
-                style: "normal",
-                weight: 700,
-              },
-            ],
           },
         );
     }
