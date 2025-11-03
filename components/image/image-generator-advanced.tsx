@@ -200,7 +200,7 @@ export function ImageGeneratorAdvanced() {
       <div className="w-full lg:w-96 space-y-4">
         <BrandCard className="relative">
           <CornerBrackets size="sm" className="opacity-50" />
-          
+
           <div className="relative z-10 space-y-6">
             <div>
               <div className="flex items-center gap-2 mb-2">
@@ -213,7 +213,10 @@ export function ImageGeneratorAdvanced() {
             </div>
             {/* Prompt Input */}
             <div className="space-y-3">
-              <label htmlFor="prompt" className="text-xs font-medium text-white/70 uppercase tracking-wide">
+              <label
+                htmlFor="prompt"
+                className="text-xs font-medium text-white/70 uppercase tracking-wide"
+              >
                 Prompt
               </label>
               <textarea
@@ -253,7 +256,9 @@ export function ImageGeneratorAdvanced() {
 
             {/* Size Presets */}
             <div className="space-y-3">
-              <label className="text-xs font-medium text-white/70 uppercase tracking-wide">Image Size</label>
+              <label className="text-xs font-medium text-white/70 uppercase tracking-wide">
+                Image Size
+              </label>
               <div className="grid grid-cols-2 gap-2">
                 {SIZE_PRESETS.map((preset) => (
                   <BrandButton
@@ -351,7 +356,9 @@ export function ImageGeneratorAdvanced() {
                     <label className="text-xs text-white/50 uppercase tracking-wide">
                       Images
                     </label>
-                    <span className="text-xs font-medium text-white">{numImages}</span>
+                    <span className="text-xs font-medium text-white">
+                      {numImages}
+                    </span>
                   </div>
                   <Slider
                     value={[numImages]}
@@ -396,7 +403,11 @@ export function ImageGeneratorAdvanced() {
 
       {/* Right Panel - Preview & History */}
       <div className="flex-1 space-y-4">
-        <BrandTabs value={activeTab} onValueChange={setActiveTab} className="w-full">
+        <BrandTabs
+          value={activeTab}
+          onValueChange={setActiveTab}
+          className="w-full"
+        >
           <BrandTabsList className="w-full max-w-md">
             <BrandTabsTrigger value="generate" className="gap-2 flex-1">
               <ImageIcon className="h-4 w-4" />
@@ -411,10 +422,11 @@ export function ImageGeneratorAdvanced() {
           {/* Preview Tab */}
           <BrandTabsContent value="generate" className="mt-4">
             {error && (
-              <BrandCard corners={false} className="border-rose-500/40 bg-rose-500/10 mb-4">
-                <p className="text-sm text-rose-400 font-medium">
-                  {error}
-                </p>
+              <BrandCard
+                corners={false}
+                className="border-rose-500/40 bg-rose-500/10 mb-4"
+              >
+                <p className="text-sm text-rose-400 font-medium">{error}</p>
               </BrandCard>
             )}
 
@@ -529,15 +541,27 @@ export function ImageGeneratorAdvanced() {
                           <Download className="h-4 w-4" />
                           Save
                         </BrandButton>
-                        <BrandButton variant="outline" size="sm" className="gap-2">
+                        <BrandButton
+                          variant="outline"
+                          size="sm"
+                          className="gap-2"
+                        >
                           <Heart className="h-4 w-4" />
                           Like
                         </BrandButton>
-                        <BrandButton variant="outline" size="sm" className="gap-2">
+                        <BrandButton
+                          variant="outline"
+                          size="sm"
+                          className="gap-2"
+                        >
                           <Share2 className="h-4 w-4" />
                           Share
                         </BrandButton>
-                        <BrandButton variant="outline" size="sm" className="gap-2">
+                        <BrandButton
+                          variant="outline"
+                          size="sm"
+                          className="gap-2"
+                        >
                           <Maximize2 className="h-4 w-4" />
                           Full
                         </BrandButton>
@@ -588,21 +612,21 @@ export function ImageGeneratorAdvanced() {
                       setActiveTab("generate");
                     }}
                   >
-                      <div className="relative aspect-square w-full bg-muted/10">
-                        <Image
-                          src={image.url}
-                          alt={image.prompt}
-                          fill
-                          className="object-cover group-hover:scale-105 transition-transform duration-300"
-                          unoptimized
-                        />
-                        <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity z-10" />
-                        <div className="absolute bottom-0 left-0 right-0 p-3 text-white opacity-0 group-hover:opacity-100 transition-opacity z-10">
-                          <p className="text-xs line-clamp-2 leading-relaxed">
-                            {image.prompt}
-                          </p>
-                        </div>
+                    <div className="relative aspect-square w-full bg-muted/10">
+                      <Image
+                        src={image.url}
+                        alt={image.prompt}
+                        fill
+                        className="object-cover group-hover:scale-105 transition-transform duration-300"
+                        unoptimized
+                      />
+                      <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity z-10" />
+                      <div className="absolute bottom-0 left-0 right-0 p-3 text-white opacity-0 group-hover:opacity-100 transition-opacity z-10">
+                        <p className="text-xs line-clamp-2 leading-relaxed">
+                          {image.prompt}
+                        </p>
                       </div>
+                    </div>
                   </BrandCard>
                 ))}
               </div>
@@ -613,7 +637,9 @@ export function ImageGeneratorAdvanced() {
                   <div className="flex flex-col items-center space-y-4">
                     <History className="h-12 w-12 text-[#FF5800]" />
                     <div className="space-y-2">
-                      <h3 className="text-lg font-semibold text-white">No History Yet</h3>
+                      <h3 className="text-lg font-semibold text-white">
+                        No History Yet
+                      </h3>
                       <p className="text-sm text-white/60">
                         Your generated images will appear here
                       </p>

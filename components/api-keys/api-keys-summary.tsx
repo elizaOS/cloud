@@ -58,9 +58,7 @@ export function ApiKeysSummary({ summary }: ApiKeysSummaryProps) {
                 ? item.value
                 : numberFormatter.format(item.value)}
             </div>
-            <p className="text-xs text-white/60 mt-1">
-              {item.description}
-            </p>
+            <p className="text-xs text-white/60 mt-1">{item.description}</p>
           </div>
         </BrandCard>
       ))}

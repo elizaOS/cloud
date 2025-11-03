@@ -81,9 +81,7 @@ export function KeyMetricsGrid({ metrics, columns = 4 }: KeyMetricsGridProps) {
                 </span>
               ) : null}
               {metric.helper ? (
-                <p className="text-sm text-white/60">
-                  {metric.helper}
-                </p>
+                <p className="text-sm text-white/60">{metric.helper}</p>
               ) : null}
             </div>
           </BrandCard>

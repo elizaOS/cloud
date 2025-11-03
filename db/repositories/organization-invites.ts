@@ -80,9 +80,7 @@ export class OrganizationInvitesRepository {
     });
   }
 
-  async create(
-    data: NewOrganizationInvite,
-  ): Promise<OrganizationInvite> {
+  async create(data: NewOrganizationInvite): Promise<OrganizationInvite> {
     const [invite] = await db
       .insert(organizationInvites)
       .values(data)

@@ -8,18 +8,20 @@ export function SecurityPreferences() {
   return (
     <BrandCard className="relative">
       <CornerBrackets size="sm" className="opacity-50" />
-      
+
       <div className="relative z-10 space-y-6">
         <div>
           <div className="flex items-center gap-2 mb-2">
             <Shield className="h-5 w-5 text-[#FF5800]" />
-            <h3 className="text-lg font-bold text-white">Security & Preferences</h3>
+            <h3 className="text-lg font-bold text-white">
+              Security & Preferences
+            </h3>
           </div>
           <p className="text-sm text-white/60">
             Manage your security settings and notification preferences
           </p>
         </div>
-        
+
         <div className="space-y-4">
           {/* API Keys */}
           <div className="flex items-start justify-between p-4 rounded-none border border-white/10 bg-black/40">
@@ -101,9 +103,7 @@ export function SecurityPreferences() {
           {/* Danger Zone */}
           <div className="space-y-3">
             <div className="flex items-center gap-2">
-              <p className="text-sm font-medium text-rose-400">
-                Danger Zone
-              </p>
+              <p className="text-sm font-medium text-rose-400">Danger Zone</p>
             </div>
 
             <div className="p-4 rounded-none border border-rose-500/40 bg-rose-500/10">

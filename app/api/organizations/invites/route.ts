@@ -6,10 +6,11 @@ import { withRateLimit, RateLimitPresets } from "@/lib/middleware/rate-limit";
 
 const createInviteSchema = z.object({
   email: z.string().email("Invalid email address"),
-  role: z.enum(["admin", "member"]).refine(
-    (val) => val === "admin" || val === "member",
-    { message: "Role must be 'admin' or 'member'" },
-  ),
+  role: z
+    .enum(["admin", "member"])
+    .refine((val) => val === "admin" || val === "member", {
+      message: "Role must be 'admin' or 'member'",
+    }),
 });
 
 async function handlePOST(request: NextRequest) {

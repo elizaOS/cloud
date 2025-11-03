@@ -18,9 +18,15 @@ class EmailService {
     if (this.initialized) return;
 
     this.fromEmail =
-      process.env.SENDGRID_FROM_EMAIL || process.env.SMTP_FROM || "noreply@eliza.cloud";
+      process.env.SENDGRID_FROM_EMAIL ||
+      process.env.SMTP_FROM ||
+      "noreply@eliza.cloud";
 
-    if (process.env.SMTP_HOST && process.env.SMTP_PORT && process.env.SMTP_PASSWORD) {
+    if (
+      process.env.SMTP_HOST &&
+      process.env.SMTP_PORT &&
+      process.env.SMTP_PASSWORD
+    ) {
       console.log("[EmailService] Using SMTP configuration");
       this.smtpTransporter = nodemailer.createTransport({
         host: process.env.SMTP_HOST,
@@ -67,9 +73,9 @@ class EmailService {
           text: options.text,
           html: options.html,
           replyTo: options.replyTo,
-          attachments: options.attachments?.map(att => ({
+          attachments: options.attachments?.map((att) => ({
             filename: att.filename,
-            content: Buffer.from(att.content, 'base64'),
+            content: Buffer.from(att.content, "base64"),
             contentType: att.type,
           })),
         });

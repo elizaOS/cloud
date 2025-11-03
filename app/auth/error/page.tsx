@@ -9,15 +9,17 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
-import { AlertCircle } from "lucide-react";
-import { useLogin } from "@privy-io/react-auth";
+import { AlertCircle, Loader2 } from "lucide-react";
+import { useLogin, usePrivy } from "@privy-io/react-auth";
 import { useSearchParams } from "next/navigation";
-import { Suspense } from "react";
+import { Suspense, useState } from "react";
 
 function AuthErrorContent() {
   const { login } = useLogin();
+  const { ready } = usePrivy();
   const searchParams = useSearchParams();
   const reason = searchParams.get("reason") || "unknown";
+  const [isLoggingIn, setIsLoggingIn] = useState(false);
 
   const errorMessages: Record<string, { title: string; description: string }> =
     {
@@ -40,6 +42,17 @@ function AuthErrorContent() {
 
   const error = errorMessages[reason] || errorMessages.unknown;
 
+  const handleLogin = async () => {
+    setIsLoggingIn(true);
+    try {
+      await login();
+    } finally {
+      setTimeout(() => setIsLoggingIn(false), 1000);
+    }
+  };
+
+  const isLoading = !ready || isLoggingIn;
+
   return (
     <div className="flex min-h-screen items-center justify-center bg-background p-4">
       <Card className="w-full max-w-md">
@@ -52,7 +65,16 @@ function AuthErrorContent() {
         </CardHeader>
         <CardContent className="space-y-4">
           <div className="flex flex-col gap-2">
-            <Button onClick={login}>Try Again</Button>
+            <Button onClick={handleLogin} disabled={isLoading}>
+              {isLoading ? (
+                <>
+                  <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                  Loading...
+                </>
+              ) : (
+                "Try Again"
+              )}
+            </Button>
             <Button variant="outline" asChild>
               <Link href="/">Go Home</Link>
             </Button>

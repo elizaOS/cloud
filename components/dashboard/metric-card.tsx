@@ -24,9 +24,21 @@ const TREND_STYLES: Record<
   "up" | "down" | "neutral",
   { bg: string; text: string; icon: LucideIcon }
 > = {
-  up: { bg: "bg-emerald-500/20 border-emerald-500/40", text: "text-emerald-400", icon: TrendingUp },
-  down: { bg: "bg-rose-500/20 border-rose-500/40", text: "text-rose-400", icon: TrendingDown },
-  neutral: { bg: "bg-white/10 border-white/20", text: "text-white/60", icon: Minus },
+  up: {
+    bg: "bg-emerald-500/20 border-emerald-500/40",
+    text: "text-emerald-400",
+    icon: TrendingUp,
+  },
+  down: {
+    bg: "bg-rose-500/20 border-rose-500/40",
+    text: "text-rose-400",
+    icon: TrendingDown,
+  },
+  neutral: {
+    bg: "bg-white/10 border-white/20",
+    text: "text-white/60",
+    icon: Minus,
+  },
 };
 
 export function MetricCard({
@@ -82,7 +94,12 @@ export function MetricCard({
                 accent || "border-white/10",
               )}
             >
-              <Icon className={cn(isCompact ? "h-4 w-4" : "h-5 w-5", "text-[#FF5800]")} />
+              <Icon
+                className={cn(
+                  isCompact ? "h-4 w-4" : "h-5 w-5",
+                  "text-[#FF5800]",
+                )}
+              />
             </div>
           )}
           <div className="flex-1 space-y-1">
@@ -90,20 +107,19 @@ export function MetricCard({
               {value}
             </p>
             {description && (
-              <p className="text-xs text-white/60">
-                {description}
-              </p>
+              <p className="text-xs text-white/60">{description}</p>
             )}
           </div>
         </div>
         {progress !== undefined && (
           <div className="space-y-1">
             <Progress value={progress} className="h-1.5 bg-white/10">
-              <div className="h-full bg-[#FF5800] transition-all" style={{ width: `${progress}%` }} />
+              <div
+                className="h-full bg-[#FF5800] transition-all"
+                style={{ width: `${progress}%` }}
+              />
             </Progress>
-            <p className="text-[10px] text-white/50">
-              {progress}% capacity
-            </p>
+            <p className="text-[10px] text-white/50">{progress}% capacity</p>
           </div>
         )}
       </div>

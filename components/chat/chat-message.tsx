@@ -42,7 +42,7 @@ export function ChatMessage({
       className={cn(
         "flex gap-3 animate-in fade-in slide-in-from-bottom-4 duration-500",
         message.isAgent ? "justify-start" : "justify-end",
-        className
+        className,
       )}
     >
       {message.isAgent && avatar}
@@ -52,7 +52,7 @@ export function ChatMessage({
           "rounded-none px-4 py-3 max-w-[80%] border transition-all",
           message.isAgent
             ? "bg-black/40 border-white/10"
-            : "bg-[#FF580020] border-[#FF5800] text-white"
+            : "bg-[#FF580020] border-[#FF5800] text-white",
         )}
       >
         {isThinking ? (
@@ -70,7 +70,7 @@ export function ChatMessage({
                 "flex items-center justify-between gap-2 text-xs mt-3 pt-3 border-t",
                 message.isAgent
                   ? "border-white/10 text-white/50"
-                  : "border-[#FF5800]/20 text-white/70"
+                  : "border-[#FF5800]/20 text-white/70",
               )}
             >
               <div className="flex items-center gap-2">
@@ -123,5 +123,3 @@ export function ChatEmptyState({
     </div>
   );
 }
-
-

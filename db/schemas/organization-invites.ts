@@ -1,10 +1,4 @@
-import {
-  index,
-  pgTable,
-  text,
-  timestamp,
-  uuid,
-} from "drizzle-orm/pg-core";
+import { index, pgTable, text, timestamp, uuid } from "drizzle-orm/pg-core";
 import type { InferSelectModel, InferInsertModel } from "drizzle-orm";
 import { organizations } from "./organizations";
 import { users } from "./users";
@@ -28,9 +22,12 @@ export const organizationInvites = pgTable(
 
     status: text("status").notNull().default("pending"),
     accepted_at: timestamp("accepted_at"),
-    accepted_by_user_id: uuid("accepted_by_user_id").references(() => users.id, {
-      onDelete: "set null",
-    }),
+    accepted_by_user_id: uuid("accepted_by_user_id").references(
+      () => users.id,
+      {
+        onDelete: "set null",
+      },
+    ),
 
     created_at: timestamp("created_at").notNull().defaultNow(),
     updated_at: timestamp("updated_at").notNull().defaultNow(),
@@ -44,4 +41,6 @@ export const organizationInvites = pgTable(
 );
 
 export type OrganizationInvite = InferSelectModel<typeof organizationInvites>;
-export type NewOrganizationInvite = InferInsertModel<typeof organizationInvites>;
+export type NewOrganizationInvite = InferInsertModel<
+  typeof organizationInvites
+>;

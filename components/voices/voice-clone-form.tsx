@@ -335,7 +335,7 @@ export function VoiceCloneForm({
   return (
     <BrandCard className="relative h-full">
       <CornerBrackets size="sm" className="opacity-50" />
-      
+
       <div className="relative z-10 space-y-4 pb-4">
         <div className="flex items-center justify-between">
           <h3 className="text-xl font-semibold text-white">
@@ -353,7 +353,10 @@ export function VoiceCloneForm({
         <form onSubmit={handleSubmit} className="space-y-7">
           {/* Voice Name */}
           <div className="space-y-2">
-            <label htmlFor="name" className="text-xs font-medium text-white/70 uppercase tracking-wide">
+            <label
+              htmlFor="name"
+              className="text-xs font-medium text-white/70 uppercase tracking-wide"
+            >
               Voice Name <span className="text-rose-400">*</span>
             </label>
             <Input
@@ -369,7 +372,12 @@ export function VoiceCloneForm({
 
           {/* Description */}
           <div className="space-y-2">
-            <label htmlFor="description" className="text-xs font-medium text-white/70 uppercase tracking-wide">Description (optional)</label>
+            <label
+              htmlFor="description"
+              className="text-xs font-medium text-white/70 uppercase tracking-wide"
+            >
+              Description (optional)
+            </label>
             <Textarea
               id="description"
               placeholder="A clone of my voice for content creation"
@@ -384,7 +392,9 @@ export function VoiceCloneForm({
           {/* Clone Type */}
           <div className="space-y-3">
             <div>
-              <label className="text-xs font-medium text-white/70 uppercase tracking-wide">Clone Type</label>
+              <label className="text-xs font-medium text-white/70 uppercase tracking-wide">
+                Clone Type
+              </label>
               <p className="text-xs text-white/50 mt-1">
                 Choose between instant or professional quality cloning
               </p>
@@ -405,7 +415,9 @@ export function VoiceCloneForm({
                   <div className="flex items-start justify-between gap-3">
                     <div className="flex-1 space-y-1">
                       <div className="flex items-center gap-2">
-                        <p className="font-semibold text-base text-white">Instant Clone</p>
+                        <p className="font-semibold text-base text-white">
+                          Instant Clone
+                        </p>
                         <span className="rounded-none bg-green-500/20 text-green-400 border border-green-500/40 px-2 py-0.5 text-xs font-bold uppercase tracking-wide">
                           Recommended
                         </span>
@@ -450,7 +462,9 @@ export function VoiceCloneForm({
                   <div className="flex items-start justify-between gap-3">
                     <div className="flex-1 space-y-1">
                       <div className="flex items-center gap-2 flex-wrap">
-                        <p className="font-semibold text-base text-white">Professional</p>
+                        <p className="font-semibold text-base text-white">
+                          Professional
+                        </p>
                         {professionalVoiceCount !== null && (
                           <span
                             className={cn(
@@ -518,8 +532,12 @@ export function VoiceCloneForm({
 
             <BrandTabs defaultValue="upload" className="w-full">
               <BrandTabsList className="w-full">
-                <BrandTabsTrigger value="upload" className="flex-1">Upload Files</BrandTabsTrigger>
-                <BrandTabsTrigger value="record" className="flex-1">Record Voice</BrandTabsTrigger>
+                <BrandTabsTrigger value="upload" className="flex-1">
+                  Upload Files
+                </BrandTabsTrigger>
+                <BrandTabsTrigger value="record" className="flex-1">
+                  Record Voice
+                </BrandTabsTrigger>
               </BrandTabsList>
 
               {/* Upload Tab */}
@@ -642,7 +660,10 @@ export function VoiceCloneForm({
 
                       {/* Recording Name Input */}
                       <div className="space-y-2">
-                        <label htmlFor="recording-name" className="text-xs font-medium text-white/70 uppercase tracking-wide">
+                        <label
+                          htmlFor="recording-name"
+                          className="text-xs font-medium text-white/70 uppercase tracking-wide"
+                        >
                           Recording Name (optional)
                         </label>
                         <Input
@@ -776,7 +797,9 @@ export function VoiceCloneForm({
               <AccordionContent className="space-y-4 pt-4">
                 <div className="space-y-2">
                   <div className="flex items-center justify-between">
-                    <label className="text-xs font-medium text-white/70 uppercase tracking-wide">Stability: {stability.toFixed(2)}</label>
+                    <label className="text-xs font-medium text-white/70 uppercase tracking-wide">
+                      Stability: {stability.toFixed(2)}
+                    </label>
                   </div>
                   <Slider
                     value={[stability]}
@@ -792,7 +815,9 @@ export function VoiceCloneForm({
                 </div>
 
                 <div className="space-y-2">
-                  <label className="text-xs font-medium text-white/70 uppercase tracking-wide">Similarity Boost: {similarityBoost.toFixed(2)}</label>
+                  <label className="text-xs font-medium text-white/70 uppercase tracking-wide">
+                    Similarity Boost: {similarityBoost.toFixed(2)}
+                  </label>
                   <Slider
                     value={[similarityBoost]}
                     min={0}
@@ -807,7 +832,9 @@ export function VoiceCloneForm({
                 </div>
 
                 <div className="space-y-2">
-                  <label className="text-xs font-medium text-white/70 uppercase tracking-wide">Style: {style.toFixed(2)}</label>
+                  <label className="text-xs font-medium text-white/70 uppercase tracking-wide">
+                    Style: {style.toFixed(2)}
+                  </label>
                   <Slider
                     value={[style]}
                     min={0}
