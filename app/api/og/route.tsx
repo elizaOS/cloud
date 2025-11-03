@@ -4,7 +4,8 @@ import { NextRequest } from "next/server";
 export const runtime = "edge";
 
 const DEFAULT_GRADIENT = "linear-gradient(135deg, #667eea 0%, #764ba2 100%)";
-const ELIZA_GRADIENT = "linear-gradient(135deg, #6366f1 0%, #8b5cf6 50%, #d946ef 100%)";
+const ELIZA_GRADIENT =
+  "linear-gradient(135deg, #6366f1 0%, #8b5cf6 50%, #d946ef 100%)";
 
 export async function GET(request: NextRequest) {
   try {
@@ -12,7 +13,8 @@ export async function GET(request: NextRequest) {
 
     const type = searchParams.get("type") || "default";
     const title = searchParams.get("title") || "elizaOS Platform";
-    const description = searchParams.get("description") || "AI Agent Development Platform";
+    const description =
+      searchParams.get("description") || "AI Agent Development Platform";
     const name = searchParams.get("name");
     const characterName = searchParams.get("characterName");
 

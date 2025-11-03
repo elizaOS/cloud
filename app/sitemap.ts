@@ -91,12 +91,14 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
       .where(eq(userCharacters.is_public, true))
       .limit(1000);
 
-    const characterPages: MetadataRoute.Sitemap = publicCharacters.map((character) => ({
-      url: `${baseUrl}/marketplace/characters/${character.id}`,
-      lastModified: character.updated_at,
-      changeFrequency: "weekly" as const,
-      priority: 0.7,
-    }));
+    const characterPages: MetadataRoute.Sitemap = publicCharacters.map(
+      (character) => ({
+        url: `${baseUrl}/marketplace/characters/${character.id}`,
+        lastModified: character.updated_at,
+        changeFrequency: "weekly" as const,
+        priority: 0.7,
+      }),
+    );
 
     return [...staticPages, ...characterPages];
   } catch (error) {

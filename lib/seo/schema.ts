@@ -15,10 +15,7 @@ export function generateOrganizationSchema() {
     description: SEO_CONSTANTS.defaultDescription,
     url: baseUrl,
     logo: `${baseUrl}/og/default.png`,
-    sameAs: [
-      "https://twitter.com/elizaos",
-      "https://github.com/elizaos",
-    ],
+    sameAs: ["https://twitter.com/elizaos", "https://github.com/elizaos"],
     contactPoint: {
       "@type": "ContactPoint",
       contactType: "Customer Support",
@@ -121,7 +118,9 @@ export function generateArticleSchema(
   };
 }
 
-export function generateBreadcrumbSchema(items: Array<{ name: string; url: string }>) {
+export function generateBreadcrumbSchema(
+  items: Array<{ name: string; url: string }>,
+) {
   const baseUrl = getBaseUrl();
 
   return {

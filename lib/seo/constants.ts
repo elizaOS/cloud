@@ -101,37 +101,19 @@ export const ROUTE_METADATA = {
     title: "Text Generation",
     description:
       "Generate text with advanced AI models. Access GPT-4, Claude, Gemini, and more through our unified API.",
-    keywords: [
-      "text generation",
-      "GPT-4",
-      "Claude",
-      "AI writing",
-      "LLM API",
-    ],
+    keywords: ["text generation", "GPT-4", "Claude", "AI writing", "LLM API"],
   },
   imageGeneration: {
     title: "Image Generation",
     description:
       "Create stunning images with Google Gemini 2.5 Flash. High-quality 1024x1024 images with automatic storage.",
-    keywords: [
-      "image generation",
-      "AI images",
-      "Gemini",
-      "AI art",
-      "image AI",
-    ],
+    keywords: ["image generation", "AI images", "Gemini", "AI art", "image AI"],
   },
   videoGeneration: {
     title: "Video Generation",
     description:
       "Generate videos with Veo3, Kling v2.1, and MiniMax Hailuo. Create up to 5-minute videos with AI.",
-    keywords: [
-      "video generation",
-      "AI video",
-      "Veo3",
-      "Kling",
-      "video AI",
-    ],
+    keywords: ["video generation", "AI video", "Veo3", "Kling", "video AI"],
   },
   voiceCloning: {
     title: "Voice Cloning",
@@ -155,12 +137,7 @@ export const ROUTE_METADATA = {
     title: "MCP Playground",
     description:
       "Interactive Model Context Protocol (MCP) explorer. Test and experiment with MCP servers and tools.",
-    keywords: [
-      "MCP",
-      "Model Context Protocol",
-      "MCP playground",
-      "AI tools",
-    ],
+    keywords: ["MCP", "Model Context Protocol", "MCP playground", "AI tools"],
   },
   billing: {
     title: "Billing & Credits",

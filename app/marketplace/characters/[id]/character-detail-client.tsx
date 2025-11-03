@@ -1,6 +1,12 @@
 "use client";
 
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -12,8 +18,12 @@ interface CharacterDetailClientProps {
   character: UserCharacter;
 }
 
-export function CharacterDetailClient({ character }: CharacterDetailClientProps) {
-  const bio = Array.isArray(character.bio) ? character.bio.join(" ") : character.bio;
+export function CharacterDetailClient({
+  character,
+}: CharacterDetailClientProps) {
+  const bio = Array.isArray(character.bio)
+    ? character.bio.join(" ")
+    : character.bio;
   const topics = character.topics || [];
   const adjectives = character.adjectives || [];
   const tags = character.tags || [];
@@ -26,7 +36,10 @@ export function CharacterDetailClient({ character }: CharacterDetailClientProps)
             <CardHeader className="text-center">
               <div className="flex justify-center mb-4">
                 <Avatar className="h-32 w-32">
-                  <AvatarImage src={character.avatar_url || undefined} alt={character.name} />
+                  <AvatarImage
+                    src={character.avatar_url || undefined}
+                    alt={character.name}
+                  />
                   <AvatarFallback className="text-3xl">
                     {character.name.charAt(0).toUpperCase()}
                   </AvatarFallback>
@@ -103,7 +116,11 @@ export function CharacterDetailClient({ character }: CharacterDetailClientProps)
               <CardContent>
                 <div className="flex flex-wrap gap-2">
                   {adjectives.map((adj, i) => (
-                    <Badge key={i} variant="outline" className="text-base px-3 py-1">
+                    <Badge
+                      key={i}
+                      variant="outline"
+                      className="text-base px-3 py-1"
+                    >
                       {adj}
                     </Badge>
                   ))}
@@ -123,7 +140,11 @@ export function CharacterDetailClient({ character }: CharacterDetailClientProps)
               <CardContent>
                 <div className="flex flex-wrap gap-2">
                   {topics.map((topic, i) => (
-                    <Badge key={i} variant="secondary" className="text-base px-3 py-1">
+                    <Badge
+                      key={i}
+                      variant="secondary"
+                      className="text-base px-3 py-1"
+                    >
                       {topic}
                     </Badge>
                   ))}
@@ -148,7 +169,8 @@ export function CharacterDetailClient({ character }: CharacterDetailClientProps)
                   <div>
                     <h4 className="font-medium">Start a Conversation</h4>
                     <p className="text-sm text-muted-foreground">
-                      Chat with {character.name} using the full ElizaOS runtime with persistent memory
+                      Chat with {character.name} using the full ElizaOS runtime
+                      with persistent memory
                     </p>
                   </div>
                 </div>
@@ -175,9 +197,7 @@ export function CharacterDetailClient({ character }: CharacterDetailClientProps)
                   </div>
                 </div>
                 <Button asChild className="w-full mt-4" size="lg">
-                  <Link href="/dashboard">
-                    Get Started
-                  </Link>
+                  <Link href="/dashboard">Get Started</Link>
                 </Button>
               </div>
             </CardContent>

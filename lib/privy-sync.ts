@@ -12,6 +12,7 @@ import {
   organizationsService,
   emailService,
   invitesService,
+  discordService,
 } from "@/lib/services";
 import type { UserWithOrganization } from "@/lib/types";
 
@@ -207,6 +208,26 @@ export async function syncUserFromPrivy(
           `User ${privyUserId} successfully joined organization ${pendingInvite.organization_id} via invite`,
         );
 
+        // Log to Discord (fire-and-forget)
+        discordService
+          .logUserSignup({
+            userId: userWithOrg.id,
+            privyUserId: userWithOrg.privy_user_id,
+            email: userWithOrg.email || null,
+            name: userWithOrg.name || null,
+            walletAddress: userWithOrg.wallet_address || null,
+            organizationId: userWithOrg.organization.id,
+            organizationName: userWithOrg.organization.name,
+            role: userWithOrg.role,
+            isNewOrganization: false,
+          })
+          .catch((error) => {
+            console.error(
+              "[PrivySync] Failed to log signup to Discord:",
+              error,
+            );
+          });
+
         return userWithOrg;
       } catch (error) {
         console.error(
@@ -392,6 +413,23 @@ export async function syncUserFromPrivy(
       walletAddress: walletAddress,
     });
   }
+
+  // Log to Discord (fire-and-forget)
+  discordService
+    .logUserSignup({
+      userId: userWithOrg.id,
+      privyUserId: userWithOrg.privy_user_id,
+      email: userWithOrg.email || null,
+      name: userWithOrg.name || null,
+      walletAddress: userWithOrg.wallet_address || null,
+      organizationId: userWithOrg.organization.id,
+      organizationName: userWithOrg.organization.name,
+      role: userWithOrg.role,
+      isNewOrganization: true,
+    })
+    .catch((error) => {
+      console.error("[PrivySync] Failed to log signup to Discord:", error);
+    });
 
   return userWithOrg;
 }

@@ -69,7 +69,9 @@ export const metadata: Metadata = {
     title: "elizaOS Platform",
     description:
       "Complete AI agent development platform with inference, hosting, storage, and rapid deployment",
-    images: [`${baseUrl}/api/og?type=default&title=elizaOS Platform&description=AI Agent Development Platform`],
+    images: [
+      `${baseUrl}/api/og?type=default&title=elizaOS Platform&description=AI Agent Development Platform`,
+    ],
     creator: "@elizaos",
     site: "@elizaos",
   },
