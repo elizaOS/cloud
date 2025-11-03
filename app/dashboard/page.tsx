@@ -309,7 +309,6 @@ export default async function DashboardPage() {
               label: "View analytics",
               href: "/dashboard/analytics",
             }}
-            className="rounded-3xl border border-border/60 bg-background/90 shadow-sm"
           />
 
           <BrandTabs defaultValue="overview" className="w-full">
