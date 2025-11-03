@@ -206,8 +206,8 @@ export function AnalyticsPageClient({
                   Usage visibility
                 </h3>
                 <p className="text-sm text-white/60 mt-2">
-                  Overlay throughput, spend, and reliability in a unified timeline
-                  to expose trend shifts instantly.
+                  Overlay throughput, spend, and reliability in a unified
+                  timeline to expose trend shifts instantly.
                 </p>
               </div>
               <div className="border-t border-white/10 pt-6">
@@ -228,7 +228,9 @@ export function AnalyticsPageClient({
         <section className="space-y-8 lg:space-y-10">
           <BrandTabs defaultValue="breakdown" className="w-full">
             <BrandTabsList className="w-full max-w-md">
-              <BrandTabsTrigger value="breakdown" className="flex-1">Breakdown</BrandTabsTrigger>
+              <BrandTabsTrigger value="breakdown" className="flex-1">
+                Breakdown
+              </BrandTabsTrigger>
               <BrandTabsTrigger value="projections" className="flex-1">
                 <TrendingUp className="mr-2 h-4 w-4" />
                 Projections

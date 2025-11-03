@@ -30,15 +30,20 @@ export function SidebarNavigationItem({ item }: SidebarNavigationItemProps) {
           : "text-white/60 border-l-2 border-transparent",
       )}
     >
-      <Icon className={cn("h-4 w-4 transition-colors", isActive && "text-[#FF5800]")} />
+      <Icon
+        className={cn(
+          "h-4 w-4 transition-colors",
+          isActive && "text-[#FF5800]",
+        )}
+      />
       <span className="flex-1">{item.label}</span>
       {item.isNew && (
-        <span 
+        <span
           className="rounded-none px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide"
-          style={{ 
+          style={{
             backgroundColor: "#FF580020",
             color: "#FF5800",
-            border: "1px solid #FF580040"
+            border: "1px solid #FF580040",
           }}
         >
           NEW

@@ -5,6 +5,7 @@ This directory contains reusable brand-specific components that implement the El
 ## Design System
 
 ### Colors
+
 - **Brand Orange**: `#FF5800` (primary accent color)
 - **Brand Blue**: `#0B35F1` (secondary accent)
 - **Brand Background**: `#0A0A0A` (almost black)
@@ -12,6 +13,7 @@ This directory contains reusable brand-specific components that implement the El
 - **Brand Border**: `#E1E1E1` (light borders for corners)
 
 ### Tailwind Utilities
+
 Custom utility classes are defined in `app/globals.css`:
 
 - `.brand-surface` - Black/40 background with white/10 border
@@ -22,6 +24,7 @@ Custom utility classes are defined in `app/globals.css`:
 ## Components
 
 ### CornerBrackets
+
 Decorative corner brackets used throughout the design for a HUD/sci-fi aesthetic.
 
 ```tsx
@@ -30,16 +33,18 @@ import { CornerBrackets } from "@/components/brand";
 <div className="relative">
   <CornerBrackets size="md" color="#E1E1E1" variant="corners" />
   {/* Your content */}
-</div>
+</div>;
 ```
 
 **Props:**
+
 - `size`: `"sm" | "md" | "lg" | "xl"` (default: `"md"`)
 - `color`: string (default: `"#E1E1E1"`)
 - `variant`: `"corners" | "full-border"` (default: `"corners"`)
 - `className`: Additional CSS classes
 
 ### BrandButton
+
 Styled button variants matching the brand design.
 
 ```tsx
@@ -53,6 +58,7 @@ import { BrandButton } from "@/components/brand";
 ```
 
 **Variants:**
+
 - `primary` - Orange background button
 - `ghost` - Transparent with subtle hover
 - `outline` - Bordered button
@@ -62,6 +68,7 @@ import { BrandButton } from "@/components/brand";
 **Sizes:** `sm`, `md`, `lg`, `icon`
 
 ### BrandTabs
+
 Tab system with border-based active state.
 
 ```tsx
@@ -79,10 +86,11 @@ import {
   </BrandTabsList>
   <BrandTabsContent value="tab1">Content 1</BrandTabsContent>
   <BrandTabsContent value="tab2">Content 2</BrandTabsContent>
-</BrandTabs>
+</BrandTabs>;
 ```
 
 **SimpleBrandTabs** - For simple category filters:
+
 ```tsx
 import { SimpleBrandTabs } from "@/components/brand";
 
@@ -90,10 +98,11 @@ import { SimpleBrandTabs } from "@/components/brand";
   tabs={["All", "Marketing", "Writing"]}
   activeTab={activeTab}
   onTabChange={setActiveTab}
-/>
+/>;
 ```
 
 ### SectionHeader
+
 Consistent section headers with orange dot indicator.
 
 ```tsx
@@ -111,6 +120,7 @@ import { SectionHeader, SectionLabel } from "@/components/brand";
 ```
 
 **Props:**
+
 - `label`: string (required)
 - `title`: string | ReactNode (optional)
 - `description`: string | ReactNode (optional)
@@ -118,6 +128,7 @@ import { SectionHeader, SectionLabel } from "@/components/brand";
 - `className`, `labelClassName`, `titleClassName`, `descriptionClassName`
 
 ### HUDContainer
+
 Container with HUD-style corner decorations, ideal for input areas.
 
 ```tsx
@@ -125,16 +136,18 @@ import { HUDContainer } from "@/components/brand";
 
 <HUDContainer cornerSize="md">
   <textarea placeholder="Enter text..." />
-</HUDContainer>
+</HUDContainer>;
 ```
 
 **Props:**
+
 - `cornerSize`: `"sm" | "md" | "lg" | "xl"`
 - `cornerColor`: string (default: `"#E1E1E1"`)
 - `withBorder`: boolean (default: `true`)
 - `className`: Additional CSS classes
 
 ### BrandCard
+
 Reusable card component with optional corner decorations.
 
 ```tsx
@@ -156,17 +169,20 @@ import { BrandCard, AgentCard } from "@/components/brand";
 ```
 
 **BrandCard Props:**
+
 - `hover`: boolean - Enable hover effect
 - `corners`: boolean - Show corner decorations (default: `true`)
 - `cornerSize`, `cornerColor`: Corner decoration options
 - `className`: Additional CSS classes
 
 **AgentCard Props:**
+
 - `title`, `description`, `icon`, `color`: Required
 - `action`: ReactNode (optional)
 - `className`: Additional CSS classes
 
 ### PromptCard
+
 Interactive prompt suggestion cards.
 
 ```tsx
@@ -192,18 +208,15 @@ import { PromptCard, PromptCardGrid } from "@/components/brand";
 ## Usage Examples
 
 ### Landing Page Pattern
+
 ```tsx
-import {
-  SectionHeader,
-  BrandCard,
-  CornerBrackets,
-} from "@/components/brand";
+import { SectionHeader, BrandCard, CornerBrackets } from "@/components/brand";
 
 function MySection() {
   return (
     <section className="py-20 bg-[#0A0A0A] relative">
       <CornerBrackets size="xl" variant="full-border" className="m-8" />
-      
+
       <div className="container">
         <SectionHeader
           label="SECTION LABEL"
@@ -211,7 +224,7 @@ function MySection() {
           description="Section description"
           align="center"
         />
-        
+
         <BrandCard hover>
           <p>Card content</p>
         </BrandCard>
@@ -222,12 +235,9 @@ function MySection() {
 ```
 
 ### HUD Input Pattern
+
 ```tsx
-import {
-  HUDContainer,
-  BrandButton,
-  PromptCardGrid,
-} from "@/components/brand";
+import { HUDContainer, BrandButton, PromptCardGrid } from "@/components/brand";
 import { Paperclip, Mic, ArrowUp } from "lucide-react";
 
 function InputSection() {
@@ -236,17 +246,19 @@ function InputSection() {
       <HUDContainer>
         <textarea placeholder="Enter prompt..." />
         <div className="absolute bottom-4 right-4 flex gap-2">
-          <BrandButton variant="icon"><Paperclip /></BrandButton>
-          <BrandButton variant="icon"><Mic /></BrandButton>
+          <BrandButton variant="icon">
+            <Paperclip />
+          </BrandButton>
+          <BrandButton variant="icon">
+            <Mic />
+          </BrandButton>
           <BrandButton variant="icon-primary">
             <ArrowUp style={{ color: "#FF5800" }} />
           </BrandButton>
         </div>
       </HUDContainer>
-      
-      <PromptCardGrid
-        prompts={["Example 1", "Example 2", "Example 3"]}
-      />
+
+      <PromptCardGrid prompts={["Example 1", "Example 2", "Example 3"]} />
     </div>
   );
 }
@@ -271,5 +283,3 @@ The landing page components have been updated to use these reusable components. 
 3. Use Tailwind color tokens: `bg-[#0A0A0A]`, `text-white/70`, etc.
 4. Add corner brackets to major sections for visual consistency
 5. Use the orange dot (`#FF5800`) for accent indicators
-
-

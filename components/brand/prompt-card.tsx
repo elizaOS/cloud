@@ -18,7 +18,7 @@ export function PromptCard({ prompt, onClick, className }: PromptCardProps) {
       onClick={onClick}
       className={cn(
         "group relative bg-black/40 border border-white/10 p-6 text-left hover:border-white/30 transition-all",
-        className
+        className,
       )}
     >
       <p className="text-sm text-white/70 group-hover:text-white/90 pr-10 pb-8">
@@ -42,7 +42,9 @@ export function PromptCardGrid({
   className,
 }: PromptCardGridProps) {
   return (
-    <div className={cn("mt-6 grid grid-cols-1 md:grid-cols-3 gap-0", className)}>
+    <div
+      className={cn("mt-6 grid grid-cols-1 md:grid-cols-3 gap-0", className)}
+    >
       {prompts.map((prompt, index) => (
         <PromptCard
           key={index}
@@ -53,5 +55,3 @@ export function PromptCardGrid({
     </div>
   );
 }
-
-

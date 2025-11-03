@@ -52,9 +52,7 @@ async function main() {
       billingUrl: process.env.NEXT_PUBLIC_APP_URL + "/dashboard/billing",
     });
   } else {
-    console.error(
-      '❌ Invalid command. Use "welcome" or "low-credits"',
-    );
+    console.error('❌ Invalid command. Use "welcome" or "low-credits"');
     process.exit(1);
   }
 

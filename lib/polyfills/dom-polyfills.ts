@@ -120,4 +120,3 @@ if (typeof window === "undefined") {
 export function initPolyfills() {
   // Polyfills are applied on module load
 }
-

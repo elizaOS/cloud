@@ -12,7 +12,9 @@ export function ApiKeyEmptyState({ onCreateKey }: ApiKeyEmptyStateProps) {
       <div className="flex h-14 w-14 items-center justify-center rounded-full bg-[#FF580020] border border-[#FF5800]/40">
         <KeyRound className="h-7 w-7 text-[#FF5800]" />
       </div>
-      <h3 className="mt-6 text-2xl font-semibold text-white">No API keys yet</h3>
+      <h3 className="mt-6 text-2xl font-semibold text-white">
+        No API keys yet
+      </h3>
       <p className="mt-2 max-w-sm text-sm text-white/60">
         Create your first API key to start authenticating requests and tracking
         usage across the platform.

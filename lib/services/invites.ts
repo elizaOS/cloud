@@ -73,9 +73,8 @@ export class InvitesService {
       throw new Error("Invalid role. Must be 'admin' or 'member'");
     }
 
-    const existingUser = await usersService.getByEmailWithOrganization(
-      normalizedEmail,
-    );
+    const existingUser =
+      await usersService.getByEmailWithOrganization(normalizedEmail);
     if (existingUser && existingUser.organization_id === organizationId) {
       throw new Error("User is already a member of this organization");
     }
@@ -125,7 +124,8 @@ export class InvitesService {
 
   async validateToken(token: string): Promise<ValidateTokenResult> {
     const tokenHash = hashInviteToken(token);
-    const invite = await organizationInvitesRepository.findByTokenHash(tokenHash);
+    const invite =
+      await organizationInvitesRepository.findByTokenHash(tokenHash);
 
     if (!invite) {
       return { valid: false, error: "Invalid invite" };

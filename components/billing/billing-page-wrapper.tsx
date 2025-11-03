@@ -5,6 +5,7 @@ import { BillingPageClient } from "./billing-page-client";
 import { Info } from "lucide-react";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import type { CreditPack as DBCreditPack } from "@/lib/types";
+import { BrandCard, CornerBrackets } from "@/components/brand";
 
 // Local interface with credits as number for display
 interface CreditPack {
@@ -38,24 +39,32 @@ export function BillingPageWrapper({
   return (
     <div className="flex flex-col gap-6 max-w-7xl mx-auto">
       {canceled && (
-        <Alert variant="destructive">
-          <Info className="h-4 w-4" />
-          <AlertTitle>Payment Canceled</AlertTitle>
-          <AlertDescription>
+        <Alert
+          variant="destructive"
+          className="rounded-none border-rose-500/40 bg-rose-500/10"
+        >
+          <Info className="h-4 w-4 text-rose-400" />
+          <AlertTitle className="text-rose-400">Payment Canceled</AlertTitle>
+          <AlertDescription className="text-rose-400">
             Your payment was canceled. No charges were made.
           </AlertDescription>
         </Alert>
       )}
 
-      <Alert>
-        <Info className="h-4 w-4" />
-        <AlertTitle>How Billing Works</AlertTitle>
-        <AlertDescription>
-          You are charged for all AI operations including text generation, image
-          creation, and video rendering. Add funds in bulk to get better rates.
-          Your balance never expires and is shared across your organization.
-        </AlertDescription>
-      </Alert>
+      <BrandCard className="relative" corners={false}>
+        <div className="flex items-start gap-3">
+          <Info className="h-4 w-4 text-[#FF5800] mt-0.5 shrink-0" />
+          <div>
+            <h4 className="font-semibold text-white mb-1">How Billing Works</h4>
+            <p className="text-sm text-white/60">
+              You are charged for all AI operations including text generation,
+              image creation, and video rendering. Add funds in bulk to get
+              better rates. Your balance never expires and is shared across your
+              organization.
+            </p>
+          </div>
+        </div>
+      </BrandCard>
 
       <BillingPageClient
         creditPacks={creditPacks.map((p) => ({

@@ -38,7 +38,7 @@ export function SectionHeader({
         className={cn(
           "flex items-center gap-3 mb-4",
           align === "center" && "justify-center",
-          align === "right" && "justify-end"
+          align === "right" && "justify-end",
         )}
       >
         <span
@@ -48,7 +48,7 @@ export function SectionHeader({
         <p
           className={cn(
             "text-lg md:text-xl uppercase tracking-wider text-white font-medium",
-            labelClassName
+            labelClassName,
           )}
         >
           {label}
@@ -59,7 +59,7 @@ export function SectionHeader({
         <h2
           className={cn(
             "text-3xl md:text-4xl lg:text-5xl font-bold mb-4 text-white",
-            titleClassName
+            titleClassName,
           )}
         >
           {title}
@@ -71,7 +71,7 @@ export function SectionHeader({
           className={cn(
             "text-white/70 text-base md:text-lg",
             align === "center" && "max-w-2xl mx-auto",
-            descriptionClassName
+            descriptionClassName,
           )}
         >
           {description}
@@ -101,5 +101,3 @@ export function SectionLabel({
     </div>
   );
 }
-
-

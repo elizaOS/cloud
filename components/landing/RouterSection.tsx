@@ -272,7 +272,10 @@ const RouterSection = () => {
           </p>
         </div>
 
-        <BrandCard corners={false} className="w-full h-[600px] rounded-lg overflow-hidden cursor-default pointer-events-none">
+        <BrandCard
+          corners={false}
+          className="w-full h-[600px] rounded-lg overflow-hidden cursor-default pointer-events-none"
+        >
           <ReactFlow
             nodes={nodes}
             edges={edges}

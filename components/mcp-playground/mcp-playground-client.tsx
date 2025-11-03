@@ -1,18 +1,8 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
-import { Label } from "@/components/ui/label";
 import {
   Select,
   SelectContent,
@@ -20,7 +10,6 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
   Database,
   Zap,
@@ -42,6 +31,16 @@ import {
   Link2,
   Server,
 } from "lucide-react";
+import {
+  BrandTabs,
+  BrandTabsList,
+  BrandTabsTrigger,
+  BrandTabsContent,
+  BrandCard,
+  BrandButton,
+  CornerBrackets,
+  SectionLabel,
+} from "@/components/brand";
 
 interface MCPTool {
   name: string;
@@ -75,10 +74,10 @@ const categoryIcons: Record<string, any> = {
 };
 
 const categoryColors: Record<string, string> = {
-  platform: "bg-blue-500/10 text-blue-500 border-blue-500/20",
-  crypto: "bg-amber-500/10 text-amber-500 border-amber-500/20",
-  social: "bg-purple-500/10 text-purple-500 border-purple-500/20",
-  ai: "bg-emerald-500/10 text-emerald-500 border-emerald-500/20",
+  platform: "bg-blue-500/20 text-blue-400 border-blue-500/40",
+  crypto: "bg-amber-500/20 text-amber-400 border-amber-500/40",
+  social: "bg-purple-500/20 text-purple-400 border-purple-500/40",
+  ai: "bg-emerald-500/20 text-emerald-400 border-emerald-500/40",
 };
 
 export function MCPPlaygroundClient() {
@@ -276,7 +275,7 @@ export function MCPPlaygroundClient() {
   if (loading) {
     return (
       <div className="flex items-center justify-center min-h-[600px]">
-        <Loader2 className="size-8 animate-spin text-muted-foreground" />
+        <Loader2 className="size-8 animate-spin text-[#FF5800]" />
       </div>
     );
   }
@@ -286,89 +285,126 @@ export function MCPPlaygroundClient() {
       {/* Header */}
       <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
         <div>
-          <h1 className="text-3xl font-bold tracking-tight">MCP Playground</h1>
-          <p className="text-muted-foreground mt-2">
+          <h1 className="text-3xl font-bold tracking-tight text-white">
+            MCP Playground
+          </h1>
+          <p className="text-white/60 mt-2">
             Explore and test our Model Context Protocol integrations
           </p>
         </div>
         <div className="flex items-center gap-2">
-          <Badge variant="outline" className="gap-2">
+          <span className="rounded-none border border-white/20 bg-white/10 px-3 py-1 text-xs text-white flex items-center gap-2">
             <Database className="size-3" />
             {mcps.length} MCPs Available
-          </Badge>
+          </span>
         </div>
       </div>
 
       {/* Search and Filters */}
-      <Card>
-        <CardContent className="py-4">
-          <div className="flex flex-col gap-4 md:flex-row md:items-center">
-            <div className="relative flex-1">
-              <Search className="absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
-              <Input
-                placeholder="Search MCPs and tools..."
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                className="pl-10"
-              />
-            </div>
-            <Select
-              value={selectedCategory}
-              onValueChange={setSelectedCategory}
-            >
-              <SelectTrigger className="w-full md:w-[180px]">
-                <SelectValue placeholder="Category" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">All Categories</SelectItem>
-                <SelectItem value="platform">Platform</SelectItem>
-                <SelectItem value="crypto">Crypto</SelectItem>
-                <SelectItem value="social">Social</SelectItem>
-                <SelectItem value="ai">AI</SelectItem>
-              </SelectContent>
-            </Select>
-            <Select
-              value={selectedPaymentType}
-              onValueChange={setSelectedPaymentType}
-            >
-              <SelectTrigger className="w-full md:w-[180px]">
-                <SelectValue placeholder="Payment Type" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">All Payment Types</SelectItem>
-                <SelectItem value="x402">
-                  <div className="flex items-center gap-2">
-                    <Wallet className="size-3 text-blue-600 dark:text-blue-400" />
-                    x402 Protocol
-                  </div>
-                </SelectItem>
-                <SelectItem value="credits">
-                  <div className="flex items-center gap-2">
-                    <CreditCard className="size-3 text-emerald-600 dark:text-emerald-400" />
-                    Credit-Based
-                  </div>
-                </SelectItem>
-              </SelectContent>
-            </Select>
+      <BrandCard corners={false}>
+        <div className="flex flex-col gap-4 md:flex-row md:items-center py-4">
+          <div className="relative flex-1">
+            <Search className="absolute left-3 top-1/2 size-4 -translate-y-1/2 text-white/40" />
+            <Input
+              placeholder="Search MCPs and tools..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="pl-10 rounded-none border-white/10 bg-black/40 text-white placeholder:text-white/40 focus:ring-1 focus:ring-[#FF5800] focus:border-[#FF5800]"
+            />
           </div>
-        </CardContent>
-      </Card>
+          <Select value={selectedCategory} onValueChange={setSelectedCategory}>
+            <SelectTrigger className="w-full md:w-[180px] rounded-none border-white/10 bg-black/40 text-white focus:ring-1 focus:ring-[#FF5800]">
+              <SelectValue placeholder="Category" />
+            </SelectTrigger>
+            <SelectContent className="rounded-none border-white/10 bg-black/90">
+              <SelectItem
+                value="all"
+                className="rounded-none text-white hover:bg-white/10 focus:bg-white/10"
+              >
+                All Categories
+              </SelectItem>
+              <SelectItem
+                value="platform"
+                className="rounded-none text-white hover:bg-white/10 focus:bg-white/10"
+              >
+                Platform
+              </SelectItem>
+              <SelectItem
+                value="crypto"
+                className="rounded-none text-white hover:bg-white/10 focus:bg-white/10"
+              >
+                Crypto
+              </SelectItem>
+              <SelectItem
+                value="social"
+                className="rounded-none text-white hover:bg-white/10 focus:bg-white/10"
+              >
+                Social
+              </SelectItem>
+              <SelectItem
+                value="ai"
+                className="rounded-none text-white hover:bg-white/10 focus:bg-white/10"
+              >
+                AI
+              </SelectItem>
+            </SelectContent>
+          </Select>
+          <Select
+            value={selectedPaymentType}
+            onValueChange={setSelectedPaymentType}
+          >
+            <SelectTrigger className="w-full md:w-[180px] rounded-none border-white/10 bg-black/40 text-white focus:ring-1 focus:ring-[#FF5800]">
+              <SelectValue placeholder="Payment Type" />
+            </SelectTrigger>
+            <SelectContent className="rounded-none border-white/10 bg-black/90">
+              <SelectItem
+                value="all"
+                className="rounded-none text-white hover:bg-white/10 focus:bg-white/10"
+              >
+                All Payment Types
+              </SelectItem>
+              <SelectItem
+                value="x402"
+                className="rounded-none text-white hover:bg-white/10 focus:bg-white/10"
+              >
+                <div className="flex items-center gap-2">
+                  <Wallet className="size-3 text-blue-400" />
+                  x402 Protocol
+                </div>
+              </SelectItem>
+              <SelectItem
+                value="credits"
+                className="rounded-none text-white hover:bg-white/10 focus:bg-white/10"
+              >
+                <div className="flex items-center gap-2">
+                  <CreditCard className="size-3 text-emerald-400" />
+                  Credit-Based
+                </div>
+              </SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
+      </BrandCard>
 
       {/* Main Content */}
       <div className="grid gap-6 lg:grid-cols-[350px_1fr]">
         {/* MCP List */}
         <div className="space-y-3">
-          <h2 className="text-lg font-semibold">Available MCPs</h2>
+          <SectionLabel>Available MCPs</SectionLabel>
           <div className="space-y-2">
             {filteredMcps.map((mcp) => {
               const Icon = categoryIcons[mcp.category] || Database;
               const isSelected = selectedMcp?.id === mcp.id;
 
               return (
-                <Card
+                <BrandCard
                   key={mcp.id}
-                  className={`cursor-pointer transition-all hover:shadow-md ${
-                    isSelected ? "ring-2 ring-primary" : ""
+                  corners={false}
+                  hover
+                  className={`cursor-pointer transition-all ${
+                    isSelected
+                      ? "border-[#FF5800] ring-2 ring-[#FF5800]/40"
+                      : ""
                   }`}
                   onClick={() => {
                     setSelectedMcp(mcp);
@@ -378,46 +414,38 @@ export function MCPPlaygroundClient() {
                     setError(null);
                   }}
                 >
-                  <CardHeader className="pb-3">
-                    <div className="flex items-start justify-between gap-2">
-                      <div className="flex items-center gap-2">
-                        <div
-                          className={`rounded-lg p-2 ${categoryColors[mcp.category]}`}
-                        >
-                          <Icon className="size-4" />
-                        </div>
-                        <div className="flex-1 min-w-0">
-                          <CardTitle className="text-sm truncate">
-                            {mcp.name}
-                          </CardTitle>
-                          <div className="flex items-center gap-1.5 mt-1 flex-wrap">
-                            <Badge variant="outline" className="text-xs">
-                              {mcp.tools.length} tools
-                            </Badge>
-                            {mcp.pricing.type === "x402" && (
-                              <Badge
-                                variant="outline"
-                                className="text-xs gap-1 bg-gradient-to-r from-blue-500/10 to-purple-500/10 border-blue-500/30 text-blue-600 dark:text-blue-400"
-                              >
-                                <Wallet className="size-2.5" />
-                                x402
-                              </Badge>
-                            )}
-                            {mcp.pricing.type === "credits" && (
-                              <Badge
-                                variant="outline"
-                                className="text-xs gap-1 bg-emerald-500/10 border-emerald-500/30 text-emerald-600 dark:text-emerald-400"
-                              >
-                                <CreditCard className="size-2.5" />
-                                Credits
-                              </Badge>
-                            )}
-                          </div>
+                  <div className="flex items-start justify-between gap-2">
+                    <div className="flex items-center gap-2 flex-1 min-w-0">
+                      <div
+                        className={`rounded-none p-2 border ${categoryColors[mcp.category]}`}
+                      >
+                        <Icon className="size-4" />
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <h4 className="text-sm truncate font-bold text-white">
+                          {mcp.name}
+                        </h4>
+                        <div className="flex items-center gap-1.5 mt-1 flex-wrap">
+                          <span className="text-xs rounded-none bg-white/10 px-2 py-0.5 text-white">
+                            {mcp.tools.length} tools
+                          </span>
+                          {mcp.pricing.type === "x402" && (
+                            <span className="text-xs gap-1 rounded-none bg-blue-500/20 border border-blue-500/40 px-2 py-0.5 text-blue-400 inline-flex items-center">
+                              <Wallet className="size-2.5" />
+                              x402
+                            </span>
+                          )}
+                          {mcp.pricing.type === "credits" && (
+                            <span className="text-xs gap-1 rounded-none bg-emerald-500/20 border border-emerald-500/40 px-2 py-0.5 text-emerald-400 inline-flex items-center">
+                              <CreditCard className="size-2.5" />
+                              Credits
+                            </span>
+                          )}
                         </div>
                       </div>
                     </div>
-                  </CardHeader>
-                </Card>
+                  </div>
+                </BrandCard>
               );
             })}
           </div>
@@ -425,59 +453,58 @@ export function MCPPlaygroundClient() {
 
         {/* Tool Tester */}
         {selectedMcp && (
-          <Card>
-            <CardHeader>
+          <BrandCard className="relative">
+            <CornerBrackets size="sm" className="opacity-50" />
+
+            <div className="relative z-10 space-y-4">
               <div className="flex items-start justify-between">
                 <div>
-                  <CardTitle>{selectedMcp.name}</CardTitle>
-                  <CardDescription className="mt-2">
+                  <h3 className="text-xl font-bold text-white">
+                    {selectedMcp.name}
+                  </h3>
+                  <p className="text-sm text-white/60 mt-2">
                     {selectedMcp.description}
-                  </CardDescription>
+                  </p>
                 </div>
-                <Badge
-                  className={categoryColors[selectedMcp.category]}
-                  variant="outline"
+                <span
+                  className={`rounded-none border px-2 py-1 text-xs font-bold uppercase tracking-wide ${categoryColors[selectedMcp.category]}`}
                 >
                   {selectedMcp.category}
-                </Badge>
+                </span>
               </div>
               <div className="space-y-3 mt-4">
                 <div className="flex items-center gap-2 flex-wrap">
                   {selectedMcp.pricing.type === "x402" ? (
-                    <Badge
-                      variant="outline"
-                      className="gap-1.5 bg-gradient-to-r from-blue-500/10 to-purple-500/10 border-blue-500/30 text-blue-600 dark:text-blue-400"
-                    >
+                    <span className="gap-1.5 rounded-none bg-blue-500/20 border border-blue-500/40 px-2 py-1 text-xs text-blue-400 inline-flex items-center">
                       <Wallet className="size-3" />
                       x402 Protocol
-                    </Badge>
+                    </span>
                   ) : (
-                    <Badge
-                      variant="outline"
-                      className="gap-1.5 bg-emerald-500/10 border-emerald-500/30 text-emerald-600 dark:text-emerald-400"
-                    >
+                    <span className="gap-1.5 rounded-none bg-emerald-500/20 border border-emerald-500/40 px-2 py-1 text-xs text-emerald-400 inline-flex items-center">
                       <CreditCard className="size-3" />
                       Credit-Based
-                    </Badge>
+                    </span>
                   )}
-                  <Badge variant="outline" className="gap-1.5">
+                  <span className="rounded-none border border-white/20 bg-white/10 px-2 py-1 text-xs text-white inline-flex items-center gap-1.5">
                     <DollarSign className="size-3" />
                     {selectedMcp.pricing.base}
-                  </Badge>
-                  <Badge variant="outline">v{selectedMcp.version}</Badge>
+                  </span>
+                  <span className="rounded-none border border-white/20 bg-white/10 px-2 py-1 text-xs text-white">
+                    v{selectedMcp.version}
+                  </span>
                 </div>
 
                 {/* Endpoint URL */}
-                <div className="rounded-lg border bg-muted/30 p-3">
+                <div className="rounded-none border border-white/10 bg-black/40 p-3">
                   <div className="flex items-center justify-between gap-2 mb-2">
                     <div className="flex items-center gap-2">
-                      <Server className="size-3.5 text-muted-foreground" />
-                      <span className="text-xs font-medium text-muted-foreground">
+                      <Server className="size-3.5 text-[#FF5800]" />
+                      <span className="text-xs font-medium text-white/70 uppercase tracking-wide">
                         MCP Endpoint
                       </span>
                     </div>
-                    <Button
-                      size="icon-sm"
+                    <BrandButton
+                      size="sm"
                       variant="ghost"
                       onClick={() =>
                         copyToClipboard(
@@ -485,15 +512,16 @@ export function MCPPlaygroundClient() {
                           "endpoint",
                         )
                       }
+                      className="h-6 w-6 p-0"
                     >
                       {copiedEndpoint ? (
-                        <Check className="size-3 text-emerald-600" />
+                        <Check className="size-3 text-green-400" />
                       ) : (
                         <Copy className="size-3" />
                       )}
-                    </Button>
+                    </BrandButton>
                   </div>
-                  <code className="text-xs text-foreground/80 break-all">
+                  <code className="text-xs text-white/70 break-all">
                     {typeof window !== "undefined"
                       ? window.location.origin
                       : "https://your-domain.com"}
@@ -501,9 +529,9 @@ export function MCPPlaygroundClient() {
                   </code>
                 </div>
               </div>
-            </CardHeader>
-            <CardContent>
-              <Tabs
+
+              <div className="border-t border-white/10 my-4" />
+              <BrandTabs
                 value={selectedTool?.name || selectedMcp.tools[0]?.name}
                 onValueChange={(value) => {
                   const tool = selectedMcp.tools.find((t) => t.name === value);
@@ -515,43 +543,64 @@ export function MCPPlaygroundClient() {
                   }
                 }}
               >
-                <TabsList className="w-full overflow-x-auto flex-wrap h-auto justify-start">
-                  {selectedMcp.tools.map((tool) => (
-                    <TabsTrigger key={tool.name} value={tool.name}>
-                      {tool.name}
-                    </TabsTrigger>
-                  ))}
-                </TabsList>
+                <div className="overflow-x-auto scrollbar-hide -mx-6 px-6 mb-4">
+                  <div className="inline-flex gap-0 min-w-max border border-white/10 bg-black/50 rounded-none">
+                    {selectedMcp.tools.map((tool) => (
+                      <button
+                        key={tool.name}
+                        onClick={() => {
+                          const foundTool = selectedMcp.tools.find(
+                            (t) => t.name === tool.name,
+                          );
+                          if (foundTool) {
+                            setSelectedTool(foundTool);
+                            setToolParams({});
+                            setResult(null);
+                            setError(null);
+                          }
+                        }}
+                        className={`
+                          inline-flex items-center gap-1 px-3 py-1.5 text-xs font-medium transition-all whitespace-nowrap
+                          border-b-2 border-transparent
+                          ${
+                            selectedTool?.name === tool.name
+                              ? "border-[#FF5800] bg-[#252527] text-white"
+                              : "text-white/70 hover:text-white/90 hover:bg-white/5"
+                          }
+                        `}
+                      >
+                        {tool.name}
+                      </button>
+                    ))}
+                  </div>
+                </div>
 
-                {selectedMcp.tools.map((tool) => (
-                  <TabsContent
-                    key={tool.name}
-                    value={tool.name}
-                    className="space-y-4"
-                  >
-                    <div className="rounded-lg bg-muted/50 p-4 space-y-3 border">
+                {selectedTool && (
+                  <div className="space-y-4">
+                    <div className="rounded-none bg-black/40 border border-white/10 p-4 space-y-3">
                       <div className="flex items-center justify-between gap-2">
-                        <h3 className="font-semibold">{tool.name}</h3>
+                        <h3 className="font-semibold text-white">
+                          {selectedTool.name}
+                        </h3>
                         <div className="flex items-center gap-2">
                           {selectedMcp.pricing.type === "x402" && (
-                            <Badge
-                              variant="outline"
-                              className="gap-1 bg-gradient-to-r from-blue-500/10 to-purple-500/10 border-blue-500/30 text-blue-600 dark:text-blue-400 text-xs"
-                            >
+                            <span className="gap-1 rounded-none bg-blue-500/20 border border-blue-500/40 px-2 py-0.5 text-xs text-blue-400 inline-flex items-center">
                               <Wallet className="size-2.5" />
                               x402
-                            </Badge>
+                            </span>
                           )}
-                          <Badge variant="secondary">{tool.cost}</Badge>
+                          <span className="rounded-none bg-white/10 px-2 py-0.5 text-xs text-white">
+                            {selectedTool.cost}
+                          </span>
                         </div>
                       </div>
-                      <p className="text-sm text-muted-foreground">
-                        {tool.description}
+                      <p className="text-sm text-white/60">
+                        {selectedTool.description}
                       </p>
                       {selectedMcp.pricing.type === "x402" && (
-                        <div className="flex items-start gap-2 rounded-md bg-blue-500/5 border border-blue-500/20 p-2.5 text-xs">
-                          <Wallet className="size-3.5 text-blue-600 dark:text-blue-400 mt-0.5 shrink-0" />
-                          <p className="text-blue-600 dark:text-blue-400">
+                        <div className="flex items-start gap-2 rounded-none bg-blue-500/10 border border-blue-500/20 p-2.5 text-xs">
+                          <Wallet className="size-3.5 text-blue-400 mt-0.5 shrink-0" />
+                          <p className="text-blue-400">
                             <span className="font-medium">x402 Protocol:</span>{" "}
                             Pay per call with cryptocurrency via Coinbase x402.
                             No subscription required.
@@ -562,29 +611,34 @@ export function MCPPlaygroundClient() {
 
                     {/* Parameters */}
                     <div className="space-y-4">
-                      <h4 className="text-sm font-semibold">Parameters</h4>
-                      {Object.keys(tool.parameters).length === 0 ? (
-                        <p className="text-sm text-muted-foreground">
+                      <h4 className="text-sm font-semibold text-white">
+                        Parameters
+                      </h4>
+                      {Object.keys(selectedTool.parameters).length === 0 ? (
+                        <p className="text-sm text-white/60">
                           No parameters required
                         </p>
                       ) : (
                         <div className="space-y-4">
-                          {Object.entries(tool.parameters).map(
+                          {Object.entries(selectedTool.parameters).map(
                             ([paramName, paramConfig]: [string, any]) => (
                               <div key={paramName} className="space-y-2">
-                                <Label htmlFor={paramName}>
+                                <label
+                                  htmlFor={paramName}
+                                  className="text-xs font-medium text-white/70 uppercase tracking-wide"
+                                >
                                   {paramName}
                                   {!paramConfig.optional && (
-                                    <span className="text-destructive ml-1">
+                                    <span className="text-rose-400 ml-1">
                                       *
                                     </span>
                                   )}
-                                </Label>
+                                </label>
                                 <div>
                                   {renderParameterInput(paramName, paramConfig)}
                                 </div>
                                 {paramConfig.description && (
-                                  <p className="text-xs text-muted-foreground">
+                                  <p className="text-xs text-white/50">
                                     {paramConfig.description}
                                   </p>
                                 )}
@@ -596,9 +650,10 @@ export function MCPPlaygroundClient() {
                     </div>
 
                     {/* Execute Button */}
-                    <Button
+                    <BrandButton
                       onClick={executeTool}
                       disabled={executing}
+                      variant="primary"
                       className="w-full"
                       size="lg"
                     >
@@ -613,34 +668,30 @@ export function MCPPlaygroundClient() {
                           Execute Tool
                         </>
                       )}
-                    </Button>
+                    </BrandButton>
 
                     {/* Result Display */}
                     {(result || error) && (
                       <div className="space-y-2">
                         <div className="flex items-center justify-between">
-                          <h4 className="text-sm font-semibold">Result</h4>
+                          <h4 className="text-sm font-semibold text-white">
+                            Result
+                          </h4>
                           <div className="flex items-center gap-2">
                             {result && (
-                              <Badge
-                                variant="outline"
-                                className="gap-1.5 bg-emerald-500/10 text-emerald-600 border-emerald-500/20"
-                              >
+                              <span className="gap-1.5 rounded-none bg-emerald-500/20 border border-emerald-500/40 px-2 py-0.5 text-xs text-emerald-400 inline-flex items-center">
                                 <CheckCircle2 className="size-3" />
                                 Success
-                              </Badge>
+                              </span>
                             )}
                             {error && (
-                              <Badge
-                                variant="outline"
-                                className="gap-1.5 bg-destructive/10 text-destructive border-destructive/20"
-                              >
+                              <span className="gap-1.5 rounded-none bg-rose-500/20 border border-rose-500/40 px-2 py-0.5 text-xs text-rose-400 inline-flex items-center">
                                 <XCircle className="size-3" />
                                 Error
-                              </Badge>
+                              </span>
                             )}
-                            <Button
-                              size="icon-sm"
+                            <BrandButton
+                              size="sm"
                               variant="ghost"
                               onClick={() =>
                                 copyToClipboard(
@@ -648,17 +699,18 @@ export function MCPPlaygroundClient() {
                                   "result",
                                 )
                               }
+                              className="h-6 w-6 p-0"
                             >
                               {copied ? (
-                                <Check className="size-3 text-emerald-600" />
+                                <Check className="size-3 text-green-400" />
                               ) : (
                                 <Copy className="size-3" />
                               )}
-                            </Button>
+                            </BrandButton>
                           </div>
                         </div>
-                        <div className="rounded-lg bg-muted/50 p-4 border">
-                          <pre className="text-xs overflow-x-auto">
+                        <div className="rounded-none bg-black/60 border border-white/10 p-4">
+                          <pre className="text-xs overflow-x-auto text-white/70">
                             {error || JSON.stringify(result, null, 2)}
                           </pre>
                         </div>
@@ -669,16 +721,16 @@ export function MCPPlaygroundClient() {
                     <div className="space-y-3">
                       {/* MCP Connection Info */}
                       <details className="space-y-2" open>
-                        <summary className="cursor-pointer text-sm font-semibold flex items-center gap-2 hover:text-primary transition-colors">
+                        <summary className="cursor-pointer text-sm font-semibold flex items-center gap-2 hover:text-[#FF5800] transition-colors text-white">
                           <Link2 className="size-4" />
                           Connect Your Agent
                         </summary>
-                        <div className="rounded-lg bg-muted/50 p-4 border space-y-3">
+                        <div className="rounded-none bg-black/40 border border-white/10 p-4 space-y-3">
                           <div>
-                            <p className="text-xs font-medium mb-2 text-muted-foreground">
+                            <p className="text-xs font-medium mb-2 text-white/70 uppercase tracking-wide">
                               MCP Configuration (Claude Desktop / Agent)
                             </p>
-                            <pre className="text-xs overflow-x-auto p-3 rounded bg-background/50 border">
+                            <pre className="text-xs overflow-x-auto p-3 rounded-none bg-black/60 border border-white/10 text-white/70">
                               {`{
   "mcpServers": {
     "${selectedMcp.id}": {
@@ -691,8 +743,8 @@ export function MCPPlaygroundClient() {
 }`}
                             </pre>
                           </div>
-                          <div className="flex items-start gap-2 text-xs text-muted-foreground">
-                            <Server className="size-3.5 mt-0.5 shrink-0" />
+                          <div className="flex items-start gap-2 text-xs text-white/60">
+                            <Server className="size-3.5 mt-0.5 shrink-0 text-[#FF5800]" />
                             <p>
                               Add this configuration to your MCP client (Claude
                               Desktop, custom agent, etc.) to connect to this
@@ -704,15 +756,15 @@ export function MCPPlaygroundClient() {
 
                       {/* Code Example */}
                       <details className="space-y-2">
-                        <summary className="cursor-pointer text-sm font-semibold flex items-center gap-2 hover:text-primary transition-colors">
+                        <summary className="cursor-pointer text-sm font-semibold flex items-center gap-2 hover:text-[#FF5800] transition-colors text-white">
                           <Code2 className="size-4" />
                           View Code Example
                         </summary>
-                        <div className="rounded-lg bg-muted/50 p-4 border relative">
-                          <Button
-                            size="icon-sm"
+                        <div className="rounded-none bg-black/40 border border-white/10 p-4 relative">
+                          <BrandButton
+                            size="sm"
                             variant="ghost"
-                            className="absolute top-2 right-2"
+                            className="absolute top-2 right-2 h-6 w-6 p-0"
                             onClick={() =>
                               copyToClipboard(
                                 `// MCP Tool Call Example
@@ -725,7 +777,7 @@ const response = await fetch("${selectedMcp.endpoint}", {
   body: JSON.stringify({
     method: "tools/call",
     params: {
-      name: "${tool.name}",
+      name: "${selectedTool.name}",
       arguments: ${JSON.stringify(toolParams, null, 2)}
     }
   })
@@ -738,12 +790,12 @@ console.log(data);`,
                             }
                           >
                             {copiedCode ? (
-                              <Check className="size-3 text-emerald-600" />
+                              <Check className="size-3 text-green-400" />
                             ) : (
                               <Copy className="size-3" />
                             )}
-                          </Button>
-                          <pre className="text-xs overflow-x-auto pr-8">
+                          </BrandButton>
+                          <pre className="text-xs overflow-x-auto pr-8 text-white/70">
                             {`// MCP Tool Call Example
 const response = await fetch("${selectedMcp.endpoint}", {
   method: "POST",
@@ -754,7 +806,7 @@ const response = await fetch("${selectedMcp.endpoint}", {
   body: JSON.stringify({
     method: "tools/call",
     params: {
-      name: "${tool.name}",
+      name: "${selectedTool.name}",
       arguments: ${JSON.stringify(toolParams, null, 2)}
     }
   })
@@ -766,11 +818,11 @@ console.log(data);`}
                         </div>
                       </details>
                     </div>
-                  </TabsContent>
-                ))}
-              </Tabs>
-            </CardContent>
-          </Card>
+                  </div>
+                )}
+              </BrandTabs>
+            </div>
+          </BrandCard>
         )}
       </div>
     </div>
