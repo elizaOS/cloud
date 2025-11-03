@@ -1,96 +1,111 @@
 "use client";
 
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
 import { Building2, CreditCard, Calendar } from "lucide-react";
 import { format } from "date-fns";
 import type { Organization } from "@/db/schemas";
+import { BrandCard, CornerBrackets } from "@/components/brand";
 
 interface OrganizationGeneralTabProps {
   organization: Organization;
 }
 
-export function OrganizationGeneralTab({ organization }: OrganizationGeneralTabProps) {
+export function OrganizationGeneralTab({
+  organization,
+}: OrganizationGeneralTabProps) {
   return (
     <div className="space-y-6">
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <Building2 className="h-5 w-5" />
-            Organization Details
-          </CardTitle>
-          <CardDescription>
-            Basic information about your organization
-          </CardDescription>
-        </CardHeader>
-        <CardContent className="space-y-4">
+      <BrandCard className="relative">
+        <CornerBrackets size="sm" className="opacity-50" />
+        <div className="relative z-10 space-y-4">
+          <div>
+            <div className="flex items-center gap-2 mb-2">
+              <Building2 className="h-5 w-5 text-[#FF5800]" />
+              <h3 className="text-lg font-bold text-white">
+                Organization Details
+              </h3>
+            </div>
+            <p className="text-sm text-white/60">
+              Basic information about your organization
+            </p>
+          </div>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div>
-              <label className="text-sm font-medium text-muted-foreground">
+              <label className="text-xs font-medium text-white/50 uppercase tracking-wide">
                 Organization Name
               </label>
-              <p className="mt-1 text-sm font-semibold">{organization.name}</p>
+              <p className="mt-1 text-sm font-semibold text-white">
+                {organization.name}
+              </p>
             </div>
             <div>
-              <label className="text-sm font-medium text-muted-foreground">
+              <label className="text-xs font-medium text-white/50 uppercase tracking-wide">
                 Organization Slug
               </label>
-              <p className="mt-1 text-sm font-mono">{organization.slug}</p>
+              <p className="mt-1 text-sm font-mono text-white">
+                {organization.slug}
+              </p>
             </div>
             <div>
-              <label className="text-sm font-medium text-muted-foreground">
+              <label className="text-xs font-medium text-white/50 uppercase tracking-wide">
                 Status
               </label>
               <div className="mt-1">
-                <Badge variant={organization.is_active ? "default" : "destructive"}>
+                <span
+                  className={`rounded-none px-2 py-1 text-xs font-bold uppercase tracking-wide border ${organization.is_active ? "bg-green-500/20 text-green-400 border-green-500/40" : "bg-rose-500/20 text-rose-400 border-rose-500/40"}`}
+                >
                   {organization.is_active ? "Active" : "Inactive"}
-                </Badge>
+                </span>
               </div>
             </div>
             <div>
-              <label className="text-sm font-medium text-muted-foreground">
+              <label className="text-xs font-medium text-white/50 uppercase tracking-wide">
                 Created
               </label>
-              <p className="mt-1 text-sm flex items-center gap-1.5">
-                <Calendar className="h-3.5 w-3.5" />
+              <p className="mt-1 text-sm flex items-center gap-1.5 text-white">
+                <Calendar className="h-3.5 w-3.5 text-[#FF5800]" />
                 {format(new Date(organization.created_at), "MMM d, yyyy")}
               </p>
             </div>
           </div>
-        </CardContent>
-      </Card>
+        </div>
+      </BrandCard>
 
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <CreditCard className="h-5 w-5" />
-            Billing Information
-          </CardTitle>
-          <CardDescription>
-            Credit balance and billing details
-          </CardDescription>
-        </CardHeader>
-        <CardContent className="space-y-4">
+      <BrandCard className="relative">
+        <CornerBrackets size="sm" className="opacity-50" />
+        <div className="relative z-10 space-y-4">
+          <div>
+            <div className="flex items-center gap-2 mb-2">
+              <CreditCard className="h-5 w-5 text-[#FF5800]" />
+              <h3 className="text-lg font-bold text-white">
+                Billing Information
+              </h3>
+            </div>
+            <p className="text-sm text-white/60">
+              Credit balance and billing details
+            </p>
+          </div>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div>
-              <label className="text-sm font-medium text-muted-foreground">
+              <label className="text-xs font-medium text-white/50 uppercase tracking-wide">
                 Credit Balance
               </label>
-              <p className="mt-1 text-2xl font-bold">
+              <p className="mt-1 text-2xl font-bold text-white">
                 {organization.credit_balance.toLocaleString()} credits
               </p>
             </div>
             {organization.billing_email && (
               <div>
-                <label className="text-sm font-medium text-muted-foreground">
+                <label className="text-xs font-medium text-white/50 uppercase tracking-wide">
                   Billing Email
                 </label>
-                <p className="mt-1 text-sm">{organization.billing_email}</p>
+                <p className="mt-1 text-sm text-white">
+                  {organization.billing_email}
+                </p>
               </div>
             )}
           </div>
-        </CardContent>
-      </Card>
+        </div>
+      </BrandCard>
     </div>
   );
 }

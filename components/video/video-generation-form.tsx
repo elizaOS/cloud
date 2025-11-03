@@ -54,7 +54,7 @@ export function VideoGenerationForm({
   return (
     <BrandCard className="relative h-full">
       <CornerBrackets size="md" className="opacity-50" />
-      
+
       <form
         className="relative z-10 flex h-full flex-col gap-6"
         onSubmit={(event) => {
@@ -81,7 +81,10 @@ export function VideoGenerationForm({
 
         <div className="flex-1 space-y-5 overflow-y-auto">
           <div className="space-y-2">
-            <label htmlFor="video-prompt" className="text-xs font-medium text-white/70 uppercase tracking-wide">
+            <label
+              htmlFor="video-prompt"
+              className="text-xs font-medium text-white/70 uppercase tracking-wide"
+            >
               Prompt
             </label>
             <Textarea
@@ -104,7 +107,11 @@ export function VideoGenerationForm({
               </SelectTrigger>
               <SelectContent className="rounded-none border-white/10 bg-black/90">
                 {models.map((model) => (
-                  <SelectItem key={model.id} value={model.id} className="rounded-none text-white hover:bg-white/10 focus:bg-white/10">
+                  <SelectItem
+                    key={model.id}
+                    value={model.id}
+                    className="rounded-none text-white hover:bg-white/10 focus:bg-white/10"
+                  >
                     <div className="flex flex-col">
                       <span className="text-sm font-medium text-white">
                         {model.label}
@@ -148,7 +155,10 @@ export function VideoGenerationForm({
           </div>
 
           <div className="grid gap-2">
-            <label htmlFor="video-reference" className="text-xs font-medium text-white/70 uppercase tracking-wide">
+            <label
+              htmlFor="video-reference"
+              className="text-xs font-medium text-white/70 uppercase tracking-wide"
+            >
               Reference image (optional)
             </label>
             <Input
