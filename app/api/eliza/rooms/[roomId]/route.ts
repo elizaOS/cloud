@@ -9,7 +9,7 @@ import { logger } from "@/lib/utils/logger";
 // GET /api/eliza/rooms/[roomId] - Get room details and messages
 export async function GET(
   request: NextRequest,
-  ctx: { params: Promise<{ roomId: string }> },
+  ctx: { params: Promise<{ roomId: string }> }
 ) {
   try {
     // Authenticate user or validate API key
@@ -22,7 +22,7 @@ export async function GET(
     if (!roomId) {
       return NextResponse.json(
         { error: "roomId is required" },
-        { status: 400 },
+        { status: 400 }
       );
     }
 
@@ -67,7 +67,7 @@ export async function GET(
       logger.warn(
         "[Eliza Room API] Failed to get character for room:",
         roomId,
-        err,
+        err
       );
     }
 
@@ -80,13 +80,20 @@ export async function GET(
     if (characterId) {
       // Load character-specific runtime to get character's avatar and name
       try {
-        const characterRuntime = await agentRuntime.getRuntimeForCharacter(characterId);
+        const characterRuntime =
+          await agentRuntime.getRuntimeForCharacter(characterId);
         agent = await characterRuntime.getAgent(characterRuntime.agentId);
         avatarUrl = agent?.settings?.avatarUrl as string | undefined;
         agentName = agent?.name;
-        logger.debug("[Eliza Room API] Loaded character avatar:", { name: agentName, avatarUrl });
+        logger.debug("[Eliza Room API] Loaded character avatar:", {
+          name: agentName,
+          avatarUrl,
+        });
       } catch (err) {
-        logger.warn("[Eliza Room API] Failed to load character runtime, using default:", err);
+        logger.warn(
+          "[Eliza Room API] Failed to load character runtime, using default:",
+          err
+        );
         // Fall back to default agent
         agent = await runtime.getAgent(runtime.agentId);
         avatarUrl = agent?.settings?.avatarUrl as string | undefined;
@@ -112,7 +119,7 @@ export async function GET(
           avatarUrl,
         },
       },
-      { headers: { "Cache-Control": "no-store" } },
+      { headers: { "Cache-Control": "no-store" } }
     );
   } catch (error) {
     console.error("[Eliza Room API] Error getting room:", error);
@@ -121,7 +128,7 @@ export async function GET(
         error: "Failed to get room",
         details: error instanceof Error ? error.message : "Unknown error",
       },
-      { status: 500 },
+      { status: 500 }
     );
   }
 }
