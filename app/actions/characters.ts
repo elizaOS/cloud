@@ -51,10 +51,7 @@ export async function createCharacter(elizaCharacter: ElizaCharacter) {
       plugins: elizaCharacter.plugins,
     })
     .catch((error) => {
-      console.error(
-        "[CharacterCreate] Failed to log to Discord:",
-        error,
-      );
+      console.error("[CharacterCreate] Failed to log to Discord:", error);
     });
 
   revalidatePath("/dashboard/character-creator");

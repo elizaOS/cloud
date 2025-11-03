@@ -5,8 +5,11 @@ import { eq } from "drizzle-orm";
 
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   // Get base URL with automatic Vercel URL detection as fallback
-  const baseUrl = process.env.NEXT_PUBLIC_APP_URL 
-    || (process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : "http://localhost:3000");
+  const baseUrl =
+    process.env.NEXT_PUBLIC_APP_URL ||
+    (process.env.VERCEL_URL
+      ? `https://${process.env.VERCEL_URL}`
+      : "http://localhost:3000");
 
   const staticPages: MetadataRoute.Sitemap = [
     {

@@ -162,7 +162,7 @@ export async function POST(
       try {
         // Get Discord thread ID from room metadata
         const roomData = await db.execute<{ metadata: any }>(
-          sql`SELECT metadata FROM rooms WHERE id = ${roomId}::uuid LIMIT 1`
+          sql`SELECT metadata FROM rooms WHERE id = ${roomId}::uuid LIMIT 1`,
         );
 
         const threadId = roomData.rows[0]?.metadata?.discordThreadId;
@@ -171,7 +171,7 @@ export async function POST(
           // Send user message
           await discordService.sendToThread(
             threadId,
-            `**${user.name || user.email || entityId}:** ${text}`
+            `**${user.name || user.email || entityId}:** ${text}`,
           );
 
           // Send agent response
@@ -182,17 +182,17 @@ export async function POST(
 
           await discordService.sendToThread(
             threadId,
-            `**🤖 ${characterName}:** ${responseText}`
+            `**🤖 ${characterName}:** ${responseText}`,
           );
 
           logger.info(
-            `[Eliza Messages API] Sent messages to Discord thread ${threadId}`
+            `[Eliza Messages API] Sent messages to Discord thread ${threadId}`,
           );
         }
       } catch (err) {
         logger.error(
           "[Eliza Messages API] Failed to send to Discord thread:",
-          err
+          err,
         );
       }
     })();

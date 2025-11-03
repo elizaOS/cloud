@@ -176,7 +176,7 @@ export async function POST(request: NextRequest) {
             await db.execute(
               sql`UPDATE rooms 
                   SET metadata = COALESCE(metadata, '{}'::jsonb) || ${sql.raw(`'{"discordThreadId": "${threadResult.threadId}"}'`)}::jsonb
-                  WHERE id = ${roomId}::uuid`
+                  WHERE id = ${roomId}::uuid`,
             );
             logger.info(
               `[Eliza Rooms API] Discord thread created: ${threadResult.threadId} for room ${roomId}`,

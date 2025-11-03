@@ -328,7 +328,10 @@ async function handlePOST(req: NextRequest) {
     );
 
     // Log to Discord (fire-and-forget) - use first uploaded image
-    if (uploadResults.length > 0 && uploadResults[0].blobUrl !== uploadResults[0].imageBase64) {
+    if (
+      uploadResults.length > 0 &&
+      uploadResults[0].blobUrl !== uploadResults[0].imageBase64
+    ) {
       discordService
         .logImageGenerated({
           generationId: generationId || "unknown",
@@ -342,10 +345,7 @@ async function handlePOST(req: NextRequest) {
           model: "google/gemini-2.5-flash-image-preview",
         })
         .catch((error) => {
-          console.error(
-            "[ImageGeneration] Failed to log to Discord:",
-            error,
-          );
+          console.error("[ImageGeneration] Failed to log to Discord:", error);
         });
     }
 

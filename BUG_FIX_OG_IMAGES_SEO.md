@@ -21,9 +21,11 @@ Three critical bugs were affecting OG images and character avatars:
 ### Bug #1: OG Image API Endpoint Authentication Issue
 
 #### **The Problem**
+
 The `/api/og` route was being blocked by the authentication middleware (`proxy.ts`), causing a **401 Unauthorized** response when accessed.
 
 #### **Root Cause**
+
 In `proxy.ts` (lines 12-29), the `publicPaths` array defines which API routes don't require authentication. The `/api/og` endpoint was NOT included in this list:
 
 ```typescript
@@ -48,6 +50,7 @@ const publicPaths = [
 ```
 
 The middleware logic (lines 59-63) states:
+
 ```typescript
 // If not a protected path and not public, allow through
 // This handles static files, etc.
@@ -59,18 +62,21 @@ if (!isProtectedPath && !pathname.startsWith("/api/")) {
 This means ANY `/api/*` route not explicitly in `publicPaths` requires authentication, which blocks social media crawlers.
 
 #### **Impact**
+
 - Social media platforms (Twitter, Facebook, LinkedIn, Discord, Slack, etc.) cannot authenticate
 - When crawlers try to fetch OG images, they receive 401 errors
 - Links shared on social media show no preview images, only text
 - Poor user experience when sharing links
 
 #### **Test Evidence**
+
 ```bash
 curl -I "https://www.elizacloud.ai/api/og?type=default&title=Eliza%20Agent&description=..."
 # Returns: HTTP/2 401 Unauthorized
 ```
 
 #### **The Fix**
+
 Added `/api/og` to the `publicPaths` array in `proxy.ts`:
 
 ```typescript
@@ -90,9 +96,11 @@ const publicPaths = [
 ### Bug #2: Static Metadata on Character-Specific URLs
 
 #### **The Problem**
+
 When sharing a URL like `/dashboard/eliza?characterId=6a901d1f-c1e5-4e22-a7f9-6e1a77028a0d`, the page was using generic "Eliza Agent" metadata instead of character-specific metadata.
 
 #### **Root Cause**
+
 The `app/dashboard/eliza/page.tsx` file was using a static `metadata` export:
 
 ```typescript
@@ -107,17 +115,21 @@ export const metadata: Metadata = generatePageMetadata({
 This static metadata couldn't read URL parameters, so ALL dashboard/eliza URLs had the same generic metadata, regardless of which character was being viewed.
 
 #### **Impact**
+
 - When users share links to specific character conversations, the OG image and metadata showed generic information
 - Lost opportunity for personalized social sharing
 - Character names, avatars, and bios weren't displayed in social media previews
 - Reduced engagement on shared links
 
 #### **The Fix**
+
 Converted to dynamic metadata generation using `generateMetadata()` function:
 
 ```typescript
 // NEW CODE ✅
-export async function generateMetadata({ searchParams }: PageProps): Promise<Metadata> {
+export async function generateMetadata({
+  searchParams,
+}: PageProps): Promise<Metadata> {
   const params = await searchParams;
   const characterId = params.characterId;
 
@@ -139,13 +151,15 @@ export async function generateMetadata({ searchParams }: PageProps): Promise<Met
       .limit(1);
 
     if (character) {
-      const bio = Array.isArray(character.bio) ? character.bio[0] : character.bio;
+      const bio = Array.isArray(character.bio)
+        ? character.bio[0]
+        : character.bio;
       const metadata = generateCharacterMetadata(
         character.id,
         character.name,
         bio,
         character.avatar_url,
-        character.tags || []
+        character.tags || [],
       );
 
       // Override path and add noIndex for dashboard pages
@@ -176,6 +190,7 @@ export async function generateMetadata({ searchParams }: PageProps): Promise<Met
 **File Modified:** `app/dashboard/eliza/page.tsx`
 
 #### **Key Improvements**
+
 1. ✅ Reads `characterId` from URL query parameters
 2. ✅ Fetches character data from database
 3. ✅ Generates character-specific OG images with avatar, name, and bio
@@ -188,12 +203,15 @@ export async function generateMetadata({ searchParams }: PageProps): Promise<Met
 ### Bug #3: Character Avatar Not Loading in Chat Interface
 
 #### **The Problem**
+
 When visiting a URL like `/dashboard/eliza?characterId=6a901d1f-c1e5-4e22-a7f9-6e1a77028a0d`, the character's avatar was NOT displaying in the chat interface. Instead, the default Eliza avatar was shown.
 
 #### **Root Cause**
+
 The `/api/eliza/rooms/[roomId]` endpoint was loading the default agent's avatar instead of the character-specific avatar.
 
 **Original code (lines 58-59):**
+
 ```typescript
 // OLD CODE ❌
 const agent = await runtime.getAgent(runtime.agentId);
@@ -203,12 +221,14 @@ const avatarUrl = agent?.settings?.avatarUrl as string | undefined;
 Even though the API correctly identified the `characterId` for the room (lines 62-76), it still used the default runtime's avatar.
 
 #### **Impact**
+
 - When users selected a custom character, the default Eliza avatar appeared instead
 - Character personality wasn't visually represented in the UI
 - Confusing user experience when chatting with different characters
 - All characters looked the same regardless of their actual avatar
 
 #### **The Fix**
+
 Modified the API endpoint to load the character-specific runtime when a `characterId` is present:
 
 ```typescript
@@ -216,13 +236,20 @@ Modified the API endpoint to load the character-specific runtime when a `charact
 if (characterId) {
   // Load character-specific runtime to get character's avatar and name
   try {
-    const characterRuntime = await agentRuntime.getRuntimeForCharacter(characterId);
+    const characterRuntime =
+      await agentRuntime.getRuntimeForCharacter(characterId);
     agent = await characterRuntime.getAgent(characterRuntime.agentId);
     avatarUrl = agent?.settings?.avatarUrl as string | undefined;
     agentName = agent?.name;
-    logger.debug("[Eliza Room API] Loaded character avatar:", { name: agentName, avatarUrl });
+    logger.debug("[Eliza Room API] Loaded character avatar:", {
+      name: agentName,
+      avatarUrl,
+    });
   } catch (err) {
-    logger.warn("[Eliza Room API] Failed to load character runtime, using default:", err);
+    logger.warn(
+      "[Eliza Room API] Failed to load character runtime, using default:",
+      err,
+    );
     // Fall back to default agent
     agent = await runtime.getAgent(runtime.agentId);
     avatarUrl = agent?.settings?.avatarUrl as string | undefined;
@@ -239,6 +266,7 @@ if (characterId) {
 **File Modified:** `app/api/eliza/rooms/[roomId]/route.ts`
 
 #### **Key Improvements**
+
 1. ✅ Detects when a room has a specific character assigned
 2. ✅ Loads the character's runtime using `getRuntimeForCharacter(characterId)`
 3. ✅ Returns the character's actual avatar URL and name
@@ -293,42 +321,48 @@ Social media displays preview with image
 
 ## Files Changed
 
-| File | Lines Modified | Purpose |
-|------|----------------|---------|
-| `proxy.ts` | Line 16 | Added `/api/og` to public paths |
-| `app/dashboard/eliza/page.tsx` | Lines 1-79 | Converted static metadata to dynamic generation |
-| `app/api/eliza/rooms/[roomId]/route.ts` | Lines 57-116 | Load character-specific avatar in room API |
+| File                                    | Lines Modified | Purpose                                         |
+| --------------------------------------- | -------------- | ----------------------------------------------- |
+| `proxy.ts`                              | Line 16        | Added `/api/og` to public paths                 |
+| `app/dashboard/eliza/page.tsx`          | Lines 1-79     | Converted static metadata to dynamic generation |
+| `app/api/eliza/rooms/[roomId]/route.ts` | Lines 57-116   | Load character-specific avatar in room API      |
 
 ---
 
 ## Testing Recommendations
 
 ### 1. Test OG Endpoint Accessibility
+
 ```bash
 # Should return 200 OK (not 401)
 curl -I "https://www.elizacloud.ai/api/og?type=default&title=Test"
 ```
 
 ### 2. Test Social Media Sharing
+
 Use these tools to verify OG images load correctly:
+
 - **Facebook Debugger:** https://developers.facebook.com/tools/debug/
 - **Twitter Card Validator:** https://cards-dev.twitter.com/validator
 - **LinkedIn Post Inspector:** https://www.linkedin.com/post-inspector/
 - **OpenGraph Check:** https://www.opengraph.xyz/
 
 Test URLs:
+
 ```
 https://www.elizacloud.ai/dashboard/eliza?characterId=6a901d1f-c1e5-4e22-a7f9-6e1a77028a0d
 https://www.elizacloud.ai/marketplace/characters/6a901d1f-c1e5-4e22-a7f9-6e1a77028a0d
 ```
 
 ### 3. Verify Dynamic Metadata
+
 - Share a character-specific URL
 - Verify the OG image shows the character's avatar/name
 - Verify the title includes the character name
 - Verify the description includes the character bio
 
 ### 4. Test Fallback Behavior
+
 - Share `/dashboard/eliza` (no characterId)
 - Should show generic "Eliza Agent" metadata
 - Should still return 200 OK for OG image
@@ -352,6 +386,7 @@ https://www.elizacloud.ai/marketplace/characters/6a901d1f-c1e5-4e22-a7f9-6e1a770
 ## Related Files & Context
 
 ### Existing Metadata Infrastructure
+
 The app already had excellent SEO infrastructure:
 
 1. **`lib/seo/metadata.ts`** - Helper functions for generating metadata
@@ -360,6 +395,7 @@ The app already had excellent SEO infrastructure:
 4. **`app/marketplace/characters/[id]/page.tsx`** - Example of proper dynamic metadata
 
 ### Why This Bug Existed
+
 The dashboard/eliza page was likely created early in development when URL parameters weren't considered, or it was intentionally kept simple since it's an authenticated page with `noIndex: true`.
 
 However, even non-indexed pages should have good OG metadata for social sharing purposes.
@@ -392,12 +428,12 @@ All three bugs have been fixed:
 
 ✅ **OG Image Endpoint** - Now publicly accessible to social media crawlers  
 ✅ **Dynamic Metadata** - Character-specific information now shows in social previews  
-✅ **Character Avatars** - Character-specific avatars now display correctly in chat interface  
+✅ **Character Avatars** - Character-specific avatars now display correctly in chat interface
 
 **No breaking changes** - All existing functionality preserved, only enhanced social sharing and chat experience.
 
 **Deploy ASAP** - These fixes significantly improve:
+
 - Social media sharing (OG images now work)
 - User experience (correct character avatars in chat)
 - Character personality representation (visual consistency)
-
