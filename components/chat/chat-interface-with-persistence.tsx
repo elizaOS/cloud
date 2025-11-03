@@ -126,11 +126,13 @@ export function ChatInterfaceWithPersistence({
       .then((res) => res.json())
       .then((data) => {
         if (data.data && Array.isArray(data.data)) {
-          const models = data.data.map((model: { id: string; owned_by: string }) => ({
-            id: model.id,
-            name: model.id,
-            provider: model.owned_by,
-          }));
+          const models = data.data.map(
+            (model: { id: string; owned_by: string }) => ({
+              id: model.id,
+              name: model.id,
+              provider: model.owned_by,
+            }),
+          );
           setAvailableModels(models);
         }
       })
