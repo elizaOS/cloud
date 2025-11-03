@@ -6,16 +6,12 @@
 "use client";
 
 import Link from "next/link";
-import Image from "next/image";
 import { Button } from "@/components/ui/button";
-import { ThemeToggle } from "@/components/theme/theme-toggle";
-import { useThemeLogo } from "./use-theme-logo";
 import { usePrivy, useLogin } from "@privy-io/react-auth";
 import { useRouter } from "next/navigation";
 import { useEffect } from "react";
 
 export default function LandingHeader() {
-  const logoSrc = useThemeLogo();
   const { ready, authenticated } = usePrivy();
   const { login } = useLogin();
   const router = useRouter();
@@ -45,25 +41,31 @@ export default function LandingHeader() {
   };
 
   return (
-    <header className="border-b">
+    <header className="border-b border-white/10 bg-[#0A0A0A] sticky top-0 z-50 backdrop-blur-sm">
       <div className="container mx-auto flex h-16 items-center justify-between px-4 md:px-6">
         <Link href="/" className="flex items-center gap-3">
-          <Image
-            src={logoSrc}
-            alt="elizaOS"
-            width={120}
-            height={40}
-            className="h-8 w-auto"
-            priority
-            key={logoSrc}
-          />
+          <div className="flex items-center gap-2">
+            <span
+              className="inline-block w-2 h-2 rounded-full"
+              style={{ backgroundColor: "#FF5800" }}
+            />
+            <span className="text-white text-xl font-bold">ELIZA</span>
+          </div>
         </Link>
-        <div className="flex items-center gap-2">
-          <ThemeToggle />
-          <Button variant="ghost" size="sm" onClick={handleAuth}>
+        <div className="flex items-center gap-3">
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={handleAuth}
+            className="text-white/70 hover:text-white hover:bg-white/5"
+          >
             Log in
           </Button>
-          <Button size="sm" onClick={handleAuth}>
+          <Button
+            size="sm"
+            onClick={handleAuth}
+            className="bg-[#FF5800] hover:bg-[#FF5800]/90 text-white"
+          >
             Get Started
           </Button>
         </div>

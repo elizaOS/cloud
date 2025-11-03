@@ -1,8 +1,6 @@
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Card } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { GalleryGrid, GalleryGridSkeleton } from "./gallery-grid";
 import { listUserMedia, getUserMediaStats } from "@/app/actions/gallery";
@@ -10,6 +8,13 @@ import type { GalleryItem } from "@/app/actions/gallery";
 import { ImageIcon, VideoIcon, LayoutGridIcon } from "lucide-react";
 import { toast } from "sonner";
 import { useSetPageHeader } from "@/components/layout/page-header-context";
+import {
+  BrandTabs,
+  BrandTabsList,
+  BrandTabsTrigger,
+  BrandTabsContent,
+  BrandCard,
+} from "@/components/brand";
 
 export function GalleryPageClient() {
   useSetPageHeader({
@@ -72,7 +77,7 @@ export function GalleryPageClient() {
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
         {isLoadingStats ? (
           <>
-            <Card className="p-4">
+            <BrandCard corners={false} className="p-4">
               <div className="flex items-center gap-3">
                 <Skeleton className="w-9 h-9 rounded-full" />
                 <div className="space-y-2">
@@ -80,8 +85,8 @@ export function GalleryPageClient() {
                   <Skeleton className="h-4 w-12" />
                 </div>
               </div>
-            </Card>
-            <Card className="p-4">
+            </BrandCard>
+            <BrandCard corners={false} className="p-4">
               <div className="flex items-center gap-3">
                 <Skeleton className="w-9 h-9 rounded-full" />
                 <div className="space-y-2">
@@ -89,8 +94,8 @@ export function GalleryPageClient() {
                   <Skeleton className="h-4 w-12" />
                 </div>
               </div>
-            </Card>
-            <Card className="p-4">
+            </BrandCard>
+            <BrandCard corners={false} className="p-4">
               <div className="flex items-center gap-3">
                 <Skeleton className="w-9 h-9 rounded-full" />
                 <div className="space-y-2">
@@ -98,69 +103,69 @@ export function GalleryPageClient() {
                   <Skeleton className="h-4 w-16" />
                 </div>
               </div>
-            </Card>
+            </BrandCard>
           </>
         ) : stats ? (
           <>
-            <Card className="p-4">
+            <BrandCard corners={false} className="p-4">
               <div className="flex items-center gap-3">
-                <div className="rounded-full bg-blue-500/10 p-2">
-                  <ImageIcon className="w-5 h-5 text-blue-500" />
+                <div className="rounded-full bg-blue-500/20 border border-blue-500/40 p-2">
+                  <ImageIcon className="w-5 h-5 text-blue-400" />
                 </div>
                 <div>
-                  <p className="text-2xl font-bold">{stats.totalImages}</p>
-                  <p className="text-sm text-muted-foreground">Images</p>
+                  <p className="text-2xl font-bold text-white">{stats.totalImages}</p>
+                  <p className="text-sm text-white/50 uppercase tracking-wide">Images</p>
                 </div>
               </div>
-            </Card>
+            </BrandCard>
 
-            <Card className="p-4">
+            <BrandCard corners={false} className="p-4">
               <div className="flex items-center gap-3">
-                <div className="rounded-full bg-purple-500/10 p-2">
-                  <VideoIcon className="w-5 h-5 text-purple-500" />
+                <div className="rounded-full bg-purple-500/20 border border-purple-500/40 p-2">
+                  <VideoIcon className="w-5 h-5 text-purple-400" />
                 </div>
                 <div>
-                  <p className="text-2xl font-bold">{stats.totalVideos}</p>
-                  <p className="text-sm text-muted-foreground">Videos</p>
+                  <p className="text-2xl font-bold text-white">{stats.totalVideos}</p>
+                  <p className="text-sm text-white/50 uppercase tracking-wide">Videos</p>
                 </div>
               </div>
-            </Card>
+            </BrandCard>
 
-            <Card className="p-4">
+            <BrandCard corners={false} className="p-4">
               <div className="flex items-center gap-3">
-                <div className="rounded-full bg-green-500/10 p-2">
-                  <LayoutGridIcon className="w-5 h-5 text-green-500" />
+                <div className="rounded-full bg-green-500/20 border border-green-500/40 p-2">
+                  <LayoutGridIcon className="w-5 h-5 text-green-400" />
                 </div>
                 <div>
-                  <p className="text-2xl font-bold">
+                  <p className="text-2xl font-bold text-white">
                     {(stats.totalSize / 1024 / 1024).toFixed(1)} MB
                   </p>
-                  <p className="text-sm text-muted-foreground">Total Size</p>
+                  <p className="text-sm text-white/50 uppercase tracking-wide">Total Size</p>
                 </div>
               </div>
-            </Card>
+            </BrandCard>
           </>
         ) : null}
       </div>
 
-      <Tabs
+      <BrandTabs
         value={activeTab}
         onValueChange={(v) => setActiveTab(v as "all" | "image" | "video")}
       >
-        <TabsList>
-          <TabsTrigger value="all">All Media</TabsTrigger>
-          <TabsTrigger value="image">Images</TabsTrigger>
-          <TabsTrigger value="video">Videos</TabsTrigger>
-        </TabsList>
+        <BrandTabsList>
+          <BrandTabsTrigger value="all">All Media</BrandTabsTrigger>
+          <BrandTabsTrigger value="image">Images</BrandTabsTrigger>
+          <BrandTabsTrigger value="video">Videos</BrandTabsTrigger>
+        </BrandTabsList>
 
-        <TabsContent value={activeTab} className="mt-6">
+        <BrandTabsContent value={activeTab} className="mt-6">
           {isLoading ? (
             <GalleryGridSkeleton />
           ) : (
             <GalleryGrid items={items} onItemDeleted={handleItemDeleted} />
           )}
-        </TabsContent>
-      </Tabs>
+        </BrandTabsContent>
+      </BrandTabs>
     </div>
   );
 }

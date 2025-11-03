@@ -18,17 +18,8 @@ const nextConfig: NextConfig = {
     },
   },
   // Handle pdfjs-dist and other problematic packages in serverless
+  // These packages are externalized to prevent SSR issues with browser-only APIs
   serverExternalPackages: ["pdfjs-dist", "canvas", "pdf-parse"],
-  webpack: (config, { isServer }) => {
-    if (isServer) {
-      // Alias canvas to false to prevent it from being bundled
-      config.resolve.alias = {
-        ...config.resolve.alias,
-        canvas: false,
-      };
-    }
-    return config;
-  },
 };
 
 export default nextConfig;

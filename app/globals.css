@@ -7,8 +7,9 @@
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
+  --font-sans: var(--font-geist-mono);
   --font-mono: var(--font-geist-mono);
+  --font-heading: var(--font-roboto-mono);
   --color-sidebar-ring: var(--sidebar-ring);
   --color-sidebar-border: var(--sidebar-border);
   --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
@@ -42,6 +43,13 @@
   --radius-md: calc(var(--radius) - 2px);
   --radius-lg: var(--radius);
   --radius-xl: calc(var(--radius) + 4px);
+  
+  /* Brand Colors */
+  --color-brand-orange: #FF5800;
+  --color-brand-blue: #0B35F1;
+  --color-brand-bg: #0A0A0A;
+  --color-brand-surface: #252527;
+  --color-brand-border: #E1E1E1;
 }
 
 :root {
@@ -118,7 +126,15 @@
     @apply border-border outline-ring/50;
   }
   body {
-    @apply bg-background text-foreground;
+    @apply bg-background text-foreground font-sans;
+  }
+  h1,
+  h2,
+  h3,
+  h4,
+  h5,
+  h6 {
+    font-family: var(--font-roboto-mono);
   }
 }
 
@@ -219,4 +235,84 @@
   .scrollbar-hide::-webkit-scrollbar {
     display: none;
   }
+
+  /* Brand utilities */
+  .brand-surface {
+    background-color: rgb(0 0 0 / 0.4);
+    border-width: 1px;
+    border-color: rgb(255 255 255 / 0.1);
+  }
+
+  .brand-surface-hover {
+    background-color: rgb(0 0 0 / 0.4);
+    border-width: 1px;
+    border-color: rgb(255 255 255 / 0.1);
+    transition-property: all;
+    transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
+    transition-duration: 150ms;
+  }
+
+  .brand-surface-hover:hover {
+    border-color: rgb(255 255 255 / 0.3);
+  }
+
+  .brand-tab {
+    border-radius: 0;
+    padding-left: 1.5rem;
+    padding-right: 1.5rem;
+    padding-top: 0.75rem;
+    padding-bottom: 0.75rem;
+    font-size: 0.875rem;
+    line-height: 1.25rem;
+    font-weight: 500;
+    transition-property: all;
+    transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
+    transition-duration: 150ms;
+    border-width: 1px;
+    border-color: rgb(255 255 255 / 0.1);
+    background-color: transparent;
+    color: rgb(255 255 255 / 0.7);
+  }
+
+  .brand-tab:hover {
+    background-color: rgb(255 255 255 / 0.05);
+  }
+
+  .brand-tab-active {
+    background-color: #252527;
+    color: rgb(255 255 255);
+  }
+}
+
+/* Custom Scrollbar Styling */
+::-webkit-scrollbar {
+  width: 12px;
+  height: 12px;
+}
+
+::-webkit-scrollbar-track {
+  background: #0A0A0A;
+  border-left: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+::-webkit-scrollbar-thumb {
+  background: #FF5800;
+  border-radius: 0px;
+  border: 2px solid #0A0A0A;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: #FF5800;
+  filter: brightness(1.2);
+}
+
+::-webkit-scrollbar-thumb:active {
+  background: #FF5800;
+  filter: brightness(1.4);
+}
+
+/* Firefox scrollbar */
+* {
+  scrollbar-width: thin;
+  scrollbar-color: #FF5800 #0A0A0A;
 }

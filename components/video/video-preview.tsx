@@ -2,16 +2,6 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 
-import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardFooter,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
 import { cn } from "@/lib/utils";
 import {
   Clock,
@@ -24,6 +14,7 @@ import {
 } from "lucide-react";
 
 import type { GeneratedVideo } from "./types";
+import { BrandCard, BrandButton, CornerBrackets } from "@/components/brand";
 
 interface VideoPreviewProps {
   video?: GeneratedVideo | null;
@@ -94,44 +85,43 @@ export function VideoPreview({ video }: VideoPreviewProps) {
   }, []);
 
   return (
-    <Card className="flex h-full min-h-0 flex-col border-border/60 bg-background/80">
-      <CardHeader className="space-y-2 pb-0">
+    <BrandCard className="relative flex h-full min-h-0 flex-col">
+      <CornerBrackets size="md" className="opacity-50" />
+      
+      <div className="relative z-10 space-y-2 pb-0">
         <div className="flex items-center justify-between gap-2">
-          <CardTitle className="text-xl font-semibold">Preview</CardTitle>
+          <h3 className="text-xl font-bold text-white">Preview</h3>
           <div className="flex items-center gap-2">
-            <Badge
+            <span
               className={cn(
-                "rounded-full px-3",
-                video ? "capitalize" : "bg-muted/80 text-muted-foreground",
-              )}
-              variant={
+                "rounded-none px-3 py-1 text-xs font-bold uppercase tracking-wide border",
                 video
                   ? video.status === "completed"
                     ? video.isMock
-                      ? "outline"
-                      : "default"
+                      ? "bg-white/10 text-white/80 border-white/20"
+                      : "bg-green-500/20 text-green-400 border-green-500/40"
                     : video.status === "processing"
-                      ? "outline"
-                      : "destructive"
-                  : "secondary"
-              }
+                      ? "bg-blue-500/20 text-blue-400 border-blue-500/40"
+                      : "bg-rose-500/20 text-rose-400 border-rose-500/40"
+                  : "bg-white/10 text-white/60 border-white/20",
+              )}
             >
               {video ? video.status : "Idle"}
-            </Badge>
+            </span>
             {video?.isMock ? (
-              <Badge variant="secondary" className="rounded-full px-3 text-xs">
+              <span className="rounded-none bg-white/10 px-3 py-1 text-xs text-white/60">
                 Mock preview
-              </Badge>
+              </span>
             ) : null}
           </div>
         </div>
-        <CardDescription>
+        <p className="text-sm text-white/60">
           The most recent render appears here with metadata and quick actions.
-        </CardDescription>
-      </CardHeader>
+        </p>
+      </div>
 
-      <CardContent className="flex-1 min-h-0 px-6 pb-0">
-        <div className="relative mt-6 aspect-video w-full overflow-hidden rounded-2xl border border-border/60 bg-muted/40 shadow-inner">
+      <div className="relative z-10 flex-1 min-h-0 pb-0 mt-6">
+        <div className="relative aspect-video w-full overflow-hidden rounded-none border border-white/10 bg-black/60 shadow-inner">
           {video ? (
             <>
               {video.videoUrl ? (
@@ -144,7 +134,7 @@ export function VideoPreview({ video }: VideoPreviewProps) {
                 />
               ) : (
                 <div
-                  className="absolute inset-0 flex flex-col items-center justify-center bg-gradient-to-br from-background/40 via-background/70 to-background/90 text-center"
+                  className="absolute inset-0 flex flex-col items-center justify-center bg-gradient-to-br from-black/40 via-black/70 to-black/90 text-center"
                   style={
                     video.thumbnailUrl
                       ? {
@@ -157,8 +147,8 @@ export function VideoPreview({ video }: VideoPreviewProps) {
                 >
                   {!video.thumbnailUrl && (
                     <>
-                      <Play className="h-10 w-10 text-muted-foreground" />
-                      <p className="mt-3 text-sm text-muted-foreground">
+                      <Play className="h-10 w-10 text-white/50" />
+                      <p className="mt-3 text-sm text-white/60">
                         Generated video preview
                       </p>
                     </>
@@ -166,24 +156,24 @@ export function VideoPreview({ video }: VideoPreviewProps) {
                 </div>
               )}
               {video.status === "processing" && (
-                <div className="absolute inset-0 flex flex-col items-center justify-center gap-3 bg-background/80 text-center">
-                  <Loader2 className="h-8 w-8 animate-spin text-primary" />
-                  <p className="text-sm font-medium text-foreground">
+                <div className="absolute inset-0 flex flex-col items-center justify-center gap-3 bg-black/80 text-center">
+                  <Loader2 className="h-8 w-8 animate-spin text-[#FF5800]" />
+                  <p className="text-sm font-medium text-white">
                     Sending job to Fal…
                   </p>
-                  <p className="text-xs text-muted-foreground">
+                  <p className="text-xs text-white/60">
                     This usually takes a few moments.
                   </p>
                 </div>
               )}
             </>
           ) : (
-            <div className="absolute inset-0 flex flex-col items-center justify-center gap-3 text-center text-muted-foreground">
-              <Sparkles className="h-10 w-10" />
-              <p className="text-sm font-medium text-foreground">
+            <div className="absolute inset-0 flex flex-col items-center justify-center gap-3 text-center text-white/60">
+              <Sparkles className="h-10 w-10 text-[#FF5800]" />
+              <p className="text-sm font-medium text-white">
                 Your video will appear here once generated.
               </p>
-              <p className="text-xs text-muted-foreground">
+              <p className="text-xs text-white/60">
                 Use the form to create a concept and track progress in real
                 time.
               </p>
@@ -191,35 +181,35 @@ export function VideoPreview({ video }: VideoPreviewProps) {
           )}
         </div>
 
-        <div className="mt-6 grid gap-4 rounded-2xl border border-border/50 bg-background/60 p-4 text-sm">
+        <div className="mt-6 grid gap-4 rounded-none border border-white/10 bg-black/40 p-4 text-sm">
           <div className="space-y-1">
-            <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+            <p className="text-xs font-semibold uppercase tracking-wide text-white/70">
               Prompt
             </p>
-            <p className="text-sm text-foreground">
+            <p className="text-sm text-white">
               {video?.prompt ?? "No prompt yet — craft a description to begin."}
             </p>
           </div>
-          <div className="grid gap-2 text-xs text-muted-foreground">
+          <div className="grid gap-2 text-xs text-white/60">
             <div className="flex flex-wrap items-center justify-between gap-2">
               <span>Model preset</span>
-              <span className="font-medium text-foreground">
+              <span className="font-medium text-white">
                 {video?.modelId ?? "Not selected"}
               </span>
             </div>
             {video?.requestId ? (
               <div className="flex flex-wrap items-center justify-between gap-2">
                 <span>Request ID</span>
-                <span className="font-medium text-foreground break-all">
+                <span className="font-medium text-white break-all">
                   {video.requestId}
                 </span>
               </div>
             ) : null}
             <div className="flex flex-wrap items-center justify-between gap-2">
               <span className="flex items-center gap-2">
-                <Clock className="h-3.5 w-3.5" /> Duration
+                <Clock className="h-3.5 w-3.5 text-[#FF5800]" /> Duration
               </span>
-              <span className="font-medium text-foreground">
+              <span className="font-medium text-white">
                 {video?.durationSeconds
                   ? `${video.durationSeconds}s`
                   : video?.status === "processing"
@@ -230,20 +220,20 @@ export function VideoPreview({ video }: VideoPreviewProps) {
             {processingTimeLabel ? (
               <div className="flex flex-wrap items-center justify-between gap-2">
                 <span>Processing time</span>
-                <span className="font-medium text-foreground">
+                <span className="font-medium text-white">
                   {processingTimeLabel}
                 </span>
               </div>
             ) : null}
             <div className="flex flex-wrap items-center justify-between gap-2">
               <span>Resolution</span>
-              <span className="font-medium text-foreground">
+              <span className="font-medium text-white">
                 {video?.resolution ?? "—"}
               </span>
             </div>
             <div className="flex flex-wrap items-center justify-between gap-2">
               <span>Seed</span>
-              <span className="font-medium text-foreground">
+              <span className="font-medium text-white">
                 {video?.seed ?? "Auto"}
               </span>
             </div>
@@ -254,7 +244,7 @@ export function VideoPreview({ video }: VideoPreviewProps) {
                   href={video.referenceUrl}
                   target="_blank"
                   rel="noreferrer"
-                  className="font-medium text-primary hover:underline"
+                  className="font-medium text-[#FF5800] hover:underline"
                 >
                   Open link
                 </a>
@@ -266,10 +256,10 @@ export function VideoPreview({ video }: VideoPreviewProps) {
         {video?.failureReason ? (
           <div
             className={cn(
-              "mt-4 rounded-2xl border px-4 py-3 text-xs leading-relaxed",
+              "mt-4 rounded-none border px-4 py-3 text-xs leading-relaxed",
               video.status === "failed"
-                ? "border-destructive/40 bg-destructive/10 text-destructive"
-                : "border-amber-500/40 bg-amber-500/10 text-amber-700 dark:text-amber-300",
+                ? "border-rose-500/40 bg-rose-500/10 text-rose-400"
+                : "border-amber-500/40 bg-amber-500/10 text-amber-300",
             )}
           >
             {video.status === "failed"
@@ -278,49 +268,49 @@ export function VideoPreview({ video }: VideoPreviewProps) {
           </div>
         ) : null}
         {hasModerationFlag ? (
-          <div className="mt-3 flex items-center gap-2 rounded-2xl border border-amber-500/40 bg-amber-500/10 px-4 py-3 text-xs text-amber-700 dark:text-amber-300">
+          <div className="mt-3 flex items-center gap-2 rounded-none border border-amber-500/40 bg-amber-500/10 px-4 py-3 text-xs text-amber-300">
             <ShieldAlert className="h-3.5 w-3.5" />
             Potential safety flags were returned for this render. Review before
             sharing publicly.
           </div>
         ) : null}
-      </CardContent>
+      </div>
 
-      <CardFooter className="flex flex-col gap-3 border-t border-border/60 bg-background/70 py-4">
-        <div className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
+      <div className="relative z-10 flex flex-col gap-3 border-t border-white/10 pt-4 mt-4">
+        <div className="flex flex-wrap items-center gap-2 text-xs text-white/60">
           <span>Last generated</span>
-          <span className="font-medium text-foreground">
+          <span className="font-medium text-white">
             {video?.createdAt
               ? new Date(video.createdAt).toLocaleString()
               : "—"}
           </span>
         </div>
         <div className="flex flex-wrap gap-2">
-          <Button
-            className="flex-1 rounded-xl"
-            variant="default"
+          <BrandButton
+            className="flex-1"
+            variant="primary"
             type="button"
             onClick={handleDownload}
           >
             <Download className="mr-2 h-4 w-4" />
             Download
-          </Button>
-          <Button
-            className="flex-1 rounded-xl"
+          </BrandButton>
+          <BrandButton
+            className="flex-1"
             variant="outline"
             type="button"
             onClick={handleCopyLink}
           >
             <Link2 className="mr-2 h-4 w-4" />
             Copy link
-          </Button>
+          </BrandButton>
         </div>
         {copyFeedback && (
-          <p className="text-center text-xs text-muted-foreground">
+          <p className="text-center text-xs text-white/60">
             {copyFeedback}
           </p>
         )}
-      </CardFooter>
-    </Card>
+      </div>
+    </BrandCard>
   );
 }

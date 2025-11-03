@@ -16,10 +16,7 @@ import {
   Play,
   Volume2,
 } from "lucide-react";
-import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
 import { Switch } from "@/components/ui/switch";
-import { Label } from "@/components/ui/label";
 import {
   Select,
   SelectContent,
@@ -32,6 +29,7 @@ import { cn } from "@/lib/utils";
 import { useAudioRecorder } from "./hooks/use-audio-recorder";
 import { useAudioPlayer } from "./hooks/use-audio-player";
 import { toast } from "sonner";
+import { BrandButton, HUDContainer } from "@/components/brand";
 
 interface ChatInterfaceWithPersistenceProps {
   conversation?: Conversation | null;
@@ -596,14 +594,14 @@ export function ChatInterfaceWithPersistence({
   };
 
   return (
-    <div className="flex h-full min-h-0 w-full flex-col bg-background/60">
-      <div className="flex flex-col gap-4 border-b bg-card/80 px-6 py-4 backdrop-blur-sm sm:flex-row sm:items-center sm:justify-between">
+    <div className="flex h-full min-h-0 w-full flex-col bg-transparent relative z-10">
+      <div className="flex flex-col gap-4 border-b border-white/10 px-6 py-4 sm:flex-row sm:items-center sm:justify-between">
         <div className="flex items-center gap-3">
-          <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-gradient-to-br from-primary to-primary/80 text-primary-foreground shadow-sm">
-            <Bot className="h-5 w-5" />
+          <div className="flex h-10 w-10 items-center justify-center rounded-full bg-[#FF5800]">
+            <Bot className="h-5 w-5 text-white" />
           </div>
           <div className="space-y-1">
-            <h3 className="text-base font-semibold text-foreground">
+            <h3 className="text-base font-semibold text-white">
               {conversation?.title || "New Conversation"}
             </h3>
             <p className="text-xs text-muted-foreground">Powered by elizaOS</p>
@@ -619,24 +617,24 @@ export function ChatInterfaceWithPersistence({
               onCheckedChange={setAutoPlayTTS}
               disabled={isProcessing}
             />
-            <Label
+            <label
               htmlFor="auto-tts"
-              className="text-xs cursor-pointer select-none flex items-center gap-1"
+              className="text-xs cursor-pointer select-none flex items-center gap-1 text-white/70"
             >
               <Volume2 className="h-3 w-3" />
               <span className="hidden sm:inline">Auto-play</span>
-            </Label>
+            </label>
           </div>
 
           {/* Custom Voice Selector */}
           {customVoices.length > 0 && (
             <div className="flex items-center gap-2">
-              <Label
+              <label
                 htmlFor="voice-select-chat"
-                className="text-xs whitespace-nowrap"
+                className="text-xs whitespace-nowrap text-white/70 uppercase tracking-wide"
               >
                 Voice:
-              </Label>
+              </label>
               <Select
                 key={`voice-${selectedVoiceId || "default"}`}
                 value={selectedVoiceId || "default"}
@@ -696,26 +694,23 @@ export function ChatInterfaceWithPersistence({
           )}
 
           <div className="relative">
-            <Button
+            <BrandButton
               variant="outline"
               size="sm"
               onClick={() => setShowModelSelector(!showModelSelector)}
-              className="flex items-center gap-2 rounded-full border-border/60 bg-background/80 px-4 py-2 text-xs font-medium shadow-sm transition hover:bg-background"
+              className="flex items-center gap-2 px-4 py-2 text-xs font-medium"
             >
               <Settings className="h-4 w-4" />
               <span className="truncate">{selectedModel}</span>
-              <Badge
-                variant="secondary"
-                className="rounded-full px-2 py-0 text-[10px]"
-              >
+              <span className="rounded-none bg-[#FF580020] border border-[#FF5800]/40 px-2 py-0 text-[10px] text-[#FF5800]">
                 {messages.length}
-              </Badge>
-            </Button>
+              </span>
+            </BrandButton>
 
             {showModelSelector && availableModels.length > 0 && (
-              <div className="absolute right-0 top-full z-50 mt-2 w-72 overflow-hidden rounded-xl border border-border/60 bg-popover shadow-xl">
-                <div className="border-b bg-muted/40 px-4 py-3">
-                  <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+              <div className="absolute right-0 top-full z-50 mt-2 w-72 overflow-hidden rounded-none border border-white/10 bg-black/90 shadow-xl">
+                <div className="border-b border-white/10 bg-black/60 px-4 py-3">
+                  <p className="text-xs font-semibold uppercase tracking-wide text-white/50">
                     Select model
                   </p>
                 </div>
@@ -729,15 +724,15 @@ export function ChatInterfaceWithPersistence({
                         setShowModelSelector(false);
                       }}
                       className={cn(
-                        "w-full rounded-lg px-3 py-2 text-left text-sm transition-colors",
+                        "w-full rounded-none px-3 py-2 text-left text-sm transition-colors",
                         selectedModel === model.id
-                          ? "bg-muted text-foreground"
-                          : "hover:bg-muted/60",
+                          ? "bg-white/10 text-white"
+                          : "text-white/70 hover:bg-white/5",
                       )}
                     >
                       <div className="font-medium">{model.name}</div>
                       {model.provider && (
-                        <div className="text-xs text-muted-foreground">
+                        <div className="text-xs text-white/50">
                           {model.provider}
                         </div>
                       )}
@@ -752,13 +747,13 @@ export function ChatInterfaceWithPersistence({
 
       <div className="flex-1 min-h-0 overflow-y-auto px-6 py-6">
         {!conversation && messages.length === 0 && (
-          <div className="flex h-full flex-col items-center justify-center gap-3 text-center text-muted-foreground">
-            <Bot className="h-12 w-12 text-muted-foreground/80" />
+          <div className="flex h-full flex-col items-center justify-center gap-3 text-center text-white/60">
+            <Bot className="h-12 w-12 text-[#FF5800]" />
             <div className="space-y-1">
-              <h3 className="text-lg font-semibold text-foreground">
+              <h3 className="text-lg font-semibold text-white">
                 Start a new conversation
               </h3>
-              <p className="text-sm text-muted-foreground">
+              <p className="text-sm text-white/60">
                 Type your message below to begin. A new conversation will be
                 created automatically.
               </p>
@@ -767,13 +762,13 @@ export function ChatInterfaceWithPersistence({
         )}
 
         {conversation && messages.length === 0 && (
-          <div className="flex h-full flex-col items-center justify-center gap-3 text-center text-muted-foreground">
-            <Bot className="h-12 w-12 text-muted-foreground/80" />
+          <div className="flex h-full flex-col items-center justify-center gap-3 text-center text-white/60">
+            <Bot className="h-12 w-12 text-[#FF5800]" />
             <div className="space-y-1">
-              <h3 className="text-lg font-semibold text-foreground">
+              <h3 className="text-lg font-semibold text-white">
                 Start a conversation
               </h3>
-              <p className="text-sm text-muted-foreground">
+              <p className="text-sm text-white/60">
                 Ask anything about AI, development, or how elizaOS can help you
                 build intelligent agents.
               </p>
@@ -791,17 +786,17 @@ export function ChatInterfaceWithPersistence({
               )}
             >
               {message.role === "assistant" && (
-                <div className="flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-full border border-border bg-muted text-muted-foreground shadow-sm">
-                  <Bot className="h-5 w-5" />
+                <div className="flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-full bg-[#FF5800]">
+                  <Bot className="h-5 w-5 text-white" />
                 </div>
               )}
 
               <div
                 className={cn(
-                  "max-w-[min(760px,82%)] rounded-2xl border px-4 py-3 text-sm leading-relaxed shadow-sm",
+                  "max-w-[min(760px,82%)] rounded-none border px-4 py-3 text-sm leading-relaxed",
                   message.role === "user"
-                    ? "border-primary/40 bg-primary text-primary-foreground"
-                    : "border-border bg-background",
+                    ? "border-[#FF5800] bg-[#FF580020] text-white"
+                    : "border-white/10 bg-black/40 text-white",
                 )}
               >
                 <div className="whitespace-pre-wrap">
@@ -819,10 +814,10 @@ export function ChatInterfaceWithPersistence({
 
                 <div
                   className={cn(
-                    "mt-3 flex items-center justify-between gap-2 text-xs",
+                    "mt-3 flex items-center justify-between gap-2 text-xs border-t pt-2",
                     message.role === "user"
-                      ? "text-primary-foreground/80"
-                      : "text-muted-foreground",
+                      ? "text-white/70 border-[#FF5800]/20"
+                      : "text-white/50 border-white/10",
                   )}
                 >
                   <div className="flex items-center gap-2">
@@ -837,10 +832,10 @@ export function ChatInterfaceWithPersistence({
 
                   {/* Play button for assistant messages */}
                   {message.role === "assistant" && (
-                    <Button
+                    <BrandButton
                       variant="ghost"
                       size="sm"
-                      className="h-6 px-2 hover:bg-muted/50"
+                      className="h-6 px-2 hover:bg-white/10"
                       onClick={() => playMessageAudio(message.id)}
                       disabled={currentPlayingId === message.id}
                     >
@@ -849,14 +844,14 @@ export function ChatInterfaceWithPersistence({
                       ) : (
                         <Play className="h-3 w-3" />
                       )}
-                    </Button>
+                    </BrandButton>
                   )}
                 </div>
               </div>
 
               {message.role === "user" && (
-                <div className="flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-full border border-primary/30 bg-primary/10 text-primary shadow-sm">
-                  <User className="h-5 w-5" />
+                <div className="flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-full bg-[#FF5800]">
+                  <User className="h-5 w-5 text-white" />
                 </div>
               )}
             </div>
@@ -864,28 +859,28 @@ export function ChatInterfaceWithPersistence({
 
           {isWaitingForResponse && (
             <div className="flex items-start gap-3">
-              <div className="flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-full border border-border bg-muted text-muted-foreground shadow-sm">
-                <Loader2 className="h-4 w-4 animate-spin" />
+              <div className="flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-full bg-[#FF5800]">
+                <Loader2 className="h-4 w-4 animate-spin text-white" />
               </div>
-              <div className="max-w-[min(760px,82%)] rounded-2xl border border-border bg-background px-4 py-3 text-sm text-muted-foreground shadow-sm">
-                Eliza Agent is thinking
+              <div className="max-w-[min(760px,82%)] rounded-none border border-white/10 bg-black/40 px-4 py-3 text-sm text-white/70">
+                Eliza Agent is thinking...
               </div>
             </div>
           )}
 
           {errorMessage && (
             <div className="flex items-start gap-3">
-              <div className="max-w-[min(760px,82%)] rounded-2xl border border-destructive/50 bg-destructive/10 px-4 py-3 text-sm text-destructive shadow-sm">
+              <div className="max-w-[min(760px,82%)] rounded-none border border-rose-500/40 bg-rose-500/10 px-4 py-3 text-sm text-rose-400">
                 <div className="font-medium">Error</div>
                 <div className="mt-1">{errorMessage}</div>
-                <Button
+                <BrandButton
                   variant="outline"
                   size="sm"
                   onClick={() => setErrorMessage(null)}
-                  className="mt-2"
+                  className="mt-2 border-rose-500/40 hover:bg-rose-500/10"
                 >
                   Dismiss
-                </Button>
+                </BrandButton>
               </div>
             </div>
           )}
@@ -894,14 +889,11 @@ export function ChatInterfaceWithPersistence({
         <div ref={messagesEndRef} />
       </div>
 
-      <form
-        onSubmit={handleSubmit}
-        className="border-t bg-card/80 px-6 py-4 backdrop-blur-sm space-y-3"
-      >
+      <div className="border-t border-white/10 px-6 py-4 space-y-3">
         {/* Voice recording indicator */}
         {recorder.isRecording && (
-          <div className="flex items-center justify-center gap-2 text-sm text-muted-foreground">
-            <div className="w-2 h-2 rounded-full bg-red-500 animate-pulse" />
+          <div className="flex items-center justify-center gap-2 text-sm text-white/60">
+            <div className="w-2 h-2 rounded-full bg-rose-500 animate-pulse" />
             <span>
               Recording... {Math.floor(recorder.recordingTime / 60)}:
               {(recorder.recordingTime % 60).toString().padStart(2, "0")}
@@ -909,56 +901,58 @@ export function ChatInterfaceWithPersistence({
           </div>
         )}
 
-        <div className="flex gap-2">
-          {/* Voice recording button */}
-          <Button
-            type="button"
-            variant={recorder.isRecording ? "destructive" : "outline"}
-            size="lg"
-            className={cn(
-              "h-11 w-11 rounded-xl",
-              recorder.isRecording && "animate-pulse",
-            )}
-            onClick={
-              recorder.isRecording
-                ? recorder.stopRecording
-                : recorder.startRecording
-            }
-            disabled={isProcessing && !recorder.isRecording}
-          >
-            {recorder.isRecording ? (
-              <Square className="h-5 w-5" fill="currentColor" />
-            ) : (
-              <Mic className="h-5 w-5" />
-            )}
-          </Button>
-
-          <div className="relative flex-1">
-            <input
-              value={input}
-              onChange={(e) => setInput(e.currentTarget.value)}
-              placeholder={
-                conversation
-                  ? "Type or speak your message…"
-                  : "Type or speak to start a new conversation…"
+        <form onSubmit={handleSubmit}>
+          <HUDContainer className="flex items-center gap-3 p-4" cornerSize="sm">
+            {/* Voice recording button */}
+            <BrandButton
+              type="button"
+              variant={recorder.isRecording ? "primary" : "icon"}
+              size="icon"
+              className={cn(
+                recorder.isRecording && "animate-pulse",
+              )}
+              onClick={
+                recorder.isRecording
+                  ? recorder.stopRecording
+                  : recorder.startRecording
               }
-              disabled={isProcessing || recorder.isRecording}
-              className="h-11 w-full rounded-xl border border-border bg-background px-4 text-sm shadow-sm transition focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20 disabled:cursor-not-allowed disabled:opacity-60"
-            />
-          </div>
-          <Button
-            type="submit"
-            disabled={isProcessing || !input.trim() || recorder.isRecording}
-            className="h-11 rounded-xl px-5 font-medium shadow-sm transition hover:shadow-md"
-          >
-            {isProcessing ? (
-              <Loader2 className="h-5 w-5 animate-spin" />
-            ) : (
-              <Send className="h-5 w-5" />
-            )}
-          </Button>
-        </div>
-      </form>
+              disabled={isProcessing && !recorder.isRecording}
+            >
+              {recorder.isRecording ? (
+                <Square className="h-5 w-5" fill="currentColor" />
+              ) : (
+                <Mic className="h-5 w-5" style={{ color: "#FF5800" }} />
+              )}
+            </BrandButton>
+
+            <div className="relative flex-1">
+              <input
+                value={input}
+                onChange={(e) => setInput(e.currentTarget.value)}
+                placeholder={
+                  conversation
+                    ? "Type or speak your message…"
+                    : "Type or speak to start a new conversation…"
+                }
+                disabled={isProcessing || recorder.isRecording}
+                className="h-full w-full bg-transparent border-0 text-white placeholder:text-white/40 focus:outline-none disabled:cursor-not-allowed disabled:opacity-60"
+              />
+            </div>
+            <BrandButton
+              type="submit"
+              variant="icon-primary"
+              size="icon"
+              disabled={isProcessing || !input.trim() || recorder.isRecording}
+            >
+              {isProcessing ? (
+                <Loader2 className="h-5 w-5 animate-spin" style={{ color: "#FF5800" }} />
+              ) : (
+                <Send className="h-5 w-5" style={{ color: "#FF5800" }} />
+              )}
+            </BrandButton>
+          </HUDContainer>
+        </form>
+      </div>
     </div>
   );
 }
