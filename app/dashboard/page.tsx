@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { Sparkles, Image, Video, MessageSquare } from "lucide-react";
+import { generatePageMetadata, ROUTE_METADATA } from "@/lib/seo";
 
 import { DashboardHero } from "@/components/dashboard/dashboard-hero";
 import { DashboardPageWrapper } from "@/components/dashboard/dashboard-page-wrapper";
@@ -39,10 +40,11 @@ import {
   BrandButton,
 } from "@/components/brand";
 
-export const metadata: Metadata = {
-  title: "Dashboard",
-  description: "View your AI agent dashboard, analytics, and quick actions",
-};
+export const metadata: Metadata = generatePageMetadata({
+  ...ROUTE_METADATA.dashboard,
+  path: "/dashboard",
+  noIndex: true,
+});
 
 // Force dynamic rendering since we use server-side auth (cookies)
 export const dynamic = "force-dynamic";

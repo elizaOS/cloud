@@ -1,12 +1,13 @@
 import type { Metadata } from "next";
 import { requireAuth } from "@/lib/auth";
 import { AgentMarketplaceClient } from "./agent-marketplace-client";
+import { generatePageMetadata, ROUTE_METADATA } from "@/lib/seo";
 
-export const metadata: Metadata = {
-  title: "Agent Marketplace",
-  description:
-    "Discover and explore AI agents from the community. Find templates, clone characters, and start conversations.",
-};
+export const metadata: Metadata = generatePageMetadata({
+  ...ROUTE_METADATA.agentMarketplace,
+  path: "/dashboard/agent-marketplace",
+  noIndex: true,
+});
 
 export const dynamic = "force-dynamic";
 
