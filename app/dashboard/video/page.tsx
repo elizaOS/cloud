@@ -6,14 +6,15 @@ import type {
   VideoModelOption,
   VideoUsageSummary,
 } from "@/components/video/types";
+import { generatePageMetadata, ROUTE_METADATA } from "@/lib/seo";
 
 export const dynamic = "force-dynamic";
 
-export const metadata: Metadata = {
-  title: "Video Generation Studio",
-  description:
-    "Prototype cinematic clips, monitor usage, and keep your creative pipeline flowing.",
-};
+export const metadata: Metadata = generatePageMetadata({
+  ...ROUTE_METADATA.videoGeneration,
+  path: "/dashboard/video",
+  noIndex: true,
+});
 
 const modelPresets: VideoModelOption[] = [
   {
