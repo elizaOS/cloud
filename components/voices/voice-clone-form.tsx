@@ -617,15 +617,16 @@ export function VoiceCloneForm({
                           Recording in progress...
                         </p>
                       </div>
-                      <Button
+                      <BrandButton
                         type="button"
                         onClick={recorder.stopRecording}
-                        variant="destructive"
+                        variant="primary"
                         size="lg"
+                        className="animate-pulse"
                       >
-                        <Square className="mr-2 h-4 w-4" />
+                        <Square className="mr-2 h-4 w-4" fill="currentColor" />
                         Stop Recording
-                      </Button>
+                      </BrandButton>
                     </>
                   )}
 
@@ -715,16 +716,16 @@ export function VoiceCloneForm({
                             Duration: {formatRecordingTime(rec.duration)}
                           </p>
                         </div>
-                        <Button
+                        <BrandButton
                           type="button"
                           variant="ghost"
                           size="icon"
                           onClick={() => removeRecording(rec.id)}
                           disabled={isUploading}
-                          className="shrink-0"
+                          className="shrink-0 text-rose-400 hover:bg-rose-500/10"
                         >
                           <X className="h-4 w-4" />
-                        </Button>
+                        </BrandButton>
                       </div>
                     ))}
                   </div>
@@ -752,16 +753,16 @@ export function VoiceCloneForm({
                         {formatFileSize(f.file.size)}
                       </p>
                     </div>
-                    <Button
+                    <BrandButton
                       type="button"
                       variant="ghost"
                       size="icon"
                       onClick={() => removeFile(f.id)}
                       disabled={isUploading}
-                      className="shrink-0"
+                      className="shrink-0 text-rose-400 hover:bg-rose-500/10"
                     >
                       <X className="h-4 w-4" />
-                    </Button>
+                    </BrandButton>
                   </div>
                 ))}
               </div>
