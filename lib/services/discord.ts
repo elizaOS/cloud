@@ -273,6 +273,82 @@ class DiscordService {
   }
 
   /**
+   * Log a character creation event
+   */
+  async logCharacterCreated(characterData: {
+    characterId: string;
+    characterName: string;
+    userName?: string | null;
+    userId: string;
+    organizationName: string;
+    bio?: string;
+    plugins?: string[];
+  }): Promise<boolean> {
+    const fields: DiscordEmbedField[] = [
+      {
+        name: "Character Name",
+        value: characterData.characterName,
+        inline: true,
+      },
+      {
+        name: "Character ID",
+        value: `\`${characterData.characterId}\``,
+        inline: true,
+      },
+      {
+        name: "Created By",
+        value: characterData.userName || "Unknown",
+        inline: true,
+      },
+      {
+        name: "User ID",
+        value: `\`${characterData.userId}\``,
+        inline: true,
+      },
+      {
+        name: "Organization",
+        value: characterData.organizationName,
+        inline: true,
+      },
+    ];
+
+    if (characterData.bio) {
+      const bioText = Array.isArray(characterData.bio)
+        ? characterData.bio.join(" ")
+        : characterData.bio;
+      fields.push({
+        name: "Bio",
+        value: bioText.slice(0, 200) + (bioText.length > 200 ? "..." : ""),
+        inline: false,
+      });
+    }
+
+    if (characterData.plugins && characterData.plugins.length > 0) {
+      fields.push({
+        name: "Plugins",
+        value: characterData.plugins.slice(0, 5).join(", ") + 
+               (characterData.plugins.length > 5 ? `, +${characterData.plugins.length - 5} more` : ""),
+        inline: false,
+      });
+    }
+
+    const embed: DiscordEmbed = {
+      title: "🤖 New Character Created",
+      description: `A new AI character has been created!`,
+      color: DiscordColor.SUCCESS,
+      fields,
+      timestamp: new Date().toISOString(),
+      footer: {
+        text: "Eliza Cloud",
+      },
+    };
+
+    return this.send({
+      embeds: [embed],
+    });
+  }
+
+  /**
    * Log a custom event
    */
   async logEvent(event: {
