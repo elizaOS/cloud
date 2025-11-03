@@ -46,7 +46,7 @@ export default function OnChainTrust() {
 
             <p className="text-sm md:text-base leading-relaxed text-white/70">
               Through the x402 standard, agents can also send and receive
-              micropayments instantly — powering the world's first open agent
+              micropayments instantly — powering the world&apos;s first open agent
               economy.
             </p>
           </div>
