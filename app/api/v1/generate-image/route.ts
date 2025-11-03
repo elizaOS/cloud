@@ -4,6 +4,7 @@ import {
   usageService,
   creditsService,
   generationsService,
+  discordService,
 } from "@/lib/services";
 import { IMAGE_GENERATION_COST } from "@/lib/pricing";
 import { uploadBase64Image } from "@/lib/blob";
@@ -325,6 +326,28 @@ async function handlePOST(req: NextRequest) {
     console.log(
       `[IMAGE GENERATION] Generated ${successfulResults.length} image(s), Cost: $${actualCost.toFixed(2)}, New balance: $${deductionResult.newBalance.toFixed(2)}`,
     );
+
+    // Log to Discord (fire-and-forget) - use first uploaded image
+    if (uploadResults.length > 0 && uploadResults[0].blobUrl !== uploadResults[0].imageBase64) {
+      discordService
+        .logImageGenerated({
+          generationId: generationId || "unknown",
+          prompt: prompt,
+          imageUrl: uploadResults[0].blobUrl,
+          userName: user.name || user.email || null,
+          userId: user.id,
+          organizationName: user.organization.name,
+          numImages: successfulResults.length,
+          aspectRatio: aspectRatio,
+          model: "google/gemini-2.5-flash-image-preview",
+        })
+        .catch((error) => {
+          console.error(
+            "[ImageGeneration] Failed to log to Discord:",
+            error,
+          );
+        });
+    }
 
     return Response.json({
       images: uploadedImages,

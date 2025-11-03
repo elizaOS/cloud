@@ -1,7 +1,7 @@
 "use server";
 
 import { requireAuth } from "@/lib/auth";
-import { charactersService } from "@/lib/services";
+import { charactersService, discordService } from "@/lib/services";
 import type { ElizaCharacter, NewUserCharacter } from "@/lib/types";
 import { revalidatePath } from "next/cache";
 
@@ -36,6 +36,26 @@ export async function createCharacter(elizaCharacter: ElizaCharacter) {
   };
 
   const character = await charactersService.create(newCharacter);
+
+  // Log to Discord (fire-and-forget)
+  discordService
+    .logCharacterCreated({
+      characterId: character.id,
+      characterName: character.name,
+      userName: user.name || user.email || null,
+      userId: user.id,
+      organizationName: user.organization.name,
+      bio: Array.isArray(elizaCharacter.bio)
+        ? elizaCharacter.bio.join(" ")
+        : elizaCharacter.bio,
+      plugins: elizaCharacter.plugins,
+    })
+    .catch((error) => {
+      console.error(
+        "[CharacterCreate] Failed to log to Discord:",
+        error,
+      );
+    });
 
   revalidatePath("/dashboard/character-creator");
   return charactersService.toElizaCharacter(character);

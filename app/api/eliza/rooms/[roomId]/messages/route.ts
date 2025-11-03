@@ -7,6 +7,7 @@ import {
   usageService,
   generationsService,
   organizationsService,
+  discordService,
 } from "@/lib/services";
 import {
   calculateCost,
@@ -16,6 +17,8 @@ import {
 import { logger } from "@/lib/utils/logger";
 import type { NextRequest } from "next/server";
 import { elizaRoomCharactersRepository } from "@/db/repositories";
+import { db } from "@/db/client";
+import { sql } from "drizzle-orm";
 
 export const maxDuration = 60;
 
@@ -99,6 +102,7 @@ export async function POST(
 
     // Look up character for this room
     let characterId: string | undefined;
+    let characterName: string | undefined;
     try {
       const roomCharacter =
         await elizaRoomCharactersRepository.findByRoomId(roomId);
@@ -110,12 +114,19 @@ export async function POST(
           "for room:",
           roomId,
         );
+
+        // Get character name
+        const runtime = await agentRuntime.getRuntimeForCharacter(characterId);
+        characterName = runtime.character.name || "Agent";
       } else {
         logger.info(
           "[Eliza Messages API] ⓘ No character mapping found for room:",
           roomId,
           "- using default character",
         );
+        // Get default character name
+        const runtime = await agentRuntime.getRuntime();
+        characterName = runtime.character.name || "Agent";
       }
     } catch (lookupError) {
       logger.error(
@@ -123,6 +134,7 @@ export async function POST(
         lookupError,
       );
       // Continue with default character
+      characterName = "Agent";
     }
 
     // Handle the message and get usage information
@@ -144,6 +156,46 @@ export async function POST(
       messageId: message.id,
       usage,
     });
+
+    // Send messages to Discord thread (fire-and-forget)
+    (async () => {
+      try {
+        // Get Discord thread ID from room metadata
+        const roomData = await db.execute<{ metadata: any }>(
+          sql`SELECT metadata FROM rooms WHERE id = ${roomId}::uuid LIMIT 1`
+        );
+
+        const threadId = roomData.rows[0]?.metadata?.discordThreadId;
+
+        if (threadId) {
+          // Send user message
+          await discordService.sendToThread(
+            threadId,
+            `**${user.name || user.email || entityId}:** ${text}`
+          );
+
+          // Send agent response
+          const responseText =
+            typeof message.content === "string"
+              ? message.content
+              : message.content?.text || JSON.stringify(message.content);
+
+          await discordService.sendToThread(
+            threadId,
+            `**🤖 ${characterName}:** ${responseText}`
+          );
+
+          logger.info(
+            `[Eliza Messages API] Sent messages to Discord thread ${threadId}`
+          );
+        }
+      } catch (err) {
+        logger.error(
+          "[Eliza Messages API] Failed to send to Discord thread:",
+          err
+        );
+      }
+    })();
 
     // Always deduct credits for Eliza messages
     // If we don't have usage data, estimate based on text length

@@ -34,9 +34,7 @@ export function generateOGImageUrl(params: OGImageParams): string {
   return `${baseUrl}/api/og?${searchParams.toString()}`;
 }
 
-export function generatePageMetadata(
-  options: PageMetadataOptions,
-): Metadata {
+export function generatePageMetadata(options: PageMetadataOptions): Metadata {
   const baseUrl = getBaseUrl();
   const canonicalUrl = `${baseUrl}${options.path}`;
 
@@ -51,7 +49,9 @@ export function generatePageMetadata(
   const metadata: Metadata = {
     title: options.title,
     description: options.description,
-    keywords: options.keywords ? [...options.keywords] : [...SEO_CONSTANTS.defaultKeywords],
+    keywords: options.keywords
+      ? [...options.keywords]
+      : [...SEO_CONSTANTS.defaultKeywords],
     alternates: {
       canonical: canonicalUrl,
     },
@@ -128,7 +128,12 @@ export function generateContainerMetadata(
   return generateDynamicMetadata({
     title,
     description: desc,
-    keywords: ["container", "deployment", name, ...(characterName ? [characterName] : [])],
+    keywords: [
+      "container",
+      "deployment",
+      name,
+      ...(characterName ? [characterName] : []),
+    ],
     path: `/dashboard/containers/${id}`,
     ogImage: generateOGImageUrl({
       type: "container",
@@ -156,13 +161,15 @@ export function generateCharacterMetadata(
     description,
     keywords: [name, "AI character", "AI agent", "elizaOS", ...tags],
     path: `/marketplace/characters/${id}`,
-    ogImage: avatarUrl || generateOGImageUrl({
-      type: "character",
-      id,
-      name,
-      description: bioText,
-      avatarUrl: avatarUrl || undefined,
-    }),
+    ogImage:
+      avatarUrl ||
+      generateOGImageUrl({
+        type: "character",
+        id,
+        name,
+        description: bioText,
+        avatarUrl: avatarUrl || undefined,
+      }),
     type: "profile",
     entityId: id,
     entityType: "character",

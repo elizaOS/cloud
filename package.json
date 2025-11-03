@@ -26,7 +26,8 @@
     "bootstrapper:build": "cd bootstrapper && ./build.sh",
     "cache:clear": "tsx scripts/clear-cache.ts",
     "cache:health": "tsx scripts/cache-health-check.ts",
-    "mcp:inspector": "bunx @modelcontextprotocol/inspector@latest"
+    "mcp:inspector": "bunx @modelcontextprotocol/inspector@latest",
+    "test:discord": "tsx scripts/test-discord-service.ts"
   },
   "dependencies": {
     "@ai-sdk/gateway": "^2.0.5",
@@ -42,6 +43,7 @@
     "@aws-sdk/s3-request-presigner": "^3.922.0",
     "@coinbase/cdp-sdk": "^1.38.4",
     "@coinbase/x402": "^0.7.1",
+    "@discordjs/rest": "^2.6.0",
     "@elevenlabs/elevenlabs-js": "^2.21.0",
     "@elizaos/core": "^1.6.3",
     "@elizaos/plugin-elevenlabs": "^1.6.0",
@@ -102,6 +104,7 @@
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
     "date-fns": "^4.1.0",
+    "discord-api-types": "^0.38.31",
     "dotenv": "^17.2.3",
     "drizzle-orm": "^0.44.7",
     "embla-carousel-react": "^8.6.0",
