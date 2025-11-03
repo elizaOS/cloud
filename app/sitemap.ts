@@ -1,0 +1,106 @@
+import type { MetadataRoute } from "next";
+import { db } from "@/db/client";
+import { userCharacters } from "@/db/schemas/user-characters";
+import { eq } from "drizzle-orm";
+
+export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
+  const baseUrl = process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000";
+
+  const staticPages: MetadataRoute.Sitemap = [
+    {
+      url: baseUrl,
+      lastModified: new Date(),
+      changeFrequency: "daily",
+      priority: 1.0,
+    },
+    {
+      url: `${baseUrl}/marketplace`,
+      lastModified: new Date(),
+      changeFrequency: "daily",
+      priority: 0.9,
+    },
+    {
+      url: `${baseUrl}/dashboard`,
+      lastModified: new Date(),
+      changeFrequency: "daily",
+      priority: 0.8,
+    },
+    {
+      url: `${baseUrl}/dashboard/text`,
+      lastModified: new Date(),
+      changeFrequency: "weekly",
+      priority: 0.7,
+    },
+    {
+      url: `${baseUrl}/dashboard/image`,
+      lastModified: new Date(),
+      changeFrequency: "weekly",
+      priority: 0.7,
+    },
+    {
+      url: `${baseUrl}/dashboard/video`,
+      lastModified: new Date(),
+      changeFrequency: "weekly",
+      priority: 0.7,
+    },
+    {
+      url: `${baseUrl}/dashboard/voices`,
+      lastModified: new Date(),
+      changeFrequency: "weekly",
+      priority: 0.7,
+    },
+    {
+      url: `${baseUrl}/dashboard/eliza`,
+      lastModified: new Date(),
+      changeFrequency: "weekly",
+      priority: 0.7,
+    },
+    {
+      url: `${baseUrl}/dashboard/character-creator`,
+      lastModified: new Date(),
+      changeFrequency: "weekly",
+      priority: 0.7,
+    },
+    {
+      url: `${baseUrl}/dashboard/agent-marketplace`,
+      lastModified: new Date(),
+      changeFrequency: "daily",
+      priority: 0.8,
+    },
+    {
+      url: `${baseUrl}/dashboard/api-explorer`,
+      lastModified: new Date(),
+      changeFrequency: "weekly",
+      priority: 0.6,
+    },
+    {
+      url: `${baseUrl}/dashboard/mcp-playground`,
+      lastModified: new Date(),
+      changeFrequency: "weekly",
+      priority: 0.6,
+    },
+  ];
+
+  try {
+    const publicCharacters = await db
+      .select({
+        id: userCharacters.id,
+        updated_at: userCharacters.updated_at,
+      })
+      .from(userCharacters)
+      .where(eq(userCharacters.is_public, true))
+      .limit(1000);
+
+    const characterPages: MetadataRoute.Sitemap = publicCharacters.map((character) => ({
+      url: `${baseUrl}/marketplace/characters/${character.id}`,
+      lastModified: character.updated_at,
+      changeFrequency: "weekly" as const,
+      priority: 0.7,
+    }));
+
+    return [...staticPages, ...characterPages];
+  } catch (error) {
+    console.error("Error generating sitemap:", error);
+    return staticPages;
+  }
+}
