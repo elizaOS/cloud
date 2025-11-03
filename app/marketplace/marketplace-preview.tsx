@@ -409,6 +409,7 @@ export function MarketplacePreview() {
     ExtendedCharacter[]
   >([]);
   const [isLoadingMore, setIsLoadingMore] = useState(false);
+  const [isLoggingIn, setIsLoggingIn] = useState(false);
 
   const { authenticated, ready } = usePrivy();
   const { login } = useLogin();
@@ -443,13 +444,18 @@ export function MarketplacePreview() {
     fetchAdditionalCharacters();
   }, []);
 
-  const handleAuth = useCallback(() => {
+  const handleAuth = useCallback(async () => {
     if (!ready) return;
 
     if (authenticated) {
       router.push("/dashboard");
     } else {
-      login();
+      setIsLoggingIn(true);
+      try {
+        await login();
+      } finally {
+        setTimeout(() => setIsLoggingIn(false), 1000);
+      }
     }
   }, [ready, authenticated, login, router]);
 
@@ -499,10 +505,19 @@ export function MarketplacePreview() {
             </p>
 
             <div className="flex flex-col items-center justify-center gap-4 sm:flex-row">
-              <Button size="lg" className="gap-2" onClick={handleAuth}>
-                <Sparkles className="h-4 w-4" />
-                Get Started Free
-                <ArrowRight className="h-4 w-4" />
+              <Button size="lg" className="gap-2" onClick={handleAuth} disabled={!ready || isLoggingIn}>
+                {!ready || isLoggingIn ? (
+                  <>
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                    Loading...
+                  </>
+                ) : (
+                  <>
+                    <Sparkles className="h-4 w-4" />
+                    Get Started Free
+                    <ArrowRight className="h-4 w-4" />
+                  </>
+                )}
               </Button>
               <Button size="lg" variant="outline" asChild>
                 <a href="#featured">
@@ -574,10 +589,19 @@ export function MarketplacePreview() {
           </div>
 
           <div className="mt-12 text-center">
-            <Button size="lg" onClick={handleAuth} className="gap-2">
-              <Sparkles className="h-4 w-4" />
-              Sign Up to Chat with These Characters
-              <ArrowRight className="h-4 w-4" />
+            <Button size="lg" onClick={handleAuth} className="gap-2" disabled={!ready || isLoggingIn}>
+              {!ready || isLoggingIn ? (
+                <>
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                  Loading...
+                </>
+              ) : (
+                <>
+                  <Sparkles className="h-4 w-4" />
+                  Sign Up to Chat with These Characters
+                  <ArrowRight className="h-4 w-4" />
+                </>
+              )}
             </Button>
             <p className="mt-4 text-sm text-muted-foreground">
               Join thousands of users already chatting with our AI companions
@@ -664,10 +688,19 @@ export function MarketplacePreview() {
           </div>
 
           <div className="mt-12 text-center space-y-4">
-            <Button size="lg" onClick={handleAuth} className="gap-2">
-              <Sparkles className="h-4 w-4" />
-              Sign Up to Access All Characters
-              <ArrowRight className="h-4 w-4" />
+            <Button size="lg" onClick={handleAuth} className="gap-2" disabled={!ready || isLoggingIn}>
+              {!ready || isLoggingIn ? (
+                <>
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                  Loading...
+                </>
+              ) : (
+                <>
+                  <Sparkles className="h-4 w-4" />
+                  Sign Up to Access All Characters
+                  <ArrowRight className="h-4 w-4" />
+                </>
+              )}
             </Button>
             <p className="text-sm text-muted-foreground">
               500+ AI characters across 8 categories • Free to explore • No
@@ -701,10 +734,19 @@ export function MarketplacePreview() {
             </p>
 
             <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
-              <Button size="lg" className="gap-2" onClick={handleAuth}>
-                <Sparkles className="h-5 w-5" />
-                Create Free Account
-                <ArrowRight className="h-4 w-4" />
+              <Button size="lg" className="gap-2" onClick={handleAuth} disabled={!ready || isLoggingIn}>
+                {!ready || isLoggingIn ? (
+                  <>
+                    <Loader2 className="h-5 w-5 animate-spin" />
+                    Loading...
+                  </>
+                ) : (
+                  <>
+                    <Sparkles className="h-5 w-5" />
+                    Create Free Account
+                    <ArrowRight className="h-4 w-4" />
+                  </>
+                )}
               </Button>
               <Button size="lg" variant="outline" asChild>
                 <Link href="https://docs.eliza.os" target="_blank">

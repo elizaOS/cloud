@@ -2,6 +2,7 @@
 
 import { usePrivy, useLogin } from "@privy-io/react-auth";
 import { useRouter } from "next/navigation";
+import { useState } from "react";
 import {
   Bot,
   Image as ImageIcon,
@@ -27,8 +28,9 @@ const TopHero = () => {
   const { authenticated, ready } = usePrivy();
   const { login } = useLogin();
   const router = useRouter();
+  const [isLoggingIn, setIsLoggingIn] = useState(false);
 
-  const handleAuth = () => {
+  const handleAuth = async () => {
     console.log("Auth button clicked:", { authenticated, ready });
 
     if (!ready) {
@@ -40,7 +42,13 @@ const TopHero = () => {
       router.push("/dashboard");
     } else {
       console.log("Calling Privy login...");
-      login();
+      setIsLoggingIn(true);
+      try {
+        await login();
+      } finally {
+        // Reset loading state after a delay to handle Privy modal
+        setTimeout(() => setIsLoggingIn(false), 1000);
+      }
     }
   };
 
