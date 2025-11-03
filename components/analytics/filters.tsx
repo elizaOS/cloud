@@ -3,8 +3,6 @@
 import { useMemo } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Sparkles } from "lucide-react";
-import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
 import {
   Select,
   SelectContent,
@@ -13,6 +11,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { cn } from "@/lib/utils";
+import { BrandButton } from "@/components/brand";
 
 export function AnalyticsFilters() {
   const router = useRouter();
@@ -63,35 +62,32 @@ export function AnalyticsFilters() {
     <div className="flex flex-col gap-5 md:gap-6 lg:flex-row lg:items-center lg:justify-between">
       <div className="flex flex-wrap items-center gap-4 md:gap-5">
         <div className="space-y-2">
-          <p className="text-xs uppercase tracking-wide text-muted-foreground/70">
+          <p className="text-xs uppercase tracking-wide text-white/50">
             Aggregation
           </p>
           <Select
             value={granularity}
             onValueChange={(value) => updateFilters({ granularity: value })}
           >
-            <SelectTrigger className="w-[160px]">
+            <SelectTrigger className="w-[160px] rounded-none border-white/10 bg-black/40 text-white focus:ring-1 focus:ring-[#FF5800]">
               <SelectValue>
                 {granularity.charAt(0).toUpperCase() + granularity.slice(1)}
               </SelectValue>
             </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="hour">Hourly</SelectItem>
-              <SelectItem value="day">Daily</SelectItem>
-              <SelectItem value="week">Weekly</SelectItem>
-              <SelectItem value="month">Monthly</SelectItem>
+            <SelectContent className="rounded-none border-white/10 bg-black/90">
+              <SelectItem value="hour" className="rounded-none text-white hover:bg-white/10 focus:bg-white/10">Hourly</SelectItem>
+              <SelectItem value="day" className="rounded-none text-white hover:bg-white/10 focus:bg-white/10">Daily</SelectItem>
+              <SelectItem value="week" className="rounded-none text-white hover:bg-white/10 focus:bg-white/10">Weekly</SelectItem>
+              <SelectItem value="month" className="rounded-none text-white hover:bg-white/10 focus:bg-white/10">Monthly</SelectItem>
             </SelectContent>
           </Select>
         </div>
 
         {activeRange === "custom" ? (
-          <Badge
-            variant="outline"
-            className="gap-1 rounded-full px-3 py-1 text-xs"
-          >
-            <Sparkles className="h-3.5 w-3.5" />
+          <span className="flex items-center gap-1 rounded-none border border-white/20 bg-white/10 px-3 py-1 text-xs">
+            <Sparkles className="h-3.5 w-3.5 text-[#FF5800]" />
             Custom range detected
-          </Badge>
+          </span>
         ) : null}
       </div>
 
@@ -100,14 +96,13 @@ export function AnalyticsFilters() {
           const isActive = activeRange === preset.value;
 
           return (
-            <Button
+            <BrandButton
               key={preset.value}
-              variant="ghost"
+              variant={isActive ? "primary" : "outline"}
               size="sm"
               className={cn(
-                "rounded-full border border-border/60 bg-background/60 text-xs font-medium transition-colors",
-                isActive &&
-                  "border-primary/60 bg-primary/10 text-primary hover:bg-primary/15",
+                "text-xs font-medium transition-colors",
+                !isActive && "hover:bg-white/5",
               )}
               onClick={() => {
                 const now = new Date();
@@ -122,7 +117,7 @@ export function AnalyticsFilters() {
               }}
             >
               {preset.label}
-            </Button>
+            </BrandButton>
           );
         })}
       </div>

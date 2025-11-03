@@ -3,7 +3,6 @@
 import { useState, useEffect, useRef, useCallback } from "react";
 import { Plus, MessageSquare, Trash2, Edit2, Loader2 } from "lucide-react";
 import { useRouter } from "next/navigation";
-import { Button } from "@/components/ui/button";
 import { ConversationInput } from "./conversation-input";
 import { ConversationScrollArea } from "./conversation-scroll-area";
 import type { Conversation } from "@/lib/types";
@@ -13,6 +12,7 @@ import {
   deleteConversationAction,
 } from "@/app/actions/conversations";
 import { cn } from "@/lib/utils";
+import { BrandButton, SectionLabel } from "@/components/brand";
 
 interface ConversationListProps {
   conversations: Conversation[];
@@ -130,12 +130,16 @@ export function ConversationList({
   }, [editingId, editTitle, isSaving, handleSaveEdit, handleCancelEdit]);
 
   return (
-    <div className="flex h-full min-h-0 w-full flex-col">
-      <div className="border-b px-4 pb-4 pt-5">
-        <Button
+    <div className="flex h-full min-h-0 w-full flex-col relative z-10">
+      <div className="border-b border-white/10 px-4 pb-4 pt-5">
+        <div className="mb-3">
+          <SectionLabel>Conversations</SectionLabel>
+        </div>
+        <BrandButton
           onClick={handleCreate}
           disabled={isCreating}
-          className="w-full justify-center gap-2 rounded-xl shadow-sm transition-shadow hover:shadow"
+          variant="primary"
+          className="w-full justify-center gap-2"
         >
           {isCreating ? (
             <Loader2 className="h-4 w-4 animate-spin" />
@@ -143,7 +147,7 @@ export function ConversationList({
             <Plus className="h-4 w-4" />
           )}
           New Chat
-        </Button>
+        </BrandButton>
       </div>
 
       <ConversationScrollArea className="flex-1">
@@ -155,16 +159,16 @@ export function ConversationList({
               <div
                 key={conversation.id}
                 className={cn(
-                  "group relative flex cursor-pointer flex-col gap-3 rounded-2xl border border-transparent bg-background/70 p-3 transition-colors duration-150",
+                  "group relative flex cursor-pointer flex-col gap-3 rounded-none border-l-2 p-3 transition-all duration-150",
                   isActive
-                    ? "border-primary/30 bg-primary/[0.08] shadow-sm"
-                    : "hover:border-border/60 hover:bg-muted/70",
+                    ? "border-[#FF5800] bg-white/10"
+                    : "border-transparent hover:bg-white/5",
                 )}
                 onClick={() => onSelectConversation(conversation.id)}
               >
                 {isSaving && editingId === conversation.id ? (
-                  <div className="flex items-center gap-2 text-xs text-muted-foreground">
-                    <Loader2 className="h-4 w-4 animate-spin" />
+                  <div className="flex items-center gap-2 text-xs text-white/60">
+                    <Loader2 className="h-4 w-4 animate-spin text-[#FF5800]" />
                     <span>Saving changes</span>
                   </div>
                 ) : editingId === conversation.id ? (
@@ -176,7 +180,7 @@ export function ConversationList({
                     <ConversationInput
                       value={editTitle}
                       onChange={(e) => setEditTitle(e.target.value)}
-                      className="h-8 rounded-lg border-border bg-background text-sm"
+                      className="h-8 rounded-none border-white/10 bg-black/40 text-sm text-white"
                       autoFocus
                     />
                   </div>
@@ -185,28 +189,29 @@ export function ConversationList({
                     <div className="flex items-start gap-3">
                       <div
                         className={cn(
-                          "flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-xl border border-transparent bg-muted text-muted-foreground",
-                          isActive &&
-                            "border-primary/40 bg-primary/10 text-primary",
+                          "flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-none border bg-black/60",
+                          isActive
+                            ? "border-[#FF5800] bg-[#FF580020] text-[#FF5800]"
+                            : "border-white/10 text-white/60",
                         )}
                       >
                         <MessageSquare className="h-4 w-4" />
                       </div>
                       <div className="min-w-0 flex-1">
-                        <p className="truncate text-sm font-medium text-foreground">
+                        <p className="truncate text-sm font-medium text-white">
                           {conversation.title}
                         </p>
-                        <p className="text-xs text-muted-foreground">
+                        <p className="text-xs text-white/50">
                           {conversation.message_count} messages
                         </p>
                       </div>
                     </div>
 
                     <div className="flex items-center justify-end gap-1 opacity-0 transition-opacity duration-150 group-hover:opacity-100">
-                      <Button
+                      <BrandButton
                         size="icon"
                         variant="ghost"
-                        className="h-8 w-8 rounded-full"
+                        className="h-8 w-8"
                         onClick={(e) => {
                           e.stopPropagation();
                           handleStartEdit(conversation);
@@ -214,11 +219,11 @@ export function ConversationList({
                         disabled={deletingId === conversation.id}
                       >
                         <Edit2 className="h-3.5 w-3.5" />
-                      </Button>
-                      <Button
+                      </BrandButton>
+                      <BrandButton
                         size="icon"
                         variant="ghost"
-                        className="h-8 w-8 rounded-full text-destructive"
+                        className="h-8 w-8 text-rose-400 hover:bg-rose-500/10"
                         onClick={(e) => {
                           e.stopPropagation();
                           handleDelete(conversation.id);
@@ -230,7 +235,7 @@ export function ConversationList({
                         ) : (
                           <Trash2 className="h-3.5 w-3.5" />
                         )}
-                      </Button>
+                      </BrandButton>
                     </div>
                   </>
                 )}
@@ -239,9 +244,9 @@ export function ConversationList({
           })}
 
           {conversations.length === 0 && (
-            <div className="rounded-xl border border-dashed border-muted-foreground/40 px-4 py-10 text-center text-muted-foreground">
-              <MessageSquare className="mx-auto mb-3 h-8 w-8 opacity-60" />
-              <p className="text-sm font-medium text-foreground">
+            <div className="rounded-none border border-dashed border-white/10 px-4 py-10 text-center text-white/60">
+              <MessageSquare className="mx-auto mb-3 h-8 w-8 opacity-60 text-[#FF5800]" />
+              <p className="text-sm font-medium text-white">
                 No conversations yet
               </p>
               <p className="text-xs">Start a new chat to see it appear here.</p>

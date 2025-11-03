@@ -17,9 +17,15 @@ export function SidebarNavigationSection({
   return (
     <div>
       {section.title && (
-        <h3 className="mb-2 px-3 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-          {section.title}
-        </h3>
+        <div className="mb-3 px-3 flex items-center gap-2">
+          <span
+            className="inline-block w-1.5 h-1.5 rounded-full flex-shrink-0"
+            style={{ backgroundColor: "#FF5800" }}
+          />
+          <h3 className="text-xs font-semibold uppercase tracking-wider text-white/50">
+            {section.title}
+          </h3>
+        </div>
       )}
       <nav className="space-y-1">
         {section.items.map((item) => (

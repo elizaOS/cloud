@@ -10,9 +10,6 @@ import { KeyMetricsGrid } from "./key-metrics-grid";
 import { ProviderBreakdown } from "./provider-breakdown";
 import { ModelBreakdown } from "./model-breakdown";
 import { ProjectionsChart } from "./projections-chart";
-import { Badge } from "@/components/ui/badge";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
   Activity,
   BarChart3,
@@ -25,6 +22,14 @@ import type {
   EnhancedAnalyticsData,
   ProjectionsData,
 } from "@/lib/actions/analytics-enhanced";
+import {
+  BrandTabs,
+  BrandTabsList,
+  BrandTabsTrigger,
+  BrandTabsContent,
+  BrandCard,
+  CornerBrackets,
+} from "@/components/brand";
 
 interface AnalyticsPageClientProps {
   data: EnhancedAnalyticsData;
@@ -151,17 +156,17 @@ export function AnalyticsPageClient({
     <>
       <section className="flex flex-col gap-6 lg:flex-row lg:items-start lg:justify-between lg:gap-10 pb-2">
         <div className="space-y-5 lg:max-w-3xl">
-          <div className="flex flex-wrap items-center gap-2 gap-y-3 text-xs font-medium text-muted-foreground">
-            <Badge variant="outline" className="gap-1 rounded-full">
-              <CalendarRange className="h-3.5 w-3.5" />
+          <div className="flex flex-wrap items-center gap-2 gap-y-3 text-xs font-medium text-white/60">
+            <span className="flex items-center gap-1 rounded-none border border-white/20 bg-white/10 px-3 py-1">
+              <CalendarRange className="h-3.5 w-3.5 text-[#FF5800]" />
               {rangeLabel}
-            </Badge>
-            <Badge variant="outline" className="rounded-full">
+            </span>
+            <span className="rounded-none border border-white/20 bg-white/10 px-3 py-1">
               Granularity: {granularityLabel}
-            </Badge>
-            <Badge variant="outline" className="rounded-full">
+            </span>
+            <span className="rounded-none border border-white/20 bg-white/10 px-3 py-1">
               {data.timeSeriesData.length.toLocaleString()} data points
-            </Badge>
+            </span>
           </div>
         </div>
         <ExportButton
@@ -173,42 +178,46 @@ export function AnalyticsPageClient({
       </section>
       <div className="space-y-12 lg:space-y-16">
         <section className="space-y-8 lg:space-y-10">
-          <Card className="border-border/70 bg-background/60 shadow-sm">
-            <CardHeader className="flex flex-col gap-4 p-6 pb-5">
-              <CardTitle className="text-base font-semibold">
-                Controls
-              </CardTitle>
-              <p className="text-sm text-muted-foreground">
-                Adjust the aggregation cadence and time range to refocus the
-                analytics surface. All widgets update in real time.
-              </p>
-            </CardHeader>
-            <CardContent className="border-t border-border/60 p-6">
-              <AnalyticsFilters />
-            </CardContent>
-          </Card>
+          <BrandCard className="relative">
+            <CornerBrackets size="sm" className="opacity-50" />
+            <div className="relative z-10 space-y-4">
+              <div>
+                <h3 className="text-base font-semibold text-white">Controls</h3>
+                <p className="text-sm text-white/60 mt-2">
+                  Adjust the aggregation cadence and time range to refocus the
+                  analytics surface. All widgets update in real time.
+                </p>
+              </div>
+              <div className="border-t border-white/10 pt-6">
+                <AnalyticsFilters />
+              </div>
+            </div>
+          </BrandCard>
 
           <KeyMetricsGrid metrics={metrics} />
         </section>
 
         <section className="grid gap-8 lg:grid-cols-[minmax(0,3fr)_minmax(0,2fr)] lg:gap-10">
-          <Card className="border-border/70 bg-background/60 shadow-sm">
-            <CardHeader className="flex flex-col gap-3 p-6 pb-5">
-              <CardTitle className="text-base font-semibold">
-                Usage visibility
-              </CardTitle>
-              <p className="text-sm text-muted-foreground">
-                Overlay throughput, spend, and reliability in a unified timeline
-                to expose trend shifts instantly.
-              </p>
-            </CardHeader>
-            <CardContent className="border-t border-border/60 p-6">
-              <UsageChart
-                data={data.timeSeriesData}
-                granularity={data.filters.granularity}
-              />
-            </CardContent>
-          </Card>
+          <BrandCard className="relative">
+            <CornerBrackets size="sm" className="opacity-50" />
+            <div className="relative z-10 space-y-4">
+              <div>
+                <h3 className="text-base font-semibold text-white">
+                  Usage visibility
+                </h3>
+                <p className="text-sm text-white/60 mt-2">
+                  Overlay throughput, spend, and reliability in a unified timeline
+                  to expose trend shifts instantly.
+                </p>
+              </div>
+              <div className="border-t border-white/10 pt-6">
+                <UsageChart
+                  data={data.timeSeriesData}
+                  granularity={data.filters.granularity}
+                />
+              </div>
+            </div>
+          </BrandCard>
 
           <CostInsightsCard
             costTrending={data.costTrending}
@@ -217,16 +226,16 @@ export function AnalyticsPageClient({
         </section>
 
         <section className="space-y-8 lg:space-y-10">
-          <Tabs defaultValue="breakdown" className="w-full">
-            <TabsList className="grid w-full max-w-md grid-cols-2">
-              <TabsTrigger value="breakdown">Breakdown</TabsTrigger>
-              <TabsTrigger value="projections">
+          <BrandTabs defaultValue="breakdown" className="w-full">
+            <BrandTabsList className="w-full max-w-md">
+              <BrandTabsTrigger value="breakdown" className="flex-1">Breakdown</BrandTabsTrigger>
+              <BrandTabsTrigger value="projections" className="flex-1">
                 <TrendingUp className="mr-2 h-4 w-4" />
                 Projections
-              </TabsTrigger>
-            </TabsList>
+              </BrandTabsTrigger>
+            </BrandTabsList>
 
-            <TabsContent
+            <BrandTabsContent
               value="breakdown"
               className="space-y-8 lg:space-y-10 mb-4"
             >
@@ -234,15 +243,15 @@ export function AnalyticsPageClient({
                 <ProviderBreakdown providers={data.providerBreakdown} />
                 <ModelBreakdown models={data.modelBreakdown} />
               </div>
-            </TabsContent>
+            </BrandTabsContent>
 
-            <TabsContent
+            <BrandTabsContent
               value="projections"
               className="space-y-8 lg:space-y-10"
             >
               <ProjectionsChart data={projectionsData} />
-            </TabsContent>
-          </Tabs>
+            </BrandTabsContent>
+          </BrandTabs>
         </section>
       </div>
     </>

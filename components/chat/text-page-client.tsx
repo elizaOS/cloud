@@ -6,6 +6,7 @@ import type { Conversation, ConversationMessage } from "@/lib/types";
 import { ConversationList } from "@/components/chat/conversation-list";
 import { ChatInterfaceWithPersistence } from "@/components/chat/chat-interface-with-persistence";
 import { useSetPageHeader } from "@/components/layout/page-header-context";
+import { CornerBrackets } from "@/components/brand";
 
 interface TextPageClientProps {
   conversations: Conversation[];
@@ -52,7 +53,8 @@ export function TextPageClient({
     <div className="flex h-full min-h-0 flex-col gap-6 overflow-hidden">
       <div className="grid flex-1 min-h-0 gap-6 overflow-hidden md:grid-cols-[minmax(260px,320px)_minmax(0,1fr)] xl:grid-cols-[320px_minmax(0,1fr)]">
         <aside className="flex min-h-0 flex-col">
-          <div className="flex h-full min-h-0 overflow-hidden rounded-2xl border bg-background/70 shadow-sm">
+          <div className="relative flex h-full min-h-0 overflow-hidden rounded-none border border-white/10 bg-black/40">
+            <CornerBrackets size="sm" className="opacity-50" />
             <ConversationList
               conversations={conversations}
               currentConversationId={currentConversation?.id}
@@ -61,7 +63,8 @@ export function TextPageClient({
           </div>
         </aside>
 
-        <section className="relative flex h-full min-h-0 w-full overflow-hidden rounded-2xl border bg-card shadow-sm">
+        <section className="relative flex h-full min-h-0 w-full overflow-hidden rounded-none border border-white/10 bg-black/40">
+          <CornerBrackets size="md" className="opacity-50" />
           <ChatInterfaceWithPersistence
             conversation={currentConversation}
             initialMessages={initialMessages}

@@ -2,9 +2,6 @@
 
 import { useState } from "react";
 import Image from "next/image";
-import { Button } from "@/components/ui/button";
-import { Card } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import {
   Dialog,
@@ -20,6 +17,7 @@ import type { GalleryItem } from "@/app/actions/gallery";
 import { deleteMedia } from "@/app/actions/gallery";
 import { toast } from "sonner";
 import { format } from "date-fns";
+import { BrandCard, BrandButton } from "@/components/brand";
 
 interface GalleryGridProps {
   items: GalleryItem[];
@@ -71,11 +69,11 @@ export function GalleryGrid({ items, onItemDeleted }: GalleryGridProps) {
   if (items.length === 0) {
     return (
       <div className="flex flex-col items-center justify-center py-16 text-center">
-        <div className="rounded-full bg-muted p-6 mb-4">
-          <Eye className="w-12 h-12 text-muted-foreground" />
+        <div className="rounded-full bg-[#FF580020] border border-[#FF5800]/40 p-6 mb-4">
+          <Eye className="w-12 h-12 text-[#FF5800]" />
         </div>
-        <h3 className="text-xl font-semibold mb-2">No media yet</h3>
-        <p className="text-muted-foreground max-w-md">
+        <h3 className="text-xl font-semibold mb-2 text-white">No media yet</h3>
+        <p className="text-white/60 max-w-md">
           Generate some images or videos to see them appear in your gallery
         </p>
       </div>
@@ -86,12 +84,14 @@ export function GalleryGrid({ items, onItemDeleted }: GalleryGridProps) {
     <>
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
         {items.map((item) => (
-          <Card
+          <BrandCard
             key={item.id}
-            className="overflow-hidden group hover:shadow-lg transition-shadow cursor-pointer"
+            corners={false}
+            hover
+            className="overflow-hidden group cursor-pointer p-0"
             onClick={() => setSelectedItem(item)}
           >
-            <div className="aspect-video relative bg-muted">
+            <div className="aspect-video relative bg-black/60">
               {item.type === "image" ? (
                 <Image
                   src={item.url}
@@ -107,29 +107,26 @@ export function GalleryGrid({ items, onItemDeleted }: GalleryGridProps) {
                   preload="metadata"
                 />
               )}
-              <div className="absolute inset-0 bg-black/0 group-hover:bg-black/20 transition-colors flex items-center justify-center">
-                <Eye className="w-8 h-8 text-white opacity-0 group-hover:opacity-100 transition-opacity" />
+              <div className="absolute inset-0 bg-black/0 group-hover:bg-black/40 transition-colors flex items-center justify-center">
+                <Eye className="w-8 h-8 text-[#FF5800] opacity-0 group-hover:opacity-100 transition-opacity" />
               </div>
-              <Badge
-                variant="secondary"
-                className="absolute top-2 right-2 text-xs"
-              >
+              <span className="absolute top-2 right-2 text-xs rounded-none bg-[#FF580020] border border-[#FF5800]/40 px-2 py-0.5 font-bold uppercase tracking-wide text-[#FF5800]">
                 {item.type}
-              </Badge>
+              </span>
             </div>
             <div className="p-3">
-              <p className="text-sm font-medium line-clamp-2 mb-2">
+              <p className="text-sm font-medium line-clamp-2 mb-2 text-white">
                 {item.prompt}
               </p>
-              <div className="flex items-center justify-between text-xs text-muted-foreground">
+              <div className="flex items-center justify-between text-xs text-white/60">
                 <span className="flex items-center gap-1">
-                  <CalendarIcon className="w-3 h-3" />
+                  <CalendarIcon className="w-3 h-3 text-[#FF5800]" />
                   {format(new Date(item.createdAt), "MMM d, yyyy")}
                 </span>
                 <span className="truncate max-w-[100px]">{item.model}</span>
               </div>
             </div>
-          </Card>
+          </BrandCard>
         ))}
       </div>
 
@@ -148,7 +145,7 @@ export function GalleryGrid({ items, onItemDeleted }: GalleryGridProps) {
 
           {selectedItem && (
             <div className="flex-1 flex flex-col gap-4 min-h-0">
-              <div className="flex-1 relative bg-muted rounded-lg overflow-hidden">
+              <div className="flex-1 relative bg-black/60 rounded-none overflow-hidden">
                 {selectedItem.type === "image" ? (
                   <Image
                     src={selectedItem.url}
@@ -169,34 +166,34 @@ export function GalleryGrid({ items, onItemDeleted }: GalleryGridProps) {
 
               <div className="flex-shrink-0 grid grid-cols-3 gap-4 text-sm">
                 <div className="col-span-3">
-                  <p className="text-muted-foreground line-clamp-2">
+                  <p className="text-white/70 line-clamp-2">
                     {selectedItem.prompt}
                   </p>
                 </div>
 
                 <div>
-                  <p className="text-muted-foreground text-xs">Model</p>
-                  <p className="font-medium truncate">{selectedItem.model}</p>
+                  <p className="text-white/50 text-xs uppercase tracking-wide">Model</p>
+                  <p className="font-medium truncate text-white">{selectedItem.model}</p>
                 </div>
 
                 <div>
-                  <p className="text-muted-foreground text-xs">Type</p>
-                  <Badge variant="secondary" className="mt-0.5">
+                  <p className="text-white/50 text-xs uppercase tracking-wide">Type</p>
+                  <span className="mt-0.5 rounded-none bg-[#FF580020] border border-[#FF5800]/40 px-2 py-0.5 text-xs font-bold uppercase tracking-wide text-[#FF5800]">
                     {selectedItem.type}
-                  </Badge>
+                  </span>
                 </div>
 
                 <div>
-                  <p className="text-muted-foreground text-xs">Created</p>
-                  <p className="font-medium">
+                  <p className="text-white/50 text-xs uppercase tracking-wide">Created</p>
+                  <p className="font-medium text-white">
                     {format(new Date(selectedItem.createdAt), "MMM d, yyyy")}
                   </p>
                 </div>
 
                 {selectedItem.dimensions && (
                   <div>
-                    <p className="text-muted-foreground text-xs">Dimensions</p>
-                    <p className="font-medium">
+                    <p className="text-white/50 text-xs uppercase tracking-wide">Dimensions</p>
+                    <p className="font-medium text-white">
                       {selectedItem.dimensions.width} ×{" "}
                       {selectedItem.dimensions.height}
                     </p>
@@ -205,8 +202,8 @@ export function GalleryGrid({ items, onItemDeleted }: GalleryGridProps) {
 
                 {selectedItem.fileSize && (
                   <div>
-                    <p className="text-muted-foreground text-xs">File Size</p>
-                    <p className="font-medium">
+                    <p className="text-white/50 text-xs uppercase tracking-wide">File Size</p>
+                    <p className="font-medium text-white">
                       {(Number(selectedItem.fileSize) / 1024 / 1024).toFixed(2)}{" "}
                       MB
                     </p>
@@ -215,15 +212,16 @@ export function GalleryGrid({ items, onItemDeleted }: GalleryGridProps) {
               </div>
 
               <DialogFooter className="flex-shrink-0 gap-2">
-                <Button
+                <BrandButton
                   variant="outline"
                   onClick={() => handleDownload(selectedItem)}
                 >
                   <DownloadIcon className="w-4 h-4 mr-2" />
                   Download
-                </Button>
-                <Button
-                  variant="destructive"
+                </BrandButton>
+                <BrandButton
+                  variant="outline"
+                  className="border-rose-500/40 text-rose-400 hover:bg-rose-500/10"
                   onClick={() => {
                     setDeleteConfirmItem(selectedItem);
                     setSelectedItem(null);
@@ -231,7 +229,7 @@ export function GalleryGrid({ items, onItemDeleted }: GalleryGridProps) {
                 >
                   <TrashIcon className="w-4 h-4 mr-2" />
                   Delete
-                </Button>
+                </BrandButton>
               </DialogFooter>
             </div>
           )}
@@ -254,29 +252,30 @@ export function GalleryGrid({ items, onItemDeleted }: GalleryGridProps) {
 
           {deleteConfirmItem && (
             <div className="py-4">
-              <p className="text-sm text-muted-foreground line-clamp-3">
+              <p className="text-sm text-white/70 line-clamp-3">
                 {deleteConfirmItem.prompt}
               </p>
             </div>
           )}
 
           <DialogFooter>
-            <Button
+            <BrandButton
               variant="outline"
               onClick={() => setDeleteConfirmItem(null)}
               disabled={isDeleting}
             >
               Cancel
-            </Button>
-            <Button
-              variant="destructive"
+            </BrandButton>
+            <BrandButton
+              variant="primary"
               onClick={() =>
                 deleteConfirmItem && handleDelete(deleteConfirmItem)
               }
               disabled={isDeleting}
+              className="bg-rose-500 hover:bg-rose-600"
             >
               {isDeleting ? "Deleting..." : "Delete"}
-            </Button>
+            </BrandButton>
           </DialogFooter>
         </DialogContent>
       </Dialog>
@@ -288,13 +287,13 @@ export function GalleryGridSkeleton() {
   return (
     <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
       {Array.from({ length: 8 }).map((_, i) => (
-        <Card key={i} className="overflow-hidden">
-          <Skeleton className="aspect-video w-full" />
+        <BrandCard key={i} corners={false} className="overflow-hidden p-0">
+          <Skeleton className="aspect-video w-full bg-white/10" />
           <div className="p-3 space-y-2">
-            <Skeleton className="h-4 w-full" />
-            <Skeleton className="h-3 w-2/3" />
+            <Skeleton className="h-4 w-full bg-white/10" />
+            <Skeleton className="h-3 w-2/3 bg-white/10" />
           </div>
-        </Card>
+        </BrandCard>
       ))}
     </div>
   );
