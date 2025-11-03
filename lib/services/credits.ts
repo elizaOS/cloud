@@ -9,6 +9,11 @@ import { db } from "@/db/client";
 import { organizations } from "@/db/schemas/organizations";
 import { creditTransactions } from "@/db/schemas/credit-transactions";
 import { eq } from "drizzle-orm";
+import { emailService } from "./email";
+import {
+  canSendLowCreditsEmail,
+  markLowCreditsEmailSent,
+} from "@/lib/email/utils/rate-limiter";
 
 // Parameter types for consistent API signatures
 export interface AddCreditsParams {
@@ -181,8 +186,72 @@ export class CreditsService {
         })
         .returning();
 
-      return { success: true, newBalance, transaction };
+      const result = { success: true, newBalance, transaction };
+
+      return result;
+    }).then(async (result) => {
+      if (result.success) {
+        this.queueLowCreditsEmail(organizationId, result.newBalance).catch(
+          (error) => {
+            console.error(
+              "[CreditsService] Failed to queue low credits email:",
+              error,
+            );
+          },
+        );
+      }
+      return result;
     });
+  }
+
+  private async queueLowCreditsEmail(
+    organizationId: string,
+    currentBalance: number,
+  ): Promise<void> {
+    try {
+      const threshold = parseInt(
+        process.env.LOW_CREDITS_THRESHOLD || "1000",
+        10,
+      );
+
+      if (currentBalance <= 0 || currentBalance > threshold) {
+        return;
+      }
+
+      const canSend = await canSendLowCreditsEmail(organizationId);
+      if (!canSend) {
+        return;
+      }
+
+      const { organizationsService } = await import("./organizations");
+      const org = await organizationsService.getById(organizationId);
+      if (!org) {
+        return;
+      }
+
+      const recipientEmail = org.billing_email;
+      if (!recipientEmail) {
+        console.warn(
+          "[CreditsService] No billing email for organization",
+          { organizationId },
+        );
+        return;
+      }
+
+      const sent = await emailService.sendLowCreditsEmail({
+        email: recipientEmail,
+        organizationName: org.name,
+        currentBalance,
+        threshold,
+        billingUrl: `${process.env.NEXT_PUBLIC_APP_URL}/dashboard/billing`,
+      });
+
+      if (sent) {
+        await markLowCreditsEmailSent(organizationId);
+      }
+    } catch (error) {
+      console.error("[CreditsService] Error sending low credits email:", error);
+    }
   }
 
   /**

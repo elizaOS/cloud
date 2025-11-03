@@ -1,6 +1,7 @@
 // Export all services
 export * from "./organizations";
 export * from "./users";
+export { invitesService } from "./invites";
 export * from "./api-keys";
 export * from "./cli-auth-sessions";
 export * from "./credits";
@@ -26,3 +27,6 @@ export * from "./marketplace";
 
 // Voice services
 export { voiceCloningService } from "./voice-cloning";
+
+// Email services
+export { emailService } from "./email";
