@@ -43,7 +43,7 @@ function InviteAcceptContent() {
   const [isValidating, setIsValidating] = useState(true);
   const [isAccepting, setIsAccepting] = useState(false);
   const [inviteDetails, setInviteDetails] = useState<InviteDetails | null>(
-    null
+    null,
   );
   const [error, setError] = useState<string | null>(null);
 
@@ -55,13 +55,14 @@ function InviteAcceptContent() {
     }
 
     validateInvite();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [token]);
 
   const validateInvite = async () => {
     try {
       setIsValidating(true);
       const response = await fetch(
-        `/api/invites/validate?token=${encodeURIComponent(token!)}`
+        `/api/invites/validate?token=${encodeURIComponent(token!)}`,
       );
       const data = await response.json();
 
@@ -175,9 +176,9 @@ function InviteAcceptContent() {
           <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-primary/10">
             <Mail className="h-8 w-8 text-primary" />
           </div>
-          <CardTitle className="text-2xl">You're Invited!</CardTitle>
+          <CardTitle className="text-2xl">You&apos;re Invited!</CardTitle>
           <CardDescription>
-            You've been invited to join an organization
+            You&apos;ve been invited to join an organization
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-6">
@@ -276,8 +277,8 @@ function InviteAcceptContent() {
           </div>
 
           <div className="text-center text-xs text-muted-foreground">
-            By accepting, you'll gain access to the organization's resources and
-            workspace.
+            By accepting, you&apos;ll gain access to the organization&apos;s
+            resources and workspace.
           </div>
         </CardContent>
       </Card>

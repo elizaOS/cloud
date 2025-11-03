@@ -45,14 +45,9 @@ export function ActivityFeed({
   const hasItems = items.length > 0;
 
   return (
-    <BrandCard
-      className={cn(
-        "flex flex-col",
-        className,
-      )}
-    >
+    <BrandCard className={cn("flex flex-col", className)}>
       <CornerBrackets size="sm" className="opacity-50" />
-      
+
       <div className="relative z-10 space-y-4">
         <div>
           <div className="flex items-center gap-2 mb-1">
@@ -121,9 +116,7 @@ export function ActivityFeed({
                 })
               ) : emptyState ? (
                 <div className="flex flex-col items-center justify-center gap-2 py-16 text-center text-sm text-white/60">
-                  <p className="font-medium text-white">
-                    {emptyState.title}
-                  </p>
+                  <p className="font-medium text-white">{emptyState.title}</p>
                   <p className="max-w-xs text-xs text-white/60">
                     {emptyState.description}
                   </p>

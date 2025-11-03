@@ -34,7 +34,9 @@ export function OrganizationPageClient({ user }: OrganizationPageClientProps) {
         <CornerBrackets size="sm" className="opacity-50" />
         <div className="relative z-10 flex items-start justify-between">
           <div>
-            <h2 className="text-2xl font-semibold text-white">{user.organization.name}</h2>
+            <h2 className="text-2xl font-semibold text-white">
+              {user.organization.name}
+            </h2>
             <p className="text-sm text-white/60 mt-1">
               {user.organization.slug}
             </p>
@@ -44,20 +46,32 @@ export function OrganizationPageClient({ user }: OrganizationPageClientProps) {
               <p className="text-2xl font-bold text-white">
                 {user.organization.credit_balance.toLocaleString()}
               </p>
-              <p className="text-xs text-white/50 uppercase tracking-wide">Credits Available</p>
+              <p className="text-xs text-white/50 uppercase tracking-wide">
+                Credits Available
+              </p>
             </div>
           </div>
         </div>
       </BrandCard>
 
       {/* Tabs */}
-      <BrandTabs value={activeTab} onValueChange={setActiveTab} className="w-full">
+      <BrandTabs
+        value={activeTab}
+        onValueChange={setActiveTab}
+        className="w-full"
+      >
         <BrandTabsList className="w-full max-w-md">
-          <BrandTabsTrigger value="members" className="flex items-center gap-2 flex-1">
+          <BrandTabsTrigger
+            value="members"
+            className="flex items-center gap-2 flex-1"
+          >
             <Users className="h-4 w-4" />
             <span>Members</span>
           </BrandTabsTrigger>
-          <BrandTabsTrigger value="general" className="flex items-center gap-2 flex-1">
+          <BrandTabsTrigger
+            value="general"
+            className="flex items-center gap-2 flex-1"
+          >
             <Settings className="h-4 w-4" />
             <span>General</span>
           </BrandTabsTrigger>

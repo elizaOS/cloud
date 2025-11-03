@@ -43,13 +43,13 @@
   --radius-md: calc(var(--radius) - 2px);
   --radius-lg: var(--radius);
   --radius-xl: calc(var(--radius) + 4px);
-  
+
   /* Brand Colors */
-  --color-brand-orange: #FF5800;
-  --color-brand-blue: #0B35F1;
-  --color-brand-bg: #0A0A0A;
+  --color-brand-orange: #ff5800;
+  --color-brand-blue: #0b35f1;
+  --color-brand-bg: #0a0a0a;
   --color-brand-surface: #252527;
-  --color-brand-border: #E1E1E1;
+  --color-brand-border: #e1e1e1;
 }
 
 :root {
@@ -291,28 +291,28 @@
 }
 
 ::-webkit-scrollbar-track {
-  background: #0A0A0A;
+  background: #0a0a0a;
   border-left: 1px solid rgba(255, 255, 255, 0.1);
 }
 
 ::-webkit-scrollbar-thumb {
-  background: #FF5800;
+  background: #ff5800;
   border-radius: 0px;
-  border: 2px solid #0A0A0A;
+  border: 2px solid #0a0a0a;
 }
 
 ::-webkit-scrollbar-thumb:hover {
-  background: #FF5800;
+  background: #ff5800;
   filter: brightness(1.2);
 }
 
 ::-webkit-scrollbar-thumb:active {
-  background: #FF5800;
+  background: #ff5800;
   filter: brightness(1.4);
 }
 
 /* Firefox scrollbar */
 * {
   scrollbar-width: thin;
-  scrollbar-color: #FF5800 #0A0A0A;
+  scrollbar-color: #ff5800 #0a0a0a;
 }

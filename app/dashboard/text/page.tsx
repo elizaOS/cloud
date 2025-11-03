@@ -3,12 +3,13 @@ import { requireAuth } from "@/lib/auth";
 import { conversationsService } from "@/lib/services";
 import { TextPageClient } from "../../../components/chat/text-page-client";
 import type { ConversationMessage } from "@/lib/types";
+import { generatePageMetadata, ROUTE_METADATA } from "@/lib/seo";
 
-export const metadata: Metadata = {
-  title: "Text & Chat Generation",
-  description:
-    "Generate AI-powered text and engage in intelligent conversations with advanced language models",
-};
+export const metadata: Metadata = generatePageMetadata({
+  ...ROUTE_METADATA.textGeneration,
+  path: "/dashboard/text",
+  noIndex: true,
+});
 
 // Force dynamic rendering since we use server-side auth (cookies)
 export const dynamic = "force-dynamic";

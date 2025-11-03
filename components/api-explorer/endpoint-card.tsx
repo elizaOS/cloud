@@ -18,7 +18,7 @@ export function EndpointCard({
   getCategoryIcon,
 }: EndpointCardProps) {
   return (
-    <BrandCard 
+    <BrandCard
       hover
       corners={false}
       className="cursor-pointer transition-all hover:-translate-y-0.5"
@@ -41,9 +41,7 @@ export function EndpointCard({
               )}
             </div>
           </div>
-          <p className="text-sm text-white/60">
-            {endpoint.description}
-          </p>
+          <p className="text-sm text-white/60">{endpoint.description}</p>
         </div>
 
         <div className="flex items-center gap-2">
@@ -75,9 +73,9 @@ export function EndpointCard({
           </div>
         )}
 
-        <BrandButton 
+        <BrandButton
           variant="primary"
-          className="w-full" 
+          className="w-full"
           onClick={() => onSelect(endpoint)}
         >
           Test Endpoint

@@ -105,18 +105,20 @@ export function ProfileForm({ user }: ProfileFormProps) {
   return (
     <BrandCard className="relative">
       <CornerBrackets size="sm" className="opacity-50" />
-      
+
       <div className="relative z-10 space-y-6">
         <div>
           <div className="flex items-center gap-2 mb-2">
             <User className="h-5 w-5 text-[#FF5800]" />
-            <h3 className="text-lg font-bold text-white">Profile Information</h3>
+            <h3 className="text-lg font-bold text-white">
+              Profile Information
+            </h3>
           </div>
           <p className="text-sm text-white/60">
             Update your profile information and manage your account settings
           </p>
         </div>
-        
+
         <form onSubmit={handleSubmit} className="space-y-6">
           {/* Avatar Section */}
           <div className="flex flex-col sm:flex-row items-start sm:items-center gap-4 pb-6 border-b border-white/10">
@@ -181,7 +183,10 @@ export function ProfileForm({ user }: ProfileFormProps) {
           {/* Form Fields */}
           <div className="space-y-4">
             <div className="space-y-2">
-              <label htmlFor="name" className="text-xs font-medium text-white/70 uppercase tracking-wide">
+              <label
+                htmlFor="name"
+                className="text-xs font-medium text-white/70 uppercase tracking-wide"
+              >
                 Full Name <span className="text-rose-400">*</span>
               </label>
               <Input
@@ -199,7 +204,10 @@ export function ProfileForm({ user }: ProfileFormProps) {
 
             {user.email && (
               <div className="space-y-2">
-                <label htmlFor="email" className="text-xs font-medium text-white/70 uppercase tracking-wide flex items-center gap-2">
+                <label
+                  htmlFor="email"
+                  className="text-xs font-medium text-white/70 uppercase tracking-wide flex items-center gap-2"
+                >
                   <Mail className="h-4 w-4" />
                   Email Address
                 </label>
@@ -238,7 +246,10 @@ export function ProfileForm({ user }: ProfileFormProps) {
             )}
 
             <div className="space-y-2">
-              <label htmlFor="avatar" className="text-xs font-medium text-white/70 uppercase tracking-wide">
+              <label
+                htmlFor="avatar"
+                className="text-xs font-medium text-white/70 uppercase tracking-wide"
+              >
                 Avatar URL (Optional)
               </label>
               <Input
@@ -274,14 +285,21 @@ export function ProfileForm({ user }: ProfileFormProps) {
 
           {/* Messages */}
           {error && (
-            <Alert variant="destructive" className="rounded-none border-rose-500/40 bg-rose-500/10">
-              <AlertDescription className="text-rose-400">{error}</AlertDescription>
+            <Alert
+              variant="destructive"
+              className="rounded-none border-rose-500/40 bg-rose-500/10"
+            >
+              <AlertDescription className="text-rose-400">
+                {error}
+              </AlertDescription>
             </Alert>
           )}
 
           {success && (
             <Alert className="rounded-none border-green-500/40 bg-green-500/10">
-              <AlertDescription className="text-green-400">{success}</AlertDescription>
+              <AlertDescription className="text-green-400">
+                {success}
+              </AlertDescription>
             </Alert>
           )}
 

@@ -39,7 +39,10 @@ export function BillingPageWrapper({
   return (
     <div className="flex flex-col gap-6 max-w-7xl mx-auto">
       {canceled && (
-        <Alert variant="destructive" className="rounded-none border-rose-500/40 bg-rose-500/10">
+        <Alert
+          variant="destructive"
+          className="rounded-none border-rose-500/40 bg-rose-500/10"
+        >
           <Info className="h-4 w-4 text-rose-400" />
           <AlertTitle className="text-rose-400">Payment Canceled</AlertTitle>
           <AlertDescription className="text-rose-400">
@@ -54,9 +57,10 @@ export function BillingPageWrapper({
           <div>
             <h4 className="font-semibold text-white mb-1">How Billing Works</h4>
             <p className="text-sm text-white/60">
-              You are charged for all AI operations including text generation, image
-              creation, and video rendering. Add funds in bulk to get better rates.
-              Your balance never expires and is shared across your organization.
+              You are charged for all AI operations including text generation,
+              image creation, and video rendering. Add funds in bulk to get
+              better rates. Your balance never expires and is shared across your
+              organization.
             </p>
           </div>
         </div>

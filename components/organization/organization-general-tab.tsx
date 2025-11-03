@@ -9,7 +9,9 @@ interface OrganizationGeneralTabProps {
   organization: Organization;
 }
 
-export function OrganizationGeneralTab({ organization }: OrganizationGeneralTabProps) {
+export function OrganizationGeneralTab({
+  organization,
+}: OrganizationGeneralTabProps) {
   return (
     <div className="space-y-6">
       <BrandCard className="relative">
@@ -18,7 +20,9 @@ export function OrganizationGeneralTab({ organization }: OrganizationGeneralTabP
           <div>
             <div className="flex items-center gap-2 mb-2">
               <Building2 className="h-5 w-5 text-[#FF5800]" />
-              <h3 className="text-lg font-bold text-white">Organization Details</h3>
+              <h3 className="text-lg font-bold text-white">
+                Organization Details
+              </h3>
             </div>
             <p className="text-sm text-white/60">
               Basic information about your organization
@@ -29,20 +33,26 @@ export function OrganizationGeneralTab({ organization }: OrganizationGeneralTabP
               <label className="text-xs font-medium text-white/50 uppercase tracking-wide">
                 Organization Name
               </label>
-              <p className="mt-1 text-sm font-semibold text-white">{organization.name}</p>
+              <p className="mt-1 text-sm font-semibold text-white">
+                {organization.name}
+              </p>
             </div>
             <div>
               <label className="text-xs font-medium text-white/50 uppercase tracking-wide">
                 Organization Slug
               </label>
-              <p className="mt-1 text-sm font-mono text-white">{organization.slug}</p>
+              <p className="mt-1 text-sm font-mono text-white">
+                {organization.slug}
+              </p>
             </div>
             <div>
               <label className="text-xs font-medium text-white/50 uppercase tracking-wide">
                 Status
               </label>
               <div className="mt-1">
-                <span className={`rounded-none px-2 py-1 text-xs font-bold uppercase tracking-wide border ${organization.is_active ? "bg-green-500/20 text-green-400 border-green-500/40" : "bg-rose-500/20 text-rose-400 border-rose-500/40"}`}>
+                <span
+                  className={`rounded-none px-2 py-1 text-xs font-bold uppercase tracking-wide border ${organization.is_active ? "bg-green-500/20 text-green-400 border-green-500/40" : "bg-rose-500/20 text-rose-400 border-rose-500/40"}`}
+                >
                   {organization.is_active ? "Active" : "Inactive"}
                 </span>
               </div>
@@ -66,7 +76,9 @@ export function OrganizationGeneralTab({ organization }: OrganizationGeneralTabP
           <div>
             <div className="flex items-center gap-2 mb-2">
               <CreditCard className="h-5 w-5 text-[#FF5800]" />
-              <h3 className="text-lg font-bold text-white">Billing Information</h3>
+              <h3 className="text-lg font-bold text-white">
+                Billing Information
+              </h3>
             </div>
             <p className="text-sm text-white/60">
               Credit balance and billing details
@@ -86,7 +98,9 @@ export function OrganizationGeneralTab({ organization }: OrganizationGeneralTabP
                 <label className="text-xs font-medium text-white/50 uppercase tracking-wide">
                   Billing Email
                 </label>
-                <p className="mt-1 text-sm text-white">{organization.billing_email}</p>
+                <p className="mt-1 text-sm text-white">
+                  {organization.billing_email}
+                </p>
               </div>
             )}
           </div>

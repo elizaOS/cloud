@@ -63,7 +63,7 @@ export default function Sidebar({
         <div className="relative flex h-16 items-center justify-between border-b border-white/10 px-4">
           {/* Corner brackets for logo area */}
           <CornerBrackets size="sm" className="opacity-30" />
-          
+
           <Link
             href="/dashboard"
             className="flex items-center gap-2 transition-opacity hover:opacity-80 relative z-10"
@@ -72,7 +72,9 @@ export default function Sidebar({
               className="inline-block w-2 h-2 rounded-full flex-shrink-0"
               style={{ backgroundColor: "#FF5800" }}
             />
-            <span className="text-white text-lg font-bold tracking-wide">ELIZA</span>
+            <span className="text-white text-lg font-bold tracking-wide">
+              ELIZA
+            </span>
           </Link>
 
           {/* Mobile Close Button */}
@@ -100,9 +102,11 @@ export default function Sidebar({
         <div className="relative border-t border-white/10 p-4">
           {/* Corner brackets for footer */}
           <CornerBrackets size="sm" className="opacity-30" />
-          
+
           <div className="flex items-center justify-between relative z-10">
-            <span className="text-xs uppercase tracking-wider text-white/50">Theme</span>
+            <span className="text-xs uppercase tracking-wider text-white/50">
+              Theme
+            </span>
             <ThemeToggle />
           </div>
         </div>

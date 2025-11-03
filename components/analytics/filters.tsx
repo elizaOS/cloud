@@ -75,10 +75,30 @@ export function AnalyticsFilters() {
               </SelectValue>
             </SelectTrigger>
             <SelectContent className="rounded-none border-white/10 bg-black/90">
-              <SelectItem value="hour" className="rounded-none text-white hover:bg-white/10 focus:bg-white/10">Hourly</SelectItem>
-              <SelectItem value="day" className="rounded-none text-white hover:bg-white/10 focus:bg-white/10">Daily</SelectItem>
-              <SelectItem value="week" className="rounded-none text-white hover:bg-white/10 focus:bg-white/10">Weekly</SelectItem>
-              <SelectItem value="month" className="rounded-none text-white hover:bg-white/10 focus:bg-white/10">Monthly</SelectItem>
+              <SelectItem
+                value="hour"
+                className="rounded-none text-white hover:bg-white/10 focus:bg-white/10"
+              >
+                Hourly
+              </SelectItem>
+              <SelectItem
+                value="day"
+                className="rounded-none text-white hover:bg-white/10 focus:bg-white/10"
+              >
+                Daily
+              </SelectItem>
+              <SelectItem
+                value="week"
+                className="rounded-none text-white hover:bg-white/10 focus:bg-white/10"
+              >
+                Weekly
+              </SelectItem>
+              <SelectItem
+                value="month"
+                className="rounded-none text-white hover:bg-white/10 focus:bg-white/10"
+              >
+                Monthly
+              </SelectItem>
             </SelectContent>
           </Select>
         </div>

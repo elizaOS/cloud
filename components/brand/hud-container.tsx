@@ -26,7 +26,7 @@ export function HUDContainer({
       className={cn(
         "relative bg-black/40",
         withBorder && "border border-white/20",
-        className
+        className,
       )}
     >
       <CornerBrackets size={cornerSize} color={cornerColor} />
@@ -34,5 +34,3 @@ export function HUDContainer({
     </div>
   );
 }
-
-

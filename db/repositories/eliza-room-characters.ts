@@ -13,7 +13,7 @@ export const elizaRoomCharactersRepository = {
     // Try cache first - room character mappings rarely change
     const cacheKey = CacheKeys.eliza.roomCharacter(roomId);
     const cached = await cache.get<ElizaRoomCharacter | null>(cacheKey);
-    
+
     if (cached !== undefined) {
       return cached || undefined;
     }
@@ -26,7 +26,7 @@ export const elizaRoomCharactersRepository = {
       .limit(1);
 
     const character = result[0];
-    
+
     // Cache the result (including null/undefined for rooms without character mappings)
     await cache.set(cacheKey, character || null, CacheTTL.eliza.roomCharacter);
 

@@ -110,15 +110,20 @@ export function AuthManager({ authToken, onTokenChange }: AuthManagerProps) {
   return (
     <BrandCard className="relative w-full">
       <CornerBrackets size="sm" className="opacity-30" />
-      
+
       <div className="relative z-10 space-y-4">
         <div className="flex items-center gap-2">
           <KeyIcon className="h-5 w-5 text-[#FF5800]" />
-          <h3 className="text-lg font-bold text-white">API Key Authentication</h3>
+          <h3 className="text-lg font-bold text-white">
+            API Key Authentication
+          </h3>
         </div>
 
         <div className="space-y-2">
-          <label htmlFor="auth-token" className="text-xs font-medium text-white/70 uppercase tracking-wide">
+          <label
+            htmlFor="auth-token"
+            className="text-xs font-medium text-white/70 uppercase tracking-wide"
+          >
             API Key
           </label>
           <div className="flex items-center gap-2">
@@ -196,9 +201,7 @@ export function AuthManager({ authToken, onTokenChange }: AuthManagerProps) {
         </div>
 
         {isValidating && (
-          <div className="text-sm text-white/60">
-            Validating token...
-          </div>
+          <div className="text-sm text-white/60">Validating token...</div>
         )}
       </div>
     </BrandCard>

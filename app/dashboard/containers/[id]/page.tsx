@@ -1,3 +1,4 @@
+import type { Metadata } from "next";
 import { requireAuth } from "@/lib/auth";
 import { getContainer } from "@/lib/services";
 import { redirect } from "next/navigation";
@@ -23,12 +24,42 @@ import {
 } from "lucide-react";
 import Link from "next/link";
 import { Progress } from "@/components/ui/progress";
+import { generateContainerMetadata } from "@/lib/seo";
 
 // Force dynamic rendering since we use server-side auth (cookies)
 export const dynamic = "force-dynamic";
 
 interface PageProps {
   params: Promise<{ id: string }>;
+}
+
+export async function generateMetadata({
+  params,
+}: PageProps): Promise<Metadata> {
+  try {
+    const user = await requireAuth();
+    const { id } = await params;
+    const container = await getContainer(id, user.organization_id);
+
+    if (!container) {
+      return {
+        title: "Container Not Found",
+        robots: { index: false, follow: false },
+      };
+    }
+
+    return generateContainerMetadata(
+      id,
+      container.name,
+      container.description,
+      null,
+    );
+  } catch (error) {
+    return {
+      title: "Container Details",
+      robots: { index: false, follow: false },
+    };
+  }
 }
 
 export default async function ContainerDetailsPage({ params }: PageProps) {
