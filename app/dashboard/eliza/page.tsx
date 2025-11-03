@@ -2,7 +2,11 @@ import type { Metadata } from "next";
 import { requireAuth } from "@/lib/auth";
 import { ElizaPageClient } from "@/components/chat/eliza-page-client";
 import { listCharacters } from "@/app/actions/characters";
-import { generatePageMetadata, generateCharacterMetadata, ROUTE_METADATA } from "@/lib/seo";
+import {
+  generatePageMetadata,
+  generateCharacterMetadata,
+  ROUTE_METADATA,
+} from "@/lib/seo";
 import { db } from "@/db/client";
 import { userCharacters } from "@/db/schemas/user-characters";
 import { eq } from "drizzle-orm";
@@ -14,7 +18,9 @@ interface PageProps {
 // Force dynamic rendering since we use server-side auth (cookies)
 export const dynamic = "force-dynamic";
 
-export async function generateMetadata({ searchParams }: PageProps): Promise<Metadata> {
+export async function generateMetadata({
+  searchParams,
+}: PageProps): Promise<Metadata> {
   const params = await searchParams;
   const characterId = params.characterId;
 
@@ -36,7 +42,9 @@ export async function generateMetadata({ searchParams }: PageProps): Promise<Met
       .limit(1);
 
     if (character) {
-      const bio = Array.isArray(character.bio) ? character.bio[0] : character.bio;
+      const bio = Array.isArray(character.bio)
+        ? character.bio[0]
+        : character.bio;
       const metadata = generateCharacterMetadata(
         character.id,
         character.name,
