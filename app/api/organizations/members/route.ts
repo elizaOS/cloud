@@ -1,0 +1,52 @@
+import { NextResponse } from "next/server";
+import { requireAuth } from "@/lib/auth";
+import { usersService } from "@/lib/services";
+import { withRateLimit, RateLimitPresets } from "@/lib/middleware/rate-limit";
+
+async function handleGET() {
+  try {
+    const user = await requireAuth();
+
+    if (user.role !== "owner" && user.role !== "admin") {
+      return NextResponse.json(
+        {
+          success: false,
+          error: "Only owners and admins can view members",
+        },
+        { status: 403 },
+      );
+    }
+
+    const members = await usersService.listByOrganization(
+      user.organization_id,
+    );
+
+    return NextResponse.json({
+      success: true,
+      data: members.map((member) => ({
+        id: member.id,
+        name: member.name,
+        email: member.email,
+        wallet_address: member.wallet_address,
+        wallet_chain_type: member.wallet_chain_type,
+        role: member.role,
+        is_active: member.is_active,
+        created_at: member.created_at,
+        updated_at: member.updated_at,
+      })),
+    });
+  } catch (error) {
+    console.error("Error fetching members:", error);
+
+    return NextResponse.json(
+      {
+        success: false,
+        error:
+          error instanceof Error ? error.message : "Failed to fetch members",
+      },
+      { status: 500 },
+    );
+  }
+}
+
+export const GET = withRateLimit(handleGET, RateLimitPresets.STANDARD);
