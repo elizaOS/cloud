@@ -1,5 +1,6 @@
 // Export all schemas
 export * from "./organizations";
+export * from "./organization-invites";
 export * from "./users";
 export * from "./api-keys";
 export * from "./cli-auth-sessions";
