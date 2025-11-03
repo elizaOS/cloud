@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { agentRuntime } from "@/lib/eliza/agent-runtime";
 import type { UUID, Agent } from "@elizaos/core";
 import { requireAuthOrApiKey } from "@/lib/auth";
+import { getAnonymousUser } from "@/lib/auth-anonymous";
 import type { NextRequest } from "next/server";
 import { elizaRoomCharactersRepository } from "@/db/repositories";
 import { logger } from "@/lib/utils/logger";
@@ -12,8 +13,13 @@ export async function GET(
   ctx: { params: Promise<{ roomId: string }> },
 ) {
   try {
-    // Authenticate user or validate API key
-    await requireAuthOrApiKey(request);
+    // Support both authenticated and anonymous users
+    try {
+      await requireAuthOrApiKey(request);
+    } catch (error) {
+      // Fallback to anonymous user
+      await getAnonymousUser();
+    }
 
     const { roomId } = await ctx.params;
     const { searchParams } = new URL(request.url);

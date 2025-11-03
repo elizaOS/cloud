@@ -1,5 +1,5 @@
 import { Suspense } from "react";
-import { requireAuth } from "@/lib/auth";
+import { requireAuthWithOrg } from "@/lib/auth";
 import { listContainers } from "@/lib/services";
 import { ContainersTable } from "@/components/containers/containers-table";
 import { ContainersSkeleton } from "@/components/containers/containers-skeleton";
@@ -9,7 +9,7 @@ import { BrandCard, CornerBrackets } from "@/components/brand";
 export const dynamic = "force-dynamic";
 
 export default async function ContainersPage() {
-  const user = await requireAuth();
+  const user = await requireAuthWithOrg();
   const containers = await listContainers(user.organization_id);
 
   const stats = {

@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { requireAuth } from "@/lib/auth";
+import { requireAuthWithOrg } from "@/lib/auth";
 import { getElevenLabsService } from "@/lib/services/elevenlabs";
 import { voiceCloningService, usageService } from "@/lib/services";
 import { db } from "@/db/client";
@@ -12,7 +12,7 @@ const MAX_TEXT_LENGTH = 5000;
 export async function POST(request: NextRequest) {
   try {
     // Authenticate user
-    const user = await requireAuth();
+    const user = await requireAuthWithOrg();
 
     // Parse request body
     const body = await request.json();
@@ -58,7 +58,7 @@ export async function POST(request: NextRequest) {
         .where(eq(userVoices.elevenlabsVoiceId, voiceId))
         .limit(1);
 
-      if (voice && voice.organizationId === user.organization_id) {
+      if (voice && voice.organizationId === user.organization_id!) {
         userVoiceId = voice.id;
         voiceName = voice.name;
 
@@ -97,7 +97,7 @@ export async function POST(request: NextRequest) {
     (async () => {
       try {
         await usageService.create({
-          organization_id: user.organization_id,
+          organization_id: user.organization_id!!,
           user_id: user.id,
           api_key_id: null, // TTS doesn't use API keys currently
           type: "tts",

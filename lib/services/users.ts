@@ -46,7 +46,7 @@ export class UsersService {
   }
 
   async listByOrganization(organizationId: string): Promise<User[]> {
-    return await usersRepository.listByOrganization(organizationId);
+    return await usersRepository.listByOrganization(organizationId!);
   }
 
   async create(data: NewUser): Promise<User> {
@@ -70,11 +70,11 @@ export class UsersService {
 
     // Check if this was the last user in the organization
     const remainingUsers =
-      await usersRepository.listByOrganization(organizationId);
+      await usersRepository.listByOrganization(organizationId!);
 
     // If no users remain, delete the organization
     if (remainingUsers.length === 0) {
-      await organizationsRepository.delete(organizationId);
+      await organizationsRepository.delete(organizationId!);
     }
   }
 }

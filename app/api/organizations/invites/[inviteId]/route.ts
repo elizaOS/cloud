@@ -1,5 +1,5 @@
 import { type NextRequest, NextResponse } from "next/server";
-import { requireAuth } from "@/lib/auth";
+import { requireAuthWithOrg } from "@/lib/auth";
 import { invitesService } from "@/lib/services";
 import { withRateLimit, RateLimitPresets } from "@/lib/middleware/rate-limit";
 
@@ -8,7 +8,7 @@ async function handleDELETE(
   context?: { params: Promise<{ inviteId: string }> },
 ) {
   try {
-    const user = await requireAuth();
+    const user = await requireAuthWithOrg();
 
     if (user.role !== "owner" && user.role !== "admin") {
       return NextResponse.json(
@@ -29,7 +29,7 @@ async function handleDELETE(
 
     const { inviteId } = await context.params;
 
-    await invitesService.revokeInvite(inviteId, user.organization_id);
+    await invitesService.revokeInvite(inviteId, user.organization_id!);
 
     return NextResponse.json({
       success: true,

@@ -91,3 +91,4 @@ export function SimpleBrandTabs({
 }
 
 export { BrandTabs, BrandTabsList, BrandTabsTrigger, BrandTabsContent };
+

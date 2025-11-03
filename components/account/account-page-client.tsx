@@ -38,7 +38,7 @@ export function AccountPageClient({ user }: AccountPageClientProps) {
             </p>
             <p className="text-xs text-white/60 mt-1">
               You&apos;re part of{" "}
-              <span className="font-medium">{user.organization.name}</span>{" "}
+              <span className="font-medium">{user.organization?.name}</span>{" "}
               organization
             </p>
           </div>
@@ -54,7 +54,9 @@ export function AccountPageClient({ user }: AccountPageClientProps) {
 
         {/* Right Column - Additional Info */}
         <div className="space-y-6">
-          <OrganizationInfo organization={user.organization} />
+          {user.organization && (
+            <OrganizationInfo organization={user.organization} />
+          )}
           <AccountDetails user={user} />
         </div>
       </div>

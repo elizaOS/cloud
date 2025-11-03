@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { requireAuth } from "@/lib/auth";
+import { requireAuthWithOrg } from "@/lib/auth";
 import { marketplaceService } from "@/lib/services/marketplace";
 import { logger } from "@/lib/utils/logger";
 import type { CategoryId, SortBy, SortOrder } from "@/lib/types/marketplace";
@@ -8,7 +8,7 @@ export const dynamic = "force-dynamic";
 
 export async function GET(request: NextRequest) {
   try {
-    const user = await requireAuth();
+    const user = await requireAuthWithOrg();
     const { searchParams } = new URL(request.url);
 
     const search = searchParams.get("search") || undefined;
@@ -53,7 +53,7 @@ export async function GET(request: NextRequest) {
 
     const result = await marketplaceService.searchCharacters({
       userId: user.id,
-      organizationId: user.organization_id,
+      organizationId: user.organization_id!!,
       filters: {
         search,
         category,

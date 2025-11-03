@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { requireAuth } from "@/lib/auth";
+import { requireAuthWithOrg } from "@/lib/auth";
 import { getContainer } from "@/lib/services";
 import { redirect } from "next/navigation";
 import { ContainerDeploymentHistory } from "@/components/containers/container-deployment-history";
@@ -37,7 +37,7 @@ export async function generateMetadata({
   params,
 }: PageProps): Promise<Metadata> {
   try {
-    const user = await requireAuth();
+    const user = await requireAuthWithOrg();
     const { id } = await params;
     const container = await getContainer(id, user.organization_id);
 
@@ -63,7 +63,7 @@ export async function generateMetadata({
 }
 
 export default async function ContainerDetailsPage({ params }: PageProps) {
-  const user = await requireAuth();
+  const user = await requireAuthWithOrg();
   const { id } = await params;
 
   const container = await getContainer(id, user.organization_id);

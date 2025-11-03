@@ -1,5 +1,5 @@
 import { type NextRequest, NextResponse } from "next/server";
-import { requireAuthOrApiKey } from "@/lib/auth";
+import { requireAuthOrApiKeyWithOrg } from "@/lib/auth";
 import { analyticsService } from "@/lib/services/analytics";
 import { logger } from "@/lib/utils/logger";
 import { withRateLimit, RateLimitPresets } from "@/lib/middleware/rate-limit";
@@ -8,7 +8,7 @@ export const maxDuration = 60;
 
 async function handleGET(req: NextRequest) {
   try {
-    const { user } = await requireAuthOrApiKey(req);
+    const { user } = await requireAuthOrApiKeyWithOrg(req);
     const searchParams = req.nextUrl.searchParams;
 
     const timeRange =
@@ -16,7 +16,7 @@ async function handleGET(req: NextRequest) {
       "daily";
 
     const data = await analyticsService.getOverview(
-      user.organization_id,
+      user.organization_id!,
       timeRange,
     );
 

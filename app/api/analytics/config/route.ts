@@ -1,5 +1,5 @@
 import { type NextRequest, NextResponse } from "next/server";
-import { requireAuthOrApiKey, requireRole } from "@/lib/auth";
+import { requireAuthOrApiKeyWithOrg, requireRole } from "@/lib/auth";
 import { organizationsService } from "@/lib/services";
 import { logger } from "@/lib/utils/logger";
 import { withRateLimit, RateLimitPresets } from "@/lib/middleware/rate-limit";
@@ -10,9 +10,9 @@ const VALID_EXPORT_FORMATS = ["csv", "json", "excel", "xlsx", "pdf"] as const;
 
 async function handleGET(req: NextRequest) {
   try {
-    const { user } = await requireAuthOrApiKey(req);
+    const { user } = await requireAuthOrApiKeyWithOrg(req);
 
-    const org = await organizationsService.getById(user.organization_id);
+    const org = await organizationsService.getById(user.organization_id!);
 
     const settings = (org?.settings as Record<string, unknown>) || {};
     const analyticsConfig = (settings.analytics as Record<string, unknown>) || {
@@ -143,7 +143,7 @@ async function handlePUT(req: NextRequest) {
       }
     }
 
-    const org = await organizationsService.getById(user.organization_id);
+    const org = await organizationsService.getById(user.organization_id!);
 
     const currentSettings = (org?.settings as Record<string, unknown>) || {};
     const currentAnalyticsConfig =
@@ -158,7 +158,7 @@ async function handlePUT(req: NextRequest) {
       updatedAt: new Date().toISOString(),
     };
 
-    await organizationsService.update(user.organization_id, {
+    await organizationsService.update(user.organization_id!, {
       settings: {
         ...currentSettings,
         analytics: updatedAnalyticsConfig,

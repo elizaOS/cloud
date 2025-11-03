@@ -1,11 +1,11 @@
 import { NextResponse } from "next/server";
-import { requireAuth } from "@/lib/auth";
+import { requireAuthWithOrg } from "@/lib/auth";
 import { usersService } from "@/lib/services";
 import { withRateLimit, RateLimitPresets } from "@/lib/middleware/rate-limit";
 
 async function handleGET() {
   try {
-    const user = await requireAuth();
+    const user = await requireAuthWithOrg();
 
     if (user.role !== "owner" && user.role !== "admin") {
       return NextResponse.json(
@@ -17,7 +17,7 @@ async function handleGET() {
       );
     }
 
-    const members = await usersService.listByOrganization(user.organization_id);
+    const members = await usersService.listByOrganization(user.organization_id!);
 
     return NextResponse.json({
       success: true,

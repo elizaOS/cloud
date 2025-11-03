@@ -1,6 +1,6 @@
 /**
  * Landing Header Component
- * Header for the unauthenticated landing page
+ * Header for the landing page - shows different UI for authenticated vs unauthenticated users
  */
 
 "use client";
@@ -9,8 +9,9 @@ import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { usePrivy, useLogin } from "@privy-io/react-auth";
 import { useRouter } from "next/navigation";
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { Loader2 } from "lucide-react";
+import UserMenu from "@/components/layout/user-menu";
 
 export default function LandingHeader() {
   const { ready, authenticated } = usePrivy();
@@ -18,34 +19,21 @@ export default function LandingHeader() {
   const router = useRouter();
   const [isLoggingIn, setIsLoggingIn] = useState(false);
 
-  // Auto-redirect to dashboard when authenticated
-  useEffect(() => {
-    if (ready && authenticated) {
-      console.log("User authenticated in header, redirecting to dashboard...");
-      router.push("/dashboard");
-    }
-  }, [ready, authenticated, router]);
+  // No auto-redirect - let users stay on landing page even when logged in
 
-  const handleAuth = async () => {
-    console.log("Header auth button clicked:", { authenticated, ready });
+  const handleLogin = async () => {
+    if (!ready) return;
 
-    if (!ready) {
-      console.log("Privy not ready yet");
-      return;
+    setIsLoggingIn(true);
+    try {
+      await login();
+    } finally {
+      setTimeout(() => setIsLoggingIn(false), 1000);
     }
+  };
 
-    if (authenticated) {
-      router.push("/dashboard");
-    } else {
-      console.log("Calling Privy login from header...");
-      setIsLoggingIn(true);
-      try {
-        await login();
-      } finally {
-        // Reset loading state after a delay to handle Privy modal
-        setTimeout(() => setIsLoggingIn(false), 1000);
-      }
-    }
+  const handleDashboard = () => {
+    router.push("/dashboard");
   };
 
   const isLoading = !ready || isLoggingIn;
@@ -63,37 +51,54 @@ export default function LandingHeader() {
           </div>
         </Link>
         <div className="flex items-center gap-3">
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={handleAuth}
-            disabled={isLoading}
-            className="text-white/70 hover:text-white hover:bg-white/5"
-          >
-            {isLoading ? (
-              <>
-                <Loader2 className="h-4 w-4 animate-spin mr-2" />
-                Loading...
-              </>
-            ) : (
-              "Log in"
-            )}
-          </Button>
-          <Button
-            size="sm"
-            onClick={handleAuth}
-            disabled={isLoading}
-            className="bg-[#FF5800] hover:bg-[#FF5800]/90 text-white"
-          >
-            {isLoading ? (
-              <>
-                <Loader2 className="h-4 w-4 animate-spin mr-2" />
-                Loading...
-              </>
-            ) : (
-              "Get Started"
-            )}
-          </Button>
+          {authenticated ? (
+            <>
+              {/* Authenticated user - show Dashboard + UserMenu */}
+              <Button
+                size="sm"
+                onClick={handleDashboard}
+                className="bg-[#FF5800] hover:bg-[#FF5800]/90 text-white"
+              >
+                Dashboard
+              </Button>
+              <UserMenu />
+            </>
+          ) : (
+            <>
+              {/* Unauthenticated - show Login + Get Started */}
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={handleLogin}
+                disabled={isLoading}
+                className="text-white/70 hover:text-white hover:bg-white/5"
+              >
+                {isLoading ? (
+                  <>
+                    <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                    Loading...
+                  </>
+                ) : (
+                  "Log in"
+                )}
+              </Button>
+              <Button
+                size="sm"
+                onClick={handleLogin}
+                disabled={isLoading}
+                className="bg-[#FF5800] hover:bg-[#FF5800]/90 text-white"
+              >
+                {isLoading ? (
+                  <>
+                    <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                    Loading...
+                  </>
+                ) : (
+                  "Get Started"
+                )}
+              </Button>
+            </>
+          )}
         </div>
       </div>
     </header>

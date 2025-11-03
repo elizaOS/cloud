@@ -1,5 +1,5 @@
 // app/api/v1/embeddings/route.ts
-import { requireAuthOrApiKey } from "@/lib/auth";
+import { requireAuthOrApiKeyWithOrg } from "@/lib/auth";
 import {
   creditsService,
   usageService,
@@ -26,7 +26,7 @@ export const maxDuration = 60;
 
 async function handlePOST(req: NextRequest) {
   try {
-    const { user, apiKey } = await requireAuthOrApiKey(req);
+    const { user, apiKey } = await requireAuthOrApiKeyWithOrg(req);
     const request: OpenAIEmbeddingsRequest = await req.json();
 
     // Validate input
@@ -95,7 +95,7 @@ async function handlePOST(req: NextRequest) {
     const requiredCredits = Math.ceil(estimatedCost * 1.5);
 
     // Check credits before making API call
-    const org = await organizationsService.getById(user.organization_id);
+    const org = await organizationsService.getById(user.organization_id!);
     if (!org) {
       return Response.json(
         {
@@ -117,7 +117,7 @@ async function handlePOST(req: NextRequest) {
 
     if (!creditCheck.sufficient) {
       logger.warn("[OpenAI Proxy] Insufficient credits for embeddings", {
-        organizationId: user.organization_id,
+        organizationId: user.organization_id!!,
         required: creditCheck.required,
         balance: creditCheck.balance,
       });
@@ -153,7 +153,7 @@ async function handlePOST(req: NextRequest) {
       );
 
       const deductResult = await creditsService.deductCredits({
-        organizationId: user.organization_id,
+        organizationId: user.organization_id!!,
         amount: totalCost,
         description: `OpenAI Proxy Embeddings: ${request.model}`,
         metadata: { user_id: user.id },
@@ -165,7 +165,7 @@ async function handlePOST(req: NextRequest) {
         logger.error(
           "[OpenAI Proxy] CRITICAL: Failed to deduct credits for embeddings after completion",
           {
-            organizationId: user.organization_id,
+            organizationId: user.organization_id!!,
             cost: String(totalCost),
             balance: deductResult.newBalance,
           },
@@ -188,7 +188,7 @@ async function handlePOST(req: NextRequest) {
       (async () => {
         try {
           await usageService.create({
-            organization_id: user.organization_id,
+            organization_id: user.organization_id!!,
             user_id: user.id,
             api_key_id: apiKey?.id || null,
             type: "embeddings",

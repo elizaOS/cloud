@@ -1,6 +1,6 @@
 "use server";
 
-import { requireAuth } from "@/lib/auth";
+import { requireAuthWithOrg } from "@/lib/auth";
 import {
   getUsageStatsSafe,
   getUsageTimeSeries,
@@ -18,8 +18,8 @@ export interface AnalyticsFilters {
 }
 
 export async function getAnalyticsData(filters: AnalyticsFilters = {}) {
-  const user = await requireAuth();
-  const organizationId = user.organization_id;
+  const user = await requireAuthWithOrg();
+  const organizationId = user.organization_id!;
 
   const {
     startDate = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000),

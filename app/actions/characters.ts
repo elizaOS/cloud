@@ -1,6 +1,6 @@
 "use server";
 
-import { requireAuth } from "@/lib/auth";
+import { requireAuthWithOrg } from "@/lib/auth";
 import { charactersService, discordService } from "@/lib/services";
 import type { ElizaCharacter, NewUserCharacter } from "@/lib/types";
 import { revalidatePath } from "next/cache";
@@ -9,10 +9,10 @@ import { revalidatePath } from "next/cache";
  * Create a new character
  */
 export async function createCharacter(elizaCharacter: ElizaCharacter) {
-  const user = await requireAuth();
+  const user = await requireAuthWithOrg();
 
   const newCharacter: NewUserCharacter = {
-    organization_id: user.organization_id,
+    organization_id: user.organization_id!!,
     user_id: user.id,
     name: elizaCharacter.name,
     username: elizaCharacter.username ?? null,
@@ -65,7 +65,7 @@ export async function updateCharacter(
   characterId: string,
   elizaCharacter: ElizaCharacter,
 ) {
-  const user = await requireAuth();
+  const user = await requireAuthWithOrg();
 
   const updates: Partial<NewUserCharacter> = {
     name: elizaCharacter.name,
@@ -105,7 +105,7 @@ export async function updateCharacter(
  * Delete a character
  */
 export async function deleteCharacter(characterId: string) {
-  const user = await requireAuth();
+  const user = await requireAuthWithOrg();
 
   const success = await charactersService.deleteForUser(characterId, user.id);
 
@@ -121,7 +121,7 @@ export async function deleteCharacter(characterId: string) {
  * List all characters for the current user
  */
 export async function listCharacters() {
-  const user = await requireAuth();
+  const user = await requireAuthWithOrg();
 
   const characters = await charactersService.listByUser(user.id, {
     includeTemplates: false,
@@ -134,7 +134,7 @@ export async function listCharacters() {
  * Get a specific character
  */
 export async function getCharacter(characterId: string) {
-  const user = await requireAuth();
+  const user = await requireAuthWithOrg();
 
   const character = await charactersService.getByIdForUser(
     characterId,

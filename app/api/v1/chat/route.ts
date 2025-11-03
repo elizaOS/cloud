@@ -1,12 +1,14 @@
 import { streamText, type UIMessage, convertToModelMessages } from "ai";
 import { gateway } from "@ai-sdk/gateway";
 import { requireAuthOrApiKey } from "@/lib/auth";
+import { getAnonymousUser, checkAnonymousLimit } from "@/lib/auth-anonymous";
 import {
   conversationsService,
   creditsService,
   usageService,
   generationsService,
   organizationsService,
+  anonymousSessionsService,
 } from "@/lib/services";
 import {
   calculateCost,
@@ -22,7 +24,40 @@ export const maxDuration = 60;
 
 async function handlePOST(req: NextRequest) {
   try {
-    const { user, apiKey } = await requireAuthOrApiKey(req);
+    let user: any;
+    let apiKey: any = undefined;
+    let authMethod: "session" | "api_key" | "anonymous";
+    let isAnonymous = false;
+    type AnonymousSessionType = NonNullable<
+      Awaited<ReturnType<typeof getAnonymousUser>>
+    >["session"];
+    let anonymousSession: AnonymousSessionType | null = null;
+
+    // Try authenticated user first
+    try {
+      const authResult = await requireAuthOrApiKey(req);
+      user = authResult.user;
+      apiKey = authResult.apiKey;
+      authMethod = authResult.authMethod;
+    } catch (error) {
+      // Fallback to anonymous user
+      const anonData = await getAnonymousUser();
+      if (!anonData) {
+        throw new Error("Authentication required");
+      }
+
+      user = anonData.user;
+      anonymousSession = anonData.session;
+      isAnonymous = true;
+      authMethod = "anonymous";
+
+      logger.info("chat-api", "Anonymous user request", {
+        userId: user.id,
+        sessionId: anonymousSession?.id,
+        messageCount: anonymousSession?.message_count,
+      });
+    }
+
     const body = await req.json();
     const { messages, id }: { messages: UIMessage[]; id?: string } = body;
 
@@ -33,48 +68,99 @@ async function handlePOST(req: NextRequest) {
       ? (lastMessage.metadata as { conversationId?: string }).conversationId
       : undefined;
 
-    // CRITICAL FIX: Check credit balance BEFORE starting stream to prevent free service
-    // Estimate cost based on input messages
-    const messageText = messages
-      .map((m) =>
-        m.parts.map((p) => (p.type === "text" ? p.text : "")).join(""),
-      )
-      .join(" ");
-    const estimatedInputTokens = estimateTokens(messageText);
-    const estimatedOutputTokens = 500; // Conservative estimate for streaming response
-
-    const { totalCost: estimatedCost } = await calculateCost(
-      selectedModel,
-      provider,
-      estimatedInputTokens,
-      estimatedOutputTokens,
-    );
-
-    // Check organization balance
-    const org = await organizationsService.getById(user.organization_id);
-    if (!org) {
-      logger.error("chat-api", "Organization not found", {
-        organizationId: user.organization_id,
-      });
-      return NextResponse.json(
-        { error: "Organization not found" },
-        { status: 404 },
+    // Handle anonymous user rate limiting
+    if (isAnonymous && anonymousSession) {
+      // Check message limit for anonymous users
+      const limitCheck = await checkAnonymousLimit(
+        anonymousSession.session_token,
       );
+
+      if (!limitCheck.allowed) {
+        const errorMessage =
+          limitCheck.reason === "message_limit"
+            ? `You've reached your free message limit (${limitCheck.limit} messages). Sign up to continue chatting!`
+            : `You've reached the hourly rate limit. Please wait an hour or sign up for unlimited access.`;
+
+        logger.warn("chat-api", "Anonymous user limit reached", {
+          userId: user.id,
+          sessionId: anonymousSession.id,
+          reason: limitCheck.reason,
+          limit: limitCheck.limit,
+        });
+
+        return NextResponse.json(
+          {
+            error: errorMessage,
+            requiresSignup: true,
+            reason: limitCheck.reason,
+            limit: limitCheck.limit,
+            remaining: limitCheck.remaining,
+          },
+          { status: 429 },
+        );
+      }
+
+      // Increment message count for tracking
+      await anonymousSessionsService.incrementMessageCount(
+        anonymousSession.id,
+      );
+
+      logger.info("chat-api", "Anonymous user message allowed", {
+        userId: user.id,
+        remaining: limitCheck.remaining,
+        limit: limitCheck.limit,
+      });
     }
 
-    if (Number(org.credit_balance) < estimatedCost) {
-      logger.warn("chat-api", "Insufficient credits", {
-        organizationId: user.organization_id,
-        required: estimatedCost,
-        balance: Number(org.credit_balance),
-      });
-      return NextResponse.json(
-        {
-          error: "Insufficient balance",
-          details: `Required: ${estimatedCost}, Available: ${Number(org.credit_balance).toFixed(2)}`,
-        },
-        { status: 402 },
+    // For authenticated users: Check credit balance BEFORE starting stream
+    if (!isAnonymous) {
+      const messageText = messages
+        .map((m) =>
+          m.parts.map((p) => (p.type === "text" ? p.text : "")).join(""),
+        )
+        .join(" ");
+      const estimatedInputTokens = estimateTokens(messageText);
+      const estimatedOutputTokens = 500;
+
+      const { totalCost: estimatedCost } = await calculateCost(
+        selectedModel,
+        provider,
+        estimatedInputTokens,
+        estimatedOutputTokens,
       );
+
+      if (!user.organization_id) {
+        return NextResponse.json(
+          { error: "Organization not found for authenticated user" },
+          { status: 500 },
+        );
+      }
+
+      const org = await organizationsService.getById(user.organization_id);
+      if (!org) {
+        logger.error("chat-api", "Organization not found", {
+          organizationId: user.organization_id,
+        });
+        return NextResponse.json(
+          { error: "Organization not found" },
+          { status: 404 },
+        );
+      }
+
+      if (Number(org.credit_balance) < estimatedCost) {
+        logger.warn("chat-api", "Insufficient credits", {
+          organizationId: user.organization_id,
+          required: estimatedCost,
+          balance: Number(org.credit_balance),
+        });
+        return NextResponse.json(
+          {
+            error: "Insufficient balance",
+            details: `Required: ${estimatedCost}, Available: ${Number(org.credit_balance).toFixed(2)}`,
+          },
+          { status: 402 },
+        );
+      }
     }
 
     const result = streamText({
@@ -95,15 +181,41 @@ async function handlePOST(req: NextRequest) {
             usage.outputTokens || 0,
           );
 
-          const deductionResult = await creditsService.deductCredits({
-            organizationId: user.organization_id,
-            amount: totalCost,
-            description: `Chat completion: ${selectedModel}`,
-            metadata: {
-              user_id: user.id,
+          // Only deduct credits for authenticated users
+          let deductionResult: { success: boolean; newBalance: string } = {
+            success: true,
+            newBalance: "0",
+          };
+
+          if (!isAnonymous && user.organization_id) {
+            const result = await creditsService.deductCredits({
+              organizationId: user.organization_id!,
+              amount: totalCost,
+              description: `Chat completion: ${selectedModel}`,
+              metadata: {
+                user_id: user.id,
+                model: selectedModel,
+              },
+            });
+
+            // Convert to expected type
+            deductionResult = {
+              success: result.success,
+              newBalance: String(result.newBalance),
+            };
+          } else if (isAnonymous && anonymousSession) {
+            // Track token usage for analytics (no billing)
+            await anonymousSessionsService.addTokenUsage(
+              anonymousSession.id,
+              (usage.inputTokens || 0) + (usage.outputTokens || 0),
+            );
+
+            logger.info("chat-api", "Anonymous user token usage tracked", {
+              userId: user.id,
+              tokens: (usage.inputTokens || 0) + (usage.outputTokens || 0),
               model: selectedModel,
-            },
-          });
+            });
+          }
 
           if (!deductionResult.success) {
             // CRITICAL: This should rarely happen since we checked credits before streaming
@@ -144,8 +256,9 @@ async function handlePOST(req: NextRequest) {
             });
           }
 
+          // Create usage record (with NULL organization_id for anonymous users)
           const usageRecord = await usageService.create({
-            organization_id: user.organization_id,
+            organization_id: user.organization_id || null,
             user_id: user.id,
             api_key_id: apiKey?.id || null,
             type: "chat",
@@ -158,15 +271,15 @@ async function handlePOST(req: NextRequest) {
             is_successful: true,
           });
 
-          if (apiKey) {
+          if (apiKey || isAnonymous) {
             const userPrompt =
               messages[messages.length - 1]?.parts
                 .map((p) => (p.type === "text" ? p.text : ""))
                 .join("") || "";
             await generationsService.create({
-              organization_id: user.organization_id,
+              organization_id: user.organization_id || null,
               user_id: user.id,
-              api_key_id: apiKey.id,
+              api_key_id: apiKey?.id || null,
               type: "chat",
               model: selectedModel,
               provider: provider,
@@ -174,8 +287,8 @@ async function handlePOST(req: NextRequest) {
               status: "completed",
               content: text,
               tokens: (usage.inputTokens || 0) + (usage.outputTokens || 0),
-              cost: String(totalCost),
-              credits: String(totalCost),
+              cost: String(isAnonymous ? 0 : totalCost),
+              credits: String(isAnonymous ? 0 : totalCost),
               usage_record_id: usageRecord.id,
               completed_at: new Date(),
               result: {

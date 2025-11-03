@@ -1,6 +1,6 @@
 "use server";
 
-import { requireAuth } from "@/lib/auth";
+import { requireAuthWithOrg } from "@/lib/auth";
 import {
   usageService,
   creditsService,
@@ -82,9 +82,9 @@ export interface DashboardData {
 
 // Internal function to fetch dashboard data (not cached at React level)
 async function fetchDashboardDataInternal(
-  user: Awaited<ReturnType<typeof requireAuth>>,
+  user: Awaited<ReturnType<typeof requireAuthWithOrg>>,
 ): Promise<DashboardData> {
-  const organizationId = user.organization_id;
+  const organizationId = user.organization_id!;
   const start = Date.now();
 
   const now = new Date();
@@ -203,8 +203,8 @@ async function fetchDashboardDataInternal(
 
 // React-cached version for request deduplication
 export const getDashboardData = cache(async (): Promise<DashboardData> => {
-  const user = await requireAuth();
-  const organizationId = user.organization_id;
+  const user = await requireAuthWithOrg();
+  const organizationId = user.organization_id!;
   const cacheKey = CacheKeys.org.dashboard(organizationId);
 
   // Use stale-while-revalidate pattern

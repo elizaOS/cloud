@@ -11,6 +11,10 @@
     {
       "path": "/api/v1/cron/health-check",
       "schedule": "*/5 * * * *"
+    },
+    {
+      "path": "/api/cron/cleanup-anonymous-sessions",
+      "schedule": "0 2 * * *"
     }
   ],
   "buildCommand": "npm run build",

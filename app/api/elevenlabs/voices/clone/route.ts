@@ -1,6 +1,6 @@
 import type { NextRequest } from "next/server";
 import { NextResponse } from "next/server";
-import { requireAuth } from "@/lib/auth";
+import { requireAuthWithOrg } from "@/lib/auth";
 import { voiceCloningService } from "@/lib/services/voice-cloning";
 import {
   creditsService,
@@ -19,7 +19,7 @@ const MAX_TOTAL_SIZE = 100 * 1024 * 1024; // 100MB
 export async function POST(request: NextRequest) {
   try {
     // Authenticate user
-    const user = await requireAuth();
+    const user = await requireAuthWithOrg();
 
     // Parse multipart form data
     const formData = await request.formData();
@@ -94,7 +94,7 @@ export async function POST(request: NextRequest) {
       `[Voice Clone API] Creating ${cloneType} voice clone: ${name}`,
       {
         userId: user.id,
-        organizationId: user.organization_id,
+        organizationId: user.organization_id!!,
         fileCount: files.length,
         totalSize,
       },
@@ -107,7 +107,7 @@ export async function POST(request: NextRequest) {
         : VOICE_CLONE_PROFESSIONAL_COST;
 
     // Check credit balance
-    const org = await organizationsService.getById(user.organization_id);
+    const org = await organizationsService.getById(user.organization_id!);
     if (!org) {
       return NextResponse.json(
         { error: "Organization not found" },
@@ -117,7 +117,7 @@ export async function POST(request: NextRequest) {
 
     if (Number(org.credit_balance) < cost) {
       logger.warn("[Voice Clone API] Insufficient credits", {
-        organizationId: user.organization_id,
+        organizationId: user.organization_id!!,
         required: cost,
         balance: org.credit_balance,
       });
@@ -136,7 +136,7 @@ export async function POST(request: NextRequest) {
 
     // Deduct credits BEFORE processing
     const deductionResult = await creditsService.deductCredits({
-      organizationId: user.organization_id,
+      organizationId: user.organization_id!!,
       amount: cost,
       description: `Voice cloning (${cloneType}): ${name}`,
       metadata: {
@@ -149,7 +149,7 @@ export async function POST(request: NextRequest) {
 
     if (!deductionResult.success) {
       logger.error("[Voice Clone API] Failed to deduct credits", {
-        organizationId: user.organization_id,
+        organizationId: user.organization_id!!,
         cost,
       });
       return NextResponse.json(
@@ -159,7 +159,7 @@ export async function POST(request: NextRequest) {
     }
 
     logger.info("[Voice Clone API] Cost charged successfully", {
-      organizationId: user.organization_id,
+      organizationId: user.organization_id!!,
       amount: cost,
       newBalance: deductionResult.newBalance,
     });
@@ -168,7 +168,7 @@ export async function POST(request: NextRequest) {
       // Create voice clone
       const startTime = Date.now();
       const result = await voiceCloningService.createVoiceClone({
-        organizationId: user.organization_id,
+        organizationId: user.organization_id!!,
         userId: user.id,
         name,
         description,
@@ -186,7 +186,7 @@ export async function POST(request: NextRequest) {
 
       // Record usage
       await usageService.create({
-        organization_id: user.organization_id,
+        organization_id: user.organization_id!!,
         user_id: user.id,
         api_key_id: null,
         type: "voice_cloning",
@@ -238,7 +238,7 @@ export async function POST(request: NextRequest) {
       });
 
       await creditsService.addCredits({
-        organizationId: user.organization_id,
+        organizationId: user.organization_id!!,
         amount: cost,
         description: `Refund for failed voice cloning: ${name}`,
         metadata: {
@@ -249,13 +249,13 @@ export async function POST(request: NextRequest) {
       });
 
       logger.info("[Voice Clone API] Credits refunded", {
-        organizationId: user.organization_id,
+        organizationId: user.organization_id!!,
         amount: cost,
       });
 
       // Record failed usage
       await usageService.create({
-        organization_id: user.organization_id,
+        organization_id: user.organization_id!!,
         user_id: user.id,
         api_key_id: null,
         type: "voice_cloning",

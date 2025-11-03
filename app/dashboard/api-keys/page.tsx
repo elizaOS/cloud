@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { requireAuth } from "@/lib/auth";
+import { requireAuthWithOrg } from "@/lib/auth";
 import { apiKeysService } from "@/lib/services";
 import { ApiKeysPage as ApiKeysPageView } from "@/components/api-keys/api-keys-page";
 import type {
@@ -27,7 +27,7 @@ function getApiKeyStatus(
 }
 
 export default async function ApiKeysPage() {
-  const user = await requireAuth();
+  const user = await requireAuthWithOrg();
   const keys = await apiKeysService.listByOrganization(user.organization_id);
 
   const displayKeys: ApiKeyDisplay[] = keys.map((key) => ({

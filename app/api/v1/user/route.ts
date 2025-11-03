@@ -33,10 +33,10 @@ async function handleGET() {
         created_at: user.created_at,
         updated_at: user.updated_at,
         organization: {
-          id: user.organization.id,
-          name: user.organization.name,
-          slug: user.organization.slug,
-          credit_balance: user.organization.credit_balance,
+          id: user.organization?.id,
+          name: user.organization?.name,
+          slug: user.organization?.slug,
+          credit_balance: user.organization?.credit_balance,
         },
       },
     });

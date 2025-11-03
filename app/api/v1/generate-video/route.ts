@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { fal } from "@fal-ai/client";
 import type { QueueStatus } from "@fal-ai/client";
-import { requireAuthOrApiKey } from "@/lib/auth";
+import { requireAuthOrApiKeyWithOrg } from "@/lib/auth";
 import {
   usageService,
   creditsService,
@@ -52,7 +52,7 @@ const VALID_MODELS = [
 async function handlePOST(request: NextRequest) {
   let generationId: string | undefined;
   try {
-    const { user, apiKey } = await requireAuthOrApiKey(request);
+    const { user, apiKey } = await requireAuthOrApiKeyWithOrg(request);
 
     if (!process.env.FAL_KEY) {
       console.error("[VIDEO GENERATION] FAL_KEY is not configured");
@@ -83,7 +83,7 @@ async function handlePOST(request: NextRequest) {
     }
 
     const generation = await generationsService.create({
-      organization_id: user.organization_id,
+      organization_id: user.organization_id!!,
       user_id: user.id,
       api_key_id: apiKey?.id || null,
       type: "video",
@@ -162,7 +162,7 @@ async function handlePOST(request: NextRequest) {
     }
 
     const deductionResult = await creditsService.deductCredits({
-      organizationId: user.organization_id,
+      organizationId: user.organization_id!!,
       amount: VIDEO_GENERATION_COST,
       description: `Video generation: ${model}`,
       metadata: { user_id: user.id },
@@ -173,7 +173,7 @@ async function handlePOST(request: NextRequest) {
       console.error(
         "[VIDEO GENERATION] Failed to deduct credits - insufficient balance",
         {
-          organizationId: user.organization_id,
+          organizationId: user.organization_id!!,
           cost: String(VIDEO_GENERATION_COST),
           balance: deductionResult.newBalance,
         },
@@ -190,7 +190,7 @@ async function handlePOST(request: NextRequest) {
     }
 
     const usageRecord = await usageService.create({
-      organization_id: user.organization_id,
+      organization_id: user.organization_id!!,
       user_id: user.id,
       api_key_id: apiKey?.id || null,
       type: "video",
@@ -258,7 +258,7 @@ async function handlePOST(request: NextRequest) {
 
     try {
       const { user: fallbackUser, apiKey: fallbackApiKey } =
-        await requireAuthOrApiKey(request);
+        await requireAuthOrApiKeyWithOrg(request);
 
       const fallbackDeduction = await creditsService.deductCredits({
         organizationId: fallbackUser.organization_id,

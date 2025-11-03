@@ -2,11 +2,24 @@
 
 import { useState, useEffect } from "react";
 import { usePrivy } from "@privy-io/react-auth";
-import { useRouter } from "next/navigation";
+import { useRouter, usePathname } from "next/navigation";
 import { Loader2 } from "lucide-react";
 import Sidebar from "@/components/layout/sidebar";
 import Header from "@/components/layout/header";
 import { PageHeaderProvider } from "@/components/layout/page-header-context";
+
+/**
+ * Dashboard Layout - Supports both authenticated and anonymous users
+ * 
+ * Free Mode Paths (accessible without auth):
+ * - /dashboard/eliza - ElizaOS agent chat (FREE!)
+ * 
+ * Protected Paths (require authentication):
+ * - All other /dashboard/* routes
+ */
+
+// Paths that allow anonymous/free access
+const FREE_MODE_PATHS = ["/dashboard/eliza"];
 
 export default function DashboardLayout({
   children,
@@ -14,15 +27,21 @@ export default function DashboardLayout({
   children: React.ReactNode;
 }) {
   const [sidebarOpen, setSidebarOpen] = useState(false);
-  const { ready, authenticated } = usePrivy();
+  const { ready, authenticated, login } = usePrivy();
   const router = useRouter();
+  const pathname = usePathname();
 
-  // Redirect to home if not authenticated
+  // Check if current path allows free access
+  const isFreeModePath = FREE_MODE_PATHS.some((path) =>
+    pathname?.startsWith(path),
+  );
+
+  // Redirect to home if not authenticated and trying to access protected path
   useEffect(() => {
-    if (ready && !authenticated) {
+    if (ready && !authenticated && !isFreeModePath) {
       router.push("/");
     }
-  }, [ready, authenticated, router]);
+  }, [ready, authenticated, isFreeModePath, router]);
 
   // Show loading state while checking authentication
   if (!ready) {
@@ -36,8 +55,9 @@ export default function DashboardLayout({
     );
   }
 
-  // Don't render dashboard if not authenticated (during redirect)
-  if (!authenticated) {
+  // Allow free mode paths for anonymous users
+  // Redirect other paths to home if not authenticated
+  if (!authenticated && !isFreeModePath) {
     return (
       <div className="flex h-screen w-full items-center justify-center bg-background">
         <div className="flex flex-col items-center gap-3">
@@ -51,16 +71,20 @@ export default function DashboardLayout({
   return (
     <PageHeaderProvider>
       <div className="flex h-screen w-full bg-[#0A0A0A]">
-        {/* Sidebar */}
+        {/* Sidebar - pass auth state so it can show lock icons */}
         <Sidebar
           isOpen={sidebarOpen}
           onToggle={() => setSidebarOpen(!sidebarOpen)}
+          isAnonymous={!authenticated}
         />
 
         {/* Main Content */}
         <div className="flex flex-1 flex-col overflow-hidden">
-          {/* Header */}
-          <Header onToggleSidebar={() => setSidebarOpen(!sidebarOpen)} />
+          {/* Header - pass auth state for signup button */}
+          <Header
+            onToggleSidebar={() => setSidebarOpen(!sidebarOpen)}
+            isAnonymous={!authenticated}
+          />
 
           {/* Main Content Area */}
           <main className="flex-1 overflow-y-auto bg-[#0A0A0A]">

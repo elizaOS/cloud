@@ -283,3 +283,4 @@ The landing page components have been updated to use these reusable components. 
 3. Use Tailwind color tokens: `bg-[#0A0A0A]`, `text-white/70`, etc.
 4. Add corner brackets to major sections for visual consistency
 5. Use the orange dot (`#FF5800`) for accent indicators
+

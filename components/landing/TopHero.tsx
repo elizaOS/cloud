@@ -29,26 +29,39 @@ const TopHero = () => {
   const { login } = useLogin();
   const router = useRouter();
   const [isLoggingIn, setIsLoggingIn] = useState(false);
+  const [chatInput, setChatInput] = useState("");
 
   const handleAuth = async () => {
-    console.log("Auth button clicked:", { authenticated, ready });
-
-    if (!ready) {
-      console.log("Privy not ready yet");
-      return;
-    }
+    if (!ready) return;
 
     if (authenticated) {
       router.push("/dashboard");
     } else {
-      console.log("Calling Privy login...");
       setIsLoggingIn(true);
       try {
         await login();
       } finally {
-        // Reset loading state after a delay to handle Privy modal
         setTimeout(() => setIsLoggingIn(false), 1000);
       }
+    }
+  };
+
+  const handleFreeChatSubmit = () => {
+    if (!chatInput.trim()) return;
+    
+    // Store the message in localStorage for pre-filling in chat
+    localStorage.setItem("eliza-pending-message", chatInput.trim());
+    
+    // Redirect to Eliza chat (anonymous users will be created automatically)
+    // Use window.location for reliable navigation
+    window.location.href = "/dashboard/eliza";
+  };
+
+  const handleChatKeyPress = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
+    // Submit on Cmd/Ctrl + Enter
+    if ((e.metaKey || e.ctrlKey) && e.key === "Enter") {
+      e.preventDefault();
+      handleFreeChatSubmit();
     }
   };
 
@@ -140,19 +153,34 @@ const TopHero = () => {
                 <HUDContainer>
                   {/* Text input area */}
                   <Textarea
-                    placeholder="Talk to Eliza..."
+                    value={chatInput}
+                    onChange={(e) => setChatInput(e.target.value)}
+                    onKeyDown={handleChatKeyPress}
+                    placeholder="Try asking: How do I build an AI agent? (No signup required)"
                     className="min-h-[150px] bg-transparent border-0 resize-none focus-visible:ring-0 text-white placeholder:text-white/40 p-4 pr-32 w-full"
                   />
 
                   {/* Icon buttons overlaid on bottom right inside box */}
                   <div className="absolute bottom-4 right-4 flex gap-2">
-                    <BrandButton variant="icon">
+                    <BrandButton
+                      variant="icon"
+                      disabled
+                      className="opacity-50 cursor-not-allowed"
+                    >
                       <Paperclip className="h-5 w-5" />
                     </BrandButton>
-                    <BrandButton variant="icon">
+                    <BrandButton
+                      variant="icon"
+                      disabled
+                      className="opacity-50 cursor-not-allowed"
+                    >
                       <Mic className="h-5 w-5" />
                     </BrandButton>
-                    <BrandButton variant="icon-primary">
+                    <BrandButton
+                      variant="icon-primary"
+                      onClick={handleFreeChatSubmit}
+                      disabled={!chatInput.trim()}
+                    >
                       <ArrowUp
                         className="h-8 w-8"
                         style={{ color: "#FF5800" }}

@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { requireAuthOrApiKey } from "@/lib/auth";
+import { requireAuthOrApiKeyWithOrg } from "@/lib/auth";
 import { getContainerHealthStatus } from "@/lib/services/health-monitor";
 import { containersRepository } from "@/db/repositories/containers";
 
@@ -14,13 +14,13 @@ export async function GET(
   { params }: { params: Promise<{ id: string }> },
 ) {
   try {
-    const { user } = await requireAuthOrApiKey(request);
+    const { user } = await requireAuthOrApiKeyWithOrg(request);
     const { id: containerId } = await params;
 
     // Verify container belongs to user's organization
     const container = await containersRepository.findById(
       containerId,
-      user.organization_id,
+      user.organization_id!,
     );
 
     if (!container) {

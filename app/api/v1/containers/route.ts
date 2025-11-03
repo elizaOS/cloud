@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { requireAuthOrApiKey } from "@/lib/auth";
+import { requireAuthOrApiKeyWithOrg } from "@/lib/auth";
 import {
   creditsService,
   usageService,
@@ -51,9 +51,9 @@ const createContainerSchema = z.object({
  */
 export async function GET(request: NextRequest) {
   try {
-    const { user } = await requireAuthOrApiKey(request);
+    const { user } = await requireAuthOrApiKeyWithOrg(request);
 
-    const containers = await listContainers(user.organization_id);
+    const containers = await listContainers(user.organization_id!);
 
     return NextResponse.json({
       success: true,
@@ -91,7 +91,7 @@ async function handleCreateContainer(request: NextRequest) {
       );
     }
 
-    const { user, apiKey } = await requireAuthOrApiKey(request);
+    const { user, apiKey } = await requireAuthOrApiKeyWithOrg(request);
     const body = await request.json();
 
     // Validate request body
@@ -186,7 +186,7 @@ async function handleCreateContainer(request: NextRequest) {
     }
 
     // Check if a container with this project_name already exists for this user
-    const existingContainers = await listContainers(user.organization_id);
+    const existingContainers = await listContainers(user.organization_id!);
     const existingProject = existingContainers.find(
       (c) =>
         c.user_id === user.id && c.project_name === validatedData.project_name,
@@ -233,7 +233,7 @@ async function handleCreateContainer(request: NextRequest) {
 
       const updatedContainer = await containersService.update(
         existingProject.id,
-        user.organization_id,
+        user.organization_id!,
         updateData,
       );
 
@@ -253,7 +253,7 @@ async function handleCreateContainer(request: NextRequest) {
 
       // Deduct credits for update deployment
       const creditResult = await creditsService.deductCredits({
-        organizationId: user.organization_id,
+        organizationId: user.organization_id!!,
         amount: deploymentCost,
         description: `Container update deployment: ${validatedData.name}`,
         metadata: {
@@ -277,7 +277,7 @@ async function handleCreateContainer(request: NextRequest) {
       newBalance = creditResult.newBalance;
 
       creditEventEmitter.emitCreditUpdate({
-        organizationId: user.organization_id,
+        organizationId: user.organization_id!!,
         newBalance: newBalance,
         delta: -deploymentCost,
         reason: `Container update: ${validatedData.name}`,
@@ -294,7 +294,7 @@ async function handleCreateContainer(request: NextRequest) {
         name: validatedData.name,
         project_name: validatedData.project_name,
         description: validatedData.description,
-        organization_id: user.organization_id,
+        organization_id: user.organization_id!!,
         user_id: user.id,
         api_key_id: apiKey?.id || null,
         ecr_repository_uri: validatedData.ecr_repository_uri,
@@ -339,7 +339,7 @@ async function handleCreateContainer(request: NextRequest) {
 
         // Emit credit update event for real-time balance updates
         creditEventEmitter.emitCreditUpdate({
-          organizationId: user.organization_id,
+          organizationId: user.organization_id!!,
           newBalance: newBalance,
           delta: -deploymentCost,
           reason: `Container deployment: ${validatedData.name}`,
@@ -367,7 +367,7 @@ async function handleCreateContainer(request: NextRequest) {
 
       // Create usage record for audit trail
       await usageService.create({
-        organization_id: user.organization_id,
+        organization_id: user.organization_id!!,
         user_id: user.id,
         api_key_id: apiKey?.id,
         type: "container_deployment",
@@ -398,7 +398,7 @@ async function handleCreateContainer(request: NextRequest) {
       });
 
       await usageService.create({
-        organization_id: user.organization_id,
+        organization_id: user.organization_id!!,
         user_id: user.id,
         api_key_id: apiKey?.id,
         type: "container_update",
@@ -432,7 +432,7 @@ async function handleCreateContainer(request: NextRequest) {
       container.id,
       validatedData,
       deploymentCost,
-      user.organization_id,
+      user.organization_id!,
     ).catch((error) => {
       console.error(
         "❌ [handleCreateContainer] Background deployment failed:",

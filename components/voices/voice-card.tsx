@@ -76,7 +76,7 @@ export function VoiceCard({ voice, onDelete, onPreview }: VoiceCardProps) {
 
   const handleUseInTTS = () => {
     // Navigate to text page with voice selected
-    router.push(`/dashboard/text?voiceId=${voice.elevenlabsVoiceId}`);
+    router.push(`/dashboard/eliza?voiceId=${voice.elevenlabsVoiceId}`);
   };
 
   const formatDuration = (seconds: number | null) => {

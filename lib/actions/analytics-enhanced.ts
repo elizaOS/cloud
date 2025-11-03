@@ -1,6 +1,6 @@
 "use server";
 
-import { requireAuth } from "@/lib/auth";
+import { requireAuthWithOrg } from "@/lib/auth";
 import {
   getUsageStatsSafe,
   getUsageTimeSeries,
@@ -27,8 +27,8 @@ export interface EnhancedAnalyticsFilters {
 export async function getEnhancedAnalyticsData(
   filters: EnhancedAnalyticsFilters = {},
 ) {
-  const user = await requireAuth();
-  const organizationId = user.organization_id;
+  const user = await requireAuthWithOrg();
+  const organizationId = user.organization_id!;
 
   const timeRange = filters.timeRange || "weekly";
   const now = new Date();
@@ -106,8 +106,8 @@ export async function getEnhancedAnalyticsData(
 }
 
 export async function getProjectionsData(periods: number = 7) {
-  const user = await requireAuth();
-  const organizationId = user.organization_id;
+  const user = await requireAuthWithOrg();
+  const organizationId = user.organization_id!;
 
   const now = new Date();
   const startDate = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);

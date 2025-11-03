@@ -7,21 +7,10 @@ import OnChainTrust from "@/components/landing/OnChainTrust";
 import Agents from "@/components/landing/Agents";
 import Installation from "@/components/landing/Installation";
 import Footer from "@/components/landing/Footer";
-import { usePrivy } from "@privy-io/react-auth";
-import { useRouter } from "next/navigation";
-import { useEffect } from "react";
 
 export function LandingPage() {
-  const { authenticated, ready } = usePrivy();
-  const router = useRouter();
-
-  // Auto-redirect to dashboard when authenticated
-  useEffect(() => {
-    if (ready && authenticated) {
-      console.log("User authenticated, redirecting to dashboard...");
-      router.push("/dashboard");
-    }
-  }, [ready, authenticated, router]);
+  // Removed auto-redirect - let authenticated users browse landing page
+  // Header will show Dashboard link + user menu instead of login button
 
   return (
     <div className="flex min-h-screen flex-col">
