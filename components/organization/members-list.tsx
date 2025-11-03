@@ -112,11 +112,7 @@ export function MembersList({
   };
 
   const canUpdateRole = (member: Member) => {
-    return (
-      isOwner &&
-      member.id !== currentUserId &&
-      member.role !== "owner"
-    );
+    return isOwner && member.id !== currentUserId && member.role !== "owner";
   };
 
   const canRemove = (member: Member) => {
@@ -166,7 +162,9 @@ export function MembersList({
                         <Wallet className="h-3.5 w-3.5" />
                         <span className="font-mono text-xs">
                           {member.wallet_address.substring(0, 10)}...
-                          {member.wallet_address.substring(member.wallet_address.length - 8)}
+                          {member.wallet_address.substring(
+                            member.wallet_address.length - 8,
+                          )}
                         </span>
                         {member.wallet_chain_type && (
                           <Badge variant="outline" className="text-xs">
@@ -176,7 +174,8 @@ export function MembersList({
                       </p>
                     )}
                     <p className="text-xs text-muted-foreground">
-                      Member since {format(new Date(member.created_at), "MMM d, yyyy")}
+                      Member since{" "}
+                      {format(new Date(member.created_at), "MMM d, yyyy")}
                     </p>
                   </div>
                 </div>
@@ -231,8 +230,9 @@ export function MembersList({
                         <AlertDialogHeader>
                           <AlertDialogTitle>Remove Member</AlertDialogTitle>
                           <AlertDialogDescription>
-                            Are you sure you want to remove {getDisplayName(member)} from
-                            the organization? They will lose access to all resources.
+                            Are you sure you want to remove{" "}
+                            {getDisplayName(member)} from the organization? They
+                            will lose access to all resources.
                           </AlertDialogDescription>
                         </AlertDialogHeader>
                         <AlertDialogFooter>

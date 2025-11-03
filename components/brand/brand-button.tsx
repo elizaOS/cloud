@@ -17,8 +17,7 @@ const brandButtonVariants = cva(
         primary:
           "bg-[#FF5800] text-white hover:brightness-110 active:brightness-125",
         // Ghost button with subtle hover
-        ghost:
-          "bg-transparent text-white/70 hover:text-white hover:bg-white/5",
+        ghost: "bg-transparent text-white/70 hover:text-white hover:bg-white/5",
         // Outlined button with white border
         outline:
           "border border-white/20 bg-transparent text-white hover:bg-white/10",
@@ -39,7 +38,7 @@ const brandButtonVariants = cva(
       variant: "primary",
       size: "md",
     },
-  }
+  },
 );
 
 export interface BrandButtonProps
@@ -58,10 +57,8 @@ const BrandButton = React.forwardRef<HTMLButtonElement, BrandButtonProps>(
         {...props}
       />
     );
-  }
+  },
 );
 BrandButton.displayName = "BrandButton";
 
 export { BrandButton, brandButtonVariants };
-
-

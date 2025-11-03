@@ -37,7 +37,7 @@ export function CreditPackCard({
       )}
     >
       <CornerBrackets size="sm" className="opacity-50" />
-      
+
       {isPopular && (
         <div className="absolute top-0 right-0 z-10">
           <span className="rounded-none rounded-bl-lg bg-[#FF5800] px-3 py-1 text-xs font-bold uppercase tracking-wide text-white inline-flex items-center">

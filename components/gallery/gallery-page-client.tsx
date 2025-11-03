@@ -113,8 +113,12 @@ export function GalleryPageClient() {
                   <ImageIcon className="w-5 h-5 text-blue-400" />
                 </div>
                 <div>
-                  <p className="text-2xl font-bold text-white">{stats.totalImages}</p>
-                  <p className="text-sm text-white/50 uppercase tracking-wide">Images</p>
+                  <p className="text-2xl font-bold text-white">
+                    {stats.totalImages}
+                  </p>
+                  <p className="text-sm text-white/50 uppercase tracking-wide">
+                    Images
+                  </p>
                 </div>
               </div>
             </BrandCard>
@@ -125,8 +129,12 @@ export function GalleryPageClient() {
                   <VideoIcon className="w-5 h-5 text-purple-400" />
                 </div>
                 <div>
-                  <p className="text-2xl font-bold text-white">{stats.totalVideos}</p>
-                  <p className="text-sm text-white/50 uppercase tracking-wide">Videos</p>
+                  <p className="text-2xl font-bold text-white">
+                    {stats.totalVideos}
+                  </p>
+                  <p className="text-sm text-white/50 uppercase tracking-wide">
+                    Videos
+                  </p>
                 </div>
               </div>
             </BrandCard>
@@ -140,7 +148,9 @@ export function GalleryPageClient() {
                   <p className="text-2xl font-bold text-white">
                     {(stats.totalSize / 1024 / 1024).toFixed(1)} MB
                   </p>
-                  <p className="text-sm text-white/50 uppercase tracking-wide">Total Size</p>
+                  <p className="text-sm text-white/50 uppercase tracking-wide">
+                    Total Size
+                  </p>
                 </div>
               </div>
             </BrandCard>

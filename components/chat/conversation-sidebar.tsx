@@ -44,7 +44,7 @@ export function ConversationSidebar({
     <div
       className={cn(
         "flex flex-col w-72 bg-black/40 border-r border-white/10",
-        className
+        className,
       )}
     >
       {/* Header */}
@@ -96,7 +96,7 @@ export function ConversationSidebar({
                         "border-l-2",
                         isActive
                           ? "bg-white/10 border-[#FF5800] text-white"
-                          : "border-transparent text-white/60 hover:bg-white/5 hover:text-white"
+                          : "border-transparent text-white/60 hover:bg-white/5 hover:text-white",
                       )}
                       onClick={() => onSelectRoom(room.id)}
                     >
@@ -133,7 +133,9 @@ export function ConversationSidebar({
                 })}
                 {rooms.length === 0 && !isLoading && (
                   <div className="px-3 py-8 text-center">
-                    <p className="text-xs text-white/50">No conversations yet</p>
+                    <p className="text-xs text-white/50">
+                      No conversations yet
+                    </p>
                     <p className="text-[10px] text-white/30 mt-1">
                       Start a new one above
                     </p>
@@ -147,5 +149,3 @@ export function ConversationSidebar({
     </div>
   );
 }
-
-

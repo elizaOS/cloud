@@ -11,7 +11,12 @@ import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import rehypeHighlight from "rehype-highlight";
 import "highlight.js/styles/github-dark.css";
-import { BrandCard, BrandButton, CornerBrackets, SectionLabel } from "@/components/brand";
+import {
+  BrandCard,
+  BrandButton,
+  CornerBrackets,
+  SectionLabel,
+} from "@/components/brand";
 
 interface AiAssistantProps {
   character: ElizaCharacter;
@@ -234,11 +239,13 @@ Tell me about your vision, and I'll help you craft a detailed character definiti
   return (
     <BrandCard className="relative flex h-full flex-col">
       <CornerBrackets size="sm" className="opacity-50" />
-      
+
       <div className="relative z-10 flex-shrink-0 border-b border-white/10 p-4">
         <div className="flex items-center gap-2">
           <Sparkles className="h-5 w-5 text-[#FF5800]" />
-          <h3 className="text-lg font-bold text-white">AI Character Assistant</h3>
+          <h3 className="text-lg font-bold text-white">
+            AI Character Assistant
+          </h3>
         </div>
       </div>
       <div className="relative z-10 flex flex-1 flex-col gap-4 overflow-hidden p-4">

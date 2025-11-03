@@ -284,7 +284,12 @@ export function ApiKeysPageClient({ keys, summary }: ApiKeysPageClientProps) {
           </DialogHeader>
           <div className="grid gap-6">
             <div className="grid gap-2">
-              <label htmlFor="api-key-name" className="text-xs font-medium text-white/70 uppercase tracking-wide">Name</label>
+              <label
+                htmlFor="api-key-name"
+                className="text-xs font-medium text-white/70 uppercase tracking-wide"
+              >
+                Name
+              </label>
               <Input
                 id="api-key-name"
                 placeholder="Production integration"
@@ -302,7 +307,12 @@ export function ApiKeysPageClient({ keys, summary }: ApiKeysPageClientProps) {
             </div>
 
             <div className="grid gap-2">
-              <label htmlFor="api-key-description" className="text-xs font-medium text-white/70 uppercase tracking-wide">Description</label>
+              <label
+                htmlFor="api-key-description"
+                className="text-xs font-medium text-white/70 uppercase tracking-wide"
+              >
+                Description
+              </label>
               <Textarea
                 id="api-key-description"
                 placeholder="Used by our backend services for customer facing features"
@@ -316,7 +326,9 @@ export function ApiKeysPageClient({ keys, summary }: ApiKeysPageClientProps) {
             </div>
 
             <div className="grid gap-2">
-              <label className="text-xs font-medium text-white/70 uppercase tracking-wide">Permissions</label>
+              <label className="text-xs font-medium text-white/70 uppercase tracking-wide">
+                Permissions
+              </label>
               <div className="grid gap-3 rounded-none border border-white/10 bg-black/40 p-4">
                 {permissionGroups.map((group) => (
                   <div key={group.title} className="space-y-2">
@@ -354,7 +366,9 @@ export function ApiKeysPageClient({ keys, summary }: ApiKeysPageClientProps) {
             </div>
 
             <div className="grid gap-2">
-              <label className="text-xs font-medium text-white/70 uppercase tracking-wide">Rate limit</label>
+              <label className="text-xs font-medium text-white/70 uppercase tracking-wide">
+                Rate limit
+              </label>
               <Select
                 value={rateLimitPreset}
                 onValueChange={(value) =>
@@ -368,7 +382,11 @@ export function ApiKeysPageClient({ keys, summary }: ApiKeysPageClientProps) {
                 </SelectTrigger>
                 <SelectContent className="rounded-none border-white/10 bg-black/90">
                   {rateLimitPresets.map((preset) => (
-                    <SelectItem key={preset.value} value={preset.value} className="rounded-none text-white hover:bg-white/10 focus:bg-white/10">
+                    <SelectItem
+                      key={preset.value}
+                      value={preset.value}
+                      className="rounded-none text-white hover:bg-white/10 focus:bg-white/10"
+                    >
                       {preset.label}
                     </SelectItem>
                   ))}
@@ -376,7 +394,10 @@ export function ApiKeysPageClient({ keys, summary }: ApiKeysPageClientProps) {
               </Select>
               {rateLimitPreset === "custom" && (
                 <div className="grid gap-2 rounded-none border border-dashed border-white/10 bg-black/40 p-4">
-                  <label htmlFor="api-key-rate-custom" className="text-xs font-medium text-white/70 uppercase tracking-wide">
+                  <label
+                    htmlFor="api-key-rate-custom"
+                    className="text-xs font-medium text-white/70 uppercase tracking-wide"
+                  >
                     Custom requests / minute
                   </label>
                   <Input
@@ -433,13 +454,17 @@ export function ApiKeysPageClient({ keys, summary }: ApiKeysPageClientProps) {
             </DialogHeader>
             <div className="space-y-4">
               <div className="grid gap-2">
-                <label className="text-xs font-medium text-white/70 uppercase tracking-wide">Key name</label>
+                <label className="text-xs font-medium text-white/70 uppercase tracking-wide">
+                  Key name
+                </label>
                 <div className="font-mono text-sm font-semibold text-white">
                   {createdKey.name}
                 </div>
               </div>
               <div className="grid gap-2">
-                <label className="text-xs font-medium text-white/70 uppercase tracking-wide">API Key</label>
+                <label className="text-xs font-medium text-white/70 uppercase tracking-wide">
+                  API Key
+                </label>
                 <div className="flex gap-2">
                   <Input
                     value={createdKey.plainKey}
@@ -501,18 +526,14 @@ export function ApiKeysPageClient({ keys, summary }: ApiKeysPageClientProps) {
                   <p>Re-issue keys every 60-90 days to reduce exposure risk.</p>
                 </div>
                 <div>
-                  <p className="font-medium text-white">
-                    Keep secrets secure
-                  </p>
+                  <p className="font-medium text-white">Keep secrets secure</p>
                   <p>
                     Store key values in your secret manager, not in source
                     control.
                   </p>
                 </div>
                 <div>
-                  <p className="font-medium text-white">
-                    Scope intentionally
-                  </p>
+                  <p className="font-medium text-white">Scope intentionally</p>
                   <p>
                     Use permission presets to limit access to only what each
                     integration needs.

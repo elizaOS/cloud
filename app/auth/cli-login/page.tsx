@@ -147,7 +147,7 @@ function CliLoginContent() {
                 <li>You can close this window</li>
               </ol>
             </div>
-            <Button 
+            <Button
               onClick={async () => {
                 setIsLoggingIn(true);
                 try {
@@ -155,7 +155,7 @@ function CliLoginContent() {
                 } finally {
                   setTimeout(() => setIsLoggingIn(false), 1000);
                 }
-              }} 
+              }}
               className="w-full"
               disabled={!ready || isLoggingIn}
             >

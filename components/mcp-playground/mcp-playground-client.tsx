@@ -285,7 +285,9 @@ export function MCPPlaygroundClient() {
       {/* Header */}
       <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
         <div>
-          <h1 className="text-3xl font-bold tracking-tight text-white">MCP Playground</h1>
+          <h1 className="text-3xl font-bold tracking-tight text-white">
+            MCP Playground
+          </h1>
           <p className="text-white/60 mt-2">
             Explore and test our Model Context Protocol integrations
           </p>
@@ -300,55 +302,88 @@ export function MCPPlaygroundClient() {
 
       {/* Search and Filters */}
       <BrandCard corners={false}>
-          <div className="flex flex-col gap-4 md:flex-row md:items-center py-4">
-            <div className="relative flex-1">
-              <Search className="absolute left-3 top-1/2 size-4 -translate-y-1/2 text-white/40" />
-              <Input
-                placeholder="Search MCPs and tools..."
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                className="pl-10 rounded-none border-white/10 bg-black/40 text-white placeholder:text-white/40 focus:ring-1 focus:ring-[#FF5800] focus:border-[#FF5800]"
-              />
-            </div>
-            <Select
-              value={selectedCategory}
-              onValueChange={setSelectedCategory}
-            >
-              <SelectTrigger className="w-full md:w-[180px] rounded-none border-white/10 bg-black/40 text-white focus:ring-1 focus:ring-[#FF5800]">
-                <SelectValue placeholder="Category" />
-              </SelectTrigger>
-              <SelectContent className="rounded-none border-white/10 bg-black/90">
-                <SelectItem value="all" className="rounded-none text-white hover:bg-white/10 focus:bg-white/10">All Categories</SelectItem>
-                <SelectItem value="platform" className="rounded-none text-white hover:bg-white/10 focus:bg-white/10">Platform</SelectItem>
-                <SelectItem value="crypto" className="rounded-none text-white hover:bg-white/10 focus:bg-white/10">Crypto</SelectItem>
-                <SelectItem value="social" className="rounded-none text-white hover:bg-white/10 focus:bg-white/10">Social</SelectItem>
-                <SelectItem value="ai" className="rounded-none text-white hover:bg-white/10 focus:bg-white/10">AI</SelectItem>
-              </SelectContent>
-            </Select>
-            <Select
-              value={selectedPaymentType}
-              onValueChange={setSelectedPaymentType}
-            >
-              <SelectTrigger className="w-full md:w-[180px] rounded-none border-white/10 bg-black/40 text-white focus:ring-1 focus:ring-[#FF5800]">
-                <SelectValue placeholder="Payment Type" />
-              </SelectTrigger>
-              <SelectContent className="rounded-none border-white/10 bg-black/90">
-                <SelectItem value="all" className="rounded-none text-white hover:bg-white/10 focus:bg-white/10">All Payment Types</SelectItem>
-                <SelectItem value="x402" className="rounded-none text-white hover:bg-white/10 focus:bg-white/10">
-                  <div className="flex items-center gap-2">
-                    <Wallet className="size-3 text-blue-400" />
-                    x402 Protocol
-                  </div>
-                </SelectItem>
-                <SelectItem value="credits" className="rounded-none text-white hover:bg-white/10 focus:bg-white/10">
-                  <div className="flex items-center gap-2">
-                    <CreditCard className="size-3 text-emerald-400" />
-                    Credit-Based
-                  </div>
-                </SelectItem>
-              </SelectContent>
-            </Select>
+        <div className="flex flex-col gap-4 md:flex-row md:items-center py-4">
+          <div className="relative flex-1">
+            <Search className="absolute left-3 top-1/2 size-4 -translate-y-1/2 text-white/40" />
+            <Input
+              placeholder="Search MCPs and tools..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="pl-10 rounded-none border-white/10 bg-black/40 text-white placeholder:text-white/40 focus:ring-1 focus:ring-[#FF5800] focus:border-[#FF5800]"
+            />
           </div>
+          <Select value={selectedCategory} onValueChange={setSelectedCategory}>
+            <SelectTrigger className="w-full md:w-[180px] rounded-none border-white/10 bg-black/40 text-white focus:ring-1 focus:ring-[#FF5800]">
+              <SelectValue placeholder="Category" />
+            </SelectTrigger>
+            <SelectContent className="rounded-none border-white/10 bg-black/90">
+              <SelectItem
+                value="all"
+                className="rounded-none text-white hover:bg-white/10 focus:bg-white/10"
+              >
+                All Categories
+              </SelectItem>
+              <SelectItem
+                value="platform"
+                className="rounded-none text-white hover:bg-white/10 focus:bg-white/10"
+              >
+                Platform
+              </SelectItem>
+              <SelectItem
+                value="crypto"
+                className="rounded-none text-white hover:bg-white/10 focus:bg-white/10"
+              >
+                Crypto
+              </SelectItem>
+              <SelectItem
+                value="social"
+                className="rounded-none text-white hover:bg-white/10 focus:bg-white/10"
+              >
+                Social
+              </SelectItem>
+              <SelectItem
+                value="ai"
+                className="rounded-none text-white hover:bg-white/10 focus:bg-white/10"
+              >
+                AI
+              </SelectItem>
+            </SelectContent>
+          </Select>
+          <Select
+            value={selectedPaymentType}
+            onValueChange={setSelectedPaymentType}
+          >
+            <SelectTrigger className="w-full md:w-[180px] rounded-none border-white/10 bg-black/40 text-white focus:ring-1 focus:ring-[#FF5800]">
+              <SelectValue placeholder="Payment Type" />
+            </SelectTrigger>
+            <SelectContent className="rounded-none border-white/10 bg-black/90">
+              <SelectItem
+                value="all"
+                className="rounded-none text-white hover:bg-white/10 focus:bg-white/10"
+              >
+                All Payment Types
+              </SelectItem>
+              <SelectItem
+                value="x402"
+                className="rounded-none text-white hover:bg-white/10 focus:bg-white/10"
+              >
+                <div className="flex items-center gap-2">
+                  <Wallet className="size-3 text-blue-400" />
+                  x402 Protocol
+                </div>
+              </SelectItem>
+              <SelectItem
+                value="credits"
+                className="rounded-none text-white hover:bg-white/10 focus:bg-white/10"
+              >
+                <div className="flex items-center gap-2">
+                  <CreditCard className="size-3 text-emerald-400" />
+                  Credit-Based
+                </div>
+              </SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
       </BrandCard>
 
       {/* Main Content */}
@@ -367,7 +402,9 @@ export function MCPPlaygroundClient() {
                   corners={false}
                   hover
                   className={`cursor-pointer transition-all ${
-                    isSelected ? "border-[#FF5800] ring-2 ring-[#FF5800]/40" : ""
+                    isSelected
+                      ? "border-[#FF5800] ring-2 ring-[#FF5800]/40"
+                      : ""
                   }`}
                   onClick={() => {
                     setSelectedMcp(mcp);
@@ -418,11 +455,13 @@ export function MCPPlaygroundClient() {
         {selectedMcp && (
           <BrandCard className="relative">
             <CornerBrackets size="sm" className="opacity-50" />
-            
+
             <div className="relative z-10 space-y-4">
               <div className="flex items-start justify-between">
                 <div>
-                  <h3 className="text-xl font-bold text-white">{selectedMcp.name}</h3>
+                  <h3 className="text-xl font-bold text-white">
+                    {selectedMcp.name}
+                  </h3>
                   <p className="text-sm text-white/60 mt-2">
                     {selectedMcp.description}
                   </p>
@@ -450,7 +489,9 @@ export function MCPPlaygroundClient() {
                     <DollarSign className="size-3" />
                     {selectedMcp.pricing.base}
                   </span>
-                  <span className="rounded-none border border-white/20 bg-white/10 px-2 py-1 text-xs text-white">v{selectedMcp.version}</span>
+                  <span className="rounded-none border border-white/20 bg-white/10 px-2 py-1 text-xs text-white">
+                    v{selectedMcp.version}
+                  </span>
                 </div>
 
                 {/* Endpoint URL */}
@@ -508,7 +549,9 @@ export function MCPPlaygroundClient() {
                       <button
                         key={tool.name}
                         onClick={() => {
-                          const foundTool = selectedMcp.tools.find((t) => t.name === tool.name);
+                          const foundTool = selectedMcp.tools.find(
+                            (t) => t.name === tool.name,
+                          );
                           if (foundTool) {
                             setSelectedTool(foundTool);
                             setToolParams({});
@@ -519,9 +562,10 @@ export function MCPPlaygroundClient() {
                         className={`
                           inline-flex items-center gap-1 px-3 py-1.5 text-xs font-medium transition-all whitespace-nowrap
                           border-b-2 border-transparent
-                          ${selectedTool?.name === tool.name 
-                            ? 'border-[#FF5800] bg-[#252527] text-white' 
-                            : 'text-white/70 hover:text-white/90 hover:bg-white/5'
+                          ${
+                            selectedTool?.name === tool.name
+                              ? "border-[#FF5800] bg-[#252527] text-white"
+                              : "text-white/70 hover:text-white/90 hover:bg-white/5"
                           }
                         `}
                       >
@@ -535,7 +579,9 @@ export function MCPPlaygroundClient() {
                   <div className="space-y-4">
                     <div className="rounded-none bg-black/40 border border-white/10 p-4 space-y-3">
                       <div className="flex items-center justify-between gap-2">
-                        <h3 className="font-semibold text-white">{selectedTool.name}</h3>
+                        <h3 className="font-semibold text-white">
+                          {selectedTool.name}
+                        </h3>
                         <div className="flex items-center gap-2">
                           {selectedMcp.pricing.type === "x402" && (
                             <span className="gap-1 rounded-none bg-blue-500/20 border border-blue-500/40 px-2 py-0.5 text-xs text-blue-400 inline-flex items-center">
@@ -543,7 +589,9 @@ export function MCPPlaygroundClient() {
                               x402
                             </span>
                           )}
-                          <span className="rounded-none bg-white/10 px-2 py-0.5 text-xs text-white">{selectedTool.cost}</span>
+                          <span className="rounded-none bg-white/10 px-2 py-0.5 text-xs text-white">
+                            {selectedTool.cost}
+                          </span>
                         </div>
                       </div>
                       <p className="text-sm text-white/60">
@@ -563,7 +611,9 @@ export function MCPPlaygroundClient() {
 
                     {/* Parameters */}
                     <div className="space-y-4">
-                      <h4 className="text-sm font-semibold text-white">Parameters</h4>
+                      <h4 className="text-sm font-semibold text-white">
+                        Parameters
+                      </h4>
                       {Object.keys(selectedTool.parameters).length === 0 ? (
                         <p className="text-sm text-white/60">
                           No parameters required
@@ -573,7 +623,10 @@ export function MCPPlaygroundClient() {
                           {Object.entries(selectedTool.parameters).map(
                             ([paramName, paramConfig]: [string, any]) => (
                               <div key={paramName} className="space-y-2">
-                                <label htmlFor={paramName} className="text-xs font-medium text-white/70 uppercase tracking-wide">
+                                <label
+                                  htmlFor={paramName}
+                                  className="text-xs font-medium text-white/70 uppercase tracking-wide"
+                                >
                                   {paramName}
                                   {!paramConfig.optional && (
                                     <span className="text-rose-400 ml-1">
@@ -621,7 +674,9 @@ export function MCPPlaygroundClient() {
                     {(result || error) && (
                       <div className="space-y-2">
                         <div className="flex items-center justify-between">
-                          <h4 className="text-sm font-semibold text-white">Result</h4>
+                          <h4 className="text-sm font-semibold text-white">
+                            Result
+                          </h4>
                           <div className="flex items-center gap-2">
                             {result && (
                               <span className="gap-1.5 rounded-none bg-emerald-500/20 border border-emerald-500/40 px-2 py-0.5 text-xs text-emerald-400 inline-flex items-center">
