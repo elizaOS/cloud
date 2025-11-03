@@ -24,6 +24,11 @@ export async function GET(request: NextRequest) {
     const name = searchParams.get("name");
     const characterName = searchParams.get("characterName");
 
+    // Load Roboto Mono font
+    const fontData = await fetch(
+      new URL("https://fonts.gstatic.com/s/robotomono/v23/L0xuDF4xlVMF-BfR8bXMIhJHg45mwgGEFl0_3vuPQ--5Ip2sSQ.woff", import.meta.url)
+    ).then((res) => res.arrayBuffer());
+
     switch (type) {
       case "character":
         return new ImageResponse(
@@ -69,12 +74,13 @@ export async function GET(request: NextRequest) {
                 <div
                   style={{
                     display: "flex",
-                    fontSize: 72,
-                    fontWeight: "bold",
+                    fontSize: 64,
+                    fontWeight: 700,
                     color: "white",
                     marginBottom: 24,
                     textAlign: "center",
                     lineHeight: 1.2,
+                    fontFamily: "Roboto Mono, monospace",
                   }}
                 >
                   {name || title}
@@ -82,12 +88,13 @@ export async function GET(request: NextRequest) {
                 <div
                   style={{
                     display: "flex",
-                    fontSize: 28,
+                    fontSize: 24,
                     color: "rgba(255, 255, 255, 0.7)",
                     textAlign: "center",
                     marginBottom: 32,
-                    lineHeight: 1.4,
+                    lineHeight: 1.5,
                     maxWidth: "700px",
+                    fontFamily: "Roboto Mono, monospace",
                   }}
                 >
                   {description.slice(0, 120)}
@@ -97,16 +104,17 @@ export async function GET(request: NextRequest) {
                   style={{
                     display: "flex",
                     alignItems: "center",
-                    gap: 12,
-                    fontSize: 24,
+                    gap: 8,
+                    fontSize: 18,
                     color: BRAND_ORANGE,
                     fontWeight: 600,
+                    fontFamily: "Roboto Mono, monospace",
                   }}
                 >
                   <div
                     style={{
-                      width: 8,
-                      height: 8,
+                      width: 6,
+                      height: 6,
                       background: BRAND_ORANGE,
                       borderRadius: "50%",
                     }}
@@ -119,6 +127,14 @@ export async function GET(request: NextRequest) {
           {
             width: 1200,
             height: 630,
+            fonts: [
+              {
+                name: "Roboto Mono",
+                data: fontData,
+                style: "normal",
+                weight: 700,
+              },
+            ],
           },
         );
 
@@ -166,10 +182,11 @@ export async function GET(request: NextRequest) {
                 <div
                   style={{
                     display: "flex",
-                    fontSize: 40,
+                    fontSize: 36,
                     fontWeight: 600,
                     color: BRAND_ORANGE,
                     marginBottom: 24,
+                    fontFamily: "Roboto Mono, monospace",
                   }}
                 >
                   💬 Chat Conversation
@@ -177,11 +194,12 @@ export async function GET(request: NextRequest) {
                 <div
                   style={{
                     display: "flex",
-                    fontSize: 64,
-                    fontWeight: "bold",
+                    fontSize: 58,
+                    fontWeight: 700,
                     color: "white",
                     marginBottom: 24,
                     lineHeight: 1.2,
+                    fontFamily: "Roboto Mono, monospace",
                   }}
                 >
                   {characterName || name || "AI Agent"}
@@ -189,22 +207,32 @@ export async function GET(request: NextRequest) {
                 <div
                   style={{
                     display: "flex",
-                    fontSize: 28,
+                    fontSize: 24,
                     color: "rgba(255, 255, 255, 0.6)",
                     marginBottom: 32,
+                    fontFamily: "Roboto Mono, monospace",
                   }}
                 >
-                  Join the conversation on elizaOS Platform
+                  Join the conversation on elizaOS
                 </div>
                 <div
                   style={{
                     display: "flex",
                     alignItems: "center",
-                    gap: 12,
-                    fontSize: 20,
+                    gap: 8,
+                    fontSize: 18,
                     color: "rgba(255, 255, 255, 0.5)",
+                    fontFamily: "Roboto Mono, monospace",
                   }}
                 >
+                  <div
+                    style={{
+                      width: 6,
+                      height: 6,
+                      background: BRAND_ORANGE,
+                      borderRadius: "50%",
+                    }}
+                  />
                   Powered by elizaOS
                 </div>
               </div>
@@ -213,6 +241,14 @@ export async function GET(request: NextRequest) {
           {
             width: 1200,
             height: 630,
+            fonts: [
+              {
+                name: "Roboto Mono",
+                data: fontData,
+                style: "normal",
+                weight: 700,
+              },
+            ],
           },
         );
 
@@ -260,10 +296,11 @@ export async function GET(request: NextRequest) {
                 <div
                   style={{
                     display: "flex",
-                    fontSize: 40,
+                    fontSize: 36,
                     fontWeight: 600,
                     color: BRAND_ORANGE,
                     marginBottom: 24,
+                    fontFamily: "Roboto Mono, monospace",
                   }}
                 >
                   🐳 Container Deployment
@@ -271,11 +308,12 @@ export async function GET(request: NextRequest) {
                 <div
                   style={{
                     display: "flex",
-                    fontSize: 64,
-                    fontWeight: "bold",
+                    fontSize: 58,
+                    fontWeight: 700,
                     color: "white",
                     marginBottom: 24,
                     lineHeight: 1.2,
+                    fontFamily: "Roboto Mono, monospace",
                   }}
                 >
                   {name || title}
@@ -284,9 +322,10 @@ export async function GET(request: NextRequest) {
                   <div
                     style={{
                       display: "flex",
-                      fontSize: 32,
+                      fontSize: 28,
                       color: "rgba(255, 255, 255, 0.7)",
                       marginBottom: 32,
+                      fontFamily: "Roboto Mono, monospace",
                     }}
                   >
                     Running: {characterName}
@@ -296,12 +335,21 @@ export async function GET(request: NextRequest) {
                   style={{
                     display: "flex",
                     alignItems: "center",
-                    gap: 12,
-                    fontSize: 20,
+                    gap: 8,
+                    fontSize: 18,
                     color: "rgba(255, 255, 255, 0.5)",
+                    fontFamily: "Roboto Mono, monospace",
                   }}
                 >
-                  Deployed on elizaOS Platform
+                  <div
+                    style={{
+                      width: 6,
+                      height: 6,
+                      background: BRAND_ORANGE,
+                      borderRadius: "50%",
+                    }}
+                  />
+                  Deployed on elizaOS
                 </div>
               </div>
             </div>
@@ -309,6 +357,14 @@ export async function GET(request: NextRequest) {
           {
             width: 1200,
             height: 630,
+            fonts: [
+              {
+                name: "Roboto Mono",
+                data: fontData,
+                style: "normal",
+                weight: 700,
+              },
+            ],
           },
         );
 
@@ -356,7 +412,7 @@ export async function GET(request: NextRequest) {
                 <div
                   style={{
                     display: "flex",
-                    fontSize: 80,
+                    fontSize: 72,
                     marginBottom: 32,
                   }}
                 >
@@ -365,11 +421,12 @@ export async function GET(request: NextRequest) {
                 <div
                   style={{
                     display: "flex",
-                    fontSize: 64,
-                    fontWeight: "bold",
+                    fontSize: 52,
+                    fontWeight: 700,
                     color: "white",
                     marginBottom: 24,
                     textAlign: "center",
+                    fontFamily: "Roboto Mono, monospace",
                   }}
                 >
                   AI Agent Marketplace
@@ -377,10 +434,11 @@ export async function GET(request: NextRequest) {
                 <div
                   style={{
                     display: "flex",
-                    fontSize: 32,
+                    fontSize: 24,
                     color: "rgba(255, 255, 255, 0.7)",
                     textAlign: "center",
                     maxWidth: "700px",
+                    fontFamily: "Roboto Mono, monospace",
                   }}
                 >
                   Discover intelligent AI characters and agents
@@ -391,6 +449,14 @@ export async function GET(request: NextRequest) {
           {
             width: 1200,
             height: 630,
+            fonts: [
+              {
+                name: "Roboto Mono",
+                data: fontData,
+                style: "normal",
+                weight: 700,
+              },
+            ],
           },
         );
 
@@ -443,31 +509,33 @@ export async function GET(request: NextRequest) {
                     gap: 8,
                     fontSize: 14,
                     color: "rgba(255, 255, 255, 0.5)",
-                    marginBottom: 24,
+                    marginBottom: 32,
                     textTransform: "uppercase",
-                    letterSpacing: "0.1em",
+                    letterSpacing: "0.15em",
+                    fontFamily: "Roboto Mono, monospace",
                   }}
                 >
                   <div
                     style={{
-                      width: 6,
-                      height: 6,
+                      width: 8,
+                      height: 8,
                       background: BRAND_ORANGE,
                       borderRadius: "50%",
                     }}
                   />
-                  ELIZAOS PLATFORM
+                  elizaOS
                 </div>
 
                 <div
                   style={{
                     display: "flex",
-                    fontSize: 56,
-                    fontWeight: "bold",
+                    fontSize: 52,
+                    fontWeight: 700,
                     color: "white",
-                    marginBottom: 24,
+                    marginBottom: 20,
                     textAlign: "center",
                     lineHeight: 1.2,
+                    fontFamily: "Roboto Mono, monospace",
                   }}
                 >
                   {title}
@@ -475,11 +543,13 @@ export async function GET(request: NextRequest) {
                 <div
                   style={{
                     display: "flex",
-                    fontSize: 28,
+                    fontSize: 24,
                     color: "rgba(255, 255, 255, 0.7)",
                     textAlign: "center",
                     maxWidth: "700px",
-                    lineHeight: 1.4,
+                    lineHeight: 1.5,
+                    fontFamily: "Roboto Mono, monospace",
+                    fontWeight: 400,
                   }}
                 >
                   {description.slice(0, 100)}
@@ -491,6 +561,14 @@ export async function GET(request: NextRequest) {
           {
             width: 1200,
             height: 630,
+            fonts: [
+              {
+                name: "Roboto Mono",
+                data: fontData,
+                style: "normal",
+                weight: 700,
+              },
+            ],
           },
         );
     }
@@ -522,24 +600,41 @@ export async function GET(request: NextRequest) {
               display: "flex",
               flexDirection: "column",
               alignItems: "center",
-              gap: 16,
+              gap: 20,
             }}
           >
             <div
               style={{
                 display: "flex",
-                fontSize: 72,
-                fontWeight: "bold",
-                color: "white",
+                alignItems: "center",
+                gap: 12,
               }}
             >
-              elizaOS Platform
+              <div
+                style={{
+                  width: 12,
+                  height: 12,
+                  background: BRAND_ORANGE,
+                  borderRadius: "50%",
+                }}
+              />
+              <div
+                style={{
+                  display: "flex",
+                  fontSize: 64,
+                  fontWeight: 700,
+                  color: "white",
+                  fontFamily: "Roboto Mono, monospace",
+                }}
+              >
+                elizaOS
+              </div>
             </div>
             <div
               style={{
                 display: "flex",
-                width: 80,
-                height: 4,
+                width: 100,
+                height: 3,
                 background: BRAND_ORANGE,
               }}
             />
@@ -549,6 +644,14 @@ export async function GET(request: NextRequest) {
       {
         width: 1200,
         height: 630,
+        fonts: [
+          {
+            name: "Roboto Mono",
+            data: fontData,
+            style: "normal",
+            weight: 700,
+          },
+        ],
       },
     );
   }
