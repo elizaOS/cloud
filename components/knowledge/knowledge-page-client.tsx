@@ -47,7 +47,9 @@ export function KnowledgePageClient() {
 
       if (!response.ok) {
         const data = await response.json();
-        throw new Error(data.details || data.error || "Failed to fetch documents");
+        throw new Error(
+          data.details || data.error || "Failed to fetch documents",
+        );
       }
 
       const data = await response.json();
@@ -83,9 +85,7 @@ export function KnowledgePageClient() {
       fetchDocuments();
     } catch (err) {
       console.error("Error deleting document:", err);
-      alert(
-        err instanceof Error ? err.message : "Failed to delete document",
-      );
+      alert(err instanceof Error ? err.message : "Failed to delete document");
     }
   };
 
@@ -99,22 +99,32 @@ export function KnowledgePageClient() {
             enhanced AI responses.
           </p>
         </div>
-        
+
         <Alert variant="destructive">
           <InfoIcon className="h-4 w-4" />
           <AlertDescription className="space-y-2">
             <p className="font-semibold">Knowledge service is not available</p>
             {error && <p className="text-sm">{error}</p>}
             <p className="text-sm mt-2">
-              The knowledge plugin may not be properly initialized. This can happen if:
+              The knowledge plugin may not be properly initialized. This can
+              happen if:
             </p>
             <ul className="text-sm list-disc list-inside space-y-1 mt-2">
               <li>The agent runtime hasn&apos;t been initialized yet</li>
-              <li>The knowledge plugin isn&apos;t loaded in the agent configuration</li>
-              <li>Required environment variables (like OPENAI_API_KEY) are missing</li>
+              <li>
+                The knowledge plugin isn&apos;t loaded in the agent
+                configuration
+              </li>
+              <li>
+                Required environment variables (like OPENAI_API_KEY) are missing
+              </li>
             </ul>
             <p className="text-sm mt-3">
-              <strong>Tip:</strong> Try visiting the <a href="/dashboard/eliza" className="underline">Eliza Agent</a> page first to initialize the runtime, then come back here.
+              <strong>Tip:</strong> Try visiting the{" "}
+              <a href="/dashboard/eliza" className="underline">
+                Eliza Agent
+              </a>{" "}
+              page first to initialize the runtime, then come back here.
             </p>
           </AlertDescription>
         </Alert>
@@ -186,4 +196,3 @@ export function KnowledgePageClient() {
     </div>
   );
 }
-

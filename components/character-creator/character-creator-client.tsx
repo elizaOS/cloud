@@ -4,8 +4,6 @@ import { useState, useCallback } from "react";
 import { AiAssistant } from "./ai-assistant";
 import { JsonEditor } from "./json-editor";
 import { CharacterForm } from "./character-form";
-import { Button } from "@/components/ui/button";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
   Select,
   SelectContent,
@@ -13,12 +11,20 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Card } from "@/components/ui/card";
 import { toast } from "sonner";
 import { createCharacter, updateCharacter } from "@/app/actions/characters";
 import type { ElizaCharacter } from "@/lib/types";
 import { PanelLeftClose, PanelLeftOpen } from "lucide-react";
 import { useSetPageHeader } from "@/components/layout/page-header-context";
+import {
+  BrandTabs,
+  BrandTabsList,
+  BrandTabsTrigger,
+  BrandTabsContent,
+  BrandCard,
+  BrandButton,
+  CornerBrackets,
+} from "@/components/brand";
 
 interface CharacterCreatorClientProps {
   initialCharacters: ElizaCharacter[];
@@ -122,7 +128,7 @@ export function CharacterCreatorClient({
               ))}
             </SelectContent>
           </Select>
-          <Button
+          <BrandButton
             variant="outline"
             size="sm"
             onClick={() => setShowAssistant(!showAssistant)}
@@ -138,7 +144,7 @@ export function CharacterCreatorClient({
                 Show Assistant
               </>
             )}
-          </Button>
+          </BrandButton>
         </div>
       ),
     },
@@ -169,13 +175,15 @@ export function CharacterCreatorClient({
 
         {/* Right Column - JSON Editor with Form Tab */}
         <div className="flex h-full flex-col overflow-hidden">
-          <Card className="flex h-full flex-col overflow-hidden p-0">
-            <Tabs defaultValue="json" className="flex h-full flex-col">
-              <TabsList className="mx-4 mb-2 mt-4 grid w-[calc(100%-2rem)] grid-cols-2">
-                <TabsTrigger value="json">JSON Editor</TabsTrigger>
-                <TabsTrigger value="form">Form View</TabsTrigger>
-              </TabsList>
-              <TabsContent
+          <BrandCard className="relative flex h-full flex-col overflow-hidden">
+            <CornerBrackets size="sm" className="opacity-50" />
+            
+            <BrandTabs defaultValue="json" className="flex h-full flex-col relative z-10">
+              <BrandTabsList className="mx-4 mb-2 mt-4 w-[calc(100%-2rem)]">
+                <BrandTabsTrigger value="json" className="flex-1">JSON Editor</BrandTabsTrigger>
+                <BrandTabsTrigger value="form" className="flex-1">Form View</BrandTabsTrigger>
+              </BrandTabsList>
+              <BrandTabsContent
                 value="json"
                 className="m-0 flex-1 overflow-hidden p-0"
               >
@@ -184,15 +192,15 @@ export function CharacterCreatorClient({
                   onChange={setCharacter}
                   onSave={handleSave}
                 />
-              </TabsContent>
-              <TabsContent
+              </BrandTabsContent>
+              <BrandTabsContent
                 value="form"
                 className="m-0 flex-1 overflow-hidden p-0"
               >
                 <CharacterForm character={character} onChange={setCharacter} />
-              </TabsContent>
-            </Tabs>
-          </Card>
+              </BrandTabsContent>
+            </BrandTabs>
+          </BrandCard>
         </div>
       </div>
     </div>

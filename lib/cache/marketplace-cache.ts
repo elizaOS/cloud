@@ -23,7 +23,7 @@ export class MarketplaceCache {
 
   async getSearchResult(
     organizationId: string,
-    filterHash: string
+    filterHash: string,
   ): Promise<MarketplaceSearchResult | null> {
     const key = this.createKey("search", organizationId, filterHash);
 
@@ -31,7 +31,7 @@ export class MarketplaceCache {
       const cached = await cacheClient.get<MarketplaceSearchResult>(key);
       if (cached) {
         logger.debug(
-          `[Marketplace Cache] Cache hit for search: ${organizationId}:${filterHash}`
+          `[Marketplace Cache] Cache hit for search: ${organizationId}:${filterHash}`,
         );
       }
       return cached;
@@ -45,14 +45,14 @@ export class MarketplaceCache {
     organizationId: string,
     filterHash: string,
     result: MarketplaceSearchResult,
-    ttl: number = this.DEFAULT_TTL
+    ttl: number = this.DEFAULT_TTL,
   ): Promise<void> {
     const key = this.createKey("search", organizationId, filterHash);
 
     try {
       await cacheClient.set(key, result, ttl);
       logger.debug(
-        `[Marketplace Cache] Cached search result: ${organizationId}:${filterHash}`
+        `[Marketplace Cache] Cached search result: ${organizationId}:${filterHash}`,
       );
     } catch (error) {
       logger.error("[Marketplace Cache] Error setting search result:", error);
@@ -66,7 +66,7 @@ export class MarketplaceCache {
       const cached = await cacheClient.get<ExtendedCharacter>(key);
       if (cached) {
         logger.debug(
-          `[Marketplace Cache] Cache hit for character: ${characterId}`
+          `[Marketplace Cache] Cache hit for character: ${characterId}`,
         );
       }
       return cached;
@@ -79,7 +79,7 @@ export class MarketplaceCache {
   async setCharacter(
     characterId: string,
     character: ExtendedCharacter,
-    ttl: number = this.DEFAULT_TTL
+    ttl: number = this.DEFAULT_TTL,
   ): Promise<void> {
     const key = this.createKey("character", characterId);
 
@@ -98,7 +98,7 @@ export class MarketplaceCache {
       const cached = await cacheClient.get<CategoryInfo[]>(key);
       if (cached) {
         logger.debug(
-          `[Marketplace Cache] Cache hit for categories: ${organizationId}`
+          `[Marketplace Cache] Cache hit for categories: ${organizationId}`,
         );
       }
       return cached;
@@ -111,7 +111,7 @@ export class MarketplaceCache {
   async setCategories(
     organizationId: string,
     categories: CategoryInfo[],
-    ttl: number = 600 // 10 minutes for categories
+    ttl: number = 600, // 10 minutes for categories
   ): Promise<void> {
     const key = this.createKey("categories", organizationId);
 
@@ -129,12 +129,12 @@ export class MarketplaceCache {
     try {
       await cacheClient.delPattern(pattern);
       logger.debug(
-        `[Marketplace Cache] Invalidated search results for: ${organizationId}`
+        `[Marketplace Cache] Invalidated search results for: ${organizationId}`,
       );
     } catch (error) {
       logger.error(
         "[Marketplace Cache] Error invalidating search results:",
-        error
+        error,
       );
     }
   }
@@ -156,7 +156,7 @@ export class MarketplaceCache {
     try {
       await cacheClient.del(key);
       logger.debug(
-        `[Marketplace Cache] Invalidated categories for: ${organizationId}`
+        `[Marketplace Cache] Invalidated categories for: ${organizationId}`,
       );
     } catch (error) {
       logger.error("[Marketplace Cache] Error invalidating categories:", error);
@@ -171,14 +171,14 @@ export class MarketplaceCache {
    */
   async invalidateByCategory(
     organizationId: string,
-    category?: string
+    category?: string,
   ): Promise<void> {
     try {
       // Invalidate only category counts if category specified
       if (category) {
         await this.invalidateCategories(organizationId);
         logger.debug(
-          `[Marketplace Cache] Invalidated category caches for: ${organizationId}`
+          `[Marketplace Cache] Invalidated category caches for: ${organizationId}`,
         );
       } else {
         // If no category, invalidate all as we don't know what's affected
@@ -187,7 +187,7 @@ export class MarketplaceCache {
     } catch (error) {
       logger.error(
         "[Marketplace Cache] Error in granular invalidation:",
-        error
+        error,
       );
     }
   }
@@ -203,7 +203,7 @@ export class MarketplaceCache {
         this.invalidateCategories(organizationId),
       ]);
       logger.debug(
-        `[Marketplace Cache] Invalidated all marketplace cache for: ${organizationId}`
+        `[Marketplace Cache] Invalidated all marketplace cache for: ${organizationId}`,
       );
     } catch (error) {
       logger.error("[Marketplace Cache] Error invalidating all:", error);

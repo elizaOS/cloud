@@ -176,8 +176,8 @@ export function VoiceManager({
             ) : previewAudioUrl ? (
               <div className="p-4 rounded-lg bg-muted">
                 <p className="text-sm text-muted-foreground mb-3">
-                  Preview Text: "Hello! This is a preview of your custom voice
-                  clone."
+                  Preview Text: &quot;Hello! This is a preview of your custom
+                  voice clone.&quot;
                 </p>
                 <VoiceAudioPlayer audioUrl={previewAudioUrl} />
               </div>

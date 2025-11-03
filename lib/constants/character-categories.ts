@@ -81,7 +81,9 @@ export const CATEGORY_ORDER: Array<keyof typeof CHARACTER_CATEGORIES> = [
   "LIFESTYLE",
 ];
 
-export function getCategoryById(id: CategoryId): CategoryDefinition | undefined {
+export function getCategoryById(
+  id: CategoryId,
+): CategoryDefinition | undefined {
   const key = id.toUpperCase() as keyof typeof CHARACTER_CATEGORIES;
   return CHARACTER_CATEGORIES[key];
 }

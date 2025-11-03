@@ -67,7 +67,7 @@ export function CharacterMarketplace({
         // Track interaction
         await fetch(
           `/api/marketplace/characters/${character.id}/track-interaction`,
-          { method: "POST" }
+          { method: "POST" },
         );
 
         onSelectCharacter(character);
@@ -77,7 +77,7 @@ export function CharacterMarketplace({
         onSelectCharacter(character);
       }
     },
-    [onSelectCharacter]
+    [onSelectCharacter],
   );
 
   const handleViewDetails = useCallback(
@@ -93,7 +93,7 @@ export function CharacterMarketplace({
 
       setSelectedCharacter(character);
     },
-    []
+    [],
   );
 
   const handleClone = useCallback(
@@ -105,11 +105,11 @@ export function CharacterMarketplace({
       } catch (error) {
         console.error("Error cloning character:", error);
         toast.error(
-          error instanceof Error ? error.message : "Failed to clone character"
+          error instanceof Error ? error.message : "Failed to clone character",
         );
       }
     },
-    [onCloneCharacter, refetch]
+    [onCloneCharacter, refetch],
   );
 
   if (isCollapsed) {

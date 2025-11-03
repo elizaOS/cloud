@@ -15,12 +15,12 @@ async function handleGET(req: NextRequest) {
   try {
     const { user } = await requireAuthOrApiKey(req);
     const runtime = await agentRuntime.getRuntime();
-    
+
     console.log("[Knowledge API] Runtime initialized:", {
       agentId: runtime.agentId,
       hasRuntime: !!runtime,
     });
-    
+
     // Wait for knowledge service to be available
     const knowledgeService = await getKnowledgeService(runtime);
 
@@ -28,16 +28,16 @@ async function handleGET(req: NextRequest) {
       const status = runtime.getServiceRegistrationStatus("knowledge");
       console.error("[Knowledge API] Knowledge service not available!");
       console.error("[Knowledge API] Service registration status:", status);
-      
+
       return NextResponse.json(
-        { 
+        {
           error: "Knowledge service not available",
           details: `Service status: ${status}. The knowledge plugin may not be loaded or is still initializing.`,
         },
         { status: 503 },
       );
     }
-    
+
     console.log("[Knowledge API] Knowledge service loaded successfully");
 
     // Get query parameters
@@ -110,10 +110,13 @@ async function handlePOST(req: NextRequest) {
     // For text content, check if it needs base64 encoding
     let processedContent = content;
     const finalContentType = contentType || "text/plain";
-    
+
     // If content looks like it might be binary or already base64, keep it as is
     // Otherwise, convert text to base64 for consistency
-    if (finalContentType.startsWith("text/") || finalContentType === "application/json") {
+    if (
+      finalContentType.startsWith("text/") ||
+      finalContentType === "application/json"
+    ) {
       // Text content - convert to base64
       processedContent = Buffer.from(content).toString("base64");
     }
@@ -157,4 +160,3 @@ async function handlePOST(req: NextRequest) {
 
 export const GET = withRateLimit(handleGET, RateLimitPresets.STANDARD);
 export const POST = withRateLimit(handlePOST, RateLimitPresets.STANDARD);
-

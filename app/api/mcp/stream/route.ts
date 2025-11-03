@@ -49,7 +49,7 @@ export async function GET(request: NextRequest) {
     if (!eventType || !resourceId) {
       return new NextResponse(
         JSON.stringify({ error: "Missing eventType or resourceId" }),
-        { status: 400 }
+        { status: 400 },
       );
     }
 
@@ -63,14 +63,14 @@ export async function GET(request: NextRequest) {
 
     if (!hasAccess) {
       logger.warn(
-        `[SSE Stream] Unauthorized access attempt: user ${auth.user.id} tried to access ${eventType}:${resourceId}`
+        `[SSE Stream] Unauthorized access attempt: user ${auth.user.id} tried to access ${eventType}:${resourceId}`,
       );
       return new NextResponse(
         JSON.stringify({
           error: "Unauthorized",
           message: "You do not have access to this resource",
         }),
-        { status: 403 }
+        { status: 403 },
       );
     }
 
@@ -83,7 +83,7 @@ export async function GET(request: NextRequest) {
     if (connectionCount > SSE_MAX_CONNECTIONS_PER_ORG) {
       await redis.decr(connectionKey); // Rollback the increment
       logger.warn(
-        `[SSE Stream] Connection limit exceeded for org ${auth.user.organization_id}: ${connectionCount}/${SSE_MAX_CONNECTIONS_PER_ORG}`
+        `[SSE Stream] Connection limit exceeded for org ${auth.user.organization_id}: ${connectionCount}/${SSE_MAX_CONNECTIONS_PER_ORG}`,
       );
       return new NextResponse(
         JSON.stringify({
@@ -91,13 +91,13 @@ export async function GET(request: NextRequest) {
           message: `Maximum ${SSE_MAX_CONNECTIONS_PER_ORG} concurrent SSE connections allowed per organization`,
           currentConnections: connectionCount - 1,
         }),
-        { status: 429 }
+        { status: 429 },
       );
     }
 
     logger.info(
       `[SSE Stream] Starting stream: ${eventType}:${resourceId} for user ${auth.user.id} ` +
-        `(${connectionCount}/${SSE_MAX_CONNECTIONS_PER_ORG} connections)`
+        `(${connectionCount}/${SSE_MAX_CONNECTIONS_PER_ORG} connections)`,
     );
 
     const encoder = new TextEncoder();
@@ -128,12 +128,12 @@ export async function GET(request: NextRequest) {
           try {
             await redis.decr(connectionKey);
             logger.debug(
-              `[SSE Stream] Decremented connection count for org ${auth.user.organization_id}`
+              `[SSE Stream] Decremented connection count for org ${auth.user.organization_id}`,
             );
           } catch (error) {
             logger.error(
               "[SSE Stream] Failed to decrement connection count:",
-              error
+              error,
             );
           }
         };
@@ -148,8 +148,8 @@ export async function GET(request: NextRequest) {
                 type: "connected",
                 data: { channel, eventType, resourceId },
                 timestamp: new Date().toISOString(),
-              })
-            )
+              }),
+            ),
           );
 
           const poll = async (): Promise<void> => {
@@ -164,7 +164,7 @@ export async function GET(request: NextRequest) {
 
               if (messages && messages.length > 0) {
                 logger.debug(
-                  `[SSE Stream] Found ${messages.length} messages in ${channel}`
+                  `[SSE Stream] Found ${messages.length} messages in ${channel}`,
                 );
 
                 // PERFORMANCE FIX: Reset backoff when messages are found
@@ -189,10 +189,10 @@ export async function GET(request: NextRequest) {
                 if (consecutiveEmptyPolls > 3) {
                   currentBackoff = Math.min(
                     currentBackoff * SSE_BACKOFF_MULTIPLIER,
-                    SSE_BACKOFF_MAX_MS
+                    SSE_BACKOFF_MAX_MS,
                   );
                   logger.debug(
-                    `[SSE Stream] No messages for ${consecutiveEmptyPolls} polls, backing off to ${currentBackoff}ms`
+                    `[SSE Stream] No messages for ${consecutiveEmptyPolls} polls, backing off to ${currentBackoff}ms`,
                   );
                 }
               }
@@ -209,8 +209,8 @@ export async function GET(request: NextRequest) {
                         backoff: currentBackoff,
                       },
                       timestamp: new Date().toISOString(),
-                    })
-                  )
+                    }),
+                  ),
                 );
               }
 
@@ -218,7 +218,7 @@ export async function GET(request: NextRequest) {
               if (isActive) {
                 pollInterval = setTimeout(
                   poll,
-                  currentBackoff
+                  currentBackoff,
                 ) as unknown as NodeJS.Timeout;
               }
             } catch (error) {
@@ -236,14 +236,14 @@ export async function GET(request: NextRequest) {
                             : "Polling error",
                       },
                       timestamp: new Date().toISOString(),
-                    })
-                  )
+                    }),
+                  ),
                 );
               } catch (enqueueError) {
                 // Controller might be closed, cleanup and exit
                 logger.error(
                   "[SSE Stream] Failed to enqueue error:",
-                  enqueueError
+                  enqueueError,
                 );
                 await cleanup();
                 try {
@@ -258,7 +258,7 @@ export async function GET(request: NextRequest) {
               if (isActive) {
                 pollInterval = setTimeout(
                   poll,
-                  currentBackoff
+                  currentBackoff,
                 ) as unknown as NodeJS.Timeout;
               }
             }
@@ -271,7 +271,7 @@ export async function GET(request: NextRequest) {
           request.signal.addEventListener("abort", async () => {
             await cleanup();
             logger.info(
-              `[SSE Stream] Client disconnected: ${eventType}:${resourceId}`
+              `[SSE Stream] Client disconnected: ${eventType}:${resourceId}`,
             );
             try {
               controller.close();
@@ -284,7 +284,7 @@ export async function GET(request: NextRequest) {
           timeoutHandle = setTimeout(async () => {
             await cleanup();
             logger.info(
-              `[SSE Stream] Timeout reached: ${eventType}:${resourceId}`
+              `[SSE Stream] Timeout reached: ${eventType}:${resourceId}`,
             );
             try {
               controller.close();
@@ -322,7 +322,7 @@ export async function GET(request: NextRequest) {
             ? error.message
             : "Failed to establish SSE stream",
       }),
-      { status: 500 }
+      { status: 500 },
     );
   }
 }

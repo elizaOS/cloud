@@ -13,6 +13,7 @@ import { ThemeToggle } from "@/components/theme/theme-toggle";
 import { SidebarNavigationSection } from "./sidebar-section";
 import { sidebarSections } from "./sidebar-data";
 import { useThemeLogo } from "./use-theme-logo";
+import { CornerBrackets } from "@/components/brand";
 
 interface SidebarProps {
   className?: string;
@@ -51,7 +52,7 @@ export default function Sidebar({
       {/* Sidebar Container */}
       <aside
         className={cn(
-          "flex h-full flex-col border-r bg-sidebar transition-transform duration-300 ease-in-out",
+          "flex h-full flex-col border-r border-white/10 bg-[#0A0A0A] transition-transform duration-300 ease-in-out",
           isMobile
             ? `fixed inset-y-0 left-0 z-50 w-64 ${isOpen ? "translate-x-0" : "-translate-x-full"}`
             : "relative w-64",
@@ -59,37 +60,36 @@ export default function Sidebar({
         )}
       >
         {/* Header with Logo */}
-        <div className="flex h-16 items-center justify-between border-b px-4">
+        <div className="relative flex h-16 items-center justify-between border-b border-white/10 px-4">
+          {/* Corner brackets for logo area */}
+          <CornerBrackets size="sm" className="opacity-30" />
+          
           <Link
             href="/dashboard"
-            className="flex items-center transition-opacity hover:opacity-80"
+            className="flex items-center gap-2 transition-opacity hover:opacity-80 relative z-10"
           >
-            <Image
-              src={logoSrc}
-              alt="elizaOS"
-              width={120}
-              height={40}
-              className="h-8 w-auto"
-              priority
-              key={logoSrc}
+            <span
+              className="inline-block w-2 h-2 rounded-full flex-shrink-0"
+              style={{ backgroundColor: "#FF5800" }}
             />
+            <span className="text-white text-lg font-bold tracking-wide">ELIZA</span>
           </Link>
 
           {/* Mobile Close Button */}
           {isMobile && onToggle && (
             <button
               onClick={onToggle}
-              className="rounded-md p-2 hover:bg-accent focus:bg-accent focus:outline-none"
+              className="rounded-none p-2 hover:bg-white/10 focus:bg-white/10 focus:outline-none relative z-10 transition-colors"
               aria-label="Close navigation"
             >
-              <X className="h-4 w-4" />
+              <X className="h-4 w-4 text-white" />
             </button>
           )}
         </div>
 
         {/* Navigation Content */}
-        <nav className="flex-1 overflow-y-auto px-4 py-4">
-          <div className="space-y-6">
+        <nav className="flex-1 overflow-y-auto px-4 py-6">
+          <div className="space-y-8">
             {sidebarSections.map((section, index) => (
               <SidebarNavigationSection key={index} section={section} />
             ))}
@@ -97,9 +97,12 @@ export default function Sidebar({
         </nav>
 
         {/* Footer with Theme Toggle */}
-        <div className="border-t p-4">
-          <div className="flex items-center justify-between">
-            <span className="text-sm text-muted-foreground">Theme</span>
+        <div className="relative border-t border-white/10 p-4">
+          {/* Corner brackets for footer */}
+          <CornerBrackets size="sm" className="opacity-30" />
+          
+          <div className="flex items-center justify-between relative z-10">
+            <span className="text-xs uppercase tracking-wider text-white/50">Theme</span>
             <ThemeToggle />
           </div>
         </div>

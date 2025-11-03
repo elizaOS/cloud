@@ -54,12 +54,12 @@ export const conversations = pgTable(
   },
   (table) => ({
     organization_idx: index("conversations_organization_idx").on(
-      table.organization_id
+      table.organization_id,
     ),
     user_idx: index("conversations_user_idx").on(table.user_id),
     updated_idx: index("conversations_updated_idx").on(table.updated_at),
     status_idx: index("conversations_status_idx").on(table.status),
-  })
+  }),
 );
 
 export const conversationMessages = pgTable(
@@ -85,14 +85,14 @@ export const conversationMessages = pgTable(
   },
   (table) => ({
     conversation_idx: index("conv_messages_conversation_idx").on(
-      table.conversation_id
+      table.conversation_id,
     ),
     sequence_idx: index("conv_messages_sequence_idx").on(
       table.conversation_id,
-      table.sequence_number
+      table.sequence_number,
     ),
     created_idx: index("conv_messages_created_idx").on(table.created_at),
-  })
+  }),
 );
 
 // Type inference

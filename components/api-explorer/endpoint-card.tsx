@@ -1,16 +1,8 @@
 "use client";
 
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
 import { type ApiEndpoint } from "@/lib/swagger/endpoint-discovery";
 import { ShieldIcon } from "lucide-react";
+import { BrandCard, BrandButton } from "@/components/brand";
 
 interface EndpointCardProps {
   endpoint: ApiEndpoint;
@@ -26,64 +18,71 @@ export function EndpointCard({
   getCategoryIcon,
 }: EndpointCardProps) {
   return (
-    <Card className="cursor-pointer border-border/60 bg-background/60 transition-all hover:-translate-y-0.5 hover:shadow-lg">
-      <CardHeader className="pb-4">
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-2">
-            {getCategoryIcon(endpoint.category)}
-            <CardTitle className="text-lg">{endpoint.name}</CardTitle>
+    <BrandCard 
+      hover
+      corners={false}
+      className="cursor-pointer transition-all hover:-translate-y-0.5"
+    >
+      <div className="space-y-4">
+        <div>
+          <div className="flex items-center justify-between mb-2">
+            <div className="flex items-center gap-2">
+              {getCategoryIcon(endpoint.category)}
+              <h3 className="text-lg font-bold text-white">{endpoint.name}</h3>
+            </div>
+            <div className="flex items-center gap-2">
+              {endpoint.requiresAuth && (
+                <ShieldIcon className="h-4 w-4 text-amber-400" />
+              )}
+              {endpoint.deprecated && (
+                <span className="rounded-none bg-rose-500/20 px-2 py-0.5 text-xs font-bold text-rose-400 border border-rose-500/40">
+                  DEPRECATED
+                </span>
+              )}
+            </div>
           </div>
-          <div className="flex items-center gap-2">
-            {endpoint.requiresAuth && (
-              <ShieldIcon className="h-4 w-4 text-amber-500" />
-            )}
-            {endpoint.deprecated && (
-              <Badge variant="destructive" className="text-xs">
-                Deprecated
-              </Badge>
-            )}
-          </div>
+          <p className="text-sm text-white/60">
+            {endpoint.description}
+          </p>
         </div>
-        <CardDescription className="text-sm text-muted-foreground">
-          {endpoint.description}
-        </CardDescription>
-      </CardHeader>
 
-      <CardContent>
-        <div className="space-y-4">
-          <div className="flex items-center gap-2">
-            <span className={getMethodColor(endpoint.method)}>
-              {endpoint.method}
-            </span>
-            <code className="flex-1 rounded-lg bg-muted px-2 py-1 font-mono text-xs">
-              {endpoint.path}
-            </code>
-          </div>
+        <div className="flex items-center gap-2">
+          <span className={getMethodColor(endpoint.method)}>
+            {endpoint.method}
+          </span>
+          <code className="flex-1 rounded-none bg-black/60 border border-white/10 px-2 py-1 font-mono text-xs text-white">
+            {endpoint.path}
+          </code>
+        </div>
 
+        {endpoint.tags.length > 0 && (
           <div className="flex flex-wrap gap-1.5">
             {endpoint.tags.map((tag) => (
-              <Badge
+              <span
                 key={tag}
-                variant="secondary"
-                className="rounded-full text-xs"
+                className="rounded-none bg-white/10 px-2 py-0.5 text-xs text-white/70"
               >
                 {tag}
-              </Badge>
+              </span>
             ))}
           </div>
+        )}
 
-          {endpoint.rateLimit && (
-            <div className="text-xs text-muted-foreground">
-              Rate limit: {endpoint.rateLimit.requests} requests per{" "}
-              {endpoint.rateLimit.window}
-            </div>
-          )}
+        {endpoint.rateLimit && (
+          <div className="text-xs text-white/50">
+            Rate limit: {endpoint.rateLimit.requests} requests per{" "}
+            {endpoint.rateLimit.window}
+          </div>
+        )}
 
-          <Button className="w-full" onClick={() => onSelect(endpoint)}>
-            Test Endpoint
-          </Button>
-        </div>
-      </CardContent>
-    </Card>
+        <BrandButton 
+          variant="primary"
+          className="w-full" 
+          onClick={() => onSelect(endpoint)}
+        >
+          Test Endpoint
+        </BrandButton>
+      </div>
+    </BrandCard>
   );
 }

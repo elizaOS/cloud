@@ -13,12 +13,12 @@ export async function GET(request: NextRequest) {
     // Get user's jobs (only in-progress ones)
     const allJobs = await voiceCloningService.getUserJobs(
       user.organization_id,
-      user.id
+      user.id,
     );
 
     // Filter for only processing/pending jobs
     const activeJobs = allJobs.filter(
-      (job) => job.status === "processing" || job.status === "pending"
+      (job) => job.status === "processing" || job.status === "pending",
     );
 
     return NextResponse.json({
@@ -44,7 +44,7 @@ export async function GET(request: NextRequest) {
 
     return NextResponse.json(
       { error: "Failed to fetch voice jobs. Please try again." },
-      { status: 500 }
+      { status: 500 },
     );
   }
 }

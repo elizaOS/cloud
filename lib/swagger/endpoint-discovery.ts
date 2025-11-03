@@ -1014,6 +1014,6 @@ export function searchEndpoints(query: string): ApiEndpoint[] {
     (endpoint) =>
       endpoint.name.toLowerCase().includes(searchTerm) ||
       endpoint.description.toLowerCase().includes(searchTerm) ||
-      endpoint.path.toLowerCase().includes(searchTerm)
+      endpoint.path.toLowerCase().includes(searchTerm),
   );
 }

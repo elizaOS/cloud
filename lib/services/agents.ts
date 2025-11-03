@@ -1,5 +1,8 @@
 import { agentRuntime } from "@/lib/eliza/agent-runtime";
-import { agentStateCache, type RoomContext } from "@/lib/cache/agent-state-cache";
+import {
+  agentStateCache,
+  type RoomContext,
+} from "@/lib/cache/agent-state-cache";
 import { distributedLocks } from "@/lib/cache/distributed-locks";
 import { agentEventEmitter } from "@/lib/events/agent-events";
 import { logger } from "@/lib/utils/logger";
@@ -54,10 +57,7 @@ export class AgentService {
    * @param organizationId - Organization ID
    * @returns Room ID
    */
-  async getOrCreateRoom(
-    entityId: string,
-    agentId: string,
-  ): Promise<string> {
+  async getOrCreateRoom(entityId: string, agentId: string): Promise<string> {
     try {
       const runtime = await agentRuntime.getRuntime();
       const entityUUID = stringToUuid(entityId) as UUID;
@@ -124,11 +124,15 @@ export class AgentService {
 
     // Acquire distributed lock with retry for MCP concurrent requests
     // Will retry up to 10 times with exponential backoff (max ~20s wait)
-    const lock = await distributedLocks.acquireRoomLockWithRetry(roomId, 60000, {
-      maxRetries: 10,
-      initialDelayMs: 100,
-      maxDelayMs: 2000,
-    });
+    const lock = await distributedLocks.acquireRoomLockWithRetry(
+      roomId,
+      60000,
+      {
+        maxRetries: 10,
+        initialDelayMs: 100,
+        maxDelayMs: 2000,
+      },
+    );
 
     if (!lock) {
       throw new Error(
@@ -147,21 +151,24 @@ export class AgentService {
 
       // Use agentRuntime.handleMessage() for real ElizaOS processing
       // This handles user message creation, saving, and agent response generation
-      const { message: agentMessage, usage: messageUsage } = await agentRuntime.handleMessage(
-        roomId,
-        entityId,
-        {
+      const { message: agentMessage, usage: messageUsage } =
+        await agentRuntime.handleMessage(roomId, entityId, {
           text: message,
           attachments: attachments || [],
-        }
-      );
+        });
 
       // Emit response complete event
-      await agentEventEmitter.emitResponseComplete(roomId, agentMessage, messageUsage || {
-        inputTokens: Math.ceil(message.length / 4),
-        outputTokens: Math.ceil(((agentMessage.content.text as string) || "").length / 4),
-        model: "eliza-agent",
-      });
+      await agentEventEmitter.emitResponseComplete(
+        roomId,
+        agentMessage,
+        messageUsage || {
+          inputTokens: Math.ceil(message.length / 4),
+          outputTokens: Math.ceil(
+            ((agentMessage.content.text as string) || "").length / 4,
+          ),
+          model: "eliza-agent",
+        },
+      );
 
       // Invalidate room context cache to force fresh fetch on next request
       // This is more reliable than trying to update the cache with new messages
@@ -174,7 +181,9 @@ export class AgentService {
         timestamp: new Date(agentMessage.createdAt || Date.now()),
         usage: {
           inputTokens: Math.ceil(message.length / 4),
-          outputTokens: Math.ceil(((agentMessage.content.text as string) || "").length / 4),
+          outputTokens: Math.ceil(
+            ((agentMessage.content.text as string) || "").length / 4,
+          ),
           model: "eliza-agent",
         },
         ...(streaming && {
@@ -202,7 +211,9 @@ export class AgentService {
       return cached;
     }
 
-    logger.debug(`[Agent Service] Cache miss for room ${roomId}, fetching from DB`);
+    logger.debug(
+      `[Agent Service] Cache miss for room ${roomId}, fetching from DB`,
+    );
 
     // Fetch from database
     const runtime = await agentRuntime.getRuntime();

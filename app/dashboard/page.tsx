@@ -30,9 +30,14 @@ import {
   UsageAlertsCard,
   type UsageAlertItem,
 } from "@/components/dashboard/usage-alerts-card";
-import { Button } from "@/components/ui/button";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { getDashboardData } from "@/lib/actions/dashboard";
+import {
+  BrandTabs,
+  BrandTabsList,
+  BrandTabsTrigger,
+  BrandTabsContent,
+  BrandButton,
+} from "@/components/brand";
 
 export const metadata: Metadata = {
   title: "Dashboard",
@@ -43,12 +48,12 @@ export const metadata: Metadata = {
 export const dynamic = "force-dynamic";
 
 function generateUsageAlerts(
-  data: Awaited<ReturnType<typeof getDashboardData>>
+  data: Awaited<ReturnType<typeof getDashboardData>>,
 ): UsageAlertItem[] {
   const alerts: UsageAlertItem[] = [];
 
   const degradedProviders = data.providerHealth.filter(
-    (p) => p.status === "degraded"
+    (p) => p.status === "degraded",
   );
   for (const provider of degradedProviders) {
     alerts.push({
@@ -61,7 +66,8 @@ function generateUsageAlerts(
   }
 
   const daysRemaining = Math.floor(
-    Number(data.organization.creditBalance) / (data.usage.dailyBurnCredits || 1)
+    Number(data.organization.creditBalance) /
+      (data.usage.dailyBurnCredits || 1),
   );
   if (daysRemaining < 90 && daysRemaining > 0) {
     alerts.push({
@@ -98,7 +104,7 @@ function generateUsageAlerts(
 }
 
 function generateActivityFeed(
-  data: Awaited<ReturnType<typeof getDashboardData>>
+  data: Awaited<ReturnType<typeof getDashboardData>>,
 ): ActivityFeedItem[] {
   const activities: ActivityFeedItem[] = [];
 
@@ -236,7 +242,7 @@ export default async function DashboardPage() {
       Track your usage and spending patterns. Manage billing settings in the{" "}
       <Link
         href="/dashboard/account"
-        className="text-primary underline-offset-2 hover:underline"
+        className="text-[#FF5800] underline-offset-2 hover:underline"
       >
         account console
       </Link>
@@ -303,17 +309,16 @@ export default async function DashboardPage() {
               label: "View analytics",
               href: "/dashboard/analytics",
             }}
-            className="rounded-3xl border border-border/60 bg-background/90 shadow-sm"
           />
 
-          <Tabs defaultValue="overview" className="w-full">
-            <TabsList className="grid w-full max-w-md grid-cols-3">
-              <TabsTrigger value="overview">Overview</TabsTrigger>
-              <TabsTrigger value="activity">Activity</TabsTrigger>
-              <TabsTrigger value="limits">Limits & Health</TabsTrigger>
-            </TabsList>
+          <BrandTabs defaultValue="overview" className="w-full">
+            <BrandTabsList className="w-full max-w-md">
+              <BrandTabsTrigger value="overview" className="flex-1">Overview</BrandTabsTrigger>
+              <BrandTabsTrigger value="activity" className="flex-1">Activity</BrandTabsTrigger>
+              <BrandTabsTrigger value="limits" className="flex-1">Limits & Health</BrandTabsTrigger>
+            </BrandTabsList>
 
-            <TabsContent value="overview" className="mt-6 space-y-6">
+            <BrandTabsContent value="overview" className="mt-6 space-y-6">
               <div className="grid gap-6 lg:grid-cols-3">
                 <UsageOverview
                   metrics={usageMetrics}
@@ -329,9 +334,9 @@ export default async function DashboardPage() {
                   <PlanLimitsCard {...planLimits} />
                 </div>
               </div>
-            </TabsContent>
+            </BrandTabsContent>
 
-            <TabsContent value="activity" className="mt-6 space-y-6">
+            <BrandTabsContent value="activity" className="mt-6 space-y-6">
               <div className="grid gap-6 lg:grid-cols-12">
                 <div className="lg:col-span-7">
                   <ActivityFeed
@@ -340,12 +345,12 @@ export default async function DashboardPage() {
                     description="Latest image, video, and chat generations across your organization."
                     footerAction={
                       <div className="flex w-full justify-end">
-                        <Button variant="ghost" size="sm" asChild>
+                        <BrandButton variant="ghost" size="sm" asChild>
                           <Link href="/dashboard/gallery">
                             View all generations
                             <Sparkles className="ml-2 h-3.5 w-3.5" />
                           </Link>
-                        </Button>
+                        </BrandButton>
                       </div>
                     }
                   />
@@ -355,16 +360,16 @@ export default async function DashboardPage() {
                   <CreditActivity transactions={creditTransactions} />
                 </div>
               </div>
-            </TabsContent>
+            </BrandTabsContent>
 
-            <TabsContent value="limits" className="mt-6 space-y-6">
+            <BrandTabsContent value="limits" className="mt-6 space-y-6">
               <div className="grid gap-6 md:grid-cols-2">
                 <PlanLimitsCard {...planLimits} />
                 <ProviderHealthCard items={providerHealth} />
               </div>
               <UsageAlertsCard alerts={usageAlerts} />
-            </TabsContent>
-          </Tabs>
+            </BrandTabsContent>
+          </BrandTabs>
         </div>
       </main>
     </DashboardPageWrapper>

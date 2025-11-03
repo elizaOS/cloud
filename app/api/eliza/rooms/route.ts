@@ -31,10 +31,17 @@ export async function GET(request: NextRequest) {
     // Batch load character mappings for all rooms in a single query
     let characterMappings: Map<string, string> = new Map();
     try {
-      characterMappings = await elizaRoomCharactersRepository.findByRoomIds(roomIds);
-      logger.debug("[Eliza Rooms API] Batch loaded character mappings:", characterMappings.size);
+      characterMappings =
+        await elizaRoomCharactersRepository.findByRoomIds(roomIds);
+      logger.debug(
+        "[Eliza Rooms API] Batch loaded character mappings:",
+        characterMappings.size,
+      );
     } catch (err) {
-      logger.error("[Eliza Rooms API] ✗ Failed to batch load character mappings:", err);
+      logger.error(
+        "[Eliza Rooms API] ✗ Failed to batch load character mappings:",
+        err,
+      );
     }
 
     // Get room details with character mappings
@@ -51,7 +58,10 @@ export async function GET(request: NextRequest) {
       }),
     );
 
-    logger.debug("[Eliza Rooms API] Returning rooms:", rooms.map(r => ({ id: r.id, characterId: r.characterId })));
+    logger.debug(
+      "[Eliza Rooms API] Returning rooms:",
+      rooms.map((r) => ({ id: r.id, characterId: r.characterId })),
+    );
 
     return NextResponse.json({
       success: true,
@@ -78,7 +88,14 @@ export async function POST(request: NextRequest) {
 
     const body = await request.json();
     const { entityId, characterId } = body;
-    logger.debug("[Eliza Rooms API] Creating room for entity:", entityId, "with character:", characterId, "userId:", user.id);
+    logger.debug(
+      "[Eliza Rooms API] Creating room for entity:",
+      entityId,
+      "with character:",
+      characterId,
+      "userId:",
+      user.id,
+    );
 
     if (!entityId) {
       return NextResponse.json(
@@ -149,19 +166,30 @@ export async function POST(request: NextRequest) {
     // CRITICAL: Store character mapping FIRST (before greeting message)
     if (characterId) {
       try {
-        logger.debug("[Eliza Rooms API] Attempting to store character mapping:", {
-          room_id: roomId,
-          character_id: characterId,
-          user_id: user.id,
-        });
+        logger.debug(
+          "[Eliza Rooms API] Attempting to store character mapping:",
+          {
+            room_id: roomId,
+            character_id: characterId,
+            user_id: user.id,
+          },
+        );
         await elizaRoomCharactersRepository.create({
           room_id: roomId,
           character_id: characterId,
           user_id: user.id,
         });
-        logger.info("[Eliza Rooms API] ✓ Character mapping stored:", roomId, "→", characterId);
+        logger.info(
+          "[Eliza Rooms API] ✓ Character mapping stored:",
+          roomId,
+          "→",
+          characterId,
+        );
       } catch (mappingError) {
-        logger.error("[Eliza Rooms API] ✗ Failed to create character mapping:", mappingError);
+        logger.error(
+          "[Eliza Rooms API] ✗ Failed to create character mapping:",
+          mappingError,
+        );
         // Continue anyway - room is created even if mapping fails
       }
     } else {
@@ -178,8 +206,7 @@ export async function POST(request: NextRequest) {
         : runtime;
 
       const characterName = greetingRuntime.character?.name || "Eliza";
-      const greetingText =
-        `Hello! I'm ${characterName}, your friendly AI assistant. How can I help you today?`;
+      const greetingText = `Hello! I'm ${characterName}, your friendly AI assistant. How can I help you today?`;
 
       await greetingRuntime.createMemory(
         {
@@ -195,7 +222,11 @@ export async function POST(request: NextRequest) {
         },
         "messages",
       );
-      logger.info("[Eliza Rooms API] ✓ Greeting message saved (character:", characterName, ")");
+      logger.info(
+        "[Eliza Rooms API] ✓ Greeting message saved (character:",
+        characterName,
+        ")",
+      );
     } catch (initErr) {
       logger.error(
         "[Eliza Rooms API] ✗ Failed to create initial greeting:",

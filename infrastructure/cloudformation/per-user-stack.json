@@ -231,13 +231,21 @@
             "{{resolve:ssm:${AMIParameter}}}",
             {
               "AMIParameter": {
-                "Fn::FindInMap": ["ArchitectureConfig", { "Ref": "Architecture" }, "AMIParameter"]
+                "Fn::FindInMap": [
+                  "ArchitectureConfig",
+                  { "Ref": "Architecture" },
+                  "AMIParameter"
+                ]
               }
             }
           ]
         },
         "InstanceType": {
-          "Fn::FindInMap": ["ArchitectureConfig", { "Ref": "Architecture" }, "InstanceType"]
+          "Fn::FindInMap": [
+            "ArchitectureConfig",
+            { "Ref": "Architecture" },
+            "InstanceType"
+          ]
         },
         "IamInstanceProfile": { "Ref": "InstanceProfile" },
         "KeyName": {
@@ -282,7 +290,7 @@
         ]
       }
     },
-    
+
     "TargetGroup": {
       "Type": "AWS::ElasticLoadBalancingV2::TargetGroup",
       "Properties": {
@@ -292,17 +300,11 @@
             [
               "eliza-",
               {
-                "Fn::Select": [
-                  0,
-                  { "Fn::Split": ["-", { "Ref": "UserId" }] }
-                ]
+                "Fn::Select": [0, { "Fn::Split": ["-", { "Ref": "UserId" }] }]
               },
               "-",
               {
-                "Fn::Select": [
-                  1,
-                  { "Fn::Split": ["-", { "Ref": "UserId" }] }
-                ]
+                "Fn::Select": [1, { "Fn::Split": ["-", { "Ref": "UserId" }] }]
               }
             ]
           ]
@@ -416,12 +418,24 @@
           {
             "Field": "host-header",
             "HostHeaderConfig": {
-              "Values": [{ "Fn::Join": ["", [
-                { "Fn::Select": ["0", { "Fn::Split": ["-", { "Ref": "UserId" }] }] },
-                "-",
-                { "Ref": "ProjectName" },
-                ".containers.elizacloud.ai"
-              ]] }]
+              "Values": [
+                {
+                  "Fn::Join": [
+                    "",
+                    [
+                      {
+                        "Fn::Select": [
+                          "0",
+                          { "Fn::Split": ["-", { "Ref": "UserId" }] }
+                        ]
+                      },
+                      "-",
+                      { "Ref": "ProjectName" },
+                      ".containers.elizacloud.ai"
+                    ]
+                  ]
+                }
+              ]
             }
           }
         ],
@@ -566,7 +580,9 @@
     },
     "DirectAccessUrl": {
       "Description": "Direct access URL via EC2 public DNS (bypasses ALB)",
-      "Value": { "Fn::Sub": "http://${EC2Instance.PublicDnsName}:${ContainerPort}" }
+      "Value": {
+        "Fn::Sub": "http://${EC2Instance.PublicDnsName}:${ContainerPort}"
+      }
     },
     "ServiceArn": {
       "Description": "ECS Service ARN",
@@ -582,13 +598,20 @@
     },
     "ContainerUrl": {
       "Description": "Container URL",
-      "Value": { "Fn::Join": ["", [
-        "https://",
-        { "Fn::Select": ["0", { "Fn::Split": ["-", { "Ref": "UserId" }] }] },
-        "-",
-        { "Ref": "ProjectName" },
-        ".containers.elizacloud.ai"
-      ]] }
+      "Value": {
+        "Fn::Join": [
+          "",
+          [
+            "https://",
+            {
+              "Fn::Select": ["0", { "Fn::Split": ["-", { "Ref": "UserId" }] }]
+            },
+            "-",
+            { "Ref": "ProjectName" },
+            ".containers.elizacloud.ai"
+          ]
+        ]
+      }
     }
   }
 }

@@ -64,7 +64,7 @@ export function ElizaChatInterface({
   initialCharacterId = null,
 }: ElizaChatInterfaceProps) {
   const [selectedCharacterId, setSelectedCharacterId] = useState<string | null>(
-    initialCharacterId
+    initialCharacterId,
   );
   const [roomId, setRoomId] = useState<string | null>(null);
 
@@ -72,7 +72,7 @@ export function ElizaChatInterface({
   useEffect(() => {
     console.log(
       "[ElizaChat] Character selection changed:",
-      selectedCharacterId || "default"
+      selectedCharacterId || "default",
     );
   }, [selectedCharacterId]);
   const [messages, setMessages] = useState<Message[]>([]);
@@ -113,7 +113,7 @@ export function ElizaChatInterface({
   useEffect(() => {
     if (messageAudioUrls.current.size > 0) {
       console.log(
-        "[Voice Change] Clearing audio cache - messages will regenerate with new voice"
+        "[Voice Change] Clearing audio cache - messages will regenerate with new voice",
       );
       messageAudioUrls.current.clear();
     }
@@ -151,7 +151,7 @@ export function ElizaChatInterface({
             list.map((r) => ({
               id: r.id.substring(0, 8),
               characterId: r.characterId,
-            }))
+            })),
           );
 
           const rooms: RoomItem[] = list.map((r) => ({
@@ -192,50 +192,54 @@ export function ElizaChatInterface({
     }
   }, []);
 
-  const createRoom = useCallback(async (characterId?: string | null) => {
-    const charIdToUse = characterId !== undefined ? characterId : selectedCharacterId;
-    console.log(
-      "[ElizaChat] Creating room with character:",
-      charIdToUse || "default"
-    );
-    setIsInitializing(true);
-    setError(null);
-    try {
-      const response = await fetch("/api/eliza/rooms", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          entityId: entityId.current,
-          characterId: charIdToUse || undefined,
-        }),
-      });
+  const createRoom = useCallback(
+    async (characterId?: string | null) => {
+      const charIdToUse =
+        characterId !== undefined ? characterId : selectedCharacterId;
+      console.log(
+        "[ElizaChat] Creating room with character:",
+        charIdToUse || "default",
+      );
+      setIsInitializing(true);
+      setError(null);
+      try {
+        const response = await fetch("/api/eliza/rooms", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            entityId: entityId.current,
+            characterId: charIdToUse || undefined,
+          }),
+        });
 
-      if (!response.ok) {
-        throw new Error("Failed to create room");
+        if (!response.ok) {
+          throw new Error("Failed to create room");
+        }
+
+        const data = await response.json();
+        console.log("[ElizaChat] Room created:", {
+          roomId: data.roomId,
+          characterId: data.characterId,
+          requestedCharacterId: charIdToUse,
+        });
+
+        setRoomId(data.roomId);
+        if (typeof window !== "undefined") {
+          window.localStorage.setItem("elizaRoomId", data.roomId);
+        }
+
+        // Load initial messages (this will also update selectedCharacterId based on room's character)
+        await loadMessages(data.roomId);
+        await loadRooms();
+      } catch (err) {
+        setError(err instanceof Error ? err.message : "Failed to create room");
+        console.error("[ElizaChat] Error creating room:", err);
+      } finally {
+        setIsInitializing(false);
       }
-
-      const data = await response.json();
-      console.log("[ElizaChat] Room created:", {
-        roomId: data.roomId,
-        characterId: data.characterId,
-        requestedCharacterId: charIdToUse,
-      });
-
-      setRoomId(data.roomId);
-      if (typeof window !== "undefined") {
-        window.localStorage.setItem("elizaRoomId", data.roomId);
-      }
-
-      // Load initial messages (this will also update selectedCharacterId based on room's character)
-      await loadMessages(data.roomId);
-      await loadRooms();
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to create room");
-      console.error("[ElizaChat] Error creating room:", err);
-    } finally {
-      setIsInitializing(false);
-    }
-  }, [loadMessages, loadRooms, selectedCharacterId]);
+    },
+    [loadMessages, loadRooms, selectedCharacterId],
+  );
 
   // Initialize room: restore saved room or use most recent existing room
   useEffect(() => {
@@ -244,7 +248,7 @@ export function ElizaChatInterface({
       if (initialCharacterId) {
         console.log(
           "[ElizaChat] Initializing with character from URL:",
-          initialCharacterId
+          initialCharacterId,
         );
         await createRoom(initialCharacterId);
         return;
@@ -351,7 +355,7 @@ export function ElizaChatInterface({
         toast.error("Failed to generate speech");
       }
     },
-    [autoPlayTTS, player, selectedVoiceId, customVoices]
+    [autoPlayTTS, player, selectedVoiceId, customVoices],
   );
 
   // Load custom voices on mount
@@ -450,13 +454,13 @@ export function ElizaChatInterface({
           await sendMessage(transcript);
         } else {
           console.warn(
-            "[ElizaChat STT] No roomId available, skipping auto-send"
+            "[ElizaChat STT] No roomId available, skipping auto-send",
           );
         }
       } catch (error) {
         console.error("[ElizaChat STT] Error:", error);
         toast.error(
-          error instanceof Error ? error.message : "Failed to transcribe audio"
+          error instanceof Error ? error.message : "Failed to transcribe audio",
         );
       } finally {
         // Cleanup: Clear recording and reset processing state
@@ -479,7 +483,7 @@ export function ElizaChatInterface({
       (msg) =>
         msg.isAgent &&
         !msg.id.startsWith("thinking-") &&
-        !messageAudioUrls.current.has(msg.id)
+        !messageAudioUrls.current.has(msg.id),
     );
 
     newAgentMessages.forEach((msg) => {
@@ -521,7 +525,7 @@ export function ElizaChatInterface({
           // Handle agent response - remove thinking indicator
           if (messageData.type === "agent") {
             const withoutThinking = prev.filter(
-              (m) => !m.id.startsWith("thinking-")
+              (m) => !m.id.startsWith("thinking-"),
             );
 
             // Clear thinking timeout
@@ -551,7 +555,7 @@ export function ElizaChatInterface({
           // Handle thinking indicator - replace any existing thinking message
           if (messageData.type === "thinking") {
             const withoutThinking = prev.filter(
-              (m) => !m.id.startsWith("thinking-")
+              (m) => !m.id.startsWith("thinking-"),
             );
             console.log("[SSE] 🤔 Agent is thinking...");
             return [...withoutThinking, messageData];
@@ -563,11 +567,13 @@ export function ElizaChatInterface({
             const tempMessageIndex = prev.findIndex(
               (m) =>
                 m.id.startsWith("temp-") &&
-                m.content.text === messageData.content.text
+                m.content.text === messageData.content.text,
             );
 
             if (tempMessageIndex !== -1) {
-              console.log("[SSE] ✅ Replacing temp message with real user message");
+              console.log(
+                "[SSE] ✅ Replacing temp message with real user message",
+              );
               const updated = [...prev];
               updated[tempMessageIndex] = messageData;
               return updated;
@@ -622,7 +628,7 @@ export function ElizaChatInterface({
     if (scrollAreaRef.current) {
       // ScrollArea wraps content in a viewport div with data-radix-scroll-area-viewport
       const viewport = scrollAreaRef.current.querySelector(
-        "[data-radix-scroll-area-viewport]"
+        "[data-radix-scroll-area-viewport]",
       );
       if (viewport) {
         viewport.scrollTop = viewport.scrollHeight;
@@ -661,7 +667,7 @@ export function ElizaChatInterface({
     thinkingTimeoutRef.current = setTimeout(() => {
       setMessages((prev) => prev.filter((m) => !m.id.startsWith("thinking-")));
       console.warn(
-        "[Chat] Thinking indicator timeout - agent took too long to respond"
+        "[Chat] Thinking indicator timeout - agent took too long to respond",
       );
     }, 30000);
 
@@ -683,7 +689,7 @@ export function ElizaChatInterface({
 
       // Remove only the temp user message; keep thinking indicator until real response arrives via polling
       setMessages((prev) =>
-        prev.filter((msg) => msg.id !== tempUserMessage.id)
+        prev.filter((msg) => msg.id !== tempUserMessage.id),
       );
 
       // The polling interval will catch the response automatically
@@ -695,8 +701,8 @@ export function ElizaChatInterface({
       setMessages((prev) =>
         prev.filter(
           (msg) =>
-            msg.id !== tempUserMessage.id && !msg.id.startsWith("thinking-")
-        )
+            msg.id !== tempUserMessage.id && !msg.id.startsWith("thinking-"),
+        ),
       );
       // Clear thinking timeout on error
       if (thinkingTimeoutRef.current) {
@@ -904,7 +910,7 @@ export function ElizaChatInterface({
                         if (newVoiceId) {
                           localStorage.setItem(
                             "eliza-selected-voice-id",
-                            newVoiceId
+                            newVoiceId,
                           );
                         } else {
                           localStorage.removeItem("eliza-selected-voice-id");
@@ -913,7 +919,7 @@ export function ElizaChatInterface({
 
                       const voiceName = newVoiceId
                         ? customVoices.find(
-                            (v) => v.elevenlabsVoiceId === newVoiceId
+                            (v) => v.elevenlabsVoiceId === newVoiceId,
                           )?.name || "Custom Voice"
                         : "Default Voice";
 
@@ -1039,7 +1045,7 @@ export function ElizaChatInterface({
                                   className="h-6 w-6 p-0"
                                   onClick={() => {
                                     const url = messageAudioUrls.current.get(
-                                      message.id
+                                      message.id,
                                     );
                                     if (url) {
                                       if (
