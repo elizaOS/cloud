@@ -17,7 +17,7 @@ import { nanoid } from "nanoid";
 import { cookies, headers } from "next/headers";
 import { usersService, anonymousSessionsService } from "@/lib/services";
 import { db } from "@/db/client";
-import { users, conversations, anonymousSessions } from "@/db/schemas";
+import { users, conversations, anonymousSessions, organizations } from "@/db/schemas";
 import { eq, and } from "drizzle-orm";
 import { logger } from "@/lib/utils/logger";
 import type { UserWithOrganization } from "@/lib/types";
@@ -197,7 +197,32 @@ export async function convertAnonymousToReal(
       .limit(1);
 
     if (!realUser) {
-      // Real user doesn't exist yet - update anonymous user to become real user
+      // Real user doesn't exist yet - create organization and convert in-place
+      
+      // Generate unique organization slug
+      const orgSlug = `user-${privyUserId.slice(-8)}-${Math.random().toString(36).slice(2, 8)}`;
+      
+      // Create organization for the user
+      const [organization] = await tx
+        .insert(organizations)
+        .values({
+          name: `${anonUser.name || 'User'}'s Organization`,
+          slug: orgSlug,
+          credit_balance: "5.00", // $5 initial credits
+        })
+        .returning();
+
+      logger.info(
+        "auth-anonymous",
+        "Created organization for converted user",
+        {
+          organizationId: organization.id,
+          userId: anonymousUserId,
+          creditBalance: organization.credit_balance,
+        },
+      );
+
+      // Update anonymous user to become real user with organization
       await tx
         .update(users)
         .set({
@@ -205,6 +230,8 @@ export async function convertAnonymousToReal(
           is_anonymous: false,
           anonymous_session_id: null,
           expires_at: null,
+          organization_id: organization.id,
+          role: "owner",
           updated_at: new Date(),
         })
         .where(eq(users.id, anonymousUserId));
@@ -215,6 +242,7 @@ export async function convertAnonymousToReal(
         {
           userId: anonymousUserId,
           privyUserId,
+          organizationId: organization.id,
         },
       );
     } else {
@@ -253,7 +281,7 @@ export async function convertAnonymousToReal(
       );
     }
 
-    // 3. Mark session as converted
+    // 3. Mark session as converted (use transaction context)
     const [session] = await tx
       .select()
       .from(anonymousSessions)
@@ -261,7 +289,17 @@ export async function convertAnonymousToReal(
       .limit(1);
 
     if (session) {
-      await anonymousSessionsService.markConverted(session.id);
+      await tx
+        .update(anonymousSessions)
+        .set({
+          converted_at: new Date(),
+          is_active: false,
+        })
+        .where(eq(anonymousSessions.id, session.id));
+
+      logger.info("auth-anonymous", "Marked session as converted", {
+        sessionId: session.id,
+      });
     }
   });
 
