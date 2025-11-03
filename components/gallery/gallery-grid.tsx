@@ -172,19 +172,27 @@ export function GalleryGrid({ items, onItemDeleted }: GalleryGridProps) {
                 </div>
 
                 <div>
-                  <p className="text-white/50 text-xs uppercase tracking-wide">Model</p>
-                  <p className="font-medium truncate text-white">{selectedItem.model}</p>
+                  <p className="text-white/50 text-xs uppercase tracking-wide">
+                    Model
+                  </p>
+                  <p className="font-medium truncate text-white">
+                    {selectedItem.model}
+                  </p>
                 </div>
 
                 <div>
-                  <p className="text-white/50 text-xs uppercase tracking-wide">Type</p>
+                  <p className="text-white/50 text-xs uppercase tracking-wide">
+                    Type
+                  </p>
                   <span className="mt-0.5 rounded-none bg-[#FF580020] border border-[#FF5800]/40 px-2 py-0.5 text-xs font-bold uppercase tracking-wide text-[#FF5800]">
                     {selectedItem.type}
                   </span>
                 </div>
 
                 <div>
-                  <p className="text-white/50 text-xs uppercase tracking-wide">Created</p>
+                  <p className="text-white/50 text-xs uppercase tracking-wide">
+                    Created
+                  </p>
                   <p className="font-medium text-white">
                     {format(new Date(selectedItem.createdAt), "MMM d, yyyy")}
                   </p>
@@ -192,7 +200,9 @@ export function GalleryGrid({ items, onItemDeleted }: GalleryGridProps) {
 
                 {selectedItem.dimensions && (
                   <div>
-                    <p className="text-white/50 text-xs uppercase tracking-wide">Dimensions</p>
+                    <p className="text-white/50 text-xs uppercase tracking-wide">
+                      Dimensions
+                    </p>
                     <p className="font-medium text-white">
                       {selectedItem.dimensions.width} ×{" "}
                       {selectedItem.dimensions.height}
@@ -202,7 +212,9 @@ export function GalleryGrid({ items, onItemDeleted }: GalleryGridProps) {
 
                 {selectedItem.fileSize && (
                   <div>
-                    <p className="text-white/50 text-xs uppercase tracking-wide">File Size</p>
+                    <p className="text-white/50 text-xs uppercase tracking-wide">
+                      File Size
+                    </p>
                     <p className="font-medium text-white">
                       {(Number(selectedItem.fileSize) / 1024 / 1024).toFixed(2)}{" "}
                       MB

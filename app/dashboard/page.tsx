@@ -311,14 +311,19 @@ export default async function DashboardPage() {
               label: "View analytics",
               href: "/dashboard/analytics",
             }}
-            className="rounded-3xl border border-border/60 bg-background/90 shadow-sm"
           />
 
           <BrandTabs defaultValue="overview" className="w-full">
             <BrandTabsList className="w-full max-w-md">
-              <BrandTabsTrigger value="overview" className="flex-1">Overview</BrandTabsTrigger>
-              <BrandTabsTrigger value="activity" className="flex-1">Activity</BrandTabsTrigger>
-              <BrandTabsTrigger value="limits" className="flex-1">Limits & Health</BrandTabsTrigger>
+              <BrandTabsTrigger value="overview" className="flex-1">
+                Overview
+              </BrandTabsTrigger>
+              <BrandTabsTrigger value="activity" className="flex-1">
+                Activity
+              </BrandTabsTrigger>
+              <BrandTabsTrigger value="limits" className="flex-1">
+                Limits & Health
+              </BrandTabsTrigger>
             </BrandTabsList>
 
             <BrandTabsContent value="overview" className="mt-6 space-y-6">

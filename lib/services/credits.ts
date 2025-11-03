@@ -139,69 +139,71 @@ export class CreditsService {
     // CRITICAL FIX: Wrap entire operation in atomic transaction with row-level
     // locking to prevent race conditions where concurrent requests could cause
     // negative balance (TOCTOU vulnerability)
-    return await db.transaction(async (tx) => {
-      // Lock the organization row with FOR UPDATE to prevent concurrent access
-      // This ensures atomicity and prevents race conditions
-      const [org] = await tx
-        .select()
-        .from(organizations)
-        .where(eq(organizations.id, organizationId))
-        .for("update");
+    return await db
+      .transaction(async (tx) => {
+        // Lock the organization row with FOR UPDATE to prevent concurrent access
+        // This ensures atomicity and prevents race conditions
+        const [org] = await tx
+          .select()
+          .from(organizations)
+          .where(eq(organizations.id, organizationId))
+          .for("update");
 
-      if (!org) {
-        throw new Error("Organization not found");
-      }
+        if (!org) {
+          throw new Error("Organization not found");
+        }
 
-      const currentBalance = Number.parseFloat(String(org.credit_balance));
-      const newBalance = currentBalance - amount;
+        const currentBalance = Number.parseFloat(String(org.credit_balance));
+        const newBalance = currentBalance - amount;
 
-      // Return early if insufficient credits, without creating a transaction
-      if (newBalance < 0) {
-        return {
-          success: false,
-          newBalance: currentBalance,
-          transaction: null,
-        };
-      }
+        // Return early if insufficient credits, without creating a transaction
+        if (newBalance < 0) {
+          return {
+            success: false,
+            newBalance: currentBalance,
+            transaction: null,
+          };
+        }
 
-      // Update balance atomically
-      await tx
-        .update(organizations)
-        .set({
-          credit_balance: String(newBalance),
-          updated_at: new Date(),
-        })
-        .where(eq(organizations.id, organizationId));
+        // Update balance atomically
+        await tx
+          .update(organizations)
+          .set({
+            credit_balance: String(newBalance),
+            updated_at: new Date(),
+          })
+          .where(eq(organizations.id, organizationId));
 
-      // Create transaction record
-      const [transaction] = await tx
-        .insert(creditTransactions)
-        .values({
-          organization_id: organizationId,
-          amount: String(-amount),
-          type: "debit",
-          description,
-          metadata: metadata || {},
-          created_at: new Date(),
-        })
-        .returning();
+        // Create transaction record
+        const [transaction] = await tx
+          .insert(creditTransactions)
+          .values({
+            organization_id: organizationId,
+            amount: String(-amount),
+            type: "debit",
+            description,
+            metadata: metadata || {},
+            created_at: new Date(),
+          })
+          .returning();
 
-      const result = { success: true, newBalance, transaction };
+        const result = { success: true, newBalance, transaction };
 
-      return result;
-    }).then(async (result) => {
-      if (result.success) {
-        this.queueLowCreditsEmail(organizationId, result.newBalance).catch(
-          (error) => {
-            console.error(
-              "[CreditsService] Failed to queue low credits email:",
-              error,
-            );
-          },
-        );
-      }
-      return result;
-    });
+        return result;
+      })
+      .then(async (result) => {
+        if (result.success) {
+          this.queueLowCreditsEmail(organizationId, result.newBalance).catch(
+            (error) => {
+              console.error(
+                "[CreditsService] Failed to queue low credits email:",
+                error,
+              );
+            },
+          );
+        }
+        return result;
+      });
   }
 
   private async queueLowCreditsEmail(
@@ -231,10 +233,9 @@ export class CreditsService {
 
       const recipientEmail = org.billing_email;
       if (!recipientEmail) {
-        console.warn(
-          "[CreditsService] No billing email for organization",
-          { organizationId },
-        );
+        console.warn("[CreditsService] No billing email for organization", {
+          organizationId,
+        });
         return;
       }
 

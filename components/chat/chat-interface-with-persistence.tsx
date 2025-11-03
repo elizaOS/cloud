@@ -933,9 +933,7 @@ export function ChatInterfaceWithPersistence({
               type="button"
               variant={recorder.isRecording ? "primary" : "icon"}
               size="icon"
-              className={cn(
-                recorder.isRecording && "animate-pulse",
-              )}
+              className={cn(recorder.isRecording && "animate-pulse")}
               onClick={
                 recorder.isRecording
                   ? recorder.stopRecording
@@ -970,7 +968,10 @@ export function ChatInterfaceWithPersistence({
               disabled={isProcessing || !input.trim() || recorder.isRecording}
             >
               {isProcessing ? (
-                <Loader2 className="h-5 w-5 animate-spin" style={{ color: "#FF5800" }} />
+                <Loader2
+                  className="h-5 w-5 animate-spin"
+                  style={{ color: "#FF5800" }}
+                />
               ) : (
                 <Send className="h-5 w-5" style={{ color: "#FF5800" }} />
               )}

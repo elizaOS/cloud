@@ -61,14 +61,9 @@ export function UsageAlertsCard({
   footer,
 }: UsageAlertsCardProps) {
   return (
-    <BrandCard
-      className={cn(
-        "h-full",
-        className,
-      )}
-    >
+    <BrandCard className={cn("h-full", className)}>
       <CornerBrackets size="sm" className="opacity-50" />
-      
+
       <div className="relative z-10 space-y-4">
         <div className="flex items-center justify-between">
           <div>
@@ -79,16 +74,17 @@ export function UsageAlertsCard({
               </h3>
             </div>
             <p className="text-xs text-white/60">
-              Key items from spend automations, quota monitors, and provider health.
+              Key items from spend automations, quota monitors, and provider
+              health.
             </p>
           </div>
           <span className="rounded-none border border-white/20 bg-white/10 px-2 py-0.5 text-[11px] uppercase text-white/70">
             {alerts.length} active
           </span>
         </div>
-        
+
         <div className="border-t border-white/10" />
-        
+
         <div className="space-y-3 pt-6">
           {alerts.length === 0 ? (
             <div className="flex items-center gap-3 rounded-none border border-white/10 bg-green-500/10 px-4 py-6">
@@ -127,7 +123,9 @@ export function UsageAlertsCard({
                       {getSeverityPill(alert.severity)}
                     </div>
                   </div>
-                  {index < alerts.length - 1 && <div className="my-3 border-t border-white/10" />}
+                  {index < alerts.length - 1 && (
+                    <div className="my-3 border-t border-white/10" />
+                  )}
                 </div>
               ))}
             </div>
@@ -136,9 +134,7 @@ export function UsageAlertsCard({
           {footer ? (
             <>
               <div className="border-t border-white/10 mt-4" />
-              <div className="pt-2 text-xs text-white/60">
-                {footer}
-              </div>
+              <div className="pt-2 text-xs text-white/60">{footer}</div>
             </>
           ) : null}
         </div>
