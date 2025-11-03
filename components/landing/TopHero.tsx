@@ -1,6 +1,6 @@
 "use client";
 
-import { usePrivy, useLogin } from "@privy-io/react-auth";
+import { usePrivy } from "@privy-io/react-auth";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 import {
@@ -26,23 +26,16 @@ import {
 
 const TopHero = () => {
   const { authenticated, ready } = usePrivy();
-  const { login } = useLogin();
   const router = useRouter();
-  const [isLoggingIn, setIsLoggingIn] = useState(false);
   const [chatInput, setChatInput] = useState("");
 
-  const handleAuth = async () => {
+  const handleAuth = () => {
     if (!ready) return;
 
     if (authenticated) {
       router.push("/dashboard");
     } else {
-      setIsLoggingIn(true);
-      try {
-        await login();
-      } finally {
-        setTimeout(() => setIsLoggingIn(false), 1000);
-      }
+      router.push("/login");
     }
   };
 
