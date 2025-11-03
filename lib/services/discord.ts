@@ -134,6 +134,84 @@ class DiscordService {
   }
 
   /**
+   * Create a Discord thread for a conversation
+   */
+  async createThread(data: {
+    name: string;
+    message?: string;
+    autoArchiveDuration?: 60 | 1440 | 4320 | 10080; // minutes
+  }): Promise<{ success: boolean; threadId?: string; error?: string }> {
+    this.initialize();
+
+    if (!this.initialized || !this.rest || !this.defaultChannelId) {
+      return { success: false, error: "Discord not initialized" };
+    }
+
+    try {
+      // Create thread with optional initial message
+      const threadData: any = {
+        name: data.name.slice(0, 100), // Discord thread name limit
+        auto_archive_duration: data.autoArchiveDuration || 1440, // 24 hours default
+        type: 11, // PUBLIC_THREAD
+      };
+
+      if (data.message) {
+        threadData.message = { content: data.message };
+      }
+
+      const response = (await this.rest.post(
+        Routes.threads(this.defaultChannelId),
+        { body: threadData }
+      )) as any;
+
+      logger.info(`[DiscordService] Thread created: ${response.id}`);
+
+      return {
+        success: true,
+        threadId: response.id,
+      };
+    } catch (error: any) {
+      logger.error("[DiscordService] Failed to create thread", {
+        error: error.message,
+      });
+      return {
+        success: false,
+        error: error.message,
+      };
+    }
+  }
+
+  /**
+   * Send a message to a Discord thread
+   */
+  async sendToThread(
+    threadId: string,
+    message: string
+  ): Promise<boolean> {
+    this.initialize();
+
+    if (!this.initialized || !this.rest) {
+      logger.warn("[DiscordService] Not initialized, skipping thread message");
+      return false;
+    }
+
+    try {
+      await this.rest.post(Routes.channelMessages(threadId), {
+        body: { content: message },
+      });
+
+      logger.info(`[DiscordService] Message sent to thread ${threadId}`);
+      return true;
+    } catch (error: any) {
+      logger.error("[DiscordService] Failed to send to thread", {
+        error: error.message,
+        threadId,
+      });
+      return false;
+    }
+  }
+
+  /**
    * Log a user signup event
    */
   async logUserSignup(userData: {

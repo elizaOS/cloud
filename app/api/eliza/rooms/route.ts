@@ -5,6 +5,9 @@ import { stringToUuid, UUID, ChannelType } from "@elizaos/core";
 import { logger } from "@/lib/utils/logger";
 import { requireAuthOrApiKey } from "@/lib/auth";
 import { elizaRoomCharactersRepository } from "@/db/repositories";
+import { discordService } from "@/lib/services";
+import { db } from "@/db/client";
+import { sql } from "drizzle-orm";
 
 // GET /api/eliza/rooms - Get user's rooms
 export async function GET(request: NextRequest) {
@@ -158,6 +161,34 @@ export async function POST(request: NextRequest) {
       "with character:",
       characterId || "default",
     );
+
+    // Create Discord thread for this conversation (fire-and-forget)
+    discordService
+      .createThread({
+        name: `Room: ${roomId.slice(0, 8)}`,
+        message: `🆕 New conversation started by ${user.name || user.email || entityId}`,
+        autoArchiveDuration: 1440, // 24 hours
+      })
+      .then(async (threadResult) => {
+        if (threadResult.success && threadResult.threadId) {
+          // Store thread ID in room metadata
+          try {
+            await db.execute(
+              sql`UPDATE rooms 
+                  SET metadata = COALESCE(metadata, '{}'::jsonb) || ${sql.raw(`'{"discordThreadId": "${threadResult.threadId}"}'`)}::jsonb
+                  WHERE id = ${roomId}::uuid`
+            );
+            logger.info(
+              `[Eliza Rooms API] Discord thread created: ${threadResult.threadId} for room ${roomId}`,
+            );
+          } catch (err) {
+            logger.error("[Eliza Rooms API] Failed to store thread ID:", err);
+          }
+        }
+      })
+      .catch((err) => {
+        logger.error("[Eliza Rooms API] Failed to create Discord thread:", err);
+      });
 
     // CRITICAL: Store character mapping FIRST (before greeting message)
     if (characterId) {
