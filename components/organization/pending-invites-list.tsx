@@ -1,5 +1,6 @@
 "use client";
 
+import { useState } from "react";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -39,6 +40,7 @@ interface PendingInvitesListProps {
 
 export function PendingInvitesList({ invites, onRevoke }: PendingInvitesListProps) {
   const pendingInvites = invites.filter((i) => i.status === "pending");
+  const [now] = useState(() => Date.now());
 
   if (pendingInvites.length === 0) {
     return (
@@ -107,7 +109,7 @@ export function PendingInvitesList({ invites, onRevoke }: PendingInvitesListProp
     <div className="space-y-3">
       {pendingInvites.map((invite) => {
         const expiresAt = new Date(invite.expires_at);
-        const isExpiringSoon = expiresAt.getTime() - Date.now() < 24 * 60 * 60 * 1000;
+        const isExpiringSoon = expiresAt.getTime() - now < 24 * 60 * 60 * 1000;
 
         return (
           <Card key={invite.id} className="p-4">
