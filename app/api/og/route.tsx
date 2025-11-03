@@ -3,8 +3,16 @@ import { NextRequest } from "next/server";
 
 export const runtime = "edge";
 
-const DEFAULT_GRADIENT = "linear-gradient(135deg, #667eea 0%, #764ba2 100%)";
-const ELIZA_GRADIENT = "linear-gradient(135deg, #6366f1 0%, #8b5cf6 50%, #d946ef 100%)";
+// Brand colors matching the platform design system
+const BRAND_ORANGE = "#FF5800";
+const BRAND_BLUE = "#0B35F1";
+const BRAND_BG = "#0A0A0A";
+const BRAND_SURFACE = "#252527";
+const BRAND_BORDER = "#E1E1E1";
+
+// Brand gradient using actual platform colors
+const BRAND_GRADIENT = `linear-gradient(135deg, ${BRAND_BG} 0%, ${BRAND_SURFACE} 100%)`;
+const BRAND_ACCENT_GRADIENT = `linear-gradient(135deg, ${BRAND_ORANGE} 0%, #FF7A33 100%)`;
 
 export async function GET(request: NextRequest) {
   try {
@@ -28,30 +36,42 @@ export async function GET(request: NextRequest) {
                 flexDirection: "column",
                 alignItems: "center",
                 justifyContent: "center",
-                background: ELIZA_GRADIENT,
+                background: BRAND_BG,
                 fontFamily: "system-ui, sans-serif",
-                padding: "40px",
+                position: "relative",
               }}
             >
+              {/* Corner Brackets */}
+              <div style={{ position: "absolute", left: 40, top: 40, width: 48, height: 48, borderTop: `3px solid ${BRAND_BORDER}`, borderLeft: `3px solid ${BRAND_BORDER}` }} />
+              <div style={{ position: "absolute", right: 40, top: 40, width: 48, height: 48, borderTop: `3px solid ${BRAND_BORDER}`, borderRight: `3px solid ${BRAND_BORDER}` }} />
+              <div style={{ position: "absolute", left: 40, bottom: 40, width: 48, height: 48, borderBottom: `3px solid ${BRAND_BORDER}`, borderLeft: `3px solid ${BRAND_BORDER}` }} />
+              <div style={{ position: "absolute", right: 40, bottom: 40, width: 48, height: 48, borderBottom: `3px solid ${BRAND_BORDER}`, borderRight: `3px solid ${BRAND_BORDER}` }} />
+              
               <div
                 style={{
                   display: "flex",
                   flexDirection: "column",
                   alignItems: "center",
                   justifyContent: "center",
-                  background: "rgba(255, 255, 255, 0.95)",
-                  borderRadius: "32px",
+                  background: BRAND_SURFACE,
+                  border: `1px solid rgba(255, 255, 255, 0.1)`,
                   padding: "60px 80px",
-                  maxWidth: "1000px",
-                  boxShadow: "0 20px 60px rgba(0, 0, 0, 0.3)",
+                  maxWidth: "900px",
+                  position: "relative",
                 }}
               >
+                {/* Mini Corner Brackets on card */}
+                <div style={{ position: "absolute", left: 0, top: 0, width: 24, height: 24, borderTop: `2px solid ${BRAND_ORANGE}`, borderLeft: `2px solid ${BRAND_ORANGE}` }} />
+                <div style={{ position: "absolute", right: 0, top: 0, width: 24, height: 24, borderTop: `2px solid ${BRAND_ORANGE}`, borderRight: `2px solid ${BRAND_ORANGE}` }} />
+                <div style={{ position: "absolute", left: 0, bottom: 0, width: 24, height: 24, borderBottom: `2px solid ${BRAND_ORANGE}`, borderLeft: `2px solid ${BRAND_ORANGE}` }} />
+                <div style={{ position: "absolute", right: 0, bottom: 0, width: 24, height: 24, borderBottom: `2px solid ${BRAND_ORANGE}`, borderRight: `2px solid ${BRAND_ORANGE}` }} />
+
                 <div
                   style={{
                     display: "flex",
                     fontSize: 72,
                     fontWeight: "bold",
-                    color: "#1a1a1a",
+                    color: "white",
                     marginBottom: 24,
                     textAlign: "center",
                     lineHeight: 1.2,
@@ -62,12 +82,12 @@ export async function GET(request: NextRequest) {
                 <div
                   style={{
                     display: "flex",
-                    fontSize: 32,
-                    color: "#666",
+                    fontSize: 28,
+                    color: "rgba(255, 255, 255, 0.7)",
                     textAlign: "center",
                     marginBottom: 32,
                     lineHeight: 1.4,
-                    maxWidth: "800px",
+                    maxWidth: "700px",
                   }}
                 >
                   {description.slice(0, 120)}
@@ -78,16 +98,16 @@ export async function GET(request: NextRequest) {
                     display: "flex",
                     alignItems: "center",
                     gap: 12,
-                    fontSize: 28,
-                    color: "#8b5cf6",
+                    fontSize: 24,
+                    color: BRAND_ORANGE,
                     fontWeight: 600,
                   }}
                 >
                   <div
                     style={{
-                      width: 40,
-                      height: 40,
-                      background: ELIZA_GRADIENT,
+                      width: 8,
+                      height: 8,
+                      background: BRAND_ORANGE,
                       borderRadius: "50%",
                     }}
                   />
@@ -113,30 +133,42 @@ export async function GET(request: NextRequest) {
                 flexDirection: "column",
                 alignItems: "center",
                 justifyContent: "center",
-                background: ELIZA_GRADIENT,
+                background: BRAND_BG,
                 fontFamily: "system-ui, sans-serif",
-                padding: "40px",
+                position: "relative",
               }}
             >
+              {/* Corner Brackets */}
+              <div style={{ position: "absolute", left: 40, top: 40, width: 48, height: 48, borderTop: `3px solid ${BRAND_BORDER}`, borderLeft: `3px solid ${BRAND_BORDER}` }} />
+              <div style={{ position: "absolute", right: 40, top: 40, width: 48, height: 48, borderTop: `3px solid ${BRAND_BORDER}`, borderRight: `3px solid ${BRAND_BORDER}` }} />
+              <div style={{ position: "absolute", left: 40, bottom: 40, width: 48, height: 48, borderBottom: `3px solid ${BRAND_BORDER}`, borderLeft: `3px solid ${BRAND_BORDER}` }} />
+              <div style={{ position: "absolute", right: 40, bottom: 40, width: 48, height: 48, borderBottom: `3px solid ${BRAND_BORDER}`, borderRight: `3px solid ${BRAND_BORDER}` }} />
+              
               <div
                 style={{
                   display: "flex",
                   flexDirection: "column",
                   alignItems: "flex-start",
                   justifyContent: "center",
-                  background: "rgba(255, 255, 255, 0.95)",
-                  borderRadius: "32px",
+                  background: BRAND_SURFACE,
+                  border: `1px solid rgba(255, 255, 255, 0.1)`,
                   padding: "60px 80px",
-                  maxWidth: "1000px",
-                  boxShadow: "0 20px 60px rgba(0, 0, 0, 0.3)",
+                  maxWidth: "900px",
+                  position: "relative",
                 }}
               >
+                {/* Mini Corner Brackets on card */}
+                <div style={{ position: "absolute", left: 0, top: 0, width: 24, height: 24, borderTop: `2px solid ${BRAND_ORANGE}`, borderLeft: `2px solid ${BRAND_ORANGE}` }} />
+                <div style={{ position: "absolute", right: 0, top: 0, width: 24, height: 24, borderTop: `2px solid ${BRAND_ORANGE}`, borderRight: `2px solid ${BRAND_ORANGE}` }} />
+                <div style={{ position: "absolute", left: 0, bottom: 0, width: 24, height: 24, borderBottom: `2px solid ${BRAND_ORANGE}`, borderLeft: `2px solid ${BRAND_ORANGE}` }} />
+                <div style={{ position: "absolute", right: 0, bottom: 0, width: 24, height: 24, borderBottom: `2px solid ${BRAND_ORANGE}`, borderRight: `2px solid ${BRAND_ORANGE}` }} />
+
                 <div
                   style={{
                     display: "flex",
-                    fontSize: 48,
+                    fontSize: 40,
                     fontWeight: 600,
-                    color: "#8b5cf6",
+                    color: BRAND_ORANGE,
                     marginBottom: 24,
                   }}
                 >
@@ -147,7 +179,7 @@ export async function GET(request: NextRequest) {
                     display: "flex",
                     fontSize: 64,
                     fontWeight: "bold",
-                    color: "#1a1a1a",
+                    color: "white",
                     marginBottom: 24,
                     lineHeight: 1.2,
                   }}
@@ -157,8 +189,8 @@ export async function GET(request: NextRequest) {
                 <div
                   style={{
                     display: "flex",
-                    fontSize: 32,
-                    color: "#666",
+                    fontSize: 28,
+                    color: "rgba(255, 255, 255, 0.6)",
                     marginBottom: 32,
                   }}
                 >
@@ -169,8 +201,8 @@ export async function GET(request: NextRequest) {
                     display: "flex",
                     alignItems: "center",
                     gap: 12,
-                    fontSize: 24,
-                    color: "#999",
+                    fontSize: 20,
+                    color: "rgba(255, 255, 255, 0.5)",
                   }}
                 >
                   Powered by elizaOS
@@ -195,30 +227,42 @@ export async function GET(request: NextRequest) {
                 flexDirection: "column",
                 alignItems: "center",
                 justifyContent: "center",
-                background: DEFAULT_GRADIENT,
+                background: BRAND_BG,
                 fontFamily: "system-ui, sans-serif",
-                padding: "40px",
+                position: "relative",
               }}
             >
+              {/* Corner Brackets */}
+              <div style={{ position: "absolute", left: 40, top: 40, width: 48, height: 48, borderTop: `3px solid ${BRAND_BORDER}`, borderLeft: `3px solid ${BRAND_BORDER}` }} />
+              <div style={{ position: "absolute", right: 40, top: 40, width: 48, height: 48, borderTop: `3px solid ${BRAND_BORDER}`, borderRight: `3px solid ${BRAND_BORDER}` }} />
+              <div style={{ position: "absolute", left: 40, bottom: 40, width: 48, height: 48, borderBottom: `3px solid ${BRAND_BORDER}`, borderLeft: `3px solid ${BRAND_BORDER}` }} />
+              <div style={{ position: "absolute", right: 40, bottom: 40, width: 48, height: 48, borderBottom: `3px solid ${BRAND_BORDER}`, borderRight: `3px solid ${BRAND_BORDER}` }} />
+              
               <div
                 style={{
                   display: "flex",
                   flexDirection: "column",
                   alignItems: "flex-start",
                   justifyContent: "center",
-                  background: "rgba(255, 255, 255, 0.95)",
-                  borderRadius: "32px",
+                  background: BRAND_SURFACE,
+                  border: `1px solid rgba(255, 255, 255, 0.1)`,
                   padding: "60px 80px",
-                  maxWidth: "1000px",
-                  boxShadow: "0 20px 60px rgba(0, 0, 0, 0.3)",
+                  maxWidth: "900px",
+                  position: "relative",
                 }}
               >
+                {/* Mini Corner Brackets on card */}
+                <div style={{ position: "absolute", left: 0, top: 0, width: 24, height: 24, borderTop: `2px solid ${BRAND_ORANGE}`, borderLeft: `2px solid ${BRAND_ORANGE}` }} />
+                <div style={{ position: "absolute", right: 0, top: 0, width: 24, height: 24, borderTop: `2px solid ${BRAND_ORANGE}`, borderRight: `2px solid ${BRAND_ORANGE}` }} />
+                <div style={{ position: "absolute", left: 0, bottom: 0, width: 24, height: 24, borderBottom: `2px solid ${BRAND_ORANGE}`, borderLeft: `2px solid ${BRAND_ORANGE}` }} />
+                <div style={{ position: "absolute", right: 0, bottom: 0, width: 24, height: 24, borderBottom: `2px solid ${BRAND_ORANGE}`, borderRight: `2px solid ${BRAND_ORANGE}` }} />
+
                 <div
                   style={{
                     display: "flex",
-                    fontSize: 48,
+                    fontSize: 40,
                     fontWeight: 600,
-                    color: "#667eea",
+                    color: BRAND_ORANGE,
                     marginBottom: 24,
                   }}
                 >
@@ -229,7 +273,7 @@ export async function GET(request: NextRequest) {
                     display: "flex",
                     fontSize: 64,
                     fontWeight: "bold",
-                    color: "#1a1a1a",
+                    color: "white",
                     marginBottom: 24,
                     lineHeight: 1.2,
                   }}
@@ -240,8 +284,8 @@ export async function GET(request: NextRequest) {
                   <div
                     style={{
                       display: "flex",
-                      fontSize: 36,
-                      color: "#666",
+                      fontSize: 32,
+                      color: "rgba(255, 255, 255, 0.7)",
                       marginBottom: 32,
                     }}
                   >
@@ -253,8 +297,8 @@ export async function GET(request: NextRequest) {
                     display: "flex",
                     alignItems: "center",
                     gap: 12,
-                    fontSize: 24,
-                    color: "#999",
+                    fontSize: 20,
+                    color: "rgba(255, 255, 255, 0.5)",
                   }}
                 >
                   Deployed on elizaOS Platform
@@ -279,29 +323,41 @@ export async function GET(request: NextRequest) {
                 flexDirection: "column",
                 alignItems: "center",
                 justifyContent: "center",
-                background: ELIZA_GRADIENT,
+                background: BRAND_BG,
                 fontFamily: "system-ui, sans-serif",
-                padding: "40px",
+                position: "relative",
               }}
             >
+              {/* Corner Brackets */}
+              <div style={{ position: "absolute", left: 40, top: 40, width: 48, height: 48, borderTop: `3px solid ${BRAND_BORDER}`, borderLeft: `3px solid ${BRAND_BORDER}` }} />
+              <div style={{ position: "absolute", right: 40, top: 40, width: 48, height: 48, borderTop: `3px solid ${BRAND_BORDER}`, borderRight: `3px solid ${BRAND_BORDER}` }} />
+              <div style={{ position: "absolute", left: 40, bottom: 40, width: 48, height: 48, borderBottom: `3px solid ${BRAND_BORDER}`, borderLeft: `3px solid ${BRAND_BORDER}` }} />
+              <div style={{ position: "absolute", right: 40, bottom: 40, width: 48, height: 48, borderBottom: `3px solid ${BRAND_BORDER}`, borderRight: `3px solid ${BRAND_BORDER}` }} />
+              
               <div
                 style={{
                   display: "flex",
                   flexDirection: "column",
                   alignItems: "center",
                   justifyContent: "center",
-                  background: "rgba(255, 255, 255, 0.95)",
-                  borderRadius: "32px",
+                  background: BRAND_SURFACE,
+                  border: `1px solid rgba(255, 255, 255, 0.1)`,
                   padding: "60px 80px",
-                  maxWidth: "1000px",
-                  boxShadow: "0 20px 60px rgba(0, 0, 0, 0.3)",
+                  maxWidth: "900px",
+                  position: "relative",
                 }}
               >
+                {/* Mini Corner Brackets on card */}
+                <div style={{ position: "absolute", left: 0, top: 0, width: 24, height: 24, borderTop: `2px solid ${BRAND_ORANGE}`, borderLeft: `2px solid ${BRAND_ORANGE}` }} />
+                <div style={{ position: "absolute", right: 0, top: 0, width: 24, height: 24, borderTop: `2px solid ${BRAND_ORANGE}`, borderRight: `2px solid ${BRAND_ORANGE}` }} />
+                <div style={{ position: "absolute", left: 0, bottom: 0, width: 24, height: 24, borderBottom: `2px solid ${BRAND_ORANGE}`, borderLeft: `2px solid ${BRAND_ORANGE}` }} />
+                <div style={{ position: "absolute", right: 0, bottom: 0, width: 24, height: 24, borderBottom: `2px solid ${BRAND_ORANGE}`, borderRight: `2px solid ${BRAND_ORANGE}` }} />
+
                 <div
                   style={{
                     display: "flex",
-                    fontSize: 96,
-                    marginBottom: 24,
+                    fontSize: 80,
+                    marginBottom: 32,
                   }}
                 >
                   🤖
@@ -309,9 +365,9 @@ export async function GET(request: NextRequest) {
                 <div
                   style={{
                     display: "flex",
-                    fontSize: 72,
+                    fontSize: 64,
                     fontWeight: "bold",
-                    color: "#1a1a1a",
+                    color: "white",
                     marginBottom: 24,
                     textAlign: "center",
                   }}
@@ -321,10 +377,10 @@ export async function GET(request: NextRequest) {
                 <div
                   style={{
                     display: "flex",
-                    fontSize: 36,
-                    color: "#666",
+                    fontSize: 32,
+                    color: "rgba(255, 255, 255, 0.7)",
                     textAlign: "center",
-                    maxWidth: "800px",
+                    maxWidth: "700px",
                   }}
                 >
                   Discover intelligent AI characters and agents
@@ -349,45 +405,66 @@ export async function GET(request: NextRequest) {
                 flexDirection: "column",
                 alignItems: "center",
                 justifyContent: "center",
-                background: ELIZA_GRADIENT,
+                background: BRAND_BG,
                 fontFamily: "system-ui, sans-serif",
-                padding: "40px",
+                position: "relative",
               }}
             >
+              {/* Outer Corner Brackets */}
+              <div style={{ position: "absolute", left: 40, top: 40, width: 48, height: 48, borderTop: `3px solid ${BRAND_BORDER}`, borderLeft: `3px solid ${BRAND_BORDER}` }} />
+              <div style={{ position: "absolute", right: 40, top: 40, width: 48, height: 48, borderTop: `3px solid ${BRAND_BORDER}`, borderRight: `3px solid ${BRAND_BORDER}` }} />
+              <div style={{ position: "absolute", left: 40, bottom: 40, width: 48, height: 48, borderBottom: `3px solid ${BRAND_BORDER}`, borderLeft: `3px solid ${BRAND_BORDER}` }} />
+              <div style={{ position: "absolute", right: 40, bottom: 40, width: 48, height: 48, borderBottom: `3px solid ${BRAND_BORDER}`, borderRight: `3px solid ${BRAND_BORDER}` }} />
+              
               <div
                 style={{
                   display: "flex",
                   flexDirection: "column",
                   alignItems: "center",
                   justifyContent: "center",
-                  background: "rgba(255, 255, 255, 0.95)",
-                  borderRadius: "32px",
+                  background: BRAND_SURFACE,
+                  border: `1px solid rgba(255, 255, 255, 0.1)`,
                   padding: "60px 80px",
-                  maxWidth: "1000px",
-                  boxShadow: "0 20px 60px rgba(0, 0, 0, 0.3)",
+                  maxWidth: "900px",
+                  position: "relative",
                 }}
               >
+                {/* Inner Orange Corner Brackets */}
+                <div style={{ position: "absolute", left: 0, top: 0, width: 24, height: 24, borderTop: `2px solid ${BRAND_ORANGE}`, borderLeft: `2px solid ${BRAND_ORANGE}` }} />
+                <div style={{ position: "absolute", right: 0, top: 0, width: 24, height: 24, borderTop: `2px solid ${BRAND_ORANGE}`, borderRight: `2px solid ${BRAND_ORANGE}` }} />
+                <div style={{ position: "absolute", left: 0, bottom: 0, width: 24, height: 24, borderBottom: `2px solid ${BRAND_ORANGE}`, borderLeft: `2px solid ${BRAND_ORANGE}` }} />
+                <div style={{ position: "absolute", right: 0, bottom: 0, width: 24, height: 24, borderBottom: `2px solid ${BRAND_ORANGE}`, borderRight: `2px solid ${BRAND_ORANGE}` }} />
+
+                {/* Orange dot indicator */}
                 <div
                   style={{
                     display: "flex",
-                    fontSize: 84,
-                    fontWeight: "bold",
-                    background: ELIZA_GRADIENT,
-                    backgroundClip: "text",
-                    color: "transparent",
-                    marginBottom: 32,
-                    textAlign: "center",
-                    lineHeight: 1.1,
+                    alignItems: "center",
+                    gap: 8,
+                    fontSize: 14,
+                    color: "rgba(255, 255, 255, 0.5)",
+                    marginBottom: 24,
+                    textTransform: "uppercase",
+                    letterSpacing: "0.1em",
                   }}
                 >
-                  elizaOS
+                  <div
+                    style={{
+                      width: 6,
+                      height: 6,
+                      background: BRAND_ORANGE,
+                      borderRadius: "50%",
+                    }}
+                  />
+                  ELIZAOS PLATFORM
                 </div>
+
                 <div
                   style={{
                     display: "flex",
-                    fontSize: 48,
-                    fontWeight: 600,
-                    color: "#1a1a1a",
+                    fontSize: 56,
+                    fontWeight: "bold",
+                    color: "white",
                     marginBottom: 24,
                     textAlign: "center",
                     lineHeight: 1.2,
@@ -398,10 +475,10 @@ export async function GET(request: NextRequest) {
                 <div
                   style={{
                     display: "flex",
-                    fontSize: 32,
-                    color: "#666",
+                    fontSize: 28,
+                    color: "rgba(255, 255, 255, 0.7)",
                     textAlign: "center",
-                    maxWidth: "800px",
+                    maxWidth: "700px",
                     lineHeight: 1.4,
                   }}
                 >
@@ -429,19 +506,43 @@ export async function GET(request: NextRequest) {
             display: "flex",
             alignItems: "center",
             justifyContent: "center",
-            background: ELIZA_GRADIENT,
+            background: BRAND_BG,
             fontFamily: "system-ui, sans-serif",
+            position: "relative",
           }}
         >
+          {/* Corner Brackets */}
+          <div style={{ position: "absolute", left: 40, top: 40, width: 48, height: 48, borderTop: `3px solid ${BRAND_BORDER}`, borderLeft: `3px solid ${BRAND_BORDER}` }} />
+          <div style={{ position: "absolute", right: 40, top: 40, width: 48, height: 48, borderTop: `3px solid ${BRAND_BORDER}`, borderRight: `3px solid ${BRAND_BORDER}` }} />
+          <div style={{ position: "absolute", left: 40, bottom: 40, width: 48, height: 48, borderBottom: `3px solid ${BRAND_BORDER}`, borderLeft: `3px solid ${BRAND_BORDER}` }} />
+          <div style={{ position: "absolute", right: 40, bottom: 40, width: 48, height: 48, borderBottom: `3px solid ${BRAND_BORDER}`, borderRight: `3px solid ${BRAND_BORDER}` }} />
+          
           <div
             style={{
               display: "flex",
-              fontSize: 72,
-              fontWeight: "bold",
-              color: "white",
+              flexDirection: "column",
+              alignItems: "center",
+              gap: 16,
             }}
           >
-            elizaOS Platform
+            <div
+              style={{
+                display: "flex",
+                fontSize: 72,
+                fontWeight: "bold",
+                color: "white",
+              }}
+            >
+              elizaOS Platform
+            </div>
+            <div
+              style={{
+                display: "flex",
+                width: 80,
+                height: 4,
+                background: BRAND_ORANGE,
+              }}
+            />
           </div>
         </div>
       ),
