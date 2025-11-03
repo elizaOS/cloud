@@ -88,29 +88,24 @@ async function handlePOST(req: NextRequest) {
           limit: limitCheck.limit,
         });
 
-        return NextResponse.json(
-          {
-            error: errorMessage,
-            requiresSignup: true,
-            reason: limitCheck.reason,
-            limit: limitCheck.limit,
-            remaining: limitCheck.remaining,
-          },
-          { status: 429 },
-        );
-      }
-
-      // Increment message count for tracking
-      await anonymousSessionsService.incrementMessageCount(
-        anonymousSession.id,
+      return NextResponse.json(
+        {
+          error: errorMessage,
+          requiresSignup: true,
+          reason: limitCheck.reason,
+          limit: limitCheck.limit,
+          remaining: limitCheck.remaining,
+        },
+        { status: 429 },
       );
-
-      logger.info("chat-api", "Anonymous user message allowed", {
-        userId: user.id,
-        remaining: limitCheck.remaining,
-        limit: limitCheck.limit,
-      });
     }
+
+    logger.info("chat-api", "Anonymous user message allowed", {
+      userId: user.id,
+      remaining: limitCheck.remaining,
+      limit: limitCheck.limit,
+    });
+  }
 
     // For authenticated users: Check credit balance BEFORE starting stream
     if (!isAnonymous) {
@@ -172,6 +167,18 @@ async function handlePOST(req: NextRequest) {
         if (!usage) return;
 
         try {
+          // Increment message count AFTER successful completion (for anonymous users)
+          if (isAnonymous && anonymousSession) {
+            await anonymousSessionsService.incrementMessageCount(
+              anonymousSession.id,
+            );
+            
+            logger.info("chat-api", "Incremented anonymous message count after success", {
+              sessionId: anonymousSession.id,
+              newCount: anonymousSession.message_count + 1,
+            });
+          }
+
           const userMessage = messages[messages.length - 1];
 
           const { inputCost, outputCost, totalCost } = await calculateCost(
