@@ -19,7 +19,7 @@ const BrandTabsList = React.forwardRef<
     ref={ref}
     className={cn(
       "inline-flex h-12 items-center justify-center rounded-none bg-black/50 border border-white/10 p-0 backdrop-blur-sm",
-      className
+      className,
     )}
     {...props}
   />
@@ -39,7 +39,7 @@ const BrandTabsTrigger = React.forwardRef<
       "data-[state=active]:border-white data-[state=active]:bg-[#252527] data-[state=active]:text-white",
       "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2",
       "disabled:pointer-events-none disabled:opacity-50",
-      className
+      className,
     )}
     {...props}
   />
@@ -54,7 +54,7 @@ const BrandTabsContent = React.forwardRef<
     ref={ref}
     className={cn(
       "mt-8 ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2",
-      className
+      className,
     )}
     {...props}
   />
@@ -81,10 +81,7 @@ export function SimpleBrandTabs({
         <button
           key={tab}
           onClick={() => onTabChange(tab)}
-          className={cn(
-            "brand-tab",
-            activeTab === tab && "brand-tab-active"
-          )}
+          className={cn("brand-tab", activeTab === tab && "brand-tab-active")}
         >
           {tab}
         </button>
@@ -94,5 +91,3 @@ export function SimpleBrandTabs({
 }
 
 export { BrandTabs, BrandTabsList, BrandTabsTrigger, BrandTabsContent };
-
-

@@ -18,6 +18,13 @@ const geistMono = Geist_Mono({
   subsets: ["latin"],
 });
 
+// Get base URL with automatic Vercel URL detection as fallback
+const baseUrl =
+  process.env.NEXT_PUBLIC_APP_URL ||
+  (process.env.VERCEL_URL
+    ? `https://${process.env.VERCEL_URL}`
+    : "http://localhost:3000");
+
 export const metadata: Metadata = {
   title: {
     default: "elizaOS Platform - AI Agent Development Platform",
@@ -40,9 +47,7 @@ export const metadata: Metadata = {
   authors: [{ name: "elizaOS Team" }],
   creator: "elizaOS",
   publisher: "elizaOS",
-  metadataBase: new URL(
-    process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000",
-  ),
+  metadataBase: new URL(baseUrl),
   alternates: {
     canonical: "/",
   },
@@ -54,13 +59,26 @@ export const metadata: Metadata = {
     siteName: "elizaOS Platform",
     type: "website",
     locale: "en_US",
+    images: [
+      {
+        url: `${baseUrl}/api/og?type=default&title=elizaOS Platform&description=AI Agent Development Platform`,
+        width: 1200,
+        height: 630,
+        alt: "elizaOS Platform",
+        type: "image/png",
+      },
+    ],
   },
   twitter: {
     card: "summary_large_image",
     title: "elizaOS Platform",
     description:
       "Complete AI agent development platform with inference, hosting, storage, and rapid deployment",
+    images: [
+      `${baseUrl}/api/og?type=default&title=elizaOS Platform&description=AI Agent Development Platform`,
+    ],
     creator: "@elizaos",
+    site: "@elizaos",
   },
   robots: {
     index: true,
@@ -73,6 +91,12 @@ export const metadata: Metadata = {
       "max-snippet": -1,
     },
   },
+  icons: {
+    icon: "/favicon.ico",
+    shortcut: "/favicon.ico",
+    apple: "/favicon.ico",
+  },
+  manifest: "/site.webmanifest",
 };
 
 export default function RootLayout({

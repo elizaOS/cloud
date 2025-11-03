@@ -617,8 +617,11 @@ class AgentRuntimeManager {
     // OPTIMIZATION: Check connection cache before calling ensureConnection
     // This avoids a DB query on every message for established connections
     const entityUuid = stringToUuid(entityId) as UUID;
-    const isConnectionCached = await connectionCache.isEstablished(roomId, entityId);
-    
+    const isConnectionCached = await connectionCache.isEstablished(
+      roomId,
+      entityId,
+    );
+
     if (!isConnectionCached) {
       // Connection not cached - ensure it exists and cache the result
       await runtime.ensureConnection({
@@ -631,7 +634,7 @@ class AgentRuntimeManager {
         serverId: "eliza-server",
         userName: entityId,
       });
-      
+
       // Mark connection as established in cache
       await connectionCache.markEstablished(roomId, entityId);
       elizaLogger.debug("[AgentRuntime] Connection established and cached");

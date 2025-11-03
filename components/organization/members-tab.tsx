@@ -149,7 +149,10 @@ export function MembersTab({ user }: MembersTabProps) {
           </p>
         </div>
         {canManageMembers && (
-          <BrandButton variant="primary" onClick={() => setIsInviteDialogOpen(true)}>
+          <BrandButton
+            variant="primary"
+            onClick={() => setIsInviteDialogOpen(true)}
+          >
             <UserPlus className="h-4 w-4 mr-2" />
             Invite Member
           </BrandButton>
@@ -176,7 +179,9 @@ export function MembersTab({ user }: MembersTabProps) {
       {canManageMembers && (
         <>
           <div className="pt-6 border-t border-white/10">
-            <h3 className="text-lg font-semibold mb-4 text-white">Pending Invitations</h3>
+            <h3 className="text-lg font-semibold mb-4 text-white">
+              Pending Invitations
+            </h3>
             {isLoadingInvites ? (
               <div className="flex items-center justify-center py-8">
                 <Loader2 className="h-6 w-6 animate-spin text-[#FF5800]" />

@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { agentRuntime } from "@/lib/eliza/agent-runtime";
-import type { UUID } from "@elizaos/core";
+import type { UUID, Agent } from "@elizaos/core";
 import { requireAuthOrApiKey } from "@/lib/auth";
 import type { NextRequest } from "next/server";
 import { elizaRoomCharactersRepository } from "@/db/repositories";
@@ -54,10 +54,6 @@ export async function GET(
       })
       .sort((a, b) => a.createdAt - b.createdAt);
 
-    // Get agent info including avatar
-    const agent = await runtime.getAgent(runtime.agentId);
-    const avatarUrl = agent?.settings?.avatarUrl as string | undefined;
-
     // Look up character for this room
     let characterId: string | undefined;
     try {
@@ -75,6 +71,41 @@ export async function GET(
       );
     }
 
+    // Get agent info including avatar
+    // If room has a specific character, use that character's avatar
+    let agent: Agent | null = null;
+    let avatarUrl: string | undefined;
+    let agentName: string | undefined;
+
+    if (characterId) {
+      // Load character-specific runtime to get character's avatar and name
+      try {
+        const characterRuntime =
+          await agentRuntime.getRuntimeForCharacter(characterId);
+        agent = await characterRuntime.getAgent(characterRuntime.agentId);
+        avatarUrl = agent?.settings?.avatarUrl as string | undefined;
+        agentName = agent?.name;
+        logger.debug("[Eliza Room API] Loaded character avatar:", {
+          name: agentName,
+          avatarUrl,
+        });
+      } catch (err) {
+        logger.warn(
+          "[Eliza Room API] Failed to load character runtime, using default:",
+          err,
+        );
+        // Fall back to default agent
+        agent = await runtime.getAgent(runtime.agentId);
+        avatarUrl = agent?.settings?.avatarUrl as string | undefined;
+        agentName = agent?.name;
+      }
+    } else {
+      // Use default agent
+      agent = await runtime.getAgent(runtime.agentId);
+      avatarUrl = agent?.settings?.avatarUrl as string | undefined;
+      agentName = agent?.name;
+    }
+
     return NextResponse.json(
       {
         success: true,
@@ -84,7 +115,7 @@ export async function GET(
         characterId,
         agent: {
           id: agent?.id,
-          name: agent?.name,
+          name: agentName,
           avatarUrl,
         },
       },

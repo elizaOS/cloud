@@ -33,22 +33,34 @@ export function CornerBrackets({
       <div className={cn("pointer-events-none absolute inset-0", className)}>
         {/* Top-left corner */}
         <div
-          className={cn("absolute left-0 top-0 border-l-2 border-t-2", sizeClass)}
+          className={cn(
+            "absolute left-0 top-0 border-l-2 border-t-2",
+            sizeClass,
+          )}
           style={borderStyle}
         />
         {/* Top-right corner */}
         <div
-          className={cn("absolute right-0 top-0 border-r-2 border-t-2", sizeClass)}
+          className={cn(
+            "absolute right-0 top-0 border-r-2 border-t-2",
+            sizeClass,
+          )}
           style={borderStyle}
         />
         {/* Bottom-left corner */}
         <div
-          className={cn("absolute bottom-0 left-0 border-b-2 border-l-2", sizeClass)}
+          className={cn(
+            "absolute bottom-0 left-0 border-b-2 border-l-2",
+            sizeClass,
+          )}
           style={borderStyle}
         />
         {/* Bottom-right corner */}
         <div
-          className={cn("absolute bottom-0 right-0 border-b-2 border-r-2", sizeClass)}
+          className={cn(
+            "absolute bottom-0 right-0 border-b-2 border-r-2",
+            sizeClass,
+          )}
           style={borderStyle}
         />
       </div>
@@ -59,26 +71,40 @@ export function CornerBrackets({
     <>
       {/* Top-left corner */}
       <div
-        className={cn("absolute top-0 left-0 border-t border-l", sizeClass, className)}
+        className={cn(
+          "absolute top-0 left-0 border-t border-l",
+          sizeClass,
+          className,
+        )}
         style={borderStyle}
       />
       {/* Top-right corner */}
       <div
-        className={cn("absolute top-0 right-0 border-t border-r", sizeClass, className)}
+        className={cn(
+          "absolute top-0 right-0 border-t border-r",
+          sizeClass,
+          className,
+        )}
         style={borderStyle}
       />
       {/* Bottom-left corner */}
       <div
-        className={cn("absolute bottom-0 left-0 border-b border-l", sizeClass, className)}
+        className={cn(
+          "absolute bottom-0 left-0 border-b border-l",
+          sizeClass,
+          className,
+        )}
         style={borderStyle}
       />
       {/* Bottom-right corner */}
       <div
-        className={cn("absolute bottom-0 right-0 border-b border-r", sizeClass, className)}
+        className={cn(
+          "absolute bottom-0 right-0 border-b border-r",
+          sizeClass,
+          className,
+        )}
         style={borderStyle}
       />
     </>
   );
 }
-
-

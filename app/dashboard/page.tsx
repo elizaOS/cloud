@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { Sparkles, Image, Video, MessageSquare } from "lucide-react";
+import { generatePageMetadata, ROUTE_METADATA } from "@/lib/seo";
 
 import { DashboardHero } from "@/components/dashboard/dashboard-hero";
 import { DashboardPageWrapper } from "@/components/dashboard/dashboard-page-wrapper";
@@ -39,10 +40,11 @@ import {
   BrandButton,
 } from "@/components/brand";
 
-export const metadata: Metadata = {
-  title: "Dashboard",
-  description: "View your AI agent dashboard, analytics, and quick actions",
-};
+export const metadata: Metadata = generatePageMetadata({
+  ...ROUTE_METADATA.dashboard,
+  path: "/dashboard",
+  noIndex: true,
+});
 
 // Force dynamic rendering since we use server-side auth (cookies)
 export const dynamic = "force-dynamic";
@@ -313,9 +315,15 @@ export default async function DashboardPage() {
 
           <BrandTabs defaultValue="overview" className="w-full">
             <BrandTabsList className="w-full max-w-md">
-              <BrandTabsTrigger value="overview" className="flex-1">Overview</BrandTabsTrigger>
-              <BrandTabsTrigger value="activity" className="flex-1">Activity</BrandTabsTrigger>
-              <BrandTabsTrigger value="limits" className="flex-1">Limits & Health</BrandTabsTrigger>
+              <BrandTabsTrigger value="overview" className="flex-1">
+                Overview
+              </BrandTabsTrigger>
+              <BrandTabsTrigger value="activity" className="flex-1">
+                Activity
+              </BrandTabsTrigger>
+              <BrandTabsTrigger value="limits" className="flex-1">
+                Limits & Health
+              </BrandTabsTrigger>
             </BrandTabsList>
 
             <BrandTabsContent value="overview" className="mt-6 space-y-6">

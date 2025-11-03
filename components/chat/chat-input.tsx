@@ -55,7 +55,10 @@ export function ChatInput({
             {isRecording ? (
               <Square className="h-5 w-5" />
             ) : (
-              <Mic className="h-5 w-5" style={{ color: isRecording ? "#FFFFFF" : "#FF5800" }} />
+              <Mic
+                className="h-5 w-5"
+                style={{ color: isRecording ? "#FFFFFF" : "#FF5800" }}
+              />
             )}
           </BrandButton>
         )}
@@ -66,15 +69,13 @@ export function ChatInput({
           onChange={(e) => onChange(e.target.value)}
           onKeyDown={handleKeyDown}
           placeholder={
-            isRecording
-              ? "Recording... Click stop when done"
-              : placeholder
+            isRecording ? "Recording... Click stop when done" : placeholder
           }
           disabled={isLoading || disabled || isRecording}
           className={cn(
             "flex-1 bg-transparent border-0 text-white placeholder:text-white/40",
             "focus:outline-none focus:ring-0 text-sm",
-            "disabled:opacity-50"
+            "disabled:opacity-50",
           )}
         />
 
@@ -86,7 +87,10 @@ export function ChatInput({
           disabled={isLoading || disabled || !value.trim() || isRecording}
         >
           {isLoading ? (
-            <Loader2 className="h-5 w-5 animate-spin" style={{ color: "#FF5800" }} />
+            <Loader2
+              className="h-5 w-5 animate-spin"
+              style={{ color: "#FF5800" }}
+            />
           ) : (
             <Send className="h-5 w-5" style={{ color: "#FF5800" }} />
           )}
@@ -95,5 +99,3 @@ export function ChatInput({
     </form>
   );
 }
-
-
