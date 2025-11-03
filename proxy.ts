@@ -11,8 +11,11 @@ const privyClient = new PrivyClient(
 // Paths that don't require authentication
 const publicPaths = [
   "/",
+  "/marketplace",
   "/api/models",
   "/api/fal/proxy",
+  "/api/og", // OG image generation (must be public for social media crawlers)
+  "/api/public", // Public API endpoints (marketplace, etc.)
   "/auth/error",
   "/auth/cli-login", // CLI login page
   "/api/auth/cli-session", // CLI session endpoints (public for polling)

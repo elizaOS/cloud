@@ -2,7 +2,18 @@ import type { StructuredDataOptions } from "./types";
 import { SEO_CONSTANTS } from "./constants";
 
 function getBaseUrl(): string {
-  return process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000";
+  // Priority 1: Explicitly set app URL (recommended for production)
+  if (process.env.NEXT_PUBLIC_APP_URL) {
+    return process.env.NEXT_PUBLIC_APP_URL;
+  }
+
+  // Priority 2: Vercel automatic URL (for deployments without explicit URL)
+  if (process.env.VERCEL_URL) {
+    return `https://${process.env.VERCEL_URL}`;
+  }
+
+  // Priority 3: Local development fallback
+  return "http://localhost:3000";
 }
 
 export function generateOrganizationSchema() {

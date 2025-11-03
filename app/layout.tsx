@@ -18,7 +18,9 @@ const geistMono = Geist_Mono({
   subsets: ["latin"],
 });
 
-const baseUrl = process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000";
+// Get base URL with automatic Vercel URL detection as fallback
+const baseUrl = process.env.NEXT_PUBLIC_APP_URL 
+  || (process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : "http://localhost:3000");
 
 export const metadata: Metadata = {
   title: {

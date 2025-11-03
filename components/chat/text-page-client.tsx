@@ -63,7 +63,7 @@ export function TextPageClient({
           </div>
         </aside>
 
-        <section className="relative flex h-full min-h-0 w-full overflow-hidden rounded-none border border-white/10 bg-black/40">
+        <section className="relative flex h-full min-h-0 w-full overflow-visible rounded-none border border-white/10 bg-black/40">
           <CornerBrackets size="md" className="opacity-50" />
           <ChatInterfaceWithPersistence
             conversation={currentConversation}
