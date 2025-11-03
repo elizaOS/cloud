@@ -1,13 +1,13 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { Button } from "@/components/ui/button";
 import { UserPlus, Loader2 } from "lucide-react";
 import type { UserWithOrganization } from "@/lib/types";
 import { InviteMemberDialog } from "./invite-member-dialog";
 import { MembersList } from "./members-list";
 import { PendingInvitesList } from "./pending-invites-list";
 import { toast } from "sonner";
+import { BrandButton } from "@/components/brand";
 
 interface MembersTabProps {
   user: UserWithOrganization;
@@ -143,23 +143,23 @@ export function MembersTab({ user }: MembersTabProps) {
       {/* Header with Invite Button */}
       <div className="flex items-center justify-between">
         <div>
-          <h3 className="text-lg font-semibold">Team Members</h3>
-          <p className="text-sm text-muted-foreground">
+          <h3 className="text-lg font-semibold text-white">Team Members</h3>
+          <p className="text-sm text-white/60">
             Manage who has access to your organization
           </p>
         </div>
         {canManageMembers && (
-          <Button onClick={() => setIsInviteDialogOpen(true)}>
+          <BrandButton variant="primary" onClick={() => setIsInviteDialogOpen(true)}>
             <UserPlus className="h-4 w-4 mr-2" />
             Invite Member
-          </Button>
+          </BrandButton>
         )}
       </div>
 
       {/* Members List */}
       {isLoadingMembers ? (
         <div className="flex items-center justify-center py-12">
-          <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+          <Loader2 className="h-8 w-8 animate-spin text-[#FF5800]" />
         </div>
       ) : (
         <MembersList
@@ -175,11 +175,11 @@ export function MembersTab({ user }: MembersTabProps) {
       {/* Pending Invites */}
       {canManageMembers && (
         <>
-          <div className="pt-6 border-t">
-            <h3 className="text-lg font-semibold mb-4">Pending Invitations</h3>
+          <div className="pt-6 border-t border-white/10">
+            <h3 className="text-lg font-semibold mb-4 text-white">Pending Invitations</h3>
             {isLoadingInvites ? (
               <div className="flex items-center justify-center py-8">
-                <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+                <Loader2 className="h-6 w-6 animate-spin text-[#FF5800]" />
               </div>
             ) : (
               <PendingInvitesList
