@@ -3,14 +3,8 @@ import { requireAuth } from "@/lib/auth";
 import { listContainers } from "@/lib/services";
 import { ContainersTable } from "@/components/containers/containers-table";
 import { ContainersSkeleton } from "@/components/containers/containers-skeleton";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
 import { Terminal, Server, TrendingUp, Activity } from "lucide-react";
+import { BrandCard, CornerBrackets } from "@/components/brand";
 
 export const dynamic = "force-dynamic";
 
@@ -36,10 +30,10 @@ export default async function ContainersPage() {
       {/* Header */}
       <div className="flex justify-between items-start">
         <div>
-          <h1 className="text-4xl font-bold tracking-tight bg-gradient-to-r from-foreground to-foreground/70 bg-clip-text text-transparent">
+          <h1 className="text-4xl font-bold tracking-tight text-white">
             Containers
           </h1>
-          <p className="text-muted-foreground mt-2 text-lg">
+          <p className="text-white/60 mt-2 text-lg">
             Manage your deployed ElizaOS containers
           </p>
         </div>
@@ -48,135 +42,129 @@ export default async function ContainersPage() {
       {/* Stats Overview - Only show if there are containers */}
       {containers.length > 0 && (
         <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-          <Card>
-            <CardContent className="pt-6">
-              <div className="flex items-center justify-between mb-2">
-                <div className="p-2 rounded-md bg-blue-500/10">
-                  <Server className="h-4 w-4 text-blue-500" />
-                </div>
+          <BrandCard corners={false} className="pt-6">
+            <div className="flex items-center justify-between mb-2">
+              <div className="p-2 rounded-none bg-blue-500/20 border border-blue-500/40">
+                <Server className="h-4 w-4 text-blue-400" />
               </div>
-              <div>
-                <p className="text-sm font-medium text-muted-foreground">
-                  Total Containers
-                </p>
-                <p className="text-3xl font-bold mt-1">{stats.total}</p>
-              </div>
-            </CardContent>
-          </Card>
+            </div>
+            <div>
+              <p className="text-xs font-medium text-white/50 uppercase tracking-wide">
+                Total Containers
+              </p>
+              <p className="text-3xl font-bold mt-1 text-white">{stats.total}</p>
+            </div>
+          </BrandCard>
 
-          <Card>
-            <CardContent className="pt-6">
-              <div className="flex items-center justify-between mb-2">
-                <div className="p-2 rounded-md bg-green-500/10">
-                  <Activity className="h-4 w-4 text-green-500" />
-                </div>
+          <BrandCard corners={false} className="pt-6">
+            <div className="flex items-center justify-between mb-2">
+              <div className="p-2 rounded-none bg-green-500/20 border border-green-500/40">
+                <Activity className="h-4 w-4 text-green-400" />
               </div>
-              <div>
-                <p className="text-sm font-medium text-muted-foreground">
-                  Running
-                </p>
-                <p className="text-3xl font-bold mt-1 text-green-500">
-                  {stats.running}
-                </p>
-              </div>
-            </CardContent>
-          </Card>
+            </div>
+            <div>
+              <p className="text-xs font-medium text-white/50 uppercase tracking-wide">
+                Running
+              </p>
+              <p className="text-3xl font-bold mt-1 text-green-400">
+                {stats.running}
+              </p>
+            </div>
+          </BrandCard>
 
-          <Card>
-            <CardContent className="pt-6">
-              <div className="flex items-center justify-between mb-2">
-                <div className="p-2 rounded-md bg-yellow-500/10">
-                  <TrendingUp className="h-4 w-4 text-yellow-500" />
-                </div>
+          <BrandCard corners={false} className="pt-6">
+            <div className="flex items-center justify-between mb-2">
+              <div className="p-2 rounded-none bg-yellow-500/20 border border-yellow-500/40">
+                <TrendingUp className="h-4 w-4 text-yellow-400" />
               </div>
-              <div>
-                <p className="text-sm font-medium text-muted-foreground">
-                  Building
-                </p>
-                <p className="text-3xl font-bold mt-1 text-yellow-500">
-                  {stats.building}
-                </p>
-              </div>
-            </CardContent>
-          </Card>
+            </div>
+            <div>
+              <p className="text-xs font-medium text-white/50 uppercase tracking-wide">
+                Building
+              </p>
+              <p className="text-3xl font-bold mt-1 text-yellow-400">
+                {stats.building}
+              </p>
+            </div>
+          </BrandCard>
 
-          <Card>
-            <CardContent className="pt-6">
-              <div className="flex items-center justify-between mb-2">
-                <div className="p-2 rounded-md bg-red-500/10">
-                  <Activity className="h-4 w-4 text-red-500" />
-                </div>
+          <BrandCard corners={false} className="pt-6">
+            <div className="flex items-center justify-between mb-2">
+              <div className="p-2 rounded-none bg-rose-500/20 border border-rose-500/40">
+                <Activity className="h-4 w-4 text-rose-400" />
               </div>
-              <div>
-                <p className="text-sm font-medium text-muted-foreground">
-                  Issues
-                </p>
-                <p className="text-3xl font-bold mt-1 text-red-500">
-                  {stats.failed}
-                </p>
-              </div>
-            </CardContent>
-          </Card>
+            </div>
+            <div>
+              <p className="text-xs font-medium text-white/50 uppercase tracking-wide">
+                Issues
+              </p>
+              <p className="text-3xl font-bold mt-1 text-rose-400">
+                {stats.failed}
+              </p>
+            </div>
+          </BrandCard>
         </div>
       )}
 
       {/* Quick Start Card - Show prominently when no containers exist */}
       {containers.length === 0 ? (
-        <Card className="border-dashed border-2">
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2 text-2xl">
-              <Terminal className="h-6 w-6" />
-              Get Started with ElizaOS
-            </CardTitle>
-            <CardDescription className="text-base">
-              Deploy your first ElizaOS container using the command line
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
+        <BrandCard className="relative border-dashed">
+          <CornerBrackets size="md" className="opacity-50" />
+          <div className="relative z-10 space-y-4">
+            <div>
+              <div className="flex items-center gap-2 mb-2">
+                <Terminal className="h-6 w-6 text-[#FF5800]" />
+                <h3 className="text-2xl font-bold text-white">Get Started with ElizaOS</h3>
+              </div>
+              <p className="text-base text-white/60">
+                Deploy your first ElizaOS container using the command line
+              </p>
+            </div>
             <div className="space-y-4">
-              <div className="bg-muted p-5 rounded-lg font-mono text-sm">
-                <div className="text-muted-foreground mb-2 font-sans">
+              <div className="bg-black/60 border border-white/10 p-5 rounded-none font-mono text-sm">
+                <div className="text-white/50 mb-2 font-sans">
                   # Install ElizaOS CLI
                 </div>
-                <div className="text-foreground font-semibold">
+                <div className="text-white font-semibold">
                   bun install -g @elizaos/cli
                 </div>
 
-                <div className="text-muted-foreground mt-4 mb-2 font-sans">
+                <div className="text-white/50 mt-4 mb-2 font-sans">
                   # Deploy your project
                 </div>
-                <div className="text-foreground">cd your-elizaos-project</div>
-                <div className="text-foreground font-semibold">
+                <div className="text-white">cd your-elizaos-project</div>
+                <div className="text-white font-semibold">
                   elizaos deploy
                 </div>
               </div>
-              <p className="text-sm text-muted-foreground">
+              <p className="text-sm text-white/60">
                 Once deployed, you&apos;ll be able to view deployment history,
                 logs, and metrics for your container right here.
               </p>
             </div>
-          </CardContent>
-        </Card>
+          </div>
+        </BrandCard>
       ) : (
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <Terminal className="h-5 w-5" />
-              Deploy from CLI
-            </CardTitle>
-            <CardDescription>
-              Deploy additional ElizaOS projects using the command line
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            <div className="bg-muted p-4 rounded-md font-mono text-sm">
-              <div className="text-muted-foreground mb-2">
+        <BrandCard className="relative">
+          <CornerBrackets size="sm" className="opacity-50" />
+          <div className="relative z-10 space-y-4">
+            <div>
+              <div className="flex items-center gap-2 mb-2">
+                <Terminal className="h-5 w-5 text-[#FF5800]" />
+                <h3 className="text-lg font-bold text-white">Deploy from CLI</h3>
+              </div>
+              <p className="text-sm text-white/60">
+                Deploy additional ElizaOS projects using the command line
+              </p>
+            </div>
+            <div className="bg-black/60 border border-white/10 p-4 rounded-none font-mono text-sm">
+              <div className="text-white/50 mb-2">
                 # From your ElizaOS project directory
               </div>
-              <div>elizaos deploy</div>
+              <div className="text-white">elizaos deploy</div>
             </div>
-          </CardContent>
-        </Card>
+          </div>
+        </BrandCard>
       )}
 
       <Suspense fallback={<ContainersSkeleton />}>
