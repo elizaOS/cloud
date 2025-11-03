@@ -272,3 +272,4 @@ The landing page components have been updated to use these reusable components. 
 4. Add corner brackets to major sections for visual consistency
 5. Use the orange dot (`#FF5800`) for accent indicators
 
+
