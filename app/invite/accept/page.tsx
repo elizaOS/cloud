@@ -43,7 +43,7 @@ function InviteAcceptContent() {
   const [isValidating, setIsValidating] = useState(true);
   const [isAccepting, setIsAccepting] = useState(false);
   const [inviteDetails, setInviteDetails] = useState<InviteDetails | null>(
-    null
+    null,
   );
   const [error, setError] = useState<string | null>(null);
 
@@ -62,7 +62,7 @@ function InviteAcceptContent() {
     try {
       setIsValidating(true);
       const response = await fetch(
-        `/api/invites/validate?token=${encodeURIComponent(token!)}`
+        `/api/invites/validate?token=${encodeURIComponent(token!)}`,
       );
       const data = await response.json();
 
@@ -277,8 +277,8 @@ function InviteAcceptContent() {
           </div>
 
           <div className="text-center text-xs text-muted-foreground">
-            By accepting, you&apos;ll gain access to the organization&apos;s resources and
-            workspace.
+            By accepting, you&apos;ll gain access to the organization&apos;s
+            resources and workspace.
           </div>
         </CardContent>
       </Card>

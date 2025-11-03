@@ -505,7 +505,12 @@ export function MarketplacePreview() {
             </p>
 
             <div className="flex flex-col items-center justify-center gap-4 sm:flex-row">
-              <Button size="lg" className="gap-2" onClick={handleAuth} disabled={!ready || isLoggingIn}>
+              <Button
+                size="lg"
+                className="gap-2"
+                onClick={handleAuth}
+                disabled={!ready || isLoggingIn}
+              >
                 {!ready || isLoggingIn ? (
                   <>
                     <Loader2 className="h-4 w-4 animate-spin" />
@@ -589,7 +594,12 @@ export function MarketplacePreview() {
           </div>
 
           <div className="mt-12 text-center">
-            <Button size="lg" onClick={handleAuth} className="gap-2" disabled={!ready || isLoggingIn}>
+            <Button
+              size="lg"
+              onClick={handleAuth}
+              className="gap-2"
+              disabled={!ready || isLoggingIn}
+            >
               {!ready || isLoggingIn ? (
                 <>
                   <Loader2 className="h-4 w-4 animate-spin" />
@@ -688,7 +698,12 @@ export function MarketplacePreview() {
           </div>
 
           <div className="mt-12 text-center space-y-4">
-            <Button size="lg" onClick={handleAuth} className="gap-2" disabled={!ready || isLoggingIn}>
+            <Button
+              size="lg"
+              onClick={handleAuth}
+              className="gap-2"
+              disabled={!ready || isLoggingIn}
+            >
               {!ready || isLoggingIn ? (
                 <>
                   <Loader2 className="h-4 w-4 animate-spin" />
@@ -734,7 +749,12 @@ export function MarketplacePreview() {
             </p>
 
             <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
-              <Button size="lg" className="gap-2" onClick={handleAuth} disabled={!ready || isLoggingIn}>
+              <Button
+                size="lg"
+                className="gap-2"
+                onClick={handleAuth}
+                disabled={!ready || isLoggingIn}
+              >
                 {!ready || isLoggingIn ? (
                   <>
                     <Loader2 className="h-5 w-5 animate-spin" />

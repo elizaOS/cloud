@@ -87,7 +87,7 @@ export function VideoPreview({ video }: VideoPreviewProps) {
   return (
     <BrandCard className="relative flex h-full min-h-0 flex-col">
       <CornerBrackets size="md" className="opacity-50" />
-      
+
       <div className="relative z-10 space-y-2 pb-0">
         <div className="flex items-center justify-between gap-2">
           <h3 className="text-xl font-bold text-white">Preview</h3>
@@ -306,9 +306,7 @@ export function VideoPreview({ video }: VideoPreviewProps) {
           </BrandButton>
         </div>
         {copyFeedback && (
-          <p className="text-center text-xs text-white/60">
-            {copyFeedback}
-          </p>
+          <p className="text-center text-xs text-white/60">{copyFeedback}</p>
         )}
       </div>
     </BrandCard>

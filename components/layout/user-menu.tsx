@@ -54,7 +54,12 @@ export default function UserMenu() {
     const isLoading = !ready || isLoggingIn;
     return (
       <div className="flex items-center gap-2">
-        <Button variant="ghost" size="sm" onClick={handleLogin} disabled={isLoading}>
+        <Button
+          variant="ghost"
+          size="sm"
+          onClick={handleLogin}
+          disabled={isLoading}
+        >
           {isLoading ? (
             <>
               <Loader2 className="h-4 w-4 animate-spin mr-2" />

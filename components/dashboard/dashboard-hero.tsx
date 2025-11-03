@@ -49,20 +49,17 @@ export function DashboardHero({
   className,
 }: DashboardHeroProps) {
   return (
-    <BrandCard
-      className={cn(
-        "relative overflow-hidden",
-        className,
-      )}
-    >
+    <BrandCard className={cn("relative overflow-hidden", className)}>
       <CornerBrackets size="lg" className="opacity-50" />
-      
+
       <div className="relative z-10 pb-4">
         <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
           <div className="space-y-3">
             <div className="w-fit flex items-center gap-2 rounded-none border border-white/20 bg-white/10 px-3 py-1">
               <Sparkles className="h-3.5 w-3.5 text-[#FF5800]" />
-              <span className="text-white text-sm">Good to see you, {userName}</span>
+              <span className="text-white text-sm">
+                Good to see you, {userName}
+              </span>
             </div>
             <div className="space-y-2">
               <h1 className="text-3xl font-semibold tracking-tight md:text-4xl text-white">
@@ -88,7 +85,12 @@ export function DashboardHero({
 
           <div className="flex flex-col gap-3 sm:flex-row">
             {primaryAction ? (
-              <BrandButton asChild variant="primary" size="lg" className="w-full sm:w-auto">
+              <BrandButton
+                asChild
+                variant="primary"
+                size="lg"
+                className="w-full sm:w-auto"
+              >
                 <Link href={primaryAction.href}>
                   {primaryAction.label}
                   <ArrowUpRight className="ml-2 h-4 w-4" />
@@ -135,9 +137,7 @@ export function DashboardHero({
                 <TrendingUp className="h-4 w-4 text-[#FF5800] opacity-0 transition-opacity group-hover:opacity-100" />
               </div>
               {stat.hint ? (
-                <p className="mt-1 text-xs text-white/50">
-                  {stat.hint}
-                </p>
+                <p className="mt-1 text-xs text-white/50">{stat.hint}</p>
               ) : null}
             </div>
           ))}

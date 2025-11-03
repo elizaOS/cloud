@@ -102,7 +102,8 @@ export default function ApiExplorerPage() {
   };
 
   const getMethodColor = (method: string) => {
-    const base = "rounded-none px-2.5 py-1 text-xs font-bold uppercase tracking-wide border";
+    const base =
+      "rounded-none px-2.5 py-1 text-xs font-bold uppercase tracking-wide border";
     switch (method) {
       case "GET":
         return `${base} bg-emerald-500/20 text-emerald-400 border-emerald-500/40`;
@@ -125,7 +126,7 @@ export default function ApiExplorerPage() {
         <div className="lg:col-span-1">
           <BrandCard className="relative">
             <CornerBrackets size="sm" className="opacity-50" />
-            
+
             <div className="relative z-10 space-y-6">
               <SectionLabel>Browse APIs</SectionLabel>
 
@@ -209,18 +210,20 @@ export default function ApiExplorerPage() {
 
                   <BrandCard className="relative">
                     <CornerBrackets size="sm" className="opacity-50" />
-                    
+
                     <div className="relative z-10 space-y-4">
                       <div>
                         <div className="flex items-center gap-2 mb-2">
                           {getCategoryIcon(selectedEndpoint.category)}
-                          <h3 className="text-lg font-bold text-white">{selectedEndpoint.name}</h3>
+                          <h3 className="text-lg font-bold text-white">
+                            {selectedEndpoint.name}
+                          </h3>
                         </div>
                         <p className="text-sm text-white/60">
                           {selectedEndpoint.description}
                         </p>
                       </div>
-                      
+
                       <ApiTester
                         endpoint={selectedEndpoint}
                         authToken={authToken}
@@ -288,17 +291,18 @@ export default function ApiExplorerPage() {
             <BrandTabsContent value="openapi">
               <BrandCard className="relative">
                 <CornerBrackets size="sm" className="opacity-50" />
-                
+
                 <div className="relative z-10 space-y-4">
                   <div>
                     <h3 className="text-xl font-semibold text-white mb-2">
                       OpenAPI 3.0 Specification
                     </h3>
                     <p className="text-sm text-white/60">
-                      Raw OpenAPI specification that can be imported into other tools
+                      Raw OpenAPI specification that can be imported into other
+                      tools
                     </p>
                   </div>
-                  
+
                   <div className="flex flex-wrap gap-2">
                     <BrandButton
                       variant="primary"

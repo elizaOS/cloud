@@ -15,7 +15,15 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
-import { Mail, Clock, X, User, Shield, CheckCircle2, XCircle } from "lucide-react";
+import {
+  Mail,
+  Clock,
+  X,
+  User,
+  Shield,
+  CheckCircle2,
+  XCircle,
+} from "lucide-react";
 import { formatDistanceToNow } from "date-fns";
 
 interface Invite {
@@ -38,7 +46,10 @@ interface PendingInvitesListProps {
   onRevoke: (inviteId: string) => void;
 }
 
-export function PendingInvitesList({ invites, onRevoke }: PendingInvitesListProps) {
+export function PendingInvitesList({
+  invites,
+  onRevoke,
+}: PendingInvitesListProps) {
   const pendingInvites = invites.filter((i) => i.status === "pending");
   const [now] = useState(() => Date.now());
 
@@ -132,9 +143,7 @@ export function PendingInvitesList({ invites, onRevoke }: PendingInvitesListProp
 
                 {/* Metadata */}
                 <div className="flex flex-col sm:flex-row sm:items-center gap-1 sm:gap-4 text-xs text-muted-foreground">
-                  <span>
-                    Invited by {getInviterName(invite)}
-                  </span>
+                  <span>Invited by {getInviterName(invite)}</span>
                   <span className="hidden sm:inline">•</span>
                   <span>
                     {formatDistanceToNow(new Date(invite.created_at), {
@@ -148,7 +157,8 @@ export function PendingInvitesList({ invites, onRevoke }: PendingInvitesListProp
                   <div className="flex items-center gap-1.5 text-xs text-orange-600 dark:text-orange-400">
                     <Clock className="h-3.5 w-3.5" />
                     <span>
-                      Expires {formatDistanceToNow(expiresAt, { addSuffix: true })}
+                      Expires{" "}
+                      {formatDistanceToNow(expiresAt, { addSuffix: true })}
                     </span>
                   </div>
                 )}
@@ -167,8 +177,9 @@ export function PendingInvitesList({ invites, onRevoke }: PendingInvitesListProp
                       <AlertDialogTitle>Revoke Invitation</AlertDialogTitle>
                       <AlertDialogDescription>
                         Are you sure you want to revoke the invitation for{" "}
-                        <span className="font-medium">{invite.email}</span>? They
-                        will not be able to join using this invitation link.
+                        <span className="font-medium">{invite.email}</span>?
+                        They will not be able to join using this invitation
+                        link.
                       </AlertDialogDescription>
                     </AlertDialogHeader>
                     <AlertDialogFooter>
@@ -192,7 +203,8 @@ export function PendingInvitesList({ invites, onRevoke }: PendingInvitesListProp
       {invites.filter((i) => i.status !== "pending").length > 0 && (
         <details className="mt-6">
           <summary className="cursor-pointer text-sm text-muted-foreground hover:text-foreground">
-            Show past invitations ({invites.filter((i) => i.status !== "pending").length})
+            Show past invitations (
+            {invites.filter((i) => i.status !== "pending").length})
           </summary>
           <div className="space-y-3 mt-3">
             {invites
@@ -203,10 +215,15 @@ export function PendingInvitesList({ invites, onRevoke }: PendingInvitesListProp
                     <div className="flex-1 min-w-0 space-y-2">
                       <div className="flex items-center gap-2">
                         <Mail className="h-4 w-4 text-muted-foreground flex-shrink-0" />
-                        <span className="font-medium truncate">{invite.email}</span>
+                        <span className="font-medium truncate">
+                          {invite.email}
+                        </span>
                       </div>
                       <div className="flex items-center gap-2">
-                        <Badge variant="outline" className="flex items-center gap-1">
+                        <Badge
+                          variant="outline"
+                          className="flex items-center gap-1"
+                        >
                           {getRoleIcon(invite.role)}
                           <span className="capitalize">{invite.role}</span>
                         </Badge>
@@ -215,12 +232,13 @@ export function PendingInvitesList({ invites, onRevoke }: PendingInvitesListProp
                       <div className="text-xs text-muted-foreground">
                         {invite.status === "accepted" && invite.accepted_at && (
                           <span>
-                            Accepted {formatDistanceToNow(new Date(invite.accepted_at), { addSuffix: true })}
+                            Accepted{" "}
+                            {formatDistanceToNow(new Date(invite.accepted_at), {
+                              addSuffix: true,
+                            })}
                           </span>
                         )}
-                        {invite.status === "revoked" && (
-                          <span>Revoked</span>
-                        )}
+                        {invite.status === "revoked" && <span>Revoked</span>}
                       </div>
                     </div>
                   </div>

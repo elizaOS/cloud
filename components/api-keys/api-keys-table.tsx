@@ -92,11 +92,12 @@ export function ApiKeysTable({
             >
               <div className="flex flex-col gap-2">
                 <div className="flex items-center gap-2">
-                  <span className="font-semibold text-white">
-                    {key.name}
-                  </span>
+                  <span className="font-semibold text-white">{key.name}</span>
                   <span
-                    className={cn("border rounded-none px-2 py-0.5 text-xs font-bold uppercase tracking-wide", status.badge)}
+                    className={cn(
+                      "border rounded-none px-2 py-0.5 text-xs font-bold uppercase tracking-wide",
+                      status.badge,
+                    )}
                   >
                     {status.label}
                   </span>
@@ -145,7 +146,10 @@ export function ApiKeysTable({
                 {key.permissions.length > 0 ? (
                   <div className="flex flex-wrap gap-1">
                     {key.permissions.map((permission) => (
-                      <span key={permission} className="rounded-none bg-white/10 px-2 py-0.5 text-xs text-white/70">
+                      <span
+                        key={permission}
+                        className="rounded-none bg-white/10 px-2 py-0.5 text-xs text-white/70"
+                      >
                         {permission}
                       </span>
                     ))}
@@ -179,7 +183,11 @@ export function ApiKeysTable({
               <div className="flex items-start justify-end">
                 <DropdownMenu>
                   <DropdownMenuTrigger asChild>
-                    <BrandButton variant="ghost" size="icon" className="h-9 w-9">
+                    <BrandButton
+                      variant="ghost"
+                      size="icon"
+                      className="h-9 w-9"
+                    >
                       <MoreHorizontal className="h-4 w-4" />
                       <span className="sr-only">Open actions</span>
                     </BrandButton>

@@ -53,22 +53,33 @@ export function CharacterForm({ character, onChange }: CharacterFormProps) {
   return (
     <BrandCard className="relative h-full overflow-auto">
       <CornerBrackets size="sm" className="opacity-50" />
-      
+
       <div className="relative z-10 space-y-6">
         <h3 className="text-lg font-bold text-white">Character Details</h3>
-        
+
         <BrandTabs defaultValue="basics" className="w-full">
           <BrandTabsList className="grid w-full grid-cols-4">
-            <BrandTabsTrigger value="basics" className="flex-1">Basics</BrandTabsTrigger>
-            <BrandTabsTrigger value="personality" className="flex-1">Personality</BrandTabsTrigger>
-            <BrandTabsTrigger value="style" className="flex-1">Style</BrandTabsTrigger>
-            <BrandTabsTrigger value="advanced" className="flex-1">Advanced</BrandTabsTrigger>
+            <BrandTabsTrigger value="basics" className="flex-1">
+              Basics
+            </BrandTabsTrigger>
+            <BrandTabsTrigger value="personality" className="flex-1">
+              Personality
+            </BrandTabsTrigger>
+            <BrandTabsTrigger value="style" className="flex-1">
+              Style
+            </BrandTabsTrigger>
+            <BrandTabsTrigger value="advanced" className="flex-1">
+              Advanced
+            </BrandTabsTrigger>
           </BrandTabsList>
 
           {/* Basics Tab */}
           <BrandTabsContent value="basics" className="space-y-4">
             <div className="space-y-2">
-              <label htmlFor="name" className="text-xs font-medium text-white/70 uppercase tracking-wide">
+              <label
+                htmlFor="name"
+                className="text-xs font-medium text-white/70 uppercase tracking-wide"
+              >
                 Name *
               </label>
               <Input
@@ -81,7 +92,10 @@ export function CharacterForm({ character, onChange }: CharacterFormProps) {
             </div>
 
             <div className="space-y-2">
-              <label htmlFor="username" className="text-xs font-medium text-white/70 uppercase tracking-wide">
+              <label
+                htmlFor="username"
+                className="text-xs font-medium text-white/70 uppercase tracking-wide"
+              >
                 Username
               </label>
               <Input
@@ -94,7 +108,10 @@ export function CharacterForm({ character, onChange }: CharacterFormProps) {
             </div>
 
             <div className="space-y-2">
-              <label htmlFor="bio" className="text-xs font-medium text-white/70 uppercase tracking-wide">
+              <label
+                htmlFor="bio"
+                className="text-xs font-medium text-white/70 uppercase tracking-wide"
+              >
                 Bio *
               </label>
               <Textarea
@@ -107,7 +124,10 @@ export function CharacterForm({ character, onChange }: CharacterFormProps) {
             </div>
 
             <div className="space-y-2">
-              <label htmlFor="system" className="text-xs font-medium text-white/70 uppercase tracking-wide">
+              <label
+                htmlFor="system"
+                className="text-xs font-medium text-white/70 uppercase tracking-wide"
+              >
                 System Prompt
               </label>
               <Textarea
@@ -258,7 +278,10 @@ export function CharacterForm({ character, onChange }: CharacterFormProps) {
           {/* Style Tab */}
           <BrandTabsContent value="style" className="space-y-4">
             <div className="space-y-2">
-              <label htmlFor="style-all" className="text-xs font-medium text-white/70 uppercase tracking-wide">
+              <label
+                htmlFor="style-all"
+                className="text-xs font-medium text-white/70 uppercase tracking-wide"
+              >
                 General Style Guidelines
               </label>
               <Textarea
@@ -282,7 +305,10 @@ export function CharacterForm({ character, onChange }: CharacterFormProps) {
             </div>
 
             <div className="space-y-2">
-              <label htmlFor="style-chat" className="text-xs font-medium text-white/70 uppercase tracking-wide">
+              <label
+                htmlFor="style-chat"
+                className="text-xs font-medium text-white/70 uppercase tracking-wide"
+              >
                 Chat Style Guidelines
               </label>
               <Textarea
@@ -306,7 +332,10 @@ export function CharacterForm({ character, onChange }: CharacterFormProps) {
             </div>
 
             <div className="space-y-2">
-              <label htmlFor="style-post" className="text-xs font-medium text-white/70 uppercase tracking-wide">
+              <label
+                htmlFor="style-post"
+                className="text-xs font-medium text-white/70 uppercase tracking-wide"
+              >
                 Post Style Guidelines
               </label>
               <Textarea
@@ -378,8 +407,10 @@ export function CharacterForm({ character, onChange }: CharacterFormProps) {
 
             <div className="rounded-none bg-black/40 border border-white/10 p-4">
               <p className="text-sm text-white/60">
-                Additional settings like <code className="text-[#FF5800]">knowledge</code>,{" "}
-                <code className="text-[#FF5800]">settings</code>, and <code className="text-[#FF5800]">messageExamples</code> can be
+                Additional settings like{" "}
+                <code className="text-[#FF5800]">knowledge</code>,{" "}
+                <code className="text-[#FF5800]">settings</code>, and{" "}
+                <code className="text-[#FF5800]">messageExamples</code> can be
                 configured directly in the JSON editor.
               </p>
             </div>

@@ -39,7 +39,12 @@ import {
 import { formatDistanceToNow } from "date-fns";
 import { toast } from "sonner";
 import { useRouter } from "next/navigation";
-import { BrandCard, BrandButton, CornerBrackets, SectionLabel } from "@/components/brand";
+import {
+  BrandCard,
+  BrandButton,
+  CornerBrackets,
+  SectionLabel,
+} from "@/components/brand";
 
 interface Voice {
   id: string;
@@ -241,7 +246,7 @@ export function VoiceStudioAdvanced({
       <div className="flex flex-col max-h-full overflow-hidden">
         <BrandCard className="relative flex flex-col h-full overflow-hidden">
           <CornerBrackets size="sm" className="opacity-50" />
-          
+
           <div className="relative z-10 shrink-0">
             <div className="flex items-center justify-between mb-4">
               <div className="flex-1">
@@ -299,7 +304,9 @@ export function VoiceStudioAdvanced({
                 <div className="rounded-full bg-[#FF580020] border border-[#FF5800]/40 p-6 mb-4">
                   <Mic className="h-10 w-10 text-[#FF5800]" />
                 </div>
-                <h3 className="text-lg font-semibold mb-2 text-white">No voices yet</h3>
+                <h3 className="text-lg font-semibold mb-2 text-white">
+                  No voices yet
+                </h3>
                 <p className="text-sm text-white/60 max-w-sm">
                   Create your first voice clone using the form on the left.
                   Upload audio or record your voice to get started.
@@ -395,7 +402,10 @@ export function VoiceStudioAdvanced({
                                 }
 
                                 return (
-                                  <Alert variant="default" className="py-2 rounded-none border-blue-500/40 bg-blue-500/10">
+                                  <Alert
+                                    variant="default"
+                                    className="py-2 rounded-none border-blue-500/40 bg-blue-500/10"
+                                  >
                                     <AlertCircle className="h-3 w-3 text-blue-400" />
                                     <AlertDescription className="text-xs text-blue-400">
                                       {message}
@@ -489,17 +499,13 @@ export function VoiceStudioAdvanced({
                         </div>
                         <div className="grid gap-3 rounded-none bg-black/40 border border-white/10 p-4 text-xs">
                           <div className="flex items-center justify-between gap-2">
-                            <span className="text-white/50">
-                              Clone Type
-                            </span>
+                            <span className="text-white/50">Clone Type</span>
                             <span className="font-medium capitalize text-white">
                               {selectedVoice.cloneType}
                             </span>
                           </div>
                           <div className="flex items-center justify-between gap-2">
-                            <span className="text-white/50">
-                              Voice ID
-                            </span>
+                            <span className="text-white/50">Voice ID</span>
                             <span
                               className="font-mono text-xs truncate max-w-[180px] text-white"
                               title={selectedVoice.elevenlabsVoiceId}
@@ -508,17 +514,13 @@ export function VoiceStudioAdvanced({
                             </span>
                           </div>
                           <div className="flex items-center justify-between gap-2">
-                            <span className="text-white/50">
-                              Usage Count
-                            </span>
+                            <span className="text-white/50">Usage Count</span>
                             <span className="font-medium text-white">
                               {selectedVoice.usageCount} times
                             </span>
                           </div>
                           <div className="flex items-center justify-between gap-2">
-                            <span className="text-white/50">
-                              Sample Files
-                            </span>
+                            <span className="text-white/50">Sample Files</span>
                             <span className="font-medium text-white">
                               {selectedVoice.sampleCount} files
                             </span>
@@ -544,9 +546,7 @@ export function VoiceStudioAdvanced({
                             </div>
                           )}
                           <div className="flex items-center justify-between gap-2">
-                            <span className="text-white/50">
-                              Created
-                            </span>
+                            <span className="text-white/50">Created</span>
                             <span className="font-medium text-white">
                               {formatDistanceToNow(
                                 new Date(selectedVoice.createdAt),
@@ -558,9 +558,7 @@ export function VoiceStudioAdvanced({
                           </div>
                           {selectedVoice.lastUsedAt && (
                             <div className="flex items-center justify-between gap-2">
-                              <span className="text-white/50">
-                                Last Used
-                              </span>
+                              <span className="text-white/50">Last Used</span>
                               <span className="font-medium text-white">
                                 {formatDistanceToNow(
                                   new Date(selectedVoice.lastUsedAt),

@@ -52,7 +52,9 @@ export default async function ContainersPage() {
               <p className="text-xs font-medium text-white/50 uppercase tracking-wide">
                 Total Containers
               </p>
-              <p className="text-3xl font-bold mt-1 text-white">{stats.total}</p>
+              <p className="text-3xl font-bold mt-1 text-white">
+                {stats.total}
+              </p>
             </div>
           </BrandCard>
 
@@ -114,7 +116,9 @@ export default async function ContainersPage() {
             <div>
               <div className="flex items-center gap-2 mb-2">
                 <Terminal className="h-6 w-6 text-[#FF5800]" />
-                <h3 className="text-2xl font-bold text-white">Get Started with ElizaOS</h3>
+                <h3 className="text-2xl font-bold text-white">
+                  Get Started with ElizaOS
+                </h3>
               </div>
               <p className="text-base text-white/60">
                 Deploy your first ElizaOS container using the command line
@@ -133,9 +137,7 @@ export default async function ContainersPage() {
                   # Deploy your project
                 </div>
                 <div className="text-white">cd your-elizaos-project</div>
-                <div className="text-white font-semibold">
-                  elizaos deploy
-                </div>
+                <div className="text-white font-semibold">elizaos deploy</div>
               </div>
               <p className="text-sm text-white/60">
                 Once deployed, you&apos;ll be able to view deployment history,
@@ -151,7 +153,9 @@ export default async function ContainersPage() {
             <div>
               <div className="flex items-center gap-2 mb-2">
                 <Terminal className="h-5 w-5 text-[#FF5800]" />
-                <h3 className="text-lg font-bold text-white">Deploy from CLI</h3>
+                <h3 className="text-lg font-bold text-white">
+                  Deploy from CLI
+                </h3>
               </div>
               <p className="text-sm text-white/60">
                 Deploy additional ElizaOS projects using the command line

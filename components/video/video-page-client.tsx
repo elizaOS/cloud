@@ -15,7 +15,12 @@ import type {
   VideoModelOption,
   VideoUsageSummary,
 } from "./types";
-import { BrandCard, BrandButton, CornerBrackets, SectionLabel } from "@/components/brand";
+import {
+  BrandCard,
+  BrandButton,
+  CornerBrackets,
+  SectionLabel,
+} from "@/components/brand";
 
 const THUMBNAIL_FALLBACKS = [
   "https://images.unsplash.com/photo-1526318472351-c75fcf07015d?auto=format&fit=crop&w=1600&q=80",
@@ -407,11 +412,13 @@ export function VideoPageClient({
       <section className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_minmax(0,1fr)] xl:grid-cols-[minmax(0,1fr)_minmax(0,0.9fr)]">
         <BrandCard className="relative">
           <CornerBrackets size="sm" className="opacity-50" />
-          
+
           <div className="relative z-10 space-y-6">
             <div className="flex items-center gap-2">
               <Clock4 className="h-5 w-5 text-[#FF5800]" />
-              <h3 className="text-lg font-bold text-white">Capacity overview</h3>
+              <h3 className="text-lg font-bold text-white">
+                Capacity overview
+              </h3>
             </div>
             <p className="text-sm text-white/60">
               Track your render capacity and plan ahead as we connect live
@@ -426,9 +433,7 @@ export function VideoPageClient({
                 <p className="mt-2 text-2xl font-semibold text-white">
                   {creditsUsed}
                 </p>
-                <p className="text-xs text-white/50">
-                  of {MONTHLY_CREDIT_CAP}
-                </p>
+                <p className="text-xs text-white/50">of {MONTHLY_CREDIT_CAP}</p>
               </div>
               <div className="rounded-none border border-white/10 bg-black/40 p-4">
                 <p className="text-xs uppercase tracking-wide text-white/50">
@@ -462,7 +467,10 @@ export function VideoPageClient({
                 </span>
               </div>
               <Progress value={creditProgress} className="h-2 bg-white/10">
-                <div className="h-full bg-[#FF5800] transition-all" style={{ width: `${creditProgress}%` }} />
+                <div
+                  className="h-full bg-[#FF5800] transition-all"
+                  style={{ width: `${creditProgress}%` }}
+                />
               </Progress>
               <p className="text-xs text-white/50">
                 Budget resets on the 1st of every month. Reach out if you need a
@@ -477,7 +485,7 @@ export function VideoPageClient({
           id="recent-renders"
         >
           <CornerBrackets size="sm" className="opacity-50" />
-          
+
           <div className="relative z-10 space-y-2 mb-6">
             <div className="flex items-center gap-2">
               <History className="h-5 w-5 text-[#FF5800]" />
@@ -487,7 +495,7 @@ export function VideoPageClient({
               A quick snapshot of your latest generation attempts.
             </p>
           </div>
-          
+
           <div className="relative z-10 flex-1 space-y-4 overflow-y-auto">
             {historyVideos.map((video) => (
               <div
@@ -562,7 +570,7 @@ export function VideoPageClient({
               </div>
             )}
           </div>
-          
+
           <div className="relative z-10 border-t border-white/10 pt-4 mt-4">
             <BrandButton
               variant="outline"
