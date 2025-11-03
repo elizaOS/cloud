@@ -15,12 +15,7 @@ async function getPublicCharacter(id: string) {
     const [character] = await db
       .select()
       .from(userCharacters)
-      .where(
-        and(
-          eq(userCharacters.id, id),
-          eq(userCharacters.is_public, true)
-        )
-      )
+      .where(and(eq(userCharacters.id, id), eq(userCharacters.is_public, true)))
       .limit(1);
 
     return character;
@@ -30,7 +25,9 @@ async function getPublicCharacter(id: string) {
   }
 }
 
-export async function generateMetadata({ params }: PageProps): Promise<Metadata> {
+export async function generateMetadata({
+  params,
+}: PageProps): Promise<Metadata> {
   const { id } = await params;
   const character = await getPublicCharacter(id);
 
@@ -48,7 +45,7 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
     character.name,
     bio,
     character.avatar_url,
-    character.tags || []
+    character.tags || [],
   );
 }
 

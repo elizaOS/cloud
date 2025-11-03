@@ -10,12 +10,7 @@ export default function robots(): MetadataRoute.Robots {
       {
         userAgent: "*",
         allow: ["/", "/marketplace", "/marketplace/characters/*"],
-        disallow: [
-          "/api/*",
-          "/dashboard/*",
-          "/auth/*",
-          "/actions/*",
-        ],
+        disallow: ["/api/*", "/dashboard/*", "/auth/*", "/actions/*"],
       },
       {
         userAgent: "GPTBot",

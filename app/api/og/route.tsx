@@ -24,7 +24,8 @@ export async function GET(request: NextRequest) {
 
     const type = searchParams.get("type") || "default";
     const title = searchParams.get("title") || "elizaOS Platform";
-    const description = searchParams.get("description") || "AI Agent Development Platform";
+    const description =
+      searchParams.get("description") || "AI Agent Development Platform";
     const name = searchParams.get("name");
     const characterName = searchParams.get("characterName");
 
@@ -583,7 +584,7 @@ export async function GET(request: NextRequest) {
                   fontSize: 64,
                   fontWeight: 700,
                   color: "white",
-                  fontFamily: "Roboto Mono, monospace",
+                  fontFamily: MONO_FONT,
                 }}
               >
                 elizaOS
@@ -603,14 +604,6 @@ export async function GET(request: NextRequest) {
       {
         width: 1200,
         height: 630,
-        fonts: [
-          {
-            name: "Roboto Mono",
-            data: fontData,
-            style: "normal",
-            weight: 700,
-          },
-        ],
       },
     );
   }
