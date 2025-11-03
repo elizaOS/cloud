@@ -1,5 +1,6 @@
 "use client";
 
+import { useState } from "react";
 import { Loader2, Sparkles, Zap, Stars } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -16,9 +17,25 @@ interface EnhancedLoadingProps {
   progress?: number;
 }
 
+interface Particle {
+  left: string;
+  top: string;
+  animationDelay: string;
+  animationDuration: string;
+}
+
 export function EnhancedLoading({ message, progress }: EnhancedLoadingProps) {
-  const randomMessage =
-    LOADING_MESSAGES[Math.floor(Math.random() * LOADING_MESSAGES.length)];
+  const [randomMessage] = useState(
+    () => LOADING_MESSAGES[Math.floor(Math.random() * LOADING_MESSAGES.length)],
+  );
+  const [particles] = useState<Particle[]>(() =>
+    [...Array(12)].map(() => ({
+      left: `${Math.random() * 100}%`,
+      top: `${Math.random() * 100}%`,
+      animationDelay: `${Math.random() * 2}s`,
+      animationDuration: `${3 + Math.random() * 2}s`,
+    })),
+  );
   const displayMessage = message || randomMessage;
 
   return (
@@ -28,19 +45,14 @@ export function EnhancedLoading({ message, progress }: EnhancedLoadingProps) {
 
       {/* Floating particles */}
       <div className="absolute inset-0">
-        {[...Array(12)].map((_, i) => (
+        {particles.map((particle, i) => (
           <div
             key={i}
             className={cn(
               "absolute w-2 h-2 rounded-full bg-primary/30",
               "animate-float",
             )}
-            style={{
-              left: `${Math.random() * 100}%`,
-              top: `${Math.random() * 100}%`,
-              animationDelay: `${Math.random() * 2}s`,
-              animationDuration: `${3 + Math.random() * 2}s`,
-            }}
+            style={particle}
           />
         ))}
       </div>

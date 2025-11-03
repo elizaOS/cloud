@@ -1,4 +1,7 @@
 // CORRECTED Serverless-compatible agent runtime with Drizzle ORM for Next.js
+// Initialize DOM polyfills first (before any imports that might need them)
+import "@/lib/polyfills/dom-polyfills";
+
 import { v4 as uuidv4 } from "uuid";
 import {
   AgentRuntime,
@@ -195,17 +198,20 @@ class AgentRuntimeManager {
       // ========================================================================
       // Create runtime WITHOUT plugin-sql (we already have the adapter)
       // ========================================================================
+      // Load plugins asynchronously (including lazy-loaded knowledge plugin)
+      const allPlugins = await agent.getPlugins();
+
       elizaLogger.info(
         "#Eliza",
         "Creating AgentRuntime with plugins:",
-        agent.plugins
+        allPlugins
           .filter((p) => p.name !== "@elizaos/plugin-sql")
           .map((p) => p.name)
           .join(", "),
       );
 
       // Filter out plugin-sql since we're providing our own adapter
-      const pluginsWithoutSql = agent.plugins.filter(
+      const pluginsWithoutSql = allPlugins.filter(
         (p) => p.name !== "@elizaos/plugin-sql",
       );
 
@@ -220,13 +226,17 @@ class AgentRuntimeManager {
       );
 
       // Construct settings with proper fallback for API keys
-      const openaiKeyRaw = process.env.OPENAI_API_KEY ||
+      const openaiKeyRaw =
+        process.env.OPENAI_API_KEY ||
         agent.character.secrets?.OPENAI_API_KEY ||
         agent.character.settings?.OPENAI_API_KEY;
 
-      const openaiKey = typeof openaiKeyRaw === 'string' ? openaiKeyRaw : String(openaiKeyRaw || '');
+      const openaiKey =
+        typeof openaiKeyRaw === "string"
+          ? openaiKeyRaw
+          : String(openaiKeyRaw || "");
 
-      if (!openaiKey || openaiKey === '' || openaiKey === 'undefined') {
+      if (!openaiKey || openaiKey === "" || openaiKey === "undefined") {
         elizaLogger.warn(
           "#Eliza",
           "⚠️  OPENAI_API_KEY not configured - AI features may fail. Set in environment or character secrets.",
@@ -286,7 +296,7 @@ class AgentRuntimeManager {
         try {
           await this.runtime.initialize();
           elizaLogger.success("#Eliza", "Runtime initialized successfully");
-          
+
           // Log available services
           const services = (this.runtime as never)["services"];
           if (services) {
@@ -409,9 +419,7 @@ class AgentRuntimeManager {
    * Get or create runtime for a specific character
    * Supports dynamic character loading from database
    */
-  async getRuntimeForCharacter(
-    characterId?: string,
-  ): Promise<AgentRuntime> {
+  async getRuntimeForCharacter(characterId?: string): Promise<AgentRuntime> {
     // If no characterId provided, use default character
     if (!characterId) {
       return this.getRuntime();
@@ -443,7 +451,9 @@ class AgentRuntimeManager {
 
     // CRITICAL: Always use the default Eliza agent ID for database consistency
     // All characters share the same agent ID to avoid database conflicts
-    const desiredAgentId = stringToUuid("b850bc30-45f8-0041-a00a-83df46d8555d") as UUID;
+    const desiredAgentId = stringToUuid(
+      "b850bc30-45f8-0041-a00a-83df46d8555d",
+    ) as UUID;
 
     elizaLogger.info(
       "#Eliza",
@@ -483,7 +493,9 @@ class AgentRuntimeManager {
       character.settings?.OPENAI_API_KEY;
 
     const openaiKey =
-      typeof openaiKeyRaw === "string" ? openaiKeyRaw : String(openaiKeyRaw || "");
+      typeof openaiKeyRaw === "string"
+        ? openaiKeyRaw
+        : String(openaiKeyRaw || "");
 
     if (!openaiKey || openaiKey === "" || openaiKey === "undefined") {
       elizaLogger.warn(
@@ -683,9 +695,11 @@ class AgentRuntimeManager {
 
       // Check if it's an API key error
       if (error instanceof Error && error.message.includes("API key")) {
-        responseText = "⚠️ Configuration error: OpenAI API key is missing or invalid. Please configure OPENAI_API_KEY in your environment or character secrets.";
+        responseText =
+          "⚠️ Configuration error: OpenAI API key is missing or invalid. Please configure OPENAI_API_KEY in your environment or character secrets.";
       } else {
-        responseText = "I apologize, but I encountered an error processing your message. Please try again.";
+        responseText =
+          "I apologize, but I encountered an error processing your message. Please try again.";
       }
     }
 

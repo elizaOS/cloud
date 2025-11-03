@@ -16,39 +16,39 @@ interface DocumentUploadProps {
 // Helper function to get correct MIME type based on file extension (from plugin-knowledge)
 const getCorrectMimeType = (file: File): string => {
   const filename = file.name.toLowerCase();
-  const ext = filename.split('.').pop() || '';
+  const ext = filename.split(".").pop() || "";
 
   const mimeTypeMap: Record<string, string> = {
     // Text files
-    txt: 'text/plain',
-    md: 'text/markdown',
-    markdown: 'text/markdown',
-    json: 'application/json',
-    xml: 'application/xml',
-    html: 'text/html',
-    htm: 'text/html',
-    css: 'text/css',
-    csv: 'text/csv',
-    yaml: 'text/yaml',
-    yml: 'text/yaml',
+    txt: "text/plain",
+    md: "text/markdown",
+    markdown: "text/markdown",
+    json: "application/json",
+    xml: "application/xml",
+    html: "text/html",
+    htm: "text/html",
+    css: "text/css",
+    csv: "text/csv",
+    yaml: "text/yaml",
+    yml: "text/yaml",
     // Documents
-    pdf: 'application/pdf',
-    doc: 'application/msword',
-    docx: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+    pdf: "application/pdf",
+    doc: "application/msword",
+    docx: "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
     // Code files - all map to text/plain
-    ts: 'text/plain',
-    tsx: 'text/plain',
-    js: 'text/plain',
-    jsx: 'text/plain',
-    py: 'text/plain',
-    java: 'text/plain',
-    c: 'text/plain',
-    cpp: 'text/plain',
-    go: 'text/plain',
-    rs: 'text/plain',
+    ts: "text/plain",
+    tsx: "text/plain",
+    js: "text/plain",
+    jsx: "text/plain",
+    py: "text/plain",
+    java: "text/plain",
+    c: "text/plain",
+    cpp: "text/plain",
+    go: "text/plain",
+    rs: "text/plain",
   };
 
-  return mimeTypeMap[ext] || file.type || 'application/octet-stream';
+  return mimeTypeMap[ext] || file.type || "application/octet-stream";
 };
 
 export function DocumentUpload({ onUploadSuccess }: DocumentUploadProps) {
@@ -66,7 +66,10 @@ export function DocumentUpload({ onUploadSuccess }: DocumentUploadProps) {
   const handleFileUpload = async (e: React.FormEvent) => {
     e.preventDefault();
 
-    console.log("[DocumentUpload] handleFileUpload triggered, selectedFiles:", selectedFiles.length);
+    console.log(
+      "[DocumentUpload] handleFileUpload triggered, selectedFiles:",
+      selectedFiles.length,
+    );
 
     if (selectedFiles.length === 0) {
       setError("Please select at least one file");
@@ -79,16 +82,23 @@ export function DocumentUpload({ onUploadSuccess }: DocumentUploadProps) {
 
     try {
       const formData = new FormData();
-      
+
       // Append files with corrected MIME types (matching plugin pattern)
       for (const file of selectedFiles) {
         const correctedMimeType = getCorrectMimeType(file);
         const blob = new Blob([file], { type: correctedMimeType });
-        formData.append('files', blob, file.name);
-        console.log("[DocumentUpload] Added file:", file.name, "type:", correctedMimeType);
+        formData.append("files", blob, file.name);
+        console.log(
+          "[DocumentUpload] Added file:",
+          file.name,
+          "type:",
+          correctedMimeType,
+        );
       }
 
-      console.log("[DocumentUpload] Making API call to /api/v1/knowledge/upload-file");
+      console.log(
+        "[DocumentUpload] Making API call to /api/v1/knowledge/upload-file",
+      );
 
       const response = await fetch("/api/v1/knowledge/upload-file", {
         method: "POST",
@@ -105,11 +115,15 @@ export function DocumentUpload({ onUploadSuccess }: DocumentUploadProps) {
 
       const data = await response.json();
       console.log("[DocumentUpload] Upload successful:", data);
-      setSuccess(data.message || `Successfully uploaded ${selectedFiles.length} file(s)`);
+      setSuccess(
+        data.message || `Successfully uploaded ${selectedFiles.length} file(s)`,
+      );
       setSelectedFiles([]);
 
       // Reset file input
-      const fileInput = document.getElementById("file-input") as HTMLInputElement;
+      const fileInput = document.getElementById(
+        "file-input",
+      ) as HTMLInputElement;
       if (fileInput) {
         fileInput.value = "";
       }
@@ -227,7 +241,10 @@ export function DocumentUpload({ onUploadSuccess }: DocumentUploadProps) {
             {selectedFiles.length > 0 && (
               <div className="space-y-2">
                 {selectedFiles.map((file, index) => (
-                  <div key={index} className="flex items-center gap-2 p-3 bg-muted rounded-lg">
+                  <div
+                    key={index}
+                    className="flex items-center gap-2 p-3 bg-muted rounded-lg"
+                  >
                     <FileText className="h-5 w-5 text-muted-foreground" />
                     <div className="flex-1">
                       <p className="text-sm font-medium">{file.name}</p>
@@ -240,8 +257,8 @@ export function DocumentUpload({ onUploadSuccess }: DocumentUploadProps) {
               </div>
             )}
 
-            <Button 
-              type="submit" 
+            <Button
+              type="submit"
               disabled={selectedFiles.length === 0 || uploading}
               onClick={(e) => {
                 console.log("[DocumentUpload] Upload button clicked!");
@@ -255,7 +272,10 @@ export function DocumentUpload({ onUploadSuccess }: DocumentUploadProps) {
               ) : (
                 <>
                   <Upload className="mr-2 h-4 w-4" />
-                  Upload {selectedFiles.length > 0 ? `${selectedFiles.length} File(s)` : 'Files'}
+                  Upload{" "}
+                  {selectedFiles.length > 0
+                    ? `${selectedFiles.length} File(s)`
+                    : "Files"}
                 </>
               )}
             </Button>
@@ -289,8 +309,8 @@ export function DocumentUpload({ onUploadSuccess }: DocumentUploadProps) {
               />
             </div>
 
-            <Button 
-              type="submit" 
+            <Button
+              type="submit"
               disabled={!textContent.trim() || uploading}
               onClick={(e) => {
                 console.log("[DocumentUpload] Text upload button clicked!");

@@ -11,7 +11,7 @@ import { logger } from "@/lib/utils/logger";
  */
 export async function GET(
   request: NextRequest,
-  context: { params: Promise<{ id: string }> }
+  context: { params: Promise<{ id: string }> },
 ) {
   try {
     const user = await requireAuth();
@@ -23,7 +23,7 @@ export async function GET(
     // Get voice from database
     const voice = await voiceCloningService.getVoiceById(
       voiceId,
-      user.organization_id
+      user.organization_id,
     );
 
     if (!voice) {
@@ -35,7 +35,7 @@ export async function GET(
 
     try {
       const elevenLabsVoice = await elevenlabs.getVoiceById(
-        voice.elevenlabsVoiceId
+        voice.elevenlabsVoiceId,
       );
 
       // For professional voices, check fine-tuning status
@@ -60,7 +60,7 @@ export async function GET(
               text: "Test",
               model_id: "eleven_multilingual_v2",
             }),
-          }
+          },
         );
         canGenerateTTS = true;
       } catch {
@@ -109,7 +109,7 @@ export async function GET(
 
     return NextResponse.json(
       { error: "Failed to verify voice status" },
-      { status: 500 }
+      { status: 500 },
     );
   }
 }

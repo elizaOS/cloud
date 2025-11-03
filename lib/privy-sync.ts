@@ -7,7 +7,12 @@
  * 2. Just-in-time sync (fallback for race conditions)
  */
 
-import { usersService, organizationsService } from "@/lib/services";
+import {
+  usersService,
+  organizationsService,
+  emailService,
+  invitesService,
+} from "@/lib/services";
 import type { UserWithOrganization } from "@/lib/types";
 
 function generateSlugFromEmail(email: string): string {
@@ -46,7 +51,7 @@ interface PrivyUserData {
  * Updates user data if it has changed
  */
 export async function syncUserFromPrivy(
-  privyUser: PrivyUserData,
+  privyUser: PrivyUserData
 ): Promise<UserWithOrganization> {
   const privyUserId = privyUser.id;
 
@@ -100,8 +105,7 @@ export async function syncUserFromPrivy(
         } else {
           walletChainType = "ethereum";
         }
-        walletVerified =
-          "verified" in account && account.verified === true;
+        walletVerified = "verified" in account && account.verified === true;
         break;
       }
     }
@@ -110,7 +114,7 @@ export async function syncUserFromPrivy(
   // Validation: User must have email OR wallet (hybrid approach)
   if (!email && !walletAddress) {
     throw new Error(
-      `User ${privyUserId} has neither email nor wallet - cannot sync`,
+      `User ${privyUserId} has neither email nor wallet - cannot sync`
     );
   }
 
@@ -146,7 +150,7 @@ export async function syncUserFromPrivy(
       await usersService.update(user.id, {
         name,
         email: email || user.email,
-        email_verified: email ? true : user.email_verified,
+        email_verified: !!email || user.email_verified,
         wallet_address: walletAddress || user.wallet_address,
         wallet_chain_type: walletChainType || user.wallet_chain_type,
         wallet_verified: walletVerified,
@@ -158,6 +162,60 @@ export async function syncUserFromPrivy(
     }
 
     return user;
+  }
+
+  // Check for pending invite first (before creating new organization)
+  if (email) {
+    const pendingInvite = await invitesService.findPendingInviteByEmail(email);
+
+    if (pendingInvite) {
+      console.log(
+        `Found pending invite for ${email}, joining organization ${pendingInvite.organization_id}`
+      );
+
+      try {
+        const newUser = await usersService.create({
+          privy_user_id: privyUserId,
+          email: email || null,
+          email_verified: !!email,
+          wallet_address: walletAddress || null,
+          wallet_chain_type: walletChainType || null,
+          wallet_verified: walletVerified,
+          name,
+          organization_id: pendingInvite.organization_id,
+          role: pendingInvite.invited_role,
+          is_active: true,
+        });
+
+        const { organizationInvitesRepository } = await import(
+          "@/db/repositories"
+        );
+        await organizationInvitesRepository.markAsAccepted(
+          pendingInvite.id,
+          newUser.id
+        );
+
+        const userWithOrg = await usersService.getByPrivyId(privyUserId);
+
+        if (!userWithOrg) {
+          throw new Error(
+            `Failed to fetch newly created user ${privyUserId} after accepting invite`
+          );
+        }
+
+        console.log(
+          `User ${privyUserId} successfully joined organization ${pendingInvite.organization_id} via invite`
+        );
+
+        return userWithOrg;
+      } catch (error) {
+        console.error(
+          `Failed to create user from invite for ${privyUserId}:`,
+          error
+        );
+        throw error;
+      }
+    }
   }
 
   // Create new user and organization
@@ -176,7 +234,7 @@ export async function syncUserFromPrivy(
     attempts++;
     if (attempts > 10) {
       throw new Error(
-        `Failed to generate unique organization slug for user ${privyUserId}`,
+        `Failed to generate unique organization slug for user ${privyUserId}`
       );
     }
     orgSlug = email
@@ -185,7 +243,7 @@ export async function syncUserFromPrivy(
   }
 
   // Create organization
-  const INITIAL_BALANCE = 5.00; // $5.00 USD starting balance
+  const INITIAL_BALANCE = 5.0; // $5.00 USD starting balance
   const organization = await organizationsService.create({
     name: `${name}'s Organization`,
     slug: orgSlug,
@@ -197,7 +255,7 @@ export async function syncUserFromPrivy(
     await usersService.create({
       privy_user_id: privyUserId,
       email: email || null,
-      email_verified: email ? true : false,
+      email_verified: !!email,
       wallet_address: walletAddress || null,
       wallet_chain_type: walletChainType || null,
       wallet_verified: walletVerified,
@@ -221,7 +279,7 @@ export async function syncUserFromPrivy(
 
     if (isDuplicateError) {
       console.log(
-        `Duplicate key error detected for user ${privyUserId}, handling race condition...`,
+        `Duplicate key error detected for user ${privyUserId}, handling race condition...`
       );
 
       // Try to find existing user with retries (in case parallel transaction hasn't committed yet)
@@ -232,10 +290,10 @@ export async function syncUserFromPrivy(
         if (attempt > 0) {
           // Wait a bit for the other transaction to commit
           await new Promise((resolve) =>
-            setTimeout(resolve, 50 * Math.pow(2, attempt - 1)),
+            setTimeout(resolve, 50 * Math.pow(2, attempt - 1))
           );
           console.log(
-            `Retry ${attempt}/${maxRetries} to find existing user ${privyUserId}`,
+            `Retry ${attempt}/${maxRetries} to find existing user ${privyUserId}`
           );
         }
 
@@ -254,7 +312,7 @@ export async function syncUserFromPrivy(
           // Check if it's the same Privy user or a different one
           if (existingUser.privy_user_id !== privyUserId) {
             console.warn(
-              `User with email ${email} already exists with different Privy ID: ${existingUser.privy_user_id}`,
+              `User with email ${email} already exists with different Privy ID: ${existingUser.privy_user_id}`
             );
             // Clean up orphaned org and throw - this is a data integrity issue
             try {
@@ -262,11 +320,11 @@ export async function syncUserFromPrivy(
             } catch (cleanupError) {
               console.error(
                 "Failed to clean up orphaned organization:",
-                cleanupError,
+                cleanupError
               );
             }
             throw new Error(
-              `Email ${email} is already registered with a different account`,
+              `Email ${email} is already registered with a different account`
             );
           }
           break;
@@ -275,7 +333,7 @@ export async function syncUserFromPrivy(
 
       if (existingUser) {
         console.log(
-          `Found existing user ${privyUserId}, cleaning up orphaned org and returning existing user`,
+          `Found existing user ${privyUserId}, cleaning up orphaned org and returning existing user`
         );
         // Clean up the orphaned organization we just created
         try {
@@ -283,7 +341,7 @@ export async function syncUserFromPrivy(
         } catch (cleanupError) {
           console.error(
             "Failed to clean up orphaned organization:",
-            cleanupError,
+            cleanupError
           );
         }
         return existingUser;
@@ -291,21 +349,21 @@ export async function syncUserFromPrivy(
 
       // Couldn't find existing user even after retries - cleanup and rethrow
       console.error(
-        `Duplicate key error but user ${privyUserId} not found after ${maxRetries} retries - cleaning up and rethrowing`,
+        `Duplicate key error but user ${privyUserId} not found after ${maxRetries} retries - cleaning up and rethrowing`
       );
       try {
         await organizationsService.delete(organization.id);
       } catch (cleanupError) {
         console.error(
           "Failed to clean up orphaned organization:",
-          cleanupError,
+          cleanupError
         );
       }
     }
     // Not a duplicate key error or couldn't find the existing user - rethrow
     console.error(
       `Failed to create user ${privyUserId}:`,
-      error instanceof Error ? error.message : error,
+      error instanceof Error ? error.message : error
     );
     throw error;
   }
@@ -317,5 +375,39 @@ export async function syncUserFromPrivy(
     throw new Error(`Failed to fetch newly created user ${privyUserId}`);
   }
 
+  // Send welcome email asynchronously (fire-and-forget)
+  const recipientEmail = email || userWithOrg.organization.billing_email;
+  if (recipientEmail) {
+    queueWelcomeEmail({
+      email: recipientEmail,
+      userName: name || "there",
+      organizationName: userWithOrg.organization.name,
+      creditBalance: Number(userWithOrg.organization.credit_balance),
+    }).catch((error) => {
+      console.error("[PrivySync] Failed to send welcome email:", error);
+    });
+  } else {
+    console.warn("[PrivySync] No email available for welcome email", {
+      userId: userWithOrg.id,
+      walletAddress: walletAddress,
+    });
+  }
+
   return userWithOrg;
+}
+
+async function queueWelcomeEmail(data: {
+  email: string;
+  userName: string;
+  organizationName: string;
+  creditBalance: number;
+}): Promise<void> {
+  try {
+    await emailService.sendWelcomeEmail({
+      ...data,
+      dashboardUrl: `${process.env.NEXT_PUBLIC_APP_URL}/dashboard`,
+    });
+  } catch (error) {
+    console.error("[PrivySync] Error sending welcome email:", error);
+  }
 }

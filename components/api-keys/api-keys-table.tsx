@@ -1,5 +1,3 @@
-import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -19,6 +17,7 @@ import {
 } from "lucide-react";
 
 import type { ApiKeyDisplay } from "./types";
+import { BrandButton } from "@/components/brand";
 
 interface ApiKeysTableProps {
   keys: ApiKeyDisplay[];
@@ -32,18 +31,18 @@ function getStatusStyles(status: ApiKeyDisplay["status"]) {
   switch (status) {
     case "active":
       return {
-        badge: "bg-emerald-500/15 text-emerald-500 border-emerald-500/30",
+        badge: "bg-emerald-500/20 text-emerald-400 border-emerald-500/40",
         label: "Active",
       } as const;
     case "expired":
       return {
-        badge: "bg-amber-500/15 text-amber-500 border-amber-500/30",
+        badge: "bg-amber-500/20 text-amber-300 border-amber-500/40",
         label: "Expired",
       } as const;
     case "inactive":
     default:
       return {
-        badge: "bg-muted text-muted-foreground border-transparent",
+        badge: "bg-white/10 text-white/60 border-white/20",
         label: "Inactive",
       } as const;
   }
@@ -74,43 +73,42 @@ export function ApiKeysTable({
   }
 
   return (
-    <div className="overflow-hidden rounded-lg border bg-card">
-      <div className="grid grid-cols-[minmax(240px,2fr)_minmax(120px,1fr)_minmax(120px,1fr)_minmax(160px,1fr)_80px] items-center bg-muted/40 p-4 text-xs font-medium uppercase tracking-wide text-muted-foreground">
+    <div className="overflow-hidden rounded-none border border-white/10 bg-black/40">
+      <div className="grid grid-cols-[minmax(240px,2fr)_minmax(120px,1fr)_minmax(120px,1fr)_minmax(160px,1fr)_80px] items-center bg-black/60 p-4 text-xs font-medium uppercase tracking-wide text-white/50">
         <span>Key</span>
         <span>Usage</span>
         <span>Security</span>
         <span>Timeline</span>
         <span className="text-right">Actions</span>
       </div>
-      <div className="h-px bg-border" />
-      <div className="divide-y">
+      <div className="h-px bg-white/10" />
+      <div className="divide-y divide-white/10">
         {keys.map((key) => {
           const status = getStatusStyles(key.status);
           return (
             <div
               key={key.id}
-              className="grid grid-cols-[minmax(240px,2fr)_minmax(120px,1fr)_minmax(120px,1fr)_minmax(160px,1fr)_80px] items-stretch px-4 py-5 text-sm transition hover:bg-muted/40"
+              className="grid grid-cols-[minmax(240px,2fr)_minmax(120px,1fr)_minmax(120px,1fr)_minmax(160px,1fr)_80px] items-stretch px-4 py-5 text-sm transition hover:bg-white/5"
             >
               <div className="flex flex-col gap-2">
                 <div className="flex items-center gap-2">
-                  <span className="font-semibold text-foreground">
+                  <span className="font-semibold text-white">
                     {key.name}
                   </span>
-                  <Badge
-                    variant="outline"
-                    className={cn("border", status.badge)}
+                  <span
+                    className={cn("border rounded-none px-2 py-0.5 text-xs font-bold uppercase tracking-wide", status.badge)}
                   >
                     {status.label}
-                  </Badge>
+                  </span>
                 </div>
-                <p className="text-xs text-muted-foreground">
+                <p className="text-xs text-white/60">
                   {key.description ?? "No description provided"}
                 </p>
-                <div className="flex items-center gap-2 text-xs text-muted-foreground">
-                  <span className="rounded-md bg-muted px-1.5 py-0.5 font-mono text-xs">
+                <div className="flex items-center gap-2 text-xs text-white/60">
+                  <span className="rounded-none bg-black/60 border border-white/10 px-1.5 py-0.5 font-mono text-xs text-white">
                     {`${key.keyPrefix}•••••••`}
                   </span>
-                  <Button
+                  <BrandButton
                     variant="ghost"
                     size="sm"
                     className="h-8 px-2"
@@ -118,8 +116,8 @@ export function ApiKeysTable({
                   >
                     <Copy className="mr-1 h-3.5 w-3.5" />
                     Copy
-                  </Button>
-                  <Button
+                  </BrandButton>
+                  <BrandButton
                     variant="ghost"
                     size="sm"
                     className="h-8 px-2"
@@ -127,49 +125,49 @@ export function ApiKeysTable({
                   >
                     <RefreshCw className="mr-1 h-3.5 w-3.5" />
                     Regenerate
-                  </Button>
+                  </BrandButton>
                 </div>
               </div>
 
               <div className="flex flex-col gap-2">
-                <span className="font-medium">
+                <span className="font-medium text-white">
                   {key.usageCount.toLocaleString()} requests
                 </span>
-                <p className="text-xs text-muted-foreground">
+                <p className="text-xs text-white/50">
                   Rate limit {key.rateLimit.toLocaleString()} / min
                 </p>
               </div>
 
               <div className="flex flex-col gap-2">
-                <span className="text-xs font-medium text-muted-foreground">
+                <span className="text-xs font-medium text-white/50 uppercase tracking-wide">
                   Permissions
                 </span>
                 {key.permissions.length > 0 ? (
                   <div className="flex flex-wrap gap-1">
                     {key.permissions.map((permission) => (
-                      <Badge key={permission} variant="secondary">
+                      <span key={permission} className="rounded-none bg-white/10 px-2 py-0.5 text-xs text-white/70">
                         {permission}
-                      </Badge>
+                      </span>
                     ))}
                   </div>
                 ) : (
-                  <p className="text-xs text-muted-foreground">
+                  <p className="text-xs text-white/50">
                     No permissions configured
                   </p>
                 )}
               </div>
 
-              <div className="flex flex-col gap-2 text-xs text-muted-foreground">
+              <div className="flex flex-col gap-2 text-xs text-white/60">
                 <div className="flex items-center gap-2">
-                  <CalendarClock className="h-3.5 w-3.5" />
+                  <CalendarClock className="h-3.5 w-3.5 text-[#FF5800]" />
                   <span>Created {formatDate(key.createdAt)}</span>
                 </div>
                 <div className="flex items-center gap-2">
-                  <CalendarClock className="h-3.5 w-3.5" />
+                  <CalendarClock className="h-3.5 w-3.5 text-[#FF5800]" />
                   <span>Last used {formatDate(key.lastUsedAt)}</span>
                 </div>
                 <div className="flex items-center gap-2">
-                  <CalendarClock className="h-3.5 w-3.5" />
+                  <CalendarClock className="h-3.5 w-3.5 text-[#FF5800]" />
                   <span>
                     {key.expiresAt
                       ? `Expires ${formatDate(key.expiresAt)}`
@@ -181,10 +179,10 @@ export function ApiKeysTable({
               <div className="flex items-start justify-end">
                 <DropdownMenu>
                   <DropdownMenuTrigger asChild>
-                    <Button variant="ghost" size="icon" className="h-9 w-9">
+                    <BrandButton variant="ghost" size="icon" className="h-9 w-9">
                       <MoreHorizontal className="h-4 w-4" />
                       <span className="sr-only">Open actions</span>
-                    </Button>
+                    </BrandButton>
                   </DropdownMenuTrigger>
                   <DropdownMenuContent align="end" className="w-44">
                     <DropdownMenuLabel>Manage key</DropdownMenuLabel>

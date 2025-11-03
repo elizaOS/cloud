@@ -10,10 +10,7 @@ export type { CliAuthSession, NewCliAuthSession };
 
 export class CliAuthSessionsRepository {
   async create(data: NewCliAuthSession): Promise<CliAuthSession> {
-    const [session] = await db
-      .insert(cliAuthSessions)
-      .values(data)
-      .returning();
+    const [session] = await db.insert(cliAuthSessions).values(data).returning();
 
     if (!session) {
       throw new Error("Failed to create CLI auth session");
@@ -22,7 +19,9 @@ export class CliAuthSessionsRepository {
     return session;
   }
 
-  async findBySessionId(sessionId: string): Promise<CliAuthSession | undefined> {
+  async findBySessionId(
+    sessionId: string,
+  ): Promise<CliAuthSession | undefined> {
     const [session] = await db
       .select()
       .from(cliAuthSessions)
@@ -103,11 +102,8 @@ export class CliAuthSessionsRepository {
 
   async deleteExpiredSessions(): Promise<void> {
     const now = new Date();
-    await db
-      .delete(cliAuthSessions)
-      .where(lt(cliAuthSessions.expires_at, now));
+    await db.delete(cliAuthSessions).where(lt(cliAuthSessions.expires_at, now));
   }
 }
 
 export const cliAuthSessionsRepository = new CliAuthSessionsRepository();
-

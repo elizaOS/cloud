@@ -1,4 +1,4 @@
-import { Account, toAccount } from "viem/accounts";
+import type { Account } from "viem/accounts";
 import { CdpClient } from "@coinbase/cdp-sdk";
 import { base, baseSepolia } from "viem/chains";
 import { createPublicClient, http } from "viem";
@@ -61,7 +61,9 @@ export async function getOrCreatePurchaserAccount(): Promise<Account> {
     }
   }
 
-  return toAccount(account);
+  // The CDP SDK account object is already compatible with viem Account
+  // Bypass toAccount() to avoid version conflicts between viem and x402-mcp
+  return account as unknown as Account;
 }
 
 export async function getOrCreateSellerAccount(): Promise<Account> {
@@ -69,5 +71,7 @@ export async function getOrCreateSellerAccount(): Promise<Account> {
   const account = await cdp.evm.getOrCreateAccount({
     name: "Seller",
   });
-  return toAccount(account);
+  // The CDP SDK account object is already compatible with viem Account
+  // Bypass toAccount() to avoid version conflicts between viem and x402-mcp
+  return account as unknown as Account;
 }

@@ -123,7 +123,7 @@ export function useAudioRecorder(): UseAudioRecorderReturn {
           err.name === "PermissionDeniedError"
         ) {
           setError(
-            "Microphone permission denied. Please allow microphone access."
+            "Microphone permission denied. Please allow microphone access.",
           );
         } else if (err.name === "NotFoundError") {
           setError("No microphone found. Please connect a microphone.");

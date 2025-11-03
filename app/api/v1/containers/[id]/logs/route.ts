@@ -139,7 +139,6 @@ function parseLogMessage(log: {
         cleanMessage = parsed.message;
       }
       // Extract other fields as metadata
-      // eslint-disable-next-line @typescript-eslint/no-unused-vars
       const { level: _levelField, message: _messageField, ...rest } = parsed;
       if (Object.keys(rest).length > 0) {
         metadata = rest;

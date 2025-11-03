@@ -46,7 +46,10 @@ export class CharacterLoader {
       bio: elizaCharacter.bio,
       plugins: elizaCharacter.plugins,
       hasStyle: !!elizaCharacter.style,
-      hasMessageExamples: !!(elizaCharacter.messageExamples && elizaCharacter.messageExamples.length > 0),
+      hasMessageExamples: !!(
+        elizaCharacter.messageExamples &&
+        elizaCharacter.messageExamples.length > 0
+      ),
     });
 
     // Build full character with environment settings
@@ -60,7 +63,7 @@ export class CharacterLoader {
       system: character.system,
       bio: character.bio,
       pluginCount: plugins.length,
-      pluginNames: plugins.map(p => p.name),
+      pluginNames: plugins.map((p) => p.name),
     });
 
     return { character, plugins };
@@ -68,14 +71,16 @@ export class CharacterLoader {
 
   /**
    * Get the default character (from lib/eliza/agent.ts)
+   * Note: This method is async to support lazy-loaded plugins
    */
-  getDefaultCharacter(): {
+  async getDefaultCharacter(): Promise<{
     character: Character;
     plugins: Plugin[];
-  } {
+  }> {
+    const plugins = await defaultAgent.getPlugins();
     return {
       character: defaultAgent.character,
-      plugins: defaultAgent.plugins as unknown as Plugin[],
+      plugins: plugins as unknown as Plugin[],
     };
   }
 
@@ -111,7 +116,8 @@ export class CharacterLoader {
         process.env.ELEVENLABS_VOICE_STABILITY ||
         "0.5",
       ELEVENLABS_VOICE_SIMILARITY_BOOST:
-        (elizaCharacter.settings?.ELEVENLABS_VOICE_SIMILARITY_BOOST as string) ||
+        (elizaCharacter.settings
+          ?.ELEVENLABS_VOICE_SIMILARITY_BOOST as string) ||
         process.env.ELEVENLABS_VOICE_SIMILARITY_BOOST ||
         "0.75",
       ELEVENLABS_VOICE_STYLE:
@@ -119,11 +125,13 @@ export class CharacterLoader {
         process.env.ELEVENLABS_VOICE_STYLE ||
         "0",
       ELEVENLABS_VOICE_USE_SPEAKER_BOOST:
-        (elizaCharacter.settings?.ELEVENLABS_VOICE_USE_SPEAKER_BOOST as string) ||
+        (elizaCharacter.settings
+          ?.ELEVENLABS_VOICE_USE_SPEAKER_BOOST as string) ||
         process.env.ELEVENLABS_VOICE_USE_SPEAKER_BOOST ||
         "true",
       ELEVENLABS_OPTIMIZE_STREAMING_LATENCY:
-        (elizaCharacter.settings?.ELEVENLABS_OPTIMIZE_STREAMING_LATENCY as string) ||
+        (elizaCharacter.settings
+          ?.ELEVENLABS_OPTIMIZE_STREAMING_LATENCY as string) ||
         process.env.ELEVENLABS_OPTIMIZE_STREAMING_LATENCY ||
         "0",
       ELEVENLABS_OUTPUT_FORMAT:
@@ -145,7 +153,8 @@ export class CharacterLoader {
         process.env.ELEVENLABS_STT_LANGUAGE_CODE ||
         "en",
       ELEVENLABS_STT_TIMESTAMPS_GRANULARITY:
-        (elizaCharacter.settings?.ELEVENLABS_STT_TIMESTAMPS_GRANULARITY as string) ||
+        (elizaCharacter.settings
+          ?.ELEVENLABS_STT_TIMESTAMPS_GRANULARITY as string) ||
         process.env.ELEVENLABS_STT_TIMESTAMPS_GRANULARITY ||
         "word",
       ELEVENLABS_STT_DIARIZE:

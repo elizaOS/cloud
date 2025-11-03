@@ -52,7 +52,12 @@ export async function POST(
         error:
           error instanceof Error ? error.message : "Failed to clone character",
       },
-      { status: error instanceof Error && error.message.includes("not found") ? 404 : 500 },
+      {
+        status:
+          error instanceof Error && error.message.includes("not found")
+            ? 404
+            : 500,
+      },
     );
   }
 }

@@ -2,7 +2,10 @@ import {
   cliAuthSessionsRepository,
   apiKeysRepository,
 } from "@/db/repositories";
-import type { CliAuthSession, NewCliAuthSession } from "@/db/schemas/cli-auth-sessions";
+import type {
+  CliAuthSession,
+  NewCliAuthSession,
+} from "@/db/schemas/cli-auth-sessions";
 import { apiKeysService } from "./api-keys";
 
 const SESSION_EXPIRY_MINUTES = 10; // Sessions expire after 10 minutes
@@ -107,20 +110,24 @@ export class CliAuthSessionsService {
    * Get API key from authenticated session and clear it
    * This ensures the plain key is only retrieved once
    */
-  async getAndClearApiKey(
-    sessionId: string,
-  ): Promise<{ apiKey: string; keyPrefix: string; expiresAt: Date | null } | null> {
+  async getAndClearApiKey(sessionId: string): Promise<{
+    apiKey: string;
+    keyPrefix: string;
+    expiresAt: Date | null;
+  } | null> {
     const session = await this.getActiveSession(sessionId);
 
-    if (!session || session.status !== "authenticated" || !session.api_key_plain) {
+    if (
+      !session ||
+      session.status !== "authenticated" ||
+      !session.api_key_plain
+    ) {
       return null;
     }
 
     // Get API key details
     const apiKey = session.api_key_plain;
-    const apiKeyRecord = await apiKeysRepository.findById(
-      session.api_key_id!,
-    );
+    const apiKeyRecord = await apiKeysRepository.findById(session.api_key_id!);
 
     // Clear the plain key from the session for security
     await cliAuthSessionsRepository.clearPlainKey(sessionId);
@@ -141,4 +148,3 @@ export class CliAuthSessionsService {
 }
 
 export const cliAuthSessionsService = new CliAuthSessionsService();
-

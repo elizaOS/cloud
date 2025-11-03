@@ -13,7 +13,14 @@ import {
 } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { ExternalLink, ArrowLeft, Server, Cpu, HardDrive, Clock } from "lucide-react";
+import {
+  ExternalLink,
+  ArrowLeft,
+  Server,
+  Cpu,
+  HardDrive,
+  Clock,
+} from "lucide-react";
 import Link from "next/link";
 import { Progress } from "@/components/ui/progress";
 
@@ -97,7 +104,9 @@ export default async function ContainerDetailsPage({ params }: PageProps) {
               </Badge>
             </div>
             <div>
-              <p className="text-sm font-medium text-muted-foreground">Status</p>
+              <p className="text-sm font-medium text-muted-foreground">
+                Status
+              </p>
               <p className="text-2xl font-bold mt-1 capitalize">
                 {container.status}
               </p>
@@ -128,9 +137,13 @@ export default async function ContainerDetailsPage({ params }: PageProps) {
               </div>
             </div>
             <div>
-              <p className="text-sm font-medium text-muted-foreground">Memory</p>
+              <p className="text-sm font-medium text-muted-foreground">
+                Memory
+              </p>
               <p className="text-2xl font-bold mt-1">{container.memory} MB</p>
-              <p className="text-xs text-muted-foreground mt-1">RAM allocated</p>
+              <p className="text-xs text-muted-foreground mt-1">
+                RAM allocated
+              </p>
             </div>
           </CardContent>
         </Card>
@@ -183,7 +196,9 @@ export default async function ContainerDetailsPage({ params }: PageProps) {
                 <Server className="h-5 w-5 text-muted-foreground" />
                 <div>
                   <p className="text-sm text-muted-foreground">Instances</p>
-                  <p className="text-lg font-semibold">{container.desired_count}</p>
+                  <p className="text-lg font-semibold">
+                    {container.desired_count}
+                  </p>
                 </div>
               </div>
               <div className="flex items-center gap-3 p-3 rounded-lg border bg-muted/30">

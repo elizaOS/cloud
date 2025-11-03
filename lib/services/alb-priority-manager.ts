@@ -53,7 +53,9 @@ export class DatabasePriorityManager {
         );
       }
 
-      console.log(`[ALB] Attempting to allocate priority ${nextPriority} for user ${userId}`);
+      console.log(
+        `[ALB] Attempting to allocate priority ${nextPriority} for user ${userId}`,
+      );
 
       // Create new priority record
       // Note: priority column has unique constraint, so this will fail if there's a conflict

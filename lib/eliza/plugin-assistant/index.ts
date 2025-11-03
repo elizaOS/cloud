@@ -292,7 +292,9 @@ const messageReceivedHandler = async ({
 
       // PHASE 3: Execute planned providers and actions
       if (!canRespondNow) {
-        logger.info("[ElizaAssistant] Phase 2: Executing providers and actions");
+        logger.info(
+          "[ElizaAssistant] Phase 2: Executing providers and actions",
+        );
         logger.debug(
           `[ElizaAssistant] Providers: ${plan?.providers}, Actions: ${plan?.actions}`,
         );
@@ -310,10 +312,10 @@ const messageReceivedHandler = async ({
             "[ElizaAssistant] Executing providers:",
             plannedProviders,
           );
-          const providerState = await runtime.composeState(
-            message,
-            [...plannedProviders, "CHARACTER"],
-          );
+          const providerState = await runtime.composeState(message, [
+            ...plannedProviders,
+            "CHARACTER",
+          ]);
           updatedState = { ...updatedState, ...providerState };
         }
 

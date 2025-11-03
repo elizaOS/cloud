@@ -1,5 +1,6 @@
 "use client";
 
+import NextImage from "next/image";
 import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
@@ -270,13 +271,13 @@ export function PromptInputAttachment({
       {...props}
     >
       {mediaType === "image" ? (
-        // eslint-disable-next-line @next/next/no-img-element
-        <img
+        <NextImage
           alt={data.filename || "attachment"}
           className="size-full rounded-md object-cover"
           height={56}
           src={data.url}
           width={56}
+          unoptimized
         />
       ) : (
         <div className="flex size-full max-w-full cursor-pointer items-center justify-start gap-2 overflow-hidden px-2 text-muted-foreground">
@@ -710,7 +711,6 @@ export const PromptInput = ({
 
     // Convert blob URLs to data URLs asynchronously
     Promise.all(
-      // eslint-disable-next-line @typescript-eslint/no-unused-vars
       files.map(async ({ id: _id, ...item }) => {
         if (item.url && item.url.startsWith("blob:")) {
           return {
@@ -1107,7 +1107,10 @@ export const PromptInputSpeechButton = ({
       };
 
       recognitionRef.current = speechRecognition;
-      setRecognition(speechRecognition);
+      // Set recognition state asynchronously to avoid cascading renders
+      Promise.resolve().then(() => {
+        setRecognition(speechRecognition);
+      });
     }
 
     return () => {

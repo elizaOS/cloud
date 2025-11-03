@@ -1,11 +1,6 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
 import {
   EyeIcon,
   EyeOffIcon,
@@ -15,6 +10,7 @@ import {
   InfoIcon,
 } from "lucide-react";
 import { toast } from "@/lib/utils/toast-adapter";
+import { BrandCard, BrandButton, CornerBrackets } from "@/components/brand";
 
 interface AuthManagerProps {
   authToken: string;
@@ -112,74 +108,74 @@ export function AuthManager({ authToken, onTokenChange }: AuthManagerProps) {
   };
 
   return (
-    <Card className="w-full border-border/60 bg-background/60">
-      <CardHeader className="pb-4">
-        <CardTitle className="flex items-center gap-2 text-lg">
-          <KeyIcon className="h-5 w-5" />
-          API Key Authentication
-        </CardTitle>
-      </CardHeader>
+    <BrandCard className="relative w-full">
+      <CornerBrackets size="sm" className="opacity-30" />
+      
+      <div className="relative z-10 space-y-4">
+        <div className="flex items-center gap-2">
+          <KeyIcon className="h-5 w-5 text-[#FF5800]" />
+          <h3 className="text-lg font-bold text-white">API Key Authentication</h3>
+        </div>
 
-      <CardContent className="space-y-4">
         <div className="space-y-2">
-          <Label htmlFor="auth-token">API Key</Label>
+          <label htmlFor="auth-token" className="text-xs font-medium text-white/70 uppercase tracking-wide">
+            API Key
+          </label>
           <div className="flex items-center gap-2">
             <div className="relative flex-1">
-              <Input
+              <input
                 id="auth-token"
                 type={showToken ? "text" : "password"}
                 value={authToken}
                 onChange={(e) => handleTokenChange(e.target.value)}
                 placeholder="Enter API key (eliza_... or sk-...)"
-                className="pr-10"
+                className="w-full rounded-none border border-white/10 bg-black/40 px-3 py-2 pr-10 text-sm text-white placeholder:text-white/40 focus:outline-none focus:ring-1 focus:ring-[#FF5800] focus:border-[#FF5800]"
               />
-              <Button
+              <button
                 type="button"
-                variant="ghost"
-                size="sm"
-                className="absolute right-0 top-0 h-full rounded-l-none rounded-r-md px-3"
                 onClick={() => setShowToken(!showToken)}
+                className="absolute right-0 top-0 h-full px-3 hover:bg-white/10 transition-colors"
               >
                 {showToken ? (
-                  <EyeOffIcon className="h-4 w-4" />
+                  <EyeOffIcon className="h-4 w-4 text-white/70" />
                 ) : (
-                  <EyeIcon className="h-4 w-4" />
+                  <EyeIcon className="h-4 w-4 text-white/70" />
                 )}
-              </Button>
+              </button>
             </div>
 
             {authToken && (
-              <Button variant="outline" onClick={clearToken}>
+              <BrandButton variant="outline" size="sm" onClick={clearToken}>
                 Clear
-              </Button>
+              </BrandButton>
             )}
           </div>
         </div>
 
         {apiKeyInfo && (
-          <div className="space-y-2">
+          <div className="space-y-2 p-3 rounded-none border border-white/10 bg-black/20">
             <div className="flex items-center gap-2">
               {apiKeyInfo.valid ? (
-                <CheckCircleIcon className="h-4 w-4 text-green-500" />
+                <CheckCircleIcon className="h-4 w-4 text-green-400" />
               ) : (
-                <XCircleIcon className="h-4 w-4 text-red-500" />
+                <XCircleIcon className="h-4 w-4 text-rose-400" />
               )}
-              <span className="text-sm font-medium">
+              <span className="text-sm font-medium text-white">
                 {apiKeyInfo.valid ? "Valid API Key" : "Invalid API Key"}
               </span>
               {apiKeyInfo.format && (
-                <Badge variant="outline" className="text-xs">
+                <span className="rounded-none bg-[#FF580020] px-2 py-0.5 text-xs font-semibold text-[#FF5800] border border-[#FF580040]">
                   {apiKeyInfo.format === "eliza"
                     ? "ElizaOS"
                     : apiKeyInfo.format === "openai"
                       ? "OpenAI Format"
                       : "Unknown Format"}
-                </Badge>
+                </span>
               )}
             </div>
 
             {apiKeyInfo.valid && apiKeyInfo.format && (
-              <div className="text-sm text-muted-foreground">
+              <div className="text-sm text-white/60">
                 Format:{" "}
                 {apiKeyInfo.format === "eliza"
                   ? "ElizaOS API Key"
@@ -191,7 +187,7 @@ export function AuthManager({ authToken, onTokenChange }: AuthManagerProps) {
           </div>
         )}
 
-        <div className="flex items-start gap-2 text-xs text-muted-foreground">
+        <div className="flex items-start gap-2 text-xs text-white/50">
           <InfoIcon className="h-3 w-3 mt-0.5 flex-shrink-0" />
           <p>
             Enter an API key (starts with eliza_ or sk-) to test authenticated
@@ -200,11 +196,11 @@ export function AuthManager({ authToken, onTokenChange }: AuthManagerProps) {
         </div>
 
         {isValidating && (
-          <div className="text-sm text-muted-foreground">
+          <div className="text-sm text-white/60">
             Validating token...
           </div>
         )}
-      </CardContent>
-    </Card>
+      </div>
+    </BrandCard>
   );
 }

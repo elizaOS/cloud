@@ -1,17 +1,8 @@
 "use client";
 
-import { Button } from "@/components/ui/button";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardFooter,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
 import { Check, Sparkles } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { BrandCard, BrandButton, CornerBrackets } from "@/components/brand";
 
 interface CreditPackCardProps {
   id: string;
@@ -39,65 +30,67 @@ export function CreditPackCard({
   const pricePerCredit = (priceCents / creditsValue / 100).toFixed(3);
 
   return (
-    <Card
+    <BrandCard
       className={cn(
-        "relative overflow-hidden transition-all hover:shadow-lg",
-        isPopular && "border-primary shadow-md",
+        "relative overflow-hidden transition-all",
+        isPopular && "border-[#FF5800] ring-2 ring-[#FF5800]/40",
       )}
     >
+      <CornerBrackets size="sm" className="opacity-50" />
+      
       {isPopular && (
-        <div className="absolute top-0 right-0">
-          <Badge className="rounded-none rounded-bl-lg bg-primary">
+        <div className="absolute top-0 right-0 z-10">
+          <span className="rounded-none rounded-bl-lg bg-[#FF5800] px-3 py-1 text-xs font-bold uppercase tracking-wide text-white inline-flex items-center">
             <Sparkles className="mr-1 h-3 w-3" />
             Popular
-          </Badge>
+          </span>
         </div>
       )}
 
-      <CardHeader>
-        <CardTitle className="text-2xl">{name}</CardTitle>
-        <CardDescription>{description}</CardDescription>
-      </CardHeader>
-
-      <CardContent className="space-y-4">
+      <div className="relative z-10 space-y-4">
         <div>
-          <div className="text-4xl font-bold">${price}</div>
-          <div className="text-sm text-muted-foreground">
+          <h3 className="text-2xl font-bold text-white">{name}</h3>
+          <p className="text-sm text-white/60 mt-1">{description}</p>
+        </div>
+
+        <div>
+          <div className="text-4xl font-bold text-white">${price}</div>
+          <div className="text-sm text-white/50">
             ${pricePerCredit} per dollar
           </div>
         </div>
 
         <div className="space-y-2">
-          <div className="flex items-center gap-2 text-sm">
-            <Check className="h-4 w-4 text-primary" />
+          <div className="flex items-center gap-2 text-sm text-white">
+            <Check className="h-4 w-4 text-[#FF5800]" />
             <span>${creditsValue.toFixed(2)} balance</span>
           </div>
-          <div className="flex items-center gap-2 text-sm">
-            <Check className="h-4 w-4 text-primary" />
+          <div className="flex items-center gap-2 text-sm text-white">
+            <Check className="h-4 w-4 text-[#FF5800]" />
             <span>One-time purchase</span>
           </div>
-          <div className="flex items-center gap-2 text-sm">
-            <Check className="h-4 w-4 text-primary" />
+          <div className="flex items-center gap-2 text-sm text-white">
+            <Check className="h-4 w-4 text-[#FF5800]" />
             <span>Never expires</span>
           </div>
-          <div className="flex items-center gap-2 text-sm">
-            <Check className="h-4 w-4 text-primary" />
+          <div className="flex items-center gap-2 text-sm text-white">
+            <Check className="h-4 w-4 text-[#FF5800]" />
             <span>Instant activation</span>
           </div>
         </div>
-      </CardContent>
 
-      <CardFooter>
-        <Button
-          onClick={() => onPurchase(id)}
-          disabled={loading}
-          className="w-full"
-          size="lg"
-          variant={isPopular ? "default" : "outline"}
-        >
-          {loading ? "Processing..." : "Add Funds"}
-        </Button>
-      </CardFooter>
-    </Card>
+        <div className="pt-4 border-t border-white/10">
+          <BrandButton
+            onClick={() => onPurchase(id)}
+            disabled={loading}
+            variant={isPopular ? "primary" : "outline"}
+            className="w-full"
+            size="lg"
+          >
+            {loading ? "Processing..." : "Add Funds"}
+          </BrandButton>
+        </div>
+      </div>
+    </BrandCard>
   );
 }

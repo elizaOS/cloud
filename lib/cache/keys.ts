@@ -37,8 +37,7 @@ export const CacheKeys = {
     pattern: () => `user:*`,
   },
   memory: {
-    item: (orgId: string, memoryId: string) =>
-      `memory:${orgId}:${memoryId}:v1`,
+    item: (orgId: string, memoryId: string) => `memory:${orgId}:${memoryId}:v1`,
     roomRecent: (orgId: string, roomId: string) =>
       `memory:${orgId}:room:${roomId}:recent:v1`,
     roomContext: (orgId: string, roomId: string, depth: number) =>

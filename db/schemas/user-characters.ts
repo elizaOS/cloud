@@ -73,9 +73,13 @@ export const userCharacters = pgTable(
     name_idx: index("user_characters_name_idx").on(table.name),
     category_idx: index("user_characters_category_idx").on(table.category),
     featured_idx: index("user_characters_featured_idx").on(table.featured),
-    template_idx: index("user_characters_is_template_idx").on(table.is_template),
+    template_idx: index("user_characters_is_template_idx").on(
+      table.is_template,
+    ),
     public_idx: index("user_characters_is_public_idx").on(table.is_public),
-    popularity_idx: index("user_characters_popularity_idx").on(table.popularity_score),
+    popularity_idx: index("user_characters_popularity_idx").on(
+      table.popularity_score,
+    ),
   }),
 );
 
