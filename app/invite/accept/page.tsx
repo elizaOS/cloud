@@ -2,7 +2,7 @@
 
 import { useState, useEffect, Suspense } from "react";
 import { useSearchParams, useRouter } from "next/navigation";
-import { useLogin, usePrivy } from "@privy-io/react-auth";
+import { usePrivy } from "@privy-io/react-auth";
 import { Button } from "@/components/ui/button";
 import {
   Card,
@@ -37,7 +37,7 @@ interface InviteDetails {
 function InviteAcceptContent() {
   const searchParams = useSearchParams();
   const router = useRouter();
-  const { login, authenticated, ready } = usePrivy();
+  const { authenticated, ready } = usePrivy();
   const token = searchParams.get("token");
 
   const [isValidating, setIsValidating] = useState(true);
@@ -82,7 +82,9 @@ function InviteAcceptContent() {
 
   const handleAcceptInvite = async () => {
     if (!authenticated) {
-      login();
+      // Store the token in localStorage to retrieve after login
+      localStorage.setItem("pending-invite-token", token!);
+      router.push("/login");
       return;
     }
 

@@ -65,6 +65,7 @@ export async function syncUserFromPrivy(
   // Try to get email from linked accounts if not in primary email field
   if (!email && privyUser.linkedAccounts) {
     for (const account of privyUser.linkedAccounts) {
+      // Check for email account type
       if (
         "address" in account &&
         account.type === "email" &&
@@ -73,7 +74,15 @@ export async function syncUserFromPrivy(
         email = account.address.toLowerCase().trim();
         break;
       }
-      if ("email" in account && typeof account.email === "string") {
+      // Check for OAuth providers (google_oauth, discord_oauth, github_oauth, etc.)
+      // These have an 'email' field directly on the account object
+      if (
+        "email" in account &&
+        typeof account.email === "string" &&
+        account.email.length > 0 &&
+        typeof account.type === "string" &&
+        (account.type.includes("oauth") || account.type === "google" || account.type === "discord" || account.type === "github")
+      ) {
         email = account.email.toLowerCase().trim();
         break;
       }
@@ -123,9 +132,23 @@ export async function syncUserFromPrivy(
   let name = privyUser.name;
   if (!name && privyUser.linkedAccounts) {
     for (const account of privyUser.linkedAccounts) {
-      if ("name" in account && typeof account.name === "string") {
+      // Prioritize OAuth provider names
+      if (
+        "name" in account &&
+        typeof account.name === "string" &&
+        account.name.length > 0
+      ) {
         name = account.name;
         break;
+      }
+      // Fallback to username for providers like Discord/GitHub
+      if (
+        !name &&
+        "username" in account &&
+        typeof account.username === "string" &&
+        account.username.length > 0
+      ) {
+        name = account.username;
       }
     }
   }
