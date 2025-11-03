@@ -8,10 +8,11 @@
 
 ## Executive Summary
 
-Two critical bugs were preventing Open Graph (OG) images from displaying when sharing links on social media platforms:
+Three critical bugs were affecting OG images and character avatars:
 
 1. **Authentication Blocking OG Image Endpoint** - The `/api/og` endpoint was protected by authentication middleware, returning 401 errors to social media crawlers
 2. **Static Metadata on Dynamic Pages** - The dashboard/eliza page was using static metadata instead of character-specific metadata when a characterId parameter was present
+3. **Character Avatar Not Loading in Chat** - The room API was returning the default agent's avatar instead of the character-specific avatar
 
 ---
 
@@ -184,6 +185,68 @@ export async function generateMetadata({ searchParams }: PageProps): Promise<Met
 
 ---
 
+### Bug #3: Character Avatar Not Loading in Chat Interface
+
+#### **The Problem**
+When visiting a URL like `/dashboard/eliza?characterId=6a901d1f-c1e5-4e22-a7f9-6e1a77028a0d`, the character's avatar was NOT displaying in the chat interface. Instead, the default Eliza avatar was shown.
+
+#### **Root Cause**
+The `/api/eliza/rooms/[roomId]` endpoint was loading the default agent's avatar instead of the character-specific avatar.
+
+**Original code (lines 58-59):**
+```typescript
+// OLD CODE ❌
+const agent = await runtime.getAgent(runtime.agentId);
+const avatarUrl = agent?.settings?.avatarUrl as string | undefined;
+```
+
+Even though the API correctly identified the `characterId` for the room (lines 62-76), it still used the default runtime's avatar.
+
+#### **Impact**
+- When users selected a custom character, the default Eliza avatar appeared instead
+- Character personality wasn't visually represented in the UI
+- Confusing user experience when chatting with different characters
+- All characters looked the same regardless of their actual avatar
+
+#### **The Fix**
+Modified the API endpoint to load the character-specific runtime when a `characterId` is present:
+
+```typescript
+// NEW CODE ✅
+if (characterId) {
+  // Load character-specific runtime to get character's avatar and name
+  try {
+    const characterRuntime = await agentRuntime.getRuntimeForCharacter(characterId);
+    agent = await characterRuntime.getAgent(characterRuntime.agentId);
+    avatarUrl = agent?.settings?.avatarUrl as string | undefined;
+    agentName = agent?.name;
+    logger.debug("[Eliza Room API] Loaded character avatar:", { name: agentName, avatarUrl });
+  } catch (err) {
+    logger.warn("[Eliza Room API] Failed to load character runtime, using default:", err);
+    // Fall back to default agent
+    agent = await runtime.getAgent(runtime.agentId);
+    avatarUrl = agent?.settings?.avatarUrl as string | undefined;
+    agentName = agent?.name;
+  }
+} else {
+  // Use default agent
+  agent = await runtime.getAgent(runtime.agentId);
+  avatarUrl = agent?.settings?.avatarUrl as string | undefined;
+  agentName = agent?.name;
+}
+```
+
+**File Modified:** `app/api/eliza/rooms/[roomId]/route.ts`
+
+#### **Key Improvements**
+1. ✅ Detects when a room has a specific character assigned
+2. ✅ Loads the character's runtime using `getRuntimeForCharacter(characterId)`
+3. ✅ Returns the character's actual avatar URL and name
+4. ✅ Falls back gracefully to default agent if character loading fails
+5. ✅ Logs debug information for troubleshooting
+
+---
+
 ## Technical Details
 
 ### How OG Images Work
@@ -234,6 +297,7 @@ Social media displays preview with image
 |------|----------------|---------|
 | `proxy.ts` | Line 16 | Added `/api/og` to public paths |
 | `app/dashboard/eliza/page.tsx` | Lines 1-79 | Converted static metadata to dynamic generation |
+| `app/api/eliza/rooms/[roomId]/route.ts` | Lines 57-116 | Load character-specific avatar in room API |
 
 ---
 
@@ -324,12 +388,16 @@ To prevent similar issues in the future:
 
 ## Conclusion
 
-Both bugs have been fixed:
+All three bugs have been fixed:
 
 ✅ **OG Image Endpoint** - Now publicly accessible to social media crawlers  
 ✅ **Dynamic Metadata** - Character-specific information now shows in social previews  
+✅ **Character Avatars** - Character-specific avatars now display correctly in chat interface  
 
-**No breaking changes** - All existing functionality preserved, only enhanced social sharing experience.
+**No breaking changes** - All existing functionality preserved, only enhanced social sharing and chat experience.
 
-**Deploy ASAP** - These fixes significantly improve user experience when sharing links.
+**Deploy ASAP** - These fixes significantly improve:
+- Social media sharing (OG images now work)
+- User experience (correct character avatars in chat)
+- Character personality representation (visual consistency)
 
