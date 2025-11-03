@@ -13,6 +13,7 @@ const publicPaths = [
   "/",
   "/api/models",
   "/api/fal/proxy",
+  "/api/og", // OG image generation (must be public for social media crawlers)
   "/auth/error",
   "/auth/cli-login", // CLI login page
   "/api/auth/cli-session", // CLI session endpoints (public for polling)
