@@ -59,6 +59,7 @@ export function ChatInterfaceWithPersistence({
   const messageTimestamps = useRef<Map<string, Date>>(new Map());
   const loadingTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const messageAudioUrls = useRef<Map<string, string>>(new Map());
+  const modelSelectorRef = useRef<HTMLDivElement>(null);
 
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [autoPlayTTS, setAutoPlayTTS] = useState(false);
@@ -124,12 +125,36 @@ export function ChatInterfaceWithPersistence({
     fetch("/api/v1/models")
       .then((res) => res.json())
       .then((data) => {
-        if (data.models) {
-          setAvailableModels(data.models);
+        if (data.data && Array.isArray(data.data)) {
+          const models = data.data.map((model: { id: string; owned_by: string }) => ({
+            id: model.id,
+            name: model.id,
+            provider: model.owned_by,
+          }));
+          setAvailableModels(models);
         }
       })
-      .catch(() => {});
+      .catch((error) => {
+        console.error("Failed to fetch models:", error);
+      });
   }, []);
+
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (
+        showModelSelector &&
+        modelSelectorRef.current &&
+        !modelSelectorRef.current.contains(event.target as Node)
+      ) {
+        setShowModelSelector(false);
+      }
+    };
+
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => {
+      document.removeEventListener("mousedown", handleClickOutside);
+    };
+  }, [showModelSelector]);
 
   useEffect(() => {
     const conversationId = conversation?.id || null;
@@ -693,7 +718,7 @@ export function ChatInterfaceWithPersistence({
             </div>
           )}
 
-          <div className="relative">
+          <div className="relative" ref={modelSelectorRef}>
             <BrandButton
               variant="outline"
               size="sm"
