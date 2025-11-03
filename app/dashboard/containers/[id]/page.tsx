@@ -33,7 +33,9 @@ interface PageProps {
   params: Promise<{ id: string }>;
 }
 
-export async function generateMetadata({ params }: PageProps): Promise<Metadata> {
+export async function generateMetadata({
+  params,
+}: PageProps): Promise<Metadata> {
   try {
     const user = await requireAuth();
     const { id } = await params;
@@ -50,7 +52,7 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
       id,
       container.name,
       container.description,
-      null
+      null,
     );
   } catch (error) {
     return {

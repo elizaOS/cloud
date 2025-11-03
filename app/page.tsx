@@ -1,5 +1,8 @@
 import { LandingPage } from "@/components/landing/landing-page";
-import { generateOrganizationSchema, generateWebApplicationSchema } from "@/lib/seo";
+import {
+  generateOrganizationSchema,
+  generateWebApplicationSchema,
+} from "@/lib/seo";
 
 /**
  * Landing Page
