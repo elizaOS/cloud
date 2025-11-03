@@ -20,6 +20,7 @@ import { createDatabaseAdapter } from "@elizaos/plugin-sql";
 import agent from "./agent";
 import { characterLoader } from "./character-loader";
 import type { Character } from "@elizaos/core";
+import { connectionCache } from "@/lib/cache/connection-cache";
 
 interface GlobalWithEliza {
   __elizaManagerLogged?: boolean;
@@ -613,18 +614,33 @@ class AgentRuntimeManager {
       ? await this.getRuntimeForCharacter(characterId)
       : await this.getRuntime();
 
-    // Ensure room and entity connection
+    // OPTIMIZATION: Check connection cache before calling ensureConnection
+    // This avoids a DB query on every message for established connections
     const entityUuid = stringToUuid(entityId) as UUID;
-    await runtime.ensureConnection({
-      entityId: entityUuid,
-      roomId: roomId as UUID,
-      worldId: stringToUuid("eliza-world"),
-      source: "web",
-      type: ChannelType.DM,
-      channelId: roomId,
-      serverId: "eliza-server",
-      userName: entityId,
-    });
+    const isConnectionCached = await connectionCache.isEstablished(
+      roomId,
+      entityId,
+    );
+
+    if (!isConnectionCached) {
+      // Connection not cached - ensure it exists and cache the result
+      await runtime.ensureConnection({
+        entityId: entityUuid,
+        roomId: roomId as UUID,
+        worldId: stringToUuid("eliza-world"),
+        source: "web",
+        type: ChannelType.DM,
+        channelId: roomId,
+        serverId: "eliza-server",
+        userName: entityId,
+      });
+
+      // Mark connection as established in cache
+      await connectionCache.markEstablished(roomId, entityId);
+      elizaLogger.debug("[AgentRuntime] Connection established and cached");
+    } else {
+      elizaLogger.debug("[AgentRuntime] Using cached connection");
+    }
 
     // Create user message
     // Note: The plugin (assistantPlugin) will save this to the database via the event handler

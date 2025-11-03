@@ -130,8 +130,8 @@ const agent = {
   // Includes OpenAI for LLM, ElevenLabs for TTS/STT, and knowledge/memory plugins
   // Note: knowledgePluginCore is loaded asynchronously via getPlugins()
   plugins: [
-    openaiPlugin,
     openrouterPlugin,
+    openaiPlugin,
     elevenLabsPlugin,
     assistantPlugin,
     memoryPlugin,

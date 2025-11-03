@@ -5,6 +5,7 @@ import { stringToUuid, UUID, ChannelType } from "@elizaos/core";
 import { logger } from "@/lib/utils/logger";
 import { requireAuthOrApiKey } from "@/lib/auth";
 import { elizaRoomCharactersRepository } from "@/db/repositories";
+import { connectionCache } from "@/lib/cache/connection-cache";
 import { discordService } from "@/lib/services";
 import { db } from "@/db/client";
 import { sql } from "drizzle-orm";
@@ -152,6 +153,9 @@ export async function POST(request: NextRequest) {
       serverId: "eliza-server",
       userName: entityId,
     });
+
+    // OPTIMIZATION: Cache the connection to avoid DB queries on future messages
+    await connectionCache.markEstablished(roomId, entityId);
 
     logger.debug(
       "[Eliza Rooms API] Created room:",
