@@ -129,7 +129,9 @@ function InviteAcceptContent() {
               <Loader2 className="h-6 w-6 animate-spin text-primary" />
             </div>
             <CardTitle>Validating Invitation</CardTitle>
-            <CardDescription>Please wait while we verify your invitation...</CardDescription>
+            <CardDescription>
+              Please wait while we verify your invitation...
+            </CardDescription>
           </CardHeader>
         </Card>
       </div>
@@ -207,8 +209,13 @@ function InviteAcceptContent() {
             <div className="flex items-start gap-3">
               {getRoleIcon(inviteDetails.role)}
               <div className="flex-1">
-                <p className="text-sm font-medium text-muted-foreground">Role</p>
-                <Badge variant="outline" className="mt-1 flex items-center gap-1 w-fit">
+                <p className="text-sm font-medium text-muted-foreground">
+                  Role
+                </p>
+                <Badge
+                  variant="outline"
+                  className="mt-1 flex items-center gap-1 w-fit"
+                >
                   {getRoleIcon(inviteDetails.role)}
                   <span className="capitalize">{inviteDetails.role}</span>
                 </Badge>
@@ -235,13 +242,6 @@ function InviteAcceptContent() {
                 This invitation expires on{" "}
                 {format(expiresAt, "MMM d, yyyy 'at' h:mm a")}
               </AlertDescription>
-            </Alert>
-          )}
-
-          {error && (
-            <Alert variant="destructive">
-              <AlertCircle className="h-4 w-4" />
-              <AlertDescription>{error}</AlertDescription>
             </Alert>
           )}
 
