@@ -31,7 +31,6 @@ interface MessageReceivedHandlerParams {
     text?: string;
     usage?: { inputTokens: number; outputTokens: number; model: string };
   }) => Promise<Memory[]>;
-  waitUntil?: (promise: Promise<unknown>) => void;
 }
 
 /**
@@ -167,7 +166,6 @@ const messageReceivedHandler = async ({
   runtime,
   message,
   callback,
-  waitUntil,
 }: MessageReceivedHandlerParams): Promise<void> => {
   // Generate a new response ID
   const responseId = v4();
@@ -481,55 +479,42 @@ const messageReceivedHandler = async ({
       },
     });
 
-    // Run evaluators in background (non-blocking)
-    // This ensures evaluators don't delay the response
+    // Run evaluators (with timeout to prevent hanging)
     if (typeof runtime.evaluate === "function") {
-      logger.debug("[ElizaAssistant] Running evaluators in background");
+      logger.debug("[ElizaAssistant] Running evaluators");
 
-      // Create the evaluator promise
-      const evaluatorPromise = runtime
-        .evaluate(
-          message,
-          { ...initialState }, // Use the initial state for evaluators
-          true, // shouldRespondToMessage
-          async (content) => {
-            logger.debug(
-              "[ElizaAssistant] Evaluator callback:",
-              JSON.stringify(content),
-            );
-            // Evaluator callbacks can be used for side effects
-            // (e.g., updating memory, logging, etc.)
-            if (callback) {
-              return callback(content);
-            }
-            return [];
-          },
-          [responseMemory],
-        )
-        .then(async () => {
-          logger.debug("[ElizaAssistant] Evaluators completed");
-
-          // Note: Token tracking for evaluators will need to be implemented
-          // at the framework level (runtime.getRunTokenUsage is not available)
-          // For now, evaluators run but their token usage is not tracked
-          // TODO: Add evaluator token tracking when framework support is available
-        })
-        .catch((error) => {
-          logger.error(
-            "[ElizaAssistant] Error in evaluators:",
-            error instanceof Error ? error.message : String(error),
-          );
-        });
-
-      // Use waitUntil if available (Vercel serverless), otherwise let it run
-      if (waitUntil) {
-        logger.debug(
-          "[ElizaAssistant] Using waitUntil to keep function alive for evaluators",
-        );
-        waitUntil(evaluatorPromise);
-      } else {
-        logger.debug(
-          "[ElizaAssistant] No waitUntil available - evaluators may be terminated early in serverless",
+      try {
+        // Run evaluators with a 30-second timeout
+        await Promise.race([
+          runtime.evaluate(
+            message,
+            { ...initialState }, // Use the initial state for evaluators
+            true, // shouldRespondToMessage
+            async (content) => {
+              logger.debug(
+                "[ElizaAssistant] Evaluator callback:",
+                JSON.stringify(content),
+              );
+              // Evaluator callbacks can be used for side effects
+              if (callback) {
+                return callback(content);
+              }
+              return [];
+            },
+            [responseMemory],
+          ),
+          // Timeout after 30 seconds to prevent function from hanging
+          new Promise<void>((_, reject) => {
+            setTimeout(() => {
+              reject(new Error("Evaluators timed out after 30 seconds"));
+            }, 30000);
+          }),
+        ]);
+        logger.debug("[ElizaAssistant] Evaluators completed successfully");
+      } catch (error) {
+        logger.error(
+          "[ElizaAssistant] Error in evaluators:",
+          error instanceof Error ? error.message : String(error),
         );
       }
     } else {
@@ -558,13 +543,12 @@ const messageReceivedHandler = async ({
 
 const events = {
   [EventType.MESSAGE_RECEIVED]: [
-    async (payload: MessagePayload & { waitUntil?: (promise: Promise<unknown>) => void }) => {
+    async (payload: MessagePayload) => {
       if (payload.callback) {
         await messageReceivedHandler({
           runtime: payload.runtime,
           message: payload.message,
           callback: payload.callback,
-          waitUntil: payload.waitUntil,
         });
       }
     },
