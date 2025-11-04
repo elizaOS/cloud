@@ -8,12 +8,57 @@ import type Stripe from "stripe";
  */
 export class PaymentMethodsService {
   /**
+   * Get or create Stripe customer for an organization
+   * Used internally to ensure organization has a Stripe customer before operations
+   *
+   * @param org - The organization object
+   * @returns Stripe customer ID
+   * @throws Error if customer creation fails
+   */
+  private async ensureStripeCustomer(org: Organization): Promise<string> {
+    if (org.stripe_customer_id) {
+      return org.stripe_customer_id;
+    }
+
+    console.log(
+      `[PaymentMethodsService] Creating Stripe customer for org ${org.id} (${org.name})`,
+    );
+
+    try {
+      const customer = await stripe.customers.create({
+        name: org.name,
+        email: org.billing_email || undefined,
+        metadata: {
+          organization_id: org.id,
+        },
+      });
+
+      await organizationsRepository.update(org.id, {
+        stripe_customer_id: customer.id,
+        updated_at: new Date(),
+      });
+
+      console.log(
+        `[PaymentMethodsService] ✓ Created Stripe customer ${customer.id} for org ${org.id}`,
+      );
+
+      return customer.id;
+    } catch (error) {
+      console.error(
+        `[PaymentMethodsService] Failed to create Stripe customer for org ${org.id}:`,
+        error,
+      );
+      throw new Error("Failed to create payment customer. Please try again.");
+    }
+  }
+
+  /**
    * Attach a payment method to an organization's Stripe customer
    * If no default payment method exists, this will be set as default
+   * Automatically creates Stripe customer if one doesn't exist
    *
    * @param organizationId - The organization ID
    * @param paymentMethodId - The Stripe payment method ID to attach
-   * @throws Error if organization doesn't have a Stripe customer
    * @returns void
    */
   async attachPaymentMethod(
@@ -26,16 +71,13 @@ export class PaymentMethodsService {
       throw new Error("Organization not found");
     }
 
-    if (!org.stripe_customer_id) {
-      throw new Error(
-        "Organization does not have a Stripe customer. Please contact support.",
-      );
-    }
+    // Ensure organization has a Stripe customer (create if needed)
+    const customerId = await this.ensureStripeCustomer(org);
 
     // Attach payment method to customer
     try {
       await stripe.paymentMethods.attach(paymentMethodId, {
-        customer: org.stripe_customer_id,
+        customer: customerId,
       });
     } catch (error) {
       if (error instanceof Error) {
