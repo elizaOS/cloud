@@ -47,7 +47,12 @@ export function BillingTab({ user }: BillingTabProps) {
   const [invoices, setInvoices] = useState<Invoice[]>([]);
   const [loadingInvoices, setLoadingInvoices] = useState(true);
 
-  const balance = Number(user.organization?.credit_balance || 0);
+  // CRITICAL: Balance must be in state and fetched separately from API
+  // Why: The 'user' prop comes from server component which uses React.cache()
+  // for request-level memoization. Even after router.refresh(), the cached
+  // user data may still be stale. By fetching balance via dedicated API endpoint,
+  // we bypass all caching layers and get fresh data directly from database.
+  const [balance, setBalance] = useState(Number(user.organization?.credit_balance || 0));
 
   // Get display string for payment method
   const getPaymentMethodDisplay = () => {
@@ -63,7 +68,20 @@ export function BillingTab({ user }: BillingTabProps) {
     fetchPaymentMethods();
     fetchAutoTopUpSettings();
     fetchInvoices();
+    fetchBalance();
   }, []);
+
+  const fetchBalance = async () => {
+    try {
+      const response = await fetch('/api/credits/balance');
+      if (response.ok) {
+        const data = await response.json();
+        setBalance(data.balance);
+      }
+    } catch (error) {
+      console.error('Error fetching balance:', error);
+    }
+  };
 
   const fetchPaymentMethods = async () => {
     try {
@@ -144,9 +162,8 @@ export function BillingTab({ user }: BillingTabProps) {
 
       if (data.status === 'succeeded') {
         toast.success(`Successfully purchased $${amount.toFixed(2)} in credits`);
-        // Refresh invoices list
+        await fetchBalance();
         await fetchInvoices();
-        // Trigger server-side refresh to get updated balance
         router.refresh();
       } else {
         toast.info(`Payment is ${data.status}. Credits will be added when payment completes.`);
@@ -251,6 +268,7 @@ export function BillingTab({ user }: BillingTabProps) {
 
       if (response.ok && data.success) {
         toast.success(data.message || 'Auto top-up triggered successfully');
+        await fetchBalance();
         await fetchInvoices();
         router.refresh();
       } else {
@@ -284,6 +302,7 @@ export function BillingTab({ user }: BillingTabProps) {
         if (autoTopUp && data.newBalance < autoTopUpThreshold) {
           toast.info("Balance below threshold, auto top-up should trigger shortly...");
         }
+        await fetchBalance();
         await fetchInvoices();
         router.refresh();
       } else {

@@ -1,5 +1,6 @@
 import { stripe, STRIPE_CURRENCY } from "@/lib/stripe";
 import { organizationsRepository, type Organization } from "@/db/repositories";
+import { creditsService } from "./credits";
 import type Stripe from "stripe";
 
 /**
@@ -152,6 +153,41 @@ export class PurchasesService {
       const paymentIntent = await stripe.paymentIntents.create(
         paymentIntentParams,
       );
+
+      // CRITICAL: If payment succeeded immediately, add credits synchronously
+      // This prevents race condition where client fetches balance before webhook fires
+      // Webhook will still fire but will be deduplicated (already has duplicate check)
+      if (paymentIntent.status === "succeeded") {
+        console.log(
+          `[PurchasesService] Payment succeeded immediately, adding ${amount} credits synchronously for org ${organizationId}`,
+        );
+
+        try {
+          await creditsService.addCredits({
+            organizationId,
+            amount,
+            description: `One-time purchase - $${amount.toFixed(2)}`,
+            metadata: {
+              type: "one_time_purchase",
+              payment_intent_id: paymentIntent.id,
+            },
+            stripePaymentIntentId: paymentIntent.id,
+          });
+
+          console.log(
+            `[PurchasesService] ✓ Credits added synchronously for payment ${paymentIntent.id}`,
+          );
+        } catch (error) {
+          // Log error but don't fail the purchase - webhook will add credits as backup
+          console.error(
+            `[PurchasesService] Failed to add credits synchronously for payment ${paymentIntent.id}:`,
+            error,
+          );
+          console.error(
+            `[PurchasesService] Webhook will add credits as backup`,
+          );
+        }
+      }
 
       return {
         paymentIntentId: paymentIntent.id,
