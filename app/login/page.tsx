@@ -7,6 +7,7 @@ import { BrandButton, BrandCard, CornerBrackets } from "@/components/brand";
 import { Input } from "@/components/ui/input";
 import { Loader2, Mail, Wallet, Github, Chrome, ArrowLeft } from "lucide-react";
 import { toast } from "sonner";
+import LandingHeader from "@/components/layout/landing-header";
 
 // Discord SVG Icon Component
 const DiscordIcon = ({ className }: { className?: string }) => (
@@ -144,7 +145,10 @@ export default function LoginPage() {
   // Don't render login page if already authenticated (redirecting)
   if (authenticated || isSyncing) {
     return (
-      <div className="relative flex min-h-screen w-full items-center justify-center overflow-hidden">
+      <div className="relative flex min-h-screen w-full flex-col overflow-hidden">
+        {/* Header */}
+        <LandingHeader />
+        
         {/* Fullscreen background video */}
         <video
           src="/videos/Hero Cloud_x3 Slower_1_Scale 5.mp4"
@@ -161,32 +165,37 @@ export default function LoginPage() {
         {/* Gradient overlay */}
         <div className="absolute inset-0 bg-gradient-to-br from-black/60 via-black/40 to-black/60" />
         
-        <BrandCard className="relative z-10 w-full max-w-md backdrop-blur-sm bg-black/60">
-          <CornerBrackets size="md" className="opacity-50" />
-          <div className="relative z-10 flex flex-col items-center gap-6 py-8">
-            <div className="relative">
-              <Loader2 className="h-12 w-12 animate-spin text-[#FF5800]" />
-              <div className="absolute inset-0 h-12 w-12 animate-pulse rounded-full bg-[#FF5800]/20 blur-xl" />
+        <div className="relative z-10 flex flex-1 items-center justify-center p-4">
+          <BrandCard className="w-full max-w-md backdrop-blur-sm bg-black/60">
+            <CornerBrackets size="md" className="opacity-50" />
+            <div className="relative z-10 flex flex-col items-center gap-6 py-8">
+              <div className="relative">
+                <Loader2 className="h-12 w-12 animate-spin text-[#FF5800]" />
+                <div className="absolute inset-0 h-12 w-12 animate-pulse rounded-full bg-[#FF5800]/20 blur-xl" />
+              </div>
+              <div className="space-y-2 text-center">
+                <h3 className="text-lg font-semibold text-white">Signing you in</h3>
+                <p className="text-sm text-white/60">
+                  Taking you to your dashboard...
+                </p>
+              </div>
+              <div className="flex gap-1">
+                <div className="h-2 w-2 animate-bounce rounded-full bg-[#FF5800] [animation-delay:-0.3s]" />
+                <div className="h-2 w-2 animate-bounce rounded-full bg-[#FF5800] [animation-delay:-0.15s]" />
+                <div className="h-2 w-2 animate-bounce rounded-full bg-[#FF5800]" />
+              </div>
             </div>
-            <div className="space-y-2 text-center">
-              <h3 className="text-lg font-semibold text-white">Signing you in</h3>
-              <p className="text-sm text-white/60">
-                Taking you to your dashboard...
-              </p>
-            </div>
-            <div className="flex gap-1">
-              <div className="h-2 w-2 animate-bounce rounded-full bg-[#FF5800] [animation-delay:-0.3s]" />
-              <div className="h-2 w-2 animate-bounce rounded-full bg-[#FF5800] [animation-delay:-0.15s]" />
-              <div className="h-2 w-2 animate-bounce rounded-full bg-[#FF5800]" />
-            </div>
-          </div>
-        </BrandCard>
+          </BrandCard>
+        </div>
       </div>
     );
   }
 
   return (
-    <div className="relative flex min-h-screen w-full items-center justify-center overflow-hidden p-4">
+    <div className="relative flex min-h-screen w-full flex-col overflow-hidden">
+      {/* Header */}
+      <LandingHeader />
+      
       {/* Fullscreen background video */}
       <video
         src="/videos/Hero Cloud_x3 Slower_1_Scale 5.mp4"
@@ -203,7 +212,8 @@ export default function LoginPage() {
       {/* Gradient overlay for better text readability */}
       <div className="absolute inset-0 bg-gradient-to-br from-black/60 via-black/40 to-black/60" />
       
-      <BrandCard className="relative z-10 w-full max-w-md backdrop-blur-sm bg-black/60">
+      <div className="relative z-10 flex flex-1 items-center justify-center p-4">
+        <BrandCard className="w-full max-w-md backdrop-blur-sm bg-black/60">
         <CornerBrackets size="md" className="opacity-50" />
         
         <div className="relative z-10 space-y-6">
@@ -425,6 +435,7 @@ export default function LoginPage() {
           </p>
         </div>
       </BrandCard>
+      </div>
     </div>
   );
 }
