@@ -1,0 +1,435 @@
+import { db } from "@/db/client";
+import { organizations } from "@/db/schemas/organizations";
+import { eq, and, lt, sql } from "drizzle-orm";
+import { stripe } from "@/lib/stripe";
+import { creditsService } from "./credits";
+import { organizationsRepository } from "@/db/repositories";
+import type { Organization } from "@/db/repositories";
+
+/**
+ * Constants for auto top-up validation
+ */
+export const AUTO_TOP_UP_LIMITS = {
+  MIN_AMOUNT: 1,
+  MAX_AMOUNT: 1000,
+  MIN_THRESHOLD: 0,
+  MAX_THRESHOLD: 1000,
+} as const;
+
+/**
+ * Result of executing an auto top-up for an organization
+ */
+export interface AutoTopUpResult {
+  organizationId: string;
+  success: boolean;
+  amount?: number;
+  newBalance?: number;
+  error?: string;
+}
+
+/**
+ * Summary of auto top-up check run
+ */
+export interface AutoTopUpCheckResult {
+  timestamp: Date;
+  organizationsChecked: number;
+  organizationsProcessed: number;
+  successful: number;
+  failed: number;
+  results: AutoTopUpResult[];
+}
+
+/**
+ * Service for managing automatic balance top-ups
+ * Monitors organization balances and automatically charges when balance falls below threshold
+ */
+export class AutoTopUpService {
+  /**
+   * Validate auto top-up settings
+   *
+   * @param amount - The amount to charge on auto top-up
+   * @param threshold - The balance threshold to trigger auto top-up
+   * @throws Error if settings are invalid
+   */
+  validateSettings(amount: number, threshold: number): void {
+    if (amount < AUTO_TOP_UP_LIMITS.MIN_AMOUNT) {
+      throw new Error(
+        `Auto top-up amount must be at least $${AUTO_TOP_UP_LIMITS.MIN_AMOUNT}`,
+      );
+    }
+    if (amount > AUTO_TOP_UP_LIMITS.MAX_AMOUNT) {
+      throw new Error(
+        `Auto top-up amount cannot exceed $${AUTO_TOP_UP_LIMITS.MAX_AMOUNT}`,
+      );
+    }
+    if (threshold < AUTO_TOP_UP_LIMITS.MIN_THRESHOLD) {
+      throw new Error(
+        `Auto top-up threshold must be at least $${AUTO_TOP_UP_LIMITS.MIN_THRESHOLD}`,
+      );
+    }
+    if (threshold > AUTO_TOP_UP_LIMITS.MAX_THRESHOLD) {
+      throw new Error(
+        `Auto top-up threshold cannot exceed $${AUTO_TOP_UP_LIMITS.MAX_THRESHOLD}`,
+      );
+    }
+    if (!Number.isFinite(amount) || !Number.isFinite(threshold)) {
+      throw new Error("Auto top-up settings must be valid numbers");
+    }
+  }
+
+  /**
+   * Check and execute auto top-ups for all eligible organizations
+   * This method is called periodically by a cron job
+   *
+   * @returns Summary of the auto top-up check run
+   */
+  async checkAndExecuteAutoTopUps(): Promise<AutoTopUpCheckResult> {
+    const startTime = new Date();
+    const results: AutoTopUpResult[] = [];
+
+    console.log(
+      `[AutoTopUp] Starting auto top-up check at ${startTime.toISOString()}`,
+    );
+
+    try {
+      // Find organizations that need auto top-up
+      // Using raw SQL for numeric comparison to avoid type coercion issues
+      const orgsNeedingTopUp = await db
+        .select()
+        .from(organizations)
+        .where(
+          and(
+            eq(organizations.auto_top_up_enabled, true),
+            sql`CAST(${organizations.credit_balance} AS NUMERIC) < CAST(${organizations.auto_top_up_threshold} AS NUMERIC)`,
+          ),
+        );
+
+      console.log(
+        `[AutoTopUp] Found ${orgsNeedingTopUp.length} organizations needing auto top-up`,
+      );
+
+      // Process each organization
+      for (const org of orgsNeedingTopUp) {
+        try {
+          const result = await this.executeAutoTopUp(org);
+          results.push(result);
+        } catch (error) {
+          console.error(
+            `[AutoTopUp] Error processing org ${org.id}:`,
+            error,
+          );
+          results.push({
+            organizationId: org.id,
+            success: false,
+            error:
+              error instanceof Error ? error.message : "Unknown error",
+          });
+        }
+      }
+
+      const successful = results.filter((r) => r.success).length;
+      const failed = results.filter((r) => !r.success).length;
+
+      console.log(
+        `[AutoTopUp] Completed check. Processed: ${results.length}, Successful: ${successful}, Failed: ${failed}`,
+      );
+
+      return {
+        timestamp: startTime,
+        organizationsChecked: orgsNeedingTopUp.length,
+        organizationsProcessed: results.length,
+        successful,
+        failed,
+        results,
+      };
+    } catch (error) {
+      console.error("[AutoTopUp] Critical error during check:", error);
+      throw error;
+    }
+  }
+
+  /**
+   * Execute auto top-up for a specific organization
+   * Creates a PaymentIntent with the saved payment method and processes the payment
+   *
+   * @param org - The organization to top up
+   * @returns Result of the auto top-up operation
+   */
+  private async executeAutoTopUp(
+    org: Organization,
+  ): Promise<AutoTopUpResult> {
+    const organizationId = org.id;
+
+    console.log(
+      `[AutoTopUp] Processing org ${organizationId} (${org.name})`,
+    );
+    console.log(
+      `[AutoTopUp] Current balance: $${org.credit_balance}, Threshold: $${org.auto_top_up_threshold}`,
+    );
+
+    // Validate organization has necessary Stripe data
+    if (!org.stripe_customer_id) {
+      console.error(
+        `[AutoTopUp] Org ${organizationId} missing Stripe customer`,
+      );
+      await this.disableAutoTopUp(
+        organizationId,
+        "Missing Stripe customer",
+      );
+      return {
+        organizationId,
+        success: false,
+        error: "Missing Stripe customer",
+      };
+    }
+
+    if (!org.stripe_default_payment_method) {
+      console.error(
+        `[AutoTopUp] Org ${organizationId} missing default payment method`,
+      );
+      await this.disableAutoTopUp(
+        organizationId,
+        "Missing default payment method",
+      );
+      return {
+        organizationId,
+        success: false,
+        error: "Missing default payment method",
+      };
+    }
+
+    const amount = Number(org.auto_top_up_amount || 0);
+    if (amount <= 0 || amount > AUTO_TOP_UP_LIMITS.MAX_AMOUNT) {
+      console.error(
+        `[AutoTopUp] Org ${organizationId} has invalid top-up amount: ${amount}`,
+      );
+      await this.disableAutoTopUp(organizationId, "Invalid top-up amount");
+      return {
+        organizationId,
+        success: false,
+        error: "Invalid top-up amount",
+      };
+    }
+
+    try {
+      // Create and confirm PaymentIntent with saved payment method
+      console.log(
+        `[AutoTopUp] Creating PaymentIntent for $${amount.toFixed(2)}`,
+      );
+
+      const paymentIntent = await stripe.paymentIntents.create({
+        amount: Math.round(amount * 100), // Convert to cents
+        currency: "usd",
+        customer: org.stripe_customer_id,
+        payment_method: org.stripe_default_payment_method,
+        confirm: true,
+        off_session: true, // Critical: allows charging without user present
+        metadata: {
+          organization_id: organizationId,
+          credits: amount.toFixed(2),
+          type: "auto_top_up",
+        },
+        description: `Auto top-up - $${amount.toFixed(2)}`,
+      });
+
+      console.log(
+        `[AutoTopUp] PaymentIntent ${paymentIntent.id} status: ${paymentIntent.status}`,
+      );
+
+      if (paymentIntent.status === "succeeded") {
+        // Credits will be added by webhook, but we can return success here
+        const currentBalance = Number(org.credit_balance);
+        const newBalance = currentBalance + amount;
+
+        console.log(
+          `[AutoTopUp] ✓ Auto top-up succeeded for org ${organizationId}. Payment: ${paymentIntent.id}`,
+        );
+
+        // Note: Credits are added by webhook handler to avoid race conditions
+        // We just return the expected new balance here for logging
+        return {
+          organizationId,
+          success: true,
+          amount,
+          newBalance,
+        };
+      } else if (
+        paymentIntent.status === "requires_action" ||
+        paymentIntent.status === "requires_payment_method"
+      ) {
+        // Payment needs additional action or failed
+        console.error(
+          `[AutoTopUp] Payment requires action for org ${organizationId}: ${paymentIntent.status}`,
+        );
+        await this.disableAutoTopUp(
+          organizationId,
+          `Payment ${paymentIntent.status}`,
+        );
+        return {
+          organizationId,
+          success: false,
+          error: `Payment ${paymentIntent.status}`,
+        };
+      } else {
+        console.error(
+          `[AutoTopUp] Payment in unexpected state for org ${organizationId}: ${paymentIntent.status}`,
+        );
+        return {
+          organizationId,
+          success: false,
+          error: `Payment ${paymentIntent.status}`,
+        };
+      }
+    } catch (error) {
+      console.error(
+        `[AutoTopUp] Payment failed for org ${organizationId}:`,
+        error,
+      );
+
+      // Disable auto top-up on payment failure
+      await this.disableAutoTopUp(
+        organizationId,
+        error instanceof Error ? error.message : "Payment failed",
+      );
+
+      return {
+        organizationId,
+        success: false,
+        error: error instanceof Error ? error.message : "Payment failed",
+      };
+    }
+  }
+
+  /**
+   * Disable auto top-up for an organization
+   * Called when payment fails or configuration is invalid
+   *
+   * @param organizationId - The organization ID
+   * @param reason - Reason for disabling
+   */
+  private async disableAutoTopUp(
+    organizationId: string,
+    reason: string,
+  ): Promise<void> {
+    try {
+      console.log(
+        `[AutoTopUp] Disabling auto top-up for org ${organizationId}: ${reason}`,
+      );
+
+      await organizationsRepository.update(organizationId, {
+        auto_top_up_enabled: false,
+        updated_at: new Date(),
+      });
+
+      // TODO: Send email notification to organization
+      // This will be implemented in Phase 6
+      console.log(
+        `[AutoTopUp] TODO: Send email notification to org ${organizationId} about auto top-up being disabled`,
+      );
+    } catch (error) {
+      console.error(
+        `[AutoTopUp] Failed to disable auto top-up for org ${organizationId}:`,
+        error,
+      );
+    }
+  }
+
+  /**
+   * Get auto top-up settings for an organization
+   *
+   * @param organizationId - The organization ID
+   * @returns Auto top-up settings
+   */
+  async getSettings(organizationId: string): Promise<{
+    enabled: boolean;
+    amount: number;
+    threshold: number;
+    hasPaymentMethod: boolean;
+  }> {
+    const org = await organizationsRepository.findById(organizationId);
+
+    if (!org) {
+      throw new Error("Organization not found");
+    }
+
+    return {
+      enabled: org.auto_top_up_enabled || false,
+      amount: Number(org.auto_top_up_amount || 0),
+      threshold: Number(org.auto_top_up_threshold || 0),
+      hasPaymentMethod: !!org.stripe_default_payment_method,
+    };
+  }
+
+  /**
+   * Update auto top-up settings for an organization
+   *
+   * @param organizationId - The organization ID
+   * @param settings - Settings to update
+   * @throws Error if validation fails or no payment method exists
+   */
+  async updateSettings(
+    organizationId: string,
+    settings: {
+      enabled?: boolean;
+      amount?: number;
+      threshold?: number;
+    },
+  ): Promise<void> {
+    const org = await organizationsRepository.findById(organizationId);
+
+    if (!org) {
+      throw new Error("Organization not found");
+    }
+
+    // If enabling auto top-up, validate requirements
+    if (settings.enabled === true) {
+      if (!org.stripe_default_payment_method) {
+        throw new Error(
+          "Cannot enable auto top-up without a default payment method. Please add a payment method first.",
+        );
+      }
+
+      // Get current or new values
+      const amount = settings.amount ?? Number(org.auto_top_up_amount || 0);
+      const threshold =
+        settings.threshold ?? Number(org.auto_top_up_threshold || 0);
+
+      // Validate settings
+      this.validateSettings(amount, threshold);
+    }
+
+    // If amount or threshold are being updated, validate them
+    if (settings.amount !== undefined || settings.threshold !== undefined) {
+      const amount =
+        settings.amount ?? Number(org.auto_top_up_amount || 0);
+      const threshold =
+        settings.threshold ?? Number(org.auto_top_up_threshold || 0);
+      this.validateSettings(amount, threshold);
+    }
+
+    // Build update object
+    const updates: Partial<Organization> = {
+      updated_at: new Date(),
+    };
+
+    if (settings.enabled !== undefined) {
+      updates.auto_top_up_enabled = settings.enabled;
+    }
+    if (settings.amount !== undefined) {
+      updates.auto_top_up_amount = settings.amount.toFixed(2);
+    }
+    if (settings.threshold !== undefined) {
+      updates.auto_top_up_threshold = settings.threshold.toFixed(2);
+    }
+
+    await organizationsRepository.update(organizationId, updates);
+
+    console.log(
+      `[AutoTopUp] Updated settings for org ${organizationId}:`,
+      updates,
+    );
+  }
+}
+
+// Export singleton instance
+export const autoTopUpService = new AutoTopUpService();

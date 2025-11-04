@@ -145,7 +145,7 @@ export function AccountTab({ user }: AccountTabProps) {
               onClick={handleLogout}
               className="relative bg-[rgba(255,88,0,0.25)] px-3 py-2 hover:bg-[rgba(255,88,0,0.35)] transition-colors group"
             >
-              <CornerBrackets size="xs" className="opacity-70" />
+              <CornerBrackets size="sm" className="opacity-70" />
               <span className="relative z-10 text-[#FF5800] font-mono font-medium text-sm">
                 Log out
               </span>

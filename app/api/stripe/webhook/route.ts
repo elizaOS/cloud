@@ -1,6 +1,6 @@
 import { type NextRequest, NextResponse } from "next/server";
 import { stripe } from "@/lib/stripe";
-import { creditsService } from "@/lib/services";
+import { creditsService, invoicesService } from "@/lib/services";
 import { headers } from "next/headers";
 import type Stripe from "stripe";
 
@@ -103,7 +103,136 @@ export async function POST(req: NextRequest) {
 
       case "payment_intent.succeeded": {
         const paymentIntent = event.data.object;
-        console.log("Payment intent succeeded:", paymentIntent.id);
+        console.log(
+          `[Stripe Webhook] Payment intent succeeded: ${paymentIntent.id}`,
+        );
+
+        // Only process if this is a one-time purchase or auto-top-up
+        // Credit pack purchases are handled by checkout.session.completed
+        const purchaseType = paymentIntent.metadata?.type;
+        if (!purchaseType || purchaseType === "credit_pack") {
+          console.log(
+            `[Stripe Webhook] Skipping payment intent ${paymentIntent.id} - type: ${purchaseType || "unknown"}`,
+          );
+          break;
+        }
+
+        const organizationId = paymentIntent.metadata?.organization_id;
+        const creditsStr = paymentIntent.metadata?.credits;
+        const credits = creditsStr ? Number.parseFloat(creditsStr) : 0;
+
+        if (!organizationId || !credits || credits <= 0) {
+          console.warn(
+            `[Stripe Webhook] Invalid metadata in payment intent ${paymentIntent.id}: organizationId=${organizationId}, credits=${credits}`,
+          );
+          break;
+        }
+
+        // Check for duplicate transaction
+        const existingTransaction =
+          await creditsService.getTransactionByStripePaymentIntent(
+            paymentIntent.id,
+          );
+
+        if (existingTransaction) {
+          console.log(
+            `⚠️ Duplicate webhook event detected. Payment intent ${paymentIntent.id} already processed (transaction ${existingTransaction.id})`,
+          );
+          return NextResponse.json(
+            { received: true, duplicate: true },
+            { status: 200 },
+          );
+        }
+
+        // Determine description based on purchase type
+        const description =
+          purchaseType === "auto_top_up"
+            ? `Auto top-up - $${credits.toFixed(2)}`
+            : `One-time purchase - $${credits.toFixed(2)}`;
+
+        // Add credits
+        await creditsService.addCredits({
+          organizationId,
+          amount: credits,
+          description,
+          metadata: {
+            type: purchaseType,
+            payment_intent_id: paymentIntent.id,
+          },
+          stripePaymentIntentId: paymentIntent.id,
+        });
+
+        console.log(
+          `✓ Added ${credits} credits to organization ${organizationId} (${purchaseType}, payment intent: ${paymentIntent.id})`,
+        );
+
+        try {
+          const invoiceId = (paymentIntent as any).invoice;
+          if (invoiceId) {
+            const existingInvoice = await invoicesService.getByStripeInvoiceId(
+              invoiceId as string,
+            );
+
+            if (!existingInvoice) {
+              const stripeInvoice = await stripe.invoices.retrieve(
+                invoiceId as string,
+              );
+
+              await invoicesService.create({
+                organization_id: organizationId,
+                stripe_invoice_id: stripeInvoice.id,
+                stripe_customer_id: stripeInvoice.customer as string,
+                stripe_payment_intent_id: paymentIntent.id,
+                amount_due: (stripeInvoice.amount_due / 100).toString(),
+                amount_paid: (stripeInvoice.amount_paid / 100).toString(),
+                currency: stripeInvoice.currency,
+                status: stripeInvoice.status || "draft",
+                invoice_type: purchaseType || "one_time_purchase",
+                invoice_number: stripeInvoice.number || undefined,
+                invoice_pdf: stripeInvoice.invoice_pdf || undefined,
+                hosted_invoice_url: stripeInvoice.hosted_invoice_url || undefined,
+                credits_added: credits.toString(),
+                metadata: {
+                  type: purchaseType,
+                },
+                paid_at: stripeInvoice.status_transitions?.paid_at
+                  ? new Date(stripeInvoice.status_transitions.paid_at * 1000)
+                  : undefined,
+              });
+
+              console.log(
+                `✓ Created invoice record for payment intent ${paymentIntent.id}`,
+              );
+            }
+          } else {
+            await invoicesService.create({
+              organization_id: organizationId,
+              stripe_invoice_id: `pi_${paymentIntent.id}`,
+              stripe_customer_id: paymentIntent.customer as string,
+              stripe_payment_intent_id: paymentIntent.id,
+              amount_due: (paymentIntent.amount / 100).toString(),
+              amount_paid: (paymentIntent.amount_received / 100).toString(),
+              currency: paymentIntent.currency,
+              status: "paid",
+              invoice_type: purchaseType || "one_time_purchase",
+              invoice_number: undefined,
+              invoice_pdf: undefined,
+              hosted_invoice_url: undefined,
+              credits_added: credits.toString(),
+              metadata: {
+                type: purchaseType,
+              },
+              paid_at: new Date(),
+            });
+
+            console.log(
+              `✓ Created invoice record for direct payment ${paymentIntent.id}`,
+            );
+          }
+        } catch (error) {
+          console.error("Failed to create invoice record:", error);
+        }
+
         break;
       }
 

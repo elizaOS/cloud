@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { requireAuth } from "@/lib/auth";
 import { SettingsPageClient } from "@/components/settings/settings-page-client";
+import { StripeElementsProvider } from "@/lib/stripe/stripe-elements-provider";
 
 export const metadata: Metadata = {
   title: "Settings",
@@ -13,5 +14,9 @@ export const dynamic = "force-dynamic";
 export default async function SettingsPage() {
   const user = await requireAuth();
 
-  return <SettingsPageClient user={user} />;
+  return (
+    <StripeElementsProvider>
+      <SettingsPageClient user={user} />
+    </StripeElementsProvider>
+  );
 }

@@ -2,9 +2,9 @@
 
 import { BrandCard, CornerBrackets } from "@/components/brand";
 import type { UserWithOrganization } from "@/lib/types";
-import { CreditCard } from "lucide-react";
+import { CreditCard, Loader2 } from "lucide-react";
 import { Switch } from "@/components/ui/switch";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import {
   BuyCreditsModal,
   AutoTopUpModal,
@@ -19,67 +19,212 @@ interface BillingTabProps {
 
 interface Invoice {
   id: string;
+  stripeInvoiceId?: string;
   date: string;
   total: string;
   status: string;
+  invoiceUrl?: string;
+  invoicePdf?: string;
+  type?: string;
+  creditsAdded?: number;
 }
 
 export function BillingTab({ user }: BillingTabProps) {
-  const [autoTopUp, setAutoTopUp] = useState(true);
+  const [autoTopUp, setAutoTopUp] = useState(false);
   const [showBuyCreditsModal, setShowBuyCreditsModal] = useState(false);
   const [showAutoTopUpModal, setShowAutoTopUpModal] = useState(false);
   const [showUpdatePaymentModal, setShowUpdatePaymentModal] = useState(false);
-  const [autoTopUpAmount, setAutoTopUpAmount] = useState(200);
-  const [autoTopUpPeriodicity, setAutoTopUpPeriodicity] = useState("when-hits-0");
-  
-  // Mock data - replace with real data from API
-  const balance = 200.24;
-  const paymentMethod = "Visa···9605";
-  
-  const invoices: Invoice[] = [
-    { id: "1", date: "Oct 11, 2025", total: "€18.00", status: "Paid" },
-    { id: "2", date: "Sep 11, 2025", total: "€18.00", status: "Paid" },
-    { id: "3", date: "Aug 11, 2025", total: "€18.00", status: "Paid" },
-  ];
+  const [autoTopUpAmount, setAutoTopUpAmount] = useState(0);
+  const [autoTopUpThreshold, setAutoTopUpThreshold] = useState(0);
+  const [paymentMethods, setPaymentMethods] = useState<any[]>([]);
+  const [defaultPaymentMethodId, setDefaultPaymentMethodId] = useState<string | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [loadingAutoTopUp, setLoadingAutoTopUp] = useState(false);
+  const [invoices, setInvoices] = useState<Invoice[]>([]);
+  const [loadingInvoices, setLoadingInvoices] = useState(true);
+
+  const balance = Number(user.organization?.credit_balance || 0);
+
+  // Get display string for payment method
+  const getPaymentMethodDisplay = () => {
+    if (paymentMethods.length === 0) return "No payment method";
+    const defaultPM = paymentMethods.find(pm => pm.id === defaultPaymentMethodId);
+    if (!defaultPM) return paymentMethods[0]?.card ? `${paymentMethods[0].card.brand}···${paymentMethods[0].card.last4}` : "Card on file";
+    return defaultPM.card ? `${defaultPM.card.brand}···${defaultPM.card.last4}` : "Card on file";
+  };
+
+  const paymentMethod = getPaymentMethodDisplay();
+
+  useEffect(() => {
+    fetchPaymentMethods();
+    fetchAutoTopUpSettings();
+    fetchInvoices();
+  }, []);
+
+  const fetchPaymentMethods = async () => {
+    try {
+      const response = await fetch('/api/payment-methods/list');
+      if (response.ok) {
+        const data = await response.json();
+        setPaymentMethods(data.paymentMethods || []);
+        setDefaultPaymentMethodId(data.defaultPaymentMethodId);
+      }
+    } catch (error) {
+      console.error('Error fetching payment methods:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const fetchAutoTopUpSettings = async () => {
+    try {
+      const response = await fetch('/api/auto-top-up/settings');
+      if (response.ok) {
+        const data = await response.json();
+        setAutoTopUp(data.enabled || false);
+        setAutoTopUpAmount(data.amount || 0);
+        setAutoTopUpThreshold(data.threshold || 0);
+      }
+    } catch (error) {
+      console.error('Error fetching auto top-up settings:', error);
+    }
+  };
+
+  const fetchInvoices = async () => {
+    try {
+      setLoadingInvoices(true);
+      const response = await fetch('/api/invoices/list');
+      if (response.ok) {
+        const data = await response.json();
+        setInvoices(data.invoices || []);
+      } else {
+        console.error('Failed to fetch invoices');
+        setInvoices([]);
+      }
+    } catch (error) {
+      console.error('Error fetching invoices:', error);
+      setInvoices([]);
+    } finally {
+      setLoadingInvoices(false);
+    }
+  };
 
   const handleOpenBuyCredits = () => {
+    if (paymentMethods.length === 0) {
+      toast.error("Please add a payment method first");
+      setShowUpdatePaymentModal(true);
+      return;
+    }
     setShowBuyCreditsModal(true);
   };
 
-  const handleBuyCredits = (amount: number) => {
-    // Buy credits logic - integrate with Stripe
-    console.log("Buying credits:", amount);
-    toast.success(`Successfully purchased $${amount.toFixed(2)} in credits`);
+  const handleBuyCredits = async (amount: number) => {
+    try {
+      // Create payment intent
+      const response = await fetch('/api/purchases/create', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          amount,
+          paymentMethodId: defaultPaymentMethodId,
+          confirmImmediately: true,
+        }),
+      });
+
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.error || 'Failed to create purchase');
+      }
+
+      const data = await response.json();
+
+      if (data.status === 'succeeded') {
+        toast.success(`Successfully purchased $${amount.toFixed(2)} in credits`);
+        // Refresh page to update balance
+        setTimeout(() => window.location.reload(), 1000);
+      } else {
+        toast.info(`Payment is ${data.status}. Credits will be added when payment completes.`);
+      }
+    } catch (error) {
+      console.error('Error buying credits:', error);
+      toast.error(error instanceof Error ? error.message : 'Failed to purchase credits');
+    }
   };
 
   const handleEditPayment = () => {
     setShowUpdatePaymentModal(true);
   };
 
-  const handleUpdatePayment = (paymentData: PaymentFormData) => {
-    // Update payment method logic - integrate with Stripe
-    console.log("Updating payment:", paymentData);
-    toast.success("Payment method updated successfully");
+  const handleUpdatePayment = async (paymentData: PaymentFormData) => {
+    await fetchPaymentMethods();
   };
 
   const handleEditAutoTopUp = () => {
     setShowAutoTopUpModal(true);
   };
 
-  const handleUpdateAutoTopUp = (
+  const handleUpdateAutoTopUp = async (
     enabled: boolean,
     amount: number,
-    periodicity: string
+    threshold: number
   ) => {
-    setAutoTopUp(enabled);
-    setAutoTopUpAmount(amount);
-    setAutoTopUpPeriodicity(periodicity);
-    toast.success("Auto-top up settings updated successfully");
+    try {
+      setLoadingAutoTopUp(true);
+      const response = await fetch('/api/auto-top-up/settings', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ enabled, amount, threshold }),
+      });
+
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.error || 'Failed to update settings');
+      }
+
+      const data = await response.json();
+      setAutoTopUp(data.settings.enabled);
+      setAutoTopUpAmount(data.settings.amount);
+      setAutoTopUpThreshold(data.settings.threshold);
+      toast.success("Auto-top up settings updated successfully");
+    } catch (error) {
+      console.error('Error updating auto top-up:', error);
+      toast.error(error instanceof Error ? error.message : 'Failed to update settings');
+    } finally {
+      setLoadingAutoTopUp(false);
+    }
   };
 
-  const handleViewInvoice = (invoiceId: string) => {
-    // View invoice logic
-    console.log("View invoice:", invoiceId);
+  const handleToggleAutoTopUp = async (checked: boolean) => {
+    try {
+      setLoadingAutoTopUp(true);
+      const response = await fetch('/api/auto-top-up/settings', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ enabled: checked }),
+      });
+
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.error || 'Failed to toggle auto top-up');
+      }
+
+      setAutoTopUp(checked);
+      toast.success(`Auto-top up ${checked ? 'enabled' : 'disabled'}`);
+    } catch (error) {
+      console.error('Error toggling auto top-up:', error);
+      toast.error(error instanceof Error ? error.message : 'Failed to toggle auto top-up');
+      setAutoTopUp(!checked); // Revert on error
+    } finally {
+      setLoadingAutoTopUp(false);
+    }
+  };
+
+  const handleViewInvoice = (invoice: Invoice) => {
+    if (invoice.invoiceUrl) {
+      window.open(invoice.invoiceUrl, '_blank');
+    } else {
+      toast.info("Invoice URL not available");
+    }
   };
 
   return (
@@ -173,7 +318,8 @@ export function BillingTab({ user }: BillingTabProps) {
                 <div className="flex flex-col items-end gap-2">
                   <Switch
                     checked={autoTopUp}
-                    onCheckedChange={setAutoTopUp}
+                    onCheckedChange={handleToggleAutoTopUp}
+                    disabled={loadingAutoTopUp || paymentMethods.length === 0}
                     className="data-[state=checked]:bg-[#FF5800]"
                   />
                   <button
@@ -236,34 +382,44 @@ export function BillingTab({ user }: BillingTabProps) {
             </div>
 
             {/* Table Rows */}
-            {invoices.map((invoice, index) => (
-              <div key={invoice.id} className="flex w-full">
-                <div className="backdrop-blur-sm bg-[rgba(10,10,10,0.75)] border-l border-r border-b border-brand-surface flex-[1.1] p-4">
-                  <p className="text-sm font-mono text-white uppercase">
-                    {invoice.date}
-                  </p>
-                </div>
-                <div className="backdrop-blur-sm bg-[rgba(10,10,10,0.75)] border-r border-b border-brand-surface flex-1 p-4">
-                  <p className="text-sm font-mono text-white uppercase">
-                    {invoice.total}
-                  </p>
-                </div>
-                <div className="backdrop-blur-sm bg-[rgba(10,10,10,0.75)] border-r border-b border-brand-surface flex-1 p-4">
-                  <p className="text-sm font-mono text-white uppercase">
-                    {invoice.status}
-                  </p>
-                </div>
-                <div className="backdrop-blur-sm bg-[rgba(10,10,10,0.75)] border-r border-b border-brand-surface flex-1 p-4">
-                  <button
-                    type="button"
-                    onClick={() => handleViewInvoice(invoice.id)}
-                    className="text-sm font-mono text-white underline uppercase hover:text-white/80 transition-colors"
-                  >
-                    View
-                  </button>
-                </div>
+            {loadingInvoices ? (
+              <div className="flex items-center justify-center p-8 border-l border-r border-b border-brand-surface">
+                <Loader2 className="h-6 w-6 animate-spin text-[#FF5800]" />
               </div>
-            ))}
+            ) : invoices.length === 0 ? (
+              <div className="flex items-center justify-center p-8 border-l border-r border-b border-brand-surface">
+                <p className="text-sm text-white/60 font-mono">No invoices yet</p>
+              </div>
+            ) : (
+              invoices.map((invoice) => (
+                <div key={invoice.id} className="flex w-full">
+                  <div className="backdrop-blur-sm bg-[rgba(10,10,10,0.75)] border-l border-r border-b border-brand-surface flex-[1.1] p-4">
+                    <p className="text-sm font-mono text-white uppercase">
+                      {invoice.date}
+                    </p>
+                  </div>
+                  <div className="backdrop-blur-sm bg-[rgba(10,10,10,0.75)] border-r border-b border-brand-surface flex-1 p-4">
+                    <p className="text-sm font-mono text-white uppercase">
+                      {invoice.total}
+                    </p>
+                  </div>
+                  <div className="backdrop-blur-sm bg-[rgba(10,10,10,0.75)] border-r border-b border-brand-surface flex-1 p-4">
+                    <p className="text-sm font-mono text-white uppercase">
+                      {invoice.status}
+                    </p>
+                  </div>
+                  <div className="backdrop-blur-sm bg-[rgba(10,10,10,0.75)] border-r border-b border-brand-surface flex-1 p-4">
+                    <button
+                      type="button"
+                      onClick={() => handleViewInvoice(invoice)}
+                      className="text-sm font-mono text-white underline uppercase hover:text-white/80 transition-colors"
+                    >
+                      View
+                    </button>
+                  </div>
+                </div>
+              ))
+            )}
           </div>
         </div>
       </BrandCard>
@@ -283,7 +439,7 @@ export function BillingTab({ user }: BillingTabProps) {
         onOpenChange={setShowAutoTopUpModal}
         currentAutoTopUp={autoTopUp}
         currentAmount={autoTopUpAmount}
-        currentPeriodicity={autoTopUpPeriodicity}
+        currentThreshold={autoTopUpThreshold}
         onUpdate={handleUpdateAutoTopUp}
       />
 
