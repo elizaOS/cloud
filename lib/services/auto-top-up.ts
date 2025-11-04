@@ -3,8 +3,9 @@ import { organizations } from "@/db/schemas/organizations";
 import { eq, and, lt, sql } from "drizzle-orm";
 import { stripe } from "@/lib/stripe";
 import { creditsService } from "./credits";
-import { organizationsRepository } from "@/db/repositories";
+import { organizationsRepository, usersRepository } from "@/db/repositories";
 import type { Organization } from "@/db/repositories";
+import { emailService } from "./email";
 
 /**
  * Constants for auto top-up validation
@@ -155,7 +156,7 @@ export class AutoTopUpService {
    * @param org - The organization to top up
    * @returns Result of the auto top-up operation
    */
-  private async executeAutoTopUp(
+  async executeAutoTopUp(
     org: Organization,
   ): Promise<AutoTopUpResult> {
     const organizationId = org.id;
@@ -245,6 +246,14 @@ export class AutoTopUpService {
           `[AutoTopUp] ✓ Auto top-up succeeded for org ${organizationId}. Payment: ${paymentIntent.id}`,
         );
 
+        // Send success email notification
+        this.sendAutoTopUpSuccessEmail(org, amount, currentBalance, newBalance).catch((error) => {
+          console.error(
+            `[AutoTopUp] Failed to send success email for org ${organizationId}:`,
+            error,
+          );
+        });
+
         // Note: Credits are added by webhook handler to avoid race conditions
         // We just return the expected new balance here for logging
         return {
@@ -316,22 +325,116 @@ export class AutoTopUpService {
         `[AutoTopUp] Disabling auto top-up for org ${organizationId}: ${reason}`,
       );
 
+      const org = await organizationsRepository.findById(organizationId);
+      if (!org) {
+        console.error(`[AutoTopUp] Organization ${organizationId} not found`);
+        return;
+      }
+
       await organizationsRepository.update(organizationId, {
         auto_top_up_enabled: false,
         updated_at: new Date(),
       });
 
-      // TODO: Send email notification to organization
-      // This will be implemented in Phase 6
-      console.log(
-        `[AutoTopUp] TODO: Send email notification to org ${organizationId} about auto top-up being disabled`,
-      );
+      // Send email notification
+      this.sendAutoTopUpDisabledEmail(org, reason).catch((error) => {
+        console.error(
+          `[AutoTopUp] Failed to send disabled email for org ${organizationId}:`,
+          error,
+        );
+      });
     } catch (error) {
       console.error(
         `[AutoTopUp] Failed to disable auto top-up for org ${organizationId}:`,
         error,
       );
     }
+  }
+
+  /**
+   * Send success email notification for auto top-up
+   */
+  private async sendAutoTopUpSuccessEmail(
+    org: Organization,
+    amount: number,
+    previousBalance: number,
+    newBalance: number,
+  ): Promise<void> {
+    const recipientEmail = await this.getRecipientEmail(org);
+    if (!recipientEmail) {
+      console.warn(`[AutoTopUp] No email found for org ${org.id}, skipping email`);
+      return;
+    }
+
+    // Get payment method details
+    let paymentMethodDisplay = "Card on file";
+    if (org.stripe_default_payment_method) {
+      try {
+        const pm = await stripe.paymentMethods.retrieve(org.stripe_default_payment_method);
+        if (pm.card) {
+          paymentMethodDisplay = `${pm.card.brand} ••••${pm.card.last4}`;
+        }
+      } catch (error) {
+        console.error(`[AutoTopUp] Failed to retrieve payment method:`, error);
+      }
+    }
+
+    const appUrl = process.env.NEXT_PUBLIC_APP_URL || "https://eliza.cloud";
+    await emailService.sendAutoTopUpSuccessEmail({
+      email: recipientEmail,
+      organizationName: org.name,
+      amount,
+      previousBalance,
+      newBalance,
+      paymentMethod: paymentMethodDisplay,
+      billingUrl: `${appUrl}/dashboard/settings`,
+    });
+
+    console.log(`[AutoTopUp] Sent success email to ${recipientEmail}`);
+  }
+
+  /**
+   * Send disabled email notification for auto top-up
+   */
+  private async sendAutoTopUpDisabledEmail(
+    org: Organization,
+    reason: string,
+  ): Promise<void> {
+    const recipientEmail = await this.getRecipientEmail(org);
+    if (!recipientEmail) {
+      console.warn(`[AutoTopUp] No email found for org ${org.id}, skipping email`);
+      return;
+    }
+
+    const appUrl = process.env.NEXT_PUBLIC_APP_URL || "https://eliza.cloud";
+    await emailService.sendAutoTopUpDisabledEmail({
+      email: recipientEmail,
+      organizationName: org.name,
+      reason,
+      currentBalance: Number(org.credit_balance || 0),
+      settingsUrl: `${appUrl}/dashboard/settings`,
+    });
+
+    console.log(`[AutoTopUp] Sent disabled email to ${recipientEmail}`);
+  }
+
+  /**
+   * Get recipient email for auto top-up notifications
+   * Falls back to user email if billing_email is not set
+   */
+  private async getRecipientEmail(org: Organization): Promise<string | null> {
+    if (org.billing_email) {
+      console.log(`[AutoTopUp] Using billing email: ${org.billing_email}`);
+      return org.billing_email;
+    }
+
+    const users = await usersRepository.listByOrganization(org.id);
+    if (users.length > 0 && users[0].email) {
+      console.log(`[AutoTopUp] Using user email as fallback: ${users[0].email}`);
+      return users[0].email;
+    }
+
+    return null;
   }
 
   /**

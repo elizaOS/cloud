@@ -1,6 +1,7 @@
 import {
   creditTransactionsRepository,
   creditPacksRepository,
+  organizationsRepository,
   type CreditTransaction,
   type NewCreditTransaction,
   type CreditPack,
@@ -14,6 +15,7 @@ import {
   canSendLowCreditsEmail,
   markLowCreditsEmailSent,
 } from "@/lib/email/utils/rate-limiter";
+import { CacheInvalidation } from "@/lib/cache/invalidation";
 
 // Parameter types for consistent API signatures
 export interface AddCreditsParams {
@@ -85,7 +87,7 @@ export class CreditsService {
 
     // FIXED: Wrap in atomic transaction to prevent inconsistency between
     // transaction record and balance update
-    return await db.transaction(async (tx) => {
+    const result = await db.transaction(async (tx) => {
       // Create transaction record
       const [transaction] = await tx
         .insert(creditTransactions)
@@ -123,6 +125,11 @@ export class CreditsService {
 
       return { transaction, newBalance };
     });
+
+    // Invalidate balance cache immediately after transaction
+    await CacheInvalidation.onCreditMutation(organizationId);
+
+    return result;
   }
 
   async deductCredits(params: DeductCreditsParams): Promise<{
@@ -193,6 +200,20 @@ export class CreditsService {
       })
       .then(async (result) => {
         if (result.success) {
+          // Invalidate balance cache immediately after successful deduction
+          await CacheInvalidation.onCreditMutation(organizationId);
+
+          // Check if auto top-up should be triggered
+          this.checkAndTriggerAutoTopUp(organizationId, result.newBalance).catch(
+            (error) => {
+              console.error(
+                "[CreditsService] Failed to check auto top-up:",
+                error,
+              );
+            },
+          );
+
+          // Queue low credits email
           this.queueLowCreditsEmail(organizationId, result.newBalance).catch(
             (error) => {
               console.error(
@@ -204,6 +225,55 @@ export class CreditsService {
         }
         return result;
       });
+  }
+
+  /**
+   * Check if auto top-up should be triggered after credit deduction
+   * This is called automatically after every successful credit deduction
+   */
+  private async checkAndTriggerAutoTopUp(
+    organizationId: string,
+    newBalance: number,
+  ): Promise<void> {
+    try {
+      // Get organization details
+      const org = await organizationsRepository.findById(organizationId);
+      if (!org) {
+        return;
+      }
+
+      // Check if auto top-up is enabled
+      if (!org.auto_top_up_enabled) {
+        return;
+      }
+
+      const threshold = Number(org.auto_top_up_threshold || 0);
+
+      // Check if balance is below threshold
+      if (newBalance >= threshold) {
+        return;
+      }
+
+      console.log(
+        `[CreditsService] Auto top-up triggered: balance $${newBalance.toFixed(2)} < threshold $${threshold.toFixed(2)}`,
+      );
+
+      // Import auto top-up service dynamically to avoid circular dependency
+      const { autoTopUpService } = await import("./auto-top-up");
+
+      // Execute auto top-up asynchronously (don't block the main operation)
+      autoTopUpService.executeAutoTopUp(org).catch((error) => {
+        console.error(
+          `[CreditsService] Auto top-up execution failed for org ${organizationId}:`,
+          error,
+        );
+      });
+    } catch (error) {
+      console.error(
+        `[CreditsService] Error checking auto top-up for org ${organizationId}:`,
+        error,
+      );
+    }
   }
 
   private async queueLowCreditsEmail(
