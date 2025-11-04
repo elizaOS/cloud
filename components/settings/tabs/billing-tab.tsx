@@ -12,6 +12,7 @@ import {
 } from "../modals";
 import type { PaymentFormData } from "../modals/update-payment-modal";
 import { toast } from "sonner";
+import { useRouter } from "next/navigation";
 
 interface BillingTabProps {
   user: UserWithOrganization;
@@ -30,6 +31,7 @@ interface Invoice {
 }
 
 export function BillingTab({ user }: BillingTabProps) {
+  const router = useRouter();
   const [autoTopUp, setAutoTopUp] = useState(false);
   const [showBuyCreditsModal, setShowBuyCreditsModal] = useState(false);
   const [showAutoTopUpModal, setShowAutoTopUpModal] = useState(false);
@@ -40,6 +42,8 @@ export function BillingTab({ user }: BillingTabProps) {
   const [defaultPaymentMethodId, setDefaultPaymentMethodId] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [loadingAutoTopUp, setLoadingAutoTopUp] = useState(false);
+  const [triggeringAutoTopUp, setTriggeringAutoTopUp] = useState(false);
+  const [simulatingUsage, setSimulatingUsage] = useState(false);
   const [invoices, setInvoices] = useState<Invoice[]>([]);
   const [loadingInvoices, setLoadingInvoices] = useState(true);
 
@@ -140,8 +144,10 @@ export function BillingTab({ user }: BillingTabProps) {
 
       if (data.status === 'succeeded') {
         toast.success(`Successfully purchased $${amount.toFixed(2)} in credits`);
-        // Refresh page to update balance
-        setTimeout(() => window.location.reload(), 1000);
+        // Refresh invoices list
+        await fetchInvoices();
+        // Trigger server-side refresh to get updated balance
+        router.refresh();
       } else {
         toast.info(`Payment is ${data.status}. Credits will be added when payment completes.`);
       }
@@ -224,6 +230,68 @@ export function BillingTab({ user }: BillingTabProps) {
       window.open(invoice.invoiceUrl, '_blank');
     } else {
       toast.info("Invoice URL not available");
+    }
+  };
+
+  const handleTriggerAutoTopUp = async () => {
+    if (!autoTopUp) {
+      toast.error("Auto top-up is not enabled");
+      return;
+    }
+
+    try {
+      setTriggeringAutoTopUp(true);
+      toast.info("Checking if auto top-up is needed...");
+      const response = await fetch('/api/auto-top-up/trigger', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+      });
+
+      const data = await response.json();
+
+      if (response.ok && data.success) {
+        toast.success(data.message || 'Auto top-up triggered successfully');
+        await fetchInvoices();
+        router.refresh();
+      } else {
+        toast.error(data.error || data.message || 'Failed to trigger auto top-up');
+      }
+    } catch (error) {
+      console.error('Error triggering auto top-up:', error);
+      toast.error(error instanceof Error ? error.message : 'Failed to trigger auto top-up');
+    } finally {
+      setTriggeringAutoTopUp(false);
+    }
+  };
+
+  const handleSimulateUsage = async () => {
+    try {
+      setSimulatingUsage(true);
+      toast.info("Deducting $2.00 to simulate usage...");
+
+      const response = await fetch('/api/auto-top-up/simulate-usage', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ amount: 2.0 }),
+      });
+
+      const data = await response.json();
+
+      if (response.ok && data.success) {
+        toast.success(`${data.message}. New balance: $${data.newBalance.toFixed(2)}`);
+        if (autoTopUp && data.newBalance < autoTopUpThreshold) {
+          toast.info("Balance below threshold, auto top-up should trigger shortly...");
+        }
+        await fetchInvoices();
+        router.refresh();
+      } else {
+        toast.error(data.error || data.message || 'Failed to simulate usage');
+      }
+    } catch (error) {
+      console.error('Error simulating usage:', error);
+      toast.error(error instanceof Error ? error.message : 'Failed to simulate usage');
+    } finally {
+      setSimulatingUsage(false);
     }
   };
 
@@ -310,8 +378,7 @@ export function BillingTab({ user }: BillingTabProps) {
                     Auto-top up
                   </p>
                   <p className="text-sm text-white/60">
-                    Auto-reload your balance when it hits 0, by the amount you
-                    set prior
+                    Automatically recharge your balance when it drops below threshold - no manual action needed
                   </p>
                 </div>
 
@@ -322,13 +389,31 @@ export function BillingTab({ user }: BillingTabProps) {
                     disabled={loadingAutoTopUp || paymentMethods.length === 0}
                     className="data-[state=checked]:bg-[#FF5800]"
                   />
-                  <button
-                    type="button"
-                    onClick={handleEditAutoTopUp}
-                    className="text-base font-mono text-white underline hover:text-white/80 transition-colors"
-                  >
-                    Edit auto-top up
-                  </button>
+                  <div className="flex items-center gap-3">
+                    <button
+                      type="button"
+                      onClick={handleSimulateUsage}
+                      disabled={simulatingUsage}
+                      className="text-base font-mono text-[#FF5800] underline hover:text-[#FF5800]/80 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                    >
+                      {simulatingUsage ? 'Simulating...' : 'Simulate usage'}
+                    </button>
+                    <button
+                      type="button"
+                      onClick={handleTriggerAutoTopUp}
+                      disabled={!autoTopUp || triggeringAutoTopUp}
+                      className="text-base font-mono text-[#FF5800] underline hover:text-[#FF5800]/80 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                    >
+                      {triggeringAutoTopUp ? 'Testing...' : 'Test now'}
+                    </button>
+                    <button
+                      type="button"
+                      onClick={handleEditAutoTopUp}
+                      className="text-base font-mono text-white underline hover:text-white/80 transition-colors"
+                    >
+                      Edit auto-top up
+                    </button>
+                  </div>
                 </div>
               </div>
             </div>

@@ -106,10 +106,16 @@ export async function POST(req: NextRequest) {
         console.log(
           `[Stripe Webhook] Payment intent succeeded: ${paymentIntent.id}`,
         );
+        console.log(
+          `[Stripe Webhook] Payment intent metadata:`,
+          JSON.stringify(paymentIntent.metadata, null, 2),
+        );
 
         // Only process if this is a one-time purchase or auto-top-up
         // Credit pack purchases are handled by checkout.session.completed
         const purchaseType = paymentIntent.metadata?.type;
+        console.log(`[Stripe Webhook] Purchase type: ${purchaseType}`);
+
         if (!purchaseType || purchaseType === "credit_pack") {
           console.log(
             `[Stripe Webhook] Skipping payment intent ${paymentIntent.id} - type: ${purchaseType || "unknown"}`,

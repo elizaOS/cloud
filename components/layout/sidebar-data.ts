@@ -170,9 +170,9 @@ export const sidebarSections: SidebarSection[] = [
         freeAllowed: false, // Requires signup
       },
       {
-        id: "billing",
-        label: "Billing",
-        href: "/dashboard/billing",
+        id: "settings",
+        label: "Settings",
+        href: "/dashboard/settings",
         icon: CreditCard,
         freeAllowed: false, // Requires signup
       },
