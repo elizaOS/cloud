@@ -10,6 +10,10 @@ const updateProfileSchema = z.object({
   avatar: z.string().url("Invalid avatar URL").optional().or(z.literal("")),
 });
 
+const updateEmailSchema = z.object({
+  email: z.string().email("Invalid email address"),
+});
+
 export async function updateProfile(formData: FormData) {
   try {
     const user = await requireAuth();
@@ -51,6 +55,67 @@ export async function updateProfile(formData: FormData) {
         error instanceof Error
           ? error.message
           : "Failed to update profile. Please try again.",
+    };
+  }
+}
+
+export async function updateEmail(formData: FormData) {
+  try {
+    const user = await requireAuth();
+
+    // Only allow updating email if user doesn't have one
+    if (user.email) {
+      return {
+        success: false,
+        error: "Email already set. Please contact support to change your email.",
+      };
+    }
+
+    const data = {
+      email: formData.get("email") as string,
+    };
+
+    // Validate input
+    const validated = updateEmailSchema.parse(data);
+
+    // Check if email is already in use by another user
+    const existingUser = await usersService.getByEmail(validated.email);
+    if (existingUser && existingUser.id !== user.id) {
+      return {
+        success: false,
+        error: "This email is already in use by another account.",
+      };
+    }
+
+    // Update user email
+    await usersService.update(user.id, {
+      email: validated.email.toLowerCase().trim(),
+      email_verified: false, // Will need to verify the new email
+    });
+
+    // Revalidate cache
+    revalidatePath("/dashboard/account");
+
+    return {
+      success: true,
+      message: "Email added successfully! Please check your inbox to verify.",
+    };
+  } catch (error) {
+    console.error("Error updating email:", error);
+
+    if (error instanceof z.ZodError) {
+      return {
+        success: false,
+        error: error.issues[0].message,
+      };
+    }
+
+    return {
+      success: false,
+      error:
+        error instanceof Error
+          ? error.message
+          : "Failed to update email. Please try again.",
     };
   }
 }
