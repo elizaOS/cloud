@@ -10,7 +10,10 @@ import {
 import { CornerBrackets } from "@/components/brand";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { ChevronDown, X, CheckSquare } from "lucide-react";
+import { ChevronDown, X, CheckSquare, Loader2 } from "lucide-react";
+import { useStripe, useElements, CardElement } from "@stripe/react-stripe-js";
+import { StripeCardElement } from "@/components/payment/stripe-card-element";
+import { toast } from "sonner";
 
 interface UpdatePaymentModalProps {
   open: boolean;
@@ -41,17 +44,101 @@ export function UpdatePaymentModal({
   const [country, setCountry] = useState("Portugal");
   const [addressLine1, setAddressLine1] = useState("");
   const [showLinkDropdown, setShowLinkDropdown] = useState(true);
+  const [loading, setLoading] = useState(false);
+  const [cardComplete, setCardComplete] = useState(false);
+  const [cardError, setCardError] = useState<string | undefined>();
 
-  const handleUpdate = () => {
-    const paymentData: PaymentFormData = {
-      paymentMethod: selectedMethod,
-      email: selectedMethod === "link" ? email : undefined,
-      fullName,
-      country,
-      addressLine1,
-    };
-    onUpdate(paymentData);
-    onOpenChange(false);
+  const stripe = useStripe();
+  const elements = useElements();
+
+  const handleUpdate = async () => {
+    if (selectedMethod !== "new-card") {
+      const paymentData: PaymentFormData = {
+        paymentMethod: selectedMethod,
+        email: selectedMethod === "link" ? email : undefined,
+        fullName,
+        country,
+        addressLine1,
+      };
+      onUpdate(paymentData);
+      onOpenChange(false);
+      return;
+    }
+
+    if (!stripe || !elements) {
+      toast.error("Stripe not initialized");
+      return;
+    }
+
+    if (!cardComplete) {
+      toast.error("Please complete card details");
+      return;
+    }
+
+    if (!fullName || !country || !addressLine1) {
+      toast.error("Please fill in all billing information");
+      return;
+    }
+
+    setLoading(true);
+
+    try {
+      const cardElement = elements.getElement(CardElement);
+      if (!cardElement) {
+        throw new Error("Card element not found");
+      }
+
+      const { error, paymentMethod } = await stripe.createPaymentMethod({
+        type: "card",
+        card: cardElement,
+        billing_details: {
+          name: fullName,
+          address: {
+            line1: addressLine1,
+            country: country,
+          },
+        },
+      });
+
+      if (error) {
+        throw new Error(error.message);
+      }
+
+      if (!paymentMethod) {
+        throw new Error("Failed to create payment method");
+      }
+
+      const response = await fetch("/api/payment-methods/attach", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          paymentMethodId: paymentMethod.id,
+        }),
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || "Failed to attach payment method");
+      }
+
+      toast.success("Payment method added successfully");
+
+      const paymentData: PaymentFormData = {
+        paymentMethod: "new-card",
+        fullName,
+        country,
+        addressLine1,
+      };
+      onUpdate(paymentData);
+      onOpenChange(false);
+    } catch (error) {
+      console.error("Error adding payment method:", error);
+      toast.error(
+        error instanceof Error ? error.message : "Failed to add payment method"
+      );
+    } finally {
+      setLoading(false);
+    }
   };
 
   const handleCancel = () => {
@@ -78,7 +165,7 @@ export function UpdatePaymentModal({
               {/* Link Payment Method */}
               {showLinkDropdown && (
                 <div className="backdrop-blur-sm bg-[rgba(29,29,29,0.3)] border border-[rgba(255,255,255,0.15)] p-6 relative">
-                  <CornerBrackets size="xs" className="opacity-50" />
+                  <CornerBrackets size="sm" className="opacity-50" />
                   
                   <div className="relative z-10 flex items-center justify-between">
                     <div className="flex items-center gap-2">
@@ -183,6 +270,21 @@ export function UpdatePaymentModal({
                   placeholder="Address line 1"
                 />
               </div>
+
+              {/* Card Element - Only show when new-card is selected */}
+              {selectedMethod === "new-card" && (
+                <>
+                  <StripeCardElement
+                    onChange={(complete, error) => {
+                      setCardComplete(complete);
+                      setCardError(error);
+                    }}
+                  />
+                  {cardError && (
+                    <p className="text-xs text-red-500 font-mono">{cardError}</p>
+                  )}
+                </>
+              )}
             </div>
 
             {/* Action Buttons */}
@@ -192,7 +294,7 @@ export function UpdatePaymentModal({
                 onClick={handleCancel}
                 className="relative bg-[rgba(255,88,0,0.25)] px-6 py-3 hover:bg-[rgba(255,88,0,0.35)] transition-colors"
               >
-                <CornerBrackets size="xs" className="opacity-70" />
+                <CornerBrackets size="sm" className="opacity-70" />
                 <span className="relative z-10 text-[#FF5800] font-mono font-medium text-base">
                   Cancel
                 </span>
@@ -201,10 +303,12 @@ export function UpdatePaymentModal({
               <button
                 type="button"
                 onClick={handleUpdate}
-                className="bg-white px-6 py-3 hover:bg-white/90 transition-colors"
+                disabled={loading || (selectedMethod === "new-card" && !cardComplete)}
+                className="bg-white px-6 py-3 hover:bg-white/90 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
               >
+                {loading && <Loader2 className="h-4 w-4 animate-spin text-black" />}
                 <span className="text-black font-mono font-medium text-base">
-                  Update
+                  {loading ? "Processing..." : "Update"}
                 </span>
               </button>
             </div>

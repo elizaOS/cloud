@@ -34,3 +34,9 @@ export { emailService } from "./email";
 
 // Discord services
 export { discordService } from "./discord";
+
+// Payment services
+export { paymentMethodsService } from "./payment-methods";
+export { purchasesService, PURCHASE_LIMITS } from "./purchases";
+export { autoTopUpService, AUTO_TOP_UP_LIMITS } from "./auto-top-up";
+export { invoicesService } from "./invoices";

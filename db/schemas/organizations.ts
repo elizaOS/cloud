@@ -27,6 +27,12 @@ export const organizations = pgTable(
     tax_id_type: text("tax_id_type"),
     tax_id_value: text("tax_id_value"),
     billing_address: jsonb("billing_address").$type<Record<string, unknown>>(),
+    stripe_payment_method_id: text("stripe_payment_method_id"),
+    stripe_default_payment_method: text("stripe_default_payment_method"),
+    auto_top_up_enabled: boolean("auto_top_up_enabled").default(false).notNull(),
+    auto_top_up_amount: numeric("auto_top_up_amount", { precision: 10, scale: 2 }),
+    auto_top_up_threshold: numeric("auto_top_up_threshold", { precision: 10, scale: 2 }).default("0.00"),
+    auto_top_up_subscription_id: text("auto_top_up_subscription_id"),
     max_api_requests: integer("max_api_requests").default(1000),
     max_tokens_per_request: integer("max_tokens_per_request"),
     allowed_models: jsonb("allowed_models")

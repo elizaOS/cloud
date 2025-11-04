@@ -141,7 +141,7 @@ export function BuyCreditsModal({
                 onClick={handleCancel}
                 className="relative bg-[rgba(255,88,0,0.25)] px-6 py-3 hover:bg-[rgba(255,88,0,0.35)] transition-colors"
               >
-                <CornerBrackets size="xs" className="opacity-70" />
+                <CornerBrackets size="sm" className="opacity-70" />
                 <span className="relative z-10 text-[#FF5800] font-mono font-medium text-base">
                   Cancel
                 </span>

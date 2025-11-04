@@ -8,6 +8,7 @@ export * from "./cli-auth-sessions";
 export * from "./usage-records";
 export * from "./credit-transactions";
 export * from "./credit-packs";
+export * from "./invoices";
 export * from "./generations";
 export * from "./jobs";
 export * from "./model-pricing";
