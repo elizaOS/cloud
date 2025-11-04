@@ -22,6 +22,7 @@ export function ProfileForm({ user }: ProfileFormProps) {
   const [success, setSuccess] = useState<string | null>(null);
   const [isUploadingAvatar, setIsUploadingAvatar] = useState(false);
   const [isUpdatingEmail, setIsUpdatingEmail] = useState(false);
+  const [emailAdded, setEmailAdded] = useState(false);
 
   const getInitials = (
     name: string | null,
@@ -117,6 +118,7 @@ export function ProfileForm({ user }: ProfileFormProps) {
       if (result.success) {
         setSuccess(result.message || "Email added successfully");
         toast.success(result.message || "Email added successfully");
+        setEmailAdded(true); // Optimistically hide the form
         router.refresh();
       } else {
         setError(result.error || "Failed to add email");
@@ -233,7 +235,7 @@ export function ProfileForm({ user }: ProfileFormProps) {
             </div>
 
             {/* Email Section - Show form if no email, otherwise show read-only */}
-            {!user.email ? (
+            {!user.email && !emailAdded ? (
               <div className="space-y-2 p-4 border border-amber-500/40 bg-amber-500/5 rounded-none">
                 <div className="flex items-center gap-2 mb-3">
                   <Mail className="h-4 w-4 text-amber-400" />
@@ -278,7 +280,7 @@ export function ProfileForm({ user }: ProfileFormProps) {
                   </BrandButton>
                 </form>
               </div>
-            ) : (
+            ) : user.email ? (
               <div className="space-y-2">
                 <label
                   htmlFor="email"
@@ -297,6 +299,18 @@ export function ProfileForm({ user }: ProfileFormProps) {
                 <p className="text-xs text-white/50">
                   Email cannot be changed. Please contact support if you need to
                   update this.
+                </p>
+              </div>
+            ) : (
+              <div className="space-y-2 p-4 border border-green-500/40 bg-green-500/5 rounded-none">
+                <div className="flex items-center gap-2">
+                  <Mail className="h-4 w-4 text-green-400" />
+                  <p className="text-sm font-medium text-green-400">
+                    Email Added Successfully!
+                  </p>
+                </div>
+                <p className="text-xs text-white/60">
+                  Your email has been added and will appear here after the page refreshes.
                 </p>
               </div>
             )}

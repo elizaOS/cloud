@@ -81,7 +81,7 @@ export async function syncUserFromPrivy(
         typeof account.email === "string" &&
         account.email.length > 0 &&
         typeof account.type === "string" &&
-        (account.type.includes("oauth") || account.type === "google" || account.type === "discord" || account.type === "github")
+        account.type.includes("oauth")
       ) {
         email = account.email.toLowerCase().trim();
         break;
