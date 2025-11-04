@@ -21,7 +21,6 @@ import type { NextRequest } from "next/server";
 import { elizaRoomCharactersRepository } from "@/db/repositories";
 import { db } from "@/db/client";
 import { sql } from "drizzle-orm";
-import { waitUntil } from "@vercel/functions";
 
 export const maxDuration = 60;
 
@@ -219,7 +218,6 @@ export async function POST(
         attachments: attachments || [],
       },
       characterId,
-      waitUntil,
     );
 
     const { message, usage } = result;
