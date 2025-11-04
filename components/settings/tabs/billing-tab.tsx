@@ -267,12 +267,14 @@ export function BillingTab({ user }: BillingTabProps) {
   const handleSimulateUsage = async () => {
     try {
       setSimulatingUsage(true);
-      toast.info("Deducting $2.00 to simulate usage...");
+
+      const amountToDeduct = Math.max(balance - autoTopUpThreshold + 0.5, 1.0);
+      toast.info(`Deducting $${amountToDeduct.toFixed(2)} to trigger auto top-up...`);
 
       const response = await fetch('/api/auto-top-up/simulate-usage', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ amount: 2.0 }),
+        body: JSON.stringify({ amount: amountToDeduct }),
       });
 
       const data = await response.json();

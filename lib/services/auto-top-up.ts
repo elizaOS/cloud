@@ -247,11 +247,13 @@ export class AutoTopUpService {
         );
 
         // Send success email notification
-        this.sendAutoTopUpSuccessEmail(org, amount, currentBalance, newBalance).catch((error) => {
+        console.log(`[AutoTopUp] About to call queueAutoTopUpSuccessEmail for org ${organizationId}`);
+        this.queueAutoTopUpSuccessEmail(org, amount, currentBalance, newBalance).catch((error) => {
           console.error(
-            `[AutoTopUp] Failed to send success email for org ${organizationId}:`,
+            `[AutoTopUp] EXCEPTION in queueAutoTopUpSuccessEmail for org ${organizationId}:`,
             error,
           );
+          console.error(`[AutoTopUp] Error stack:`, error.stack);
         });
 
         // Note: Credits are added by webhook handler to avoid race conditions
@@ -337,7 +339,7 @@ export class AutoTopUpService {
       });
 
       // Send email notification
-      this.sendAutoTopUpDisabledEmail(org, reason).catch((error) => {
+      this.queueAutoTopUpDisabledEmail(org, reason).catch((error) => {
         console.error(
           `[AutoTopUp] Failed to send disabled email for org ${organizationId}:`,
           error,
@@ -352,21 +354,24 @@ export class AutoTopUpService {
   }
 
   /**
-   * Send success email notification for auto top-up
+   * Queue success email notification for auto top-up
    */
-  private async sendAutoTopUpSuccessEmail(
+  private async queueAutoTopUpSuccessEmail(
     org: Organization,
     amount: number,
     previousBalance: number,
     newBalance: number,
   ): Promise<void> {
-    const recipientEmail = await this.getRecipientEmail(org);
+    console.log(`[AutoTopUp] queueAutoTopUpSuccessEmail START for org ${org.id}`);
+
+    const recipientEmail = await this.getUserEmail(org.id);
+    console.log(`[AutoTopUp] User email: ${recipientEmail || "NONE"}`);
+
     if (!recipientEmail) {
-      console.warn(`[AutoTopUp] No email found for org ${org.id}, skipping email`);
+      console.error(`[AutoTopUp] CRITICAL: No user email for org ${org.id} - EMAIL NOT SENT`);
       return;
     }
 
-    // Get payment method details
     let paymentMethodDisplay = "Card on file";
     if (org.stripe_default_payment_method) {
       try {
@@ -380,7 +385,7 @@ export class AutoTopUpService {
     }
 
     const appUrl = process.env.NEXT_PUBLIC_APP_URL || "https://eliza.cloud";
-    await emailService.sendAutoTopUpSuccessEmail({
+    const emailData = {
       email: recipientEmail,
       organizationName: org.name,
       amount,
@@ -388,21 +393,31 @@ export class AutoTopUpService {
       newBalance,
       paymentMethod: paymentMethodDisplay,
       billingUrl: `${appUrl}/dashboard/settings`,
-    });
+    };
 
-    console.log(`[AutoTopUp] Sent success email to ${recipientEmail}`);
+    console.log(`[AutoTopUp] Calling emailService.sendAutoTopUpSuccessEmail with:`);
+    console.log(JSON.stringify(emailData, null, 2));
+
+    const result = await emailService.sendAutoTopUpSuccessEmail(emailData);
+
+    console.log(`[AutoTopUp] Email service returned: ${result}`);
+    if (result) {
+      console.log(`[AutoTopUp] ✓ SUCCESS: Auto top-up email sent to ${recipientEmail}`);
+    } else {
+      console.error(`[AutoTopUp] ✗ FAILED: Email service returned false for ${recipientEmail}`);
+    }
   }
 
   /**
-   * Send disabled email notification for auto top-up
+   * Queue disabled email notification for auto top-up
    */
-  private async sendAutoTopUpDisabledEmail(
+  private async queueAutoTopUpDisabledEmail(
     org: Organization,
     reason: string,
   ): Promise<void> {
-    const recipientEmail = await this.getRecipientEmail(org);
+    const recipientEmail = await this.getUserEmail(org.id);
     if (!recipientEmail) {
-      console.warn(`[AutoTopUp] No email found for org ${org.id}, skipping email`);
+      console.error(`[AutoTopUp] No user email for org ${org.id}`);
       return;
     }
 
@@ -414,27 +429,18 @@ export class AutoTopUpService {
       currentBalance: Number(org.credit_balance || 0),
       settingsUrl: `${appUrl}/dashboard/settings`,
     });
-
-    console.log(`[AutoTopUp] Sent disabled email to ${recipientEmail}`);
   }
 
   /**
-   * Get recipient email for auto top-up notifications
-   * Falls back to user email if billing_email is not set
+   * Get user email for organization
    */
-  private async getRecipientEmail(org: Organization): Promise<string | null> {
-    if (org.billing_email) {
-      console.log(`[AutoTopUp] Using billing email: ${org.billing_email}`);
-      return org.billing_email;
-    }
-
-    const users = await usersRepository.listByOrganization(org.id);
-    if (users.length > 0 && users[0].email) {
-      console.log(`[AutoTopUp] Using user email as fallback: ${users[0].email}`);
-      return users[0].email;
-    }
-
-    return null;
+  private async getUserEmail(orgId: string): Promise<string | null> {
+    console.log(`[AutoTopUp] getUserEmail: Fetching users for org ${orgId}`);
+    const users = await usersRepository.listByOrganization(orgId);
+    console.log(`[AutoTopUp] getUserEmail: Found ${users.length} users`);
+    const email = users.length > 0 && users[0].email ? users[0].email : null;
+    console.log(`[AutoTopUp] getUserEmail: Returning ${email || "NULL"}`);
+    return email;
   }
 
   /**
