@@ -31,6 +31,7 @@ interface MessageReceivedHandlerParams {
     text?: string;
     usage?: { inputTokens: number; outputTokens: number; model: string };
   }) => Promise<Memory[]>;
+  waitUntil?: (promise: Promise<unknown>) => void;
 }
 
 /**
@@ -166,6 +167,7 @@ const messageReceivedHandler = async ({
   runtime,
   message,
   callback,
+  waitUntil,
 }: MessageReceivedHandlerParams): Promise<void> => {
   // Generate a new response ID
   const responseId = v4();
@@ -484,8 +486,8 @@ const messageReceivedHandler = async ({
     if (typeof runtime.evaluate === "function") {
       logger.debug("[ElizaAssistant] Running evaluators in background");
 
-      // Run evaluators asynchronously without blocking the response
-      runtime
+      // Create the evaluator promise
+      const evaluatorPromise = runtime
         .evaluate(
           message,
           { ...initialState }, // Use the initial state for evaluators
@@ -518,6 +520,18 @@ const messageReceivedHandler = async ({
             error instanceof Error ? error.message : String(error),
           );
         });
+
+      // Use waitUntil if available (Vercel serverless), otherwise let it run
+      if (waitUntil) {
+        logger.debug(
+          "[ElizaAssistant] Using waitUntil to keep function alive for evaluators",
+        );
+        waitUntil(evaluatorPromise);
+      } else {
+        logger.debug(
+          "[ElizaAssistant] No waitUntil available - evaluators may be terminated early in serverless",
+        );
+      }
     } else {
       logger.debug(
         "[ElizaAssistant] runtime.evaluate not available - skipping evaluators",
@@ -544,12 +558,13 @@ const messageReceivedHandler = async ({
 
 const events = {
   [EventType.MESSAGE_RECEIVED]: [
-    async (payload: MessagePayload) => {
+    async (payload: MessagePayload & { waitUntil?: (promise: Promise<unknown>) => void }) => {
       if (payload.callback) {
         await messageReceivedHandler({
           runtime: payload.runtime,
           message: payload.message,
           callback: payload.callback,
+          waitUntil: payload.waitUntil,
         });
       }
     },
