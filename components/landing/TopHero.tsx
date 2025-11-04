@@ -25,19 +25,9 @@ import {
 } from "@/components/brand";
 
 const TopHero = () => {
-  const { authenticated, ready } = usePrivy();
+  const { authenticated } = usePrivy();
   const router = useRouter();
   const [chatInput, setChatInput] = useState("");
-
-  const handleAuth = () => {
-    if (!ready) return;
-
-    if (authenticated) {
-      router.push("/dashboard");
-    } else {
-      router.push("/login");
-    }
-  };
 
   const handleFreeChatSubmit = () => {
     if (!chatInput.trim()) return;

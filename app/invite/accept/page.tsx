@@ -37,7 +37,7 @@ interface InviteDetails {
 function InviteAcceptContent() {
   const searchParams = useSearchParams();
   const router = useRouter();
-  const { authenticated, ready } = usePrivy();
+  const { authenticated } = usePrivy();
   const token = searchParams.get("token");
 
   const [isValidating, setIsValidating] = useState(true);

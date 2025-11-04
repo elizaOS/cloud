@@ -99,12 +99,13 @@ export default function LoginPage() {
 
   const handleOAuthLogin = async (provider: "google" | "discord" | "github") => {
     setLoadingButton(provider);
+    const toastId = toast.loading(`Redirecting to ${provider}...`);
     try {
-      toast.loading(`Redirecting to ${provider}...`);
       await initOAuth({ provider });
       // This will redirect to OAuth provider
     } catch (error) {
       console.error(`Error logging in with ${provider}:`, error);
+      toast.dismiss(toastId);
       toast.error(`Failed to log in with ${provider}`);
       setLoadingButton(null);
     }
