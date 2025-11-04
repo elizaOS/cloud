@@ -56,7 +56,7 @@ export default function TermsOfServicePage() {
               </div>
               <h1 className="text-4xl font-bold tracking-tight text-white">Terms of Service</h1>
               <p className="text-base text-white/60">
-                Last updated: {new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })}
+                Last updated: November 4, 2025
               </p>
             </div>
 
