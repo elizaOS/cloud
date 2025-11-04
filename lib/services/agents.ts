@@ -17,6 +17,7 @@ export interface SendMessageInput {
   organizationId: string;
   streaming?: boolean;
   attachments?: Attachment[];
+  waitUntil?: (promise: Promise<unknown>) => void;
 }
 
 export interface Attachment {
@@ -120,7 +121,7 @@ export class AgentService {
    * @returns Agent response
    */
   async sendMessage(input: SendMessageInput): Promise<AgentResponse> {
-    const { roomId, entityId, message, streaming, attachments } = input;
+    const { roomId, entityId, message, streaming, attachments, waitUntil } = input;
 
     // Acquire distributed lock with retry for MCP concurrent requests
     // Will retry up to 10 times with exponential backoff (max ~20s wait)
@@ -155,7 +156,7 @@ export class AgentService {
         await agentRuntime.handleMessage(roomId, entityId, {
           text: message,
           attachments: attachments || [],
-        });
+        }, undefined, waitUntil);
 
       // Emit response complete event
       await agentEventEmitter.emitResponseComplete(
