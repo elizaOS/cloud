@@ -36,10 +36,10 @@ export default function DashboardLayout({
     pathname?.startsWith(path),
   );
 
-  // Redirect to home if not authenticated and trying to access protected path
+  // Redirect to login if not authenticated and trying to access protected path
   useEffect(() => {
     if (ready && !authenticated && !isFreeModePath) {
-      router.push("/");
+      router.push("/login");
     }
   }, [ready, authenticated, isFreeModePath, router]);
 

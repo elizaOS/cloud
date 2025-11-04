@@ -22,7 +22,7 @@ import {
   getAllCategories,
 } from "@/lib/constants/character-categories";
 import { SparklesCore } from "@/components/ui/sparkles";
-import { usePrivy, useLogin } from "@privy-io/react-auth";
+import { usePrivy } from "@privy-io/react-auth";
 import { useRouter } from "next/navigation";
 
 const FEATURED_CHARACTERS: ExtendedCharacter[] = [
@@ -409,10 +409,7 @@ export function MarketplacePreview() {
     ExtendedCharacter[]
   >([]);
   const [isLoadingMore, setIsLoadingMore] = useState(false);
-  const [isLoggingIn, setIsLoggingIn] = useState(false);
-
   const { authenticated, ready } = usePrivy();
-  const { login } = useLogin();
   const router = useRouter();
 
   const allShowcaseCharacters = [...SHOWCASE_CHARACTERS];
@@ -444,20 +441,15 @@ export function MarketplacePreview() {
     fetchAdditionalCharacters();
   }, []);
 
-  const handleAuth = useCallback(async () => {
+  const handleAuth = useCallback(() => {
     if (!ready) return;
 
     if (authenticated) {
       router.push("/dashboard");
     } else {
-      setIsLoggingIn(true);
-      try {
-        await login();
-      } finally {
-        setTimeout(() => setIsLoggingIn(false), 1000);
-      }
+      router.push("/login");
     }
-  }, [ready, authenticated, login, router]);
+  }, [ready, authenticated, router]);
 
   const handleCharacterAction = useCallback(() => {
     handleAuth();
@@ -509,9 +501,9 @@ export function MarketplacePreview() {
                 size="lg"
                 className="gap-2"
                 onClick={handleAuth}
-                disabled={!ready || isLoggingIn}
+                disabled={!ready}
               >
-                {!ready || isLoggingIn ? (
+                {!ready ? (
                   <>
                     <Loader2 className="h-4 w-4 animate-spin" />
                     Loading...
@@ -598,9 +590,9 @@ export function MarketplacePreview() {
               size="lg"
               onClick={handleAuth}
               className="gap-2"
-              disabled={!ready || isLoggingIn}
+              disabled={!ready}
             >
-              {!ready || isLoggingIn ? (
+              {!ready ? (
                 <>
                   <Loader2 className="h-4 w-4 animate-spin" />
                   Loading...
@@ -702,9 +694,9 @@ export function MarketplacePreview() {
               size="lg"
               onClick={handleAuth}
               className="gap-2"
-              disabled={!ready || isLoggingIn}
+              disabled={!ready}
             >
-              {!ready || isLoggingIn ? (
+              {!ready ? (
                 <>
                   <Loader2 className="h-4 w-4 animate-spin" />
                   Loading...
@@ -753,9 +745,9 @@ export function MarketplacePreview() {
                 size="lg"
                 className="gap-2"
                 onClick={handleAuth}
-                disabled={!ready || isLoggingIn}
+                disabled={!ready}
               >
-                {!ready || isLoggingIn ? (
+                {!ready ? (
                   <>
                     <Loader2 className="h-5 w-5 animate-spin" />
                     Loading...
