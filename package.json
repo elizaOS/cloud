@@ -50,7 +50,6 @@
     "@elizaos/plugin-knowledge": "^1.5.13",
     "@elizaos/plugin-memory": "^1.0.3",
     "@elizaos/plugin-openai": "^1.5.18",
-    "@elizaos/plugin-openrouter": "^1.5.14",
     "@elizaos/plugin-sql": "^1.6.3",
     "@fal-ai/client": "^1.7.2",
     "@fal-ai/server-proxy": "^1.1.1",

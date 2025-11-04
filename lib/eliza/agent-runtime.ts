@@ -605,7 +605,6 @@ class AgentRuntimeManager {
     entityId: string,
     content: { text?: string; attachments?: unknown[] },
     characterId?: string,
-    waitUntil?: (promise: Promise<unknown>) => void,
   ): Promise<{
     message: Memory;
     usage?: { inputTokens: number; outputTokens: number; model: string };
@@ -689,7 +688,6 @@ class AgentRuntimeManager {
           }
           return [];
         },
-        waitUntil,
       });
     } catch (error) {
       elizaLogger.error(
