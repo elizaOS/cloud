@@ -425,11 +425,11 @@ export default function LoginPage() {
           {/* Footer */}
           <p className="text-center text-xs text-white/50 pt-2 border-t border-white/10">
             By signing in, you agree to our{" "}
-            <a href="/terms" className="underline underline-offset-4 hover:text-[#FF5800] transition-colors">
+            <a href="/terms-of-service" className="underline underline-offset-4 hover:text-[#FF5800] transition-colors">
               Terms of Service
             </a>{" "}
             and{" "}
-            <a href="/privacy" className="underline underline-offset-4 hover:text-[#FF5800] transition-colors">
+            <a href="/privacy-policy" className="underline underline-offset-4 hover:text-[#FF5800] transition-colors">
               Privacy Policy
             </a>
           </p>
