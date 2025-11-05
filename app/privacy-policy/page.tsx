@@ -3,11 +3,14 @@ import { BrandCard, CornerBrackets } from "@/components/brand";
 import LandingHeader from "@/components/layout/landing-header";
 import { ArrowLeft } from "lucide-react";
 import Link from "next/link";
+import { generatePageMetadata } from "@/lib/seo";
 
-export const metadata: Metadata = {
-  title: "Privacy Policy | ELIZA",
-  description: "Privacy Policy for elizaOS platform",
-};
+export const metadata: Metadata = generatePageMetadata({
+  title: "Privacy Policy",
+  description: "Privacy Policy for elizaOS Platform - Learn how we collect, use, and protect your data.",
+  path: "/privacy-policy",
+  keywords: ["privacy policy", "data protection", "GDPR", "privacy", "elizaOS"],
+});
 
 export default function PrivacyPolicyPage() {
   return (
