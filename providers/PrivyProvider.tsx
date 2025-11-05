@@ -1,7 +1,10 @@
 "use client";
 
 import { useEffect, useRef } from "react";
-import { PrivyProvider as PrivyProviderReactAuth, usePrivy } from "@privy-io/react-auth";
+import {
+  PrivyProvider as PrivyProviderReactAuth,
+  usePrivy,
+} from "@privy-io/react-auth";
 import { toSolanaWalletConnectors } from "@privy-io/react-auth/solana";
 
 /**
@@ -20,7 +23,9 @@ function PrivyAuthWrapper({ children }: { children: React.ReactNode }) {
       const hasAnonSession = document.cookie.includes("eliza-anon-session");
 
       if (hasAnonSession) {
-        console.log("[PrivyProvider] Attempting to migrate anonymous session...");
+        console.log(
+          "[PrivyProvider] Attempting to migrate anonymous session...",
+        );
         fetch("/api/auth/migrate-anonymous", {
           method: "POST",
           credentials: "include", // Important: include cookies
@@ -29,14 +34,19 @@ function PrivyAuthWrapper({ children }: { children: React.ReactNode }) {
           .then((data) => {
             if (data.migrated) {
               console.log(
-                `[PrivyProvider] ✅ Successfully migrated ${data.messagesTransferred} anonymous messages`
+                `[PrivyProvider] ✅ Successfully migrated ${data.messagesTransferred} anonymous messages`,
               );
             } else {
-              console.log(`[PrivyProvider] No migration needed: ${data.message}`);
+              console.log(
+                `[PrivyProvider] No migration needed: ${data.message}`,
+              );
             }
           })
           .catch((error) => {
-            console.error("[PrivyProvider] Failed to migrate anonymous session:", error);
+            console.error(
+              "[PrivyProvider] Failed to migrate anonymous session:",
+              error,
+            );
             // Don't block user - this is non-critical
           });
       }

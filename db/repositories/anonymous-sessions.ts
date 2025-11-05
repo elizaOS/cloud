@@ -4,7 +4,7 @@ import { eq, and, lt, gte } from "drizzle-orm";
 
 /**
  * Anonymous Sessions Repository
- * 
+ *
  * Handles CRUD operations for anonymous user sessions.
  * Used for tracking free tier usage and rate limiting.
  */
@@ -258,4 +258,3 @@ export class AnonymousSessionsRepository {
 
 // Export singleton instance
 export const anonymousSessionsRepository = new AnonymousSessionsRepository();
-

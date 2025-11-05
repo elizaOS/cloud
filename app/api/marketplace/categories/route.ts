@@ -16,6 +16,7 @@ export async function GET(request: NextRequest) {
 
     const categories = await marketplaceService.getCategories(
       user.organization_id!,
+      user.id,
     );
 
     return NextResponse.json({

@@ -390,14 +390,16 @@ export async function POST(
 
     // Increment message count AFTER successful message creation (for anonymous users)
     if (isAnonymous && anonymousSession) {
-      await anonymousSessionsService.incrementMessageCount(
-        anonymousSession.id,
+      await anonymousSessionsService.incrementMessageCount(anonymousSession.id);
+
+      logger.info(
+        "eliza-messages-api",
+        "Incremented anonymous message count after success",
+        {
+          sessionId: anonymousSession.id,
+          newCount: anonymousSession.message_count + 1,
+        },
       );
-      
-      logger.info("eliza-messages-api", "Incremented anonymous message count after success", {
-        sessionId: anonymousSession.id,
-        newCount: anonymousSession.message_count + 1,
-      });
     }
 
     // Return the created message

@@ -31,10 +31,10 @@ const TopHero = () => {
 
   const handleFreeChatSubmit = () => {
     if (!chatInput.trim()) return;
-    
+
     // Store the message in localStorage for pre-filling in chat
     localStorage.setItem("eliza-pending-message", chatInput.trim());
-    
+
     // Redirect to Eliza chat (anonymous users will be created automatically)
     // Use window.location for reliable navigation
     window.location.href = "/dashboard/eliza";

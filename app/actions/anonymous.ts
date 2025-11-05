@@ -11,7 +11,7 @@ const ANON_SESSION_COOKIE = "eliza-anon-session";
  */
 export async function getOrCreateAnonymousUserAction() {
   const result = await getOrCreateAnonymousUser();
-  
+
   // Set cookie if this is a new session
   if (result.isNew && "sessionToken" in result && "expiresAt" in result) {
     const cookieStore = await cookies();
@@ -23,7 +23,6 @@ export async function getOrCreateAnonymousUserAction() {
       path: "/",
     });
   }
-  
+
   return result;
 }
-
