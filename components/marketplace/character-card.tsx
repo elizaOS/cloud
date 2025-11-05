@@ -14,7 +14,7 @@ import {
   Rocket,
   Star,
 } from "lucide-react";
-import type { ExtendedCharacter } from "@/lib/types/marketplace";
+import type { ExtendedCharacter } from "@/lib/types/my-agents";
 import {
   getCategoryIcon,
   getCategoryColor,

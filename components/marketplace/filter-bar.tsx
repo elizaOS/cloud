@@ -18,7 +18,7 @@ import {
   Rocket,
   X,
 } from "lucide-react";
-import type { SortBy, SearchFilters } from "@/lib/types/marketplace";
+import type { SortBy, SearchFilters } from "@/lib/types/my-agents";
 
 interface FilterBarProps {
   sortBy: SortBy;

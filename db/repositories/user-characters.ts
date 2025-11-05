@@ -5,7 +5,7 @@ import {
   type UserCharacter,
   type NewUserCharacter,
 } from "../schemas/user-characters";
-import type { SearchFilters, SortOptions } from "@/lib/types/marketplace";
+import type { SearchFilters, SortOptions } from "@/lib/types/my-agents";
 
 export type { UserCharacter, NewUserCharacter };
 
