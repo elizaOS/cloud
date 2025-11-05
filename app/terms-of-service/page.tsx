@@ -3,11 +3,14 @@ import { BrandCard, CornerBrackets } from "@/components/brand";
 import LandingHeader from "@/components/layout/landing-header";
 import { ArrowLeft } from "lucide-react";
 import Link from "next/link";
+import { generatePageMetadata } from "@/lib/seo";
 
-export const metadata: Metadata = {
-  title: "Terms of Service | ELIZA",
-  description: "Terms of Service for elizaOS platform",
-};
+export const metadata: Metadata = generatePageMetadata({
+  title: "Terms of Service",
+  description: "Terms of Service for elizaOS Platform - Read our terms and conditions for using our AI agent development platform.",
+  path: "/terms-of-service",
+  keywords: ["terms of service", "terms and conditions", "legal", "agreement", "elizaOS"],
+});
 
 export default function TermsOfServicePage() {
   return (
