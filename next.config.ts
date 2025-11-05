@@ -1,5 +1,7 @@
 import type { NextConfig } from "next";
 
+const isMobileBuild = process.env.NEXT_PUBLIC_BUILD_MODE === "capacitor";
+
 const nextConfig: NextConfig = {
   images: {
     remotePatterns: [
@@ -11,10 +13,12 @@ const nextConfig: NextConfig = {
       },
     ],
     // Disable image optimization for Capacitor static export
-    unoptimized: true,
+    unoptimized: isMobileBuild,
   },
   // Enable static export for Capacitor mobile app
-  output: process.env.NEXT_PUBLIC_BUILD_MODE === "capacitor" ? "export" : undefined,
+  // Note: Mobile apps should call the deployed API backend (e.g., Vercel deployment)
+  // API routes are not included in static export
+  output: isMobileBuild ? "export" : undefined,
   // Increase body size limit for container image uploads (max 2GB)
   experimental: {
     serverActions: {

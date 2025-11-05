@@ -29,15 +29,14 @@
     "mcp:inspector": "bunx @modelcontextprotocol/inspector@latest",
     "test:discord": "tsx scripts/test-discord-service.ts",
     "mobile:init": "npx cap init",
-    "mobile:build": "NEXT_PUBLIC_BUILD_MODE=capacitor next build --turbopack && npx cap sync",
     "mobile:sync": "npx cap sync",
-    "mobile:copy": "npx cap copy",
     "mobile:add:android": "npx cap add android",
     "mobile:add:ios": "npx cap add ios",
     "mobile:open:android": "npx cap open android",
     "mobile:open:ios": "npx cap open ios",
     "mobile:run:android": "npx cap run android",
-    "mobile:run:ios": "npx cap run ios"
+    "mobile:run:ios": "npx cap run ios",
+    "mobile:dev": "echo 'Mobile dev mode: 1) Run bun run dev in another terminal, 2) Then run mobile:open:ios or mobile:open:android'"
   },
   "dependencies": {
     "@ai-sdk/gateway": "^2.0.5",

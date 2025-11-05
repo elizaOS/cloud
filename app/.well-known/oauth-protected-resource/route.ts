@@ -17,4 +17,7 @@ const handler = protectedResourceHandler({
 // CORS handler for OPTIONS requests
 const corsHandler = metadataCorsOptionsRequestHandler();
 
+// This route cannot be statically exported (mobile builds)
+export const dynamic = "force-dynamic";
+
 export { handler as GET, corsHandler as OPTIONS };
