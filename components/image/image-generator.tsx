@@ -123,9 +123,9 @@ export function ImageGenerator() {
         </div>
       )}
 
-      {isLoading && images.length === 0 && <LoadingState />}
-
-      {images.length > 0 && (
+      {isLoading ? (
+        <LoadingState />
+      ) : images.length > 0 ? (
         <div className="space-y-6">
           <div
             className={`grid gap-6 ${images.length === 1 ? "grid-cols-1" : "grid-cols-1 md:grid-cols-2"}`}
@@ -143,9 +143,9 @@ export function ImageGenerator() {
             ))}
           </div>
         </div>
+      ) : (
+        <EmptyState />
       )}
-
-      {images.length === 0 && !isLoading && <EmptyState />}
     </div>
   );
 }
