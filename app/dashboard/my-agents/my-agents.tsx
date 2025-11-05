@@ -7,7 +7,7 @@ import { useSetPageHeader } from "@/components/layout/page-header-context";
 import type { ExtendedCharacter } from "@/lib/types/marketplace";
 import { toast } from "sonner";
 
-export function AgentMarketplaceClient() {
+export function MyAgentsClient() {
   const router = useRouter();
 
   useSetPageHeader({
