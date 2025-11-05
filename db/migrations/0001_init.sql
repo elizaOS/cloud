@@ -39,22 +39,48 @@ CREATE TABLE "organization_invites" (
 --> statement-breakpoint
 CREATE TABLE "users" (
 	"id" uuid PRIMARY KEY DEFAULT gen_random_uuid() NOT NULL,
-	"privy_user_id" text NOT NULL,
+	"privy_user_id" text,
+	"is_anonymous" boolean DEFAULT false NOT NULL,
+	"anonymous_session_id" text,
 	"email" text,
 	"email_verified" boolean DEFAULT false,
 	"wallet_address" text,
 	"wallet_chain_type" text,
 	"wallet_verified" boolean DEFAULT false NOT NULL,
 	"name" text,
-	"organization_id" uuid NOT NULL,
+	"organization_id" uuid,
 	"role" text DEFAULT 'member' NOT NULL,
 	"avatar" text,
 	"is_active" boolean DEFAULT true NOT NULL,
 	"created_at" timestamp DEFAULT now() NOT NULL,
 	"updated_at" timestamp DEFAULT now() NOT NULL,
+	"expires_at" timestamp,
 	CONSTRAINT "users_privy_user_id_unique" UNIQUE("privy_user_id"),
+	CONSTRAINT "users_anonymous_session_id_unique" UNIQUE("anonymous_session_id"),
 	CONSTRAINT "users_email_unique" UNIQUE("email"),
 	CONSTRAINT "users_wallet_address_unique" UNIQUE("wallet_address")
+);
+--> statement-breakpoint
+CREATE TABLE "anonymous_sessions" (
+	"id" uuid PRIMARY KEY DEFAULT gen_random_uuid() NOT NULL,
+	"session_token" text NOT NULL,
+	"user_id" uuid NOT NULL,
+	"message_count" integer DEFAULT 0 NOT NULL,
+	"messages_limit" integer DEFAULT 10 NOT NULL,
+	"total_tokens_used" integer DEFAULT 0 NOT NULL,
+	"last_message_at" timestamp,
+	"hourly_message_count" integer DEFAULT 0 NOT NULL,
+	"hourly_reset_at" timestamp,
+	"ip_address" text,
+	"user_agent" text,
+	"fingerprint" text,
+	"signup_prompted_at" timestamp,
+	"signup_prompt_count" integer DEFAULT 0 NOT NULL,
+	"created_at" timestamp DEFAULT now() NOT NULL,
+	"expires_at" timestamp NOT NULL,
+	"converted_at" timestamp,
+	"is_active" boolean DEFAULT true NOT NULL,
+	CONSTRAINT "anonymous_sessions_session_token_unique" UNIQUE("session_token")
 );
 --> statement-breakpoint
 CREATE TABLE "api_keys" (
@@ -244,7 +270,7 @@ CREATE TABLE "conversation_messages" (
 --> statement-breakpoint
 CREATE TABLE "conversations" (
 	"id" uuid PRIMARY KEY DEFAULT gen_random_uuid() NOT NULL,
-	"organization_id" uuid NOT NULL,
+	"organization_id" uuid,
 	"user_id" uuid NOT NULL,
 	"title" text NOT NULL,
 	"model" text NOT NULL,
@@ -486,6 +512,33 @@ CREATE TABLE "logs" (
 	"roomId" uuid NOT NULL
 );
 --> statement-breakpoint
+CREATE TABLE "long_term_memories" (
+	"id" varchar(36) PRIMARY KEY NOT NULL,
+	"agent_id" varchar(36) NOT NULL,
+	"entity_id" varchar(36) NOT NULL,
+	"category" text NOT NULL,
+	"content" text NOT NULL,
+	"metadata" jsonb,
+	"embedding" real[],
+	"confidence" real DEFAULT 1,
+	"source" text,
+	"created_at" timestamp DEFAULT now() NOT NULL,
+	"updated_at" timestamp DEFAULT now() NOT NULL,
+	"last_accessed_at" timestamp,
+	"access_count" integer DEFAULT 0
+);
+--> statement-breakpoint
+CREATE TABLE "memory_access_logs" (
+	"id" varchar(36) PRIMARY KEY NOT NULL,
+	"agent_id" varchar(36) NOT NULL,
+	"memory_id" varchar(36) NOT NULL,
+	"memory_type" text NOT NULL,
+	"accessed_at" timestamp DEFAULT now() NOT NULL,
+	"room_id" varchar(36),
+	"relevance_score" real,
+	"was_useful" integer
+);
+--> statement-breakpoint
 CREATE TABLE "memories" (
 	"id" uuid PRIMARY KEY NOT NULL,
 	"type" text NOT NULL,
@@ -577,6 +630,23 @@ CREATE TABLE "server_agents" (
 	CONSTRAINT "server_agents_server_id_agent_id_pk" PRIMARY KEY("server_id","agent_id")
 );
 --> statement-breakpoint
+CREATE TABLE "session_summaries" (
+	"id" varchar(36) PRIMARY KEY NOT NULL,
+	"agent_id" varchar(36) NOT NULL,
+	"room_id" varchar(36) NOT NULL,
+	"entity_id" varchar(36),
+	"summary" text NOT NULL,
+	"message_count" integer NOT NULL,
+	"last_message_offset" integer DEFAULT 0 NOT NULL,
+	"start_time" timestamp NOT NULL,
+	"end_time" timestamp NOT NULL,
+	"topics" jsonb,
+	"metadata" jsonb,
+	"embedding" real[],
+	"created_at" timestamp DEFAULT now() NOT NULL,
+	"updated_at" timestamp DEFAULT now() NOT NULL
+);
+--> statement-breakpoint
 CREATE TABLE "tasks" (
 	"id" uuid PRIMARY KEY DEFAULT gen_random_uuid() NOT NULL,
 	"name" text NOT NULL,
@@ -612,6 +682,7 @@ ALTER TABLE "organization_invites" ADD CONSTRAINT "organization_invites_organiza
 ALTER TABLE "organization_invites" ADD CONSTRAINT "organization_invites_inviter_user_id_users_id_fk" FOREIGN KEY ("inviter_user_id") REFERENCES "public"."users"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "organization_invites" ADD CONSTRAINT "organization_invites_accepted_by_user_id_users_id_fk" FOREIGN KEY ("accepted_by_user_id") REFERENCES "public"."users"("id") ON DELETE set null ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "users" ADD CONSTRAINT "users_organization_id_organizations_id_fk" FOREIGN KEY ("organization_id") REFERENCES "public"."organizations"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE "anonymous_sessions" ADD CONSTRAINT "anonymous_sessions_user_id_users_id_fk" FOREIGN KEY ("user_id") REFERENCES "public"."users"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "api_keys" ADD CONSTRAINT "api_keys_organization_id_organizations_id_fk" FOREIGN KEY ("organization_id") REFERENCES "public"."organizations"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "api_keys" ADD CONSTRAINT "api_keys_user_id_users_id_fk" FOREIGN KEY ("user_id") REFERENCES "public"."users"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "cli_auth_sessions" ADD CONSTRAINT "cli_auth_sessions_user_id_users_id_fk" FOREIGN KEY ("user_id") REFERENCES "public"."users"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
@@ -698,6 +769,14 @@ CREATE INDEX "users_wallet_chain_type_idx" ON "users" USING btree ("wallet_chain
 CREATE INDEX "users_organization_idx" ON "users" USING btree ("organization_id");--> statement-breakpoint
 CREATE INDEX "users_is_active_idx" ON "users" USING btree ("is_active");--> statement-breakpoint
 CREATE INDEX "users_privy_user_id_idx" ON "users" USING btree ("privy_user_id");--> statement-breakpoint
+CREATE INDEX "users_is_anonymous_idx" ON "users" USING btree ("is_anonymous");--> statement-breakpoint
+CREATE INDEX "users_anonymous_session_idx" ON "users" USING btree ("anonymous_session_id");--> statement-breakpoint
+CREATE INDEX "users_expires_at_idx" ON "users" USING btree ("expires_at");--> statement-breakpoint
+CREATE INDEX "anon_sessions_token_idx" ON "anonymous_sessions" USING btree ("session_token");--> statement-breakpoint
+CREATE INDEX "anon_sessions_user_id_idx" ON "anonymous_sessions" USING btree ("user_id");--> statement-breakpoint
+CREATE INDEX "anon_sessions_expires_at_idx" ON "anonymous_sessions" USING btree ("expires_at");--> statement-breakpoint
+CREATE INDEX "anon_sessions_ip_address_idx" ON "anonymous_sessions" USING btree ("ip_address");--> statement-breakpoint
+CREATE INDEX "anon_sessions_is_active_idx" ON "anonymous_sessions" USING btree ("is_active");--> statement-breakpoint
 CREATE INDEX "api_keys_key_idx" ON "api_keys" USING btree ("key");--> statement-breakpoint
 CREATE UNIQUE INDEX "api_keys_key_hash_idx" ON "api_keys" USING btree ("key_hash");--> statement-breakpoint
 CREATE INDEX "api_keys_key_prefix_idx" ON "api_keys" USING btree ("key_prefix");--> statement-breakpoint
@@ -766,6 +845,13 @@ CREATE INDEX "containers_ecr_repository_idx" ON "containers" USING btree ("ecr_r
 CREATE INDEX "containers_project_name_idx" ON "containers" USING btree ("project_name");--> statement-breakpoint
 CREATE INDEX "containers_user_project_idx" ON "containers" USING btree ("user_id","project_name");--> statement-breakpoint
 CREATE INDEX "idx_embedding_memory" ON "embeddings" USING btree ("memory_id");--> statement-breakpoint
+CREATE INDEX "long_term_memories_agent_entity_idx" ON "long_term_memories" USING btree ("agent_id","entity_id");--> statement-breakpoint
+CREATE INDEX "long_term_memories_category_idx" ON "long_term_memories" USING btree ("category");--> statement-breakpoint
+CREATE INDEX "long_term_memories_confidence_idx" ON "long_term_memories" USING btree ("confidence");--> statement-breakpoint
+CREATE INDEX "long_term_memories_created_at_idx" ON "long_term_memories" USING btree ("created_at");--> statement-breakpoint
+CREATE INDEX "memory_access_logs_memory_idx" ON "memory_access_logs" USING btree ("memory_id");--> statement-breakpoint
+CREATE INDEX "memory_access_logs_agent_idx" ON "memory_access_logs" USING btree ("agent_id");--> statement-breakpoint
+CREATE INDEX "memory_access_logs_accessed_at_idx" ON "memory_access_logs" USING btree ("accessed_at");--> statement-breakpoint
 CREATE INDEX "idx_memories_type_room" ON "memories" USING btree ("type","roomId");--> statement-breakpoint
 CREATE INDEX "idx_memories_world_id" ON "memories" USING btree ("worldId");--> statement-breakpoint
 CREATE INDEX "idx_memories_metadata_type" ON "memories" USING btree (((metadata->>'type')));--> statement-breakpoint
@@ -773,4 +859,7 @@ CREATE INDEX "idx_memories_document_id" ON "memories" USING btree (((metadata->>
 CREATE INDEX "idx_fragments_order" ON "memories" USING btree (((metadata->>'documentId')),((metadata->>'position')));--> statement-breakpoint
 CREATE INDEX "idx_participants_user" ON "participants" USING btree ("entityId");--> statement-breakpoint
 CREATE INDEX "idx_participants_room" ON "participants" USING btree ("roomId");--> statement-breakpoint
-CREATE INDEX "idx_relationships_users" ON "relationships" USING btree ("sourceEntityId","targetEntityId");
+CREATE INDEX "idx_relationships_users" ON "relationships" USING btree ("sourceEntityId","targetEntityId");--> statement-breakpoint
+CREATE INDEX "session_summaries_agent_room_idx" ON "session_summaries" USING btree ("agent_id","room_id");--> statement-breakpoint
+CREATE INDEX "session_summaries_entity_idx" ON "session_summaries" USING btree ("entity_id");--> statement-breakpoint
+CREATE INDEX "session_summaries_start_time_idx" ON "session_summaries" USING btree ("start_time");
