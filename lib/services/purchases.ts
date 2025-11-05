@@ -436,27 +436,39 @@ export class PurchasesService {
     paymentIntentId: string,
     paymentMethodId?: string,
   ): Promise<void> {
+    console.log(
+      `[PurchasesService] sendPurchaseConfirmationEmail START for org ${organizationId}`,
+    );
+
     try {
       const org = await organizationsRepository.findById(organizationId);
       if (!org) {
         console.error(
-          `[PurchasesService] Cannot send email: org ${organizationId} not found`,
+          `[PurchasesService] CRITICAL: Cannot send email - org ${organizationId} not found`,
         );
         return;
       }
+      console.log(`[PurchasesService] Organization found: ${org.name}`);
 
-      const users = await usersRepository.findByOrganizationId(organizationId);
+      console.log(
+        `[PurchasesService] Fetching users for org ${organizationId}`,
+      );
+      const users = await usersRepository.listByOrganization(organizationId);
+      console.log(`[PurchasesService] Found ${users.length} users`);
+
       if (!users || users.length === 0) {
         console.error(
-          `[PurchasesService] Cannot send email: no users found for org ${organizationId}`,
+          `[PurchasesService] CRITICAL: No users found for org ${organizationId} - EMAIL NOT SENT`,
         );
         return;
       }
 
       const userEmail = users[0].email;
+      console.log(`[PurchasesService] User email: ${userEmail || "NONE"}`);
+
       if (!userEmail) {
         console.error(
-          `[PurchasesService] Cannot send email: no email for user in org ${organizationId}`,
+          `[PurchasesService] CRITICAL: No email for user in org ${organizationId} - EMAIL NOT SENT`,
         );
         return;
       }
@@ -468,7 +480,7 @@ export class PurchasesService {
             paymentMethodId,
           );
           if (paymentMethod.card) {
-            paymentMethodDisplay = `${paymentMethod.card.brand} ****${paymentMethod.card.last4}`;
+            paymentMethodDisplay = `${paymentMethod.card.brand} ••••${paymentMethod.card.last4}`;
           }
         } catch (error) {
           console.error(
@@ -489,10 +501,11 @@ export class PurchasesService {
         timeZone: "UTC",
       });
 
-      const dashboardUrl = `${process.env.NEXT_PUBLIC_APP_URL}/dashboard/billing`;
-      const invoiceUrl = `${process.env.NEXT_PUBLIC_APP_URL}/dashboard/invoices/${paymentIntentId}`;
+      const appUrl = process.env.NEXT_PUBLIC_APP_URL || "https://eliza.cloud";
+      const dashboardUrl = `${appUrl}/dashboard/billing`;
+      const invoiceUrl = `${appUrl}/dashboard/invoices/${paymentIntentId}`;
 
-      await emailService.sendPurchaseConfirmationEmail({
+      const emailData = {
         email: userEmail,
         organizationName: org.name,
         purchaseAmount: amount,
@@ -504,14 +517,21 @@ export class PurchasesService {
         invoiceNumber: paymentIntentId,
         invoiceUrl,
         dashboardUrl,
-      });
+      };
+
+      console.log(
+        `[PurchasesService] Calling emailService.sendPurchaseConfirmationEmail with:`,
+      );
+      console.log(JSON.stringify(emailData, null, 2));
+
+      await emailService.sendPurchaseConfirmationEmail(emailData);
 
       console.log(
         `[PurchasesService] ✓ Purchase confirmation email sent to ${userEmail}`,
       );
     } catch (error) {
       console.error(
-        `[PurchasesService] Failed to send purchase confirmation email:`,
+        `[PurchasesService] ERROR in sendPurchaseConfirmationEmail:`,
         error,
       );
     }
