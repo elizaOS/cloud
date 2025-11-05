@@ -16,7 +16,8 @@ import {
   type IDatabaseAdapter,
   type Plugin,
 } from "@elizaos/core";
-import { createDatabaseAdapter } from "@elizaos/plugin-sql";
+// @ts-expect-error - Type definitions missing in published package (index.node.d.ts not included)
+import { createDatabaseAdapter } from "@elizaos/plugin-sql/node";
 import agent from "./agent";
 import { characterLoader } from "./character-loader";
 import type { Character } from "@elizaos/core";
@@ -294,7 +295,7 @@ class AgentRuntimeManager {
         // Call runtime.initialize() to load plugins and set up everything
         // This may fail if agent/entity records already exist - handle gracefully
         try {
-          await this.runtime.initialize();
+          await this.runtime.initialize({ skipMigrations: true });
           elizaLogger.success("#Eliza", "Runtime initialized successfully");
 
           // Log available services
