@@ -127,7 +127,7 @@ export class MarketplaceService {
       },
       filters: {
         appliedFilters: filters,
-        availableCategories: await this.getCategories(organizationId),
+        availableCategories: await this.getCategories(organizationId, userId),
       },
       cached: false,
     };
@@ -137,7 +137,10 @@ export class MarketplaceService {
     return result;
   }
 
-  async getCategories(organizationId: string): Promise<CategoryInfo[]> {
+  async getCategories(
+    organizationId: string,
+    userId: string,
+  ): Promise<CategoryInfo[]> {
     const cached = await marketplaceCache.getCategories(organizationId);
     if (cached) {
       return cached;
@@ -150,7 +153,7 @@ export class MarketplaceService {
         try {
           const count = await userCharactersRepository.count(
             { category: category.id },
-            "",
+            userId,
             organizationId,
           );
 

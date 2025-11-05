@@ -1,30 +1,30 @@
 "use client";
 
 import { useState, useCallback } from "react";
-import { MarketplaceHeader } from "./marketplace-header";
+import { MyAgentsHeader } from "./marketplace-header";
 import { CategoryTabs } from "./category-tabs";
 import { FilterBar } from "./filter-bar";
 import { CharacterGrid } from "./character-grid";
 import { CharacterDetailsModal } from "./character-details-modal";
-import { useMarketplaceFilters } from "./hooks/use-marketplace-filters";
+import { useMyAgentsFilters } from "./hooks/use-marketplace-filters";
 import { useCharacterSearch } from "./hooks/use-character-search";
 import { useInfiniteCharacters } from "./hooks/use-infinite-characters";
-import type { ExtendedCharacter } from "@/lib/types/marketplace";
+import type { ExtendedCharacter } from "@/lib/types/my-agents";
 import { toast } from "sonner";
 
-interface CharacterMarketplaceProps {
+interface MyAgentsViewProps {
   onSelectCharacter: (character: ExtendedCharacter) => void;
   onCloneCharacter: (character: ExtendedCharacter) => Promise<void>;
   isCollapsed?: boolean;
   onToggleCollapse?: () => void;
 }
 
-export function CharacterMarketplace({
+export function MyAgentsView({
   onSelectCharacter,
   onCloneCharacter,
   isCollapsed = false,
   onToggleCollapse,
-}: CharacterMarketplaceProps) {
+}: MyAgentsViewProps) {
   const [selectedCharacter, setSelectedCharacter] =
     useState<ExtendedCharacter | null>(null);
   const [view, setView] = useState<"grid" | "list">("grid");
@@ -38,7 +38,7 @@ export function CharacterMarketplace({
     toggleFilter,
     clearAllFilters,
     hasActiveFilters,
-  } = useMarketplaceFilters();
+  } = useMyAgentsFilters();
 
   const { searchQuery, setSearchQuery, debouncedSearchQuery } =
     useCharacterSearch();
@@ -66,12 +66,12 @@ export function CharacterMarketplace({
       try {
         // Track interaction
         await fetch(
-          `/api/marketplace/characters/${character.id}/track-interaction`,
+          `/api/my-agents/characters/${character.id}/track-interaction`,
           { method: "POST" },
         );
 
         onSelectCharacter(character);
-        // Note: Toast is shown in agent-marketplace-client.tsx to avoid duplicate
+        // Note: Toast is shown in my-agents.tsx to avoid duplicate
       } catch (error) {
         console.error("Error tracking interaction:", error);
         onSelectCharacter(character);
@@ -84,7 +84,7 @@ export function CharacterMarketplace({
     async (character: ExtendedCharacter) => {
       try {
         // Track view
-        await fetch(`/api/marketplace/characters/${character.id}/track-view`, {
+        await fetch(`/api/my-agents/characters/${character.id}/track-view`, {
           method: "POST",
         });
       } catch (error) {
@@ -118,7 +118,7 @@ export function CharacterMarketplace({
 
   return (
     <div className="flex flex-col h-full bg-background overflow-hidden">
-      <MarketplaceHeader
+      <MyAgentsHeader
         searchQuery={searchQuery}
         onSearchChange={setSearchQuery}
         view={view}

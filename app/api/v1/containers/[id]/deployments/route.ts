@@ -18,7 +18,10 @@ export async function GET(
     const { user } = await requireAuthOrApiKeyWithOrg(request);
 
     // Verify container belongs to user's organization
-    const container = await containersService.getById(id, user.organization_id!);
+    const container = await containersService.getById(
+      id,
+      user.organization_id!,
+    );
 
     if (!container) {
       return NextResponse.json(

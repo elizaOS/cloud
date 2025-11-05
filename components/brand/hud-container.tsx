@@ -34,4 +34,3 @@ export function HUDContainer({
     </div>
   );
 }
-

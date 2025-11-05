@@ -18,9 +18,12 @@ export const conversations = pgTable(
   {
     id: uuid("id").defaultRandom().primaryKey(),
     // Allow NULL for anonymous users who don't have organizations
-    organization_id: uuid("organization_id").references(() => organizations.id, {
-      onDelete: "cascade",
-    }),
+    organization_id: uuid("organization_id").references(
+      () => organizations.id,
+      {
+        onDelete: "cascade",
+      },
+    ),
     user_id: uuid("user_id")
       .notNull()
       .references(() => users.id, { onDelete: "cascade" }),

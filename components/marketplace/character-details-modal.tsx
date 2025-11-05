@@ -22,7 +22,7 @@ import {
   Tag,
   Sparkles,
 } from "lucide-react";
-import type { ExtendedCharacter } from "@/lib/types/marketplace";
+import type { ExtendedCharacter } from "@/lib/types/my-agents";
 import { getCategoryIcon } from "@/lib/constants/character-categories";
 import { formatDistanceToNow } from "date-fns";
 

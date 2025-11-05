@@ -310,7 +310,7 @@ export function ElizaChatInterface({
     if (pendingMessage && roomId && messages.length === 0 && !isLoading) {
       // Clear from localStorage
       localStorage.removeItem("eliza-pending-message");
-      
+
       // Auto-send after a short delay (wait for room to be fully ready)
       setTimeout(() => {
         setInputText(pendingMessage);

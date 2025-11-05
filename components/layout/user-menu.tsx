@@ -5,7 +5,7 @@
 
 "use client";
 
-import { usePrivy, useLogin, useLogout } from "@privy-io/react-auth";
+import { usePrivy, useLogout } from "@privy-io/react-auth";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import {
@@ -20,15 +20,12 @@ import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { LogOut, Loader2, Coins, Settings, UserCircle } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useCreditsStream } from "@/hooks/use-credits-stream";
-import { useState } from "react";
 
 export default function UserMenu() {
   const { ready, authenticated, user } = usePrivy();
-  const { login } = useLogin();
   const { logout } = useLogout();
   const router = useRouter();
   const { creditBalance, isLoading: loadingCredits } = useCreditsStream();
-  const [isLoggingIn, setIsLoggingIn] = useState(false);
 
   // Loading state
   if (!ready) {
@@ -39,45 +36,25 @@ export default function UserMenu() {
     );
   }
 
-  // Handle login
-  const handleLogin = async () => {
-    setIsLoggingIn(true);
-    try {
-      await login();
-    } finally {
-      setTimeout(() => setIsLoggingIn(false), 1000);
-    }
+  // Handle login - redirect to custom login page
+  const handleLogin = () => {
+    router.push("/login");
   };
 
   // Signed out state
   if (!authenticated || !user) {
-    const isLoading = !ready || isLoggingIn;
     return (
       <div className="flex items-center gap-2">
         <Button
           variant="ghost"
           size="sm"
           onClick={handleLogin}
-          disabled={isLoading}
+          disabled={!ready}
         >
-          {isLoading ? (
-            <>
-              <Loader2 className="h-4 w-4 animate-spin mr-2" />
-              Loading...
-            </>
-          ) : (
-            "Log in"
-          )}
+          Log in
         </Button>
-        <Button size="sm" onClick={handleLogin} disabled={isLoading}>
-          {isLoading ? (
-            <>
-              <Loader2 className="h-4 w-4 animate-spin mr-2" />
-              Loading...
-            </>
-          ) : (
-            "Sign Up"
-          )}
+        <Button size="sm" onClick={handleLogin} disabled={!ready}>
+          Sign Up
         </Button>
       </div>
     );

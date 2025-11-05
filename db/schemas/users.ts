@@ -13,14 +13,14 @@ export const users = pgTable(
   "users",
   {
     id: uuid("id").defaultRandom().primaryKey(),
-    
+
     // Privy authentication - NULLABLE to support anonymous users
     privy_user_id: text("privy_user_id").unique(), // NULL for anonymous users
-    
+
     // Anonymous user support
     is_anonymous: boolean("is_anonymous").notNull().default(false),
     anonymous_session_id: text("anonymous_session_id").unique(), // Links to session cookie
-    
+
     // User profile
     email: text("email").unique(),
     email_verified: boolean("email_verified").default(false),
@@ -28,16 +28,19 @@ export const users = pgTable(
     wallet_chain_type: text("wallet_chain_type"),
     wallet_verified: boolean("wallet_verified").default(false).notNull(),
     name: text("name"),
-    
+
     // Organization - NULLABLE for anonymous users
-    organization_id: uuid("organization_id").references(() => organizations.id, {
-      onDelete: "cascade",
-    }),
+    organization_id: uuid("organization_id").references(
+      () => organizations.id,
+      {
+        onDelete: "cascade",
+      },
+    ),
     role: text("role").notNull().default("member"),
-    
+
     avatar: text("avatar"),
     is_active: boolean("is_active").default(true).notNull(),
-    
+
     // Lifecycle
     created_at: timestamp("created_at").notNull().defaultNow(),
     updated_at: timestamp("updated_at").notNull().defaultNow(),

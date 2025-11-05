@@ -55,7 +55,7 @@ export default function Header({
       <div className="flex items-center gap-4 shrink-0">
         {pageInfo?.actions && <div>{pageInfo.actions}</div>}
         {children}
-        
+
         {/* Show signup button for anonymous users, otherwise user menu */}
         {isAnonymous ? (
           <BrandButton

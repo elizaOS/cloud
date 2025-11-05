@@ -3,7 +3,7 @@ import type { AnonymousSession } from "@/db/schemas";
 
 /**
  * Anonymous Sessions Service
- * 
+ *
  * Business logic for managing anonymous user sessions.
  */
 class AnonymousSessionsService {
@@ -83,5 +83,3 @@ class AnonymousSessionsService {
 }
 
 export const anonymousSessionsService = new AnonymousSessionsService();
-
-
