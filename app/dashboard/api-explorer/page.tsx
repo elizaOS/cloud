@@ -121,21 +121,22 @@ export default function ApiExplorerPage() {
   };
 
   return (
-    <div className="flex w-full gap-6 px-4 pb-8 lg:px-8">
-      {/* Sidebar - Sticky */}
+    <div className="flex flex-col lg:flex-row w-full gap-6 px-4 pb-8 lg:px-8">
+      {/* Sidebar */}
       <aside
         className={cn(
-          "sticky top-0 self-start transition-all duration-300 ease-in-out shrink-0",
+          "lg:sticky lg:top-0 lg:self-start transition-all duration-300 ease-in-out shrink-0",
           isSidebarCollapsed
-            ? "w-0 lg:w-16"
+            ? "hidden lg:block lg:w-16"
             : "w-full lg:w-80 xl:w-96",
         )}
-        style={{ height: "calc(100vh - 8rem)" }}
       >
-        <div className={cn(
-          "h-full flex flex-col gap-4",
-          isSidebarCollapsed && "lg:items-center"
-        )}>
+        <div 
+          className={cn(
+            "flex flex-col gap-4 lg:h-[calc(100vh-8rem)]",
+            isSidebarCollapsed && "lg:items-center"
+          )}
+        >
           {/* Collapse Toggle - Desktop Only */}
           <button
             onClick={() => setIsSidebarCollapsed(!isSidebarCollapsed)}
@@ -169,11 +170,11 @@ export default function ApiExplorerPage() {
                 </div>
               </BrandCard>
 
-              <div className="relative flex-1 min-h-0 overflow-hidden">
-                <BrandCard className="relative h-full">
+              <div className="relative lg:flex-1 lg:min-h-0 overflow-hidden">
+                <BrandCard className="relative lg:h-full">
                   <CornerBrackets size="sm" className="opacity-50" />
 
-                  <div className="relative z-10 h-full overflow-y-auto overflow-x-hidden pr-2">
+                  <div className="relative z-10 lg:h-full lg:overflow-y-auto overflow-x-hidden lg:pr-2">
                     <div className="space-y-6 pb-4">
                       <AuthManager authToken={authToken} onTokenChange={setAuthToken} />
 
@@ -219,7 +220,7 @@ export default function ApiExplorerPage() {
       </aside>
 
       {/* Main Content */}
-      <main className="flex-1 min-w-0 flex flex-col pb-12">
+      <main className="flex-1 min-w-0 w-full lg:w-auto flex flex-col pb-12">
         <BrandTabs defaultValue="endpoints" className="flex flex-col">
           <BrandTabsList className="w-full justify-start shrink-0 mb-6">
             <BrandTabsTrigger value="endpoints">Endpoints</BrandTabsTrigger>
