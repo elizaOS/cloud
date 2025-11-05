@@ -3,9 +3,10 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
 import { Progress } from "@/components/ui/progress";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { cn } from "@/lib/utils";
 import { MONTHLY_CREDIT_CAP } from "@/lib/pricing-constants";
-import { CheckCircle2, Clock4, History, Loader2 } from "lucide-react";
+import { CheckCircle2, Clock4, History, Loader2, Sparkles, BarChart3 } from "lucide-react";
 import { useSetPageHeader } from "@/components/layout/page-header-context";
 
 import { VideoGenerationForm } from "./video-generation-form";
@@ -389,27 +390,55 @@ export function VideoPageClient({
   );
 
   return (
-    <div className="flex flex-col gap-8">
-      <section className="grid gap-6 xl:grid-cols-[minmax(0,1.1fr)_minmax(0,1fr)]">
-        <VideoGenerationForm
-          prompt={prompt}
-          onPromptChange={setPrompt}
-          selectedModel={selectedModel}
-          onModelChange={setSelectedModel}
-          models={modelPresets}
-          referenceUrl={referenceUrl}
-          onReferenceChange={setReferenceUrl}
-          onGenerate={(payload) => {
-            void handleGenerate(payload);
-          }}
-          isSubmitting={isGenerating}
-          errorMessage={formError}
-          statusMessage={statusMessage}
-        />
-        <VideoPreview video={currentVideo} />
-      </section>
+    <Tabs defaultValue="generate" className="w-full flex flex-col">
+      {/* Tab Navigation */}
+      <TabsList className="w-full rounded-none border-b border-white/10 bg-transparent h-10 p-0 justify-start mb-3">
+        <TabsTrigger
+          value="generate"
+          className="rounded-none data-[state=active]:bg-[#FF5800]/10 data-[state=active]:border-b-2 data-[state=active]:border-[#FF5800] px-4 h-full text-sm"
+        >
+          <Sparkles className="h-3.5 w-3.5 mr-2" />
+          Generate
+        </TabsTrigger>
+        <TabsTrigger
+          value="activity"
+          className="rounded-none data-[state=active]:bg-[#FF5800]/10 data-[state=active]:border-b-2 data-[state=active]:border-[#FF5800] px-4 h-full text-sm"
+        >
+          <BarChart3 className="h-3.5 w-3.5 mr-2" />
+          Activity
+          {historyVideos.length > 0 && (
+            <span className="ml-2 px-1.5 py-0.5 text-xs rounded-full bg-white/10">
+              {historyVideos.length}
+            </span>
+          )}
+        </TabsTrigger>
+      </TabsList>
 
-      <section className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_minmax(0,1fr)] xl:grid-cols-[minmax(0,1fr)_minmax(0,0.9fr)]">
+      {/* Generate Tab Content */}
+      <TabsContent value="generate" className="mt-0">
+        <section className="grid gap-6 xl:grid-cols-[minmax(0,1.1fr)_minmax(0,1fr)]">
+          <VideoGenerationForm
+            prompt={prompt}
+            onPromptChange={setPrompt}
+            selectedModel={selectedModel}
+            onModelChange={setSelectedModel}
+            models={modelPresets}
+            referenceUrl={referenceUrl}
+            onReferenceChange={setReferenceUrl}
+            onGenerate={(payload) => {
+              void handleGenerate(payload);
+            }}
+            isSubmitting={isGenerating}
+            errorMessage={formError}
+            statusMessage={statusMessage}
+          />
+          <VideoPreview video={currentVideo} />
+        </section>
+      </TabsContent>
+
+      {/* Activity Tab Content */}
+      <TabsContent value="activity" className="mt-0">
+        <section className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_minmax(0,1fr)] xl:grid-cols-[minmax(0,1fr)_minmax(0,0.9fr)]">
         <BrandCard className="relative">
           <CornerBrackets size="sm" className="opacity-50" />
 
@@ -582,7 +611,8 @@ export function VideoPageClient({
             </BrandButton>
           </div>
         </BrandCard>
-      </section>
-    </div>
+        </section>
+      </TabsContent>
+    </Tabs>
   );
 }
