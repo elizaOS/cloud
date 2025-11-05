@@ -273,7 +273,7 @@ export function SchemaViewer({ spec }: SchemaViewerProps) {
   const schemaEntries = Object.entries(schemas);
 
   return (
-    <div className="space-y-6">
+    <div className="flex flex-col space-y-6">
       <div className="flex items-center justify-between">
         <div>
           <h2 className="text-2xl font-semibold">API Schemas</h2>
@@ -305,13 +305,13 @@ export function SchemaViewer({ spec }: SchemaViewerProps) {
         </div>
       )}
 
-      <ScrollArea className="h-[600px] rounded-xl border border-border/60 bg-background/40 p-4">
-        {schemaEntries.length > 0 ? (
-          <div className="space-y-4">
-            {schemaEntries.map(([name, schema]) => renderSchema(name, schema))}
-          </div>
-        ) : (
-          <Card className="border-border/60 bg-background/60">
+      {schemaEntries.length > 0 ? (
+        <div className="space-y-4">
+          {schemaEntries.map(([name, schema]) => renderSchema(name, schema))}
+        </div>
+      ) : (
+        <div className="flex items-center justify-center rounded-xl border border-dashed border-border/60 bg-background/40 py-24">
+          <Card className="border-none bg-transparent shadow-none">
             <CardContent className="py-12 text-center">
               <InfoIcon className="mx-auto mb-4 h-12 w-12 text-muted-foreground/60" />
               <h3 className="mb-2 text-lg font-medium text-foreground">
@@ -323,8 +323,8 @@ export function SchemaViewer({ spec }: SchemaViewerProps) {
               </p>
             </CardContent>
           </Card>
-        )}
-      </ScrollArea>
+        </div>
+      )}
     </div>
   );
 }
