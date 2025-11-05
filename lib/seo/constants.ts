@@ -37,8 +37,8 @@ export const ROUTE_METADATA = {
       "LLM deployment",
     ],
   },
-  myAgents: {
-    title: "Explore Your Agents",
+  marketplace: {
+    title: "AI Agent Marketplace | Discover Intelligent Characters",
     description:
       "Explore our collection of AI agents including creative assistants, gaming companions, learning tutors, and more. Sign up to interact with intelligent characters powered by elizaOS Cloud.",
     keywords: [
@@ -86,7 +86,7 @@ export const ROUTE_METADATA = {
       "ElizaOS characters",
     ],
   },
-  agentMarketplace: {
+  myAgents: {
     title: "My Agents",
     description:
       "Manage and interact with your personal AI agents. View, deploy, and chat with your characters.",

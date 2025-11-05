@@ -96,9 +96,9 @@ export const sidebarSections: SidebarSection[] = [
         freeAllowed: true, // Free tier can access Eliza chat
       },
       {
-        id: "agent-marketplace",
+        id: "my-agents",
         label: "My Agents",
-        href: "/dashboard/agent-marketplace",
+        href: "/dashboard/my-agents",
         icon: Store,
         freeAllowed: false, // Requires signup
       },

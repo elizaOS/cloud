@@ -3,9 +3,9 @@ import type {
   SearchFilters,
   SortBy,
   CategoryId,
-} from "@/lib/types/marketplace";
+} from "@/lib/types/my-agents";
 
-export function useMarketplaceFilters() {
+export function useMyAgentsFilters() {
   const [activeCategory, setActiveCategory] = useState<CategoryId | null>(null);
   const [sortBy, setSortBy] = useState<SortBy>("popularity");
   const [filters, setFilters] = useState<SearchFilters>({

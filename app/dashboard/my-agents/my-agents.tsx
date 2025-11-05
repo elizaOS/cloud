@@ -2,9 +2,9 @@
 
 import { useCallback } from "react";
 import { useRouter } from "next/navigation";
-import { CharacterMarketplace } from "@/components/marketplace";
+import { MyAgentsView } from "@/components/marketplace";
 import { useSetPageHeader } from "@/components/layout/page-header-context";
-import type { ExtendedCharacter } from "@/lib/types/marketplace";
+import type { ExtendedCharacter } from "@/lib/types/my-agents";
 import { toast } from "sonner";
 
 export function MyAgentsClient() {
@@ -48,7 +48,7 @@ export function MyAgentsClient() {
         );
 
         const response = await fetch(
-          `/api/marketplace/characters/${character.id}/clone`,
+          `/api/my-agents/characters/${character.id}/clone`,
           {
             method: "POST",
             headers: { "Content-Type": "application/json" },
@@ -72,7 +72,7 @@ export function MyAgentsClient() {
   );
 
   return (
-    <CharacterMarketplace
+    <MyAgentsView
       onSelectCharacter={handleSelectCharacter}
       onCloneCharacter={handleCloneCharacter}
       isCollapsed={false}

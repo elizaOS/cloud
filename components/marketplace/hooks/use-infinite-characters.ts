@@ -3,10 +3,10 @@ import type {
   ExtendedCharacter,
   SearchFilters,
   SortBy,
-  MarketplaceSearchResult,
-} from "@/lib/types/marketplace";
+  MyAgentsSearchResult,
+} from "@/lib/types/my-agents";
 import { logger } from "@/lib/utils/logger";
-import { MARKETPLACE_CONFIG } from "@/lib/config/marketplace";
+import { MY_AGENTS_CONFIG } from "@/lib/config/my-agents";
 
 interface UseInfiniteCharactersOptions {
   filters: SearchFilters;
@@ -64,7 +64,7 @@ export function useInfiniteCharacters({
         if (filters.featured) params.set("featured", "true");
 
         const response = await fetch(
-          `/api/marketplace/characters?${params.toString()}`,
+          `/api/my-agents/characters?${params.toString()}`,
           { signal: abortControllerRef.current.signal },
         );
 
@@ -72,7 +72,7 @@ export function useInfiniteCharacters({
           throw new Error("Failed to fetch characters");
         }
 
-        const data: { success: boolean; data: MarketplaceSearchResult } =
+        const data: { success: boolean; data: MyAgentsSearchResult } =
           await response.json();
 
         if (data.success) {
@@ -82,7 +82,7 @@ export function useInfiniteCharacters({
             setCharacters((prev) => {
               const newCharacters = [...prev, ...result.characters];
               const maxCached =
-                MARKETPLACE_CONFIG.infiniteScroll.maxCachedCharacters;
+                MY_AGENTS_CONFIG.infiniteScroll.maxCachedCharacters;
               // Enforce max cache size to prevent memory issues
               if (newCharacters.length > maxCached) {
                 logger.debug(
