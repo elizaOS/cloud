@@ -16,7 +16,7 @@ import {
   TrendingUp,
   Loader2,
 } from "lucide-react";
-import type { ExtendedCharacter } from "@/lib/types/marketplace";
+import type { ExtendedCharacter } from "@/lib/types/my-agents";
 import {
   getCategoryIcon,
   getAllCategories,
