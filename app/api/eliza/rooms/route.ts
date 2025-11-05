@@ -253,7 +253,14 @@ export async function POST(request: NextRequest) {
         : runtime;
 
       const characterName = greetingRuntime.character?.name || "Eliza";
-      const greetingText = `Hello! I'm ${characterName}, your friendly AI assistant. How can I help you today?`;
+      
+      // Use the LLM-generated greeting from character settings
+      let greetingText = (greetingRuntime.character?.settings as any)?.initialGreeting;
+      
+      // Simple fallback if not present
+      if (!greetingText || typeof greetingText !== 'string' || greetingText.trim().length === 0) {
+        greetingText = `Hello! I'm ${characterName}, your friendly AI assistant. How can I help you today?`;
+      }
 
       await greetingRuntime.createMemory(
         {
