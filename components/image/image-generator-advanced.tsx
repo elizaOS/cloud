@@ -475,7 +475,7 @@ export function ImageGeneratorAdvanced() {
                           <CarouselContent>
                             {currentImages.map((img) => (
                               <CarouselItem key={img.id}>
-                                <div className="relative aspect-square w-full bg-muted/10">
+                                <div className="relative aspect-square w-full max-h-[500px] bg-muted/10">
                                   <Image
                                     src={img.url}
                                     alt={img.prompt}
@@ -492,7 +492,7 @@ export function ImageGeneratorAdvanced() {
                         </Carousel>
                       </div>
                     ) : (
-                      <div className="relative aspect-square w-full bg-muted/10">
+                      <div className="relative aspect-square w-full max-h-[500px] bg-muted/10">
                         <Image
                           src={currentImage.url}
                           alt={currentImage.prompt}
@@ -577,13 +577,13 @@ export function ImageGeneratorAdvanced() {
             ) : (
               <BrandCard className="relative border-dashed">
                 <CornerBrackets size="md" className="opacity-50" />
-                <div className="relative z-10 p-20 text-center">
-                  <div className="flex flex-col items-center space-y-6">
-                    <div className="inline-flex items-center justify-center w-24 h-24 rounded-full bg-[#FF580020] border border-[#FF5800]/40">
-                      <ImageIcon className="h-12 w-12 text-[#FF5800]" />
+                <div className="relative z-10 p-12 text-center">
+                  <div className="flex flex-col items-center space-y-4">
+                    <div className="inline-flex items-center justify-center w-16 h-16 rounded-full bg-[#FF580020] border border-[#FF5800]/40">
+                      <ImageIcon className="h-8 w-8 text-[#FF5800]" />
                     </div>
                     <div className="space-y-2 max-w-md">
-                      <h3 className="text-xl font-bold text-white">
+                      <h3 className="text-lg font-bold text-white">
                         Ready to Create
                       </h3>
                       <p className="text-sm text-white/60 leading-relaxed">
