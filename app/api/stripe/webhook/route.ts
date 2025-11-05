@@ -211,29 +211,40 @@ export async function POST(req: NextRequest) {
               );
             }
           } else {
-            await invoicesService.create({
-              organization_id: organizationId,
-              stripe_invoice_id: `pi_${paymentIntent.id}`,
-              stripe_customer_id: paymentIntent.customer as string,
-              stripe_payment_intent_id: paymentIntent.id,
-              amount_due: (paymentIntent.amount / 100).toString(),
-              amount_paid: (paymentIntent.amount_received / 100).toString(),
-              currency: paymentIntent.currency,
-              status: "paid",
-              invoice_type: purchaseType || "one_time_purchase",
-              invoice_number: undefined,
-              invoice_pdf: undefined,
-              hosted_invoice_url: undefined,
-              credits_added: credits.toString(),
-              metadata: {
-                type: purchaseType,
-              },
-              paid_at: new Date(),
-            });
-
-            console.log(
-              `✓ Created invoice record for direct payment ${paymentIntent.id}`,
+            // Check if invoice already exists (might have been created synchronously)
+            const existingInvoice = await invoicesService.getByStripeInvoiceId(
+              `pi_${paymentIntent.id}`,
             );
+
+            if (!existingInvoice) {
+              await invoicesService.create({
+                organization_id: organizationId,
+                stripe_invoice_id: `pi_${paymentIntent.id}`,
+                stripe_customer_id: paymentIntent.customer as string,
+                stripe_payment_intent_id: paymentIntent.id,
+                amount_due: (paymentIntent.amount / 100).toString(),
+                amount_paid: (paymentIntent.amount_received / 100).toString(),
+                currency: paymentIntent.currency,
+                status: "paid",
+                invoice_type: purchaseType || "one_time_purchase",
+                invoice_number: undefined,
+                invoice_pdf: undefined,
+                hosted_invoice_url: undefined,
+                credits_added: credits.toString(),
+                metadata: {
+                  type: purchaseType,
+                },
+                paid_at: new Date(),
+              });
+
+              console.log(
+                `✓ Created invoice record for direct payment ${paymentIntent.id}`,
+              );
+            } else {
+              console.log(
+                `⚠️ Invoice already exists for payment ${paymentIntent.id}, skipping creation`,
+              );
+            }
           }
         } catch (error) {
           console.error("Failed to create invoice record:", error);
