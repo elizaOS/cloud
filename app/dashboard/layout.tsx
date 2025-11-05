@@ -10,10 +10,10 @@ import { PageHeaderProvider } from "@/components/layout/page-header-context";
 
 /**
  * Dashboard Layout - Supports both authenticated and anonymous users
- * 
+ *
  * Free Mode Paths (accessible without auth):
  * - /dashboard/eliza - ElizaOS agent chat (FREE!)
- * 
+ *
  * Protected Paths (require authentication):
  * - All other /dashboard/* routes
  */

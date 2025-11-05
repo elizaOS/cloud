@@ -1,14 +1,14 @@
 // app/api/v1/responses/route.ts
 /**
  * AI SDK v2.0+ compatibility endpoint
- * 
+ *
  * The Vercel AI SDK (@ai-sdk/openai) v2.0+ sends requests to /responses instead of /chat/completions
  * This endpoint transforms the AI SDK request format to standard OpenAI format and forwards to our gateway
- * 
+ *
  * AI SDK Request Format:
  *   - input: messages array
  *   - max_output_tokens: token limit
- * 
+ *
  * OpenAI Format:
  *   - messages: messages array
  *   - max_tokens: token limit
@@ -81,7 +81,10 @@ interface AISdkRequest {
       parameters?: Record<string, unknown>;
     };
   }>;
-  tool_choice?: "auto" | "none" | { type: "function"; function: { name: string } };
+  tool_choice?:
+    | "auto"
+    | "none"
+    | { type: "function"; function: { name: string } };
   stream?: boolean;
   // ... other AI SDK specific fields
 }
@@ -171,20 +174,28 @@ function transformOpenAIToAISdk(openAIResponse: OpenAIChatResponse): object {
       // Flatten the message object and transform content
       const message = choice.message;
       let content;
-      
+
       if (typeof message.content === "string") {
         // Simple string content
-        content = [{ type: "output_text", text: message.content, annotations: [] }];
+        content = [
+          { type: "output_text", text: message.content, annotations: [] },
+        ];
       } else if (Array.isArray(message.content)) {
         // Already array (multimodal)
-        content = (message.content as any[]).map((part: any) => 
-          typeof part === "string" 
+        content = (message.content as any[]).map((part: any) =>
+          typeof part === "string"
             ? { type: "output_text", text: part, annotations: [] }
-            : { type: "output_text", text: part.text || "", annotations: [] }
+            : { type: "output_text", text: part.text || "", annotations: [] },
         );
       } else {
         // null or other type
-        content = [{ type: "output_text", text: String(message.content || ""), annotations: [] }];
+        content = [
+          {
+            type: "output_text",
+            text: String(message.content || ""),
+            annotations: [],
+          },
+        ];
       }
 
       return {
@@ -197,7 +208,9 @@ function transformOpenAIToAISdk(openAIResponse: OpenAIChatResponse): object {
         // Include tool calls if present
         ...(message.tool_calls ? { tool_calls: message.tool_calls } : {}),
         // Include function call if present (legacy)
-        ...((message as any).function_call ? { function_call: (message as any).function_call } : {}),
+        ...((message as any).function_call
+          ? { function_call: (message as any).function_call }
+          : {}),
       };
     }), // OpenAI: "choices" -> AI SDK: "output" with flattened structure
     usage: openAIResponse.usage
@@ -208,9 +221,9 @@ function transformOpenAIToAISdk(openAIResponse: OpenAIChatResponse): object {
         }
       : undefined,
     // Preserve any provider metadata
-    ...(openAIResponse as any).provider_metadata
+    ...((openAIResponse as any).provider_metadata
       ? { provider_metadata: (openAIResponse as any).provider_metadata }
-      : {},
+      : {}),
   };
 }
 
@@ -227,12 +240,15 @@ async function handlePOST(req: NextRequest) {
     // 3. Transform to OpenAI format
     const request = transformAISdkToOpenAI(aiSdkRequest);
 
-    logger.debug("[Responses API] Transformed AI SDK request to OpenAI format", {
-      originalFields: Object.keys(aiSdkRequest),
-      transformedFields: Object.keys(request),
-      originalMessages: JSON.stringify(aiSdkRequest.input),
-      transformedMessages: JSON.stringify(request.messages),
-    });
+    logger.debug(
+      "[Responses API] Transformed AI SDK request to OpenAI format",
+      {
+        originalFields: Object.keys(aiSdkRequest),
+        transformedFields: Object.keys(request),
+        originalMessages: JSON.stringify(aiSdkRequest.input),
+        transformedMessages: JSON.stringify(request.messages),
+      },
+    );
 
     // 4. Validate input
     if (!request.model || !request.messages) {
@@ -266,7 +282,7 @@ async function handlePOST(req: NextRequest) {
     // Validate and clean message content
     for (let i = 0; i < request.messages.length; i++) {
       const msg = request.messages[i];
-      
+
       if (!msg.role) {
         return Response.json(
           {
@@ -295,7 +311,7 @@ async function handlePOST(req: NextRequest) {
           contentType: typeof msg.content,
           contentValue: msg.content,
         });
-        
+
         return Response.json(
           {
             error: {
@@ -318,7 +334,7 @@ async function handlePOST(req: NextRequest) {
             contentType: typeof msg.content,
             content: msg.content,
           });
-          
+
           return Response.json(
             {
               error: {
@@ -579,12 +595,12 @@ async function handleNonStreamingResponse(
 
   // Transform OpenAI response to AI SDK format before returning
   const aiSdkResponse = transformOpenAIToAISdk(data);
-  
+
   logger.debug("[Responses API] Transformed OpenAI response to AI SDK format", {
     openAIFields: Object.keys(data),
     aiSdkFields: Object.keys(aiSdkResponse),
   });
-  
+
   return Response.json(aiSdkResponse);
 }
 
@@ -663,7 +679,13 @@ function handleStreamingResponse(
                       // For streaming, delta contains the incremental content
                       const delta = choice.delta || {};
                       const content = delta.content
-                        ? [{ type: "output_text", text: delta.content, annotations: [] }]
+                        ? [
+                            {
+                              type: "output_text",
+                              text: delta.content,
+                              annotations: [],
+                            },
+                          ]
                         : undefined;
 
                       return {
@@ -676,8 +698,12 @@ function handleStreamingResponse(
                         ...(content ? { content } : {}),
                         finish_reason: choice.finish_reason,
                         // Include tool calls if present
-                        ...(delta.tool_calls ? { tool_calls: delta.tool_calls } : {}),
-                        ...(delta.function_call ? { function_call: delta.function_call } : {}),
+                        ...(delta.tool_calls
+                          ? { tool_calls: delta.tool_calls }
+                          : {}),
+                        ...(delta.function_call
+                          ? { function_call: delta.function_call }
+                          : {}),
                       };
                     })
                   : undefined, // OpenAI: "choices" -> AI SDK: "output" with flattened structure
@@ -690,7 +716,9 @@ function handleStreamingResponse(
                   : undefined,
               };
 
-              transformedLines.push(`data: ${JSON.stringify(transformedChunk)}`);
+              transformedLines.push(
+                `data: ${JSON.stringify(transformedChunk)}`,
+              );
             } catch {
               // If parsing fails, keep original line
               transformedLines.push(line);
@@ -819,4 +847,3 @@ function handleStreamingResponse(
 }
 
 export const POST = withRateLimit(handlePOST, RateLimitPresets.STRICT);
- 

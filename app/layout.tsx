@@ -118,19 +118,19 @@ export default function RootLayout({
           >
             <NextTopLoader showSpinner={false} color="#FF5800" />
             {children}
-            <Toaster 
+            <Toaster
               richColors
               theme="dark"
               position="top-right"
               toastOptions={{
                 style: {
-                  background: 'rgba(0, 0, 0, 0.8)',
-                  border: '1px solid rgba(255, 255, 255, 0.1)',
-                  color: 'white',
-                  backdropFilter: 'blur(12px)',
-                  borderRadius: '0px',
+                  background: "rgba(0, 0, 0, 0.8)",
+                  border: "1px solid rgba(255, 255, 255, 0.1)",
+                  color: "white",
+                  backdropFilter: "blur(12px)",
+                  borderRadius: "0px",
                 },
-                className: 'font-mono',
+                className: "font-mono",
               }}
             />
           </ThemeProvider>
