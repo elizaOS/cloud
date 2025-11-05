@@ -1,7 +1,11 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { usePrivy, useLoginWithEmail, useLoginWithOAuth } from "@privy-io/react-auth";
+import {
+  usePrivy,
+  useLoginWithEmail,
+  useLoginWithOAuth,
+} from "@privy-io/react-auth";
 import { useRouter } from "next/navigation";
 import { BrandButton, BrandCard, CornerBrackets } from "@/components/brand";
 import { Input } from "@/components/ui/input";
@@ -38,7 +42,7 @@ export default function LoginPage() {
     if (ready && authenticated) {
       // Show syncing state before redirect
       setIsSyncing(true);
-      
+
       // Small delay to ensure the sync message is visible
       const timer = setTimeout(() => {
         router.push("/dashboard");
@@ -57,7 +61,7 @@ export default function LoginPage() {
 
   const handleSendCode = async (e: React.FormEvent) => {
     e.preventDefault();
-    
+
     if (!email || !email.includes("@")) {
       toast.error("Please enter a valid email address");
       return;
@@ -78,7 +82,7 @@ export default function LoginPage() {
 
   const handleVerifyCode = async (e: React.FormEvent) => {
     e.preventDefault();
-    
+
     if (!code || code.length !== 6) {
       toast.error("Please enter a valid 6-digit code");
       return;
@@ -98,7 +102,9 @@ export default function LoginPage() {
     }
   };
 
-  const handleOAuthLogin = async (provider: "google" | "discord" | "github") => {
+  const handleOAuthLogin = async (
+    provider: "google" | "discord" | "github",
+  ) => {
     setLoadingButton(provider);
     const toastId = toast.loading(`Redirecting to ${provider}...`);
     try {
@@ -148,7 +154,7 @@ export default function LoginPage() {
       <div className="relative flex min-h-screen w-full flex-col overflow-hidden">
         {/* Header */}
         <LandingHeader />
-        
+
         {/* Fullscreen background video */}
         <video
           src="/videos/Hero Cloud_x3 Slower_1_Scale 5.mp4"
@@ -161,10 +167,10 @@ export default function LoginPage() {
             filter: "brightness(0.4) blur(2px)",
           }}
         />
-        
+
         {/* Gradient overlay */}
         <div className="absolute inset-0 bg-gradient-to-br from-black/60 via-black/40 to-black/60" />
-        
+
         <div className="relative z-10 flex flex-1 items-center justify-center p-4">
           <BrandCard className="w-full max-w-md backdrop-blur-sm bg-black/60">
             <CornerBrackets size="md" className="opacity-50" />
@@ -174,7 +180,9 @@ export default function LoginPage() {
                 <div className="absolute inset-0 h-12 w-12 animate-pulse rounded-full bg-[#FF5800]/20 blur-xl" />
               </div>
               <div className="space-y-2 text-center">
-                <h3 className="text-lg font-semibold text-white">Signing you in</h3>
+                <h3 className="text-lg font-semibold text-white">
+                  Signing you in
+                </h3>
                 <p className="text-sm text-white/60">
                   Taking you to your dashboard...
                 </p>
@@ -195,7 +203,7 @@ export default function LoginPage() {
     <div className="relative flex min-h-screen w-full flex-col overflow-hidden">
       {/* Header */}
       <LandingHeader />
-      
+
       {/* Fullscreen background video */}
       <video
         src="/videos/Hero Cloud_x3 Slower_1_Scale 5.mp4"
@@ -208,233 +216,254 @@ export default function LoginPage() {
           filter: "brightness(0.4) blur(2px)",
         }}
       />
-      
+
       {/* Gradient overlay for better text readability */}
       <div className="absolute inset-0 bg-gradient-to-br from-black/60 via-black/40 to-black/60" />
-      
+
       <div className="relative z-10 flex flex-1 items-center justify-center p-4">
         <BrandCard className="w-full max-w-md backdrop-blur-sm bg-black/60">
-        <CornerBrackets size="md" className="opacity-50" />
-        
-        <div className="relative z-10 space-y-6">
-          {/* Header */}
-          <div className="space-y-3 text-center pb-2">
-            <div className="flex items-center justify-center gap-2">
-              <span
-                className="inline-block w-2 h-2 rounded-full"
-                style={{ backgroundColor: "#FF5800" }}
-              />
-              <span className="text-white text-2xl font-bold">ELIZA</span>
-            </div>
-            <h1 className="text-3xl font-bold tracking-tight text-white">Welcome back</h1>
-            <p className="text-base text-white/60">
-              Sign in to your elizaOS account
-            </p>
-          </div>
-          {/* Email/Code Login Section */}
-          {!showCodeInput ? (
-            // Email Input
-            <form onSubmit={handleSendCode} className="space-y-4">
-              <div className="space-y-2">
-                <label htmlFor="email" className="text-xs font-medium text-white/70 uppercase tracking-wide">
-                  Email Address
-                </label>
-                <Input
-                  id="email"
-                  type="email"
-                  placeholder="you@example.com"
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                  disabled={loadingButton !== null}
-                  className="h-11 rounded-none border-white/10 bg-black/40 text-white placeholder:text-white/40 focus:ring-1 focus:ring-[#FF5800] focus:border-[#FF5800]"
-                  autoFocus
+          <CornerBrackets size="md" className="opacity-50" />
+
+          <div className="relative z-10 space-y-6">
+            {/* Header */}
+            <div className="space-y-3 text-center pb-2">
+              <div className="flex items-center justify-center gap-2">
+                <span
+                  className="inline-block w-2 h-2 rounded-full"
+                  style={{ backgroundColor: "#FF5800" }}
                 />
+                <span className="text-white text-2xl font-bold">ELIZA</span>
               </div>
-              <BrandButton
-                type="submit"
-                disabled={loadingButton !== null || !email}
-                variant="primary"
-                className="w-full h-11"
-              >
-                {loadingButton === "email" ? (
-                  <>
-                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                    Sending code...
-                  </>
-                ) : (
-                  <>
-                    <Mail className="mr-2 h-4 w-4" />
-                    Continue with Email
-                  </>
-                )}
-              </BrandButton>
-            </form>
-          ) : (
-            // Code Input
-            <form onSubmit={handleVerifyCode} className="space-y-4">
-              <div className="space-y-2">
-                <div className="flex items-center justify-between">
-                  <label htmlFor="code" className="text-xs font-medium text-white/70 uppercase tracking-wide">
-                    Verification Code
-                  </label>
-                  <BrandButton
-                    type="button"
-                    variant="ghost"
-                    size="sm"
-                    onClick={handleBackToEmail}
-                    className="h-auto p-0"
+              <h1 className="text-3xl font-bold tracking-tight text-white">
+                Welcome back
+              </h1>
+              <p className="text-base text-white/60">
+                Sign in to your elizaOS account
+              </p>
+            </div>
+            {/* Email/Code Login Section */}
+            {!showCodeInput ? (
+              // Email Input
+              <form onSubmit={handleSendCode} className="space-y-4">
+                <div className="space-y-2">
+                  <label
+                    htmlFor="email"
+                    className="text-xs font-medium text-white/70 uppercase tracking-wide"
                   >
-                    <ArrowLeft className="mr-1 h-3 w-3" />
-                    Change email
+                    Email Address
+                  </label>
+                  <Input
+                    id="email"
+                    type="email"
+                    placeholder="you@example.com"
+                    value={email}
+                    onChange={(e) => setEmail(e.target.value)}
+                    disabled={loadingButton !== null}
+                    className="h-11 rounded-none border-white/10 bg-black/40 text-white placeholder:text-white/40 focus:ring-1 focus:ring-[#FF5800] focus:border-[#FF5800]"
+                    autoFocus
+                  />
+                </div>
+                <BrandButton
+                  type="submit"
+                  disabled={loadingButton !== null || !email}
+                  variant="primary"
+                  className="w-full h-11"
+                >
+                  {loadingButton === "email" ? (
+                    <>
+                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                      Sending code...
+                    </>
+                  ) : (
+                    <>
+                      <Mail className="mr-2 h-4 w-4" />
+                      Continue with Email
+                    </>
+                  )}
+                </BrandButton>
+              </form>
+            ) : (
+              // Code Input
+              <form onSubmit={handleVerifyCode} className="space-y-4">
+                <div className="space-y-2">
+                  <div className="flex items-center justify-between">
+                    <label
+                      htmlFor="code"
+                      className="text-xs font-medium text-white/70 uppercase tracking-wide"
+                    >
+                      Verification Code
+                    </label>
+                    <BrandButton
+                      type="button"
+                      variant="ghost"
+                      size="sm"
+                      onClick={handleBackToEmail}
+                      className="h-auto p-0"
+                    >
+                      <ArrowLeft className="mr-1 h-3 w-3" />
+                      Change email
+                    </BrandButton>
+                  </div>
+                  <Input
+                    id="code"
+                    type="text"
+                    placeholder="000000"
+                    value={code}
+                    onChange={(e) =>
+                      setCode(e.target.value.replace(/\D/g, "").slice(0, 6))
+                    }
+                    disabled={loadingButton !== null}
+                    className="h-11 rounded-none border-white/10 bg-black/40 text-white placeholder:text-white/40 focus:ring-1 focus:ring-[#FF5800] focus:border-[#FF5800] text-center text-lg tracking-widest"
+                    maxLength={6}
+                    autoFocus
+                  />
+                  <p className="text-xs text-white/50 text-center">
+                    Enter the 6-digit code sent to{" "}
+                    <span className="font-medium text-white/70">{email}</span>
+                  </p>
+                </div>
+                <BrandButton
+                  type="submit"
+                  disabled={loadingButton !== null || code.length !== 6}
+                  variant="primary"
+                  className="w-full h-11"
+                >
+                  {loadingButton === "verify" ? (
+                    <>
+                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                      Verifying...
+                    </>
+                  ) : (
+                    "Verify & Sign In"
+                  )}
+                </BrandButton>
+                <BrandButton
+                  type="button"
+                  variant="outline"
+                  onClick={handleSendCode}
+                  disabled={loadingButton !== null}
+                  className="w-full"
+                >
+                  {loadingButton === "email" ? (
+                    <>
+                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                      Sending...
+                    </>
+                  ) : (
+                    "Resend Code"
+                  )}
+                </BrandButton>
+              </form>
+            )}
+
+            {/* Only show other login options on the initial screen */}
+            {!showCodeInput && (
+              <>
+                {/* Divider */}
+                <div className="relative">
+                  <div className="absolute inset-0 flex items-center">
+                    <div className="w-full border-t border-white/10" />
+                  </div>
+                  <div className="relative flex justify-center text-xs uppercase">
+                    <span className="bg-black/60 px-2 text-white/50">
+                      Or continue with
+                    </span>
+                  </div>
+                </div>
+
+                {/* OAuth Buttons */}
+                <div className="grid gap-3">
+                  <BrandButton
+                    variant="outline"
+                    onClick={() => handleOAuthLogin("google")}
+                    disabled={loadingButton !== null}
+                    className="w-full h-11"
+                  >
+                    {loadingButton === "google" ? (
+                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                    ) : (
+                      <Chrome className="mr-2 h-4 w-4" />
+                    )}
+                    Google
+                  </BrandButton>
+
+                  <BrandButton
+                    variant="outline"
+                    onClick={() => handleOAuthLogin("discord")}
+                    disabled={loadingButton !== null}
+                    className="w-full h-11"
+                  >
+                    {loadingButton === "discord" ? (
+                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                    ) : (
+                      <DiscordIcon className="mr-2 h-4 w-4" />
+                    )}
+                    Discord
+                  </BrandButton>
+
+                  <BrandButton
+                    variant="outline"
+                    onClick={() => handleOAuthLogin("github")}
+                    disabled={loadingButton !== null}
+                    className="w-full h-11"
+                  >
+                    {loadingButton === "github" ? (
+                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                    ) : (
+                      <Github className="mr-2 h-4 w-4" />
+                    )}
+                    GitHub
                   </BrandButton>
                 </div>
-                <Input
-                  id="code"
-                  type="text"
-                  placeholder="000000"
-                  value={code}
-                  onChange={(e) => setCode(e.target.value.replace(/\D/g, "").slice(0, 6))}
-                  disabled={loadingButton !== null}
-                  className="h-11 rounded-none border-white/10 bg-black/40 text-white placeholder:text-white/40 focus:ring-1 focus:ring-[#FF5800] focus:border-[#FF5800] text-center text-lg tracking-widest"
-                  maxLength={6}
-                  autoFocus
-                />
-                <p className="text-xs text-white/50 text-center">
-                  Enter the 6-digit code sent to <span className="font-medium text-white/70">{email}</span>
-                </p>
-              </div>
-              <BrandButton
-                type="submit"
-                disabled={loadingButton !== null || code.length !== 6}
-                variant="primary"
-                className="w-full h-11"
-              >
-                {loadingButton === "verify" ? (
-                  <>
-                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                    Verifying...
-                  </>
-                ) : (
-                  "Verify & Sign In"
-                )}
-              </BrandButton>
-              <BrandButton
-                type="button"
-                variant="outline"
-                onClick={handleSendCode}
-                disabled={loadingButton !== null}
-                className="w-full"
-              >
-                {loadingButton === "email" ? (
-                  <>
-                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                    Sending...
-                  </>
-                ) : (
-                  "Resend Code"
-                )}
-              </BrandButton>
-            </form>
-          )}
 
-          {/* Only show other login options on the initial screen */}
-          {!showCodeInput && (
-            <>
-              {/* Divider */}
-              <div className="relative">
-                <div className="absolute inset-0 flex items-center">
-                  <div className="w-full border-t border-white/10" />
+                {/* Divider */}
+                <div className="relative">
+                  <div className="absolute inset-0 flex items-center">
+                    <div className="w-full border-t border-white/10" />
+                  </div>
+                  <div className="relative flex justify-center text-xs uppercase">
+                    <span className="bg-black/60 px-2 text-white/50">
+                      Or use wallet
+                    </span>
+                  </div>
                 </div>
-                <div className="relative flex justify-center text-xs uppercase">
-                  <span className="bg-black/60 px-2 text-white/50">Or continue with</span>
-                </div>
-              </div>
 
-              {/* OAuth Buttons */}
-              <div className="grid gap-3">
+                {/* Wallet Connect */}
                 <BrandButton
                   variant="outline"
-                  onClick={() => handleOAuthLogin("google")}
+                  onClick={handleWalletConnect}
                   disabled={loadingButton !== null}
-                  className="w-full h-11"
+                  className="w-full h-11 border-[#FF5800]/30 hover:border-[#FF5800]"
                 >
-                  {loadingButton === "google" ? (
+                  {loadingButton === "wallet" ? (
                     <Loader2 className="mr-2 h-4 w-4 animate-spin" />
                   ) : (
-                    <Chrome className="mr-2 h-4 w-4" />
+                    <Wallet className="mr-2 h-4 w-4" />
                   )}
-                  Google
+                  Connect Wallet
                 </BrandButton>
+              </>
+            )}
 
-                <BrandButton
-                  variant="outline"
-                  onClick={() => handleOAuthLogin("discord")}
-                  disabled={loadingButton !== null}
-                  className="w-full h-11"
-                >
-                  {loadingButton === "discord" ? (
-                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                  ) : (
-                    <DiscordIcon className="mr-2 h-4 w-4" />
-                  )}
-                  Discord
-                </BrandButton>
-
-                <BrandButton
-                  variant="outline"
-                  onClick={() => handleOAuthLogin("github")}
-                  disabled={loadingButton !== null}
-                  className="w-full h-11"
-                >
-                  {loadingButton === "github" ? (
-                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                  ) : (
-                    <Github className="mr-2 h-4 w-4" />
-                  )}
-                  GitHub
-                </BrandButton>
-              </div>
-
-              {/* Divider */}
-              <div className="relative">
-                <div className="absolute inset-0 flex items-center">
-                  <div className="w-full border-t border-white/10" />
-                </div>
-                <div className="relative flex justify-center text-xs uppercase">
-                  <span className="bg-black/60 px-2 text-white/50">Or use wallet</span>
-                </div>
-              </div>
-
-              {/* Wallet Connect */}
-              <BrandButton
-                variant="outline"
-                onClick={handleWalletConnect}
-                disabled={loadingButton !== null}
-                className="w-full h-11 border-[#FF5800]/30 hover:border-[#FF5800]"
+            {/* Footer */}
+            <p className="text-center text-xs text-white/50 pt-2 border-t border-white/10">
+              By signing in, you agree to our{" "}
+              <a
+                href="/terms-of-service"
+                className="underline underline-offset-4 hover:text-[#FF5800] transition-colors"
               >
-                {loadingButton === "wallet" ? (
-                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                ) : (
-                  <Wallet className="mr-2 h-4 w-4" />
-                )}
-                Connect Wallet
-              </BrandButton>
-            </>
-          )}
-
-          {/* Footer */}
-          <p className="text-center text-xs text-white/50 pt-2 border-t border-white/10">
-            By signing in, you agree to our{" "}
-            <a href="/terms-of-service" className="underline underline-offset-4 hover:text-[#FF5800] transition-colors">
-              Terms of Service
-            </a>{" "}
-            and{" "}
-            <a href="/privacy-policy" className="underline underline-offset-4 hover:text-[#FF5800] transition-colors">
-              Privacy Policy
-            </a>
-          </p>
-        </div>
-      </BrandCard>
+                Terms of Service
+              </a>{" "}
+              and{" "}
+              <a
+                href="/privacy-policy"
+                className="underline underline-offset-4 hover:text-[#FF5800] transition-colors"
+              >
+                Privacy Policy
+              </a>
+            </p>
+          </div>
+        </BrandCard>
       </div>
     </div>
   );

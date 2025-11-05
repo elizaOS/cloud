@@ -67,7 +67,8 @@ export async function updateEmail(formData: FormData) {
     if (user.email) {
       return {
         success: false,
-        error: "Email already set. Please contact support to change your email.",
+        error:
+          "Email already set. Please contact support to change your email.",
       };
     }
 

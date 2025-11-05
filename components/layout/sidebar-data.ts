@@ -99,10 +99,10 @@ export const sidebarSections: SidebarSection[] = [
       },
       {
         id: "agent-marketplace",
-        label: "Agent Marketplace",
+        label: "My Agents",
         href: "/dashboard/agent-marketplace",
         icon: Store,
-        isNew: true,
+        isNew: false,
         freeAllowed: false, // Requires signup
       },
       {
