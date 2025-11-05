@@ -243,11 +243,7 @@ export function BillingTab({ user }: BillingTabProps) {
   };
 
   const handleViewInvoice = (invoice: Invoice) => {
-    if (invoice.invoiceUrl) {
-      window.open(invoice.invoiceUrl, '_blank');
-    } else {
-      toast.info("Invoice URL not available");
-    }
+    router.push(`/dashboard/invoices/${invoice.id}`);
   };
 
   const handleTriggerAutoTopUp = async () => {

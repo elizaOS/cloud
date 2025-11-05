@@ -1,0 +1,35 @@
+✓ PURCHASE CONFIRMED!
+
+Hi {{organizationName}} team,
+
+Your credit purchase has been processed successfully. The credits have been added to your account and are ready to use immediately.
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+TRANSACTION SUMMARY
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+Purchase Amount:     ${{purchaseAmount}}
+Credits Added:       +${{creditsAdded}}
+Payment Method:      {{paymentMethod}}
+Transaction Date:    {{transactionDate}}
+Invoice Number:      {{invoiceNumber}}
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+BALANCE UPDATE
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+Previous Balance:    ${{previousBalance}}
+Credits Added:       +${{creditsAdded}}
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+New Balance:         ${{newBalance}}
+
+View Invoice Details: {{invoiceUrl}}
+
+Need help? Visit your dashboard or contact our support team.
+Dashboard: {{dashboardUrl}}
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+Thank you for using Eliza Cloud!
+
+© {{currentYear}} Eliza Cloud. All rights reserved.

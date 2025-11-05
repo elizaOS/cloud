@@ -54,3 +54,17 @@ export interface AutoTopUpDisabledEmailData {
   currentBalance: number;
   settingsUrl: string;
 }
+
+export interface PurchaseConfirmationEmailData {
+  email: string;
+  organizationName: string;
+  purchaseAmount: number;
+  creditsAdded: number;
+  previousBalance: number;
+  newBalance: number;
+  paymentMethod: string;
+  transactionDate: string;
+  invoiceNumber?: string;
+  invoiceUrl?: string;
+  dashboardUrl: string;
+}

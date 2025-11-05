@@ -1,6 +1,8 @@
 import { stripe, STRIPE_CURRENCY } from "@/lib/stripe";
-import { organizationsRepository, type Organization } from "@/db/repositories";
+import { organizationsRepository, usersRepository, type Organization } from "@/db/repositories";
 import { creditsService } from "./credits";
+import { invoicesService } from "./invoices";
+import { emailService } from "./email";
 import type Stripe from "stripe";
 
 /**
@@ -177,6 +179,93 @@ export class PurchasesService {
           console.log(
             `[PurchasesService] ✓ Credits added synchronously for payment ${paymentIntent.id}`,
           );
+
+          // Create invoice record synchronously to prevent race condition
+          // The invoice list will be empty if we wait for webhook to fire
+          try {
+            const invoiceId = (paymentIntent as any).invoice;
+
+            if (invoiceId) {
+              const existingInvoice = await invoicesService.getByStripeInvoiceId(
+                invoiceId as string,
+              );
+
+              if (!existingInvoice) {
+                const stripeInvoice = await stripe.invoices.retrieve(
+                  invoiceId as string,
+                );
+
+                await invoicesService.create({
+                  organization_id: organizationId,
+                  stripe_invoice_id: stripeInvoice.id,
+                  stripe_customer_id: stripeInvoice.customer as string,
+                  stripe_payment_intent_id: paymentIntent.id,
+                  amount_due: (stripeInvoice.amount_due / 100).toString(),
+                  amount_paid: (stripeInvoice.amount_paid / 100).toString(),
+                  currency: stripeInvoice.currency,
+                  status: stripeInvoice.status || "draft",
+                  invoice_type: "one_time_purchase",
+                  invoice_number: stripeInvoice.number || undefined,
+                  invoice_pdf: stripeInvoice.invoice_pdf || undefined,
+                  hosted_invoice_url: stripeInvoice.hosted_invoice_url || undefined,
+                  credits_added: amount.toString(),
+                  metadata: {
+                    type: "one_time_purchase",
+                  },
+                  paid_at: stripeInvoice.status_transitions?.paid_at
+                    ? new Date(stripeInvoice.status_transitions.paid_at * 1000)
+                    : undefined,
+                });
+
+                console.log(
+                  `[PurchasesService] ✓ Created invoice record for payment ${paymentIntent.id}`,
+                );
+              }
+            } else {
+              // No Stripe invoice, create a simple invoice record
+              await invoicesService.create({
+                organization_id: organizationId,
+                stripe_invoice_id: `pi_${paymentIntent.id}`,
+                stripe_customer_id: paymentIntent.customer as string,
+                stripe_payment_intent_id: paymentIntent.id,
+                amount_due: (paymentIntent.amount / 100).toString(),
+                amount_paid: (paymentIntent.amount_received / 100).toString(),
+                currency: paymentIntent.currency,
+                status: "paid",
+                invoice_type: "one_time_purchase",
+                invoice_number: undefined,
+                invoice_pdf: undefined,
+                hosted_invoice_url: undefined,
+                credits_added: amount.toString(),
+                metadata: {
+                  type: "one_time_purchase",
+                },
+                paid_at: new Date(),
+              });
+
+              console.log(
+                `[PurchasesService] ✓ Created invoice record for direct payment ${paymentIntent.id}`,
+              );
+            }
+          } catch (invoiceError) {
+            console.error(
+              `[PurchasesService] Failed to create invoice record:`,
+              invoiceError,
+            );
+          }
+
+          // Send purchase confirmation email
+          this.sendPurchaseConfirmationEmail(
+            organizationId,
+            amount,
+            paymentIntent.id,
+            paymentMethodId,
+          ).catch((error) => {
+            console.error(
+              `[PurchasesService] Failed to send purchase confirmation email:`,
+              error,
+            );
+          });
         } catch (error) {
           // Log error but don't fail the purchase - webhook will add credits as backup
           console.error(
@@ -338,6 +427,93 @@ export class PurchasesService {
     } catch (error) {
       console.error(`Failed to cancel payment intent ${paymentIntentId}:`, error);
       return null;
+    }
+  }
+
+  private async sendPurchaseConfirmationEmail(
+    organizationId: string,
+    amount: number,
+    paymentIntentId: string,
+    paymentMethodId?: string,
+  ): Promise<void> {
+    try {
+      const org = await organizationsRepository.findById(organizationId);
+      if (!org) {
+        console.error(
+          `[PurchasesService] Cannot send email: org ${organizationId} not found`,
+        );
+        return;
+      }
+
+      const users = await usersRepository.findByOrganizationId(organizationId);
+      if (!users || users.length === 0) {
+        console.error(
+          `[PurchasesService] Cannot send email: no users found for org ${organizationId}`,
+        );
+        return;
+      }
+
+      const userEmail = users[0].email;
+      if (!userEmail) {
+        console.error(
+          `[PurchasesService] Cannot send email: no email for user in org ${organizationId}`,
+        );
+        return;
+      }
+
+      let paymentMethodDisplay = "Card";
+      if (paymentMethodId) {
+        try {
+          const paymentMethod = await stripe.paymentMethods.retrieve(
+            paymentMethodId,
+          );
+          if (paymentMethod.card) {
+            paymentMethodDisplay = `${paymentMethod.card.brand} ****${paymentMethod.card.last4}`;
+          }
+        } catch (error) {
+          console.error(
+            `[PurchasesService] Failed to retrieve payment method details:`,
+            error,
+          );
+        }
+      }
+
+      const currentBalance = Number(org.credit_balance);
+      const previousBalance = currentBalance - amount;
+      const transactionDate = new Date().toLocaleString("en-US", {
+        year: "numeric",
+        month: "long",
+        day: "numeric",
+        hour: "2-digit",
+        minute: "2-digit",
+        timeZone: "UTC",
+      });
+
+      const dashboardUrl = `${process.env.NEXT_PUBLIC_APP_URL}/dashboard/billing`;
+      const invoiceUrl = `${process.env.NEXT_PUBLIC_APP_URL}/dashboard/invoices/${paymentIntentId}`;
+
+      await emailService.sendPurchaseConfirmationEmail({
+        email: userEmail,
+        organizationName: org.name,
+        purchaseAmount: amount,
+        creditsAdded: amount,
+        previousBalance,
+        newBalance: currentBalance,
+        paymentMethod: paymentMethodDisplay,
+        transactionDate,
+        invoiceNumber: paymentIntentId,
+        invoiceUrl,
+        dashboardUrl,
+      });
+
+      console.log(
+        `[PurchasesService] ✓ Purchase confirmation email sent to ${userEmail}`,
+      );
+    } catch (error) {
+      console.error(
+        `[PurchasesService] Failed to send purchase confirmation email:`,
+        error,
+      );
     }
   }
 }

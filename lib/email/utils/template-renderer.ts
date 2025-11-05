@@ -6,6 +6,7 @@ import type {
   InviteEmailData,
   AutoTopUpSuccessEmailData,
   AutoTopUpDisabledEmailData,
+  PurchaseConfirmationEmailData,
 } from "@/lib/email/types";
 
 function loadTemplate(filename: string): string {
@@ -217,4 +218,31 @@ Update Settings: ${templateData.settingsUrl}
 © ${templateData.currentYear} Eliza Cloud. All rights reserved.`;
 
   return { html, text };
+}
+
+export function renderPurchaseConfirmationTemplate(data: PurchaseConfirmationEmailData): {
+  html: string;
+  text: string;
+} {
+  const htmlTemplate = loadTemplate("purchase-confirmation.html");
+  const textTemplate = loadTemplate("purchase-confirmation.txt");
+
+  const templateData = {
+    organizationName: data.organizationName,
+    purchaseAmount: data.purchaseAmount.toFixed(2),
+    creditsAdded: data.creditsAdded.toFixed(2),
+    previousBalance: data.previousBalance.toFixed(2),
+    newBalance: data.newBalance.toFixed(2),
+    paymentMethod: data.paymentMethod,
+    transactionDate: data.transactionDate,
+    invoiceNumber: data.invoiceNumber || "N/A",
+    invoiceUrl: data.invoiceUrl || data.dashboardUrl,
+    dashboardUrl: data.dashboardUrl,
+    currentYear: new Date().getFullYear(),
+  };
+
+  return {
+    html: interpolate(htmlTemplate, templateData),
+    text: interpolate(textTemplate, templateData),
+  };
 }
