@@ -11,6 +11,7 @@ A comprehensive AI agent development platform built with Next.js 15, featuring m
 - [Prerequisites](#prerequisites)
 - [Quick Start](#quick-start)
 - [Development](#development)
+- [Mobile Apps](#mobile-apps)
 - [Platform Features](#platform-features)
 - [Database Architecture](#database-architecture)
 - [API Reference](#api-reference)
@@ -531,6 +532,68 @@ npm run bootstrapper:build  # Build container bootstrapper
 - **`db/`**: Database schemas and migrations
 - **Server Components**: Default for all components
 - **Client Components**: Only when needed (`'use client'`)
+
+## 📱 Mobile Apps
+
+Eliza Cloud can be built as native iOS and Android mobile applications using Capacitor. The web app is converted to native mobile apps while maintaining full functionality.
+
+### Quick Start
+
+```bash
+# Add platforms (first time only)
+bun run mobile:add:android
+bun run mobile:add:ios  # macOS only
+
+# Build for mobile
+bun run mobile:build
+
+# Open in native IDE
+bun run mobile:open:android  # Opens Android Studio
+bun run mobile:open:ios      # Opens Xcode
+```
+
+### Features
+
+- ✅ **Native iOS & Android apps** from the same Next.js codebase
+- ✅ **Static export mode** with optimized builds for mobile
+- ✅ **Access to native device features** via Capacitor plugins
+- ✅ **Hot reload** during development
+- ✅ **Production-ready** builds for App Store and Play Store
+
+### Available Mobile Commands
+
+| Command | Description |
+|---------|-------------|
+| `bun run mobile:build` | Build web app and sync to mobile platforms |
+| `bun run mobile:sync` | Sync web assets and update native dependencies |
+| `bun run mobile:open:android` | Open Android project in Android Studio |
+| `bun run mobile:open:ios` | Open iOS project in Xcode |
+| `bun run mobile:run:android` | Run on Android device/emulator |
+| `bun run mobile:run:ios` | Run on iOS device/simulator |
+
+### Prerequisites
+
+**For Android:**
+- [Android Studio](https://developer.android.com/studio)
+- JDK 17+
+
+**For iOS (macOS only):**
+- [Xcode](https://apps.apple.com/app/xcode/id497799835) 14.0+
+- CocoaPods: `sudo gem install cocoapods`
+
+### Documentation
+
+- 📖 **[Complete Mobile Setup Guide](./docs/MOBILE_APP_SETUP.md)** - Detailed setup, production builds, and troubleshooting
+- 🚀 **[Quick Start Guide](./docs/MOBILE_QUICK_START.md)** - Get running in 5 minutes
+
+### Development Workflow
+
+1. Make changes to Next.js app
+2. Test in web browser: `bun run dev`
+3. Build for mobile: `bun run mobile:build`
+4. Run in native IDE (Android Studio or Xcode)
+
+> **Note**: The mobile build uses Next.js static export mode. Some server-side features may need adjustments for mobile compatibility.
 
 ## 🔧 Platform Features
 

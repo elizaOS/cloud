@@ -44,3 +44,13 @@ guides
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+# Capacitor
+android/
+ios/
+.capacitor/
+*.keystore
+*.jks
+*.mobileprovision
+*.p12
+*.cer

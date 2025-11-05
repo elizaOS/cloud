@@ -10,7 +10,11 @@ const nextConfig: NextConfig = {
         pathname: "/**",
       },
     ],
+    // Disable image optimization for Capacitor static export
+    unoptimized: true,
   },
+  // Enable static export for Capacitor mobile app
+  output: process.env.NEXT_PUBLIC_BUILD_MODE === "capacitor" ? "export" : undefined,
   // Increase body size limit for container image uploads (max 2GB)
   experimental: {
     serverActions: {
