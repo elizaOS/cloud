@@ -66,15 +66,21 @@ export function ElizaChatInterface({
   const [selectedCharacterId, setSelectedCharacterId] = useState<string | null>(
     initialCharacterId,
   );
+  const [selectedCharacter, setSelectedCharacter] = useState<ElizaCharacter | null>(null);
   const [roomId, setRoomId] = useState<string | null>(null);
-
-  // Debug: Log character selection changes
+  
+  // Load character data when selectedCharacterId changes
   useEffect(() => {
-    console.log(
-      "[ElizaChat] Character selection changed:",
-      selectedCharacterId || "default",
-    );
-  }, [selectedCharacterId]);
+    if (selectedCharacterId) {
+      const character = availableCharacters.find(c => c.id === selectedCharacterId);
+      if (character) {
+        setSelectedCharacter(character);
+      }
+    } else {
+      setSelectedCharacter(null);
+    }
+  }, [selectedCharacterId, availableCharacters]);
+  
   const [messages, setMessages] = useState<Message[]>([]);
   const [rooms, setRooms] = useState<RoomItem[]>([]);
   const [agentInfo, setAgentInfo] = useState<AgentInfo | null>(null);
@@ -146,13 +152,7 @@ export function ElizaChatInterface({
             id: string;
             characterId?: string;
           }[];
-          console.log(
-            "[ElizaChat] Loaded rooms from API:",
-            list.map((r) => ({
-              id: r.id.substring(0, 8),
-              characterId: r.characterId,
-            })),
-          );
+          // Silent: avoid noisy room logs
 
           const rooms: RoomItem[] = list.map((r) => ({
             id: r.id,
@@ -179,12 +179,11 @@ export function ElizaChatInterface({
           setAgentInfo(data.agent);
         }
         // Update selected character based on room's assignment
-        if (data.characterId) {
-          console.log("[ElizaChat] Room uses character:", data.characterId);
-          setSelectedCharacterId(data.characterId);
-        } else {
-          console.log("[ElizaChat] Room uses default character");
-          setSelectedCharacterId(null);
+        if (typeof data.characterId !== "undefined") {
+          // If API explicitly tells us the character, use it; otherwise, preserve current selection
+          if (data.characterId) {
+            setSelectedCharacterId(data.characterId);
+          }
         }
       }
     } catch (err) {
@@ -196,10 +195,7 @@ export function ElizaChatInterface({
     async (characterId?: string | null) => {
       const charIdToUse =
         characterId !== undefined ? characterId : selectedCharacterId;
-      console.log(
-        "[ElizaChat] Creating room with character:",
-        charIdToUse || "default",
-      );
+      // Silent: creating room with selected character
       setIsInitializing(true);
       setError(null);
       try {
@@ -217,11 +213,6 @@ export function ElizaChatInterface({
         }
 
         const data = await response.json();
-        console.log("[ElizaChat] Room created:", {
-          roomId: data.roomId,
-          characterId: data.characterId,
-          requestedCharacterId: charIdToUse,
-        });
 
         setRoomId(data.roomId);
         if (typeof window !== "undefined") {
@@ -749,14 +740,24 @@ export function ElizaChatInterface({
     return (
       <div className="flex h-full w-full items-center justify-center">
         <div className="text-center space-y-3">
-          <ElizaAvatar
-            avatarUrl="https://raw.githubusercontent.com/elizaOS/eliza-avatars/refs/heads/master/Eliza/portrait.png"
-            className="w-16 h-16 mx-auto shadow-lg"
-            iconClassName="h-8 w-8"
-            animate={true}
-          />
+          {selectedCharacter?.settings?.photoUrl ? (
+            <img
+              src={selectedCharacter.settings.photoUrl as string}
+              alt={selectedCharacter.name}
+              className="w-16 h-16 rounded-full object-cover border-2 border-primary/20 mx-auto shadow-lg animate-pulse"
+            />
+          ) : (
+            <ElizaAvatar
+              avatarUrl="https://raw.githubusercontent.com/elizaOS/eliza-avatars/refs/heads/master/Eliza/portrait.png"
+              className="w-16 h-16 mx-auto shadow-lg"
+              iconClassName="h-8 w-8"
+              animate={true}
+            />
+          )}
           <div>
-            <p className="text-base font-semibold">Initializing Eliza...</p>
+            <p className="text-base font-semibold">
+              Initializing {selectedCharacter?.name || "Eliza"}...
+            </p>
             <p className="text-sm text-muted-foreground mt-1">
               Setting up your conversation space
             </p>
@@ -893,12 +894,24 @@ export function ElizaChatInterface({
         <div className="border-b p-4">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-3">
-              <div className="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center">
-                <Bot className="h-5 w-5 text-primary" />
-              </div>
+              {selectedCharacter?.settings?.photoUrl ? (
+                <img
+                  src={selectedCharacter.settings.photoUrl as string}
+                  alt={selectedCharacter.name}
+                  className="w-10 h-10 rounded-full object-cover border-2 border-primary/20"
+                />
+              ) : (
+                <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center">
+                  <Bot className="h-5 w-5 text-primary" />
+                </div>
+              )}
               <div>
-                <h3 className="text-sm font-semibold">Eliza</h3>
-                <p className="text-xs text-muted-foreground">AI Assistant</p>
+                <h3 className="text-sm font-semibold">
+                  {selectedCharacter?.name || agentInfo?.name || "Eliza"}
+                </h3>
+                <p className="text-xs text-muted-foreground">
+                  {selectedCharacter?.settings?.subtitle as string || "AI Assistant"}
+                </p>
               </div>
             </div>
             <div className="flex items-center gap-4">
@@ -988,19 +1001,31 @@ export function ElizaChatInterface({
 
               {messages.length === 0 && !error && (
                 <div className="flex flex-col items-center justify-center h-full text-center">
-                  <ElizaAvatar
-                    avatarUrl={agentInfo?.avatarUrl}
-                    name={agentInfo?.name}
-                    className="h-12 w-12 mb-4"
-                    fallbackClassName="bg-muted"
-                    iconClassName="h-6 w-6 text-muted-foreground"
-                  />
+                  {selectedCharacter?.settings?.photoUrl ? (
+                    <img
+                      src={selectedCharacter.settings.photoUrl as string}
+                      alt={selectedCharacter.name}
+                      className="h-16 w-16 rounded-full object-cover border-2 border-primary/20 mb-4"
+                    />
+                  ) : (
+                    <ElizaAvatar
+                      avatarUrl={agentInfo?.avatarUrl}
+                      name={agentInfo?.name}
+                      className="h-12 w-12 mb-4"
+                      fallbackClassName="bg-muted"
+                      iconClassName="h-6 w-6 text-muted-foreground"
+                    />
+                  )}
                   <h3 className="text-lg font-semibold mb-2">
-                    Start a conversation
+                    Start a conversation with {selectedCharacter?.name || agentInfo?.name || "Eliza"}
                   </h3>
                   <p className="text-sm text-muted-foreground max-w-md">
-                    Ask me anything about AI, development, or how elizaOS can
-                    help you build intelligent agents.
+                    {selectedCharacter?.bio 
+                      ? (Array.isArray(selectedCharacter.bio) 
+                          ? selectedCharacter.bio[0] 
+                          : selectedCharacter.bio)
+                      : "Ask me anything about AI, development, or how elizaOS can help you build intelligent agents."
+                    }
                   </p>
                 </div>
               )}
@@ -1016,13 +1041,23 @@ export function ElizaChatInterface({
                     style={{ animationDelay: `${index * 50}ms` }}
                   >
                     {message.isAgent && (
-                      <ElizaAvatar
-                        avatarUrl={agentInfo?.avatarUrl}
-                        name={agentInfo?.name}
-                        className="flex-shrink-0 w-9 h-9"
-                        iconClassName="h-5 w-5"
-                        animate={isThinking}
-                      />
+                      <>
+                        {selectedCharacter?.settings?.photoUrl ? (
+                          <img
+                            src={selectedCharacter.settings.photoUrl as string}
+                            alt={selectedCharacter.name}
+                            className={`flex-shrink-0 w-9 h-9 rounded-full object-cover border border-primary/20 ${isThinking ? 'animate-pulse' : ''}`}
+                          />
+                        ) : (
+                          <ElizaAvatar
+                            avatarUrl={agentInfo?.avatarUrl}
+                            name={agentInfo?.name}
+                            className="flex-shrink-0 w-9 h-9"
+                            iconClassName="h-5 w-5"
+                            animate={isThinking}
+                          />
+                        )}
+                      </>
                     )}
 
                     <div
@@ -1036,7 +1071,7 @@ export function ElizaChatInterface({
                         <div className="flex items-center gap-3">
                           <Loader2 className="h-4 w-4 animate-spin" />
                           <p className="text-sm text-muted-foreground">
-                            Eliza is thinking...
+                            {selectedCharacter?.name || agentInfo?.name || "Eliza"} is thinking...
                           </p>
                         </div>
                       ) : (
