@@ -5,7 +5,6 @@ import { memoryPlugin } from "@elizaos/plugin-memory";
 // import { knowledgePluginCore } from "@elizaos/plugin-knowledge";
 import { elevenLabsPlugin } from "@elizaos/plugin-elevenlabs";
 import { assistantPlugin } from "./plugin-assistant";
-import { openrouterPlugin } from "@elizaos/plugin-openrouter";
 // NOTE: plugin-sql is provided via a pre-initialized adapter in agent-runtime
 
 /**
@@ -129,13 +128,7 @@ const agent = {
   // Full plugin architecture with events, providers, and actions
   // Includes OpenAI for LLM, ElevenLabs for TTS/STT, and knowledge/memory plugins
   // Note: knowledgePluginCore is loaded asynchronously via getPlugins()
-  plugins: [
-    openrouterPlugin,
-    openaiPlugin,
-    elevenLabsPlugin,
-    assistantPlugin,
-    memoryPlugin,
-  ],
+  plugins: [openaiPlugin, elevenLabsPlugin, assistantPlugin, memoryPlugin],
   providers: [
     ...(elevenLabsPlugin.providers || []),
     ...(assistantPlugin.providers || []),
@@ -149,7 +142,6 @@ const agent = {
     const knowledgePlugin = await loadKnowledgePlugin();
     return [
       openaiPlugin,
-      openrouterPlugin,
       elevenLabsPlugin,
       assistantPlugin,
       memoryPlugin,

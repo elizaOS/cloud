@@ -5,7 +5,7 @@ import { CharacterCard } from "./character-card";
 import { EmptyStates } from "./empty-states";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Loader2 } from "lucide-react";
-import type { ExtendedCharacter } from "@/lib/types/marketplace";
+import type { ExtendedCharacter } from "@/lib/types/my-agents";
 
 interface CharacterGridProps {
   characters: ExtendedCharacter[];

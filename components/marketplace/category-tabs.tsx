@@ -6,7 +6,7 @@ import {
   CATEGORY_ORDER,
   CHARACTER_CATEGORIES,
 } from "@/lib/constants/character-categories";
-import type { CategoryId } from "@/lib/types/marketplace";
+import type { CategoryId } from "@/lib/types/my-agents";
 
 interface CategoryTabsProps {
   activeCategory: CategoryId | null;

@@ -18,7 +18,6 @@ import {
   FileAudio,
   Loader2,
   AlertCircle,
-  Coins,
   Mic,
   Square,
   Clock,
@@ -333,10 +332,10 @@ export function VoiceCloneForm({
   };
 
   return (
-    <BrandCard className="relative h-full">
+    <BrandCard className="relative h-full flex flex-col overflow-hidden">
       <CornerBrackets size="sm" className="opacity-50" />
 
-      <div className="relative z-10 space-y-4 pb-4">
+      <div className="relative z-10 shrink-0 space-y-4 pb-4">
         <div className="flex items-center justify-between">
           <h3 className="text-xl font-semibold text-white">
             Create Voice Clone
@@ -349,8 +348,8 @@ export function VoiceCloneForm({
           Upload audio or record your voice to create a custom AI voice
         </p>
       </div>
-      <div className="overflow-y-auto max-h-[calc(100vh-300px)] relative z-10">
-        <form onSubmit={handleSubmit} className="space-y-7">
+      <div className="relative z-10 flex-1 overflow-y-auto">
+        <form onSubmit={handleSubmit} className="space-y-6 pb-6">
           {/* Voice Name */}
           <div className="space-y-2">
             <label
@@ -399,51 +398,37 @@ export function VoiceCloneForm({
                 Choose between instant or professional quality cloning
               </p>
             </div>
-            <div className="grid grid-cols-1 gap-3">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
               <button
                 type="button"
                 onClick={() => setCloneType("instant")}
                 disabled={isUploading}
                 className={cn(
-                  "relative rounded-none border p-5 text-left transition-all",
+                  "relative rounded-none border p-3 text-left transition-all",
                   cloneType === "instant"
                     ? "border-[#FF5800] bg-[#FF580010]"
                     : "border-white/10 hover:border-white/30 hover:bg-white/5",
                 )}
               >
-                <div className="space-y-3">
-                  <div className="flex items-start justify-between gap-3">
-                    <div className="flex-1 space-y-1">
-                      <div className="flex items-center gap-2">
-                        <p className="font-semibold text-base text-white">
-                          Instant Clone
-                        </p>
-                        <span className="rounded-none bg-green-500/20 text-green-400 border border-green-500/40 px-2 py-0.5 text-xs font-bold uppercase tracking-wide">
-                          Recommended
-                        </span>
-                      </div>
-                      <p className="text-xs text-white/60">
-                        Fast and unlimited voice cloning
+                <div className="flex items-start justify-between gap-3">
+                  <div className="flex-1 space-y-1.5">
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <p className="font-semibold text-sm text-white">
+                        Instant Clone
                       </p>
+                      <span className="rounded-none bg-green-500/20 text-green-400 border border-green-500/40 px-1.5 py-0.5 text-[10px] font-bold uppercase tracking-wide">
+                        Recommended
+                      </span>
                     </div>
-                    <span className="shrink-0 font-semibold text-xs rounded-none border border-white/20 bg-white/10 px-2 py-1 text-white">
-                      ${VOICE_CLONE_INSTANT_COST.toFixed(2)}
-                    </span>
-                  </div>
-                  <div className="flex items-center gap-4 text-xs text-white/60">
-                    <div className="flex items-center gap-1.5">
-                      <span>⏱️</span>
-                      <span>~30s processing</span>
-                    </div>
-                    <div className="flex items-center gap-1.5">
-                      <span>🎤</span>
-                      <span>1-3 min audio</span>
-                    </div>
-                    <div className="flex items-center gap-1.5">
-                      <span className="text-green-400">✓</span>
-                      <span className="text-green-400">Unlimited</span>
+                    <div className="flex items-center gap-3 text-[10px] text-white/50">
+                      <span>⏱️ ~30s</span>
+                      <span>🎤 1-3 min</span>
+                      <span className="text-green-400">✓ Unlimited</span>
                     </div>
                   </div>
+                  <span className="shrink-0 font-semibold text-sm rounded-none border border-white/20 bg-white/10 px-2 py-1 text-white">
+                    ${VOICE_CLONE_INSTANT_COST.toFixed(2)}
+                  </span>
                 </div>
               </button>
 
@@ -452,23 +437,23 @@ export function VoiceCloneForm({
                 onClick={() => setCloneType("professional")}
                 disabled={isUploading}
                 className={cn(
-                  "relative rounded-xl border-2 p-5 text-left transition-all hover:shadow-sm",
+                  "relative rounded-none border p-3 text-left transition-all",
                   cloneType === "professional"
-                    ? "border-primary bg-primary/5 shadow-sm"
-                    : "border-border hover:border-muted-foreground/50 hover:bg-muted/30",
+                    ? "border-[#FF5800] bg-[#FF580010]"
+                    : "border-white/10 hover:border-white/30 hover:bg-white/5",
                 )}
               >
-                <div className="space-y-3">
+                <div className="space-y-2">
                   <div className="flex items-start justify-between gap-3">
-                    <div className="flex-1 space-y-1">
+                    <div className="flex-1 space-y-1.5">
                       <div className="flex items-center gap-2 flex-wrap">
-                        <p className="font-semibold text-base text-white">
+                        <p className="font-semibold text-sm text-white">
                           Professional
                         </p>
                         {professionalVoiceCount !== null && (
                           <span
                             className={cn(
-                              "text-xs rounded-none border px-2 py-0.5 font-bold uppercase tracking-wide",
+                              "text-[10px] rounded-none border px-1.5 py-0.5 font-bold uppercase tracking-wide",
                               professionalVoiceCount >= 1
                                 ? "border-amber-500/40 bg-amber-500/10 text-amber-300"
                                 : "border-white/20 bg-white/10 text-white",
@@ -478,39 +463,22 @@ export function VoiceCloneForm({
                           </span>
                         )}
                       </div>
-                      <p className="text-xs text-white/60">
-                        Studio-quality voice cloning
-                      </p>
+                      <div className="flex items-center gap-3 text-[10px] text-white/50">
+                        <span>⏱️ 30-60 min</span>
+                        <span>🎤 30+ min</span>
+                        <span className="text-amber-300">⚠ Limited</span>
+                      </div>
                     </div>
-                    <span className="shrink-0 font-semibold text-xs rounded-none border border-white/20 bg-white/10 px-2 py-1 text-white">
+                    <span className="shrink-0 font-semibold text-sm rounded-none border border-white/20 bg-white/10 px-2 py-1 text-white">
                       ${VOICE_CLONE_PROFESSIONAL_COST.toFixed(2)}
                     </span>
                   </div>
-
-                  <div className="flex items-center gap-4 text-xs text-white/60 flex-wrap">
-                    <div className="flex items-center gap-1.5">
-                      <span>⏱️</span>
-                      <span>30-60 min</span>
-                    </div>
-                    <div className="flex items-center gap-1.5">
-                      <span>🎤</span>
-                      <span>30+ min audio</span>
-                    </div>
-                    <div className="flex items-center gap-1.5">
-                      <span className="text-amber-300">⚠</span>
-                      <span className="text-amber-300">Limited to 1</span>
-                    </div>
-                  </div>
-
                   {professionalVoiceCount !== null &&
                     professionalVoiceCount >= 1 && (
                       <div className="pt-2 border-t border-amber-500/20">
-                        <p className="text-xs text-amber-600 flex items-start gap-1.5">
+                        <p className="text-[10px] text-amber-300 flex items-start gap-1">
                           <span className="shrink-0">⚠</span>
-                          <span>
-                            Slot full - delete existing professional voice to
-                            create new
-                          </span>
+                          <span>Slot full - delete existing to create new</span>
                         </p>
                       </div>
                     )}
@@ -581,14 +549,8 @@ export function VoiceCloneForm({
                 <Alert>
                   <Info className="h-4 w-4" />
                   <AlertDescription className="text-xs">
-                    <p className="font-semibold mb-2">Tips for best results:</p>
-                    <ul className="list-disc list-inside space-y-1">
-                      <li>Record in a quiet environment</li>
-                      <li>Speak naturally and clearly</li>
-                      <li>Record at least 1-3 minutes total</li>
-                      <li>Use varied sentences and emotions</li>
-                      <li>Avoid background music or noise</li>
-                    </ul>
+                    <strong>Tips:</strong> Record 1-3+ min in a quiet space,
+                    speak naturally and clearly with varied sentences.
                   </AlertDescription>
                 </Alert>
 
@@ -793,8 +755,10 @@ export function VoiceCloneForm({
           {/* Advanced Settings */}
           <Accordion type="single" collapsible>
             <AccordionItem value="advanced">
-              <AccordionTrigger>Advanced Settings</AccordionTrigger>
-              <AccordionContent className="space-y-4 pt-4">
+              <AccordionTrigger className="text-sm">
+                Advanced Settings
+              </AccordionTrigger>
+              <AccordionContent className="space-y-3 pt-3">
                 <div className="space-y-2">
                   <div className="flex items-center justify-between">
                     <label className="text-xs font-medium text-white/70 uppercase tracking-wide">
@@ -859,45 +823,21 @@ export function VoiceCloneForm({
             </Alert>
           )}
 
-          {/* Credit Info */}
-          <div className="flex items-center justify-between p-4 rounded-xl bg-muted/50 border border-border">
-            <div className="flex items-center gap-3">
-              <div className="p-2 rounded-lg bg-background">
-                <Coins className="h-5 w-5 text-primary" />
-              </div>
-              <div>
-                <p className="text-sm font-semibold">Balance</p>
-                <p className="text-xs text-muted-foreground">
-                  ${Number(creditBalance).toFixed(2)} available
-                </p>
-              </div>
-            </div>
-            <div className="text-right">
-              <p className="text-sm font-semibold">Cost: ${cost.toFixed(2)}</p>
-              {!hasEnoughCredits && (
-                <p className="text-xs text-destructive font-medium">
-                  Insufficient balance
-                </p>
-              )}
-            </div>
-          </div>
-
           {/* Submit Button */}
           <BrandButton
             type="submit"
             variant="primary"
             disabled={isUploading || !hasEnoughCredits || files.length === 0}
-            className="w-full font-semibold"
-            size="lg"
+            className="w-full font-semibold h-11"
           >
             {isUploading ? (
               <>
-                <Loader2 className="mr-2 h-5 w-5 animate-spin" />
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
                 Creating Voice Clone...
               </>
             ) : (
               <>
-                <Sparkles className="mr-2 h-5 w-5" />
+                <Sparkles className="mr-2 h-4 w-4" />
                 Create Voice Clone (${cost.toFixed(2)})
               </>
             )}
