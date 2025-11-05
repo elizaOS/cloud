@@ -87,14 +87,14 @@ export const ROUTE_METADATA = {
     ],
   },
   agentMarketplace: {
-    title: "Agent Marketplace",
+    title: "My Agents",
     description:
-      "Discover and explore AI agents from the community. Find templates, clone characters, and start conversations.",
+      "Manage and interact with your personal AI agents. View, deploy, and chat with your characters.",
     keywords: [
-      "agent marketplace",
-      "community agents",
-      "AI templates",
-      "character library",
+      "my agents",
+      "personal agents",
+      "AI characters",
+      "agent management",
     ],
   },
   textGeneration: {

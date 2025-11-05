@@ -11,16 +11,16 @@ export function AgentMarketplaceClient() {
   const router = useRouter();
 
   useSetPageHeader({
-    title: "Agent Marketplace",
+    title: "My Agents",
     description:
-      "Discover and explore AI agents from the community. Find templates, clone characters, and start conversations.",
+      "Manage and interact with your personal AI agents. View, deploy, and chat with your characters.",
   });
 
   const handleSelectCharacter = useCallback(
     async (character: ExtendedCharacter) => {
       try {
         console.log(
-          "[Agent Marketplace] Character selected for chat:",
+          "[My Agents] Character selected for chat:",
           character.name,
           character.id,
         );
@@ -29,7 +29,7 @@ export function AgentMarketplaceClient() {
 
         router.push(`/dashboard/eliza?characterId=${character.id}`);
       } catch (error) {
-        console.error("[Agent Marketplace] Error navigating to chat:", error);
+        console.error("[My Agents] Error navigating to chat:", error);
         toast.error(
           error instanceof Error ? error.message : "Failed to open chat",
         );
@@ -42,7 +42,7 @@ export function AgentMarketplaceClient() {
     async (character: ExtendedCharacter) => {
       try {
         console.log(
-          "[Agent Marketplace] Cloning character:",
+          "[My Agents] Cloning character:",
           character.name,
           character.id,
         );
@@ -61,13 +61,10 @@ export function AgentMarketplaceClient() {
         }
 
         const result = await response.json();
-        console.log(
-          "[Agent Marketplace] Character cloned successfully:",
-          result.data,
-        );
+        console.log("[My Agents] Character cloned successfully:", result.data);
         toast.success(`Cloned ${character.name} to your library`);
       } catch (error) {
-        console.error("[Agent Marketplace] Error cloning character:", error);
+        console.error("[My Agents] Error cloning character:", error);
         throw error;
       }
     },

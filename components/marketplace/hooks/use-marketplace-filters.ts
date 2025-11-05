@@ -11,10 +11,6 @@ export function useMarketplaceFilters() {
   const [filters, setFilters] = useState<SearchFilters>({
     hasVoice: false,
     deployed: false,
-    template: false,
-    myCharacters: false,
-    public: false,
-    featured: false,
   });
 
   const toggleFilter = useCallback((filterKey: keyof SearchFilters) => {
@@ -28,10 +24,6 @@ export function useMarketplaceFilters() {
     setFilters({
       hasVoice: false,
       deployed: false,
-      template: false,
-      myCharacters: false,
-      public: false,
-      featured: false,
     });
     setActiveCategory(null);
   }, []);

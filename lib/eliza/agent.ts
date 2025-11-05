@@ -128,12 +128,7 @@ const agent = {
   // Full plugin architecture with events, providers, and actions
   // Includes OpenAI for LLM, ElevenLabs for TTS/STT, and knowledge/memory plugins
   // Note: knowledgePluginCore is loaded asynchronously via getPlugins()
-  plugins: [
-    openaiPlugin,
-    elevenLabsPlugin,
-    assistantPlugin,
-    memoryPlugin,
-  ],
+  plugins: [openaiPlugin, elevenLabsPlugin, assistantPlugin, memoryPlugin],
   providers: [
     ...(elevenLabsPlugin.providers || []),
     ...(assistantPlugin.providers || []),

@@ -164,7 +164,8 @@ export function ProfileForm({ user }: ProfileFormProps) {
               </label>
             </div>
             <p className="text-xs text-white/60 mb-3">
-              Adding an email allows you to receive important notifications and updates.
+              Adding an email allows you to receive important notifications and
+              updates.
             </p>
             <form onSubmit={handleEmailSubmit} className="space-y-3">
               <Input
@@ -231,7 +232,8 @@ export function ProfileForm({ user }: ProfileFormProps) {
               </p>
             </div>
             <p className="text-xs text-white/60">
-              Your email has been added and will appear here after the page refreshes.
+              Your email has been added and will appear here after the page
+              refreshes.
             </p>
           </div>
         )}

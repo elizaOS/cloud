@@ -132,7 +132,9 @@ export async function requireAuthWithOrg(): Promise<
   }
 
   if (!user.organization_id!) {
-    throw new Error("Forbidden: This feature requires a full account. Please sign up to continue.");
+    throw new Error(
+      "Forbidden: This feature requires a full account. Please sign up to continue.",
+    );
   }
 
   if (!user.organization || !user.organization?.is_active) {
@@ -272,9 +274,7 @@ export async function requireAuthOrApiKey(
  * Require authentication via session or API key WITH organization
  * Use this for paid features that require credits/billing
  */
-export async function requireAuthOrApiKeyWithOrg(
-  request: NextRequest,
-): Promise<
+export async function requireAuthOrApiKeyWithOrg(request: NextRequest): Promise<
   AuthResult & {
     user: UserWithOrganization & {
       organization_id: string;

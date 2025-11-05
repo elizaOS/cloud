@@ -7,13 +7,13 @@ import { logger } from "@/lib/utils/logger";
 
 /**
  * POST /api/auth/migrate-anonymous
- * 
+ *
  * Called by client after successful Privy authentication to migrate
  * anonymous user data to the newly authenticated account.
- * 
+ *
  * This must be called from the client (not webhook) because it needs
  * access to the user's browser cookies to read the anonymous session token.
- * 
+ *
  * Flow:
  * 1. User authenticates with Privy (gets Privy session)
  * 2. Client detects authentication success
@@ -34,7 +34,7 @@ export async function POST(request: NextRequest) {
       });
       return NextResponse.json(
         { error: "No Privy user ID found" },
-        { status: 400 }
+        { status: 400 },
       );
     }
 
@@ -56,9 +56,8 @@ export async function POST(request: NextRequest) {
     }
 
     // Get anonymous session
-    const anonSession = await anonymousSessionsService.getByToken(
-      anonSessionToken
-    );
+    const anonSession =
+      await anonymousSessionsService.getByToken(anonSessionToken);
 
     if (!anonSession) {
       logger.warn("migrate-anonymous", "Invalid anonymous session token", {
@@ -120,11 +119,13 @@ export async function POST(request: NextRequest) {
 
     // Don't fail the request - user can still use the app
     // Just log the error for manual review
-    return NextResponse.json({
-      success: false,
-      migrated: false,
-      error: error instanceof Error ? error.message : "Migration failed",
-    }, { status: 500 });
+    return NextResponse.json(
+      {
+        success: false,
+        migrated: false,
+        error: error instanceof Error ? error.message : "Migration failed",
+      },
+      { status: 500 },
+    );
   }
 }
-
