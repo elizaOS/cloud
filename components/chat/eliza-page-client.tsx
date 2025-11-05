@@ -2,12 +2,17 @@
 
 import { useEffect, useState } from "react";
 import { useSearchParams } from "next/navigation";
+import { usePrivy } from "@privy-io/react-auth";
 import { ElizaChatInterface } from "@/components/chat/eliza-chat-interface";
 import { SignupPromptBanner } from "@/components/chat/signup-prompt-banner";
+import { CloneUrCrushSignupModal } from "@/components/chat/clone-ur-crush-signup-modal";
 import { useSetPageHeader } from "@/components/layout/page-header-context";
 import { CornerBrackets } from "@/components/brand";
 import type { ElizaCharacter } from "@/lib/types";
 import { getOrCreateAnonymousUserAction } from "@/app/actions/anonymous";
+import { useCloneUrCrushIntake } from "@/hooks/flows/useCloneUrCrushIntake";
+
+// Clone Your Crush intake is handled by useCloneYourCrushIntake
 
 interface ElizaPageClientProps {
   initialCharacters: ElizaCharacter[];
@@ -15,9 +20,13 @@ interface ElizaPageClientProps {
 }
 
 export function ElizaPageClient({
-  initialCharacters,
-  isAuthenticated,
+  initialCharacters: initialCharactersProp,
+  isAuthenticated: serverIsAuthenticated,
 }: ElizaPageClientProps) {
+  // Use Privy's client-side auth state (updates immediately when user authenticates)
+  const { authenticated } = usePrivy();
+  const isAuthenticated = authenticated || serverIsAuthenticated;
+  const [availableCharacters, setAvailableCharacters] = useState<ElizaCharacter[]>(initialCharactersProp);
   const [anonymousSession, setAnonymousSession] = useState<{
     messageCount: number;
     messagesLimit: number;
@@ -28,6 +37,15 @@ export function ElizaPageClient({
   const [initialCharacterId, setInitialCharacterId] = useState<string | null>(
     null,
   );
+  const { pendingCharacter: cloneYourCrushCharacter, isSaving: isSavingCharacter } =
+    useCloneUrCrushIntake({
+      isAuthenticated,
+      onSaved: (savedCharacter: ElizaCharacter) => {
+        // Add the saved character and trigger room creation
+        setAvailableCharacters((prev) => [...prev, savedCharacter]);
+        setInitialCharacterId(savedCharacter.id || null);
+      },
+    });
 
   useSetPageHeader({
     title: "Eliza Agent",
@@ -57,14 +75,16 @@ export function ElizaPageClient({
     }
   }, [isAuthenticated, anonymousSession]);
 
+  // Clone Ur Crush flow handled by useCloneUrCrushIntake
+
+  // Effect 3: Normal characterId flow
   useEffect(() => {
+    const source = searchParams.get("source");
+    if (source === 'clone-ur-crush') return; // Skip if CLONE_UR_CRUSH flow
+    
     const characterId = searchParams.get("characterId");
     if (characterId) {
-      console.log("[Eliza Page] Character ID from URL:", characterId);
-      // Set character ID asynchronously to avoid cascading renders
-      Promise.resolve().then(() => {
-        setInitialCharacterId(characterId);
-      });
+      setInitialCharacterId(characterId);
     }
   }, [searchParams]);
 
@@ -79,12 +99,27 @@ export function ElizaPageClient({
 
   return (
     <div className="flex h-full min-h-0 flex-col overflow-hidden">
-      {/* Signup prompt banner for anonymous users */}
-      {!isAuthenticated && anonymousSession && (
+      {/* Clone Your Crush Signup Modal - only show if unauthenticated AND we have character */}
+      {!isAuthenticated && cloneYourCrushCharacter && (
+        <CloneUrCrushSignupModal character={cloneYourCrushCharacter} />
+      )}
+
+      {/* Signup prompt banner for anonymous users - hide if showing Clone Your Crush modal */}
+      {!isAuthenticated && anonymousSession && !cloneYourCrushCharacter && (
         <SignupPromptBanner
           messageCount={anonymousSession.messageCount}
           messagesLimit={anonymousSession.messagesLimit}
         />
+      )}
+
+      {/* Loading state while saving character */}
+      {isSavingCharacter && (
+        <div className="absolute inset-0 z-40 flex items-center justify-center bg-black/60 backdrop-blur-sm">
+          <div className="text-center space-y-3">
+            <div className="w-12 h-12 border-4 border-pink-500/30 border-t-pink-500 rounded-full animate-spin mx-auto" />
+            <p className="text-white/80 text-sm">Creating your character...</p>
+          </div>
+        </div>
       )}
 
       <div className="flex flex-1 min-h-0 flex-col gap-6 overflow-hidden p-6">
@@ -97,7 +132,8 @@ export function ElizaPageClient({
           />
 
           <ElizaChatInterface
-            availableCharacters={initialCharacters}
+            key={initialCharacterId || 'default'}
+            availableCharacters={availableCharacters}
             initialCharacterId={initialCharacterId}
           />
         </div>
