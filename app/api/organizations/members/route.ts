@@ -17,7 +17,9 @@ async function handleGET() {
       );
     }
 
-    const members = await usersService.listByOrganization(user.organization_id!);
+    const members = await usersService.listByOrganization(
+      user.organization_id!,
+    );
 
     return NextResponse.json({
       success: true,

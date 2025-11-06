@@ -1,18 +1,18 @@
 import type { Metadata } from "next";
 import { requireAuth } from "@/lib/auth";
-import { AgentMarketplaceClient } from "./agent-marketplace-client";
+import { MyAgentsClient } from "./my-agents";
 import { generatePageMetadata, ROUTE_METADATA } from "@/lib/seo";
 
 export const metadata: Metadata = generatePageMetadata({
-  ...ROUTE_METADATA.agentMarketplace,
-  path: "/dashboard/agent-marketplace",
+  ...ROUTE_METADATA.myAgents,
+  path: "/dashboard/my-agents",
   noIndex: true,
 });
 
 export const dynamic = "force-dynamic";
 
-export default async function AgentMarketplacePage() {
+export default async function MyAgentsPage() {
   await requireAuth();
 
-  return <AgentMarketplaceClient />;
+  return <MyAgentsClient />;
 }

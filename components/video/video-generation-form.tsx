@@ -102,21 +102,32 @@ export function VideoGenerationForm({
               Model preset
             </label>
             <Select value={selectedModel} onValueChange={onModelChange}>
-              <SelectTrigger className="rounded-none border-white/10 bg-black/40 text-white focus:ring-1 focus:ring-[#FF5800]">
-                <SelectValue placeholder="Select a model" />
+              <SelectTrigger className="rounded-none border-white/10 bg-black/40 text-white focus:ring-1 focus:ring-[#FF5800] h-auto min-h-[60px]">
+                <SelectValue placeholder="Select a model">
+                  {activeModel && (
+                    <div className="flex flex-col gap-1 py-1 text-left">
+                      <span className="text-sm font-medium text-white">
+                        {activeModel.label}
+                      </span>
+                      <span className="text-xs text-white/60 leading-relaxed">
+                        {activeModel.description}
+                      </span>
+                    </div>
+                  )}
+                </SelectValue>
               </SelectTrigger>
               <SelectContent className="rounded-none border-white/10 bg-black/90">
                 {models.map((model) => (
                   <SelectItem
                     key={model.id}
                     value={model.id}
-                    className="rounded-none text-white hover:bg-white/10 focus:bg-white/10"
+                    className="rounded-none text-white hover:bg-white/10 focus:bg-white/10 py-3"
                   >
-                    <div className="flex flex-col">
+                    <div className="flex flex-col gap-1.5 py-1">
                       <span className="text-sm font-medium text-white">
                         {model.label}
                       </span>
-                      <span className="text-xs text-white/60">
+                      <span className="text-xs text-white/60 leading-relaxed">
                         {model.description}
                       </span>
                     </div>

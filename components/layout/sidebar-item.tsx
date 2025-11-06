@@ -5,7 +5,7 @@
 "use client";
 
 import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import { usePrivy } from "@privy-io/react-auth";
 import { Lock } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -17,12 +17,13 @@ interface SidebarNavigationItemProps {
 
 export function SidebarNavigationItem({ item }: SidebarNavigationItemProps) {
   const pathname = usePathname();
-  const { authenticated, login } = usePrivy();
-  
+  const router = useRouter();
+  const { authenticated } = usePrivy();
+
   const isActive =
     pathname === item.href || pathname.startsWith(`${item.href}/`);
   const Icon = item.icon;
-  
+
   // Check if this item is locked for anonymous users
   const isLocked = !authenticated && item.freeAllowed === false;
 
@@ -32,7 +33,7 @@ export function SidebarNavigationItem({ item }: SidebarNavigationItemProps) {
       <button
         onClick={(e) => {
           e.preventDefault();
-          login();
+          router.push("/login");
         }}
         className={cn(
           "relative flex w-full items-center gap-3 rounded-none px-3 py-2.5 text-sm font-medium transition-all duration-200",

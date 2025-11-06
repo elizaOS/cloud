@@ -49,9 +49,15 @@ export async function POST(request: NextRequest) {
     let totalSize = 0;
 
     for (const [key, value] of formData.entries()) {
-      if (key.startsWith("file") && value instanceof File) {
-        files.push(value);
-        totalSize += value.size;
+      if (
+        key.startsWith("file") &&
+        typeof value === "object" &&
+        value !== null &&
+        "size" in value &&
+        "name" in value
+      ) {
+        files.push(value as File);
+        totalSize += (value as File).size;
       }
     }
 

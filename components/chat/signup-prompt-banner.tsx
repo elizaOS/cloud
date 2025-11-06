@@ -1,6 +1,6 @@
 /**
  * Signup Prompt Banner for Anonymous Users
- * 
+ *
  * Shows progressive signup prompts based on message count
  * - After 3 messages: Subtle encouragement
  * - After 5 messages: Show remaining count
@@ -103,10 +103,7 @@ export function SignupPromptBanner({
             style={{ backgroundColor: `${config.iconColor}20` }}
           >
             <Icon
-              className={cn(
-                "h-5 w-5",
-                config.urgent && "animate-pulse",
-              )}
+              className={cn("h-5 w-5", config.urgent && "animate-pulse")}
               style={{ color: config.iconColor }}
             />
           </div>
@@ -147,4 +144,3 @@ export function SignupPromptBanner({
     </div>
   );
 }
-

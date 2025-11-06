@@ -10,10 +10,10 @@ import { PageHeaderProvider } from "@/components/layout/page-header-context";
 
 /**
  * Dashboard Layout - Supports both authenticated and anonymous users
- * 
+ *
  * Free Mode Paths (accessible without auth):
  * - /dashboard/eliza - ElizaOS agent chat (FREE!)
- * 
+ *
  * Protected Paths (require authentication):
  * - All other /dashboard/* routes
  */
@@ -36,10 +36,10 @@ export default function DashboardLayout({
     pathname?.startsWith(path),
   );
 
-  // Redirect to home if not authenticated and trying to access protected path
+  // Redirect to login if not authenticated and trying to access protected path
   useEffect(() => {
     if (ready && !authenticated && !isFreeModePath) {
-      router.push("/");
+      router.push("/login");
     }
   }, [ready, authenticated, isFreeModePath, router]);
 
@@ -88,7 +88,7 @@ export default function DashboardLayout({
 
           {/* Main Content Area */}
           <main className="flex-1 overflow-y-auto bg-[#0A0A0A]">
-            <div className="h-full px-4 py-4 md:px-6 md:py-6">{children}</div>
+            <div className="h-full px-2 py-3 md:px-6 md:py-6">{children}</div>
           </main>
         </div>
       </div>
