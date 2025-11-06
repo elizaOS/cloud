@@ -2,6 +2,7 @@ import type { MetadataRoute } from "next";
 import { db } from "@/db/client";
 import { userCharacters } from "@/db/schemas/user-characters";
 import { eq } from "drizzle-orm";
+import { getAllDocSlugs } from "@/lib/docs/metadata";
 
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   // Get base URL with automatic Vercel URL detection as fallback
@@ -102,7 +103,22 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
       changeFrequency: "weekly",
       priority: 0.6,
     },
+    {
+      url: `${baseUrl}/docs`,
+      lastModified: new Date(),
+      changeFrequency: "weekly",
+      priority: 0.9,
+    },
   ];
+
+  // Add documentation pages
+  const docSlugs = getAllDocSlugs();
+  const docPages: MetadataRoute.Sitemap = docSlugs.map((slug) => ({
+    url: `${baseUrl}/docs/${slug}`,
+    lastModified: new Date(),
+    changeFrequency: "weekly" as const,
+    priority: 0.8,
+  }));
 
   try {
     const publicCharacters = await db
@@ -123,9 +139,9 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
       }),
     );
 
-    return [...staticPages, ...characterPages];
+    return [...staticPages, ...docPages, ...characterPages];
   } catch (error) {
     console.error("Error generating sitemap:", error);
-    return staticPages;
+    return [...staticPages, ...docPages];
   }
 }

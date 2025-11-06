@@ -37,6 +37,22 @@ export default function LandingHeader() {
             <span className="text-white text-xl font-bold">ELIZA</span>
           </div>
         </Link>
+        
+        <nav className="hidden md:flex items-center gap-6">
+          <Link
+            href="/docs"
+            className="text-white/70 hover:text-white transition-colors text-sm font-medium"
+          >
+            Docs
+          </Link>
+          <Link
+            href="/marketplace"
+            className="text-white/70 hover:text-white transition-colors text-sm font-medium"
+          >
+            Marketplace
+          </Link>
+        </nav>
+
         <div className="flex items-center gap-3">
           {authenticated ? (
             <>

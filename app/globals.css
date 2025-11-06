@@ -357,6 +357,26 @@
     background-color: #252527;
     color: rgb(255 255 255);
   }
+
+  /* Documentation anchor links */
+  .anchor-link {
+    text-decoration: none;
+    position: relative;
+  }
+
+  .anchor-link:hover::before {
+    content: "#";
+    position: absolute;
+    left: -0.8em;
+    color: #ff5800;
+    font-weight: normal;
+    opacity: 0.6;
+  }
+
+  /* Smooth scroll behavior for anchor navigation */
+  html {
+    scroll-behavior: smooth;
+  }
 }
 
 /* Custom Scrollbar Styling */
