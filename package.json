@@ -109,6 +109,7 @@
     "drizzle-orm": "^0.44.7",
     "embla-carousel-react": "^8.6.0",
     "file-type": "^21.0.0",
+    "github-slugger": "^2.0.0",
     "gray-matter": "^4.0.3",
     "highlight.js": "^11.11.1",
     "isomorphic-dompurify": "^2.31.0",
