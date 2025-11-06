@@ -4,10 +4,7 @@
 
 import {
   HomeIcon,
-  PersonIcon,
-  TokensIcon,
   BarChartIcon,
-  ChatBubbleIcon,
   ImageIcon,
   LayersIcon,
 } from "@radix-ui/react-icons";
@@ -15,7 +12,6 @@ import {
   Server,
   HardDrive,
   Video,
-  CreditCard,
   UserCog,
   Bot,
   Code,
@@ -142,16 +138,11 @@ export const sidebarSections: SidebarSection[] = [
         icon: HardDrive,
         freeAllowed: false, // Requires signup
       },
-    ],
-  },
-  {
-    title: "Settings",
-    items: [
       {
-        id: "account",
-        label: "Account",
-        href: "/dashboard/account",
-        icon: PersonIcon,
+        id: "analytics",
+        label: "Analytics",
+        href: "/dashboard/analytics",
+        icon: BarChartIcon,
         freeAllowed: false, // Requires signup
       },
       {
@@ -159,27 +150,6 @@ export const sidebarSections: SidebarSection[] = [
         label: "Organization",
         href: "/dashboard/organization",
         icon: Building2,
-        freeAllowed: false, // Requires signup
-      },
-      {
-        id: "billing",
-        label: "Billing",
-        href: "/dashboard/billing",
-        icon: CreditCard,
-        freeAllowed: false, // Requires signup
-      },
-      {
-        id: "api-keys",
-        label: "API Keys",
-        href: "/dashboard/api-keys",
-        icon: TokensIcon,
-        freeAllowed: false, // Requires signup
-      },
-      {
-        id: "analytics",
-        label: "Analytics",
-        href: "/dashboard/analytics",
-        icon: BarChartIcon,
         freeAllowed: false, // Requires signup
       },
     ],

@@ -625,12 +625,12 @@ class AgentRuntimeManager {
 
     if (!isConnectionCached) {
       // Connection not cached - ensure it exists and cache the result
-      
+
       // Use ensureConnections (plural) for more robust entity/room creation
-      // This avoids the core library bug in ensureConnection (singular) that 
+      // This avoids the core library bug in ensureConnection (singular) that
       // improperly formats the names array parameter
       const worldId = stringToUuid("eliza-world") as UUID;
-      
+
       await runtime.ensureConnections(
         [
           {
@@ -742,7 +742,10 @@ class AgentRuntimeManager {
         },
       };
 
-      elizaLogger.debug("#Eliza", "Agent response generated (already saved by plugin)");
+      elizaLogger.debug(
+        "#Eliza",
+        "Agent response generated (already saved by plugin)",
+      );
     } else {
       elizaLogger.warn(
         "#Eliza",
