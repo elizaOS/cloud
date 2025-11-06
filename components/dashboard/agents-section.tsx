@@ -45,11 +45,11 @@ export function AgentsSection({ agents, className }: AgentsSectionProps) {
             Manage and interact with your AI agents
           </p>
         </div>
-        <BrandButton asChild>
-          <Link href="/dashboard/my-agents">
-            <Plus className="h-4 w-4 mr-2" />
-            New Agent
-          </Link>
+        <BrandButton
+          onClick={() => (window.location.href = "/dashboard/my-agents")}
+          icon={<Plus className="h-4 w-4" />}
+        >
+          New Agent
         </BrandButton>
       </div>
 
@@ -152,17 +152,20 @@ function AgentsEmptyState() {
           </p>
         </div>
         <div className="flex gap-3 justify-center pt-4">
-          <BrandButton asChild>
-            <Link href="/dashboard/character-creator">
-              <Plus className="h-4 w-4 mr-2" />
-              Create Agent
-            </Link>
+          <BrandButton
+            onClick={() =>
+              (window.location.href = "/dashboard/character-creator")
+            }
+            icon={<Plus className="h-4 w-4" />}
+          >
+            Create Agent
           </BrandButton>
-          <BrandButton variant="outline" asChild>
-            <Link href="/marketplace">
-              <Sparkles className="h-4 w-4 mr-2" />
-              Browse Marketplace
-            </Link>
+          <BrandButton
+            onClick={() => (window.location.href = "/marketplace")}
+            icon={<Sparkles className="h-4 w-4" />}
+            variant="outline"
+          >
+            Browse Marketplace
           </BrandButton>
         </div>
       </div>
