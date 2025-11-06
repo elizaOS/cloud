@@ -372,7 +372,7 @@ export function BillingTab({ user }: BillingTabProps) {
                         }}
                       />
                       <span className="relative z-10 text-black font-mono font-medium text-sm">
-                        {paymentMethods.length === 0 ? 'Add payment method' : 'Edit'}
+                        {paymentMethods.length === 0 ? 'Add Credit Card' : 'Edit'}
                       </span>
                     </button>
                   </div>
@@ -470,9 +470,9 @@ export function BillingTab({ user }: BillingTabProps) {
           <div className="space-y-0 w-full">
             {/* Table Header */}
             <div className="flex w-full">
-              <div className="backdrop-blur-sm bg-[rgba(10,10,10,0.75)] border border-brand-surface flex-[1.1] p-4">
+              <div className="backdrop-blur-sm bg-[rgba(10,10,10,0.75)] border border-brand-surface flex-[1.5] p-4">
                 <p className="text-sm font-mono font-bold text-white uppercase">
-                  Date
+                  Date & Time
                 </p>
               </div>
               <div className="backdrop-blur-sm bg-[rgba(10,10,10,0.75)] border-t border-r border-b border-brand-surface flex-1 p-4">
@@ -504,8 +504,8 @@ export function BillingTab({ user }: BillingTabProps) {
             ) : (
               invoices.map((invoice) => (
                 <div key={invoice.id} className="flex w-full">
-                  <div className="backdrop-blur-sm bg-[rgba(10,10,10,0.75)] border-l border-r border-b border-brand-surface flex-[1.1] p-4">
-                    <p className="text-sm font-mono text-white uppercase">
+                  <div className="backdrop-blur-sm bg-[rgba(10,10,10,0.75)] border-l border-r border-b border-brand-surface flex-[1.5] p-4">
+                    <p className="text-sm font-mono text-white">
                       {invoice.date}
                     </p>
                   </div>
