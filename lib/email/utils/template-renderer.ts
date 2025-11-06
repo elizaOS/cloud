@@ -105,6 +105,7 @@ export function renderAutoTopUpSuccessTemplate(data: AutoTopUpSuccessEmailData):
     previousBalance: data.previousBalance.toFixed(2),
     newBalance: data.newBalance.toFixed(2),
     paymentMethod: data.paymentMethod,
+    invoiceUrl: data.invoiceUrl,
     billingUrl: data.billingUrl,
     currentYear: new Date().getFullYear(),
   };
@@ -116,30 +117,44 @@ export function renderAutoTopUpSuccessTemplate(data: AutoTopUpSuccessEmailData):
   <meta charset="utf-8">
   <title>Auto Top-Up Successful</title>
 </head>
-<body style="font-family: monospace; max-width: 600px; margin: 0 auto; padding: 20px;">
-  <h2 style="color: #FF5800;">✓ Auto Top-Up Successful</h2>
-  <p>Hi ${templateData.organizationName} team,</p>
-  <p>Your account has been automatically topped up with <strong>$${templateData.amount}</strong>.</p>
-  <table style="width: 100%; margin: 20px 0; border-collapse: collapse;">
-    <tr style="border-bottom: 1px solid #ddd;">
-      <td style="padding: 10px 0;"><strong>Previous Balance:</strong></td>
-      <td style="text-align: right;">$${templateData.previousBalance}</td>
-    </tr>
-    <tr style="border-bottom: 1px solid #ddd;">
-      <td style="padding: 10px 0;"><strong>Amount Added:</strong></td>
-      <td style="text-align: right; color: #FF5800;">+$${templateData.amount}</td>
-    </tr>
-    <tr style="border-bottom: 1px solid #ddd;">
-      <td style="padding: 10px 0;"><strong>New Balance:</strong></td>
-      <td style="text-align: right;"><strong>$${templateData.newBalance}</strong></td>
-    </tr>
-    <tr>
-      <td style="padding: 10px 0;"><strong>Payment Method:</strong></td>
-      <td style="text-align: right;">${templateData.paymentMethod}</td>
-    </tr>
-  </table>
-  <p><a href="${templateData.billingUrl}" style="color: #FF5800;">View Billing Details →</a></p>
-  <p style="color: #666; font-size: 12px; margin-top: 40px;">© ${templateData.currentYear} Eliza Cloud. All rights reserved.</p>
+<body style="font-family: monospace; max-width: 600px; margin: 0 auto; padding: 20px; background-color: #f5f5f5;">
+  <div style="background-color: white; padding: 30px; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
+    <h2 style="color: #FF5800; margin-top: 0;">✓ Auto Top-Up Successful</h2>
+    <p style="color: #333; line-height: 1.6;">Hi ${templateData.organizationName} team,</p>
+    <p style="color: #333; line-height: 1.6;">Your account has been automatically topped up with <strong>$${templateData.amount}</strong>.</p>
+
+    <div style="background-color: #f9f9f9; padding: 20px; border-radius: 6px; margin: 20px 0;">
+      <h3 style="color: #333; margin-top: 0; font-size: 16px;">Transaction Details</h3>
+      <table style="width: 100%; border-collapse: collapse;">
+        <tr style="border-bottom: 1px solid #ddd;">
+          <td style="padding: 10px 0; color: #666;"><strong>Previous Balance:</strong></td>
+          <td style="text-align: right; padding: 10px 0; color: #333;">$${templateData.previousBalance}</td>
+        </tr>
+        <tr style="border-bottom: 1px solid #ddd;">
+          <td style="padding: 10px 0; color: #666;"><strong>Amount Added:</strong></td>
+          <td style="text-align: right; padding: 10px 0; color: #FF5800; font-weight: bold;">+$${templateData.amount}</td>
+        </tr>
+        <tr style="border-bottom: 1px solid #ddd;">
+          <td style="padding: 10px 0; color: #666;"><strong>New Balance:</strong></td>
+          <td style="text-align: right; padding: 10px 0; color: #333; font-weight: bold; font-size: 18px;">$${templateData.newBalance}</td>
+        </tr>
+        <tr>
+          <td style="padding: 10px 0; color: #666;"><strong>Payment Method:</strong></td>
+          <td style="text-align: right; padding: 10px 0; color: #333;">${templateData.paymentMethod}</td>
+        </tr>
+      </table>
+    </div>
+
+    <p style="color: #666; font-size: 14px; line-height: 1.6; margin-top: 30px;">
+      This automatic top-up ensures your services continue running without interruption. You can manage your auto top-up settings in your dashboard.
+    </p>
+
+    <hr style="border: none; border-top: 1px solid #ddd; margin: 30px 0;">
+
+    <p style="color: #999; font-size: 12px; text-align: center; margin-bottom: 0;">
+      © ${templateData.currentYear} Eliza Cloud. All rights reserved.
+    </p>
+  </div>
 </body>
 </html>`;
 
@@ -150,12 +165,18 @@ Hi ${templateData.organizationName} team,
 
 Your account has been automatically topped up with $${templateData.amount}.
 
-Previous Balance: $${templateData.previousBalance}
-Amount Added: +$${templateData.amount}
-New Balance: $${templateData.newBalance}
-Payment Method: ${templateData.paymentMethod}
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+TRANSACTION DETAILS
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
-View Billing Details: ${templateData.billingUrl}
+Previous Balance:    $${templateData.previousBalance}
+Amount Added:        +$${templateData.amount}
+New Balance:         $${templateData.newBalance}
+Payment Method:      ${templateData.paymentMethod}
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+This automatic top-up ensures your services continue running without interruption. You can manage your auto top-up settings in your dashboard.
 
 © ${templateData.currentYear} Eliza Cloud. All rights reserved.`;
 
@@ -181,20 +202,34 @@ export function renderAutoTopUpDisabledTemplate(data: AutoTopUpDisabledEmailData
   <meta charset="utf-8">
   <title>Auto Top-Up Disabled</title>
 </head>
-<body style="font-family: monospace; max-width: 600px; margin: 0 auto; padding: 20px;">
-  <h2 style="color: #dc2626;">⚠ Auto Top-Up Disabled</h2>
-  <p>Hi ${templateData.organizationName} team,</p>
-  <p>Your auto top-up feature has been automatically disabled.</p>
-  <p><strong>Reason:</strong> ${templateData.reason}</p>
-  <p><strong>Current Balance:</strong> $${templateData.currentBalance}</p>
-  <h3>What should you do?</h3>
-  <ol>
-    <li>Review your payment method settings</li>
-    <li>Update your payment information if needed</li>
-    <li>Re-enable auto top-up in your settings</li>
-  </ol>
-  <p><a href="${templateData.settingsUrl}" style="display: inline-block; background: #FF5800; color: white; padding: 12px 24px; text-decoration: none; border-radius: 4px;">Update Settings →</a></p>
-  <p style="color: #666; font-size: 12px; margin-top: 40px;">© ${templateData.currentYear} Eliza Cloud. All rights reserved.</p>
+<body style="font-family: monospace; max-width: 600px; margin: 0 auto; padding: 20px; background-color: #f5f5f5;">
+  <div style="background-color: white; padding: 30px; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
+    <h2 style="color: #dc2626; margin-top: 0;">⚠ Auto Top-Up Disabled</h2>
+    <p style="color: #333; line-height: 1.6;">Hi ${templateData.organizationName} team,</p>
+    <p style="color: #333; line-height: 1.6;">Your auto top-up feature has been automatically disabled.</p>
+
+    <div style="background-color: #fef2f2; padding: 20px; border-radius: 6px; margin: 20px 0; border-left: 4px solid #dc2626;">
+      <p style="margin: 0; color: #333;"><strong>Reason:</strong> ${templateData.reason}</p>
+      <p style="margin: 10px 0 0 0; color: #333;"><strong>Current Balance:</strong> $${templateData.currentBalance}</p>
+    </div>
+
+    <h3 style="color: #333; font-size: 16px; margin-top: 30px;">What should you do?</h3>
+    <ol style="color: #666; line-height: 1.8; padding-left: 20px;">
+      <li>Log in to your dashboard and review your payment method settings</li>
+      <li>Update your payment information if needed</li>
+      <li>Re-enable auto top-up in your billing settings</li>
+    </ol>
+
+    <p style="color: #666; font-size: 14px; line-height: 1.6; margin-top: 30px;">
+      To prevent service interruptions, please address this issue as soon as possible. Your current balance is displayed above.
+    </p>
+
+    <hr style="border: none; border-top: 1px solid #ddd; margin: 30px 0;">
+
+    <p style="color: #999; font-size: 12px; text-align: center; margin-bottom: 0;">
+      © ${templateData.currentYear} Eliza Cloud. All rights reserved.
+    </p>
+  </div>
 </body>
 </html>`;
 
@@ -205,15 +240,22 @@ Hi ${templateData.organizationName} team,
 
 Your auto top-up feature has been automatically disabled.
 
-Reason: ${templateData.reason}
-Current Balance: $${templateData.currentBalance}
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+DETAILS
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+Reason:              ${templateData.reason}
+Current Balance:     $${templateData.currentBalance}
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
 What should you do?
-1. Review your payment method settings
-2. Update your payment information if needed
-3. Re-enable auto top-up in your settings
 
-Update Settings: ${templateData.settingsUrl}
+1. Log in to your dashboard and review your payment method settings
+2. Update your payment information if needed
+3. Re-enable auto top-up in your billing settings
+
+To prevent service interruptions, please address this issue as soon as possible. Your current balance is displayed above.
 
 © ${templateData.currentYear} Eliza Cloud. All rights reserved.`;
 

@@ -23,13 +23,20 @@ Credits Added:       +${{creditsAdded}}
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 New Balance:         ${{newBalance}}
 
-View Invoice Details: {{invoiceUrl}}
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+ADDITIONAL DETAILS
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
-Need help? Visit your dashboard or contact our support team.
-Dashboard: {{dashboardUrl}}
+Invoice Number:      {{invoiceNumber}}
+Transaction Date:    {{transactionDate}}
+Payment Method:      {{paymentMethod}}
 
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
+This transaction has been completed successfully. All details are included above for your records. If you need assistance, please contact our support team.
+
 Thank you for using Eliza Cloud!
+
+Questions? Contact us at support@eliza.cloud
 
 © {{currentYear}} Eliza Cloud. All rights reserved.

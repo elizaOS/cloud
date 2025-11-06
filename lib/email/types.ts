@@ -44,6 +44,7 @@ export interface AutoTopUpSuccessEmailData {
   previousBalance: number;
   newBalance: number;
   paymentMethod: string;
+  invoiceUrl: string;
   billingUrl: string;
 }
 

@@ -70,6 +70,9 @@ async function main() {
   console.log("");
 
   try {
+    const appUrl = process.env.NEXT_PUBLIC_APP_URL || "https://eliza.cloud";
+    const testPaymentIntentId = "pi_test_123456789";
+
     const result = await emailService.sendAutoTopUpSuccessEmail({
       email: recipientEmail,
       organizationName: org.name,
@@ -77,7 +80,8 @@ async function main() {
       previousBalance: 3.5,
       newBalance: 13.5,
       paymentMethod: "Test Card ••••4242",
-      billingUrl: `${process.env.NEXT_PUBLIC_APP_URL}/dashboard/settings`,
+      invoiceUrl: `${appUrl}/dashboard/invoices/${testPaymentIntentId}`,
+      billingUrl: `${appUrl}/dashboard/settings`,
     });
 
     console.log("");

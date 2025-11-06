@@ -81,6 +81,9 @@ async function main() {
 
   console.log("[5] Testing emailService.sendAutoTopUpSuccessEmail()...");
   console.log("");
+  const appUrl = process.env.NEXT_PUBLIC_APP_URL || "https://eliza.cloud";
+  const testPaymentIntentId = "pi_test_debug_123456789";
+
   console.log("Calling emailService.sendAutoTopUpSuccessEmail with:");
   console.log(JSON.stringify({
     email: recipientEmail,
@@ -89,7 +92,8 @@ async function main() {
     previousBalance: 3.5,
     newBalance: 13.5,
     paymentMethod: "Test Card ••••4242",
-    billingUrl: `${process.env.NEXT_PUBLIC_APP_URL}/dashboard/settings`,
+    invoiceUrl: `${appUrl}/dashboard/invoices/${testPaymentIntentId}`,
+    billingUrl: `${appUrl}/dashboard/settings`,
   }, null, 2));
   console.log("");
 
@@ -101,7 +105,8 @@ async function main() {
       previousBalance: 3.5,
       newBalance: 13.5,
       paymentMethod: "Test Card ••••4242",
-      billingUrl: `${process.env.NEXT_PUBLIC_APP_URL}/dashboard/settings`,
+      invoiceUrl: `${appUrl}/dashboard/invoices/${testPaymentIntentId}`,
+      billingUrl: `${appUrl}/dashboard/settings`,
     });
 
     console.log("");
