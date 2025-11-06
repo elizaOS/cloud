@@ -3,7 +3,8 @@ import { generatePageMetadata } from "@/lib/seo";
 
 export const metadata: Metadata = generatePageMetadata({
   title: "Login",
-  description: "Sign in to elizaOS Platform - Access AI agent development tools, deploy intelligent agents, and manage your account.",
+  description:
+    "Sign in to elizaOS Platform - Access AI agent development tools, deploy intelligent agents, and manage your account.",
   path: "/login",
   keywords: ["login", "sign in", "authentication", "elizaOS", "AI platform"],
 });
@@ -15,4 +16,3 @@ export default function LoginLayout({
 }) {
   return children;
 }
-

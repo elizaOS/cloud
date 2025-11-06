@@ -7,9 +7,16 @@ import { generatePageMetadata } from "@/lib/seo";
 
 export const metadata: Metadata = generatePageMetadata({
   title: "Terms of Service",
-  description: "Terms of Service for elizaOS Platform - Read our terms and conditions for using our AI agent development platform.",
+  description:
+    "Terms of Service for elizaOS Platform - Read our terms and conditions for using our AI agent development platform.",
   path: "/terms-of-service",
-  keywords: ["terms of service", "terms and conditions", "legal", "agreement", "elizaOS"],
+  keywords: [
+    "terms of service",
+    "terms and conditions",
+    "legal",
+    "agreement",
+    "elizaOS",
+  ],
 });
 
 export default function TermsOfServicePage() {
