@@ -4,7 +4,8 @@
  */
 
 export { CornerBrackets } from "./corner-brackets";
-export { BrandButton, brandButtonVariants } from "./brand-button";
+export { LockOnButton, BrandButton } from "./lock-on-button";
+export type { LockOnButtonProps } from "./lock-on-button";
 export {
   BrandTabs,
   BrandTabsList,
