@@ -90,10 +90,7 @@ export class MyAgentsService {
         statsMap =
           await agentDiscoveryService.getAgentStatisticsBatch(characterIds);
       } catch (error) {
-        logger.warn(
-          `[My Agents Service] Failed to batch fetch stats:`,
-          error,
-        );
+        logger.warn(`[My Agents Service] Failed to batch fetch stats:`, error);
         statsMap = new Map();
       }
 
@@ -660,9 +657,7 @@ export class MyAgentsService {
       agentDiscoveryService.invalidateAgentListCache(organizationId),
     ]);
 
-    logger.debug(
-      `[My Agents Service] Invalidated caches for user: ${userId}`,
-    );
+    logger.debug(`[My Agents Service] Invalidated caches for user: ${userId}`);
   }
 }
 
