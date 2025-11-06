@@ -10,6 +10,13 @@ import {
 import { CornerBrackets } from "@/components/brand";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { ChevronDown, X, CheckSquare, Loader2 } from "lucide-react";
 import { useStripe, useElements, CardElement } from "@stripe/react-stripe-js";
 import { StripeCardElement } from "@/components/payment/stripe-card-element";
@@ -30,6 +37,72 @@ export interface PaymentFormData {
   addressLine1: string;
 }
 
+const COUNTRIES = [
+  { code: "US", name: "United States" },
+  { code: "GB", name: "United Kingdom" },
+  { code: "CA", name: "Canada" },
+  { code: "AU", name: "Australia" },
+  { code: "DE", name: "Germany" },
+  { code: "FR", name: "France" },
+  { code: "ES", name: "Spain" },
+  { code: "IT", name: "Italy" },
+  { code: "NL", name: "Netherlands" },
+  { code: "PT", name: "Portugal" },
+  { code: "BE", name: "Belgium" },
+  { code: "AT", name: "Austria" },
+  { code: "CH", name: "Switzerland" },
+  { code: "SE", name: "Sweden" },
+  { code: "NO", name: "Norway" },
+  { code: "DK", name: "Denmark" },
+  { code: "FI", name: "Finland" },
+  { code: "IE", name: "Ireland" },
+  { code: "PL", name: "Poland" },
+  { code: "GR", name: "Greece" },
+  { code: "CZ", name: "Czech Republic" },
+  { code: "RO", name: "Romania" },
+  { code: "HU", name: "Hungary" },
+  { code: "BG", name: "Bulgaria" },
+  { code: "HR", name: "Croatia" },
+  { code: "SI", name: "Slovenia" },
+  { code: "SK", name: "Slovakia" },
+  { code: "LT", name: "Lithuania" },
+  { code: "LV", name: "Latvia" },
+  { code: "EE", name: "Estonia" },
+  { code: "LU", name: "Luxembourg" },
+  { code: "MT", name: "Malta" },
+  { code: "CY", name: "Cyprus" },
+  { code: "JP", name: "Japan" },
+  { code: "CN", name: "China" },
+  { code: "IN", name: "India" },
+  { code: "KR", name: "South Korea" },
+  { code: "SG", name: "Singapore" },
+  { code: "HK", name: "Hong Kong" },
+  { code: "TW", name: "Taiwan" },
+  { code: "MY", name: "Malaysia" },
+  { code: "TH", name: "Thailand" },
+  { code: "ID", name: "Indonesia" },
+  { code: "PH", name: "Philippines" },
+  { code: "VN", name: "Vietnam" },
+  { code: "NZ", name: "New Zealand" },
+  { code: "MX", name: "Mexico" },
+  { code: "BR", name: "Brazil" },
+  { code: "AR", name: "Argentina" },
+  { code: "CL", name: "Chile" },
+  { code: "CO", name: "Colombia" },
+  { code: "PE", name: "Peru" },
+  { code: "VE", name: "Venezuela" },
+  { code: "ZA", name: "South Africa" },
+  { code: "EG", name: "Egypt" },
+  { code: "NG", name: "Nigeria" },
+  { code: "KE", name: "Kenya" },
+  { code: "IL", name: "Israel" },
+  { code: "AE", name: "United Arab Emirates" },
+  { code: "SA", name: "Saudi Arabia" },
+  { code: "TR", name: "Turkey" },
+  { code: "RU", name: "Russia" },
+  { code: "UA", name: "Ukraine" },
+];
+
 export function UpdatePaymentModal({
   open,
   onOpenChange,
@@ -41,7 +114,7 @@ export function UpdatePaymentModal({
   >("link");
   const [email, setEmail] = useState("bil****@elizaos.ai");
   const [fullName, setFullName] = useState("");
-  const [country, setCountry] = useState("Portugal");
+  const [country, setCountry] = useState("PT");
   const [addressLine1, setAddressLine1] = useState("");
   const [showLinkDropdown, setShowLinkDropdown] = useState(true);
   const [loading, setLoading] = useState(false);
@@ -248,13 +321,22 @@ export function UpdatePaymentModal({
                 <Label className="text-base font-mono font-medium text-[#e1e1e1]">
                   Country or region
                 </Label>
-                <Input
-                  type="text"
-                  value={country}
-                  onChange={(e) => setCountry(e.target.value)}
-                  className="backdrop-blur-sm bg-[rgba(29,29,29,0.3)] border border-[rgba(255,255,255,0.15)] text-[#717171] h-11"
-                  placeholder="Portugal"
-                />
+                <Select value={country} onValueChange={setCountry}>
+                  <SelectTrigger className="w-full backdrop-blur-sm bg-[rgba(29,29,29,0.3)] border border-[rgba(255,255,255,0.15)] text-[#717171] h-11 font-mono">
+                    <SelectValue placeholder="Select country" />
+                  </SelectTrigger>
+                  <SelectContent className="max-h-[300px] bg-neutral-950 border border-[rgba(255,255,255,0.15)]">
+                    {COUNTRIES.map((country) => (
+                      <SelectItem
+                        key={country.code}
+                        value={country.code}
+                        className="font-mono text-[#e1e1e1] hover:bg-[rgba(255,255,255,0.05)] focus:bg-[rgba(255,255,255,0.08)] cursor-pointer"
+                      >
+                        {country.code} ({country.name})
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
               </div>
 
               {/* Address Line 1 */}
