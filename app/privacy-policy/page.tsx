@@ -7,7 +7,8 @@ import { generatePageMetadata } from "@/lib/seo";
 
 export const metadata: Metadata = generatePageMetadata({
   title: "Privacy Policy",
-  description: "Privacy Policy for elizaOS Platform - Learn how we collect, use, and protect your data.",
+  description:
+    "Privacy Policy for elizaOS Platform - Learn how we collect, use, and protect your data.",
   path: "/privacy-policy",
   keywords: ["privacy policy", "data protection", "GDPR", "privacy", "elizaOS"],
 });

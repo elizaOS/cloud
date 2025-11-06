@@ -1,9 +1,5 @@
 import { useState, useCallback, useMemo } from "react";
-import type {
-  SearchFilters,
-  SortBy,
-  CategoryId,
-} from "@/lib/types/my-agents";
+import type { SearchFilters, SortBy, CategoryId } from "@/lib/types/my-agents";
 
 export function useMyAgentsFilters() {
   const [activeCategory, setActiveCategory] = useState<CategoryId | null>(null);
