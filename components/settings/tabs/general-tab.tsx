@@ -14,18 +14,62 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Switch } from "@/components/ui/switch";
+import { toast } from "sonner";
+import { useRouter } from "next/navigation";
 
 interface GeneralTabProps {
   user: UserWithOrganization;
 }
 
 export function GeneralTab({ user }: GeneralTabProps) {
+  const router = useRouter();
   const [fullName, setFullName] = useState(user.name || "");
-  const [nickname, setNickname] = useState("");
-  const [workFunction, setWorkFunction] = useState("");
-  const [preferences, setPreferences] = useState("");
-  const [responseNotifications, setResponseNotifications] = useState(true);
-  const [emailNotifications, setEmailNotifications] = useState(true);
+  const [nickname, setNickname] = useState(user.nickname || "");
+  const [workFunction, setWorkFunction] = useState(user.work_function || "");
+  const [preferences, setPreferences] = useState(user.preferences || "");
+  const [responseNotifications, setResponseNotifications] = useState(
+    user.response_notifications ?? true,
+  );
+  const [emailNotifications, setEmailNotifications] = useState(
+    user.email_notifications ?? true,
+  );
+  const [saving, setSaving] = useState(false);
+
+  const handleSave = async () => {
+    if (saving) return;
+    setSaving(true);
+
+    try {
+      const response = await fetch("/api/v1/user", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          name: fullName,
+          nickname,
+          work_function: workFunction,
+          preferences,
+          response_notifications: responseNotifications,
+          email_notifications: emailNotifications,
+        }),
+      });
+
+      const data = await response.json();
+
+      if (!response.ok || !data.success) {
+        throw new Error(data.error || "Failed to save settings");
+      }
+
+      toast.success("Settings saved successfully");
+      router.refresh();
+    } catch (error) {
+      console.error("Error saving settings:", error);
+      toast.error(
+        error instanceof Error ? error.message : "Failed to save settings",
+      );
+    } finally {
+      setSaving(false);
+    }
+  };
 
   // Get user initials for avatar
   const getInitials = (name: string) => {
@@ -129,7 +173,9 @@ export function GeneralTab({ user }: GeneralTabProps) {
           {/* Save Button */}
           <button
             type="button"
-            className="relative bg-[#e1e1e1] px-3 py-2 overflow-hidden group hover:bg-white transition-colors"
+            onClick={handleSave}
+            disabled={saving}
+            className="relative bg-[#e1e1e1] px-3 py-2 overflow-hidden group hover:bg-white transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
           >
             {/* Pattern overlay */}
             <div
@@ -140,7 +186,7 @@ export function GeneralTab({ user }: GeneralTabProps) {
               }}
             />
             <span className="relative z-10 text-black font-mono font-medium text-base">
-              Save changes
+              {saving ? "Saving..." : "Save changes"}
             </span>
           </button>
         </div>
