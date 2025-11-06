@@ -52,7 +52,7 @@ const VALID_MODELS = [
 async function handlePOST(request: NextRequest) {
   let generationId: string | undefined;
   try {
-    const { user, apiKey } = await requireAuthOrApiKeyWithOrg(request);
+    const { user, apiKey, session_token } = await requireAuthOrApiKeyWithOrg(request);
 
     if (!process.env.FAL_KEY) {
       console.error("[VIDEO GENERATION] FAL_KEY is not configured");
@@ -166,6 +166,7 @@ async function handlePOST(request: NextRequest) {
       amount: VIDEO_GENERATION_COST,
       description: `Video generation: ${model}`,
       metadata: { user_id: user.id },
+      session_token,
     });
 
     // FIXED: Fail the request if credit deduction fails to prevent revenue leak
@@ -257,7 +258,7 @@ async function handlePOST(request: NextRequest) {
     console.log("[VIDEO GENERATION] Returning fallback video due to error");
 
     try {
-      const { user: fallbackUser, apiKey: fallbackApiKey } =
+      const { user: fallbackUser, apiKey: fallbackApiKey, session_token: fallbackSessionToken } =
         await requireAuthOrApiKeyWithOrg(request);
 
       const fallbackDeduction = await creditsService.deductCredits({
@@ -265,6 +266,7 @@ async function handlePOST(request: NextRequest) {
         amount: VIDEO_GENERATION_FALLBACK_COST,
         description: "Video generation (fallback): fal-ai/veo3",
         metadata: { user_id: fallbackUser.id },
+        session_token: fallbackSessionToken,
       });
 
       if (!fallbackDeduction.success) {

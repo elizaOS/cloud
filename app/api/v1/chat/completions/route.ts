@@ -29,7 +29,7 @@ async function handlePOST(req: NextRequest) {
 
   try {
     // 1. Authenticate
-    const { user, apiKey } = await requireAuthOrApiKeyWithOrg(req);
+    const { user, apiKey, session_token } = await requireAuthOrApiKeyWithOrg(req);
 
     // 2. Parse request (already in OpenAI format!)
     const request: OpenAIChatRequest = await req.json();
@@ -175,6 +175,7 @@ async function handlePOST(req: NextRequest) {
         provider,
         startTime,
         request.messages,
+        session_token,
       );
     } else {
       return handleNonStreamingResponse(
@@ -184,6 +185,7 @@ async function handlePOST(req: NextRequest) {
         normalizedModel,
         provider,
         startTime,
+        session_token,
       );
     }
   } catch (error) {
@@ -229,6 +231,7 @@ async function handleNonStreamingResponse(
   model: string,
   provider: string,
   startTime: number,
+  session_token?: string,
 ) {
   // Parse response
   const data: OpenAIChatResponse = await providerResponse.json();
@@ -252,6 +255,8 @@ async function handleNonStreamingResponse(
       amount: totalCost,
       description: `OpenAI Proxy: ${model}`,
       metadata: { user_id: user.id },
+      session_token,
+      tokens_consumed: usage.total_tokens,
     });
 
     if (!deductResult.success) {
@@ -345,6 +350,7 @@ function handleStreamingResponse(
   provider: string,
   startTime: number,
   messages: Array<{ role: string; content: string | object }>,
+  session_token?: string,
 ) {
   let totalTokens = 0;
   let inputTokens = 0;
@@ -440,6 +446,8 @@ function handleStreamingResponse(
           amount: totalCost,
           description: `OpenAI Proxy: ${model}`,
           metadata: { user_id: user.id },
+          session_token,
+          tokens_consumed: totalTokens,
         });
 
         if (!deductResult.success) {

@@ -1,12 +1,15 @@
 // Export all services
 export * from "./organizations";
 export * from "./users";
+export * from "./user-sessions";
 export * from "./anonymous-sessions";
 export { invitesService } from "./invites";
 export * from "./api-keys";
 export * from "./cli-auth-sessions";
 export * from "./credits";
 export * from "./usage";
+export { usageQuotasService } from "./usage-quotas";
+export type { CreateQuotaParams, QuotaCheckResult } from "./usage-quotas";
 export * from "./generations";
 export * from "./conversations";
 export * from "./characters";

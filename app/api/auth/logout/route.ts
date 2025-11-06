@@ -1,9 +1,17 @@
 import { NextRequest, NextResponse } from "next/server";
 import { cookies } from "next/headers";
 import { withRateLimit, RateLimitPresets } from "@/lib/middleware/rate-limit";
+import { getCurrentUser } from "@/lib/auth";
+import { userSessionsService } from "@/lib/services";
 
 async function handlePOST(req: NextRequest) {
   try {
+    const user = await getCurrentUser();
+
+    if (user) {
+      await userSessionsService.endAllUserSessions(user.id);
+    }
+
     const cookieStore = await cookies();
 
     cookieStore.delete("privy-token");
