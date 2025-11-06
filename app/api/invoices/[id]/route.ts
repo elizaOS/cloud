@@ -5,8 +5,9 @@ import { withRateLimit, RateLimitPresets } from "@/lib/middleware/rate-limit";
 
 async function handleGetInvoice(
   req: NextRequest,
-  { params }: { params: Promise<{ id: string }> },
+  context: { params: Promise<{ id: string }> },
 ) {
+  const { params } = context;
   try {
     const user = await requireAuthWithOrg();
 
@@ -80,4 +81,8 @@ async function handleGetInvoice(
   }
 }
 
-export const GET = withRateLimit(handleGetInvoice, RateLimitPresets.STANDARD);
+export const GET = (req: NextRequest, context?: { params: Promise<{ id: string }> }) =>
+  withRateLimit(
+    (r: NextRequest) => handleGetInvoice(r, context!),
+    RateLimitPresets.STANDARD,
+  )(req);

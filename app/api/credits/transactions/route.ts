@@ -45,7 +45,7 @@ async function handleGET(req: NextRequest) {
       id: t.id,
       organization_id: t.organization_id,
       amount: Number(t.amount),
-      balance_after: t.balance_after ? Number(t.balance_after) : null,
+      type: t.type,
       description: t.description,
       metadata: t.metadata,
       stripe_payment_intent_id: t.stripe_payment_intent_id,
