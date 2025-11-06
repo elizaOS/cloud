@@ -248,7 +248,7 @@ export class AutoTopUpService {
 
         // Send success email notification
         console.log(`[AutoTopUp] About to call queueAutoTopUpSuccessEmail for org ${organizationId}`);
-        this.queueAutoTopUpSuccessEmail(org, amount, currentBalance, newBalance).catch((error) => {
+        this.queueAutoTopUpSuccessEmail(org, amount, currentBalance, newBalance, paymentIntent.id).catch((error) => {
           console.error(
             `[AutoTopUp] EXCEPTION in queueAutoTopUpSuccessEmail for org ${organizationId}:`,
             error,
@@ -361,6 +361,7 @@ export class AutoTopUpService {
     amount: number,
     previousBalance: number,
     newBalance: number,
+    paymentIntentId: string,
   ): Promise<void> {
     console.log(`[AutoTopUp] queueAutoTopUpSuccessEmail START for org ${org.id}`);
 
@@ -392,6 +393,7 @@ export class AutoTopUpService {
       previousBalance,
       newBalance,
       paymentMethod: paymentMethodDisplay,
+      invoiceUrl: `${appUrl}/dashboard/invoices/${paymentIntentId}`,
       billingUrl: `${appUrl}/dashboard/settings`,
     };
 
