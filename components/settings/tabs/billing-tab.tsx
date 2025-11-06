@@ -352,19 +352,28 @@ export function BillingTab({ user }: BillingTabProps) {
                   <p className="text-base font-mono text-[#e1e1e1]">
                     Charged to
                   </p>
-                  <div className="border border-brand-surface flex items-center gap-4 px-2 py-2">
+                  <div className={`border ${paymentMethods.length === 0 ? 'border-[#FF5800]' : 'border-brand-surface'} flex items-center gap-4 px-2 py-2`}>
                     <div className="flex items-center gap-2">
-                      <CreditCard className="h-4 w-4 text-[#A2A2A2]" />
-                      <p className="text-base font-mono text-[#e1e1e1] tracking-tight">
+                      <CreditCard className={`h-4 w-4 ${paymentMethods.length === 0 ? 'text-[#FF5800]' : 'text-[#A2A2A2]'}`} />
+                      <p className={`text-base font-mono tracking-tight ${paymentMethods.length === 0 ? 'text-[#FF5800]' : 'text-[#e1e1e1]'}`}>
                         {paymentMethod}
                       </p>
                     </div>
                     <button
                       type="button"
                       onClick={handleEditPayment}
-                      className="text-base font-mono text-white underline hover:text-white/80 transition-colors"
+                      className="relative bg-[#e1e1e1] px-2 py-1 overflow-hidden hover:bg-white transition-colors"
                     >
-                      Edit
+                      <div
+                        className="absolute inset-0 opacity-20 bg-repeat pointer-events-none"
+                        style={{
+                          backgroundImage: `url(/assets/settings/pattern-6px-flip.png)`,
+                          backgroundSize: "2.915576934814453px 2.915576934814453px",
+                        }}
+                      />
+                      <span className="relative z-10 text-black font-mono font-medium text-sm">
+                        {paymentMethods.length === 0 ? 'Add payment method' : 'Edit'}
+                      </span>
                     </button>
                   </div>
                 </div>
