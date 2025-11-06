@@ -1,0 +1,110 @@
+"use client";
+
+export interface StreamingMessage {
+  id: string;
+  entityId: string;
+  agentId?: string;
+  content: {
+    text: string;
+    thought?: string;
+    source?: string;
+    inReplyTo?: string;
+  };
+  createdAt: number;
+  isAgent: boolean;
+  type: "user" | "agent" | "thinking" | "error";
+}
+
+interface SendMessageOptions {
+  roomId: string;
+  entityId: string;
+  text: string;
+  onMessage: (message: StreamingMessage) => void;
+  onError?: (error: string) => void;
+  onComplete?: () => void;
+}
+
+/**
+ * Send a message and stream the response via SSE
+ * Single endpoint handles everything - no cross-container issues!
+ */
+export async function sendStreamingMessage({
+  roomId,
+  entityId,
+  text,
+  onMessage,
+  onError,
+  onComplete,
+}: SendMessageOptions): Promise<void> {
+  try {
+    const response = await fetch(
+      `/api/eliza/rooms/${roomId}/messages/stream`,
+      {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          entityId,
+          text,
+        }),
+      },
+    );
+
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({}));
+      throw new Error(errorData.error || "Failed to send message");
+    }
+
+    if (!response.body) {
+      throw new Error("No response body");
+    }
+
+    const reader = response.body.getReader();
+    const decoder = new TextDecoder();
+    let buffer = "";
+
+    while (true) {
+      const { done, value } = await reader.read();
+
+      if (done) {
+        break;
+      }
+
+      buffer += decoder.decode(value, { stream: true });
+
+      // Process complete SSE messages
+      const lines = buffer.split("\n\n");
+      buffer = lines.pop() || ""; // Keep incomplete message in buffer
+
+      for (const line of lines) {
+        if (!line.trim()) continue;
+
+        // Parse SSE format: "event: type\ndata: {...}"
+        const eventMatch = line.match(/^event: (.+)\n/);
+        const dataMatch = line.match(/data: (.+)$/m);
+
+        if (!dataMatch) continue;
+
+        try {
+          const data = JSON.parse(dataMatch[1]);
+          const eventType = eventMatch ? eventMatch[1] : "message";
+
+          if (eventType === "message") {
+            onMessage(data);
+          } else if (eventType === "error") {
+            onError?.(data.message || "Unknown error");
+          } else if (eventType === "done") {
+            onComplete?.();
+          }
+        } catch (parseError) {
+          console.error("[Streaming] Parse error:", parseError);
+        }
+      }
+    }
+  } catch (error) {
+    console.error("[Streaming] Error:", error);
+    onError?.(error instanceof Error ? error.message : "Failed to send message");
+  }
+}
+
