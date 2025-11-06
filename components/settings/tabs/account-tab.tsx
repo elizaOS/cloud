@@ -7,6 +7,7 @@ import type { SettingsTab } from "../settings-page-client";
 import { ArrowUpRight, Copy } from "lucide-react";
 import { toast } from "sonner";
 import { usePrivy } from "@privy-io/react-auth";
+import { useRouter } from "next/navigation";
 
 interface AccountStats {
   totalGenerations: number;
@@ -31,6 +32,7 @@ export function AccountTab({ user, onTabChange }: AccountTabProps) {
   const [stats, setStats] = useState<AccountStats | null>(null);
   const [isLoadingStats, setIsLoadingStats] = useState(true);
   const { user: privyUser, logout: privyLogout } = usePrivy();
+  const router = useRouter();
 
   useEffect(() => {
     const fetchStats = async () => {
@@ -120,11 +122,7 @@ export function AccountTab({ user, onTabChange }: AccountTabProps) {
               <button
                 type="button"
                 onClick={() => {
-                  if (privyUser) {
-                    window.open(`https://console.privy.io/apps/${process.env.NEXT_PUBLIC_PRIVY_APP_ID}/users/${privyUser.id}`, '_blank');
-                  } else {
-                    toast.info("Unable to open account management");
-                  }
+                  router.push("/dashboard/account");
                 }}
                 className="relative bg-[#e1e1e1] px-3 py-2 overflow-hidden group hover:bg-white transition-colors flex items-center gap-2"
               >

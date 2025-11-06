@@ -21,10 +21,13 @@ async function handleListInvoices(req: NextRequest) {
     const formattedInvoices = invoices.map((invoice) => ({
       id: invoice.id,
       stripeInvoiceId: invoice.stripe_invoice_id,
-      date: invoice.created_at.toLocaleDateString("en-US", {
+      date: invoice.created_at.toLocaleString("en-US", {
         year: "numeric",
         month: "short",
         day: "numeric",
+        hour: "2-digit",
+        minute: "2-digit",
+        hour12: true,
       }),
       total: `$${Number(invoice.amount_paid).toFixed(2)}`,
       status: invoice.status.charAt(0).toUpperCase() + invoice.status.slice(1),
