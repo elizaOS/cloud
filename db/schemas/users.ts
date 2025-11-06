@@ -28,6 +28,11 @@ export const users = pgTable(
     wallet_chain_type: text("wallet_chain_type"),
     wallet_verified: boolean("wallet_verified").default(false).notNull(),
     name: text("name"),
+    nickname: text("nickname"),
+    work_function: text("work_function"),
+    preferences: text("preferences"),
+    response_notifications: boolean("response_notifications").default(true),
+    email_notifications: boolean("email_notifications").default(true),
 
     // Organization - NULLABLE for anonymous users
     organization_id: uuid("organization_id").references(
@@ -62,6 +67,7 @@ export const users = pgTable(
       table.anonymous_session_id,
     ),
     expires_at_idx: index("users_expires_at_idx").on(table.expires_at),
+    work_function_idx: index("users_work_function_idx").on(table.work_function),
   }),
 );
 

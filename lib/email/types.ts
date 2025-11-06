@@ -36,3 +36,36 @@ export interface InviteEmailData {
   inviteToken: string;
   expiresAt: string;
 }
+
+export interface AutoTopUpSuccessEmailData {
+  email: string;
+  organizationName: string;
+  amount: number;
+  previousBalance: number;
+  newBalance: number;
+  paymentMethod: string;
+  invoiceUrl: string;
+  billingUrl: string;
+}
+
+export interface AutoTopUpDisabledEmailData {
+  email: string;
+  organizationName: string;
+  reason: string;
+  currentBalance: number;
+  settingsUrl: string;
+}
+
+export interface PurchaseConfirmationEmailData {
+  email: string;
+  organizationName: string;
+  purchaseAmount: number;
+  creditsAdded: number;
+  previousBalance: number;
+  newBalance: number;
+  paymentMethod: string;
+  transactionDate: string;
+  invoiceNumber?: string;
+  invoiceUrl?: string;
+  dashboardUrl: string;
+}
