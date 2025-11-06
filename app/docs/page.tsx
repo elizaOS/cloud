@@ -12,7 +12,6 @@ import {
   Settings,
   Sparkles,
   Code,
-  Rocket,
   ArrowRight,
 } from "lucide-react";
 
@@ -121,16 +120,16 @@ export default function DocsPage() {
               </div>
             </Link>
             <Link
-              href="/docs/environment-setup"
+              href="/docs/quick-start"
               className="flex items-center gap-3 p-4 bg-white/5 border border-white/10 rounded-none hover:bg-white/10 hover:border-white/20 transition-all group"
             >
               <Settings className="h-5 w-5 text-[#FF5800] shrink-0" />
               <div>
                 <h3 className="text-white font-semibold group-hover:text-[#FF5800] transition-colors">
-                  Set Up Your Environment
+                  Quick Start Guide
                 </h3>
                 <p className="text-sm text-white/60">
-                  Get your workspace ready
+                  Get started in minutes
                 </p>
               </div>
             </Link>
