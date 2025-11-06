@@ -19,6 +19,8 @@ import { ElizaAvatar } from "./eliza-avatar";
 import { KnowledgeDrawer } from "./knowledge-drawer";
 import { useAudioRecorder } from "./hooks/use-audio-recorder";
 import { useAudioPlayer } from "./hooks/use-audio-player";
+import { useMessageStream } from "@/hooks/use-message-stream";
+import type { StreamMessage } from "@/hooks/use-message-stream";
 import { toast } from "sonner";
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
@@ -87,7 +89,6 @@ export function ElizaChatInterface({
   const [deletingRoomId, setDeletingRoomId] = useState<string | null>(null);
   const scrollAreaRef = useRef<HTMLDivElement>(null);
   const scrollViewportRef = useRef<HTMLDivElement>(null);
-  const eventSourceRef = useRef<EventSource | null>(null);
   const thinkingTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const [autoPlayTTS, setAutoPlayTTS] = useState(false);
   const [currentPlayingId, setCurrentPlayingId] = useState<string | null>(null);
@@ -273,12 +274,8 @@ export function ElizaChatInterface({
           if (typeof window !== "undefined") {
             window.localStorage.removeItem("elizaRoomId");
           }
-          
-          // Close SSE connection for the deleted room
-          if (eventSourceRef.current) {
-            eventSourceRef.current.close();
-            eventSourceRef.current = null;
-          }
+
+          // SSE connection will be automatically closed by useMessageStream hook
 
           // Check if there are other rooms to switch to
           const remainingRooms = rooms.filter((r) => r.id !== roomIdToDelete);
@@ -363,11 +360,7 @@ export function ElizaChatInterface({
     };
 
     initializeRoom();
-    return () => {
-      if (eventSourceRef.current) {
-        eventSourceRef.current.close();
-      }
-    };
+    // SSE connection cleanup is handled by useMessageStream hook
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [initialCharacterId]);
 
@@ -578,135 +571,97 @@ export function ElizaChatInterface({
     });
   }, [messages, generateSpeech, autoPlayTTS]);
 
-  // Real-time message streaming via SSE (Server-Sent Events) - NO MORE POLLING! ⚡
-  useEffect(() => {
-    if (!roomId) return;
+  // Real-time message streaming via SSE (Server-Sent Events) with automatic reconnection
+  const handleStreamMessage = useCallback((messageData: StreamMessage) => {
+    setMessages((prev) => {
+      // Handle agent response - remove thinking indicator
+      if (messageData.type === "agent") {
+        const withoutThinking = prev.filter(
+          (m) => !m.id.startsWith("thinking-"),
+        );
 
-    console.log(`[SSE] Connecting to room: ${roomId}`);
+        // Clear thinking timeout
+        if (thinkingTimeoutRef.current) {
+          clearTimeout(thinkingTimeoutRef.current);
+          thinkingTimeoutRef.current = null;
+        }
 
-    // Create EventSource for real-time updates
-    const eventSource = new EventSource(`/api/eliza/rooms/${roomId}/stream`);
-    eventSourceRef.current = eventSource;
+        // Check if message already exists (prevent duplicates)
+        if (withoutThinking.some((m) => m.id === messageData.id)) {
+          console.log("[SSE] Skipping duplicate agent message");
+          return prev;
+        }
 
-    eventSource.onopen = () => {
-      console.log("[SSE] ⚡ Connection opened - real-time messaging active");
-    };
-
-    eventSource.addEventListener("connected", (event) => {
-      const data = JSON.parse(event.data);
-      console.log("[SSE] ✅ Connected to room:", data.roomId);
-    });
-
-    eventSource.addEventListener("message", (event) => {
-      try {
-        const messageData = JSON.parse(event.data);
-        console.log("[SSE] 📨 Message received:", {
-          id: messageData.id.substring(0, 8),
-          type: messageData.type,
-          text: messageData.content.text?.substring(0, 30),
+        // Remove temp message if this is a reply
+        const filtered = withoutThinking.filter((m) => {
+          if (m.id.startsWith("temp-")) {
+            return messageData.content.inReplyTo !== m.id;
+          }
+          return true;
         });
 
-        setMessages((prev) => {
-          // Handle agent response - remove thinking indicator
-          if (messageData.type === "agent") {
-            const withoutThinking = prev.filter(
-              (m) => !m.id.startsWith("thinking-"),
-            );
-
-            // Clear thinking timeout
-            if (thinkingTimeoutRef.current) {
-              clearTimeout(thinkingTimeoutRef.current);
-              thinkingTimeoutRef.current = null;
-            }
-
-            // Check if message already exists (prevent duplicates)
-            if (withoutThinking.some((m) => m.id === messageData.id)) {
-              console.log("[SSE] Skipping duplicate agent message");
-              return prev;
-            }
-
-            // Remove temp message if this is a reply
-            const filtered = withoutThinking.filter((m) => {
-              if (m.id.startsWith("temp-")) {
-                return messageData.content.inReplyTo !== m.id;
-              }
-              return true;
-            });
-
-            console.log("[SSE] ✅ Added agent response");
-            return [...filtered, messageData];
-          }
-
-          // Handle thinking indicator - replace any existing thinking message
-          if (messageData.type === "thinking") {
-            const withoutThinking = prev.filter(
-              (m) => !m.id.startsWith("thinking-"),
-            );
-            console.log("[SSE] 🤔 Agent is thinking...");
-            return [...withoutThinking, messageData];
-          }
-
-          // Handle user messages - replace temp message or check for duplicates
-          if (messageData.type === "user") {
-            // Check if this is replacing a temp message (same text content)
-            const tempMessageIndex = prev.findIndex(
-              (m) =>
-                m.id.startsWith("temp-") &&
-                m.content.text === messageData.content.text,
-            );
-
-            if (tempMessageIndex !== -1) {
-              console.log(
-                "[SSE] ✅ Replacing temp message with real user message",
-              );
-              const updated = [...prev];
-              updated[tempMessageIndex] = messageData;
-              return updated;
-            }
-
-            // Check for duplicate
-            if (prev.some((m) => m.id === messageData.id)) {
-              console.log("[SSE] Skipping duplicate user message");
-              return prev;
-            }
-
-            console.log("[SSE] ✅ Added user message");
-            return [...prev, messageData];
-          }
-
-          // For any other message types
-          if (prev.some((m) => m.id === messageData.id)) {
-            return prev;
-          }
-
-          return [...prev, messageData];
-        });
-      } catch (error) {
-        console.error("[SSE] ❌ Error parsing message:", error);
+        console.log("[SSE] ✅ Added agent response");
+        return [...filtered, messageData];
       }
+
+      // Handle thinking indicator - replace any existing thinking message
+      if (messageData.type === "thinking") {
+        const withoutThinking = prev.filter(
+          (m) => !m.id.startsWith("thinking-"),
+        );
+        console.log("[SSE] 🤔 Agent is thinking...");
+        return [...withoutThinking, messageData];
+      }
+
+      // Handle user messages - replace temp message or check for duplicates
+      if (messageData.type === "user") {
+        // Check if this is replacing a temp message (same text content)
+        const tempMessageIndex = prev.findIndex(
+          (m) =>
+            m.id.startsWith("temp-") &&
+            m.content.text === messageData.content.text,
+        );
+
+        if (tempMessageIndex !== -1) {
+          console.log("[SSE] ✅ Replacing temp message with real user message");
+          const updated = [...prev];
+          updated[tempMessageIndex] = messageData;
+          return updated;
+        }
+
+        // Check for duplicate
+        if (prev.some((m) => m.id === messageData.id)) {
+          console.log("[SSE] Skipping duplicate user message");
+          return prev;
+        }
+
+        console.log("[SSE] ✅ Added user message");
+        return [...prev, messageData];
+      }
+
+      // For any other message types
+      if (prev.some((m) => m.id === messageData.id)) {
+        return prev;
+      }
+
+      return [...prev, messageData];
     });
+  }, []);
 
-    eventSource.addEventListener("heartbeat", () => {
-      console.log("[SSE] 💓 Heartbeat");
-    });
+  const { isConnected: sseConnected, error: sseError } = useMessageStream(
+    roomId,
+    handleStreamMessage,
+  );
 
-    eventSource.onerror = (error) => {
-      console.error("[SSE] ❌ Connection error:", error);
-      eventSource.close();
-
-      // Attempt to reconnect after 2 seconds
-      setTimeout(() => {
-        console.log("[SSE] 🔄 Reconnecting...");
-        // The useEffect will re-run and create a new connection
-      }, 2000);
-    };
-
-    return () => {
-      console.log("[SSE] 🔌 Closing connection");
-      eventSource.close();
-      eventSourceRef.current = null;
-    };
-  }, [roomId]);
+  // Show connection status notifications
+  useEffect(() => {
+    if (sseError && roomId) {
+      toast.error(sseError, {
+        id: "sse-error",
+        duration: 5000,
+      });
+    }
+  }, [sseError, roomId]);
 
   // Auto-scroll to bottom when messages change
   useEffect(() => {
