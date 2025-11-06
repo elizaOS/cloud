@@ -5,14 +5,42 @@ import { BrandCard, CornerBrackets } from "@/components/brand";
 import type { UserWithOrganization } from "@/lib/types";
 import { Info, DollarSign, Loader2 } from "lucide-react";
 import { toast } from "sonner";
+import type { SettingsTab } from "../settings-page-client";
 
 interface UsageTabProps {
   user: UserWithOrganization;
+  onTabChange: (tab: SettingsTab) => void;
 }
 
-export function UsageTab({ user }: UsageTabProps) {
+interface SessionStats {
+  credits_used: number;
+  requests_made: number;
+  tokens_consumed: number;
+}
+
+interface QuotaUsage {
+  global: {
+    used: number;
+    limit: number | null;
+    periodEnd: string | null;
+  };
+  modelSpecific: Record<
+    string,
+    {
+      used: number;
+      limit: number;
+      periodEnd: string;
+    }
+  >;
+}
+
+export function UsageTab({ user, onTabChange }: UsageTabProps) {
   const [loading, setLoading] = useState(false);
   const [dailyBurn, setDailyBurn] = useState(0);
+  const [sessionStats, setSessionStats] = useState<SessionStats | null>(null);
+  const [sessionLoading, setSessionLoading] = useState(false);
+  const [quotaUsage, setQuotaUsage] = useState<QuotaUsage | null>(null);
+  const [quotaLoading, setQuotaLoading] = useState(false);
 
   const creditsRemaining = Number(user.organization?.credit_balance || 0);
 
@@ -42,6 +70,66 @@ export function UsageTab({ user }: UsageTabProps) {
     };
 
     fetchDailyBurn();
+  }, []);
+
+  useEffect(() => {
+    const fetchSessionStats = async () => {
+      try {
+        setSessionLoading(true);
+
+        const response = await fetch("/api/sessions/current");
+
+        if (!response.ok) {
+          throw new Error("Failed to fetch session stats");
+        }
+
+        const data = await response.json();
+
+        if (data.success && data.data) {
+          setSessionStats(data.data);
+        }
+      } catch (error) {
+        console.error("Error fetching session stats:", error);
+      } finally {
+        setSessionLoading(false);
+      }
+    };
+
+    fetchSessionStats();
+
+    const interval = setInterval(fetchSessionStats, 30000);
+
+    return () => clearInterval(interval);
+  }, []);
+
+  useEffect(() => {
+    const fetchQuotaUsage = async () => {
+      try {
+        setQuotaLoading(true);
+
+        const response = await fetch("/api/quotas/usage");
+
+        if (!response.ok) {
+          throw new Error("Failed to fetch quota usage");
+        }
+
+        const data = await response.json();
+
+        if (data.success && data.data) {
+          setQuotaUsage(data.data);
+        }
+      } catch (error) {
+        console.error("Error fetching quota usage:", error);
+      } finally {
+        setQuotaLoading(false);
+      }
+    };
+
+    fetchQuotaUsage();
+
+    const interval = setInterval(fetchQuotaUsage, 60000);
+
+    return () => clearInterval(interval);
   }, []);
 
   return (
@@ -104,25 +192,53 @@ export function UsageTab({ user }: UsageTabProps) {
               </div>
             </div>
 
-            {/* Current Session - Coming Soon */}
+            {/* Current Session */}
             <div className="backdrop-blur-sm bg-[rgba(10,10,10,0.75)] border-t-0 border border-brand-surface p-4 space-y-4">
               <div className="flex items-center justify-between">
                 <p className="text-base font-mono text-white">
                   Current Session
                 </p>
-                <span className="text-xs font-mono text-white/40 border border-white/20 px-2 py-1">
-                  Coming Soon
-                </span>
+                {sessionLoading && !sessionStats ? (
+                  <Loader2 className="h-4 w-4 animate-spin text-[#FF5800]" />
+                ) : (
+                  <p className="text-xs text-[#848484]">
+                    Updates every 30 seconds
+                  </p>
+                )}
               </div>
-              <p className="text-sm text-white/60">
-                Session tracking will be available in a future update.
-              </p>
+
+              {sessionStats ? (
+                <div className="grid grid-cols-3 gap-4">
+                  <div className="space-y-1">
+                    <p className="text-xs text-white/60 font-mono">Credits Used</p>
+                    <p className="text-lg font-mono text-white">
+                      ${sessionStats.credits_used.toFixed(2)}
+                    </p>
+                  </div>
+                  <div className="space-y-1">
+                    <p className="text-xs text-white/60 font-mono">Requests</p>
+                    <p className="text-lg font-mono text-white">
+                      {sessionStats.requests_made.toLocaleString()}
+                    </p>
+                  </div>
+                  <div className="space-y-1">
+                    <p className="text-xs text-white/60 font-mono">Tokens</p>
+                    <p className="text-lg font-mono text-white">
+                      {sessionStats.tokens_consumed.toLocaleString()}
+                    </p>
+                  </div>
+                </div>
+              ) : (
+                <p className="text-sm text-white/60">
+                  No active session data available.
+                </p>
+              )}
             </div>
           </div>
         </div>
       </BrandCard>
 
-      {/* Weekly Limits Card - Coming Soon */}
+      {/* Weekly Limits Card */}
       <BrandCard className="relative">
         <CornerBrackets size="sm" className="opacity-50" />
 
@@ -135,70 +251,101 @@ export function UsageTab({ user }: UsageTabProps) {
                 <h3 className="text-base font-mono text-[#e1e1e1] uppercase">
                   Weekly limits
                 </h3>
-                <span className="text-xs font-mono text-white/40 border border-white/20 px-2 py-1">
-                  Coming Soon
-                </span>
               </div>
               <p className="text-xs font-mono text-[#858585] tracking-tight">
-                Usage limits and quota enforcement will be available in a future
-                update.
+                Configure weekly credit limits to control spending across all models or specific models.
               </p>
             </div>
 
             <div className="flex items-center gap-2">
-              <Info className="h-4 w-4 text-[#848484]" />
-              <p className="text-sm text-[#848484]">Feature in development</p>
+              {quotaLoading && !quotaUsage ? (
+                <Loader2 className="h-4 w-4 animate-spin text-[#FF5800]" />
+              ) : (
+                <>
+                  <Info className="h-4 w-4 text-[#848484]" />
+                  <p className="text-sm text-[#848484]">Updates every 60 seconds</p>
+                </>
+              )}
             </div>
           </div>
 
-          {/* Limits Section - Placeholder */}
+          {/* Limits Section */}
           <div className="space-y-0 w-full">
             {/* All models */}
             <div className="backdrop-blur-sm bg-[rgba(10,10,10,0.75)] border border-brand-surface p-4 space-y-4">
-              <p className="text-base font-mono text-white/60">All models</p>
+              <p className="text-base font-mono text-white">All models</p>
 
               <div className="space-y-1">
                 <div className="flex items-center gap-2 w-full">
                   <div className="flex-1 relative h-[21px] border border-[#e1e1e1] border-[0.5px]">
                     <div
                       className="absolute inset-0 bg-[#FF5800]/20"
-                      style={{ width: "0%" }}
+                      style={{
+                        width: quotaUsage?.global.limit
+                          ? `${Math.min(100, (quotaUsage.global.used / quotaUsage.global.limit) * 100)}%`
+                          : "0%",
+                      }}
                     />
                   </div>
-                  <p className="text-base font-mono text-white/60 tracking-tight">
-                    No limit set
+                  <p className="text-base font-mono text-white tracking-tight">
+                    {quotaUsage?.global.limit
+                      ? `$${quotaUsage.global.used.toFixed(2)} / $${quotaUsage.global.limit.toFixed(2)}`
+                      : "No limit set"}
                   </p>
                 </div>
-                <p className="text-sm text-white/40">
-                  Weekly usage limits not configured
+                <p className="text-sm text-white/60">
+                  {quotaUsage?.global.limit
+                    ? `${((quotaUsage.global.used / quotaUsage.global.limit) * 100).toFixed(1)}% of weekly limit used`
+                    : "Weekly usage limits not configured"}
                 </p>
               </div>
             </div>
 
-            {/* Opus only */}
-            <div className="backdrop-blur-sm bg-[rgba(10,10,10,0.75)] border-t-0 border border-brand-surface p-4 space-y-4">
-              <div className="flex items-center gap-2">
-                <p className="text-base font-mono text-white/60">Opus only</p>
-                <Info className="h-4 w-4 text-[#FF5800]/60" />
-              </div>
+            {/* Model-specific limits */}
+            {quotaUsage && Object.keys(quotaUsage.modelSpecific).length > 0 ? (
+              Object.entries(quotaUsage.modelSpecific).map(
+                ([modelName, modelQuota]) => (
+                  <div
+                    key={modelName}
+                    className="backdrop-blur-sm bg-[rgba(10,10,10,0.75)] border-t-0 border border-brand-surface p-4 space-y-4"
+                  >
+                    <div className="flex items-center gap-2">
+                      <p className="text-base font-mono text-white capitalize">
+                        {modelName}
+                      </p>
+                      <Info className="h-4 w-4 text-[#FF5800]/60" />
+                    </div>
 
-              <div className="space-y-1">
-                <div className="flex items-center gap-2 w-full">
-                  <div className="flex-1 relative h-[21px] border border-[#e1e1e1] border-[0.5px]">
-                    <div
-                      className="absolute inset-0 bg-[#FF5800]/20"
-                      style={{ width: "0%" }}
-                    />
+                    <div className="space-y-1">
+                      <div className="flex items-center gap-2 w-full">
+                        <div className="flex-1 relative h-[21px] border border-[#e1e1e1] border-[0.5px]">
+                          <div
+                            className="absolute inset-0 bg-[#FF5800]/20"
+                            style={{
+                              width: `${Math.min(100, (modelQuota.used / modelQuota.limit) * 100)}%`,
+                            }}
+                          />
+                        </div>
+                        <p className="text-base font-mono text-white tracking-tight">
+                          ${modelQuota.used.toFixed(2)} / $
+                          {modelQuota.limit.toFixed(2)}
+                        </p>
+                      </div>
+                      <p className="text-sm text-white/60">
+                        {((modelQuota.used / modelQuota.limit) * 100).toFixed(1)}%
+                        of weekly limit used
+                      </p>
+                    </div>
                   </div>
-                  <p className="text-base font-mono text-white/60 tracking-tight">
-                    No limit set
-                  </p>
-                </div>
-                <p className="text-sm text-white/40">
-                  Model-specific limits not configured
+                )
+              )
+            ) : !quotaUsage?.global.limit ? (
+              <div className="backdrop-blur-sm bg-[rgba(10,10,10,0.75)] border-t-0 border border-brand-surface p-4">
+                <p className="text-sm text-white/60">
+                  No model-specific limits configured. Contact your administrator to set up weekly quotas.
                 </p>
               </div>
-            </div>
+            ) : null}
           </div>
         </div>
       </BrandCard>
@@ -246,17 +393,7 @@ export function UsageTab({ user }: UsageTabProps) {
             {creditsRemaining <= 10 && (
               <button
                 type="button"
-                onClick={() => {
-                  const settingsPageClient = document.querySelector(
-                    '[data-settings-page]'
-                  );
-                  if (settingsPageClient) {
-                    const billingTabButton = document.querySelector(
-                      '[data-tab="billing"]'
-                    ) as HTMLButtonElement;
-                    billingTabButton?.click();
-                  }
-                }}
+                onClick={() => onTabChange("billing")}
                 className="relative bg-[#e1e1e1] px-3 py-2 overflow-hidden hover:bg-white transition-colors mt-2"
               >
                 <div

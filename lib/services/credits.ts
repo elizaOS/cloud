@@ -16,6 +16,7 @@ import {
   markLowCreditsEmailSent,
 } from "@/lib/email/utils/rate-limiter";
 import { CacheInvalidation } from "@/lib/cache/invalidation";
+import { userSessionsService } from "./user-sessions";
 
 // Parameter types for consistent API signatures
 export interface AddCreditsParams {
@@ -31,6 +32,8 @@ export interface DeductCreditsParams {
   amount: number;
   description: string;
   metadata?: Record<string, unknown>;
+  session_token?: string;
+  tokens_consumed?: number;
 }
 
 export class CreditsService {
@@ -137,7 +140,14 @@ export class CreditsService {
     newBalance: number;
     transaction: CreditTransaction | null;
   }> {
-    const { organizationId, amount, description, metadata } = params;
+    const {
+      organizationId,
+      amount,
+      description,
+      metadata,
+      session_token,
+      tokens_consumed,
+    } = params;
 
     if (amount <= 0) {
       throw new Error("Amount must be positive");
@@ -202,6 +212,23 @@ export class CreditsService {
         if (result.success) {
           // Invalidate balance cache immediately after successful deduction
           await CacheInvalidation.onCreditMutation(organizationId);
+
+          // Track session usage if session_token is provided
+          if (session_token) {
+            userSessionsService
+              .trackUsage({
+                session_token,
+                credits_used: amount,
+                requests_made: 1,
+                tokens_consumed: tokens_consumed || 0,
+              })
+              .catch((error) => {
+                console.error(
+                  "[CreditsService] Failed to track session usage:",
+                  error,
+                );
+              });
+          }
 
           // Check if auto top-up should be triggered
           this.checkAndTriggerAutoTopUp(organizationId, result.newBalance).catch(
