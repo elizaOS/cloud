@@ -17,6 +17,7 @@
  */
 
 import { type NextRequest, NextResponse } from "next/server";
+import { timingSafeEqual } from "crypto";
 import { autoTopUpService } from "@/lib/services/auto-top-up";
 import { logger } from "@/lib/utils/logger";
 
@@ -28,7 +29,7 @@ export async function GET(request: NextRequest) {
   const startTime = Date.now();
 
   try {
-    // Verify cron secret
+    // Verify cron secret using timing-safe comparison to prevent timing attacks
     const authHeader = request.headers.get("authorization");
     const cronSecret = process.env.CRON_SECRET;
 
@@ -40,8 +41,17 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    const providedSecret = authHeader?.replace("Bearer ", "");
-    if (providedSecret !== cronSecret) {
+    const providedSecret = authHeader?.replace("Bearer ", "") || "";
+
+    // Use timing-safe comparison to prevent timing attacks
+    const providedBuffer = Buffer.from(providedSecret, "utf8");
+    const secretBuffer = Buffer.from(cronSecret, "utf8");
+
+    const isValidSecret =
+      providedBuffer.length === secretBuffer.length &&
+      timingSafeEqual(providedBuffer, secretBuffer);
+
+    if (!isValidSecret) {
       logger.warn("auto-top-up-cron", "Invalid cron secret provided");
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }

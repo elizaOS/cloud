@@ -53,16 +53,32 @@ export async function POST(req: NextRequest) {
 
           if (!organizationId || !credits || credits <= 0) {
             console.warn(
-              `Invalid metadata in checkout session ${session.id}: organizationId=${organizationId}, credits=${credits}`,
+              `[Stripe Webhook] Permanent failure - Invalid metadata in checkout session ${session.id}: organizationId=${organizationId}, credits=${credits}`,
             );
-            break;
+            // Return 200 to prevent retries for permanent failures (bad data)
+            return NextResponse.json(
+              {
+                received: true,
+                error: "Invalid metadata",
+                skipped: true,
+              },
+              { status: 200 },
+            );
           }
 
           if (!paymentIntentId) {
             console.warn(
-              `No payment intent ID in checkout session ${session.id}`,
+              `[Stripe Webhook] Permanent failure - No payment intent ID in checkout session ${session.id}`,
             );
-            break;
+            // Return 200 to prevent retries for permanent failures
+            return NextResponse.json(
+              {
+                received: true,
+                error: "No payment intent ID",
+                skipped: true,
+              },
+              { status: 200 },
+            );
           }
 
           // Check for duplicate transaction
@@ -129,9 +145,17 @@ export async function POST(req: NextRequest) {
 
         if (!organizationId || !credits || credits <= 0) {
           console.warn(
-            `[Stripe Webhook] Invalid metadata in payment intent ${paymentIntent.id}: organizationId=${organizationId}, credits=${credits}`,
+            `[Stripe Webhook] Permanent failure - Invalid metadata in payment intent ${paymentIntent.id}: organizationId=${organizationId}, credits=${credits}`,
           );
-          break;
+          // Return 200 to prevent retries for permanent failures (bad data)
+          return NextResponse.json(
+            {
+              received: true,
+              error: "Invalid metadata",
+              skipped: true,
+            },
+            { status: 200 },
+          );
         }
 
         // Check for duplicate transaction
@@ -173,16 +197,27 @@ export async function POST(req: NextRequest) {
         );
 
         try {
-          const invoiceId = (paymentIntent as any).invoice;
-          if (invoiceId) {
-            const existingInvoice = await invoicesService.getByStripeInvoiceId(
-              invoiceId as string,
-            );
+          // Type-safe handling of invoice property
+          // PaymentIntent.invoice can be string | Stripe.Invoice | null when expanded
+          // Check if the property exists first
+          const invoiceIdOrObject = (
+            paymentIntent as Stripe.PaymentIntent & {
+              invoice?: string | Stripe.Invoice | null;
+            }
+          ).invoice;
+          if (invoiceIdOrObject) {
+            // Extract the invoice ID - it's either the string itself or the ID from the object
+            const invoiceId =
+              typeof invoiceIdOrObject === "string"
+                ? invoiceIdOrObject
+                : invoiceIdOrObject.id;
+
+            const existingInvoice =
+              await invoicesService.getByStripeInvoiceId(invoiceId);
 
             if (!existingInvoice) {
-              const stripeInvoice = await stripe.invoices.retrieve(
-                invoiceId as string,
-              );
+              const stripeInvoice =
+                await stripe.invoices.retrieve(invoiceId);
 
               await invoicesService.create({
                 organization_id: organizationId,
@@ -246,8 +281,13 @@ export async function POST(req: NextRequest) {
               );
             }
           }
-        } catch (error) {
-          console.error("Failed to create invoice record:", error);
+        } catch (invoiceError) {
+          // Invoice creation failure is not critical - log but don't fail the webhook
+          // The credits were already added successfully
+          console.error(
+            `[Stripe Webhook] Non-critical error creating invoice record:`,
+            invoiceError,
+          );
         }
 
         break;
@@ -255,12 +295,15 @@ export async function POST(req: NextRequest) {
 
       case "payment_intent.payment_failed": {
         const paymentIntent = event.data.object;
-        console.error("Payment intent failed:", paymentIntent.id);
+        console.error(
+          `[Stripe Webhook] Payment intent failed: ${paymentIntent.id}`,
+        );
+        // Payment failures are expected events, acknowledge receipt
         break;
       }
 
       default:
-        console.log(`Unhandled event type: ${event.type}`);
+        console.log(`[Stripe Webhook] Unhandled event type: ${event.type}`);
     }
 
     return NextResponse.json({ received: true }, { status: 200 });
@@ -281,9 +324,40 @@ export async function POST(req: NextRequest) {
       error_stack: errorStack,
     });
 
+    // Determine if error is permanent or transient
+    const isPermanentError =
+      error instanceof Error &&
+      (error.message.includes("not found") ||
+        error.message.includes("Invalid") ||
+        error.message.includes("already processed") ||
+        error.message.includes("duplicate"));
+
+    if (isPermanentError) {
+      // Return 200 for permanent errors to prevent retries
+      console.warn(
+        `[Stripe Webhook] Permanent error detected, returning 200 to prevent retries`,
+      );
+      return NextResponse.json(
+        {
+          received: true,
+          error: "Permanent error",
+          message: errorMessage,
+          event_id: event.id,
+          event_type: event.type,
+        },
+        { status: 200 },
+      );
+    }
+
+    // Return 500 for transient errors to trigger Stripe retry logic
+    // (database issues, network issues, temporary service unavailability)
+    console.warn(
+      `[Stripe Webhook] Transient error detected, returning 500 to trigger retry`,
+    );
     return NextResponse.json(
       {
-        error: "Webhook handler failed",
+        error: "Transient error - will retry",
+        message: errorMessage,
         event_id: event.id,
         event_type: event.type,
       },
