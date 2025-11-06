@@ -13,6 +13,7 @@ import {
   Mic,
   Square,
   Volume2,
+  Trash2,
 } from "lucide-react";
 import { ElizaAvatar } from "./eliza-avatar";
 import { KnowledgeDrawer } from "./knowledge-drawer";
@@ -83,6 +84,7 @@ export function ElizaChatInterface({
   const [isInitializing, setIsInitializing] = useState(false);
   const [isLoadingRooms, setIsLoadingRooms] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [deletingRoomId, setDeletingRoomId] = useState<string | null>(null);
   const scrollAreaRef = useRef<HTMLDivElement>(null);
   const scrollViewportRef = useRef<HTMLDivElement>(null);
   const eventSourceRef = useRef<EventSource | null>(null);
@@ -239,6 +241,71 @@ export function ElizaChatInterface({
       }
     },
     [loadMessages, loadRooms, selectedCharacterId],
+  );
+
+  const deleteRoom = useCallback(
+    async (roomIdToDelete: string) => {
+      // Prevent deleting while another delete is in progress
+      if (deletingRoomId) return;
+
+      // Confirm deletion
+      if (!confirm("Are you sure you want to delete this conversation? This action cannot be undone.")) {
+        return;
+      }
+
+      setDeletingRoomId(roomIdToDelete);
+      try {
+        const response = await fetch(`/api/eliza/rooms/${roomIdToDelete}`, {
+          method: "DELETE",
+        });
+
+        if (!response.ok) {
+          throw new Error("Failed to delete room");
+        }
+
+        console.log("[ElizaChat] Room deleted successfully:", roomIdToDelete);
+        toast.success("Conversation deleted");
+
+        // If we deleted the currently active room, clear it and create a new one
+        if (roomId === roomIdToDelete) {
+          setRoomId(null);
+          setMessages([]);
+          if (typeof window !== "undefined") {
+            window.localStorage.removeItem("elizaRoomId");
+          }
+          
+          // Close SSE connection for the deleted room
+          if (eventSourceRef.current) {
+            eventSourceRef.current.close();
+            eventSourceRef.current = null;
+          }
+
+          // Check if there are other rooms to switch to
+          const remainingRooms = rooms.filter((r) => r.id !== roomIdToDelete);
+          if (remainingRooms.length > 0) {
+            // Switch to the first remaining room
+            const nextRoom = remainingRooms[0];
+            setRoomId(nextRoom.id);
+            if (typeof window !== "undefined") {
+              window.localStorage.setItem("elizaRoomId", nextRoom.id);
+            }
+            await loadMessages(nextRoom.id);
+          } else {
+            // No rooms left, create a new one
+            await createRoom();
+          }
+        }
+
+        // Reload the rooms list
+        await loadRooms();
+      } catch (err) {
+        console.error("[ElizaChat] Error deleting room:", err);
+        toast.error(err instanceof Error ? err.message : "Failed to delete room");
+      } finally {
+        setDeletingRoomId(null);
+      }
+    },
+    [roomId, rooms, deletingRoomId, loadMessages, loadRooms, createRoom],
   );
 
   // Initialize room: restore saved room or use most recent existing room
@@ -834,43 +901,68 @@ export function ElizaChatInterface({
                       ? availableCharacters.find((c) => c.id === r.characterId)
                       : null;
                     const characterName = roomCharacter?.name || "Default";
+                    const isDeleting = deletingRoomId === r.id;
 
                     return (
-                      <button
+                      <div
                         key={r.id}
-                        className={`w-full rounded-lg px-3 py-3 text-left transition-all hover:bg-accent/50 ${
+                        className={`w-full rounded-lg px-3 py-3 transition-all hover:bg-accent/50 ${
                           r.id === roomId ? "bg-accent" : ""
-                        }`}
-                        onClick={() => {
-                          setRoomId(r.id);
-                          if (typeof window !== "undefined") {
-                            window.localStorage.setItem("elizaRoomId", r.id);
-                          }
-                          setMessages([]);
-                          loadMessages(r.id);
-                        }}
+                        } ${isDeleting ? "opacity-50 pointer-events-none" : ""}`}
                       >
-                        <div className="flex items-center justify-between mb-1">
-                          <div className="text-xs font-semibold truncate flex-1">
-                            Room {r.id.substring(0, 8)}...
-                          </div>
-                          {r.lastTime ? (
-                            <div className="text-[10px] text-muted-foreground whitespace-nowrap ml-2">
-                              {formatTimestamp(r.lastTime)}
+                        <div className="flex items-start gap-2">
+                          <button
+                            className="flex-1 text-left min-w-0"
+                            onClick={() => {
+                              setRoomId(r.id);
+                              if (typeof window !== "undefined") {
+                                window.localStorage.setItem("elizaRoomId", r.id);
+                              }
+                              setMessages([]);
+                              loadMessages(r.id);
+                            }}
+                            disabled={isDeleting}
+                          >
+                            <div className="flex items-center justify-between mb-1">
+                              <div className="text-xs font-semibold truncate flex-1">
+                                Room {r.id.substring(0, 8)}...
+                              </div>
+                              {r.lastTime ? (
+                                <div className="text-[10px] text-muted-foreground whitespace-nowrap ml-2">
+                                  {formatTimestamp(r.lastTime)}
+                                </div>
+                              ) : null}
                             </div>
-                          ) : null}
-                        </div>
-                        <div className="flex items-center gap-2">
-                          <div className="text-[10px] px-1.5 py-0.5 rounded bg-primary/10 text-primary font-medium">
-                            {characterName}
-                          </div>
-                          {r.lastText && (
-                            <div className="text-xs text-muted-foreground truncate flex-1">
-                              {r.lastText}
+                            <div className="flex items-center gap-2">
+                              <div className="text-[10px] px-1.5 py-0.5 rounded bg-primary/10 text-primary font-medium">
+                                {characterName}
+                              </div>
+                              {r.lastText && (
+                                <div className="text-xs text-muted-foreground truncate flex-1">
+                                  {r.lastText}
+                                </div>
+                              )}
                             </div>
-                          )}
+                          </button>
+                          <Button
+                            size="sm"
+                            variant="ghost"
+                            className="h-6 w-6 p-0 flex-shrink-0 hover:bg-destructive/10 hover:text-destructive"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              deleteRoom(r.id);
+                            }}
+                            disabled={isDeleting}
+                            title="Delete conversation"
+                          >
+                            {isDeleting ? (
+                              <Loader2 className="h-3 w-3 animate-spin" />
+                            ) : (
+                              <Trash2 className="h-3 w-3" />
+                            )}
+                          </Button>
                         </div>
-                      </button>
+                      </div>
                     );
                   })}
                   {rooms.length === 0 && !isLoadingRooms && (
