@@ -9,7 +9,7 @@ import { usePrivy, useLogout } from "@privy-io/react-auth";
 import { useRouter, usePathname } from "next/navigation";
 import { useCreditsStream } from "@/hooks/use-credits-stream";
 import { PersonIcon, TokensIcon } from "@radix-ui/react-icons";
-import { CreditCard, LogOut, Loader2 } from "lucide-react";
+import { CreditCard, LogOut, Loader2, Settings } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { CornerBrackets } from "@/components/brand";
 
@@ -121,10 +121,10 @@ export function SidebarBottomPanel({ className }: SidebarBottomPanelProps) {
       href: "/dashboard/account",
     },
     {
-      id: "billing",
-      label: "Billing",
-      icon: CreditCard,
-      href: "/dashboard/billing",
+      id: "settings",
+      label: "Settings",
+      icon: Settings,
+      href: "/dashboard/settings",
     },
     {
       id: "api-keys",

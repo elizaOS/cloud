@@ -26,7 +26,7 @@ export const maxDuration = 60;
 
 async function handlePOST(req: NextRequest) {
   try {
-    const { user, apiKey } = await requireAuthOrApiKeyWithOrg(req);
+    const { user, apiKey, session_token } = await requireAuthOrApiKeyWithOrg(req);
     const request: OpenAIEmbeddingsRequest = await req.json();
 
     // Validate input
@@ -157,6 +157,8 @@ async function handlePOST(req: NextRequest) {
         amount: totalCost,
         description: `OpenAI Proxy Embeddings: ${request.model}`,
         metadata: { user_id: user.id },
+        session_token,
+        tokens_consumed: tokensUsed,
       });
 
       if (!deductResult.success) {

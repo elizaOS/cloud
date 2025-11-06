@@ -7,6 +7,21 @@ import { withRateLimit, RateLimitPresets } from "@/lib/middleware/rate-limit";
 const updateUserSchema = z.object({
   name: z.string().min(1).max(100).optional(),
   avatar: z.string().url().optional().or(z.literal("")),
+  nickname: z.string().max(50).optional(),
+  work_function: z
+    .enum([
+      "developer",
+      "designer",
+      "product",
+      "data",
+      "marketing",
+      "sales",
+      "other",
+    ])
+    .optional(),
+  preferences: z.string().max(1000).optional(),
+  response_notifications: z.boolean().optional(),
+  email_notifications: z.boolean().optional(),
 });
 
 /**
@@ -24,6 +39,11 @@ async function handleGET() {
         email: user.email,
         name: user.name,
         avatar: user.avatar,
+        nickname: user.nickname,
+        work_function: user.work_function,
+        preferences: user.preferences,
+        response_notifications: user.response_notifications,
+        email_notifications: user.email_notifications,
         role: user.role,
         email_verified: user.email_verified,
         wallet_address: user.wallet_address,
@@ -77,6 +97,19 @@ async function handlePATCH(request: NextRequest) {
       ...(validated.avatar !== undefined && {
         avatar: validated.avatar || null,
       }),
+      ...(validated.nickname !== undefined && { nickname: validated.nickname }),
+      ...(validated.work_function !== undefined && {
+        work_function: validated.work_function,
+      }),
+      ...(validated.preferences !== undefined && {
+        preferences: validated.preferences,
+      }),
+      ...(validated.response_notifications !== undefined && {
+        response_notifications: validated.response_notifications,
+      }),
+      ...(validated.email_notifications !== undefined && {
+        email_notifications: validated.email_notifications,
+      }),
     });
 
     if (!updated) {
@@ -96,6 +129,11 @@ async function handlePATCH(request: NextRequest) {
         email: updated.email,
         name: updated.name,
         avatar: updated.avatar,
+        nickname: updated.nickname,
+        work_function: updated.work_function,
+        preferences: updated.preferences,
+        response_notifications: updated.response_notifications,
+        email_notifications: updated.email_notifications,
         role: updated.role,
         wallet_address: updated.wallet_address,
         wallet_chain_type: updated.wallet_chain_type,
