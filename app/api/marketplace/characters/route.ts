@@ -43,7 +43,7 @@ export async function GET(request: NextRequest) {
 
     const includeStats = searchParams.get("includeStats") === "true";
 
-    logger.info("[Marketplace API] Search request:", {
+    logger.info("[My Agents API] Search request:", {
       userId: user.id,
       search,
       category,
@@ -80,7 +80,7 @@ export async function GET(request: NextRequest) {
       data: result,
     });
   } catch (error) {
-    logger.error("[Marketplace API] Error searching characters:", error);
+    logger.error("[My Agents API] Error searching characters:", error);
 
     return NextResponse.json(
       {

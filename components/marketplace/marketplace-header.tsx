@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Search, LayoutGrid, List, Plus, PanelLeftClose } from "lucide-react";
 import { useRouter } from "next/navigation";
 
-interface MarketplaceHeaderProps {
+interface MyAgentsHeaderProps {
   searchQuery: string;
   onSearchChange: (query: string) => void;
   view: "grid" | "list";
@@ -13,13 +13,13 @@ interface MarketplaceHeaderProps {
   onToggleCollapse?: () => void;
 }
 
-export function MarketplaceHeader({
+export function MyAgentsHeader({
   searchQuery,
   onSearchChange,
   view,
   onViewChange,
   onToggleCollapse,
-}: MarketplaceHeaderProps) {
+}: MyAgentsHeaderProps) {
   const router = useRouter();
 
   return (

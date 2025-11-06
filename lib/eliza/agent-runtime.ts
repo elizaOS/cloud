@@ -624,16 +624,35 @@ class AgentRuntimeManager {
 
     if (!isConnectionCached) {
       // Connection not cached - ensure it exists and cache the result
-      await runtime.ensureConnection({
-        entityId: entityUuid,
-        roomId: roomId as UUID,
-        worldId: stringToUuid("eliza-world"),
-        source: "web",
-        type: ChannelType.DM,
-        channelId: roomId,
-        serverId: "eliza-server",
-        userName: entityId,
-      });
+      
+      // Use ensureConnections (plural) for more robust entity/room creation
+      // This avoids the core library bug in ensureConnection (singular) that 
+      // improperly formats the names array parameter
+      const worldId = stringToUuid("eliza-world") as UUID;
+      
+      await runtime.ensureConnections(
+        [
+          {
+            id: entityUuid,
+            names: [entityId],
+            metadata: { name: entityId, web: { userName: entityId } },
+          },
+        ],
+        [
+          {
+            id: roomId as UUID,
+            name: entityId,
+            type: ChannelType.DM,
+            channelId: roomId,
+          },
+        ],
+        "web",
+        {
+          id: worldId,
+          name: "eliza-world",
+          serverId: "eliza-server",
+        },
+      );
 
       // Mark connection as established in cache
       await connectionCache.markEstablished(roomId, entityId);
@@ -706,7 +725,9 @@ class AgentRuntimeManager {
       }
     }
 
-    // Explicitly create and save agent response if we have text
+    // Construct agent response memory object for return value
+    // NOTE: The message is already created and saved by the plugin-assistant event handler
+    // We only create this object for the return value, not to save it again
     if (responseText) {
       agentResponse = {
         id: uuidv4() as UUID,
@@ -720,8 +741,7 @@ class AgentRuntimeManager {
         },
       };
 
-      await runtime.createMemory(agentResponse, "messages");
-      elizaLogger.debug("#Eliza", "Agent response saved to messages table");
+      elizaLogger.debug("#Eliza", "Agent response generated (already saved by plugin)");
     } else {
       elizaLogger.warn(
         "#Eliza",

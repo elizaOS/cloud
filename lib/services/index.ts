@@ -23,8 +23,11 @@ export * from "./ecr";
 export * from "./cloudformation";
 export * from "./alb-priority-manager";
 
-// Marketplace services
+// Marketplace services (public)
 export * from "./marketplace";
+
+// My Agents services (private)
+export * from "./my-agents";
 
 // Voice services
 export { voiceCloningService } from "./voice-cloning";

@@ -108,12 +108,15 @@ export async function POST(request: NextRequest) {
                 payload.user.id,
               );
 
-              console.log("Successfully migrated anonymous user to real account", {
-                anonymousUserId: anonSession.user_id,
-                realUserId: user.id,
-                privyUserId: payload.user.id,
-                messageCount: anonSession.message_count,
-              });
+              console.log(
+                "Successfully migrated anonymous user to real account",
+                {
+                  anonymousUserId: anonSession.user_id,
+                  realUserId: user.id,
+                  privyUserId: payload.user.id,
+                  messageCount: anonSession.message_count,
+                },
+              );
             }
           } catch (migrationError) {
             // Log error but don't fail the webhook

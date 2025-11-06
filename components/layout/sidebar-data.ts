@@ -74,7 +74,6 @@ export const sidebarSections: SidebarSection[] = [
         label: "Voices",
         href: "/dashboard/voices",
         icon: Mic,
-        isNew: true,
         freeAllowed: false, // Requires signup
       },
       {
@@ -94,15 +93,13 @@ export const sidebarSections: SidebarSection[] = [
         label: "Eliza Agent",
         href: "/dashboard/eliza",
         icon: Bot,
-        isNew: false,
         freeAllowed: true, // Free tier can access Eliza chat
       },
       {
-        id: "agent-marketplace",
-        label: "Agent Marketplace",
-        href: "/dashboard/agent-marketplace",
+        id: "my-agents",
+        label: "My Agents",
+        href: "/dashboard/my-agents",
         icon: Store,
-        isNew: true,
         freeAllowed: false, // Requires signup
       },
       {
@@ -110,7 +107,6 @@ export const sidebarSections: SidebarSection[] = [
         label: "Character Creator",
         href: "/dashboard/character-creator",
         icon: UserCog,
-        isNew: false,
         freeAllowed: false, // Requires signup
       },
       {
@@ -118,7 +114,6 @@ export const sidebarSections: SidebarSection[] = [
         label: "API Explorer",
         href: "/dashboard/api-explorer",
         icon: Code,
-        isNew: true,
         freeAllowed: false, // Requires signup
       },
       {
@@ -126,7 +121,6 @@ export const sidebarSections: SidebarSection[] = [
         label: "MCP Playground",
         href: "/dashboard/mcp-playground",
         icon: Zap,
-        isNew: true,
         freeAllowed: false, // Requires signup
       },
     ],
@@ -139,7 +133,6 @@ export const sidebarSections: SidebarSection[] = [
         label: "Containers",
         href: "/dashboard/containers",
         icon: Server,
-        isNew: true,
         freeAllowed: false, // Requires signup
       },
       {
@@ -147,7 +140,6 @@ export const sidebarSections: SidebarSection[] = [
         label: "Storage",
         href: "/dashboard/storage",
         icon: HardDrive,
-        isNew: false,
         freeAllowed: false, // Requires signup
       },
     ],

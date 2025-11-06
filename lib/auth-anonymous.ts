@@ -1,9 +1,9 @@
 /**
  * Anonymous User Authentication
- * 
+ *
  * Handles authentication and session management for free/anonymous users.
  * Anonymous users can access limited features without signing up.
- * 
+ *
  * Flow:
  * 1. User visits /dashboard/eliza without auth
  * 2. System creates anonymous user + session
@@ -17,7 +17,12 @@ import { nanoid } from "nanoid";
 import { cookies, headers } from "next/headers";
 import { usersService, anonymousSessionsService } from "@/lib/services";
 import { db } from "@/db/client";
-import { users, conversations, anonymousSessions, organizations } from "@/db/schemas";
+import {
+  users,
+  conversations,
+  anonymousSessions,
+  organizations,
+} from "@/db/schemas";
 import { eq, and } from "drizzle-orm";
 import { logger } from "@/lib/utils/logger";
 import type { UserWithOrganization } from "@/lib/types";
@@ -50,14 +55,14 @@ async function getUserAgent(): Promise<string | undefined> {
 
 /**
  * Get or create an anonymous user session
- * 
+ *
  * This function:
  * 1. Checks for existing session cookie
  * 2. Validates session is still active and not expired
  * 3. Returns existing user if valid
  * 4. Creates new anonymous user + session if needed
  * 5. Sets HTTP-only session cookie
- * 
+ *
  * @returns User and session data
  */
 export async function getOrCreateAnonymousUser(): Promise<{
@@ -159,10 +164,10 @@ export async function getOrCreateAnonymousUser(): Promise<{
 
 /**
  * Convert anonymous user to real authenticated user
- * 
+ *
  * Called during Privy webhook when user signs up.
  * Transfers all chat history and data to the new real account.
- * 
+ *
  * @param anonymousUserId - ID of anonymous user to convert
  * @param privyUserId - Privy user ID of new authenticated user
  */
@@ -180,9 +185,7 @@ export async function convertAnonymousToReal(
     const [anonUser] = await tx
       .select()
       .from(users)
-      .where(
-        and(eq(users.id, anonymousUserId), eq(users.is_anonymous, true)),
-      )
+      .where(and(eq(users.id, anonymousUserId), eq(users.is_anonymous, true)))
       .limit(1);
 
     if (!anonUser) {
@@ -198,29 +201,25 @@ export async function convertAnonymousToReal(
 
     if (!realUser) {
       // Real user doesn't exist yet - create organization and convert in-place
-      
+
       // Generate unique organization slug
       const orgSlug = `user-${privyUserId.slice(-8)}-${Math.random().toString(36).slice(2, 8)}`;
-      
+
       // Create organization for the user
       const [organization] = await tx
         .insert(organizations)
         .values({
-          name: `${anonUser.name || 'User'}'s Organization`,
+          name: `${anonUser.name || "User"}'s Organization`,
           slug: orgSlug,
           credit_balance: "5.00", // $5 initial credits
         })
         .returning();
 
-      logger.info(
-        "auth-anonymous",
-        "Created organization for converted user",
-        {
-          organizationId: organization.id,
-          userId: anonymousUserId,
-          creditBalance: organization.credit_balance,
-        },
-      );
+      logger.info("auth-anonymous", "Created organization for converted user", {
+        organizationId: organization.id,
+        userId: anonymousUserId,
+        creditBalance: organization.credit_balance,
+      });
 
       // Update anonymous user to become real user with organization
       await tx
@@ -247,7 +246,7 @@ export async function convertAnonymousToReal(
       );
     } else {
       // Real user exists - transfer data from anonymous to real user
-      
+
       // Transfer conversations
       const conversationResult = await tx
         .update(conversations)
@@ -316,9 +315,7 @@ export async function convertAnonymousToReal(
 /**
  * Check if user has reached their free message limit
  */
-export async function checkAnonymousLimit(
-  sessionId: string,
-): Promise<{
+export async function checkAnonymousLimit(sessionId: string): Promise<{
   allowed: boolean;
   reason?: "message_limit" | "hourly_limit";
   remaining: number;
@@ -403,5 +400,3 @@ export async function isAnonymousUser(): Promise<boolean> {
   const anon = await getAnonymousUser();
   return anon !== null;
 }
-
-

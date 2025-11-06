@@ -1,11 +1,11 @@
 /**
  * Cron Job: Cleanup Expired Anonymous Sessions
- * 
+ *
  * This endpoint should be called periodically (e.g., daily) to:
  * 1. Delete expired anonymous users
  * 2. Delete expired anonymous sessions
  * 3. Clean up orphaned data
- * 
+ *
  * Setup with Vercel Cron:
  * Add to vercel.json:
  * {
@@ -14,7 +14,7 @@
  *     "schedule": "0 2 * * *"  // Daily at 2 AM UTC
  *   }]
  * }
- * 
+ *
  * Or manually trigger via:
  * curl -H "Authorization: Bearer YOUR_CRON_SECRET" \
  *   https://your-domain.com/api/cron/cleanup-anonymous-sessions
@@ -67,19 +67,19 @@ export async function GET(request: NextRequest) {
         ),
       );
 
-    logger.info("cleanup-cron", `Found ${expiredUsers.length} expired anonymous users`);
+    logger.info(
+      "cleanup-cron",
+      `Found ${expiredUsers.length} expired anonymous users`,
+    );
 
     // Step 2: Delete conversations for expired users (optional - decide if you want to keep them)
     if (expiredUsers.length > 0) {
       const userIds = expiredUsers.map((u) => u.id);
 
       // Count conversations to be deleted
-      const conversationsToDelete = await db
-        .select()
-        .from(conversations)
-        .where(
-          eq(conversations.user_id, userIds[0]), // We'll delete one by one
-        );
+      const conversationsToDelete = await db.select().from(conversations).where(
+        eq(conversations.user_id, userIds[0]), // We'll delete one by one
+      );
 
       deletedConversations = conversationsToDelete.length;
 
@@ -107,7 +107,7 @@ export async function GET(request: NextRequest) {
 
     // Step 4: Clean up inactive anonymous users (over 7 days old, no messages)
     const sevenDaysAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
-    
+
     const inactiveUsersWithSessions = await db
       .select({
         userId: users.id,
@@ -117,10 +117,7 @@ export async function GET(request: NextRequest) {
       .from(users)
       .leftJoin(anonymousSessions, eq(anonymousSessions.user_id, users.id))
       .where(
-        and(
-          eq(users.is_anonymous, true),
-          lt(users.created_at, sevenDaysAgo),
-        ),
+        and(eq(users.is_anonymous, true), lt(users.created_at, sevenDaysAgo)),
       );
 
     let deletedInactiveUsers = 0;
@@ -131,7 +128,10 @@ export async function GET(request: NextRequest) {
       }
     }
 
-    logger.info("cleanup-cron", `Deleted ${deletedInactiveUsers} inactive anonymous users`);
+    logger.info(
+      "cleanup-cron",
+      `Deleted ${deletedInactiveUsers} inactive anonymous users`,
+    );
 
     // Return summary
     return NextResponse.json({
@@ -158,5 +158,3 @@ export async function GET(request: NextRequest) {
     );
   }
 }
-
-
