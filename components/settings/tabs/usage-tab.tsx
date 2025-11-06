@@ -1,21 +1,48 @@
 "use client";
 
+import { useState, useEffect } from "react";
 import { BrandCard, CornerBrackets } from "@/components/brand";
 import type { UserWithOrganization } from "@/lib/types";
-import { Info, DollarSign } from "lucide-react";
-import { Progress } from "@/components/ui/progress";
+import { Info, DollarSign, Loader2 } from "lucide-react";
+import { toast } from "sonner";
 
 interface UsageTabProps {
   user: UserWithOrganization;
 }
 
 export function UsageTab({ user }: UsageTabProps) {
-  // Mock data - replace with real data from API
-  const creditsRemaining = 50000;
-  const dailyBurn = 0;
-  const currentSessionUsage = 5; // percentage
-  const allModelsUsage = 0; // percentage
-  const opusOnlyUsage = 0; // percentage
+  const [loading, setLoading] = useState(false);
+  const [dailyBurn, setDailyBurn] = useState(0);
+
+  const creditsRemaining = Number(user.organization?.credit_balance || 0);
+
+  useEffect(() => {
+    const fetchDailyBurn = async () => {
+      try {
+        setLoading(true);
+
+        const response = await fetch("/api/credits/transactions?hours=24");
+
+        if (!response.ok) {
+          throw new Error("Failed to fetch transactions");
+        }
+
+        const data = await response.json();
+
+        const burn = (data.transactions || [])
+          .filter((t: any) => Number(t.amount) < 0)
+          .reduce((sum: number, t: any) => sum + Math.abs(Number(t.amount)), 0);
+
+        setDailyBurn(burn);
+      } catch (error) {
+        console.error("Error fetching daily burn:", error);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchDailyBurn();
+  }, []);
 
   return (
     <div className="flex flex-col gap-6">
@@ -53,7 +80,13 @@ export function UsageTab({ user }: UsageTabProps) {
                 <p className="text-base font-mono text-white">
                   Credits Remaining
                 </p>
-                <p className="text-xs text-[#FF5800]">{dailyBurn} daily burn</p>
+                {loading ? (
+                  <Loader2 className="h-4 w-4 animate-spin text-[#FF5800]" />
+                ) : (
+                  <p className="text-xs text-[#FF5800]">
+                    ${dailyBurn.toFixed(2)} daily burn
+                  </p>
+                )}
               </div>
 
               <div className="space-y-1">
@@ -62,7 +95,7 @@ export function UsageTab({ user }: UsageTabProps) {
                     <DollarSign className="h-[13px] w-[13px] text-[#FF5800]" />
                   </div>
                   <p className="text-2xl font-mono text-white tracking-tight">
-                    {creditsRemaining.toLocaleString()}
+                    ${creditsRemaining.toFixed(2)}
                   </p>
                 </div>
                 <p className="text-sm text-white/60">
@@ -71,32 +104,25 @@ export function UsageTab({ user }: UsageTabProps) {
               </div>
             </div>
 
-            {/* Current Session */}
+            {/* Current Session - Coming Soon */}
             <div className="backdrop-blur-sm bg-[rgba(10,10,10,0.75)] border-t-0 border border-brand-surface p-4 space-y-4">
-              <p className="text-base font-mono text-white">Current Session</p>
-
-              <div className="space-y-1">
-                <div className="flex items-center gap-2 w-full">
-                  <div className="flex-1 relative h-[21px] border border-[#e1e1e1] border-[0.5px]">
-                    <div
-                      className="absolute inset-0 bg-[#FF5800]"
-                      style={{ width: `${currentSessionUsage}%` }}
-                    />
-                  </div>
-                  <p className="text-base font-mono text-white tracking-tight">
-                    {currentSessionUsage}% used
-                  </p>
-                </div>
-                <p className="text-sm text-white/60">
-                  Starts when a message is sent
+              <div className="flex items-center justify-between">
+                <p className="text-base font-mono text-white">
+                  Current Session
                 </p>
+                <span className="text-xs font-mono text-white/40 border border-white/20 px-2 py-1">
+                  Coming Soon
+                </span>
               </div>
+              <p className="text-sm text-white/60">
+                Session tracking will be available in a future update.
+              </p>
             </div>
           </div>
         </div>
       </BrandCard>
 
-      {/* Weekly Limits Card */}
+      {/* Weekly Limits Card - Coming Soon */}
       <BrandCard className="relative">
         <CornerBrackets size="sm" className="opacity-50" />
 
@@ -109,38 +135,42 @@ export function UsageTab({ user }: UsageTabProps) {
                 <h3 className="text-base font-mono text-[#e1e1e1] uppercase">
                   Weekly limits
                 </h3>
+                <span className="text-xs font-mono text-white/40 border border-white/20 px-2 py-1">
+                  Coming Soon
+                </span>
               </div>
-              <p className="text-xs font-mono text-[#858585] tracking-tight underline cursor-pointer hover:text-white transition-colors">
-                Learn more about usage limits
+              <p className="text-xs font-mono text-[#858585] tracking-tight">
+                Usage limits and quota enforcement will be available in a future
+                update.
               </p>
             </div>
 
             <div className="flex items-center gap-2">
               <Info className="h-4 w-4 text-[#848484]" />
-              <p className="text-sm text-[#848484]">Last updated: just now</p>
+              <p className="text-sm text-[#848484]">Feature in development</p>
             </div>
           </div>
 
-          {/* Limits Section */}
+          {/* Limits Section - Placeholder */}
           <div className="space-y-0 w-full">
             {/* All models */}
             <div className="backdrop-blur-sm bg-[rgba(10,10,10,0.75)] border border-brand-surface p-4 space-y-4">
-              <p className="text-base font-mono text-white">All models</p>
+              <p className="text-base font-mono text-white/60">All models</p>
 
               <div className="space-y-1">
                 <div className="flex items-center gap-2 w-full">
                   <div className="flex-1 relative h-[21px] border border-[#e1e1e1] border-[0.5px]">
                     <div
-                      className="absolute inset-0 bg-[#FF5800]"
-                      style={{ width: `${allModelsUsage}%` }}
+                      className="absolute inset-0 bg-[#FF5800]/20"
+                      style={{ width: "0%" }}
                     />
                   </div>
-                  <p className="text-base font-mono text-white tracking-tight">
-                    {allModelsUsage}% used
+                  <p className="text-base font-mono text-white/60 tracking-tight">
+                    No limit set
                   </p>
                 </div>
-                <p className="text-sm text-white/60">
-                  Starts when a message is sent
+                <p className="text-sm text-white/40">
+                  Weekly usage limits not configured
                 </p>
               </div>
             </div>
@@ -148,24 +178,24 @@ export function UsageTab({ user }: UsageTabProps) {
             {/* Opus only */}
             <div className="backdrop-blur-sm bg-[rgba(10,10,10,0.75)] border-t-0 border border-brand-surface p-4 space-y-4">
               <div className="flex items-center gap-2">
-                <p className="text-base font-mono text-white">Opus only</p>
-                <Info className="h-4 w-4 text-[#FF5800]" />
+                <p className="text-base font-mono text-white/60">Opus only</p>
+                <Info className="h-4 w-4 text-[#FF5800]/60" />
               </div>
 
               <div className="space-y-1">
                 <div className="flex items-center gap-2 w-full">
                   <div className="flex-1 relative h-[21px] border border-[#e1e1e1] border-[0.5px]">
                     <div
-                      className="absolute inset-0 bg-[#FF5800]"
-                      style={{ width: `${opusOnlyUsage}%` }}
+                      className="absolute inset-0 bg-[#FF5800]/20"
+                      style={{ width: "0%" }}
                     />
                   </div>
-                  <p className="text-base font-mono text-white tracking-tight">
-                    {opusOnlyUsage}% used
+                  <p className="text-base font-mono text-white/60 tracking-tight">
+                    No limit set
                   </p>
                 </div>
-                <p className="text-sm text-white/60">
-                  You haven't used Opus yet
+                <p className="text-sm text-white/40">
+                  Model-specific limits not configured
                 </p>
               </div>
             </div>
@@ -198,15 +228,49 @@ export function UsageTab({ user }: UsageTabProps) {
           <div className="backdrop-blur-sm bg-[rgba(10,10,10,0.75)] border border-brand-surface p-4 space-y-2">
             <div className="flex items-center gap-2">
               <p className="text-base font-mono text-white">
-                All systems operational
+                {creditsRemaining > 10
+                  ? "All systems operational"
+                  : "Low credit balance"}
               </p>
-              <Info className="h-4 w-4 text-[#FF5800]" />
+              <Info
+                className={`h-4 w-4 ${creditsRemaining > 10 ? "text-[#FF5800]" : "text-yellow-500"}`}
+              />
             </div>
 
             <p className="text-sm text-white/60">
-              Your infrastructure is running smoothly. All providers are healthy
-              and credit balance is suficient.
+              {creditsRemaining > 10
+                ? "Your infrastructure is running smoothly. All providers are healthy and credit balance is sufficient."
+                : "Your credit balance is low. Consider adding more credits to ensure uninterrupted service."}
             </p>
+
+            {creditsRemaining <= 10 && (
+              <button
+                type="button"
+                onClick={() => {
+                  const settingsPageClient = document.querySelector(
+                    '[data-settings-page]'
+                  );
+                  if (settingsPageClient) {
+                    const billingTabButton = document.querySelector(
+                      '[data-tab="billing"]'
+                    ) as HTMLButtonElement;
+                    billingTabButton?.click();
+                  }
+                }}
+                className="relative bg-[#e1e1e1] px-3 py-2 overflow-hidden hover:bg-white transition-colors mt-2"
+              >
+                <div
+                  className="absolute inset-0 opacity-20 bg-repeat pointer-events-none"
+                  style={{
+                    backgroundImage: `url(/assets/settings/pattern-6px-flip.png)`,
+                    backgroundSize: "2.915576934814453px 2.915576934814453px",
+                  }}
+                />
+                <span className="relative z-10 text-black font-mono font-medium text-sm">
+                  Add Credits
+                </span>
+              </button>
+            )}
           </div>
         </div>
       </BrandCard>

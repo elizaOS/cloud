@@ -1,9 +1,9 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { BrandCard, CornerBrackets } from "@/components/brand";
 import type { UserWithOrganization } from "@/lib/types";
-import { Activity, Coins, Shield, BarChart } from "lucide-react";
+import { Activity, Coins, Shield, BarChart, Loader2 } from "lucide-react";
 import {
   Select,
   SelectContent,
@@ -11,6 +11,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { toast } from "sonner";
 
 interface AnalyticsTabProps {
   user: UserWithOrganization;
@@ -20,17 +21,79 @@ type TimeRange = "7days" | "30days" | "90days";
 type Cadence = "day" | "week" | "month";
 type FocusMetric = "requests" | "costs" | "success-rate";
 
+interface AnalyticsData {
+  totalRequests: number;
+  successfulRequests: number;
+  failedRequests: number;
+  successRate: number;
+  totalCost: number;
+  avgCostPerRequest: number;
+  avgTokensPerRequest: number;
+  totalTokens: number;
+  dailyBurn: number;
+  timeRange: string;
+  periodStart: string;
+  periodEnd: string;
+}
+
 export function AnalyticsTab({ user }: AnalyticsTabProps) {
   const [cadence, setCadence] = useState<Cadence>("day");
   const [timeRange, setTimeRange] = useState<TimeRange>("7days");
   const [focusMetric, setFocusMetric] = useState<FocusMetric>("requests");
+  const [loading, setLoading] = useState(true);
+  const [analyticsData, setAnalyticsData] = useState<AnalyticsData | null>(
+    null
+  );
 
-  // Mock analytics data
-  const totalRequests = 0;
-  const totalCost = 0;
-  const successRate = 0;
-  const tokenVolume = 0;
-  const dailyBurn = 0;
+  const fetchAnalytics = async (range: TimeRange) => {
+    try {
+      setLoading(true);
+
+      const apiTimeRange =
+        range === "7days" ? "daily" : range === "30days" ? "weekly" : "monthly";
+
+      const response = await fetch(
+        `/api/analytics/overview?timeRange=${apiTimeRange}`
+      );
+
+      if (!response.ok) {
+        throw new Error("Failed to fetch analytics");
+      }
+
+      const result = await response.json();
+
+      if (result.success && result.data) {
+        setAnalyticsData(result.data);
+      }
+    } catch (error) {
+      console.error("Error fetching analytics:", error);
+      toast.error("Failed to load analytics data");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchAnalytics(timeRange);
+  }, [timeRange]);
+
+  const formatDateRange = () => {
+    if (!analyticsData) return "";
+    const start = new Date(analyticsData.periodStart).toLocaleDateString(
+      "en-US",
+      {
+        month: "short",
+        day: "numeric",
+        year: "numeric",
+      }
+    );
+    const end = new Date(analyticsData.periodEnd).toLocaleDateString("en-US", {
+      month: "short",
+      day: "numeric",
+      year: "numeric",
+    });
+    return `${start} → ${end}`;
+  };
 
   return (
     <div className="flex flex-col gap-6">
@@ -59,7 +122,10 @@ export function AnalyticsTab({ user }: AnalyticsTabProps) {
           <div className="flex items-start gap-2">
             {/* Cadence Dropdown */}
             <div className="w-[100px]">
-              <Select value={cadence} onValueChange={(v) => setCadence(v as Cadence)}>
+              <Select
+                value={cadence}
+                onValueChange={(v) => setCadence(v as Cadence)}
+              >
                 <SelectTrigger className="bg-transparent border-[#303030] text-white/60 h-9">
                   <SelectValue />
                 </SelectTrigger>
@@ -75,8 +141,9 @@ export function AnalyticsTab({ user }: AnalyticsTabProps) {
             <button
               type="button"
               onClick={() => setTimeRange("7days")}
+              disabled={loading}
               className={`
-                border border-[#303030] px-2 py-2 transition-colors text-sm text-white/60
+                border border-[#303030] px-2 py-2 transition-colors text-sm text-white/60 disabled:opacity-50
                 ${timeRange === "7days" ? "bg-white/10" : "hover:bg-white/5"}
               `}
             >
@@ -86,8 +153,9 @@ export function AnalyticsTab({ user }: AnalyticsTabProps) {
             <button
               type="button"
               onClick={() => setTimeRange("30days")}
+              disabled={loading}
               className={`
-                border border-[#303030] px-2 py-2 transition-colors text-sm text-white/60
+                border border-[#303030] px-2 py-2 transition-colors text-sm text-white/60 disabled:opacity-50
                 ${timeRange === "30days" ? "bg-white/10" : "hover:bg-white/5"}
               `}
             >
@@ -97,8 +165,9 @@ export function AnalyticsTab({ user }: AnalyticsTabProps) {
             <button
               type="button"
               onClick={() => setTimeRange("90days")}
+              disabled={loading}
               className={`
-                border border-[#303030] px-2 py-2 transition-colors text-sm text-white/60
+                border border-[#303030] px-2 py-2 transition-colors text-sm text-white/60 disabled:opacity-50
                 ${timeRange === "90days" ? "bg-white/10" : "hover:bg-white/5"}
               `}
             >
@@ -116,12 +185,25 @@ export function AnalyticsTab({ user }: AnalyticsTabProps) {
             <p className="text-base font-mono text-white">Total Requests</p>
             <Activity className="h-4 w-4 text-[#A2A2A2]" />
           </div>
-          <p className="text-2xl font-mono text-white tracking-tight">
-            {totalRequests}
-          </p>
-          <p className="text-sm text-white/60">
-            Daily cadence · Oct 20,1025 → Oct 27, 2025
-          </p>
+          {loading ? (
+            <Loader2 className="h-6 w-6 animate-spin text-[#FF5800] my-2" />
+          ) : (
+            <>
+              <p className="text-2xl font-mono text-white tracking-tight">
+                {analyticsData?.totalRequests
+                  ? analyticsData.totalRequests.toLocaleString()
+                  : "0"}
+              </p>
+              <p className="text-sm text-white/60">
+                {cadence === "day"
+                  ? "Daily"
+                  : cadence === "week"
+                    ? "Weekly"
+                    : "Monthly"}{" "}
+                cadence · {formatDateRange()}
+              </p>
+            </>
+          )}
         </div>
 
         {/* Total Cost */}
@@ -130,12 +212,25 @@ export function AnalyticsTab({ user }: AnalyticsTabProps) {
             <p className="text-base font-mono text-white">Total Cost</p>
             <Coins className="h-4 w-4 text-[#A2A2A2]" />
           </div>
-          <p className="text-2xl font-mono text-white tracking-tight">
-            {totalCost}
-          </p>
-          <p className="text-sm text-white/60">
-            ± 0.00 credits per request
-          </p>
+          {loading ? (
+            <Loader2 className="h-6 w-6 animate-spin text-[#FF5800] my-2" />
+          ) : (
+            <>
+              <p className="text-2xl font-mono text-white tracking-tight">
+                $
+                {analyticsData?.totalCost !== undefined
+                  ? analyticsData.totalCost.toFixed(2)
+                  : "0.00"}
+              </p>
+              <p className="text-sm text-white/60">
+                $
+                {analyticsData?.avgCostPerRequest !== undefined
+                  ? analyticsData.avgCostPerRequest.toFixed(4)
+                  : "0.0000"}{" "}
+                credits per request
+              </p>
+            </>
+          )}
         </div>
 
         {/* Success Rate */}
@@ -144,12 +239,22 @@ export function AnalyticsTab({ user }: AnalyticsTabProps) {
             <p className="text-base font-mono text-white">Success Rate</p>
             <Shield className="h-4 w-4 text-[#A2A2A2]" />
           </div>
-          <p className="text-2xl font-mono text-white tracking-tight">
-            {successRate}
-          </p>
-          <p className="text-sm text-white/60">
-            Ratio of successful completions across 0 data points
-          </p>
+          {loading ? (
+            <Loader2 className="h-6 w-6 animate-spin text-[#FF5800] my-2" />
+          ) : (
+            <>
+              <p className="text-2xl font-mono text-white tracking-tight">
+                {analyticsData?.successRate !== undefined
+                  ? (analyticsData.successRate * 100).toFixed(1)
+                  : "0.0"}
+                %
+              </p>
+              <p className="text-sm text-white/60">
+                Ratio of successful completions across{" "}
+                {analyticsData?.totalRequests || 0} data points
+              </p>
+            </>
+          )}
         </div>
 
         {/* Token Volume */}
@@ -158,12 +263,24 @@ export function AnalyticsTab({ user }: AnalyticsTabProps) {
             <p className="text-base font-mono text-white">Token Volume</p>
             <BarChart className="h-4 w-4 text-[#A2A2A2]" />
           </div>
-          <p className="text-2xl font-mono text-white tracking-tight">
-            {tokenVolume}
-          </p>
-          <p className="text-sm text-white/60">
-            ± 0.00 tokens per request
-          </p>
+          {loading ? (
+            <Loader2 className="h-6 w-6 animate-spin text-[#FF5800] my-2" />
+          ) : (
+            <>
+              <p className="text-2xl font-mono text-white tracking-tight">
+                {analyticsData?.totalTokens
+                  ? analyticsData.totalTokens.toLocaleString()
+                  : "0"}
+              </p>
+              <p className="text-sm text-white/60">
+                ±{" "}
+                {analyticsData?.avgTokensPerRequest
+                  ? analyticsData.avgTokensPerRequest.toLocaleString()
+                  : "0.00"}{" "}
+                tokens per request
+              </p>
+            </>
+          )}
         </div>
       </div>
 
@@ -179,7 +296,7 @@ export function AnalyticsTab({ user }: AnalyticsTabProps) {
               <div className="flex items-center gap-2">
                 <div className="w-2 h-2 rounded-full bg-[#FF5800]" />
                 <h3 className="text-base font-mono text-[#e1e1e1] uppercase">
-                  usage Visibility
+                  Usage Visibility
                 </h3>
               </div>
               <p className="text-xs font-mono text-[#858585] tracking-tight">
@@ -238,7 +355,7 @@ export function AnalyticsTab({ user }: AnalyticsTabProps) {
                       ${focusMetric === "success-rate" ? "bg-[rgba(255,88,0,0.24)] text-[#FF5800]" : "bg-neutral-950 text-[#e1e1e1]"}
                     `}
                   >
-                    Successs rate (%)
+                    Success rate (%)
                   </button>
                 </div>
               </div>
@@ -274,40 +391,66 @@ export function AnalyticsTab({ user }: AnalyticsTabProps) {
 
             {/* Burn Rate Cards */}
             <div className="space-y-0">
-              {/* Daily Burn Card 1 */}
+              {/* Daily Burn Card */}
               <div className="backdrop-blur-sm bg-[rgba(10,10,10,0.75)] border border-brand-surface p-4 space-y-2">
                 <p className="text-sm font-mono text-white/60 uppercase">
-                  DAily Burn (24)
+                  Daily Burn (24h)
                 </p>
-                <div className="flex items-center justify-between">
-                  <p className="text-base font-mono text-white">
-                    {dailyBurn} credits
-                  </p>
-                  <div className="bg-[rgba(255,88,0,0.25)] px-2 py-1">
-                    <p className="text-xs font-mono text-[#FF5800]">0.0%</p>
-                  </div>
-                </div>
-                <p className="text-sm text-white/60">
-                  Compared to previous 24h window - stable throughput
-                </p>
+                {loading ? (
+                  <Loader2 className="h-5 w-5 animate-spin text-[#FF5800]" />
+                ) : (
+                  <>
+                    <div className="flex items-center justify-between">
+                      <p className="text-base font-mono text-white">
+                        $
+                        {analyticsData?.dailyBurn !== undefined
+                          ? analyticsData.dailyBurn.toFixed(2)
+                          : "0.00"}{" "}
+                        credits
+                      </p>
+                      <div className="bg-[rgba(255,88,0,0.25)] px-2 py-1">
+                        <p className="text-xs font-mono text-[#FF5800]">
+                          {analyticsData && analyticsData.dailyBurn > 0
+                            ? "Active"
+                            : "Idle"}
+                        </p>
+                      </div>
+                    </div>
+                    <p className="text-sm text-white/60">
+                      Credits spent in the last 24 hours
+                    </p>
+                  </>
+                )}
               </div>
 
-              {/* Daily Burn Card 2 */}
+              {/* Weekly Projection */}
               <div className="backdrop-blur-sm bg-[rgba(10,10,10,0.75)] border-l border-r border-b border-brand-surface p-4 space-y-2">
                 <p className="text-sm font-mono text-white/60 uppercase">
-                  DAily Burn (24)
+                  Weekly Projection
                 </p>
-                <div className="flex items-center justify-between">
-                  <p className="text-base font-mono text-white">
-                    {dailyBurn} credits
-                  </p>
-                  <div className="bg-[rgba(255,88,0,0.25)] px-2 py-1">
-                    <p className="text-xs font-mono text-[#FF5800]">0.0%</p>
-                  </div>
-                </div>
-                <p className="text-sm text-white/60">
-                  Compared to previous 24h window - stable throughput
-                </p>
+                {loading ? (
+                  <Loader2 className="h-5 w-5 animate-spin text-[#FF5800]" />
+                ) : (
+                  <>
+                    <div className="flex items-center justify-between">
+                      <p className="text-base font-mono text-white">
+                        $
+                        {analyticsData?.dailyBurn !== undefined
+                          ? (analyticsData.dailyBurn * 7).toFixed(2)
+                          : "0.00"}{" "}
+                        credits
+                      </p>
+                      <div className="bg-[rgba(255,88,0,0.25)] px-2 py-1">
+                        <p className="text-xs font-mono text-[#FF5800]">
+                          Est.
+                        </p>
+                      </div>
+                    </div>
+                    <p className="text-sm text-white/60">
+                      Estimated burn based on current daily rate
+                    </p>
+                  </>
+                )}
               </div>
             </div>
           </div>
