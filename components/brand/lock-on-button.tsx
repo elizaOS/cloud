@@ -49,6 +49,30 @@ export function LockOnButton({
 
   const Comp = asChild ? Slot : "button";
 
+  // If asChild, render without corner brackets (Slot requires single child)
+  if (asChild) {
+    return (
+      <Comp
+        onClick={handleClick}
+        className={cn(
+          "relative",
+          sizeClasses[size],
+          "font-medium text-white bg-[#FF5800]/25",
+          "cursor-pointer overflow-visible transition-all duration-300",
+          "inline-flex items-center gap-2 outline-none",
+          !disabled &&
+            "hover:bg-[#FF5800]/40 hover:shadow-[0_0_20px_rgba(255,88,0,0.4)]",
+          !disabled && "active:bg-[#FF5800]/60",
+          disabled && "opacity-50 cursor-not-allowed",
+          className,
+        )}
+        {...props}
+      >
+        {children}
+      </Comp>
+    );
+  }
+
   return (
     <Comp
       onClick={handleClick}
@@ -174,14 +198,10 @@ export function LockOnButton({
       </span>
 
       {/* Button content */}
-      {!asChild ? (
-        <span className="relative z-10 flex items-center gap-2">
-          {icon}
-          {children}
-        </span>
-      ) : (
-        children
-      )}
+      <span className="relative z-10 flex items-center gap-2">
+        {icon}
+        {children}
+      </span>
     </Comp>
   );
 }
