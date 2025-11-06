@@ -19,6 +19,7 @@ import {
   Zap,
   Store,
   Building2,
+  Settings,
 } from "lucide-react";
 import type { ComponentType } from "react";
 
@@ -143,6 +144,13 @@ export const sidebarSections: SidebarSection[] = [
         label: "Analytics",
         href: "/dashboard/analytics",
         icon: BarChartIcon,
+        freeAllowed: false, // Requires signup
+      },
+      {
+        id: "settings",
+        label: "Settings",
+        href: "/dashboard/settings",
+        icon: Settings,
         freeAllowed: false, // Requires signup
       },
       {

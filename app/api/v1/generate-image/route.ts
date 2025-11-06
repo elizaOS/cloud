@@ -39,7 +39,7 @@ interface GenerateImageRequest {
 async function handlePOST(req: NextRequest) {
   let generationId: string | undefined;
   try {
-    const { user, apiKey } = await requireAuthOrApiKeyWithOrg(req);
+    const { user, apiKey, session_token } = await requireAuthOrApiKeyWithOrg(req);
     const {
       prompt,
       numImages = 1,
@@ -215,6 +215,7 @@ async function handlePOST(req: NextRequest) {
       amount: actualCost,
       description: `Image generation (${successfulResults.length}x): google/gemini-2.5-flash-image-preview`,
       metadata: { user_id: user.id },
+      session_token,
     });
 
     // FIXED: Fail the request if credit deduction fails to prevent revenue leak

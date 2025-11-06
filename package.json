@@ -23,11 +23,14 @@
     "db:local:seed": "tsx scripts/seed-local-dev.ts",
     "seed:credit-packs": "tsx scripts/seed-credit-packs.ts",
     "stripe:webhook": "stripe listen --forward-to localhost:3000/api/stripe/webhook",
+    "cron:auto-top-up": "tsx scripts/trigger-auto-top-up.ts",
+    "billing:set-email": "tsx scripts/set-billing-email.ts",
     "bootstrapper:build": "cd bootstrapper && ./build.sh",
     "cache:clear": "tsx scripts/clear-cache.ts",
     "cache:health": "tsx scripts/cache-health-check.ts",
     "mcp:inspector": "bunx @modelcontextprotocol/inspector@latest",
-    "test:discord": "tsx scripts/test-discord-service.ts"
+    "test:discord": "tsx scripts/test-discord-service.ts",
+    "test:auto-top-up-email": "tsx scripts/debug-auto-top-up-email.ts"
   },
   "dependencies": {
     "@ai-sdk/gateway": "^2.0.5",
@@ -87,6 +90,7 @@
     "@solana-program/token": "^0.6.0",
     "@solana/kit": "^3.0.3",
     "@solana/web3.js": "^1.98.4",
+    "@stripe/react-stripe-js": "^3.5.0",
     "@stripe/stripe-js": "^8.2.0",
     "@tabler/icons-react": "^3.35.0",
     "@tailwindcss/postcss": "^4.1.16",

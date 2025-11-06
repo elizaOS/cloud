@@ -1,5 +1,5 @@
 import { PrivyClient } from "@privy-io/server-auth";
-import { usersService, apiKeysService } from "@/lib/services";
+import { usersService, apiKeysService, userSessionsService } from "@/lib/services";
 import type { UserWithOrganization, ApiKey } from "@/lib/types";
 import type { Organization } from "@/db/schemas/organizations";
 import { cache } from "react";
@@ -19,6 +19,7 @@ export type AuthResult = {
   user: UserWithOrganization;
   apiKey?: ApiKey;
   authMethod: "session" | "api_key";
+  session_token?: string;
 };
 
 /**
@@ -29,6 +30,7 @@ export type AuthResult = {
  * 2. Look up user in database by Privy ID
  * 3. If not found, fetch full user data from Privy API (just-in-time sync)
  * 4. Create user and organization in database
+ * 5. Create or get user session for tracking
  *
  * This handles the race condition where webhooks haven't fired yet.
  */
@@ -85,6 +87,19 @@ export const getCurrentUser = cache(
           // User authentication is valid but we couldn't create them locally
           // This is a critical error - webhooks might be broken
           return null;
+        }
+      }
+
+      // Create or get user session for authenticated users with organizations
+      if (user && user.organization_id) {
+        try {
+          await userSessionsService.getOrCreateSession({
+            user_id: user.id,
+            organization_id: user.organization_id,
+            session_token: authToken.value,
+          });
+        } catch (sessionError) {
+          console.error("Failed to create/get user session:", sessionError);
         }
       }
 
@@ -264,9 +279,14 @@ export async function requireAuthOrApiKey(
   // Fall back to session authentication
   const user = await requireAuth();
 
+  // Get session token from cookies
+  const cookieStore = await cookies();
+  const authToken = cookieStore.get("privy-token");
+
   return {
     user,
     authMethod: "session",
+    session_token: authToken?.value,
   };
 }
 
