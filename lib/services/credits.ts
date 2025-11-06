@@ -1,6 +1,7 @@
 import {
   creditTransactionsRepository,
   creditPacksRepository,
+  organizationsRepository,
   type CreditTransaction,
   type NewCreditTransaction,
   type CreditPack,
@@ -14,6 +15,8 @@ import {
   canSendLowCreditsEmail,
   markLowCreditsEmailSent,
 } from "@/lib/email/utils/rate-limiter";
+import { CacheInvalidation } from "@/lib/cache/invalidation";
+import { userSessionsService } from "./user-sessions";
 
 // Parameter types for consistent API signatures
 export interface AddCreditsParams {
@@ -29,6 +32,8 @@ export interface DeductCreditsParams {
   amount: number;
   description: string;
   metadata?: Record<string, unknown>;
+  session_token?: string;
+  tokens_consumed?: number;
 }
 
 export class CreditsService {
@@ -83,9 +88,64 @@ export class CreditsService {
       stripePaymentIntentId,
     } = params;
 
+    // IDEMPOTENCY: If stripePaymentIntentId is provided, check for existing transaction
+    // This prevents race conditions when both synchronous and webhook calls try to add credits
+    if (stripePaymentIntentId) {
+      const existingTransaction =
+        await this.getTransactionByStripePaymentIntent(stripePaymentIntentId);
+
+      if (existingTransaction) {
+        console.log(
+          `[CreditsService] Idempotency: Payment intent ${stripePaymentIntentId} already processed (transaction ${existingTransaction.id})`,
+        );
+
+        // Get current balance to return consistent response
+        const org = await organizationsRepository.findById(organizationId);
+        if (!org) {
+          throw new Error("Organization not found");
+        }
+
+        return {
+          transaction: existingTransaction,
+          newBalance: Number.parseFloat(String(org.credit_balance)),
+        };
+      }
+    }
+
     // FIXED: Wrap in atomic transaction to prevent inconsistency between
     // transaction record and balance update
-    return await db.transaction(async (tx) => {
+    const result = await db.transaction(async (tx) => {
+      // Double-check inside transaction to handle race condition where both
+      // threads passed the first check but haven't inserted yet
+      if (stripePaymentIntentId) {
+        const existingInTx = await tx.query.creditTransactions.findFirst({
+          where: eq(
+            creditTransactions.stripe_payment_intent_id,
+            stripePaymentIntentId,
+          ),
+        });
+
+        if (existingInTx) {
+          console.log(
+            `[CreditsService] Race condition detected: Payment intent ${stripePaymentIntentId} was inserted by another thread`,
+          );
+
+          // Get current balance
+          const org = await tx.query.organizations.findFirst({
+            where: eq(organizations.id, organizationId),
+          });
+
+          if (!org) {
+            throw new Error("Organization not found");
+          }
+
+          return {
+            transaction: existingInTx,
+            newBalance: Number.parseFloat(String(org.credit_balance)),
+          };
+        }
+      }
+
       // Create transaction record
       const [transaction] = await tx
         .insert(creditTransactions)
@@ -100,10 +160,12 @@ export class CreditsService {
         })
         .returning();
 
-      // Get current organization state
-      const org = await tx.query.organizations.findFirst({
-        where: eq(organizations.id, organizationId),
-      });
+      // Get current organization state with row-level lock to prevent concurrent modifications
+      const [org] = await tx
+        .select()
+        .from(organizations)
+        .where(eq(organizations.id, organizationId))
+        .for("update");
 
       if (!org) {
         throw new Error("Organization not found");
@@ -123,6 +185,11 @@ export class CreditsService {
 
       return { transaction, newBalance };
     });
+
+    // Invalidate balance cache immediately after transaction
+    await CacheInvalidation.onCreditMutation(organizationId);
+
+    return result;
   }
 
   async deductCredits(params: DeductCreditsParams): Promise<{
@@ -130,7 +197,14 @@ export class CreditsService {
     newBalance: number;
     transaction: CreditTransaction | null;
   }> {
-    const { organizationId, amount, description, metadata } = params;
+    const {
+      organizationId,
+      amount,
+      description,
+      metadata,
+      session_token,
+      tokens_consumed,
+    } = params;
 
     if (amount <= 0) {
       throw new Error("Amount must be positive");
@@ -193,6 +267,37 @@ export class CreditsService {
       })
       .then(async (result) => {
         if (result.success) {
+          // Invalidate balance cache immediately after successful deduction
+          await CacheInvalidation.onCreditMutation(organizationId);
+
+          // Track session usage if session_token is provided
+          if (session_token) {
+            userSessionsService
+              .trackUsage({
+                session_token,
+                credits_used: amount,
+                requests_made: 1,
+                tokens_consumed: tokens_consumed || 0,
+              })
+              .catch((error) => {
+                console.error(
+                  "[CreditsService] Failed to track session usage:",
+                  error,
+                );
+              });
+          }
+
+          // Check if auto top-up should be triggered
+          this.checkAndTriggerAutoTopUp(organizationId, result.newBalance).catch(
+            (error) => {
+              console.error(
+                "[CreditsService] Failed to check auto top-up:",
+                error,
+              );
+            },
+          );
+
+          // Queue low credits email
           this.queueLowCreditsEmail(organizationId, result.newBalance).catch(
             (error) => {
               console.error(
@@ -204,6 +309,55 @@ export class CreditsService {
         }
         return result;
       });
+  }
+
+  /**
+   * Check if auto top-up should be triggered after credit deduction
+   * This is called automatically after every successful credit deduction
+   */
+  private async checkAndTriggerAutoTopUp(
+    organizationId: string,
+    newBalance: number,
+  ): Promise<void> {
+    try {
+      // Get organization details
+      const org = await organizationsRepository.findById(organizationId);
+      if (!org) {
+        return;
+      }
+
+      // Check if auto top-up is enabled
+      if (!org.auto_top_up_enabled) {
+        return;
+      }
+
+      const threshold = Number(org.auto_top_up_threshold || 0);
+
+      // Check if balance is below threshold
+      if (newBalance >= threshold) {
+        return;
+      }
+
+      console.log(
+        `[CreditsService] Auto top-up triggered: balance $${newBalance.toFixed(2)} < threshold $${threshold.toFixed(2)}`,
+      );
+
+      // Import auto top-up service dynamically to avoid circular dependency
+      const { autoTopUpService } = await import("./auto-top-up");
+
+      // Execute auto top-up asynchronously (don't block the main operation)
+      autoTopUpService.executeAutoTopUp(org).catch((error) => {
+        console.error(
+          `[CreditsService] Auto top-up execution failed for org ${organizationId}:`,
+          error,
+        );
+      });
+    } catch (error) {
+      console.error(
+        `[CreditsService] Error checking auto top-up for org ${organizationId}:`,
+        error,
+      );
+    }
   }
 
   private async queueLowCreditsEmail(

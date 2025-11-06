@@ -6,6 +6,9 @@ import type {
   WelcomeEmailData,
   LowCreditsEmailData,
   InviteEmailData,
+  AutoTopUpSuccessEmailData,
+  AutoTopUpDisabledEmailData,
+  PurchaseConfirmationEmailData,
 } from "@/lib/email/types";
 
 class EmailService {
@@ -156,6 +159,48 @@ class EmailService {
     return this.send({
       to: data.email,
       subject: `🎉 You've been invited to join ${data.organizationName} on Eliza Cloud`,
+      html,
+      text,
+    });
+  }
+
+  async sendAutoTopUpSuccessEmail(data: AutoTopUpSuccessEmailData): Promise<boolean> {
+    const { renderAutoTopUpSuccessTemplate } = await import(
+      "@/lib/email/utils/template-renderer"
+    );
+    const { html, text } = renderAutoTopUpSuccessTemplate(data);
+
+    return this.send({
+      to: data.email,
+      subject: "✓ Auto Top-Up Successful - Balance Recharged",
+      html,
+      text,
+    });
+  }
+
+  async sendAutoTopUpDisabledEmail(data: AutoTopUpDisabledEmailData): Promise<boolean> {
+    const { renderAutoTopUpDisabledTemplate } = await import(
+      "@/lib/email/utils/template-renderer"
+    );
+    const { html, text } = renderAutoTopUpDisabledTemplate(data);
+
+    return this.send({
+      to: data.email,
+      subject: "⚠ Auto Top-Up Disabled - Action Required",
+      html,
+      text,
+    });
+  }
+
+  async sendPurchaseConfirmationEmail(data: PurchaseConfirmationEmailData): Promise<boolean> {
+    const { renderPurchaseConfirmationTemplate } = await import(
+      "@/lib/email/utils/template-renderer"
+    );
+    const { html, text } = renderPurchaseConfirmationTemplate(data);
+
+    return this.send({
+      to: data.email,
+      subject: "✓ Purchase Confirmed - Credits Added to Your Account",
       html,
       text,
     });
