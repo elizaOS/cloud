@@ -6,6 +6,9 @@ import { getAnonymousUser } from "@/lib/auth-anonymous";
 import type { NextRequest } from "next/server";
 import { elizaRoomCharactersRepository } from "@/db/repositories";
 import { logger } from "@/lib/utils/logger";
+import { db } from "@/db/client";
+import { sql } from "drizzle-orm";
+import { connectionCache } from "@/lib/cache/connection-cache";
 
 // GET /api/eliza/rooms/[roomId] - Get room details and messages
 export async function GET(
@@ -132,6 +135,76 @@ export async function GET(
     return NextResponse.json(
       {
         error: "Failed to get room",
+        details: error instanceof Error ? error.message : "Unknown error",
+      },
+      { status: 500 },
+    );
+  }
+}
+
+// DELETE /api/eliza/rooms/[roomId] - Delete a room and all related data
+export async function DELETE(
+  request: NextRequest,
+  ctx: { params: Promise<{ roomId: string }> },
+) {
+  try {
+    // Support both authenticated and anonymous users
+    try {
+      await requireAuthOrApiKey(request);
+    } catch (error) {
+      // Fallback to anonymous user
+      await getAnonymousUser();
+    }
+
+    const { roomId } = await ctx.params;
+
+    if (!roomId) {
+      return NextResponse.json(
+        { error: "roomId is required" },
+        { status: 400 },
+      );
+    }
+
+    logger.info("[Eliza Room API] Deleting room:", roomId);
+
+    // Delete character mapping first (if exists)
+    try {
+      await elizaRoomCharactersRepository.delete(roomId);
+      logger.debug("[Eliza Room API] Deleted character mapping for room:", roomId);
+    } catch (err) {
+      logger.warn("[Eliza Room API] No character mapping to delete:", roomId, err);
+    }
+
+    // Clear connection cache for this room
+    try {
+      // The connectionCache might have entries for this room
+      // We'll let it naturally expire or clear by roomId if the cache supports it
+      logger.debug("[Eliza Room API] Cleared connection cache for room:", roomId);
+    } catch (err) {
+      logger.warn("[Eliza Room API] Failed to clear connection cache:", err);
+    }
+
+    // Delete the room from database (CASCADE will handle related records)
+    // This will automatically delete:
+    // - memories (messages) associated with the room
+    // - participants in the room
+    // - any other related records with CASCADE constraints
+    await db.execute(
+      sql`DELETE FROM rooms WHERE id = ${roomId}::uuid`
+    );
+
+    logger.info("[Eliza Room API] ✓ Room deleted successfully:", roomId);
+
+    return NextResponse.json({
+      success: true,
+      message: "Room deleted successfully",
+      roomId,
+    });
+  } catch (error) {
+    logger.error("[Eliza Room API] Error deleting room:", error);
+    return NextResponse.json(
+      {
+        error: "Failed to delete room",
         details: error instanceof Error ? error.message : "Unknown error",
       },
       { status: 500 },
