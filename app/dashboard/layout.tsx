@@ -27,7 +27,7 @@ export default function DashboardLayout({
   children: React.ReactNode;
 }) {
   const [sidebarOpen, setSidebarOpen] = useState(false);
-  const { ready, authenticated, login } = usePrivy();
+  const { ready, authenticated } = usePrivy();
   const router = useRouter();
   const pathname = usePathname();
 
@@ -71,11 +71,10 @@ export default function DashboardLayout({
   return (
     <PageHeaderProvider>
       <div className="flex h-screen w-full bg-[#0A0A0A]">
-        {/* Sidebar - pass auth state so it can show lock icons */}
+        {/* Sidebar */}
         <Sidebar
           isOpen={sidebarOpen}
           onToggle={() => setSidebarOpen(!sidebarOpen)}
-          isAnonymous={!authenticated}
         />
 
         {/* Main Content */}
