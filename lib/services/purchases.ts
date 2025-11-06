@@ -183,17 +183,27 @@ export class PurchasesService {
           // Create invoice record synchronously to prevent race condition
           // The invoice list will be empty if we wait for webhook to fire
           try {
-            const invoiceId = (paymentIntent as any).invoice;
+            // Type-safe handling of invoice property
+            // PaymentIntent.invoice can be string | Stripe.Invoice | null when expanded
+            // Check if the property exists first
+            const invoiceIdOrObject = (
+              paymentIntent as Stripe.PaymentIntent & {
+                invoice?: string | Stripe.Invoice | null;
+              }
+            ).invoice;
 
-            if (invoiceId) {
-              const existingInvoice = await invoicesService.getByStripeInvoiceId(
-                invoiceId as string,
-              );
+            if (invoiceIdOrObject) {
+              // Extract the invoice ID - it's either the string itself or the ID from the object
+              const invoiceId =
+                typeof invoiceIdOrObject === "string"
+                  ? invoiceIdOrObject
+                  : invoiceIdOrObject.id;
+
+              const existingInvoice =
+                await invoicesService.getByStripeInvoiceId(invoiceId);
 
               if (!existingInvoice) {
-                const stripeInvoice = await stripe.invoices.retrieve(
-                  invoiceId as string,
-                );
+                const stripeInvoice = await stripe.invoices.retrieve(invoiceId);
 
                 await invoicesService.create({
                   organization_id: organizationId,

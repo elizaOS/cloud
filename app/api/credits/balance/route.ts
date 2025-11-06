@@ -14,8 +14,8 @@ export async function GET(req: NextRequest) {
     if (!org) {
       return NextResponse.json(
         { error: "Organization not found" },
-        { status: 404 },
         {
+          status: 404,
           headers: {
             "Cache-Control": "no-store, no-cache, must-revalidate, max-age=0",
             Pragma: "no-cache",
@@ -41,8 +41,8 @@ export async function GET(req: NextRequest) {
     console.error("[Balance API] Error:", error);
     return NextResponse.json(
       { error: error instanceof Error ? error.message : "Failed to fetch balance" },
-      { status: 500 },
       {
+        status: 500,
         headers: {
           "Cache-Control": "no-store, no-cache, must-revalidate, max-age=0",
           Pragma: "no-cache",

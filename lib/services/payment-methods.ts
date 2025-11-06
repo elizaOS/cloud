@@ -170,7 +170,7 @@ export class PaymentMethodsService {
    *
    * @param organizationId - The organization ID
    * @param paymentMethodId - The Stripe payment method ID to remove
-   * @throws Error if payment method is currently set as default and auto-top-up is enabled
+   * @throws Error if this is the last payment method and auto-top-up is enabled
    * @returns void
    */
   async removePaymentMethod(
@@ -183,14 +183,25 @@ export class PaymentMethodsService {
       throw new Error("Organization not found");
     }
 
-    // Check if this is the default payment method and auto-top-up is enabled
-    if (
-      org.stripe_default_payment_method === paymentMethodId &&
-      org.auto_top_up_enabled
-    ) {
-      throw new Error(
-        "Cannot remove default payment method while auto-top-up is enabled. Please disable auto-top-up first or set a different default payment method.",
-      );
+    // SECURITY: If auto-top-up is enabled, prevent removing the last payment method
+    // This prevents auto-top-up from failing when balance falls below threshold
+    if (org.auto_top_up_enabled) {
+      // Get all payment methods for this organization
+      const paymentMethods = await this.listPaymentMethods(organizationId);
+
+      // Check if this is the only payment method
+      if (paymentMethods.length <= 1) {
+        throw new Error(
+          "Cannot remove the last payment method while auto-top-up is enabled. Please disable auto-top-up first or add another payment method before removing this one.",
+        );
+      }
+
+      // If removing the default payment method, ensure there's another one to take its place
+      if (org.stripe_default_payment_method === paymentMethodId) {
+        throw new Error(
+          "Cannot remove the default payment method while auto-top-up is enabled. Please set another payment method as default first, or disable auto-top-up.",
+        );
+      }
     }
 
     // Detach from Stripe

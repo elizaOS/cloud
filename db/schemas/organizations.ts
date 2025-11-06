@@ -56,6 +56,9 @@ export const organizations = pgTable(
     stripe_customer_idx: index("organizations_stripe_customer_idx").on(
       table.stripe_customer_id,
     ),
+    auto_top_up_enabled_idx: index("organizations_auto_top_up_enabled_idx").on(
+      table.auto_top_up_enabled,
+    ),
   }),
 );
 
