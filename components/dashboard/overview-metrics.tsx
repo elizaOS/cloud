@@ -6,7 +6,7 @@
 import * as React from "react";
 import { BrandCard } from "@/components/brand";
 import { cn } from "@/lib/utils";
-import { Sparkles, Activity, Image, Video } from "lucide-react";
+import { Sparkles, Activity, Image as ImageIcon, Video } from "lucide-react";
 
 interface MetricData {
   label: string;
@@ -50,7 +50,7 @@ export function OverviewMetrics({
       label: "Image Generations",
       value: imageGenerations.toLocaleString(),
       subtitle: "All time",
-      icon: <Image className="h-5 w-5" />,
+      icon: <ImageIcon className="h-5 w-5" />,
       accent: "from-purple-500/20 to-purple-600/20 border-purple-500/40",
     },
     {
