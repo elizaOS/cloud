@@ -1,22 +1,62 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { BrandCard, CornerBrackets } from "@/components/brand";
 import type { UserWithOrganization } from "@/lib/types";
+import type { SettingsTab } from "../settings-page-client";
 import { ArrowUpRight, Copy } from "lucide-react";
 import { toast } from "sonner";
+import { usePrivy } from "@privy-io/react-auth";
+
+interface AccountStats {
+  totalGenerations: number;
+  totalGenerationsBreakdown: {
+    images: number;
+    videos: number;
+  };
+  apiCalls24h: number;
+  apiCalls24hSuccessful: number;
+  imageGenerationsAllTime: number;
+  videoRendersAllTime: number;
+}
 
 interface AccountTabProps {
   user: UserWithOrganization;
+  onTabChange: (tab: SettingsTab) => void;
 }
 
-export function AccountTab({ user }: AccountTabProps) {
+export function AccountTab({ user, onTabChange }: AccountTabProps) {
   const [isCopying, setIsCopying] = useState(false);
+  const [isLoggingOut, setIsLoggingOut] = useState(false);
+  const [stats, setStats] = useState<AccountStats | null>(null);
+  const [isLoadingStats, setIsLoadingStats] = useState(true);
+  const { user: privyUser, logout: privyLogout } = usePrivy();
+
+  useEffect(() => {
+    const fetchStats = async () => {
+      try {
+        const response = await fetch("/api/stats/account");
+        const data = await response.json();
+
+        if (data.success) {
+          setStats(data.data);
+        } else {
+          console.error("Failed to fetch stats:", data.error);
+        }
+      } catch (error) {
+        console.error("Error fetching stats:", error);
+      } finally {
+        setIsLoadingStats(false);
+      }
+    };
+
+    fetchStats();
+  }, []);
 
   const handleCopyOrgId = async () => {
     if (isCopying) return;
     setIsCopying(true);
-    
+
     try {
       await navigator.clipboard.writeText(user.organization_id || "");
       toast.success("Organization ID copied to clipboard");
@@ -27,9 +67,25 @@ export function AccountTab({ user }: AccountTabProps) {
     }
   };
 
-  const handleLogout = () => {
-    // Logout logic will be implemented
-    toast.info("Logout functionality will be implemented");
+  const handleLogout = async () => {
+    if (isLoggingOut) return;
+    setIsLoggingOut(true);
+
+    try {
+      await fetch("/api/auth/logout", {
+        method: "POST",
+      });
+
+      await privyLogout();
+
+      toast.success("Logged out successfully");
+
+      window.location.href = "/";
+    } catch (error) {
+      console.error("Logout error:", error);
+      toast.error("Failed to logout");
+      setIsLoggingOut(false);
+    }
   };
 
   const handleContactSupport = () => {
@@ -63,6 +119,13 @@ export function AccountTab({ user }: AccountTabProps) {
             <div className="flex gap-2">
               <button
                 type="button"
+                onClick={() => {
+                  if (privyUser) {
+                    window.open(`https://console.privy.io/apps/${process.env.NEXT_PUBLIC_PRIVY_APP_ID}/users/${privyUser.id}`, '_blank');
+                  } else {
+                    toast.info("Unable to open account management");
+                  }
+                }}
                 className="relative bg-[#e1e1e1] px-3 py-2 overflow-hidden group hover:bg-white transition-colors flex items-center gap-2"
               >
                 <div
@@ -80,6 +143,7 @@ export function AccountTab({ user }: AccountTabProps) {
 
               <button
                 type="button"
+                onClick={() => onTabChange("analytics")}
                 className="backdrop-blur-sm bg-[rgba(10,10,10,0.5)] border border-[#e1e1e1] px-3 py-2 hover:bg-[rgba(255,255,255,0.05)] transition-colors"
               >
                 <span className="text-[#e1e1e1] font-mono font-medium text-base">
@@ -95,27 +159,51 @@ export function AccountTab({ user }: AccountTabProps) {
               <p className="text-base font-mono text-white">
                 Total Generations
               </p>
-              <p className="text-2xl font-mono text-white tracking-tight">0</p>
-              <p className="text-sm text-white/60">0 images, 0 videos</p>
+              <p className="text-2xl font-mono text-white tracking-tight">
+                {isLoadingStats
+                  ? "..."
+                  : stats?.totalGenerations.toLocaleString() || 0}
+              </p>
+              <p className="text-sm text-white/60">
+                {isLoadingStats
+                  ? "..."
+                  : `${stats?.totalGenerationsBreakdown.images || 0} images, ${stats?.totalGenerationsBreakdown.videos || 0} videos`}
+              </p>
             </div>
 
             <div className="backdrop-blur-sm bg-[rgba(10,10,10,0.75)] border-t border-r border-b border-brand-surface p-4 space-y-1">
               <p className="text-base font-mono text-white">API Calls (24h)</p>
-              <p className="text-2xl font-mono text-white tracking-tight">0</p>
-              <p className="text-sm text-white/60">0 successfull</p>
+              <p className="text-2xl font-mono text-white tracking-tight">
+                {isLoadingStats
+                  ? "..."
+                  : stats?.apiCalls24h.toLocaleString() || 0}
+              </p>
+              <p className="text-sm text-white/60">
+                {isLoadingStats
+                  ? "..."
+                  : `${stats?.apiCalls24hSuccessful.toLocaleString() || 0} successfull`}
+              </p>
             </div>
 
             <div className="backdrop-blur-sm bg-[rgba(10,10,10,0.75)] border-t border-r border-b border-brand-surface p-4 space-y-1">
               <p className="text-base font-mono text-white">
                 Image Generations
               </p>
-              <p className="text-2xl font-mono text-white tracking-tight">0</p>
+              <p className="text-2xl font-mono text-white tracking-tight">
+                {isLoadingStats
+                  ? "..."
+                  : stats?.imageGenerationsAllTime.toLocaleString() || 0}
+              </p>
               <p className="text-sm text-white/60">All time</p>
             </div>
 
             <div className="backdrop-blur-sm border-t border-r border-b border-brand-surface p-4 space-y-1">
               <p className="text-base font-mono text-white">Video Renders</p>
-              <p className="text-2xl font-mono text-white tracking-tight">0</p>
+              <p className="text-2xl font-mono text-white tracking-tight">
+                {isLoadingStats
+                  ? "..."
+                  : stats?.videoRendersAllTime.toLocaleString() || 0}
+              </p>
               <p className="text-sm text-white/60">All time</p>
             </div>
           </div>
@@ -143,11 +231,12 @@ export function AccountTab({ user }: AccountTabProps) {
             <button
               type="button"
               onClick={handleLogout}
-              className="relative bg-[rgba(255,88,0,0.25)] px-3 py-2 hover:bg-[rgba(255,88,0,0.35)] transition-colors group"
+              disabled={isLoggingOut}
+              className="relative bg-[rgba(255,88,0,0.25)] px-3 py-2 hover:bg-[rgba(255,88,0,0.35)] transition-colors group disabled:opacity-50 disabled:cursor-not-allowed"
             >
               <CornerBrackets size="sm" className="opacity-70" />
               <span className="relative z-10 text-[#FF5800] font-mono font-medium text-sm">
-                Log out
+                {isLoggingOut ? "Logging out..." : "Log out"}
               </span>
             </button>
           </div>

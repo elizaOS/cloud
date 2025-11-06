@@ -38,7 +38,7 @@ export function SettingsPageClient({ user }: SettingsPageClientProps) {
       case "general":
         return <GeneralTab user={user} />;
       case "account":
-        return <AccountTab user={user} />;
+        return <AccountTab user={user} onTabChange={setActiveTab} />;
       case "usage":
         return <UsageTab user={user} />;
       case "billing":
