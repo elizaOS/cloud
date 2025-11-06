@@ -19,8 +19,8 @@ import { ElizaAvatar } from "./eliza-avatar";
 import { KnowledgeDrawer } from "./knowledge-drawer";
 import { useAudioRecorder } from "./hooks/use-audio-recorder";
 import { useAudioPlayer } from "./hooks/use-audio-player";
-import { useMessageStream } from "@/hooks/use-message-stream";
-import type { StreamMessage } from "@/hooks/use-message-stream";
+import { sendStreamingMessage } from "@/hooks/use-streaming-message";
+import type { StreamingMessage } from "@/hooks/use-streaming-message";
 import { toast } from "sonner";
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
@@ -571,8 +571,8 @@ export function ElizaChatInterface({
     });
   }, [messages, generateSpeech, autoPlayTTS]);
 
-  // Real-time message streaming via SSE (Server-Sent Events) with automatic reconnection
-  const handleStreamMessage = useCallback((messageData: StreamMessage) => {
+  // Handle streaming messages from the single endpoint
+  const handleStreamMessage = useCallback((messageData: StreamingMessage) => {
     setMessages((prev) => {
       // Handle agent response - remove thinking indicator
       if (messageData.type === "agent") {
@@ -586,82 +586,55 @@ export function ElizaChatInterface({
           thinkingTimeoutRef.current = null;
         }
 
-        // Check if message already exists (prevent duplicates)
+        // Check for duplicates
         if (withoutThinking.some((m) => m.id === messageData.id)) {
-          console.log("[SSE] Skipping duplicate agent message");
           return prev;
         }
 
-        // Remove temp message if this is a reply
-        const filtered = withoutThinking.filter((m) => {
-          if (m.id.startsWith("temp-")) {
-            return messageData.content.inReplyTo !== m.id;
-          }
-          return true;
-        });
+        // Remove temp messages
+        const filtered = withoutThinking.filter(
+          (m) => !m.id.startsWith("temp-"),
+        );
 
-        console.log("[SSE] ✅ Added agent response");
+        console.log("[Stream] ✅ Received agent response");
         return [...filtered, messageData];
       }
 
-      // Handle thinking indicator - replace any existing thinking message
+      // Handle thinking indicator
       if (messageData.type === "thinking") {
         const withoutThinking = prev.filter(
           (m) => !m.id.startsWith("thinking-"),
         );
-        console.log("[SSE] 🤔 Agent is thinking...");
+        console.log("[Stream] 🤔 Agent is thinking...");
         return [...withoutThinking, messageData];
       }
 
-      // Handle user messages - replace temp message or check for duplicates
+      // Handle user messages
       if (messageData.type === "user") {
-        // Check if this is replacing a temp message (same text content)
-        const tempMessageIndex = prev.findIndex(
+        // Replace temp message with real one
+        const tempIndex = prev.findIndex(
           (m) =>
             m.id.startsWith("temp-") &&
             m.content.text === messageData.content.text,
         );
 
-        if (tempMessageIndex !== -1) {
-          console.log("[SSE] ✅ Replacing temp message with real user message");
+        if (tempIndex !== -1) {
           const updated = [...prev];
-          updated[tempMessageIndex] = messageData;
+          updated[tempIndex] = messageData;
           return updated;
         }
 
-        // Check for duplicate
+        // Check for duplicates
         if (prev.some((m) => m.id === messageData.id)) {
-          console.log("[SSE] Skipping duplicate user message");
           return prev;
         }
 
-        console.log("[SSE] ✅ Added user message");
         return [...prev, messageData];
       }
 
-      // For any other message types
-      if (prev.some((m) => m.id === messageData.id)) {
-        return prev;
-      }
-
-      return [...prev, messageData];
+      return prev;
     });
   }, []);
-
-  const { isConnected: sseConnected, error: sseError } = useMessageStream(
-    roomId,
-    handleStreamMessage,
-  );
-
-  // Show connection status notifications
-  useEffect(() => {
-    if (sseError && roomId) {
-      toast.error(sseError, {
-        id: "sse-error",
-        duration: 5000,
-      });
-    }
-  }, [sseError, roomId]);
 
   // Auto-scroll to bottom when messages change
   useEffect(() => {
@@ -686,22 +659,16 @@ export function ElizaChatInterface({
     setIsLoading(true);
     setError(null);
 
-    // Add optimistic user message and thinking placeholder in one atomic update
+    // Add optimistic temp user message
     const clientMessageId = `temp-${Date.now()}`;
     const now = Date.now();
     const tempUserMessage: Message = {
       id: clientMessageId,
-      content: { text: messageText, clientMessageId },
+      content: { text: messageText },
       isAgent: false,
       createdAt: now,
     };
-    const thinkingMessage: Message = {
-      id: `thinking-${now}`,
-      content: { text: "" },
-      isAgent: true,
-      createdAt: now + 999999, // Very high timestamp to ensure it always appears last
-    };
-    setMessages((prev) => [...prev, tempUserMessage, thinkingMessage]);
+    setMessages((prev) => [...prev, tempUserMessage]);
 
     // Safety timeout: remove thinking indicator after 30 seconds if no response
     thinkingTimeoutRef.current = setTimeout(() => {
@@ -712,28 +679,33 @@ export function ElizaChatInterface({
     }, 30000);
 
     try {
-      const response = await fetch(`/api/eliza/rooms/${roomId}/messages`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          entityId: entityId.current,
-          text: messageText,
-          clientMessageId,
-          attachments: [],
-        }),
+      // Stream the response using single endpoint
+      await sendStreamingMessage({
+        roomId,
+        entityId: entityId.current,
+        text: messageText,
+        onMessage: handleStreamMessage,
+        onError: (errorMsg) => {
+          setError(errorMsg);
+          toast.error(errorMsg);
+          // Remove temp and thinking messages on error
+          setMessages((prev) =>
+            prev.filter(
+              (msg) =>
+                msg.id !== tempUserMessage.id &&
+                !msg.id.startsWith("thinking-"),
+            ),
+          );
+          if (thinkingTimeoutRef.current) {
+            clearTimeout(thinkingTimeoutRef.current);
+            thinkingTimeoutRef.current = null;
+          }
+        },
+        onComplete: () => {
+          console.log("[Chat] Message streaming completed");
+          loadRooms();
+        },
       });
-
-      if (!response.ok) {
-        throw new Error("Failed to send message");
-      }
-
-      // Remove only the temp user message; keep thinking indicator until real response arrives via polling
-      setMessages((prev) =>
-        prev.filter((msg) => msg.id !== tempUserMessage.id),
-      );
-
-      // The polling interval will catch the response automatically
-      // No immediate poll needed - this prevents race conditions and duplicate messages
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to send message");
       console.error("Error sending message:", err);
@@ -744,14 +716,12 @@ export function ElizaChatInterface({
             msg.id !== tempUserMessage.id && !msg.id.startsWith("thinking-"),
         ),
       );
-      // Clear thinking timeout on error
       if (thinkingTimeoutRef.current) {
         clearTimeout(thinkingTimeoutRef.current);
         thinkingTimeoutRef.current = null;
       }
     } finally {
       setIsLoading(false);
-      loadRooms();
     }
   };
 
