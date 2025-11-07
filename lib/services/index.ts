@@ -1,11 +1,15 @@
 // Export all services
 export * from "./organizations";
 export * from "./users";
+export * from "./user-sessions";
+export * from "./anonymous-sessions";
 export { invitesService } from "./invites";
 export * from "./api-keys";
 export * from "./cli-auth-sessions";
 export * from "./credits";
 export * from "./usage";
+export { usageQuotasService } from "./usage-quotas";
+export type { CreateQuotaParams, QuotaCheckResult } from "./usage-quotas";
 export * from "./generations";
 export * from "./conversations";
 export * from "./characters";
@@ -22,8 +26,11 @@ export * from "./ecr";
 export * from "./cloudformation";
 export * from "./alb-priority-manager";
 
-// Marketplace services
+// Marketplace services (public)
 export * from "./marketplace";
+
+// My Agents services (private)
+export * from "./my-agents";
 
 // Voice services
 export { voiceCloningService } from "./voice-cloning";
@@ -33,3 +40,9 @@ export { emailService } from "./email";
 
 // Discord services
 export { discordService } from "./discord";
+
+// Payment services
+export { paymentMethodsService } from "./payment-methods";
+export { purchasesService, PURCHASE_LIMITS } from "./purchases";
+export { autoTopUpService, AUTO_TOP_UP_LIMITS } from "./auto-top-up";
+export { invoicesService } from "./invoices";

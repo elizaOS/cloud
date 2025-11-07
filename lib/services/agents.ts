@@ -77,7 +77,7 @@ export class AgentService {
       const roomId = uuidv4();
       await runtime.ensureRoomExists({
         id: roomId as UUID,
-        source: "mcp",
+        source: "chat",
         type: ChannelType.DM,
         channelId: roomId,
         serverId: "eliza-server",
@@ -122,7 +122,7 @@ export class AgentService {
   async sendMessage(input: SendMessageInput): Promise<AgentResponse> {
     const { roomId, entityId, message, streaming, attachments } = input;
 
-    // Acquire distributed lock with retry for MCP concurrent requests
+      // Acquire distributed lock with retry for concurrent requests
     // Will retry up to 10 times with exponential backoff (max ~20s wait)
     const lock = await distributedLocks.acquireRoomLockWithRetry(
       roomId,

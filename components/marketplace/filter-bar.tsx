@@ -16,11 +16,9 @@ import {
   RefreshCw,
   Volume2,
   Rocket,
-  Star,
-  User,
   X,
 } from "lucide-react";
-import type { SortBy, SearchFilters } from "@/lib/types/marketplace";
+import type { SortBy, SearchFilters } from "@/lib/types/my-agents";
 
 interface FilterBarProps {
   sortBy: SortBy;
@@ -103,33 +101,6 @@ export function FilterBar({
         >
           <Rocket className="h-3 w-3 mr-1" />
           Deployed
-        </Badge>
-
-        <Badge
-          variant={filters.template ? "default" : "outline"}
-          className="cursor-pointer transition-colors"
-          onClick={() => onToggleFilter("template")}
-        >
-          <Star className="h-3 w-3 mr-1" />
-          Templates
-        </Badge>
-
-        <Badge
-          variant={filters.myCharacters ? "default" : "outline"}
-          className="cursor-pointer transition-colors"
-          onClick={() => onToggleFilter("myCharacters")}
-        >
-          <User className="h-3 w-3 mr-1" />
-          My Characters
-        </Badge>
-
-        <Badge
-          variant={filters.featured ? "default" : "outline"}
-          className="cursor-pointer transition-colors"
-          onClick={() => onToggleFilter("featured")}
-        >
-          <Star className="h-3 w-3 mr-1 fill-current" />
-          Featured
         </Badge>
       </div>
 

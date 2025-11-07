@@ -1,5 +1,5 @@
 import { type NextRequest, NextResponse } from "next/server";
-import { requireAuth } from "@/lib/auth";
+import { requireAuthWithOrg } from "@/lib/auth";
 import { invitesService } from "@/lib/services";
 import { z } from "zod";
 import { withRateLimit, RateLimitPresets } from "@/lib/middleware/rate-limit";
@@ -15,7 +15,7 @@ const createInviteSchema = z.object({
 
 async function handlePOST(request: NextRequest) {
   try {
-    const user = await requireAuth();
+    const user = await requireAuthWithOrg();
 
     if (user.role !== "owner" && user.role !== "admin") {
       return NextResponse.json(
@@ -31,7 +31,7 @@ async function handlePOST(request: NextRequest) {
     const validated = createInviteSchema.parse(body);
 
     const result = await invitesService.createInvite({
-      organizationId: user.organization_id,
+      organizationId: user.organization_id!!,
       inviterUserId: user.id,
       invitedEmail: validated.email,
       invitedRole: validated.role,
@@ -83,7 +83,7 @@ async function handlePOST(request: NextRequest) {
 
 async function handleGET() {
   try {
-    const user = await requireAuth();
+    const user = await requireAuthWithOrg();
 
     if (user.role !== "owner" && user.role !== "admin") {
       return NextResponse.json(
@@ -96,7 +96,7 @@ async function handleGET() {
     }
 
     const invites = await invitesService.listByOrganization(
-      user.organization_id,
+      user.organization_id!,
     );
 
     return NextResponse.json({

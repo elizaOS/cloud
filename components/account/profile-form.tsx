@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import { Input } from "@/components/ui/input";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Alert, AlertDescription } from "@/components/ui/alert";
-import { updateProfile, uploadAvatar } from "@/app/actions/users";
+import { updateProfile, uploadAvatar, updateEmail } from "@/app/actions/users";
 import { Loader2, Upload, User, Mail, Shield } from "lucide-react";
 import type { UserWithOrganization } from "@/lib/types";
 import { toast } from "sonner";
@@ -21,6 +21,8 @@ export function ProfileForm({ user }: ProfileFormProps) {
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
   const [isUploadingAvatar, setIsUploadingAvatar] = useState(false);
+  const [isUpdatingEmail, setIsUpdatingEmail] = useState(false);
+  const [emailAdded, setEmailAdded] = useState(false);
 
   const getInitials = (
     name: string | null,
@@ -102,6 +104,36 @@ export function ProfileForm({ user }: ProfileFormProps) {
     });
   };
 
+  const handleEmailSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
+    e.preventDefault();
+    setError(null);
+    setSuccess(null);
+    setIsUpdatingEmail(true);
+
+    const formData = new FormData(e.currentTarget);
+
+    try {
+      const result = await updateEmail(formData);
+
+      if (result.success) {
+        setSuccess(result.message || "Email added successfully");
+        toast.success(result.message || "Email added successfully");
+        setEmailAdded(true); // Optimistically hide the form
+        router.refresh();
+      } else {
+        setError(result.error || "Failed to add email");
+        toast.error(result.error || "Failed to add email");
+      }
+    } catch (err) {
+      const message =
+        err instanceof Error ? err.message : "An unexpected error occurred";
+      setError(message);
+      toast.error(message);
+    } finally {
+      setIsUpdatingEmail(false);
+    }
+  };
+
   return (
     <BrandCard className="relative">
       <CornerBrackets size="sm" className="opacity-50" />
@@ -118,6 +150,93 @@ export function ProfileForm({ user }: ProfileFormProps) {
             Update your profile information and manage your account settings
           </p>
         </div>
+
+        {/* Email Section - Separate from main form to avoid nesting */}
+        {!user.email && !emailAdded && (
+          <div className="space-y-2 p-4 border border-amber-500/40 bg-amber-500/5 rounded-none">
+            <div className="flex items-center gap-2 mb-3">
+              <Mail className="h-4 w-4 text-amber-400" />
+              <label
+                htmlFor="new-email"
+                className="text-xs font-medium text-amber-400 uppercase tracking-wide"
+              >
+                Add Email Address
+              </label>
+            </div>
+            <p className="text-xs text-white/60 mb-3">
+              Adding an email allows you to receive important notifications and
+              updates.
+            </p>
+            <form onSubmit={handleEmailSubmit} className="space-y-3">
+              <Input
+                id="new-email"
+                name="email"
+                type="email"
+                placeholder="your@email.com"
+                disabled={isUpdatingEmail}
+                required
+                className="rounded-none border-white/20 bg-black/40 text-white placeholder:text-white/40 focus:ring-1 focus:ring-amber-500 focus:border-amber-500"
+              />
+              <BrandButton
+                type="submit"
+                variant="primary"
+                size="sm"
+                disabled={isUpdatingEmail}
+                className="w-full"
+              >
+                {isUpdatingEmail ? (
+                  <>
+                    <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                    Adding Email...
+                  </>
+                ) : (
+                  <>
+                    <Mail className="h-4 w-4 mr-2" />
+                    Add Email Address
+                  </>
+                )}
+              </BrandButton>
+            </form>
+          </div>
+        )}
+
+        {user.email && (
+          <div className="space-y-2">
+            <label
+              htmlFor="email"
+              className="text-xs font-medium text-white/70 uppercase tracking-wide flex items-center gap-2"
+            >
+              <Mail className="h-4 w-4" />
+              Email Address
+            </label>
+            <Input
+              id="email"
+              type="email"
+              value={user.email}
+              disabled
+              className="rounded-none border-white/10 bg-black/60 text-white/50"
+            />
+            <p className="text-xs text-white/50">
+              Email cannot be changed. Please contact support if you need to
+              update this.
+            </p>
+          </div>
+        )}
+
+        {emailAdded && !user.email && (
+          <div className="space-y-2 p-4 border border-green-500/40 bg-green-500/5 rounded-none">
+            <div className="flex items-center gap-2">
+              <Mail className="h-4 w-4 text-green-400" />
+              <p className="text-sm font-medium text-green-400">
+                Email Added Successfully!
+              </p>
+            </div>
+            <p className="text-xs text-white/60">
+              Your email has been added and will appear here after the page
+              refreshes.
+            </p>
+          </div>
+        )}
 
         <form onSubmit={handleSubmit} className="space-y-6">
           {/* Avatar Section */}
@@ -201,29 +320,6 @@ export function ProfileForm({ user }: ProfileFormProps) {
                 className="rounded-none border-white/10 bg-black/40 text-white placeholder:text-white/40 focus:ring-1 focus:ring-[#FF5800] focus:border-[#FF5800]"
               />
             </div>
-
-            {user.email && (
-              <div className="space-y-2">
-                <label
-                  htmlFor="email"
-                  className="text-xs font-medium text-white/70 uppercase tracking-wide flex items-center gap-2"
-                >
-                  <Mail className="h-4 w-4" />
-                  Email Address
-                </label>
-                <Input
-                  id="email"
-                  type="email"
-                  value={user.email}
-                  disabled
-                  className="rounded-none border-white/10 bg-black/60 text-white/50"
-                />
-                <p className="text-xs text-white/50">
-                  Email cannot be changed. Please contact support if you need to
-                  update this.
-                </p>
-              </div>
-            )}
 
             {user.wallet_address && (
               <div className="space-y-2">

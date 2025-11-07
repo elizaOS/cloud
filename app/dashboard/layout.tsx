@@ -1,11 +1,25 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
+import { usePrivy } from "@privy-io/react-auth";
+import { useRouter, usePathname } from "next/navigation";
 import { Loader2 } from "lucide-react";
 import Sidebar from "@/components/layout/sidebar";
 import Header from "@/components/layout/header";
 import { PageHeaderProvider } from "@/components/layout/page-header-context";
-import { useAuthRedirect } from "@/lib/hooks/use-auth-redirect";
+
+/**
+ * Dashboard Layout - Supports both authenticated and anonymous users
+ *
+ * Free Mode Paths (accessible without auth):
+ * - /dashboard/chat - AI agent chat (FREE!)
+ *
+ * Protected Paths (require authentication):
+ * - All other /dashboard/* routes
+ */
+
+// Paths that allow anonymous/free access
+const FREE_MODE_PATHS = ["/dashboard/chat"];
 
 export default function DashboardLayout({
   children,
@@ -13,7 +27,21 @@ export default function DashboardLayout({
   children: React.ReactNode;
 }) {
   const [sidebarOpen, setSidebarOpen] = useState(false);
-  const { ready, authenticated } = useAuthRedirect({ requireAuth: true });
+  const { ready, authenticated } = usePrivy();
+  const router = useRouter();
+  const pathname = usePathname();
+
+  // Check if current path allows free access
+  const isFreeModePath = FREE_MODE_PATHS.some((path) =>
+    pathname?.startsWith(path),
+  );
+
+  // Redirect to login if not authenticated and trying to access protected path
+  useEffect(() => {
+    if (ready && !authenticated && !isFreeModePath) {
+      router.push("/login");
+    }
+  }, [ready, authenticated, isFreeModePath, router]);
 
   // Show loading state while checking authentication
   if (!ready) {
@@ -27,8 +55,9 @@ export default function DashboardLayout({
     );
   }
 
-  // Don't render dashboard if not authenticated (during redirect)
-  if (!authenticated) {
+  // Allow free mode paths for anonymous users
+  // Redirect other paths to home if not authenticated
+  if (!authenticated && !isFreeModePath) {
     return (
       <div className="flex h-screen w-full items-center justify-center bg-background">
         <div className="flex flex-col items-center gap-3">
@@ -50,12 +79,15 @@ export default function DashboardLayout({
 
         {/* Main Content */}
         <div className="flex flex-1 flex-col overflow-hidden">
-          {/* Header */}
-          <Header onToggleSidebar={() => setSidebarOpen(!sidebarOpen)} />
+          {/* Header - pass auth state for signup button */}
+          <Header
+            onToggleSidebar={() => setSidebarOpen(!sidebarOpen)}
+            isAnonymous={!authenticated}
+          />
 
           {/* Main Content Area */}
           <main className="flex-1 overflow-y-auto bg-[#0A0A0A]">
-            <div className="h-full px-4 py-4 md:px-6 md:py-6">{children}</div>
+            <div className="h-full px-2 py-3 md:px-6 md:py-6">{children}</div>
           </main>
         </div>
       </div>

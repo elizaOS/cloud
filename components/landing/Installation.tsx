@@ -10,9 +10,7 @@ export default function Installation() {
   const [copied, setCopied] = useState(false);
 
   const command =
-    activeTab === "macos"
-      ? "curl -fsSL https://app.eliza.ai/cli | sh"
-      : "iwr https://app.eliza.ai/cli/install.ps1 | iex";
+    activeTab === "macos" ? "bun i -g @elizaos/cli" : "bun i -g @elizaos/cli";
 
   const handleCopy = async () => {
     await navigator.clipboard.writeText(command);
@@ -136,14 +134,14 @@ export default function Installation() {
               <div className="p-6 space-y-2 text-sm">
                 <div className="flex items-center gap-2">
                   <span className="text-yellow-500">$</span>
-                  <span className="text-white">npx eliza deploy</span>
+                  <span className="text-white">elizaos deploy</span>
                 </div>
                 <div className="flex items-center gap-2">
                   <span className="text-green-500">Deploying... ✓</span>
                 </div>
                 <div className="text-white/70">Running on Eliza Cloud</div>
                 <div className="text-blue-400">
-                  → https://your-agent.eliza.cloud
+                  → https://your-agent.containers.elizacloud.ai
                 </div>
               </div>
             </div>

@@ -1,7 +1,6 @@
 import type { Metadata } from "next";
 import { requireAuth } from "@/lib/auth";
-import { listCharacters } from "@/app/actions/characters";
-import { MyAgentsClient } from "@/components/my-agents/my-agents-client";
+import { MyAgentsClient } from "./my-agents";
 import { generatePageMetadata, ROUTE_METADATA } from "@/lib/seo";
 
 export const metadata: Metadata = generatePageMetadata({
@@ -14,7 +13,6 @@ export const dynamic = "force-dynamic";
 
 export default async function MyAgentsPage() {
   await requireAuth();
-  const characters = await listCharacters();
 
-  return <MyAgentsClient initialCharacters={characters} />;
+  return <MyAgentsClient />;
 }

@@ -72,8 +72,8 @@ export const ROUTE_METADATA = {
   eliza: {
     title: "Chat",
     description:
-      "Chat with your AI agents using the full ElizaOS runtime with persistent memory and room-based conversations.",
-    keywords: ["AI chat", "ElizaOS runtime", "AI agent", "conversation"],
+      "Chat with AI agents using the full ElizaOS runtime with persistent memory and room-based conversations.",
+    keywords: ["Chat", "AI chat", "ElizaOS runtime", "AI agent"],
   },
   characterCreator: {
     title: "Character Creator",
@@ -89,23 +89,12 @@ export const ROUTE_METADATA = {
   myAgents: {
     title: "My Agents",
     description:
-      "Manage your AI agent library. View, edit, test, and organize all your custom characters in one place.",
+      "Manage and interact with your personal AI agents. View, deploy, and chat with your characters.",
     keywords: [
       "my agents",
-      "character library",
-      "agent management",
+      "personal agents",
       "AI characters",
-    ],
-  },
-  agentMarketplace: {
-    title: "Agent Marketplace",
-    description:
-      "Discover and explore AI agents from the community. Find templates, clone characters, and start conversations.",
-    keywords: [
-      "agent marketplace",
-      "community agents",
-      "AI templates",
-      "character library",
+      "agent management",
     ],
   },
   textGeneration: {
@@ -143,12 +132,6 @@ export const ROUTE_METADATA = {
     description:
       "Explore and test elizaOS Platform APIs. Interactive documentation and live testing environment.",
     keywords: ["API explorer", "API docs", "REST API", "elizaOS API"],
-  },
-  mcpPlayground: {
-    title: "MCP Playground",
-    description:
-      "Interactive Model Context Protocol (MCP) explorer. Test and experiment with MCP servers and tools.",
-    keywords: ["MCP", "Model Context Protocol", "MCP playground", "AI tools"],
   },
   billing: {
     title: "Billing & Credits",

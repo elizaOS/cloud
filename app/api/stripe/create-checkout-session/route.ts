@@ -1,12 +1,12 @@
 import { type NextRequest, NextResponse } from "next/server";
-import { requireAuth } from "@/lib/auth";
+import { requireAuthWithOrg } from "@/lib/auth";
 import { stripe } from "@/lib/stripe";
 import { creditsService, organizationsService } from "@/lib/services";
 import { withRateLimit, RateLimitPresets } from "@/lib/middleware/rate-limit";
 
 async function handleCheckoutSession(req: NextRequest) {
   try {
-    const user = await requireAuth();
+    const user = await requireAuthWithOrg();
 
     const { creditPackId } = await req.json();
 
@@ -39,7 +39,7 @@ async function handleCheckoutSession(req: NextRequest) {
       } = {
         name: user.organization.name,
         metadata: {
-          organization_id: user.organization_id,
+          organization_id: user.organization_id!!,
         },
       };
 
@@ -56,7 +56,7 @@ async function handleCheckoutSession(req: NextRequest) {
       customerId = customer.id;
 
       // Save customer ID to database
-      await organizationsService.update(user.organization_id, {
+      await organizationsService.update(user.organization_id!, {
         stripe_customer_id: customerId,
         updated_at: new Date(),
       });
@@ -76,7 +76,7 @@ async function handleCheckoutSession(req: NextRequest) {
       success_url: `${process.env.NEXT_PUBLIC_APP_URL}/dashboard/billing/success?session_id={CHECKOUT_SESSION_ID}`,
       cancel_url: `${process.env.NEXT_PUBLIC_APP_URL}/dashboard/billing?canceled=true`,
       metadata: {
-        organization_id: user.organization_id,
+        organization_id: user.organization_id!!,
         user_id: user.id,
         credit_pack_id: creditPackId,
         credits: creditPack.credits.toString(),

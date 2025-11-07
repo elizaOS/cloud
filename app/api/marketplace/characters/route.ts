@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { requireAuth } from "@/lib/auth";
+import { requireAuthWithOrg } from "@/lib/auth";
 import { marketplaceService } from "@/lib/services/marketplace";
 import { logger } from "@/lib/utils/logger";
 import type { CategoryId, SortBy, SortOrder } from "@/lib/types/marketplace";
@@ -8,7 +8,7 @@ export const dynamic = "force-dynamic";
 
 export async function GET(request: NextRequest) {
   try {
-    const user = await requireAuth();
+    const user = await requireAuthWithOrg();
     const { searchParams } = new URL(request.url);
 
     const search = searchParams.get("search") || undefined;
@@ -43,7 +43,7 @@ export async function GET(request: NextRequest) {
 
     const includeStats = searchParams.get("includeStats") === "true";
 
-    logger.info("[Marketplace API] Search request:", {
+    logger.info("[My Agents API] Search request:", {
       userId: user.id,
       search,
       category,
@@ -53,7 +53,7 @@ export async function GET(request: NextRequest) {
 
     const result = await marketplaceService.searchCharacters({
       userId: user.id,
-      organizationId: user.organization_id,
+      organizationId: user.organization_id!!,
       filters: {
         search,
         category,
@@ -80,7 +80,7 @@ export async function GET(request: NextRequest) {
       data: result,
     });
   } catch (error) {
-    logger.error("[Marketplace API] Error searching characters:", error);
+    logger.error("[My Agents API] Error searching characters:", error);
 
     return NextResponse.json(
       {

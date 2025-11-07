@@ -55,7 +55,7 @@ export async function GET(request: NextRequest) {
 
     // SECURITY FIX: Verify the authenticated user has access to this resource
     const hasAccess = await verifyResourceAccess({
-      organizationId: auth.user.organization_id,
+      organizationId: auth.user.organization_id!,
       userId: auth.user.id,
       eventType,
       resourceId,

@@ -1,33 +1,32 @@
 "use client";
 
-import { useState, useEffect } from "react";
-import { ScrollArea } from "@/components/ui/scroll-area";
 import {
-  BookIcon,
-  SearchIcon,
-  KeyIcon,
-  ShieldIcon,
-  ActivityIcon,
-  DatabaseIcon,
-  MicIcon,
-  AudioLinesIcon,
-} from "lucide-react";
-import { toast } from "@/lib/utils/toast-adapter";
-import {
+  BrandButton,
+  BrandCard,
   BrandTabs,
+  BrandTabsContent,
   BrandTabsList,
   BrandTabsTrigger,
-  BrandTabsContent,
-  BrandCard,
-  BrandButton,
-  SectionLabel,
   CornerBrackets,
+  SectionLabel,
 } from "@/components/brand";
+import { toast } from "@/lib/utils/toast-adapter";
+import {
+  ActivityIcon,
+  AudioLinesIcon,
+  BookIcon,
+  DatabaseIcon,
+  KeyIcon,
+  MicIcon,
+  SearchIcon,
+  ShieldIcon,
+} from "lucide-react";
+import { useEffect, useState } from "react";
 
 import {
   API_ENDPOINTS,
-  getEndpointsByCategory,
   getAvailableCategories,
+  getEndpointsByCategory,
   searchEndpoints,
   type ApiEndpoint,
 } from "@/lib/swagger/endpoint-discovery";
@@ -36,12 +35,12 @@ import {
   type OpenAPISpec,
 } from "@/lib/swagger/openapi-generator";
 
-import { EndpointCard } from "@/components/api-explorer/endpoint-card";
 import { ApiTester } from "@/components/api-explorer/api-tester";
 import { AuthManager } from "@/components/api-explorer/auth-manager";
+import { EndpointCard } from "@/components/api-explorer/endpoint-card";
 import { SchemaViewer } from "@/components/api-explorer/schema-viewer";
-import { cn } from "@/lib/utils";
 import { useSetPageHeader } from "@/components/layout/page-header-context";
+import { cn } from "@/lib/utils";
 
 export default function ApiExplorerPage() {
   useSetPageHeader({
@@ -57,6 +56,7 @@ export default function ApiExplorerPage() {
   const [selectedCategory, setSelectedCategory] = useState<string>("All");
   const [openApiSpec, setOpenApiSpec] = useState<OpenAPISpec | null>(null);
   const [authToken, setAuthToken] = useState<string>("");
+  const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
 
   const categories = ["All", ...getAvailableCategories()];
   const filteredEndpoints = searchQuery
@@ -121,154 +121,188 @@ export default function ApiExplorerPage() {
   };
 
   return (
-    <div className="flex w-full flex-col gap-6 px-4 pb-8 lg:px-8">
-      <div className="grid grid-cols-1 gap-6 lg:grid-cols-4 lg:gap-8">
-        <div className="lg:col-span-1">
-          <BrandCard className="relative">
-            <CornerBrackets size="sm" className="opacity-50" />
+    <div className="flex flex-col lg:flex-row w-full gap-6 px-4 pb-8 lg:px-8">
+      {/* Sidebar */}
+      <aside
+        className={cn(
+          "lg:sticky lg:top-0 lg:self-start transition-all duration-300 ease-in-out shrink-0",
+          isSidebarCollapsed
+            ? "hidden lg:block lg:w-16"
+            : "w-full lg:w-80 xl:w-96",
+        )}
+      >
+        <div
+          className={cn(
+            "flex flex-col gap-4 lg:h-[calc(100vh-8rem)]",
+            isSidebarCollapsed && "lg:items-center",
+          )}
+        >
+          {/* Collapse Toggle - Desktop Only */}
+          <button
+            onClick={() => setIsSidebarCollapsed(!isSidebarCollapsed)}
+            className="hidden lg:flex items-center justify-center w-10 h-10 rounded-none border border-white/10 bg-black/40 hover:bg-white/5 text-white/60 hover:text-white transition-colors ml-auto"
+            title={isSidebarCollapsed ? "Expand sidebar" : "Collapse sidebar"}
+          >
+            {isSidebarCollapsed ? (
+              <ActivityIcon className="h-4 w-4" />
+            ) : (
+              <ActivityIcon className="h-4 w-4 rotate-90" />
+            )}
+          </button>
 
-            <div className="relative z-10 space-y-6">
-              <SectionLabel>Browse APIs</SectionLabel>
+          {!isSidebarCollapsed && (
+            <>
+              <BrandCard className="relative shrink-0">
+                <CornerBrackets size="sm" className="opacity-50" />
 
-              <div className="relative">
-                <SearchIcon className="absolute left-3 top-3 h-4 w-4 text-white/40 pointer-events-none" />
-                <input
-                  placeholder="Search endpoints..."
-                  value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                  className="w-full rounded-none border border-white/10 bg-black/40 px-3 py-2 pl-10 text-sm text-white placeholder:text-white/40 focus:outline-none focus:ring-1 focus:ring-[#FF5800] focus:border-[#FF5800]"
-                />
-              </div>
+                <div className="relative z-10 space-y-4">
+                  <SectionLabel>Browse APIs</SectionLabel>
 
-              <AuthManager authToken={authToken} onTokenChange={setAuthToken} />
-
-              <div className="border-t border-white/10" />
-
-              <div className="space-y-3">
-                <div className="flex items-center gap-2">
-                  <span className="w-1.5 h-1.5 rounded-full bg-[#FF5800]" />
-                  <h3 className="text-xs font-semibold uppercase text-white/50 tracking-wider">
-                    Categories
-                  </h3>
-                </div>
-                <div className="space-y-1">
-                  {categories.map((category) => (
-                    <button
-                      key={category}
-                      onClick={() => setSelectedCategory(category)}
-                      className={cn(
-                        "flex w-full items-center gap-2 rounded-none px-3 py-2.5 text-left text-sm transition-all border-l-2",
-                        selectedCategory === category
-                          ? "bg-white/10 text-white border-[#FF5800]"
-                          : "text-white/60 border-transparent hover:bg-white/5 hover:text-white",
-                      )}
-                    >
-                      {category !== "All" && getCategoryIcon(category)}
-                      {category}
-                      <span className="ml-auto rounded-none bg-[#FF580020] px-2 py-0.5 text-[10px] font-semibold text-[#FF5800] border border-[#FF580040]">
-                        {category === "All"
-                          ? API_ENDPOINTS.length
-                          : getEndpointsByCategory(category).length}
-                      </span>
-                    </button>
-                  ))}
-                </div>
-              </div>
-            </div>
-          </BrandCard>
-        </div>
-
-        <div className="lg:col-span-3">
-          <BrandTabs defaultValue="endpoints" className="w-full space-y-6">
-            <BrandTabsList className="w-full justify-start">
-              <BrandTabsTrigger value="endpoints">Endpoints</BrandTabsTrigger>
-              <BrandTabsTrigger value="schemas">Schemas</BrandTabsTrigger>
-              <BrandTabsTrigger value="openapi">OpenAPI Spec</BrandTabsTrigger>
-            </BrandTabsList>
-
-            <BrandTabsContent value="endpoints">
-              {selectedEndpoint ? (
-                <div className="space-y-6">
-                  <div className="flex items-center justify-between">
-                    <BrandButton
-                      variant="ghost"
-                      size="sm"
-                      onClick={() => setSelectedEndpoint(null)}
-                      className="gap-1"
-                    >
-                      ← Back to endpoints
-                    </BrandButton>
-                    <div className="flex items-center gap-2">
-                      <span className={getMethodColor(selectedEndpoint.method)}>
-                        {selectedEndpoint.method}
-                      </span>
-                      <code className="rounded-none bg-black/60 border border-white/10 px-2 py-1 font-mono text-xs text-white">
-                        {selectedEndpoint.path}
-                      </code>
-                    </div>
+                  <div className="relative">
+                    <SearchIcon className="absolute left-3 top-3 h-4 w-4 text-white/40 pointer-events-none" />
+                    <input
+                      placeholder="Search endpoints..."
+                      value={searchQuery}
+                      onChange={(e) => setSearchQuery(e.target.value)}
+                      className="w-full rounded-none border border-white/10 bg-black/40 px-3 py-2 pl-10 text-sm text-white placeholder:text-white/40 focus:outline-none focus:ring-1 focus:ring-[#FF5800] focus:border-[#FF5800]"
+                    />
                   </div>
+                </div>
+              </BrandCard>
 
-                  <BrandCard className="relative">
-                    <CornerBrackets size="sm" className="opacity-50" />
+              <div className="relative lg:flex-1 lg:min-h-0 overflow-hidden">
+                <BrandCard className="relative lg:h-full">
+                  <CornerBrackets size="sm" className="opacity-50" />
 
-                    <div className="relative z-10 space-y-4">
-                      <div>
-                        <div className="flex items-center gap-2 mb-2">
-                          {getCategoryIcon(selectedEndpoint.category)}
-                          <h3 className="text-lg font-bold text-white">
-                            {selectedEndpoint.name}
+                  <div className="relative z-10 lg:h-full lg:overflow-y-auto overflow-x-hidden lg:pr-2">
+                    <div className="space-y-6 pb-4">
+                      <AuthManager
+                        authToken={authToken}
+                        onTokenChange={setAuthToken}
+                      />
+
+                      <div className="border-t border-white/10" />
+
+                      <div className="space-y-3">
+                        <div className="flex items-center gap-2">
+                          <span className="w-1.5 h-1.5 rounded-full bg-[#FF5800]" />
+                          <h3 className="text-xs font-semibold uppercase text-white/50 tracking-wider">
+                            Categories
                           </h3>
                         </div>
-                        <p className="text-sm text-white/60">
-                          {selectedEndpoint.description}
-                        </p>
+                        <div className="space-y-1">
+                          {categories.map((category) => (
+                            <button
+                              key={category}
+                              onClick={() => setSelectedCategory(category)}
+                              className={cn(
+                                "flex w-full items-center gap-2 rounded-none px-3 py-2.5 text-left text-sm transition-all border-l-2",
+                                selectedCategory === category
+                                  ? "bg-white/10 text-white border-[#FF5800]"
+                                  : "text-white/60 border-transparent hover:bg-white/5 hover:text-white",
+                              )}
+                            >
+                              {category !== "All" && getCategoryIcon(category)}
+                              <span className="flex-1 truncate">
+                                {category}
+                              </span>
+                              <span className="rounded-none bg-[#FF580020] px-2 py-0.5 text-[10px] font-semibold text-[#FF5800] border border-[#FF580040] shrink-0">
+                                {category === "All"
+                                  ? API_ENDPOINTS.length
+                                  : getEndpointsByCategory(category).length}
+                              </span>
+                            </button>
+                          ))}
+                        </div>
                       </div>
-
-                      <ApiTester
-                        endpoint={selectedEndpoint}
-                        authToken={authToken}
-                      />
                     </div>
-                  </BrandCard>
-                </div>
-              ) : (
-                <div className="space-y-5">
-                  <div className="flex items-center justify-between">
-                    <h2 className="text-xl font-semibold text-white">
-                      {selectedCategory === "All"
-                        ? "All Endpoints"
-                        : selectedCategory}
-                      <span className="ml-2 text-sm font-normal text-white/50">
-                        ({filteredEndpoints.length})
-                      </span>
-                    </h2>
-                    {searchQuery && (
-                      <BrandButton
-                        variant="outline"
-                        size="sm"
-                        onClick={() => setSearchQuery("")}
-                      >
-                        Clear search
-                      </BrandButton>
-                    )}
                   </div>
+                </BrandCard>
+              </div>
+            </>
+          )}
+        </div>
+      </aside>
 
-                  <ScrollArea className="h-[600px] rounded-none border border-white/10 bg-black/40 p-4">
-                    <div className="space-y-4">
-                      {filteredEndpoints.map((endpoint) => (
-                        <EndpointCard
-                          key={endpoint.id}
-                          endpoint={endpoint}
-                          onSelect={setSelectedEndpoint}
-                          getMethodColor={getMethodColor}
-                          getCategoryIcon={getCategoryIcon}
-                        />
-                      ))}
+      {/* Main Content */}
+      <main className="flex-1 min-w-0 w-full lg:w-auto flex flex-col pb-12">
+        <BrandTabs defaultValue="endpoints" className="flex flex-col">
+          <BrandTabsList className="w-full justify-start shrink-0 mb-6">
+            <BrandTabsTrigger value="endpoints">Endpoints</BrandTabsTrigger>
+            <BrandTabsTrigger value="schemas">Schemas</BrandTabsTrigger>
+            <BrandTabsTrigger value="openapi">OpenAPI Spec</BrandTabsTrigger>
+          </BrandTabsList>
+
+          <BrandTabsContent value="endpoints" className="mt-0">
+            {selectedEndpoint ? (
+              <div className="flex flex-col space-y-6">
+                <div className="flex items-center justify-between shrink-0">
+                  <BrandButton
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => setSelectedEndpoint(null)}
+                    className="gap-1"
+                  >
+                    ← Back to endpoints
+                  </BrandButton>
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <span className={getMethodColor(selectedEndpoint.method)}>
+                      {selectedEndpoint.method}
+                    </span>
+                    <code className="rounded-none bg-black/60 border border-white/10 px-2 py-1 font-mono text-xs text-white break-all">
+                      {selectedEndpoint.path}
+                    </code>
+                  </div>
+                </div>
+
+                <BrandCard className="relative">
+                  <CornerBrackets size="sm" className="opacity-50" />
+
+                  <div className="relative z-10 space-y-4">
+                    <div>
+                      <div className="flex items-center gap-2 mb-2">
+                        {getCategoryIcon(selectedEndpoint.category)}
+                        <h3 className="text-lg font-bold text-white">
+                          {selectedEndpoint.name}
+                        </h3>
+                      </div>
+                      <p className="text-sm text-white/60">
+                        {selectedEndpoint.description}
+                      </p>
                     </div>
-                  </ScrollArea>
 
-                  {filteredEndpoints.length === 0 && (
-                    <div className="rounded-none border border-dashed border-white/10 py-12 text-center">
+                    <ApiTester
+                      endpoint={selectedEndpoint}
+                      authToken={authToken}
+                    />
+                  </div>
+                </BrandCard>
+              </div>
+            ) : (
+              <div className="flex flex-col space-y-5">
+                <div className="flex items-center justify-between shrink-0">
+                  <h2 className="text-xl font-semibold text-white">
+                    {selectedCategory === "All"
+                      ? "All Endpoints"
+                      : selectedCategory}
+                    <span className="ml-2 text-sm font-normal text-white/50">
+                      ({filteredEndpoints.length})
+                    </span>
+                  </h2>
+                  {searchQuery && (
+                    <BrandButton
+                      variant="outline"
+                      size="sm"
+                      onClick={() => setSearchQuery("")}
+                    >
+                      Clear search
+                    </BrandButton>
+                  )}
+                </div>
+
+                {filteredEndpoints.length === 0 ? (
+                  <div className="flex items-center justify-center rounded-none border border-dashed border-white/10 bg-black/20 py-24">
+                    <div className="text-center">
                       <SearchIcon className="mx-auto mb-4 h-12 w-12 text-white/30" />
                       <h3 className="text-lg font-semibold text-white">
                         No endpoints found
@@ -279,84 +313,96 @@ export default function ApiExplorerPage() {
                           : "No endpoints available in this category"}
                       </p>
                     </div>
-                  )}
-                </div>
-              )}
-            </BrandTabsContent>
-
-            <BrandTabsContent value="schemas">
-              <SchemaViewer spec={openApiSpec} />
-            </BrandTabsContent>
-
-            <BrandTabsContent value="openapi">
-              <BrandCard className="relative">
-                <CornerBrackets size="sm" className="opacity-50" />
-
-                <div className="relative z-10 space-y-4">
-                  <div>
-                    <h3 className="text-xl font-semibold text-white mb-2">
-                      OpenAPI 3.0 Specification
-                    </h3>
-                    <p className="text-sm text-white/60">
-                      Raw OpenAPI specification that can be imported into other
-                      tools
-                    </p>
                   </div>
-
-                  <div className="flex flex-wrap gap-2">
-                    <BrandButton
-                      variant="primary"
-                      size="sm"
-                      onClick={() => {
-                        if (openApiSpec) {
-                          navigator.clipboard.writeText(
-                            JSON.stringify(openApiSpec, null, 2),
-                          );
-                          toast({
-                            message: "OpenAPI spec copied to clipboard",
-                            mode: "success",
-                          });
-                        }
-                      }}
-                    >
-                      Copy JSON
-                    </BrandButton>
-                    <BrandButton
-                      variant="outline"
-                      size="sm"
-                      onClick={async () => {
-                        if (openApiSpec) {
-                          const { generateOpenAPIYAML } = await import(
-                            "@/lib/swagger/openapi-generator"
-                          );
-                          const yaml = generateOpenAPIYAML();
-                          navigator.clipboard.writeText(yaml);
-                          toast({
-                            message: "OpenAPI YAML copied to clipboard",
-                            mode: "success",
-                          });
-                        }
-                      }}
-                    >
-                      Copy YAML
-                    </BrandButton>
+                ) : (
+                  <div className="grid grid-cols-1 2xl:grid-cols-2 gap-4">
+                    {filteredEndpoints.map((endpoint) => (
+                      <EndpointCard
+                        key={endpoint.id}
+                        endpoint={endpoint}
+                        onSelect={setSelectedEndpoint}
+                        getMethodColor={getMethodColor}
+                        getCategoryIcon={getCategoryIcon}
+                      />
+                    ))}
                   </div>
+                )}
+              </div>
+            )}
+          </BrandTabsContent>
 
-                  <ScrollArea className="h-[500px] rounded-none border border-white/10 bg-black/60">
-                    <pre className="overflow-x-auto whitespace-pre-wrap break-all p-4 text-xs font-mono text-white/70">
-                      <code>
-                        {openApiSpec
-                          ? JSON.stringify(openApiSpec, null, 2)
-                          : "Loading..."}
-                      </code>
-                    </pre>
-                  </ScrollArea>
+          <BrandTabsContent value="schemas" className="mt-0">
+            <SchemaViewer spec={openApiSpec} />
+          </BrandTabsContent>
+
+          <BrandTabsContent value="openapi" className="mt-0">
+            <BrandCard className="relative">
+              <CornerBrackets size="sm" className="opacity-50" />
+
+              <div className="relative z-10 space-y-4">
+                <div>
+                  <h3 className="text-xl font-semibold text-white mb-2">
+                    OpenAPI 3.0 Specification
+                  </h3>
+                  <p className="text-sm text-white/60">
+                    Raw OpenAPI specification that can be imported into other
+                    tools
+                  </p>
                 </div>
-              </BrandCard>
-            </BrandTabsContent>
-          </BrandTabs>
-        </div>
-      </div>
+
+                <div className="flex flex-wrap gap-2">
+                  <BrandButton
+                    variant="primary"
+                    size="sm"
+                    onClick={() => {
+                      if (openApiSpec) {
+                        navigator.clipboard.writeText(
+                          JSON.stringify(openApiSpec, null, 2),
+                        );
+                        toast({
+                          message: "OpenAPI spec copied to clipboard",
+                          mode: "success",
+                        });
+                      }
+                    }}
+                  >
+                    Copy JSON
+                  </BrandButton>
+                  <BrandButton
+                    variant="outline"
+                    size="sm"
+                    onClick={async () => {
+                      if (openApiSpec) {
+                        const { generateOpenAPIYAML } = await import(
+                          "@/lib/swagger/openapi-generator"
+                        );
+                        const yaml = generateOpenAPIYAML();
+                        navigator.clipboard.writeText(yaml);
+                        toast({
+                          message: "OpenAPI YAML copied to clipboard",
+                          mode: "success",
+                        });
+                      }
+                    }}
+                  >
+                    Copy YAML
+                  </BrandButton>
+                </div>
+
+                <div className="rounded-none border border-white/10 bg-black/60">
+                  <pre className="overflow-x-auto whitespace-pre-wrap break-all p-4 text-xs font-mono text-white/70 max-h-[800px] overflow-y-auto">
+                    <code>
+                      {openApiSpec
+                        ? JSON.stringify(openApiSpec, null, 2)
+                        : "Loading..."}
+                    </code>
+                  </pre>
+                </div>
+              </div>
+            </BrandCard>
+          </BrandTabsContent>
+        </BrandTabs>
+      </main>
     </div>
   );
 }

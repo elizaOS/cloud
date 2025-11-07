@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { requireAuth } from "@/lib/auth";
+import { requireAuthWithOrg } from "@/lib/auth";
 import { cliAuthSessionsService } from "@/lib/services";
 
 /**
@@ -22,13 +22,13 @@ export async function POST(
     }
 
     // Require user to be authenticated via Privy
-    const user = await requireAuth();
+    const user = await requireAuthWithOrg();
 
     // Complete the authentication and generate API key
     const result = await cliAuthSessionsService.completeAuthentication(
       sessionId,
       user.id,
-      user.organization_id,
+      user.organization_id!,
     );
 
     return NextResponse.json(

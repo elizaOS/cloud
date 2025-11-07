@@ -6,8 +6,17 @@ import type { NextRequest } from "next/server";
 import { NextResponse } from "next/server";
 import { AsyncLocalStorage } from "node:async_hooks";
 import DOMPurify from "isomorphic-dompurify";
-import { requireAuthOrApiKey } from "@/lib/auth";
-import type { AuthResult } from "@/lib/auth";
+import { requireAuthOrApiKeyWithOrg } from "@/lib/auth";
+import type { AuthResult, Organization } from "@/lib/auth";
+import type { UserWithOrganization } from "@/lib/types";
+
+// Type for authenticated context with guaranteed organization
+type AuthResultWithOrg = AuthResult & {
+  user: UserWithOrganization & {
+    organization_id: string;
+    organization: Organization;
+  };
+};
 import { checkRateLimitRedis } from "@/lib/middleware/rate-limit-redis";
 import {
   creditsService,
@@ -50,11 +59,11 @@ import {
 // Next.js requires literal values for segment config exports
 export const maxDuration = 60; // 60 seconds - matches default MCP_REQUEST_TIMEOUT
 
-// AsyncLocalStorage for request-scoped auth context
-const authContextStorage = new AsyncLocalStorage<AuthResult>();
+// AsyncLocalStorage for request-scoped auth context (with organization guaranteed)
+const authContextStorage = new AsyncLocalStorage<AuthResultWithOrg>();
 
 // Helper to get current auth context from AsyncLocalStorage
-function getAuthContext(): AuthResult {
+function getAuthContext(): AuthResultWithOrg {
   const context = authContextStorage.getStore();
   if (!context) {
     throw new Error("Authentication context not available");
@@ -87,7 +96,7 @@ const mcpHandler = createMcpHandler(
         try {
           const { user } = getAuthContext();
 
-          const org = await organizationsService.getById(user.organization_id);
+          const org = await organizationsService.getById(user.organization_id!);
 
           if (!org) {
             return {
@@ -125,7 +134,7 @@ const mcpHandler = createMcpHandler(
           if (includeTransactions) {
             const transactions =
               await creditsService.listTransactionsByOrganization(
-                user.organization_id,
+                user.organization_id!,
                 limit,
               );
             response.transactions = transactions.map((t) => ({
@@ -187,7 +196,7 @@ const mcpHandler = createMcpHandler(
           const { user } = getAuthContext();
 
           const usageRecords = await usageService.listByOrganization(
-            user.organization_id,
+            user.organization_id!,
             limit,
           );
 
@@ -290,11 +299,11 @@ const mcpHandler = createMcpHandler(
 
         try {
           const { user, apiKey } = getAuthContext();
-          userOrganizationId = user.organization_id;
+          userOrganizationId = user.organization_id!;
 
           const provider = getProviderFromModel(model);
 
-          const org = await organizationsService.getById(user.organization_id);
+          const org = await organizationsService.getById(user.organization_id!);
           if (!org) {
             return {
               content: [
@@ -319,7 +328,7 @@ const mcpHandler = createMcpHandler(
           // CRITICAL FIX: Deduct credits BEFORE generation to prevent race conditions
           // The deductCredits method uses database-level locking (SELECT FOR UPDATE)
           const deductionResult = await creditsService.deductCredits({
-            organizationId: user.organization_id,
+            organizationId: user.organization_id!!,
             amount: estimatedCost,
             description: `MCP text generation (pending): ${model}`,
             metadata: {
@@ -354,7 +363,7 @@ const mcpHandler = createMcpHandler(
 
           // Create generation record
           const generation = await generationsService.create({
-            organization_id: user.organization_id,
+            organization_id: user.organization_id!!,
             user_id: user.id,
             api_key_id: apiKey?.id || null,
             type: "chat",
@@ -399,7 +408,7 @@ const mcpHandler = createMcpHandler(
           if (costDifference > 0) {
             // Need to deduct more
             const additionalDeduction = await creditsService.deductCredits({
-              organizationId: user.organization_id,
+              organizationId: user.organization_id!!,
               amount: costDifference,
               description: `MCP text generation (additional): ${model}`,
               metadata: {
@@ -411,7 +420,7 @@ const mcpHandler = createMcpHandler(
             if (!additionalDeduction.success) {
               // Refund the initial deduction since we can't complete
               await creditsService.refundCredits({
-                organizationId: user.organization_id,
+                organizationId: user.organization_id!!,
                 amount: deductedAmount,
                 description: `MCP text generation refund (insufficient balance): ${model}`,
                 metadata: { user_id: user.id, generation_id: generationId },
@@ -438,7 +447,7 @@ const mcpHandler = createMcpHandler(
           } else if (costDifference < 0) {
             // Refund excess
             await creditsService.refundCredits({
-              organizationId: user.organization_id,
+              organizationId: user.organization_id!!,
               amount: -costDifference,
               description: `MCP text generation refund (overestimate): ${model}`,
               metadata: { user_id: user.id, generation_id: generationId },
@@ -447,7 +456,7 @@ const mcpHandler = createMcpHandler(
 
           // Create usage record
           const usageRecord = await usageService.create({
-            organization_id: user.organization_id,
+            organization_id: user.organization_id!!,
             user_id: user.id,
             api_key_id: apiKey?.id || null,
             type: "chat",
@@ -565,9 +574,9 @@ const mcpHandler = createMcpHandler(
 
         try {
           const { user, apiKey } = getAuthContext();
-          userOrganizationId = user.organization_id;
+          userOrganizationId = user.organization_id!;
 
-          const org = await organizationsService.getById(user.organization_id);
+          const org = await organizationsService.getById(user.organization_id!);
           if (!org) {
             return {
               content: [
@@ -587,7 +596,7 @@ const mcpHandler = createMcpHandler(
           // CRITICAL FIX: Deduct credits BEFORE generation to prevent race conditions
           // The deductCredits method uses database-level locking (SELECT FOR UPDATE)
           const initialDeduction = await creditsService.deductCredits({
-            organizationId: user.organization_id,
+            organizationId: user.organization_id!!,
             amount: IMAGE_GENERATION_COST,
             description:
               "MCP image generation (pending): google/gemini-2.5-flash-image-preview",
@@ -619,7 +628,7 @@ const mcpHandler = createMcpHandler(
 
           // Create generation record
           const generation = await generationsService.create({
-            organization_id: user.organization_id,
+            organization_id: user.organization_id!!,
             user_id: user.id,
             api_key_id: apiKey?.id || null,
             type: "image",
@@ -694,7 +703,7 @@ const mcpHandler = createMcpHandler(
             }
 
             const usageRecord = await usageService.create({
-              organization_id: user.organization_id,
+              organization_id: user.organization_id!!,
               user_id: user.id,
               api_key_id: apiKey?.id || null,
               type: "image",
@@ -736,7 +745,7 @@ const mcpHandler = createMcpHandler(
           }
 
           const usageRecord = await usageService.create({
-            organization_id: user.organization_id,
+            organization_id: user.organization_id!!,
             user_id: user.id,
             api_key_id: apiKey?.id || null,
             type: "image",
@@ -903,7 +912,7 @@ const mcpHandler = createMcpHandler(
         try {
           const { user } = getAuthContext();
 
-          const org = await organizationsService.getById(user.organization_id);
+          const org = await organizationsService.getById(user.organization_id!);
           if (!org) {
             return {
               content: [
@@ -1016,7 +1025,7 @@ const mcpHandler = createMcpHandler(
           // CRITICAL FIX: Deduct credits BEFORE expensive operation to prevent race conditions
           // The deductCredits method uses database-level locking (SELECT FOR UPDATE)
           const deductionResult = await creditsService.deductCredits({
-            organizationId: user.organization_id,
+            organizationId: user.organization_id!!,
             amount: MEMORY_SAVE_COST,
             description: `MCP memory save (pending): ${type}`,
             metadata: {
@@ -1048,7 +1057,7 @@ const mcpHandler = createMcpHandler(
           let result: Awaited<ReturnType<typeof memoryService.saveMemory>>;
           try {
             result = await memoryService.saveMemory({
-              organizationId: user.organization_id,
+              organizationId: user.organization_id!!,
               roomId: roomId,
               entityId: user.id,
               content: sanitizedContent,
@@ -1061,7 +1070,7 @@ const mcpHandler = createMcpHandler(
           } catch (saveError) {
             // CRITICAL FIX: Refund credits if save failed after deduction
             await creditsService.refundCredits({
-              organizationId: user.organization_id,
+              organizationId: user.organization_id!!,
               amount: MEMORY_SAVE_COST,
               description: `MCP memory save refund (failed): ${type}`,
               metadata: {
@@ -1076,7 +1085,7 @@ const mcpHandler = createMcpHandler(
           }
 
           await usageService.create({
-            organization_id: user.organization_id,
+            organization_id: user.organization_id!!,
             user_id: user.id,
             api_key_id: null,
             type: "memory",
@@ -1167,7 +1176,7 @@ const mcpHandler = createMcpHandler(
         try {
           const { user } = getAuthContext();
 
-          const org = await organizationsService.getById(user.organization_id);
+          const org = await organizationsService.getById(user.organization_id!);
           if (!org) {
             return {
               content: [
@@ -1189,7 +1198,7 @@ const mcpHandler = createMcpHandler(
           const estimatedMaxCost = MEMORY_RETRIEVAL_MAX_COST;
 
           const initialDeduction = await creditsService.deductCredits({
-            organizationId: user.organization_id,
+            organizationId: user.organization_id!!,
             amount: estimatedMaxCost,
             description: "MCP memory retrieval (pending): estimated max",
             metadata: {
@@ -1224,7 +1233,7 @@ const mcpHandler = createMcpHandler(
           >;
           try {
             memories = await memoryService.retrieveMemories({
-              organizationId: user.organization_id,
+              organizationId: user.organization_id!!,
               query,
               roomId,
               type,
@@ -1235,7 +1244,7 @@ const mcpHandler = createMcpHandler(
           } catch (retrieveError) {
             // CRITICAL FIX: Refund credits if retrieval failed
             await creditsService.refundCredits({
-              organizationId: user.organization_id,
+              organizationId: user.organization_id!!,
               amount: estimatedMaxCost,
               description: "MCP memory retrieval refund (failed)",
               metadata: {
@@ -1259,7 +1268,7 @@ const mcpHandler = createMcpHandler(
           if (costDifference > 0) {
             // Refund the overestimate
             await creditsService.refundCredits({
-              organizationId: user.organization_id,
+              organizationId: user.organization_id!!,
               amount: costDifference,
               description: `MCP memory retrieval refund (overestimate): ${memories.length} memories`,
               metadata: {
@@ -1274,7 +1283,7 @@ const mcpHandler = createMcpHandler(
 
           if (actualCost > 0) {
             await usageService.create({
-              organization_id: user.organization_id,
+              organization_id: user.organization_id!!,
               user_id: user.id,
               api_key_id: null,
               type: "memory",
@@ -1354,7 +1363,7 @@ const mcpHandler = createMcpHandler(
           const { user } = getAuthContext();
 
           const result = await memoryService.deleteMemory({
-            organizationId: user.organization_id,
+            organizationId: user.organization_id!!,
             memoryId,
             olderThan,
             type,
@@ -1362,7 +1371,7 @@ const mcpHandler = createMcpHandler(
           });
 
           await usageService.create({
-            organization_id: user.organization_id,
+            organization_id: user.organization_id!!,
             user_id: user.id,
             api_key_id: null,
             type: "memory",
@@ -1442,7 +1451,7 @@ const mcpHandler = createMcpHandler(
         try {
           const { user } = getAuthContext();
 
-          const org = await organizationsService.getById(user.organization_id);
+          const org = await organizationsService.getById(user.organization_id!);
           if (!org) {
             return {
               content: [
@@ -1481,12 +1490,12 @@ const mcpHandler = createMcpHandler(
 
           const context = await memoryService.getRoomContext(
             roomId,
-            user.organization_id,
+            user.organization_id!,
             depth,
           );
 
           const deductionResult = await creditsService.deductCredits({
-            organizationId: user.organization_id,
+            organizationId: user.organization_id!!,
             amount: CONTEXT_RETRIEVAL_COST,
             description: `MCP conversation context: ${roomId}`,
             metadata: {
@@ -1517,7 +1526,7 @@ const mcpHandler = createMcpHandler(
           }
 
           await usageService.create({
-            organization_id: user.organization_id,
+            organization_id: user.organization_id!!,
             user_id: user.id,
             api_key_id: null,
             type: "memory",
@@ -1611,7 +1620,7 @@ const mcpHandler = createMcpHandler(
         try {
           const { user } = getAuthContext();
 
-          const org = await organizationsService.getById(user.organization_id);
+          const org = await organizationsService.getById(user.organization_id!);
           if (!org) {
             return {
               content: [
@@ -1649,7 +1658,7 @@ const mcpHandler = createMcpHandler(
           }
 
           const conversation = await conversationsService.create({
-            organization_id: user.organization_id,
+            organization_id: user.organization_id!!,
             user_id: user.id,
             title,
             model: actualModel,
@@ -1660,7 +1669,7 @@ const mcpHandler = createMcpHandler(
           });
 
           const deductionResult = await creditsService.deductCredits({
-            organizationId: user.organization_id,
+            organizationId: user.organization_id!!,
             amount: CONVERSATION_CREATE_COST,
             description: `MCP conversation created: ${title}`,
             metadata: {
@@ -1690,7 +1699,7 @@ const mcpHandler = createMcpHandler(
           }
 
           await usageService.create({
-            organization_id: user.organization_id,
+            organization_id: user.organization_id!!,
             user_id: user.id,
             api_key_id: null,
             type: "conversation",
@@ -1769,7 +1778,7 @@ const mcpHandler = createMcpHandler(
         try {
           const { user } = getAuthContext();
 
-          const org = await organizationsService.getById(user.organization_id);
+          const org = await organizationsService.getById(user.organization_id!);
           if (!org) {
             return {
               content: [
@@ -1807,12 +1816,12 @@ const mcpHandler = createMcpHandler(
           }
 
           const conversations = await conversationsService.listByOrganization(
-            user.organization_id,
+            user.organization_id!,
             limit,
           );
 
           const deductionResult = await creditsService.deductCredits({
-            organizationId: user.organization_id,
+            organizationId: user.organization_id!!,
             amount: CONVERSATION_SEARCH_COST,
             description: `MCP conversation search: ${query || "all"}`,
             metadata: {
@@ -1842,7 +1851,7 @@ const mcpHandler = createMcpHandler(
           }
 
           await usageService.create({
-            organization_id: user.organization_id,
+            organization_id: user.organization_id!!,
             user_id: user.id,
             api_key_id: null,
             type: "conversation",
@@ -1935,7 +1944,7 @@ const mcpHandler = createMcpHandler(
         try {
           const { user } = getAuthContext();
 
-          const org = await organizationsService.getById(user.organization_id);
+          const org = await organizationsService.getById(user.organization_id!);
           if (!org) {
             return {
               content: [
@@ -1978,7 +1987,7 @@ const mcpHandler = createMcpHandler(
 
           const summary = await memoryService.summarizeConversation({
             roomId,
-            organizationId: user.organization_id,
+            organizationId: user.organization_id!!,
             lastN,
             style,
             includeMetadata,
@@ -1991,7 +2000,7 @@ const mcpHandler = createMcpHandler(
           );
 
           const deductionResult = await creditsService.deductCredits({
-            organizationId: user.organization_id,
+            organizationId: user.organization_id!!,
             amount: actualCost,
             description: `MCP conversation summary: ${roomId}`,
             metadata: {
@@ -2022,7 +2031,7 @@ const mcpHandler = createMcpHandler(
           }
 
           await usageService.create({
-            organization_id: user.organization_id,
+            organization_id: user.organization_id!!,
             user_id: user.id,
             api_key_id: null,
             type: "chat",
@@ -2105,7 +2114,7 @@ const mcpHandler = createMcpHandler(
         try {
           const { user } = getAuthContext();
 
-          const org = await organizationsService.getById(user.organization_id);
+          const org = await organizationsService.getById(user.organization_id!);
           if (!org) {
             return {
               content: [
@@ -2144,14 +2153,14 @@ const mcpHandler = createMcpHandler(
 
           const optimized = await memoryService.optimizeContextWindow(
             roomId,
-            user.organization_id,
+            user.organization_id!,
             maxTokens,
             query,
             preserveRecent,
           );
 
           const deductionResult = await creditsService.deductCredits({
-            organizationId: user.organization_id,
+            organizationId: user.organization_id!!,
             amount: CONTEXT_OPTIMIZATION_COST,
             description: `MCP context optimization: ${roomId}`,
             metadata: {
@@ -2182,7 +2191,7 @@ const mcpHandler = createMcpHandler(
           }
 
           await usageService.create({
-            organization_id: user.organization_id,
+            organization_id: user.organization_id!!,
             user_id: user.id,
             api_key_id: null,
             type: "memory",
@@ -2262,7 +2271,7 @@ const mcpHandler = createMcpHandler(
         try {
           const { user } = getAuthContext();
 
-          const org = await organizationsService.getById(user.organization_id);
+          const org = await organizationsService.getById(user.organization_id!);
           if (!org) {
             return {
               content: [
@@ -2301,12 +2310,12 @@ const mcpHandler = createMcpHandler(
 
           const exportData = await memoryService.exportConversation(
             conversationId,
-            user.organization_id,
+            user.organization_id!,
             format,
           );
 
           const deductionResult = await creditsService.deductCredits({
-            organizationId: user.organization_id,
+            organizationId: user.organization_id!!,
             amount: CONVERSATION_EXPORT_COST,
             description: `MCP conversation export: ${conversationId}`,
             metadata: {
@@ -2337,7 +2346,7 @@ const mcpHandler = createMcpHandler(
           }
 
           await usageService.create({
-            organization_id: user.organization_id,
+            organization_id: user.organization_id!!,
             user_id: user.id,
             api_key_id: null,
             type: "conversation",
@@ -2422,7 +2431,7 @@ const mcpHandler = createMcpHandler(
         try {
           const { user } = getAuthContext();
 
-          const org = await organizationsService.getById(user.organization_id);
+          const org = await organizationsService.getById(user.organization_id!);
           if (!org) {
             return {
               content: [
@@ -2461,7 +2470,7 @@ const mcpHandler = createMcpHandler(
 
           const cloneResult = await memoryService.cloneConversation(
             conversationId,
-            user.organization_id,
+            user.organization_id!,
             user.id,
             {
               newTitle,
@@ -2472,7 +2481,7 @@ const mcpHandler = createMcpHandler(
           );
 
           const deductionResult = await creditsService.deductCredits({
-            organizationId: user.organization_id,
+            organizationId: user.organization_id!!,
             amount: CONVERSATION_CLONE_COST,
             description: `MCP conversation clone: ${conversationId}`,
             metadata: {
@@ -2503,7 +2512,7 @@ const mcpHandler = createMcpHandler(
           }
 
           await usageService.create({
-            organization_id: user.organization_id,
+            organization_id: user.organization_id!!,
             user_id: user.id,
             api_key_id: null,
             type: "conversation",
@@ -2580,7 +2589,7 @@ const mcpHandler = createMcpHandler(
         try {
           const { user } = getAuthContext();
 
-          const org = await organizationsService.getById(user.organization_id);
+          const org = await organizationsService.getById(user.organization_id!);
           if (!org) {
             return {
               content: [
@@ -2618,12 +2627,12 @@ const mcpHandler = createMcpHandler(
           }
 
           const analysis = await memoryService.analyzeMemoryPatterns(
-            user.organization_id,
+            user.organization_id!,
             analysisType,
           );
 
           const deductionResult = await creditsService.deductCredits({
-            organizationId: user.organization_id,
+            organizationId: user.organization_id!!,
             amount: MEMORY_ANALYSIS_COST,
             description: `MCP memory analysis: ${analysisType}`,
             metadata: {
@@ -2653,7 +2662,7 @@ const mcpHandler = createMcpHandler(
           }
 
           await usageService.create({
-            organization_id: user.organization_id,
+            organization_id: user.organization_id!!,
             user_id: user.id,
             api_key_id: null,
             type: "memory",
@@ -2738,7 +2747,7 @@ const mcpHandler = createMcpHandler(
       async ({ message, roomId, entityId, streaming = false }) => {
         try {
           const { user } = getAuthContext();
-          const org = await organizationsService.getById(user.organization_id);
+          const org = await organizationsService.getById(user.organization_id!);
 
           if (!org) {
             return {
@@ -2790,7 +2799,7 @@ const mcpHandler = createMcpHandler(
             roomId: actualRoomId,
             entityId: entityId || user.id,
             message,
-            organizationId: user.organization_id,
+            organizationId: user.organization_id!!,
             streaming,
           });
 
@@ -2802,7 +2811,7 @@ const mcpHandler = createMcpHandler(
           );
 
           await creditsService.deductCredits({
-            organizationId: user.organization_id,
+            organizationId: user.organization_id!!,
             amount: actualCost,
             description: "MCP chat with agent",
             metadata: {
@@ -2815,7 +2824,7 @@ const mcpHandler = createMcpHandler(
           });
 
           await usageService.create({
-            organization_id: user.organization_id,
+            organization_id: user.organization_id!!,
             user_id: user.id,
             type: "mcp_tool",
             model: response.usage?.model || "eliza-agent",
@@ -2895,7 +2904,7 @@ const mcpHandler = createMcpHandler(
           const { user } = getAuthContext();
 
           const result = await agentDiscoveryService.listAgents(
-            user.organization_id,
+            user.organization_id!,
             user.id,
             filters,
             includeStats,
@@ -3022,7 +3031,7 @@ const mcpHandler = createMcpHandler(
                   {
                     success: true,
                     sseUrl,
-                    organizationId: user.organization_id,
+                    organizationId: user.organization_id!!,
                     eventTypes: ["balance_updated", "transaction_created"],
                     includeTransactions,
                   },
@@ -3069,7 +3078,7 @@ const mcpHandler = createMcpHandler(
         try {
           const { user } = getAuthContext();
           let containers = await containersService.listByOrganization(
-            user.organization_id,
+            user.organization_id!,
           );
 
           if (status) {
@@ -3135,7 +3144,7 @@ const mcpHandler = createMcpHandler(
 async function handleRequest(req: NextRequest) {
   try {
     // Authenticate request
-    const authResult = await requireAuthOrApiKey(req);
+    const authResult = await requireAuthOrApiKeyWithOrg(req);
 
     // SECURITY FIX: Rate limiting for MCP tool invocations
     // Limit: 100 requests per minute per organization

@@ -14,12 +14,18 @@ const email = process.argv[3];
 
 if (!email || !command) {
   console.error(
-    "Usage: tsx scripts/test-emails.ts [welcome|low-credits] <email>",
+    "Usage: tsx scripts/test-emails.ts [welcome|low-credits|auto-top-up-success|auto-top-up-disabled] <email>",
   );
   console.error("");
   console.error("Examples:");
   console.error("  tsx scripts/test-emails.ts welcome test@example.com");
   console.error("  tsx scripts/test-emails.ts low-credits billing@example.com");
+  console.error(
+    "  tsx scripts/test-emails.ts auto-top-up-success billing@example.com",
+  );
+  console.error(
+    "  tsx scripts/test-emails.ts auto-top-up-disabled billing@example.com",
+  );
   process.exit(1);
 }
 
@@ -51,8 +57,28 @@ async function main() {
       threshold: 1.0,
       billingUrl: process.env.NEXT_PUBLIC_APP_URL + "/dashboard/billing",
     });
+  } else if (command === "auto-top-up-success") {
+    result = await emailService.sendAutoTopUpSuccessEmail({
+      email,
+      organizationName: "Test Organization",
+      amount: 10.0,
+      previousBalance: 3.5,
+      newBalance: 13.5,
+      paymentMethod: "Visa ••••4242",
+      billingUrl: process.env.NEXT_PUBLIC_APP_URL + "/dashboard/settings",
+    });
+  } else if (command === "auto-top-up-disabled") {
+    result = await emailService.sendAutoTopUpDisabledEmail({
+      email,
+      organizationName: "Test Organization",
+      reason: "Payment method declined",
+      currentBalance: 2.5,
+      settingsUrl: process.env.NEXT_PUBLIC_APP_URL + "/dashboard/settings",
+    });
   } else {
-    console.error('❌ Invalid command. Use "welcome" or "low-credits"');
+    console.error(
+      '❌ Invalid command. Use "welcome", "low-credits", "auto-top-up-success", or "auto-top-up-disabled"',
+    );
     process.exit(1);
   }
 

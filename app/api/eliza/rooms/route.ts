@@ -4,7 +4,9 @@ import { v4 as uuidv4 } from "uuid";
 import { stringToUuid, UUID, ChannelType } from "@elizaos/core";
 import { logger } from "@/lib/utils/logger";
 import { requireAuthOrApiKey } from "@/lib/auth";
+import { getAnonymousUser } from "@/lib/auth-anonymous";
 import { elizaRoomCharactersRepository } from "@/db/repositories";
+import { connectionCache } from "@/lib/cache/connection-cache";
 import { discordService } from "@/lib/services";
 import { db } from "@/db/client";
 import { sql } from "drizzle-orm";
@@ -12,8 +14,13 @@ import { sql } from "drizzle-orm";
 // GET /api/eliza/rooms - Get user's rooms
 export async function GET(request: NextRequest) {
   try {
-    // Authenticate user or validate API key
-    await requireAuthOrApiKey(request);
+    // Support both authenticated and anonymous users
+    try {
+      await requireAuthOrApiKey(request);
+    } catch (error) {
+      // Fallback to anonymous user
+      await getAnonymousUser();
+    }
 
     const { searchParams } = new URL(request.url);
     const entityId = searchParams.get("entityId");
@@ -84,9 +91,19 @@ export async function GET(request: NextRequest) {
 // POST /api/eliza/rooms - Create new room
 export async function POST(request: NextRequest) {
   try {
-    // Authenticate user or validate API key
-    const authResult = await requireAuthOrApiKey(request);
-    const { user } = authResult;
+    // Support both authenticated and anonymous users
+    let user, authResult;
+    try {
+      authResult = await requireAuthOrApiKey(request);
+      user = authResult.user;
+    } catch (error) {
+      // Fallback to anonymous user
+      const anonData = await getAnonymousUser();
+      if (!anonData) {
+        throw new Error("Authentication required");
+      }
+      user = anonData.user;
+    }
 
     const body = await request.json();
     const { entityId, characterId } = body;
@@ -153,6 +170,9 @@ export async function POST(request: NextRequest) {
       userName: entityId,
     });
 
+    // OPTIMIZATION: Cache the connection to avoid DB queries on future messages
+    await connectionCache.markEstablished(roomId, entityId);
+
     logger.debug(
       "[Eliza Rooms API] Created room:",
       roomId,
@@ -176,7 +196,7 @@ export async function POST(request: NextRequest) {
             await db.execute(
               sql`UPDATE rooms 
                   SET metadata = COALESCE(metadata, '{}'::jsonb) || ${sql.raw(`'{"discordThreadId": "${threadResult.threadId}"}'`)}::jsonb
-                  WHERE id = ${roomId}::uuid`
+                  WHERE id = ${roomId}::uuid`,
             );
             logger.info(
               `[Eliza Rooms API] Discord thread created: ${threadResult.threadId} for room ${roomId}`,

@@ -161,7 +161,7 @@ class DiscordService {
 
       const response = (await this.rest.post(
         Routes.threads(this.defaultChannelId),
-        { body: threadData }
+        { body: threadData },
       )) as any;
 
       logger.info(`[DiscordService] Thread created: ${response.id}`);
@@ -184,10 +184,7 @@ class DiscordService {
   /**
    * Send a message to a Discord thread
    */
-  async sendToThread(
-    threadId: string,
-    message: string
-  ): Promise<boolean> {
+  async sendToThread(threadId: string, message: string): Promise<boolean> {
     this.initialize();
 
     if (!this.initialized || !this.rest) {
@@ -370,7 +367,9 @@ class DiscordService {
     const fields: DiscordEmbedField[] = [
       {
         name: "Prompt",
-        value: imageData.prompt.slice(0, 200) + (imageData.prompt.length > 200 ? "..." : ""),
+        value:
+          imageData.prompt.slice(0, 200) +
+          (imageData.prompt.length > 200 ? "..." : ""),
         inline: false,
       },
       {
@@ -485,8 +484,11 @@ class DiscordService {
     if (characterData.plugins && characterData.plugins.length > 0) {
       fields.push({
         name: "Plugins",
-        value: characterData.plugins.slice(0, 5).join(", ") + 
-               (characterData.plugins.length > 5 ? `, +${characterData.plugins.length - 5} more` : ""),
+        value:
+          characterData.plugins.slice(0, 5).join(", ") +
+          (characterData.plugins.length > 5
+            ? `, +${characterData.plugins.length - 5} more`
+            : ""),
         inline: false,
       });
     }

@@ -5,15 +5,13 @@
 "use client";
 
 import Link from "next/link";
-import Image from "next/image";
 import { useState, useEffect } from "react";
 import { X } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { ThemeToggle } from "@/components/theme/theme-toggle";
 import { SidebarNavigationSection } from "./sidebar-section";
 import { sidebarSections } from "./sidebar-data";
-import { useThemeLogo } from "./use-theme-logo";
 import { CornerBrackets } from "@/components/brand";
+import { SidebarBottomPanel } from "./sidebar-bottom-panel";
 
 interface SidebarProps {
   className?: string;
@@ -27,7 +25,6 @@ export default function Sidebar({
   onToggle,
 }: SidebarProps) {
   const [isMobile, setIsMobile] = useState(false);
-  const logoSrc = useThemeLogo();
 
   useEffect(() => {
     const checkScreenSize = () => {
@@ -98,18 +95,8 @@ export default function Sidebar({
           </div>
         </nav>
 
-        {/* Footer with Theme Toggle */}
-        <div className="relative border-t border-white/10 p-4">
-          {/* Corner brackets for footer */}
-          <CornerBrackets size="sm" className="opacity-30" />
-
-          <div className="flex items-center justify-between relative z-10">
-            <span className="text-xs uppercase tracking-wider text-white/50">
-              Theme
-            </span>
-            <ThemeToggle />
-          </div>
-        </div>
+        {/* Bottom Panel with User Info and Settings */}
+        <SidebarBottomPanel />
       </aside>
     </>
   );

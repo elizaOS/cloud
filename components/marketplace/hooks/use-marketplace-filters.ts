@@ -1,20 +1,12 @@
 import { useState, useCallback, useMemo } from "react";
-import type {
-  SearchFilters,
-  SortBy,
-  CategoryId,
-} from "@/lib/types/marketplace";
+import type { SearchFilters, SortBy, CategoryId } from "@/lib/types/my-agents";
 
-export function useMarketplaceFilters() {
+export function useMyAgentsFilters() {
   const [activeCategory, setActiveCategory] = useState<CategoryId | null>(null);
   const [sortBy, setSortBy] = useState<SortBy>("popularity");
   const [filters, setFilters] = useState<SearchFilters>({
     hasVoice: false,
     deployed: false,
-    template: false,
-    myCharacters: false,
-    public: false,
-    featured: false,
   });
 
   const toggleFilter = useCallback((filterKey: keyof SearchFilters) => {
@@ -28,10 +20,6 @@ export function useMarketplaceFilters() {
     setFilters({
       hasVoice: false,
       deployed: false,
-      template: false,
-      myCharacters: false,
-      public: false,
-      featured: false,
     });
     setActiveCategory(null);
   }, []);

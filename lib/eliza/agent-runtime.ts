@@ -16,10 +16,12 @@ import {
   type IDatabaseAdapter,
   type Plugin,
 } from "@elizaos/core";
-import { createDatabaseAdapter } from "@elizaos/plugin-sql";
+// @ts-expect-error - Type definitions missing in published package (index.node.d.ts not included)
+import { createDatabaseAdapter } from "@elizaos/plugin-sql/node";
 import agent from "./agent";
 import { characterLoader } from "./character-loader";
 import type { Character } from "@elizaos/core";
+import { connectionCache } from "@/lib/cache/connection-cache";
 
 interface GlobalWithEliza {
   __elizaManagerLogged?: boolean;
@@ -293,7 +295,7 @@ class AgentRuntimeManager {
         // Call runtime.initialize() to load plugins and set up everything
         // This may fail if agent/entity records already exist - handle gracefully
         try {
-          await this.runtime.initialize();
+          await this.runtime.initialize({ skipMigrations: true });
           elizaLogger.success("#Eliza", "Runtime initialized successfully");
 
           // Log available services
@@ -613,18 +615,52 @@ class AgentRuntimeManager {
       ? await this.getRuntimeForCharacter(characterId)
       : await this.getRuntime();
 
-    // Ensure room and entity connection
+    // OPTIMIZATION: Check connection cache before calling ensureConnection
+    // This avoids a DB query on every message for established connections
     const entityUuid = stringToUuid(entityId) as UUID;
-    await runtime.ensureConnection({
-      entityId: entityUuid,
-      roomId: roomId as UUID,
-      worldId: stringToUuid("eliza-world"),
-      source: "web",
-      type: ChannelType.DM,
-      channelId: roomId,
-      serverId: "eliza-server",
-      userName: entityId,
-    });
+    const isConnectionCached = await connectionCache.isEstablished(
+      roomId,
+      entityId,
+    );
+
+    if (!isConnectionCached) {
+      // Connection not cached - ensure it exists and cache the result
+
+      // Use ensureConnections (plural) for more robust entity/room creation
+      // This avoids the core library bug in ensureConnection (singular) that
+      // improperly formats the names array parameter
+      const worldId = stringToUuid("eliza-world") as UUID;
+
+      await runtime.ensureConnections(
+        [
+          {
+            id: entityUuid,
+            names: [entityId],
+            metadata: { name: entityId, web: { userName: entityId } },
+          },
+        ],
+        [
+          {
+            id: roomId as UUID,
+            name: entityId,
+            type: ChannelType.DM,
+            channelId: roomId,
+          },
+        ],
+        "web",
+        {
+          id: worldId,
+          name: "eliza-world",
+          serverId: "eliza-server",
+        },
+      );
+
+      // Mark connection as established in cache
+      await connectionCache.markEstablished(roomId, entityId);
+      elizaLogger.debug("[AgentRuntime] Connection established and cached");
+    } else {
+      elizaLogger.debug("[AgentRuntime] Using cached connection");
+    }
 
     // Create user message
     // Note: The plugin (assistantPlugin) will save this to the database via the event handler
@@ -690,7 +726,9 @@ class AgentRuntimeManager {
       }
     }
 
-    // Explicitly create and save agent response if we have text
+    // Construct agent response memory object for return value
+    // NOTE: The message is already created and saved by the plugin-assistant event handler
+    // We only create this object for the return value, not to save it again
     if (responseText) {
       agentResponse = {
         id: uuidv4() as UUID,
@@ -704,8 +742,10 @@ class AgentRuntimeManager {
         },
       };
 
-      await runtime.createMemory(agentResponse, "messages");
-      elizaLogger.debug("#Eliza", "Agent response saved to messages table");
+      elizaLogger.debug(
+        "#Eliza",
+        "Agent response generated (already saved by plugin)",
+      );
     } else {
       elizaLogger.warn(
         "#Eliza",

@@ -1,20 +1,8 @@
 {
   "crons": [
     {
-      "path": "/api/cron/cleanup-priorities",
-      "schedule": "0 * * * *"
-    },
-    {
-      "path": "/api/cron/cleanup-cli-sessions",
-      "schedule": "0 * * * *"
-    },
-    {
-      "path": "/api/v1/cron/health-check",
-      "schedule": "*/5 * * * *"
+      "path": "/api/cron/auto-top-up",
+      "schedule": "*/15 * * * *"
     }
-  ],
-  "buildCommand": "npm run build",
-  "devCommand": "npm run dev",
-  "installCommand": "npm install",
-  "framework": "nextjs"
+  ]
 }

@@ -19,8 +19,11 @@ const geistMono = Geist_Mono({
 });
 
 // Get base URL with automatic Vercel URL detection as fallback
-const baseUrl = process.env.NEXT_PUBLIC_APP_URL 
-  || (process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : "http://localhost:3000");
+const baseUrl =
+  process.env.NEXT_PUBLIC_APP_URL ||
+  (process.env.VERCEL_URL
+    ? `https://${process.env.VERCEL_URL}`
+    : "http://localhost:3000");
 
 export const metadata: Metadata = {
   title: {
@@ -62,7 +65,6 @@ export const metadata: Metadata = {
         width: 1200,
         height: 630,
         alt: "elizaOS Platform",
-        type: "image/png",
       },
     ],
   },
@@ -113,9 +115,23 @@ export default function RootLayout({
             enableSystem
             disableTransitionOnChange
           >
-            <NextTopLoader showSpinner={false} color="white" />
+            <NextTopLoader showSpinner={false} color="#FF5800" />
             {children}
-            <Toaster richColors />
+            <Toaster
+              richColors
+              theme="dark"
+              position="top-right"
+              toastOptions={{
+                style: {
+                  background: "rgba(0, 0, 0, 0.8)",
+                  border: "1px solid rgba(255, 255, 255, 0.1)",
+                  color: "white",
+                  backdropFilter: "blur(12px)",
+                  borderRadius: "0px",
+                },
+                className: "font-mono",
+              }}
+            />
           </ThemeProvider>
         </PrivyProvider>
         <Analytics />

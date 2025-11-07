@@ -38,18 +38,25 @@ const rateLimitStore = new Map<string, RateLimitEntry>();
 // Log warning on first use (only if Redis is not enabled)
 let hasLoggedWarning = false;
 function logRateLimitWarning() {
-  if (!hasLoggedWarning && process.env.NODE_ENV === "production") {
-    if (process.env.REDIS_RATE_LIMITING !== "true") {
-      logger.error(
-        "🚨 [Rate Limit] CRITICAL: In-memory rate limiting in production! " +
-          "This is a SECURITY VULNERABILITY - users can bypass limits across instances. " +
-          "Set REDIS_RATE_LIMITING=true immediately. " +
-          "See lib/middleware/rate-limit-redis.ts",
-      );
-      hasLoggedWarning = true;
+  if (!hasLoggedWarning) {
+    if (process.env.NODE_ENV === "production") {
+      if (process.env.REDIS_RATE_LIMITING !== "true") {
+        logger.error(
+          "🚨 [Rate Limit] CRITICAL: In-memory rate limiting in production! " +
+            "This is a SECURITY VULNERABILITY - users can bypass limits across instances. " +
+            "Set REDIS_RATE_LIMITING=true immediately. " +
+            "See lib/middleware/rate-limit-redis.ts",
+        );
+        hasLoggedWarning = true;
+      } else {
+        logger.info(
+          "[Rate Limit] ✓ Using Redis-backed rate limiting (production mode)",
+        );
+        hasLoggedWarning = true;
+      }
     } else {
       logger.info(
-        "[Rate Limit] ✓ Using Redis-backed rate limiting (production mode)",
+        "[Rate Limit] 🔓 Development mode: Rate limits disabled (10000 req/window)",
       );
       hasLoggedWarning = true;
     }
@@ -227,30 +234,34 @@ export function withRateLimit<T = Record<string, string>>(
 
 /**
  * Preset rate limit configurations
+ * DEVELOPMENT: Very high limits to allow rapid testing and iteration
+ * PRODUCTION: Strict limits to protect against abuse
  */
+const isDevelopment = process.env.NODE_ENV !== "production";
+
 export const RateLimitPresets = {
   // Generous limits for general API usage
   STANDARD: {
     windowMs: 60000, // 1 minute
-    maxRequests: 60, // 60 requests per minute
+    maxRequests: isDevelopment ? 10000 : 60, // Dev: virtually unlimited, Prod: 60/min
   },
 
   // Strict limits for expensive operations
   STRICT: {
     windowMs: 60000, // 1 minute
-    maxRequests: 10, // 10 requests per minute
+    maxRequests: isDevelopment ? 10000 : 10, // Dev: virtually unlimited, Prod: 10/min
   },
 
   // Very strict for critical operations (deployments, payments)
   CRITICAL: {
     windowMs: 300000, // 5 minutes
-    maxRequests: 5, // 5 deployments per 5 minutes
+    maxRequests: isDevelopment ? 10000 : 5, // Dev: virtually unlimited, Prod: 5/5min
   },
 
   // Burst allowance for real-time features
   BURST: {
     windowMs: 1000, // 1 second
-    maxRequests: 10, // 10 requests per second
+    maxRequests: isDevelopment ? 1000 : 10, // Dev: 1000/sec, Prod: 10/sec
   },
 } as const;
 

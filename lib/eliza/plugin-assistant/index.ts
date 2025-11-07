@@ -16,7 +16,6 @@ import { v4 } from "uuid";
 import { providersProvider } from "./providers/providers";
 import { actionsProvider } from "./providers/actions";
 import { characterProvider } from "./providers/character";
-import { messageEventEmitter } from "@/lib/events/message-events";
 
 // Track usage per message for credit deduction
 const messageUsageMap = new Map<
@@ -208,34 +207,8 @@ const messageReceivedHandler = async ({
     logger.debug("[ElizaAssistant] Saving message to memory");
     await runtime.createMemory(message, "messages");
 
-    // Emit user message event via SSE
-    messageEventEmitter.emitMessage({
-      roomId: message.roomId,
-      messageId: message.id || v4(),
-      entityId: message.entityId,
-      agentId: runtime.agentId,
-      content: {
-        text: message.content.text || "",
-        source: message.content.source,
-      },
-      createdAt: message.createdAt || Date.now(),
-      isAgent: false,
-      type: "user",
-    });
-
-    // Emit thinking event
-    messageEventEmitter.emitMessage({
-      roomId: message.roomId,
-      messageId: `thinking-${Date.now()}`,
-      entityId: runtime.agentId,
-      agentId: runtime.agentId,
-      content: {
-        text: "",
-      },
-      createdAt: Date.now(),
-      isAgent: true,
-      type: "thinking",
-    });
+    // Note: Message streaming is now handled by the API route
+    // No need to emit events here - the streaming POST endpoint handles it directly
 
     // PHASE 1: Compose initial state with memory providers
     logger.debug("[ElizaAssistant] Composing state with memory providers");
@@ -420,22 +393,8 @@ const messageReceivedHandler = async ({
     logger.debug("[ElizaAssistant] Saving response to memory");
     await runtime.createMemory(responseMemory, "messages");
 
-    // Emit agent response event via SSE
-    messageEventEmitter.emitMessage({
-      roomId: message.roomId,
-      messageId: responseMemory.id as string,
-      entityId: runtime.agentId,
-      agentId: runtime.agentId,
-      content: {
-        text: responseContent,
-        thought,
-        source: "agent",
-        inReplyTo: message.id,
-      },
-      createdAt: responseMemory.createdAt || Date.now(),
-      isAgent: true,
-      type: "agent",
-    });
+    // Note: Response streaming is handled by the API route
+    // The streaming POST endpoint sends events directly to the client
 
     // Store usage in map for retrieval by API endpoint
     messageUsageMap.set(messageKey, {
@@ -460,7 +419,7 @@ const messageReceivedHandler = async ({
       });
     }
 
-    // Emit run ended event
+    // Emit run ended event (before evaluators to not delay response)
     await runtime.emitEvent(EventType.RUN_ENDED, {
       runtime,
       runId,
@@ -478,6 +437,50 @@ const messageReceivedHandler = async ({
         model: modelUsed,
       },
     });
+
+    // Run evaluators (with timeout to prevent hanging)
+    if (typeof runtime.evaluate === "function") {
+      logger.debug("[ElizaAssistant] Running evaluators");
+
+      try {
+        // Run evaluators with a 30-second timeout
+        await Promise.race([
+          runtime.evaluate(
+            message,
+            { ...initialState }, // Use the initial state for evaluators
+            true, // shouldRespondToMessage
+            async (content) => {
+              logger.debug(
+                "[ElizaAssistant] Evaluator callback:",
+                JSON.stringify(content),
+              );
+              // Evaluator callbacks can be used for side effects
+              if (callback) {
+                return callback(content);
+              }
+              return [];
+            },
+            [responseMemory],
+          ),
+          // Timeout after 30 seconds to prevent function from hanging
+          new Promise<void>((_, reject) => {
+            setTimeout(() => {
+              reject(new Error("Evaluators timed out after 30 seconds"));
+            }, 30000);
+          }),
+        ]);
+        logger.debug("[ElizaAssistant] Evaluators completed successfully");
+      } catch (error) {
+        logger.error(
+          "[ElizaAssistant] Error in evaluators:",
+          error instanceof Error ? error.message : String(error),
+        );
+      }
+    } else {
+      logger.debug(
+        "[ElizaAssistant] runtime.evaluate not available - skipping evaluators",
+      );
+    }
   } catch (error) {
     // Emit run ended event with error
     await runtime.emitEvent(EventType.RUN_ENDED, {

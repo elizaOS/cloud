@@ -1,5 +1,5 @@
 import { NextRequest } from "next/server";
-import { requireAuthOrApiKey } from "@/lib/auth";
+import { requireAuthOrApiKeyWithOrg } from "@/lib/auth";
 import { getContainer } from "@/lib/services";
 import {
   CloudWatchLogsClient,
@@ -29,10 +29,10 @@ export async function GET(
 ) {
   try {
     const { id } = await params;
-    const { user } = await requireAuthOrApiKey(request);
+    const { user } = await requireAuthOrApiKeyWithOrg(request);
 
     // Verify container belongs to user's organization
-    const container = await getContainer(id, user.organization_id);
+    const container = await getContainer(id, user.organization_id!);
 
     if (!container) {
       return new Response(

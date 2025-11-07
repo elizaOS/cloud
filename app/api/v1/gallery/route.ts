@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { requireAuthOrApiKey } from "@/lib/auth";
+import { requireAuthOrApiKeyWithOrg } from "@/lib/auth";
 import { generationsService } from "@/lib/services";
 
 export const dynamic = "force-dynamic";
@@ -10,7 +10,7 @@ export const dynamic = "force-dynamic";
  */
 export async function GET(request: NextRequest) {
   try {
-    const { user } = await requireAuthOrApiKey(request);
+    const { user } = await requireAuthOrApiKeyWithOrg(request);
 
     const searchParams = request.nextUrl.searchParams;
     const type = searchParams.get("type") as "image" | "video" | null;
@@ -19,7 +19,7 @@ export async function GET(request: NextRequest) {
 
     // Fetch with database-level filtering for performance
     const allGenerations = await generationsService.listByOrganizationAndStatus(
-      user.organization_id,
+      user.organization_id!,
       "completed",
       {
         userId: user.id,
