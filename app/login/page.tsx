@@ -26,7 +26,7 @@ const DiscordIcon = ({ className }: { className?: string }) => (
 );
 
 export default function LoginPage() {
-  const { ready, authenticated, connectWallet } = usePrivy();
+  const { ready, authenticated, login, user } = usePrivy();
   const { sendCode, loginWithCode, state: emailState } = useLoginWithEmail();
   const { initOAuth } = useLoginWithOAuth();
   const router = useRouter();
@@ -37,18 +37,53 @@ export default function LoginPage() {
   const [loadingButton, setLoadingButton] = useState<string | null>(null);
   const [isSyncing, setIsSyncing] = useState(false);
 
+  // Log initial Privy state on mount
+  useEffect(() => {
+    console.log("[LoginPage] Component mounted with Privy state:", {
+      ready,
+      authenticated,
+      hasUser: !!user,
+      userId: user?.id,
+    });
+  }, []);
+
+  // Log whenever Privy state changes
+  useEffect(() => {
+    console.log("[LoginPage] Privy state changed:", {
+      ready,
+      authenticated,
+      hasUser: !!user,
+      userId: user?.id,
+      linkedAccountsCount: user?.linkedAccounts?.length || 0,
+    });
+  }, [ready, authenticated, user]);
+
   // Redirect to dashboard if already authenticated
   useEffect(() => {
+    console.log("[LoginPage] Redirect useEffect triggered:", {
+      ready,
+      authenticated,
+      willRedirect: ready && authenticated,
+    });
+
     if (ready && authenticated) {
+      console.log("[LoginPage] ✅ Authentication successful, preparing redirect to dashboard");
+      // Clear any loading states
+      setLoadingButton(null);
       // Show syncing state before redirect
       setIsSyncing(true);
 
       // Small delay to ensure the sync message is visible
       const timer = setTimeout(() => {
+        console.log("[LoginPage] 🚀 Executing redirect to /dashboard");
         router.push("/dashboard");
       }, 100);
 
       return () => clearTimeout(timer);
+    } else if (ready && !authenticated) {
+      console.log("[LoginPage] ⏳ Privy ready but not authenticated yet");
+    } else if (!ready) {
+      console.log("[LoginPage] ⏳ Waiting for Privy to be ready...");
     }
   }, [ready, authenticated, router]);
 
@@ -119,16 +154,31 @@ export default function LoginPage() {
   };
 
   const handleWalletConnect = async () => {
+    console.log("[LoginPage] 🔵 Wallet connect button clicked");
+    console.log("[LoginPage] Current Privy state before login:", {
+      ready,
+      authenticated,
+      hasUser: !!user,
+    });
+
     setLoadingButton("wallet");
     try {
-      await connectWallet();
-      toast.success("Wallet connected! Setting up your account...");
+      console.log("[LoginPage] 📡 Calling Privy login() to open authentication modal...");
+      // Use login() instead of connectWallet() for authentication
+      // This opens the Privy modal and waits for user to complete wallet connection
+      login();
+      console.log("[LoginPage] ✅ Login modal opened, waiting for user interaction...");
+      // Don't show success toast here - wait for authenticated state change
     } catch (error) {
-      console.error("Error connecting wallet:", error);
-      toast.error("Failed to connect wallet");
-    } finally {
+      console.error("[LoginPage] ❌ Error opening login modal:", error);
+      console.error("[LoginPage] Error details:", {
+        errorType: error instanceof Error ? error.constructor.name : typeof error,
+        errorMessage: error instanceof Error ? error.message : String(error),
+      });
+      toast.error("Failed to open login modal");
       setLoadingButton(null);
     }
+    // Note: Don't clear loading state here - let the auth state change handle it
   };
 
   const handleBackToEmail = () => {
