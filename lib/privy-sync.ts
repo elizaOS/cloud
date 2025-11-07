@@ -56,6 +56,15 @@ export async function syncUserFromPrivy(
 ): Promise<UserWithOrganization> {
   const privyUserId = privyUser.id;
 
+  console.log("[PrivySync] Received user data:", {
+    privyUserId: privyUser.id,
+    hasEmail: !!privyUser.email,
+    emailAddress: privyUser.email?.address,
+    hasLinkedAccounts: !!privyUser.linkedAccounts,
+    linkedAccountsCount: privyUser.linkedAccounts?.length || 0,
+    accountTypes: privyUser.linkedAccounts?.map((a) => a.type) || [],
+  });
+
   // Extract email
   let email: string | undefined;
   if (privyUser.email?.address) {
@@ -121,8 +130,21 @@ export async function syncUserFromPrivy(
     }
   }
 
+  console.log("[PrivySync] Extracted data:", {
+    privyUserId,
+    email,
+    walletAddress,
+    walletChainType,
+    walletVerified,
+  });
+
   // Validation: User must have email OR wallet (hybrid approach)
   if (!email && !walletAddress) {
+    console.error("[PrivySync] Validation failed - no email or wallet:", {
+      privyUserId,
+      hasEmail: !!email,
+      hasWallet: !!walletAddress,
+    });
     throw new Error(
       `User ${privyUserId} has neither email nor wallet - cannot sync`,
     );

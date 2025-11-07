@@ -397,7 +397,7 @@ export function VideoPageClient({
   );
 
   return (
-    <Tabs defaultValue="generate" className="w-full flex flex-col">
+    <Tabs id="video-tabs" defaultValue="generate" className="w-full flex flex-col">
       {/* Tab Navigation */}
       <TabsList className="w-full rounded-none border-b border-white/10 bg-transparent h-10 p-0 justify-start mb-3">
         <TabsTrigger
