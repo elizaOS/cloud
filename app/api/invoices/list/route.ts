@@ -57,7 +57,4 @@ async function handleListInvoices(req: NextRequest) {
   }
 }
 
-export const GET = withRateLimit(
-  handleListInvoices,
-  RateLimitPresets.STANDARD,
-);
+export const GET = withRateLimit(handleListInvoices, RateLimitPresets.STANDARD);

@@ -27,7 +27,7 @@ export class UsageQuotasRepository {
     return await db.query.usageQuotas.findMany({
       where: and(
         eq(usageQuotas.organization_id, organizationId),
-        eq(usageQuotas.is_active, true)
+        eq(usageQuotas.is_active, true),
       ),
     });
   }
@@ -118,7 +118,7 @@ export class UsageQuotasRepository {
     return await db.query.usageQuotas.findMany({
       where: and(
         eq(usageQuotas.is_active, true),
-        lte(usageQuotas.period_end, now)
+        lte(usageQuotas.period_end, now),
       ),
     });
   }

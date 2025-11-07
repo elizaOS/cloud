@@ -4,52 +4,54 @@ Since your project already uses `lucide-react`, here's the recommended mapping f
 
 ## Tab Navigation Icons
 
-| Figma Asset | Lucide Icon | Usage |
-|-------------|-------------|-------|
-| `icon-user-tab.svg` | `User` | General tab |
-| `icon-building.svg` | `Building2` or `Building` | Account tab |
-| `icon-bar-chart.svg` | `BarChart3` or `BarChart` | Usage tab |
-| `icon-credit-card.svg` | `CreditCard` | Billing tab |
-| `icon-key.svg` | `Key` | APIs tab |
-| `icon-pie-chart.svg` | `PieChart` | Analytics tab |
+| Figma Asset            | Lucide Icon               | Usage         |
+| ---------------------- | ------------------------- | ------------- |
+| `icon-user-tab.svg`    | `User`                    | General tab   |
+| `icon-building.svg`    | `Building2` or `Building` | Account tab   |
+| `icon-bar-chart.svg`   | `BarChart3` or `BarChart` | Usage tab     |
+| `icon-credit-card.svg` | `CreditCard`              | Billing tab   |
+| `icon-key.svg`         | `Key`                     | APIs tab      |
+| `icon-pie-chart.svg`   | `PieChart`                | Analytics tab |
 
 ## UI Element Icons
 
-| Figma Asset | Lucide Icon | Usage |
-|-------------|-------------|-------|
-| `icon-user-header.svg` | `User` | Header profile button |
-| `icon-chevron-down.svg` | `ChevronDown` | Dropdown selects |
+| Figma Asset             | Lucide Icon   | Usage                 |
+| ----------------------- | ------------- | --------------------- |
+| `icon-user-header.svg`  | `User`        | Header profile button |
+| `icon-chevron-down.svg` | `ChevronDown` | Dropdown selects      |
 
 ## Example Implementation
 
 ```tsx
-import { 
-  User, 
-  Building2, 
-  BarChart3, 
-  CreditCard, 
-  Key, 
+import {
+  User,
+  Building2,
+  BarChart3,
+  CreditCard,
+  Key,
   PieChart,
-  ChevronDown 
-} from 'lucide-react';
+  ChevronDown,
+} from "lucide-react";
 
 // Tab Navigation Example
 const tabs = [
-  { name: 'General', icon: User },
-  { name: 'Account', icon: Building2 },
-  { name: 'Usage', icon: BarChart3 },
-  { name: 'Billing', icon: CreditCard },
-  { name: 'APIs', icon: Key },
-  { name: 'Analytics', icon: PieChart },
+  { name: "General", icon: User },
+  { name: "Account", icon: Building2 },
+  { name: "Usage", icon: BarChart3 },
+  { name: "Billing", icon: CreditCard },
+  { name: "APIs", icon: Key },
+  { name: "Analytics", icon: PieChart },
 ];
 
 // Render
-{tabs.map(tab => (
-  <button key={tab.name}>
-    <tab.icon className="h-4 w-4" />
-    <span>{tab.name}</span>
-  </button>
-))}
+{
+  tabs.map((tab) => (
+    <button key={tab.name}>
+      <tab.icon className="h-4 w-4" />
+      <span>{tab.name}</span>
+    </button>
+  ));
+}
 ```
 
 ## Benefits of Using Lucide Icons
@@ -67,4 +69,3 @@ const tabs = [
 - **Inactive tab:** `#A2A2A2` (gray)
 - **Active border:** `#FFFFFF` with 2px bottom border
 - **Orange accent:** `#FF5800` (already used throughout your app)
-

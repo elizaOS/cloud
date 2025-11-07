@@ -39,7 +39,8 @@ interface GenerateImageRequest {
 async function handlePOST(req: NextRequest) {
   let generationId: string | undefined;
   try {
-    const { user, apiKey, session_token } = await requireAuthOrApiKeyWithOrg(req);
+    const { user, apiKey, session_token } =
+      await requireAuthOrApiKeyWithOrg(req);
     const {
       prompt,
       numImages = 1,

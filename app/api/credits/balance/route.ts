@@ -40,7 +40,10 @@ export async function GET(req: NextRequest) {
   } catch (error) {
     console.error("[Balance API] Error:", error);
     return NextResponse.json(
-      { error: error instanceof Error ? error.message : "Failed to fetch balance" },
+      {
+        error:
+          error instanceof Error ? error.message : "Failed to fetch balance",
+      },
       {
         status: 500,
         headers: {

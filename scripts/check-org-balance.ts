@@ -36,9 +36,13 @@ async function main() {
   console.log("");
 
   if (balance >= threshold) {
-    console.log(`❌ Auto top-up will NOT trigger because balance ($${balance}) >= threshold ($${threshold})`);
+    console.log(
+      `❌ Auto top-up will NOT trigger because balance ($${balance}) >= threshold ($${threshold})`,
+    );
     console.log("");
-    console.log(`You need to spend $${(balance - threshold + 0.01).toFixed(2)} to trigger auto top-up`);
+    console.log(
+      `You need to spend $${(balance - threshold + 0.01).toFixed(2)} to trigger auto top-up`,
+    );
   } else {
     console.log(`✓ Balance is below threshold - auto top-up should trigger`);
   }

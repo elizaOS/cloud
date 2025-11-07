@@ -8,7 +8,6 @@
 import { usePrivy, useLogout } from "@privy-io/react-auth";
 import { useRouter, usePathname } from "next/navigation";
 import { useCreditsStream } from "@/hooks/use-credits-stream";
-import { PersonIcon, TokensIcon } from "@radix-ui/react-icons";
 import { CreditCard, LogOut, Loader2, Settings } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { CornerBrackets } from "@/components/brand";
@@ -115,22 +114,10 @@ export function SidebarBottomPanel({ className }: SidebarBottomPanelProps) {
 
   const menuItems = [
     {
-      id: "account",
-      label: "Account",
-      icon: PersonIcon,
-      href: "/dashboard/account",
-    },
-    {
       id: "settings",
       label: "Settings",
       icon: Settings,
       href: "/dashboard/settings",
-    },
-    {
-      id: "api-keys",
-      label: "API Keys",
-      icon: TokensIcon,
-      href: "/dashboard/api-keys",
     },
   ];
 

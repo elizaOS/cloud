@@ -1,50 +1,54 @@
 "use client";
 
 import { useState } from "react";
-import { useSetPageHeader } from "@/components/layout/page-header-context";
-import { Users, Settings } from "lucide-react";
+import { BrandCard, CornerBrackets } from "@/components/brand";
 import type { UserWithOrganization } from "@/lib/types";
-import { MembersTab } from "./members-tab";
-import { OrganizationGeneralTab } from "./organization-general-tab";
+import { Users, Settings } from "lucide-react";
+import { MembersTab } from "@/components/organization/members-tab";
+import { OrganizationGeneralTab } from "@/components/organization/organization-general-tab";
 import {
   BrandTabs,
   BrandTabsList,
   BrandTabsTrigger,
   BrandTabsContent,
-  BrandCard,
-  CornerBrackets,
 } from "@/components/brand";
 
-interface OrganizationPageClientProps {
+interface OrganizationTabProps {
   user: UserWithOrganization;
 }
 
-export function OrganizationPageClient({ user }: OrganizationPageClientProps) {
+export function OrganizationTab({ user }: OrganizationTabProps) {
   const [activeTab, setActiveTab] = useState("members");
 
-  useSetPageHeader({
-    title: "Organization Settings",
-    description: `Manage ${user.organization?.name}`,
-  });
+  if (!user.organization) {
+    return (
+      <BrandCard className="relative">
+        <CornerBrackets size="sm" className="opacity-50" />
+        <div className="relative z-10 text-center py-12">
+          <p className="text-white/60">No organization found</p>
+        </div>
+      </BrandCard>
+    );
+  }
 
   return (
-    <div className="flex flex-col gap-6 max-w-6xl">
+    <div className="flex flex-col gap-6">
       {/* Organization Overview Card */}
       <BrandCard className="relative">
         <CornerBrackets size="sm" className="opacity-50" />
         <div className="relative z-10 flex items-start justify-between">
           <div>
             <h2 className="text-2xl font-semibold text-white">
-              {user.organization?.name}
+              {user.organization.name}
             </h2>
             <p className="text-sm text-white/60 mt-1">
-              {user.organization?.slug}
+              {user.organization.slug}
             </p>
           </div>
           <div className="flex items-center gap-2">
             <div className="text-right">
               <p className="text-2xl font-bold text-white">
-                {user.organization?.credit_balance.toLocaleString()}
+                {user.organization.credit_balance.toLocaleString()}
               </p>
               <p className="text-xs text-white/50 uppercase tracking-wide">
                 Credits Available
@@ -82,9 +86,7 @@ export function OrganizationPageClient({ user }: OrganizationPageClientProps) {
         </BrandTabsContent>
 
         <BrandTabsContent value="general" className="mt-6">
-          {user.organization && (
-            <OrganizationGeneralTab organization={user.organization} />
-          )}
+          <OrganizationGeneralTab organization={user.organization} />
         </BrandTabsContent>
       </BrandTabs>
     </div>

@@ -42,8 +42,7 @@ async function handleGET() {
     return NextResponse.json(
       {
         success: false,
-        error:
-          error instanceof Error ? error.message : "Failed to fetch stats",
+        error: error instanceof Error ? error.message : "Failed to fetch stats",
       },
       { status: 500 },
     );

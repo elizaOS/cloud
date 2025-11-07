@@ -7,22 +7,22 @@ async function runMigration() {
     console.log("Running migration 0003...");
 
     await db.execute(
-      sql`ALTER TABLE "users" ADD COLUMN IF NOT EXISTS "nickname" text`
+      sql`ALTER TABLE "users" ADD COLUMN IF NOT EXISTS "nickname" text`,
     );
     await db.execute(
-      sql`ALTER TABLE "users" ADD COLUMN IF NOT EXISTS "work_function" text`
+      sql`ALTER TABLE "users" ADD COLUMN IF NOT EXISTS "work_function" text`,
     );
     await db.execute(
-      sql`ALTER TABLE "users" ADD COLUMN IF NOT EXISTS "preferences" text`
+      sql`ALTER TABLE "users" ADD COLUMN IF NOT EXISTS "preferences" text`,
     );
     await db.execute(
-      sql`ALTER TABLE "users" ADD COLUMN IF NOT EXISTS "response_notifications" boolean DEFAULT true`
+      sql`ALTER TABLE "users" ADD COLUMN IF NOT EXISTS "response_notifications" boolean DEFAULT true`,
     );
     await db.execute(
-      sql`ALTER TABLE "users" ADD COLUMN IF NOT EXISTS "email_notifications" boolean DEFAULT true`
+      sql`ALTER TABLE "users" ADD COLUMN IF NOT EXISTS "email_notifications" boolean DEFAULT true`,
     );
     await db.execute(
-      sql`CREATE INDEX IF NOT EXISTS "users_work_function_idx" ON "users" USING btree ("work_function")`
+      sql`CREATE INDEX IF NOT EXISTS "users_work_function_idx" ON "users" USING btree ("work_function")`,
     );
 
     console.log("Migration 0003 completed successfully!");

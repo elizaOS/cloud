@@ -2,15 +2,9 @@
  * Sidebar Navigation Configuration
  */
 
-import {
-  HomeIcon,
-  BarChartIcon,
-  ImageIcon,
-  LayersIcon,
-} from "@radix-ui/react-icons";
+import { HomeIcon, ImageIcon, LayersIcon } from "@radix-ui/react-icons";
 import {
   Server,
-  HardDrive,
   Video,
   UserCog,
   Bot,
@@ -18,8 +12,6 @@ import {
   Mic,
   Zap,
   Store,
-  Building2,
-  Settings,
 } from "lucide-react";
 import type { ComponentType } from "react";
 
@@ -130,34 +122,6 @@ export const sidebarSections: SidebarSection[] = [
         label: "Containers",
         href: "/dashboard/containers",
         icon: Server,
-        freeAllowed: false, // Requires signup
-      },
-      {
-        id: "storage",
-        label: "Storage",
-        href: "/dashboard/storage",
-        icon: HardDrive,
-        freeAllowed: false, // Requires signup
-      },
-      {
-        id: "analytics",
-        label: "Analytics",
-        href: "/dashboard/analytics",
-        icon: BarChartIcon,
-        freeAllowed: false, // Requires signup
-      },
-      {
-        id: "settings",
-        label: "Settings",
-        href: "/dashboard/settings",
-        icon: Settings,
-        freeAllowed: false, // Requires signup
-      },
-      {
-        id: "organization",
-        label: "Organization",
-        href: "/dashboard/organization",
-        icon: Building2,
         freeAllowed: false, // Requires signup
       },
     ],

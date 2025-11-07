@@ -288,14 +288,15 @@ export class CreditsService {
           }
 
           // Check if auto top-up should be triggered
-          this.checkAndTriggerAutoTopUp(organizationId, result.newBalance).catch(
-            (error) => {
-              console.error(
-                "[CreditsService] Failed to check auto top-up:",
-                error,
-              );
-            },
-          );
+          this.checkAndTriggerAutoTopUp(
+            organizationId,
+            result.newBalance,
+          ).catch((error) => {
+            console.error(
+              "[CreditsService] Failed to check auto top-up:",
+              error,
+            );
+          });
 
           // Queue low credits email
           this.queueLowCreditsEmail(organizationId, result.newBalance).catch(

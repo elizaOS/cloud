@@ -187,7 +187,7 @@ export function UsageTab({ user, onTabChange }: UsageTabProps) {
                   </p>
                 </div>
                 <p className="text-sm text-white/60">
-                  Current organization's credit balance
+                  Current organization&apos;s credit balance
                 </p>
               </div>
             </div>
@@ -210,7 +210,9 @@ export function UsageTab({ user, onTabChange }: UsageTabProps) {
               {sessionStats ? (
                 <div className="grid grid-cols-3 gap-4">
                   <div className="space-y-1">
-                    <p className="text-xs text-white/60 font-mono">Credits Used</p>
+                    <p className="text-xs text-white/60 font-mono">
+                      Credits Used
+                    </p>
                     <p className="text-lg font-mono text-white">
                       ${sessionStats.credits_used.toFixed(2)}
                     </p>
@@ -253,7 +255,8 @@ export function UsageTab({ user, onTabChange }: UsageTabProps) {
                 </h3>
               </div>
               <p className="text-xs font-mono text-[#858585] tracking-tight">
-                Configure weekly credit limits to control spending across all models or specific models.
+                Configure weekly credit limits to control spending across all
+                models or specific models.
               </p>
             </div>
 
@@ -263,7 +266,9 @@ export function UsageTab({ user, onTabChange }: UsageTabProps) {
               ) : (
                 <>
                   <Info className="h-4 w-4 text-[#848484]" />
-                  <p className="text-sm text-[#848484]">Updates every 60 seconds</p>
+                  <p className="text-sm text-[#848484]">
+                    Updates every 60 seconds
+                  </p>
                 </>
               )}
             </div>
@@ -332,17 +337,20 @@ export function UsageTab({ user, onTabChange }: UsageTabProps) {
                         </p>
                       </div>
                       <p className="text-sm text-white/60">
-                        {((modelQuota.used / modelQuota.limit) * 100).toFixed(1)}%
-                        of weekly limit used
+                        {((modelQuota.used / modelQuota.limit) * 100).toFixed(
+                          1,
+                        )}
+                        % of weekly limit used
                       </p>
                     </div>
                   </div>
-                )
+                ),
               )
             ) : !quotaUsage?.global.limit ? (
               <div className="backdrop-blur-sm bg-[rgba(10,10,10,0.75)] border-t-0 border border-brand-surface p-4">
                 <p className="text-sm text-white/60">
-                  No model-specific limits configured. Contact your administrator to set up weekly quotas.
+                  No model-specific limits configured. Contact your
+                  administrator to set up weekly quotas.
                 </p>
               </div>
             ) : null}

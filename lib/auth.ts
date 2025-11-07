@@ -1,5 +1,9 @@
 import { PrivyClient } from "@privy-io/server-auth";
-import { usersService, apiKeysService, userSessionsService } from "@/lib/services";
+import {
+  usersService,
+  apiKeysService,
+  userSessionsService,
+} from "@/lib/services";
 import type { UserWithOrganization, ApiKey } from "@/lib/types";
 import type { Organization } from "@/db/schemas/organizations";
 import { cache } from "react";
