@@ -25,8 +25,10 @@ export const usageQuotas = pgTable(
 
     period_type: text("period_type").notNull().default("weekly"),
 
-    credits_limit: numeric("credits_limit", { precision: 10, scale: 2 })
-      .notNull(),
+    credits_limit: numeric("credits_limit", {
+      precision: 10,
+      scale: 2,
+    }).notNull(),
 
     current_usage: numeric("current_usage", { precision: 10, scale: 2 })
       .default("0.00")
@@ -47,10 +49,10 @@ export const usageQuotas = pgTable(
     quota_type_idx: index("usage_quotas_quota_type_idx").on(table.quota_type),
     period_idx: index("usage_quotas_period_idx").on(
       table.period_start,
-      table.period_end
+      table.period_end,
     ),
     active_idx: index("usage_quotas_active_idx").on(table.is_active),
-  })
+  }),
 );
 
 export type UsageQuota = InferSelectModel<typeof usageQuotas>;

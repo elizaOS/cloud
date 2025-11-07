@@ -61,7 +61,10 @@ async function handleConfirmPurchase(req: NextRequest) {
     console.error("Error confirming purchase:", error);
 
     if (error instanceof Error) {
-      if (error.message.includes("not found") || error.message.includes("unauthorized")) {
+      if (
+        error.message.includes("not found") ||
+        error.message.includes("unauthorized")
+      ) {
         return NextResponse.json({ error: error.message }, { status: 404 });
       }
 

@@ -24,7 +24,7 @@ async function handlePOST(req: NextRequest) {
         success: true,
         message: "Logged out successfully",
       },
-      { status: 200 }
+      { status: 200 },
     );
   } catch (error) {
     console.error("Error during logout:", error);
@@ -34,7 +34,7 @@ async function handlePOST(req: NextRequest) {
         success: false,
         error: error instanceof Error ? error.message : "Failed to logout",
       },
-      { status: 500 }
+      { status: 500 },
     );
   }
 }

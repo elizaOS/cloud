@@ -30,10 +30,7 @@ async function handleGetInvoice(
     const invoice = await invoicesService.getById(id);
 
     if (!invoice) {
-      return NextResponse.json(
-        { error: "Invoice not found" },
-        { status: 404 },
-      );
+      return NextResponse.json({ error: "Invoice not found" }, { status: 404 });
     }
 
     if (invoice.organization_id !== user.organization_id) {
@@ -81,7 +78,10 @@ async function handleGetInvoice(
   }
 }
 
-export const GET = (req: NextRequest, context?: { params: Promise<{ id: string }> }) =>
+export const GET = (
+  req: NextRequest,
+  context?: { params: Promise<{ id: string }> },
+) =>
   withRateLimit(
     (r: NextRequest) => handleGetInvoice(r, context!),
     RateLimitPresets.STANDARD,

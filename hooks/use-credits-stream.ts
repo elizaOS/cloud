@@ -57,7 +57,9 @@ export function useCreditsStream(): UseCreditsStreamResult {
       }
     } catch (err) {
       if (isMountedRef.current) {
-        setError(err instanceof Error ? err.message : "Failed to fetch balance");
+        setError(
+          err instanceof Error ? err.message : "Failed to fetch balance",
+        );
         setIsConnected(false);
         console.error("[useCreditsStream] Error fetching balance:", err);
       }

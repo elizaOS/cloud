@@ -53,14 +53,12 @@ async function handleSimulateUsage(req: NextRequest) {
     console.error("[SimulateUsage] Error:", error);
     return NextResponse.json(
       {
-        error: error instanceof Error ? error.message : "Failed to simulate usage",
+        error:
+          error instanceof Error ? error.message : "Failed to simulate usage",
       },
       { status: 500 },
     );
   }
 }
 
-export const POST = withRateLimit(
-  handleSimulateUsage,
-  RateLimitPresets.STRICT,
-);
+export const POST = withRateLimit(handleSimulateUsage, RateLimitPresets.STRICT);

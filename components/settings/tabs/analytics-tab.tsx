@@ -42,7 +42,7 @@ export function AnalyticsTab({ user }: AnalyticsTabProps) {
   const [focusMetric, setFocusMetric] = useState<FocusMetric>("requests");
   const [loading, setLoading] = useState(true);
   const [analyticsData, setAnalyticsData] = useState<AnalyticsData | null>(
-    null
+    null,
   );
 
   const fetchAnalytics = async (range: TimeRange) => {
@@ -53,7 +53,7 @@ export function AnalyticsTab({ user }: AnalyticsTabProps) {
         range === "7days" ? "daily" : range === "30days" ? "weekly" : "monthly";
 
       const response = await fetch(
-        `/api/analytics/overview?timeRange=${apiTimeRange}`
+        `/api/analytics/overview?timeRange=${apiTimeRange}`,
       );
 
       if (!response.ok) {
@@ -85,7 +85,7 @@ export function AnalyticsTab({ user }: AnalyticsTabProps) {
         month: "short",
         day: "numeric",
         year: "numeric",
-      }
+      },
     );
     const end = new Date(analyticsData.periodEnd).toLocaleDateString("en-US", {
       month: "short",
@@ -329,7 +329,8 @@ export function AnalyticsTab({ user }: AnalyticsTabProps) {
                         className="absolute inset-0 opacity-20 bg-repeat pointer-events-none"
                         style={{
                           backgroundImage: `url(/assets/settings/pattern-6px-flip.png)`,
-                          backgroundSize: "2.921810567378998px 2.921810567378998px",
+                          backgroundSize:
+                            "2.921810567378998px 2.921810567378998px",
                         }}
                       />
                     )}
@@ -441,9 +442,7 @@ export function AnalyticsTab({ user }: AnalyticsTabProps) {
                         credits
                       </p>
                       <div className="bg-[rgba(255,88,0,0.25)] px-2 py-1">
-                        <p className="text-xs font-mono text-[#FF5800]">
-                          Est.
-                        </p>
+                        <p className="text-xs font-mono text-[#FF5800]">Est.</p>
                       </div>
                     </div>
                     <p className="text-sm text-white/60">

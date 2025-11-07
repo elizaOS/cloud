@@ -147,9 +147,9 @@ export function AuthManager({ authToken, onTokenChange }: AuthManagerProps) {
           </div>
 
           {authToken && (
-            <BrandButton 
-              variant="outline" 
-              size="sm" 
+            <BrandButton
+              variant="outline"
+              size="sm"
               onClick={clearToken}
               className="w-full"
             >
@@ -188,7 +188,8 @@ export function AuthManager({ authToken, onTokenChange }: AuthManagerProps) {
       <div className="flex items-start gap-2 p-3 rounded-none bg-white/5 border border-white/10">
         <InfoIcon className="h-3 w-3 mt-0.5 shrink-0 text-white/50" />
         <p className="text-xs text-white/50 leading-relaxed">
-          Enter an API key to test authenticated endpoints. Keys are saved locally.
+          Enter an API key to test authenticated endpoints. Keys are saved
+          locally.
         </p>
       </div>
 

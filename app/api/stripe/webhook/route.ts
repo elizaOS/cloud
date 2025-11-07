@@ -216,8 +216,7 @@ export async function POST(req: NextRequest) {
               await invoicesService.getByStripeInvoiceId(invoiceId);
 
             if (!existingInvoice) {
-              const stripeInvoice =
-                await stripe.invoices.retrieve(invoiceId);
+              const stripeInvoice = await stripe.invoices.retrieve(invoiceId);
 
               await invoicesService.create({
                 organization_id: organizationId,
@@ -231,7 +230,8 @@ export async function POST(req: NextRequest) {
                 invoice_type: purchaseType || "one_time_purchase",
                 invoice_number: stripeInvoice.number || undefined,
                 invoice_pdf: stripeInvoice.invoice_pdf || undefined,
-                hosted_invoice_url: stripeInvoice.hosted_invoice_url || undefined,
+                hosted_invoice_url:
+                  stripeInvoice.hosted_invoice_url || undefined,
                 credits_added: credits.toString(),
                 metadata: {
                   type: purchaseType,

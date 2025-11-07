@@ -207,7 +207,7 @@ export function UpdatePaymentModal({
     } catch (error) {
       console.error("Error adding payment method:", error);
       toast.error(
-        error instanceof Error ? error.message : "Failed to add payment method"
+        error instanceof Error ? error.message : "Failed to add payment method",
       );
     } finally {
       setLoading(false);
@@ -239,7 +239,7 @@ export function UpdatePaymentModal({
               {showLinkDropdown && (
                 <div className="backdrop-blur-sm bg-[rgba(29,29,29,0.3)] border border-[rgba(255,255,255,0.15)] p-6 relative">
                   <CornerBrackets size="sm" className="opacity-50" />
-                  
+
                   <div className="relative z-10 flex items-center justify-between">
                     <div className="flex items-center gap-2">
                       <div className="bg-white size-5 flex items-center justify-center">
@@ -280,7 +280,10 @@ export function UpdatePaymentModal({
                 `}
               >
                 <p className="text-base font-mono font-medium text-[#e1e1e1]">
-                  Use <span className="text-[rgba(225,225,225,0.5)]">{currentPaymentMethod}</span>
+                  Use{" "}
+                  <span className="text-[rgba(225,225,225,0.5)]">
+                    {currentPaymentMethod}
+                  </span>
                 </p>
               </button>
 
@@ -363,7 +366,9 @@ export function UpdatePaymentModal({
                     }}
                   />
                   {cardError && (
-                    <p className="text-xs text-red-500 font-mono">{cardError}</p>
+                    <p className="text-xs text-red-500 font-mono">
+                      {cardError}
+                    </p>
                   )}
                 </>
               )}
@@ -385,10 +390,14 @@ export function UpdatePaymentModal({
               <button
                 type="button"
                 onClick={handleUpdate}
-                disabled={loading || (selectedMethod === "new-card" && !cardComplete)}
+                disabled={
+                  loading || (selectedMethod === "new-card" && !cardComplete)
+                }
                 className="bg-white px-6 py-3 hover:bg-white/90 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
               >
-                {loading && <Loader2 className="h-4 w-4 animate-spin text-black" />}
+                {loading && (
+                  <Loader2 className="h-4 w-4 animate-spin text-black" />
+                )}
                 <span className="text-black font-mono font-medium text-base">
                   {loading ? "Processing..." : "Update"}
                 </span>
@@ -400,4 +409,3 @@ export function UpdatePaymentModal({
     </Dialog>
   );
 }
-

@@ -107,7 +107,7 @@ export function ApisTab({ user }: ApisTabProps) {
     } catch (error) {
       console.error("Error creating API key:", error);
       toast.error(
-        error instanceof Error ? error.message : "Failed to create API key"
+        error instanceof Error ? error.message : "Failed to create API key",
       );
     } finally {
       setCreating(false);
@@ -137,7 +137,7 @@ export function ApisTab({ user }: ApisTabProps) {
   const handleDeleteKey = async (keyId: string, keyName: string) => {
     if (
       !window.confirm(
-        `Are you sure you want to delete the API key "${keyName}"? This action cannot be undone.`
+        `Are you sure you want to delete the API key "${keyName}"? This action cannot be undone.`,
       )
     ) {
       return;
@@ -161,7 +161,7 @@ export function ApisTab({ user }: ApisTabProps) {
     } catch (error) {
       console.error("Error deleting API key:", error);
       toast.error(
-        error instanceof Error ? error.message : "Failed to delete API key"
+        error instanceof Error ? error.message : "Failed to delete API key",
       );
     } finally {
       setDeletingKeyId(null);
@@ -290,7 +290,7 @@ export function ApisTab({ user }: ApisTabProps) {
                               year: "numeric",
                               month: "short",
                               day: "numeric",
-                            }
+                            },
                           )
                         : "Never"}
                     </p>
@@ -416,8 +416,7 @@ export function ApisTab({ user }: ApisTabProps) {
                     className="absolute inset-0 opacity-20 bg-repeat pointer-events-none"
                     style={{
                       backgroundImage: `url(/assets/settings/pattern-6px-flip.png)`,
-                      backgroundSize:
-                        "2.915576934814453px 2.915576934814453px",
+                      backgroundSize: "2.915576934814453px 2.915576934814453px",
                     }}
                   />
                   <span className="relative z-10 text-black font-mono font-medium text-sm flex items-center gap-2">
@@ -503,8 +502,7 @@ export function ApisTab({ user }: ApisTabProps) {
                     className="absolute inset-0 opacity-20 bg-repeat pointer-events-none"
                     style={{
                       backgroundImage: `url(/assets/settings/pattern-6px-flip.png)`,
-                      backgroundSize:
-                        "2.915576934814453px 2.915576934814453px",
+                      backgroundSize: "2.915576934814453px 2.915576934814453px",
                     }}
                   />
                   <span className="relative z-10 text-black font-mono font-medium text-sm">

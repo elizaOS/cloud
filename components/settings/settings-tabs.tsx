@@ -22,6 +22,7 @@ const tabs = [
   { id: "billing" as const, label: "Billing", icon: CreditCard },
   { id: "apis" as const, label: "APIs", icon: Key },
   { id: "analytics" as const, label: "Analytics", icon: PieChart },
+  { id: "organization" as const, label: "Organization", icon: Building2 },
 ];
 
 export function SettingsTabs({ activeTab, onTabChange }: SettingsTabsProps) {

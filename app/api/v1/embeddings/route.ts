@@ -26,7 +26,8 @@ export const maxDuration = 60;
 
 async function handlePOST(req: NextRequest) {
   try {
-    const { user, apiKey, session_token } = await requireAuthOrApiKeyWithOrg(req);
+    const { user, apiKey, session_token } =
+      await requireAuthOrApiKeyWithOrg(req);
     const request: OpenAIEmbeddingsRequest = await req.json();
 
     // Validate input

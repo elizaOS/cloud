@@ -6,7 +6,12 @@
 "use client";
 
 import * as React from "react";
-import { BrandCard, CornerBrackets, BrandButton, LockOnButton } from "@/components/brand";
+import {
+  BrandCard,
+  CornerBrackets,
+  BrandButton,
+  LockOnButton,
+} from "@/components/brand";
 import { cn } from "@/lib/utils";
 import { Bot, MessageSquare, Plus, Sparkles } from "lucide-react";
 import Image from "next/image";
@@ -156,15 +161,15 @@ function AgentsEmptyState() {
             onClick={() =>
               (window.location.href = "/dashboard/character-creator")
             }
-            icon={<Plus className="h-4 w-4" />}
           >
+            <Plus className="h-4 w-4" />
             Create Agent
           </BrandButton>
           <BrandButton
             onClick={() => (window.location.href = "/marketplace")}
-            icon={<Sparkles className="h-4 w-4" />}
             variant="outline"
           >
+            <Sparkles className="h-4 w-4" />
             Browse Marketplace
           </BrandButton>
         </div>

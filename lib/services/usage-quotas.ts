@@ -21,9 +21,7 @@ class UsageQuotasService {
     return await usageQuotasRepository.findById(id);
   }
 
-  async getQuotasByOrganization(
-    organizationId: string,
-  ): Promise<UsageQuota[]> {
+  async getQuotasByOrganization(organizationId: string): Promise<UsageQuota[]> {
     return await usageQuotasRepository.findByOrganization(organizationId);
   }
 
@@ -83,12 +81,11 @@ class UsageQuotasService {
     modelName?: string,
   ): Promise<QuotaCheckResult> {
     if (modelName) {
-      const modelQuota =
-        await usageQuotasRepository.findByOrganizationAndType(
-          organizationId,
-          "model_specific",
-          modelName,
-        );
+      const modelQuota = await usageQuotasRepository.findByOrganizationAndType(
+        organizationId,
+        "model_specific",
+        modelName,
+      );
 
       if (modelQuota) {
         const currentUsage = Number(modelQuota.current_usage);
@@ -143,12 +140,11 @@ class UsageQuotasService {
     modelName?: string,
   ): Promise<void> {
     if (modelName) {
-      const modelQuota =
-        await usageQuotasRepository.findByOrganizationAndType(
-          organizationId,
-          "model_specific",
-          modelName,
-        );
+      const modelQuota = await usageQuotasRepository.findByOrganizationAndType(
+        organizationId,
+        "model_specific",
+        modelName,
+      );
 
       if (modelQuota) {
         await usageQuotasRepository.incrementUsage(modelQuota.id, amount);
@@ -173,12 +169,15 @@ class UsageQuotasService {
       { used: number; limit: number; periodEnd: string }
     >;
   }> {
-    const quotas = await usageQuotasRepository.findActiveByOrganization(
-      organizationId,
-    );
+    const quotas =
+      await usageQuotasRepository.findActiveByOrganization(organizationId);
 
     const result = {
-      global: { used: 0, limit: null as number | null, periodEnd: null as string | null },
+      global: {
+        used: 0,
+        limit: null as number | null,
+        periodEnd: null as string | null,
+      },
       modelSpecific: {} as Record<
         string,
         { used: number; limit: number; periodEnd: string }
