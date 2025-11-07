@@ -11,6 +11,7 @@ import {
 import { calculateCost, getProviderFromModel } from "@/lib/pricing";
 import { logger } from "@/lib/utils/logger";
 import { elizaRoomCharactersRepository } from "@/db/repositories";
+import { getUserElizaCloudApiKey } from "@/lib/eliza/user-api-key";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
@@ -55,7 +56,7 @@ export async function POST(
 
     const { roomId } = await ctx.params;
     const body = await request.json();
-    const { entityId, text } = body;
+    const { entityId, text, model } = body;
 
     // Validation
     if (!roomId || !entityId || !text?.trim()) {
@@ -63,6 +64,11 @@ export async function POST(
         JSON.stringify({ error: "Missing required fields" }),
         { status: 400, headers: { "Content-Type": "application/json" } },
       );
+    }
+
+    // Log model selection if provided
+    if (model) {
+      logger.debug("[Stream] User selected model:", model);
     }
 
     // Anonymous rate limiting
@@ -92,6 +98,31 @@ export async function POST(
     const roomCharacter =
       await elizaRoomCharactersRepository.findByRoomId(roomId);
     const characterId = roomCharacter?.character_id || undefined;
+
+    // Get user's API key for ElizaCloud plugin authentication
+    let userApiKey: string | null = null;
+    if (!isAnonymous && user.id && user.organization_id) {
+      try {
+        userApiKey = await getUserElizaCloudApiKey(
+          user.id,
+          user.organization_id,
+        );
+        if (userApiKey) {
+          logger.info(
+            `[Stream Messages] Retrieved API key for user ${user.id}`,
+          );
+        } else {
+          logger.warn(
+            `[Stream Messages] No API key found for user ${user.id}, agent may fail`,
+          );
+        }
+      } catch (error) {
+        logger.error(
+          "[Stream Messages] Failed to retrieve user API key:",
+          error,
+        );
+      }
+    }
 
     // Create streaming response
     const stream = new ReadableStream({
@@ -132,6 +163,18 @@ export async function POST(
             entityId,
             { text },
             characterId,
+            userApiKey
+              ? {
+                  userId: user.id,
+                  apiKey: userApiKey,
+                  modelPreferences: model
+                    ? {
+                        smallModel: model,
+                        largeModel: model,
+                      }
+                    : undefined,
+                }
+              : undefined,
           );
 
           const responseText =
