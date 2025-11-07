@@ -71,7 +71,9 @@ export default function LoginPage() {
     });
 
     if (ready && authenticated) {
-      console.log("[LoginPage] ✅ Authentication successful, preparing redirect to dashboard");
+      console.log(
+        "[LoginPage] ✅ Authentication successful, preparing redirect to dashboard"
+      );
       // Clear guards and loading states
       loginInProgressRef.current = false;
       setLoadingButton(null);
@@ -149,7 +151,7 @@ export default function LoginPage() {
   };
 
   const handleOAuthLogin = async (
-    provider: "google" | "discord" | "github",
+    provider: "google" | "discord" | "github"
   ) => {
     setLoadingButton(provider);
     const toastId = toast.loading(`Redirecting to ${provider}...`);
@@ -169,7 +171,9 @@ export default function LoginPage() {
 
     // Guard: Prevent multiple simultaneous login attempts (macOS/Brave issue)
     if (loginInProgressRef.current) {
-      console.log("[LoginPage] ⚠️ Login already in progress, ignoring duplicate call");
+      console.log(
+        "[LoginPage] ⚠️ Login already in progress, ignoring duplicate call"
+      );
       return;
     }
 
@@ -198,27 +202,35 @@ export default function LoginPage() {
     setLoadingButton("wallet");
 
     try {
-      console.log("[LoginPage] 📡 Calling Privy login() to open authentication modal...");
+      console.log(
+        "[LoginPage] 📡 Calling Privy login() to open authentication modal..."
+      );
       // Use login() instead of connectWallet() for authentication
       // This opens the Privy modal (non-blocking, returns immediately)
       // Authentication state changes are handled via the authenticated state in useEffect
       login();
-      console.log("[LoginPage] ✅ Login modal triggered, user interaction in progress...");
+      console.log(
+        "[LoginPage] ✅ Login modal triggered, user interaction in progress..."
+      );
 
       // Reset the guard after a short delay to allow modal to open
-      // Modal closing without auth will be handled by user closing it
+      // If authentication succeeds, the useEffect will handle redirect
+      // If user closes modal, this timeout resets the guard for retry
       setTimeout(() => {
-        if (!authenticated) {
-          console.log("[LoginPage] Resetting login guard (modal likely closed or timed out)");
+        // Only reset if still in progress (not authenticated yet)
+        if (loginInProgressRef.current) {
+          console.log(
+            "[LoginPage] Resetting login guard (modal likely closed or timed out)"
+          );
           loginInProgressRef.current = false;
           setLoadingButton(null);
         }
       }, 2000); // 2 second timeout
-
     } catch (error) {
       console.error("[LoginPage] ❌ Error opening login modal:", error);
       console.error("[LoginPage] Error details:", {
-        errorType: error instanceof Error ? error.constructor.name : typeof error,
+        errorType:
+          error instanceof Error ? error.constructor.name : typeof error,
         errorMessage: error instanceof Error ? error.message : String(error),
       });
       toast.error("Failed to open login modal");
