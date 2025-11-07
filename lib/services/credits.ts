@@ -14,6 +14,7 @@ import {
   canSendLowCreditsEmail,
   markLowCreditsEmailSent,
 } from "@/lib/email/utils/rate-limiter";
+import { invalidateOrganizationCache } from "@/lib/cache/organizations-cache";
 
 // Parameter types for consistent API signatures
 export interface AddCreditsParams {
@@ -122,6 +123,12 @@ export class CreditsService {
         .where(eq(organizations.id, organizationId));
 
       return { transaction, newBalance };
+    }).then(async (result) => {
+      // Invalidate organization cache since balance changed
+      invalidateOrganizationCache(organizationId).catch((error) => {
+        console.error("[CreditsService] Failed to invalidate org cache:", error);
+      });
+      return result;
     });
   }
 
@@ -192,6 +199,12 @@ export class CreditsService {
         return result;
       })
       .then(async (result) => {
+        // Invalidate organization cache if balance changed
+        if (result.success) {
+          invalidateOrganizationCache(organizationId).catch((error) => {
+            console.error("[CreditsService] Failed to invalidate org cache:", error);
+          });
+        }
         if (result.success) {
           this.queueLowCreditsEmail(organizationId, result.newBalance).catch(
             (error) => {
@@ -307,6 +320,12 @@ export class CreditsService {
         .returning();
 
       return { transaction, newBalance };
+    }).then(async (result) => {
+      // Invalidate organization cache since balance changed
+      invalidateOrganizationCache(organizationId).catch((error) => {
+        console.error("[CreditsService] Failed to invalidate org cache:", error);
+      });
+      return result;
     });
   }
 
