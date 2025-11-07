@@ -18,9 +18,9 @@ export function ElizaPageClient({ initialCharacters }: ElizaPageClientProps) {
   );
 
   useSetPageHeader({
-    title: "Eliza Agent",
+    title: "Chat",
     description:
-      "Chat with Eliza using the full ElizaOS runtime with persistent memory and room-based conversations.",
+      "Chat with your AI agents using the full ElizaOS runtime with persistent memory and room-based conversations.",
   });
 
   useEffect(() => {

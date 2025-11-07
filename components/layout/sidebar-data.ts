@@ -88,27 +88,34 @@ export const sidebarSections: SidebarSection[] = [
     ],
   },
   {
-    title: "Agent Development",
+    title: "Agents",
     items: [
       {
-        id: "eliza-agent",
-        label: "Eliza Agent",
+        id: "chat",
+        label: "Chat",
         href: "/dashboard/eliza",
         icon: Bot,
         isNew: false,
       },
       {
-        id: "agent-marketplace",
-        label: "Agent Marketplace",
-        href: "/dashboard/agent-marketplace",
-        icon: Store,
+        id: "my-agents",
+        label: "My Agents",
+        href: "/dashboard/my-agents",
+        icon: UserCog,
         isNew: true,
       },
       {
         id: "character-creator",
-        label: "Character Creator",
+        label: "Creator",
         href: "/dashboard/character-creator",
-        icon: UserCog,
+        icon: Code,
+        isNew: false,
+      },
+      {
+        id: "agent-marketplace",
+        label: "Marketplace",
+        href: "/dashboard/agent-marketplace",
+        icon: Store,
         isNew: false,
       },
       {

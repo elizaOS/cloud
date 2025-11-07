@@ -888,7 +888,7 @@ export function ChatInterfaceWithPersistence({
                 <Loader2 className="h-4 w-4 animate-spin text-white" />
               </div>
               <div className="max-w-[min(760px,82%)] rounded-none border border-white/10 bg-black/40 px-4 py-3 text-sm text-white/70">
-                Eliza Agent is thinking...
+                AI is thinking...
               </div>
             </div>
           )}
