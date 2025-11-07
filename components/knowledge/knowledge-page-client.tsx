@@ -122,7 +122,7 @@ export function KnowledgePageClient() {
             <p className="text-sm mt-3">
               <strong>Tip:</strong> Try visiting the{" "}
               <a href="/dashboard/eliza" className="underline">
-                Eliza Agent
+                Chat
               </a>{" "}
               page first to initialize the runtime, then come back here.
             </p>
