@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { requireAuthOrApiKey } from "@/lib/auth";
+import { requireAuthOrApiKeyWithOrg } from "@/lib/auth";
 import { containersService } from "@/lib/services/containers";
 import { usageRecordsRepository } from "@/db/repositories/usage-records";
 
@@ -15,10 +15,13 @@ export async function GET(
 ) {
   try {
     const { id } = await params;
-    const { user } = await requireAuthOrApiKey(request);
+    const { user } = await requireAuthOrApiKeyWithOrg(request);
 
     // Verify container belongs to user's organization
-    const container = await containersService.getById(id, user.organization_id);
+    const container = await containersService.getById(
+      id,
+      user.organization_id!,
+    );
 
     if (!container) {
       return NextResponse.json(
@@ -35,7 +38,7 @@ export async function GET(
     // For now, we'll use the repository's list method and filter in memory
     // A better approach would be to add a specific repository method for this
     const allRecords = await usageRecordsRepository.listByOrganization(
-      user.organization_id,
+      user.organization_id!,
       50,
     );
 

@@ -1,5 +1,5 @@
 // app/api/v1/chat/completions/route.ts
-import { requireAuthOrApiKey } from "@/lib/auth";
+import { requireAuthOrApiKeyWithOrg } from "@/lib/auth";
 import { getProvider } from "@/lib/providers";
 import {
   creditsService,
@@ -29,7 +29,8 @@ async function handlePOST(req: NextRequest) {
 
   try {
     // 1. Authenticate
-    const { user, apiKey } = await requireAuthOrApiKey(req);
+    const { user, apiKey, session_token } =
+      await requireAuthOrApiKeyWithOrg(req);
 
     // 2. Parse request (already in OpenAI format!)
     const request: OpenAIChatRequest = await req.json();
@@ -111,7 +112,7 @@ async function handlePOST(req: NextRequest) {
     const estimatedCost = await estimateRequestCost(model, request.messages);
 
     // Check if organization has sufficient credits
-    const org = await organizationsService.getById(user.organization_id);
+    const org = await organizationsService.getById(user.organization_id!);
     if (!org) {
       return Response.json(
         {
@@ -133,7 +134,7 @@ async function handlePOST(req: NextRequest) {
 
     if (!creditCheck.sufficient) {
       logger.warn("[OpenAI Proxy] Insufficient credits", {
-        organizationId: user.organization_id,
+        organizationId: user.organization_id!!,
         required: creditCheck.required,
         balance: creditCheck.balance,
       });
@@ -151,7 +152,7 @@ async function handlePOST(req: NextRequest) {
     }
 
     logger.info("[OpenAI Proxy] Chat completion request", {
-      organizationId: user.organization_id,
+      organizationId: user.organization_id!!,
       userId: user.id,
       model,
       normalizedModel,
@@ -175,6 +176,7 @@ async function handlePOST(req: NextRequest) {
         provider,
         startTime,
         request.messages,
+        session_token,
       );
     } else {
       return handleNonStreamingResponse(
@@ -184,6 +186,7 @@ async function handlePOST(req: NextRequest) {
         normalizedModel,
         provider,
         startTime,
+        session_token,
       );
     }
   } catch (error) {
@@ -229,6 +232,7 @@ async function handleNonStreamingResponse(
   model: string,
   provider: string,
   startTime: number,
+  session_token?: string,
 ) {
   // Parse response
   const data: OpenAIChatResponse = await providerResponse.json();
@@ -248,17 +252,19 @@ async function handleNonStreamingResponse(
 
     // CRITICAL: Deduct credits before returning response
     const deductResult = await creditsService.deductCredits({
-      organizationId: user.organization_id,
+      organizationId: user.organization_id!!,
       amount: totalCost,
       description: `OpenAI Proxy: ${model}`,
       metadata: { user_id: user.id },
+      session_token,
+      tokens_consumed: usage.total_tokens,
     });
 
     if (!deductResult.success) {
       // This should rarely happen since we checked credits before the call
       // But it can happen if credits were spent elsewhere between check and now
       logger.error("[OpenAI Proxy] Failed to deduct credits after completion", {
-        organizationId: user.organization_id,
+        organizationId: user.organization_id!!,
         cost: String(totalCost),
         balance: deductResult.newBalance,
       });
@@ -281,7 +287,7 @@ async function handleNonStreamingResponse(
     (async () => {
       try {
         const usageRecord = await usageService.create({
-          organization_id: user.organization_id,
+          organization_id: user.organization_id!!,
           user_id: user.id,
           api_key_id: apiKey?.id || null,
           type: "chat",
@@ -296,7 +302,7 @@ async function handleNonStreamingResponse(
 
         if (apiKey) {
           await generationsService.create({
-            organization_id: user.organization_id,
+            organization_id: user.organization_id!!,
             user_id: user.id,
             api_key_id: apiKey.id,
             type: "chat",
@@ -345,6 +351,7 @@ function handleStreamingResponse(
   provider: string,
   startTime: number,
   messages: Array<{ role: string; content: string | object }>,
+  session_token?: string,
 ) {
   let totalTokens = 0;
   let inputTokens = 0;
@@ -436,10 +443,12 @@ function handleStreamingResponse(
         );
 
         const deductResult = await creditsService.deductCredits({
-          organizationId: user.organization_id,
+          organizationId: user.organization_id!!,
           amount: totalCost,
           description: `OpenAI Proxy: ${model}`,
           metadata: { user_id: user.id },
+          session_token,
+          tokens_consumed: totalTokens,
         });
 
         if (!deductResult.success) {
@@ -448,7 +457,7 @@ function handleStreamingResponse(
           logger.error(
             "[OpenAI Proxy] CRITICAL: Failed to deduct credits after streaming - race condition detected",
             {
-              organizationId: user.organization_id,
+              organizationId: user.organization_id!!,
               userId: user.id,
               cost: String(totalCost),
               balance: deductResult.newBalance,
@@ -459,7 +468,7 @@ function handleStreamingResponse(
         }
 
         const usageRecord = await usageService.create({
-          organization_id: user.organization_id,
+          organization_id: user.organization_id!!,
           user_id: user.id,
           api_key_id: apiKey?.id || null,
           type: "chat",
@@ -474,7 +483,7 @@ function handleStreamingResponse(
 
         if (apiKey) {
           await generationsService.create({
-            organization_id: user.organization_id,
+            organization_id: user.organization_id!!,
             user_id: user.id,
             api_key_id: apiKey.id,
             type: "chat",

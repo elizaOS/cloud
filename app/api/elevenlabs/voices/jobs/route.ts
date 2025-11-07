@@ -1,18 +1,18 @@
 import type { NextRequest } from "next/server";
 import { NextResponse } from "next/server";
-import { requireAuth } from "@/lib/auth";
+import { requireAuthWithOrg } from "@/lib/auth";
 import { voiceCloningService } from "@/lib/services/voice-cloning";
 import { logger } from "@/lib/utils/logger";
 
 export async function GET(request: NextRequest) {
   try {
-    const user = await requireAuth();
+    const user = await requireAuthWithOrg();
 
     logger.info(`[Voice Jobs API] Fetching jobs for user ${user.id}`);
 
     // Get user's jobs (only in-progress ones)
     const allJobs = await voiceCloningService.getUserJobs(
-      user.organization_id,
+      user.organization_id!,
       user.id,
     );
 

@@ -1,5 +1,5 @@
 import { NextRequest } from "next/server";
-import { requireAuth } from "@/lib/auth";
+import { requireAuthWithOrg } from "@/lib/auth";
 import { organizationsService } from "@/lib/services";
 import { creditEventEmitter } from "@/lib/events/credit-events";
 import type { CreditUpdateEvent } from "@/lib/events/credit-events";
@@ -24,8 +24,8 @@ const CONNECTION_TIMEOUT = parseInt(
 
 export async function GET(request: NextRequest) {
   try {
-    const user = await requireAuth();
-    const organizationId = user.organization_id;
+    const user = await requireAuthWithOrg();
+    const organizationId = user.organization_id!;
 
     const encoder = new TextEncoder();
     const stream = new ReadableStream({

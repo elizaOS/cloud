@@ -16,7 +16,8 @@ const BRAND_ACCENT_GRADIENT = `linear-gradient(135deg, ${BRAND_ORANGE} 0%, #FF7A
 
 // System monospace font stack - works reliably in edge runtime
 // Optimized for technical/code aesthetic matching platform
-const MONO_FONT = "'SF Mono', 'Monaco', 'Inconsolata', 'Roboto Mono', 'Courier New', monospace";
+const MONO_FONT =
+  "'SF Mono', 'Monaco', 'Inconsolata', 'Roboto Mono', 'Courier New', monospace";
 
 export async function GET(request: NextRequest) {
   try {
@@ -47,11 +48,51 @@ export async function GET(request: NextRequest) {
               }}
             >
               {/* Corner Brackets */}
-              <div style={{ position: "absolute", left: 40, top: 40, width: 48, height: 48, borderTop: `3px solid ${BRAND_BORDER}`, borderLeft: `3px solid ${BRAND_BORDER}` }} />
-              <div style={{ position: "absolute", right: 40, top: 40, width: 48, height: 48, borderTop: `3px solid ${BRAND_BORDER}`, borderRight: `3px solid ${BRAND_BORDER}` }} />
-              <div style={{ position: "absolute", left: 40, bottom: 40, width: 48, height: 48, borderBottom: `3px solid ${BRAND_BORDER}`, borderLeft: `3px solid ${BRAND_BORDER}` }} />
-              <div style={{ position: "absolute", right: 40, bottom: 40, width: 48, height: 48, borderBottom: `3px solid ${BRAND_BORDER}`, borderRight: `3px solid ${BRAND_BORDER}` }} />
-              
+              <div
+                style={{
+                  position: "absolute",
+                  left: 40,
+                  top: 40,
+                  width: 48,
+                  height: 48,
+                  borderTop: `3px solid ${BRAND_BORDER}`,
+                  borderLeft: `3px solid ${BRAND_BORDER}`,
+                }}
+              />
+              <div
+                style={{
+                  position: "absolute",
+                  right: 40,
+                  top: 40,
+                  width: 48,
+                  height: 48,
+                  borderTop: `3px solid ${BRAND_BORDER}`,
+                  borderRight: `3px solid ${BRAND_BORDER}`,
+                }}
+              />
+              <div
+                style={{
+                  position: "absolute",
+                  left: 40,
+                  bottom: 40,
+                  width: 48,
+                  height: 48,
+                  borderBottom: `3px solid ${BRAND_BORDER}`,
+                  borderLeft: `3px solid ${BRAND_BORDER}`,
+                }}
+              />
+              <div
+                style={{
+                  position: "absolute",
+                  right: 40,
+                  bottom: 40,
+                  width: 48,
+                  height: 48,
+                  borderBottom: `3px solid ${BRAND_BORDER}`,
+                  borderRight: `3px solid ${BRAND_BORDER}`,
+                }}
+              />
+
               <div
                 style={{
                   display: "flex",
@@ -66,10 +107,50 @@ export async function GET(request: NextRequest) {
                 }}
               >
                 {/* Mini Corner Brackets on card */}
-                <div style={{ position: "absolute", left: 0, top: 0, width: 24, height: 24, borderTop: `2px solid ${BRAND_ORANGE}`, borderLeft: `2px solid ${BRAND_ORANGE}` }} />
-                <div style={{ position: "absolute", right: 0, top: 0, width: 24, height: 24, borderTop: `2px solid ${BRAND_ORANGE}`, borderRight: `2px solid ${BRAND_ORANGE}` }} />
-                <div style={{ position: "absolute", left: 0, bottom: 0, width: 24, height: 24, borderBottom: `2px solid ${BRAND_ORANGE}`, borderLeft: `2px solid ${BRAND_ORANGE}` }} />
-                <div style={{ position: "absolute", right: 0, bottom: 0, width: 24, height: 24, borderBottom: `2px solid ${BRAND_ORANGE}`, borderRight: `2px solid ${BRAND_ORANGE}` }} />
+                <div
+                  style={{
+                    position: "absolute",
+                    left: 0,
+                    top: 0,
+                    width: 24,
+                    height: 24,
+                    borderTop: `2px solid ${BRAND_ORANGE}`,
+                    borderLeft: `2px solid ${BRAND_ORANGE}`,
+                  }}
+                />
+                <div
+                  style={{
+                    position: "absolute",
+                    right: 0,
+                    top: 0,
+                    width: 24,
+                    height: 24,
+                    borderTop: `2px solid ${BRAND_ORANGE}`,
+                    borderRight: `2px solid ${BRAND_ORANGE}`,
+                  }}
+                />
+                <div
+                  style={{
+                    position: "absolute",
+                    left: 0,
+                    bottom: 0,
+                    width: 24,
+                    height: 24,
+                    borderBottom: `2px solid ${BRAND_ORANGE}`,
+                    borderLeft: `2px solid ${BRAND_ORANGE}`,
+                  }}
+                />
+                <div
+                  style={{
+                    position: "absolute",
+                    right: 0,
+                    bottom: 0,
+                    width: 24,
+                    height: 24,
+                    borderBottom: `2px solid ${BRAND_ORANGE}`,
+                    borderRight: `2px solid ${BRAND_ORANGE}`,
+                  }}
+                />
 
                 <div
                   style={{
@@ -147,11 +228,51 @@ export async function GET(request: NextRequest) {
               }}
             >
               {/* Corner Brackets */}
-              <div style={{ position: "absolute", left: 40, top: 40, width: 48, height: 48, borderTop: `3px solid ${BRAND_BORDER}`, borderLeft: `3px solid ${BRAND_BORDER}` }} />
-              <div style={{ position: "absolute", right: 40, top: 40, width: 48, height: 48, borderTop: `3px solid ${BRAND_BORDER}`, borderRight: `3px solid ${BRAND_BORDER}` }} />
-              <div style={{ position: "absolute", left: 40, bottom: 40, width: 48, height: 48, borderBottom: `3px solid ${BRAND_BORDER}`, borderLeft: `3px solid ${BRAND_BORDER}` }} />
-              <div style={{ position: "absolute", right: 40, bottom: 40, width: 48, height: 48, borderBottom: `3px solid ${BRAND_BORDER}`, borderRight: `3px solid ${BRAND_BORDER}` }} />
-              
+              <div
+                style={{
+                  position: "absolute",
+                  left: 40,
+                  top: 40,
+                  width: 48,
+                  height: 48,
+                  borderTop: `3px solid ${BRAND_BORDER}`,
+                  borderLeft: `3px solid ${BRAND_BORDER}`,
+                }}
+              />
+              <div
+                style={{
+                  position: "absolute",
+                  right: 40,
+                  top: 40,
+                  width: 48,
+                  height: 48,
+                  borderTop: `3px solid ${BRAND_BORDER}`,
+                  borderRight: `3px solid ${BRAND_BORDER}`,
+                }}
+              />
+              <div
+                style={{
+                  position: "absolute",
+                  left: 40,
+                  bottom: 40,
+                  width: 48,
+                  height: 48,
+                  borderBottom: `3px solid ${BRAND_BORDER}`,
+                  borderLeft: `3px solid ${BRAND_BORDER}`,
+                }}
+              />
+              <div
+                style={{
+                  position: "absolute",
+                  right: 40,
+                  bottom: 40,
+                  width: 48,
+                  height: 48,
+                  borderBottom: `3px solid ${BRAND_BORDER}`,
+                  borderRight: `3px solid ${BRAND_BORDER}`,
+                }}
+              />
+
               <div
                 style={{
                   display: "flex",
@@ -166,10 +287,50 @@ export async function GET(request: NextRequest) {
                 }}
               >
                 {/* Mini Corner Brackets on card */}
-                <div style={{ position: "absolute", left: 0, top: 0, width: 24, height: 24, borderTop: `2px solid ${BRAND_ORANGE}`, borderLeft: `2px solid ${BRAND_ORANGE}` }} />
-                <div style={{ position: "absolute", right: 0, top: 0, width: 24, height: 24, borderTop: `2px solid ${BRAND_ORANGE}`, borderRight: `2px solid ${BRAND_ORANGE}` }} />
-                <div style={{ position: "absolute", left: 0, bottom: 0, width: 24, height: 24, borderBottom: `2px solid ${BRAND_ORANGE}`, borderLeft: `2px solid ${BRAND_ORANGE}` }} />
-                <div style={{ position: "absolute", right: 0, bottom: 0, width: 24, height: 24, borderBottom: `2px solid ${BRAND_ORANGE}`, borderRight: `2px solid ${BRAND_ORANGE}` }} />
+                <div
+                  style={{
+                    position: "absolute",
+                    left: 0,
+                    top: 0,
+                    width: 24,
+                    height: 24,
+                    borderTop: `2px solid ${BRAND_ORANGE}`,
+                    borderLeft: `2px solid ${BRAND_ORANGE}`,
+                  }}
+                />
+                <div
+                  style={{
+                    position: "absolute",
+                    right: 0,
+                    top: 0,
+                    width: 24,
+                    height: 24,
+                    borderTop: `2px solid ${BRAND_ORANGE}`,
+                    borderRight: `2px solid ${BRAND_ORANGE}`,
+                  }}
+                />
+                <div
+                  style={{
+                    position: "absolute",
+                    left: 0,
+                    bottom: 0,
+                    width: 24,
+                    height: 24,
+                    borderBottom: `2px solid ${BRAND_ORANGE}`,
+                    borderLeft: `2px solid ${BRAND_ORANGE}`,
+                  }}
+                />
+                <div
+                  style={{
+                    position: "absolute",
+                    right: 0,
+                    bottom: 0,
+                    width: 24,
+                    height: 24,
+                    borderBottom: `2px solid ${BRAND_ORANGE}`,
+                    borderRight: `2px solid ${BRAND_ORANGE}`,
+                  }}
+                />
 
                 <div
                   style={{
@@ -253,11 +414,51 @@ export async function GET(request: NextRequest) {
               }}
             >
               {/* Corner Brackets */}
-              <div style={{ position: "absolute", left: 40, top: 40, width: 48, height: 48, borderTop: `3px solid ${BRAND_BORDER}`, borderLeft: `3px solid ${BRAND_BORDER}` }} />
-              <div style={{ position: "absolute", right: 40, top: 40, width: 48, height: 48, borderTop: `3px solid ${BRAND_BORDER}`, borderRight: `3px solid ${BRAND_BORDER}` }} />
-              <div style={{ position: "absolute", left: 40, bottom: 40, width: 48, height: 48, borderBottom: `3px solid ${BRAND_BORDER}`, borderLeft: `3px solid ${BRAND_BORDER}` }} />
-              <div style={{ position: "absolute", right: 40, bottom: 40, width: 48, height: 48, borderBottom: `3px solid ${BRAND_BORDER}`, borderRight: `3px solid ${BRAND_BORDER}` }} />
-              
+              <div
+                style={{
+                  position: "absolute",
+                  left: 40,
+                  top: 40,
+                  width: 48,
+                  height: 48,
+                  borderTop: `3px solid ${BRAND_BORDER}`,
+                  borderLeft: `3px solid ${BRAND_BORDER}`,
+                }}
+              />
+              <div
+                style={{
+                  position: "absolute",
+                  right: 40,
+                  top: 40,
+                  width: 48,
+                  height: 48,
+                  borderTop: `3px solid ${BRAND_BORDER}`,
+                  borderRight: `3px solid ${BRAND_BORDER}`,
+                }}
+              />
+              <div
+                style={{
+                  position: "absolute",
+                  left: 40,
+                  bottom: 40,
+                  width: 48,
+                  height: 48,
+                  borderBottom: `3px solid ${BRAND_BORDER}`,
+                  borderLeft: `3px solid ${BRAND_BORDER}`,
+                }}
+              />
+              <div
+                style={{
+                  position: "absolute",
+                  right: 40,
+                  bottom: 40,
+                  width: 48,
+                  height: 48,
+                  borderBottom: `3px solid ${BRAND_BORDER}`,
+                  borderRight: `3px solid ${BRAND_BORDER}`,
+                }}
+              />
+
               <div
                 style={{
                   display: "flex",
@@ -272,10 +473,50 @@ export async function GET(request: NextRequest) {
                 }}
               >
                 {/* Mini Corner Brackets on card */}
-                <div style={{ position: "absolute", left: 0, top: 0, width: 24, height: 24, borderTop: `2px solid ${BRAND_ORANGE}`, borderLeft: `2px solid ${BRAND_ORANGE}` }} />
-                <div style={{ position: "absolute", right: 0, top: 0, width: 24, height: 24, borderTop: `2px solid ${BRAND_ORANGE}`, borderRight: `2px solid ${BRAND_ORANGE}` }} />
-                <div style={{ position: "absolute", left: 0, bottom: 0, width: 24, height: 24, borderBottom: `2px solid ${BRAND_ORANGE}`, borderLeft: `2px solid ${BRAND_ORANGE}` }} />
-                <div style={{ position: "absolute", right: 0, bottom: 0, width: 24, height: 24, borderBottom: `2px solid ${BRAND_ORANGE}`, borderRight: `2px solid ${BRAND_ORANGE}` }} />
+                <div
+                  style={{
+                    position: "absolute",
+                    left: 0,
+                    top: 0,
+                    width: 24,
+                    height: 24,
+                    borderTop: `2px solid ${BRAND_ORANGE}`,
+                    borderLeft: `2px solid ${BRAND_ORANGE}`,
+                  }}
+                />
+                <div
+                  style={{
+                    position: "absolute",
+                    right: 0,
+                    top: 0,
+                    width: 24,
+                    height: 24,
+                    borderTop: `2px solid ${BRAND_ORANGE}`,
+                    borderRight: `2px solid ${BRAND_ORANGE}`,
+                  }}
+                />
+                <div
+                  style={{
+                    position: "absolute",
+                    left: 0,
+                    bottom: 0,
+                    width: 24,
+                    height: 24,
+                    borderBottom: `2px solid ${BRAND_ORANGE}`,
+                    borderLeft: `2px solid ${BRAND_ORANGE}`,
+                  }}
+                />
+                <div
+                  style={{
+                    position: "absolute",
+                    right: 0,
+                    bottom: 0,
+                    width: 24,
+                    height: 24,
+                    borderBottom: `2px solid ${BRAND_ORANGE}`,
+                    borderRight: `2px solid ${BRAND_ORANGE}`,
+                  }}
+                />
 
                 <div
                   style={{
@@ -361,11 +602,51 @@ export async function GET(request: NextRequest) {
               }}
             >
               {/* Corner Brackets */}
-              <div style={{ position: "absolute", left: 40, top: 40, width: 48, height: 48, borderTop: `3px solid ${BRAND_BORDER}`, borderLeft: `3px solid ${BRAND_BORDER}` }} />
-              <div style={{ position: "absolute", right: 40, top: 40, width: 48, height: 48, borderTop: `3px solid ${BRAND_BORDER}`, borderRight: `3px solid ${BRAND_BORDER}` }} />
-              <div style={{ position: "absolute", left: 40, bottom: 40, width: 48, height: 48, borderBottom: `3px solid ${BRAND_BORDER}`, borderLeft: `3px solid ${BRAND_BORDER}` }} />
-              <div style={{ position: "absolute", right: 40, bottom: 40, width: 48, height: 48, borderBottom: `3px solid ${BRAND_BORDER}`, borderRight: `3px solid ${BRAND_BORDER}` }} />
-              
+              <div
+                style={{
+                  position: "absolute",
+                  left: 40,
+                  top: 40,
+                  width: 48,
+                  height: 48,
+                  borderTop: `3px solid ${BRAND_BORDER}`,
+                  borderLeft: `3px solid ${BRAND_BORDER}`,
+                }}
+              />
+              <div
+                style={{
+                  position: "absolute",
+                  right: 40,
+                  top: 40,
+                  width: 48,
+                  height: 48,
+                  borderTop: `3px solid ${BRAND_BORDER}`,
+                  borderRight: `3px solid ${BRAND_BORDER}`,
+                }}
+              />
+              <div
+                style={{
+                  position: "absolute",
+                  left: 40,
+                  bottom: 40,
+                  width: 48,
+                  height: 48,
+                  borderBottom: `3px solid ${BRAND_BORDER}`,
+                  borderLeft: `3px solid ${BRAND_BORDER}`,
+                }}
+              />
+              <div
+                style={{
+                  position: "absolute",
+                  right: 40,
+                  bottom: 40,
+                  width: 48,
+                  height: 48,
+                  borderBottom: `3px solid ${BRAND_BORDER}`,
+                  borderRight: `3px solid ${BRAND_BORDER}`,
+                }}
+              />
+
               <div
                 style={{
                   display: "flex",
@@ -380,10 +661,50 @@ export async function GET(request: NextRequest) {
                 }}
               >
                 {/* Mini Corner Brackets on card */}
-                <div style={{ position: "absolute", left: 0, top: 0, width: 24, height: 24, borderTop: `2px solid ${BRAND_ORANGE}`, borderLeft: `2px solid ${BRAND_ORANGE}` }} />
-                <div style={{ position: "absolute", right: 0, top: 0, width: 24, height: 24, borderTop: `2px solid ${BRAND_ORANGE}`, borderRight: `2px solid ${BRAND_ORANGE}` }} />
-                <div style={{ position: "absolute", left: 0, bottom: 0, width: 24, height: 24, borderBottom: `2px solid ${BRAND_ORANGE}`, borderLeft: `2px solid ${BRAND_ORANGE}` }} />
-                <div style={{ position: "absolute", right: 0, bottom: 0, width: 24, height: 24, borderBottom: `2px solid ${BRAND_ORANGE}`, borderRight: `2px solid ${BRAND_ORANGE}` }} />
+                <div
+                  style={{
+                    position: "absolute",
+                    left: 0,
+                    top: 0,
+                    width: 24,
+                    height: 24,
+                    borderTop: `2px solid ${BRAND_ORANGE}`,
+                    borderLeft: `2px solid ${BRAND_ORANGE}`,
+                  }}
+                />
+                <div
+                  style={{
+                    position: "absolute",
+                    right: 0,
+                    top: 0,
+                    width: 24,
+                    height: 24,
+                    borderTop: `2px solid ${BRAND_ORANGE}`,
+                    borderRight: `2px solid ${BRAND_ORANGE}`,
+                  }}
+                />
+                <div
+                  style={{
+                    position: "absolute",
+                    left: 0,
+                    bottom: 0,
+                    width: 24,
+                    height: 24,
+                    borderBottom: `2px solid ${BRAND_ORANGE}`,
+                    borderLeft: `2px solid ${BRAND_ORANGE}`,
+                  }}
+                />
+                <div
+                  style={{
+                    position: "absolute",
+                    right: 0,
+                    bottom: 0,
+                    width: 24,
+                    height: 24,
+                    borderBottom: `2px solid ${BRAND_ORANGE}`,
+                    borderRight: `2px solid ${BRAND_ORANGE}`,
+                  }}
+                />
 
                 <div
                   style={{
@@ -445,11 +766,51 @@ export async function GET(request: NextRequest) {
               }}
             >
               {/* Outer Corner Brackets */}
-              <div style={{ position: "absolute", left: 40, top: 40, width: 48, height: 48, borderTop: `3px solid ${BRAND_BORDER}`, borderLeft: `3px solid ${BRAND_BORDER}` }} />
-              <div style={{ position: "absolute", right: 40, top: 40, width: 48, height: 48, borderTop: `3px solid ${BRAND_BORDER}`, borderRight: `3px solid ${BRAND_BORDER}` }} />
-              <div style={{ position: "absolute", left: 40, bottom: 40, width: 48, height: 48, borderBottom: `3px solid ${BRAND_BORDER}`, borderLeft: `3px solid ${BRAND_BORDER}` }} />
-              <div style={{ position: "absolute", right: 40, bottom: 40, width: 48, height: 48, borderBottom: `3px solid ${BRAND_BORDER}`, borderRight: `3px solid ${BRAND_BORDER}` }} />
-              
+              <div
+                style={{
+                  position: "absolute",
+                  left: 40,
+                  top: 40,
+                  width: 48,
+                  height: 48,
+                  borderTop: `3px solid ${BRAND_BORDER}`,
+                  borderLeft: `3px solid ${BRAND_BORDER}`,
+                }}
+              />
+              <div
+                style={{
+                  position: "absolute",
+                  right: 40,
+                  top: 40,
+                  width: 48,
+                  height: 48,
+                  borderTop: `3px solid ${BRAND_BORDER}`,
+                  borderRight: `3px solid ${BRAND_BORDER}`,
+                }}
+              />
+              <div
+                style={{
+                  position: "absolute",
+                  left: 40,
+                  bottom: 40,
+                  width: 48,
+                  height: 48,
+                  borderBottom: `3px solid ${BRAND_BORDER}`,
+                  borderLeft: `3px solid ${BRAND_BORDER}`,
+                }}
+              />
+              <div
+                style={{
+                  position: "absolute",
+                  right: 40,
+                  bottom: 40,
+                  width: 48,
+                  height: 48,
+                  borderBottom: `3px solid ${BRAND_BORDER}`,
+                  borderRight: `3px solid ${BRAND_BORDER}`,
+                }}
+              />
+
               <div
                 style={{
                   display: "flex",
@@ -464,10 +825,50 @@ export async function GET(request: NextRequest) {
                 }}
               >
                 {/* Inner Orange Corner Brackets */}
-                <div style={{ position: "absolute", left: 0, top: 0, width: 24, height: 24, borderTop: `2px solid ${BRAND_ORANGE}`, borderLeft: `2px solid ${BRAND_ORANGE}` }} />
-                <div style={{ position: "absolute", right: 0, top: 0, width: 24, height: 24, borderTop: `2px solid ${BRAND_ORANGE}`, borderRight: `2px solid ${BRAND_ORANGE}` }} />
-                <div style={{ position: "absolute", left: 0, bottom: 0, width: 24, height: 24, borderBottom: `2px solid ${BRAND_ORANGE}`, borderLeft: `2px solid ${BRAND_ORANGE}` }} />
-                <div style={{ position: "absolute", right: 0, bottom: 0, width: 24, height: 24, borderBottom: `2px solid ${BRAND_ORANGE}`, borderRight: `2px solid ${BRAND_ORANGE}` }} />
+                <div
+                  style={{
+                    position: "absolute",
+                    left: 0,
+                    top: 0,
+                    width: 24,
+                    height: 24,
+                    borderTop: `2px solid ${BRAND_ORANGE}`,
+                    borderLeft: `2px solid ${BRAND_ORANGE}`,
+                  }}
+                />
+                <div
+                  style={{
+                    position: "absolute",
+                    right: 0,
+                    top: 0,
+                    width: 24,
+                    height: 24,
+                    borderTop: `2px solid ${BRAND_ORANGE}`,
+                    borderRight: `2px solid ${BRAND_ORANGE}`,
+                  }}
+                />
+                <div
+                  style={{
+                    position: "absolute",
+                    left: 0,
+                    bottom: 0,
+                    width: 24,
+                    height: 24,
+                    borderBottom: `2px solid ${BRAND_ORANGE}`,
+                    borderLeft: `2px solid ${BRAND_ORANGE}`,
+                  }}
+                />
+                <div
+                  style={{
+                    position: "absolute",
+                    right: 0,
+                    bottom: 0,
+                    width: 24,
+                    height: 24,
+                    borderBottom: `2px solid ${BRAND_ORANGE}`,
+                    borderRight: `2px solid ${BRAND_ORANGE}`,
+                  }}
+                />
 
                 {/* Orange dot indicator */}
                 <div
@@ -550,11 +951,51 @@ export async function GET(request: NextRequest) {
           }}
         >
           {/* Corner Brackets */}
-          <div style={{ position: "absolute", left: 40, top: 40, width: 48, height: 48, borderTop: `3px solid ${BRAND_BORDER}`, borderLeft: `3px solid ${BRAND_BORDER}` }} />
-          <div style={{ position: "absolute", right: 40, top: 40, width: 48, height: 48, borderTop: `3px solid ${BRAND_BORDER}`, borderRight: `3px solid ${BRAND_BORDER}` }} />
-          <div style={{ position: "absolute", left: 40, bottom: 40, width: 48, height: 48, borderBottom: `3px solid ${BRAND_BORDER}`, borderLeft: `3px solid ${BRAND_BORDER}` }} />
-          <div style={{ position: "absolute", right: 40, bottom: 40, width: 48, height: 48, borderBottom: `3px solid ${BRAND_BORDER}`, borderRight: `3px solid ${BRAND_BORDER}` }} />
-          
+          <div
+            style={{
+              position: "absolute",
+              left: 40,
+              top: 40,
+              width: 48,
+              height: 48,
+              borderTop: `3px solid ${BRAND_BORDER}`,
+              borderLeft: `3px solid ${BRAND_BORDER}`,
+            }}
+          />
+          <div
+            style={{
+              position: "absolute",
+              right: 40,
+              top: 40,
+              width: 48,
+              height: 48,
+              borderTop: `3px solid ${BRAND_BORDER}`,
+              borderRight: `3px solid ${BRAND_BORDER}`,
+            }}
+          />
+          <div
+            style={{
+              position: "absolute",
+              left: 40,
+              bottom: 40,
+              width: 48,
+              height: 48,
+              borderBottom: `3px solid ${BRAND_BORDER}`,
+              borderLeft: `3px solid ${BRAND_BORDER}`,
+            }}
+          />
+          <div
+            style={{
+              position: "absolute",
+              right: 40,
+              bottom: 40,
+              width: 48,
+              height: 48,
+              borderBottom: `3px solid ${BRAND_BORDER}`,
+              borderRight: `3px solid ${BRAND_BORDER}`,
+            }}
+          />
+
           <div
             style={{
               display: "flex",

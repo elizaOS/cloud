@@ -7,10 +7,10 @@ import OnChainTrust from "@/components/landing/OnChainTrust";
 import Agents from "@/components/landing/Agents";
 import Installation from "@/components/landing/Installation";
 import Footer from "@/components/landing/Footer";
-import { useAuthRedirect } from "@/lib/hooks/use-auth-redirect";
 
 export function LandingPage() {
-  useAuthRedirect({ redirectTo: "/dashboard" });
+  // Removed auto-redirect - let authenticated users browse landing page
+  // Header will show Dashboard link + user menu instead of login button
 
   return (
     <div className="flex min-h-screen flex-col">

@@ -1,9 +1,17 @@
 import { PrivyClient } from "@privy-io/server-auth";
-import { usersService, apiKeysService } from "@/lib/services";
+import {
+  usersService,
+  apiKeysService,
+  userSessionsService,
+} from "@/lib/services";
 import type { UserWithOrganization, ApiKey } from "@/lib/types";
+import type { Organization } from "@/db/schemas/organizations";
 import { cache } from "react";
 import { cookies } from "next/headers";
 import type { NextRequest } from "next/server";
+
+// Re-export Organization type for convenience
+export type { Organization };
 
 // Initialize Privy client
 const privyClient = new PrivyClient(
@@ -15,6 +23,7 @@ export type AuthResult = {
   user: UserWithOrganization;
   apiKey?: ApiKey;
   authMethod: "session" | "api_key";
+  session_token?: string;
 };
 
 /**
@@ -25,6 +34,7 @@ export type AuthResult = {
  * 2. Look up user in database by Privy ID
  * 3. If not found, fetch full user data from Privy API (just-in-time sync)
  * 4. Create user and organization in database
+ * 5. Create or get user session for tracking
  *
  * This handles the race condition where webhooks haven't fired yet.
  */
@@ -84,6 +94,19 @@ export const getCurrentUser = cache(
         }
       }
 
+      // Create or get user session for authenticated users with organizations
+      if (user && user.organization_id) {
+        try {
+          await userSessionsService.getOrCreateSession({
+            user_id: user.id,
+            organization_id: user.organization_id,
+            session_token: authToken.value,
+          });
+        } catch (sessionError) {
+          console.error("Failed to create/get user session:", sessionError);
+        }
+      }
+
       return user ?? null;
     } catch (error) {
       console.error("Error verifying Privy token:", error);
@@ -94,6 +117,7 @@ export const getCurrentUser = cache(
 
 /**
  * Require authentication - throws error if not authenticated
+ * Note: This allows anonymous users. Use requireAuthWithOrg for paid features.
  */
 export async function requireAuth(): Promise<UserWithOrganization> {
   const user = await getCurrentUser();
@@ -110,6 +134,39 @@ export async function requireAuth(): Promise<UserWithOrganization> {
 }
 
 /**
+ * Require authenticated user WITH organization (excludes anonymous users)
+ * Use this for all paid features that require credits/billing
+ */
+export async function requireAuthWithOrg(): Promise<
+  UserWithOrganization & { organization_id: string; organization: Organization }
+> {
+  const user = await getCurrentUser();
+
+  if (!user) {
+    throw new Error("Unauthorized: Authentication required");
+  }
+
+  if (!user.is_active) {
+    throw new Error("Forbidden: User account is inactive");
+  }
+
+  if (!user.organization_id!) {
+    throw new Error(
+      "Forbidden: This feature requires a full account. Please sign up to continue.",
+    );
+  }
+
+  if (!user.organization || !user.organization?.is_active) {
+    throw new Error("Forbidden: Organization is inactive");
+  }
+
+  return user as UserWithOrganization & {
+    organization_id: string;
+    organization: Organization;
+  };
+}
+
+/**
  * Require user to belong to a specific organization
  */
 export async function requireOrganization(
@@ -123,7 +180,7 @@ export async function requireOrganization(
     );
   }
 
-  if (!user.organization.is_active) {
+  if (!user.organization?.is_active) {
     throw new Error("Forbidden: Organization is inactive");
   }
 
@@ -163,6 +220,7 @@ export async function getUserFromApiKey(
 /**
  * Require authentication via session or API key
  * Supports both X-API-Key header and Authorization: Bearer header
+ * Note: This allows anonymous users. Use requireAuthOrApiKeyWithOrg for paid features.
  */
 export async function requireAuthOrApiKey(
   request: NextRequest,
@@ -209,7 +267,7 @@ export async function requireAuthOrApiKey(
       throw new Error("User account is inactive");
     }
 
-    if (!user.organization.is_active) {
+    if (!user.organization?.is_active) {
       throw new Error("Organization is inactive");
     }
 
@@ -225,9 +283,42 @@ export async function requireAuthOrApiKey(
   // Fall back to session authentication
   const user = await requireAuth();
 
+  // Get session token from cookies
+  const cookieStore = await cookies();
+  const authToken = cookieStore.get("privy-token");
+
   return {
     user,
     authMethod: "session",
+    session_token: authToken?.value,
+  };
+}
+
+/**
+ * Require authentication via session or API key WITH organization
+ * Use this for paid features that require credits/billing
+ */
+export async function requireAuthOrApiKeyWithOrg(request: NextRequest): Promise<
+  AuthResult & {
+    user: UserWithOrganization & {
+      organization_id: string;
+      organization: Organization;
+    };
+  }
+> {
+  const result = await requireAuthOrApiKey(request);
+
+  if (!result.user.organization_id || !result.user.organization) {
+    throw new Error(
+      "Forbidden: This feature requires a full account. Please sign up to continue.",
+    );
+  }
+
+  return result as AuthResult & {
+    user: UserWithOrganization & {
+      organization_id: string;
+      organization: Organization;
+    };
   };
 }
 

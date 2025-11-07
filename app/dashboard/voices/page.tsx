@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { requireAuth } from "@/lib/auth";
+import { requireAuthWithOrg } from "@/lib/auth";
 import { VoicePageClient } from "@/components/voices/voice-page-client";
 import { organizationsService } from "@/lib/services";
 import type { Voice } from "@/components/voices/types";
@@ -13,7 +13,7 @@ export const metadata: Metadata = {
 };
 
 export default async function VoicesPage() {
-  const user = await requireAuth();
+  const user = await requireAuthWithOrg();
 
   // Fetch user's voices directly from service (server-side)
   const { voiceCloningService } = await import("@/lib/services/voice-cloning");

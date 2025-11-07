@@ -3,6 +3,7 @@
 import { useState, useCallback } from "react";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Alert, AlertDescription } from "@/components/ui/alert";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
   Mic,
   Sparkles,
@@ -12,6 +13,7 @@ import {
   BarChart3,
   Loader2,
   AlertCircle,
+  Library,
 } from "lucide-react";
 import { VoiceCloneForm } from "./voice-clone-form";
 import { VoiceAudioPlayer } from "./voice-audio-player";
@@ -215,7 +217,7 @@ export function VoiceStudioAdvanced({
   };
 
   const handleUseInTTS = (voice: Voice) => {
-    router.push(`/dashboard/text?voiceId=${voice.elevenlabsVoiceId}`);
+    router.push(`/dashboard/chat?voiceId=${voice.elevenlabsVoiceId}`);
   };
 
   const formatDuration = (seconds: number | null) => {
@@ -232,18 +234,44 @@ export function VoiceStudioAdvanced({
   const professionalVoicesRemaining = Math.max(0, 1 - professionalVoiceCount);
 
   return (
-    <div className="grid gap-6 md:grid-cols-[minmax(420px,480px)_minmax(0,1fr)] h-[calc(100vh-180px)]">
-      {/* Left Panel - Creation Form */}
-      <div className="flex flex-col max-h-full">
+    <Tabs
+      defaultValue="voices"
+      className="w-full h-[calc(100vh-180px)] flex flex-col"
+    >
+      {/* Tab Navigation */}
+      <TabsList className="w-full rounded-none border-b border-white/10 bg-transparent h-10 p-0 justify-start">
+        <TabsTrigger
+          value="clone"
+          className="rounded-none data-[state=active]:bg-[#FF5800]/10 data-[state=active]:border-b-2 data-[state=active]:border-[#FF5800] px-4 h-full text-sm"
+        >
+          <Mic className="h-3.5 w-3.5 mr-2" />
+          Clone Voice
+        </TabsTrigger>
+        <TabsTrigger
+          value="voices"
+          className="rounded-none data-[state=active]:bg-[#FF5800]/10 data-[state=active]:border-b-2 data-[state=active]:border-[#FF5800] px-4 h-full text-sm"
+        >
+          <Library className="h-3.5 w-3.5 mr-2" />
+          Voice Library
+          {voices.length > 0 && (
+            <span className="ml-2 px-1.5 py-0.5 text-xs rounded-full bg-white/10">
+              {voices.length}
+            </span>
+          )}
+        </TabsTrigger>
+      </TabsList>
+
+      {/* Clone Tab Content */}
+      <TabsContent value="clone" className="flex-1 overflow-hidden mt-3 h-full">
         <VoiceCloneForm
           creditBalance={creditBalance}
           onSuccess={handleVoiceCreated}
           onCreditBalanceChange={onCreditBalanceChange}
         />
-      </div>
+      </TabsContent>
 
-      {/* Right Panel - Voice Library */}
-      <div className="flex flex-col max-h-full overflow-hidden">
+      {/* Voices Tab Content */}
+      <TabsContent value="voices" className="flex-1 overflow-hidden mt-3">
         <BrandCard className="relative flex flex-col h-full overflow-hidden">
           <CornerBrackets size="sm" className="opacity-50" />
 
@@ -578,7 +606,7 @@ export function VoiceStudioAdvanced({
             )}
           </div>
         </BrandCard>
-      </div>
+      </TabsContent>
 
       {/* Preview Dialog */}
       <Dialog
@@ -649,6 +677,6 @@ export function VoiceStudioAdvanced({
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
-    </div>
+    </Tabs>
   );
 }

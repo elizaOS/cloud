@@ -23,7 +23,7 @@ export function VoicePageClient({
 
   return (
     <div className="flex flex-col w-full">
-      <div className="w-full max-w-[1800px] mx-auto px-6 py-6">
+      <div className="w-full max-w-[1600px] mx-auto px-3 md:px-6 py-4 md:py-6">
         <VoiceStudioAdvanced
           initialVoices={initialVoices}
           creditBalance={creditBalance}

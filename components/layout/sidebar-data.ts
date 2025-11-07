@@ -2,27 +2,15 @@
  * Sidebar Navigation Configuration
  */
 
-import {
-  HomeIcon,
-  PersonIcon,
-  TokensIcon,
-  BarChartIcon,
-  ChatBubbleIcon,
-  ImageIcon,
-  LayersIcon,
-} from "@radix-ui/react-icons";
+import { HomeIcon, ImageIcon, LayersIcon } from "@radix-ui/react-icons";
 import {
   Server,
-  HardDrive,
   Video,
-  CreditCard,
   UserCog,
   Bot,
   Code,
   Mic,
-  Zap,
   Store,
-  Building2,
 } from "lucide-react";
 import type { ComponentType } from "react";
 
@@ -33,6 +21,7 @@ export interface SidebarItem {
   icon: ComponentType<{ className?: string }>;
   badge?: string | number;
   isNew?: boolean;
+  freeAllowed?: boolean; // Whether anonymous users can access this
 }
 
 export interface SidebarSection {
@@ -55,35 +44,32 @@ export const sidebarSections: SidebarSection[] = [
     title: "Generation Studio",
     items: [
       {
-        id: "text-generation",
-        label: "Text & Chat",
-        href: "/dashboard/text",
-        icon: ChatBubbleIcon,
-      },
-      {
         id: "image-generation",
         label: "Images",
         href: "/dashboard/image",
         icon: ImageIcon,
+        freeAllowed: false, // Requires signup
       },
       {
         id: "video-generation",
         label: "Videos",
         href: "/dashboard/video",
         icon: Video,
+        freeAllowed: false, // Requires signup
       },
       {
         id: "voices",
         label: "Voices",
         href: "/dashboard/voices",
         icon: Mic,
-        isNew: true,
+        freeAllowed: false, // Requires signup
       },
       {
         id: "gallery",
         label: "Gallery",
         href: "/dashboard/gallery",
         icon: LayersIcon,
+        freeAllowed: false, // Requires signup
       },
     ],
   },
@@ -93,44 +79,30 @@ export const sidebarSections: SidebarSection[] = [
       {
         id: "chat",
         label: "Chat",
-        href: "/dashboard/eliza",
+        href: "/dashboard/chat",
         icon: Bot,
-        isNew: false,
+        freeAllowed: true, // Free tier can access Chat
       },
       {
         id: "my-agents",
         label: "My Agents",
         href: "/dashboard/my-agents",
-        icon: UserCog,
-        isNew: true,
+        icon: Store,
+        freeAllowed: false, // Requires signup
       },
       {
         id: "character-creator",
         label: "Creator",
         href: "/dashboard/character-creator",
-        icon: Code,
-        isNew: false,
-      },
-      {
-        id: "agent-marketplace",
-        label: "Marketplace",
-        href: "/dashboard/agent-marketplace",
-        icon: Store,
-        isNew: false,
+        icon: UserCog,
+        freeAllowed: false, // Requires signup
       },
       {
         id: "api-explorer",
         label: "API Explorer",
         href: "/dashboard/api-explorer",
         icon: Code,
-        isNew: true,
-      },
-      {
-        id: "mcp-playground",
-        label: "MCP Playground",
-        href: "/dashboard/mcp-playground",
-        icon: Zap,
-        isNew: true,
+        freeAllowed: false, // Requires signup
       },
     ],
   },
@@ -142,49 +114,7 @@ export const sidebarSections: SidebarSection[] = [
         label: "Containers",
         href: "/dashboard/containers",
         icon: Server,
-        isNew: true,
-      },
-      {
-        id: "storage",
-        label: "Storage",
-        href: "/dashboard/storage",
-        icon: HardDrive,
-        isNew: false,
-      },
-    ],
-  },
-  {
-    title: "Settings",
-    items: [
-      {
-        id: "account",
-        label: "Account",
-        href: "/dashboard/account",
-        icon: PersonIcon,
-      },
-      {
-        id: "organization",
-        label: "Organization",
-        href: "/dashboard/organization",
-        icon: Building2,
-      },
-      {
-        id: "billing",
-        label: "Billing",
-        href: "/dashboard/billing",
-        icon: CreditCard,
-      },
-      {
-        id: "api-keys",
-        label: "API Keys",
-        href: "/dashboard/api-keys",
-        icon: TokensIcon,
-      },
-      {
-        id: "analytics",
-        label: "Analytics",
-        href: "/dashboard/analytics",
-        icon: BarChartIcon,
+        freeAllowed: false, // Requires signup
       },
     ],
   },

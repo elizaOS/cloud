@@ -1,5 +1,5 @@
 import { type NextRequest, NextResponse } from "next/server";
-import { requireAuthOrApiKey } from "@/lib/auth";
+import { requireAuthOrApiKeyWithOrg } from "@/lib/auth";
 import {
   analyticsService,
   type CostBreakdownItem,
@@ -11,7 +11,7 @@ export const maxDuration = 60;
 
 async function handleGET(req: NextRequest) {
   try {
-    const { user } = await requireAuthOrApiKey(req);
+    const { user } = await requireAuthOrApiKeyWithOrg(req);
     const searchParams = req.nextUrl.searchParams;
 
     const dimension = (searchParams.get("dimension") || "model") as
@@ -40,7 +40,7 @@ async function handleGET(req: NextRequest) {
       : new Date();
 
     const breakdown = await analyticsService.getCostBreakdown(
-      user.organization_id,
+      user.organization_id!,
       dimension,
       {
         startDate,

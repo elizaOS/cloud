@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { requireAuthOrApiKey } from "@/lib/auth";
+import { requireAuthOrApiKeyWithOrg } from "@/lib/auth";
 import { listContainers } from "@/lib/services";
 import {
   CONTAINER_PRICING,
@@ -16,10 +16,10 @@ export const dynamic = "force-dynamic";
  */
 export async function GET(request: NextRequest) {
   try {
-    const { user } = await requireAuthOrApiKey(request);
+    const { user } = await requireAuthOrApiKeyWithOrg(request);
 
     // Get current container count
-    const existingContainers = await listContainers(user.organization_id);
+    const existingContainers = await listContainers(user.organization_id!);
     const currentCount = existingContainers.length;
 
     // Get max allowed containers

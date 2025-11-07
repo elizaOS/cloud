@@ -13,6 +13,8 @@ export class CacheInvalidation {
       cache.del(CacheKeys.org.credits(organizationId)),
       cache.del(CacheKeys.org.data(organizationId)),
       cache.del(CacheKeys.org.dashboard(organizationId)),
+      // Invalidate Eliza org balance cache on credit changes
+      cache.del(CacheKeys.eliza.orgBalance(organizationId)),
     ]);
   }
 

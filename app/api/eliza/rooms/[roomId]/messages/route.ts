@@ -2,12 +2,14 @@ import { NextResponse } from "next/server";
 import { agentRuntime } from "@/lib/eliza/agent-runtime";
 import type { UUID } from "@elizaos/core";
 import { requireAuthOrApiKey } from "@/lib/auth";
+import { getAnonymousUser, checkAnonymousLimit } from "@/lib/auth-anonymous";
 import {
   creditsService,
   usageService,
   generationsService,
   organizationsService,
   discordService,
+  anonymousSessionsService,
 } from "@/lib/services";
 import {
   calculateCost,
@@ -28,8 +30,33 @@ export async function POST(
   ctx: { params: Promise<{ roomId: string }> },
 ) {
   try {
-    // Authenticate user or validate API key
-    const { user, apiKey } = await requireAuthOrApiKey(request);
+    // Support both authenticated and anonymous users
+    let user: any;
+    let apiKey: any = undefined;
+    let isAnonymous = false;
+    let anonymousSession: any = null;
+
+    try {
+      const authResult = await requireAuthOrApiKey(request);
+      user = authResult.user;
+      apiKey = authResult.apiKey;
+    } catch (error) {
+      // Fallback to anonymous user
+      const anonData = await getAnonymousUser();
+      if (!anonData) {
+        throw new Error("Authentication required");
+      }
+
+      user = anonData.user;
+      anonymousSession = anonData.session;
+      isAnonymous = true;
+
+      logger.info("eliza-messages-api", "Anonymous user request", {
+        userId: user.id,
+        sessionId: anonymousSession?.id,
+        messageCount: anonymousSession?.message_count,
+      });
+    }
 
     const { roomId } = await ctx.params;
     const body = await request.json();
@@ -59,45 +86,90 @@ export async function POST(
       );
     }
 
-    // CRITICAL FIX: Check credit balance BEFORE processing to prevent free service
-    // Estimate cost based on input text
-    const estimatedInputTokens = estimateTokens(text);
-    const estimatedOutputTokens = 100; // Conservative estimate for response
-    const model = "gpt-4o";
-    const provider = getProviderFromModel(model);
-
-    const { totalCost: estimatedCost } = await calculateCost(
-      model,
-      provider,
-      estimatedInputTokens,
-      estimatedOutputTokens,
-    );
-
-    // Check organization balance
-    const org = await organizationsService.getById(user.organization_id);
-    if (!org) {
-      logger.error("[Eliza Messages API] Organization not found", {
-        organizationId: user.organization_id,
-      });
-      return NextResponse.json(
-        { error: "Organization not found" },
-        { status: 404 },
+    // Handle anonymous user rate limiting
+    if (isAnonymous && anonymousSession) {
+      const limitCheck = await checkAnonymousLimit(
+        anonymousSession.session_token,
       );
+
+      if (!limitCheck.allowed) {
+        const errorMessage =
+          limitCheck.reason === "message_limit"
+            ? `You've reached your free message limit (${limitCheck.limit} messages). Sign up to continue chatting!`
+            : `You've reached the hourly rate limit. Please wait an hour or sign up for unlimited access.`;
+
+        logger.warn("eliza-messages-api", "Anonymous user limit reached", {
+          userId: user.id,
+          sessionId: anonymousSession.id,
+          reason: limitCheck.reason,
+          limit: limitCheck.limit,
+        });
+
+        return NextResponse.json(
+          {
+            error: errorMessage,
+            requiresSignup: true,
+            reason: limitCheck.reason,
+            limit: limitCheck.limit,
+            remaining: limitCheck.remaining,
+          },
+          { status: 429 },
+        );
+      }
+
+      logger.info("eliza-messages-api", "Anonymous user message allowed", {
+        userId: user.id,
+        remaining: limitCheck.remaining,
+        limit: limitCheck.limit,
+      });
     }
 
-    if (Number(org.credit_balance) < estimatedCost) {
-      logger.warn("[Eliza Messages API] Insufficient credits", {
-        organizationId: user.organization_id,
-        required: estimatedCost,
-        balance: org.credit_balance,
-      });
-      return NextResponse.json(
-        {
-          error: "Insufficient balance",
-          details: `Required: ${estimatedCost}, Available: ${org.credit_balance}`,
-        },
-        { status: 402 },
+    // For authenticated users: Check credit balance BEFORE processing
+    if (!isAnonymous) {
+      const estimatedInputTokens = estimateTokens(text);
+      const estimatedOutputTokens = 100;
+      const model = "gpt-4o";
+      const provider = getProviderFromModel(model);
+
+      const { totalCost: estimatedCost } = await calculateCost(
+        model,
+        provider,
+        estimatedInputTokens,
+        estimatedOutputTokens,
       );
+
+      if (!user.organization_id) {
+        return NextResponse.json(
+          { error: "Organization required for authenticated users" },
+          { status: 500 },
+        );
+      }
+
+      const org = await organizationsService.getById(user.organization_id);
+      if (!org) {
+        logger.error("[Eliza Messages API] Organization not found", {
+          organizationId: user.organization_id,
+        });
+        return NextResponse.json(
+          { error: "Organization not found" },
+          { status: 404 },
+        );
+      }
+
+      if (Number(org.credit_balance) < estimatedCost) {
+        logger.warn("[Eliza Messages API] Insufficient credits", {
+          organizationId: user.organization_id,
+          required: estimatedCost,
+          balance: org.credit_balance,
+        });
+        return NextResponse.json(
+          {
+            error: "Insufficient balance",
+            details: `Required: ${estimatedCost}, Available: ${org.credit_balance}`,
+          },
+          { status: 402 },
+        );
+      }
     }
 
     // Look up character for this room
@@ -162,7 +234,7 @@ export async function POST(
       try {
         // Get Discord thread ID from room metadata
         const roomData = await db.execute<{ metadata: any }>(
-          sql`SELECT metadata FROM rooms WHERE id = ${roomId}::uuid LIMIT 1`
+          sql`SELECT metadata FROM rooms WHERE id = ${roomId}::uuid LIMIT 1`,
         );
 
         const threadId = roomData.rows[0]?.metadata?.discordThreadId;
@@ -171,7 +243,7 @@ export async function POST(
           // Send user message
           await discordService.sendToThread(
             threadId,
-            `**${user.name || user.email || entityId}:** ${text}`
+            `**${user.name || user.email || entityId}:** ${text}`,
           );
 
           // Send agent response
@@ -182,17 +254,17 @@ export async function POST(
 
           await discordService.sendToThread(
             threadId,
-            `**🤖 ${characterName}:** ${responseText}`
+            `**🤖 ${characterName}:** ${responseText}`,
           );
 
           logger.info(
-            `[Eliza Messages API] Sent messages to Discord thread ${threadId}`
+            `[Eliza Messages API] Sent messages to Discord thread ${threadId}`,
           );
         }
       } catch (err) {
         logger.error(
           "[Eliza Messages API] Failed to send to Discord thread:",
-          err
+          err,
         );
       }
     })();
@@ -224,7 +296,7 @@ export async function POST(
 
       // Deduct credits
       const deductionResult = await creditsService.deductCredits({
-        organizationId: user.organization_id,
+        organizationId: user.organization_id!,
         amount: totalCost,
         description: `Eliza chat completion: ${model}`,
         metadata: { user_id: user.id },
@@ -236,7 +308,7 @@ export async function POST(
         logger.error(
           "[Eliza Messages API] CRITICAL: Failed to deduct credits after message processing - race condition detected",
           {
-            organizationId: user.organization_id,
+            organizationId: user.organization_id!,
             cost: String(totalCost),
             balance: deductionResult.newBalance,
             messageId: message.id,
@@ -248,7 +320,7 @@ export async function POST(
 
       // Create usage record
       const usageRecord = await usageService.create({
-        organization_id: user.organization_id,
+        organization_id: user.organization_id!!,
         user_id: user.id,
         api_key_id: apiKey?.id || null,
         type: "eliza",
@@ -264,7 +336,7 @@ export async function POST(
       // Create generation record if using API key
       if (apiKey) {
         await generationsService.create({
-          organization_id: user.organization_id,
+          organization_id: user.organization_id!!,
           user_id: user.id,
           api_key_id: apiKey.id,
           type: "eliza",
@@ -294,7 +366,7 @@ export async function POST(
       // Still create an unsuccessful usage record for tracking
       try {
         await usageService.create({
-          organization_id: user.organization_id,
+          organization_id: user.organization_id!!,
           user_id: user.id,
           api_key_id: apiKey?.id || null,
           type: "eliza",
@@ -314,6 +386,20 @@ export async function POST(
           usageError,
         );
       }
+    }
+
+    // Increment message count AFTER successful message creation (for anonymous users)
+    if (isAnonymous && anonymousSession) {
+      await anonymousSessionsService.incrementMessageCount(anonymousSession.id);
+
+      logger.info(
+        "eliza-messages-api",
+        "Incremented anonymous message count after success",
+        {
+          sessionId: anonymousSession.id,
+          newCount: anonymousSession.message_count + 1,
+        },
+      );
     }
 
     // Return the created message

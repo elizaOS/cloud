@@ -1,12 +1,12 @@
 import { NextRequest, NextResponse } from "next/server";
-import { requireAuth } from "@/lib/auth";
+import { requireAuthWithOrg } from "@/lib/auth";
 import { apiKeysService } from "@/lib/services";
 
 export async function GET() {
   try {
-    const user = await requireAuth();
+    const user = await requireAuthWithOrg();
 
-    const keys = await apiKeysService.listByOrganization(user.organization_id);
+    const keys = await apiKeysService.listByOrganization(user.organization_id!);
 
     return NextResponse.json({ keys });
   } catch (error) {
@@ -20,7 +20,7 @@ export async function GET() {
 
 export async function POST(request: NextRequest) {
   try {
-    const user = await requireAuth();
+    const user = await requireAuthWithOrg();
 
     const body = await request.json();
     const { name, description, permissions, rate_limit, expires_at } = body;
@@ -32,7 +32,7 @@ export async function POST(request: NextRequest) {
     const { apiKey, plainKey } = await apiKeysService.create({
       name: name.trim(),
       description: description?.trim() || null,
-      organization_id: user.organization_id,
+      organization_id: user.organization_id!!,
       user_id: user.id,
       permissions: permissions || [],
       rate_limit: rate_limit || 1000,

@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { requireAuth } from "@/lib/auth";
+import { requireAuthWithOrg } from "@/lib/auth";
 import { marketplaceService } from "@/lib/services/marketplace";
 import { logger } from "@/lib/utils/logger";
 
@@ -10,7 +10,7 @@ export async function POST(
   { params }: { params: Promise<{ id: string }> },
 ) {
   try {
-    const user = await requireAuth();
+    const user = await requireAuthWithOrg();
     const { id } = await params;
 
     let body: { name?: string; makePublic?: boolean } = {};
@@ -29,7 +29,7 @@ export async function POST(
     const clonedCharacter = await marketplaceService.cloneCharacter(
       id,
       user.id,
-      user.organization_id,
+      user.organization_id!,
       {
         name: body.name,
         makePublic: body.makePublic,

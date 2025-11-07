@@ -21,6 +21,35 @@ Custom utility classes are defined in `app/globals.css`:
 - `.brand-tab` - Tab button styling
 - `.brand-tab-active` - Active tab state
 
+### HUD Button Props
+
+- `withCorners` - Add animated corner brackets (orange brand color)
+- `hudEffect` - Enable HUD-style hover/click movement with ghost shadow
+- `variant` - Button style: `primary`, `hud`, `ghost`, `outline`, `icon`, `icon-primary`
+- `size` - Button size: `sm`, `md`, `lg`, `icon`
+
+### Usage Examples
+
+```tsx
+import { BrandButton } from "@/components/brand";
+import { Plus } from "lucide-react";
+
+// Full HUD button with corners and movement
+<BrandButton variant="hud" withCorners hudEffect>
+  <Plus /> New Agent
+</BrandButton>
+
+// Primary button with HUD effect
+<BrandButton variant="primary" hudEffect>
+  Create Project
+</BrandButton>
+
+// With corners only (no movement)
+<BrandButton variant="hud" withCorners>
+  Static Button
+</BrandButton>
+```
+
 ## Components
 
 ### CornerBrackets

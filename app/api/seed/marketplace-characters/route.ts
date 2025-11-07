@@ -8,7 +8,7 @@
  */
 
 import { NextResponse } from "next/server";
-import { requireAuth } from "@/lib/auth";
+import { requireAuthWithOrg } from "@/lib/auth";
 import { db } from "@/db/client";
 import { userCharacters } from "@/db/schemas/user-characters";
 import { eq } from "drizzle-orm";
@@ -456,11 +456,11 @@ const TEMPLATE_CHARACTERS: TemplateCharacter[] = [
 
 export async function POST() {
   try {
-    const user = await requireAuth();
+    const user = await requireAuthWithOrg();
 
     logger.info("[Seed API] Seeding marketplace characters", {
       userId: user.id,
-      orgId: user.organization_id,
+      orgId: user.organization_id!,
     });
 
     // Check if we already have template characters
@@ -490,7 +490,7 @@ export async function POST() {
         const [created] = await db
           .insert(userCharacters)
           .values({
-            organization_id: user.organization_id,
+            organization_id: user.organization_id!!,
             user_id: user.id,
             name: template.name,
             username: template.username,
@@ -543,7 +543,7 @@ export async function POST() {
 
     if (successCount > 0) {
       logger.info("[Seed API] Invalidating marketplace cache");
-      await marketplaceCache.invalidateAll(user.organization_id);
+      await marketplaceCache.invalidateAll(user.organization_id!);
     }
 
     return NextResponse.json({

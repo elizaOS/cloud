@@ -6,7 +6,7 @@ import { type Organization } from "../schemas/organizations";
 export type { User, NewUser };
 
 export interface UserWithOrganization extends User {
-  organization: Organization;
+  organization: Organization | null;
 }
 
 export class UsersRepository {
