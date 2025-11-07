@@ -12,13 +12,22 @@ export const metadata: Metadata = {
 // Force dynamic rendering since we use server-side auth (cookies)
 export const dynamic = "force-dynamic";
 
-export default async function CharacterCreatorPage() {
+interface PageProps {
+  searchParams: Promise<{ id?: string }>;
+}
+
+export default async function CharacterCreatorPage({ searchParams }: PageProps) {
   await requireAuth();
   const characters = await listCharacters();
+  const params = await searchParams;
+  const characterId = params.id;
 
   return (
     <div className="h-full">
-      <CharacterCreatorClient initialCharacters={characters} />
+      <CharacterCreatorClient
+        initialCharacters={characters}
+        initialCharacterId={characterId}
+      />
     </div>
   );
 }

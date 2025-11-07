@@ -20,6 +20,7 @@ export function CategoryTabs({
   return (
     <div className="border-b">
       <Tabs
+        id="marketplace-category-tabs"
         value={activeCategory || "all"}
         onValueChange={(value) =>
           onCategoryChange(value === "all" ? null : (value as CategoryId))

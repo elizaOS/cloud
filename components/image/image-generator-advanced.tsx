@@ -404,6 +404,7 @@ export function ImageGeneratorAdvanced() {
       {/* Right Panel - Preview & History */}
       <div className="flex-1 space-y-4">
         <BrandTabs
+          id="image-generator-tabs"
           value={activeTab}
           onValueChange={setActiveTab}
           className="w-full"

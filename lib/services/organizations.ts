@@ -81,3 +81,6 @@ export class OrganizationsService {
 
 // Export singleton instance
 export const organizationsService = new OrganizationsService();
+
+// Re-export types for convenience
+export type { Organization, NewOrganization } from "@/db/repositories";

@@ -1,6 +1,7 @@
 "use client";
 
-import { useState, useCallback } from "react";
+import { useState, useCallback, useEffect } from "react";
+import { useRouter } from "next/navigation";
 import { AiAssistant } from "./ai-assistant";
 import { JsonEditor } from "./json-editor";
 import { CharacterForm } from "./character-form";
@@ -11,10 +12,11 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
 import { createCharacter, updateCharacter } from "@/app/actions/characters";
 import type { ElizaCharacter } from "@/lib/types";
-import { PanelLeftClose, PanelLeftOpen } from "lucide-react";
+import { PanelLeftClose, PanelLeftOpen, MessageSquare } from "lucide-react";
 import { useSetPageHeader } from "@/components/layout/page-header-context";
 import {
   BrandTabs,
@@ -28,6 +30,7 @@ import {
 
 interface CharacterCreatorClientProps {
   initialCharacters: ElizaCharacter[];
+  initialCharacterId?: string;
 }
 
 const defaultCharacter: ElizaCharacter = {
@@ -46,16 +49,33 @@ const defaultCharacter: ElizaCharacter = {
 
 export function CharacterCreatorClient({
   initialCharacters,
+  initialCharacterId,
 }: CharacterCreatorClientProps) {
+  const router = useRouter();
   const [character, setCharacter] = useState<ElizaCharacter>(defaultCharacter);
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [showAssistant, setShowAssistant] = useState(true);
+
+  // Load character from URL parameter on mount
+  useEffect(() => {
+    if (initialCharacterId) {
+      const char = initialCharacters.find((c) => c.id === initialCharacterId);
+      if (char) {
+        setCharacter(char);
+        setSelectedId(initialCharacterId);
+        console.log(
+          "[Character Creator] Loaded character from URL:",
+          char.name
+        );
+      }
+    }
+  }, [initialCharacterId, initialCharacters]);
 
   const handleCharacterUpdate = useCallback(
     (updates: Partial<ElizaCharacter>) => {
       setCharacter((prev) => ({ ...prev, ...updates }));
     },
-    [],
+    []
   );
 
   const handleSave = useCallback(async () => {
@@ -70,14 +90,30 @@ export function CharacterCreatorClient({
     }
 
     try {
+      let savedCharacterId: string | null = selectedId;
+
       if (selectedId) {
         await updateCharacter(selectedId, character);
+        toast.success("Character updated successfully!");
       } else {
         const saved = await createCharacter(character);
-        setSelectedId(saved.id || null);
+        savedCharacterId = saved.id || null;
+        setSelectedId(savedCharacterId);
+
+        // Show simple success toast
+        toast.success("Character created successfully!", {
+          description:
+            "You can now test your character in chat or continue editing.",
+          duration: 4000,
+        });
       }
     } catch (error) {
-      throw error;
+      console.error("Error saving character:", error);
+      toast.error(
+        error instanceof Error
+          ? error.message
+          : "Failed to save character. Please try again."
+      );
     }
   }, [character, selectedId]);
 
@@ -90,7 +126,7 @@ export function CharacterCreatorClient({
         toast.success("Character loaded");
       }
     },
-    [initialCharacters],
+    [initialCharacters]
   );
 
   const handleNewCharacter = useCallback(() => {
@@ -128,6 +164,18 @@ export function CharacterCreatorClient({
               ))}
             </SelectContent>
           </Select>
+          {selectedId && (
+            <BrandButton
+              variant="primary"
+              size="sm"
+              onClick={() =>
+                router.push(`/dashboard/chat?characterId=${selectedId}`)
+              }
+            >
+              <MessageSquare className="mr-2 h-4 w-4" />
+              Test in Chat
+            </BrandButton>
+          )}
           <BrandButton
             variant="outline"
             size="sm"
@@ -154,7 +202,8 @@ export function CharacterCreatorClient({
       initialCharacters,
       handleNewCharacter,
       handleLoadCharacter,
-    ],
+      router,
+    ]
   );
 
   return (
@@ -179,6 +228,7 @@ export function CharacterCreatorClient({
             <CornerBrackets size="sm" className="opacity-50" />
 
             <BrandTabs
+              id="character-editor-tabs"
               defaultValue="json"
               className="flex h-full flex-col relative z-10"
             >
