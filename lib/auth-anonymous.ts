@@ -5,7 +5,7 @@
  * Anonymous users can access limited features without signing up.
  *
  * Flow:
- * 1. User visits /dashboard/eliza without auth
+ * 1. User visits /dashboard/chat without auth
  * 2. System creates anonymous user + session
  * 3. Session cookie tracks the user (7 day expiry)
  * 4. User gets 10 free messages (tracked per session, NOT via credits)

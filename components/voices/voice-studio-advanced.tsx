@@ -217,7 +217,7 @@ export function VoiceStudioAdvanced({
   };
 
   const handleUseInTTS = (voice: Voice) => {
-    router.push(`/dashboard/eliza?voiceId=${voice.elevenlabsVoiceId}`);
+    router.push(`/dashboard/chat?voiceId=${voice.elevenlabsVoiceId}`);
   };
 
   const formatDuration = (seconds: number | null) => {

@@ -27,7 +27,7 @@ export function MyAgentsClient() {
 
         toast.success(`Opening chat with ${character.name}...`);
 
-        router.push(`/dashboard/eliza?characterId=${character.id}`);
+        router.push(`/dashboard/chat?characterId=${character.id}`);
       } catch (error) {
         console.error("[My Agents] Error navigating to chat:", error);
         toast.error(

@@ -29,7 +29,7 @@ export async function generateMetadata({
   if (!characterId) {
     return generatePageMetadata({
       ...ROUTE_METADATA.eliza,
-      path: "/dashboard/eliza",
+      path: "/dashboard/chat",
       noIndex: true,
     });
   }
@@ -58,7 +58,7 @@ export async function generateMetadata({
       return {
         ...metadata,
         alternates: {
-          canonical: `/dashboard/eliza?characterId=${characterId}`,
+          canonical: `/dashboard/chat?characterId=${characterId}`,
         },
         robots: {
           index: false,
@@ -73,7 +73,7 @@ export async function generateMetadata({
   // Fallback to default metadata
   return generatePageMetadata({
     ...ROUTE_METADATA.eliza,
-    path: "/dashboard/eliza",
+    path: "/dashboard/chat",
     noIndex: true,
   });
 }
