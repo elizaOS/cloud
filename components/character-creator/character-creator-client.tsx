@@ -97,38 +97,11 @@ export function CharacterCreatorClient({
         savedCharacterId = saved.id || null;
         setSelectedId(savedCharacterId);
 
-        // Show enhanced success toast with actions
-        toast.success(
-          <div className="flex flex-col gap-3">
-            <p className="font-medium">Character created successfully!</p>
-            <div className="flex gap-2">
-              <Button
-                size="sm"
-                variant="default"
-                className="h-8 text-xs"
-                onClick={() => {
-                  if (savedCharacterId) {
-                    router.push(`/dashboard/eliza?characterId=${savedCharacterId}`);
-                  }
-                }}
-              >
-                <MessageSquare className="h-3 w-3 mr-1" />
-                Test in Chat
-              </Button>
-              <Button
-                size="sm"
-                variant="outline"
-                className="h-8 text-xs"
-                onClick={() => {
-                  toast.dismiss();
-                }}
-              >
-                Continue Editing
-              </Button>
-            </div>
-          </div>,
-          { duration: 6000 }
-        );
+        // Show simple success toast
+        toast.success("Character created successfully!", {
+          description: "You can now test your character in chat or continue editing.",
+          duration: 4000,
+        });
       }
     } catch (error) {
       throw error;
@@ -182,6 +155,16 @@ export function CharacterCreatorClient({
               ))}
             </SelectContent>
           </Select>
+          {selectedId && (
+            <BrandButton
+              variant="primary"
+              size="sm"
+              onClick={() => router.push(`/dashboard/chat?characterId=${selectedId}`)}
+            >
+              <MessageSquare className="mr-2 h-4 w-4" />
+              Test in Chat
+            </BrandButton>
+          )}
           <BrandButton
             variant="outline"
             size="sm"
@@ -208,6 +191,7 @@ export function CharacterCreatorClient({
       initialCharacters,
       handleNewCharacter,
       handleLoadCharacter,
+      router,
     ],
   );
 

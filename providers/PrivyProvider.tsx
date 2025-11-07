@@ -1,11 +1,21 @@
 "use client";
 
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useMemo } from "react";
 import {
   PrivyProvider as PrivyProviderReactAuth,
   usePrivy,
+  type PrivyClientConfig,
 } from "@privy-io/react-auth";
 import { toSolanaWalletConnectors } from "@privy-io/react-auth/solana";
+
+// Define configuration outside component to prevent recreating on every render
+const loginMethods: ("wallet" | "email" | "google" | "discord" | "github")[] = [
+  "wallet",
+  "email",
+  "google",
+  "discord",
+  "github",
+];
 
 /**
  * Wrapper component to handle post-authentication logic
@@ -37,7 +47,7 @@ function PrivyAuthWrapper({ children }: { children: React.ReactNode }) {
     if (ready && authenticated && user && !migrationAttempted.current) {
       console.log(
         "[PrivyProvider] Starting anonymous session migration check for user:",
-        user.id,
+        user.id
       );
       migrationAttempted.current = true;
 
@@ -46,7 +56,7 @@ function PrivyAuthWrapper({ children }: { children: React.ReactNode }) {
 
       if (hasAnonSession) {
         console.log(
-          "[PrivyProvider] Found anonymous session cookie, attempting migration...",
+          "[PrivyProvider] Found anonymous session cookie, attempting migration..."
         );
         fetch("/api/auth/migrate-anonymous", {
           method: "POST",
@@ -56,24 +66,24 @@ function PrivyAuthWrapper({ children }: { children: React.ReactNode }) {
           .then((data) => {
             if (data.migrated) {
               console.log(
-                `[PrivyProvider] ✅ Successfully migrated ${data.messagesTransferred} anonymous messages`,
+                `[PrivyProvider] ✅ Successfully migrated ${data.messagesTransferred} anonymous messages`
               );
             } else {
               console.log(
-                `[PrivyProvider] No migration needed: ${data.message}`,
+                `[PrivyProvider] No migration needed: ${data.message}`
               );
             }
           })
           .catch((error) => {
             console.error(
               "[PrivyProvider] Failed to migrate anonymous session:",
-              error,
+              error
             );
             // Don't block user - this is non-critical
           });
       } else {
         console.log(
-          "[PrivyProvider] No anonymous session cookie found, skipping migration",
+          "[PrivyProvider] No anonymous session cookie found, skipping migration"
         );
       }
     } else {
@@ -94,18 +104,51 @@ export default function PrivyProvider({
 }: {
   children: React.ReactNode;
 }) {
+  // Memoize the config to prevent unnecessary re-renders (must be before early return)
+  const privyConfig = useMemo(
+    () =>
+      ({
+        loginMethods,
+        embeddedWallets: {
+          ethereum: {
+            createOnLogin: "users-without-wallets" as const,
+          },
+          solana: {
+            createOnLogin: "users-without-wallets" as const,
+          },
+        },
+        appearance: {
+          walletChainType: "ethereum-and-solana" as const,
+          theme: "dark" as const,
+          accentColor: "#6366F1" as `#${string}`,
+        },
+        externalWallets: {
+          solana: {
+            connectors: toSolanaWalletConnectors(),
+          },
+        },
+      }) as unknown as PrivyClientConfig,
+    []
+  );
+
   // Check if Privy App ID is configured
-  if (!process.env.NEXT_PUBLIC_PRIVY_APP_ID) {
-    console.error("NEXT_PUBLIC_PRIVY_APP_ID is not set!");
+  const appId = process.env.NEXT_PUBLIC_PRIVY_APP_ID;
+  const clientId = process.env.NEXT_PUBLIC_PRIVY_CLIENT_ID;
+
+  if (!appId || !clientId) {
+    console.error(
+      "NEXT_PUBLIC_PRIVY_APP_ID or NEXT_PUBLIC_PRIVY_CLIENT_ID is not set!"
+    );
     return (
       <div className="flex min-h-screen items-center justify-center">
         <div className="text-center">
           <h1 className="text-2xl font-bold text-red-600">
             Configuration Error
           </h1>
-          <p className="mt-2">Privy App ID is not configured.</p>
+          <p className="mt-2">Privy configuration is missing.</p>
           <p className="text-sm text-gray-500 mt-1">
-            Please set NEXT_PUBLIC_PRIVY_APP_ID in your environment variables.
+            Please set NEXT_PUBLIC_PRIVY_APP_ID and NEXT_PUBLIC_PRIVY_CLIENT_ID
+            in your environment variables.
           </p>
         </div>
       </div>
@@ -114,27 +157,9 @@ export default function PrivyProvider({
 
   return (
     <PrivyProviderReactAuth
-      appId={process.env.NEXT_PUBLIC_PRIVY_APP_ID!}
-      clientId={process.env.NEXT_PUBLIC_PRIVY_CLIENT_ID!}
-      config={{
-        loginMethods: ["wallet", "email", "google", "discord", "github"],
-        embeddedWallets: {
-          ethereum: {
-            createOnLogin: "users-without-wallets",
-          },
-          solana: {
-            createOnLogin: "users-without-wallets",
-          },
-        },
-        appearance: {
-          walletChainType: "ethereum-and-solana",
-          theme: "dark",
-          accentColor: "#6366F1",
-        },
-        externalWallets: {
-          solana: { connectors: toSolanaWalletConnectors() },
-        },
-      }}
+      appId={appId}
+      clientId={clientId}
+      config={privyConfig}
     >
       <PrivyAuthWrapper>{children}</PrivyAuthWrapper>
     </PrivyProviderReactAuth>

@@ -18,13 +18,12 @@ export type SortOption = "name" | "created" | "modified" | "recent";
 
 export function MyAgentsClient({ initialCharacters }: MyAgentsClientProps) {
   const router = useRouter();
-  const [characters] = useState<ElizaCharacter[]>(initialCharacters);
   const [searchQuery, setSearchQuery] = useState("");
   const [viewMode, setViewMode] = useState<ViewMode>("grid");
   const [sortBy, setSortBy] = useState<SortOption>("modified");
 
   // Filter characters based on search
-  const filteredCharacters = characters.filter((char) => {
+  const filteredCharacters = initialCharacters.filter((char) => {
     if (!searchQuery) return true;
     const query = searchQuery.toLowerCase();
     return (
@@ -62,7 +61,7 @@ export function MyAgentsClient({ initialCharacters }: MyAgentsClientProps) {
   useSetPageHeader(
     {
       title: "My Agents",
-      description: `Manage your ${characters.length} AI agent${characters.length !== 1 ? "s" : ""}`,
+      description: `Manage your ${initialCharacters.length} AI agent${initialCharacters.length !== 1 ? "s" : ""}`,
       actions: (
         <BrandButton onClick={handleCreateNew}>
           <Plus className="h-4 w-4 mr-2" />
@@ -70,7 +69,7 @@ export function MyAgentsClient({ initialCharacters }: MyAgentsClientProps) {
         </BrandButton>
       ),
     },
-    [characters.length, handleCreateNew]
+    [initialCharacters.length, handleCreateNew]
   );
 
   return (
@@ -82,7 +81,7 @@ export function MyAgentsClient({ initialCharacters }: MyAgentsClientProps) {
         onViewModeChange={setViewMode}
         sortBy={sortBy}
         onSortChange={setSortBy}
-        totalCount={characters.length}
+        totalCount={initialCharacters.length}
         filteredCount={filteredCharacters.length}
       />
 
