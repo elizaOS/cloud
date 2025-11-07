@@ -7,21 +7,10 @@ import OnChainTrust from "@/components/landing/OnChainTrust";
 import Agents from "@/components/landing/Agents";
 import Installation from "@/components/landing/Installation";
 import Footer from "@/components/landing/Footer";
-import { usePrivy } from "@privy-io/react-auth";
-import { useRouter } from "next/navigation";
-import { useEffect } from "react";
+import { useAuthRedirect } from "@/lib/hooks/use-auth-redirect";
 
 export function LandingPage() {
-  const { authenticated, ready } = usePrivy();
-  const router = useRouter();
-
-  // Auto-redirect to dashboard when authenticated
-  useEffect(() => {
-    if (ready && authenticated) {
-      console.log("User authenticated, redirecting to dashboard...");
-      router.push("/dashboard");
-    }
-  }, [ready, authenticated, router]);
+  useAuthRedirect({ redirectTo: "/dashboard" });
 
   return (
     <div className="flex min-h-screen flex-col">

@@ -1,12 +1,11 @@
 "use client";
 
-import { useState, useEffect } from "react";
-import { usePrivy } from "@privy-io/react-auth";
-import { useRouter } from "next/navigation";
+import { useState } from "react";
 import { Loader2 } from "lucide-react";
 import Sidebar from "@/components/layout/sidebar";
 import Header from "@/components/layout/header";
 import { PageHeaderProvider } from "@/components/layout/page-header-context";
+import { useAuthRedirect } from "@/lib/hooks/use-auth-redirect";
 
 export default function DashboardLayout({
   children,
@@ -14,15 +13,7 @@ export default function DashboardLayout({
   children: React.ReactNode;
 }) {
   const [sidebarOpen, setSidebarOpen] = useState(false);
-  const { ready, authenticated } = usePrivy();
-  const router = useRouter();
-
-  // Redirect to home if not authenticated
-  useEffect(() => {
-    if (ready && !authenticated) {
-      router.push("/");
-    }
-  }, [ready, authenticated, router]);
+  const { ready, authenticated } = useAuthRedirect({ requireAuth: true });
 
   // Show loading state while checking authentication
   if (!ready) {
