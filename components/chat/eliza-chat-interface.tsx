@@ -532,7 +532,7 @@ export function ElizaChatInterface({
 
         console.log("[ElizaChat STT] Transcription successful:", transcript);
 
-        // Auto-send the transcribed message directly (like /dashboard/eliza does)
+        // Auto-send the transcribed message directly (like /dashboard/chat does)
         if (roomId) {
           console.log("[ElizaChat STT] Auto-sending transcribed message...");
           await sendMessage(transcript);
