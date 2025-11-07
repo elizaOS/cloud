@@ -6,7 +6,7 @@
 "use client";
 
 import * as React from "react";
-import { BrandCard, CornerBrackets, BrandButton } from "@/components/brand";
+import { BrandCard, CornerBrackets, BrandButton, LockOnButton } from "@/components/brand";
 import { cn } from "@/lib/utils";
 import { Bot, MessageSquare, Plus, Sparkles } from "lucide-react";
 import Image from "next/image";
@@ -45,12 +45,12 @@ export function AgentsSection({ agents, className }: AgentsSectionProps) {
             Manage and interact with your AI agents
           </p>
         </div>
-        <BrandButton
+        <LockOnButton
           onClick={() => (window.location.href = "/dashboard/my-agents")}
           icon={<Plus className="h-4 w-4" />}
         >
           New Agent
-        </BrandButton>
+        </LockOnButton>
       </div>
 
       {/* Agents Grid */}
