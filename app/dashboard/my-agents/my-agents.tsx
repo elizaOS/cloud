@@ -68,7 +68,7 @@ export function MyAgentsClient() {
         throw error;
       }
     },
-    [],
+    [router],
   );
 
   return (

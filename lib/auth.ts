@@ -56,6 +56,11 @@ export const getCurrentUser = cache(
         return null;
       }
 
+      console.log("[Auth] Privy token verified:", {
+        userId: verifiedClaims.userId,
+        issuedAt: verifiedClaims.issuedAt,
+      });
+
       // Get user from database by Privy ID
       let user = await usersService.getByPrivyId(verifiedClaims.userId);
 
@@ -69,6 +74,13 @@ export const getCurrentUser = cache(
         try {
           // Fetch full user data from Privy API
           const privyUser = await privyClient.getUser(verifiedClaims.userId);
+
+          console.log("[Auth] Fetched user from Privy API:", {
+            userId: privyUser?.id,
+            hasEmail: !!privyUser?.email,
+            hasLinkedAccounts: !!privyUser?.linkedAccounts,
+            linkedAccountsCount: privyUser?.linkedAccounts?.length || 0,
+          });
 
           if (privyUser) {
             // Import the sync logic from webhook

@@ -235,6 +235,7 @@ export function VoiceStudioAdvanced({
 
   return (
     <Tabs
+      id="voice-studio-tabs"
       defaultValue="voices"
       className="w-full h-[calc(100vh-180px)] flex flex-col"
     >
