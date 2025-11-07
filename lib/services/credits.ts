@@ -16,6 +16,7 @@ import {
   markLowCreditsEmailSent,
 } from "@/lib/email/utils/rate-limiter";
 import { CacheInvalidation } from "@/lib/cache/invalidation";
+import { invalidateOrganizationCache } from "@/lib/cache/organizations-cache";
 import { userSessionsService } from "./user-sessions";
 
 // Parameter types for consistent API signatures

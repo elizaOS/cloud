@@ -200,9 +200,10 @@ export default function LoginPage() {
     try {
       console.log("[LoginPage] 📡 Calling Privy login() to open authentication modal...");
       // Use login() instead of connectWallet() for authentication
-      // This opens the Privy modal and waits for user to complete wallet connection
+      // This opens the Privy modal (non-blocking, returns immediately)
+      // Authentication state changes are handled via the authenticated state in useEffect
       login();
-      console.log("[LoginPage] ✅ Login modal opened, waiting for user interaction...");
+      console.log("[LoginPage] ✅ Login modal triggered, user interaction in progress...");
 
       // Reset the guard after a short delay to allow modal to open
       // Modal closing without auth will be handled by user closing it

@@ -79,6 +79,11 @@ export interface MCPToolContext {
 export async function createMCPContext(
   user: UserWithOrganization
 ): Promise<MCPToolContext> {
+  // Ensure user has an organization (MCP tools not available for anonymous users)
+  if (!user.organization_id) {
+    throw new Error("User must belong to an organization to use MCP tools");
+  }
+
   // Get cached organization (90% faster than DB query)
   const org = await getCachedOrganization(user.organization_id);
 
