@@ -133,12 +133,6 @@ export const ROUTE_METADATA = {
       "Explore and test elizaOS Platform APIs. Interactive documentation and live testing environment.",
     keywords: ["API explorer", "API docs", "REST API", "elizaOS API"],
   },
-  mcpPlayground: {
-    title: "MCP Playground",
-    description:
-      "Interactive Model Context Protocol (MCP) explorer. Test and experiment with MCP servers and tools.",
-    keywords: ["MCP", "Model Context Protocol", "MCP playground", "AI tools"],
-  },
   billing: {
     title: "Billing & Credits",
     description:
