@@ -4,8 +4,10 @@
  */
 
 export { CornerBrackets } from "./corner-brackets";
-export { LockOnButton, BrandButton } from "./lock-on-button";
+export { LockOnButton } from "./lock-on-button";
 export type { LockOnButtonProps } from "./lock-on-button";
+export { BrandButton, brandButtonVariants } from "./brand-button";
+export type { BrandButtonProps } from "./brand-button";
 export {
   BrandTabs,
   BrandTabsList,

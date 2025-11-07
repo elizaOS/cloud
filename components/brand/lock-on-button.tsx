@@ -205,6 +205,3 @@ export function LockOnButton({
     </Comp>
   );
 }
-
-// Export as BrandButton for backwards compatibility
-export { LockOnButton as BrandButton };
