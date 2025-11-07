@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
 import {
   usePrivy,
   useLoginWithEmail,
@@ -37,6 +37,10 @@ export default function LoginPage() {
   const [loadingButton, setLoadingButton] = useState<string | null>(null);
   const [isSyncing, setIsSyncing] = useState(false);
 
+  // Guard against multiple simultaneous login() calls (critical for macOS/Brave)
+  const loginInProgressRef = useRef(false);
+  const lastLoginAttemptRef = useRef<number>(0);
+
   // Log initial Privy state on mount
   useEffect(() => {
     console.log("[LoginPage] Component mounted with Privy state:", {
@@ -68,7 +72,8 @@ export default function LoginPage() {
 
     if (ready && authenticated) {
       console.log("[LoginPage] ✅ Authentication successful, preparing redirect to dashboard");
-      // Clear any loading states
+      // Clear guards and loading states
+      loginInProgressRef.current = false;
       setLoadingButton(null);
       // Show syncing state before redirect
       setIsSyncing(true);
@@ -82,10 +87,16 @@ export default function LoginPage() {
       return () => clearTimeout(timer);
     } else if (ready && !authenticated) {
       console.log("[LoginPage] ⏳ Privy ready but not authenticated yet");
+      // If we're ready but not authenticated, ensure guard is cleared
+      // (handles case where user closes modal without connecting)
+      if (loginInProgressRef.current && !loadingButton) {
+        console.log("[LoginPage] Clearing stale login guard");
+        loginInProgressRef.current = false;
+      }
     } else if (!ready) {
       console.log("[LoginPage] ⏳ Waiting for Privy to be ready...");
     }
-  }, [ready, authenticated, router]);
+  }, [ready, authenticated, router, loadingButton]);
 
   // Monitor email state to show code input
   useEffect(() => {
@@ -155,20 +166,54 @@ export default function LoginPage() {
 
   const handleWalletConnect = async () => {
     console.log("[LoginPage] 🔵 Wallet connect button clicked");
+
+    // Guard: Prevent multiple simultaneous login attempts (macOS/Brave issue)
+    if (loginInProgressRef.current) {
+      console.log("[LoginPage] ⚠️ Login already in progress, ignoring duplicate call");
+      return;
+    }
+
+    // Debounce: Prevent rapid successive calls (500ms cooldown)
+    const now = Date.now();
+    if (now - lastLoginAttemptRef.current < 500) {
+      console.log("[LoginPage] ⚠️ Login called too quickly, debouncing");
+      return;
+    }
+
+    // Guard: Don't open login if already authenticated
+    if (authenticated) {
+      console.log("[LoginPage] ⚠️ Already authenticated, skipping login");
+      return;
+    }
+
     console.log("[LoginPage] Current Privy state before login:", {
       ready,
       authenticated,
       hasUser: !!user,
     });
 
+    // Set guards
+    loginInProgressRef.current = true;
+    lastLoginAttemptRef.current = now;
     setLoadingButton("wallet");
+
     try {
       console.log("[LoginPage] 📡 Calling Privy login() to open authentication modal...");
       // Use login() instead of connectWallet() for authentication
       // This opens the Privy modal and waits for user to complete wallet connection
       login();
       console.log("[LoginPage] ✅ Login modal opened, waiting for user interaction...");
-      // Don't show success toast here - wait for authenticated state change
+
+      // Reset the guard after a short delay to allow modal to open
+      // Modal closing without auth will be handled by user closing it
+      setTimeout(() => {
+        if (!authenticated) {
+          console.log("[LoginPage] Resetting login guard (modal likely closed or timed out)");
+          loginInProgressRef.current = false;
+          setLoadingButton(null);
+        }
+      }, 2000); // 2 second timeout
+
     } catch (error) {
       console.error("[LoginPage] ❌ Error opening login modal:", error);
       console.error("[LoginPage] Error details:", {
@@ -176,9 +221,9 @@ export default function LoginPage() {
         errorMessage: error instanceof Error ? error.message : String(error),
       });
       toast.error("Failed to open login modal");
+      loginInProgressRef.current = false;
       setLoadingButton(null);
     }
-    // Note: Don't clear loading state here - let the auth state change handle it
   };
 
   const handleBackToEmail = () => {
