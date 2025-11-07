@@ -60,6 +60,7 @@ export function OrganizationTab({ user }: OrganizationTabProps) {
 
       {/* Tabs */}
       <BrandTabs
+        id="organization-tabs"
         value={activeTab}
         onValueChange={setActiveTab}
         className="w-full"

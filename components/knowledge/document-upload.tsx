@@ -208,7 +208,7 @@ export function DocumentUpload({ onUploadSuccess }: DocumentUploadProps) {
         </Alert>
       )}
 
-      <Tabs defaultValue="file" className="w-full">
+      <Tabs id="document-upload-tabs" defaultValue="file" className="w-full">
         <TabsList className="grid w-full grid-cols-2">
           <TabsTrigger value="file">Upload File</TabsTrigger>
           <TabsTrigger value="text">Paste Text</TabsTrigger>

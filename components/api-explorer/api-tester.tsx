@@ -576,7 +576,7 @@ export function ApiTester({
         </Button>
       </div>
 
-      <Tabs value={activeTab} onValueChange={setActiveTab}>
+      <Tabs id="api-tester-tabs" value={activeTab} onValueChange={setActiveTab}>
         <TabsList className="mb-4 w-full justify-start">
           <TabsTrigger value="parameters">Parameters</TabsTrigger>
           <TabsTrigger value="response">
