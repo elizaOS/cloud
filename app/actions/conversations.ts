@@ -18,7 +18,7 @@ export async function createConversationAction(data: {
     status: "active",
   });
 
-  revalidatePath("/dashboard/eliza");
+  revalidatePath("/dashboard/chat");
   return { success: true, conversation };
 }
 
@@ -36,7 +36,7 @@ export async function updateConversationTitleAction(
     return { success: false, error: "Conversation not found" };
   }
 
-  revalidatePath("/dashboard/eliza");
+  revalidatePath("/dashboard/chat");
   return { success: true, conversation };
 }
 
@@ -45,7 +45,7 @@ export async function deleteConversationAction(conversationId: string) {
 
   await conversationsService.delete(conversationId);
 
-  revalidatePath("/dashboard/eliza");
+  revalidatePath("/dashboard/chat");
   return { success: true };
 }
 

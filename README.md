@@ -536,7 +536,7 @@ npm run bootstrapper:build  # Build container bootstrapper
 
 ### 1. AI Text Generation
 
-**Location**: `/dashboard/eliza` and `/app/api/v1/chat/route.ts`
+**Location**: `/dashboard/chat` and `/app/api/v1/chat/route.ts`
 
 **Features**:
 
@@ -810,7 +810,7 @@ Authorization: Bearer eliza_your_api_key
 
 ### 6. ElizaOS Agent Integration
 
-**Location**: `/dashboard/eliza` and `lib/eliza/`
+**Location**: `/dashboard/chat` and `lib/eliza/`
 
 **Features**:
 

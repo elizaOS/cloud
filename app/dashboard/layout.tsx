@@ -12,14 +12,14 @@ import { PageHeaderProvider } from "@/components/layout/page-header-context";
  * Dashboard Layout - Supports both authenticated and anonymous users
  *
  * Free Mode Paths (accessible without auth):
- * - /dashboard/eliza - ElizaOS agent chat (FREE!)
+ * - /dashboard/chat - AI agent chat (FREE!)
  *
  * Protected Paths (require authentication):
  * - All other /dashboard/* routes
  */
 
 // Paths that allow anonymous/free access
-const FREE_MODE_PATHS = ["/dashboard/eliza"];
+const FREE_MODE_PATHS = ["/dashboard/chat"];
 
 export default function DashboardLayout({
   children,

@@ -65,12 +65,12 @@ Core functions:
 
 #### Updated `/app/dashboard/layout.tsx`
 
-- **Free mode paths**: `/dashboard/eliza` and `/dashboard/eliza` accessible without auth
+- **Free mode paths**: `/dashboard/chat` accessible without auth
 - **Protected paths**: All other routes require authentication
 - **Progressive experience**: Anonymous users see signup prompts
 - **Seamless UX**: No jarring "login required" screens
 
-#### Updated `/app/dashboard/eliza/page.tsx`
+#### Updated `/app/dashboard/chat/page.tsx`
 
 - **Dual user support**: Handles both authenticated and anonymous users
 - **Session data**: Passes anonymous session info to client
@@ -120,7 +120,7 @@ Core functions:
 ### New Anonymous User
 
 ```
-1. User visits /dashboard/eliza (no auth)
+1. User visits /dashboard/chat (no auth)
 2. System creates anonymous user record
 3. System creates session record
 4. Sets HTTP-only cookie (7 days)
@@ -184,7 +184,7 @@ users: {
 ### 6. Landing Page
 
 - [ ] Add chat input on homepage
-- [ ] Redirect to /dashboard/eliza on submit
+- [ ] Redirect to /dashboard/chat on submit
 - [ ] Pre-fill first message from landing page
 
 ### 7. Privy Webhook Integration
@@ -232,7 +232,7 @@ npm run db:migrate
 
 ### 3. Testing Checklist
 
-- [ ] Create anonymous session (visit /dashboard/eliza)
+- [ ] Create anonymous session (visit /dashboard/chat)
 - [ ] Send messages (verify counter decrements)
 - [ ] Hit message limit (see signup prompt)
 - [ ] Sign up (verify data migration)
@@ -289,7 +289,7 @@ logger.info("auth-anonymous", "User converted", {
 ### Anonymous User Journey
 
 1. **Landing page** → See chat input
-2. **Type message** → Redirect to /dashboard/eliza
+2. **Type message** → Redirect to /dashboard/chat
 3. **Auto-login** → Anonymous session created (seamless)
 4. **Chat freely** → 10 free messages
 5. **See prompts** → At 5 messages, 8 messages, 10 messages
@@ -340,7 +340,7 @@ logger.info("auth-anonymous", "User converted", {
 ### Dashboard Pages
 
 - `app/dashboard/layout.tsx` - Free mode routing
-- `app/dashboard/eliza/page.tsx` - Chat page with anonymous support
+- `app/dashboard/chat/page.tsx` - Chat page with anonymous support
 
 ### Components (To Be Created)
 

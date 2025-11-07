@@ -93,7 +93,7 @@ function AgentCard({ agent }: { agent: Agent }) {
     bioText.length > 100 ? `${bioText.substring(0, 100)}...` : bioText;
 
   return (
-    <Link href={`/dashboard/eliza?characterId=${agent.id}`}>
+    <Link href={`/dashboard/chat?characterId=${agent.id}`}>
       <BrandCard
         corners={true}
         cornerSize="sm"
