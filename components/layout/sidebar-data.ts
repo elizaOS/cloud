@@ -79,10 +79,10 @@ export const sidebarSections: SidebarSection[] = [
     items: [
       {
         id: "eliza-agent",
-        label: "Eliza Agent",
-        href: "/dashboard/eliza",
+        label: "Chat",
+        href: "/dashboard/chat",
         icon: Bot,
-        freeAllowed: true, // Free tier can access Eliza chat
+        freeAllowed: true, // Free tier can access Chat
       },
       {
         id: "my-agents",

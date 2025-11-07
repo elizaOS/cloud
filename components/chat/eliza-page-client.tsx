@@ -30,9 +30,9 @@ export function ElizaPageClient({
   );
 
   useSetPageHeader({
-    title: "Eliza Agent",
+    title: "Chat",
     description:
-      "Chat with Eliza using the full ElizaOS runtime with persistent memory and room-based conversations.",
+      "Chat with AI agents using the full ElizaOS runtime with persistent memory and room-based conversations.",
   });
 
   // Initialize anonymous session for unauthenticated users
@@ -60,7 +60,7 @@ export function ElizaPageClient({
   useEffect(() => {
     const characterId = searchParams.get("characterId");
     if (characterId) {
-      console.log("[Eliza Page] Character ID from URL:", characterId);
+      console.log("[Chat Page] Character ID from URL:", characterId);
       // Set character ID asynchronously to avoid cascading renders
       Promise.resolve().then(() => {
         setInitialCharacterId(characterId);

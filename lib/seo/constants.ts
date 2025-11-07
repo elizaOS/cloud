@@ -70,10 +70,10 @@ export const ROUTE_METADATA = {
     ],
   },
   eliza: {
-    title: "Eliza Agent",
+    title: "Chat",
     description:
-      "Chat with Eliza using the full ElizaOS runtime with persistent memory and room-based conversations.",
-    keywords: ["Eliza", "AI chat", "ElizaOS runtime", "AI agent"],
+      "Chat with AI agents using the full ElizaOS runtime with persistent memory and room-based conversations.",
+    keywords: ["Chat", "AI chat", "ElizaOS runtime", "AI agent"],
   },
   characterCreator: {
     title: "Character Creator",

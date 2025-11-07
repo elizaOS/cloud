@@ -37,7 +37,7 @@ const TopHero = () => {
 
     // Redirect to Eliza chat (anonymous users will be created automatically)
     // Use window.location for reliable navigation
-    window.location.href = "/dashboard/eliza";
+    window.location.href = "/dashboard/chat";
   };
 
   const handleChatKeyPress = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {

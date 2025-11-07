@@ -72,7 +72,7 @@ export function CharacterDetailClient({
 
               <div className="pt-4">
                 <Button asChild className="w-full" size="lg">
-                  <Link href={`/dashboard/eliza?characterId=${character.id}`}>
+                  <Link href={`/dashboard/chat?characterId=${character.id}`}>
                     <MessageSquare className="h-4 w-4 mr-2" />
                     Start Chatting
                   </Link>

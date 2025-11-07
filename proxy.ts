@@ -12,7 +12,7 @@ const privyClient = new PrivyClient(
 const publicPaths = [
   "/",
   "/marketplace",
-  "/dashboard/eliza", // FREE MODE: Allow anonymous access to Eliza chat
+  "/dashboard/chat", // FREE MODE: Allow anonymous access to Chat
   "/api/eliza", // Allow anonymous access to Eliza API routes
   "/api/models",
   "/api/fal/proxy",
