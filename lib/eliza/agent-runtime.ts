@@ -227,20 +227,24 @@ class AgentRuntimeManager {
       );
 
       // Construct settings with proper fallback for API keys
-      const openaiKeyRaw =
-        process.env.OPENAI_API_KEY ||
-        agent.character.secrets?.OPENAI_API_KEY ||
-        agent.character.settings?.OPENAI_API_KEY;
+      const elizaCloudKeyRaw =
+        process.env.ELIZAOS_CLOUD_API_KEY ||
+        agent.character.secrets?.ELIZAOS_CLOUD_API_KEY ||
+        agent.character.settings?.ELIZAOS_CLOUD_API_KEY;
 
-      const openaiKey =
-        typeof openaiKeyRaw === "string"
-          ? openaiKeyRaw
-          : String(openaiKeyRaw || "");
+      const elizaCloudKey =
+        typeof elizaCloudKeyRaw === "string"
+          ? elizaCloudKeyRaw
+          : String(elizaCloudKeyRaw || "");
 
-      if (!openaiKey || openaiKey === "" || openaiKey === "undefined") {
+      if (
+        !elizaCloudKey ||
+        elizaCloudKey === "" ||
+        elizaCloudKey === "undefined"
+      ) {
         elizaLogger.warn(
           "#Eliza",
-          "⚠️  OPENAI_API_KEY not configured - AI features may fail. Set in environment or character secrets.",
+          "⚠️  ELIZAOS_CLOUD_API_KEY not configured - AI features may fail. User API key should be injected at runtime.",
         );
       }
 
@@ -249,7 +253,7 @@ class AgentRuntimeManager {
         plugins: pluginsWithoutSql as Plugin[],
         agentId: RUNTIME_AGENT_ID,
         settings: {
-          OPENAI_API_KEY: openaiKey,
+          ELIZAOS_CLOUD_API_KEY: elizaCloudKey,
           POSTGRES_URL: process.env.DATABASE_URL,
           DATABASE_URL: process.env.DATABASE_URL,
           ...agent.character.settings,
@@ -487,21 +491,25 @@ class AgentRuntimeManager {
       (p) => p.name !== "@elizaos/plugin-sql",
     );
 
-    // Extract OpenAI API key with proper fallbacks
-    const openaiKeyRaw =
-      process.env.OPENAI_API_KEY ||
-      character.secrets?.OPENAI_API_KEY ||
-      character.settings?.OPENAI_API_KEY;
+    // Extract ElizaCloud API key with proper fallbacks
+    const elizaCloudKeyRaw =
+      process.env.ELIZAOS_CLOUD_API_KEY ||
+      character.secrets?.ELIZAOS_CLOUD_API_KEY ||
+      character.settings?.ELIZAOS_CLOUD_API_KEY;
 
-    const openaiKey =
-      typeof openaiKeyRaw === "string"
-        ? openaiKeyRaw
-        : String(openaiKeyRaw || "");
+    const elizaCloudKey =
+      typeof elizaCloudKeyRaw === "string"
+        ? elizaCloudKeyRaw
+        : String(elizaCloudKeyRaw || "");
 
-    if (!openaiKey || openaiKey === "" || openaiKey === "undefined") {
+    if (
+      !elizaCloudKey ||
+      elizaCloudKey === "" ||
+      elizaCloudKey === "undefined"
+    ) {
       elizaLogger.warn(
         "#Eliza",
-        "⚠️  OPENAI_API_KEY not configured - AI features may fail",
+        "⚠️  ELIZAOS_CLOUD_API_KEY not configured - AI features may fail",
       );
     }
 
@@ -511,7 +519,7 @@ class AgentRuntimeManager {
       plugins: pluginsWithoutSql as Plugin[],
       agentId: desiredAgentId,
       settings: {
-        OPENAI_API_KEY: openaiKey,
+        ELIZAOS_CLOUD_API_KEY: elizaCloudKey,
         POSTGRES_URL: process.env.DATABASE_URL,
         DATABASE_URL: process.env.DATABASE_URL,
         ...character.settings,
@@ -606,14 +614,42 @@ class AgentRuntimeManager {
     entityId: string,
     content: { text?: string; attachments?: unknown[] },
     characterId?: string,
+    userSettings?: {
+      userId?: string;
+      apiKey?: string;
+      modelPreferences?: {
+        smallModel?: string;
+        largeModel?: string;
+      };
+    },
   ): Promise<{
     message: Memory;
     usage?: { inputTokens: number; outputTokens: number; model: string };
   }> {
     // Get runtime for specific character or default
-    const runtime = characterId
-      ? await this.getRuntimeForCharacter(characterId)
-      : await this.getRuntime();
+    let runtime: AgentRuntime;
+    
+    if (characterId) {
+      runtime = await this.getRuntimeForCharacter(characterId);
+    } else {
+      runtime = await this.getRuntime();
+    }
+    
+    // Inject user's API key if provided (for per-request authentication)
+    if (userSettings?.apiKey) {
+      // Create a temporary runtime-specific settings object
+      // This doesn't mutate the cached runtime, just overrides for this request
+      runtime.character.settings = {
+        ...runtime.character.settings,
+        ELIZAOS_CLOUD_API_KEY: userSettings.apiKey,
+        ...(userSettings.modelPreferences?.smallModel && {
+          ELIZAOS_CLOUD_SMALL_MODEL: userSettings.modelPreferences.smallModel,
+        }),
+        ...(userSettings.modelPreferences?.largeModel && {
+          ELIZAOS_CLOUD_LARGE_MODEL: userSettings.modelPreferences.largeModel,
+        }),
+      };
+    }
 
     // OPTIMIZATION: Check connection cache before calling ensureConnection
     // This avoids a DB query on every message for established connections

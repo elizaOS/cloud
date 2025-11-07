@@ -19,6 +19,7 @@ interface SendMessageOptions {
   roomId: string;
   entityId: string;
   text: string;
+  model?: string; // Optional model selection
   onMessage: (message: StreamingMessage) => void;
   onError?: (error: string) => void;
   onComplete?: () => void;
@@ -32,6 +33,7 @@ export async function sendStreamingMessage({
   roomId,
   entityId,
   text,
+  model,
   onMessage,
   onError,
   onComplete,
@@ -45,6 +47,7 @@ export async function sendStreamingMessage({
       body: JSON.stringify({
         entityId,
         text,
+        ...(model && { model }), // Include model if provided
       }),
     });
 

@@ -13,6 +13,7 @@ import {
   emailService,
   invitesService,
   discordService,
+  apiKeysService,
 } from "@/lib/services";
 import type { UserWithOrganization } from "@/lib/types";
 
@@ -476,7 +477,55 @@ export async function syncUserFromPrivy(
       console.error("[PrivySync] Failed to log signup to Discord:", error);
     });
 
+  // Auto-generate default API key for new user (fire-and-forget)
+  ensureUserHasApiKey(userWithOrg.id, userWithOrg.organization?.id || "").catch(
+    (error) => {
+      console.error("[PrivySync] Failed to create default API key:", error);
+    },
+  );
+
   return userWithOrg;
+}
+
+/**
+ * Ensure user has a default API key for programmatic access
+ * Creates one if it doesn't exist
+ */
+async function ensureUserHasApiKey(
+  userId: string,
+  organizationId: string,
+): Promise<void> {
+  if (!organizationId) {
+    console.warn(`[PrivySync] No organization for user ${userId}, skipping API key creation`);
+    return;
+  }
+
+  try {
+    // Check if user already has an API key
+    const existingKeys = await apiKeysService.listByOrganization(organizationId);
+    const userHasKey = existingKeys.some((key) => key.user_id === userId);
+
+    if (userHasKey) {
+      console.log(`[PrivySync] User ${userId} already has an API key`);
+      return;
+    }
+
+    // Create default API key
+    await apiKeysService.create({
+      user_id: userId,
+      organization_id: organizationId,
+      name: "Default API Key",
+      is_active: true,
+    });
+
+    console.log(`[PrivySync] Created default API key for user ${userId}`);
+  } catch (error) {
+    console.error(
+      `[PrivySync] Error creating API key for user ${userId}:`,
+      error,
+    );
+    throw error;
+  }
 }
 
 async function queueWelcomeEmail(data: {
