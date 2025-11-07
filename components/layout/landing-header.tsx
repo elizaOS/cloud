@@ -9,7 +9,7 @@ import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { usePrivy, useLogin } from "@privy-io/react-auth";
 import { useRouter } from "next/navigation";
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { Loader2 } from "lucide-react";
 
 export default function LandingHeader() {
@@ -17,14 +17,6 @@ export default function LandingHeader() {
   const { login } = useLogin();
   const router = useRouter();
   const [isLoggingIn, setIsLoggingIn] = useState(false);
-
-  // Auto-redirect to dashboard when authenticated
-  useEffect(() => {
-    if (ready && authenticated) {
-      console.log("User authenticated in header, redirecting to dashboard...");
-      router.push("/dashboard");
-    }
-  }, [ready, authenticated, router]);
 
   const handleAuth = async () => {
     console.log("Header auth button clicked:", { authenticated, ready });
