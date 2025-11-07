@@ -14,9 +14,31 @@ function PrivyAuthWrapper({ children }: { children: React.ReactNode }) {
   const { ready, authenticated, user } = usePrivy();
   const migrationAttempted = useRef(false);
 
+  // Log Privy state on mount
+  useEffect(() => {
+    console.log("[PrivyProvider] PrivyAuthWrapper mounted");
+  }, []);
+
+  // Log all Privy state changes
+  useEffect(() => {
+    console.log("[PrivyProvider] Privy state update:", {
+      ready,
+      authenticated,
+      hasUser: !!user,
+      userId: user?.id,
+      userEmail: user?.email?.address,
+      linkedAccountsCount: user?.linkedAccounts?.length || 0,
+      linkedAccountTypes: user?.linkedAccounts?.map((a) => a.type) || [],
+    });
+  }, [ready, authenticated, user]);
+
   useEffect(() => {
     // Call migration endpoint after successful authentication
     if (ready && authenticated && user && !migrationAttempted.current) {
+      console.log(
+        "[PrivyProvider] Starting anonymous session migration check for user:",
+        user.id,
+      );
       migrationAttempted.current = true;
 
       // Check if there's an anonymous session to migrate
@@ -24,7 +46,7 @@ function PrivyAuthWrapper({ children }: { children: React.ReactNode }) {
 
       if (hasAnonSession) {
         console.log(
-          "[PrivyProvider] Attempting to migrate anonymous session...",
+          "[PrivyProvider] Found anonymous session cookie, attempting migration...",
         );
         fetch("/api/auth/migrate-anonymous", {
           method: "POST",
@@ -49,7 +71,18 @@ function PrivyAuthWrapper({ children }: { children: React.ReactNode }) {
             );
             // Don't block user - this is non-critical
           });
+      } else {
+        console.log(
+          "[PrivyProvider] No anonymous session cookie found, skipping migration",
+        );
       }
+    } else {
+      console.log("[PrivyProvider] Migration conditions not met:", {
+        ready,
+        authenticated,
+        hasUser: !!user,
+        migrationAttempted: migrationAttempted.current,
+      });
     }
   }, [ready, authenticated, user]);
 
