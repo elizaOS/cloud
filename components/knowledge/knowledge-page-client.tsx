@@ -142,7 +142,7 @@ export function KnowledgePageClient() {
         </p>
       </div>
 
-      <Tabs defaultValue="documents" className="w-full">
+      <Tabs id="knowledge-tabs" defaultValue="documents" className="w-full">
         <TabsList className="grid w-full grid-cols-3">
           <TabsTrigger value="documents">Documents</TabsTrigger>
           <TabsTrigger value="upload">Upload</TabsTrigger>

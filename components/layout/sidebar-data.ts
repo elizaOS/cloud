@@ -74,7 +74,7 @@ export const sidebarSections: SidebarSection[] = [
     ],
   },
   {
-    title: "Agent Development",
+    title: "Agents",
     items: [
       {
         id: "chat",
@@ -92,7 +92,7 @@ export const sidebarSections: SidebarSection[] = [
       },
       {
         id: "character-creator",
-        label: "Character Creator",
+        label: "Creator",
         href: "/dashboard/character-creator",
         icon: UserCog,
         freeAllowed: false, // Requires signup

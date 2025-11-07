@@ -93,7 +93,7 @@ const TopHero = () => {
             ElizaOS Cloud is your complete AI development platform.
           </p>
 
-          <BrandTabs defaultValue="agent" className="relative z-10">
+          <BrandTabs id="hero-tabs" defaultValue="agent" className="relative z-10">
             <BrandTabsList>
               <BrandTabsTrigger value="agent">
                 <Bot className="h-4 w-4" />

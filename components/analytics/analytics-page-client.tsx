@@ -226,7 +226,7 @@ export function AnalyticsPageClient({
         </section>
 
         <section className="space-y-8 lg:space-y-10">
-          <BrandTabs defaultValue="breakdown" className="w-full">
+          <BrandTabs id="analytics-tabs" defaultValue="breakdown" className="w-full">
             <BrandTabsList className="w-full max-w-md">
               <BrandTabsTrigger value="breakdown" className="flex-1">
                 Breakdown
