@@ -52,7 +52,8 @@ const VALID_MODELS = [
 async function handlePOST(request: NextRequest) {
   let generationId: string | undefined;
   try {
-    const { user, apiKey, session_token } = await requireAuthOrApiKeyWithOrg(request);
+    const { user, apiKey, session_token } =
+      await requireAuthOrApiKeyWithOrg(request);
 
     if (!process.env.FAL_KEY) {
       console.error("[VIDEO GENERATION] FAL_KEY is not configured");
@@ -258,8 +259,11 @@ async function handlePOST(request: NextRequest) {
     console.log("[VIDEO GENERATION] Returning fallback video due to error");
 
     try {
-      const { user: fallbackUser, apiKey: fallbackApiKey, session_token: fallbackSessionToken } =
-        await requireAuthOrApiKeyWithOrg(request);
+      const {
+        user: fallbackUser,
+        apiKey: fallbackApiKey,
+        session_token: fallbackSessionToken,
+      } = await requireAuthOrApiKeyWithOrg(request);
 
       const fallbackDeduction = await creditsService.deductCredits({
         organizationId: fallbackUser.organization_id,

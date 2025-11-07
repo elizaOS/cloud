@@ -10,9 +10,7 @@ export default function Installation() {
   const [copied, setCopied] = useState(false);
 
   const command =
-    activeTab === "macos"
-      ? "bun i -g @elizaos/cli"
-      : "bun i -g @elizaos/cli";
+    activeTab === "macos" ? "bun i -g @elizaos/cli" : "bun i -g @elizaos/cli";
 
   const handleCopy = async () => {
     await navigator.clipboard.writeText(command);

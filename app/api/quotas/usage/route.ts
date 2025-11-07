@@ -22,7 +22,9 @@ async function handleGET() {
       {
         success: false,
         error:
-          error instanceof Error ? error.message : "Failed to fetch quota usage",
+          error instanceof Error
+            ? error.message
+            : "Failed to fetch quota usage",
       },
       { status: 500 },
     );

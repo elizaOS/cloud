@@ -37,19 +37,16 @@ export async function sendStreamingMessage({
   onComplete,
 }: SendMessageOptions): Promise<void> {
   try {
-    const response = await fetch(
-      `/api/eliza/rooms/${roomId}/messages/stream`,
-      {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          entityId,
-          text,
-        }),
+    const response = await fetch(`/api/eliza/rooms/${roomId}/messages/stream`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
       },
-    );
+      body: JSON.stringify({
+        entityId,
+        text,
+      }),
+    });
 
     if (!response.ok) {
       const errorData = await response.json().catch(() => ({}));
@@ -104,7 +101,8 @@ export async function sendStreamingMessage({
     }
   } catch (error) {
     console.error("[Streaming] Error:", error);
-    onError?.(error instanceof Error ? error.message : "Failed to send message");
+    onError?.(
+      error instanceof Error ? error.message : "Failed to send message",
+    );
   }
 }
-

@@ -131,10 +131,10 @@ export default function ApiExplorerPage() {
             : "w-full lg:w-80 xl:w-96",
         )}
       >
-        <div 
+        <div
           className={cn(
             "flex flex-col gap-4 lg:h-[calc(100vh-8rem)]",
-            isSidebarCollapsed && "lg:items-center"
+            isSidebarCollapsed && "lg:items-center",
           )}
         >
           {/* Collapse Toggle - Desktop Only */}
@@ -176,7 +176,10 @@ export default function ApiExplorerPage() {
 
                   <div className="relative z-10 lg:h-full lg:overflow-y-auto overflow-x-hidden lg:pr-2">
                     <div className="space-y-6 pb-4">
-                      <AuthManager authToken={authToken} onTokenChange={setAuthToken} />
+                      <AuthManager
+                        authToken={authToken}
+                        onTokenChange={setAuthToken}
+                      />
 
                       <div className="border-t border-white/10" />
 
@@ -200,7 +203,9 @@ export default function ApiExplorerPage() {
                               )}
                             >
                               {category !== "All" && getCategoryIcon(category)}
-                              <span className="flex-1 truncate">{category}</span>
+                              <span className="flex-1 truncate">
+                                {category}
+                              </span>
                               <span className="rounded-none bg-[#FF580020] px-2 py-0.5 text-[10px] font-semibold text-[#FF5800] border border-[#FF580040] shrink-0">
                                 {category === "All"
                                   ? API_ENDPOINTS.length

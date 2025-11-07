@@ -170,16 +170,26 @@ export async function DELETE(
     // Delete character mapping first (if exists)
     try {
       await elizaRoomCharactersRepository.delete(roomId);
-      logger.debug("[Eliza Room API] Deleted character mapping for room:", roomId);
+      logger.debug(
+        "[Eliza Room API] Deleted character mapping for room:",
+        roomId,
+      );
     } catch (err) {
-      logger.warn("[Eliza Room API] No character mapping to delete:", roomId, err);
+      logger.warn(
+        "[Eliza Room API] No character mapping to delete:",
+        roomId,
+        err,
+      );
     }
 
     // Clear connection cache for this room
     try {
       // The connectionCache might have entries for this room
       // We'll let it naturally expire or clear by roomId if the cache supports it
-      logger.debug("[Eliza Room API] Cleared connection cache for room:", roomId);
+      logger.debug(
+        "[Eliza Room API] Cleared connection cache for room:",
+        roomId,
+      );
     } catch (err) {
       logger.warn("[Eliza Room API] Failed to clear connection cache:", err);
     }
@@ -189,9 +199,7 @@ export async function DELETE(
     // - memories (messages) associated with the room
     // - participants in the room
     // - any other related records with CASCADE constraints
-    await db.execute(
-      sql`DELETE FROM rooms WHERE id = ${roomId}::uuid`
-    );
+    await db.execute(sql`DELETE FROM rooms WHERE id = ${roomId}::uuid`);
 
     logger.info("[Eliza Room API] ✓ Room deleted successfully:", roomId);
 

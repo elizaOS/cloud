@@ -8,10 +8,7 @@ import {
   generationsService,
   anonymousSessionsService,
 } from "@/lib/services";
-import {
-  calculateCost,
-  getProviderFromModel,
-} from "@/lib/pricing";
+import { calculateCost, getProviderFromModel } from "@/lib/pricing";
 import { logger } from "@/lib/utils/logger";
 import { elizaRoomCharactersRepository } from "@/db/repositories";
 
@@ -21,7 +18,7 @@ export const maxDuration = 60;
 
 /**
  * POST /api/eliza/rooms/[roomId]/messages/stream
- * 
+ *
  * Single-endpoint streaming architecture:
  * - Receives message via POST
  * - Streams back thinking indicator and agent response via SSE
@@ -92,9 +89,8 @@ export async function POST(
     }
 
     // Get character assignment for room
-    const roomCharacter = await elizaRoomCharactersRepository.findByRoomId(
-      roomId,
-    );
+    const roomCharacter =
+      await elizaRoomCharactersRepository.findByRoomId(roomId);
     const characterId = roomCharacter?.character_id || undefined;
 
     // Create streaming response
@@ -203,7 +199,10 @@ export async function POST(
                 });
               }
             } catch (creditError) {
-              logger.error("[Stream Messages] Credit handling error:", creditError);
+              logger.error(
+                "[Stream Messages] Credit handling error:",
+                creditError,
+              );
             }
           }
 
@@ -247,4 +246,3 @@ export async function POST(
     );
   }
 }
-

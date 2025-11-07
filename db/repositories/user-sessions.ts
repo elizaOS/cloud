@@ -28,7 +28,10 @@ export class UserSessionsRepository {
 
   async listActiveByUser(userId: string): Promise<UserSession[]> {
     return await db.query.userSessions.findMany({
-      where: and(eq(userSessions.user_id, userId), isNull(userSessions.ended_at)),
+      where: and(
+        eq(userSessions.user_id, userId),
+        isNull(userSessions.ended_at),
+      ),
       orderBy: desc(userSessions.last_activity_at),
     });
   }
@@ -110,10 +113,12 @@ export class UserSessionsRepository {
     const [updated] = await db
       .update(userSessions)
       .set(updateFields)
-      .where(and(
-        eq(userSessions.session_token, sessionToken),
-        isNull(userSessions.ended_at),
-      ))
+      .where(
+        and(
+          eq(userSessions.session_token, sessionToken),
+          isNull(userSessions.ended_at),
+        ),
+      )
       .returning();
 
     return updated;
@@ -138,7 +143,9 @@ export class UserSessionsRepository {
         ended_at: new Date(),
         updated_at: new Date(),
       })
-      .where(and(eq(userSessions.user_id, userId), isNull(userSessions.ended_at)));
+      .where(
+        and(eq(userSessions.user_id, userId), isNull(userSessions.ended_at)),
+      );
 
     return result.rowCount || 0;
   }
@@ -160,7 +167,10 @@ export class UserSessionsRepository {
     tokens_consumed: number;
   } | null> {
     const activeSessions = await db.query.userSessions.findMany({
-      where: and(eq(userSessions.user_id, userId), isNull(userSessions.ended_at)),
+      where: and(
+        eq(userSessions.user_id, userId),
+        isNull(userSessions.ended_at),
+      ),
     });
 
     if (activeSessions.length === 0) {

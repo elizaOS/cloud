@@ -60,7 +60,8 @@ async function handlePOST(req: NextRequest) {
     return NextResponse.json(
       {
         success: false,
-        error: error instanceof Error ? error.message : "Failed to create quota",
+        error:
+          error instanceof Error ? error.message : "Failed to create quota",
       },
       { status: 500 },
     );
@@ -85,7 +86,8 @@ async function handleGET() {
     return NextResponse.json(
       {
         success: false,
-        error: error instanceof Error ? error.message : "Failed to fetch quotas",
+        error:
+          error instanceof Error ? error.message : "Failed to fetch quotas",
       },
       { status: 500 },
     );

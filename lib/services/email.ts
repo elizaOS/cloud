@@ -164,7 +164,9 @@ class EmailService {
     });
   }
 
-  async sendAutoTopUpSuccessEmail(data: AutoTopUpSuccessEmailData): Promise<boolean> {
+  async sendAutoTopUpSuccessEmail(
+    data: AutoTopUpSuccessEmailData,
+  ): Promise<boolean> {
     const { renderAutoTopUpSuccessTemplate } = await import(
       "@/lib/email/utils/template-renderer"
     );
@@ -178,7 +180,9 @@ class EmailService {
     });
   }
 
-  async sendAutoTopUpDisabledEmail(data: AutoTopUpDisabledEmailData): Promise<boolean> {
+  async sendAutoTopUpDisabledEmail(
+    data: AutoTopUpDisabledEmailData,
+  ): Promise<boolean> {
     const { renderAutoTopUpDisabledTemplate } = await import(
       "@/lib/email/utils/template-renderer"
     );
@@ -192,7 +196,9 @@ class EmailService {
     });
   }
 
-  async sendPurchaseConfirmationEmail(data: PurchaseConfirmationEmailData): Promise<boolean> {
+  async sendPurchaseConfirmationEmail(
+    data: PurchaseConfirmationEmailData,
+  ): Promise<boolean> {
     const { renderPurchaseConfirmationTemplate } = await import(
       "@/lib/email/utils/template-renderer"
     );

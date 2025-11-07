@@ -95,7 +95,9 @@ export function renderInviteTemplate(data: InviteEmailData): {
   };
 }
 
-export function renderAutoTopUpSuccessTemplate(data: AutoTopUpSuccessEmailData): {
+export function renderAutoTopUpSuccessTemplate(
+  data: AutoTopUpSuccessEmailData,
+): {
   html: string;
   text: string;
 } {
@@ -183,7 +185,9 @@ This automatic top-up ensures your services continue running without interruptio
   return { html, text };
 }
 
-export function renderAutoTopUpDisabledTemplate(data: AutoTopUpDisabledEmailData): {
+export function renderAutoTopUpDisabledTemplate(
+  data: AutoTopUpDisabledEmailData,
+): {
   html: string;
   text: string;
 } {
@@ -262,7 +266,9 @@ To prevent service interruptions, please address this issue as soon as possible.
   return { html, text };
 }
 
-export function renderPurchaseConfirmationTemplate(data: PurchaseConfirmationEmailData): {
+export function renderPurchaseConfirmationTemplate(
+  data: PurchaseConfirmationEmailData,
+): {
   html: string;
   text: string;
 } {

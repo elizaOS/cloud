@@ -63,7 +63,7 @@ export const userSessions = pgTable(
     token_idx: index("user_sessions_token_idx").on(table.session_token),
     started_at_idx: index("user_sessions_started_at_idx").on(table.started_at),
     active_idx: index("user_sessions_active_idx").on(table.ended_at),
-  })
+  }),
 );
 
 export type UserSession = InferSelectModel<typeof userSessions>;

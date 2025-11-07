@@ -3,9 +3,11 @@
 This is the implementation of the Settings page based on the Figma design.
 
 ## Figma Source
+
 **Design URL:** https://www.figma.com/design/64xmxXKnD8cATGW2D0Zm17/Eliza-Cloud-App?m=dev&focus-id=435-3215
 
 ## Page Location
+
 `/dashboard/settings`
 
 ## Component Structure
@@ -30,6 +32,7 @@ components/settings/
 ## Features Implemented
 
 ### Tab Navigation
+
 - ✅ 6 tabs: General, Account, Usage, Billing, APIs, Analytics
 - ✅ Icons from `lucide-react` matching Figma design
 - ✅ Active state styling with white bottom border
@@ -37,7 +40,9 @@ components/settings/
 - ✅ Responsive overflow handling
 
 ### General Tab (Fully Implemented)
+
 **Profile Information Card:**
+
 - ✅ Full name field with avatar initials
 - ✅ Nickname field
 - ✅ Work function dropdown selector
@@ -46,12 +51,14 @@ components/settings/
 - ✅ Corner brackets decoration
 
 **Notification Settings Card:**
+
 - ✅ Response completions toggle switch
 - ✅ Email notifications toggle switch
 - ✅ Orange accent color (#FF5800) for active switches
 - ✅ Corner brackets decoration
 
 ### Other Tabs (Placeholders)
+
 - Account, Usage, Billing, APIs, and Analytics tabs have placeholder content
 - Each shows an icon, title, and description
 - Ready to be filled with actual functionality
@@ -59,6 +66,7 @@ components/settings/
 ## Design System Integration
 
 ### Components Used
+
 - `BrandCard` - Card container with dark styling
 - `CornerBrackets` - Decorative corner elements
 - `Input` - shadcn/ui input component
@@ -68,7 +76,9 @@ components/settings/
 - `Switch` - shadcn/ui switch component
 
 ### Icons
+
 All icons use `lucide-react`:
+
 - `User` - General tab
 - `Building2` - Account tab
 - `BarChart3` - Usage tab
@@ -77,6 +87,7 @@ All icons use `lucide-react`:
 - `PieChart` - Analytics tab
 
 ### Color Palette
+
 - Background: `bg-transparent`, `bg-neutral-950`
 - Borders: `border-[#303030]`, `border-brand-surface`
 - Text: `text-white`, `text-[#858585]`, `text-white/60`
@@ -84,7 +95,9 @@ All icons use `lucide-react`:
 - Active states: `bg-[rgba(255,255,255,0.07)]`
 
 ## Assets
+
 All Figma assets are stored in `/public/assets/settings/`
+
 - Logo, icons, patterns, and decorative elements
 - See `/public/assets/settings/README.md` for details
 
@@ -139,4 +152,3 @@ http://localhost:3000/dashboard/settings
 ```
 
 Make sure you're authenticated to access the page.
-
