@@ -44,7 +44,9 @@ const email = process.argv[3];
 if (!orgId || !email) {
   console.error("Usage: tsx scripts/set-billing-email.ts <org-id> <email>");
   console.error("\nExample:");
-  console.error("  tsx scripts/set-billing-email.ts 67e22ff7-257b-41a3-8773-513a4674d1bb user@example.com");
+  console.error(
+    "  tsx scripts/set-billing-email.ts 67e22ff7-257b-41a3-8773-513a4674d1bb user@example.com",
+  );
   process.exit(1);
 }
 

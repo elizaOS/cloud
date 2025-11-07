@@ -125,17 +125,14 @@ export class PaymentMethodsService {
 
     // Verify the payment method belongs to this customer
     try {
-      const paymentMethod = await stripe.paymentMethods.retrieve(
-        paymentMethodId,
-      );
+      const paymentMethod =
+        await stripe.paymentMethods.retrieve(paymentMethodId);
       if (paymentMethod.customer !== org.stripe_customer_id) {
         throw new Error("Payment method does not belong to this customer");
       }
     } catch (error) {
       if (error instanceof Error) {
-        throw new Error(
-          `Failed to verify payment method: ${error.message}`,
-        );
+        throw new Error(`Failed to verify payment method: ${error.message}`);
       }
       throw error;
     }
@@ -291,9 +288,8 @@ export class PaymentMethodsService {
     }
 
     try {
-      const paymentMethod = await stripe.paymentMethods.retrieve(
-        paymentMethodId,
-      );
+      const paymentMethod =
+        await stripe.paymentMethods.retrieve(paymentMethodId);
 
       // Verify it belongs to this customer
       if (paymentMethod.customer !== org.stripe_customer_id) {

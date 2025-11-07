@@ -115,15 +115,11 @@ export class AutoTopUpService {
           const result = await this.executeAutoTopUp(org);
           results.push(result);
         } catch (error) {
-          console.error(
-            `[AutoTopUp] Error processing org ${org.id}:`,
-            error,
-          );
+          console.error(`[AutoTopUp] Error processing org ${org.id}:`, error);
           results.push({
             organizationId: org.id,
             success: false,
-            error:
-              error instanceof Error ? error.message : "Unknown error",
+            error: error instanceof Error ? error.message : "Unknown error",
           });
         }
       }
@@ -156,14 +152,10 @@ export class AutoTopUpService {
    * @param org - The organization to top up
    * @returns Result of the auto top-up operation
    */
-  async executeAutoTopUp(
-    org: Organization,
-  ): Promise<AutoTopUpResult> {
+  async executeAutoTopUp(org: Organization): Promise<AutoTopUpResult> {
     const organizationId = org.id;
 
-    console.log(
-      `[AutoTopUp] Processing org ${organizationId} (${org.name})`,
-    );
+    console.log(`[AutoTopUp] Processing org ${organizationId} (${org.name})`);
     console.log(
       `[AutoTopUp] Current balance: $${org.credit_balance}, Threshold: $${org.auto_top_up_threshold}`,
     );
@@ -173,10 +165,7 @@ export class AutoTopUpService {
       console.error(
         `[AutoTopUp] Org ${organizationId} missing Stripe customer`,
       );
-      await this.disableAutoTopUp(
-        organizationId,
-        "Missing Stripe customer",
-      );
+      await this.disableAutoTopUp(organizationId, "Missing Stripe customer");
       return {
         organizationId,
         success: false,
@@ -247,8 +236,16 @@ export class AutoTopUpService {
         );
 
         // Send success email notification
-        console.log(`[AutoTopUp] About to call queueAutoTopUpSuccessEmail for org ${organizationId}`);
-        this.queueAutoTopUpSuccessEmail(org, amount, currentBalance, newBalance, paymentIntent.id).catch((error) => {
+        console.log(
+          `[AutoTopUp] About to call queueAutoTopUpSuccessEmail for org ${organizationId}`,
+        );
+        this.queueAutoTopUpSuccessEmail(
+          org,
+          amount,
+          currentBalance,
+          newBalance,
+          paymentIntent.id,
+        ).catch((error) => {
           console.error(
             `[AutoTopUp] EXCEPTION in queueAutoTopUpSuccessEmail for org ${organizationId}:`,
             error,
@@ -363,20 +360,26 @@ export class AutoTopUpService {
     newBalance: number,
     paymentIntentId: string,
   ): Promise<void> {
-    console.log(`[AutoTopUp] queueAutoTopUpSuccessEmail START for org ${org.id}`);
+    console.log(
+      `[AutoTopUp] queueAutoTopUpSuccessEmail START for org ${org.id}`,
+    );
 
     const recipientEmail = await this.getUserEmail(org.id);
     console.log(`[AutoTopUp] User email: ${recipientEmail || "NONE"}`);
 
     if (!recipientEmail) {
-      console.error(`[AutoTopUp] CRITICAL: No user email for org ${org.id} - EMAIL NOT SENT`);
+      console.error(
+        `[AutoTopUp] CRITICAL: No user email for org ${org.id} - EMAIL NOT SENT`,
+      );
       return;
     }
 
     let paymentMethodDisplay = "Card on file";
     if (org.stripe_default_payment_method) {
       try {
-        const pm = await stripe.paymentMethods.retrieve(org.stripe_default_payment_method);
+        const pm = await stripe.paymentMethods.retrieve(
+          org.stripe_default_payment_method,
+        );
         if (pm.card) {
           paymentMethodDisplay = `${pm.card.brand} ••••${pm.card.last4}`;
         }
@@ -397,16 +400,22 @@ export class AutoTopUpService {
       billingUrl: `${appUrl}/dashboard/settings`,
     };
 
-    console.log(`[AutoTopUp] Calling emailService.sendAutoTopUpSuccessEmail with:`);
+    console.log(
+      `[AutoTopUp] Calling emailService.sendAutoTopUpSuccessEmail with:`,
+    );
     console.log(JSON.stringify(emailData, null, 2));
 
     const result = await emailService.sendAutoTopUpSuccessEmail(emailData);
 
     console.log(`[AutoTopUp] Email service returned: ${result}`);
     if (result) {
-      console.log(`[AutoTopUp] ✓ SUCCESS: Auto top-up email sent to ${recipientEmail}`);
+      console.log(
+        `[AutoTopUp] ✓ SUCCESS: Auto top-up email sent to ${recipientEmail}`,
+      );
     } else {
-      console.error(`[AutoTopUp] ✗ FAILED: Email service returned false for ${recipientEmail}`);
+      console.error(
+        `[AutoTopUp] ✗ FAILED: Email service returned false for ${recipientEmail}`,
+      );
     }
   }
 
@@ -511,8 +520,7 @@ export class AutoTopUpService {
 
     // If amount or threshold are being updated, validate them
     if (settings.amount !== undefined || settings.threshold !== undefined) {
-      const amount =
-        settings.amount ?? Number(org.auto_top_up_amount || 0);
+      const amount = settings.amount ?? Number(org.auto_top_up_amount || 0);
       const threshold =
         settings.threshold ?? Number(org.auto_top_up_threshold || 0);
       this.validateSettings(amount, threshold);

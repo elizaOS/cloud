@@ -20,8 +20,12 @@ if (!email || !command) {
   console.error("Examples:");
   console.error("  tsx scripts/test-emails.ts welcome test@example.com");
   console.error("  tsx scripts/test-emails.ts low-credits billing@example.com");
-  console.error("  tsx scripts/test-emails.ts auto-top-up-success billing@example.com");
-  console.error("  tsx scripts/test-emails.ts auto-top-up-disabled billing@example.com");
+  console.error(
+    "  tsx scripts/test-emails.ts auto-top-up-success billing@example.com",
+  );
+  console.error(
+    "  tsx scripts/test-emails.ts auto-top-up-disabled billing@example.com",
+  );
   process.exit(1);
 }
 
@@ -72,7 +76,9 @@ async function main() {
       settingsUrl: process.env.NEXT_PUBLIC_APP_URL + "/dashboard/settings",
     });
   } else {
-    console.error('❌ Invalid command. Use "welcome", "low-credits", "auto-top-up-success", or "auto-top-up-disabled"');
+    console.error(
+      '❌ Invalid command. Use "welcome", "low-credits", "auto-top-up-success", or "auto-top-up-disabled"',
+    );
     process.exit(1);
   }
 

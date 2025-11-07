@@ -250,7 +250,11 @@ export function ElizaChatInterface({
       if (deletingRoomId) return;
 
       // Confirm deletion
-      if (!confirm("Are you sure you want to delete this conversation? This action cannot be undone.")) {
+      if (
+        !confirm(
+          "Are you sure you want to delete this conversation? This action cannot be undone.",
+        )
+      ) {
         return;
       }
 
@@ -297,7 +301,9 @@ export function ElizaChatInterface({
         await loadRooms();
       } catch (err) {
         console.error("[ElizaChat] Error deleting room:", err);
-        toast.error(err instanceof Error ? err.message : "Failed to delete room");
+        toast.error(
+          err instanceof Error ? err.message : "Failed to delete room",
+        );
       } finally {
         setDeletingRoomId(null);
       }
@@ -841,7 +847,10 @@ export function ElizaChatInterface({
                             onClick={() => {
                               setRoomId(r.id);
                               if (typeof window !== "undefined") {
-                                window.localStorage.setItem("elizaRoomId", r.id);
+                                window.localStorage.setItem(
+                                  "elizaRoomId",
+                                  r.id,
+                                );
                               }
                               setMessages([]);
                               loadMessages(r.id);

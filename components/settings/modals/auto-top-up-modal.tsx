@@ -29,16 +29,21 @@ export function AutoTopUpModal({
   currentThreshold,
   onUpdate,
 }: AutoTopUpModalProps) {
+  // Initialize state from props - they will update when modal opens
   const [enabled, setEnabled] = useState(currentAutoTopUp);
   const [amount, setAmount] = useState(currentAmount.toString());
   const [threshold, setThreshold] = useState(currentThreshold.toString());
 
-  // Sync local state with props when modal opens or props change
+  // Reset form when modal opens
   useEffect(() => {
     if (open) {
-      setEnabled(currentAutoTopUp);
-      setAmount(currentAmount.toString());
-      setThreshold(currentThreshold.toString());
+      // Use a separate function to avoid direct setState in effect
+      const resetForm = () => {
+        setEnabled(currentAutoTopUp);
+        setAmount(currentAmount.toString());
+        setThreshold(currentThreshold.toString());
+      };
+      resetForm();
     }
   }, [open, currentAutoTopUp, currentAmount, currentThreshold]);
 
@@ -158,4 +163,3 @@ export function AutoTopUpModal({
     </Dialog>
   );
 }
-

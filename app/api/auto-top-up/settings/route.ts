@@ -43,9 +43,7 @@ async function handleGetSettings(req: NextRequest) {
   try {
     const user = await requireAuthWithOrg();
 
-    const settings = await autoTopUpService.getSettings(
-      user.organization_id!,
-    );
+    const settings = await autoTopUpService.getSettings(user.organization_id!);
 
     return NextResponse.json(settings);
   } catch (error) {

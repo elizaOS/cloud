@@ -29,7 +29,8 @@ async function handlePOST(req: NextRequest) {
 
   try {
     // 1. Authenticate
-    const { user, apiKey, session_token } = await requireAuthOrApiKeyWithOrg(req);
+    const { user, apiKey, session_token } =
+      await requireAuthOrApiKeyWithOrg(req);
 
     // 2. Parse request (already in OpenAI format!)
     const request: OpenAIChatRequest = await req.json();

@@ -54,7 +54,8 @@ async function main() {
   console.log("");
 
   console.log("[3] Determining recipient email...");
-  const recipientEmail = org.billing_email || (orgUsers.length > 0 ? orgUsers[0].email : null);
+  const recipientEmail =
+    org.billing_email || (orgUsers.length > 0 ? orgUsers[0].email : null);
   console.log(`  Recipient: ${recipientEmail || "NONE - CANNOT SEND"}`);
   console.log("");
 
@@ -71,7 +72,9 @@ async function main() {
   const hasSmtp = !!process.env.SMTP_HOST;
   console.log(`  SENDGRID_API_KEY: ${hasSendGrid ? "SET" : "NOT SET"}`);
   console.log(`  SMTP_HOST: ${hasSmtp ? "SET" : "NOT SET"}`);
-  console.log(`  SENDGRID_FROM_EMAIL: ${process.env.SENDGRID_FROM_EMAIL || "NOT SET"}`);
+  console.log(
+    `  SENDGRID_FROM_EMAIL: ${process.env.SENDGRID_FROM_EMAIL || "NOT SET"}`,
+  );
   console.log("");
 
   if (!hasSendGrid && !hasSmtp) {
@@ -85,16 +88,22 @@ async function main() {
   const testPaymentIntentId = "pi_test_debug_123456789";
 
   console.log("Calling emailService.sendAutoTopUpSuccessEmail with:");
-  console.log(JSON.stringify({
-    email: recipientEmail,
-    organizationName: org.name,
-    amount: 10.0,
-    previousBalance: 3.5,
-    newBalance: 13.5,
-    paymentMethod: "Test Card ••••4242",
-    invoiceUrl: `${appUrl}/dashboard/invoices/${testPaymentIntentId}`,
-    billingUrl: `${appUrl}/dashboard/settings`,
-  }, null, 2));
+  console.log(
+    JSON.stringify(
+      {
+        email: recipientEmail,
+        organizationName: org.name,
+        amount: 10.0,
+        previousBalance: 3.5,
+        newBalance: 13.5,
+        paymentMethod: "Test Card ••••4242",
+        invoiceUrl: `${appUrl}/dashboard/invoices/${testPaymentIntentId}`,
+        billingUrl: `${appUrl}/dashboard/settings`,
+      },
+      null,
+      2,
+    ),
+  );
   console.log("");
 
   try {

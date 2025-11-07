@@ -1,5 +1,9 @@
 import { stripe, STRIPE_CURRENCY } from "@/lib/stripe";
-import { organizationsRepository, usersRepository, type Organization } from "@/db/repositories";
+import {
+  organizationsRepository,
+  usersRepository,
+  type Organization,
+} from "@/db/repositories";
 import { creditsService } from "./credits";
 import { invoicesService } from "./invoices";
 import { emailService } from "./email";
@@ -152,9 +156,8 @@ export class PurchasesService {
         }
       }
 
-      const paymentIntent = await stripe.paymentIntents.create(
-        paymentIntentParams,
-      );
+      const paymentIntent =
+        await stripe.paymentIntents.create(paymentIntentParams);
 
       // CRITICAL: If payment succeeded immediately, add credits synchronously
       // This prevents race condition where client fetches balance before webhook fires
@@ -217,7 +220,8 @@ export class PurchasesService {
                   invoice_type: "one_time_purchase",
                   invoice_number: stripeInvoice.number || undefined,
                   invoice_pdf: stripeInvoice.invoice_pdf || undefined,
-                  hosted_invoice_url: stripeInvoice.hosted_invoice_url || undefined,
+                  hosted_invoice_url:
+                    stripeInvoice.hosted_invoice_url || undefined,
                   credits_added: amount.toString(),
                   metadata: {
                     type: "one_time_purchase",
@@ -329,9 +333,8 @@ export class PurchasesService {
     organizationId: string,
   ): Promise<Stripe.PaymentIntent | null> {
     try {
-      const paymentIntent = await stripe.paymentIntents.retrieve(
-        paymentIntentId,
-      );
+      const paymentIntent =
+        await stripe.paymentIntents.retrieve(paymentIntentId);
 
       // Verify the payment intent belongs to this organization
       if (paymentIntent.metadata?.organization_id !== organizationId) {
@@ -430,12 +433,14 @@ export class PurchasesService {
     }
 
     try {
-      const cancelledIntent = await stripe.paymentIntents.cancel(
-        paymentIntentId,
-      );
+      const cancelledIntent =
+        await stripe.paymentIntents.cancel(paymentIntentId);
       return cancelledIntent;
     } catch (error) {
-      console.error(`Failed to cancel payment intent ${paymentIntentId}:`, error);
+      console.error(
+        `Failed to cancel payment intent ${paymentIntentId}:`,
+        error,
+      );
       return null;
     }
   }
@@ -486,9 +491,8 @@ export class PurchasesService {
       let paymentMethodDisplay = "Card";
       if (paymentMethodId) {
         try {
-          const paymentMethod = await stripe.paymentMethods.retrieve(
-            paymentMethodId,
-          );
+          const paymentMethod =
+            await stripe.paymentMethods.retrieve(paymentMethodId);
           if (paymentMethod.card) {
             paymentMethodDisplay = `${paymentMethod.card.brand} ••••${paymentMethod.card.last4}`;
           }

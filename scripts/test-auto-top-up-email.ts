@@ -14,7 +14,9 @@ if (!orgId) {
   console.error("Usage: tsx scripts/test-auto-top-up-email.ts <org-id>");
   console.error("");
   console.error("Example:");
-  console.error("  tsx scripts/test-auto-top-up-email.ts 67e22ff7-257b-41a3-8773-513a4674d1bb");
+  console.error(
+    "  tsx scripts/test-auto-top-up-email.ts 67e22ff7-257b-41a3-8773-513a4674d1bb",
+  );
   process.exit(1);
 }
 
@@ -50,7 +52,9 @@ async function main() {
     console.error("❌ No email found. Cannot send email.");
     console.error("");
     console.error("Fix: Run this command to set billing email:");
-    console.error(`  npm run billing:set-email ${orgId} your-email@example.com`);
+    console.error(
+      `  npm run billing:set-email ${orgId} your-email@example.com`,
+    );
     process.exit(1);
   }
 
@@ -108,9 +112,11 @@ async function main() {
   }
 }
 
-main().then(() => {
-  process.exit(0);
-}).catch((error) => {
-  console.error("❌ Fatal error:", error);
-  process.exit(1);
-});
+main()
+  .then(() => {
+    process.exit(0);
+  })
+  .catch((error) => {
+    console.error("❌ Fatal error:", error);
+    process.exit(1);
+  });

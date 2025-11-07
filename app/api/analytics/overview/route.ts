@@ -44,7 +44,9 @@ async function handleGET(req: NextRequest) {
       ),
       failedRequests:
         overview.summary.totalRequests -
-        Math.round(overview.summary.totalRequests * overview.summary.successRate),
+        Math.round(
+          overview.summary.totalRequests * overview.summary.successRate,
+        ),
       successRate: overview.summary.successRate,
       totalCost: overview.summary.totalCost,
       avgCostPerRequest: overview.summary.avgCostPerRequest,
