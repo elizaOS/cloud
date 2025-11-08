@@ -27,7 +27,13 @@ async function ensureUserHasApiKey(
   userId: string,
   organizationId: string,
 ): Promise<void> {
-  if (!organizationId) {
+  // Validate inputs
+  if (!userId || userId.trim() === "") {
+    console.warn("[Auth] Invalid userId, skipping API key check");
+    return;
+  }
+
+  if (!organizationId || organizationId.trim() === "") {
     console.warn(
       `[Auth] No organization for user ${userId}, skipping API key check`,
     );

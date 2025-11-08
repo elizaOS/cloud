@@ -112,8 +112,16 @@ export async function POST(
             `[Stream Messages] Retrieved API key for user ${user.id}`,
           );
         } else {
-          logger.warn(
-            `[Stream Messages] No API key found for user ${user.id}, agent may fail`,
+          // VALIDATION: Reject request if user has no API key
+          logger.error(
+            `[Stream Messages] No API key found for user ${user.id}`,
+          );
+          return new Response(
+            JSON.stringify({
+              error:
+                "No API key found for your account. Please contact support or try logging out and back in.",
+            }),
+            { status: 500, headers: { "Content-Type": "application/json" } },
           );
         }
       } catch (error) {
@@ -121,7 +129,15 @@ export async function POST(
           "[Stream Messages] Failed to retrieve user API key:",
           error,
         );
+        return new Response(
+          JSON.stringify({
+            error: "Failed to authenticate agent. Please try again.",
+          }),
+          { status: 500, headers: { "Content-Type": "application/json" } },
+        );
       }
+    } else if (isAnonymous) {
+      logger.info("[Stream Messages] Anonymous user - using shared runtime");
     }
 
     // Create streaming response

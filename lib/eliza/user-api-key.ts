@@ -4,6 +4,7 @@
 
 import { apiKeysService } from "@/lib/services";
 import { getElizaCloudApiUrl } from "./config";
+import { logger } from "@/lib/utils/logger";
 
 /**
  * Get user's first active API key for ElizaOS Cloud usage
@@ -17,6 +18,17 @@ export async function getUserElizaCloudApiKey(
   userId: string,
   organizationId: string,
 ): Promise<string | null> {
+  // Validate inputs
+  if (!userId || userId.trim() === "") {
+    logger.error("[UserAPIKey] Invalid userId provided");
+    return null;
+  }
+
+  if (!organizationId || organizationId.trim() === "") {
+    logger.error(`[UserAPIKey] Invalid organizationId for user ${userId}`);
+    return null;
+  }
+
   try {
     const apiKeys = await apiKeysService.listByOrganization(organizationId);
     
@@ -26,16 +38,16 @@ export async function getUserElizaCloudApiKey(
     );
 
     if (!userKey) {
-      console.warn(`[UserAPIKey] No API key found for user ${userId}`);
+      logger.warn(`[UserAPIKey] No API key found for user ${userId}`);
       return null;
     }
 
     // Return the full key from the database
     // Note: This is the actual key value, not the hash
-    console.log(`[UserAPIKey] Retrieved key for user ${userId}: ${userKey.key_prefix}***`);
+    logger.info(`[UserAPIKey] Retrieved key for user ${userId}: ${userKey.key_prefix}***`);
     return userKey.key;
   } catch (error) {
-    console.error(
+    logger.error(
       `[UserAPIKey] Error getting API key for user ${userId}:`,
       error,
     );

@@ -61,9 +61,17 @@ export function useAvailableModels() {
         setError(null);
       } catch (err) {
         console.error("[useAvailableModels] Error fetching models:", err);
-        setError(err instanceof Error ? err.message : "Failed to load models");
+        
+        // Handle authentication errors gracefully
+        const errorMessage = err instanceof Error ? err.message : "Failed to load models";
+        if (errorMessage.includes("Unauthorized") || errorMessage.includes("Authentication")) {
+          setError("Please log in to view available models");
+        } else {
+          setError(errorMessage);
+        }
         
         // Set curated default models as fallback
+        // This ensures the UI is functional even if the API call fails
         setModels(
           ALLOWED_CHAT_MODELS.map((id) => ({
             id,
