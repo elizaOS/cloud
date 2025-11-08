@@ -635,21 +635,30 @@ class AgentRuntimeManager {
       runtime = await this.getRuntime();
     }
     
-    // Inject user's API key if provided (for per-request authentication)
-    if (userSettings?.apiKey) {
-      // Create a temporary runtime-specific settings object
-      // This doesn't mutate the cached runtime, just overrides for this request
-      runtime.character.settings = {
-        ...runtime.character.settings,
-        ELIZAOS_CLOUD_API_KEY: userSettings.apiKey,
-        ...(userSettings.modelPreferences?.smallModel && {
-          ELIZAOS_CLOUD_SMALL_MODEL: userSettings.modelPreferences.smallModel,
-        }),
-        ...(userSettings.modelPreferences?.largeModel && {
-          ELIZAOS_CLOUD_LARGE_MODEL: userSettings.modelPreferences.largeModel,
-        }),
-      };
-    }
+    // CRITICAL: Store original settings to restore after request
+    // This prevents race conditions in multi-tenant shared runtime
+    const originalSettings = runtime.character.settings;
+    let settingsRestored = false;
+    
+    try {
+      // Inject user's API key if provided (for per-request authentication)
+      if (userSettings?.apiKey) {
+        // IMPORTANT: We must restore these settings after the request
+        // to avoid race conditions with other users' requests
+        runtime.character.settings = {
+          ...originalSettings,
+          ELIZAOS_CLOUD_API_KEY: userSettings.apiKey,
+          ...(userSettings.modelPreferences?.smallModel && {
+            ELIZAOS_CLOUD_SMALL_MODEL: userSettings.modelPreferences.smallModel,
+          }),
+          ...(userSettings.modelPreferences?.largeModel && {
+            ELIZAOS_CLOUD_LARGE_MODEL: userSettings.modelPreferences.largeModel,
+          }),
+        };
+        elizaLogger.debug(
+          "[AgentRuntime] Injected user settings (will restore after request)",
+        );
+      }
 
     // OPTIMIZATION: Check connection cache before calling ensureConnection
     // This avoids a DB query on every message for established connections
@@ -726,72 +735,89 @@ class AgentRuntimeManager {
     let responseText: string | undefined;
     let agentResponse: Memory | undefined;
 
-    // Process message through event pipeline to generate response
-    try {
-      await runtime.emitEvent(EventType.MESSAGE_RECEIVED, {
-        runtime,
-        message: userMessage,
-        callback: async (result: {
-          text?: string;
-          usage?: { inputTokens: number; outputTokens: number; model: string };
-        }) => {
-          elizaLogger.debug("#Eliza", "Message processed, generating response");
-          if (result.text) {
-            responseText = result.text;
-          }
-          if (result.usage) {
-            usage = result.usage;
-          }
-          return [];
-        },
-      });
-    } catch (error) {
-      elizaLogger.error(
-        "#Eliza",
-        "Error during message processing:",
-        error instanceof Error ? error.message : String(error),
-      );
+      // Process message through event pipeline to generate response
+      try {
+        await runtime.emitEvent(EventType.MESSAGE_RECEIVED, {
+          runtime,
+          message: userMessage,
+          callback: async (result: {
+            text?: string;
+            usage?: {
+              inputTokens: number;
+              outputTokens: number;
+              model: string;
+            };
+          }) => {
+            elizaLogger.debug(
+              "#Eliza",
+              "Message processed, generating response",
+            );
+            if (result.text) {
+              responseText = result.text;
+            }
+            if (result.usage) {
+              usage = result.usage;
+            }
+            return [];
+          },
+        });
+      } catch (error) {
+        elizaLogger.error(
+          "#Eliza",
+          "Error during message processing:",
+          error instanceof Error ? error.message : String(error),
+        );
 
-      // Check if it's an API key error
-      if (error instanceof Error && error.message.includes("API key")) {
-        responseText =
-          "⚠️ Configuration error: OpenAI API key is missing or invalid. Please configure OPENAI_API_KEY in your environment or character secrets.";
+        // Check if it's an API key error
+        if (error instanceof Error && error.message.includes("API key")) {
+          responseText =
+            "⚠️ Configuration error: ElizaCloud API key is missing or invalid. Please try logging out and back in.";
+        } else {
+          responseText =
+            "I apologize, but I encountered an error processing your message. Please try again.";
+        }
+      }
+
+      // Construct agent response memory object for return value
+      // NOTE: The message is already created and saved by the plugin-assistant event handler
+      // We only create this object for the return value, not to save it again
+      if (responseText) {
+        agentResponse = {
+          id: uuidv4() as UUID,
+          roomId: roomId as UUID,
+          entityId: runtime.agentId as UUID,
+          agentId: runtime.agentId as UUID,
+          createdAt: Date.now(),
+          content: {
+            text: responseText,
+            type: "agent",
+          },
+        };
+
+        elizaLogger.debug(
+          "#Eliza",
+          "Agent response generated (already saved by plugin)",
+        );
       } else {
-        responseText =
-          "I apologize, but I encountered an error processing your message. Please try again.";
+        elizaLogger.warn(
+          "#Eliza",
+          "No response text generated from event pipeline",
+        );
+      }
+
+      // Return agent response if available, otherwise fallback to user message
+      // (This should rarely happen as we set error messages above)
+      return { message: agentResponse || userMessage, usage };
+    } finally {
+      // CRITICAL: Always restore original settings to prevent race conditions
+      if (userSettings?.apiKey && !settingsRestored) {
+        runtime.character.settings = originalSettings;
+        settingsRestored = true;
+        elizaLogger.debug(
+          "[AgentRuntime] Restored original settings after request",
+        );
       }
     }
-
-    // Construct agent response memory object for return value
-    // NOTE: The message is already created and saved by the plugin-assistant event handler
-    // We only create this object for the return value, not to save it again
-    if (responseText) {
-      agentResponse = {
-        id: uuidv4() as UUID,
-        roomId: roomId as UUID,
-        entityId: runtime.agentId as UUID,
-        agentId: runtime.agentId as UUID,
-        createdAt: Date.now(),
-        content: {
-          text: responseText,
-          type: "agent",
-        },
-      };
-
-      elizaLogger.debug(
-        "#Eliza",
-        "Agent response generated (already saved by plugin)",
-      );
-    } else {
-      elizaLogger.warn(
-        "#Eliza",
-        "No response text generated from event pipeline",
-      );
-    }
-
-    // Return agent response if available, otherwise fallback to user message
-    // (This should rarely happen as we set error messages above)
-    return { message: agentResponse || userMessage, usage };
   }
 }
 

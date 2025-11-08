@@ -495,14 +495,24 @@ async function ensureUserHasApiKey(
   userId: string,
   organizationId: string,
 ): Promise<void> {
-  if (!organizationId) {
-    console.warn(`[PrivySync] No organization for user ${userId}, skipping API key creation`);
+  // Validate inputs
+  if (!userId || userId.trim() === "") {
+    console.warn("[PrivySync] Invalid userId, skipping API key creation");
+    return;
+  }
+
+  if (!organizationId || organizationId.trim() === "") {
+    console.warn(
+      `[PrivySync] No organization for user ${userId}, skipping API key creation`,
+    );
     return;
   }
 
   try {
     // Check if user already has an API key
-    const existingKeys = await apiKeysService.listByOrganization(organizationId);
+    const existingKeys = await apiKeysService.listByOrganization(
+      organizationId,
+    );
     const userHasKey = existingKeys.some((key) => key.user_id === userId);
 
     if (userHasKey) {
