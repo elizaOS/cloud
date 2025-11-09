@@ -11,22 +11,33 @@
  */
 export function getElizaCloudApiUrl(): string {
   const appUrl = process.env.NEXT_PUBLIC_APP_URL || process.env.VERCEL_URL;
+  const nodeEnv = process.env.NODE_ENV;
+
+  console.log("[ElizaCloudConfig] Environment detection:", {
+    NEXT_PUBLIC_APP_URL: process.env.NEXT_PUBLIC_APP_URL,
+    VERCEL_URL: process.env.VERCEL_URL,
+    NODE_ENV: nodeEnv,
+    appUrl,
+  });
 
   // Local development
   if (
     appUrl?.includes("localhost") ||
     appUrl?.includes("127.0.0.1") ||
-    process.env.NODE_ENV === "development"
+    nodeEnv === "development"
   ) {
+    console.log("[ElizaCloudConfig] Using LOCAL API URL: http://localhost:3000/api/v1");
     return "http://localhost:3000/api/v1";
   }
 
   // Development environment
   if (appUrl?.includes("dev.elizacloud.ai")) {
+    console.log("[ElizaCloudConfig] Using DEV API URL: https://www.dev.elizacloud.ai/api/v1");
     return "https://www.dev.elizacloud.ai/api/v1";
   }
 
   // Production (default)
+  console.log("[ElizaCloudConfig] Using PROD API URL: https://www.elizacloud.ai/api/v1");
   return "https://www.elizacloud.ai/api/v1";
 }
 

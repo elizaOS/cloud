@@ -22,6 +22,7 @@ import agent from "./agent";
 import { characterLoader } from "./character-loader";
 import type { Character } from "@elizaos/core";
 import { connectionCache } from "@/lib/cache/connection-cache";
+import { runWithContext } from "./request-context";
 
 interface GlobalWithEliza {
   __elizaManagerLogged?: boolean;
@@ -634,35 +635,41 @@ class AgentRuntimeManager {
     } else {
       runtime = await this.getRuntime();
     }
-    
-    // CRITICAL: Store original settings to restore after request
-    // This prevents race conditions in multi-tenant shared runtime
-    const originalSettings = runtime.character.settings;
-    let settingsRestored = false;
-    
-    try {
-      // Inject user's API key if provided (for per-request authentication)
-      if (userSettings?.apiKey) {
-        // IMPORTANT: We must restore these settings after the request
-        // to avoid race conditions with other users' requests
-        runtime.character.settings = {
-          ...originalSettings,
-          ELIZAOS_CLOUD_API_KEY: userSettings.apiKey,
-          ...(userSettings.modelPreferences?.smallModel && {
-            ELIZAOS_CLOUD_SMALL_MODEL: userSettings.modelPreferences.smallModel,
-          }),
-          ...(userSettings.modelPreferences?.largeModel && {
-            ELIZAOS_CLOUD_LARGE_MODEL: userSettings.modelPreferences.largeModel,
-          }),
-        };
-        elizaLogger.debug(
-          "[AgentRuntime] Injected user settings (will restore after request)",
-        );
-      }
 
-    // OPTIMIZATION: Check connection cache before calling ensureConnection
-    // This avoids a DB query on every message for established connections
-    const entityUuid = stringToUuid(entityId) as UUID;
+    // CRITICAL: Use AsyncLocalStorage for per-request context isolation
+    // This prevents race conditions in multi-tenant shared runtime
+    // The plugin can access context via getRequestContext() helper
+    
+    // Log API key being used (FULL KEY for debugging)
+    console.log("[AgentRuntime] ==================== API KEY INJECTION ====================");
+    if (userSettings?.apiKey) {
+      console.log("[AgentRuntime] ✅ User API key provided (FULL KEY):", userSettings.apiKey);
+      console.log("[AgentRuntime] API key length:", userSettings.apiKey.length);
+      console.log("[AgentRuntime] User ID:", userSettings.userId);
+      if (userSettings.modelPreferences) {
+        console.log("[AgentRuntime] Model preferences:", userSettings.modelPreferences);
+      }
+    } else {
+      console.log("[AgentRuntime] ❌ No user API key provided!");
+    }
+    console.log("[AgentRuntime] ================================================================");
+    
+    return runWithContext(
+      {
+        userId: userSettings?.userId,
+        apiKey: userSettings?.apiKey,
+        modelPreferences: userSettings?.modelPreferences,
+      },
+      async () => {
+        console.log("[AgentRuntime] ✅ Running with isolated request context");
+        console.log("[AgentRuntime] Context API key:", userSettings?.apiKey);
+        elizaLogger.debug(
+          "[AgentRuntime] Running with isolated request context",
+        );
+
+        // OPTIMIZATION: Check connection cache before calling ensureConnection
+        // This avoids a DB query on every message for established connections
+        const entityUuid = stringToUuid(entityId) as UUID;
     const isConnectionCached = await connectionCache.isEstablished(
       roomId,
       entityId,
@@ -805,19 +812,11 @@ class AgentRuntimeManager {
         );
       }
 
-      // Return agent response if available, otherwise fallback to user message
-      // (This should rarely happen as we set error messages above)
-      return { message: agentResponse || userMessage, usage };
-    } finally {
-      // CRITICAL: Always restore original settings to prevent race conditions
-      if (userSettings?.apiKey && !settingsRestored) {
-        runtime.character.settings = originalSettings;
-        settingsRestored = true;
-        elizaLogger.debug(
-          "[AgentRuntime] Restored original settings after request",
-        );
-      }
-    }
+        // Return agent response if available, otherwise fallback to user message
+        // (This should rarely happen as we set error messages above)
+        return { message: agentResponse || userMessage, usage };
+      },
+    ); // End of runWithContext - context automatically cleaned up
   }
 }
 

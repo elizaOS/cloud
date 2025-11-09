@@ -21,10 +21,9 @@
         "@elevenlabs/elevenlabs-js": "^2.21.0",
         "@elizaos/core": "^1.6.4",
         "@elizaos/plugin-elevenlabs": "^1.6.0",
-        "@elizaos/plugin-elizacloud": "^1.5.18",
+        "@elizaos/plugin-elizacloud": "^1.5.19",
         "@elizaos/plugin-knowledge": "^1.5.13",
         "@elizaos/plugin-memory": "^1.0.3",
-        "@elizaos/plugin-openai": "^1.5.18",
         "@elizaos/plugin-sql": "^1.6.4",
         "@fal-ai/client": "^1.7.2",
         "@fal-ai/server-proxy": "^1.1.1",
@@ -391,13 +390,11 @@
 
     "@elizaos/plugin-elevenlabs": ["@elizaos/plugin-elevenlabs@1.6.0", "", { "dependencies": { "@elevenlabs/elevenlabs-js": "^2.16.0", "@elizaos/core": "1.5.10" } }, "sha512-sXxFWCxa3F3Wx2gKWLYlM11Usj5NGSC7znt0I2DwnPGAvhfVYcCMfOHqbkpN+KtJOAJTxZf51eZKDZse3Y5Cmg=="],
 
-    "@elizaos/plugin-elizacloud": ["@elizaos/plugin-elizacloud@1.5.18", "", { "dependencies": { "@ai-sdk/openai": "^2.0.32", "@elizaos/core": "^1.6.0-alpha.4", "ai": "^5.0.47", "js-tiktoken": "^1.0.21", "undici": "^7.16.0" }, "peerDependencies": { "zod": "^3.25.76 || ^4.1.8" } }, "sha512-Jh6/FMV5bkvvkvIM7WZCjWnAeExzo/+SSpzeFyYa65CPCM7cR3BiWmG/E4zeAjTSrFfTQLoP7Jk8J1v2ez9dhQ=="],
+    "@elizaos/plugin-elizacloud": ["@elizaos/plugin-elizacloud@1.5.19", "", { "dependencies": { "@ai-sdk/openai": "^2.0.32", "@elizaos/core": "^1.6.0-alpha.4", "ai": "^5.0.47", "js-tiktoken": "^1.0.21", "undici": "^7.16.0" }, "peerDependencies": { "zod": "^3.25.76 || ^4.1.8" } }, "sha512-FEQxOCGQ+6LQr5EH8mqYU7SDQLCZYq3FmRIFf2a6xVep5iyUFP83q3tHXmIUMtpwLk32wo6dqxSKxBm95ojUsQ=="],
 
     "@elizaos/plugin-knowledge": ["@elizaos/plugin-knowledge@1.5.13", "", { "dependencies": { "@ai-sdk/anthropic": "^2.0.17", "@ai-sdk/google": "^2.0.14", "@ai-sdk/openai": "^2.0.32", "@elizaos/core": "^1.5.10", "@openrouter/ai-sdk-provider": "^1.2.0", "@tanstack/react-query": "^5.51.1", "ai": "^5.0.48", "clsx": "^2.1.1", "dotenv": "^17.2.0", "lucide-react": "^0.525.0", "mammoth": "^1.9.0", "multer": "^2.0.1", "pdfjs-dist": "^5.2.133", "react": "^19.1.0", "react-dom": "^19.1.0", "react-force-graph-2d": "^1.27.1", "tailwind-merge": "^3.3.1", "zod": "3.25.76" } }, "sha512-3970eZxtDL5yAsiigEq2IlTMVD+FJAPFGT9j5OR8GE9eGhhbGQAlcOf89/gGX8Rkk37toqczdBtzkDAvusuOyw=="],
 
     "@elizaos/plugin-memory": ["@elizaos/plugin-memory@1.0.3", "", { "dependencies": { "@elizaos/core": "latest", "drizzle-orm": "^0.38.3" } }, "sha512-9RTcSX8ai8UkMa33oHTFqn8VwMtiNBidB9GJjJZ4rPGFlOmRpbXQiaihmBztOQTltdAVWv+CXeTiJI5IjdKlow=="],
-
-    "@elizaos/plugin-openai": ["@elizaos/plugin-openai@1.5.18", "", { "dependencies": { "@ai-sdk/openai": "^2.0.32", "@elizaos/core": "^1.6.0-alpha.4", "ai": "^5.0.47", "js-tiktoken": "^1.0.21", "undici": "^7.16.0" }, "peerDependencies": { "zod": "^3.25.76 || ^4.1.8" } }, "sha512-0RxA871lmfvnxpKsSlJ8wqU0I7rF9Cq1G54ZCfmji0+e44gsT3VL0OLvIKLS1GNMLMgXqXAE8SciRFsUglw5bA=="],
 
     "@elizaos/plugin-sql": ["@elizaos/plugin-sql@1.6.4", "", { "dependencies": { "@electric-sql/pglite": "^0.3.3", "@elizaos/core": "1.6.4", "dotenv": "^16.4.7", "drizzle-kit": "^0.31.1", "drizzle-orm": "^0.44.2", "pg": "^8.13.3", "uuid": "^11.0.5" } }, "sha512-qAZZdv0/wVUooDjnuOQfr5CBS7wImx2bw2AOvtwKfHwEcg9Lbb6smsE66rjyME2bRsV6wwAhx3ftooxIaNhQDA=="],
 
@@ -3664,8 +3661,6 @@
     "@elizaos/plugin-knowledge/zod": ["zod@3.25.76", "", {}, "sha512-gzUt/qt81nXsFGKIFcC3YnfEAx5NkunCfnDlvuBSSFS02bcXu4Lmea0AFIUwbLWxWPx3d9p8S5QoaujKcNQxcQ=="],
 
     "@elizaos/plugin-memory/drizzle-orm": ["drizzle-orm@0.38.4", "", { "peerDependencies": { "@aws-sdk/client-rds-data": ">=3", "@cloudflare/workers-types": ">=4", "@electric-sql/pglite": ">=0.2.0", "@libsql/client": ">=0.10.0", "@libsql/client-wasm": ">=0.10.0", "@neondatabase/serverless": ">=0.10.0", "@op-engineering/op-sqlite": ">=2", "@opentelemetry/api": "^1.4.1", "@planetscale/database": ">=1", "@prisma/client": "*", "@tidbcloud/serverless": "*", "@types/better-sqlite3": "*", "@types/pg": "*", "@types/react": ">=18", "@types/sql.js": "*", "@vercel/postgres": ">=0.8.0", "@xata.io/client": "*", "better-sqlite3": ">=7", "bun-types": "*", "expo-sqlite": ">=14.0.0", "knex": "*", "kysely": "*", "mysql2": ">=2", "pg": ">=8", "postgres": ">=3", "react": ">=18", "sql.js": ">=1", "sqlite3": ">=5" }, "optionalPeers": ["@aws-sdk/client-rds-data", "@cloudflare/workers-types", "@libsql/client", "@libsql/client-wasm", "@op-engineering/op-sqlite", "@planetscale/database", "@prisma/client", "@tidbcloud/serverless", "@types/better-sqlite3", "@types/sql.js", "@vercel/postgres", "@xata.io/client", "better-sqlite3", "bun-types", "expo-sqlite", "knex", "kysely", "mysql2", "postgres", "sql.js", "sqlite3"] }, "sha512-s7/5BpLKO+WJRHspvpqTydxFob8i1vo2rEx4pY6TGY7QSMuUfWUuzaY0DIpXCkgHOo37BaFC+SJQb99dDUXT3Q=="],
-
-    "@elizaos/plugin-openai/undici": ["undici@7.16.0", "", {}, "sha512-QEg3HPMll0o3t2ourKwOeUAZ159Kn9mx5pnzHRQO8+Wixmh88YdZRiIwat0iNzNNXn0yoEtXJqFpyW7eM8BV7g=="],
 
     "@elizaos/plugin-sql/dotenv": ["dotenv@16.6.1", "", {}, "sha512-uBq4egWHTcTt33a72vpSG0z3HnPuIl6NqYcTrKEg2azoEyl2hpW0zqlxysq2pK9HlDIHyHyakeYaYnSAwd8bow=="],
 

@@ -109,7 +109,7 @@ export async function POST(
         );
         if (userApiKey) {
           logger.info(
-            `[Stream Messages] Retrieved API key for user ${user.id}`,
+            `[Stream Messages] Retrieved API key for user ${user.id}: ${userApiKey.substring(0, 12)}...`,
           );
         } else {
           // VALIDATION: Reject request if user has no API key
