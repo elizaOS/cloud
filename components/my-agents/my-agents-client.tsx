@@ -28,7 +28,8 @@ export function MyAgentsClient({ initialCharacters }: MyAgentsClientProps) {
     const query = searchQuery.toLowerCase();
     return (
       char.name?.toLowerCase().includes(query) ||
-      (typeof char.bio === "string" && char.bio.toLowerCase().includes(query)) ||
+      (typeof char.bio === "string" &&
+        char.bio.toLowerCase().includes(query)) ||
       (Array.isArray(char.bio) &&
         char.bio.some((b) => b.toLowerCase().includes(query))) ||
       char.topics?.some((t) => t.toLowerCase().includes(query)) ||
@@ -69,7 +70,7 @@ export function MyAgentsClient({ initialCharacters }: MyAgentsClientProps) {
         </BrandButton>
       ),
     },
-    [initialCharacters.length, handleCreateNew]
+    [initialCharacters.length, handleCreateNew],
   );
 
   return (
