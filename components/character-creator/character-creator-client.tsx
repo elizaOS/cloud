@@ -65,7 +65,7 @@ export function CharacterCreatorClient({
         setSelectedId(initialCharacterId);
         console.log(
           "[Character Creator] Loaded character from URL:",
-          char.name
+          char.name,
         );
       }
     }
@@ -75,7 +75,7 @@ export function CharacterCreatorClient({
     (updates: Partial<ElizaCharacter>) => {
       setCharacter((prev) => ({ ...prev, ...updates }));
     },
-    []
+    [],
   );
 
   const handleSave = useCallback(async () => {
@@ -112,7 +112,7 @@ export function CharacterCreatorClient({
       toast.error(
         error instanceof Error
           ? error.message
-          : "Failed to save character. Please try again."
+          : "Failed to save character. Please try again.",
       );
     }
   }, [character, selectedId]);
@@ -126,7 +126,7 @@ export function CharacterCreatorClient({
         toast.success("Character loaded");
       }
     },
-    [initialCharacters]
+    [initialCharacters],
   );
 
   const handleNewCharacter = useCallback(() => {
@@ -203,7 +203,7 @@ export function CharacterCreatorClient({
       handleNewCharacter,
       handleLoadCharacter,
       router,
-    ]
+    ],
   );
 
   return (

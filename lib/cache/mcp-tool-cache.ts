@@ -60,7 +60,7 @@ interface CachedToolResult {
 export async function getCachedToolResult(
   toolName: string,
   params: any,
-  organizationId: string
+  organizationId: string,
 ): Promise<any | null> {
   // Check if this tool should be cached
   const ttl = TOOL_CACHE_TTLS[toolName];
@@ -106,7 +106,7 @@ export async function setCachedToolResult(
   toolName: string,
   params: any,
   organizationId: string,
-  result: any
+  result: any,
 ): Promise<void> {
   // Check if this tool should be cached
   const ttl = TOOL_CACHE_TTLS[toolName];
@@ -142,7 +142,7 @@ export async function setCachedToolResult(
 export async function invalidateToolCache(
   toolName: string,
   organizationId: string,
-  params?: any
+  params?: any,
 ): Promise<void> {
   try {
     if (params) {
@@ -154,10 +154,15 @@ export async function invalidateToolCache(
       // Invalidate all cache entries for this tool and org (pattern-based)
       // Note: This requires scanning keys, which can be slow
       // For now, we'll skip this optimization and rely on TTL expiration
-      logger.debug(`[MCPToolCache] Skipping pattern-based invalidation for ${toolName}`);
+      logger.debug(
+        `[MCPToolCache] Skipping pattern-based invalidation for ${toolName}`,
+      );
     }
   } catch (error) {
-    logger.error(`[MCPToolCache] Cache invalidation error for ${toolName}:`, error);
+    logger.error(
+      `[MCPToolCache] Cache invalidation error for ${toolName}:`,
+      error,
+    );
   }
 }
 
@@ -190,7 +195,7 @@ export async function getToolCacheStats(toolName?: string): Promise<{
 function buildToolCacheKey(
   toolName: string,
   params: any,
-  organizationId: string
+  organizationId: string,
 ): string {
   // Hash params to create stable, compact key
   // Sort keys to ensure consistent hashing regardless of param order
