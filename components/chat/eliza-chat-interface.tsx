@@ -9,11 +9,9 @@ import {
   Bot,
   User,
   Clock,
-  MessageSquare,
   Mic,
   Square,
   Volume2,
-  Trash2,
 } from "lucide-react";
 import { ElizaAvatar } from "./eliza-avatar";
 import { KnowledgeDrawer } from "./knowledge-drawer";
@@ -32,8 +30,8 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import type { ElizaCharacter } from "@/lib/types";
 import { ensureAudioFormat } from "@/lib/utils/audio";
+import { useChatStore } from "@/stores/chat-store";
 
 interface Message {
   id: string;
@@ -45,13 +43,6 @@ interface Message {
   createdAt: number;
 }
 
-interface RoomItem {
-  id: string;
-  lastText?: string;
-  lastTime?: number;
-  characterId?: string;
-}
-
 interface AgentInfo {
   id?: string;
   name?: string;
@@ -59,35 +50,34 @@ interface AgentInfo {
 }
 
 interface ElizaChatInterfaceProps {
-  availableCharacters?: ElizaCharacter[];
   initialCharacterId?: string | null;
 }
 
 export function ElizaChatInterface({
-  availableCharacters = [],
   initialCharacterId = null,
 }: ElizaChatInterfaceProps) {
-  const [selectedCharacterId, setSelectedCharacterId] = useState<string | null>(
-    initialCharacterId,
-  );
-  const [roomId, setRoomId] = useState<string | null>(null);
+  // Use chat store for room and character management
+  const { 
+    roomId, 
+    entityId, 
+    loadRooms,
+    createRoom: createRoomInStore,
+    selectedCharacterId,
+    setSelectedCharacterId,
+  } = useChatStore();
 
-  // Debug: Log character selection changes
+  // Set initial character ID from URL if provided
   useEffect(() => {
-    console.log(
-      "[ElizaChat] Character selection changed:",
-      selectedCharacterId || "default",
-    );
-  }, [selectedCharacterId]);
+    if (initialCharacterId && initialCharacterId !== selectedCharacterId) {
+      setSelectedCharacterId(initialCharacterId);
+    }
+  }, [initialCharacterId, selectedCharacterId, setSelectedCharacterId]);
   const [messages, setMessages] = useState<Message[]>([]);
-  const [rooms, setRooms] = useState<RoomItem[]>([]);
   const [agentInfo, setAgentInfo] = useState<AgentInfo | null>(null);
   const [inputText, setInputText] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const [isInitializing, setIsInitializing] = useState(false);
-  const [isLoadingRooms, setIsLoadingRooms] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [deletingRoomId, setDeletingRoomId] = useState<string | null>(null);
   const scrollAreaRef = useRef<HTMLDivElement>(null);
   const scrollViewportRef = useRef<HTMLDivElement>(null);
   const thinkingTimeoutRef = useRef<NodeJS.Timeout | null>(null);
@@ -145,53 +135,6 @@ export function ElizaChatInterface({
     }
   }, [selectedModel]);
 
-  // Generate a unique entity ID for this session
-  const entityId = useRef<string>("");
-  if (!entityId.current && typeof window !== "undefined") {
-    const saved = window.localStorage.getItem("elizaEntityId");
-    if (saved) {
-      entityId.current = saved;
-    } else {
-      entityId.current = `user-${Math.random().toString(36).substring(7)}`;
-      window.localStorage.setItem("elizaEntityId", entityId.current);
-    }
-  }
-
-  const loadRooms = useCallback(async () => {
-    setIsLoadingRooms(true);
-    try {
-      const params = new URLSearchParams({ entityId: entityId.current });
-      const res = await fetch(`/api/eliza/rooms?${params.toString()}`);
-      if (res.ok) {
-        const data = await res.json();
-        if (Array.isArray(data.rooms)) {
-          const list = data.rooms.slice(0, 12) as {
-            id: string;
-            characterId?: string;
-          }[];
-          console.log(
-            "[ElizaChat] Loaded rooms from API:",
-            list.map((r) => ({
-              id: r.id.substring(0, 8),
-              characterId: r.characterId,
-            })),
-          );
-
-          const rooms: RoomItem[] = list.map((r) => ({
-            id: r.id,
-            characterId: r.characterId,
-          }));
-
-          setRooms(rooms);
-        }
-      }
-    } catch {
-      // non-fatal
-    } finally {
-      setIsLoadingRooms(false);
-    }
-  }, []);
-
   const loadMessages = useCallback(async (targetRoomId: string) => {
     try {
       const response = await fetch(`/api/eliza/rooms/${targetRoomId}`);
@@ -201,19 +144,22 @@ export function ElizaChatInterface({
         if (data.agent) {
           setAgentInfo(data.agent);
         }
-        // Update selected character based on room's assignment
-        if (data.characterId) {
-          console.log("[ElizaChat] Room uses character:", data.characterId);
-          setSelectedCharacterId(data.characterId);
-        } else {
-          console.log("[ElizaChat] Room uses default character");
-          setSelectedCharacterId(null);
-        }
+        // Note: We don't update selectedCharacterId here anymore
+        // Character selection is controlled by the header dropdown
+        console.log("[ElizaChat] Loaded messages for room:", targetRoomId);
       }
     } catch (err) {
       console.error("Error loading messages:", err);
     }
   }, []);
+
+  // Load messages when roomId from context changes
+  useEffect(() => {
+    if (roomId) {
+      console.log("[ElizaChat] Room ID changed, loading messages:", roomId);
+      loadMessages(roomId);
+    }
+  }, [roomId, loadMessages]);
 
   const createRoom = useCallback(
     async (characterId?: string | null) => {
@@ -226,34 +172,17 @@ export function ElizaChatInterface({
       setIsInitializing(true);
       setError(null);
       try {
-        const response = await fetch("/api/eliza/rooms", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            entityId: entityId.current,
-            characterId: charIdToUse || undefined,
-          }),
-        });
-
-        if (!response.ok) {
+        // Use store's createRoom which handles the API call
+        const newRoomId = await createRoomInStore(charIdToUse);
+        
+        if (!newRoomId) {
           throw new Error("Failed to create room");
         }
 
-        const data = await response.json();
-        console.log("[ElizaChat] Room created:", {
-          roomId: data.roomId,
-          characterId: data.characterId,
-          requestedCharacterId: charIdToUse,
-        });
+        console.log("[ElizaChat] Room created:", newRoomId);
 
-        setRoomId(data.roomId);
-        if (typeof window !== "undefined") {
-          window.localStorage.setItem("elizaRoomId", data.roomId);
-        }
-
-        // Load initial messages (this will also update selectedCharacterId based on room's character)
-        await loadMessages(data.roomId);
-        await loadRooms();
+        // Load initial messages for the new room
+        await loadMessages(newRoomId);
       } catch (err) {
         setError(err instanceof Error ? err.message : "Failed to create room");
         console.error("[ElizaChat] Error creating room:", err);
@@ -261,132 +190,18 @@ export function ElizaChatInterface({
         setIsInitializing(false);
       }
     },
-    [loadMessages, loadRooms, selectedCharacterId],
+    [createRoomInStore, loadMessages, selectedCharacterId],
   );
 
-  const deleteRoom = useCallback(
-    async (roomIdToDelete: string) => {
-      // Prevent deleting while another delete is in progress
-      if (deletingRoomId) return;
-
-      // Confirm deletion
-      if (
-        !confirm(
-          "Are you sure you want to delete this conversation? This action cannot be undone.",
-        )
-      ) {
-        return;
-      }
-
-      setDeletingRoomId(roomIdToDelete);
-      try {
-        const response = await fetch(`/api/eliza/rooms/${roomIdToDelete}`, {
-          method: "DELETE",
-        });
-
-        if (!response.ok) {
-          throw new Error("Failed to delete room");
-        }
-
-        console.log("[ElizaChat] Room deleted successfully:", roomIdToDelete);
-        toast.success("Conversation deleted");
-
-        // If we deleted the currently active room, clear it and create a new one
-        if (roomId === roomIdToDelete) {
-          setRoomId(null);
-          setMessages([]);
-          if (typeof window !== "undefined") {
-            window.localStorage.removeItem("elizaRoomId");
-          }
-
-          // SSE connection will be automatically closed by useMessageStream hook
-
-          // Check if there are other rooms to switch to
-          const remainingRooms = rooms.filter((r) => r.id !== roomIdToDelete);
-          if (remainingRooms.length > 0) {
-            // Switch to the first remaining room
-            const nextRoom = remainingRooms[0];
-            setRoomId(nextRoom.id);
-            if (typeof window !== "undefined") {
-              window.localStorage.setItem("elizaRoomId", nextRoom.id);
-            }
-            await loadMessages(nextRoom.id);
-          } else {
-            // No rooms left, create a new one
-            await createRoom();
-          }
-        }
-
-        // Reload the rooms list
-        await loadRooms();
-      } catch (err) {
-        console.error("[ElizaChat] Error deleting room:", err);
-        toast.error(
-          err instanceof Error ? err.message : "Failed to delete room",
-        );
-      } finally {
-        setDeletingRoomId(null);
-      }
-    },
-    [roomId, rooms, deletingRoomId, loadMessages, loadRooms, createRoom],
-  );
-
-  // Initialize room: restore saved room or use most recent existing room
+  // Create room with character if provided from URL
   useEffect(() => {
-    const initializeRoom = async () => {
-      // If initialCharacterId is provided from URL, create a new room immediately
-      if (initialCharacterId) {
-        console.log(
-          "[ElizaChat] Initializing with character from URL:",
-          initialCharacterId,
-        );
-        await createRoom(initialCharacterId);
-        return;
-      }
-
-      // First check for saved room in localStorage
-      const savedRoom =
-        typeof window !== "undefined"
-          ? window.localStorage.getItem("elizaRoomId")
-          : null;
-
-      if (savedRoom) {
-        setRoomId(savedRoom);
-        loadMessages(savedRoom);
-        await loadRooms();
-      } else {
-        // No saved room - check if user has any existing rooms
-        try {
-          const params = new URLSearchParams({ entityId: entityId.current });
-          const res = await fetch(`/api/eliza/rooms?${params.toString()}`);
-          if (res.ok) {
-            const data = await res.json();
-            if (Array.isArray(data.rooms) && data.rooms.length > 0) {
-              // Use the most recent existing room
-              const mostRecentRoom = data.rooms[0];
-              setRoomId(mostRecentRoom.id);
-              if (typeof window !== "undefined") {
-                window.localStorage.setItem("elizaRoomId", mostRecentRoom.id);
-              }
-              loadMessages(mostRecentRoom.id);
-              await loadRooms();
-            } else {
-              // No existing rooms - create a new one
-              await createRoom();
-            }
-          } else {
-            // Failed to get rooms - create a new one
-            await createRoom();
-          }
-        } catch {
-          // Error checking rooms - create a new one
-          await createRoom();
-        }
-      }
-    };
-
-    initializeRoom();
-    // SSE connection cleanup is handled by useMessageStream hook
+    if (initialCharacterId) {
+      console.log(
+        "[ElizaChat] Creating room with character from URL:",
+        initialCharacterId,
+      );
+      createRoom(initialCharacterId);
+    }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [initialCharacterId]);
 
@@ -708,7 +523,7 @@ export function ElizaChatInterface({
       // Stream the response using single endpoint
       await sendStreamingMessage({
         roomId,
-        entityId: entityId.current,
+        entityId: entityId,
         text: messageText,
         model: selectedModel || undefined, // Pass selected model
         onMessage: handleStreamMessage,
@@ -787,154 +602,7 @@ export function ElizaChatInterface({
 
   return (
     <div className="flex h-full w-full min-h-0">
-      {/* Left Sidebar - Rooms */}
-      <div className="hidden md:flex md:flex-col w-80 border-r bg-card/50 min-h-0">
-        <div className="border-b p-4">
-          <div className="flex items-center justify-between mb-3">
-            <div className="flex items-center gap-2">
-              <MessageSquare className="h-4 w-4 text-muted-foreground" />
-              <p className="text-sm font-semibold">Conversations</p>
-            </div>
-            <Button size="sm" variant="ghost" onClick={() => createRoom()}>
-              New
-            </Button>
-          </div>
-
-          {/* Character Selector */}
-          {availableCharacters.length > 0 && (
-            <div className="space-y-2">
-              <Label
-                htmlFor="character-select"
-                className="text-xs text-muted-foreground"
-              >
-                Character
-              </Label>
-              <Select
-                value={selectedCharacterId || "default"}
-                onValueChange={(value) =>
-                  setSelectedCharacterId(value === "default" ? null : value)
-                }
-              >
-                <SelectTrigger id="character-select" className="h-8 text-xs">
-                  <SelectValue placeholder="Default (Eliza)" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="default">Default (Eliza)</SelectItem>
-                  {availableCharacters.map((char) => (
-                    <SelectItem key={char.id} value={char.id!}>
-                      {char.name}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-          )}
-
-          <Button
-            size="sm"
-            variant="outline"
-            onClick={loadRooms}
-            className="w-full text-xs"
-          >
-            Refresh
-          </Button>
-        </div>
-        <div className="flex-1 min-h-0 overflow-hidden">
-          <ScrollArea className="h-full">
-            <div className="p-2 space-y-1">
-              {isLoadingRooms && rooms.length === 0 ? (
-                <div className="flex items-center justify-center py-8">
-                  <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
-                </div>
-              ) : (
-                <>
-                  {rooms.map((r) => {
-                    const roomCharacter = r.characterId
-                      ? availableCharacters.find((c) => c.id === r.characterId)
-                      : null;
-                    const characterName = roomCharacter?.name || "Default";
-                    const isDeleting = deletingRoomId === r.id;
-
-                    return (
-                      <div
-                        key={r.id}
-                        className={`w-full rounded-lg px-3 py-3 transition-all hover:bg-accent/50 ${
-                          r.id === roomId ? "bg-accent" : ""
-                        } ${isDeleting ? "opacity-50 pointer-events-none" : ""}`}
-                      >
-                        <div className="flex items-start gap-2">
-                          <button
-                            className="flex-1 text-left min-w-0"
-                            onClick={() => {
-                              setRoomId(r.id);
-                              if (typeof window !== "undefined") {
-                                window.localStorage.setItem(
-                                  "elizaRoomId",
-                                  r.id,
-                                );
-                              }
-                              setMessages([]);
-                              loadMessages(r.id);
-                            }}
-                            disabled={isDeleting}
-                          >
-                            <div className="flex items-center justify-between mb-1">
-                              <div className="text-xs font-semibold truncate flex-1">
-                                Room {r.id.substring(0, 8)}...
-                              </div>
-                              {r.lastTime ? (
-                                <div className="text-[10px] text-muted-foreground whitespace-nowrap ml-2">
-                                  {formatTimestamp(r.lastTime)}
-                                </div>
-                              ) : null}
-                            </div>
-                            <div className="flex items-center gap-2">
-                              <div className="text-[10px] px-1.5 py-0.5 rounded bg-primary/10 text-primary font-medium">
-                                {characterName}
-                              </div>
-                              {r.lastText && (
-                                <div className="text-xs text-muted-foreground truncate flex-1">
-                                  {r.lastText}
-                                </div>
-                              )}
-                            </div>
-                          </button>
-                          <Button
-                            size="sm"
-                            variant="ghost"
-                            className="h-6 w-6 p-0 flex-shrink-0 hover:bg-destructive/10 hover:text-destructive"
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              deleteRoom(r.id);
-                            }}
-                            disabled={isDeleting}
-                            title="Delete conversation"
-                          >
-                            {isDeleting ? (
-                              <Loader2 className="h-3 w-3 animate-spin" />
-                            ) : (
-                              <Trash2 className="h-3 w-3" />
-                            )}
-                          </Button>
-                        </div>
-                      </div>
-                    );
-                  })}
-                  {rooms.length === 0 && !isLoadingRooms && (
-                    <div className="px-3 py-8 text-center">
-                      <p className="text-xs text-muted-foreground">
-                        No conversations yet
-                      </p>
-                    </div>
-                  )}
-                </>
-              )}
-            </div>
-          </ScrollArea>
-        </div>
-      </div>
-
-      {/* Main Chat Area */}
+      {/* Main Chat Area - Now Full Width */}
       <div className="flex flex-col flex-1 min-h-0">
         {/* Header */}
         <div className="border-b p-4">
