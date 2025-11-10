@@ -275,7 +275,7 @@ export function ChatSidebar({
                         <div className="flex-1 min-w-0">
                           <div className="flex items-center justify-between gap-2 mb-1">
                             <span className="text-sm font-medium text-white truncate">
-                              Room {room.id.substring(0, 8)}
+                              {room.title || `Room ID: ${room.id.substring(0, 8)}`}
                             </span>
                             {room.lastTime && (
                               <span className="text-xs text-white/40 shrink-0">
