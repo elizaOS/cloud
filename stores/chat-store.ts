@@ -18,8 +18,6 @@ export interface Character {
   username?: string;
 }
 
-export type ChatMode = "chat" | "build";
-
 interface ChatState {
   // State
   rooms: RoomItem[];
@@ -28,7 +26,6 @@ interface ChatState {
   entityId: string;
   availableCharacters: Character[];
   selectedCharacterId: string | null;
-  mode: ChatMode;
 
   // Actions
   setRooms: (rooms: RoomItem[]) => void;
@@ -36,7 +33,6 @@ interface ChatState {
   setIsLoadingRooms: (isLoading: boolean) => void;
   setAvailableCharacters: (characters: Character[]) => void;
   setSelectedCharacterId: (characterId: string | null) => void;
-  setMode: (mode: ChatMode) => void;
   loadRooms: () => Promise<void>;
   createRoom: (characterId?: string | null) => Promise<string | null>;
   deleteRoom: (roomId: string) => Promise<void>;
@@ -63,7 +59,6 @@ export const useChatStore = create<ChatState>((set, get) => ({
   entityId: "",
   availableCharacters: [],
   selectedCharacterId: null,
-  mode: "chat",
 
   // Setters
   setRooms: (rooms) => set({ rooms }),
@@ -78,7 +73,6 @@ export const useChatStore = create<ChatState>((set, get) => ({
     set({ availableCharacters: characters }),
   setSelectedCharacterId: (characterId) =>
     set({ selectedCharacterId: characterId }),
-  setMode: (mode) => set({ mode }),
 
   // Initialize entity ID
   initializeEntityId: () => {

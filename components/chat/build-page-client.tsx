@@ -1,26 +1,22 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { ElizaChatInterface } from "@/components/chat/eliza-chat-interface";
+import { CharacterBuildMode } from "@/components/chat/character-build-mode";
 import { SignupPromptBanner } from "@/components/chat/signup-prompt-banner";
 import { useSetPageHeader } from "@/components/layout/page-header-context";
 import { useChatStore, type Character } from "@/stores/chat-store";
 import type { ElizaCharacter } from "@/lib/types";
 import { getOrCreateAnonymousUserAction } from "@/app/actions/anonymous";
 
-interface ElizaPageClientProps {
+interface BuildPageClientProps {
   initialCharacters: ElizaCharacter[];
   isAuthenticated: boolean;
-  initialRoomId?: string;
-  initialCharacterId?: string;
 }
 
-export function ElizaPageClient({
+export function BuildPageClient({
   initialCharacters,
   isAuthenticated,
-  initialRoomId,
-  initialCharacterId,
-}: ElizaPageClientProps) {
+}: BuildPageClientProps) {
   const [anonymousSession, setAnonymousSession] = useState<{
     messageCount: number;
     messagesLimit: number;
@@ -28,20 +24,13 @@ export function ElizaPageClient({
   } | null>(null);
   const [isLoadingSession, setIsLoadingSession] = useState(!isAuthenticated);
 
-  // Initialize store with characters and entity ID (must be at top level)
-  const {
-    setAvailableCharacters,
-    initializeEntityId,
-    setRoomId,
-    setSelectedCharacterId,
-  } = useChatStore();
+  // Initialize store with characters and entity ID
+  const { setAvailableCharacters, initializeEntityId } = useChatStore();
 
-  // Note: Page header is now handled by ChatHeader component
-  // Remove this if you want to completely disable the old header system for chat
   useSetPageHeader({
-    title: "Chat",
+    title: "Build",
     description:
-      "Chat with AI agents using the full ElizaOS runtime with persistent memory and room-based conversations.",
+      "Build and customize AI agents using the ElizaOS runtime with intelligent assistance.",
   });
 
   // Initialize store on mount
@@ -56,21 +45,6 @@ export function ElizaPageClient({
     setAvailableCharacters(characters);
     initializeEntityId();
   }, [initialCharacters, setAvailableCharacters, initializeEntityId]);
-
-  // Sync URL params with store on mount
-  useEffect(() => {
-    if (initialRoomId) {
-      console.log("[Chat Page] Setting room ID from URL:", initialRoomId);
-      setRoomId(initialRoomId);
-    }
-    if (initialCharacterId) {
-      console.log(
-        "[Chat Page] Setting character ID from URL:",
-        initialCharacterId,
-      );
-      setSelectedCharacterId(initialCharacterId);
-    }
-  }, [initialRoomId, initialCharacterId, setRoomId, setSelectedCharacterId]);
 
   // Initialize anonymous session for unauthenticated users
   useEffect(() => {
@@ -113,9 +87,9 @@ export function ElizaPageClient({
         />
       )}
 
-      {/* Chat Interface */}
+      {/* Build Mode */}
       <div className="flex flex-1 overflow-hidden">
-        <ElizaChatInterface />
+        <CharacterBuildMode initialCharacters={initialCharacters} />
       </div>
     </div>
   );
