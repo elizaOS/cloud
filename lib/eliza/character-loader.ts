@@ -1,10 +1,11 @@
 import type { Character, Plugin } from "@elizaos/core";
-import { openaiPlugin } from "@elizaos/plugin-openai";
+import { elizaOSCloudPlugin } from "@elizaos/plugin-elizacloud";
 import { elevenLabsPlugin } from "@elizaos/plugin-elevenlabs";
 import { assistantPlugin } from "./plugin-assistant";
 import { charactersService } from "@/lib/services/characters";
 import type { ElizaCharacter } from "@/lib/types";
 import defaultAgent from "./agent";
+import { getElizaCloudApiUrl, getDefaultModels } from "./config";
 
 /**
  * Maps plugin names to their implementations
@@ -12,7 +13,7 @@ import defaultAgent from "./agent";
  * Note: Type assertions needed due to ElizaOS plugin type bundling differences
  */
 const AVAILABLE_PLUGINS: Record<string, Plugin> = {
-  "@elizaos/plugin-openai": openaiPlugin as unknown as Plugin,
+  "@elizaos/plugin-elizacloud": elizaOSCloudPlugin as unknown as Plugin,
   "@elizaos/plugin-elevenlabs": elevenLabsPlugin as unknown as Plugin,
   "@eliza-cloud/plugin-assistant": assistantPlugin as unknown as Plugin,
 };
@@ -98,8 +99,15 @@ export class CharacterLoader {
       POSTGRES_URL: process.env.DATABASE_URL!,
       DATABASE_URL: process.env.DATABASE_URL!,
 
-      // LLM settings (always from environment for security)
-      OPENAI_API_KEY: process.env.OPENAI_API_KEY!,
+      // ElizaOS Cloud Configuration (replaces OpenAI)
+      ELIZAOS_CLOUD_BASE_URL: getElizaCloudApiUrl(),
+      ELIZAOS_CLOUD_SMALL_MODEL:
+        (elizaCharacter.settings?.ELIZAOS_CLOUD_SMALL_MODEL as string) ||
+        getDefaultModels().small,
+      ELIZAOS_CLOUD_LARGE_MODEL:
+        (elizaCharacter.settings?.ELIZAOS_CLOUD_LARGE_MODEL as string) ||
+        getDefaultModels().large,
+      // Note: ELIZAOS_CLOUD_API_KEY will be set at runtime with user's auto-generated key
 
       // ElevenLabs settings (merge character settings with environment)
       ELEVENLABS_API_KEY: process.env.ELEVENLABS_API_KEY!,
@@ -207,9 +215,9 @@ export class CharacterLoader {
   private resolvePlugins(pluginNames: string[]): Plugin[] {
     const plugins: unknown[] = [];
 
-    // Always include OpenAI for LLM (required)
-    if (!plugins.some((p) => p === openaiPlugin)) {
-      plugins.push(openaiPlugin);
+    // Always include ElizaCloud for LLM (required)
+    if (!plugins.some((p) => p === elizaOSCloudPlugin)) {
+      plugins.push(elizaOSCloudPlugin);
     }
 
     // Always include assistant plugin (provides context)

@@ -122,7 +122,7 @@ export class AgentService {
   async sendMessage(input: SendMessageInput): Promise<AgentResponse> {
     const { roomId, entityId, message, streaming, attachments } = input;
 
-      // Acquire distributed lock with retry for concurrent requests
+    // Acquire distributed lock with retry for concurrent requests
     // Will retry up to 10 times with exponential backoff (max ~20s wait)
     const lock = await distributedLocks.acquireRoomLockWithRetry(
       roomId,

@@ -19,6 +19,54 @@ const privyClient = new PrivyClient(
   process.env.PRIVY_APP_SECRET!,
 );
 
+/**
+ * Ensure user has a default API key for programmatic access
+ * Creates one if it doesn't exist (for existing users who registered before auto-generation)
+ */
+async function ensureUserHasApiKey(
+  userId: string,
+  organizationId: string,
+): Promise<void> {
+  // Validate inputs
+  if (!userId || userId.trim() === "") {
+    console.warn("[Auth] Invalid userId, skipping API key check");
+    return;
+  }
+
+  if (!organizationId || organizationId.trim() === "") {
+    console.warn(
+      `[Auth] No organization for user ${userId}, skipping API key check`,
+    );
+    return;
+  }
+
+  try {
+    // Check if user already has an API key
+    const existingKeys = await apiKeysService.listByOrganization(
+      organizationId,
+    );
+    const userHasKey = existingKeys.some((key) => key.user_id === userId);
+
+    if (userHasKey) {
+      return; // User already has a key
+    }
+
+    // Create default API key for existing user
+    console.log(`[Auth] Creating API key for existing user ${userId}`);
+    await apiKeysService.create({
+      user_id: userId,
+      organization_id: organizationId,
+      name: "Default API Key",
+      is_active: true,
+    });
+
+    console.log(`[Auth] Created default API key for existing user ${userId}`);
+  } catch (error) {
+    console.error(`[Auth] Error ensuring API key for user ${userId}:`, error);
+    throw error;
+  }
+}
+
 export type AuthResult = {
   user: UserWithOrganization;
   apiKey?: ApiKey;
@@ -117,6 +165,12 @@ export const getCurrentUser = cache(
         } catch (sessionError) {
           console.error("Failed to create/get user session:", sessionError);
         }
+
+        // Ensure user has an API key for agent runtime (fire-and-forget)
+        // This handles existing users who registered before API key auto-generation
+        ensureUserHasApiKey(user.id, user.organization_id).catch((error) => {
+          console.error("[Auth] Failed to ensure user has API key:", error);
+        });
       }
 
       return user ?? null;

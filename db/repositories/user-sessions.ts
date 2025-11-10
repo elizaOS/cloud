@@ -52,6 +52,28 @@ export class UserSessionsRepository {
     return session;
   }
 
+  /**
+   * Atomic get-or-create session using Drizzle's onConflictDoUpdate
+   * Prevents race conditions by handling conflicts at the database level
+   */
+  async getOrCreate(data: NewUserSession): Promise<UserSession> {
+    // Use onConflictDoUpdate to atomically handle the race condition
+    // If session_token already exists, update last_activity_at and return existing
+    const [session] = await db
+      .insert(userSessions)
+      .values(data)
+      .onConflictDoUpdate({
+        target: userSessions.session_token,
+        set: {
+          last_activity_at: new Date(),
+          updated_at: new Date(),
+        },
+      })
+      .returning();
+
+    return session;
+  }
+
   async updateMetrics(
     sessionToken: string,
     metrics: {

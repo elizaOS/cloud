@@ -115,83 +115,88 @@ export class CreditsService {
 
     // FIXED: Wrap in atomic transaction to prevent inconsistency between
     // transaction record and balance update
-    const result = await db.transaction(async (tx) => {
-      // Double-check inside transaction to handle race condition where both
-      // threads passed the first check but haven't inserted yet
-      if (stripePaymentIntentId) {
-        const existingInTx = await tx.query.creditTransactions.findFirst({
-          where: eq(
-            creditTransactions.stripe_payment_intent_id,
-            stripePaymentIntentId,
-          ),
-        });
-
-        if (existingInTx) {
-          console.log(
-            `[CreditsService] Race condition detected: Payment intent ${stripePaymentIntentId} was inserted by another thread`,
-          );
-
-          // Get current balance
-          const org = await tx.query.organizations.findFirst({
-            where: eq(organizations.id, organizationId),
+    const result = await db
+      .transaction(async (tx) => {
+        // Double-check inside transaction to handle race condition where both
+        // threads passed the first check but haven't inserted yet
+        if (stripePaymentIntentId) {
+          const existingInTx = await tx.query.creditTransactions.findFirst({
+            where: eq(
+              creditTransactions.stripe_payment_intent_id,
+              stripePaymentIntentId,
+            ),
           });
 
-          if (!org) {
-            throw new Error("Organization not found");
+          if (existingInTx) {
+            console.log(
+              `[CreditsService] Race condition detected: Payment intent ${stripePaymentIntentId} was inserted by another thread`,
+            );
+
+            // Get current balance
+            const org = await tx.query.organizations.findFirst({
+              where: eq(organizations.id, organizationId),
+            });
+
+            if (!org) {
+              throw new Error("Organization not found");
+            }
+
+            return {
+              transaction: existingInTx,
+              newBalance: Number.parseFloat(String(org.credit_balance)),
+            };
           }
-
-          return {
-            transaction: existingInTx,
-            newBalance: Number.parseFloat(String(org.credit_balance)),
-          };
         }
-      }
 
-      // Create transaction record
-      const [transaction] = await tx
-        .insert(creditTransactions)
-        .values({
-          organization_id: organizationId,
-          amount: String(amount),
-          type: "credit",
-          description,
-          metadata: metadata || {},
-          stripe_payment_intent_id: stripePaymentIntentId,
-          created_at: new Date(),
-        })
-        .returning();
+        // Create transaction record
+        const [transaction] = await tx
+          .insert(creditTransactions)
+          .values({
+            organization_id: organizationId,
+            amount: String(amount),
+            type: "credit",
+            description,
+            metadata: metadata || {},
+            stripe_payment_intent_id: stripePaymentIntentId,
+            created_at: new Date(),
+          })
+          .returning();
 
-      // Get current organization state with row-level lock to prevent concurrent modifications
-      const [org] = await tx
-        .select()
-        .from(organizations)
-        .where(eq(organizations.id, organizationId))
-        .for("update");
+        // Get current organization state with row-level lock to prevent concurrent modifications
+        const [org] = await tx
+          .select()
+          .from(organizations)
+          .where(eq(organizations.id, organizationId))
+          .for("update");
 
-      if (!org) {
-        throw new Error("Organization not found");
-      }
+        if (!org) {
+          throw new Error("Organization not found");
+        }
 
-      const currentBalance = Number.parseFloat(String(org.credit_balance));
-      const newBalance = currentBalance + amount;
+        const currentBalance = Number.parseFloat(String(org.credit_balance));
+        const newBalance = currentBalance + amount;
 
-      // Update organization balance atomically
-      await tx
-        .update(organizations)
-        .set({
-          credit_balance: String(newBalance),
-          updated_at: new Date(),
-        })
-        .where(eq(organizations.id, organizationId));
+        // Update organization balance atomically
+        await tx
+          .update(organizations)
+          .set({
+            credit_balance: String(newBalance),
+            updated_at: new Date(),
+          })
+          .where(eq(organizations.id, organizationId));
 
-      return { transaction, newBalance };
-    }).then(async (result) => {
-      // Invalidate organization cache since balance changed
-      invalidateOrganizationCache(organizationId).catch((error) => {
-        console.error("[CreditsService] Failed to invalidate org cache:", error);
+        return { transaction, newBalance };
+      })
+      .then(async (result) => {
+        // Invalidate organization cache since balance changed
+        invalidateOrganizationCache(organizationId).catch((error) => {
+          console.error(
+            "[CreditsService] Failed to invalidate org cache:",
+            error,
+          );
+        });
+        return result;
       });
-      return result;
-    });
 
     // Invalidate balance cache immediately after transaction
     await CacheInvalidation.onCreditMutation(organizationId);
@@ -276,7 +281,10 @@ export class CreditsService {
         // Invalidate organization cache if balance changed
         if (result.success) {
           invalidateOrganizationCache(organizationId).catch((error) => {
-            console.error("[CreditsService] Failed to invalidate org cache:", error);
+            console.error(
+              "[CreditsService] Failed to invalidate org cache:",
+              error,
+            );
           });
         }
         if (result.success) {
@@ -437,51 +445,56 @@ export class CreditsService {
       throw new Error("Refund amount must be positive");
     }
 
-    return await db.transaction(async (tx) => {
-      // Lock the organization row
-      const [org] = await tx
-        .select()
-        .from(organizations)
-        .where(eq(organizations.id, organizationId))
-        .for("update");
+    return await db
+      .transaction(async (tx) => {
+        // Lock the organization row
+        const [org] = await tx
+          .select()
+          .from(organizations)
+          .where(eq(organizations.id, organizationId))
+          .for("update");
 
-      if (!org) {
-        throw new Error("Organization not found");
-      }
+        if (!org) {
+          throw new Error("Organization not found");
+        }
 
-      const currentBalance = Number.parseFloat(String(org.credit_balance));
-      const newBalance = currentBalance + amount;
+        const currentBalance = Number.parseFloat(String(org.credit_balance));
+        const newBalance = currentBalance + amount;
 
-      // Update balance
-      await tx
-        .update(organizations)
-        .set({
-          credit_balance: String(newBalance),
-          updated_at: new Date(),
-        })
-        .where(eq(organizations.id, organizationId));
+        // Update balance
+        await tx
+          .update(organizations)
+          .set({
+            credit_balance: String(newBalance),
+            updated_at: new Date(),
+          })
+          .where(eq(organizations.id, organizationId));
 
-      // Create refund transaction record
-      const [transaction] = await tx
-        .insert(creditTransactions)
-        .values({
-          organization_id: organizationId,
-          amount: String(amount),
-          type: "refund",
-          description,
-          metadata: metadata || {},
-          created_at: new Date(),
-        })
-        .returning();
+        // Create refund transaction record
+        const [transaction] = await tx
+          .insert(creditTransactions)
+          .values({
+            organization_id: organizationId,
+            amount: String(amount),
+            type: "refund",
+            description,
+            metadata: metadata || {},
+            created_at: new Date(),
+          })
+          .returning();
 
-      return { transaction, newBalance };
-    }).then(async (result) => {
-      // Invalidate organization cache since balance changed
-      invalidateOrganizationCache(organizationId).catch((error) => {
-        console.error("[CreditsService] Failed to invalidate org cache:", error);
+        return { transaction, newBalance };
+      })
+      .then(async (result) => {
+        // Invalidate organization cache since balance changed
+        invalidateOrganizationCache(organizationId).catch((error) => {
+          console.error(
+            "[CreditsService] Failed to invalidate org cache:",
+            error,
+          );
+        });
+        return result;
       });
-      return result;
-    });
   }
 
   // Credit Packs

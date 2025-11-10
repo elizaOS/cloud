@@ -19,6 +19,7 @@ import { ElizaAvatar } from "./eliza-avatar";
 import { KnowledgeDrawer } from "./knowledge-drawer";
 import { useAudioRecorder } from "./hooks/use-audio-recorder";
 import { useAudioPlayer } from "./hooks/use-audio-player";
+import { useAvailableModels } from "./hooks/use-available-models";
 import { sendStreamingMessage } from "@/hooks/use-streaming-message";
 import type { StreamingMessage } from "@/hooks/use-streaming-message";
 import { toast } from "sonner";
@@ -124,6 +125,25 @@ export function ElizaChatInterface({
 
   const recorder = useAudioRecorder();
   const player = useAudioPlayer();
+
+  // Load available models
+  const { models, isLoading: isLoadingModels } = useAvailableModels();
+  
+  // Selected model state (persisted in localStorage)
+  const [selectedModel, setSelectedModel] = useState<string | null>(() => {
+    if (typeof window !== "undefined") {
+      const saved = localStorage.getItem("eliza-selected-model");
+      return saved || "moonshotai/kimi-k2-0905"; // Default to kimi-k2-0905
+    }
+    return "moonshotai/kimi-k2-0905";
+  });
+
+  // Save selected model to localStorage
+  useEffect(() => {
+    if (selectedModel && typeof window !== "undefined") {
+      localStorage.setItem("eliza-selected-model", selectedModel);
+    }
+  }, [selectedModel]);
 
   // Generate a unique entity ID for this session
   const entityId = useRef<string>("");
@@ -690,6 +710,7 @@ export function ElizaChatInterface({
         roomId,
         entityId: entityId.current,
         text: messageText,
+        model: selectedModel || undefined, // Pass selected model
         onMessage: handleStreamMessage,
         onError: (errorMsg) => {
           setError(errorMsg);
@@ -997,6 +1018,39 @@ export function ElizaChatInterface({
                   </Select>
                 </div>
               )}
+              
+              {/* Model Selector */}
+              <div className="flex items-center gap-2">
+                <Label
+                  htmlFor="model-select"
+                  className="text-xs text-muted-foreground whitespace-nowrap"
+                >
+                  Model
+                </Label>
+                <Select
+                  value={selectedModel || "moonshotai/kimi-k2-0905"}
+                  onValueChange={(value) => {
+                    setSelectedModel(value);
+                    toast.success(`Model changed to: ${value.split("/")[1] || value}`);
+                  }}
+                  disabled={isLoadingModels}
+                >
+                  <SelectTrigger
+                    id="model-select"
+                    className="h-8 text-xs w-[180px]"
+                  >
+                    <SelectValue placeholder="Select model" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {models.map((model) => (
+                      <SelectItem key={model.id} value={model.id}>
+                        {model.id}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              
               <KnowledgeDrawer />
             </div>
           </div>

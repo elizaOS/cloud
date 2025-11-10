@@ -57,7 +57,10 @@ export function CharacterFilters({
         )}
 
         {/* Sort */}
-        <Select value={sortBy} onValueChange={(v) => onSortChange(v as SortOption)}>
+        <Select
+          value={sortBy}
+          onValueChange={(v) => onSortChange(v as SortOption)}
+        >
           <SelectTrigger className="w-[140px] rounded-none border-white/10 bg-black/40">
             <SelectValue />
           </SelectTrigger>
