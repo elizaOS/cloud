@@ -42,21 +42,7 @@ export async function runWithContext<T>(
  */
 export function getElizaCloudApiKeyFromContext(): string | undefined {
   const context = getRequestContext();
-  const key = context?.apiKey || process.env.ELIZAOS_CLOUD_API_KEY;
-  
-  console.log("[RequestContext] ==================== API KEY DEBUG ====================");
-  if (context?.apiKey) {
-    console.log("[RequestContext] ✅ Using API key from context (FULL KEY):", context.apiKey);
-    console.log("[RequestContext] API key length:", context.apiKey.length);
-  } else if (process.env.ELIZAOS_CLOUD_API_KEY) {
-    console.log("[RequestContext] Using API key from env (FULL KEY):", process.env.ELIZAOS_CLOUD_API_KEY);
-    console.log("[RequestContext] API key length:", process.env.ELIZAOS_CLOUD_API_KEY.length);
-  } else {
-    console.log("[RequestContext] ❌ No API key available!");
-  }
-  console.log("[RequestContext] ==========================================================");
-  
-  return key;
+  return context?.apiKey || process.env.ELIZAOS_CLOUD_API_KEY;
 }
 
 /**
