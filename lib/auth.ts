@@ -42,9 +42,8 @@ async function ensureUserHasApiKey(
 
   try {
     // Check if user already has an API key
-    const existingKeys = await apiKeysService.listByOrganization(
-      organizationId,
-    );
+    const existingKeys =
+      await apiKeysService.listByOrganization(organizationId);
     const userHasKey = existingKeys.some((key) => key.user_id === userId);
 
     if (userHasKey) {

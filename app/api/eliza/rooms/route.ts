@@ -76,7 +76,11 @@ export async function GET(request: NextRequest) {
 
     logger.debug(
       "[Eliza Rooms API] Returning rooms (sorted by most recent):",
-      sortedRooms.map((r) => ({ id: r.id, characterId: r.characterId, lastTime: (r as any).lastTime })),
+      sortedRooms.map((r) => ({
+        id: r.id,
+        characterId: r.characterId,
+        lastTime: (r as any).lastTime,
+      })),
     );
 
     return NextResponse.json({
@@ -190,7 +194,8 @@ export async function POST(request: NextRequest) {
     );
 
     // Variable to store greeting for Discord (declared here before the async block)
-    let greetingForDiscord: { text: string; characterName: string } | null = null;
+    let greetingForDiscord: { text: string; characterName: string } | null =
+      null;
 
     // CRITICAL: Store character mapping FIRST (before greeting message)
     if (characterId) {
@@ -266,7 +271,10 @@ export async function POST(request: NextRequest) {
           greetingTimestamp,
         );
       } catch (updateErr) {
-        logger.error("[Eliza Rooms API] Failed to update room lastTime:", updateErr);
+        logger.error(
+          "[Eliza Rooms API] Failed to update room lastTime:",
+          updateErr,
+        );
       }
 
       logger.info(
@@ -315,7 +323,10 @@ export async function POST(request: NextRequest) {
               );
             }
           } catch (err) {
-            logger.error("[Eliza Rooms API] Failed to store thread ID or send greeting:", err);
+            logger.error(
+              "[Eliza Rooms API] Failed to store thread ID or send greeting:",
+              err,
+            );
           }
         }
       })

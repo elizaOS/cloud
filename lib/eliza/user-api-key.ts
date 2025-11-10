@@ -31,7 +31,7 @@ export async function getUserElizaCloudApiKey(
 
   try {
     const apiKeys = await apiKeysService.listByOrganization(organizationId);
-    
+
     // Find user's first active API key
     const userKey = apiKeys.find(
       (key) => key.user_id === userId && key.is_active,
@@ -44,7 +44,9 @@ export async function getUserElizaCloudApiKey(
 
     // Return the full key from the database
     // Note: This is the actual key value, not the hash
-    logger.info(`[UserAPIKey] Retrieved key for user ${userId}: ${userKey.key_prefix}***`);
+    logger.info(
+      `[UserAPIKey] Retrieved key for user ${userId}: ${userKey.key_prefix}***`,
+    );
     return userKey.key;
   } catch (error) {
     logger.error(
@@ -93,4 +95,3 @@ export async function buildElizaCloudSettings(
       "gpt-4o",
   };
 }
-

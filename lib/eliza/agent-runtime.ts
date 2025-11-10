@@ -208,10 +208,7 @@ class AgentRuntimeManager {
     // ========================================================================
     // Register the pre-initialized adapter BEFORE runtime.initialize()
     // ========================================================================
-    elizaLogger.info(
-      "#Eliza",
-      "Registering pre-initialized database adapter",
-    );
+    elizaLogger.info("#Eliza", "Registering pre-initialized database adapter");
     runtime.registerDatabaseAdapter(dbAdapter);
 
     // Ensure runtime has a logger with all required methods
@@ -552,7 +549,7 @@ class AgentRuntimeManager {
   }> {
     // Get FRESH runtime for this request (no caching = no race conditions!)
     let runtime: AgentRuntime;
-    
+
     if (characterId) {
       runtime = await this.getRuntimeForCharacter(characterId);
     } else {
@@ -562,21 +559,27 @@ class AgentRuntimeManager {
     // CRITICAL: Inject user's API key into this fresh runtime using setSetting()
     // Since the runtime is NOT cached/shared, this is SAFE from race conditions
     // Each user gets their own runtime instance with their own API key
-    
+
     if (userSettings?.apiKey) {
       // Use the proper setSetting API to inject the API key
       runtime.setSetting("ELIZAOS_CLOUD_API_KEY", userSettings.apiKey, true); // true = store as secret
-      
+
       if (userSettings.modelPreferences) {
         if (userSettings.modelPreferences.smallModel) {
-          runtime.setSetting("ELIZAOS_CLOUD_SMALL_MODEL", userSettings.modelPreferences.smallModel);
+          runtime.setSetting(
+            "ELIZAOS_CLOUD_SMALL_MODEL",
+            userSettings.modelPreferences.smallModel,
+          );
         }
         if (userSettings.modelPreferences.largeModel) {
-          runtime.setSetting("ELIZAOS_CLOUD_LARGE_MODEL", userSettings.modelPreferences.largeModel);
+          runtime.setSetting(
+            "ELIZAOS_CLOUD_LARGE_MODEL",
+            userSettings.modelPreferences.largeModel,
+          );
         }
       }
     }
-    
+
     return runWithContext(
       {
         userId: userSettings?.userId,
@@ -591,147 +594,147 @@ class AgentRuntimeManager {
         // OPTIMIZATION: Check connection cache before calling ensureConnection
         // This avoids a DB query on every message for established connections
         const entityUuid = stringToUuid(entityId) as UUID;
-    const isConnectionCached = await connectionCache.isEstablished(
-      roomId,
-      entityId,
-    );
-
-    if (!isConnectionCached) {
-      // Connection not cached - ensure it exists and cache the result
-
-      // Use ensureConnections (plural) for more robust entity/room creation
-      // This avoids the core library bug in ensureConnection (singular) that
-      // improperly formats the names array parameter
-      const worldId = stringToUuid("eliza-world") as UUID;
-
-      await runtime.ensureConnections(
-        [
-          {
-            id: entityUuid,
-            names: [entityId],
-            metadata: { name: entityId, web: { userName: entityId } },
-          },
-        ],
-        [
-          {
-            id: roomId as UUID,
-            name: entityId,
-            type: ChannelType.DM,
-            channelId: roomId,
-          },
-        ],
-        "web",
-        {
-          id: worldId,
-          name: "eliza-world",
-          serverId: "eliza-server",
-        },
-      );
-
-      // Mark connection as established in cache
-      await connectionCache.markEstablished(roomId, entityId);
-      elizaLogger.debug("[AgentRuntime] Connection established and cached");
-    } else {
-      elizaLogger.debug("[AgentRuntime] Using cached connection");
-    }
-
-    // Create user message
-    // Note: The plugin (assistantPlugin) will save this to the database via the event handler
-    const userMessage: Memory = {
-      id: uuidv4() as UUID,
-      roomId: roomId as UUID,
-      entityId: entityUuid,
-      agentId: runtime.agentId as UUID,
-      createdAt: Date.now(),
-      content: {
-        text: content.text || "",
-        ...(content.attachments &&
-        Array.isArray(content.attachments) &&
-        content.attachments.length > 0
-          ? {
-              attachments:
-                content.attachments as unknown as import("@elizaos/core").Media[],
-            }
-          : {}),
-      },
-    };
-
-    // Track usage and response
-    let usage:
-      | { inputTokens: number; outputTokens: number; model: string }
-      | undefined;
-    let responseText: string | undefined;
-    let agentResponse: Memory | undefined;
-
-      // Process message through event pipeline to generate response
-      try {
-        await runtime.emitEvent(EventType.MESSAGE_RECEIVED, {
-          runtime,
-          message: userMessage,
-          callback: async (result: {
-            text?: string;
-            usage?: {
-              inputTokens: number;
-              outputTokens: number;
-              model: string;
-            };
-          }) => {
-            elizaLogger.debug(
-              "#Eliza",
-              "Message processed, generating response",
-            );
-            if (result.text) {
-              responseText = result.text;
-            }
-            if (result.usage) {
-              usage = result.usage;
-            }
-            return [];
-          },
-        });
-      } catch (error) {
-        elizaLogger.error(
-          "#Eliza",
-          "Error during message processing:",
-          error instanceof Error ? error.message : String(error),
+        const isConnectionCached = await connectionCache.isEstablished(
+          roomId,
+          entityId,
         );
 
-        // Check if it's an API key error
-        if (error instanceof Error && error.message.includes("API key")) {
-          responseText =
-            "⚠️ Configuration error: ElizaCloud API key is missing or invalid. Please try logging out and back in.";
-        } else {
-          responseText =
-            "I apologize, but I encountered an error processing your message. Please try again.";
-        }
-      }
+        if (!isConnectionCached) {
+          // Connection not cached - ensure it exists and cache the result
 
-      // Construct agent response memory object for return value
-      // NOTE: The message is already created and saved by the plugin-assistant event handler
-      // We only create this object for the return value, not to save it again
-      if (responseText) {
-        agentResponse = {
+          // Use ensureConnections (plural) for more robust entity/room creation
+          // This avoids the core library bug in ensureConnection (singular) that
+          // improperly formats the names array parameter
+          const worldId = stringToUuid("eliza-world") as UUID;
+
+          await runtime.ensureConnections(
+            [
+              {
+                id: entityUuid,
+                names: [entityId],
+                metadata: { name: entityId, web: { userName: entityId } },
+              },
+            ],
+            [
+              {
+                id: roomId as UUID,
+                name: entityId,
+                type: ChannelType.DM,
+                channelId: roomId,
+              },
+            ],
+            "web",
+            {
+              id: worldId,
+              name: "eliza-world",
+              serverId: "eliza-server",
+            },
+          );
+
+          // Mark connection as established in cache
+          await connectionCache.markEstablished(roomId, entityId);
+          elizaLogger.debug("[AgentRuntime] Connection established and cached");
+        } else {
+          elizaLogger.debug("[AgentRuntime] Using cached connection");
+        }
+
+        // Create user message
+        // Note: The plugin (assistantPlugin) will save this to the database via the event handler
+        const userMessage: Memory = {
           id: uuidv4() as UUID,
           roomId: roomId as UUID,
-          entityId: runtime.agentId as UUID,
+          entityId: entityUuid,
           agentId: runtime.agentId as UUID,
           createdAt: Date.now(),
           content: {
-            text: responseText,
-            type: "agent",
+            text: content.text || "",
+            ...(content.attachments &&
+            Array.isArray(content.attachments) &&
+            content.attachments.length > 0
+              ? {
+                  attachments:
+                    content.attachments as unknown as import("@elizaos/core").Media[],
+                }
+              : {}),
           },
         };
 
-        elizaLogger.debug(
-          "#Eliza",
-          "Agent response generated (already saved by plugin)",
-        );
-      } else {
-        elizaLogger.warn(
-          "#Eliza",
-          "No response text generated from event pipeline",
-        );
-      }
+        // Track usage and response
+        let usage:
+          | { inputTokens: number; outputTokens: number; model: string }
+          | undefined;
+        let responseText: string | undefined;
+        let agentResponse: Memory | undefined;
+
+        // Process message through event pipeline to generate response
+        try {
+          await runtime.emitEvent(EventType.MESSAGE_RECEIVED, {
+            runtime,
+            message: userMessage,
+            callback: async (result: {
+              text?: string;
+              usage?: {
+                inputTokens: number;
+                outputTokens: number;
+                model: string;
+              };
+            }) => {
+              elizaLogger.debug(
+                "#Eliza",
+                "Message processed, generating response",
+              );
+              if (result.text) {
+                responseText = result.text;
+              }
+              if (result.usage) {
+                usage = result.usage;
+              }
+              return [];
+            },
+          });
+        } catch (error) {
+          elizaLogger.error(
+            "#Eliza",
+            "Error during message processing:",
+            error instanceof Error ? error.message : String(error),
+          );
+
+          // Check if it's an API key error
+          if (error instanceof Error && error.message.includes("API key")) {
+            responseText =
+              "⚠️ Configuration error: ElizaCloud API key is missing or invalid. Please try logging out and back in.";
+          } else {
+            responseText =
+              "I apologize, but I encountered an error processing your message. Please try again.";
+          }
+        }
+
+        // Construct agent response memory object for return value
+        // NOTE: The message is already created and saved by the plugin-assistant event handler
+        // We only create this object for the return value, not to save it again
+        if (responseText) {
+          agentResponse = {
+            id: uuidv4() as UUID,
+            roomId: roomId as UUID,
+            entityId: runtime.agentId as UUID,
+            agentId: runtime.agentId as UUID,
+            createdAt: Date.now(),
+            content: {
+              text: responseText,
+              type: "agent",
+            },
+          };
+
+          elizaLogger.debug(
+            "#Eliza",
+            "Agent response generated (already saved by plugin)",
+          );
+        } else {
+          elizaLogger.warn(
+            "#Eliza",
+            "No response text generated from event pipeline",
+          );
+        }
 
         // Return agent response if available, otherwise fallback to user message
         // (This should rarely happen as we set error messages above)

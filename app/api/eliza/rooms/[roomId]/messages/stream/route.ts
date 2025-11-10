@@ -290,14 +290,18 @@ export async function POST(
                 let characterName = "Agent";
                 try {
                   if (characterId) {
-                    const runtime = await agentRuntime.getRuntimeForCharacter(characterId);
+                    const runtime =
+                      await agentRuntime.getRuntimeForCharacter(characterId);
                     characterName = runtime.character.name || "Agent";
                   } else {
                     const runtime = await agentRuntime.getRuntime();
                     characterName = runtime.character.name || "Agent";
                   }
                 } catch (err) {
-                  logger.error("[Stream Messages] Failed to fetch character name from runtime:", err);
+                  logger.error(
+                    "[Stream Messages] Failed to fetch character name from runtime:",
+                    err,
+                  );
                 }
 
                 // Send user message

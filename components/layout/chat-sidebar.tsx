@@ -7,7 +7,15 @@
 
 import Link from "next/link";
 import { useState, useEffect, useMemo } from "react";
-import { ArrowLeft, X, MessageSquare, Loader2, Trash2, Edit3, Bot } from "lucide-react";
+import {
+  ArrowLeft,
+  X,
+  MessageSquare,
+  Loader2,
+  Trash2,
+  Edit3,
+  Bot,
+} from "lucide-react";
 import { cn } from "@/lib/utils";
 import { CornerBrackets } from "@/components/brand";
 import { useChatStore } from "@/stores/chat-store";
@@ -39,13 +47,13 @@ export function ChatSidebar({
   onToggle,
 }: ChatSidebarProps) {
   const [isMobile, setIsMobile] = useState(false);
-  const { 
-    rooms, 
-    roomId, 
-    setRoomId, 
-    isLoadingRooms, 
-    loadRooms, 
-    createRoom, 
+  const {
+    rooms,
+    roomId,
+    setRoomId,
+    isLoadingRooms,
+    loadRooms,
+    createRoom,
     deleteRoom,
     selectedCharacterId,
     availableCharacters,
@@ -57,14 +65,16 @@ export function ChatSidebar({
   const filteredRooms = useMemo(() => {
     if (!selectedCharacterId) {
       // Show rooms with no character assignment (default Eliza)
-      return rooms.filter(room => !room.characterId);
+      return rooms.filter((room) => !room.characterId);
     }
     // Show rooms for the selected character
-    return rooms.filter(room => room.characterId === selectedCharacterId);
+    return rooms.filter((room) => room.characterId === selectedCharacterId);
   }, [rooms, selectedCharacterId]);
 
   // Find selected character details
-  const selectedCharacter = availableCharacters.find(c => c.id === selectedCharacterId);
+  const selectedCharacter = availableCharacters.find(
+    (c) => c.id === selectedCharacterId,
+  );
 
   useEffect(() => {
     const checkScreenSize = () => {
@@ -83,7 +93,7 @@ export function ChatSidebar({
 
   const handleNewChat = async () => {
     if (isCreatingRoom) return; // Prevent double-clicking
-    
+
     setIsCreatingRoom(true);
     try {
       // Create room with currently selected character
@@ -193,10 +203,9 @@ export function ChatSidebar({
                 {selectedCharacter?.name || "Eliza"}
               </div>
               <div className="text-xs text-white/60 truncate">
-                {selectedCharacter 
+                {selectedCharacter
                   ? `${filteredRooms.length} interaction${filteredRooms.length !== 1 ? "s" : ""}`
-                  : `${filteredRooms.length} interaction${filteredRooms.length !== 1 ? "s" : ""}`
-                }
+                  : `${filteredRooms.length} interaction${filteredRooms.length !== 1 ? "s" : ""}`}
               </div>
             </div>
 
@@ -232,8 +241,9 @@ export function ChatSidebar({
                     className={cn(
                       "group relative w-full text-left px-3 py-3 rounded-none transition-colors",
                       "hover:bg-white/5",
-                      roomId === room.id && "bg-white/10 border-l-2 border-[#FF5800]",
-                      isDeleting && "opacity-50 pointer-events-none"
+                      roomId === room.id &&
+                        "bg-white/10 border-l-2 border-[#FF5800]",
+                      isDeleting && "opacity-50 pointer-events-none",
                     )}
                   >
                     <button
@@ -271,7 +281,7 @@ export function ChatSidebar({
                       className={cn(
                         "absolute top-3 right-3 p-1 rounded-none",
                         "opacity-0 group-hover:opacity-100 transition-opacity",
-                        "hover:bg-red-500/10 hover:text-red-500"
+                        "hover:bg-red-500/10 hover:text-red-500",
                       )}
                       title="Delete conversation"
                     >
@@ -286,9 +296,7 @@ export function ChatSidebar({
               })}
               {filteredRooms.length === 0 && !isLoadingRooms && (
                 <div className="px-3 py-8 text-center">
-                  <p className="text-xs text-white/60">
-                    No conversations yet
-                  </p>
+                  <p className="text-xs text-white/60">No conversations yet</p>
                   <p className="text-xs text-white/40 mt-2">
                     Click the edit icon to start
                   </p>
@@ -304,4 +312,3 @@ export function ChatSidebar({
     </>
   );
 }
-
