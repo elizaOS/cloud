@@ -133,7 +133,12 @@ const agent = {
   // Full plugin architecture with events, providers, and actions
   // Includes ElizaCloud for LLM, ElevenLabs for TTS/STT, and knowledge/memory plugins
   // Note: knowledgePluginCore is loaded asynchronously via getPlugins()
-  plugins: [elizaOSCloudPlugin, elevenLabsPlugin, assistantPlugin, memoryPlugin],
+  plugins: [
+    elizaOSCloudPlugin,
+    elevenLabsPlugin,
+    assistantPlugin,
+    memoryPlugin,
+  ],
   providers: [
     ...(elevenLabsPlugin.providers || []),
     ...(assistantPlugin.providers || []),

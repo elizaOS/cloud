@@ -1,19 +1,25 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { Textarea } from "@/components/ui/textarea";
 import { Download, Save, AlertCircle, CheckCircle } from "lucide-react";
 import { toast } from "sonner";
 import type { ElizaCharacter } from "@/lib/types";
 import { BrandButton } from "@/components/brand";
+import { JsonEditorWithHighlight } from "@/components/chat/json-editor-with-highlight";
 
 interface JsonEditorProps {
   character: ElizaCharacter;
   onChange: (character: ElizaCharacter) => void;
   onSave: () => Promise<void>;
+  hideActions?: boolean;
 }
 
-export function JsonEditor({ character, onChange, onSave }: JsonEditorProps) {
+export function JsonEditor({
+  character,
+  onChange,
+  onSave,
+  hideActions = false,
+}: JsonEditorProps) {
   const [jsonText, setJsonText] = useState("");
   const [isValid, setIsValid] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -70,51 +76,60 @@ export function JsonEditor({ character, onChange, onSave }: JsonEditorProps) {
 
   return (
     <div className="flex h-full flex-col bg-black/60">
-      <div className="flex-shrink-0 border-b border-white/10 p-4">
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-2">
-            <h3 className="text-lg font-bold text-white">Character JSON</h3>
-            {isValid ? (
-              <CheckCircle className="h-5 w-5 text-green-400" />
-            ) : (
-              <AlertCircle className="h-5 w-5 text-rose-400" />
-            )}
+      {!hideActions && (
+        <div className="flex-shrink-0 border-b border-white/10 p-4">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <h3 className="text-lg font-bold text-white">Character JSON</h3>
+              {isValid ? (
+                <CheckCircle className="h-5 w-5 text-green-400" />
+              ) : (
+                <AlertCircle className="h-5 w-5 text-rose-400" />
+              )}
+            </div>
+            <div className="flex gap-2">
+              <BrandButton
+                variant="outline"
+                size="sm"
+                onClick={handleExport}
+                disabled={!isValid}
+              >
+                <Download className="mr-2 h-4 w-4" />
+                Export
+              </BrandButton>
+              <BrandButton
+                variant="primary"
+                size="sm"
+                onClick={handleSave}
+                disabled={!isValid || isSaving}
+              >
+                <Save className="mr-2 h-4 w-4" />
+                {isSaving ? "Saving..." : "Save"}
+              </BrandButton>
+            </div>
           </div>
-          <div className="flex gap-2">
-            <BrandButton
-              variant="outline"
-              size="sm"
-              onClick={handleExport}
-              disabled={!isValid}
-            >
-              <Download className="mr-2 h-4 w-4" />
-              Export
-            </BrandButton>
-            <BrandButton
-              variant="primary"
-              size="sm"
-              onClick={handleSave}
-              disabled={!isValid || isSaving}
-            >
-              <Save className="mr-2 h-4 w-4" />
-              {isSaving ? "Saving..." : "Save"}
-            </BrandButton>
+          {error && (
+            <p className="mt-2 text-sm text-rose-400">
+              <strong>Error:</strong> {error}
+            </p>
+          )}
+        </div>
+      )}
+      {hideActions && error && (
+        <div className="flex-shrink-0 border-b border-white/10 p-4">
+          <div className="flex items-center gap-2">
+            <AlertCircle className="h-5 w-5 text-rose-400" />
+            <p className="text-sm text-rose-400">
+              <strong>Error:</strong> {error}
+            </p>
           </div>
         </div>
-        {error && (
-          <p className="mt-2 text-sm text-rose-400">
-            <strong>Error:</strong> {error}
-          </p>
-        )}
-      </div>
+      )}
       <div className="flex-1 overflow-hidden">
-        <Textarea
+        <JsonEditorWithHighlight
           value={jsonText}
-          onChange={(e) => handleJsonChange(e.target.value)}
-          className={`h-full resize-none rounded-none border-0 bg-transparent font-mono text-sm text-white ${
-            isValid ? "" : "border-rose-500"
-          }`}
-          placeholder="Character JSON will appear here..."
+          onChange={handleJsonChange}
+          isValid={isValid}
         />
       </div>
     </div>

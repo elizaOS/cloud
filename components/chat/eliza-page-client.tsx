@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import { ElizaChatInterface } from "@/components/chat/eliza-chat-interface";
+import { CharacterBuildMode } from "@/components/chat/character-build-mode";
 import { SignupPromptBanner } from "@/components/chat/signup-prompt-banner";
 import { useSetPageHeader } from "@/components/layout/page-header-context";
 import { useChatStore, type Character } from "@/stores/chat-store";
@@ -30,7 +31,7 @@ export function ElizaPageClient({
   );
 
   // Initialize store with characters and entity ID (must be at top level)
-  const { setAvailableCharacters, initializeEntityId } = useChatStore();
+  const { setAvailableCharacters, initializeEntityId, mode } = useChatStore();
 
   // Note: Page header is now handled by ChatHeader component
   // Remove this if you want to completely disable the old header system for chat
@@ -105,11 +106,13 @@ export function ElizaPageClient({
         />
       )}
 
-      {/* Chat interface - full height with no extra padding */}
+      {/* Conditional rendering based on mode */}
       <div className="flex flex-1 overflow-hidden">
-        <ElizaChatInterface
-          initialCharacterId={initialCharacterId}
-        />
+        {mode === "build" ? (
+          <CharacterBuildMode initialCharacters={initialCharacters} />
+        ) : (
+          <ElizaChatInterface initialCharacterId={initialCharacterId} />
+        )}
       </div>
     </div>
   );

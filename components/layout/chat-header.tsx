@@ -5,7 +5,6 @@
 
 "use client";
 
-import { useState } from "react";
 import { Menu, ChevronDown, MessageSquare, Wrench } from "lucide-react";
 import { BrandButton } from "@/components/brand";
 import { cn } from "@/lib/utils";
@@ -21,22 +20,21 @@ interface ChatHeaderProps {
   onToggleSidebar?: () => void;
 }
 
-type ChatMode = "chat" | "build";
-
-export function ChatHeader({
-  onToggleSidebar,
-}: ChatHeaderProps) {
-  const [mode, setMode] = useState<ChatMode>("chat");
-  const { 
-    availableCharacters, 
-    selectedCharacterId, 
-    setSelectedCharacterId, 
+export function ChatHeader({ onToggleSidebar }: ChatHeaderProps) {
+  const {
+    availableCharacters,
+    selectedCharacterId,
+    setSelectedCharacterId,
     setRoomId,
+    mode,
+    setMode,
   } = useChatStore();
 
   // Find selected agent
-  const selectedAgent = availableCharacters.find((a) => a.id === selectedCharacterId);
-  
+  const selectedAgent = availableCharacters.find(
+    (a) => a.id === selectedCharacterId,
+  );
+
   const handleAgentChange = (characterId: string) => {
     const charId = characterId || null;
     setSelectedCharacterId(charId);
@@ -67,7 +65,7 @@ export function ChatHeader({
                 "flex items-center gap-2 px-3 py-2 rounded-none",
                 "border border-white/10 bg-black/40",
                 "hover:bg-white/5 transition-colors",
-                "focus:outline-none focus:ring-2 focus:ring-[#FF5800]/50"
+                "focus:outline-none focus:ring-2 focus:ring-[#FF5800]/50",
               )}
             >
               {selectedAgent ? (
@@ -114,7 +112,7 @@ export function ChatHeader({
               className={cn(
                 "flex items-center gap-2 px-3 py-2 cursor-pointer",
                 "hover:bg-white/5 focus:bg-white/5",
-                !selectedCharacterId && "bg-white/10"
+                !selectedCharacterId && "bg-white/10",
               )}
             >
               <span
@@ -139,7 +137,7 @@ export function ChatHeader({
                     className={cn(
                       "flex items-center gap-2 px-3 py-2 cursor-pointer",
                       "hover:bg-white/5 focus:bg-white/5",
-                      selectedCharacterId === character.id && "bg-white/10"
+                      selectedCharacterId === character.id && "bg-white/10",
                     )}
                   >
                     <span
@@ -173,7 +171,7 @@ export function ChatHeader({
               "flex items-center gap-2 px-3 py-1.5 rounded-none transition-colors text-sm",
               mode === "chat"
                 ? "bg-[#FF5800] text-white"
-                : "text-white/60 hover:text-white hover:bg-white/5"
+                : "text-white/60 hover:text-white hover:bg-white/5",
             )}
           >
             <MessageSquare className="h-4 w-4" />
@@ -185,7 +183,7 @@ export function ChatHeader({
               "flex items-center gap-2 px-3 py-1.5 rounded-none transition-colors text-sm",
               mode === "build"
                 ? "bg-[#FF5800] text-white"
-                : "text-white/60 hover:text-white hover:bg-white/5"
+                : "text-white/60 hover:text-white hover:bg-white/5",
             )}
           >
             <Wrench className="h-4 w-4" />
@@ -196,4 +194,3 @@ export function ChatHeader({
     </header>
   );
 }
-

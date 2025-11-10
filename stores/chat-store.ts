@@ -18,6 +18,8 @@ export interface Character {
   username?: string;
 }
 
+export type ChatMode = "chat" | "build";
+
 interface ChatState {
   // State
   rooms: RoomItem[];
@@ -26,6 +28,7 @@ interface ChatState {
   entityId: string;
   availableCharacters: Character[];
   selectedCharacterId: string | null;
+  mode: ChatMode;
 
   // Actions
   setRooms: (rooms: RoomItem[]) => void;
@@ -33,6 +36,7 @@ interface ChatState {
   setIsLoadingRooms: (isLoading: boolean) => void;
   setAvailableCharacters: (characters: Character[]) => void;
   setSelectedCharacterId: (characterId: string | null) => void;
+  setMode: (mode: ChatMode) => void;
   loadRooms: () => Promise<void>;
   createRoom: (characterId?: string | null) => Promise<string | null>;
   deleteRoom: (roomId: string) => Promise<void>;
@@ -42,7 +46,7 @@ interface ChatState {
 // Initialize entity ID from localStorage
 const getEntityId = (): string => {
   if (typeof window === "undefined") return "";
-  
+
   let id = window.localStorage.getItem("elizaEntityId");
   if (!id) {
     id = `user-${Date.now()}-${Math.random().toString(36).substring(2, 9)}`;
@@ -59,6 +63,7 @@ export const useChatStore = create<ChatState>((set, get) => ({
   entityId: "",
   availableCharacters: [],
   selectedCharacterId: null,
+  mode: "chat",
 
   // Setters
   setRooms: (rooms) => set({ rooms }),
@@ -69,8 +74,11 @@ export const useChatStore = create<ChatState>((set, get) => ({
     }
   },
   setIsLoadingRooms: (isLoading) => set({ isLoadingRooms: isLoading }),
-  setAvailableCharacters: (characters) => set({ availableCharacters: characters }),
-  setSelectedCharacterId: (characterId) => set({ selectedCharacterId: characterId }),
+  setAvailableCharacters: (characters) =>
+    set({ availableCharacters: characters }),
+  setSelectedCharacterId: (characterId) =>
+    set({ selectedCharacterId: characterId }),
+  setMode: (mode) => set({ mode }),
 
   // Initialize entity ID
   initializeEntityId: () => {
@@ -81,14 +89,14 @@ export const useChatStore = create<ChatState>((set, get) => ({
   // Load rooms from API
   loadRooms: async () => {
     let { entityId, setIsLoadingRooms, setRooms } = get();
-    
+
     // Ensure entityId is initialized
     if (!entityId) {
       const newEntityId = getEntityId();
       set({ entityId: newEntityId });
       entityId = newEntityId;
     }
-    
+
     setIsLoadingRooms(true);
     try {
       const params = new URLSearchParams({ entityId });
@@ -96,12 +104,14 @@ export const useChatStore = create<ChatState>((set, get) => ({
       if (res.ok) {
         const data = await res.json();
         if (Array.isArray(data.rooms)) {
-          const roomItems: RoomItem[] = data.rooms.slice(0, 20).map((r: any) => ({
-            id: r.id,
-            characterId: r.characterId,
-            lastText: r.lastText,
-            lastTime: r.lastTime,
-          }));
+          const roomItems: RoomItem[] = data.rooms
+            .slice(0, 20)
+            .map((r: any) => ({
+              id: r.id,
+              characterId: r.characterId,
+              lastText: r.lastText,
+              lastTime: r.lastTime,
+            }));
 
           setRooms(roomItems);
         }
@@ -115,15 +125,15 @@ export const useChatStore = create<ChatState>((set, get) => ({
 
   // Create new room
   createRoom: async (characterId?: string | null) => {
-    let { entityId, loadRooms } = get();
-    
+    let { entityId, loadRooms, setRoomId } = get();
+
     // Ensure entityId is initialized
     if (!entityId) {
       const newEntityId = getEntityId();
       set({ entityId: newEntityId });
       entityId = newEntityId;
     }
-    
+
     try {
       const response = await fetch("/api/eliza/rooms", {
         method: "POST",
@@ -137,10 +147,13 @@ export const useChatStore = create<ChatState>((set, get) => ({
       if (response.ok) {
         const data = await response.json();
         const newRoomId = data.roomId;
-        
+
         // Reload rooms to get the updated list
         await loadRooms();
-        
+
+        // Automatically switch to the new room
+        setRoomId(newRoomId);
+
         return newRoomId;
       }
       return null;
@@ -153,7 +166,7 @@ export const useChatStore = create<ChatState>((set, get) => ({
   // Delete room
   deleteRoom: async (roomIdToDelete: string) => {
     const { rooms, roomId, setRooms, setRoomId } = get();
-    
+
     try {
       const response = await fetch(`/api/eliza/rooms/${roomIdToDelete}`, {
         method: "DELETE",
@@ -162,10 +175,14 @@ export const useChatStore = create<ChatState>((set, get) => ({
       if (response.ok) {
         // Remove from local state
         setRooms(rooms.filter((r) => r.id !== roomIdToDelete));
-        
+
         // If deleted room was selected, clear selection
         if (roomId === roomIdToDelete) {
           setRoomId(null);
+          // Also clear from localStorage
+          if (typeof window !== "undefined") {
+            window.localStorage.removeItem("elizaRoomId");
+          }
         }
       }
     } catch (error) {
@@ -173,4 +190,3 @@ export const useChatStore = create<ChatState>((set, get) => ({
     }
   },
 }));
-
