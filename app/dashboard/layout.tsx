@@ -13,13 +13,14 @@ import { PageHeaderProvider } from "@/components/layout/page-header-context";
  *
  * Free Mode Paths (accessible without auth):
  * - /dashboard/chat - AI agent chat (FREE!)
+ * - /dashboard/build - AI agent builder (FREE!)
  *
  * Protected Paths (require authentication):
  * - All other /dashboard/* routes
  */
 
 // Paths that allow anonymous/free access
-const FREE_MODE_PATHS = ["/dashboard/chat"];
+const FREE_MODE_PATHS = ["/dashboard/chat", "/dashboard/build"];
 
 export default function DashboardLayout({
   children,
@@ -68,11 +69,13 @@ export default function DashboardLayout({
     );
   }
 
-  // Check if we're on the chat page - it has its own custom layout
-  const isChatPage = pathname?.startsWith("/dashboard/chat");
+  // Check if we're on the chat or build page - they have their own custom layout
+  const isCustomLayoutPage =
+    pathname?.startsWith("/dashboard/chat") ||
+    pathname?.startsWith("/dashboard/build");
 
-  // For chat page, render children directly without standard layout
-  if (isChatPage) {
+  // For chat/build pages, render children directly without standard layout
+  if (isCustomLayoutPage) {
     return <PageHeaderProvider>{children}</PageHeaderProvider>;
   }
 
