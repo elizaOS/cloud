@@ -291,25 +291,6 @@ export async function getUserFromApiKey(
 export async function requireAuthOrApiKey(
   request: NextRequest,
 ): Promise<AuthResult> {
-  // DEBUG: Log request details with ALL headers for debugging
-  const allHeaders: Record<string, string> = {};
-  request.headers.forEach((value, key) => {
-    // Redact sensitive values but show they exist
-    if (key.toLowerCase() === "authorization" || key.toLowerCase() === "x-api-key") {
-      allHeaders[key] = value.substring(0, 20) + "...";
-    } else {
-      allHeaders[key] = value;
-    }
-  });
-
-  console.log("[Auth] ==================== AUTH REQUEST ====================");
-  console.log("[Auth] URL:", request.url);
-  console.log("[Auth] Method:", request.method);
-  console.log("[Auth] All Headers:", allHeaders);
-  console.log("[Auth] Has X-API-Key:", !!request.headers.get("X-API-Key"));
-  console.log("[Auth] Has Authorization:", !!request.headers.get("authorization"));
-  console.log("[Auth] Has Cookie:", !!request.headers.get("cookie"));
-
   // Check for API key in X-API-Key header (legacy)
   const apiKeyHeader = request.headers.get("X-API-Key");
 
@@ -318,77 +299,45 @@ export async function requireAuthOrApiKey(
   let apiKeyValue: string | null = null;
 
   if (apiKeyHeader) {
-    console.log("[Auth] Found API key in X-API-Key header");
     apiKeyValue = apiKeyHeader;
   } else if (authHeader?.startsWith("Bearer ")) {
-    console.log("[Auth] Found API key in Authorization Bearer header");
     apiKeyValue = authHeader.substring(7);
-  } else if (authHeader) {
-    console.log("[Auth] Authorization header exists but doesn't start with 'Bearer ':", authHeader.substring(0, 20));
   }
 
   if (apiKeyValue) {
-    console.log("[Auth] Extracted API key:", apiKeyValue.substring(0, 12) + "...");
-    console.log("[Auth] API key length:", apiKeyValue.length);
-    console.log("[Auth] API key trimmed length:", apiKeyValue.trim().length);
-
     if (!apiKeyValue || apiKeyValue.trim().length === 0) {
-      console.error("[Auth] ❌ API key is empty after trimming");
       throw new Error("Invalid API key format");
     }
-
-    console.log("[Auth] Validating API key in database...");
 
     const apiKey = await apiKeysService.validateApiKey(apiKeyValue);
 
     if (!apiKey) {
-      console.error("[Auth] ❌ API KEY VALIDATION FAILED");
-      console.error(`[Auth] Key: ${apiKeyValue.substring(0, 12)}...`);
-      console.error("[Auth] Key not found in database");
-      console.error("[Auth] This is the UNAUTHORIZED error source!");
       throw new Error("Invalid or expired API key");
     }
 
-    console.log("[Auth] ✅ API key validated successfully");
-    console.log("[Auth] API Key ID:", apiKey.id);
-    console.log("[Auth] User ID:", apiKey.user_id);
-    console.log("[Auth] Organization ID:", apiKey.organization_id);
-
     if (!apiKey.is_active) {
-      console.error("[Auth] ❌ API key is inactive");
       throw new Error("API key is inactive");
     }
 
     if (apiKey.expires_at && new Date(apiKey.expires_at) < new Date()) {
-      console.error("[Auth] ❌ API key has expired");
       throw new Error("API key has expired");
     }
 
-    console.log("[Auth] Getting user from API key...");
     const user = await getUserFromApiKey(apiKey);
 
     if (!user) {
-      console.error("[Auth] ❌ User associated with API key not found");
       throw new Error("User associated with API key not found");
     }
 
-    console.log("[Auth] User found:", user.id);
-
     if (!user.is_active) {
-      console.error("[Auth] ❌ User account is inactive");
       throw new Error("User account is inactive");
     }
 
     if (!user.organization?.is_active) {
-      console.error("[Auth] ❌ Organization is inactive");
       throw new Error("Organization is inactive");
     }
 
-    console.log("[Auth] Incrementing API key usage...");
     await apiKeysService.incrementUsage(apiKey.id);
-
-    console.log("[Auth] ✅ Authentication successful via API key");
-    console.log("[Auth] ========================================================");
 
     return {
       user,
@@ -398,7 +347,6 @@ export async function requireAuthOrApiKey(
   }
 
   // Fall back to session authentication
-  console.log("[Auth] No API key found, falling back to session authentication");
   const user = await requireAuth();
 
   // Get session token from cookies

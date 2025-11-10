@@ -26,9 +26,7 @@ import { runWithContext } from "./request-context";
 
 interface GlobalWithEliza {
   __elizaManagerLogged?: boolean;
-  __elizaRuntime?: AgentRuntime;
-  __elizaDatabaseAdapter?: IDatabaseAdapter;
-  __elizaInitPromise?: Promise<AgentRuntime>;
+  __elizaDatabaseAdapter?: IDatabaseAdapter; // Keep DB adapter cached (connections are safe to share)
   logger?: Logger;
 }
 
@@ -108,317 +106,242 @@ class AgentRuntimeManager {
     return true;
   }
 
-  // Helper method to get or create the runtime instance
+  // Helper method to create a fresh runtime instance per request
+  // NOTE: No global caching to prevent race conditions in multi-tenant serverless
   async getRuntime(): Promise<AgentRuntime> {
-    if (!this.runtime) {
-      // Determine the desired agent ID for this deployment
-      const desiredAgentId =
-        (agent.character?.id as UUID) ||
-        (stringToUuid("eliza-cloud-v2-agent") as UUID);
-      // Reuse a cached singleton runtime across warm invocations
-      if (globalAny.__elizaRuntime) {
-        // Invalidate cached runtime if agentId mismatches the configured one
-        if (globalAny.__elizaRuntime.agentId !== desiredAgentId) {
+    elizaLogger.info(
+      "#Eliza",
+      "Creating fresh runtime instance for request isolation",
+    );
+
+    // Validate database URL before proceeding
+    if (!process.env.DATABASE_URL) {
+      throw new Error(
+        "DATABASE_URL environment variable is required for ElizaOS runtime",
+      );
+    }
+
+    // ARCHITECTURE NOTE:
+    // - ONE Agent (this ID) serves ALL conversations
+    // - MANY Rooms (created in POST /api/eliza/rooms) - one per user
+    // - Each request gets a FRESH runtime for isolation (no global caching)
+    // - Database adapter is cached (safe to share connections)
+    const RUNTIME_AGENT_ID =
+      (agent.character?.id as UUID) ||
+      (stringToUuid("eliza-cloud-v2-agent") as UUID);
+
+    elizaLogger.info(
+      "#Eliza",
+      "Creating database adapter before runtime initialization",
+    );
+
+    // ========================================================================
+    // Create and initialize database adapter
+    // ========================================================================
+    let dbAdapter: IDatabaseAdapter;
+
+    // Reuse cached adapter if available (safe - DB connections can be shared)
+    if (globalAny.__elizaDatabaseAdapter) {
+      elizaLogger.info("#Eliza", "Reusing cached database adapter");
+      dbAdapter = globalAny.__elizaDatabaseAdapter;
+    } else {
+      elizaLogger.info("#Eliza", "Creating new database adapter");
+      dbAdapter = createDatabaseAdapter(
+        {
+          postgresUrl: process.env.DATABASE_URL,
+        },
+        RUNTIME_AGENT_ID,
+      );
+
+      // Initialize the adapter connection
+      await dbAdapter.init();
+      elizaLogger.info("#Eliza", "Database adapter initialized");
+
+      // Cache globally for warm containers (DB connection pooling is safe)
+      globalAny.__elizaDatabaseAdapter = dbAdapter;
+    }
+
+    // ========================================================================
+    // Create runtime WITHOUT plugin-sql (we already have the adapter)
+    // ========================================================================
+    // Load plugins asynchronously (including lazy-loaded knowledge plugin)
+    const allPlugins = await agent.getPlugins();
+
+    elizaLogger.info(
+      "#Eliza",
+      "Creating AgentRuntime with plugins:",
+      allPlugins
+        .filter((p) => p.name !== "@elizaos/plugin-sql")
+        .map((p) => p.name)
+        .join(", "),
+    );
+
+    // Filter out plugin-sql since we're providing our own adapter
+    const pluginsWithoutSql = allPlugins.filter(
+      (p) => p.name !== "@elizaos/plugin-sql",
+    );
+
+    elizaLogger.info(
+      "#Eliza",
+      "Plugins being loaded:",
+      pluginsWithoutSql.map((p) => ({
+        name: p.name,
+        hasServices: !!(p.services && p.services.length > 0),
+        serviceCount: p.services?.length || 0,
+      })),
+    );
+
+    // Construct settings - API key will be injected per-request
+    // DO NOT set ELIZAOS_CLOUD_API_KEY here - it's set per-request in handleMessage
+    const runtime = new AgentRuntime({
+      character: agent.character,
+      plugins: pluginsWithoutSql as Plugin[],
+      agentId: RUNTIME_AGENT_ID,
+      settings: {
+        POSTGRES_URL: process.env.DATABASE_URL,
+        DATABASE_URL: process.env.DATABASE_URL,
+        ...agent.character.settings,
+        ...agent.character.secrets,
+      },
+    });
+
+    // ========================================================================
+    // Register the pre-initialized adapter BEFORE runtime.initialize()
+    // ========================================================================
+    elizaLogger.info(
+      "#Eliza",
+      "Registering pre-initialized database adapter",
+    );
+    runtime.registerDatabaseAdapter(dbAdapter);
+
+    // Ensure runtime has a logger with all required methods
+    if (!runtime.logger || !runtime.logger.log) {
+      runtime.logger = {
+        log: console.log.bind(console),
+        info: console.info.bind(console),
+        warn: console.warn.bind(console),
+        error: console.error.bind(console),
+        debug: console.debug.bind(console),
+        success: (message: string) => console.log(`✓ ${message}`),
+        notice: console.info.bind(console),
+      } as Logger & { notice: typeof console.info };
+    }
+
+    // ========================================================================
+    // Initialize runtime with error handling for existing records
+    // ========================================================================
+    try {
+      elizaLogger.info("#Eliza", "Starting runtime initialization...");
+
+      // Call runtime.initialize() to load plugins and set up everything
+      // This may fail if agent/entity records already exist - handle gracefully
+      try {
+        await runtime.initialize({ skipMigrations: true });
+        elizaLogger.success("#Eliza", "Runtime initialized successfully");
+
+        // Log available services
+        const services = (runtime as never)["services"];
+        if (services) {
+          elizaLogger.info(
+            "#Eliza",
+            "Available services:",
+            Object.keys(services),
+          );
+        }
+      } catch (initError) {
+        const errorMsg =
+          initError instanceof Error ? initError.message : String(initError);
+
+        // If error is about agent/entity already existing, that's fine - continue
+        if (
+          errorMsg.includes("Failed to create entity") ||
+          errorMsg.includes("Failed to create agent") ||
+          errorMsg.toLowerCase().includes("duplicate key") ||
+          errorMsg.toLowerCase().includes("unique constraint")
+        ) {
           elizaLogger.warn(
             "#Eliza",
-            "Cached runtime agentId mismatch. Reinitializing runtime.",
+            "Agent/entity records already exist, continuing with existing data",
           );
-          globalAny.__elizaRuntime = undefined;
-          globalAny.__elizaDatabaseAdapter = undefined;
-          this.runtime = null;
-        } else {
-          this.runtime = globalAny.__elizaRuntime;
-        }
-        // Ensure agent exists even when using cached runtime
-        if (this.runtime) {
-          await this.runtime.ensureAgentExists({
-            id: this.runtime.agentId,
-            name: agent.character?.name || "Eliza",
-          } as Agent);
-          return this.runtime;
-        }
-      }
 
-      // If another request is already initializing the runtime, wait for it
-      if (globalAny.__elizaInitPromise) {
-        elizaLogger.info("#Eliza", "Awaiting existing runtime initialization");
-        await globalAny.__elizaInitPromise;
-        this.runtime = globalAny.__elizaRuntime!;
-        // Ensure agent exists even when using cached runtime
-        await this.runtime.ensureAgentExists({
-          id: this.runtime.agentId,
-          name: agent.character?.name || "Eliza",
-        } as Agent);
-        return this.runtime;
-      }
-
-      // Validate database URL before proceeding
-      if (!process.env.DATABASE_URL) {
-        throw new Error(
-          "DATABASE_URL environment variable is required for ElizaOS runtime",
-        );
-      }
-
-      // ARCHITECTURE NOTE:
-      // - ONE Agent (this ID) serves ALL conversations
-      // - MANY Rooms (created in POST /api/eliza/rooms) - one per user
-      // - The agent runtime is cached globally for all requests
-      // Use the character id if provided; else derive from stable seed
-      const RUNTIME_AGENT_ID = desiredAgentId;
-
-      elizaLogger.info(
-        "#Eliza",
-        "Creating database adapter before runtime initialization",
-      );
-
-      // ========================================================================
-      // CRITICAL: Create and initialize database adapter FIRST
-      // ========================================================================
-      let dbAdapter;
-
-      // Reuse cached adapter if available (for warm containers)
-      if (globalAny.__elizaDatabaseAdapter) {
-        elizaLogger.info("#Eliza", "Reusing cached database adapter");
-        dbAdapter = globalAny.__elizaDatabaseAdapter;
-      } else {
-        elizaLogger.info("#Eliza", "Creating new database adapter");
-        dbAdapter = createDatabaseAdapter(
-          {
-            postgresUrl: process.env.DATABASE_URL,
-          },
-          RUNTIME_AGENT_ID,
-        );
-
-        // Initialize the adapter connection
-        await dbAdapter.init();
-        elizaLogger.info("#Eliza", "Database adapter initialized");
-
-        // Cache globally for warm containers (adapter init runs only ONCE)
-        globalAny.__elizaDatabaseAdapter = dbAdapter;
-      }
-
-      // ========================================================================
-      // Create runtime WITHOUT plugin-sql (we already have the adapter)
-      // ========================================================================
-      // Load plugins asynchronously (including lazy-loaded knowledge plugin)
-      const allPlugins = await agent.getPlugins();
-
-      elizaLogger.info(
-        "#Eliza",
-        "Creating AgentRuntime with plugins:",
-        allPlugins
-          .filter((p) => p.name !== "@elizaos/plugin-sql")
-          .map((p) => p.name)
-          .join(", "),
-      );
-
-      // Filter out plugin-sql since we're providing our own adapter
-      const pluginsWithoutSql = allPlugins.filter(
-        (p) => p.name !== "@elizaos/plugin-sql",
-      );
-
-      elizaLogger.info(
-        "#Eliza",
-        "Plugins being loaded:",
-        pluginsWithoutSql.map((p) => ({
-          name: p.name,
-          hasServices: !!(p.services && p.services.length > 0),
-          serviceCount: p.services?.length || 0,
-        })),
-      );
-
-      // Construct settings with proper fallback for API keys
-      const elizaCloudKeyRaw =
-        process.env.ELIZAOS_CLOUD_API_KEY ||
-        agent.character.secrets?.ELIZAOS_CLOUD_API_KEY ||
-        agent.character.settings?.ELIZAOS_CLOUD_API_KEY;
-
-      const elizaCloudKey =
-        typeof elizaCloudKeyRaw === "string"
-          ? elizaCloudKeyRaw
-          : String(elizaCloudKeyRaw || "");
-
-      if (
-        !elizaCloudKey ||
-        elizaCloudKey === "" ||
-        elizaCloudKey === "undefined"
-      ) {
-        elizaLogger.warn(
-          "#Eliza",
-          "⚠️  ELIZAOS_CLOUD_API_KEY not configured - AI features may fail. User API key should be injected at runtime.",
-        );
-      }
-
-      this.runtime = new AgentRuntime({
-        character: agent.character,
-        plugins: pluginsWithoutSql as Plugin[],
-        agentId: RUNTIME_AGENT_ID,
-        settings: {
-          ELIZAOS_CLOUD_API_KEY: elizaCloudKey,
-          POSTGRES_URL: process.env.DATABASE_URL,
-          DATABASE_URL: process.env.DATABASE_URL,
-          ...agent.character.settings,
-          ...agent.character.secrets,
-        },
-      });
-
-      // ========================================================================
-      // CRITICAL: Register the pre-initialized adapter BEFORE runtime.initialize()
-      // ========================================================================
-      elizaLogger.info(
-        "#Eliza",
-        "Registering pre-initialized database adapter",
-      );
-      this.runtime.registerDatabaseAdapter(dbAdapter);
-
-      // Expose an init promise to serialize concurrent initializations
-      globalAny.__elizaInitPromise = (async () => {
-        // Cache runtime early so waiters can pick it up after init
-        globalAny.__elizaRuntime = this.runtime!;
-        return this.runtime!;
-      })();
-
-      // Ensure runtime has a logger with all required methods
-      if (!this.runtime.logger || !this.runtime.logger.log) {
-        this.runtime.logger = {
-          log: console.log.bind(console),
-          info: console.info.bind(console),
-          warn: console.warn.bind(console),
-          error: console.error.bind(console),
-          debug: console.debug.bind(console),
-          success: (message: string) => console.log(`✓ ${message}`),
-          notice: console.info.bind(console),
-        } as Logger & { notice: typeof console.info };
-      }
-
-      // ========================================================================
-      // Initialize runtime with error handling for existing records
-      // ========================================================================
-      try {
-        elizaLogger.info("#Eliza", "Starting runtime initialization...");
-
-        // Call runtime.initialize() to load plugins and set up everything
-        // This may fail if agent/entity records already exist - handle gracefully
-        try {
-          await this.runtime.initialize({ skipMigrations: true });
-          elizaLogger.success("#Eliza", "Runtime initialized successfully");
-
-          // Log available services
-          const services = (this.runtime as never)["services"];
-          if (services) {
-            elizaLogger.info(
-              "#Eliza",
-              "Available services:",
-              Object.keys(services),
+          // Verify adapter is functional
+          const isReady = await dbAdapter.isReady();
+          if (!isReady) {
+            throw new Error(
+              "Database adapter is not ready after initialization attempt",
             );
           }
-        } catch (initError) {
-          const errorMsg =
-            initError instanceof Error ? initError.message : String(initError);
+        } else {
+          // Other errors are serious, re-throw
+          throw initError;
+        }
+      }
 
-          // If error is about agent/entity already existing, that's fine - continue
+      // Verify agent and entity exist using runtime methods
+      const agentExists = await runtime.getAgent(RUNTIME_AGENT_ID);
+      if (!agentExists) {
+        elizaLogger.info("#Eliza", "Agent not found, creating via runtime...");
+        await runtime.ensureAgentExists({
+          id: RUNTIME_AGENT_ID,
+          name: agent.character?.name || "Eliza",
+          username: agent.character?.username,
+          system: agent.character?.system || "",
+          bio: agent.character?.bio || [],
+          messageExamples: agent.character?.messageExamples || [],
+          postExamples: agent.character?.postExamples || [],
+          topics: agent.character?.topics || [],
+          adjectives: agent.character?.adjectives || [],
+          knowledge: agent.character?.knowledge || [],
+          plugins: agent.character?.plugins || [],
+          settings: agent.character?.settings || {},
+          style: agent.character?.style || {},
+        } as Agent);
+      }
+
+      // Check if entity exists using runtime
+      const entities = await runtime.getEntitiesByIds([RUNTIME_AGENT_ID]);
+      if (!entities || entities.length === 0) {
+        elizaLogger.info(
+          "#Eliza",
+          "Agent entity not found, creating via runtime...",
+        );
+        try {
+          await runtime.createEntity({
+            id: RUNTIME_AGENT_ID,
+            agentId: RUNTIME_AGENT_ID,
+            names: [agent.character?.name || "Eliza"],
+            metadata: { name: agent.character?.name || "Eliza" },
+          });
+        } catch (entityError) {
+          const msg =
+            entityError instanceof Error
+              ? entityError.message
+              : String(entityError);
           if (
-            errorMsg.includes("Failed to create entity") ||
-            errorMsg.includes("Failed to create agent") ||
-            errorMsg.toLowerCase().includes("duplicate key") ||
-            errorMsg.toLowerCase().includes("unique constraint")
+            msg.toLowerCase().includes("duplicate key") ||
+            msg.toLowerCase().includes("unique constraint")
           ) {
             elizaLogger.warn(
               "#Eliza",
-              "Agent/entity records already exist, continuing with existing data",
+              "Agent entity already exists, continuing",
             );
-
-            // Verify adapter is functional
-            const isReady = await dbAdapter.isReady();
-            if (!isReady) {
-              throw new Error(
-                "Database adapter is not ready after initialization attempt",
-              );
-            }
           } else {
-            // Other errors are serious, re-throw
-            throw initError;
+            throw entityError;
           }
         }
-
-        // Verify agent and entity exist using RUNTIME methods (not adapter directly)
-        const agentExists = await this.runtime.getAgent(RUNTIME_AGENT_ID);
-        if (!agentExists) {
-          elizaLogger.info(
-            "#Eliza",
-            "Agent not found, creating via runtime...",
-          );
-          await this.runtime.ensureAgentExists({
-            id: RUNTIME_AGENT_ID,
-            name: agent.character?.name || "Eliza",
-            username: agent.character?.username,
-            system: agent.character?.system || "",
-            bio: agent.character?.bio || [],
-            messageExamples: agent.character?.messageExamples || [],
-            postExamples: agent.character?.postExamples || [],
-            topics: agent.character?.topics || [],
-            adjectives: agent.character?.adjectives || [],
-            knowledge: agent.character?.knowledge || [],
-            plugins: agent.character?.plugins || [],
-            settings: agent.character?.settings || {},
-            style: agent.character?.style || {},
-          } as Agent);
-        }
-
-        // Check if entity exists using runtime
-        const entities = await this.runtime.getEntitiesByIds([
-          RUNTIME_AGENT_ID,
-        ]);
-        if (!entities || entities.length === 0) {
-          elizaLogger.info(
-            "#Eliza",
-            "Agent entity not found, creating via runtime...",
-          );
-          try {
-            await this.runtime.createEntity({
-              id: RUNTIME_AGENT_ID,
-              agentId: RUNTIME_AGENT_ID,
-              names: [agent.character?.name || "Eliza"],
-              metadata: { name: agent.character?.name || "Eliza" },
-            });
-          } catch (entityError) {
-            const msg =
-              entityError instanceof Error
-                ? entityError.message
-                : String(entityError);
-            if (
-              msg.toLowerCase().includes("duplicate key") ||
-              msg.toLowerCase().includes("unique constraint")
-            ) {
-              elizaLogger.warn(
-                "#Eliza",
-                "Agent entity already exists, continuing",
-              );
-            } else {
-              throw entityError;
-            }
-          }
-        }
-
-        elizaLogger.success(
-          "#Eliza",
-          "Runtime ready - agent exists and operational",
-        );
-      } catch (error) {
-        elizaLogger.error("#Eliza", "Runtime setup failed:", error);
-        // Only clear caches on truly fatal errors (when runtime never set)
-        if (!globalAny.__elizaRuntime) {
-          this.runtime = null;
-          globalAny.__elizaRuntime = undefined;
-          globalAny.__elizaDatabaseAdapter = undefined;
-        }
-        throw error;
-      } finally {
-        // Clear init promise so future calls don't hang
-        globalAny.__elizaInitPromise = undefined;
       }
+
+      elizaLogger.success(
+        "#Eliza",
+        "Fresh runtime created and ready for request",
+      );
+    } catch (error) {
+      elizaLogger.error("#Eliza", "Runtime setup failed:", error);
+      throw error;
     }
-    return this.runtime;
+
+    // Return the fresh runtime (no caching!)
+    return runtime;
   }
 
   /**
@@ -627,7 +550,7 @@ class AgentRuntimeManager {
     message: Memory;
     usage?: { inputTokens: number; outputTokens: number; model: string };
   }> {
-    // Get runtime for specific character or default
+    // Get FRESH runtime for this request (no caching = no race conditions!)
     let runtime: AgentRuntime;
     
     if (characterId) {
@@ -636,23 +559,23 @@ class AgentRuntimeManager {
       runtime = await this.getRuntime();
     }
 
-    // CRITICAL: Use AsyncLocalStorage for per-request context isolation
-    // This prevents race conditions in multi-tenant shared runtime
-    // The plugin can access context via getRequestContext() helper
+    // CRITICAL: Inject user's API key into this fresh runtime using setSetting()
+    // Since the runtime is NOT cached/shared, this is SAFE from race conditions
+    // Each user gets their own runtime instance with their own API key
     
-    // Log API key being used (FULL KEY for debugging)
-    console.log("[AgentRuntime] ==================== API KEY INJECTION ====================");
     if (userSettings?.apiKey) {
-      console.log("[AgentRuntime] ✅ User API key provided (FULL KEY):", userSettings.apiKey);
-      console.log("[AgentRuntime] API key length:", userSettings.apiKey.length);
-      console.log("[AgentRuntime] User ID:", userSettings.userId);
+      // Use the proper setSetting API to inject the API key
+      runtime.setSetting("ELIZAOS_CLOUD_API_KEY", userSettings.apiKey, true); // true = store as secret
+      
       if (userSettings.modelPreferences) {
-        console.log("[AgentRuntime] Model preferences:", userSettings.modelPreferences);
+        if (userSettings.modelPreferences.smallModel) {
+          runtime.setSetting("ELIZAOS_CLOUD_SMALL_MODEL", userSettings.modelPreferences.smallModel);
+        }
+        if (userSettings.modelPreferences.largeModel) {
+          runtime.setSetting("ELIZAOS_CLOUD_LARGE_MODEL", userSettings.modelPreferences.largeModel);
+        }
       }
-    } else {
-      console.log("[AgentRuntime] ❌ No user API key provided!");
     }
-    console.log("[AgentRuntime] ================================================================");
     
     return runWithContext(
       {
@@ -661,10 +584,8 @@ class AgentRuntimeManager {
         modelPreferences: userSettings?.modelPreferences,
       },
       async () => {
-        console.log("[AgentRuntime] ✅ Running with isolated request context");
-        console.log("[AgentRuntime] Context API key:", userSettings?.apiKey);
         elizaLogger.debug(
-          "[AgentRuntime] Running with isolated request context",
+          "[AgentRuntime] Running with isolated request context and fresh runtime",
         );
 
         // OPTIMIZATION: Check connection cache before calling ensureConnection

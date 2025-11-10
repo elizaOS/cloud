@@ -230,33 +230,9 @@ function transformOpenAIToAISdk(openAIResponse: OpenAIChatResponse): object {
 async function handlePOST(req: NextRequest) {
   const startTime = Date.now();
 
-  // DEBUG: Log ALL request details
-  const allHeaders: Record<string, string> = {};
-  req.headers.forEach((value, key) => {
-    if (key.toLowerCase() === "authorization" || key.toLowerCase() === "x-api-key") {
-      allHeaders[key] = value.substring(0, 20) + "...";
-    } else {
-      allHeaders[key] = value;
-    }
-  });
-
-  logger.info("[Responses API] ==================== INCOMING REQUEST ====================");
-  logger.info("[Responses API] URL:", req.url);
-  logger.info("[Responses API] Method:", req.method);
-  logger.info("[Responses API] Headers:", allHeaders);
-  logger.info("[Responses API] Has Authorization:", !!req.headers.get("authorization"));
-  logger.info("[Responses API] Has X-API-Key:", !!req.headers.get("X-API-Key"));
-
   try {
     // 1. Authenticate
-    logger.info("[Responses API] Starting authentication...");
     const { user, apiKey } = await requireAuthOrApiKey(req);
-
-    logger.info("[Responses API] ✅ Authenticated successfully:", {
-      userId: user.id,
-      organizationId: user.organization_id,
-      authMethod: apiKey ? "api_key" : "session",
-    });
 
     // 2. Parse AI SDK request
     const aiSdkRequest: AISdkRequest = await req.json();
@@ -473,22 +449,15 @@ async function handlePOST(req: NextRequest) {
       );
     }
   } catch (error) {
-    logger.error("[Responses API] ❌ ERROR CAUGHT:", error);
-    logger.error("[Responses API] Error type:", typeof error);
-    logger.error("[Responses API] Error instance:", error instanceof Error);
-    
-    if (error instanceof Error) {
-      logger.error("[Responses API] Error message:", error.message);
-      logger.error("[Responses API] Error stack:", error.stack);
-    }
+    logger.error("[Responses API] Error:", error);
 
     // Check if it's an authentication error
-    if (error instanceof Error && 
-        (error.message.includes("Unauthorized") || 
-         error.message.includes("Invalid or expired API key") ||
-         error.message.includes("API key"))) {
-      logger.error("[Responses API] 🔑 AUTHENTICATION ERROR DETECTED");
-      logger.error("[Responses API] This is likely the source of the Unauthorized error");
+    if (
+      error instanceof Error &&
+      (error.message.includes("Unauthorized") ||
+        error.message.includes("Invalid or expired API key") ||
+        error.message.includes("API key"))
+    ) {
       return Response.json(
         {
           error: {
@@ -512,7 +481,6 @@ async function handlePOST(req: NextRequest) {
         status: number;
         error: { message: string; type?: string; code?: string };
       };
-      logger.error("[Responses API] Gateway error:", gatewayError);
       return Response.json(
         { error: gatewayError.error },
         { status: gatewayError.status },
@@ -520,7 +488,6 @@ async function handlePOST(req: NextRequest) {
     }
 
     // Fallback to generic error
-    logger.error("[Responses API] Returning generic 500 error");
     return Response.json(
       {
         error: {
