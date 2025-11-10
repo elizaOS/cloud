@@ -115,7 +115,7 @@ export const useChatStore = create<ChatState>((set, get) => ({
 
   // Create new room
   createRoom: async (characterId?: string | null) => {
-    let { entityId, loadRooms } = get();
+    let { entityId, loadRooms, setRoomId } = get();
     
     // Ensure entityId is initialized
     if (!entityId) {
@@ -140,6 +140,9 @@ export const useChatStore = create<ChatState>((set, get) => ({
         
         // Reload rooms to get the updated list
         await loadRooms();
+        
+        // Automatically switch to the new room
+        setRoomId(newRoomId);
         
         return newRoomId;
       }
@@ -166,6 +169,10 @@ export const useChatStore = create<ChatState>((set, get) => ({
         // If deleted room was selected, clear selection
         if (roomId === roomIdToDelete) {
           setRoomId(null);
+          // Also clear from localStorage
+          if (typeof window !== "undefined") {
+            window.localStorage.removeItem("elizaRoomId");
+          }
         }
       }
     } catch (error) {

@@ -167,6 +167,12 @@ export function ElizaChatInterface({
     if (roomId) {
       console.log("[ElizaChat] Room ID changed, loading messages:", roomId);
       loadMessages(roomId);
+    } else {
+      // Room was deleted or cleared - reset to empty state
+      console.log("[ElizaChat] Room cleared, resetting messages");
+      setMessages([]);
+      setAgentInfo(null);
+      setError(null);
     }
   }, [roomId, loadMessages]);
 

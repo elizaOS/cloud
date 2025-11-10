@@ -67,14 +67,21 @@ export async function GET(request: NextRequest) {
       }),
     );
 
+    // Sort rooms by most recent first (lastTime descending)
+    const sortedRooms = rooms.sort((a, b) => {
+      const timeA = (a as any).lastTime || 0;
+      const timeB = (b as any).lastTime || 0;
+      return timeB - timeA; // Descending order (newest first)
+    });
+
     logger.debug(
-      "[Eliza Rooms API] Returning rooms:",
-      rooms.map((r) => ({ id: r.id, characterId: r.characterId })),
+      "[Eliza Rooms API] Returning rooms (sorted by most recent):",
+      sortedRooms.map((r) => ({ id: r.id, characterId: r.characterId, lastTime: (r as any).lastTime })),
     );
 
     return NextResponse.json({
       success: true,
-      rooms,
+      rooms: sortedRooms,
     });
   } catch (error) {
     logger.error("[Eliza Rooms API] Error getting rooms:", error);
@@ -219,6 +226,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Send initial greeting message using the character's runtime
+    const greetingTimestamp = Date.now();
     try {
       logger.debug("[Eliza Rooms API] Generating initial greeting...");
 
@@ -240,10 +248,27 @@ export async function POST(request: NextRequest) {
             text: greetingText,
             type: "agent",
           },
-          createdAt: Date.now(),
+          createdAt: greetingTimestamp,
         },
         "messages",
       );
+
+      // Explicitly update room's lastTime and lastText for proper sorting
+      try {
+        await db.execute(
+          sql`UPDATE rooms 
+              SET "lastTime" = ${greetingTimestamp},
+                  "lastText" = ${greetingText}
+              WHERE id = ${roomId}::uuid`,
+        );
+        logger.info(
+          "[Eliza Rooms API] ✓ Room lastTime updated:",
+          greetingTimestamp,
+        );
+      } catch (updateErr) {
+        logger.error("[Eliza Rooms API] Failed to update room lastTime:", updateErr);
+      }
+
       logger.info(
         "[Eliza Rooms API] ✓ Greeting message saved (character:",
         characterName,
@@ -302,7 +327,7 @@ export async function POST(request: NextRequest) {
       success: true,
       roomId,
       characterId: characterId || null,
-      createdAt: Date.now(),
+      createdAt: greetingTimestamp, // Use greeting timestamp to ensure consistent sorting
     });
   } catch (error) {
     logger.error(
