@@ -21,6 +21,7 @@
  */
 
 import { NextRequest, NextResponse } from "next/server";
+import { timingSafeEqual } from "crypto";
 import { db } from "@/db/client";
 import { users, anonymousSessions, conversations } from "@/db/schemas";
 import { and, eq, lt } from "drizzle-orm";
@@ -31,7 +32,7 @@ export const dynamic = "force-dynamic";
 
 export async function GET(request: NextRequest) {
   try {
-    // Verify cron secret
+    // Verify cron secret using timing-safe comparison to prevent timing attacks
     const authHeader = request.headers.get("authorization");
     const cronSecret = process.env.CRON_SECRET;
 
@@ -43,8 +44,17 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    const providedSecret = authHeader?.replace("Bearer ", "");
-    if (providedSecret !== cronSecret) {
+    const providedSecret = authHeader?.replace("Bearer ", "") || "";
+
+    // Use timing-safe comparison to prevent timing attacks
+    const providedBuffer = Buffer.from(providedSecret, "utf8");
+    const secretBuffer = Buffer.from(cronSecret, "utf8");
+
+    const isValidSecret =
+      providedBuffer.length === secretBuffer.length &&
+      timingSafeEqual(providedBuffer, secretBuffer);
+
+    if (!isValidSecret) {
       logger.warn("cleanup-cron", "Invalid cron secret provided");
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }

@@ -294,8 +294,9 @@ class AgentRuntimeManager {
 
         // Call runtime.initialize() to load plugins and set up everything
         // This may fail if agent/entity records already exist - handle gracefully
+        // Note: ElizaOS v1.6.4+ does not accept parameters in initialize()
         try {
-          await this.runtime.initialize({ skipMigrations: true });
+          await this.runtime.initialize();
           elizaLogger.success("#Eliza", "Runtime initialized successfully");
 
           // Log available services

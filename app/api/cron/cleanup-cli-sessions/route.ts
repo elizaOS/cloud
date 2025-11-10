@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { timingSafeEqual } from "crypto";
 import { cliAuthSessionsService } from "@/lib/services";
 
 /**
@@ -7,11 +8,30 @@ import { cliAuthSessionsService } from "@/lib/services";
  */
 export async function GET(request: NextRequest) {
   try {
-    // Verify cron secret
+    // Verify cron secret using timing-safe comparison to prevent timing attacks
     const authHeader = request.headers.get("authorization");
     const cronSecret = process.env.CRON_SECRET;
 
-    if (!cronSecret || authHeader !== `Bearer ${cronSecret}`) {
+    if (!cronSecret) {
+      console.error("CRON_SECRET not configured");
+      return NextResponse.json(
+        { error: "Cron not configured" },
+        { status: 500 },
+      );
+    }
+
+    const providedSecret = authHeader?.replace("Bearer ", "") || "";
+
+    // Use timing-safe comparison to prevent timing attacks
+    const providedBuffer = Buffer.from(providedSecret, "utf8");
+    const secretBuffer = Buffer.from(cronSecret, "utf8");
+
+    const isValidSecret =
+      providedBuffer.length === secretBuffer.length &&
+      timingSafeEqual(providedBuffer, secretBuffer);
+
+    if (!isValidSecret) {
+      console.error("Invalid cron secret");
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 

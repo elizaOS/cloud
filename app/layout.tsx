@@ -6,6 +6,7 @@ import { ThemeProvider } from "@/components/theme/theme-provider";
 import { Toaster } from "sonner";
 import NextTopLoader from "nextjs-toploader";
 import PrivyProvider from "@/providers/PrivyProvider";
+import { ErrorBoundary } from "@/components/error-boundary";
 
 const robotoMono = Roboto_Mono({
   variable: "--font-roboto-mono",
@@ -115,23 +116,25 @@ export default function RootLayout({
             enableSystem
             disableTransitionOnChange
           >
-            <NextTopLoader showSpinner={false} color="#FF5800" />
-            {children}
-            <Toaster
-              richColors
-              theme="dark"
-              position="top-right"
-              toastOptions={{
-                style: {
-                  background: "rgba(0, 0, 0, 0.8)",
-                  border: "1px solid rgba(255, 255, 255, 0.1)",
-                  color: "white",
-                  backdropFilter: "blur(12px)",
-                  borderRadius: "0px",
-                },
-                className: "font-mono",
-              }}
-            />
+            <ErrorBoundary>
+              <NextTopLoader showSpinner={false} color="#FF5800" />
+              {children}
+              <Toaster
+                richColors
+                theme="dark"
+                position="top-right"
+                toastOptions={{
+                  style: {
+                    background: "rgba(0, 0, 0, 0.8)",
+                    border: "1px solid rgba(255, 255, 255, 0.1)",
+                    color: "white",
+                    backdropFilter: "blur(12px)",
+                    borderRadius: "0px",
+                  },
+                  className: "font-mono",
+                }}
+              />
+            </ErrorBoundary>
           </ThemeProvider>
         </PrivyProvider>
         <Analytics />
