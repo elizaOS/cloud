@@ -87,7 +87,7 @@ export default function Sidebar({
         </div>
 
         {/* Navigation Content */}
-        <nav className="flex-1 overflow-y-auto px-4 py-6">
+        <nav id="sidebar-nav" className="flex-1 overflow-y-auto px-4 py-6">
           <div className="space-y-8">
             {sidebarSections.map((section, index) => (
               <SidebarNavigationSection key={index} section={section} />

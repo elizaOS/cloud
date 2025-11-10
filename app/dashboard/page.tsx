@@ -15,6 +15,8 @@ import {
   ContainersSection,
   ContainersSectionSkeleton,
 } from "@/components/dashboard/containers-section";
+import { ProductTour } from "@/components/onboarding/product-tour";
+import { OnboardingChecklist } from "@/components/onboarding/onboarding-checklist";
 
 export const metadata: Metadata = generatePageMetadata({
   ...ROUTE_METADATA.dashboard,
@@ -30,6 +32,8 @@ export default async function DashboardPage() {
 
   return (
     <DashboardPageWrapper userName={data.user.name.split(" ")[0] || "User"}>
+      <ProductTour />
+      <OnboardingChecklist />
       <main className="mx-auto w-full max-w-[1400px] px-4 pb-12 pt-8 lg:px-8">
         <div className="space-y-12">
           {/* Page Header */}

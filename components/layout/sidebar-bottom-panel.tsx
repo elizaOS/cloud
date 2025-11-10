@@ -139,7 +139,7 @@ export function SidebarBottomPanel({ className }: SidebarBottomPanelProps) {
       </div>
 
       {/* Balance Display - Always Visible */}
-      <div className="relative z-10 px-4 py-3 border-b border-white/10">
+      <div id="credit-balance" className="credit-balance relative z-10 px-4 py-3 border-b border-white/10">
         {loadingCredits && creditBalance === null ? (
           <div className="flex items-center gap-2 text-white/40">
             <Loader2 className="h-4 w-4 animate-spin" />

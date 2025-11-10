@@ -52,7 +52,7 @@ export default function Header({
       </div>
 
       {/* Right side content */}
-      <div className="flex items-center gap-4 shrink-0">
+      <div id="quick-actions" className="flex items-center gap-4 shrink-0">
         {pageInfo?.actions && <div>{pageInfo.actions}</div>}
         {children}
 
