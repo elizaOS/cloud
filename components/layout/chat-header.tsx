@@ -5,7 +5,7 @@
 
 "use client";
 
-import { useRouter } from "next/navigation";
+import { useRouter, usePathname } from "next/navigation";
 import { Menu, ChevronDown, MessageSquare, Wrench } from "lucide-react";
 import { BrandButton } from "@/components/brand";
 import { cn } from "@/lib/utils";
@@ -23,14 +23,16 @@ interface ChatHeaderProps {
 
 export function ChatHeader({ onToggleSidebar }: ChatHeaderProps) {
   const router = useRouter();
+  const pathname = usePathname();
   const {
     availableCharacters,
     selectedCharacterId,
     setSelectedCharacterId,
     setRoomId,
-    mode,
-    setMode,
   } = useChatStore();
+
+  // Derive mode from pathname
+  const mode = pathname.includes("/build") ? "build" : "chat";
 
   // Find selected agent
   const selectedAgent = availableCharacters.find(
@@ -44,12 +46,27 @@ export function ChatHeader({ onToggleSidebar }: ChatHeaderProps) {
     // User will need to select a room from the filtered list or create new
     setRoomId(null);
 
-    // Update URL with new character, clearing roomId
+    // Update URL with new character, clearing roomId, staying on current mode
     const params = new URLSearchParams();
     if (charId) {
       params.set("characterId", charId);
     }
-    router.push(`/dashboard/chat?${params.toString()}`);
+    const path = mode === "build" ? "/dashboard/build" : "/dashboard/chat";
+    router.push(`${path}?${params.toString()}`);
+  };
+
+  const handleModeChange = (newMode: "chat" | "build") => {
+    if (newMode === mode) return;
+
+    // Build URL with current character
+    const params = new URLSearchParams();
+    if (selectedCharacterId) {
+      params.set("characterId", selectedCharacterId);
+    }
+
+    const path = newMode === "build" ? "/dashboard/build" : "/dashboard/chat";
+    const url = params.toString() ? `${path}?${params.toString()}` : path;
+    router.push(url);
   };
 
   return (
@@ -175,7 +192,7 @@ export function ChatHeader({ onToggleSidebar }: ChatHeaderProps) {
       <div className="flex items-center gap-2">
         <div className="flex items-center gap-1 p-1 rounded-none border border-white/10 bg-black/40">
           <button
-            onClick={() => setMode("chat")}
+            onClick={() => handleModeChange("chat")}
             className={cn(
               "flex items-center gap-2 px-3 py-1.5 rounded-none transition-colors text-sm",
               mode === "chat"
@@ -187,7 +204,7 @@ export function ChatHeader({ onToggleSidebar }: ChatHeaderProps) {
             <span className="hidden md:inline">Chat Mode</span>
           </button>
           <button
-            onClick={() => setMode("build")}
+            onClick={() => handleModeChange("build")}
             className={cn(
               "flex items-center gap-2 px-3 py-1.5 rounded-none transition-colors text-sm",
               mode === "build"

@@ -1,6 +1,5 @@
 import type { Metadata } from "next";
 import { getCurrentUser } from "@/lib/auth";
-import { getOrCreateAnonymousUserAction } from "@/app/actions/anonymous";
 import { ElizaPageClient } from "@/components/chat/eliza-page-client";
 import { listCharacters } from "@/app/actions/characters";
 import {
