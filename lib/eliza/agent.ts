@@ -1,10 +1,11 @@
 import type { Character } from "@elizaos/core";
-import { openaiPlugin } from "@elizaos/plugin-openai";
+import { elizaOSCloudPlugin } from "@elizaos/plugin-elizacloud";
 import { memoryPlugin } from "@elizaos/plugin-memory";
 // Lazy-load knowledge plugin to avoid SSR issues with pdfjs-dist (DOMMatrix not available in Node.js)
 // import { knowledgePluginCore } from "@elizaos/plugin-knowledge";
 import { elevenLabsPlugin } from "@elizaos/plugin-elevenlabs";
 import { assistantPlugin } from "./plugin-assistant";
+import { getElizaCloudApiUrl, getDefaultModels } from "./config";
 // NOTE: plugin-sql is provided via a pre-initialized adapter in agent-runtime
 
 /**
@@ -26,7 +27,11 @@ const character: Character = {
   settings: {
     POSTGRES_URL: process.env.DATABASE_URL!,
     DATABASE_URL: process.env.DATABASE_URL!,
-    OPENAI_API_KEY: process.env.OPENAI_API_KEY!,
+    // ElizaOS Cloud Configuration (replaces OpenAI)
+    ELIZAOS_CLOUD_BASE_URL: getElizaCloudApiUrl(),
+    ELIZAOS_CLOUD_SMALL_MODEL: getDefaultModels().small,
+    ELIZAOS_CLOUD_LARGE_MODEL: getDefaultModels().large,
+    // Note: ELIZAOS_CLOUD_API_KEY will be set at runtime with user's auto-generated key
     // ElevenLabs Voice Configuration
     ELEVENLABS_API_KEY: process.env.ELEVENLABS_API_KEY!,
     ELEVENLABS_VOICE_ID:
@@ -126,9 +131,9 @@ const character: Character = {
 const agent = {
   character,
   // Full plugin architecture with events, providers, and actions
-  // Includes OpenAI for LLM, ElevenLabs for TTS/STT, and knowledge/memory plugins
+  // Includes ElizaCloud for LLM, ElevenLabs for TTS/STT, and knowledge/memory plugins
   // Note: knowledgePluginCore is loaded asynchronously via getPlugins()
-  plugins: [openaiPlugin, elevenLabsPlugin, assistantPlugin, memoryPlugin],
+  plugins: [elizaOSCloudPlugin, elevenLabsPlugin, assistantPlugin, memoryPlugin],
   providers: [
     ...(elevenLabsPlugin.providers || []),
     ...(assistantPlugin.providers || []),
@@ -141,7 +146,7 @@ const agent = {
   async getPlugins() {
     const knowledgePlugin = await loadKnowledgePlugin();
     return [
-      openaiPlugin,
+      elizaOSCloudPlugin,
       elevenLabsPlugin,
       assistantPlugin,
       memoryPlugin,

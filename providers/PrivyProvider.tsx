@@ -47,7 +47,7 @@ function PrivyAuthWrapper({ children }: { children: React.ReactNode }) {
     if (ready && authenticated && user && !migrationAttempted.current) {
       console.log(
         "[PrivyProvider] Starting anonymous session migration check for user:",
-        user.id
+        user.id,
       );
       migrationAttempted.current = true;
 
@@ -56,7 +56,7 @@ function PrivyAuthWrapper({ children }: { children: React.ReactNode }) {
 
       if (hasAnonSession) {
         console.log(
-          "[PrivyProvider] Found anonymous session cookie, attempting migration..."
+          "[PrivyProvider] Found anonymous session cookie, attempting migration...",
         );
         fetch("/api/auth/migrate-anonymous", {
           method: "POST",
@@ -66,24 +66,24 @@ function PrivyAuthWrapper({ children }: { children: React.ReactNode }) {
           .then((data) => {
             if (data.migrated) {
               console.log(
-                `[PrivyProvider] ✅ Successfully migrated ${data.messagesTransferred} anonymous messages`
+                `[PrivyProvider] ✅ Successfully migrated ${data.messagesTransferred} anonymous messages`,
               );
             } else {
               console.log(
-                `[PrivyProvider] No migration needed: ${data.message}`
+                `[PrivyProvider] No migration needed: ${data.message}`,
               );
             }
           })
           .catch((error) => {
             console.error(
               "[PrivyProvider] Failed to migrate anonymous session:",
-              error
+              error,
             );
             // Don't block user - this is non-critical
           });
       } else {
         console.log(
-          "[PrivyProvider] No anonymous session cookie found, skipping migration"
+          "[PrivyProvider] No anonymous session cookie found, skipping migration",
         );
       }
     } else {
@@ -128,7 +128,7 @@ export default function PrivyProvider({
           },
         },
       }) as unknown as PrivyClientConfig,
-    []
+    [],
   );
 
   // Check if Privy App ID is configured
@@ -137,7 +137,7 @@ export default function PrivyProvider({
 
   if (!appId || !clientId) {
     console.error(
-      "NEXT_PUBLIC_PRIVY_APP_ID or NEXT_PUBLIC_PRIVY_CLIENT_ID is not set!"
+      "NEXT_PUBLIC_PRIVY_APP_ID or NEXT_PUBLIC_PRIVY_CLIENT_ID is not set!",
     );
     return (
       <div className="flex min-h-screen items-center justify-center">

@@ -99,13 +99,22 @@ class UserSessionsService {
     user_agent?: string;
     device_info?: Record<string, unknown>;
   }): Promise<UserSession> {
-    const existing = await this.getActiveByToken(params.session_token);
+    // Use atomic get-or-create at database level to prevent race conditions
+    const sessionData: NewUserSession = {
+      user_id: params.user_id,
+      organization_id: params.organization_id,
+      session_token: params.session_token,
+      ip_address: params.ip_address,
+      user_agent: params.user_agent,
+      device_info: params.device_info || {},
+      credits_used: "0.00",
+      requests_made: 0,
+      tokens_consumed: 0,
+      started_at: new Date(),
+      last_activity_at: new Date(),
+    };
 
-    if (existing) {
-      return existing;
-    }
-
-    return await this.create(params);
+    return await userSessionsRepository.getOrCreate(sessionData);
   }
 }
 

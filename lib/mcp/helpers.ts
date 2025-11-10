@@ -59,14 +59,22 @@ export interface MCPToolContext {
   invalidateToolCache: (toolName: string, params?: any) => Promise<void>;
 
   /** Deduct credits with automatic refund on error */
-  deductCredits: (amount: number, description: string, metadata?: Record<string, unknown>) => Promise<{
+  deductCredits: (
+    amount: number,
+    description: string,
+    metadata?: Record<string, unknown>,
+  ) => Promise<{
     success: boolean;
     newBalance: number;
     transactionId: string | null;
   }>;
 
   /** Refund credits (e.g., on error) */
-  refundCredits: (amount: number, description: string, metadata?: Record<string, unknown>) => Promise<void>;
+  refundCredits: (
+    amount: number,
+    description: string,
+    metadata?: Record<string, unknown>,
+  ) => Promise<void>;
 }
 
 /**
@@ -77,7 +85,7 @@ export interface MCPToolContext {
  * @returns Tool execution context with caching and utilities
  */
 export async function createMCPContext(
-  user: UserWithOrganization
+  user: UserWithOrganization,
 ): Promise<MCPToolContext> {
   // Ensure user has an organization (MCP tools not available for anonymous users)
   if (!user.organization_id) {
@@ -107,7 +115,11 @@ export async function createMCPContext(
       await invalidateToolCacheInternal(toolName, org.id, params);
     },
 
-    async deductCredits(amount: number, description: string, metadata?: Record<string, unknown>) {
+    async deductCredits(
+      amount: number,
+      description: string,
+      metadata?: Record<string, unknown>,
+    ) {
       const result = await creditsService.deductCredits({
         organizationId: org.id,
         amount,
@@ -122,7 +134,11 @@ export async function createMCPContext(
       };
     },
 
-    async refundCredits(amount: number, description: string, metadata?: Record<string, unknown>) {
+    async refundCredits(
+      amount: number,
+      description: string,
+      metadata?: Record<string, unknown>,
+    ) {
       await creditsService.refundCredits({
         organizationId: org.id,
         amount,
@@ -152,7 +168,7 @@ export function withCredits<TParams, TResult>(
     /** Custom error message on insufficient credits */
     insufficientCreditsMessage?: string;
   } = {},
-  handler: (params: TParams, context: MCPToolContext) => Promise<TResult>
+  handler: (params: TParams, context: MCPToolContext) => Promise<TResult>,
 ): (params: TParams, context: MCPToolContext) => Promise<TResult> {
   return async (params: TParams, context: MCPToolContext): Promise<TResult> => {
     const toolCost = typeof cost === "function" ? cost(params) : cost;
@@ -170,7 +186,7 @@ export function withCredits<TParams, TResult>(
     if (Number(context.org.credit_balance) < toolCost) {
       throw new Error(
         options.insufficientCreditsMessage ||
-        `Insufficient credits. Required: ${toolCost}, Available: ${context.org.credit_balance}`
+          `Insufficient credits. Required: ${toolCost}, Available: ${context.org.credit_balance}`,
       );
     }
 
@@ -178,18 +194,18 @@ export function withCredits<TParams, TResult>(
     const deduction = await context.deductCredits(
       toolCost,
       `MCP Tool: ${toolName}`,
-      { tool: toolName, params }
+      { tool: toolName, params },
     );
 
     if (!deduction.success) {
       throw new Error(
         options.insufficientCreditsMessage ||
-        `Insufficient credits. Required: ${toolCost}, Available: ${deduction.newBalance}`
+          `Insufficient credits. Required: ${toolCost}, Available: ${deduction.newBalance}`,
       );
     }
 
     logger.info(
-      `[MCP:${toolName}] Deducted ${toolCost} credits (balance: ${deduction.newBalance})`
+      `[MCP:${toolName}] Deducted ${toolCost} credits (balance: ${deduction.newBalance})`,
     );
 
     try {
@@ -204,12 +220,18 @@ export function withCredits<TParams, TResult>(
       return result;
     } catch (error) {
       // Refund credits on error
-      logger.error(`[MCP:${toolName}] Tool failed, refunding ${toolCost} credits:`, error);
+      logger.error(
+        `[MCP:${toolName}] Tool failed, refunding ${toolCost} credits:`,
+        error,
+      );
 
       await context.refundCredits(
         toolCost,
         `MCP Tool Refund: ${toolName} (error)`,
-        { tool: toolName, error: error instanceof Error ? error.message : String(error) }
+        {
+          tool: toolName,
+          error: error instanceof Error ? error.message : String(error),
+        },
       );
 
       throw error; // Re-throw to preserve error handling
@@ -232,7 +254,7 @@ export function withCache<TParams, TResult>(
     /** Enable result caching */
     cacheable?: boolean;
   } = {},
-  handler: (params: TParams, context: MCPToolContext) => Promise<TResult>
+  handler: (params: TParams, context: MCPToolContext) => Promise<TResult>,
 ): (params: TParams, context: MCPToolContext) => Promise<TResult> {
   return async (params: TParams, context: MCPToolContext): Promise<TResult> => {
     // Check cache first (if enabled)
@@ -260,7 +282,10 @@ export function withCache<TParams, TResult>(
  * Format MCP tool response
  * Standardizes response format across all tools
  */
-export function formatMCPResponse(data: any, isError: boolean = false): {
+export function formatMCPResponse(
+  data: any,
+  isError: boolean = false,
+): {
   content: Array<{ type: "text"; text: string }>;
   isError?: boolean;
 } {
