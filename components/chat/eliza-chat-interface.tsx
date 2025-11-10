@@ -45,13 +45,7 @@ interface AgentInfo {
   avatarUrl?: string;
 }
 
-interface ElizaChatInterfaceProps {
-  initialCharacterId?: string | null;
-}
-
-export function ElizaChatInterface({
-  initialCharacterId = null,
-}: ElizaChatInterfaceProps) {
+export function ElizaChatInterface() {
   // Use chat store for room and character management
   const {
     roomId,
@@ -59,16 +53,8 @@ export function ElizaChatInterface({
     loadRooms,
     createRoom: createRoomInStore,
     selectedCharacterId,
-    setSelectedCharacterId,
     availableCharacters,
   } = useChatStore();
-
-  // Set initial character ID from URL if provided
-  useEffect(() => {
-    if (initialCharacterId && initialCharacterId !== selectedCharacterId) {
-      setSelectedCharacterId(initialCharacterId);
-    }
-  }, [initialCharacterId, selectedCharacterId, setSelectedCharacterId]);
   const [messages, setMessages] = useState<Message[]>([]);
   const [agentInfo, setAgentInfo] = useState<AgentInfo | null>(null);
   const [inputText, setInputText] = useState("");
@@ -201,17 +187,8 @@ export function ElizaChatInterface({
     [createRoomInStore, loadMessages, selectedCharacterId],
   );
 
-  // Create room with character if provided from URL
-  useEffect(() => {
-    if (initialCharacterId) {
-      console.log(
-        "[ElizaChat] Creating room with character from URL:",
-        initialCharacterId,
-      );
-      createRoom(initialCharacterId);
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [initialCharacterId]);
+  // Note: Room and character initialization is now handled by URL params
+  // via ElizaPageClient, no need to create room automatically here
 
   // Check for pending message from landing page and auto-send it
   useEffect(() => {

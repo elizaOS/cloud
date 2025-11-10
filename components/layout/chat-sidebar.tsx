@@ -6,6 +6,7 @@
 "use client";
 
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { useState, useEffect, useMemo } from "react";
 import {
   ArrowLeft,
@@ -46,6 +47,7 @@ export function ChatSidebar({
   isOpen = false,
   onToggle,
 }: ChatSidebarProps) {
+  const router = useRouter();
   const [isMobile, setIsMobile] = useState(false);
   const {
     rooms,
@@ -100,9 +102,13 @@ export function ChatSidebar({
       const newRoomId = await createRoom(selectedCharacterId);
       if (newRoomId) {
         setRoomId(newRoomId);
-        if (typeof window !== "undefined") {
-          window.localStorage.setItem("elizaRoomId", newRoomId);
+        // Update URL with new room ID and current character
+        const params = new URLSearchParams();
+        params.set("roomId", newRoomId);
+        if (selectedCharacterId) {
+          params.set("characterId", selectedCharacterId);
         }
+        router.push(`/dashboard/chat?${params.toString()}`);
       }
     } finally {
       setIsCreatingRoom(false);
@@ -111,15 +117,28 @@ export function ChatSidebar({
 
   const handleSelectRoom = (selectedRoomId: string) => {
     setRoomId(selectedRoomId);
-    if (typeof window !== "undefined") {
-      window.localStorage.setItem("elizaRoomId", selectedRoomId);
+    // Update URL with selected room ID and current character
+    const params = new URLSearchParams();
+    params.set("roomId", selectedRoomId);
+    if (selectedCharacterId) {
+      params.set("characterId", selectedCharacterId);
     }
+    router.push(`/dashboard/chat?${params.toString()}`);
   };
 
   const handleDeleteRoom = async (roomIdToDelete: string) => {
     setDeletingRoomId(roomIdToDelete);
     await deleteRoom(roomIdToDelete);
     setDeletingRoomId(null);
+
+    // If the deleted room was the current room, clear URL params
+    if (roomId === roomIdToDelete) {
+      const params = new URLSearchParams();
+      if (selectedCharacterId) {
+        params.set("characterId", selectedCharacterId);
+      }
+      router.push(`/dashboard/chat?${params.toString()}`);
+    }
   };
 
   return (

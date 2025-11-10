@@ -38,7 +38,7 @@ export function CharacterLibraryCard({
   const [isDeleting, setIsDeleting] = useState(false);
 
   const handleTest = useCallback(() => {
-    router.push(`/dashboard/eliza?characterId=${character.id}`);
+    router.push(`/dashboard/chat?characterId=${character.id}`);
   }, [router, character.id]);
 
   const handleEdit = useCallback(() => {

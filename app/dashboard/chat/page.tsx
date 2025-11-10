@@ -13,7 +13,7 @@ import { userCharacters } from "@/db/schemas/user-characters";
 import { eq } from "drizzle-orm";
 
 interface PageProps {
-  searchParams: Promise<{ characterId?: string }>;
+  searchParams: Promise<{ characterId?: string; roomId?: string }>;
 }
 
 // Force dynamic rendering since we use server-side auth (cookies)
@@ -86,10 +86,17 @@ export default async function ElizaPage({ searchParams }: PageProps) {
   // Load available characters for authenticated users only
   const characters = isAnonymous ? [] : await listCharacters();
 
+  // Get URL params
+  const params = await searchParams;
+  const initialRoomId = params.roomId;
+  const initialCharacterId = params.characterId;
+
   return (
     <ElizaPageClient
       initialCharacters={characters}
       isAuthenticated={!isAnonymous}
+      initialRoomId={initialRoomId}
+      initialCharacterId={initialCharacterId}
     />
   );
 }

@@ -13,11 +13,15 @@ import { getOrCreateAnonymousUserAction } from "@/app/actions/anonymous";
 interface ElizaPageClientProps {
   initialCharacters: ElizaCharacter[];
   isAuthenticated: boolean;
+  initialRoomId?: string;
+  initialCharacterId?: string;
 }
 
 export function ElizaPageClient({
   initialCharacters,
   isAuthenticated,
+  initialRoomId,
+  initialCharacterId,
 }: ElizaPageClientProps) {
   const [anonymousSession, setAnonymousSession] = useState<{
     messageCount: number;
@@ -25,13 +29,15 @@ export function ElizaPageClient({
     remainingMessages: number;
   } | null>(null);
   const [isLoadingSession, setIsLoadingSession] = useState(!isAuthenticated);
-  const searchParams = useSearchParams();
-  const [initialCharacterId, setInitialCharacterId] = useState<string | null>(
-    null,
-  );
 
   // Initialize store with characters and entity ID (must be at top level)
-  const { setAvailableCharacters, initializeEntityId, mode } = useChatStore();
+  const {
+    setAvailableCharacters,
+    initializeEntityId,
+    mode,
+    setRoomId,
+    setSelectedCharacterId,
+  } = useChatStore();
 
   // Note: Page header is now handled by ChatHeader component
   // Remove this if you want to completely disable the old header system for chat
@@ -54,6 +60,21 @@ export function ElizaPageClient({
     initializeEntityId();
   }, [initialCharacters, setAvailableCharacters, initializeEntityId]);
 
+  // Sync URL params with store on mount
+  useEffect(() => {
+    if (initialRoomId) {
+      console.log("[Chat Page] Setting room ID from URL:", initialRoomId);
+      setRoomId(initialRoomId);
+    }
+    if (initialCharacterId) {
+      console.log(
+        "[Chat Page] Setting character ID from URL:",
+        initialCharacterId,
+      );
+      setSelectedCharacterId(initialCharacterId);
+    }
+  }, [initialRoomId, initialCharacterId, setRoomId, setSelectedCharacterId]);
+
   // Initialize anonymous session for unauthenticated users
   useEffect(() => {
     if (!isAuthenticated && !anonymousSession) {
@@ -75,17 +96,6 @@ export function ElizaPageClient({
         });
     }
   }, [isAuthenticated, anonymousSession]);
-
-  useEffect(() => {
-    const characterId = searchParams.get("characterId");
-    if (characterId) {
-      console.log("[Chat Page] Character ID from URL:", characterId);
-      // Set character ID asynchronously to avoid cascading renders
-      Promise.resolve().then(() => {
-        setInitialCharacterId(characterId);
-      });
-    }
-  }, [searchParams]);
 
   // Show loading state while initializing anonymous session
   if (!isAuthenticated && isLoadingSession) {
@@ -111,7 +121,7 @@ export function ElizaPageClient({
         {mode === "build" ? (
           <CharacterBuildMode initialCharacters={initialCharacters} />
         ) : (
-          <ElizaChatInterface initialCharacterId={initialCharacterId} />
+          <ElizaChatInterface />
         )}
       </div>
     </div>
