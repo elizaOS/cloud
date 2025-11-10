@@ -27,16 +27,11 @@ export default function ChatLayout({
       {/* Main Content */}
       <div className="flex flex-1 flex-col overflow-hidden">
         {/* Chat Header */}
-        <ChatHeader
-          onToggleSidebar={() => setSidebarOpen(!sidebarOpen)}
-        />
+        <ChatHeader onToggleSidebar={() => setSidebarOpen(!sidebarOpen)} />
 
         {/* Chat Content Area - Full Height */}
-        <main className="flex-1 overflow-hidden bg-[#0A0A0A]">
-          {children}
-        </main>
+        <main className="flex-1 overflow-hidden bg-[#0A0A0A]">{children}</main>
       </div>
     </div>
   );
 }
-

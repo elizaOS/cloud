@@ -52,7 +52,7 @@ export function getModelFromContext(
   type: "small" | "large",
 ): string | undefined {
   const context = getRequestContext();
-  
+
   if (type === "small") {
     return (
       context?.modelPreferences?.smallModel ||

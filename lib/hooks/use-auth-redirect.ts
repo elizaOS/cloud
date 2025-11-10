@@ -61,7 +61,15 @@ export function useAuthRedirect(options?: {
         clearTimeout(redirectTimeout.current);
       }
     };
-  }, [ready, authenticated, router, redirectTo, requireAuth, delay, isRedirecting]);
+  }, [
+    ready,
+    authenticated,
+    router,
+    redirectTo,
+    requireAuth,
+    delay,
+    isRedirecting,
+  ]);
 
   return { ready, authenticated, isRedirecting };
 }

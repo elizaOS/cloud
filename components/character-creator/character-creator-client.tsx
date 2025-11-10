@@ -52,7 +52,7 @@ export function CharacterCreatorClient({
   initialCharacterId,
 }: CharacterCreatorClientProps) {
   const router = useRouter();
-  
+
   // Initialize character from URL parameter if provided
   const [character, setCharacter] = useState<ElizaCharacter>(() => {
     if (initialCharacterId) {
@@ -67,8 +67,10 @@ export function CharacterCreatorClient({
     }
     return defaultCharacter;
   });
-  
-  const [selectedId, setSelectedId] = useState<string | null>(initialCharacterId || null);
+
+  const [selectedId, setSelectedId] = useState<string | null>(
+    initialCharacterId || null,
+  );
   const [showAssistant, setShowAssistant] = useState(true);
 
   const handleCharacterUpdate = useCallback(
