@@ -52,24 +52,24 @@ export function CharacterCreatorClient({
   initialCharacterId,
 }: CharacterCreatorClientProps) {
   const router = useRouter();
-  const [character, setCharacter] = useState<ElizaCharacter>(defaultCharacter);
-  const [selectedId, setSelectedId] = useState<string | null>(null);
-  const [showAssistant, setShowAssistant] = useState(true);
-
-  // Load character from URL parameter on mount
-  useEffect(() => {
+  
+  // Initialize character from URL parameter if provided
+  const [character, setCharacter] = useState<ElizaCharacter>(() => {
     if (initialCharacterId) {
       const char = initialCharacters.find((c) => c.id === initialCharacterId);
       if (char) {
-        setCharacter(char);
-        setSelectedId(initialCharacterId);
         console.log(
           "[Character Creator] Loaded character from URL:",
           char.name,
         );
+        return char;
       }
     }
-  }, [initialCharacterId, initialCharacters]);
+    return defaultCharacter;
+  });
+  
+  const [selectedId, setSelectedId] = useState<string | null>(initialCharacterId || null);
+  const [showAssistant, setShowAssistant] = useState(true);
 
   const handleCharacterUpdate = useCallback(
     (updates: Partial<ElizaCharacter>) => {
