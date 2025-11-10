@@ -29,7 +29,8 @@ export function useAuthRedirect(options?: {
       return;
     }
 
-    const shouldRedirectToDashboard = authenticated && redirectTo === "/dashboard";
+    const shouldRedirectToDashboard =
+      authenticated && redirectTo === "/dashboard";
     const shouldRedirectToHome = !authenticated && requireAuth;
 
     if (shouldRedirectToDashboard || shouldRedirectToHome) {

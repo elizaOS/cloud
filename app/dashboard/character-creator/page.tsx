@@ -16,7 +16,9 @@ interface PageProps {
   searchParams: Promise<{ id?: string }>;
 }
 
-export default async function CharacterCreatorPage({ searchParams }: PageProps) {
+export default async function CharacterCreatorPage({
+  searchParams,
+}: PageProps) {
   await requireAuth();
   const characters = await listCharacters();
   const params = await searchParams;
