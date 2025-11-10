@@ -51,6 +51,7 @@ export function ChatSidebar({
     availableCharacters,
   } = useChatStore();
   const [deletingRoomId, setDeletingRoomId] = useState<string | null>(null);
+  const [isCreatingRoom, setIsCreatingRoom] = useState(false);
 
   // Filter rooms by selected character
   const filteredRooms = useMemo(() => {
@@ -81,13 +82,20 @@ export function ChatSidebar({
   }, [loadRooms]);
 
   const handleNewChat = async () => {
-    // Create room with currently selected character
-    const newRoomId = await createRoom(selectedCharacterId);
-    if (newRoomId) {
-      setRoomId(newRoomId);
-      if (typeof window !== "undefined") {
-        window.localStorage.setItem("elizaRoomId", newRoomId);
+    if (isCreatingRoom) return; // Prevent double-clicking
+    
+    setIsCreatingRoom(true);
+    try {
+      // Create room with currently selected character
+      const newRoomId = await createRoom(selectedCharacterId);
+      if (newRoomId) {
+        setRoomId(newRoomId);
+        if (typeof window !== "undefined") {
+          window.localStorage.setItem("elizaRoomId", newRoomId);
+        }
       }
+    } finally {
+      setIsCreatingRoom(false);
     }
   };
 
@@ -195,10 +203,15 @@ export function ChatSidebar({
             {/* New Chat Icon Button */}
             <button
               onClick={handleNewChat}
-              className="flex-shrink-0 p-2 rounded-none hover:bg-white/10 transition-colors"
+              disabled={isCreatingRoom}
+              className="flex-shrink-0 p-2 rounded-none hover:bg-white/10 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
               title="New chat"
             >
-              <Edit3 className="h-4 w-4 text-white/80" />
+              {isCreatingRoom ? (
+                <Loader2 className="h-4 w-4 text-white/80 animate-spin" />
+              ) : (
+                <Edit3 className="h-4 w-4 text-white/80" />
+              )}
             </button>
           </div>
         </div>
