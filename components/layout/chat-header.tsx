@@ -5,6 +5,7 @@
 
 "use client";
 
+import { useRouter } from "next/navigation";
 import { Menu, ChevronDown, MessageSquare, Wrench } from "lucide-react";
 import { BrandButton } from "@/components/brand";
 import { cn } from "@/lib/utils";
@@ -21,6 +22,7 @@ interface ChatHeaderProps {
 }
 
 export function ChatHeader({ onToggleSidebar }: ChatHeaderProps) {
+  const router = useRouter();
   const {
     availableCharacters,
     selectedCharacterId,
@@ -41,6 +43,13 @@ export function ChatHeader({ onToggleSidebar }: ChatHeaderProps) {
     // Clear current room selection since we're switching characters
     // User will need to select a room from the filtered list or create new
     setRoomId(null);
+
+    // Update URL with new character, clearing roomId
+    const params = new URLSearchParams();
+    if (charId) {
+      params.set("characterId", charId);
+    }
+    router.push(`/dashboard/chat?${params.toString()}`);
   };
 
   return (
