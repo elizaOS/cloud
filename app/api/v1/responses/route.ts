@@ -451,6 +451,25 @@ async function handlePOST(req: NextRequest) {
   } catch (error) {
     logger.error("[Responses API] Error:", error);
 
+    // Check if it's an authentication error
+    if (
+      error instanceof Error &&
+      (error.message.includes("Unauthorized") ||
+        error.message.includes("Invalid or expired API key") ||
+        error.message.includes("API key"))
+    ) {
+      return Response.json(
+        {
+          error: {
+            message: error.message,
+            type: "authentication_error",
+            code: "unauthorized",
+          },
+        },
+        { status: 401 },
+      );
+    }
+
     // Check if error is a structured gateway error
     if (
       error &&
