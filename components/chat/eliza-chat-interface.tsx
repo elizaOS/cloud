@@ -6,9 +6,6 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import {
   Loader2,
   Send,
-  Bot,
-  User,
-  Clock,
   Mic,
   Square,
   Volume2,
@@ -92,7 +89,6 @@ export function ElizaChatInterface({
   const [isInitializing, setIsInitializing] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const scrollAreaRef = useRef<HTMLDivElement>(null);
-  const scrollViewportRef = useRef<HTMLDivElement>(null);
   const thinkingTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const [autoPlayTTS, setAutoPlayTTS] = useState(false);
   const [currentPlayingId, setCurrentPlayingId] = useState<string | null>(null);
