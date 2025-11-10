@@ -68,6 +68,15 @@ export default function DashboardLayout({
     );
   }
 
+  // Check if we're on the chat page - it has its own custom layout
+  const isChatPage = pathname?.startsWith("/dashboard/chat");
+
+  // For chat page, render children directly without standard layout
+  if (isChatPage) {
+    return <PageHeaderProvider>{children}</PageHeaderProvider>;
+  }
+
+  // Standard dashboard layout for all other pages
   return (
     <PageHeaderProvider>
       <div className="flex h-screen w-full bg-[#0A0A0A]">

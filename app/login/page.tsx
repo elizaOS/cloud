@@ -49,7 +49,7 @@ export default function LoginPage() {
       hasUser: !!user,
       userId: user?.id,
     });
-  }, []);
+  }, [ready, authenticated, user]);
 
   // Log whenever Privy state changes
   useEffect(() => {
