@@ -12,6 +12,9 @@ import { calculateCost, getProviderFromModel } from "@/lib/pricing";
 import { logger } from "@/lib/utils/logger";
 import { elizaRoomCharactersRepository } from "@/db/repositories";
 import { getUserElizaCloudApiKey } from "@/lib/eliza/user-api-key";
+import { discordService } from "@/lib/services/discord";
+import { db } from "@/db/client";
+import { sql } from "drizzle-orm";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
@@ -271,6 +274,55 @@ export async function POST(
               anonymousSession.id,
             );
           }
+
+          // Send messages to Discord thread (fire-and-forget)
+          (async () => {
+            try {
+              // Get Discord thread ID from room metadata
+              const roomData = await db.execute<{ metadata: any }>(
+                sql`SELECT metadata FROM rooms WHERE id = ${roomId}::uuid LIMIT 1`,
+              );
+
+              const threadId = roomData.rows[0]?.metadata?.discordThreadId;
+
+              if (threadId) {
+                // Get character name from runtime
+                let characterName = "Agent";
+                try {
+                  if (characterId) {
+                    const runtime = await agentRuntime.getRuntimeForCharacter(characterId);
+                    characterName = runtime.character.name || "Agent";
+                  } else {
+                    const runtime = await agentRuntime.getRuntime();
+                    characterName = runtime.character.name || "Agent";
+                  }
+                } catch (err) {
+                  logger.error("[Stream Messages] Failed to fetch character name from runtime:", err);
+                }
+
+                // Send user message
+                await discordService.sendToThread(
+                  threadId,
+                  `**${user.name || user.email || entityId}:** ${text}`,
+                );
+
+                // Send agent response
+                await discordService.sendToThread(
+                  threadId,
+                  `**🤖 ${characterName}:** ${responseText}`,
+                );
+
+                logger.info(
+                  `[Stream Messages] Sent messages to Discord thread ${threadId} for character: ${characterName}`,
+                );
+              }
+            } catch (err) {
+              logger.error(
+                "[Stream Messages] Failed to send to Discord thread:",
+                err,
+              );
+            }
+          })();
 
           // Send completion event
           sendEvent("done", { timestamp: Date.now() });

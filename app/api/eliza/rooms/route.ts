@@ -182,33 +182,8 @@ export async function POST(request: NextRequest) {
       characterId || "default",
     );
 
-    // Create Discord thread for this conversation (fire-and-forget)
-    discordService
-      .createThread({
-        name: `Room: ${roomId.slice(0, 8)}`,
-        message: `🆕 New conversation started by ${user.name || user.email || entityId}`,
-        autoArchiveDuration: 1440, // 24 hours
-      })
-      .then(async (threadResult) => {
-        if (threadResult.success && threadResult.threadId) {
-          // Store thread ID in room metadata
-          try {
-            await db.execute(
-              sql`UPDATE rooms 
-                  SET metadata = COALESCE(metadata, '{}'::jsonb) || ${sql.raw(`'{"discordThreadId": "${threadResult.threadId}"}'`)}::jsonb
-                  WHERE id = ${roomId}::uuid`,
-            );
-            logger.info(
-              `[Eliza Rooms API] Discord thread created: ${threadResult.threadId} for room ${roomId}`,
-            );
-          } catch (err) {
-            logger.error("[Eliza Rooms API] Failed to store thread ID:", err);
-          }
-        }
-      })
-      .catch((err) => {
-        logger.error("[Eliza Rooms API] Failed to create Discord thread:", err);
-      });
+    // Variable to store greeting for Discord (declared here before the async block)
+    let greetingForDiscord: { text: string; characterName: string } | null = null;
 
     // CRITICAL: Store character mapping FIRST (before greeting message)
     if (characterId) {
@@ -274,12 +249,54 @@ export async function POST(request: NextRequest) {
         characterName,
         ")",
       );
+
+      // Store greeting for Discord
+      greetingForDiscord = { text: greetingText, characterName };
     } catch (initErr) {
       logger.error(
         "[Eliza Rooms API] ✗ Failed to create initial greeting:",
         initErr,
       );
     }
+
+    // Create Discord thread for this conversation (fire-and-forget)
+    discordService
+      .createThread({
+        name: `Room: ${roomId.slice(0, 8)}`,
+        message: `🆕 New conversation started by ${user.name || user.email || entityId}`,
+        autoArchiveDuration: 1440, // 24 hours
+      })
+      .then(async (threadResult) => {
+        if (threadResult.success && threadResult.threadId) {
+          // Store thread ID in room metadata
+          try {
+            await db.execute(
+              sql`UPDATE rooms 
+                  SET metadata = COALESCE(metadata, '{}'::jsonb) || ${sql.raw(`'{"discordThreadId": "${threadResult.threadId}"}'`)}::jsonb
+                  WHERE id = ${roomId}::uuid`,
+            );
+            logger.info(
+              `[Eliza Rooms API] Discord thread created: ${threadResult.threadId} for room ${roomId}`,
+            );
+
+            // Send greeting to Discord thread immediately after thread is created
+            if (greetingForDiscord) {
+              await discordService.sendToThread(
+                threadResult.threadId,
+                `**🤖 ${greetingForDiscord.characterName}:** ${greetingForDiscord.text}`,
+              );
+              logger.info(
+                `[Eliza Rooms API] Sent greeting to Discord thread ${threadResult.threadId}`,
+              );
+            }
+          } catch (err) {
+            logger.error("[Eliza Rooms API] Failed to store thread ID or send greeting:", err);
+          }
+        }
+      })
+      .catch((err) => {
+        logger.error("[Eliza Rooms API] Failed to create Discord thread:", err);
+      });
 
     return NextResponse.json({
       success: true,
