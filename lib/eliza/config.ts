@@ -26,18 +26,24 @@ export function getElizaCloudApiUrl(): string {
     appUrl?.includes("127.0.0.1") ||
     nodeEnv === "development"
   ) {
-    console.log("[ElizaCloudConfig] Using LOCAL API URL: http://localhost:3000/api/v1");
+    console.log(
+      "[ElizaCloudConfig] Using LOCAL API URL: http://localhost:3000/api/v1",
+    );
     return "http://localhost:3000/api/v1";
   }
 
   // Development environment
   if (appUrl?.includes("dev.elizacloud.ai")) {
-    console.log("[ElizaCloudConfig] Using DEV API URL: https://www.dev.elizacloud.ai/api/v1");
+    console.log(
+      "[ElizaCloudConfig] Using DEV API URL: https://www.dev.elizacloud.ai/api/v1",
+    );
     return "https://www.dev.elizacloud.ai/api/v1";
   }
 
   // Production (default)
-  console.log("[ElizaCloudConfig] Using PROD API URL: https://www.elizacloud.ai/api/v1");
+  console.log(
+    "[ElizaCloudConfig] Using PROD API URL: https://www.elizacloud.ai/api/v1",
+  );
   return "https://www.elizacloud.ai/api/v1";
 }
 
@@ -48,7 +54,8 @@ export function getDefaultModels() {
   return {
     small: process.env.ELIZAOS_CLOUD_SMALL_MODEL || "moonshotai/kimi-k2-0905",
     large: process.env.ELIZAOS_CLOUD_LARGE_MODEL || "moonshotai/kimi-k2-0905",
-    embedding: process.env.ELIZAOS_CLOUD_EMBEDDING_MODEL || "text-embedding-3-small",
+    embedding:
+      process.env.ELIZAOS_CLOUD_EMBEDDING_MODEL || "text-embedding-3-small",
   };
 }
 
@@ -70,4 +77,3 @@ export const ALLOWED_CHAT_MODELS = [
   "anthropic/claude-3.7-sonnet",
   "anthropic/claude-opus-4.1",
 ] as const;
-

@@ -3,14 +3,7 @@
 import { useState, useEffect, useRef, useCallback } from "react";
 import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import {
-  Loader2,
-  Send,
-  Mic,
-  Square,
-  Volume2,
-  Plus,
-} from "lucide-react";
+import { Loader2, Send, Mic, Square, Volume2, Plus } from "lucide-react";
 import { ElizaAvatar } from "./eliza-avatar";
 import { KnowledgeDrawer } from "./knowledge-drawer";
 import { useAudioRecorder } from "./hooks/use-audio-recorder";
@@ -60,9 +53,9 @@ export function ElizaChatInterface({
   initialCharacterId = null,
 }: ElizaChatInterfaceProps) {
   // Use chat store for room and character management
-  const { 
-    roomId, 
-    entityId, 
+  const {
+    roomId,
+    entityId,
     loadRooms,
     createRoom: createRoomInStore,
     selectedCharacterId,
@@ -79,10 +72,10 @@ export function ElizaChatInterface({
   const [messages, setMessages] = useState<Message[]>([]);
   const [agentInfo, setAgentInfo] = useState<AgentInfo | null>(null);
   const [inputText, setInputText] = useState("");
-  
+
   // Get character name from store
   const selectedCharacter = availableCharacters.find(
-    (char) => char.id === selectedCharacterId
+    (char) => char.id === selectedCharacterId,
   );
   const characterName = selectedCharacter?.name || agentInfo?.name || "Agent";
   const [isLoading, setIsLoading] = useState(false);
@@ -127,7 +120,7 @@ export function ElizaChatInterface({
 
   // Load available models
   const { models, isLoading: isLoadingModels } = useAvailableModels();
-  
+
   // Selected model state (persisted in localStorage)
   const [selectedModel, setSelectedModel] = useState<string | null>(() => {
     if (typeof window !== "undefined") {
@@ -189,7 +182,7 @@ export function ElizaChatInterface({
       try {
         // Use store's createRoom which handles the API call
         const newRoomId = await createRoomInStore(charIdToUse);
-        
+
         if (!newRoomId) {
           throw new Error("Failed to create room");
         }
@@ -669,13 +662,15 @@ export function ElizaChatInterface({
                             iconClassName="h-3 w-3"
                             animate={isThinking}
                           />
-                          <div className="font-[family-name:var(--font-roboto-flex)] text-sm font-medium" style={{ color: '#A1A1AA' }}>
+                          <div
+                            className="font-[family-name:var(--font-roboto-flex)] text-sm font-medium"
+                            style={{ color: "#A1A1AA" }}
+                          >
                             {characterName}
                           </div>
                         </div>
-                        
+
                         <div className="flex flex-col gap-1">
-                          
                           {isThinking ? (
                             <div className="flex items-center gap-3 py-2">
                               <Loader2 className="h-4 w-4 animate-spin" />
@@ -696,7 +691,10 @@ export function ElizaChatInterface({
                               </div>
                               {/* Time */}
                               <div className="flex items-center gap-2">
-                                <span className="text-sm font-[family-name:var(--font-roboto-mono)]" style={{ color: '#A1A1AA' }}>
+                                <span
+                                  className="text-sm font-[family-name:var(--font-roboto-mono)]"
+                                  style={{ color: "#A1A1AA" }}
+                                >
                                   {formatTimestamp(message.createdAt)}
                                 </span>
                                 {messageAudioUrls.current.has(message.id) && (
@@ -741,8 +739,8 @@ export function ElizaChatInterface({
                         <div
                           className="px-4 py-3 rounded-none font-[family-name:var(--font-roboto-flex)] text-[16px] leading-[1.5]"
                           style={{
-                            backgroundColor: '#3A3A3A',
-                            fontWeight: 500
+                            backgroundColor: "#3A3A3A",
+                            fontWeight: 500,
                           }}
                         >
                           <div className="whitespace-pre-wrap text-white">
@@ -751,7 +749,10 @@ export function ElizaChatInterface({
                         </div>
                         {/* Time */}
                         <div className="flex items-center gap-2 justify-end px-1">
-                          <span className="text-sm font-[family-name:var(--font-roboto-mono)]" style={{ color: '#A1A1AA' }}>
+                          <span
+                            className="text-sm font-[family-name:var(--font-roboto-mono)]"
+                            style={{ color: "#A1A1AA" }}
+                          >
                             {formatTimestamp(message.createdAt)}
                           </span>
                         </div>
@@ -771,7 +772,7 @@ export function ElizaChatInterface({
             sendMessage();
           }}
           className="border-t p-6 mb-6"
-          style={{ backgroundColor: '#1D1D1D' }}
+          style={{ backgroundColor: "#1D1D1D" }}
         >
           <div className="space-y-3">
             {/* Text Input Box - Prominent standalone */}
@@ -809,7 +810,9 @@ export function ElizaChatInterface({
               >
                 <SelectTrigger className="w-[140px] h-10 border-muted rounded-none">
                   <SelectValue placeholder="Select model">
-                    {selectedModel ? selectedModel.split("/")[1] || selectedModel : "Select model"}
+                    {selectedModel
+                      ? selectedModel.split("/")[1] || selectedModel
+                      : "Select model"}
                   </SelectValue>
                 </SelectTrigger>
                 <SelectContent className="rounded-none">
@@ -834,10 +837,16 @@ export function ElizaChatInterface({
                       <Plus className="h-4 w-4" />
                     </Button>
                   </DropdownMenuTrigger>
-                  <DropdownMenuContent className="w-80 rounded-none" align="end" side="top">
+                  <DropdownMenuContent
+                    className="w-80 rounded-none"
+                    align="end"
+                    side="top"
+                  >
                     <div className="space-y-4 p-2">
                       <div>
-                        <h4 className="font-medium mb-3 text-sm">Voice Settings</h4>
+                        <h4 className="font-medium mb-3 text-sm">
+                          Voice Settings
+                        </h4>
                         <div className="space-y-3">
                           <div className="flex items-center justify-between">
                             <Label htmlFor="auto-tts-pop" className="text-sm">
@@ -852,37 +861,57 @@ export function ElizaChatInterface({
 
                           {customVoices.length > 0 && (
                             <div className="space-y-2">
-                              <Label htmlFor="voice-select-pop" className="text-sm">
+                              <Label
+                                htmlFor="voice-select-pop"
+                                className="text-sm"
+                              >
                                 Voice Selection
                               </Label>
                               <Select
                                 value={selectedVoiceId || "default"}
                                 onValueChange={(value) => {
-                                  const newVoiceId = value === "default" ? null : value;
+                                  const newVoiceId =
+                                    value === "default" ? null : value;
                                   setSelectedVoiceId(newVoiceId);
 
                                   if (typeof window !== "undefined") {
                                     if (newVoiceId) {
-                                      localStorage.setItem("eliza-selected-voice-id", newVoiceId);
+                                      localStorage.setItem(
+                                        "eliza-selected-voice-id",
+                                        newVoiceId,
+                                      );
                                     } else {
-                                      localStorage.removeItem("eliza-selected-voice-id");
+                                      localStorage.removeItem(
+                                        "eliza-selected-voice-id",
+                                      );
                                     }
                                   }
 
                                   const voiceName = newVoiceId
-                                    ? customVoices.find((v) => v.elevenlabsVoiceId === newVoiceId)?.name || "Custom"
+                                    ? customVoices.find(
+                                        (v) =>
+                                          v.elevenlabsVoiceId === newVoiceId,
+                                      )?.name || "Custom"
                                     : "Default";
 
                                   toast.success(`Voice: ${voiceName}`);
                                 }}
                               >
-                                <SelectTrigger id="voice-select-pop" className="w-full rounded-none">
+                                <SelectTrigger
+                                  id="voice-select-pop"
+                                  className="w-full rounded-none"
+                                >
                                   <SelectValue placeholder="Default" />
                                 </SelectTrigger>
                                 <SelectContent className="rounded-none">
-                                  <SelectItem value="default">Default Voice</SelectItem>
+                                  <SelectItem value="default">
+                                    Default Voice
+                                  </SelectItem>
                                   {customVoices.map((voice) => (
-                                    <SelectItem key={voice.id} value={voice.elevenlabsVoiceId}>
+                                    <SelectItem
+                                      key={voice.id}
+                                      value={voice.elevenlabsVoiceId}
+                                    >
                                       {voice.name}
                                     </SelectItem>
                                   ))}
@@ -894,7 +923,9 @@ export function ElizaChatInterface({
                       </div>
 
                       <div className="border-t pt-3">
-                        <h4 className="font-medium mb-3 text-sm">Knowledge Base</h4>
+                        <h4 className="font-medium mb-3 text-sm">
+                          Knowledge Base
+                        </h4>
                         <KnowledgeDrawer />
                       </div>
                     </div>
@@ -926,12 +957,15 @@ export function ElizaChatInterface({
                   }
                   size="icon"
                   className="h-10 w-10 rounded-none border-none"
-                  style={{ backgroundColor: 'rgba(255, 88, 0, 0.25)' }}
+                  style={{ backgroundColor: "rgba(255, 88, 0, 0.25)" }}
                 >
                   {isLoading ? (
-                    <Loader2 className="h-4 w-4 animate-spin" style={{ color: '#FF5800' }} />
+                    <Loader2
+                      className="h-4 w-4 animate-spin"
+                      style={{ color: "#FF5800" }}
+                    />
                   ) : (
-                    <Send className="h-4 w-4" style={{ color: '#FF5800' }} />
+                    <Send className="h-4 w-4" style={{ color: "#FF5800" }} />
                   )}
                 </Button>
               </div>
