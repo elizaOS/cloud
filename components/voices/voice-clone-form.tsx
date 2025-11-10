@@ -498,7 +498,11 @@ export function VoiceCloneForm({
               </p>
             </div>
 
-            <BrandTabs id="voice-upload-tabs" defaultValue="upload" className="w-full">
+            <BrandTabs
+              id="voice-upload-tabs"
+              defaultValue="upload"
+              className="w-full"
+            >
               <BrandTabsList className="w-full">
                 <BrandTabsTrigger value="upload" className="flex-1">
                   Upload Files

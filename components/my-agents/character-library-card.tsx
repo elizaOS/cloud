@@ -73,7 +73,11 @@ export function CharacterLibraryCard({
   }, [character]);
 
   const handleDelete = useCallback(async () => {
-    if (!confirm(`Are you sure you want to delete "${character.name}"? This action cannot be undone.`)) {
+    if (
+      !confirm(
+        `Are you sure you want to delete "${character.name}"? This action cannot be undone.`,
+      )
+    ) {
       return;
     }
 
@@ -136,11 +140,7 @@ export function CharacterLibraryCard({
               <MessageSquare className="h-4 w-4 mr-2" />
               Test
             </Button>
-            <Button
-              size="sm"
-              variant="outline"
-              onClick={handleEdit}
-            >
+            <Button size="sm" variant="outline" onClick={handleEdit}>
               <Edit className="h-4 w-4 mr-2" />
               Edit
             </Button>
@@ -251,7 +251,12 @@ export function CharacterLibraryCard({
             <MessageSquare className="h-4 w-4 mr-2" />
             Test
           </Button>
-          <Button size="sm" variant="outline" onClick={handleEdit} className="flex-1">
+          <Button
+            size="sm"
+            variant="outline"
+            onClick={handleEdit}
+            className="flex-1"
+          >
             <Edit className="h-4 w-4 mr-2" />
             Edit
           </Button>

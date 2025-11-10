@@ -27,8 +27,8 @@ export function EmptyState({ onCreateNew }: EmptyStateProps) {
           <div className="space-y-2">
             <h3 className="text-2xl font-bold text-white">No Agents Yet</h3>
             <p className="text-white/60 max-w-md mx-auto">
-              Create your first AI agent to get started, or browse the marketplace
-              to discover and clone existing agents.
+              Create your first AI agent to get started, or browse the
+              marketplace to discover and clone existing agents.
             </p>
           </div>
 
@@ -64,9 +64,7 @@ export function EmptyState({ onCreateNew }: EmptyStateProps) {
               </li>
               <li className="flex items-start gap-2">
                 <span className="text-[#FF5800] mt-0.5">•</span>
-                <span>
-                  Clone and customize agents from the marketplace
-                </span>
+                <span>Clone and customize agents from the marketplace</span>
               </li>
             </ul>
           </div>
