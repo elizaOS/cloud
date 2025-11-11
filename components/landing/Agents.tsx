@@ -48,7 +48,7 @@ function AgentsShowcase() {
       {/* Corner brackets */}
       <CornerBrackets size="xl" variant="full-border" />
 
-      <div className="mx-auto max-w-7xl px-8 py-12">
+      <div className="mx-auto max-w-7xl px-2 py-12">
         {/* Header */}
         <div className="mb-8 flex items-center justify-between">
           <SectionLabel>From the Community</SectionLabel>
@@ -65,7 +65,7 @@ function AgentsShowcase() {
               key={agent.id}
               corners={false}
               hover
-              className="overflow-hidden p-0"
+              className="overflow-hidden p-0 cursor-pointer"
             >
               {/* Agent image */}
               <div className="relative aspect-[4/3] overflow-hidden">
@@ -75,9 +75,9 @@ function AgentsShowcase() {
                   fill
                   className="object-cover object-top transition-transform duration-300 group-hover:scale-105"
                 />
-                {/* Orange filter overlay */}
+                {/* Orange filter overlay - hidden by default, shows on hover */}
                 <div
-                  className="absolute inset-0 transition-opacity duration-300 group-hover:opacity-0 z-10"
+                  className="absolute inset-0 opacity-0 transition-opacity duration-300 group-hover:opacity-100 z-10"
                   style={{ backgroundColor: "#FF580080" }}
                 />
                 {/* Gradient overlay */}

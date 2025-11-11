@@ -426,7 +426,7 @@ const RouterSection = () => {
 
         <div className="relative mb-20">
           {/* Skew background image with fade */}
-          <div className="absolute inset-0 pointer-events-none">
+          <div className="absolute inset-0 pointer-events-none overflow-hidden">
             <div className="relative w-full h-full">
               <Image
                 src="/skew.png"
@@ -434,10 +434,14 @@ const RouterSection = () => {
                 fill
                 className="object-cover"
                 style={{
+                  transform: "skewY(-3deg) scale(1.1)",
+                  transformOrigin: "center",
                   maskImage:
-                    "linear-gradient(to right, rgba(0,0,0,0.18) 0%, rgba(0,0,0,0.08) 35%, transparent 60%)",
+                    "linear-gradient(to right, transparent 0%, rgba(0,0,0,0.12) 20%, rgba(0,0,0,0.2) 30%, rgba(0,0,0,0.15) 50%, rgba(0,0,0,0.08) 70%, transparent 85%), linear-gradient(to bottom, transparent 0%, rgba(0,0,0,0.5) 15%, rgba(0,0,0,1) 25%, rgba(0,0,0,1) 85%, rgba(0,0,0,0.5) 95%, transparent 100%)",
                   WebkitMaskImage:
-                    "linear-gradient(to right, rgba(0,0,0,0.18) 0%, rgba(0,0,0,0.08) 35%, transparent 60%)",
+                    "linear-gradient(to right, transparent 0%, rgba(0,0,0,0.12) 20%, rgba(0,0,0,0.2) 30%, rgba(0,0,0,0.15) 50%, rgba(0,0,0,0.08) 70%, transparent 85%), linear-gradient(to bottom, transparent 0%, rgba(0,0,0,0.5) 15%, rgba(0,0,0,1) 25%, rgba(0,0,0,1) 85%, rgba(0,0,0,0.5) 95%, transparent 100%)",
+                  maskComposite: "intersect",
+                  WebkitMaskComposite: "source-in",
                 }}
               />
             </div>
