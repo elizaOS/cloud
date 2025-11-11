@@ -103,6 +103,16 @@ export async function POST(
       await elizaRoomCharactersRepository.findByRoomId(roomId);
     const characterId = roomCharacter?.character_id || undefined;
 
+    logger.info(
+      "[Stream Messages] Character assignment:",
+      {
+        roomId,
+        hasRoomCharacter: !!roomCharacter,
+        characterId,
+        roomCharacterData: roomCharacter,
+      },
+    );
+
     // Get user's API key for ElizaCloud plugin authentication
     let userApiKey: string | null = null;
     if (!isAnonymous && user.id && user.organization_id) {
