@@ -55,7 +55,7 @@ const TopHero = () => {
     >
       {/* Fullscreen background video */}
       <video
-        src="/videos/crazy.mp4"
+        src="/videos/hero-vid.webm"
         autoPlay
         loop
         muted
