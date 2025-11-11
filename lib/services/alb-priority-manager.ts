@@ -22,58 +22,67 @@ export class DatabasePriorityManager {
    * Uses simple sequential allocation with database transaction
    */
   async allocatePriority(userId: string): Promise<number> {
+    console.log(`[ALB allocatePriority] Starting allocation for user ${userId}`);
     const { db } = await import("@/db/client");
     const { albPriorities } = await import("@/db/schemas/alb-priorities");
     const { eq, sql } = await import("drizzle-orm");
 
-    return await db.transaction(async (tx) => {
-      // Check if user already has an active priority
-      const existing = await tx.query.albPriorities.findFirst({
-        where: eq(albPriorities.userId, userId),
-      });
+    try {
+      return await db.transaction(async (tx) => {
+        console.log(`[ALB allocatePriority] Inside transaction for user ${userId}`);
+        
+        // Check if user already has an active priority
+        const existing = await tx.query.albPriorities.findFirst({
+          where: eq(albPriorities.userId, userId),
+        });
 
-      if (existing && !existing.expiresAt) {
-        console.log(`User ${userId} already has priority ${existing.priority}`);
-        return existing.priority;
-      }
+        if (existing && !existing.expiresAt) {
+          console.log(`[ALB allocatePriority] User ${userId} already has priority ${existing.priority}`);
+          return existing.priority;
+        }
 
-      // Get the maximum priority (including expired ones to avoid conflicts)
-      const [maxResult] = await tx
-        .select({
-          maxPriority: sql<number>`COALESCE(MAX(${albPriorities.priority}), 0)`,
-        })
-        .from(albPriorities);
+        // Get the maximum priority (including expired ones to avoid conflicts)
+        const [maxResult] = await tx
+          .select({
+            maxPriority: sql<number>`COALESCE(MAX(${albPriorities.priority}), 0)`,
+          })
+          .from(albPriorities);
 
-      const nextPriority = (maxResult?.maxPriority || 0) + 1;
+        const nextPriority = (maxResult?.maxPriority || 0) + 1;
 
-      // Validate we haven't exceeded ALB limit
-      if (nextPriority > 50000) {
-        throw new Error(
-          "ALB priority limit exceeded - too many containers created (max 50,000)",
+        // Validate we haven't exceeded ALB limit
+        if (nextPriority > 50000) {
+          throw new Error(
+            "ALB priority limit exceeded - too many containers created (max 50,000)",
+          );
+        }
+
+        console.log(
+          `[ALB] Attempting to allocate priority ${nextPriority} for user ${userId}`,
         );
-      }
 
-      console.log(
-        `[ALB] Attempting to allocate priority ${nextPriority} for user ${userId}`,
-      );
+        // Create new priority record
+        // Note: priority column has unique constraint, so this will fail if there's a conflict
+        const [inserted] = await tx
+          .insert(albPriorities)
+          .values({
+            userId,
+            priority: nextPriority,
+            createdAt: new Date(),
+            // expiresAt is omitted - will default to NULL in the database
+          })
+          .returning();
 
-      // Create new priority record
-      // Note: priority column has unique constraint, so this will fail if there's a conflict
-      const [inserted] = await tx
-        .insert(albPriorities)
-        .values({
-          userId,
-          priority: nextPriority,
-          createdAt: new Date(),
-          // expiresAt is omitted - will default to NULL in the database
-        })
-        .returning();
-
-      console.log(
-        `✅ Allocated ALB priority ${nextPriority} for user ${userId}`,
-      );
-      return inserted.priority;
-    });
+        console.log(
+          `✅ Allocated ALB priority ${nextPriority} for user ${userId}`,
+        );
+        return inserted.priority;
+      });
+    } catch (error) {
+      const errorMsg = error instanceof Error ? error.message : String(error);
+      console.error(`[ALB allocatePriority] Failed for user ${userId}:`, errorMsg);
+      throw error;
+    }
   }
 
   /**
