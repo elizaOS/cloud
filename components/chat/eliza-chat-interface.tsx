@@ -3,7 +3,7 @@
 import { useState, useEffect, useRef, useCallback } from "react";
 import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { Loader2, Send, Mic, Square, Volume2, Plus } from "lucide-react";
+import { Loader2, Send, Mic, Square, Volume2, Plus, Copy, Check } from "lucide-react";
 import { ElizaAvatar } from "./eliza-avatar";
 import { KnowledgeDrawer } from "./knowledge-drawer";
 import { useAudioRecorder } from "./hooks/use-audio-recorder";
@@ -96,6 +96,7 @@ export function ElizaChatInterface() {
     }
     return null;
   });
+  const [copiedMessageId, setCopiedMessageId] = useState<string | null>(null);
 
   // Clear audio cache when voice changes (so messages regenerate with new voice)
   useEffect(() => {
@@ -527,6 +528,19 @@ export function ElizaChatInterface() {
     return date.toLocaleDateString();
   };
 
+  const copyToClipboard = async (text: string, messageId: string) => {
+    try {
+      await navigator.clipboard.writeText(text);
+      setCopiedMessageId(messageId);
+      toast.success("Message copied to clipboard");
+      // Reset after 2 seconds
+      setTimeout(() => setCopiedMessageId(null), 2000);
+    } catch (error) {
+      console.error("Failed to copy:", error);
+      toast.error("Failed to copy message");
+    }
+  };
+
   if (isInitializing) {
     return (
       <div className="flex h-full w-full items-center justify-center">
@@ -699,7 +713,7 @@ export function ElizaChatInterface() {
                                 </div>
                               )}
                               
-                              {/* Time */}
+                              {/* Time and Actions */}
                               <div className="flex items-center gap-2">
                                 <span
                                   className="text-sm font-[family-name:var(--font-roboto-mono)]"
@@ -707,6 +721,19 @@ export function ElizaChatInterface() {
                                 >
                                   {formatTimestamp(message.createdAt)}
                                 </span>
+                                <Button
+                                  size="sm"
+                                  variant="ghost"
+                                  className="h-5 w-5 p-0 hover:bg-white/10"
+                                  onClick={() => copyToClipboard(message.content.text, message.id)}
+                                  title="Copy message"
+                                >
+                                  {copiedMessageId === message.id ? (
+                                    <Check className="h-3 w-3 text-green-500" />
+                                  ) : (
+                                    <Copy className="h-3 w-3 text-white/60" />
+                                  )}
+                                </Button>
                                 {messageAudioUrls.current.has(message.id) && (
                                   <Button
                                     size="sm"
@@ -757,7 +784,7 @@ export function ElizaChatInterface() {
                             {message.content.text}
                           </div>
                         </div>
-                        {/* Time */}
+                        {/* Time and Actions */}
                         <div className="flex items-center gap-2 justify-end px-1">
                           <span
                             className="text-sm font-[family-name:var(--font-roboto-mono)]"
@@ -765,6 +792,19 @@ export function ElizaChatInterface() {
                           >
                             {formatTimestamp(message.createdAt)}
                           </span>
+                          <Button
+                            size="sm"
+                            variant="ghost"
+                            className="h-5 w-5 p-0 hover:bg-white/10"
+                            onClick={() => copyToClipboard(message.content.text, message.id)}
+                            title="Copy message"
+                          >
+                            {copiedMessageId === message.id ? (
+                              <Check className="h-3 w-3 text-green-500" />
+                            ) : (
+                              <Copy className="h-3 w-3 text-white/60" />
+                            )}
+                          </Button>
                         </div>
                       </div>
                     )}

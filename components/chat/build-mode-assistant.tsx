@@ -4,11 +4,12 @@ import { useState, useRef, useEffect } from "react";
 import { useChat } from "@ai-sdk/react";
 import { DefaultChatTransport } from "ai";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { Bot, User, Send, Loader2 } from "lucide-react";
+import { Bot, User, Send, Loader2, Copy, Check } from "lucide-react";
 import type { ElizaCharacter } from "@/lib/types";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import { Button } from "@/components/ui/button";
+import { toast } from "sonner";
 
 interface BuildModeAssistantProps {
   character: ElizaCharacter;
@@ -23,6 +24,7 @@ export function BuildModeAssistant({
   const scrollAreaRef = useRef<HTMLDivElement>(null);
   const [inputText, setInputText] = useState("");
   const [currentTime] = useState(() => Date.now());
+  const [copiedMessageId, setCopiedMessageId] = useState<string | null>(null);
   const [quickPrompts] = useState<string[]>([
     "Add personality traits",
     "Improve the bio",
@@ -180,6 +182,19 @@ Tell me about your vision!`;
     return date.toLocaleDateString();
   };
 
+  const copyToClipboard = async (text: string, messageId: string) => {
+    try {
+      await navigator.clipboard.writeText(text);
+      setCopiedMessageId(messageId);
+      toast.success("Message copied to clipboard");
+      // Reset after 2 seconds
+      setTimeout(() => setCopiedMessageId(null), 2000);
+    } catch (error) {
+      console.error("Failed to copy:", error);
+      toast.error("Failed to copy message");
+    }
+  };
+
   return (
     <div className="flex h-full w-full min-h-0 flex-col bg-[#0A0A0A]">
       {/* Messages Area */}
@@ -242,7 +257,7 @@ Tell me about your vision!`;
                             </ReactMarkdown>
                           </div>
                         </div>
-                        {/* Time */}
+                        {/* Time and Actions */}
                         <div className="flex items-center gap-2">
                           <span
                             className="text-sm font-[family-name:var(--font-roboto-mono)]"
@@ -250,6 +265,19 @@ Tell me about your vision!`;
                           >
                             {formatTimestamp(currentTime)}
                           </span>
+                          <Button
+                            size="sm"
+                            variant="ghost"
+                            className="h-5 w-5 p-0 hover:bg-white/10"
+                            onClick={() => copyToClipboard(content, message.id)}
+                            title="Copy message"
+                          >
+                            {copiedMessageId === message.id ? (
+                              <Check className="h-3 w-3 text-green-500" />
+                            ) : (
+                              <Copy className="h-3 w-3 text-white/60" />
+                            )}
+                          </Button>
                         </div>
                       </div>
                     </div>
@@ -267,7 +295,7 @@ Tell me about your vision!`;
                           {content}
                         </div>
                       </div>
-                      {/* Time */}
+                      {/* Time and Actions */}
                       <div className="flex items-center gap-2 justify-end px-1">
                         <span
                           className="text-sm font-[family-name:var(--font-roboto-mono)]"
@@ -275,6 +303,19 @@ Tell me about your vision!`;
                         >
                           {formatTimestamp(currentTime)}
                         </span>
+                        <Button
+                          size="sm"
+                          variant="ghost"
+                          className="h-5 w-5 p-0 hover:bg-white/10"
+                          onClick={() => copyToClipboard(content, message.id)}
+                          title="Copy message"
+                        >
+                          {copiedMessageId === message.id ? (
+                            <Check className="h-3 w-3 text-green-500" />
+                          ) : (
+                            <Copy className="h-3 w-3 text-white/60" />
+                          )}
+                        </Button>
                       </div>
                     </div>
                   )}

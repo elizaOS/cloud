@@ -93,3 +93,4 @@ export function OrganizationTab({ user }: OrganizationTabProps) {
     </div>
   );
 }
+
