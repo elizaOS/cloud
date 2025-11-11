@@ -67,7 +67,10 @@ export async function GET(request: NextRequest) {
           );
           title = roomData.rows[0]?.name || null;
         } catch (err) {
-          logger.error(`[Eliza Rooms API] Failed to fetch title for room ${roomId}:`, err);
+          logger.error(
+            `[Eliza Rooms API] Failed to fetch title for room ${roomId}:`,
+            err,
+          );
         }
 
         return {
