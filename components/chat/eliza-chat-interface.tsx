@@ -66,6 +66,7 @@ export function ElizaChatInterface() {
   const characterName = selectedCharacter?.name || agentInfo?.name || "Agent";
   const [isLoading, setIsLoading] = useState(false);
   const [isInitializing, setIsInitializing] = useState(false);
+  const [isLoadingMessages, setIsLoadingMessages] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const scrollAreaRef = useRef<HTMLDivElement>(null);
   const thinkingTimeoutRef = useRef<NodeJS.Timeout | null>(null);
@@ -124,6 +125,7 @@ export function ElizaChatInterface() {
   }, [selectedModel]);
 
   const loadMessages = useCallback(async (targetRoomId: string) => {
+    setIsLoadingMessages(true);
     try {
       const response = await fetch(`/api/eliza/rooms/${targetRoomId}`);
       if (response.ok) {
@@ -138,6 +140,8 @@ export function ElizaChatInterface() {
       }
     } catch (err) {
       console.error("Error loading messages:", err);
+    } finally {
+      setIsLoadingMessages(false);
     }
   }, []);
 
@@ -152,6 +156,7 @@ export function ElizaChatInterface() {
       setMessages([]);
       setAgentInfo(null);
       setError(null);
+      setIsLoadingMessages(false);
     }
   }, [roomId, loadMessages]);
 
@@ -599,7 +604,55 @@ export function ElizaChatInterface() {
                 </div>
               )}
 
-              {messages.length === 0 && !error && (
+              {isLoadingMessages && (
+                <div className="flex flex-col items-center justify-center h-full text-center py-12 space-y-6">
+                  <ElizaAvatar
+                    avatarUrl={agentInfo?.avatarUrl}
+                    name={characterName}
+                    className="h-16 w-16 mb-4"
+                    fallbackClassName="bg-muted"
+                    iconClassName="h-8 w-8 text-muted-foreground"
+                    animate={true}
+                  />
+                  <div className="space-y-2">
+                    <p className="text-base font-semibold">Loading conversation...</p>
+                    <p className="text-sm text-muted-foreground">
+                      Retrieving message history
+                    </p>
+                  </div>
+                  {/* Message Skeletons */}
+                  <div className="w-full max-w-2xl space-y-4 mt-8">
+                    {/* Agent message skeleton */}
+                    <div className="flex justify-start animate-pulse">
+                      <div className="flex flex-col gap-2 max-w-[70%]">
+                        <div className="flex items-center gap-2">
+                          <div className="w-4 h-4 rounded-full bg-white/10" />
+                          <div className="h-4 w-20 bg-white/10 rounded" />
+                        </div>
+                        <div className="h-16 bg-white/5 rounded" />
+                      </div>
+                    </div>
+                    {/* User message skeleton */}
+                    <div className="flex justify-end animate-pulse">
+                      <div className="flex flex-col gap-2 max-w-[70%]">
+                        <div className="h-12 bg-white/10 rounded" />
+                      </div>
+                    </div>
+                    {/* Agent message skeleton */}
+                    <div className="flex justify-start animate-pulse">
+                      <div className="flex flex-col gap-2 max-w-[70%]">
+                        <div className="flex items-center gap-2">
+                          <div className="w-4 h-4 rounded-full bg-white/10" />
+                          <div className="h-4 w-20 bg-white/10 rounded" />
+                        </div>
+                        <div className="h-20 bg-white/5 rounded" />
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {!isLoadingMessages && messages.length === 0 && !error && (
                 <div className="flex flex-col items-center justify-center h-full text-center py-12">
                   <ElizaAvatar
                     avatarUrl={agentInfo?.avatarUrl}
@@ -618,7 +671,7 @@ export function ElizaChatInterface() {
                 </div>
               )}
 
-              {messages.map((message, index) => {
+              {!isLoadingMessages && messages.map((message, index) => {
                 const isThinking = message.id.startsWith("thinking-");
                 return (
                   <div
