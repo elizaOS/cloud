@@ -50,8 +50,8 @@
     "@elevenlabs/elevenlabs-js": "^2.21.0",
     "@elizaos/core": "^1.6.4",
     "@elizaos/plugin-elevenlabs": "^1.6.0",
-    "@elizaos/plugin-elizacloud": "^1.5.19",
-    "@elizaos/plugin-knowledge": "^1.5.13",
+    "@elizaos/plugin-elizacloud": "^1.5.20",
+    "@elizaos/plugin-knowledge": "^1.5.14",
     "@elizaos/plugin-memory": "^1.0.3",
     "@elizaos/plugin-sql": "^1.6.4",
     "@fal-ai/client": "^1.7.2",
@@ -152,6 +152,7 @@
     "zod3": "npm:zod@3.25.76"
   },
   "devDependencies": {
+    "@elizaos/cli": "^1.6.4",
     "@eslint/eslintrc": "^3",
     "@types/node": "^24.10.0",
     "@types/pg": "^8.15.6",

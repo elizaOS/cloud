@@ -71,22 +71,22 @@ export const actionsProvider: Provider = {
         ? addHeader("# Available Actions", formatActions(actionsData))
         : "# Available Actions: No available actions";
 
-    const actionExamples =
-      actionsData.length > 0
-        ? addHeader("# Action Examples", composeActionExamples(actionsData, 10))
-        : "";
+    // const actionExamples =
+    //   actionsData.length > 0
+    //     ? addHeader("# Action Examples", composeActionExamples(actionsData, 10))
+    //     : "";
 
     const data = {
       actionsData,
     };
 
     const values = {
-      actionExamples,
+      // actionExamples,
       actionsWithDescriptions,
     };
 
     // Combine all text sections - now including actionsWithDescriptions
-    const text = [actionsWithDescriptions, actionExamples]
+    const text = [actionsWithDescriptions]
       .filter(Boolean)
       .join("\n\n");
 
