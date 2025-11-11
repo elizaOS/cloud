@@ -20,10 +20,14 @@ import {
   PromptCardGrid,
 } from "@/components/brand";
 import type { TabItem } from "@/components/brand";
+import { useChatStore } from "@/stores/chat-store";
+import { useRouter } from "next/navigation";
 
 const TopHero = () => {
   const [chatInput, setChatInput] = useState("");
   const [activeTab, setActiveTab] = useState("agent");
+  const setPendingMessage = useChatStore((state) => state.setPendingMessage);
+  const router = useRouter();
 
   const heroTabs: TabItem[] = [
     { value: "agent", label: "Agent", icon: <Bot className="h-4 w-4" /> },
@@ -40,12 +44,11 @@ const TopHero = () => {
   const handleFreeChatSubmit = () => {
     if (!chatInput.trim()) return;
 
-    // Store the message in localStorage for pre-filling in chat
-    localStorage.setItem("eliza-pending-message", chatInput.trim());
+    // Store the message in Zustand for auto-sending in chat
+    setPendingMessage(chatInput.trim());
 
     // Redirect to Eliza chat (anonymous users will be created automatically)
-    // Use window.location for reliable navigation
-    window.location.href = "/dashboard/chat";
+    router.push("/dashboard/chat");
   };
 
   const handleChatKeyPress = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {

@@ -27,6 +27,7 @@ interface ChatState {
   entityId: string;
   availableCharacters: Character[];
   selectedCharacterId: string | null;
+  pendingMessage: string | null; // Message from landing page to auto-send
 
   // Actions
   setRooms: (rooms: RoomItem[]) => void;
@@ -34,10 +35,12 @@ interface ChatState {
   setIsLoadingRooms: (isLoading: boolean) => void;
   setAvailableCharacters: (characters: Character[]) => void;
   setSelectedCharacterId: (characterId: string | null) => void;
+  setPendingMessage: (message: string | null) => void;
   loadRooms: () => Promise<void>;
   createRoom: (characterId?: string | null) => Promise<string | null>;
   deleteRoom: (roomId: string) => Promise<void>;
   initializeEntityId: () => void;
+  clearChatData: () => void;
 }
 
 // Initialize entity ID from localStorage
@@ -60,6 +63,7 @@ export const useChatStore = create<ChatState>((set, get) => ({
   entityId: "",
   availableCharacters: [],
   selectedCharacterId: null,
+  pendingMessage: null,
 
   // Setters
   setRooms: (rooms) => set({ rooms }),
@@ -74,6 +78,7 @@ export const useChatStore = create<ChatState>((set, get) => ({
     set({ availableCharacters: characters }),
   setSelectedCharacterId: (characterId) =>
     set({ selectedCharacterId: characterId }),
+  setPendingMessage: (message) => set({ pendingMessage: message }),
 
   // Initialize entity ID
   initializeEntityId: () => {
@@ -184,5 +189,25 @@ export const useChatStore = create<ChatState>((set, get) => ({
     } catch (error) {
       console.error("Error deleting room:", error);
     }
+  },
+
+  // Clear all chat data on logout
+  clearChatData: () => {
+    // Clear localStorage items
+    if (typeof window !== "undefined") {
+      window.localStorage.removeItem("elizaEntityId");
+      window.localStorage.removeItem("elizaRoomId");
+    }
+
+    // Reset store state
+    set({
+      rooms: [],
+      roomId: null,
+      isLoadingRooms: false,
+      entityId: "",
+      availableCharacters: [],
+      selectedCharacterId: null,
+      pendingMessage: null,
+    });
   },
 }));
