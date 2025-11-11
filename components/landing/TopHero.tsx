@@ -1,7 +1,5 @@
 "use client";
 
-import { usePrivy } from "@privy-io/react-auth";
-import { useRouter } from "next/navigation";
 import { useState } from "react";
 import {
   Bot,
@@ -25,8 +23,6 @@ import {
 } from "@/components/brand";
 
 const TopHero = () => {
-  const { authenticated } = usePrivy();
-  const router = useRouter();
   const [chatInput, setChatInput] = useState("");
 
   const handleFreeChatSubmit = () => {
@@ -55,7 +51,7 @@ const TopHero = () => {
     >
       {/* Fullscreen background video */}
       <video
-        src="/videos/crazy.mp4"
+        src="/videos/hero-vid.webm"
         autoPlay
         loop
         muted

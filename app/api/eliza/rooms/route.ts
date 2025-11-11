@@ -53,16 +53,28 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    // Get room details with character mappings
+    // Get room details with character mappings and titles
     const rooms = await Promise.all(
       roomIds.map(async (roomId) => {
         const room = await runtime.getRoom(roomId);
         const characterId = characterMappings.get(roomId);
 
+        // Fetch room title from database
+        let title: string | null = null;
+        try {
+          const roomData = await db.execute<{ name: string | null }>(
+            sql`SELECT name FROM rooms WHERE id = ${roomId}::uuid LIMIT 1`,
+          );
+          title = roomData.rows[0]?.name || null;
+        } catch (err) {
+          logger.error(`[Eliza Rooms API] Failed to fetch title for room ${roomId}:`, err);
+        }
+
         return {
           id: roomId,
           ...room,
           characterId,
+          title,
         };
       }),
     );
