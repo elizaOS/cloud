@@ -31,7 +31,10 @@ export function SessionsSidebar() {
 
   const handleNewChat = async () => {
     console.log("[SessionsSidebar] Creating new chat for character:", urlCharacterId || "default");
-    await createRoom(urlCharacterId);
+    const result = await createRoom(urlCharacterId);
+    if (result) {
+      console.log("[SessionsSidebar] Room created:", result.roomId);
+    }
   };
 
   const handleSelectRoom = (selectedRoomId: string) => {

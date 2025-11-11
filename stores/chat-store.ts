@@ -35,7 +35,7 @@ interface ChatState {
   setAvailableCharacters: (characters: Character[]) => void;
   setSelectedCharacterId: (characterId: string | null) => void;
   loadRooms: () => Promise<RoomItem[]>;
-  createRoom: (characterId?: string | null) => Promise<string | null>;
+  createRoom: (characterId?: string | null) => Promise<{ roomId: string; characterId: string | null } | null>;
   deleteRoom: (roomId: string) => Promise<void>;
   initializeEntityId: () => void;
 }
@@ -145,6 +145,7 @@ export const useChatStore = create<ChatState>((set, get) => ({
       if (response.ok) {
         const data = await response.json();
         const newRoomId = data.roomId;
+        const resolvedCharacterId = data.characterId;
 
         // Reload rooms to get the updated list
         await loadRooms();
@@ -152,7 +153,7 @@ export const useChatStore = create<ChatState>((set, get) => ({
         // Automatically switch to the new room
         setRoomId(newRoomId);
 
-        return newRoomId;
+        return { roomId: newRoomId, characterId: resolvedCharacterId };
       }
       return null;
     } catch (error) {

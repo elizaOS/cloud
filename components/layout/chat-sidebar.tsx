@@ -99,14 +99,15 @@ export function ChatSidebar({
     setIsCreatingRoom(true);
     try {
       // Create room with currently selected character
-      const newRoomId = await createRoom(selectedCharacterId);
-      if (newRoomId) {
-        setRoomId(newRoomId);
-        // Update URL with new room ID and current character
+      const result = await createRoom(selectedCharacterId);
+      if (result) {
+        setRoomId(result.roomId);
+        // Update URL with new room ID and resolved character
         const params = new URLSearchParams();
-        params.set("roomId", newRoomId);
-        if (selectedCharacterId) {
-          params.set("characterId", selectedCharacterId);
+        params.set("roomId", result.roomId);
+        const finalCharacterId = result.characterId || selectedCharacterId;
+        if (finalCharacterId) {
+          params.set("characterId", finalCharacterId);
         }
         router.push(`/dashboard/chat?${params.toString()}`);
       }

@@ -11,6 +11,8 @@ import { useChatStore, type Character } from "@/stores/chat-store";
 import { useModeStore } from "@/stores/mode-store";
 import type { ElizaCharacter } from "@/lib/types";
 import { getOrCreateAnonymousUserAction } from "@/app/actions/anonymous";
+import { useRouter } from "next/navigation";
+import { isTemplateCharacter } from "@/lib/characters/template-loader";
 
 interface ElizaPageClientProps {
   initialCharacters: ElizaCharacter[];
@@ -33,6 +35,7 @@ export function ElizaPageClient({
     remainingMessages: number;
   } | null>(null);
   const [isLoadingSession, setIsLoadingSession] = useState(!isAuthenticated);
+  const router = useRouter();
 
   // Initialize store with characters and entity ID (must be at top level)
   const {
@@ -41,7 +44,7 @@ export function ElizaPageClient({
     setRoomId,
     setSelectedCharacterId,
   } = useChatStore();
-  
+
   // Mode store - Must be called at top level before any early returns
   const { setMode, mode } = useModeStore();
 
@@ -66,25 +69,72 @@ export function ElizaPageClient({
     initializeEntityId();
   }, [initialCharacters, setAvailableCharacters, initializeEntityId]);
 
+  // Resolve template IDs to real DB IDs (for authenticated users)
+  useEffect(() => {
+    if (!isAuthenticated || !initialCharacterId) return;
+
+    if (isTemplateCharacter(initialCharacterId)) {
+      console.log(
+        "[Chat Page] Detected template ID, resolving:",
+        initialCharacterId,
+      );
+
+      fetch("/api/eliza/characters/resolve-template", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ templateId: initialCharacterId }),
+      })
+        .then((res) => res.json())
+        .then((data) => {
+          if (data.success && data.exists && data.realId) {
+            console.log(
+              "[Chat Page] Resolved template to real ID:",
+              data.realId,
+            );
+
+            const params = new URLSearchParams();
+            if (initialRoomId) params.set("roomId", initialRoomId);
+            params.set("characterId", data.realId);
+            if (initialMode) params.set("mode", initialMode);
+
+            router.replace(`/dashboard/chat?${params.toString()}`);
+            setSelectedCharacterId(data.realId);
+          } else {
+            console.log(
+              "[Chat Page] Template not yet created, keeping template ID:",
+              initialCharacterId,
+            );
+            setSelectedCharacterId(initialCharacterId);
+          }
+        })
+        .catch((error) => {
+          console.error("[Chat Page] Failed to resolve template:", error);
+          setSelectedCharacterId(initialCharacterId);
+        });
+    } else {
+      setSelectedCharacterId(initialCharacterId);
+    }
+  }, [
+    isAuthenticated,
+    initialCharacterId,
+    initialRoomId,
+    initialMode,
+    router,
+    setSelectedCharacterId,
+  ]);
+
   // Sync URL params with store on mount
   useEffect(() => {
     if (initialRoomId) {
       console.log("[Chat Page] Setting room ID from URL:", initialRoomId);
       setRoomId(initialRoomId);
     }
-    if (initialCharacterId) {
-      console.log(
-        "[Chat Page] Setting character ID from URL:",
-        initialCharacterId,
-      );
-      setSelectedCharacterId(initialCharacterId);
-    }
     // Set mode from URL parameter
     if (initialMode) {
       console.log("[Chat Page] Setting mode from URL:", initialMode);
       setMode(initialMode);
     }
-  }, [initialRoomId, initialCharacterId, initialMode, setRoomId, setSelectedCharacterId, setMode]);
+  }, [initialRoomId, initialMode, setRoomId, setMode]);
 
   // Initialize anonymous session for unauthenticated users
   useEffect(() => {

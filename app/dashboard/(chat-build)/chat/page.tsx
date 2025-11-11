@@ -10,6 +10,7 @@ import {
 import { db } from "@/db/client";
 import { userCharacters } from "@/db/schemas/user-characters";
 import { eq } from "drizzle-orm";
+import { isTemplateCharacter, getTemplate } from "@/lib/characters/template-loader";
 
 interface PageProps {
   searchParams: Promise<{ 
@@ -37,7 +38,35 @@ export async function generateMetadata({
     });
   }
 
-  // Fetch character for dynamic metadata
+  // Check if it's a template character first
+  if (isTemplateCharacter(characterId)) {
+    const template = getTemplate(characterId);
+    if (template) {
+      const bio = Array.isArray(template.bio)
+        ? template.bio[0]
+        : template.bio;
+      const metadata = generateCharacterMetadata(
+        template.id,
+        template.name,
+        bio || "",
+        template.avatarUrl,
+        template.tags || [],
+      );
+
+      return {
+        ...metadata,
+        alternates: {
+          canonical: `/dashboard/chat?characterId=${characterId}`,
+        },
+        robots: {
+          index: false,
+          follow: false,
+        },
+      };
+    }
+  }
+
+  // Fetch character from database for dynamic metadata
   try {
     const [character] = await db
       .select()
@@ -57,7 +86,6 @@ export async function generateMetadata({
         character.tags || [],
       );
 
-      // Override path and add noIndex for dashboard pages
       return {
         ...metadata,
         alternates: {

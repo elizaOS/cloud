@@ -12,7 +12,7 @@ import { getAllTemplates } from "@/lib/characters/template-loader";
 export function AgentSwitcher() {
   const router = useRouter();
   const [isOpen, setIsOpen] = useState(false);
-  const { selectedCharacterId, availableCharacters, setSelectedCharacterId, setRoomId, loadRooms } = useChatStore();
+  const { selectedCharacterId, availableCharacters, setSelectedCharacterId, setRoomId, loadRooms, createRoom } = useChatStore();
   const { mode } = useModeStore();
 
   // Get all templates to merge with user's characters
@@ -48,25 +48,42 @@ export function AgentSwitcher() {
     console.log("[AgentSwitcher] Switching to agent:", agentId);
     setSelectedCharacterId(agentId);
     setIsOpen(false);
-    
-    // Navigate to chat with new character
-    router.push(`/dashboard/chat?mode=${mode}&characterId=${agentId}`);
-    
+
     // Reload rooms to get updated list for new agent
     await loadRooms();
-    
+
     // Check if this agent has any rooms
     const agentRooms = await loadRooms();
     const hasRooms = agentRooms?.some((r: any) => r.characterId === agentId);
-    
+
     if (!hasRooms) {
       // No rooms for this agent - create one automatically
       console.log("[AgentSwitcher] No rooms found for agent, creating new room");
-      await createRoom(agentId);
+      const result = await createRoom(agentId);
+
+      if (result) {
+        // Use the resolved character ID (in case it was a template)
+        const finalCharacterId = result.characterId || agentId;
+        console.log(
+          "[AgentSwitcher] Room created with character ID:",
+          finalCharacterId,
+        );
+
+        // Navigate with the resolved character ID
+        const params = new URLSearchParams();
+        params.set("mode", mode);
+        params.set("characterId", finalCharacterId);
+        params.set("roomId", result.roomId);
+
+        router.push(`/dashboard/chat?${params.toString()}`);
+      }
     } else {
       // Has rooms - clear current selection to show the list
       console.log("[AgentSwitcher] Found existing rooms for agent");
       setRoomId(null);
+
+      // Navigate to chat with character
+      router.push(`/dashboard/chat?mode=${mode}&characterId=${agentId}`);
     }
   };
 

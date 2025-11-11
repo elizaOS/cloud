@@ -58,11 +58,15 @@ export function SidebarChatRooms() {
 
   const handleCreateRoom = async () => {
     try {
-      const newRoomId = await createRoom(selectedCharacterId);
-      if (newRoomId) {
-        // Update URL with new room ID
+      const result = await createRoom(selectedCharacterId);
+      if (result) {
+        // Update URL with new room ID and resolved character
         const params = new URLSearchParams(searchParams.toString());
-        params.set("roomId", newRoomId);
+        params.set("roomId", result.roomId);
+        const finalCharacterId = result.characterId || selectedCharacterId;
+        if (finalCharacterId) {
+          params.set("characterId", finalCharacterId);
+        }
         router.push(`/dashboard/chat?${params.toString()}`);
         toast.success("New conversation started");
       }

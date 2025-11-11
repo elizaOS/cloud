@@ -167,16 +167,16 @@ export function ElizaChatInterface() {
       setError(null);
       try {
         // Use store's createRoom which handles the API call
-        const newRoomId = await createRoomInStore(charIdToUse);
+        const result = await createRoomInStore(charIdToUse);
 
-        if (!newRoomId) {
+        if (!result) {
           throw new Error("Failed to create room");
         }
 
-        console.log("[ElizaChat] Room created:", newRoomId);
+        console.log("[ElizaChat] Room created:", result.roomId, "with character:", result.characterId);
 
         // Load initial messages for the new room
-        await loadMessages(newRoomId);
+        await loadMessages(result.roomId);
       } catch (err) {
         setError(err instanceof Error ? err.message : "Failed to create room");
         console.error("[ElizaChat] Error creating room:", err);
