@@ -45,6 +45,73 @@ export default function LandingHeader() {
             />
           </div>
         </Link>
+        
+        {/* Center Navigation */}
+        <nav className="hidden md:flex items-center gap-8">
+          <a 
+            href="https://eliza.how"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="transition-all duration-200 hover:drop-shadow-[0_0_8px_rgba(255,88,0,0.6)] active:scale-95"
+            style={{
+              fontFamily: "Roboto Mono, monospace",
+              fontWeight: 400,
+              fontSize: "16px",
+              lineHeight: "21px",
+              letterSpacing: "-0.002em",
+              color: "#A2A0A3"
+            }}
+            onMouseEnter={(e) => e.currentTarget.style.color = "#FF5800"}
+            onMouseLeave={(e) => e.currentTarget.style.color = "#A2A0A3"}
+          >
+            Docs
+          </a>
+          <a 
+            href="https://github.com/elizaos"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="transition-all duration-200 hover:drop-shadow-[0_0_8px_rgba(255,88,0,0.6)] active:scale-95"
+            style={{
+              fontFamily: "Roboto Mono, monospace",
+              fontWeight: 400,
+              fontSize: "16px",
+              lineHeight: "21px",
+              letterSpacing: "-0.002em",
+              color: "#A2A0A3"
+            }}
+            onMouseEnter={(e) => e.currentTarget.style.color = "#FF5800"}
+            onMouseLeave={(e) => e.currentTarget.style.color = "#A2A0A3"}
+          >
+            Github
+          </a>
+          <span 
+            className="opacity-40 cursor-not-allowed"
+            style={{
+              fontFamily: "Roboto Mono, monospace",
+              fontWeight: 400,
+              fontSize: "16px",
+              lineHeight: "21px",
+              letterSpacing: "-0.002em",
+              color: "#A2A0A3"
+            }}
+          >
+            About
+          </span>
+          <span 
+            className="opacity-40 cursor-not-allowed"
+            style={{
+              fontFamily: "Roboto Mono, monospace",
+              fontWeight: 400,
+              fontSize: "16px",
+              lineHeight: "21px",
+              letterSpacing: "-0.002em",
+              color: "#A2A0A3"
+            }}
+          >
+            Pricing
+          </span>
+        </nav>
+
         <div className="flex items-center gap-3">
           {authenticated ? (
             <>
