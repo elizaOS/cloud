@@ -19,12 +19,6 @@ export function MyAgentsClient() {
   const handleSelectCharacter = useCallback(
     async (character: ExtendedCharacter) => {
       try {
-        console.log(
-          "[My Agents] Character selected for chat:",
-          character.name,
-          character.id,
-        );
-
         toast.success(`Opening chat with ${character.name}...`);
 
         router.push(`/dashboard/chat?characterId=${character.id}`);
@@ -41,12 +35,6 @@ export function MyAgentsClient() {
   const handleCloneCharacter = useCallback(
     async (character: ExtendedCharacter) => {
       try {
-        console.log(
-          "[My Agents] Cloning character:",
-          character.name,
-          character.id,
-        );
-
         const response = await fetch(
           `/api/my-agents/characters/${character.id}/clone`,
           {
@@ -61,7 +49,6 @@ export function MyAgentsClient() {
         }
 
         const result = await response.json();
-        console.log("[My Agents] Character cloned successfully:", result.data);
         toast.success(`Cloned ${character.name} to your library`);
       } catch (error) {
         console.error("[My Agents] Error cloning character:", error);
