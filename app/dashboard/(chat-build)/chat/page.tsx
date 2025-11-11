@@ -49,7 +49,7 @@ export async function generateMetadata({
         template.id,
         template.name,
         bio || "",
-        template.avatarUrl,
+        template.avatarUrl || null,
         template.tags || [],
       );
 
