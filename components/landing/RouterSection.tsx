@@ -398,20 +398,35 @@ const RouterSection = () => {
           <div className="mb-4">
             <SectionLabel>SMART, CONNECTED INTELLIGENCE</SectionLabel>
           </div>
-          <h2 className="text-3xl md:text-4xl lg:text-5xl font-bold mb-4 text-white">
+          <h2 
+            className="text-5xl font-medium mb-4 uppercase"
+            style={{
+              fontFamily: "var(--font-geist-sans)",
+              fontSize: "48px",
+              lineHeight: "62px",
+              color: "#FFFFFF"
+            }}
+          >
             RUN YOUR AGENTS ON ANY MODEL
             <br />— CLAUDE, GPT, HERMES, AND MORE
           </h2>
-          <p className="text-white/70 max-w-2xl">
-            Eliza Cloud dynamically routes inference across 200+ LLMs and
-            integrates seamlessly with any compatible tool or API — from Notion
-            to GitHub.
+          <p 
+            className="max-w-2xl font-normal"
+            style={{
+              fontFamily: "var(--font-geist-mono)",
+              fontSize: "16px",
+              lineHeight: "21px",
+              letterSpacing: "-0.003em",
+              color: "#858585"
+            }}
+          >
+            Eliza Cloud dynamically routes inference across 200+ LLMs and integrates the MCP Gateway for seamless access to any compatible tool or API — from Notion to GitHub.
           </p>
         </div>
 
         <div className="relative mb-20">
           {/* Skew background image with fade */}
-          <div className="absolute inset-0 pointer-events-none">
+          <div className="absolute inset-0 pointer-events-none overflow-hidden">
             <div className="relative w-full h-full">
               <Image
                 src="/skew.png"
@@ -419,10 +434,14 @@ const RouterSection = () => {
                 fill
                 className="object-cover"
                 style={{
+                  transform: "skewY(-3deg) scale(1.1)",
+                  transformOrigin: "center",
                   maskImage:
-                    "linear-gradient(to right, rgba(0,0,0,0.18) 0%, rgba(0,0,0,0.08) 35%, transparent 60%)",
+                    "linear-gradient(to right, transparent 0%, rgba(0,0,0,0.12) 20%, rgba(0,0,0,0.2) 30%, rgba(0,0,0,0.15) 50%, rgba(0,0,0,0.08) 70%, transparent 85%), linear-gradient(to bottom, transparent 0%, rgba(0,0,0,0.5) 15%, rgba(0,0,0,1) 25%, rgba(0,0,0,1) 85%, rgba(0,0,0,0.5) 95%, transparent 100%)",
                   WebkitMaskImage:
-                    "linear-gradient(to right, rgba(0,0,0,0.18) 0%, rgba(0,0,0,0.08) 35%, transparent 60%)",
+                    "linear-gradient(to right, transparent 0%, rgba(0,0,0,0.12) 20%, rgba(0,0,0,0.2) 30%, rgba(0,0,0,0.15) 50%, rgba(0,0,0,0.08) 70%, transparent 85%), linear-gradient(to bottom, transparent 0%, rgba(0,0,0,0.5) 15%, rgba(0,0,0,1) 25%, rgba(0,0,0,1) 85%, rgba(0,0,0,0.5) 95%, transparent 100%)",
+                  maskComposite: "intersect",
+                  WebkitMaskComposite: "source-in",
                 }}
               />
             </div>
