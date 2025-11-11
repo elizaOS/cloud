@@ -5,6 +5,7 @@
 "use client";
 
 import Link from "next/link";
+import Image from "next/image";
 import { useState, useEffect } from "react";
 import { X } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -69,9 +70,13 @@ export default function Sidebar({
               className="inline-block w-2 h-2 rounded-full flex-shrink-0"
               style={{ backgroundColor: "#FF5800" }}
             />
-            <span className="text-white text-lg font-bold tracking-wide">
-              ELIZA
-            </span>
+            <Image
+              src="/eliza-font.svg"
+              alt="ELIZA"
+              width={80}
+              height={24}
+              className="h-5 w-auto"
+            />
           </Link>
 
           {/* Mobile Close Button */}
