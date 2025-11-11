@@ -20,12 +20,14 @@ import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { LogOut, Loader2, Coins, Settings, UserCircle } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useCreditsStream } from "@/hooks/use-credits-stream";
+import { useChatStore } from "@/stores/chat-store";
 
 export default function UserMenu() {
   const { ready, authenticated, user } = usePrivy();
   const { logout } = useLogout();
   const router = useRouter();
   const { creditBalance, isLoading: loadingCredits } = useCreditsStream();
+  const { clearChatData } = useChatStore();
 
   // Loading state
   if (!ready) {
@@ -63,6 +65,9 @@ export default function UserMenu() {
   // Handle sign out
   const onSignOut = async () => {
     try {
+      // Clear chat data (rooms, entityId, localStorage)
+      clearChatData();
+
       // Call Privy's logout to clear authentication state
       await logout();
 

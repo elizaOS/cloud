@@ -11,6 +11,7 @@ import { useCreditsStream } from "@/hooks/use-credits-stream";
 import { CreditCard, LogOut, Loader2, Settings } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { CornerBrackets } from "@/components/brand";
+import { useChatStore } from "@/stores/chat-store";
 
 interface SidebarBottomPanelProps {
   className?: string;
@@ -22,6 +23,7 @@ export function SidebarBottomPanel({ className }: SidebarBottomPanelProps) {
   const router = useRouter();
   const pathname = usePathname();
   const { creditBalance, isLoading: loadingCredits } = useCreditsStream();
+  const { clearChatData } = useChatStore();
 
   // Get user details
   const getUserWallet = () => {
@@ -99,6 +101,9 @@ export function SidebarBottomPanel({ className }: SidebarBottomPanelProps) {
   // Handle sign out
   const onSignOut = async () => {
     try {
+      // Clear chat data (rooms, entityId, localStorage)
+      clearChatData();
+
       await logout();
       router.push("/");
     } catch (error) {
