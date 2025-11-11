@@ -45,7 +45,10 @@ export function CharacterCard({
   };
 
   return (
-    <div className="border border-[rgba(62,62,67,0.5)] border-solid overflow-hidden relative w-full">
+    <div 
+      className="border border-[rgba(62,62,67,0.5)] border-solid overflow-hidden relative w-full cursor-pointer hover:border-[rgba(255,88,0,0.5)] transition-colors"
+      onClick={handleChatMode}
+    >
       {/* Image Area - 347px height with 12px padding */}
       <div className="relative h-[347px] w-full p-[12px] flex items-center justify-center bg-black/40">
         {character.avatarUrl ? (

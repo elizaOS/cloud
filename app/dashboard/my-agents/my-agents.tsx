@@ -3,18 +3,11 @@
 import { useCallback } from "react";
 import { useRouter } from "next/navigation";
 import { MyAgentsView } from "@/components/marketplace";
-import { useSetPageHeader } from "@/components/layout/page-header-context";
 import type { ExtendedCharacter } from "@/lib/types/my-agents";
 import { toast } from "sonner";
 
 export function MyAgentsClient() {
   const router = useRouter();
-
-  useSetPageHeader({
-    title: "My Agents",
-    description:
-      "Manage and interact with your personal AI agents. View, deploy, and chat with your characters.",
-  });
 
   const handleSelectCharacter = useCallback(
     async (character: ExtendedCharacter) => {

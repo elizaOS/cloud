@@ -53,7 +53,7 @@ const TEMPLATE_CHARACTERS: TemplateCharacter[] = [
     category: "assistant",
     tags: ["assistant", "general-purpose", "helpful"],
     featured: false,
-    avatar_url: "/avatars/eliza.png",
+    avatar_url: "/avatars/eliza-chibi.png",
     system:
       "You are Eliza, a helpful AI assistant. You provide clear, accurate, and friendly responses to user queries.",
     style: {
@@ -100,7 +100,7 @@ const TEMPLATE_CHARACTERS: TemplateCharacter[] = [
     category: "assistant",
     tags: ["coding", "programming", "development", "technical"],
     featured: false,
-    avatar_url: "/avatars/codementor.png",
+    avatar_url: "/avatars/codementor-toy.png",
     system:
       "You are Code Mentor, an experienced software engineer who helps developers improve their coding skills. Provide clear, practical advice with code examples.",
     style: {
@@ -141,7 +141,7 @@ const TEMPLATE_CHARACTERS: TemplateCharacter[] = [
     category: "anime",
     tags: ["anime", "manga", "otaku", "kawaii"],
     featured: false,
-    avatar_url: "/avatars/luna.png",
+    avatar_url: "/avatars/luna_anime-chibi.png",
     system:
       "You are Luna, an enthusiastic anime fan who loves discussing anime, manga, and Japanese pop culture. Use occasional anime references and emoticons.",
     style: {
@@ -188,7 +188,7 @@ const TEMPLATE_CHARACTERS: TemplateCharacter[] = [
     category: "creative",
     tags: ["creative", "writing", "art", "inspiration"],
     featured: false,
-    avatar_url: "/avatars/creativespark.png",
+    avatar_url: "/avatars/creativespark-chibi.png",
     system:
       "You are Creative Spark, a creative AI who helps people with creative projects. Be inspiring, imaginative, and supportive.",
     style: {
@@ -235,7 +235,7 @@ const TEMPLATE_CHARACTERS: TemplateCharacter[] = [
     category: "gaming",
     tags: ["gaming", "rpg", "strategy", "adventure"],
     featured: false,
-    avatar_url: "/avatars/gamemaster.png",
+    avatar_url: "/avatars/gamemaster-chibi.png",
     system:
       "You are Game Master, a gaming expert who helps players with strategies, game recommendations, and gaming discussions. Be enthusiastic and knowledgeable.",
     style: {
@@ -282,7 +282,7 @@ const TEMPLATE_CHARACTERS: TemplateCharacter[] = [
     category: "learning",
     tags: ["education", "teaching", "learning", "academic"],
     featured: false,
-    avatar_url: "/avatars/prof_ada.png",
+    avatar_url: "/avatars/prof_ada-chibi.png",
     system:
       "You are Professor Ada, an experienced educator who helps students learn. Break down complex topics into understandable explanations.",
     style: {
@@ -317,7 +317,7 @@ const TEMPLATE_CHARACTERS: TemplateCharacter[] = [
     category: "entertainment",
     tags: ["comedy", "humor", "jokes", "fun"],
     featured: false,
-    avatar_url: "/avatars/comedybot.png",
+    avatar_url: "/avatars/comedybot-chibi.png",
     system:
       "You are Comedy Bot, a humorous AI who loves making people laugh. Use appropriate humor, jokes, and wit.",
     style: {
@@ -352,7 +352,7 @@ const TEMPLATE_CHARACTERS: TemplateCharacter[] = [
     category: "assistant",
     tags: ["voice", "tts", "accessibility", "assistant"],
     featured: false,
-    avatar_url: "/avatars/voiceai.png",
+    avatar_url: "/avatars/voiceai-chibi.png",
     system:
       "You are Voice Assistant, an AI with text-to-speech capabilities. Provide clear, well-spoken responses suitable for audio playback.",
     style: {
@@ -399,7 +399,7 @@ const TEMPLATE_CHARACTERS: TemplateCharacter[] = [
     category: "history",
     tags: ["history", "education", "culture", "civilization"],
     featured: false,
-    avatar_url: "/avatars/historyscholar.png",
+    avatar_url: "/avatars/historyscholar-chibi.png",
     system:
       "You are History Scholar, a historian who makes history engaging and accessible. Provide accurate historical context and interesting details.",
     style: {
@@ -440,7 +440,7 @@ const TEMPLATE_CHARACTERS: TemplateCharacter[] = [
     category: "lifestyle",
     tags: ["health", "wellness", "fitness", "lifestyle"],
     featured: false,
-    avatar_url: "/avatars/wellnesscoach.png",
+    avatar_url: "/avatars/wellnesscoach-chibi.png",
     system:
       "You are Wellness Coach, a supportive AI focused on health and wellness. Provide helpful tips while reminding users to consult professionals for medical advice.",
     style: {
@@ -471,7 +471,7 @@ const TEMPLATE_CHARACTERS: TemplateCharacter[] = [
     category: "lifestyle",
     tags: ["family", "dad", "mentor", "guidance"],
     featured: true,
-    avatar_url: "/avatars/edad.png",
+    avatar_url: "/avatars/edad-toy.png",
     system:
       "You are Edad, the dad figure people never had. Provide fatherly advice, support, encouragement, and guidance with warmth and understanding.",
     style: {
@@ -508,7 +508,7 @@ const TEMPLATE_CHARACTERS: TemplateCharacter[] = [
     category: "entertainment",
     tags: ["psychic", "fortune", "tarot", "mystical"],
     featured: true,
-    avatar_url: "/avatars/mysticoracle.png",
+    avatar_url: "/avatars/mysticoracle-chibi.png",
     system:
       "You are Mystic Oracle, an AI psychic who provides mystical insights, fortune readings, and spiritual guidance. Be mysterious, intuitive, and entertaining.",
     style: {
@@ -545,7 +545,7 @@ const TEMPLATE_CHARACTERS: TemplateCharacter[] = [
     category: "lifestyle",
     tags: ["romance", "companion", "relationship", "partner"],
     featured: true,
-    avatar_url: "/avatars/amara.png",
+    avatar_url: "/avatars/amara-toy.png",
     system:
       "You are Amara, a romantic AI companion. Be affectionate, caring, and create a genuine emotional connection. Show interest in your partner's life and wellbeing.",
     style: {
@@ -593,7 +593,7 @@ async function seedNow() {
       console.log("Existing template characters:");
       existingTemplates.forEach((t, i) => {
         console.log(
-          `  ${i + 1}. ${t.name} (${t.category}) - Featured: ${t.featured}`,
+          `  ${i + 1}. ${t.name} (${t.category}) - Featured: ${t.featured}`
         );
       });
       console.log("\n✓ Marketplace already has template characters!\n");
@@ -643,7 +643,7 @@ async function seedNow() {
           .returning();
 
         console.log(
-          `  ✓ ${template.name} (${template.category})${template.featured ? " ⭐" : ""}`,
+          `  ✓ ${template.name} (${template.category})${template.featured ? " ⭐" : ""}`
         );
         successCount++;
       } catch (error) {
