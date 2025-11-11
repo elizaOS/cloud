@@ -34,7 +34,7 @@ interface ChatState {
   setIsLoadingRooms: (isLoading: boolean) => void;
   setAvailableCharacters: (characters: Character[]) => void;
   setSelectedCharacterId: (characterId: string | null) => void;
-  loadRooms: () => Promise<void>;
+  loadRooms: () => Promise<RoomItem[]>;
   createRoom: (characterId?: string | null) => Promise<string | null>;
   deleteRoom: (roomId: string) => Promise<void>;
   initializeEntityId: () => void;
@@ -110,6 +110,7 @@ export const useChatStore = create<ChatState>((set, get) => ({
             }));
 
           setRooms(roomItems);
+          return roomItems; // Return rooms for caller
         }
       }
     } catch (error) {
@@ -117,6 +118,7 @@ export const useChatStore = create<ChatState>((set, get) => ({
     } finally {
       setIsLoadingRooms(false);
     }
+    return []; // Return empty array on error
   },
 
   // Create new room
