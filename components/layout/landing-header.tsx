@@ -6,6 +6,7 @@
 "use client";
 
 import Link from "next/link";
+import Image from "next/image";
 import { Button } from "@/components/ui/button";
 import { LockOnButton } from "@/components/brand";
 import { usePrivy } from "@privy-io/react-auth";
@@ -35,7 +36,13 @@ export default function LandingHeader() {
               className="inline-block w-2 h-2 rounded-full"
               style={{ backgroundColor: "#FF5800" }}
             />
-            <span className="text-white text-xl font-bold">ELIZA</span>
+            <Image
+              src="/eliza-font.svg"
+              alt="ELIZA"
+              width={80}
+              height={24}
+              className="h-5 w-auto"
+            />
           </div>
         </Link>
         <div className="flex items-center gap-3">

@@ -1,16 +1,35 @@
 "use client";
 
 import { Github } from "lucide-react";
-import { CornerBrackets } from "@/components/brand";
+import Image from "next/image";
 
 export default function Footer() {
   return (
     <footer className="relative border-t border-white/10 bg-[#0A0A0A]">
-      {/* Corner brackets */}
-      <CornerBrackets size="lg" variant="full-border" className="m-4" />
+      {/* Faded footer image underlay */}
+      <div className="absolute inset-0 pointer-events-none overflow-hidden px-8 md:px-48 lg:px-64 xl:px-80 2xl:px-96">
+        <div className="relative w-full h-full">
+          <Image
+            src="/footer.png"
+            alt=""
+            fill
+            className="object-cover"
+            style={{
+              opacity: 0.55,
+              objectPosition: "center",
+              maskImage:
+                "linear-gradient(to right, transparent 0%, rgba(0,0,0,0.4) 10%, rgba(0,0,0,1) 20%, rgba(0,0,0,1) 80%, rgba(0,0,0,0.4) 90%, transparent 100%), linear-gradient(to bottom, transparent 0%, rgba(0,0,0,0.6) 15%, rgba(0,0,0,1) 25%, rgba(0,0,0,1) 85%, rgba(0,0,0,0.6) 95%, transparent 100%)",
+              WebkitMaskImage:
+                "linear-gradient(to right, transparent 0%, rgba(0,0,0,0.4) 10%, rgba(0,0,0,1) 20%, rgba(0,0,0,1) 80%, rgba(0,0,0,0.4) 90%, transparent 100%), linear-gradient(to bottom, transparent 0%, rgba(0,0,0,0.6) 15%, rgba(0,0,0,1) 25%, rgba(0,0,0,1) 85%, rgba(0,0,0,0.6) 95%, transparent 100%)",
+              maskComposite: "intersect",
+              WebkitMaskComposite: "source-in",
+            }}
+          />
+        </div>
+      </div>
 
-      <div className="container mx-auto px-6 py-16">
-        <div className="grid grid-cols-1 gap-12 md:grid-cols-3 md:gap-8">
+      <div className="container mx-auto px-6 py-16 relative z-10">
+        <div className="grid grid-cols-1 gap-12 md:grid-cols-2 md:gap-8">
           {/* Left section */}
           <div className="flex flex-col justify-between">
             <div>
@@ -19,7 +38,7 @@ export default function Footer() {
                   className="inline-block w-2 h-2 rounded-full"
                   style={{ backgroundColor: "#FF5800" }}
                 />
-                <h3 className="text-lg font-bold uppercase tracking-wider text-white">
+                <h3 className="text-2xl md:text-3xl font-bold uppercase tracking-wider text-white" style={{ fontFamily: "var(--font-geist-sans)" }}>
                   START
                   <br />
                   BUILDING
@@ -29,42 +48,30 @@ export default function Footer() {
             <p className="text-sm text-white/60">© 2025 Eliza AI · USA</p>
           </div>
 
-          {/* Center section - Video */}
-          <div className="flex items-center justify-center">
-            <video
-              src="/videos/footer.mp4"
-              autoPlay
-              loop
-              muted
-              playsInline
-              className="h-48 w-auto opacity-80"
-            />
-          </div>
-
           {/* Right section - Navigation */}
           <div className="flex flex-col items-start gap-4 md:items-end">
             <nav className="flex flex-col gap-3 md:text-right">
               <a
                 href="#company"
-                className="text-base text-white/70 transition-colors hover:text-white"
+                className="text-base text-white transition-colors hover:text-[#FF5800]"
               >
                 Company
               </a>
               <a
                 href="#resources"
-                className="text-base text-white/70 transition-colors hover:text-white"
+                className="text-base text-white transition-colors hover:text-[#FF5800]"
               >
                 Resources
               </a>
               <a
                 href="#community"
-                className="text-base text-white/70 transition-colors hover:text-white"
+                className="text-base text-white transition-colors hover:text-[#FF5800]"
               >
                 Community
               </a>
               <a
                 href="#policy"
-                className="text-base text-white/70 transition-colors hover:text-white"
+                className="text-base text-white transition-colors hover:text-[#FF5800]"
               >
                 Policy
               </a>
@@ -76,7 +83,7 @@ export default function Footer() {
                 href="https://github.com/elizaos"
                 target="_blank"
                 rel="noopener noreferrer"
-                className="text-white/70 transition-colors hover:text-white"
+                className="text-white transition-colors hover:text-[#FF5800]"
                 aria-label="GitHub"
               >
                 <Github className="h-6 w-6" />
@@ -85,7 +92,7 @@ export default function Footer() {
                 href="https://discord.gg/elizaos"
                 target="_blank"
                 rel="noopener noreferrer"
-                className="text-white/70 transition-colors hover:text-white"
+                className="text-white transition-colors hover:text-[#FF5800]"
                 aria-label="Discord"
               >
                 <svg
@@ -101,7 +108,7 @@ export default function Footer() {
                 href="https://x.com/elizaos"
                 target="_blank"
                 rel="noopener noreferrer"
-                className="text-white/70 transition-colors hover:text-white"
+                className="text-white transition-colors hover:text-[#FF5800]"
                 aria-label="X (Twitter)"
               >
                 <svg
