@@ -9,7 +9,6 @@ import {
   useEdgesState,
   Position,
   Handle,
-  NodeDragHandler,
 } from "@xyflow/react";
 import "@xyflow/react/dist/style.css";
 import Image from "next/image";
@@ -252,8 +251,7 @@ export default function MicropaymentNetwork() {
           const amplitude = node.id === "center" ? 3 : 4;
           const frequency = 0.0008;
           const offset =
-            Math.sin(time * frequency + parseInt(node.id.charCodeAt(0))) *
-            amplitude;
+            Math.sin(time * frequency + node.id.charCodeAt(0)) * amplitude;
           const basePos = basePositions.current[node.id];
 
           return {
