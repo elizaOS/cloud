@@ -5,32 +5,18 @@ import {
   type ElizaRoomCharacter,
   type NewElizaRoomCharacter,
 } from "../schemas";
-import { cache } from "@/lib/cache/client";
-import { CacheKeys, CacheTTL } from "@/lib/cache/keys";
 
 export const elizaRoomCharactersRepository = {
   async findByRoomId(roomId: string): Promise<ElizaRoomCharacter | undefined> {
-    // Try cache first - room character mappings rarely change
-    const cacheKey = CacheKeys.eliza.roomCharacter(roomId);
-    const cached = await cache.get<ElizaRoomCharacter | null>(cacheKey);
-
-    if (cached !== undefined) {
-      return cached || undefined;
-    }
-
-    // Cache miss - fetch from DB
+    // ALWAYS query the database directly - no caching for now to prevent stale data issues
+    // TODO: Implement proper cache invalidation strategy
     const result = await db
       .select()
       .from(elizaRoomCharactersTable)
       .where(eq(elizaRoomCharactersTable.room_id, roomId))
       .limit(1);
 
-    const character = result[0];
-
-    // Cache the result (including null/undefined for rooms without character mappings)
-    await cache.set(cacheKey, character || null, CacheTTL.eliza.roomCharacter);
-
-    return character;
+    return result[0];
   },
 
   async findByRoomIds(roomIds: string[]): Promise<Map<string, string>> {
@@ -57,9 +43,6 @@ export const elizaRoomCharactersRepository = {
       .values(data)
       .returning();
 
-    // Invalidate cache when creating new character mapping
-    await cache.del(CacheKeys.eliza.roomCharacter(data.room_id));
-
     return result[0];
   },
 
@@ -76,9 +59,6 @@ export const elizaRoomCharactersRepository = {
       .where(eq(elizaRoomCharactersTable.room_id, roomId))
       .returning();
 
-    // Invalidate cache when updating character mapping
-    await cache.del(CacheKeys.eliza.roomCharacter(roomId));
-
     return result[0];
   },
 
@@ -86,8 +66,5 @@ export const elizaRoomCharactersRepository = {
     await db
       .delete(elizaRoomCharactersTable)
       .where(eq(elizaRoomCharactersTable.room_id, roomId));
-
-    // Invalidate cache when deleting character mapping
-    await cache.del(CacheKeys.eliza.roomCharacter(roomId));
   },
 };

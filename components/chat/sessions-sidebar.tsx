@@ -4,10 +4,11 @@ import { useEffect, useMemo } from "react";
 import { useChatStore } from "@/stores/chat-store";
 import { Trash2, Plus } from "lucide-react";
 import Image from "next/image";
-import { useSearchParams } from "next/navigation";
+import { useSearchParams, useRouter } from "next/navigation";
 
 export function SessionsSidebar() {
   const searchParams = useSearchParams();
+  const router = useRouter();
   const { rooms, roomId, setRoomId, loadRooms, deleteRoom, availableCharacters, selectedCharacterId, createRoom } = useChatStore();
 
   useEffect(() => {
@@ -33,7 +34,22 @@ export function SessionsSidebar() {
     console.log("[SessionsSidebar] Creating new chat for character:", urlCharacterId || "default");
     const result = await createRoom(urlCharacterId);
     if (result) {
-      console.log("[SessionsSidebar] Room created:", result.roomId);
+      console.log("[SessionsSidebar] Room created:", result.roomId, "with characterId:", result.characterId);
+
+      // Update URL with resolved character ID and new room ID
+      const params = new URLSearchParams();
+      params.set("roomId", result.roomId);
+
+      // Use the resolved character ID from API response (in case it was a template)
+      const finalCharacterId = result.characterId || urlCharacterId;
+      if (finalCharacterId) {
+        params.set("characterId", finalCharacterId);
+      }
+
+      const currentMode = searchParams.get("mode") || "chat";
+      params.set("mode", currentMode);
+
+      router.push(`/dashboard/chat?${params.toString()}`);
     }
   };
 

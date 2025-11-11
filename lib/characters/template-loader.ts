@@ -14,12 +14,12 @@ import type { ExtendedCharacter } from "@/lib/types/my-agents";
 
 // All available template characters
 export const TEMPLATE_CHARACTERS: Record<string, ExtendedCharacter> = {
-  "template-ember": emberTemplate as ExtendedCharacter,
-  "template-zilo": ziloTemplate as ExtendedCharacter,
-  "template-pixel": pixelTemplate as ExtendedCharacter,
-  "template-luna": lunaTemplate as ExtendedCharacter,
-  "template-code-mentor": codeMentorTemplate as ExtendedCharacter,
-  "template-creative-spark": creativeSparkTemplate as ExtendedCharacter,
+  "template-ember": emberTemplate as unknown as ExtendedCharacter,
+  "template-zilo": ziloTemplate as unknown as ExtendedCharacter,
+  "template-pixel": pixelTemplate as unknown as ExtendedCharacter,
+  "template-luna": lunaTemplate as unknown as ExtendedCharacter,
+  "template-code-mentor": codeMentorTemplate as unknown as ExtendedCharacter,
+  "template-creative-spark": creativeSparkTemplate as unknown as ExtendedCharacter,
 };
 
 /**
@@ -45,6 +45,7 @@ export function isTemplateCharacter(characterId: string): boolean {
 
 /**
  * Convert template to database format (for auto-creation)
+ * NOTE: organizationId is required by the database schema (NOT NULL constraint)
  */
 export function templateToDbFormat(template: ExtendedCharacter, userId: string, organizationId: string) {
   return {

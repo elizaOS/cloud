@@ -348,12 +348,25 @@ class AgentRuntimeManager {
   async getRuntimeForCharacter(characterId?: string): Promise<AgentRuntime> {
     // If no characterId provided, use default character
     if (!characterId) {
+      elizaLogger.warn("[AgentRuntime] getRuntimeForCharacter called with no characterId, using default");
       return this.getRuntime();
     }
+
+    elizaLogger.info("[AgentRuntime] getRuntimeForCharacter loading character:", characterId);
 
     // Load character and plugins
     const { character: loadedCharacter, plugins: loadedPlugins } =
       await characterLoader.loadCharacter(characterId);
+
+    elizaLogger.info(
+      "[AgentRuntime] Character loaded from DB:",
+      JSON.stringify({
+        characterId,
+        name: loadedCharacter.name,
+        system: loadedCharacter.system?.substring(0, 100) + "...",
+        systemLength: loadedCharacter.system?.length || 0,
+      })
+    );
 
     // Build runtime with loaded character
     return this.buildRuntimeForCharacter(loadedCharacter, loadedPlugins);
@@ -563,8 +576,25 @@ class AgentRuntimeManager {
       runtime = await this.getRuntimeForCharacter(characterId);
       elizaLogger.info(
         "[AgentRuntime] Loaded runtime for character:",
-        runtime.character.name
+        JSON.stringify({
+          name: runtime.character.name,
+          system: runtime.character.system,
+          systemLength: runtime.character.system?.length || 0,
+          agentId: runtime.agentId,
+        })
       );
+
+      // DIAGNOSTIC: Verify the character is not default Eliza
+      if (runtime.character.name === "Eliza" || !runtime.character.system) {
+        elizaLogger.error(
+          "[AgentRuntime] ERROR: Loaded runtime has default Eliza character!",
+          JSON.stringify({
+            requestedCharacterId: characterId,
+            loadedCharacterName: runtime.character.name,
+            loadedSystem: runtime.character.system,
+          })
+        );
+      }
     } else {
       elizaLogger.info("[AgentRuntime] Using default runtime (no characterId)");
       runtime = await this.getRuntime();

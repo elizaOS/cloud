@@ -56,7 +56,9 @@ export class CharacterLoader {
       id: characterId,
       name: elizaCharacter.name,
       system: elizaCharacter.system,
+      systemLength: elizaCharacter.system?.length || 0,
       bio: elizaCharacter.bio,
+      bioLength: typeof elizaCharacter.bio === 'string' ? elizaCharacter.bio.length : Array.isArray(elizaCharacter.bio) ? elizaCharacter.bio.length : 0,
       plugins: elizaCharacter.plugins,
       hasStyle: !!elizaCharacter.style,
       hasMessageExamples: !!(
@@ -64,6 +66,22 @@ export class CharacterLoader {
         elizaCharacter.messageExamples.length > 0
       ),
     });
+
+    // DIAGNOSTIC: Check for missing critical fields
+    if (!elizaCharacter.name || elizaCharacter.name === 'Eliza') {
+      console.error("[CharacterLoader] WARNING: Character name is missing or default:", {
+        characterId,
+        name: elizaCharacter.name,
+        dbCharacter: dbCharacter
+      });
+    }
+    if (!elizaCharacter.system) {
+      console.error("[CharacterLoader] WARNING: System prompt is missing!", {
+        characterId,
+        name: elizaCharacter.name,
+        dbSystemValue: dbCharacter.system,
+      });
+    }
 
     // Build full character with environment settings
     const character = this.buildCharacter(elizaCharacter);
@@ -74,10 +92,21 @@ export class CharacterLoader {
     console.log("[CharacterLoader] Character loaded successfully:", {
       name: character.name,
       system: character.system,
+      systemLength: character.system?.length || 0,
       bio: character.bio,
       pluginCount: plugins.length,
       pluginNames: plugins.map((p) => p.name),
     });
+
+    // DIAGNOSTIC: Final validation before returning
+    if (!character.system || character.system.includes('You are Eliza')) {
+      console.error("[CharacterLoader] ERROR: Character still has default Eliza system prompt!", {
+        characterId,
+        characterName: character.name,
+        system: character.system,
+        originalSystem: elizaCharacter.system,
+      });
+    }
 
     return { character, plugins };
   }
@@ -198,6 +227,27 @@ export class CharacterLoader {
       ...elizaCharacter.settings,
     };
 
+    // CRITICAL: Ensure system prompt is never undefined
+    // If system is missing, construct a basic one from name and bio
+    let systemPrompt = elizaCharacter.system;
+    if (!systemPrompt || systemPrompt.trim() === "") {
+      console.error(
+        "[CharacterLoader] CRITICAL: System prompt is missing! Constructing fallback:",
+        {
+          characterId: elizaCharacter.id,
+          name: elizaCharacter.name,
+        }
+      );
+
+      const bioText = Array.isArray(elizaCharacter.bio)
+        ? elizaCharacter.bio.join(" ")
+        : typeof elizaCharacter.bio === "string"
+          ? elizaCharacter.bio
+          : "";
+
+      systemPrompt = `You are ${elizaCharacter.name}. ${bioText}`;
+    }
+
     // Build Character object
     // Use consistent agent ID for database operations, character name for personality
     const character: Character = {
@@ -206,7 +256,7 @@ export class CharacterLoader {
       username: elizaCharacter.username,
       plugins: elizaCharacter.plugins || [],
       settings,
-      system: elizaCharacter.system,
+      system: systemPrompt,
       bio: elizaCharacter.bio,
       messageExamples: elizaCharacter.messageExamples,
       postExamples: elizaCharacter.postExamples,

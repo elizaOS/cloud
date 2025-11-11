@@ -98,20 +98,57 @@ export async function POST(
       }
     }
 
-    // Get character assignment for room
-    const roomCharacter =
-      await elizaRoomCharactersRepository.findByRoomId(roomId);
-    const characterId = roomCharacter?.character_id || undefined;
+    // ==================== BULLETPROOF CHARACTER LOADING ====================
+    logger.info(`[Stream Messages] ========== CHARACTER LOADING START ==========`);
+    logger.info(`[Stream Messages] roomId: ${roomId}`);
 
-    logger.info(
-      "[Stream Messages] Character assignment:",
-      {
-        roomId,
-        hasRoomCharacter: !!roomCharacter,
-        characterId,
-        roomCharacterData: roomCharacter,
-      },
-    );
+    let characterId: string | undefined = undefined;
+    let characterName = "Eliza"; // Default fallback
+
+    try {
+      // Step 1: Fetch character mapping from database
+      const roomCharacter = await elizaRoomCharactersRepository.findByRoomId(roomId);
+
+      if (!roomCharacter) {
+        logger.warn(`[Stream Messages] ⚠ No character mapping found for room ${roomId}`);
+        logger.warn(`[Stream Messages] ⚠ Using default character (Eliza)`);
+      } else {
+        logger.info(`[Stream Messages] ✓ Character mapping found`);
+        logger.info(`[Stream Messages]   room_id: ${roomCharacter.room_id}`);
+        logger.info(`[Stream Messages]   character_id: ${roomCharacter.character_id}`);
+        logger.info(`[Stream Messages]   user_id: ${roomCharacter.user_id}`);
+
+        // Step 2: Validate characterId format
+        const mappedCharacterId = roomCharacter.character_id;
+
+        if (mappedCharacterId.startsWith('template-')) {
+          // CRITICAL ERROR: Template ID should never be in mapping
+          logger.error(`[Stream Messages] ✗✗✗ CRITICAL: Template ID in mapping! ✗✗✗`);
+          logger.error(`[Stream Messages] This indicates room creation failed to convert template to UUID`);
+          logger.error(`[Stream Messages] templateId: ${mappedCharacterId}`);
+          logger.warn(`[Stream Messages] Falling back to default character`);
+        } else {
+          // Step 3: Verify character exists in database
+          try {
+            const runtime = await agentRuntime.getRuntimeForCharacter(mappedCharacterId);
+            characterId = mappedCharacterId;
+            characterName = runtime.character.name || "Eliza";
+            logger.info(`[Stream Messages] ✓ Character verified: ${characterName}`);
+            logger.info(`[Stream Messages] ✓ Character ID: ${characterId}`);
+          } catch (charError) {
+            logger.error(`[Stream Messages] ✗ Failed to load character ${mappedCharacterId}`);
+            logger.error(`[Stream Messages] Error:`, charError);
+            logger.warn(`[Stream Messages] Falling back to default character`);
+          }
+        }
+      }
+    } catch (error) {
+      logger.error(`[Stream Messages] ✗ Error loading character mapping:`, error);
+      logger.warn(`[Stream Messages] Falling back to default character`);
+    }
+
+    logger.info(`[Stream Messages] Final character: ${characterName} (${characterId || "default"})`);
+    logger.info(`[Stream Messages] ========== CHARACTER LOADING END ==========`);
 
     // Get user's API key for ElizaCloud plugin authentication
     let userApiKey: string | null = null;
@@ -187,12 +224,14 @@ export async function POST(
           });
 
           // Process message and get response
-          logger.info("[Stream Messages] Processing message...");
+          logger.info(`[Stream Messages] Processing message with character: ${characterName}`);
+          logger.info(`[Stream Messages] characterId: ${characterId || "default"}`);
+
           const result = await agentRuntime.handleMessage(
             roomId,
             entityId,
             { text },
-            characterId,
+            characterId, // Will be undefined if no mapping/character found → uses default
             userApiKey
               ? {
                   userId: user.id,
@@ -297,23 +336,8 @@ export async function POST(
               const threadId = roomData.rows[0]?.metadata?.discordThreadId;
 
               if (threadId) {
-                // Get character name from runtime
-                let characterName = "Agent";
-                try {
-                  if (characterId) {
-                    const runtime =
-                      await agentRuntime.getRuntimeForCharacter(characterId);
-                    characterName = runtime.character.name || "Agent";
-                  } else {
-                    const runtime = await agentRuntime.getRuntime();
-                    characterName = runtime.character.name || "Agent";
-                  }
-                } catch (err) {
-                  logger.error(
-                    "[Stream Messages] Failed to fetch character name from runtime:",
-                    err,
-                  );
-                }
+                // Use character name already loaded at the start of the request
+                // (no need to fetch runtime again - more efficient and consistent)
 
                 // Send user message
                 await discordService.sendToThread(

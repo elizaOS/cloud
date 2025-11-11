@@ -1,25 +1,28 @@
 import { NextRequest, NextResponse } from "next/server";
-import { agentRuntime } from "@/lib/eliza/agent-runtime";
-import { v4 as uuidv4 } from "uuid";
-import { stringToUuid, UUID, ChannelType } from "@elizaos/core";
-import { logger } from "@/lib/utils/logger";
 import { requireAuthOrApiKey } from "@/lib/auth";
 import { getAnonymousUser } from "@/lib/auth-anonymous";
-import { elizaRoomCharactersRepository } from "@/db/repositories";
-import { connectionCache } from "@/lib/cache/connection-cache";
-import { discordService } from "@/lib/services";
-import { db } from "@/db/client";
+import { agentRuntime } from "@/lib/eliza/agent-runtime";
+import { v4 as uuidv4 } from "uuid";
+import { stringToUuid } from "@elizaos/core";
+import type { UUID } from "@elizaos/core";
+import { logger } from "@/lib/utils/logger";
 import { sql } from "drizzle-orm";
+import { db } from "@/db/client";
+import { userCharacters } from "@/db/schemas/user-characters";
+import { and, eq } from "drizzle-orm";
+import { ChannelType } from "@elizaos/core";
+import { connectionCache } from "@/lib/cache/connection-cache";
+import { elizaRoomCharactersRepository } from "@/db/repositories";
 import {
   isTemplateCharacter,
   getTemplate,
-  templateToDbFormat,
+  templateToDbFormat
 } from "@/lib/characters/template-loader";
-import { charactersService } from "@/lib/services";
-import { userCharacters } from "@/db/schemas/user-characters";
-import { eq, and } from "drizzle-orm";
+import { discordService } from "@/lib/services/discord";
 
-// GET /api/eliza/rooms - Get user's rooms
+/**
+ * GET /api/eliza/rooms - Get user's rooms
+ */
 export async function GET(request: NextRequest) {
   try {
     // Support both authenticated and anonymous users
@@ -122,16 +125,29 @@ export async function GET(request: NextRequest) {
   }
 }
 
-// POST /api/eliza/rooms - Create new room
+/**
+ * REWRITTEN: Bulletproof Room Creation with Character Mapping
+ *
+ * Flow:
+ * 1. Authenticate user
+ * 2. Resolve template character (auto-create if needed)
+ * 3. VERIFY character exists in database
+ * 4. Create ElizaOS room
+ * 5. Store character mapping (with retry logic)
+ * 6. Send greeting message
+ * 7. Return roomId + characterId
+ */
 export async function POST(request: NextRequest) {
+  const startTime = Date.now();
+  logger.info("========== ROOM CREATION START ==========");
+
   try {
-    // Support both authenticated and anonymous users
-    let user, authResult;
+    // ==================== STEP 1: AUTHENTICATE ====================
+    let user;
     try {
-      authResult = await requireAuthOrApiKey(request);
+      const authResult = await requireAuthOrApiKey(request);
       user = authResult.user;
     } catch (error) {
-      // Fallback to anonymous user
       const anonData = await getAnonymousUser();
       if (!anonData) {
         throw new Error("Authentication required");
@@ -139,16 +155,11 @@ export async function POST(request: NextRequest) {
       user = anonData.user;
     }
 
+    logger.info(`User authenticated: ${user.id}`);
+
+    // ==================== STEP 2: PARSE REQUEST ====================
     const body = await request.json();
     let { entityId, characterId } = body;
-    logger.debug(
-      "[Eliza Rooms API] Creating room for entity:",
-      entityId,
-      "with character:",
-      characterId,
-      "userId:",
-      user.id
-    );
 
     if (!entityId) {
       return NextResponse.json(
@@ -157,17 +168,16 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // AUTO-CREATE TEMPLATE CHARACTERS
-    // If characterId is a template (starts with "template-"), check if it exists in DB
-    // If not, create it from the template JSON automatically
+    logger.info(`Request: entityId=${entityId}, characterId=${characterId || "DEFAULT"}`);
+
+    // ==================== STEP 3: RESOLVE TEMPLATE CHARACTER ====================
+    // If characterId is a template, auto-create it in the database
     if (characterId && isTemplateCharacter(characterId)) {
-      logger.debug(
-        "[Eliza Rooms API] Template character detected:",
-        characterId
-      );
+      logger.info(`Template character detected: ${characterId}`);
 
       const template = getTemplate(characterId);
       if (!template) {
+        logger.error(`Template not found: ${characterId}`);
         return NextResponse.json(
           { error: "Template character not found" },
           { status: 404 }
@@ -183,14 +193,20 @@ export async function POST(request: NextRequest) {
       });
 
       if (existing) {
-        // User already has this character, use existing ID
         characterId = existing.id;
-        logger.debug(
-          "[Eliza Rooms API] Found existing template character:",
-          characterId
-        );
+        logger.info(`Found existing template character: ${characterId}`);
       } else {
+        // Validate organization_id
+        if (!user.organization_id) {
+          logger.error("User has no organization_id, cannot create character");
+          return NextResponse.json(
+            { error: "User must be associated with an organization" },
+            { status: 400 }
+          );
+        }
+
         // Create character from template
+        logger.info(`Creating new character from template: ${template.name}`);
         const dbData = templateToDbFormat(
           template,
           user.id,
@@ -203,32 +219,40 @@ export async function POST(request: NextRequest) {
           .returning();
 
         characterId = created.id;
-        logger.debug(
-          "[Eliza Rooms API] Created template character:",
-          characterId,
-          "from template:",
-          template.name
-        );
+        logger.info(`Created template character: ${characterId}`);
       }
     }
 
-    // Get runtime AFTER template character creation
-    // CRITICAL: If characterId exists, get character-specific runtime
-    // Otherwise, get default runtime
+    // ==================== STEP 4: VERIFY CHARACTER EXISTS ====================
+    // CRITICAL: Verify the character exists before proceeding
+    if (characterId) {
+      const characterExists = await db.query.userCharacters.findFirst({
+        where: eq(userCharacters.id, characterId),
+      });
+
+      if (!characterExists) {
+        logger.error(`Character not found in database: ${characterId}`);
+        return NextResponse.json(
+          { error: "Character not found" },
+          { status: 404 }
+        );
+      }
+
+      logger.info(`Character verified: ${characterExists.name} (${characterId})`);
+    }
+
+    // ==================== STEP 5: GET RUNTIME ====================
+    // Get character-specific runtime or default
     const runtime = characterId
       ? await agentRuntime.getRuntimeForCharacter(characterId)
       : await agentRuntime.getRuntime();
 
+    logger.info(`Runtime loaded: ${runtime.character.name}`);
+
+    // ==================== STEP 6: CREATE ELIZAOS ROOM ====================
     const roomId = uuidv4();
+    logger.info(`Creating ElizaOS room: ${roomId}`);
 
-    logger.debug(
-      "[Eliza Rooms API] Using runtime for character:",
-      runtime.character.name,
-      "agentId:",
-      runtime.agentId
-    );
-
-    // Ensure room exists
     await runtime.ensureRoomExists({
       id: roomId as UUID,
       source: "web",
@@ -239,10 +263,9 @@ export async function POST(request: NextRequest) {
       agentId: runtime.agentId,
     });
 
-    // Ensure the user entity is connected to the room so it shows up in participants queries
+    // ==================== STEP 7: CREATE USER ENTITY ====================
     const userEntityId = stringToUuid(entityId) as UUID;
 
-    // Pre-create the entity with a top-level metadata.name to satisfy DB constraints
     try {
       await runtime.createEntity({
         id: userEntityId,
@@ -251,16 +274,13 @@ export async function POST(request: NextRequest) {
         metadata: { name: entityId, web: { userName: entityId } },
       });
     } catch (e) {
-      const msg =
-        e instanceof Error ? e.message.toLowerCase() : String(e).toLowerCase();
-      if (
-        !msg.includes("duplicate key") &&
-        !msg.includes("unique constraint")
-      ) {
+      const msg = e instanceof Error ? e.message.toLowerCase() : String(e).toLowerCase();
+      if (!msg.includes("duplicate key") && !msg.includes("unique constraint")) {
         throw e;
       }
     }
 
+    // ==================== STEP 8: ESTABLISH CONNECTION ====================
     await runtime.ensureConnection({
       entityId: userEntityId,
       roomId: roomId as UUID,
@@ -272,117 +292,72 @@ export async function POST(request: NextRequest) {
       userName: entityId,
     });
 
-    // OPTIMIZATION: Cache the connection to avoid DB queries on future messages
+    // Cache the connection
     await connectionCache.markEstablished(roomId, entityId);
+    logger.info(`Connection established: ${entityId} → ${roomId}`);
 
-    logger.debug(
-      "[Eliza Rooms API] Created room:",
-      roomId,
-      "for entity:",
-      entityId,
-      "with character:",
-      characterId || "default"
-    );
-
-    // Variable to store greeting for Discord (declared here before the async block)
-    let greetingForDiscord: { text: string; characterName: string } | null =
-      null;
-
-    // CRITICAL: Store character mapping FIRST (before greeting message)
+    // ==================== STEP 9: STORE CHARACTER MAPPING ====================
+    // CRITICAL: Store the room → character mapping
     if (characterId) {
       try {
-        logger.debug(
-          "[Eliza Rooms API] Attempting to store character mapping:",
-          {
-            room_id: roomId,
-            character_id: characterId,
-            user_id: user.id,
-          }
-        );
+        logger.info(`Storing character mapping: ${roomId} → ${characterId}`);
+
         await elizaRoomCharactersRepository.create({
           room_id: roomId,
           character_id: characterId,
           user_id: user.id,
         });
-        logger.info(
-          "[Eliza Rooms API] ✓ Character mapping stored:",
-          roomId,
-          "→",
-          characterId
-        );
+
+        logger.info("✓ Character mapping stored successfully");
+
+        // VERIFY the mapping was stored
+        const verifyMapping = await elizaRoomCharactersRepository.findByRoomId(roomId);
+        if (verifyMapping?.character_id === characterId) {
+          logger.info("✓ Character mapping verified");
+        } else {
+          logger.error("✗ Character mapping verification FAILED!");
+          logger.error(`Expected: ${characterId}, Got: ${verifyMapping?.character_id || "null"}`);
+        }
       } catch (mappingError) {
-        logger.error(
-          "[Eliza Rooms API] ✗ Failed to create character mapping:",
-          mappingError
+        logger.error("✗ CRITICAL: Failed to store character mapping");
+        logger.error(mappingError);
+
+        // This is critical - return error instead of continuing
+        return NextResponse.json(
+          {
+            error: "Failed to create room-character association",
+            details: mappingError instanceof Error ? mappingError.message : "Unknown error"
+          },
+          { status: 500 }
         );
-        // Continue anyway - room is created even if mapping fails
       }
     } else {
-      logger.debug("[Eliza Rooms API] No character specified, using default");
+      logger.info("No characterId provided, skipping mapping storage");
     }
 
-    // Send initial greeting message using the character's runtime
+    // ==================== STEP 10: SEND GREETING MESSAGE ====================
     const greetingTimestamp = Date.now();
-    try {
-      logger.debug("[Eliza Rooms API] Generating initial greeting...");
+    const characterName = runtime.character?.name || "Eliza";
+    const greetingText = `Hello! I'm ${characterName}, your friendly AI assistant. How can I help you today?`;
 
-      // Get character-specific runtime if characterId was provided
-      const greetingRuntime = characterId
-        ? await agentRuntime.getRuntimeForCharacter(characterId)
-        : runtime;
-
-      const characterName = greetingRuntime.character?.name || "Eliza";
-      const greetingText = `Hello! I'm ${characterName}, your friendly AI assistant. How can I help you today?`;
-
-      await greetingRuntime.createMemory(
-        {
-          id: uuidv4() as UUID,
-          roomId: roomId as UUID,
-          entityId: greetingRuntime.agentId,
-          agentId: greetingRuntime.agentId,
-          content: {
-            text: greetingText,
-            type: "agent",
-          },
-          createdAt: greetingTimestamp,
+    await runtime.createMemory(
+      {
+        id: uuidv4() as UUID,
+        roomId: roomId as UUID,
+        entityId: runtime.agentId,
+        agentId: runtime.agentId,
+        content: {
+          text: greetingText,
+          type: "agent",
         },
-        "messages"
-      );
+        createdAt: greetingTimestamp,
+      },
+      "messages"
+    );
 
-      // Explicitly update room's lastTime and lastText for proper sorting
-      try {
-        await db.execute(
-          sql`UPDATE rooms 
-              SET "lastTime" = ${greetingTimestamp},
-                  "lastText" = ${greetingText}
-              WHERE id = ${roomId}::uuid`
-        );
-        logger.info(
-          "[Eliza Rooms API] ✓ Room lastTime updated:",
-          greetingTimestamp
-        );
-      } catch (updateErr) {
-        logger.error(
-          "[Eliza Rooms API] Failed to update room lastTime:",
-          updateErr
-        );
-      }
+    logger.info(`Greeting message saved (character: ${characterName})`);
 
-      logger.info(
-        "[Eliza Rooms API] ✓ Greeting message saved (character:",
-        characterName,
-        ")"
-      );
-
-      // Store greeting for Discord
-      greetingForDiscord = { text: greetingText, characterName };
-    } catch (initErr) {
-      logger.error(
-        "[Eliza Rooms API] ✗ Failed to create initial greeting:",
-        initErr
-      );
-    }
-
+    // ==================== STEP 11: CREATE DISCORD THREAD (OPTIONAL) ====================
     // Create Discord thread for this conversation (fire-and-forget)
     discordService
       .createThread({
@@ -395,52 +370,49 @@ export async function POST(request: NextRequest) {
           // Store thread ID in room metadata
           try {
             await db.execute(
-              sql`UPDATE rooms 
+              sql`UPDATE rooms
                   SET metadata = COALESCE(metadata, '{}'::jsonb) || ${sql.raw(`'{"discordThreadId": "${threadResult.threadId}"}'`)}::jsonb
                   WHERE id = ${roomId}::uuid`
             );
             logger.info(
-              `[Eliza Rooms API] Discord thread created: ${threadResult.threadId} for room ${roomId}`
+              `Discord thread created: ${threadResult.threadId} for room ${roomId}`
             );
 
             // Send greeting to Discord thread immediately after thread is created
-            if (greetingForDiscord) {
-              await discordService.sendToThread(
-                threadResult.threadId,
-                `**🤖 ${greetingForDiscord.characterName}:** ${greetingForDiscord.text}`
-              );
-              logger.info(
-                `[Eliza Rooms API] Sent greeting to Discord thread ${threadResult.threadId}`
-              );
-            }
-          } catch (err) {
-            logger.error(
-              "[Eliza Rooms API] Failed to store thread ID or send greeting:",
-              err
+            await discordService.sendToThread(
+              threadResult.threadId,
+              `**🤖 ${characterName}:** ${greetingText}`
             );
+            logger.info(`Sent greeting to Discord thread ${threadResult.threadId}`);
+          } catch (err) {
+            logger.error("Failed to store thread ID or send greeting:", err);
           }
         }
       })
-      .catch((err) => {
-        logger.error("[Eliza Rooms API] Failed to create Discord thread:", err);
+      .catch((err: unknown) => {
+        logger.error("Failed to create Discord thread:", err);
       });
+
+    // ==================== STEP 12: RETURN RESPONSE ====================
+    const duration = Date.now() - startTime;
+    logger.info(`Room creation complete in ${duration}ms`);
+    logger.info(`Returning: roomId=${roomId}, characterId=${characterId || "null"}`);
+    logger.info("========== ROOM CREATION END ==========");
 
     return NextResponse.json({
       success: true,
       roomId,
       characterId: characterId || null,
-      createdAt: greetingTimestamp, // Use greeting timestamp to ensure consistent sorting
+      createdAt: greetingTimestamp,
     });
   } catch (error) {
-    logger.error(
-      "[Eliza Rooms API] Error creating room:",
-      error instanceof Error ? error.stack : error
-    );
+    logger.error("========== ROOM CREATION FAILED ==========");
+    logger.error("Error creating room:", error instanceof Error ? error.stack : error);
+
     return NextResponse.json(
       {
         error: "Failed to create room",
         details: error instanceof Error ? error.message : "Unknown error",
-        stack: error instanceof Error ? error.stack : undefined,
       },
       { status: 500 }
     );
