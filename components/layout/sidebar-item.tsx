@@ -36,10 +36,17 @@ export function SidebarNavigationItem({ item }: SidebarNavigationItemProps) {
           router.push("/login");
         }}
         className={cn(
-          "relative flex w-full items-center gap-3 rounded-none px-3 py-2.5 text-sm font-medium transition-all duration-200",
+          "relative flex w-full items-center gap-3 rounded-none px-3 py-2.5 transition-all duration-200",
           "hover:bg-white/5 hover:text-white/80",
           "text-white/40 border-l-2 border-transparent cursor-pointer",
         )}
+        style={{
+          fontFamily: 'var(--font-roboto-mono)',
+          fontWeight: 400,
+          fontSize: '14px',
+          lineHeight: '18px',
+          letterSpacing: '-0.003em',
+        }}
       >
         <Icon className="h-4 w-4 opacity-50" />
         <span className="flex-1">{item.label}</span>
@@ -53,12 +60,19 @@ export function SidebarNavigationItem({ item }: SidebarNavigationItemProps) {
     <Link
       href={item.href}
       className={cn(
-        "relative flex items-center gap-3 rounded-none px-3 py-2.5 text-sm font-medium transition-all duration-200",
+        "relative flex items-center gap-3 rounded-none px-3 py-2.5 transition-all duration-200",
         "hover:bg-white/5 hover:text-white",
         isActive
           ? "bg-white/10 text-white border-l-2 border-[#FF5800]"
           : "text-white/60 border-l-2 border-transparent",
       )}
+      style={{
+        fontFamily: 'var(--font-roboto-mono)',
+        fontWeight: 400,
+        fontSize: '14px',
+        lineHeight: '18px',
+        letterSpacing: '-0.003em',
+      }}
     >
       <Icon
         className={cn(
