@@ -135,7 +135,7 @@ export function ContainerDeploymentHistory({
         deployments.filter((d) => d.duration_ms).length
       : null;
 
-  const totalCost = deployments.reduce((sum, d) => sum + d.cost, 0);
+  const totalCost = deployments.reduce((sum, d) => sum + (Number(d.cost) || 0), 0);
 
   return (
     <Card>
