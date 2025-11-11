@@ -37,7 +37,7 @@ Your title (4-6 words, Title Case, topic only):`,
 
     // Clean up the response and remove common filler words
     let title = text.trim().replace(/^["']|["']$/g, "");
-    
+
     // Ensure Title Case
     title = title
       .split(" ")
@@ -53,7 +53,9 @@ Your title (4-6 words, Title Case, topic only):`,
   } catch (error) {
     logger.error("[Room Title] Error generating title:", error);
     // Fallback: use first 50 chars of message
-    return firstUserMessage.substring(0, 50).trim() + (firstUserMessage.length > 50 ? "..." : "");
+    return (
+      firstUserMessage.substring(0, 50).trim() +
+      (firstUserMessage.length > 50 ? "..." : "")
+    );
   }
 }
-

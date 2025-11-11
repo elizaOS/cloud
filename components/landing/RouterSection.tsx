@@ -84,7 +84,7 @@ const CustomNode = ({ data, sourcePosition, targetPosition }: any) => {
             </div>
           )}
           {data.label && (
-            <div 
+            <div
               className="text-sm font-bold text-center whitespace-nowrap tracking-wider capitalize"
               style={{ color: "#316AFF", fontFamily: "var(--font-geist-mono)" }}
             >
@@ -132,21 +132,23 @@ const RouterSection = () => {
 
     return Array.from({ length: count }, (_, index) => {
       const progress = index / denominator;
-      
+
       // Stronger exponential distribution: much denser on right
       const leftPercent = Math.pow(progress, 0.4) * 100;
-      
+
       // Only render dots in the right 2/3 of the screen (skip left 1/3)
       if (leftPercent < 33) return null;
-      
+
       // Digital bar graph effect: sharp, quick movements
       const wavePrimary = Math.abs(Math.sin(progress * Math.PI * 4.5));
       const waveSecondary = Math.abs(Math.sin(progress * Math.PI * 9.2));
-      
+
       // Scale amplitude based on position: left side bounces less, right side more
       const positionScale = Math.pow((leftPercent - 33) / 67, 1.5);
-      const amplitude = (8 + wavePrimary * 20 + waveSecondary * 12) * (0.3 + positionScale * 0.7);
-      
+      const amplitude =
+        (8 + wavePrimary * 20 + waveSecondary * 12) *
+        (0.3 + positionScale * 0.7);
+
       const delay = progress * 2.5;
       const duration = 1.2 + (index % 10) * 0.15;
       const size = 2.2 + waveSecondary * 1.0;
@@ -274,7 +276,7 @@ const RouterSection = () => {
       id: "dest-github",
       type: "custom",
       position: { x: 770, y: 178 },
-      data: { 
+      data: {
         label: "",
         borderColor: "transparent",
         glowColor: "transparent",
@@ -398,8 +400,7 @@ const RouterSection = () => {
           </div>
           <h2 className="text-3xl md:text-4xl lg:text-5xl font-bold mb-4 text-white">
             RUN YOUR AGENTS ON ANY MODEL
-            <br />
-            — CLAUDE, GPT, HERMES, AND MORE
+            <br />— CLAUDE, GPT, HERMES, AND MORE
           </h2>
           <p className="text-white/70 max-w-2xl">
             Eliza Cloud dynamically routes inference across 200+ LLMs and
@@ -418,89 +419,91 @@ const RouterSection = () => {
                 fill
                 className="object-cover"
                 style={{
-                  maskImage: "linear-gradient(to right, rgba(0,0,0,0.18) 0%, rgba(0,0,0,0.08) 35%, transparent 60%)",
-                  WebkitMaskImage: "linear-gradient(to right, rgba(0,0,0,0.18) 0%, rgba(0,0,0,0.08) 35%, transparent 60%)",
+                  maskImage:
+                    "linear-gradient(to right, rgba(0,0,0,0.18) 0%, rgba(0,0,0,0.08) 35%, transparent 60%)",
+                  WebkitMaskImage:
+                    "linear-gradient(to right, rgba(0,0,0,0.18) 0%, rgba(0,0,0,0.08) 35%, transparent 60%)",
                 }}
               />
             </div>
           </div>
 
           <div className="w-full h-[600px] relative">
-          <ReactFlow
-            nodes={nodes}
-            edges={edges}
-            nodeTypes={nodeTypes}
-            fitView
-            attributionPosition="bottom-left"
-            proOptions={{ hideAttribution: true }}
-            nodesDraggable={false}
-            nodesConnectable={false}
-            nodesFocusable={false}
-            edgesFocusable={false}
-            elementsSelectable={false}
-            zoomOnScroll={false}
-            zoomOnPinch={false}
-            zoomOnDoubleClick={false}
-            panOnScroll={false}
-            panOnDrag={false}
-            preventScrolling={false}
-            style={{ background: "transparent" }}
-          >
-            <svg style={{ position: "absolute", width: 0, height: 0 }}>
-              <defs>
-                <linearGradient
-                  id="gradient1"
-                  x1="0%"
-                  y1="0%"
-                  x2="100%"
-                  y2="0%"
-                >
-                  <stop offset="0%" stopColor="#FF5800" stopOpacity="1" />
-                  <stop offset="100%" stopColor="#3b82f6" stopOpacity="1" />
-                </linearGradient>
-                <linearGradient
-                  id="gradient2"
-                  x1="0%"
-                  y1="0%"
-                  x2="100%"
-                  y2="0%"
-                >
-                  <stop offset="0%" stopColor="#8b5cf6" stopOpacity="1" />
-                  <stop offset="100%" stopColor="#06b6d4" stopOpacity="1" />
-                </linearGradient>
-                <linearGradient
-                  id="gradient3"
-                  x1="0%"
-                  y1="0%"
-                  x2="100%"
-                  y2="0%"
-                >
-                  <stop offset="0%" stopColor="#3b82f6" stopOpacity="1" />
-                  <stop offset="100%" stopColor="#06b6d4" stopOpacity="1" />
-                </linearGradient>
-                <linearGradient
-                  id="gradient4"
-                  x1="0%"
-                  y1="0%"
-                  x2="100%"
-                  y2="0%"
-                >
-                  <stop offset="0%" stopColor="#eab308" stopOpacity="1" />
-                  <stop offset="100%" stopColor="#8b5cf6" stopOpacity="1" />
-                </linearGradient>
-                <linearGradient
-                  id="gradient5"
-                  x1="0%"
-                  y1="0%"
-                  x2="100%"
-                  y2="0%"
-                >
-                  <stop offset="0%" stopColor="#ef4444" stopOpacity="1" />
-                  <stop offset="100%" stopColor="#eab308" stopOpacity="1" />
-                </linearGradient>
-              </defs>
-            </svg>
-          </ReactFlow>
+            <ReactFlow
+              nodes={nodes}
+              edges={edges}
+              nodeTypes={nodeTypes}
+              fitView
+              attributionPosition="bottom-left"
+              proOptions={{ hideAttribution: true }}
+              nodesDraggable={false}
+              nodesConnectable={false}
+              nodesFocusable={false}
+              edgesFocusable={false}
+              elementsSelectable={false}
+              zoomOnScroll={false}
+              zoomOnPinch={false}
+              zoomOnDoubleClick={false}
+              panOnScroll={false}
+              panOnDrag={false}
+              preventScrolling={false}
+              style={{ background: "transparent" }}
+            >
+              <svg style={{ position: "absolute", width: 0, height: 0 }}>
+                <defs>
+                  <linearGradient
+                    id="gradient1"
+                    x1="0%"
+                    y1="0%"
+                    x2="100%"
+                    y2="0%"
+                  >
+                    <stop offset="0%" stopColor="#FF5800" stopOpacity="1" />
+                    <stop offset="100%" stopColor="#3b82f6" stopOpacity="1" />
+                  </linearGradient>
+                  <linearGradient
+                    id="gradient2"
+                    x1="0%"
+                    y1="0%"
+                    x2="100%"
+                    y2="0%"
+                  >
+                    <stop offset="0%" stopColor="#8b5cf6" stopOpacity="1" />
+                    <stop offset="100%" stopColor="#06b6d4" stopOpacity="1" />
+                  </linearGradient>
+                  <linearGradient
+                    id="gradient3"
+                    x1="0%"
+                    y1="0%"
+                    x2="100%"
+                    y2="0%"
+                  >
+                    <stop offset="0%" stopColor="#3b82f6" stopOpacity="1" />
+                    <stop offset="100%" stopColor="#06b6d4" stopOpacity="1" />
+                  </linearGradient>
+                  <linearGradient
+                    id="gradient4"
+                    x1="0%"
+                    y1="0%"
+                    x2="100%"
+                    y2="0%"
+                  >
+                    <stop offset="0%" stopColor="#eab308" stopOpacity="1" />
+                    <stop offset="100%" stopColor="#8b5cf6" stopOpacity="1" />
+                  </linearGradient>
+                  <linearGradient
+                    id="gradient5"
+                    x1="0%"
+                    y1="0%"
+                    x2="100%"
+                    y2="0%"
+                  >
+                    <stop offset="0%" stopColor="#ef4444" stopOpacity="1" />
+                    <stop offset="100%" stopColor="#eab308" stopOpacity="1" />
+                  </linearGradient>
+                </defs>
+              </svg>
+            </ReactFlow>
           </div>
 
           <div className="router-bounce-layer">
@@ -576,7 +579,8 @@ const RouterSection = () => {
                 }
 
                 50% {
-                  transform: translateY(calc(-1 * var(--dot-amplitude, 24px))) scale(1.12);
+                  transform: translateY(calc(-1 * var(--dot-amplitude, 24px)))
+                    scale(1.12);
                   opacity: 1;
                 }
               }
