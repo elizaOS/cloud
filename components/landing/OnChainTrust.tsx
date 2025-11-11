@@ -4,6 +4,7 @@ import { Button } from "@/components/ui/button";
 import { ArrowUpRight, Check } from "lucide-react";
 import { CornerBrackets, SectionLabel, BrandCard } from "@/components/brand";
 import MicropaymentNetwork from "./MicropaymentNetwork";
+import Image from "next/image";
 
 const agents = [
   {
@@ -28,11 +29,31 @@ const agents = [
 
 export default function OnChainTrust() {
   return (
-    <section className="relative border-t border-white/10 bg-[#0A0A0A] py-16 md:py-24">
-      {/* Corner brackets */}
-      <CornerBrackets size="xl" variant="full-border" className="m-8" />
+    <section className="relative bg-[#0A0A0A] py-16 md:py-24 overflow-hidden">
+      {/* Background skew image */}
+      <div className="absolute top-0 bottom-0 left-4 right-4 pointer-events-none">
+        <Image
+          src="/eliza-skew-v2.png"
+          alt=""
+          fill
+          className="object-cover opacity-30"
+        />
+      </div>
 
-      <div className="container mx-auto px-4">
+      {/* Corner brackets with connecting borders */}
+      <div className="absolute inset-0 pointer-events-none">
+        {/* Top border */}
+        <div className="absolute top-0 left-4 right-4 h-px bg-white/10" />
+        {/* Bottom border */}
+        <div className="absolute bottom-0 left-4 right-4 h-px bg-white/10" />
+        {/* Left border */}
+        <div className="absolute top-0 bottom-0 left-0 w-px bg-white/10 ml-4" />
+        {/* Right border */}
+        <div className="absolute top-0 bottom-0 right-0 w-px bg-white/10 mr-4" />
+      </div>
+      <CornerBrackets size="md" variant="corners" className="mx-4" />
+
+      <div className="container mx-auto px-4 relative z-10">
         {/* Header */}
         <div className="mb-12 flex items-start justify-between">
           <div className="max-w-4xl">
@@ -54,7 +75,12 @@ export default function OnChainTrust() {
 
           <Button
             variant="outline"
-            className="hidden shrink-0 gap-2 border-white/20 bg-transparent text-white hover:bg-white/10 md:flex"
+            className="hidden shrink-0 gap-2 rounded-none md:flex"
+            style={{
+              backgroundColor: "#E1E1E1",
+              borderColor: "#E1E1E1",
+              color: "#000000",
+            }}
           >
             Learn more
             <ArrowUpRight className="h-4 w-4" />
