@@ -43,10 +43,6 @@ export function useAuthRedirect(options?: {
       redirectTimeout.current = setTimeout(() => {
         setIsRedirecting(true);
         const destination = shouldRedirectToDashboard ? redirectTo : "/";
-        console.log(`[useAuthRedirect] Redirecting to ${destination}`, {
-          authenticated,
-          requireAuth,
-        });
 
         router.push(destination);
 

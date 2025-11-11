@@ -302,6 +302,55 @@
     }
   }
 
+  /* Robot Visor Scanner Animation - Slow and organic */
+  @keyframes visor-scan {
+    0% {
+      transform: translateX(-100%);
+      opacity: 0.6;
+    }
+    15% {
+      opacity: 1;
+    }
+    35% {
+      opacity: 0.8;
+    }
+    50% {
+      transform: translateX(calc(100vw - 80px));
+      opacity: 1;
+    }
+    65% {
+      opacity: 0.7;
+    }
+    85% {
+      opacity: 0.9;
+    }
+    100% {
+      transform: translateX(-100%);
+      opacity: 0.6;
+    }
+  }
+
+  @keyframes visor-scan-delayed {
+    0% {
+      transform: translateX(-120%);
+      opacity: 0.4;
+    }
+    20% {
+      opacity: 0.7;
+    }
+    50% {
+      transform: translateX(calc(100vw - 60px));
+      opacity: 0.9;
+    }
+    80% {
+      opacity: 0.5;
+    }
+    100% {
+      transform: translateX(-120%);
+      opacity: 0.4;
+    }
+  }
+
   .scrollbar-hide {
     -ms-overflow-style: none;
     scrollbar-width: none;
@@ -356,6 +405,41 @@
   .brand-tab-active {
     background-color: #252527;
     color: rgb(255 255 255);
+  }
+
+  /* Corner Bracket Hover Effects */
+  .corner-bracket-hover {
+    transition: all 0.3s ease-out;
+    filter: drop-shadow(0 0 0px transparent);
+  }
+
+  .group:hover .corner-bracket-hover {
+    border-color: #FF5800 !important;
+    filter: drop-shadow(0 0 8px #FF5800);
+  }
+
+  /* Individual corner scaling with proper origins */
+  .corner-bracket-tl {
+    transform-origin: top left;
+  }
+  
+  .corner-bracket-tr {
+    transform-origin: top right;
+  }
+  
+  .corner-bracket-bl {
+    transform-origin: bottom left;
+  }
+  
+  .corner-bracket-br {
+    transform-origin: bottom right;
+  }
+
+  .group:hover .corner-bracket-tl,
+  .group:hover .corner-bracket-tr,
+  .group:hover .corner-bracket-bl,
+  .group:hover .corner-bracket-br {
+    transform: scale(1.4);
   }
 }
 
@@ -443,3 +527,10 @@
   background: rgba(255, 88, 0, 0.3) !important;
   border-color: rgba(255, 88, 0, 0.5) !important;
 }
+/* All buttons should have cursor pointer */
+button:not(:disabled),
+[role="button"]:not(:disabled),
+[data-slot="button"]:not(:disabled) {
+  cursor: pointer;
+}
+

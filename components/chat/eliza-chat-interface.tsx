@@ -34,6 +34,12 @@ interface Message {
   content: {
     text: string;
     clientMessageId?: string;
+    attachments?: Array<{
+      id: string;
+      url: string;
+      title?: string;
+      contentType: string;
+    }>;
   };
   isAgent: boolean;
   createdAt: number;
@@ -66,6 +72,7 @@ export function ElizaChatInterface() {
   const characterName = selectedCharacter?.name || agentInfo?.name || "Agent";
   const [isLoading, setIsLoading] = useState(false);
   const [isInitializing, setIsInitializing] = useState(false);
+  const [isLoadingMessages, setIsLoadingMessages] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const scrollAreaRef = useRef<HTMLDivElement>(null);
   const thinkingTimeoutRef = useRef<NodeJS.Timeout | null>(null);
@@ -85,7 +92,6 @@ export function ElizaChatInterface() {
     // Load voice selection from localStorage on mount
     if (typeof window !== "undefined") {
       const saved = localStorage.getItem("eliza-selected-voice-id");
-      console.log("[Voice Init] Loaded from localStorage:", saved);
       return saved;
     }
     return null;
@@ -94,9 +100,6 @@ export function ElizaChatInterface() {
   // Clear audio cache when voice changes (so messages regenerate with new voice)
   useEffect(() => {
     if (messageAudioUrls.current.size > 0) {
-      console.log(
-        "[Voice Change] Clearing audio cache - messages will regenerate with new voice",
-      );
       messageAudioUrls.current.clear();
     }
   }, [selectedVoiceId]);
@@ -124,6 +127,7 @@ export function ElizaChatInterface() {
   }, [selectedModel]);
 
   const loadMessages = useCallback(async (targetRoomId: string) => {
+    setIsLoadingMessages(true);
     try {
       const response = await fetch(`/api/eliza/rooms/${targetRoomId}`);
       if (response.ok) {
@@ -134,24 +138,24 @@ export function ElizaChatInterface() {
         }
         // Note: We don't update selectedCharacterId here anymore
         // Character selection is controlled by the header dropdown
-        console.log("[ElizaChat] Loaded messages for room:", targetRoomId);
       }
     } catch (err) {
       console.error("Error loading messages:", err);
+    } finally {
+      setIsLoadingMessages(false);
     }
   }, []);
 
   // Load messages when roomId from context changes
   useEffect(() => {
     if (roomId) {
-      console.log("[ElizaChat] Room ID changed, loading messages:", roomId);
       loadMessages(roomId);
     } else {
       // Room was deleted or cleared - reset to empty state
-      console.log("[ElizaChat] Room cleared, resetting messages");
       setMessages([]);
       setAgentInfo(null);
       setError(null);
+      setIsLoadingMessages(false);
     }
   }, [roomId, loadMessages]);
 
@@ -159,10 +163,6 @@ export function ElizaChatInterface() {
     async (characterId?: string | null) => {
       const charIdToUse =
         characterId !== undefined ? characterId : selectedCharacterId;
-      console.log(
-        "[ElizaChat] Creating room with character:",
-        charIdToUse || "default",
-      );
       setIsInitializing(true);
       setError(null);
       try {
@@ -172,8 +172,6 @@ export function ElizaChatInterface() {
         if (!result) {
           throw new Error("Failed to create room");
         }
-
-        console.log("[ElizaChat] Room created:", result.roomId, "with character:", result.characterId);
 
         // Load initial messages for the new room
         await loadMessages(result.roomId);
@@ -223,16 +221,6 @@ export function ElizaChatInterface() {
         if (currentVoiceId) {
           requestBody.voiceId = currentVoiceId;
         }
-
-        console.log("[TTS] 🎤 Generating speech:", {
-          currentVoiceId: currentVoiceId || "(none - using default)",
-          voiceName,
-          messageId,
-          textLength: text.length,
-          requestBody,
-          willSendVoiceId: !!requestBody.voiceId,
-          timestamp: new Date().toISOString(),
-        });
 
         const response = await fetch("/api/elevenlabs/tts", {
           method: "POST",
@@ -298,18 +286,11 @@ export function ElizaChatInterface() {
       // Guard: Don't process if no audio blob or already processing
       if (!recorder.audioBlob || isProcessingSTT) return;
 
-      console.log("[ElizaChat STT] Starting transcription...");
       setIsProcessingSTT(true);
 
       try {
         // Ensure the blob is in proper audio format (fix Safari/macOS video/webm issue)
         const audioBlob = await ensureAudioFormat(recorder.audioBlob);
-
-        console.log("[ElizaChat STT] Audio format:", {
-          originalType: recorder.audioBlob.type,
-          finalType: audioBlob.type,
-          size: audioBlob.size,
-        });
 
         // Create FormData with audio file
         const formData = new FormData();
@@ -317,11 +298,6 @@ export function ElizaChatInterface() {
           type: audioBlob.type || "audio/webm",
         });
         formData.append("audio", audioFile);
-
-        console.log("[ElizaChat STT] Sending audio to API...", {
-          size: audioFile.size,
-          type: audioFile.type,
-        });
 
         // Call STT API
         const response = await fetch("/api/elevenlabs/stt", {
@@ -337,12 +313,6 @@ export function ElizaChatInterface() {
         // Parse response - API returns { transcript, duration_ms }
         const { transcript, duration_ms } = await response.json();
 
-        console.log("[ElizaChat STT] Transcription received:", {
-          transcript,
-          duration_ms,
-          length: transcript?.length || 0,
-        });
-
         // Validate transcript
         if (!transcript || transcript.trim().length === 0) {
           toast.error("No speech detected. Please try again.");
@@ -350,11 +320,8 @@ export function ElizaChatInterface() {
           return;
         }
 
-        console.log("[ElizaChat STT] Transcription successful:", transcript);
-
         // Auto-send the transcribed message directly (like /dashboard/chat does)
         if (roomId) {
-          console.log("[ElizaChat STT] Auto-sending transcribed message...");
           await sendMessage(transcript);
         } else {
           console.warn(
@@ -370,7 +337,6 @@ export function ElizaChatInterface() {
         // Cleanup: Clear recording and reset processing state
         recorder.clearRecording();
         setIsProcessingSTT(false);
-        console.log("[ElizaChat STT] Processing complete");
       }
     };
 
@@ -422,7 +388,6 @@ export function ElizaChatInterface() {
           (m) => !m.id.startsWith("temp-"),
         );
 
-        console.log("[Stream] ✅ Received agent response");
         return [...filtered, messageData];
       }
 
@@ -431,7 +396,6 @@ export function ElizaChatInterface() {
         const withoutThinking = prev.filter(
           (m) => !m.id.startsWith("thinking-"),
         );
-        console.log("[Stream] 🤔 Agent is thinking...");
         return [...withoutThinking, messageData];
       }
 
@@ -529,7 +493,6 @@ export function ElizaChatInterface() {
           }
         },
         onComplete: () => {
-          console.log("[Chat] Message streaming completed");
           loadRooms();
         },
       });
@@ -599,7 +562,55 @@ export function ElizaChatInterface() {
                 </div>
               )}
 
-              {messages.length === 0 && !error && (
+              {isLoadingMessages && (
+                <div className="flex flex-col items-center justify-center h-full text-center py-12 space-y-6">
+                  <ElizaAvatar
+                    avatarUrl={agentInfo?.avatarUrl}
+                    name={characterName}
+                    className="h-16 w-16 mb-4"
+                    fallbackClassName="bg-muted"
+                    iconClassName="h-8 w-8 text-muted-foreground"
+                    animate={true}
+                  />
+                  <div className="space-y-2">
+                    <p className="text-base font-semibold">Loading conversation...</p>
+                    <p className="text-sm text-muted-foreground">
+                      Retrieving message history
+                    </p>
+                  </div>
+                  {/* Message Skeletons */}
+                  <div className="w-full max-w-2xl space-y-4 mt-8">
+                    {/* Agent message skeleton */}
+                    <div className="flex justify-start animate-pulse">
+                      <div className="flex flex-col gap-2 max-w-[70%]">
+                        <div className="flex items-center gap-2">
+                          <div className="w-4 h-4 rounded-full bg-white/10" />
+                          <div className="h-4 w-20 bg-white/10 rounded" />
+                        </div>
+                        <div className="h-16 bg-white/5 rounded" />
+                      </div>
+                    </div>
+                    {/* User message skeleton */}
+                    <div className="flex justify-end animate-pulse">
+                      <div className="flex flex-col gap-2 max-w-[70%]">
+                        <div className="h-12 bg-white/10 rounded" />
+                      </div>
+                    </div>
+                    {/* Agent message skeleton */}
+                    <div className="flex justify-start animate-pulse">
+                      <div className="flex flex-col gap-2 max-w-[70%]">
+                        <div className="flex items-center gap-2">
+                          <div className="w-4 h-4 rounded-full bg-white/10" />
+                          <div className="h-4 w-20 bg-white/10 rounded" />
+                        </div>
+                        <div className="h-20 bg-white/5 rounded" />
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {!isLoadingMessages && messages.length === 0 && !error && (
                 <div className="flex flex-col items-center justify-center h-full text-center py-12">
                   <ElizaAvatar
                     avatarUrl={agentInfo?.avatarUrl}
@@ -618,7 +629,7 @@ export function ElizaChatInterface() {
                 </div>
               )}
 
-              {messages.map((message, index) => {
+              {!isLoadingMessages && messages.map((message, index) => {
                 const isThinking = message.id.startsWith("thinking-");
                 return (
                   <div
@@ -666,6 +677,28 @@ export function ElizaChatInterface() {
                                   {message.content.text}
                                 </div>
                               </div>
+                              
+                              {/* Image Attachments */}
+                              {message.content.attachments && message.content.attachments.length > 0 && (
+                                <div className="mt-2 space-y-2">
+                                  {message.content.attachments.map((attachment) => {
+                                    if (attachment.contentType === "IMAGE" || attachment.contentType === "image") {
+                                      return (
+                                        <div key={attachment.id} className="inline-block rounded-lg overflow-hidden border border-white/10 max-w-md">
+                                          <img
+                                            src={attachment.url}
+                                            alt={attachment.title || "Generated image"}
+                                            className="w-full h-auto"
+                                            style={{ display: 'block' }}
+                                          />
+                                        </div>
+                                      );
+                                    }
+                                    return null;
+                                  })}
+                                </div>
+                              )}
+                              
                               {/* Time */}
                               <div className="flex items-center gap-2">
                                 <span
@@ -748,12 +781,33 @@ export function ElizaChatInterface() {
             e.preventDefault();
             sendMessage();
           }}
-          className="border-t p-6 mb-6"
+          className="border-t p-3 mb-4"
           style={{ backgroundColor: "#1D1D1D" }}
         >
-          <div className="space-y-3">
+          <div className="space-y-2">
             {/* Text Input Box - Prominent standalone */}
-            <div className="relative rounded-none border-2 border-border shadow-sm bg-black/20">
+            <div className="relative rounded-none border-2 border-border shadow-sm bg-black/20 overflow-hidden">
+              {/* Robot Eye Visor Scanner - Animated line on top edge with randomness */}
+              <div className="absolute top-0 left-0 right-0 h-[2px] overflow-hidden pointer-events-none z-10">
+                {/* Primary scanner */}
+                <div
+                  className="absolute h-full w-24 bg-gradient-to-r from-transparent via-[#FF5800] to-transparent"
+                  style={{
+                    animation: "visor-scan 4.8s cubic-bezier(0.4, 0, 0.6, 1) infinite",
+                    boxShadow: "0 0 15px 3px rgba(255, 88, 0, 0.7)",
+                    filter: "blur(0.5px)",
+                  }}
+                />
+                {/* Secondary scanner for organic feel */}
+                <div
+                  className="absolute h-full w-16 bg-gradient-to-r from-transparent via-[#FF5800]/60 to-transparent"
+                  style={{
+                    animation: "visor-scan-delayed 6.2s cubic-bezier(0.3, 0.1, 0.7, 0.9) infinite 1.5s",
+                    boxShadow: "0 0 10px 2px rgba(255, 88, 0, 0.5)",
+                    filter: "blur(1px)",
+                  }}
+                />
+              </div>
               <input
                 value={inputText}
                 onChange={(e) => setInputText(e.currentTarget.value)}
@@ -769,7 +823,7 @@ export function ElizaChatInterface() {
                     : "Type your message here..."
                 }
                 disabled={isLoading || !roomId || recorder.isRecording}
-                className="w-full bg-transparent px-4 py-3.5 text-sm text-white placeholder:text-white/60 focus:outline-none disabled:opacity-50"
+                className="w-full bg-transparent px-3 py-2.5 text-sm text-white placeholder:text-white/60 focus:outline-none disabled:opacity-50"
               />
             </div>
 

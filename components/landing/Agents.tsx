@@ -6,7 +6,7 @@ import { SectionLabel, CornerBrackets, BrandCard } from "@/components/brand";
 
 const Agents = () => {
   return (
-    <section className="w-full py-20 md:py-32 bg-[#0A0A0A] relative">
+    <section className="w-full py-12 md:py-20 lg:py-32 bg-[#0A0A0A] relative">
       <div className="container mx-auto px-4 md:px-6">
         {/* Community Agents Showcase */}
         <AgentsShowcase />
@@ -44,15 +44,17 @@ const communityAgents = [
 
 function AgentsShowcase() {
   return (
-    <div className="relative mt-32">
-      {/* Corner brackets */}
-      <CornerBrackets size="xl" variant="full-border" />
+    <div className="relative mt-16 md:mt-24 lg:mt-32">
+      {/* Corner brackets - hidden on mobile */}
+      <div className="hidden md:block">
+        <CornerBrackets size="xl" variant="full-border" />
+      </div>
 
-      <div className="mx-auto max-w-7xl px-8 py-12">
+      <div className="mx-auto max-w-7xl px-4 md:px-2 py-6 md:py-8 lg:py-12">
         {/* Header */}
-        <div className="mb-8 flex items-center justify-between">
+        <div className="mb-6 md:mb-8 flex items-center justify-between">
           <SectionLabel>From the Community</SectionLabel>
-          <button className="flex items-center gap-2 text-white/70 hover:text-white transition-colors">
+          <button className="flex items-center gap-2 text-sm md:text-base text-white/70 hover:text-white transition-colors">
             Explore All
             <ChevronRight className="h-4 w-4" />
           </button>
@@ -65,7 +67,7 @@ function AgentsShowcase() {
               key={agent.id}
               corners={false}
               hover
-              className="overflow-hidden p-0"
+              className="overflow-hidden p-0 cursor-pointer"
             >
               {/* Agent image */}
               <div className="relative aspect-[4/3] overflow-hidden">
@@ -75,9 +77,9 @@ function AgentsShowcase() {
                   fill
                   className="object-cover object-top transition-transform duration-300 group-hover:scale-105"
                 />
-                {/* Orange filter overlay */}
+                {/* Orange filter overlay - hidden by default, shows on hover */}
                 <div
-                  className="absolute inset-0 transition-opacity duration-300 group-hover:opacity-0 z-10"
+                  className="absolute inset-0 opacity-0 transition-opacity duration-300 group-hover:opacity-100 z-10"
                   style={{ backgroundColor: "#FF580080" }}
                 />
                 {/* Gradient overlay */}

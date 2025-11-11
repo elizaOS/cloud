@@ -52,61 +52,11 @@ export class CharacterLoader {
     // Convert to ElizaOS format
     const elizaCharacter = charactersService.toElizaCharacter(dbCharacter);
 
-    console.log("[CharacterLoader] Loading character:", {
-      id: characterId,
-      name: elizaCharacter.name,
-      system: elizaCharacter.system,
-      systemLength: elizaCharacter.system?.length || 0,
-      bio: elizaCharacter.bio,
-      bioLength: typeof elizaCharacter.bio === 'string' ? elizaCharacter.bio.length : Array.isArray(elizaCharacter.bio) ? elizaCharacter.bio.length : 0,
-      plugins: elizaCharacter.plugins,
-      hasStyle: !!elizaCharacter.style,
-      hasMessageExamples: !!(
-        elizaCharacter.messageExamples &&
-        elizaCharacter.messageExamples.length > 0
-      ),
-    });
-
-    // DIAGNOSTIC: Check for missing critical fields
-    if (!elizaCharacter.name || elizaCharacter.name === 'Eliza') {
-      console.error("[CharacterLoader] WARNING: Character name is missing or default:", {
-        characterId,
-        name: elizaCharacter.name,
-        dbCharacter: dbCharacter
-      });
-    }
-    if (!elizaCharacter.system) {
-      console.error("[CharacterLoader] WARNING: System prompt is missing!", {
-        characterId,
-        name: elizaCharacter.name,
-        dbSystemValue: dbCharacter.system,
-      });
-    }
-
     // Build full character with environment settings
     const character = this.buildCharacter(elizaCharacter);
 
     // Resolve plugins
     const plugins = this.resolvePlugins(elizaCharacter.plugins || []);
-
-    console.log("[CharacterLoader] Character loaded successfully:", {
-      name: character.name,
-      system: character.system,
-      systemLength: character.system?.length || 0,
-      bio: character.bio,
-      pluginCount: plugins.length,
-      pluginNames: plugins.map((p) => p.name),
-    });
-
-    // DIAGNOSTIC: Final validation before returning
-    if (!character.system || character.system.includes('You are Eliza')) {
-      console.error("[CharacterLoader] ERROR: Character still has default Eliza system prompt!", {
-        characterId,
-        characterName: character.name,
-        system: character.system,
-        originalSystem: elizaCharacter.system,
-      });
-    }
 
     return { character, plugins };
   }

@@ -3,11 +3,19 @@
 import { useState, useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { DocumentUpload } from "./document-upload";
 import { DocumentList } from "./document-list";
 import { KnowledgeQuery } from "./knowledge-query";
 import { Alert, AlertDescription } from "@/components/ui/alert";
-import { InfoIcon } from "lucide-react";
+import { InfoIcon, Upload, Search, List } from "lucide-react";
+import { cn } from "@/lib/utils";
 
 interface KnowledgeDocument {
   id: string;
@@ -29,6 +37,8 @@ export function KnowledgePageClient() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [serviceAvailable, setServiceAvailable] = useState(true);
+  const [activeTab, setActiveTab] = useState("documents");
+  const [isMounted, setIsMounted] = useState(false);
 
   const fetchDocuments = async () => {
     try {
@@ -65,6 +75,7 @@ export function KnowledgePageClient() {
 
   useEffect(() => {
     fetchDocuments();
+    setIsMounted(true);
   }, []);
 
   const handleUploadSuccess = () => {
@@ -142,11 +153,78 @@ export function KnowledgePageClient() {
         </p>
       </div>
 
-      <Tabs id="knowledge-tabs" defaultValue="documents" className="w-full">
-        <TabsList className="grid w-full grid-cols-3">
-          <TabsTrigger value="documents">Documents</TabsTrigger>
-          <TabsTrigger value="upload">Upload</TabsTrigger>
-          <TabsTrigger value="query">Query</TabsTrigger>
+      <Tabs 
+        id="knowledge-tabs" 
+        value={activeTab} 
+        onValueChange={setActiveTab}
+        className="w-full"
+      >
+        {/* Mobile Dropdown */}
+        {isMounted && (
+          <div className="block md:hidden mb-4">
+            <Select value={activeTab} onValueChange={setActiveTab}>
+              <SelectTrigger className="w-full">
+                <SelectValue>
+                  <div className="flex items-center gap-2">
+                    {activeTab === "documents" && (
+                      <>
+                        <List className="h-4 w-4" />
+                        <span>Documents</span>
+                      </>
+                    )}
+                    {activeTab === "upload" && (
+                      <>
+                        <Upload className="h-4 w-4" />
+                        <span>Upload</span>
+                      </>
+                    )}
+                    {activeTab === "query" && (
+                      <>
+                        <Search className="h-4 w-4" />
+                        <span>Query</span>
+                      </>
+                    )}
+                  </div>
+                </SelectValue>
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="documents">
+                  <div className="flex items-center gap-2">
+                    <List className="h-4 w-4" />
+                    Documents
+                  </div>
+                </SelectItem>
+                <SelectItem value="upload">
+                  <div className="flex items-center gap-2">
+                    <Upload className="h-4 w-4" />
+                    Upload
+                  </div>
+                </SelectItem>
+                <SelectItem value="query">
+                  <div className="flex items-center gap-2">
+                    <Search className="h-4 w-4" />
+                    Query
+                  </div>
+                </SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+        )}
+
+        {/* Desktop Tabs */}
+        <TabsList className="hidden md:grid w-full grid-cols-3">
+          <TabsTrigger value="documents">
+            <List className="h-4 w-4 mr-2" />
+            Documents
+          </TabsTrigger>
+          <TabsTrigger value="upload">
+            <Upload className="h-4 w-4 mr-2" />
+            Upload
+          </TabsTrigger>
+          <TabsTrigger value="query">
+            <Search className="h-4 w-4 mr-2" />
+            Query
+          </TabsTrigger>
         </TabsList>
 
         <TabsContent value="documents" className="space-y-4">

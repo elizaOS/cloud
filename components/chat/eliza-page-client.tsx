@@ -126,15 +126,16 @@ export function ElizaPageClient({
   // Sync URL params with store on mount
   useEffect(() => {
     if (initialRoomId) {
-      console.log("[Chat Page] Setting room ID from URL:", initialRoomId);
       setRoomId(initialRoomId);
     }
     // Set mode from URL parameter
     if (initialMode) {
-      console.log("[Chat Page] Setting mode from URL:", initialMode);
       setMode(initialMode);
     }
-  }, [initialRoomId, initialMode, setRoomId, setMode]);
+    if (initialCharacterId) {
+      setSelectedCharacterId(initialCharacterId);
+    }
+  }, [initialRoomId, initialMode, initialCharacterId, setRoomId, setMode, setSelectedCharacterId]);
 
   // Initialize anonymous session for unauthenticated users
   useEffect(() => {
