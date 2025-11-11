@@ -47,9 +47,14 @@ export function SectionHeader({
         />
         <p
           className={cn(
-            "text-lg md:text-xl uppercase tracking-wider text-white font-medium",
+            "text-xl uppercase tracking-wider font-normal",
             labelClassName,
           )}
+          style={{ 
+            fontFamily: "var(--font-geist-mono)", 
+            color: "#E1E1E1",
+            lineHeight: "26px"
+          }}
         >
           {label}
         </p>
@@ -95,7 +100,14 @@ export function SectionLabel({
         className="inline-block w-2 h-2 rounded-full"
         style={{ backgroundColor: "#FF5800" }}
       />
-      <span className="text-lg md:text-xl uppercase tracking-wider text-white font-medium">
+      <span 
+        className="text-xl uppercase tracking-wider font-normal"
+        style={{ 
+          fontFamily: "var(--font-geist-mono)", 
+          color: "#E1E1E1",
+          lineHeight: "26px"
+        }}
+      >
         {children}
       </span>
     </div>
