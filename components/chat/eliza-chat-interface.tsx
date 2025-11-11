@@ -60,10 +60,14 @@ export function ElizaChatInterface() {
     createRoom: createRoomInStore,
     selectedCharacterId,
     availableCharacters,
+    pendingMessage,
+    setPendingMessage,
   } = useChatStore();
   const [messages, setMessages] = useState<Message[]>([]);
   const [agentInfo, setAgentInfo] = useState<AgentInfo | null>(null);
   const [inputText, setInputText] = useState("");
+  const isPendingMessageProcessingRef = useRef(false);
+  const pendingMessageToSendRef = useRef<string | null>(null);
 
   // Get character name from store
   const selectedCharacter = availableCharacters.find(
@@ -191,21 +195,54 @@ export function ElizaChatInterface() {
 
   // Check for pending message from landing page and auto-send it
   useEffect(() => {
-    const pendingMessage = localStorage.getItem("eliza-pending-message");
-    if (pendingMessage && roomId && messages.length === 0 && !isLoading) {
-      // Clear from localStorage
-      localStorage.removeItem("eliza-pending-message");
+    // Guard: Only process if we have a pending message and not already processing
+    if (!pendingMessage || isPendingMessageProcessingRef.current || isLoading || isInitializing) {
+      return;
+    }
+
+    // If no roomId exists, create one first
+    if (!roomId) {
+      console.log("[ElizaChat] Pending message found but no room - creating room first");
+      isPendingMessageProcessingRef.current = true;
+      
+      // Store the message in ref so we can send it after room is created
+      pendingMessageToSendRef.current = pendingMessage;
+      
+      // Clear from Zustand immediately to prevent re-triggering
+      setPendingMessage(null);
+      
+      createRoom().then(() => {
+        // Room creation will update roomId, which will trigger sending logic
+        console.log("[ElizaChat] Room created for pending message");
+      }).catch((err) => {
+        console.error("[ElizaChat] Failed to create room for pending message:", err);
+        isPendingMessageProcessingRef.current = false;
+        pendingMessageToSendRef.current = null;
+      });
+      return;
+    }
+
+    // If we have a roomId and a pending message in ref (after room creation), send it
+    if (roomId && pendingMessageToSendRef.current && !isLoadingMessages) {
+      const messageToSend = pendingMessageToSendRef.current;
+      console.log("[ElizaChat] Auto-sending pending message:", messageToSend);
+      
+      // Clear the ref
+      pendingMessageToSendRef.current = null;
 
       // Auto-send after a short delay (wait for room to be fully ready)
       setTimeout(() => {
-        setInputText(pendingMessage);
+        setInputText(messageToSend);
         setTimeout(() => {
-          sendMessage(pendingMessage);
+          sendMessage(messageToSend).finally(() => {
+            // Reset processing flag after message is sent
+            isPendingMessageProcessingRef.current = false;
+          });
         }, 100);
       }, 500);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [roomId, messages.length, isLoading]);
+  }, [roomId, isLoading, isInitializing, pendingMessage, isLoadingMessages]);
 
   const generateSpeech = useCallback(
     async (text: string, messageId: string) => {
