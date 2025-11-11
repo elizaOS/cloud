@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Loader2, Send, Mic, Square, Volume2, Plus } from "lucide-react";
 import { ElizaAvatar } from "./eliza-avatar";
+import { EmptyChatState } from "./empty-chat-state";
 import { KnowledgeDrawer } from "./knowledge-drawer";
 import { useAudioRecorder } from "./hooks/use-audio-recorder";
 import { useAudioPlayer } from "./hooks/use-audio-player";
@@ -600,22 +601,32 @@ export function ElizaChatInterface() {
               )}
 
               {messages.length === 0 && !error && (
-                <div className="flex flex-col items-center justify-center h-full text-center py-12">
-                  <ElizaAvatar
-                    avatarUrl={agentInfo?.avatarUrl}
-                    name={agentInfo?.name}
-                    className="h-16 w-16 mb-4"
-                    fallbackClassName="bg-muted"
-                    iconClassName="h-8 w-8 text-muted-foreground"
-                  />
-                  <h3 className="text-lg font-semibold mb-2">
-                    Start a conversation
-                  </h3>
-                  <p className="text-sm text-muted-foreground max-w-md">
-                    Ask me anything about AI, development, or how elizaOS can
-                    help you build intelligent agents.
-                  </p>
-                </div>
+                <>
+                  {!roomId ? (
+                    <EmptyChatState
+                      agentName={agentInfo?.name}
+                      agentAvatar={agentInfo?.avatarUrl}
+                      selectedCharacterId={selectedCharacterId}
+                    />
+                  ) : (
+                    <div className="flex flex-col items-center justify-center h-full text-center py-12">
+                      <ElizaAvatar
+                        avatarUrl={agentInfo?.avatarUrl}
+                        name={agentInfo?.name}
+                        className="h-16 w-16 mb-4"
+                        fallbackClassName="bg-muted"
+                        iconClassName="h-8 w-8 text-muted-foreground"
+                      />
+                      <h3 className="text-lg font-semibold mb-2">
+                        Start a conversation
+                      </h3>
+                      <p className="text-sm text-muted-foreground max-w-md">
+                        Ask me anything about AI, development, or how elizaOS can
+                        help you build intelligent agents.
+                      </p>
+                    </div>
+                  )}
+                </>
               )}
 
               {messages.map((message, index) => {
@@ -764,9 +775,11 @@ export function ElizaChatInterface() {
                   }
                 }}
                 placeholder={
-                  recorder.isRecording
-                    ? "Recording... Click stop when done"
-                    : "Type your message here..."
+                  !roomId
+                    ? "Create a new chat to start messaging..."
+                    : recorder.isRecording
+                      ? "Recording... Click stop when done"
+                      : "Type your message here..."
                 }
                 disabled={isLoading || !roomId || recorder.isRecording}
                 className="w-full bg-transparent px-4 py-3.5 text-sm text-white placeholder:text-white/60 focus:outline-none disabled:opacity-50"
