@@ -398,14 +398,29 @@ const RouterSection = () => {
           <div className="mb-4">
             <SectionLabel>SMART, CONNECTED INTELLIGENCE</SectionLabel>
           </div>
-          <h2 className="text-3xl md:text-4xl lg:text-5xl font-bold mb-4 text-white">
+          <h2 
+            className="text-5xl font-medium mb-4 uppercase"
+            style={{
+              fontFamily: "var(--font-geist-sans)",
+              fontSize: "48px",
+              lineHeight: "62px",
+              color: "#FFFFFF"
+            }}
+          >
             RUN YOUR AGENTS ON ANY MODEL
             <br />— CLAUDE, GPT, HERMES, AND MORE
           </h2>
-          <p className="text-white/70 max-w-2xl">
-            Eliza Cloud dynamically routes inference across 200+ LLMs and
-            integrates seamlessly with any compatible tool or API — from Notion
-            to GitHub.
+          <p 
+            className="max-w-2xl font-normal"
+            style={{
+              fontFamily: "var(--font-geist-mono)",
+              fontSize: "16px",
+              lineHeight: "21px",
+              letterSpacing: "-0.003em",
+              color: "#858585"
+            }}
+          >
+            Eliza Cloud dynamically routes inference across 200+ LLMs and integrates the MCP Gateway for seamless access to any compatible tool or API — from Notion to GitHub.
           </p>
         </div>
 

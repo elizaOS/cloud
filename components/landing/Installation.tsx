@@ -41,7 +41,15 @@ export default function Installation() {
         </div>
 
         {/* Hero heading */}
-        <h2 className="text-3xl md:text-4xl lg:text-5xl font-bold text-center mb-12 text-white max-w-5xl mx-auto">
+        <h2 
+          className="text-5xl font-medium text-center mb-12 uppercase max-w-5xl mx-auto"
+          style={{
+            fontFamily: "var(--font-geist-sans)",
+            fontSize: "48px",
+            lineHeight: "62px",
+            color: "#FFFFFF"
+          }}
+        >
           FROM YOUR TERMINAL TO THE CLOUD — IN ONE LINE.
         </h2>
 
@@ -110,7 +118,16 @@ export default function Installation() {
                 style={{ backgroundColor: "#FF5800" }}
                 aria-hidden="true"
               />
-              <p className="text-lg md:text-xl text-white/70 leading-relaxed uppercase tracking-wide">
+              <p 
+                className="font-normal uppercase tracking-wide"
+                style={{
+                  fontFamily: "var(--font-geist-mono)",
+                  fontSize: "16px",
+                  lineHeight: "21px",
+                  letterSpacing: "-0.003em",
+                  color: "#858585"
+                }}
+              >
                 ELIZA CLOUD RUNS YOUR CONTAINERS ON HIGH-PERFORMANCE
                 INFRASTRUCTURE WITH BUILT-IN LOGS AND METRICS.
               </p>

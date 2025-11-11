@@ -61,12 +61,29 @@ export default function OnChainTrust() {
               <SectionLabel>ON-CHAIN TRUST & ECONOMY</SectionLabel>
             </div>
 
-            <h2 className="mb-6 text-3xl md:text-4xl lg:text-5xl font-bold leading-tight text-white">
+            <h2 
+              className="mb-6 text-5xl font-medium uppercase"
+              style={{
+                fontFamily: "var(--font-geist-sans)",
+                fontSize: "48px",
+                lineHeight: "62px",
+                color: "#FFFFFF"
+              }}
+            >
               EVERY AGENT HAS A VERIFIABLE ON-CHAIN IDENTITY — ENABLING
               PROVENANCE, REPUTATION, AND SECURE INTERACTIONS.
             </h2>
 
-            <p className="text-sm md:text-base leading-relaxed text-white/70">
+            <p 
+              className="font-normal"
+              style={{
+                fontFamily: "var(--font-geist-mono)",
+                fontSize: "16px",
+                lineHeight: "21px",
+                letterSpacing: "-0.003em",
+                color: "#858585"
+              }}
+            >
               Through the x402 standard, agents can also send and receive
               micropayments instantly — powering the world&apos;s first open
               agent economy.
@@ -138,7 +155,16 @@ export default function OnChainTrust() {
               ))}
             </BrandCard>
 
-            <p className="text-sm leading-relaxed text-white/70">
+            <p 
+              className="font-normal"
+              style={{
+                fontFamily: "var(--font-geist-mono)",
+                fontSize: "16px",
+                lineHeight: "21px",
+                letterSpacing: "-0.003em",
+                color: "#858585"
+              }}
+            >
               Every agent on Eliza Cloud has a verifiable on-chain identity,
               anchored to ERC-8004.
             </p>
@@ -150,7 +176,16 @@ export default function OnChainTrust() {
             className="flex min-h-[400px] items-center justify-center rounded-sm"
           >
             <div className="w-full text-center">
-              <p className="mb-8 text-sm text-white/70">
+              <p 
+                className="mb-8 font-normal"
+                style={{
+                  fontFamily: "var(--font-geist-mono)",
+                  fontSize: "16px",
+                  lineHeight: "21px",
+                  letterSpacing: "-0.003em",
+                  color: "#858585"
+                }}
+              >
                 Agents can also send and receive micropayments instantly.
               </p>
 
