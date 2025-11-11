@@ -34,6 +34,12 @@ interface Message {
   content: {
     text: string;
     clientMessageId?: string;
+    attachments?: Array<{
+      id: string;
+      url: string;
+      title?: string;
+      contentType: string;
+    }>;
   };
   isAgent: boolean;
   createdAt: number;
@@ -719,6 +725,27 @@ export function ElizaChatInterface() {
                                   {message.content.text}
                                 </div>
                               </div>
+                              
+                              {/* Image Attachments */}
+                              {message.content.attachments && message.content.attachments.length > 0 && (
+                                <div className="mt-2 space-y-2">
+                                  {message.content.attachments.map((attachment) => {
+                                    if (attachment.contentType === "IMAGE" || attachment.contentType === "image") {
+                                      return (
+                                        <div key={attachment.id} className="rounded-lg overflow-hidden border border-white/10">
+                                          <img
+                                            src={attachment.url}
+                                            alt={attachment.title || "Generated image"}
+                                            className="w-full h-auto max-w-md"
+                                          />
+                                        </div>
+                                      );
+                                    }
+                                    return null;
+                                  })}
+                                </div>
+                              )}
+                              
                               {/* Time */}
                               <div className="flex items-center gap-2">
                                 <span

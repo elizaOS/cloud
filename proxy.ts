@@ -25,6 +25,7 @@ const publicPaths = [
   "/api/v1/generate-video",
   "/api/v1/chat",
   "/api/v1/chat/completions",
+  "/api/v1/responses",
   "/api/v1/embeddings",
   "/api/v1/models",
   "/api/stripe/webhook",
