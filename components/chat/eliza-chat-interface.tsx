@@ -684,11 +684,12 @@ export function ElizaChatInterface() {
                                   {message.content.attachments.map((attachment) => {
                                     if (attachment.contentType === "IMAGE" || attachment.contentType === "image") {
                                       return (
-                                        <div key={attachment.id} className="rounded-lg overflow-hidden border border-white/10">
+                                        <div key={attachment.id} className="inline-block rounded-lg overflow-hidden border border-white/10 max-w-md">
                                           <img
                                             src={attachment.url}
                                             alt={attachment.title || "Generated image"}
-                                            className="w-full h-auto max-w-md"
+                                            className="w-full h-auto"
+                                            style={{ display: 'block' }}
                                           />
                                         </div>
                                       );
