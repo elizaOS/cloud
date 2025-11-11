@@ -1,5 +1,6 @@
 "use client";
 
+import * as React from "react";
 import {
   User,
   Building2,
@@ -8,6 +9,14 @@ import {
   Key,
   PieChart,
 } from "lucide-react";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { cn } from "@/lib/utils";
 import type { SettingsTab } from "./settings-page-client";
 
 interface SettingsTabsProps {
@@ -26,44 +35,95 @@ const tabs = [
 ];
 
 export function SettingsTabs({ activeTab, onTabChange }: SettingsTabsProps) {
-  return (
-    <div className="border-l border-t border-brand-surface flex items-start w-full overflow-x-auto">
-      {tabs.map((tab, index) => {
-        const Icon = tab.icon;
-        const isActive = activeTab === tab.id;
-        const isLast = index === tabs.length - 1;
+  const [isMounted, setIsMounted] = React.useState(false);
 
-        return (
-          <button
-            key={tab.id}
-            type="button"
-            onClick={() => onTabChange(tab.id)}
-            className={`
-              flex items-center justify-center gap-2 px-6 py-3 
-              border-b border-r border-brand-surface 
-              transition-all duration-200
-              ${
+  React.useEffect(() => {
+    setIsMounted(true);
+  }, []);
+
+  // Prevent hydration mismatch
+  if (!isMounted) {
+    return null;
+  }
+
+  const activeTabData = tabs.find((tab) => tab.id === activeTab);
+
+  return (
+    <>
+      {/* Mobile Dropdown */}
+      <div className="block md:hidden w-full mb-6">
+        <Select value={activeTab} onValueChange={(value) => onTabChange(value as SettingsTab)}>
+          <SelectTrigger className="w-full h-12 rounded-sm border border-brand-surface bg-[rgba(0,0,0,0.4)] backdrop-blur-sm text-white">
+            <SelectValue>
+              <div className="flex items-center gap-2">
+                {activeTabData && (
+                  <>
+                    <activeTabData.icon className="h-4 w-4" />
+                    {activeTabData.label}
+                  </>
+                )}
+              </div>
+            </SelectValue>
+          </SelectTrigger>
+          <SelectContent className="bg-[#1A1A1A] border-brand-surface">
+            {tabs.map((tab) => {
+              const Icon = tab.icon;
+              return (
+                <SelectItem
+                  key={tab.id}
+                  value={tab.id}
+                  className="text-white cursor-pointer hover:bg-[rgba(255,255,255,0.07)] focus:bg-[rgba(255,255,255,0.07)]"
+                >
+                  <div className="flex items-center gap-2">
+                    <Icon className="h-4 w-4" />
+                    {tab.label}
+                  </div>
+                </SelectItem>
+              );
+            })}
+          </SelectContent>
+        </Select>
+      </div>
+
+      {/* Desktop Tabs */}
+      <div className="hidden md:flex border-l border-t border-brand-surface items-start w-full overflow-x-auto">
+        {tabs.map((tab, index) => {
+          const Icon = tab.icon;
+          const isActive = activeTab === tab.id;
+          const isLast = index === tabs.length - 1;
+
+          return (
+            <button
+              key={tab.id}
+              type="button"
+              onClick={() => onTabChange(tab.id)}
+              className={cn(
+                "flex items-center justify-center gap-2 px-6 py-3",
+                "border-b border-r border-brand-surface",
+                "transition-all duration-200",
                 isActive
                   ? "bg-[rgba(255,255,255,0.07)] border-b-2 border-b-white"
                   : "hover:bg-[rgba(255,255,255,0.03)]"
-              }
-              ${isLast ? "" : ""}
-            `}
-          >
-            <Icon
-              className={`h-4 w-4 ${isActive ? "text-white" : "text-[#A2A2A2]"}`}
-            />
-            <span
-              className={`
-                text-sm font-medium font-mono tracking-tight
-                ${isActive ? "text-white" : "text-[#A2A2A2]"}
-              `}
+              )}
             >
-              {tab.label}
-            </span>
-          </button>
-        );
-      })}
-    </div>
+              <Icon
+                className={cn(
+                  "h-4 w-4",
+                  isActive ? "text-white" : "text-[#A2A2A2]"
+                )}
+              />
+              <span
+                className={cn(
+                  "text-sm font-medium font-mono tracking-tight",
+                  isActive ? "text-white" : "text-[#A2A2A2]"
+                )}
+              >
+                {tab.label}
+              </span>
+            </button>
+          );
+        })}
+      </div>
+    </>
   );
 }
