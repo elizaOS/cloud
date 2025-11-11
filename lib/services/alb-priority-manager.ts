@@ -65,7 +65,7 @@ export class DatabasePriorityManager {
           userId,
           priority: nextPriority,
           createdAt: new Date(),
-          expiresAt: null,
+          // expiresAt is omitted - will default to NULL in the database
         })
         .returning();
 

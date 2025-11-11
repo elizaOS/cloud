@@ -128,7 +128,14 @@ export function SidebarBottomPanel({ className }: SidebarBottomPanelProps) {
 
       {/* User Info Header - Clickable to expand/collapse */}
       <div className="relative z-10 px-4 py-3 border-b border-white/10">
-        <div className="flex flex-col gap-2">
+        <div 
+          className="flex flex-col gap-2"
+          style={{
+            fontFamily: 'var(--font-roboto-mono)',
+            fontWeight: 400,
+            letterSpacing: '-0.003em',
+          }}
+        >
           <div className="text-sm font-medium text-white truncate">
             {getUserName()}
           </div>
@@ -139,7 +146,14 @@ export function SidebarBottomPanel({ className }: SidebarBottomPanelProps) {
       </div>
 
       {/* Balance Display - Always Visible */}
-      <div className="relative z-10 px-4 py-3 border-b border-white/10">
+      <div 
+        className="relative z-10 px-4 py-3 border-b border-white/10"
+        style={{
+          fontFamily: 'var(--font-roboto-mono)',
+          fontWeight: 400,
+          letterSpacing: '-0.003em',
+        }}
+      >
         {loadingCredits && creditBalance === null ? (
           <div className="flex items-center gap-2 text-white/40">
             <Loader2 className="h-4 w-4 animate-spin" />
@@ -173,11 +187,18 @@ export function SidebarBottomPanel({ className }: SidebarBottomPanelProps) {
               key={item.id}
               onClick={() => router.push(item.href)}
               className={cn(
-                "w-full flex items-center gap-3 px-4 py-2.5 text-sm font-medium transition-all duration-200 border-l-2 cursor-pointer",
+                "w-full flex items-center gap-3 px-4 py-2.5 transition-all duration-200 border-l-2 cursor-pointer",
                 isActive
                   ? "bg-white/10 text-white border-[#FF5800]"
                   : "text-white/60 hover:bg-white/5 hover:text-white border-transparent",
               )}
+              style={{
+                fontFamily: 'var(--font-roboto-mono)',
+                fontWeight: 400,
+                fontSize: '14px',
+                lineHeight: '18px',
+                letterSpacing: '-0.003em',
+              }}
             >
               <Icon
                 className={cn(
@@ -195,7 +216,14 @@ export function SidebarBottomPanel({ className }: SidebarBottomPanelProps) {
       <div className="relative z-10 border-t border-white/5">
         <button
           onClick={onSignOut}
-          className="w-full flex items-center gap-3 px-4 py-2.5 text-sm font-medium text-white/60 hover:bg-white/5 hover:text-red-400 transition-all duration-200 cursor-pointer"
+          className="w-full flex items-center gap-3 px-4 py-2.5 text-white/60 hover:bg-white/5 hover:text-red-400 transition-all duration-200 cursor-pointer"
+          style={{
+            fontFamily: 'var(--font-roboto-mono)',
+            fontWeight: 400,
+            fontSize: '14px',
+            lineHeight: '18px',
+            letterSpacing: '-0.003em',
+          }}
         >
           <LogOut className="h-4 w-4" />
           <span>Logout</span>

@@ -92,7 +92,6 @@ export function ElizaChatInterface() {
     // Load voice selection from localStorage on mount
     if (typeof window !== "undefined") {
       const saved = localStorage.getItem("eliza-selected-voice-id");
-      console.log("[Voice Init] Loaded from localStorage:", saved);
       return saved;
     }
     return null;
@@ -101,9 +100,6 @@ export function ElizaChatInterface() {
   // Clear audio cache when voice changes (so messages regenerate with new voice)
   useEffect(() => {
     if (messageAudioUrls.current.size > 0) {
-      console.log(
-        "[Voice Change] Clearing audio cache - messages will regenerate with new voice",
-      );
       messageAudioUrls.current.clear();
     }
   }, [selectedVoiceId]);
@@ -142,7 +138,6 @@ export function ElizaChatInterface() {
         }
         // Note: We don't update selectedCharacterId here anymore
         // Character selection is controlled by the header dropdown
-        console.log("[ElizaChat] Loaded messages for room:", targetRoomId);
       }
     } catch (err) {
       console.error("Error loading messages:", err);
@@ -154,11 +149,9 @@ export function ElizaChatInterface() {
   // Load messages when roomId from context changes
   useEffect(() => {
     if (roomId) {
-      console.log("[ElizaChat] Room ID changed, loading messages:", roomId);
       loadMessages(roomId);
     } else {
       // Room was deleted or cleared - reset to empty state
-      console.log("[ElizaChat] Room cleared, resetting messages");
       setMessages([]);
       setAgentInfo(null);
       setError(null);
@@ -170,10 +163,6 @@ export function ElizaChatInterface() {
     async (characterId?: string | null) => {
       const charIdToUse =
         characterId !== undefined ? characterId : selectedCharacterId;
-      console.log(
-        "[ElizaChat] Creating room with character:",
-        charIdToUse || "default",
-      );
       setIsInitializing(true);
       setError(null);
       try {
@@ -183,8 +172,6 @@ export function ElizaChatInterface() {
         if (!newRoomId) {
           throw new Error("Failed to create room");
         }
-
-        console.log("[ElizaChat] Room created:", newRoomId);
 
         // Load initial messages for the new room
         await loadMessages(newRoomId);
@@ -234,16 +221,6 @@ export function ElizaChatInterface() {
         if (currentVoiceId) {
           requestBody.voiceId = currentVoiceId;
         }
-
-        console.log("[TTS] 🎤 Generating speech:", {
-          currentVoiceId: currentVoiceId || "(none - using default)",
-          voiceName,
-          messageId,
-          textLength: text.length,
-          requestBody,
-          willSendVoiceId: !!requestBody.voiceId,
-          timestamp: new Date().toISOString(),
-        });
 
         const response = await fetch("/api/elevenlabs/tts", {
           method: "POST",
@@ -309,18 +286,11 @@ export function ElizaChatInterface() {
       // Guard: Don't process if no audio blob or already processing
       if (!recorder.audioBlob || isProcessingSTT) return;
 
-      console.log("[ElizaChat STT] Starting transcription...");
       setIsProcessingSTT(true);
 
       try {
         // Ensure the blob is in proper audio format (fix Safari/macOS video/webm issue)
         const audioBlob = await ensureAudioFormat(recorder.audioBlob);
-
-        console.log("[ElizaChat STT] Audio format:", {
-          originalType: recorder.audioBlob.type,
-          finalType: audioBlob.type,
-          size: audioBlob.size,
-        });
 
         // Create FormData with audio file
         const formData = new FormData();
@@ -328,11 +298,6 @@ export function ElizaChatInterface() {
           type: audioBlob.type || "audio/webm",
         });
         formData.append("audio", audioFile);
-
-        console.log("[ElizaChat STT] Sending audio to API...", {
-          size: audioFile.size,
-          type: audioFile.type,
-        });
 
         // Call STT API
         const response = await fetch("/api/elevenlabs/stt", {
@@ -348,12 +313,6 @@ export function ElizaChatInterface() {
         // Parse response - API returns { transcript, duration_ms }
         const { transcript, duration_ms } = await response.json();
 
-        console.log("[ElizaChat STT] Transcription received:", {
-          transcript,
-          duration_ms,
-          length: transcript?.length || 0,
-        });
-
         // Validate transcript
         if (!transcript || transcript.trim().length === 0) {
           toast.error("No speech detected. Please try again.");
@@ -361,11 +320,8 @@ export function ElizaChatInterface() {
           return;
         }
 
-        console.log("[ElizaChat STT] Transcription successful:", transcript);
-
         // Auto-send the transcribed message directly (like /dashboard/chat does)
         if (roomId) {
-          console.log("[ElizaChat STT] Auto-sending transcribed message...");
           await sendMessage(transcript);
         } else {
           console.warn(
@@ -381,7 +337,6 @@ export function ElizaChatInterface() {
         // Cleanup: Clear recording and reset processing state
         recorder.clearRecording();
         setIsProcessingSTT(false);
-        console.log("[ElizaChat STT] Processing complete");
       }
     };
 
@@ -433,7 +388,6 @@ export function ElizaChatInterface() {
           (m) => !m.id.startsWith("temp-"),
         );
 
-        console.log("[Stream] ✅ Received agent response");
         return [...filtered, messageData];
       }
 
@@ -442,7 +396,6 @@ export function ElizaChatInterface() {
         const withoutThinking = prev.filter(
           (m) => !m.id.startsWith("thinking-"),
         );
-        console.log("[Stream] 🤔 Agent is thinking...");
         return [...withoutThinking, messageData];
       }
 
@@ -540,7 +493,6 @@ export function ElizaChatInterface() {
           }
         },
         onComplete: () => {
-          console.log("[Chat] Message streaming completed");
           loadRooms();
         },
       });
@@ -732,11 +684,12 @@ export function ElizaChatInterface() {
                                   {message.content.attachments.map((attachment) => {
                                     if (attachment.contentType === "IMAGE" || attachment.contentType === "image") {
                                       return (
-                                        <div key={attachment.id} className="rounded-lg overflow-hidden border border-white/10">
+                                        <div key={attachment.id} className="inline-block rounded-lg overflow-hidden border border-white/10 max-w-md">
                                           <img
                                             src={attachment.url}
                                             alt={attachment.title || "Generated image"}
-                                            className="w-full h-auto max-w-md"
+                                            className="w-full h-auto"
+                                            style={{ display: 'block' }}
                                           />
                                         </div>
                                       );
