@@ -202,6 +202,13 @@ export async function POST(
               ? result.message.content
               : result.message.content?.text || "";
 
+          // Extract attachments if present
+          const attachments =
+            typeof result.message.content === "object" &&
+            result.message.content?.attachments
+              ? result.message.content.attachments
+              : undefined;
+
           // Send agent response
           sendEvent("message", {
             id: result.message.id,
@@ -210,6 +217,7 @@ export async function POST(
             content: {
               text: responseText,
               source: "agent",
+              ...(attachments && { attachments }),
             },
             createdAt: result.message.createdAt || Date.now(),
             isAgent: true,
