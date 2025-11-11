@@ -85,15 +85,12 @@ export function AiAssistant({
           }
         }
 
-        console.log("Prompts generation complete:", fullText);
-
         // Extract JSON array from the response
         const jsonMatch = fullText.match(/\[[\s\S]*?\]/);
         if (jsonMatch) {
           try {
             const prompts = JSON.parse(jsonMatch[0]);
             if (Array.isArray(prompts) && prompts.length > 0) {
-              console.log("Setting new prompts:", prompts);
               setQuickPrompts(prompts);
             }
           } catch (error) {

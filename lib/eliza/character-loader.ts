@@ -40,32 +40,11 @@ export class CharacterLoader {
     // Convert to ElizaOS format
     const elizaCharacter = charactersService.toElizaCharacter(dbCharacter);
 
-    console.log("[CharacterLoader] Loading character:", {
-      id: characterId,
-      name: elizaCharacter.name,
-      system: elizaCharacter.system,
-      bio: elizaCharacter.bio,
-      plugins: elizaCharacter.plugins,
-      hasStyle: !!elizaCharacter.style,
-      hasMessageExamples: !!(
-        elizaCharacter.messageExamples &&
-        elizaCharacter.messageExamples.length > 0
-      ),
-    });
-
     // Build full character with environment settings
     const character = this.buildCharacter(elizaCharacter);
 
     // Resolve plugins
     const plugins = this.resolvePlugins(elizaCharacter.plugins || []);
-
-    console.log("[CharacterLoader] Character loaded successfully:", {
-      name: character.name,
-      system: character.system,
-      bio: character.bio,
-      pluginCount: plugins.length,
-      pluginNames: plugins.map((p) => p.name),
-    });
 
     return { character, plugins };
   }
