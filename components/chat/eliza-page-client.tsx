@@ -3,8 +3,12 @@
 import { useEffect, useState } from "react";
 import { ElizaChatInterface } from "@/components/chat/eliza-chat-interface";
 import { SignupPromptBanner } from "@/components/chat/signup-prompt-banner";
+import { ChatHeader } from "@/components/chat/chat-header";
+import { SessionsSidebar } from "@/components/chat/sessions-sidebar";
+import { AgentDNAPanel } from "@/components/chat/agent-dna-panel";
 import { useSetPageHeader } from "@/components/layout/page-header-context";
 import { useChatStore, type Character } from "@/stores/chat-store";
+import { useModeStore } from "@/stores/mode-store";
 import type { ElizaCharacter } from "@/lib/types";
 import { getOrCreateAnonymousUserAction } from "@/app/actions/anonymous";
 
@@ -13,6 +17,7 @@ interface ElizaPageClientProps {
   isAuthenticated: boolean;
   initialRoomId?: string;
   initialCharacterId?: string;
+  initialMode?: "chat" | "build";
 }
 
 export function ElizaPageClient({
@@ -20,6 +25,7 @@ export function ElizaPageClient({
   isAuthenticated,
   initialRoomId,
   initialCharacterId,
+  initialMode = "chat",
 }: ElizaPageClientProps) {
   const [anonymousSession, setAnonymousSession] = useState<{
     messageCount: number;
@@ -35,6 +41,9 @@ export function ElizaPageClient({
     setRoomId,
     setSelectedCharacterId,
   } = useChatStore();
+  
+  // Mode store - Must be called at top level before any early returns
+  const { setMode, mode } = useModeStore();
 
   // Note: Page header is now handled by ChatHeader component
   // Remove this if you want to completely disable the old header system for chat
@@ -70,7 +79,12 @@ export function ElizaPageClient({
       );
       setSelectedCharacterId(initialCharacterId);
     }
-  }, [initialRoomId, initialCharacterId, setRoomId, setSelectedCharacterId]);
+    // Set mode from URL parameter
+    if (initialMode) {
+      console.log("[Chat Page] Setting mode from URL:", initialMode);
+      setMode(initialMode);
+    }
+  }, [initialRoomId, initialCharacterId, initialMode, setRoomId, setSelectedCharacterId, setMode]);
 
   // Initialize anonymous session for unauthenticated users
   useEffect(() => {
@@ -104,7 +118,10 @@ export function ElizaPageClient({
   }
 
   return (
-    <div className="flex h-full flex-col overflow-hidden">
+    <div className="flex h-screen w-full flex-col overflow-hidden bg-[#0A0A0A]">
+      {/* Custom Chat Header with Agent Switcher and Mode Toggle */}
+      <ChatHeader />
+      
       {/* Signup prompt banner for anonymous users */}
       {!isAuthenticated && anonymousSession && (
         <SignupPromptBanner
@@ -113,9 +130,25 @@ export function ElizaPageClient({
         />
       )}
 
-      {/* Chat Interface */}
-      <div className="flex flex-1 overflow-hidden">
-        <ElizaChatInterface />
+      {/* Main Content Area - Conditional based on mode */}
+      <div className="flex flex-1 overflow-hidden min-h-0">
+        {mode === "chat" ? (
+          <>
+            {/* Chat Mode: Sessions Sidebar + Chat Interface */}
+            <SessionsSidebar />
+            <div className="flex-1 overflow-hidden min-h-0">
+              <ElizaChatInterface />
+            </div>
+          </>
+        ) : (
+          <>
+            {/* Build Mode: Chat Interface + Agent DNA Panel */}
+            <div className="flex-1 overflow-hidden min-h-0">
+              <ElizaChatInterface />
+            </div>
+            <AgentDNAPanel />
+          </>
+        )}
       </div>
     </div>
   );

@@ -12,7 +12,11 @@ import { userCharacters } from "@/db/schemas/user-characters";
 import { eq } from "drizzle-orm";
 
 interface PageProps {
-  searchParams: Promise<{ characterId?: string; roomId?: string }>;
+  searchParams: Promise<{ 
+    characterId?: string; 
+    roomId?: string;
+    mode?: "chat" | "build";
+  }>;
 }
 
 // Force dynamic rendering since we use server-side auth (cookies)
@@ -89,6 +93,7 @@ export default async function ElizaPage({ searchParams }: PageProps) {
   const params = await searchParams;
   const initialRoomId = params.roomId;
   const initialCharacterId = params.characterId;
+  const initialMode = params.mode || "chat"; // Default to chat mode
 
   return (
     <ElizaPageClient
@@ -96,6 +101,7 @@ export default async function ElizaPage({ searchParams }: PageProps) {
       isAuthenticated={!isAnonymous}
       initialRoomId={initialRoomId}
       initialCharacterId={initialCharacterId}
+      initialMode={initialMode}
     />
   );
 }
