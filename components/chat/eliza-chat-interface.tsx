@@ -3,7 +3,7 @@
 import { useState, useEffect, useRef, useCallback } from "react";
 import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { Loader2, Send, Mic, Square, Volume2, Plus } from "lucide-react";
+import { Loader2, Send, Mic, Square, Volume2, Plus, Copy, Check } from "lucide-react";
 import { ElizaAvatar } from "./eliza-avatar";
 import { KnowledgeDrawer } from "./knowledge-drawer";
 import { useAudioRecorder } from "./hooks/use-audio-recorder";
@@ -60,10 +60,14 @@ export function ElizaChatInterface() {
     createRoom: createRoomInStore,
     selectedCharacterId,
     availableCharacters,
+    pendingMessage,
+    setPendingMessage,
   } = useChatStore();
   const [messages, setMessages] = useState<Message[]>([]);
   const [agentInfo, setAgentInfo] = useState<AgentInfo | null>(null);
   const [inputText, setInputText] = useState("");
+  const isPendingMessageProcessingRef = useRef(false);
+  const pendingMessageToSendRef = useRef<string | null>(null);
 
   // Get character name from store
   const selectedCharacter = availableCharacters.find(
@@ -96,6 +100,7 @@ export function ElizaChatInterface() {
     }
     return null;
   });
+  const [copiedMessageId, setCopiedMessageId] = useState<string | null>(null);
 
   // Clear audio cache when voice changes (so messages regenerate with new voice)
   useEffect(() => {
@@ -190,21 +195,54 @@ export function ElizaChatInterface() {
 
   // Check for pending message from landing page and auto-send it
   useEffect(() => {
-    const pendingMessage = localStorage.getItem("eliza-pending-message");
-    if (pendingMessage && roomId && messages.length === 0 && !isLoading) {
-      // Clear from localStorage
-      localStorage.removeItem("eliza-pending-message");
+    // Guard: Only process if we have a pending message and not already processing
+    if (!pendingMessage || isPendingMessageProcessingRef.current || isLoading || isInitializing) {
+      return;
+    }
+
+    // If no roomId exists, create one first
+    if (!roomId) {
+      console.log("[ElizaChat] Pending message found but no room - creating room first");
+      isPendingMessageProcessingRef.current = true;
+      
+      // Store the message in ref so we can send it after room is created
+      pendingMessageToSendRef.current = pendingMessage;
+      
+      // Clear from Zustand immediately to prevent re-triggering
+      setPendingMessage(null);
+      
+      createRoom().then(() => {
+        // Room creation will update roomId, which will trigger sending logic
+        console.log("[ElizaChat] Room created for pending message");
+      }).catch((err) => {
+        console.error("[ElizaChat] Failed to create room for pending message:", err);
+        isPendingMessageProcessingRef.current = false;
+        pendingMessageToSendRef.current = null;
+      });
+      return;
+    }
+
+    // If we have a roomId and a pending message in ref (after room creation), send it
+    if (roomId && pendingMessageToSendRef.current && !isLoadingMessages) {
+      const messageToSend = pendingMessageToSendRef.current;
+      console.log("[ElizaChat] Auto-sending pending message:", messageToSend);
+      
+      // Clear the ref
+      pendingMessageToSendRef.current = null;
 
       // Auto-send after a short delay (wait for room to be fully ready)
       setTimeout(() => {
-        setInputText(pendingMessage);
+        setInputText(messageToSend);
         setTimeout(() => {
-          sendMessage(pendingMessage);
+          sendMessage(messageToSend).finally(() => {
+            // Reset processing flag after message is sent
+            isPendingMessageProcessingRef.current = false;
+          });
         }, 100);
       }, 500);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [roomId, messages.length, isLoading]);
+  }, [roomId, isLoading, isInitializing, pendingMessage, isLoadingMessages]);
 
   const generateSpeech = useCallback(
     async (text: string, messageId: string) => {
@@ -527,6 +565,19 @@ export function ElizaChatInterface() {
     return date.toLocaleDateString();
   };
 
+  const copyToClipboard = async (text: string, messageId: string) => {
+    try {
+      await navigator.clipboard.writeText(text);
+      setCopiedMessageId(messageId);
+      toast.success("Message copied to clipboard");
+      // Reset after 2 seconds
+      setTimeout(() => setCopiedMessageId(null), 2000);
+    } catch (error) {
+      console.error("Failed to copy:", error);
+      toast.error("Failed to copy message");
+    }
+  };
+
   if (isInitializing) {
     return (
       <div className="flex h-full w-full items-center justify-center">
@@ -699,7 +750,7 @@ export function ElizaChatInterface() {
                                 </div>
                               )}
                               
-                              {/* Time */}
+                              {/* Time and Actions */}
                               <div className="flex items-center gap-2">
                                 <span
                                   className="text-sm font-[family-name:var(--font-roboto-mono)]"
@@ -707,6 +758,19 @@ export function ElizaChatInterface() {
                                 >
                                   {formatTimestamp(message.createdAt)}
                                 </span>
+                                <Button
+                                  size="sm"
+                                  variant="ghost"
+                                  className="h-5 w-5 p-0 hover:bg-white/10"
+                                  onClick={() => copyToClipboard(message.content.text, message.id)}
+                                  title="Copy message"
+                                >
+                                  {copiedMessageId === message.id ? (
+                                    <Check className="h-3 w-3 text-green-500" />
+                                  ) : (
+                                    <Copy className="h-3 w-3 text-white/60" />
+                                  )}
+                                </Button>
                                 {messageAudioUrls.current.has(message.id) && (
                                   <Button
                                     size="sm"
@@ -757,7 +821,7 @@ export function ElizaChatInterface() {
                             {message.content.text}
                           </div>
                         </div>
-                        {/* Time */}
+                        {/* Time and Actions */}
                         <div className="flex items-center gap-2 justify-end px-1">
                           <span
                             className="text-sm font-[family-name:var(--font-roboto-mono)]"
@@ -765,6 +829,19 @@ export function ElizaChatInterface() {
                           >
                             {formatTimestamp(message.createdAt)}
                           </span>
+                          <Button
+                            size="sm"
+                            variant="ghost"
+                            className="h-5 w-5 p-0 hover:bg-white/10"
+                            onClick={() => copyToClipboard(message.content.text, message.id)}
+                            title="Copy message"
+                          >
+                            {copiedMessageId === message.id ? (
+                              <Check className="h-3 w-3 text-green-500" />
+                            ) : (
+                              <Copy className="h-3 w-3 text-white/60" />
+                            )}
+                          </Button>
                         </div>
                       </div>
                     )}
@@ -787,27 +864,29 @@ export function ElizaChatInterface() {
           <div className="space-y-2">
             {/* Text Input Box - Prominent standalone */}
             <div className="relative rounded-none border-2 border-border shadow-sm bg-black/20 overflow-hidden">
-              {/* Robot Eye Visor Scanner - Animated line on top edge with randomness */}
-              <div className="absolute top-0 left-0 right-0 h-[2px] overflow-hidden pointer-events-none z-10">
-                {/* Primary scanner */}
-                <div
-                  className="absolute h-full w-24 bg-gradient-to-r from-transparent via-[#FF5800] to-transparent"
-                  style={{
-                    animation: "visor-scan 4.8s cubic-bezier(0.4, 0, 0.6, 1) infinite",
-                    boxShadow: "0 0 15px 3px rgba(255, 88, 0, 0.7)",
-                    filter: "blur(0.5px)",
-                  }}
-                />
-                {/* Secondary scanner for organic feel */}
-                <div
-                  className="absolute h-full w-16 bg-gradient-to-r from-transparent via-[#FF5800]/60 to-transparent"
-                  style={{
-                    animation: "visor-scan-delayed 6.2s cubic-bezier(0.3, 0.1, 0.7, 0.9) infinite 1.5s",
-                    boxShadow: "0 0 10px 2px rgba(255, 88, 0, 0.5)",
-                    filter: "blur(1px)",
-                  }}
-                />
-              </div>
+              {/* Robot Eye Visor Scanner - Animated line on top edge with randomness - Only show when waiting for agent */}
+              {isLoading && (
+                <div className="absolute top-0 left-0 right-0 h-[2px] overflow-hidden pointer-events-none z-10">
+                  {/* Primary scanner */}
+                  <div
+                    className="absolute h-full w-24 bg-gradient-to-r from-transparent via-[#FF5800] to-transparent"
+                    style={{
+                      animation: "visor-scan 4.8s cubic-bezier(0.4, 0, 0.6, 1) infinite",
+                      boxShadow: "0 0 15px 3px rgba(255, 88, 0, 0.7)",
+                      filter: "blur(0.5px)",
+                    }}
+                  />
+                  {/* Secondary scanner for organic feel */}
+                  <div
+                    className="absolute h-full w-16 bg-gradient-to-r from-transparent via-[#FF5800]/60 to-transparent"
+                    style={{
+                      animation: "visor-scan-delayed 6.2s cubic-bezier(0.3, 0.1, 0.7, 0.9) infinite 1.5s",
+                      boxShadow: "0 0 10px 2px rgba(255, 88, 0, 0.5)",
+                      filter: "blur(1px)",
+                    }}
+                  />
+                </div>
+              )}
               <input
                 value={inputText}
                 onChange={(e) => setInputText(e.currentTarget.value)}

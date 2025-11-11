@@ -5,9 +5,11 @@
 
 "use client";
 
-import { Clock, Volume2, Square } from "lucide-react";
+import { useState } from "react";
+import { Clock, Volume2, Square, Copy, Check } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
+import { toast } from "sonner";
 
 interface ChatMessageProps {
   message: {
@@ -37,6 +39,20 @@ export function ChatMessage({
   formatTimestamp = (ts) => new Date(ts).toLocaleTimeString(),
   className,
 }: ChatMessageProps) {
+  const [isCopied, setIsCopied] = useState(false);
+
+  const copyToClipboard = async () => {
+    try {
+      await navigator.clipboard.writeText(message.content.text);
+      setIsCopied(true);
+      toast.success("Message copied to clipboard");
+      setTimeout(() => setIsCopied(false), 2000);
+    } catch (error) {
+      console.error("Failed to copy:", error);
+      toast.error("Failed to copy message");
+    }
+  };
+
   return (
     <div
       className={cn(
@@ -77,20 +93,35 @@ export function ChatMessage({
                 <Clock className="h-3 w-3" />
                 <span>{formatTimestamp(message.createdAt)}</span>
               </div>
-              {message.isAgent && audioUrl && onPlayAudio && (
+              <div className="flex items-center gap-1">
                 <Button
                   size="sm"
                   variant="ghost"
                   className="h-6 w-6 p-0 hover:bg-white/10 text-white/70 hover:text-white"
-                  onClick={onPlayAudio}
+                  onClick={copyToClipboard}
+                  title="Copy message"
                 >
-                  {isPlaying ? (
-                    <Square className="h-3 w-3" />
+                  {isCopied ? (
+                    <Check className="h-3 w-3 text-green-500" />
                   ) : (
-                    <Volume2 className="h-3 w-3" />
+                    <Copy className="h-3 w-3" />
                   )}
                 </Button>
-              )}
+                {message.isAgent && audioUrl && onPlayAudio && (
+                  <Button
+                    size="sm"
+                    variant="ghost"
+                    className="h-6 w-6 p-0 hover:bg-white/10 text-white/70 hover:text-white"
+                    onClick={onPlayAudio}
+                  >
+                    {isPlaying ? (
+                      <Square className="h-3 w-3" />
+                    ) : (
+                      <Volume2 className="h-3 w-3" />
+                    )}
+                  </Button>
+                )}
+              </div>
             </div>
           </>
         )}
@@ -123,3 +154,4 @@ export function ChatEmptyState({
     </div>
   );
 }
+

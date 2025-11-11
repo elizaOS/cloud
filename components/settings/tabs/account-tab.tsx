@@ -8,6 +8,7 @@ import { ArrowUpRight, Copy } from "lucide-react";
 import { toast } from "sonner";
 import { usePrivy } from "@privy-io/react-auth";
 import { useRouter } from "next/navigation";
+import { useChatStore } from "@/stores/chat-store";
 
 interface AccountStats {
   totalGenerations: number;
@@ -33,6 +34,7 @@ export function AccountTab({ user, onTabChange }: AccountTabProps) {
   const [isLoadingStats, setIsLoadingStats] = useState(true);
   const { user: privyUser, logout: privyLogout } = usePrivy();
   const router = useRouter();
+  const { clearChatData } = useChatStore();
 
   useEffect(() => {
     const fetchStats = async () => {
@@ -74,6 +76,9 @@ export function AccountTab({ user, onTabChange }: AccountTabProps) {
     setIsLoggingOut(true);
 
     try {
+      // Clear chat data (rooms, entityId, localStorage)
+      clearChatData();
+
       await fetch("/api/auth/logout", {
         method: "POST",
       });

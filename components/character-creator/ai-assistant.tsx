@@ -5,12 +5,14 @@ import { useChat } from "@ai-sdk/react";
 import { DefaultChatTransport } from "ai";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Textarea } from "@/components/ui/textarea";
-import { Bot, User, Send, Sparkles } from "lucide-react";
+import { Bot, User, Send, Sparkles, Copy, Check } from "lucide-react";
 import type { ElizaCharacter } from "@/lib/types";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import rehypeHighlight from "rehype-highlight";
 import "highlight.js/styles/github-dark.css";
+import { toast } from "sonner";
+import { Button } from "@/components/ui/button";
 import {
   BrandCard,
   BrandButton,
@@ -29,6 +31,7 @@ export function AiAssistant({
 }: AiAssistantProps) {
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const [input, setInput] = useState("");
+  const [copiedMessageId, setCopiedMessageId] = useState<string | null>(null);
   const [quickPrompts, setQuickPrompts] = useState<string[]>([
     "Customer support specialist with empathy",
     "Technical documentation writer",
@@ -231,6 +234,19 @@ Tell me about your vision, and I'll help you craft a detailed character definiti
     sendMessage({ text: userMessage });
   };
 
+  const copyToClipboard = async (text: string, messageId: string) => {
+    try {
+      await navigator.clipboard.writeText(text);
+      setCopiedMessageId(messageId);
+      toast.success("Message copied to clipboard");
+      // Reset after 2 seconds
+      setTimeout(() => setCopiedMessageId(null), 2000);
+    } catch (error) {
+      console.error("Failed to copy:", error);
+      toast.error("Failed to copy message");
+    }
+  };
+
   const isLoading = status === "streaming";
 
   return (
@@ -249,51 +265,72 @@ Tell me about your vision, and I'll help you craft a detailed character definiti
         {/* Messages */}
         <ScrollArea className="flex-1 pr-4">
           <div className="space-y-4">
-            {messages.map((message) => (
-              <div
-                key={message.id}
-                className={`flex gap-3 ${
-                  message.role === "user" ? "justify-end" : "justify-start"
-                }`}
-              >
-                {message.role === "assistant" && (
-                  <div className="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-full bg-[#FF5800]">
-                    <Bot className="h-4 w-4 text-white" />
-                  </div>
-                )}
+            {messages.map((message) => {
+              const messageText = message.parts
+                .filter((part) => part.type === "text")
+                .map((part) => (part as { text: string }).text)
+                .join("")
+                .trim();
+              
+              return (
                 <div
-                  className={`max-w-[80%] rounded-none px-4 py-2 border ${
-                    message.role === "user"
-                      ? "bg-[#FF580020] border-[#FF5800] text-white"
-                      : "bg-black/40 border-white/10"
+                  key={message.id}
+                  className={`flex gap-3 ${
+                    message.role === "user" ? "justify-end" : "justify-start"
                   }`}
                 >
-                  <div
-                    className={`prose prose-sm max-w-none [&_pre]:bg-transparent [&_pre]:p-0 ${
-                      message.role === "user"
-                        ? "prose-invert [&_p]:text-white [&_code]:text-white"
-                        : "dark:prose-invert"
-                    }`}
-                  >
-                    <ReactMarkdown
-                      remarkPlugins={[remarkGfm]}
-                      rehypePlugins={[rehypeHighlight]}
+                  {message.role === "assistant" && (
+                    <div className="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-full bg-[#FF5800]">
+                      <Bot className="h-4 w-4 text-white" />
+                    </div>
+                  )}
+                  <div className="flex flex-col gap-2 max-w-[80%]">
+                    <div
+                      className={`rounded-none px-4 py-2 border ${
+                        message.role === "user"
+                          ? "bg-[#FF580020] border-[#FF5800] text-white"
+                          : "bg-black/40 border-white/10"
+                      }`}
                     >
-                      {message.parts
-                        .filter((part) => part.type === "text")
-                        .map((part) => (part as { text: string }).text)
-                        .join("")
-                        .trim()}
-                    </ReactMarkdown>
+                      <div
+                        className={`prose prose-sm max-w-none [&_pre]:bg-transparent [&_pre]:p-0 ${
+                          message.role === "user"
+                            ? "prose-invert [&_p]:text-white [&_code]:text-white"
+                            : "dark:prose-invert"
+                        }`}
+                      >
+                        <ReactMarkdown
+                          remarkPlugins={[remarkGfm]}
+                          rehypePlugins={[rehypeHighlight]}
+                        >
+                          {messageText}
+                        </ReactMarkdown>
+                      </div>
+                    </div>
+                    <div className={`flex items-center gap-1 ${message.role === "user" ? "justify-end" : "justify-start"}`}>
+                      <Button
+                        size="sm"
+                        variant="ghost"
+                        className="h-6 w-6 p-0 hover:bg-white/10 text-white/70 hover:text-white"
+                        onClick={() => copyToClipboard(messageText, message.id)}
+                        title="Copy message"
+                      >
+                        {copiedMessageId === message.id ? (
+                          <Check className="h-3 w-3 text-green-500" />
+                        ) : (
+                          <Copy className="h-3 w-3" />
+                        )}
+                      </Button>
+                    </div>
                   </div>
+                  {message.role === "user" && (
+                    <div className="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-full bg-[#FF5800]">
+                      <User className="h-4 w-4 text-white" />
+                    </div>
+                  )}
                 </div>
-                {message.role === "user" && (
-                  <div className="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-full bg-[#FF5800]">
-                    <User className="h-4 w-4 text-white" />
-                  </div>
-                )}
-              </div>
-            ))}
+              );
+            })}
             {isLoading && (
               <div className="flex gap-3">
                 <div className="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-full bg-[#FF5800]">
