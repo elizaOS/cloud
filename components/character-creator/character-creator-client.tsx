@@ -58,10 +58,6 @@ export function CharacterCreatorClient({
     if (initialCharacterId) {
       const char = initialCharacters.find((c) => c.id === initialCharacterId);
       if (char) {
-        console.log(
-          "[Character Creator] Loaded character from URL:",
-          char.name,
-        );
         return char;
       }
     }

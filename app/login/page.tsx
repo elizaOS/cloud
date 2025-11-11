@@ -41,39 +41,9 @@ export default function LoginPage() {
   const loginInProgressRef = useRef(false);
   const lastLoginAttemptRef = useRef<number>(0);
 
-  // Log initial Privy state on mount
-  useEffect(() => {
-    console.log("[LoginPage] Component mounted with Privy state:", {
-      ready,
-      authenticated,
-      hasUser: !!user,
-      userId: user?.id,
-    });
-  }, [ready, authenticated, user]);
-
-  // Log whenever Privy state changes
-  useEffect(() => {
-    console.log("[LoginPage] Privy state changed:", {
-      ready,
-      authenticated,
-      hasUser: !!user,
-      userId: user?.id,
-      linkedAccountsCount: user?.linkedAccounts?.length || 0,
-    });
-  }, [ready, authenticated, user]);
-
   // Redirect to dashboard if already authenticated
   useEffect(() => {
-    console.log("[LoginPage] Redirect useEffect triggered:", {
-      ready,
-      authenticated,
-      willRedirect: ready && authenticated,
-    });
-
     if (ready && authenticated) {
-      console.log(
-        "[LoginPage] ✅ Authentication successful, preparing redirect to dashboard",
-      );
       // Clear guards and loading states
       loginInProgressRef.current = false;
       setLoadingButton(null);
@@ -82,21 +52,16 @@ export default function LoginPage() {
 
       // Small delay to ensure the sync message is visible
       const timer = setTimeout(() => {
-        console.log("[LoginPage] 🚀 Executing redirect to /dashboard");
         router.push("/dashboard");
       }, 100);
 
       return () => clearTimeout(timer);
     } else if (ready && !authenticated) {
-      console.log("[LoginPage] ⏳ Privy ready but not authenticated yet");
       // If we're ready but not authenticated, ensure guard is cleared
       // (handles case where user closes modal without connecting)
       if (loginInProgressRef.current && !loadingButton) {
-        console.log("[LoginPage] Clearing stale login guard");
         loginInProgressRef.current = false;
       }
-    } else if (!ready) {
-      console.log("[LoginPage] ⏳ Waiting for Privy to be ready...");
     }
   }, [ready, authenticated, router, loadingButton]);
 
@@ -167,34 +132,21 @@ export default function LoginPage() {
   };
 
   const handleWalletConnect = async () => {
-    console.log("[LoginPage] 🔵 Wallet connect button clicked");
-
     // Guard: Prevent multiple simultaneous login attempts (macOS/Brave issue)
     if (loginInProgressRef.current) {
-      console.log(
-        "[LoginPage] ⚠️ Login already in progress, ignoring duplicate call",
-      );
       return;
     }
 
     // Debounce: Prevent rapid successive calls (500ms cooldown)
     const now = Date.now();
     if (now - lastLoginAttemptRef.current < 500) {
-      console.log("[LoginPage] ⚠️ Login called too quickly, debouncing");
       return;
     }
 
     // Guard: Don't open login if already authenticated
     if (authenticated) {
-      console.log("[LoginPage] ⚠️ Already authenticated, skipping login");
       return;
     }
-
-    console.log("[LoginPage] Current Privy state before login:", {
-      ready,
-      authenticated,
-      hasUser: !!user,
-    });
 
     // Set guards
     loginInProgressRef.current = true;
@@ -202,16 +154,10 @@ export default function LoginPage() {
     setLoadingButton("wallet");
 
     try {
-      console.log(
-        "[LoginPage] 📡 Calling Privy login() to open authentication modal...",
-      );
       // Use login() instead of connectWallet() for authentication
       // This opens the Privy modal (non-blocking, returns immediately)
       // Authentication state changes are handled via the authenticated state in useEffect
       login();
-      console.log(
-        "[LoginPage] ✅ Login modal triggered, user interaction in progress...",
-      );
 
       // Reset the guard after a short delay to allow modal to open
       // If authentication succeeds, the useEffect will handle redirect
@@ -219,20 +165,12 @@ export default function LoginPage() {
       setTimeout(() => {
         // Only reset if still in progress (not authenticated yet)
         if (loginInProgressRef.current) {
-          console.log(
-            "[LoginPage] Resetting login guard (modal likely closed or timed out)",
-          );
           loginInProgressRef.current = false;
           setLoadingButton(null);
         }
       }, 2000); // 2 second timeout
     } catch (error) {
-      console.error("[LoginPage] ❌ Error opening login modal:", error);
-      console.error("[LoginPage] Error details:", {
-        errorType:
-          error instanceof Error ? error.constructor.name : typeof error,
-        errorMessage: error instanceof Error ? error.message : String(error),
-      });
+      console.error("[LoginPage] Error opening login modal:", error);
       toast.error("Failed to open login modal");
       loginInProgressRef.current = false;
       setLoadingButton(null);

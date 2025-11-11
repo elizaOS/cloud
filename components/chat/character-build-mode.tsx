@@ -36,7 +36,6 @@ export function CharacterBuildMode({
     if (selectedCharacterId) {
       const char = initialCharacters.find((c) => c.id === selectedCharacterId);
       if (char) {
-        console.log("[Build Mode] Loaded character:", char.name);
         return char;
       }
     }
