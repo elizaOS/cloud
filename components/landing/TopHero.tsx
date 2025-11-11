@@ -58,7 +58,7 @@ const TopHero = () => {
 
   return (
     <section
-      className="w-full py-20 md:py-32 relative overflow-hidden"
+      className="w-full py-12 md:py-20 lg:py-32 relative overflow-hidden"
       style={{ backgroundColor: "#0A0A0A" }}
     >
       {/* Fullscreen background video */}
