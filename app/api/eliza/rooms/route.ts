@@ -10,6 +10,14 @@ import { connectionCache } from "@/lib/cache/connection-cache";
 import { discordService } from "@/lib/services";
 import { db } from "@/db/client";
 import { sql } from "drizzle-orm";
+import {
+  isTemplateCharacter,
+  getTemplate,
+  templateToDbFormat,
+} from "@/lib/characters/template-loader";
+import { charactersService } from "@/lib/services";
+import { userCharacters } from "@/db/schemas/user-characters";
+import { eq, and } from "drizzle-orm";
 
 // GET /api/eliza/rooms - Get user's rooms
 export async function GET(request: NextRequest) {
@@ -28,7 +36,7 @@ export async function GET(request: NextRequest) {
     if (!entityId) {
       return NextResponse.json(
         { error: "entityId is required" },
-        { status: 400 },
+        { status: 400 }
       );
     }
 
@@ -44,12 +52,12 @@ export async function GET(request: NextRequest) {
         await elizaRoomCharactersRepository.findByRoomIds(roomIds);
       logger.debug(
         "[Eliza Rooms API] Batch loaded character mappings:",
-        characterMappings.size,
+        characterMappings.size
       );
     } catch (err) {
       logger.error(
         "[Eliza Rooms API] ✗ Failed to batch load character mappings:",
-        err,
+        err
       );
     }
 
@@ -63,13 +71,13 @@ export async function GET(request: NextRequest) {
         let title: string | null = null;
         try {
           const roomData = await db.execute<{ name: string | null }>(
-            sql`SELECT name FROM rooms WHERE id = ${roomId}::uuid LIMIT 1`,
+            sql`SELECT name FROM rooms WHERE id = ${roomId}::uuid LIMIT 1`
           );
           title = roomData.rows[0]?.name || null;
         } catch (err) {
           logger.error(
             `[Eliza Rooms API] Failed to fetch title for room ${roomId}:`,
-            err,
+            err
           );
         }
 
@@ -79,7 +87,7 @@ export async function GET(request: NextRequest) {
           characterId,
           title,
         };
-      }),
+      })
     );
 
     // Sort rooms by most recent first (lastTime descending)
@@ -95,7 +103,7 @@ export async function GET(request: NextRequest) {
         id: r.id,
         characterId: r.characterId,
         lastTime: (r as any).lastTime,
-      })),
+      }))
     );
 
     return NextResponse.json({
@@ -109,7 +117,7 @@ export async function GET(request: NextRequest) {
         error: "Failed to get rooms",
         details: error instanceof Error ? error.message : "Unknown error",
       },
-      { status: 500 },
+      { status: 500 }
     );
   }
 }
@@ -132,25 +140,93 @@ export async function POST(request: NextRequest) {
     }
 
     const body = await request.json();
-    const { entityId, characterId } = body;
+    let { entityId, characterId } = body;
     logger.debug(
       "[Eliza Rooms API] Creating room for entity:",
       entityId,
       "with character:",
       characterId,
       "userId:",
-      user.id,
+      user.id
     );
 
     if (!entityId) {
       return NextResponse.json(
         { error: "entityId is required" },
-        { status: 400 },
+        { status: 400 }
       );
     }
 
-    const runtime = await agentRuntime.getRuntime();
+    // AUTO-CREATE TEMPLATE CHARACTERS
+    // If characterId is a template (starts with "template-"), check if it exists in DB
+    // If not, create it from the template JSON automatically
+    if (characterId && isTemplateCharacter(characterId)) {
+      logger.debug(
+        "[Eliza Rooms API] Template character detected:",
+        characterId
+      );
+
+      const template = getTemplate(characterId);
+      if (!template) {
+        return NextResponse.json(
+          { error: "Template character not found" },
+          { status: 404 }
+        );
+      }
+
+      // Check if user already has this template character
+      const existing = await db.query.userCharacters.findFirst({
+        where: and(
+          eq(userCharacters.user_id, user.id),
+          eq(userCharacters.username, template.username!)
+        ),
+      });
+
+      if (existing) {
+        // User already has this character, use existing ID
+        characterId = existing.id;
+        logger.debug(
+          "[Eliza Rooms API] Found existing template character:",
+          characterId
+        );
+      } else {
+        // Create character from template
+        const dbData = templateToDbFormat(
+          template,
+          user.id,
+          user.organization_id
+        );
+
+        const [created] = await db
+          .insert(userCharacters)
+          .values(dbData)
+          .returning();
+
+        characterId = created.id;
+        logger.debug(
+          "[Eliza Rooms API] Created template character:",
+          characterId,
+          "from template:",
+          template.name
+        );
+      }
+    }
+
+    // Get runtime AFTER template character creation
+    // CRITICAL: If characterId exists, get character-specific runtime
+    // Otherwise, get default runtime
+    const runtime = characterId
+      ? await agentRuntime.getRuntimeForCharacter(characterId)
+      : await agentRuntime.getRuntime();
+
     const roomId = uuidv4();
+
+    logger.debug(
+      "[Eliza Rooms API] Using runtime for character:",
+      runtime.character.name,
+      "agentId:",
+      runtime.agentId
+    );
 
     // Ensure room exists
     await runtime.ensureRoomExists({
@@ -205,7 +281,7 @@ export async function POST(request: NextRequest) {
       "for entity:",
       entityId,
       "with character:",
-      characterId || "default",
+      characterId || "default"
     );
 
     // Variable to store greeting for Discord (declared here before the async block)
@@ -221,7 +297,7 @@ export async function POST(request: NextRequest) {
             room_id: roomId,
             character_id: characterId,
             user_id: user.id,
-          },
+          }
         );
         await elizaRoomCharactersRepository.create({
           room_id: roomId,
@@ -232,12 +308,12 @@ export async function POST(request: NextRequest) {
           "[Eliza Rooms API] ✓ Character mapping stored:",
           roomId,
           "→",
-          characterId,
+          characterId
         );
       } catch (mappingError) {
         logger.error(
           "[Eliza Rooms API] ✗ Failed to create character mapping:",
-          mappingError,
+          mappingError
         );
         // Continue anyway - room is created even if mapping fails
       }
@@ -270,7 +346,7 @@ export async function POST(request: NextRequest) {
           },
           createdAt: greetingTimestamp,
         },
-        "messages",
+        "messages"
       );
 
       // Explicitly update room's lastTime and lastText for proper sorting
@@ -279,23 +355,23 @@ export async function POST(request: NextRequest) {
           sql`UPDATE rooms 
               SET "lastTime" = ${greetingTimestamp},
                   "lastText" = ${greetingText}
-              WHERE id = ${roomId}::uuid`,
+              WHERE id = ${roomId}::uuid`
         );
         logger.info(
           "[Eliza Rooms API] ✓ Room lastTime updated:",
-          greetingTimestamp,
+          greetingTimestamp
         );
       } catch (updateErr) {
         logger.error(
           "[Eliza Rooms API] Failed to update room lastTime:",
-          updateErr,
+          updateErr
         );
       }
 
       logger.info(
         "[Eliza Rooms API] ✓ Greeting message saved (character:",
         characterName,
-        ")",
+        ")"
       );
 
       // Store greeting for Discord
@@ -303,7 +379,7 @@ export async function POST(request: NextRequest) {
     } catch (initErr) {
       logger.error(
         "[Eliza Rooms API] ✗ Failed to create initial greeting:",
-        initErr,
+        initErr
       );
     }
 
@@ -321,26 +397,26 @@ export async function POST(request: NextRequest) {
             await db.execute(
               sql`UPDATE rooms 
                   SET metadata = COALESCE(metadata, '{}'::jsonb) || ${sql.raw(`'{"discordThreadId": "${threadResult.threadId}"}'`)}::jsonb
-                  WHERE id = ${roomId}::uuid`,
+                  WHERE id = ${roomId}::uuid`
             );
             logger.info(
-              `[Eliza Rooms API] Discord thread created: ${threadResult.threadId} for room ${roomId}`,
+              `[Eliza Rooms API] Discord thread created: ${threadResult.threadId} for room ${roomId}`
             );
 
             // Send greeting to Discord thread immediately after thread is created
             if (greetingForDiscord) {
               await discordService.sendToThread(
                 threadResult.threadId,
-                `**🤖 ${greetingForDiscord.characterName}:** ${greetingForDiscord.text}`,
+                `**🤖 ${greetingForDiscord.characterName}:** ${greetingForDiscord.text}`
               );
               logger.info(
-                `[Eliza Rooms API] Sent greeting to Discord thread ${threadResult.threadId}`,
+                `[Eliza Rooms API] Sent greeting to Discord thread ${threadResult.threadId}`
               );
             }
           } catch (err) {
             logger.error(
               "[Eliza Rooms API] Failed to store thread ID or send greeting:",
-              err,
+              err
             );
           }
         }
@@ -358,7 +434,7 @@ export async function POST(request: NextRequest) {
   } catch (error) {
     logger.error(
       "[Eliza Rooms API] Error creating room:",
-      error instanceof Error ? error.stack : error,
+      error instanceof Error ? error.stack : error
     );
     return NextResponse.json(
       {
@@ -366,7 +442,7 @@ export async function POST(request: NextRequest) {
         details: error instanceof Error ? error.message : "Unknown error",
         stack: error instanceof Error ? error.stack : undefined,
       },
-      { status: 500 },
+      { status: 500 }
     );
   }
 }
