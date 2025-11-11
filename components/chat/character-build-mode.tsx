@@ -7,6 +7,11 @@ import { toast } from "sonner";
 import { createCharacter, updateCharacter } from "@/app/actions/characters";
 import type { ElizaCharacter } from "@/lib/types";
 import { useChatStore } from "@/stores/chat-store";
+import {
+  ResizablePanelGroup,
+  ResizablePanel,
+  ResizableHandle,
+} from "@/components/ui/resizable";
 
 interface CharacterBuildModeProps {
   initialCharacters: ElizaCharacter[];
@@ -98,28 +103,35 @@ export function CharacterBuildMode({
 
   return (
     <div className="flex h-full w-full min-h-0 overflow-hidden">
-      {/* Split Pane Layout */}
-      <div className="grid flex-1 overflow-hidden lg:grid-cols-2">
-        {/* Left Column - AI Assistant Chat */}
-        <div className="flex h-full flex-col overflow-hidden">
-          <BuildModeAssistant
-            character={character}
-            onCharacterUpdate={handleCharacterUpdate}
-          />
-        </div>
+      {/* Resizable Split Pane Layout */}
+      <ResizablePanelGroup direction="horizontal" className="flex-1">
+        {/* Left Panel - AI Assistant Chat */}
+        <ResizablePanel defaultSize={50} minSize={30} maxSize={70}>
+          <div className="flex h-full flex-col overflow-hidden">
+            <BuildModeAssistant
+              character={character}
+              onCharacterUpdate={handleCharacterUpdate}
+            />
+          </div>
+        </ResizablePanel>
 
-        {/* Right Column - Agent DNA Editor */}
-        <div
-          className="flex h-full flex-col overflow-hidden border-l"
-          style={{ borderColor: "#353535" }}
-        >
-          <AgentDnaEditor
-            character={character}
-            onChange={setCharacter}
-            onSave={handleSave}
-          />
-        </div>
-      </div>
+        {/* Resizable Handle */}
+        <ResizableHandle withHandle />
+
+        {/* Right Panel - Agent DNA Editor */}
+        <ResizablePanel defaultSize={50} minSize={30} maxSize={70}>
+          <div
+            className="flex h-full flex-col overflow-hidden border-l"
+            style={{ borderColor: "#353535" }}
+          >
+            <AgentDnaEditor
+              character={character}
+              onChange={setCharacter}
+              onSave={handleSave}
+            />
+          </div>
+        </ResizablePanel>
+      </ResizablePanelGroup>
     </div>
   );
 }
