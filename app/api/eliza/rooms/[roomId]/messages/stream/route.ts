@@ -15,6 +15,7 @@ import { getUserElizaCloudApiKey } from "@/lib/eliza/user-api-key";
 import { discordService } from "@/lib/services/discord";
 import { db } from "@/db/client";
 import { sql } from "drizzle-orm";
+import { generateRoomTitle } from "@/lib/ai/generate-room-title";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
@@ -325,6 +326,44 @@ export async function POST(
                 "[Stream Messages] Failed to send to Discord thread:",
                 err,
               );
+            }
+          })();
+
+          // Generate room title if this is the first user message
+          (async () => {
+            try {
+              // Check if room already has a title
+              const roomCheck = await db.execute<{ name: string | null }>(
+                sql`SELECT name FROM rooms WHERE id = ${roomId}::uuid LIMIT 1`,
+              );
+
+              const currentRoomName = roomCheck.rows[0]?.name;
+
+              // Only generate title if room doesn't have one yet
+              if (!currentRoomName) {
+                logger.debug(
+                  "[Room Title] Room has no title, generating from first message...",
+                );
+
+                // Generate title from the user's message
+                const title = await generateRoomTitle(text);
+
+                // Update room with the generated title
+                await db.execute(
+                  sql`UPDATE rooms SET name = ${title} WHERE id = ${roomId}::uuid`,
+                );
+
+                logger.info("[Room Title] Generated and saved title:", {
+                  roomId,
+                  title,
+                });
+              }
+            } catch (err) {
+              logger.error(
+                "[Room Title] Failed to generate/save room title:",
+                err,
+              );
+              // Non-critical error, don't interrupt the message flow
             }
           })();
 
