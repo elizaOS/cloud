@@ -68,21 +68,17 @@ export function CharacterGrid({
     return <EmptyStates type="error" message={error} />;
   }
 
-  if (characters.length === 0) {
-    return <EmptyStates type="no-results" />;
-  }
+  // Remove empty state - we show demo agents instead
+  // if (characters.length === 0) {
+  //   return <EmptyStates type="no-results" />;
+  // }
 
   return (
     <div className="flex-1 min-h-0 overflow-hidden">
       <ScrollArea className="h-full">
-        <div className="p-6">
-          <div
-            className={
-              view === "grid"
-                ? "grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5 gap-4"
-                : "flex flex-col gap-4"
-            }
-          >
+        <div className="p-0">
+          {/* Exact Figma grid: 3 columns, no horizontal gaps, 32px vertical gaps */}
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-x-0 gap-y-8">
             {characters.map((character) => (
               <CharacterCard
                 key={character.id}

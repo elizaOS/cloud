@@ -1,25 +1,9 @@
 "use client";
 
 import Image from "next/image";
-import { Card, CardContent } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
-import {
-  Bot,
-  MessageSquare,
-  Clock,
-  Copy,
-  Info,
-  Volume2,
-  Rocket,
-  Star,
-} from "lucide-react";
+import { MessageSquare, Code } from "lucide-react";
+import { useRouter } from "next/navigation";
 import type { ExtendedCharacter } from "@/lib/types/my-agents";
-import {
-  getCategoryIcon,
-  getCategoryColor,
-} from "@/lib/constants/character-categories";
-import { formatDistanceToNow } from "date-fns";
 
 interface CharacterCardProps {
   character: ExtendedCharacter;
@@ -34,158 +18,109 @@ export function CharacterCard({
   onClone,
   onViewDetails,
 }: CharacterCardProps) {
+  const router = useRouter();
+
   const bioText = Array.isArray(character.bio)
     ? character.bio[0]
     : character.bio;
 
-  const hasVoice = character.plugins?.includes("@elizaos/plugin-elevenlabs");
+  // Check if this is a top performing agent
+  // Show for featured agents or specifically for "Ember" (demo agent)
+  const isTopPerforming = character.featured || character.name === "Ember";
 
-  const isDeployed = character.stats?.deploymentStatus === "deployed";
+  // Navigate to chat mode
+  const handleChatMode = (e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    console.log("[CharacterCard] Navigating to chat mode:", character.id);
+    router.push(`/dashboard/chat?mode=chat&characterId=${character.id}`);
+  };
+
+  // Navigate to build mode
+  const handleBuildMode = (e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    console.log("[CharacterCard] Navigating to build mode:", character.id);
+    router.push(`/dashboard/chat?mode=build&characterId=${character.id}`);
+  };
 
   return (
-    <Card className="group overflow-hidden transition-all duration-300 hover:shadow-lg hover:-translate-y-1">
-      <CardContent className="p-0">
-        {/* Character Avatar/Header */}
-        <div className="relative h-48 bg-gradient-to-br from-primary/20 to-secondary/20 flex items-center justify-center">
-          {character.avatarUrl ? (
-            <Image
-              src={character.avatarUrl}
-              alt={character.name}
-              fill
-              className="object-cover"
-            />
-          ) : (
-            <Bot className="h-20 w-20 text-muted-foreground" />
-          )}
+    <div className="border border-[rgba(62,62,67,0.5)] border-solid overflow-hidden relative w-full">
+      {/* Image Area - 347px height with 12px padding */}
+      <div className="relative h-[347px] w-full p-[12px] flex items-center justify-center bg-black/40">
+        {character.avatarUrl ? (
+          <Image
+            src={character.avatarUrl}
+            alt={character.name || "Agent"}
+            fill
+            className="object-cover"
+          />
+        ) : (
+          <div className="w-full h-full bg-gradient-to-br from-[#FF5800]/20 to-[#FF5800]/5" />
+        )}
+      </div>
 
-          {/* Status Badges */}
-          <div className="absolute top-2 right-2 flex gap-2">
-            {character.featured && (
-              <Badge
-                variant="secondary"
-                className="backdrop-blur-sm bg-background/80"
-              >
-                <Star className="h-3 w-3 mr-1 fill-current" />
-                Featured
-              </Badge>
-            )}
-            {character.isTemplate && (
-              <Badge
-                variant="secondary"
-                className="backdrop-blur-sm bg-background/80"
-              >
-                <Star className="h-3 w-3 mr-1" />
-                Template
-              </Badge>
-            )}
-            {isDeployed && (
-              <Badge
-                variant="default"
-                className="backdrop-blur-sm bg-green-600/90"
-              >
-                <Rocket className="h-3 w-3 mr-1" />
-                Live
-              </Badge>
-            )}
-          </div>
-        </div>
-
-        {/* Character Info */}
-        <div className="p-4 space-y-3">
-          {/* Name & Category */}
-          <div>
-            <h3 className="font-semibold text-lg truncate group-hover:text-primary transition-colors">
-              {character.name}
+      {/* Content Area - 16px padding */}
+      <div className="p-[16px] flex flex-col gap-[12px]">
+        {/* Heading and Icons - gap-[12px] */}
+        <div className="flex items-center justify-between gap-[12px]">
+          {/* Left: Name and Badge - gap-[8px] */}
+          <div className="flex items-center gap-[8px] flex-1 min-w-0">
+            <h3
+              className="font-['Roboto_Mono'] font-bold text-white text-[16px] leading-[24px] truncate"
+              style={{ fontFamily: "'Roboto Mono', monospace" }}
+            >
+              {character.name || "Unnamed"}
             </h3>
-            {character.username && (
-              <p className="text-sm text-muted-foreground">
-                @{character.username}
-              </p>
-            )}
-            {character.category && (
-              <Badge variant="outline" className="mt-1">
-                <span className="mr-1">
-                  {getCategoryIcon(character.category)}
-                </span>
-                {character.category}
-              </Badge>
-            )}
-          </div>
-
-          {/* Bio */}
-          <p className="text-sm text-muted-foreground line-clamp-2 min-h-[2.5rem]">
-            {bioText}
-          </p>
-
-          {/* Features */}
-          <div className="flex flex-wrap gap-2 min-h-[28px]">
-            {hasVoice && (
-              <Badge variant="secondary" className="text-xs">
-                <Volume2 className="h-3 w-3 mr-1" />
-                Voice
-              </Badge>
-            )}
-            {character.topics?.slice(0, 2).map((topic) => (
-              <Badge key={topic} variant="outline" className="text-xs">
-                {topic}
-              </Badge>
-            ))}
-            {character.topics && character.topics.length > 2 && (
-              <Badge variant="outline" className="text-xs">
-                +{character.topics.length - 2}
-              </Badge>
-            )}
-          </div>
-
-          {/* Stats */}
-          {character.stats && (
-            <div className="flex items-center gap-4 text-xs text-muted-foreground pt-2 border-t">
-              <span className="flex items-center gap-1">
-                <MessageSquare className="h-3 w-3" />
-                {character.stats.messageCount > 1000
-                  ? `${(character.stats.messageCount / 1000).toFixed(1)}k`
-                  : character.stats.messageCount}
+            {isTopPerforming && (
+              <span
+                className="font-['Roboto_Flex'] font-medium text-[#ff5800] text-[12px] leading-normal whitespace-nowrap"
+                style={{
+                  fontFamily: "'Roboto Flex', sans-serif",
+                  fontVariationSettings:
+                    "'GRAD' 0, 'XOPQ' 96, 'XTRA' 468, 'YOPQ' 79, 'YTAS' 750, 'YTDE' -203, 'YTFI' 738, 'YTLC' 514, 'YTUC' 712, 'wdth' 100",
+                }}
+              >
+                Top performing
               </span>
-              {character.stats.lastActiveAt && (
-                <span className="flex items-center gap-1">
-                  <Clock className="h-3 w-3" />
-                  {formatDistanceToNow(new Date(character.stats.lastActiveAt), {
-                    addSuffix: true,
-                  })}
-                </span>
-              )}
-            </div>
-          )}
+            )}
+          </div>
 
-          {/* Actions */}
-          <div className="flex gap-2 pt-2">
-            <Button
-              className="flex-1"
-              size="sm"
-              onClick={() => onStartChat(character)}
+          {/* Right: Action Icons - gap-[4px], 28x28px containers */}
+          <div className="flex items-center gap-[4px] shrink-0 z-10 relative">
+            <button
+              onClick={handleChatMode}
+              className="w-[28px] h-[28px] flex items-center justify-center hover:bg-white/5 transition-colors rounded-[8px] cursor-pointer"
+              title="Chat Mode"
+              type="button"
             >
-              <MessageSquare className="h-4 w-4 mr-2" />
-              Chat
-            </Button>
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => onClone(character)}
-              title="Clone character"
+              <MessageSquare className="w-[18px] h-[18px] text-[#adadad] pointer-events-none" />
+            </button>
+            <button
+              onClick={handleBuildMode}
+              className="w-[28px] h-[28px] flex items-center justify-center hover:bg-white/5 transition-colors rounded-[8px] cursor-pointer"
+              title="Build Mode"
+              type="button"
             >
-              <Copy className="h-4 w-4" />
-            </Button>
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => onViewDetails(character)}
-              title="View details"
-            >
-              <Info className="h-4 w-4" />
-            </Button>
+              <Code className="w-[18px] h-[18px] text-[#adadad] pointer-events-none" />
+            </button>
           </div>
         </div>
-      </CardContent>
-    </Card>
+
+        {/* Description - gap-[4px] from heading */}
+        <div className="flex items-end gap-[4px]">
+          <p
+            className="flex-1 font-['Roboto_Flex'] font-normal text-[16px] leading-[20px] text-[rgba(255,255,255,0.6)] line-clamp-2 min-w-0"
+            style={{
+              fontFamily: "'Roboto Flex', sans-serif",
+              fontVariationSettings:
+                "'GRAD' 0, 'XOPQ' 96, 'XTRA' 468, 'YOPQ' 79, 'YTAS' 750, 'YTDE' -203, 'YTFI' 738, 'YTLC' 514, 'YTUC' 712, 'wdth' 100",
+            }}
+          >
+            {bioText || "No description available"}
+          </p>
+        </div>
+      </div>
+    </div>
   );
 }
