@@ -214,10 +214,17 @@ export function ChatSidebar({
         <div className="border-b border-white/10 px-4 py-3">
           <Link
             href="/dashboard"
-            className="flex items-center gap-2 text-white/70 hover:text-white transition-colors text-sm"
+            className="flex items-center gap-2 text-white/70 hover:text-white transition-colors"
+            style={{
+              fontFamily: 'var(--font-roboto-mono)',
+              fontWeight: 400,
+              fontSize: '14px',
+              lineHeight: '18px',
+              letterSpacing: '-0.003em',
+            }}
           >
             <ArrowLeft className="h-4 w-4" />
-            <span className="font-medium">Back</span>
+            <span>Back</span>
           </Link>
         </div>
 
@@ -237,10 +244,26 @@ export function ChatSidebar({
 
             {/* Character Info */}
             <div className="flex-1 min-w-0">
-              <div className="text-sm font-medium text-white truncate">
+              <div 
+                className="text-sm font-medium text-white truncate"
+                style={{
+                  fontFamily: 'var(--font-roboto-mono)',
+                  fontWeight: 400,
+                  fontSize: '14px',
+                  lineHeight: '18px',
+                  letterSpacing: '-0.003em',
+                }}
+              >
                 {selectedCharacter?.name || "Eliza"}
               </div>
-              <div className="text-xs text-white/60 truncate">
+              <div 
+                className="text-xs text-white/60 truncate"
+                style={{
+                  fontFamily: 'var(--font-roboto-mono)',
+                  fontWeight: 400,
+                  letterSpacing: '-0.003em',
+                }}
+              >
                 {selectedCharacter
                   ? `${filteredRooms.length} interaction${filteredRooms.length !== 1 ? "s" : ""}`
                   : `${filteredRooms.length} interaction${filteredRooms.length !== 1 ? "s" : ""}`}
@@ -299,23 +322,53 @@ export function ChatSidebar({
                         )}
                         <div className="flex-1 min-w-0">
                           <div className="flex items-center justify-between gap-2 mb-1">
-                            <span className="text-sm font-medium text-white truncate">
+                            <span 
+                              className="text-sm font-medium text-white truncate"
+                              style={{
+                                fontFamily: 'var(--font-roboto-mono)',
+                                fontWeight: 400,
+                                fontSize: '14px',
+                                lineHeight: '18px',
+                                letterSpacing: '-0.003em',
+                              }}
+                            >
                               {room.title ||
                                 `Room ID: ${room.id.substring(0, 8)}`}
                             </span>
                             {room.lastTime && !isLoading && (
-                              <span className="text-xs text-white/40 shrink-0">
+                              <span 
+                                className="text-xs text-white/40 shrink-0"
+                                style={{
+                                  fontFamily: 'var(--font-roboto-mono)',
+                                  fontWeight: 400,
+                                  letterSpacing: '-0.003em',
+                                }}
+                              >
                                 {formatTimestamp(room.lastTime)}
                               </span>
                             )}
                             {isLoading && (
-                              <span className="text-xs text-[#FF5800] shrink-0">
+                              <span 
+                                className="text-xs text-[#FF5800] shrink-0"
+                                style={{
+                                  fontFamily: 'var(--font-roboto-mono)',
+                                  fontWeight: 400,
+                                  letterSpacing: '-0.003em',
+                                }}
+                              >
                                 Loading...
                               </span>
                             )}
                           </div>
                           {room.lastText && (
-                            <p className="text-xs text-white/60 truncate">
+                            <p 
+                              className="text-xs text-white/60 truncate"
+                              style={{
+                                fontFamily: 'var(--font-roboto-mono)',
+                                fontWeight: 400,
+                                letterSpacing: '-0.003em',
+                              }}
+                            >
                               {room.lastText}
                             </p>
                           )}
@@ -345,7 +398,14 @@ export function ChatSidebar({
                 );
               })}
               {filteredRooms.length === 0 && !isLoadingRooms && (
-                <div className="px-3 py-8 text-center">
+                <div 
+                  className="px-3 py-8 text-center"
+                  style={{
+                    fontFamily: 'var(--font-roboto-mono)',
+                    fontWeight: 400,
+                    letterSpacing: '-0.003em',
+                  }}
+                >
                   <p className="text-xs text-white/60">No conversations yet</p>
                   <p className="text-xs text-white/40 mt-2">
                     Click the edit icon to start
