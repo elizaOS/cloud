@@ -10,6 +10,8 @@ interface CornerBracketsProps {
   size?: "sm" | "md" | "lg" | "xl";
   color?: string;
   variant?: "corners" | "full-border";
+  hoverColor?: string;
+  hoverScale?: boolean;
 }
 
 const sizeMap = {
@@ -24,9 +26,14 @@ export function CornerBrackets({
   size = "md",
   color = "#E1E1E1",
   variant = "corners",
+  hoverColor,
+  hoverScale = false,
 }: CornerBracketsProps) {
   const sizeClass = sizeMap[size];
   const borderStyle = { borderColor: color };
+
+  // Add hover class if hoverColor is provided
+  const hoverClass = hoverColor ? "corner-bracket-hover" : "";
 
   if (variant === "full-border") {
     return (
@@ -36,6 +43,8 @@ export function CornerBrackets({
           className={cn(
             "absolute left-0 top-0 border-l-2 border-t-2",
             sizeClass,
+            hoverClass,
+            hoverScale && "corner-bracket-tl",
           )}
           style={borderStyle}
         />
@@ -44,6 +53,8 @@ export function CornerBrackets({
           className={cn(
             "absolute right-0 top-0 border-r-2 border-t-2",
             sizeClass,
+            hoverClass,
+            hoverScale && "corner-bracket-tr",
           )}
           style={borderStyle}
         />
@@ -52,6 +63,8 @@ export function CornerBrackets({
           className={cn(
             "absolute bottom-0 left-0 border-b-2 border-l-2",
             sizeClass,
+            hoverClass,
+            hoverScale && "corner-bracket-bl",
           )}
           style={borderStyle}
         />
@@ -60,6 +73,8 @@ export function CornerBrackets({
           className={cn(
             "absolute bottom-0 right-0 border-b-2 border-r-2",
             sizeClass,
+            hoverClass,
+            hoverScale && "corner-bracket-br",
           )}
           style={borderStyle}
         />
@@ -74,6 +89,8 @@ export function CornerBrackets({
         className={cn(
           "absolute top-0 left-0 border-t border-l",
           sizeClass,
+          hoverClass,
+          hoverScale && "corner-bracket-tl",
           className,
         )}
         style={borderStyle}
@@ -83,6 +100,8 @@ export function CornerBrackets({
         className={cn(
           "absolute top-0 right-0 border-t border-r",
           sizeClass,
+          hoverClass,
+          hoverScale && "corner-bracket-tr",
           className,
         )}
         style={borderStyle}
@@ -92,6 +111,8 @@ export function CornerBrackets({
         className={cn(
           "absolute bottom-0 left-0 border-b border-l",
           sizeClass,
+          hoverClass,
+          hoverScale && "corner-bracket-bl",
           className,
         )}
         style={borderStyle}
@@ -101,6 +122,8 @@ export function CornerBrackets({
         className={cn(
           "absolute bottom-0 right-0 border-b border-r",
           sizeClass,
+          hoverClass,
+          hoverScale && "corner-bracket-br",
           className,
         )}
         style={borderStyle}

@@ -24,12 +24,18 @@ export function HUDContainer({
   return (
     <div
       className={cn(
-        "relative bg-black/40",
-        withBorder && "border border-white/20",
+        "group relative bg-black/40 transition-all duration-300 ease-out",
+        "hover:bg-black/60 hover:scale-[1.02] hover:shadow-xl hover:shadow-white/10",
+        withBorder && "border border-white/20 hover:border-white/30",
         className,
       )}
     >
-      <CornerBrackets size={cornerSize} color={cornerColor} />
+      <CornerBrackets 
+        size={cornerSize} 
+        color={cornerColor}
+        hoverColor="#FF5800"
+        hoverScale={true}
+      />
       {children}
     </div>
   );
