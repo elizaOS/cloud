@@ -9,12 +9,11 @@ import { ImageIcon, VideoIcon, LayoutGridIcon } from "lucide-react";
 import { toast } from "sonner";
 import { useSetPageHeader } from "@/components/layout/page-header-context";
 import {
-  BrandTabs,
-  BrandTabsList,
-  BrandTabsTrigger,
+  BrandTabsResponsive,
   BrandTabsContent,
   BrandCard,
 } from "@/components/brand";
+import type { TabItem } from "@/components/brand";
 
 export function GalleryPageClient() {
   useSetPageHeader({
@@ -23,6 +22,12 @@ export function GalleryPageClient() {
   });
 
   const [activeTab, setActiveTab] = useState<"all" | "image" | "video">("all");
+
+  const galleryTabs: TabItem[] = [
+    { value: "all", label: "All Media", icon: <LayoutGridIcon className="h-4 w-4" /> },
+    { value: "image", label: "Images", icon: <ImageIcon className="h-4 w-4" /> },
+    { value: "video", label: "Videos", icon: <VideoIcon className="h-4 w-4" /> },
+  ];
   const [items, setItems] = useState<GalleryItem[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isLoadingStats, setIsLoadingStats] = useState(true);
@@ -158,16 +163,12 @@ export function GalleryPageClient() {
         ) : null}
       </div>
 
-      <BrandTabs
+      <BrandTabsResponsive
+        id="gallery-tabs"
+        tabs={galleryTabs}
         value={activeTab}
         onValueChange={(v) => setActiveTab(v as "all" | "image" | "video")}
       >
-        <BrandTabsList>
-          <BrandTabsTrigger value="all">All Media</BrandTabsTrigger>
-          <BrandTabsTrigger value="image">Images</BrandTabsTrigger>
-          <BrandTabsTrigger value="video">Videos</BrandTabsTrigger>
-        </BrandTabsList>
-
         <BrandTabsContent value={activeTab} className="mt-6">
           {isLoading ? (
             <GalleryGridSkeleton />
@@ -175,7 +176,7 @@ export function GalleryPageClient() {
             <GalleryGrid items={items} onItemDeleted={handleItemDeleted} />
           )}
         </BrandTabsContent>
-      </BrandTabs>
+      </BrandTabsResponsive>
     </div>
   );
 }

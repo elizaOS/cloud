@@ -6,6 +6,7 @@
 "use client";
 
 import Link from "next/link";
+import Image from "next/image";
 import { useRouter } from "next/navigation";
 import { useState, useEffect, useMemo } from "react";
 import {
@@ -62,6 +63,7 @@ export function ChatSidebar({
   } = useChatStore();
   const [deletingRoomId, setDeletingRoomId] = useState<string | null>(null);
   const [isCreatingRoom, setIsCreatingRoom] = useState(false);
+  const [loadingRoomId, setLoadingRoomId] = useState<string | null>(null);
 
   // Filter rooms by selected character
   const filteredRooms = useMemo(() => {
@@ -116,6 +118,8 @@ export function ChatSidebar({
   };
 
   const handleSelectRoom = (selectedRoomId: string) => {
+    // Show loading state on the button
+    setLoadingRoomId(selectedRoomId);
     setRoomId(selectedRoomId);
     // Update URL with selected room ID and current character
     const params = new URLSearchParams();
@@ -125,6 +129,17 @@ export function ChatSidebar({
     }
     router.push(`/dashboard/chat?${params.toString()}`);
   };
+
+  // Clear loading state when roomId changes
+  useEffect(() => {
+    if (roomId && loadingRoomId && roomId === loadingRoomId) {
+      // Small delay to show the loading state
+      const timer = setTimeout(() => {
+        setLoadingRoomId(null);
+      }, 300);
+      return () => clearTimeout(timer);
+    }
+  }, [roomId, loadingRoomId]);
 
   const handleDeleteRoom = async (roomIdToDelete: string) => {
     setDeletingRoomId(roomIdToDelete);
@@ -174,9 +189,13 @@ export function ChatSidebar({
               className="inline-block w-2 h-2 rounded-full flex-shrink-0"
               style={{ backgroundColor: "#FF5800" }}
             />
-            <span className="text-white text-lg font-bold tracking-wide">
-              ELIZA
-            </span>
+            <Image
+              src="/eliza-font.svg"
+              alt="ELIZA"
+              width={80}
+              height={24}
+              className="h-5 w-auto"
+            />
           </Link>
 
           {/* Mobile Close Button */}
@@ -254,6 +273,7 @@ export function ChatSidebar({
             <div className="space-y-1">
               {filteredRooms.map((room) => {
                 const isDeleting = deletingRoomId === room.id;
+                const isLoading = loadingRoomId === room.id;
                 return (
                   <div
                     key={room.id}
@@ -262,25 +282,35 @@ export function ChatSidebar({
                       "hover:bg-white/5",
                       roomId === room.id &&
                         "bg-white/10 border-l-2 border-[#FF5800]",
-                      isDeleting && "opacity-50 pointer-events-none",
+                      (isDeleting || isLoading) &&
+                        "opacity-50 pointer-events-none",
                     )}
                   >
                     <button
                       onClick={() => handleSelectRoom(room.id)}
-                      disabled={isDeleting}
+                      disabled={isDeleting || isLoading}
                       className="w-full text-left"
                     >
                       <div className="flex items-start gap-3">
-                        <MessageSquare className="h-4 w-4 text-white/60 mt-0.5 shrink-0" />
+                        {isLoading ? (
+                          <Loader2 className="h-4 w-4 text-[#FF5800] mt-0.5 shrink-0 animate-spin" />
+                        ) : (
+                          <MessageSquare className="h-4 w-4 text-white/60 mt-0.5 shrink-0" />
+                        )}
                         <div className="flex-1 min-w-0">
                           <div className="flex items-center justify-between gap-2 mb-1">
                             <span className="text-sm font-medium text-white truncate">
                               {room.title ||
                                 `Room ID: ${room.id.substring(0, 8)}`}
                             </span>
-                            {room.lastTime && (
+                            {room.lastTime && !isLoading && (
                               <span className="text-xs text-white/40 shrink-0">
                                 {formatTimestamp(room.lastTime)}
+                              </span>
+                            )}
+                            {isLoading && (
+                              <span className="text-xs text-[#FF5800] shrink-0">
+                                Loading...
                               </span>
                             )}
                           </div>

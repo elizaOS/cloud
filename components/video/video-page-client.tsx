@@ -1,9 +1,16 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
 import { Progress } from "@/components/ui/progress";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { cn } from "@/lib/utils";
 import { MONTHLY_CREDIT_CAP } from "@/lib/pricing-constants";
 import {
@@ -396,14 +403,78 @@ export function VideoPageClient({
     ],
   );
 
+  const [activeTab, setActiveTab] = React.useState("generate");
+  const [isMounted, setIsMounted] = React.useState(false);
+
+  React.useEffect(() => {
+    setIsMounted(true);
+  }, []);
+
   return (
     <Tabs
       id="video-tabs"
-      defaultValue="generate"
+      value={activeTab}
+      onValueChange={setActiveTab}
       className="w-full flex flex-col"
     >
-      {/* Tab Navigation */}
-      <TabsList className="w-full rounded-none border-b border-white/10 bg-transparent h-10 p-0 justify-start mb-3">
+      {/* Mobile Dropdown */}
+      {isMounted && (
+        <div className="block md:hidden mb-3">
+          <Select value={activeTab} onValueChange={setActiveTab}>
+            <SelectTrigger className="w-full h-10 rounded-sm border border-white/10 bg-transparent text-white">
+              <SelectValue>
+                <div className="flex items-center gap-2">
+                  {activeTab === "generate" && (
+                    <>
+                      <Sparkles className="h-3.5 w-3.5" />
+                      <span>Generate</span>
+                    </>
+                  )}
+                  {activeTab === "activity" && (
+                    <>
+                      <BarChart3 className="h-3.5 w-3.5" />
+                      <span>Activity</span>
+                      {historyVideos.length > 0 && (
+                        <span className="ml-2 px-1.5 py-0.5 text-xs rounded-full bg-white/10">
+                          {historyVideos.length}
+                        </span>
+                      )}
+                    </>
+                  )}
+                </div>
+              </SelectValue>
+            </SelectTrigger>
+            <SelectContent className="bg-[#1A1A1A] border-white/10">
+              <SelectItem
+                value="generate"
+                className="text-white cursor-pointer hover:bg-[#FF5800]/10 focus:bg-[#FF5800]/10"
+              >
+                <div className="flex items-center gap-2">
+                  <Sparkles className="h-3.5 w-3.5" />
+                  Generate
+                </div>
+              </SelectItem>
+              <SelectItem
+                value="activity"
+                className="text-white cursor-pointer hover:bg-[#FF5800]/10 focus:bg-[#FF5800]/10"
+              >
+                <div className="flex items-center gap-2">
+                  <BarChart3 className="h-3.5 w-3.5" />
+                  Activity
+                  {historyVideos.length > 0 && (
+                    <span className="ml-2 px-1.5 py-0.5 text-xs rounded-full bg-white/10">
+                      {historyVideos.length}
+                    </span>
+                  )}
+                </div>
+              </SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
+      )}
+
+      {/* Desktop Tab Navigation */}
+      <TabsList className="hidden md:flex w-full rounded-none border-b border-white/10 bg-transparent h-10 p-0 justify-start mb-3">
         <TabsTrigger
           value="generate"
           className="rounded-none data-[state=active]:bg-[#FF5800]/10 data-[state=active]:border-b-2 data-[state=active]:border-[#FF5800] px-4 h-full text-sm"

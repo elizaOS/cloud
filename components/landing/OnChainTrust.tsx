@@ -26,7 +26,7 @@ const agents = [
 
 export default function OnChainTrust() {
   return (
-    <section className="relative bg-[#0A0A0A] py-16 md:py-24 overflow-hidden">
+    <section className="relative bg-[#0A0A0A] py-12 md:py-16 lg:py-24 overflow-hidden">
       {/* Background skew image */}
       <div className="absolute top-0 bottom-0 left-4 right-4 pointer-events-none">
         <Image
@@ -37,8 +37,8 @@ export default function OnChainTrust() {
         />
       </div>
 
-      {/* Corner brackets with connecting borders */}
-      <div className="absolute inset-0 pointer-events-none">
+      {/* Corner brackets with connecting borders - hidden on mobile */}
+      <div className="absolute inset-0 pointer-events-none hidden md:block">
         {/* Top border */}
         <div className="absolute top-0 left-4 right-4 h-px bg-white/10" />
         {/* Bottom border */}
@@ -48,22 +48,23 @@ export default function OnChainTrust() {
         {/* Right border */}
         <div className="absolute top-0 bottom-0 right-0 w-px bg-white/10 mr-4" />
       </div>
-      <CornerBrackets size="md" variant="corners" className="mx-4" />
+      <div className="hidden md:block">
+        <CornerBrackets size="md" variant="corners" className="mx-4" />
+      </div>
 
       <div className="container mx-auto px-4 relative z-10">
         {/* Header */}
-        <div className="mb-12 flex items-start justify-between">
+        <div className="mb-8 md:mb-12 flex flex-col md:flex-row items-start md:justify-between gap-6">
           <div className="max-w-4xl">
-            <div className="mb-6">
+            <div className="mb-4 md:mb-6">
               <SectionLabel>ON-CHAIN TRUST & ECONOMY</SectionLabel>
             </div>
 
             <h2 
-              className="mb-6 text-5xl font-medium uppercase"
+              className="mb-4 md:mb-6 text-2xl sm:text-3xl md:text-4xl lg:text-5xl font-medium uppercase"
               style={{
                 fontFamily: "var(--font-geist-sans)",
-                fontSize: "48px",
-                lineHeight: "62px",
+                lineHeight: "1.3",
                 color: "#FFFFFF"
               }}
             >
@@ -72,11 +73,10 @@ export default function OnChainTrust() {
             </h2>
 
             <p 
-              className="font-normal"
+              className="font-normal text-sm md:text-base"
               style={{
                 fontFamily: "var(--font-geist-mono)",
-                fontSize: "16px",
-                lineHeight: "21px",
+                lineHeight: "1.5",
                 letterSpacing: "-0.003em",
                 color: "#858585"
               }}
@@ -89,7 +89,7 @@ export default function OnChainTrust() {
 
           <Button
             variant="outline"
-            className="hidden shrink-0 gap-2 rounded-none md:flex transition-all duration-200 hover:scale-105 hover:shadow-[0_0_20px_rgba(225,225,225,0.4)] active:scale-95"
+            className="hidden lg:flex shrink-0 gap-2 rounded-none transition-all duration-200 hover:scale-105 hover:shadow-[0_0_20px_rgba(225,225,225,0.4)] active:scale-95"
             style={{
               backgroundColor: "#E1E1E1",
               borderColor: "#E1E1E1",
@@ -176,11 +176,10 @@ export default function OnChainTrust() {
             </div>
             
             <p 
-              className="mt-6 font-normal"
+              className="mt-4 md:mt-6 font-normal text-sm md:text-base"
               style={{
                 fontFamily: "var(--font-geist-mono)",
-                fontSize: "16px",
-                lineHeight: "21px",
+                lineHeight: "1.5",
                 letterSpacing: "-0.003em",
                 color: "#858585"
               }}
@@ -197,11 +196,10 @@ export default function OnChainTrust() {
           >
             <div className="w-full text-center">
               <p 
-                className="mb-8 font-normal"
+                className="mb-6 md:mb-8 font-normal text-sm md:text-base"
                 style={{
                   fontFamily: "var(--font-geist-mono)",
-                  fontSize: "16px",
-                  lineHeight: "21px",
+                  lineHeight: "1.5",
                   letterSpacing: "-0.003em",
                   color: "#858585"
                 }}
@@ -216,8 +214,8 @@ export default function OnChainTrust() {
         </div>
 
         {/* Bottom tagline */}
-        <div className="mt-16 text-center">
-          <p className="text-xl md:text-2xl tracking-wider text-white">
+        <div className="mt-12 md:mt-16 text-center px-4">
+          <p className="text-base sm:text-lg md:text-xl lg:text-2xl tracking-wider text-white">
             IDENTITY. REPUTATION. PAYMENT.{" "}
             <span className="text-white/60">ALL NATIVE TO YOUR AGENT.</span>
           </p>
