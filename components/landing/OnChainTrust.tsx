@@ -3,6 +3,7 @@
 import { Button } from "@/components/ui/button";
 import { ArrowUpRight, Check } from "lucide-react";
 import { CornerBrackets, SectionLabel, BrandCard } from "@/components/brand";
+import MicropaymentNetwork from "./MicropaymentNetwork";
 
 const agents = [
   {
@@ -122,92 +123,13 @@ export default function OnChainTrust() {
             corners={false}
             className="flex min-h-[400px] items-center justify-center rounded-sm"
           >
-            <div className="text-center">
+            <div className="w-full text-center">
               <p className="mb-8 text-sm text-white/70">
                 Agents can also send and receive micropayments instantly.
               </p>
 
-              {/* Network diagram */}
-              <div className="relative mx-auto h-64 w-full max-w-md">
-                {/* Center agent icon */}
-                <div
-                  className="absolute left-1/2 top-1/2 z-10 flex h-20 w-20 -translate-x-1/2 -translate-y-1/2 items-center justify-center rounded-full"
-                  style={{
-                    backgroundColor: "#FF5800",
-                    boxShadow: "0 0 30px #FF580080",
-                  }}
-                >
-                  <div className="h-12 w-12 rounded-sm bg-black/80" />
-                </div>
-
-                {/* Blockchain icons positioned around center */}
-                <div
-                  className="absolute left-[15%] top-[20%] h-12 w-12 rounded-full"
-                  style={{
-                    backgroundColor: "#3b82f6",
-                    boxShadow: "0 0 20px #3b82f680",
-                  }}
-                />
-                <div
-                  className="absolute right-[15%] top-[25%] h-12 w-12 rounded-full"
-                  style={{
-                    backgroundColor: "#06b6d4",
-                    boxShadow: "0 0 20px #06b6d480",
-                  }}
-                />
-                <div
-                  className="absolute left-[10%] bottom-[30%] h-10 w-10 rounded-full"
-                  style={{
-                    backgroundColor: "#8b5cf6",
-                    boxShadow: "0 0 20px #8b5cf680",
-                  }}
-                />
-                <div
-                  className="absolute right-[10%] bottom-[35%] h-10 w-10 rounded-full"
-                  style={{
-                    backgroundColor: "#10b981",
-                    boxShadow: "0 0 20px #10b98180",
-                  }}
-                />
-
-                {/* Small agent avatars */}
-                <div
-                  className="absolute bottom-[15%] left-[25%] h-8 w-8 rounded-sm"
-                  style={{
-                    backgroundColor: "#FF580080",
-                    boxShadow: "0 0 15px #FF580060",
-                  }}
-                />
-                <div
-                  className="absolute bottom-[20%] right-[20%] h-8 w-8 rounded-sm"
-                  style={{
-                    backgroundColor: "#FF580080",
-                    boxShadow: "0 0 15px #FF580060",
-                  }}
-                />
-
-                {/* Connection dots */}
-                <div
-                  className="absolute left-[30%] top-[35%] h-2 w-2 rounded-full"
-                  style={{ backgroundColor: "#FF5800" }}
-                />
-                <div
-                  className="absolute right-[25%] top-[40%] h-2 w-2 rounded-full"
-                  style={{ backgroundColor: "#FF5800" }}
-                />
-                <div
-                  className="absolute bottom-[40%] left-[35%] h-2 w-2 rounded-full"
-                  style={{ backgroundColor: "#FF5800" }}
-                />
-                <div
-                  className="absolute bottom-[45%] right-[30%] h-2 w-2 rounded-full"
-                  style={{ backgroundColor: "#FF5800" }}
-                />
-                <div
-                  className="absolute right-[35%] top-[15%] h-2 w-2 rounded-full"
-                  style={{ backgroundColor: "#FF5800" }}
-                />
-              </div>
+              {/* Floating Network Animation */}
+              <MicropaymentNetwork />
             </div>
           </BrandCard>
         </div>
