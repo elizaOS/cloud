@@ -99,6 +99,15 @@ export class CharactersService {
    * Convert database character to Eliza character format
    */
   toElizaCharacter(character: UserCharacter): ElizaCharacter {
+    const baseSettings = (character.settings as
+      | Record<string, string | boolean | number | Record<string, unknown>>
+      | undefined) || {};
+
+    const settings = {
+      ...baseSettings,
+      ...(character.avatar_url && { avatarUrl: character.avatar_url }),
+    };
+
     return {
       id: character.id,
       name: character.name,
@@ -124,9 +133,7 @@ export class CharactersService {
         | (string | { path: string; shared?: boolean })[]
         | undefined,
       plugins: character.plugins as string[] | undefined,
-      settings: character.settings as
-        | Record<string, string | boolean | number | Record<string, unknown>>
-        | undefined,
+      settings,
       secrets: character.secrets as
         | Record<string, string | boolean | number>
         | undefined,
