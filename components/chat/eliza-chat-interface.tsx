@@ -636,8 +636,9 @@ export function ElizaChatInterface() {
           const blob = await response.blob();
 
           // Ensure the blob is an image type
-          const imageBlob =
-            blob.type.startsWith("image/") ? blob : new Blob([blob], { type: "image/png" });
+          const imageBlob = blob.type.startsWith("image/")
+            ? blob
+            : new Blob([blob], { type: "image/png" });
 
           const clipboardItem = new ClipboardItem({
             [imageBlob.type]: imageBlob,
@@ -649,7 +650,10 @@ export function ElizaChatInterface() {
           setTimeout(() => setCopiedMessageId(null), 2000);
           return;
         } catch (imageError) {
-          console.error("Failed to copy image, falling back to text:", imageError);
+          console.error(
+            "Failed to copy image, falling back to text:",
+            imageError,
+          );
           toast.error("Failed to copy image, try downloading instead");
           return;
         }
@@ -847,7 +851,9 @@ export function ElizaChatInterface() {
                                                   height={512}
                                                   className="w-full h-auto"
                                                   style={{ display: "block" }}
-                                                  onLoad={() => scrollToBottom()}
+                                                  onLoad={() =>
+                                                    scrollToBottom()
+                                                  }
                                                 />
                                               </div>
                                             );

@@ -31,8 +31,14 @@ export default async function ContainersPage() {
       <div className="flex justify-between items-start">
         <div>
           <div className="flex items-center gap-2 mb-2">
-            <span className="inline-block w-2 h-2 rounded-full" style={{ backgroundColor: "#FF5800" }} />
-            <h1 className="text-4xl font-normal tracking-tight text-white" style={{ fontFamily: 'var(--font-roboto-mono)' }}>
+            <span
+              className="inline-block w-2 h-2 rounded-full"
+              style={{ backgroundColor: "#FF5800" }}
+            />
+            <h1
+              className="text-4xl font-normal tracking-tight text-white"
+              style={{ fontFamily: "var(--font-roboto-mono)" }}
+            >
               Containers
             </h1>
           </div>
@@ -52,10 +58,16 @@ export default async function ContainersPage() {
               </div>
             </div>
             <div>
-              <p className="text-xs font-medium text-white/60 uppercase tracking-wider" style={{ fontFamily: 'var(--font-roboto-mono)' }}>
+              <p
+                className="text-xs font-medium text-white/60 uppercase tracking-wider"
+                style={{ fontFamily: "var(--font-roboto-mono)" }}
+              >
                 Total Containers
               </p>
-              <p className="text-3xl font-medium mt-1 text-white" style={{ fontFamily: 'var(--font-roboto-mono)' }}>
+              <p
+                className="text-3xl font-medium mt-1 text-white"
+                style={{ fontFamily: "var(--font-roboto-mono)" }}
+              >
                 {stats.total}
               </p>
             </div>
@@ -68,10 +80,16 @@ export default async function ContainersPage() {
               </div>
             </div>
             <div>
-              <p className="text-xs font-medium text-white/60 uppercase tracking-wider" style={{ fontFamily: 'var(--font-roboto-mono)' }}>
+              <p
+                className="text-xs font-medium text-white/60 uppercase tracking-wider"
+                style={{ fontFamily: "var(--font-roboto-mono)" }}
+              >
                 Running
               </p>
-              <p className="text-3xl font-medium mt-1 text-green-400" style={{ fontFamily: 'var(--font-roboto-mono)' }}>
+              <p
+                className="text-3xl font-medium mt-1 text-green-400"
+                style={{ fontFamily: "var(--font-roboto-mono)" }}
+              >
                 {stats.running}
               </p>
             </div>
@@ -84,10 +102,16 @@ export default async function ContainersPage() {
               </div>
             </div>
             <div>
-              <p className="text-xs font-medium text-white/60 uppercase tracking-wider" style={{ fontFamily: 'var(--font-roboto-mono)' }}>
+              <p
+                className="text-xs font-medium text-white/60 uppercase tracking-wider"
+                style={{ fontFamily: "var(--font-roboto-mono)" }}
+              >
                 Building
               </p>
-              <p className="text-3xl font-medium mt-1 text-yellow-400" style={{ fontFamily: 'var(--font-roboto-mono)' }}>
+              <p
+                className="text-3xl font-medium mt-1 text-yellow-400"
+                style={{ fontFamily: "var(--font-roboto-mono)" }}
+              >
                 {stats.building}
               </p>
             </div>
@@ -100,10 +124,16 @@ export default async function ContainersPage() {
               </div>
             </div>
             <div>
-              <p className="text-xs font-medium text-white/60 uppercase tracking-wider" style={{ fontFamily: 'var(--font-roboto-mono)' }}>
+              <p
+                className="text-xs font-medium text-white/60 uppercase tracking-wider"
+                style={{ fontFamily: "var(--font-roboto-mono)" }}
+              >
                 Issues
               </p>
-              <p className="text-3xl font-medium mt-1 text-rose-400" style={{ fontFamily: 'var(--font-roboto-mono)' }}>
+              <p
+                className="text-3xl font-medium mt-1 text-rose-400"
+                style={{ fontFamily: "var(--font-roboto-mono)" }}
+              >
                 {stats.failed}
               </p>
             </div>
@@ -119,7 +149,10 @@ export default async function ContainersPage() {
             <div>
               <div className="flex items-center gap-2 mb-2">
                 <Terminal className="h-6 w-6 text-[#FF5800]" />
-                <h3 className="text-2xl font-normal text-white" style={{ fontFamily: 'var(--font-roboto-mono)' }}>
+                <h3
+                  className="text-2xl font-normal text-white"
+                  style={{ fontFamily: "var(--font-roboto-mono)" }}
+                >
                   Get Started with ElizaOS
                 </h3>
               </div>
@@ -128,10 +161,11 @@ export default async function ContainersPage() {
               </p>
             </div>
             <div className="space-y-4">
-              <div className="bg-black/60 border border-white/10 p-5 rounded-none text-sm" style={{ fontFamily: 'var(--font-roboto-mono)' }}>
-                <div className="text-white/50 mb-2">
-                  # Install ElizaOS CLI
-                </div>
+              <div
+                className="bg-black/60 border border-white/10 p-5 rounded-none text-sm"
+                style={{ fontFamily: "var(--font-roboto-mono)" }}
+              >
+                <div className="text-white/50 mb-2"># Install ElizaOS CLI</div>
                 <div className="text-white font-medium">
                   bun install -g @elizaos/cli
                 </div>
@@ -156,7 +190,10 @@ export default async function ContainersPage() {
             <div>
               <div className="flex items-center gap-2 mb-2">
                 <Terminal className="h-5 w-5 text-[#FF5800]" />
-                <h3 className="text-lg font-normal text-white" style={{ fontFamily: 'var(--font-roboto-mono)' }}>
+                <h3
+                  className="text-lg font-normal text-white"
+                  style={{ fontFamily: "var(--font-roboto-mono)" }}
+                >
                   Deploy from CLI
                 </h3>
               </div>
@@ -164,7 +201,10 @@ export default async function ContainersPage() {
                 Deploy additional ElizaOS projects using the command line
               </p>
             </div>
-            <div className="bg-black/60 border border-white/10 p-4 rounded-none text-sm" style={{ fontFamily: 'var(--font-roboto-mono)' }}>
+            <div
+              className="bg-black/60 border border-white/10 p-4 rounded-none text-sm"
+              style={{ fontFamily: "var(--font-roboto-mono)" }}
+            >
               <div className="text-white/50 mb-2">
                 # From your ElizaOS project directory
               </div>

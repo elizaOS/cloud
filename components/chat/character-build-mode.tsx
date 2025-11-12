@@ -12,6 +12,8 @@ import {
   ResizablePanel,
   ResizableHandle,
 } from "@/components/ui/resizable";
+import { MessageSquare, FileCode2 } from "lucide-react";
+import { cn } from "@/lib/utils";
 
 interface CharacterBuildModeProps {
   initialCharacters: ElizaCharacter[];
@@ -35,6 +37,11 @@ export function CharacterBuildMode({
   initialCharacters,
 }: CharacterBuildModeProps) {
   const { selectedCharacterId, setSelectedCharacterId } = useChatStore();
+
+  // Mobile view state: 'assistant' or 'editor'
+  const [mobileView, setMobileView] = useState<"assistant" | "editor">(
+    "assistant",
+  );
 
   // Derive character from selectedCharacterId - avoid setState in effect
   const initialCharacter = useMemo(() => {
@@ -102,36 +109,86 @@ export function CharacterBuildMode({
   }, [character, selectedCharacterId, setSelectedCharacterId]);
 
   return (
-    <div className="flex h-full w-full min-h-0 overflow-hidden">
-      {/* Resizable Split Pane Layout */}
-      <ResizablePanelGroup direction="horizontal" className="flex-1">
-        {/* Left Panel - AI Assistant Chat */}
-        <ResizablePanel defaultSize={50} minSize={30} maxSize={70}>
+    <div className="flex h-full w-full min-h-0 overflow-hidden flex-col">
+      {/* Mobile Toggle Bar */}
+      <div className="lg:hidden flex border-b border-[#353535] bg-[#0A0A0A] shrink-0">
+        <button
+          onClick={() => setMobileView("assistant")}
+          className={cn(
+            "flex-1 flex items-center justify-center gap-2 px-4 py-3 text-sm font-medium transition-colors",
+            mobileView === "assistant"
+              ? "bg-[#FF5800] text-white"
+              : "text-white/60 hover:text-white hover:bg-white/5",
+          )}
+        >
+          <MessageSquare className="h-4 w-4" />
+          <span>AI Assistant</span>
+        </button>
+        <button
+          onClick={() => setMobileView("editor")}
+          className={cn(
+            "flex-1 flex items-center justify-center gap-2 px-4 py-3 text-sm font-medium transition-colors border-l border-[#353535]",
+            mobileView === "editor"
+              ? "bg-[#FF5800] text-white"
+              : "text-white/60 hover:text-white hover:bg-white/5",
+          )}
+        >
+          <FileCode2 className="h-4 w-4" />
+          <span>Agent DNA</span>
+        </button>
+      </div>
+
+      {/* Mobile Single Panel View */}
+      <div className="lg:hidden flex-1 overflow-hidden">
+        {mobileView === "assistant" ? (
           <div className="flex h-full flex-col overflow-hidden">
             <BuildModeAssistant
               character={character}
               onCharacterUpdate={handleCharacterUpdate}
             />
           </div>
-        </ResizablePanel>
-
-        {/* Resizable Handle */}
-        <ResizableHandle withHandle />
-
-        {/* Right Panel - Agent DNA Editor */}
-        <ResizablePanel defaultSize={50} minSize={30} maxSize={70}>
-          <div
-            className="flex h-full flex-col overflow-hidden border-l"
-            style={{ borderColor: "#353535" }}
-          >
+        ) : (
+          <div className="flex h-full flex-col overflow-hidden">
             <AgentDnaEditor
               character={character}
               onChange={setCharacter}
               onSave={handleSave}
             />
           </div>
-        </ResizablePanel>
-      </ResizablePanelGroup>
+        )}
+      </div>
+
+      {/* Desktop Resizable Split Pane Layout */}
+      <div className="hidden lg:flex h-full w-full min-h-0 overflow-hidden flex-1">
+        <ResizablePanelGroup direction="horizontal" className="flex-1">
+          {/* Left Panel - AI Assistant Chat */}
+          <ResizablePanel defaultSize={50} minSize={30} maxSize={70}>
+            <div className="flex h-full flex-col overflow-hidden">
+              <BuildModeAssistant
+                character={character}
+                onCharacterUpdate={handleCharacterUpdate}
+              />
+            </div>
+          </ResizablePanel>
+
+          {/* Resizable Handle */}
+          <ResizableHandle withHandle />
+
+          {/* Right Panel - Agent DNA Editor */}
+          <ResizablePanel defaultSize={50} minSize={30} maxSize={70}>
+            <div
+              className="flex h-full flex-col overflow-hidden border-l"
+              style={{ borderColor: "#353535" }}
+            >
+              <AgentDnaEditor
+                character={character}
+                onChange={setCharacter}
+                onSave={handleSave}
+              />
+            </div>
+          </ResizablePanel>
+        </ResizablePanelGroup>
+      </div>
     </div>
   );
 }
