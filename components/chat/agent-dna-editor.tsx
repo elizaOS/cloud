@@ -7,6 +7,10 @@ import type { ElizaCharacter } from "@/lib/types";
 import { Button } from "@/components/ui/button";
 import { Download, Save, Settings, Zap, BookOpen, Upload } from "lucide-react";
 import { cn } from "@/lib/utils";
+import {
+  BrandTabsResponsive,
+  type TabItem,
+} from "@/components/brand/brand-tabs-responsive";
 
 interface AgentDnaEditorProps {
   character: ElizaCharacter;
@@ -24,6 +28,29 @@ export function AgentDnaEditor({
   const [activeTab, setActiveTab] = useState<MainTab>("settings");
   const [showJson, setShowJson] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
+
+  const tabs: TabItem[] = [
+    {
+      value: "settings",
+      label: "Settings",
+      icon: <Settings className="h-4 w-4" />,
+    },
+    {
+      value: "model-calls",
+      label: "Model Calls",
+      icon: <Zap className="h-4 w-4" />,
+    },
+    {
+      value: "memories",
+      label: "Memories",
+      icon: <BookOpen className="h-4 w-4" />,
+    },
+    {
+      value: "uploads",
+      label: "Uploads",
+      icon: <Upload className="h-4 w-4" />,
+    },
+  ];
 
   const handleSave = async () => {
     setIsSaving(true);
@@ -82,60 +109,25 @@ export function AgentDnaEditor({
         </p>
       </div>
 
-      {/* Main Tabs */}
+      {/* Responsive Tabs + JSON Toggle */}
       <div className="flex-shrink-0 border-b border-white/10 px-6">
-        <div className="flex items-center gap-1">
-          <button
-            onClick={() => setActiveTab("settings")}
-            className={cn(
-              "flex items-center gap-2 px-4 py-3 text-sm font-medium transition-colors border-b-2",
-              activeTab === "settings"
-                ? "border-[#FF5800] text-white"
-                : "border-transparent text-white/60 hover:text-white",
-            )}
-          >
-            <Settings className="h-4 w-4" />
-            Settings
-          </button>
-          <button
-            onClick={() => setActiveTab("model-calls")}
-            className={cn(
-              "flex items-center gap-2 px-4 py-3 text-sm font-medium transition-colors border-b-2",
-              activeTab === "model-calls"
-                ? "border-[#FF5800] text-white"
-                : "border-transparent text-white/60 hover:text-white",
-            )}
-          >
-            <Zap className="h-4 w-4" />
-            Model Calls
-          </button>
-          <button
-            onClick={() => setActiveTab("memories")}
-            className={cn(
-              "flex items-center gap-2 px-4 py-3 text-sm font-medium transition-colors border-b-2",
-              activeTab === "memories"
-                ? "border-[#FF5800] text-white"
-                : "border-transparent text-white/60 hover:text-white",
-            )}
-          >
-            <BookOpen className="h-4 w-4" />
-            Memories
-          </button>
-          <button
-            onClick={() => setActiveTab("uploads")}
-            className={cn(
-              "flex items-center gap-2 px-4 py-3 text-sm font-medium transition-colors border-b-2",
-              activeTab === "uploads"
-                ? "border-[#FF5800] text-white"
-                : "border-transparent text-white/60 hover:text-white",
-            )}
-          >
-            <Upload className="h-4 w-4" />
-            Uploads
-          </button>
+        <div className="flex flex-col md:flex-row md:items-center gap-3 py-3">
+          {/* Tabs - Dropdown on mobile, tabs on desktop */}
+          <div className="flex-1 min-w-0">
+            <BrandTabsResponsive
+              id="agent-dna-tabs"
+              tabs={tabs}
+              value={activeTab}
+              onValueChange={(value) => setActiveTab(value as MainTab)}
+              breakpoint="md"
+            >
+              {/* Empty children - content is rendered below */}
+              <div className="hidden" />
+            </BrandTabsResponsive>
+          </div>
 
-          {/* JSON Toggle */}
-          <div className="ml-auto flex items-center gap-2 px-4">
+          {/* JSON Toggle Switch */}
+          <div className="flex items-center gap-2 shrink-0 md:ml-auto md:pl-4">
             <span className="text-xs text-white/60">JSON</span>
             <button
               onClick={() => setShowJson(!showJson)}
@@ -155,7 +147,7 @@ export function AgentDnaEditor({
         </div>
       </div>
 
-      {/* Content Area */}
+      {/* Content Area - Full Height */}
       <div className="flex-1 overflow-hidden">
         {showJson ? (
           <JsonEditor

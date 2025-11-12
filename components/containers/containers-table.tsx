@@ -230,8 +230,14 @@ export function ContainersTable({ containers }: ContainersTableProps) {
         <div className="relative z-10 space-y-6">
           {/* Header */}
           <div className="flex items-center gap-2 pb-4 border-b border-white/10">
-            <span className="inline-block w-2 h-2 rounded-full" style={{ backgroundColor: "#FF5800" }} />
-            <h2 className="text-xl font-normal text-white" style={{ fontFamily: 'var(--font-roboto-mono)' }}>
+            <span
+              className="inline-block w-2 h-2 rounded-full"
+              style={{ backgroundColor: "#FF5800" }}
+            />
+            <h2
+              className="text-xl font-normal text-white"
+              style={{ fontFamily: "var(--font-roboto-mono)" }}
+            >
               Container List
             </h2>
           </div>
@@ -245,11 +251,14 @@ export function ContainersTable({ containers }: ContainersTableProps) {
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
                 className="pl-9 rounded-none border-white/10 bg-black/40 text-white placeholder:text-white/40 focus-visible:ring-[#FF5800]/50"
-                style={{ fontFamily: 'var(--font-roboto-mono)' }}
+                style={{ fontFamily: "var(--font-roboto-mono)" }}
               />
             </div>
             <Select value={statusFilter} onValueChange={setStatusFilter}>
-              <SelectTrigger className="w-full sm:w-[180px] rounded-none border-white/10 bg-black/40" style={{ fontFamily: 'var(--font-roboto-mono)' }}>
+              <SelectTrigger
+                className="w-full sm:w-[180px] rounded-none border-white/10 bg-black/40"
+                style={{ fontFamily: "var(--font-roboto-mono)" }}
+              >
                 <SelectValue placeholder="Filter by status" />
               </SelectTrigger>
               <SelectContent className="rounded-none border-white/10 bg-[#0A0A0A]">
@@ -266,223 +275,236 @@ export function ContainersTable({ containers }: ContainersTableProps) {
 
           {/* Results Count */}
           {(searchQuery || statusFilter !== "all") && (
-            <div className="text-sm text-white/60" style={{ fontFamily: 'var(--font-roboto-mono)' }}>
-              Showing {filteredAndSortedContainers.length} of {containers.length} containers
+            <div
+              className="text-sm text-white/60"
+              style={{ fontFamily: "var(--font-roboto-mono)" }}
+            >
+              Showing {filteredAndSortedContainers.length} of{" "}
+              {containers.length} containers
             </div>
           )}
 
           {/* Table */}
           <div className="rounded-none border border-white/10 overflow-hidden">
-          <Table>
-            <TableHeader>
-              <TableRow className="bg-black/40 border-b border-white/10">
-                <TableHead>
-                  <BrandButton
-                    variant="ghost"
-                    size="sm"
-                    onClick={() => handleSort("name")}
-                    className="hover:bg-white/5"
-                    style={{ fontFamily: 'var(--font-roboto-mono)' }}
+            <Table>
+              <TableHeader>
+                <TableRow className="bg-black/40 border-b border-white/10">
+                  <TableHead>
+                    <BrandButton
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => handleSort("name")}
+                      className="hover:bg-white/5"
+                      style={{ fontFamily: "var(--font-roboto-mono)" }}
+                    >
+                      Container
+                      <ArrowUpDown className="ml-2 h-3 w-3" />
+                    </BrandButton>
+                  </TableHead>
+                  <TableHead>
+                    <BrandButton
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => handleSort("status")}
+                      className="hover:bg-white/5"
+                      style={{ fontFamily: "var(--font-roboto-mono)" }}
+                    >
+                      Status
+                      <ArrowUpDown className="ml-2 h-3 w-3" />
+                    </BrandButton>
+                  </TableHead>
+                  <TableHead>
+                    <BrandButton
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => handleSort("cpu")}
+                      className="hover:bg-white/5"
+                      style={{ fontFamily: "var(--font-roboto-mono)" }}
+                    >
+                      Resources
+                      <ArrowUpDown className="ml-2 h-3 w-3" />
+                    </BrandButton>
+                  </TableHead>
+                  <TableHead style={{ fontFamily: "var(--font-roboto-mono)" }}>
+                    Instances
+                  </TableHead>
+                  <TableHead>
+                    <BrandButton
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => handleSort("deployed")}
+                      className="hover:bg-white/5"
+                      style={{ fontFamily: "var(--font-roboto-mono)" }}
+                    >
+                      Deployed
+                      <ArrowUpDown className="ml-2 h-3 w-3" />
+                    </BrandButton>
+                  </TableHead>
+                  <TableHead
+                    className="text-right"
+                    style={{ fontFamily: "var(--font-roboto-mono)" }}
                   >
-                    Container
-                    <ArrowUpDown className="ml-2 h-3 w-3" />
-                  </BrandButton>
-                </TableHead>
-                <TableHead>
-                  <BrandButton
-                    variant="ghost"
-                    size="sm"
-                    onClick={() => handleSort("status")}
-                    className="hover:bg-white/5"
-                    style={{ fontFamily: 'var(--font-roboto-mono)' }}
-                  >
-                    Status
-                    <ArrowUpDown className="ml-2 h-3 w-3" />
-                  </BrandButton>
-                </TableHead>
-                <TableHead>
-                  <BrandButton
-                    variant="ghost"
-                    size="sm"
-                    onClick={() => handleSort("cpu")}
-                    className="hover:bg-white/5"
-                    style={{ fontFamily: 'var(--font-roboto-mono)' }}
-                  >
-                    Resources
-                    <ArrowUpDown className="ml-2 h-3 w-3" />
-                  </BrandButton>
-                </TableHead>
-                <TableHead style={{ fontFamily: 'var(--font-roboto-mono)' }}>Instances</TableHead>
-                <TableHead>
-                  <BrandButton
-                    variant="ghost"
-                    size="sm"
-                    onClick={() => handleSort("deployed")}
-                    className="hover:bg-white/5"
-                    style={{ fontFamily: 'var(--font-roboto-mono)' }}
-                  >
-                    Deployed
-                    <ArrowUpDown className="ml-2 h-3 w-3" />
-                  </BrandButton>
-                </TableHead>
-                <TableHead className="text-right" style={{ fontFamily: 'var(--font-roboto-mono)' }}>Actions</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {filteredAndSortedContainers.length === 0 ? (
-                <TableRow>
-                  <TableCell colSpan={6} className="h-32 text-center">
-                    <div className="flex flex-col items-center justify-center text-muted-foreground">
-                      <Boxes className="h-8 w-8 mb-2" />
-                      <p>No containers match your filters</p>
-                    </div>
-                  </TableCell>
+                    Actions
+                  </TableHead>
                 </TableRow>
-              ) : (
-                filteredAndSortedContainers.map((container) => (
-                  <TableRow
-                    key={container.id}
-                    className="hover:bg-white/5 transition-colors border-b border-white/10"
-                  >
-                    <TableCell>
-                      <div className="space-y-1">
-                        <Link
-                          href={`/dashboard/containers/${container.id}`}
-                          className="font-medium hover:underline"
-                        >
-                          {container.name}
-                        </Link>
-                        {container.description && (
-                          <p className="text-sm text-muted-foreground line-clamp-1">
-                            {container.description}
-                          </p>
-                        )}
-                        <div className="flex items-center gap-2 text-xs text-muted-foreground">
-                          <span>Port: {container.port}</span>
-                        </div>
+              </TableHeader>
+              <TableBody>
+                {filteredAndSortedContainers.length === 0 ? (
+                  <TableRow>
+                    <TableCell colSpan={6} className="h-32 text-center">
+                      <div className="flex flex-col items-center justify-center text-muted-foreground">
+                        <Boxes className="h-8 w-8 mb-2" />
+                        <p>No containers match your filters</p>
                       </div>
                     </TableCell>
-                    <TableCell>
-                      <div className="flex flex-col gap-2">
-                        <Badge
-                          variant="outline"
-                          className={`${getStatusColor(container.status)} text-white border-none w-fit rounded-none`}
-                          style={{ fontFamily: 'var(--font-roboto-mono)' }}
-                        >
-                          <span className="mr-1">
-                            {getStatusIcon(container.status)}
+                  </TableRow>
+                ) : (
+                  filteredAndSortedContainers.map((container) => (
+                    <TableRow
+                      key={container.id}
+                      className="hover:bg-white/5 transition-colors border-b border-white/10"
+                    >
+                      <TableCell>
+                        <div className="space-y-1">
+                          <Link
+                            href={`/dashboard/containers/${container.id}`}
+                            className="font-medium hover:underline"
+                          >
+                            {container.name}
+                          </Link>
+                          {container.description && (
+                            <p className="text-sm text-muted-foreground line-clamp-1">
+                              {container.description}
+                            </p>
+                          )}
+                          <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                            <span>Port: {container.port}</span>
+                          </div>
+                        </div>
+                      </TableCell>
+                      <TableCell>
+                        <div className="flex flex-col gap-2">
+                          <Badge
+                            variant="outline"
+                            className={`${getStatusColor(container.status)} text-white border-none w-fit rounded-none`}
+                            style={{ fontFamily: "var(--font-roboto-mono)" }}
+                          >
+                            <span className="mr-1">
+                              {getStatusIcon(container.status)}
+                            </span>
+                            {container.status}
+                          </Badge>
+                          {container.error_message && (
+                            <Tooltip>
+                              <TooltipTrigger asChild>
+                                <p className="text-xs text-red-500 truncate max-w-[200px] cursor-help">
+                                  {container.error_message}
+                                </p>
+                              </TooltipTrigger>
+                              <TooltipContent className="max-w-xs">
+                                <p>{container.error_message}</p>
+                              </TooltipContent>
+                            </Tooltip>
+                          )}
+                        </div>
+                      </TableCell>
+                      <TableCell>
+                        <div className="flex flex-col gap-1 text-sm">
+                          <div className="flex items-center gap-1">
+                            <span className="text-muted-foreground">CPU:</span>
+                            <span className="font-medium">{container.cpu}</span>
+                          </div>
+                          <div className="flex items-center gap-1">
+                            <span className="text-muted-foreground">RAM:</span>
+                            <span className="font-medium">
+                              {container.memory}MB
+                            </span>
+                          </div>
+                        </div>
+                      </TableCell>
+                      <TableCell>
+                        <div className="flex items-center gap-1">
+                          <Server className="h-3 w-3 text-muted-foreground" />
+                          <span className="font-medium">
+                            {container.desired_count}
                           </span>
-                          {container.status}
-                        </Badge>
-                        {container.error_message && (
+                        </div>
+                      </TableCell>
+                      <TableCell>
+                        <div className="text-sm">
+                          <div className="font-medium">
+                            {formatDate(container.last_deployed_at)}
+                          </div>
+                          {container.last_deployed_at && (
+                            <div className="text-xs text-muted-foreground">
+                              {new Date(
+                                container.last_deployed_at,
+                              ).toLocaleTimeString([], {
+                                hour: "2-digit",
+                                minute: "2-digit",
+                              })}
+                            </div>
+                          )}
+                        </div>
+                      </TableCell>
+                      <TableCell className="text-right">
+                        <div className="flex justify-end gap-1">
                           <Tooltip>
                             <TooltipTrigger asChild>
-                              <p className="text-xs text-red-500 truncate max-w-[200px] cursor-help">
-                                {container.error_message}
-                              </p>
+                              <Link
+                                href={`/dashboard/containers/${container.id}`}
+                              >
+                                <BrandButton variant="ghost" size="sm">
+                                  <FileText className="h-4 w-4" />
+                                </BrandButton>
+                              </Link>
                             </TooltipTrigger>
-                            <TooltipContent className="max-w-xs">
-                              <p>{container.error_message}</p>
-                            </TooltipContent>
+                            <TooltipContent>View details & logs</TooltipContent>
                           </Tooltip>
-                        )}
-                      </div>
-                    </TableCell>
-                    <TableCell>
-                      <div className="flex flex-col gap-1 text-sm">
-                        <div className="flex items-center gap-1">
-                          <span className="text-muted-foreground">CPU:</span>
-                          <span className="font-medium">{container.cpu}</span>
-                        </div>
-                        <div className="flex items-center gap-1">
-                          <span className="text-muted-foreground">RAM:</span>
-                          <span className="font-medium">
-                            {container.memory}MB
-                          </span>
-                        </div>
-                      </div>
-                    </TableCell>
-                    <TableCell>
-                      <div className="flex items-center gap-1">
-                        <Server className="h-3 w-3 text-muted-foreground" />
-                        <span className="font-medium">
-                          {container.desired_count}
-                        </span>
-                      </div>
-                    </TableCell>
-                    <TableCell>
-                      <div className="text-sm">
-                        <div className="font-medium">
-                          {formatDate(container.last_deployed_at)}
-                        </div>
-                        {container.last_deployed_at && (
-                          <div className="text-xs text-muted-foreground">
-                            {new Date(
-                              container.last_deployed_at,
-                            ).toLocaleTimeString([], {
-                              hour: "2-digit",
-                              minute: "2-digit",
-                            })}
-                          </div>
-                        )}
-                      </div>
-                    </TableCell>
-                    <TableCell className="text-right">
-                      <div className="flex justify-end gap-1">
-                        <Tooltip>
-                          <TooltipTrigger asChild>
-                            <Link
-                              href={`/dashboard/containers/${container.id}`}
-                            >
-                              <BrandButton variant="ghost" size="sm">
-                                <FileText className="h-4 w-4" />
-                              </BrandButton>
-                            </Link>
-                          </TooltipTrigger>
-                          <TooltipContent>View details & logs</TooltipContent>
-                        </Tooltip>
 
-                        {container.load_balancer_url && (
+                          {container.load_balancer_url && (
+                            <Tooltip>
+                              <TooltipTrigger asChild>
+                                <BrandButton
+                                  variant="ghost"
+                                  size="sm"
+                                  onClick={() => {
+                                    window.open(
+                                      container.load_balancer_url!,
+                                      "_blank",
+                                    );
+                                  }}
+                                >
+                                  <ExternalLink className="h-4 w-4" />
+                                </BrandButton>
+                              </TooltipTrigger>
+                              <TooltipContent>
+                                Open container URL
+                              </TooltipContent>
+                            </Tooltip>
+                          )}
+
                           <Tooltip>
                             <TooltipTrigger asChild>
                               <BrandButton
                                 variant="ghost"
                                 size="sm"
-                                onClick={() => {
-                                  window.open(
-                                    container.load_balancer_url!,
-                                    "_blank",
-                                  );
-                                }}
+                                onClick={() => setDeleteId(container.id)}
+                                disabled={isDeleting}
+                                className="hover:bg-red-50 dark:hover:bg-red-950"
                               >
-                                <ExternalLink className="h-4 w-4" />
+                                <Trash2 className="h-4 w-4 text-red-500" />
                               </BrandButton>
                             </TooltipTrigger>
-                            <TooltipContent>Open container URL</TooltipContent>
+                            <TooltipContent>Delete container</TooltipContent>
                           </Tooltip>
-                        )}
-
-                        <Tooltip>
-                          <TooltipTrigger asChild>
-                            <BrandButton
-                              variant="ghost"
-                              size="sm"
-                              onClick={() => setDeleteId(container.id)}
-                              disabled={isDeleting}
-                              className="hover:bg-red-50 dark:hover:bg-red-950"
-                            >
-                              <Trash2 className="h-4 w-4 text-red-500" />
-                            </BrandButton>
-                          </TooltipTrigger>
-                          <TooltipContent>Delete container</TooltipContent>
-                        </Tooltip>
-                      </div>
-                    </TableCell>
-                  </TableRow>
-                ))
-              )}
-            </TableBody>
-          </Table>
+                        </div>
+                      </TableCell>
+                    </TableRow>
+                  ))
+                )}
+              </TableBody>
+            </Table>
           </div>
         </div>
       </BrandCard>

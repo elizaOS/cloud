@@ -100,7 +100,8 @@ export function OpenApiViewer({ value }: OpenApiViewerProps) {
           // Read-only specific options
           domReadOnly: true,
           readOnlyMessage: {
-            value: "This OpenAPI specification is read-only. Use the Copy buttons above to export.",
+            value:
+              "This OpenAPI specification is read-only. Use the Copy buttons above to export.",
           },
           contextmenu: true,
           selectOnLineNumbers: true,
@@ -117,4 +118,3 @@ export function OpenApiViewer({ value }: OpenApiViewerProps) {
     </div>
   );
 }
-

@@ -486,18 +486,41 @@ export function ElizaChatInterface() {
     });
   }, []);
 
-  // Auto-scroll to bottom when messages change
-  useEffect(() => {
+  // Robust scroll to bottom function
+  const scrollToBottom = useCallback((smooth = false) => {
     if (scrollAreaRef.current) {
       // ScrollArea wraps content in a viewport div with data-radix-scroll-area-viewport
       const viewport = scrollAreaRef.current.querySelector(
         "[data-radix-scroll-area-viewport]",
       );
       if (viewport) {
-        viewport.scrollTop = viewport.scrollHeight;
+        // Use requestAnimationFrame to ensure DOM has updated
+        requestAnimationFrame(() => {
+          if (smooth) {
+            viewport.scrollTo({
+              top: viewport.scrollHeight,
+              behavior: "smooth",
+            });
+          } else {
+            viewport.scrollTop = viewport.scrollHeight;
+          }
+        });
       }
     }
-  }, [messages]);
+  }, []);
+
+  // Auto-scroll to bottom when messages change
+  useEffect(() => {
+    scrollToBottom();
+  }, [messages, scrollToBottom]);
+
+  // Additional scroll after a delay to handle late-loading content
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      scrollToBottom();
+    }, 100);
+    return () => clearTimeout(timer);
+  }, [messages, scrollToBottom]);
 
   const sendMessage = async (textOverride?: string) => {
     const messageText = textOverride?.trim() || inputText.trim();
@@ -587,8 +610,56 @@ export function ElizaChatInterface() {
     return date.toLocaleDateString();
   };
 
-  const copyToClipboard = async (text: string, messageId: string) => {
+  const copyToClipboard = async (
+    text: string,
+    messageId: string,
+    attachments?: Array<{
+      id: string;
+      url: string;
+      title?: string;
+      contentType: string;
+    }>,
+  ) => {
     try {
+      // Check if there are image attachments
+      const imageAttachment = attachments?.find(
+        (att) =>
+          att.contentType === "IMAGE" ||
+          att.contentType === "image" ||
+          att.contentType.startsWith("image/"),
+      );
+
+      if (imageAttachment) {
+        // Copy the actual image to clipboard
+        try {
+          const response = await fetch(imageAttachment.url);
+          const blob = await response.blob();
+
+          // Ensure the blob is an image type
+          const imageBlob = blob.type.startsWith("image/")
+            ? blob
+            : new Blob([blob], { type: "image/png" });
+
+          const clipboardItem = new ClipboardItem({
+            [imageBlob.type]: imageBlob,
+          });
+
+          await navigator.clipboard.write([clipboardItem]);
+          setCopiedMessageId(messageId);
+          toast.success("Image copied to clipboard");
+          setTimeout(() => setCopiedMessageId(null), 2000);
+          return;
+        } catch (imageError) {
+          console.error(
+            "Failed to copy image, falling back to text:",
+            imageError,
+          );
+          toast.error("Failed to copy image, try downloading instead");
+          return;
+        }
+      }
+
+      // Fall back to copying text if no image
       await navigator.clipboard.writeText(text);
       setCopiedMessageId(messageId);
       toast.success("Message copied to clipboard");
@@ -780,6 +851,9 @@ export function ElizaChatInterface() {
                                                   height={512}
                                                   className="w-full h-auto"
                                                   style={{ display: "block" }}
+                                                  onLoad={() =>
+                                                    scrollToBottom()
+                                                  }
                                                 />
                                               </div>
                                             );
@@ -806,6 +880,7 @@ export function ElizaChatInterface() {
                                       copyToClipboard(
                                         message.content.text,
                                         message.id,
+                                        message.content.attachments,
                                       )
                                     }
                                     title="Copy message"
@@ -883,6 +958,7 @@ export function ElizaChatInterface() {
                                 copyToClipboard(
                                   message.content.text,
                                   message.id,
+                                  message.content.attachments,
                                 )
                               }
                               title="Copy message"
