@@ -198,19 +198,19 @@ export function ImageGeneratorAdvanced() {
   }, [carouselApi, currentImages]);
 
   return (
-    <div className="flex flex-col lg:flex-row gap-6 w-full h-full">
+    <div className="flex flex-col lg:flex-row gap-4 md:gap-6 w-full h-full">
       {/* Left Panel - Controls */}
       <div className="w-full lg:w-96 space-y-4">
         <BrandCard className="relative">
           <CornerBrackets size="sm" className="opacity-50" />
 
-          <div className="relative z-10 space-y-6">
+          <div className="relative z-10 space-y-4 md:space-y-6">
             <div>
               <div className="flex items-center gap-2 mb-2">
-                <Wand2 className="h-5 w-5 text-[#FF5800]" />
-                <h3 className="text-lg font-bold text-white">Image Studio</h3>
+                <div className="w-2 h-2 rounded-full bg-[#FF5800]" />
+                <h3 className="text-base md:text-lg font-mono font-bold text-[#e1e1e1] uppercase">Image Studio</h3>
               </div>
-              <p className="text-sm text-white/60">
+              <p className="text-xs md:text-sm font-mono text-[#858585]">
                 Create stunning AI-generated images with advanced controls
               </p>
             </div>
@@ -218,7 +218,7 @@ export function ImageGeneratorAdvanced() {
             <div className="space-y-3">
               <label
                 htmlFor="prompt"
-                className="text-xs font-medium text-white/70 uppercase tracking-wide"
+                className="text-xs font-mono font-medium text-white/70 uppercase tracking-wide"
               >
                 Prompt
               </label>
@@ -227,11 +227,11 @@ export function ImageGeneratorAdvanced() {
                 value={prompt}
                 onChange={(e) => setPrompt(e.currentTarget.value)}
                 placeholder="Describe your vision in detail..."
-                rows={6}
-                className="w-full rounded-none border border-white/10 bg-black/40 px-4 py-3 text-sm leading-relaxed text-white placeholder:text-white/40 focus:outline-none focus:ring-1 focus:ring-[#FF5800] focus:border-[#FF5800] resize-none"
+                rows={5}
+                className="w-full border border-white/10 bg-black/40 px-3 md:px-4 py-2 md:py-3 text-xs md:text-sm leading-relaxed text-white placeholder:text-white/40 focus:outline-none focus:ring-1 focus:ring-[#FF5800] focus:border-[#FF5800] resize-none"
               />
               {prompt && (
-                <p className="text-xs text-white/50 text-right">
+                <p className="text-xs font-mono text-white/50 text-right">
                   {prompt.length} characters
                 </p>
               )}
@@ -239,14 +239,14 @@ export function ImageGeneratorAdvanced() {
 
             {/* Preset Prompts */}
             <div className="space-y-2">
-              <label className="text-xs text-white/50 uppercase tracking-wide">
+              <label className="text-xs font-mono text-white/50 uppercase tracking-wide">
                 Quick Presets
               </label>
               <div className="flex flex-wrap gap-2">
                 {PRESET_PROMPTS.slice(0, 3).map((preset, index) => (
                   <span
                     key={index}
-                    className="cursor-pointer rounded-none border border-white/20 bg-white/10 px-2 py-1 text-xs text-white/70 hover:bg-[#FF580020] hover:border-[#FF5800]/40 hover:text-[#FF5800] transition-colors"
+                    className="cursor-pointer border border-white/20 bg-white/10 px-2 py-1 text-xs font-mono text-white/70 hover:bg-[#FF580020] hover:border-[#FF5800]/40 hover:text-[#FF5800] transition-colors"
                     onClick={() => selectPresetPrompt(preset)}
                   >
                     {preset.slice(0, 20)}...
@@ -258,35 +258,37 @@ export function ImageGeneratorAdvanced() {
             <div className="border-t border-white/10" />
 
             {/* Size Presets */}
-            <div className="space-y-3">
-              <label className="text-xs font-medium text-white/70 uppercase tracking-wide">
+            <div className="space-y-2">
+              <label className="text-xs font-mono font-medium text-white/70 uppercase tracking-wide">
                 Image Size
               </label>
-              <div className="grid grid-cols-2 gap-2">
+              <div className="grid grid-cols-4 gap-1.5">
                 {SIZE_PRESETS.map((preset) => (
-                  <BrandButton
+                  <button
                     key={preset.label}
-                    variant={
+                    type="button"
+                    onClick={() => selectSizePreset(preset.width, preset.height)}
+                    className={`w-full px-1.5 py-1 border transition-colors ${
                       settings.width === preset.width &&
                       settings.height === preset.height
-                        ? "primary"
-                        : "outline"
-                    }
-                    size="sm"
-                    onClick={() =>
-                      selectSizePreset(preset.width, preset.height)
-                    }
-                    className="w-full"
+                        ? "bg-[#FF5800]/20 border-[#FF5800] text-[#FF5800]"
+                        : "border-white/20 bg-transparent text-white hover:bg-white/5"
+                    }`}
                   >
                     <div className="flex flex-col items-center">
-                      <span className="text-xs font-medium">
+                      <span className="text-[10px] font-mono font-medium leading-tight">
                         {preset.label}
                       </span>
-                      <span className="text-[10px] text-white/60">
+                      <span className={`text-[9px] font-mono leading-tight ${
+                        settings.width === preset.width &&
+                        settings.height === preset.height
+                          ? "text-[#FF5800]/80"
+                          : "text-white/60"
+                      }`}>
                         {preset.width}×{preset.height}
                       </span>
                     </div>
-                  </BrandButton>
+                  </button>
                 ))}
               </div>
             </div>
@@ -294,22 +296,22 @@ export function ImageGeneratorAdvanced() {
             <div className="border-t border-white/10" />
 
             {/* Advanced Settings */}
-            <div className="space-y-4">
+            <div className="space-y-3 md:space-y-4">
               <div className="flex items-center gap-2">
                 <Settings2 className="h-4 w-4 text-[#FF5800]" />
-                <label className="text-xs font-medium text-white/70 uppercase tracking-wide">
+                <label className="text-xs font-mono font-medium text-white/70 uppercase tracking-wide">
                   Advanced Settings
                 </label>
               </div>
 
-              <div className="space-y-4">
+              <div className="space-y-3 md:space-y-4">
                 {/* Steps */}
                 <div className="space-y-2">
                   <div className="flex items-center justify-between">
-                    <label className="text-xs text-white/50 uppercase tracking-wide">
+                    <label className="text-xs font-mono text-white/50 uppercase tracking-wide">
                       Steps
                     </label>
-                    <span className="text-xs font-medium text-white">
+                    <span className="text-xs font-mono font-medium text-white">
                       {settings.steps}
                     </span>
                   </div>
@@ -323,7 +325,7 @@ export function ImageGeneratorAdvanced() {
                     step={5}
                     className="w-full [&_[role=slider]]:bg-[#FF5800] [&_[role=slider]]:border-[#FF5800]"
                   />
-                  <p className="text-[10px] text-white/50">
+                  <p className="text-[10px] font-mono text-white/50">
                     More steps = higher quality (slower)
                   </p>
                 </div>
@@ -331,10 +333,10 @@ export function ImageGeneratorAdvanced() {
                 {/* Guidance Scale */}
                 <div className="space-y-2">
                   <div className="flex items-center justify-between">
-                    <label className="text-xs text-white/50 uppercase tracking-wide">
+                    <label className="text-xs font-mono text-white/50 uppercase tracking-wide">
                       Guidance Scale
                     </label>
-                    <span className="text-xs font-medium text-white">
+                    <span className="text-xs font-mono font-medium text-white">
                       {settings.guidanceScale.toFixed(1)}
                     </span>
                   </div>
@@ -348,7 +350,7 @@ export function ImageGeneratorAdvanced() {
                     step={0.5}
                     className="w-full [&_[role=slider]]:bg-[#FF5800] [&_[role=slider]]:border-[#FF5800]"
                   />
-                  <p className="text-[10px] text-white/50">
+                  <p className="text-[10px] font-mono text-white/50">
                     Higher = more prompt adherence
                   </p>
                 </div>
@@ -356,10 +358,10 @@ export function ImageGeneratorAdvanced() {
                 {/* Images */}
                 <div className="space-y-2">
                   <div className="flex items-center justify-between">
-                    <label className="text-xs text-white/50 uppercase tracking-wide">
+                    <label className="text-xs font-mono text-white/50 uppercase tracking-wide">
                       Images
                     </label>
-                    <span className="text-xs font-medium text-white">
+                    <span className="text-xs font-mono font-medium text-white">
                       {numImages}
                     </span>
                   </div>
@@ -371,7 +373,7 @@ export function ImageGeneratorAdvanced() {
                     step={1}
                     className="w-full [&_[role=slider]]:bg-[#FF5800] [&_[role=slider]]:border-[#FF5800]"
                   />
-                  <p className="text-[10px] text-white/50">
+                  <p className="text-[10px] font-mono text-white/50">
                     Generate up to 4 images at once
                   </p>
                 </div>
@@ -381,25 +383,33 @@ export function ImageGeneratorAdvanced() {
             <div className="border-t border-white/10" />
 
             {/* Generate Button */}
-            <BrandButton
+            <button
+              type="button"
               onClick={handleGenerate}
               disabled={isLoading || !prompt.trim()}
-              variant="primary"
-              className="w-full h-12 text-base font-semibold"
-              size="lg"
+              className="relative bg-[#e1e1e1] px-4 py-3 overflow-hidden hover:bg-white transition-colors disabled:opacity-50 disabled:cursor-not-allowed w-full"
             >
-              {isLoading ? (
-                <>
-                  <Loader2 className="mr-2 h-5 w-5 animate-spin" />
-                  Generating...
-                </>
-              ) : (
-                <>
-                  <Sparkles className="mr-2 h-5 w-5" />
-                  Generate Image
-                </>
-              )}
-            </BrandButton>
+              <div
+                className="absolute inset-0 opacity-20 bg-repeat pointer-events-none"
+                style={{
+                  backgroundImage: `url(/assets/settings/pattern-6px-flip.png)`,
+                  backgroundSize: "2.915576934814453px 2.915576934814453px",
+                }}
+              />
+              <span className="relative z-10 text-black font-mono font-medium text-sm md:text-base flex items-center justify-center gap-2">
+                {isLoading ? (
+                  <>
+                    <Loader2 className="h-5 w-5 animate-spin" />
+                    Generating...
+                  </>
+                ) : (
+                  <>
+                    <Sparkles className="h-5 w-5" />
+                    Generate Image
+                  </>
+                )}
+              </span>
+            </button>
           </div>
         </BrandCard>
       </div>
@@ -413,31 +423,28 @@ export function ImageGeneratorAdvanced() {
           className="w-full"
         >
           <BrandTabsList className="w-full max-w-md">
-            <BrandTabsTrigger value="generate" className="gap-2 flex-1">
-              <ImageIcon className="h-4 w-4" />
-              Preview
+            <BrandTabsTrigger value="generate" className="gap-1 md:gap-2 flex-1">
+              <ImageIcon className="h-3 md:h-4 w-3 md:w-4" />
+              <span className="text-xs md:text-sm">Preview</span>
             </BrandTabsTrigger>
-            <BrandTabsTrigger value="history" className="gap-2 flex-1">
-              <History className="h-4 w-4" />
-              History ({imageHistory.length})
+            <BrandTabsTrigger value="history" className="gap-1 md:gap-2 flex-1">
+              <History className="h-3 md:h-4 w-3 md:w-4" />
+              <span className="text-xs md:text-sm">History ({imageHistory.length})</span>
             </BrandTabsTrigger>
           </BrandTabsList>
 
           {/* Preview Tab */}
-          <BrandTabsContent value="generate" className="mt-4">
+          <BrandTabsContent value="generate" className="mt-3 md:mt-4">
             {error && (
-              <BrandCard
-                corners={false}
-                className="border-rose-500/40 bg-rose-500/10 mb-4"
-              >
-                <p className="text-sm text-rose-400 font-medium">{error}</p>
-              </BrandCard>
+              <div className="border border-rose-500/40 bg-rose-500/10 p-3 md:p-4 mb-4">
+                <p className="text-xs md:text-sm font-mono text-rose-400 font-medium">{error}</p>
+              </div>
             )}
 
             {currentImage ? (
               <>
                 {currentImages.length > 1 && (
-                  <div className="mb-4 grid grid-cols-2 md:grid-cols-4 gap-3">
+                  <div className="mb-4 grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-2 md:gap-3">
                     {currentImages.map((img, idx) => (
                       <button
                         key={img.id}
@@ -448,7 +455,7 @@ export function ImageGeneratorAdvanced() {
                             carouselApi.scrollTo(idx);
                           }
                         }}
-                        className={`group relative block overflow-hidden rounded-none border ${
+                        className={`group relative block overflow-hidden border ${
                           idx === currentImageIndex
                             ? "border-[#FF5800] ring-2 ring-[#FF5800]/40"
                             : "border-white/10"
@@ -456,7 +463,7 @@ export function ImageGeneratorAdvanced() {
                         aria-label={`Select image ${idx + 1}`}
                         type="button"
                       >
-                        <div className="relative aspect-square w-full bg-muted/10">
+                        <div className="relative aspect-square w-full bg-black/40">
                           <Image
                             src={img.url}
                             alt={img.prompt}
@@ -474,12 +481,12 @@ export function ImageGeneratorAdvanced() {
                   <CornerBrackets size="md" className="opacity-50" />
                   <div className="relative z-10 p-0">
                     {currentImages.length > 1 ? (
-                      <div className="relative w-full bg-muted/10">
+                      <div className="relative w-full bg-black/40">
                         <Carousel setApi={setCarouselApi} className="w-full">
                           <CarouselContent>
                             {currentImages.map((img) => (
                               <CarouselItem key={img.id}>
-                                <div className="relative w-full h-[500px] bg-muted/10">
+                                <div className="relative w-full h-[300px] md:h-[400px] lg:h-[500px] bg-black/40">
                                   <Image
                                     src={img.url}
                                     alt={img.prompt}
@@ -491,12 +498,12 @@ export function ImageGeneratorAdvanced() {
                               </CarouselItem>
                             ))}
                           </CarouselContent>
-                          <CarouselPrevious className="left-4 top-1/2 -translate-y-1/2" />
-                          <CarouselNext className="right-4 top-1/2 -translate-y-1/2" />
+                          <CarouselPrevious className="left-2 md:left-4 top-1/2 -translate-y-1/2" />
+                          <CarouselNext className="right-2 md:right-4 top-1/2 -translate-y-1/2" />
                         </Carousel>
                       </div>
                     ) : (
-                      <div className="relative w-full h-[500px] bg-muted/10">
+                      <div className="relative w-full h-[300px] md:h-[400px] lg:h-[500px] bg-black/40">
                         <Image
                           src={currentImage.url}
                           alt={currentImage.prompt}
@@ -507,69 +514,65 @@ export function ImageGeneratorAdvanced() {
                       </div>
                     )}
 
-                    <div className="p-6 space-y-4">
+                    <div className="p-3 md:p-4 lg:p-6 space-y-3 md:space-y-4">
                       <div className="space-y-2">
-                        <p className="text-sm font-medium leading-relaxed text-white">
+                        <p className="text-xs md:text-sm font-mono font-medium leading-relaxed text-white break-words">
                           {currentImage.prompt}
                         </p>
-                        <div className="flex items-center gap-2 text-xs text-white/60">
-                          <span className="rounded-none bg-white/10 px-2 py-0.5 text-xs text-white">
+                        <div className="flex items-center gap-2 text-xs text-white/60 flex-wrap">
+                          <span className="bg-white/10 px-2 py-0.5 text-xs font-mono text-white whitespace-nowrap">
                             {currentImage.settings.width}×
                             {currentImage.settings.height}
                           </span>
-                          <span className="rounded-none bg-white/10 px-2 py-0.5 text-xs text-white">
+                          <span className="bg-white/10 px-2 py-0.5 text-xs font-mono text-white whitespace-nowrap">
                             {currentImage.settings.steps} steps
                           </span>
-                          <span className="rounded-none bg-white/10 px-2 py-0.5 text-xs text-white">
+                          <span className="bg-white/10 px-2 py-0.5 text-xs font-mono text-white whitespace-nowrap">
                             CFG {currentImage.settings.guidanceScale}
                           </span>
                           {currentImages.length > 1 && (
-                            <span className="rounded-none bg-[#FF580020] border border-[#FF5800]/40 px-2 py-0.5 text-xs text-[#FF5800]">
+                            <span className="bg-[#FF580020] border border-[#FF5800]/40 px-2 py-0.5 text-xs font-mono text-[#FF5800] whitespace-nowrap">
                               {currentImageIndex + 1}/{currentImages.length}
                             </span>
                           )}
                         </div>
                       </div>
 
-                      <div className="grid grid-cols-4 gap-2">
-                        <BrandButton
-                          variant="outline"
-                          size="sm"
+                      <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
+                        <button
+                          type="button"
                           onClick={() =>
                             handleDownload(
                               currentImages[currentImageIndex] ?? currentImage,
                             )
                           }
-                          className="gap-2"
+                          className="px-3 py-2 border border-white/20 bg-transparent text-white hover:bg-white/5 transition-colors flex items-center justify-center gap-1 md:gap-2"
                         >
-                          <Download className="h-4 w-4" />
-                          Save
-                        </BrandButton>
-                        <BrandButton
-                          variant="outline"
-                          size="sm"
-                          className="gap-2"
+                          <Download className="h-3 md:h-4 w-3 md:w-4" />
+                          <span className="text-xs font-mono">Save</span>
+                        </button>
+                        <button
+                          type="button"
+                          className="px-3 py-2 border border-white/20 bg-transparent text-white hover:bg-white/5 transition-colors flex items-center justify-center gap-1 md:gap-2"
                         >
-                          <Heart className="h-4 w-4" />
-                          Like
-                        </BrandButton>
-                        <BrandButton
-                          variant="outline"
-                          size="sm"
-                          className="gap-2"
+                          <Heart className="h-3 md:h-4 w-3 md:w-4" />
+                          <span className="text-xs font-mono">Like</span>
+                        </button>
+                        <button
+                          type="button"
+                          className="px-3 py-2 border border-white/20 bg-transparent text-white hover:bg-white/5 transition-colors flex items-center justify-center gap-1 md:gap-2"
                         >
-                          <Share2 className="h-4 w-4" />
-                          Share
-                        </BrandButton>
-                        <BrandButton
-                          variant="outline"
-                          size="sm"
-                          className="gap-2"
+                          <Share2 className="h-3 md:h-4 w-3 md:w-4" />
+                          <span className="text-xs font-mono">Share</span>
+                        </button>
+                        <button
+                          type="button"
                           onClick={() => setIsFullscreenOpen(true)}
+                          className="px-3 py-2 border border-white/20 bg-transparent text-white hover:bg-white/5 transition-colors flex items-center justify-center gap-1 md:gap-2"
                         >
-                          <Maximize2 className="h-4 w-4" />
-                          Full
-                        </BrandButton>
+                          <Maximize2 className="h-3 md:h-4 w-3 md:w-4" />
+                          <span className="text-xs font-mono">Full</span>
+                        </button>
                       </div>
                     </div>
                   </div>
@@ -582,16 +585,16 @@ export function ImageGeneratorAdvanced() {
             ) : (
               <BrandCard className="relative border-dashed">
                 <CornerBrackets size="md" className="opacity-50" />
-                <div className="relative z-10 p-12 text-center">
-                  <div className="flex flex-col items-center space-y-4">
-                    <div className="inline-flex items-center justify-center w-16 h-16 rounded-full bg-[#FF580020] border border-[#FF5800]/40">
-                      <ImageIcon className="h-8 w-8 text-[#FF5800]" />
+                <div className="relative z-10 p-6 md:p-12 text-center">
+                  <div className="flex flex-col items-center space-y-3 md:space-y-4">
+                    <div className="inline-flex items-center justify-center w-12 md:w-16 h-12 md:h-16 bg-[#FF580020] border border-[#FF5800]/40">
+                      <ImageIcon className="h-6 md:h-8 w-6 md:w-8 text-[#FF5800]" />
                     </div>
                     <div className="space-y-2 max-w-md">
-                      <h3 className="text-lg font-bold text-white">
+                      <h3 className="text-base md:text-lg font-mono font-bold text-white">
                         Ready to Create
                       </h3>
-                      <p className="text-sm text-white/60 leading-relaxed">
+                      <p className="text-xs md:text-sm font-mono text-white/60 leading-relaxed">
                         Describe your vision in the prompt field and adjust the
                         settings to generate your perfect image
                       </p>
@@ -603,21 +606,21 @@ export function ImageGeneratorAdvanced() {
           </BrandTabsContent>
 
           {/* History Tab */}
-          <BrandTabsContent value="history" className="mt-4">
+          <BrandTabsContent value="history" className="mt-3 md:mt-4">
             {imageHistory.length > 0 ? (
-              <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+              <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3 md:gap-4">
                 {imageHistory.map((image) => (
-                  <BrandCard
+                  <div
                     key={image.id}
-                    corners={false}
-                    hover
-                    className="group cursor-pointer overflow-hidden p-0"
+                    className="group cursor-pointer overflow-hidden p-0 border border-white/10 hover:border-[#FF5800]/50 transition-colors"
                     onClick={() => {
                       setCurrentImage(image);
+                      setCurrentImages([image]);
+                      setCurrentImageIndex(0);
                       setActiveTab("generate");
                     }}
                   >
-                    <div className="relative aspect-square w-full bg-muted/10">
+                    <div className="relative aspect-square w-full bg-black/40">
                       <Image
                         src={image.url}
                         alt={image.prompt}
@@ -626,26 +629,26 @@ export function ImageGeneratorAdvanced() {
                         unoptimized
                       />
                       <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity z-10" />
-                      <div className="absolute bottom-0 left-0 right-0 p-3 text-white opacity-0 group-hover:opacity-100 transition-opacity z-10">
-                        <p className="text-xs line-clamp-2 leading-relaxed">
+                      <div className="absolute bottom-0 left-0 right-0 p-2 md:p-3 text-white opacity-0 group-hover:opacity-100 transition-opacity z-10">
+                        <p className="text-xs font-mono line-clamp-2 leading-relaxed">
                           {image.prompt}
                         </p>
                       </div>
                     </div>
-                  </BrandCard>
+                  </div>
                 ))}
               </div>
             ) : (
               <BrandCard className="relative border-dashed">
                 <CornerBrackets size="md" className="opacity-50" />
-                <div className="relative z-10 p-20 text-center">
-                  <div className="flex flex-col items-center space-y-4">
-                    <History className="h-12 w-12 text-[#FF5800]" />
+                <div className="relative z-10 p-8 md:p-12 lg:p-20 text-center">
+                  <div className="flex flex-col items-center space-y-3 md:space-y-4">
+                    <History className="h-8 md:h-10 lg:h-12 w-8 md:w-10 lg:w-12 text-[#FF5800]" />
                     <div className="space-y-2">
-                      <h3 className="text-lg font-semibold text-white">
+                      <h3 className="text-base md:text-lg font-mono font-semibold text-white">
                         No History Yet
                       </h3>
-                      <p className="text-sm text-white/60">
+                      <p className="text-xs md:text-sm font-mono text-white/60">
                         Your generated images will appear here
                       </p>
                     </div>
@@ -683,36 +686,36 @@ export function ImageGeneratorAdvanced() {
                 </div>
 
                 {/* Close button */}
-                <DialogClose className="absolute top-4 right-4 z-50 rounded-none border border-white/20 bg-black/60 p-2 hover:bg-[#FF580020] hover:border-[#FF5800]/40 transition-colors">
-                  <X className="h-5 w-5 text-white" />
+                <DialogClose className="absolute top-2 md:top-4 right-2 md:right-4 z-50 border border-white/20 bg-black/60 p-2 hover:bg-[#FF580020] hover:border-[#FF5800]/40 transition-colors">
+                  <X className="h-4 md:h-5 w-4 md:w-5 text-white" />
                 </DialogClose>
 
                 {/* Image info overlay */}
-                <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/90 via-black/50 to-transparent p-6 space-y-3">
-                  <p className="text-sm text-white/90 leading-relaxed max-w-3xl">
+                <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/90 via-black/50 to-transparent p-3 md:p-4 lg:p-6 space-y-2 md:space-y-3">
+                  <p className="text-xs md:text-sm font-mono text-white/90 leading-relaxed max-w-3xl break-words">
                     {currentImages[currentImageIndex]?.prompt ??
                       currentImage.prompt}
                   </p>
-                  <div className="flex items-center gap-2 text-xs">
-                    <span className="rounded-none bg-white/10 px-2 py-1 text-white">
+                  <div className="flex items-center gap-2 text-xs flex-wrap">
+                    <span className="bg-white/10 px-2 py-1 font-mono text-white whitespace-nowrap">
                       {currentImages[currentImageIndex]?.settings.width ??
                         currentImage.settings.width}
                       ×
                       {currentImages[currentImageIndex]?.settings.height ??
                         currentImage.settings.height}
                     </span>
-                    <span className="rounded-none bg-white/10 px-2 py-1 text-white">
+                    <span className="bg-white/10 px-2 py-1 font-mono text-white whitespace-nowrap">
                       {currentImages[currentImageIndex]?.settings.steps ??
                         currentImage.settings.steps}{" "}
                       steps
                     </span>
-                    <span className="rounded-none bg-white/10 px-2 py-1 text-white">
+                    <span className="bg-white/10 px-2 py-1 font-mono text-white whitespace-nowrap">
                       CFG{" "}
                       {currentImages[currentImageIndex]?.settings
                         .guidanceScale ?? currentImage.settings.guidanceScale}
                     </span>
                     {currentImages.length > 1 && (
-                      <span className="rounded-none bg-[#FF580020] border border-[#FF5800]/40 px-2 py-1 text-[#FF5800]">
+                      <span className="bg-[#FF580020] border border-[#FF5800]/40 px-2 py-1 font-mono text-[#FF5800] whitespace-nowrap">
                         {currentImageIndex + 1}/{currentImages.length}
                       </span>
                     )}
@@ -720,10 +723,9 @@ export function ImageGeneratorAdvanced() {
 
                   {/* Navigation buttons for multiple images */}
                   {currentImages.length > 1 && (
-                    <div className="flex items-center gap-2 pt-2">
-                      <BrandButton
-                        variant="outline"
-                        size="sm"
+                    <div className="flex items-center gap-2 pt-2 flex-wrap">
+                      <button
+                        type="button"
                         onClick={() => {
                           const newIndex =
                             currentImageIndex > 0
@@ -733,12 +735,12 @@ export function ImageGeneratorAdvanced() {
                           setCurrentImage(currentImages[newIndex]);
                         }}
                         disabled={currentImages.length <= 1}
+                        className="px-3 py-2 border border-white/20 bg-black/60 text-white hover:bg-white/5 transition-colors disabled:opacity-50"
                       >
-                        Previous
-                      </BrandButton>
-                      <BrandButton
-                        variant="outline"
-                        size="sm"
+                        <span className="text-xs font-mono">Previous</span>
+                      </button>
+                      <button
+                        type="button"
                         onClick={() => {
                           const newIndex =
                             currentImageIndex < currentImages.length - 1
@@ -748,13 +750,13 @@ export function ImageGeneratorAdvanced() {
                           setCurrentImage(currentImages[newIndex]);
                         }}
                         disabled={currentImages.length <= 1}
+                        className="px-3 py-2 border border-white/20 bg-black/60 text-white hover:bg-white/5 transition-colors disabled:opacity-50"
                       >
-                        Next
-                      </BrandButton>
-                      <BrandButton
-                        variant="outline"
-                        size="sm"
-                        className="gap-2 ml-auto"
+                        <span className="text-xs font-mono">Next</span>
+                      </button>
+                      <button
+                        type="button"
+                        className="px-3 py-2 border border-white/20 bg-black/60 text-white hover:bg-white/5 transition-colors ml-auto flex items-center gap-2"
                         onClick={() =>
                           handleDownload(
                             currentImages[currentImageIndex] ?? currentImage,
@@ -762,8 +764,8 @@ export function ImageGeneratorAdvanced() {
                         }
                       >
                         <Download className="h-4 w-4" />
-                        Download
-                      </BrandButton>
+                        <span className="text-xs font-mono">Download</span>
+                      </button>
                     </div>
                   )}
                 </div>
