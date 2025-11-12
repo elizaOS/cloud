@@ -41,11 +41,11 @@ export function SidebarNavigationItem({ item }: SidebarNavigationItemProps) {
           "text-white/40 border-l-2 border-transparent cursor-pointer",
         )}
         style={{
-          fontFamily: 'var(--font-roboto-mono)',
+          fontFamily: "var(--font-roboto-mono)",
           fontWeight: 400,
-          fontSize: '14px',
-          lineHeight: '18px',
-          letterSpacing: '-0.003em',
+          fontSize: "14px",
+          lineHeight: "18px",
+          letterSpacing: "-0.003em",
         }}
       >
         <Icon className="h-4 w-4 opacity-50" />
@@ -67,11 +67,11 @@ export function SidebarNavigationItem({ item }: SidebarNavigationItemProps) {
           : "text-white/60 border-l-2 border-transparent",
       )}
       style={{
-        fontFamily: 'var(--font-roboto-mono)',
+        fontFamily: "var(--font-roboto-mono)",
         fontWeight: 400,
-        fontSize: '14px',
-        lineHeight: '18px',
-        letterSpacing: '-0.003em',
+        fontSize: "14px",
+        lineHeight: "18px",
+        letterSpacing: "-0.003em",
       }}
     >
       <Icon

@@ -52,7 +52,10 @@ export function SettingsTabs({ activeTab, onTabChange }: SettingsTabsProps) {
     <>
       {/* Mobile Dropdown */}
       <div className="block md:hidden w-full mb-6">
-        <Select value={activeTab} onValueChange={(value) => onTabChange(value as SettingsTab)}>
+        <Select
+          value={activeTab}
+          onValueChange={(value) => onTabChange(value as SettingsTab)}
+        >
           <SelectTrigger className="w-full h-12 rounded-sm border border-brand-surface bg-[rgba(0,0,0,0.4)] backdrop-blur-sm text-white">
             <SelectValue>
               <div className="flex items-center gap-2">
@@ -103,19 +106,19 @@ export function SettingsTabs({ activeTab, onTabChange }: SettingsTabsProps) {
                 "transition-all duration-200",
                 isActive
                   ? "bg-[rgba(255,255,255,0.07)] border-b-2 border-b-white"
-                  : "hover:bg-[rgba(255,255,255,0.03)]"
+                  : "hover:bg-[rgba(255,255,255,0.03)]",
               )}
             >
               <Icon
                 className={cn(
                   "h-4 w-4",
-                  isActive ? "text-white" : "text-[#A2A2A2]"
+                  isActive ? "text-white" : "text-[#A2A2A2]",
                 )}
               />
               <span
                 className={cn(
                   "text-sm font-medium font-mono tracking-tight",
-                  isActive ? "text-white" : "text-[#A2A2A2]"
+                  isActive ? "text-white" : "text-[#A2A2A2]",
                 )}
               >
                 {tab.label}

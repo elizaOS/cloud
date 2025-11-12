@@ -111,7 +111,6 @@ const TopHero = () => {
             onValueChange={setActiveTab}
             className="relative z-10"
           >
-
             <BrandTabsContent value="agent">
               <div className="relative mx-auto max-w-5xl">
                 {/* HUD-style container with corner decorations */}

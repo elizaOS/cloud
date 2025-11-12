@@ -30,8 +30,8 @@ export function HUDContainer({
         className,
       )}
     >
-      <CornerBrackets 
-        size={cornerSize} 
+      <CornerBrackets
+        size={cornerSize}
         color={cornerColor}
         hoverColor="#FF5800"
         hoverScale={true}

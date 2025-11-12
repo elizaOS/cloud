@@ -153,9 +153,9 @@ export function KnowledgePageClient() {
         </p>
       </div>
 
-      <Tabs 
-        id="knowledge-tabs" 
-        value={activeTab} 
+      <Tabs
+        id="knowledge-tabs"
+        value={activeTab}
         onValueChange={setActiveTab}
         className="w-full"
       >

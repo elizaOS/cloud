@@ -50,10 +50,10 @@ export function SectionHeader({
             "text-xl uppercase tracking-wider font-normal",
             labelClassName,
           )}
-          style={{ 
-            fontFamily: "var(--font-geist-mono)", 
+          style={{
+            fontFamily: "var(--font-geist-mono)",
             color: "#E1E1E1",
-            lineHeight: "26px"
+            lineHeight: "26px",
           }}
         >
           {label}
@@ -100,12 +100,12 @@ export function SectionLabel({
         className="inline-block w-2 h-2 rounded-full"
         style={{ backgroundColor: "#FF5800" }}
       />
-      <span 
+      <span
         className="text-xl uppercase tracking-wider font-normal"
-        style={{ 
-          fontFamily: "var(--font-geist-mono)", 
+        style={{
+          fontFamily: "var(--font-geist-mono)",
           color: "#E1E1E1",
-          lineHeight: "26px"
+          lineHeight: "26px",
         }}
       >
         {children}
