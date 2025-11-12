@@ -47,27 +47,27 @@ export function BuyCreditsModal({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="bg-neutral-950 border border-brand-surface p-10 max-w-[480px]">
+      <DialogContent className="bg-neutral-950 border border-brand-surface p-4 sm:p-6 md:p-10 max-w-[95vw] sm:max-w-[480px]">
         <CornerBrackets size="md" className="opacity-50" />
 
-        <div className="relative z-10 flex flex-col gap-10 items-center">
+        <div className="relative z-10 flex flex-col gap-6 md:gap-10 items-center">
           {/* Title */}
           <DialogHeader>
-            <DialogTitle className="text-2xl font-mono font-bold text-[#e1e1e1] text-center tracking-tight">
+            <DialogTitle className="text-xl sm:text-2xl font-mono font-bold text-[#e1e1e1] text-center tracking-tight">
               Buy credits
             </DialogTitle>
           </DialogHeader>
 
           {/* Content */}
-          <div className="flex flex-col gap-6 w-full">
+          <div className="flex flex-col gap-4 md:gap-6 w-full">
             {/* Current Balance Display */}
             <div className="w-full">
-              <div className="backdrop-blur-sm bg-[rgba(10,10,10,0.75)] border border-brand-surface py-6">
+              <div className="backdrop-blur-sm bg-[rgba(10,10,10,0.75)] border border-brand-surface py-4 md:py-6">
                 <div className="flex flex-col items-center justify-center gap-1 px-4">
-                  <p className="text-[40px] font-mono text-white tracking-tight">
+                  <p className="text-3xl sm:text-[40px] font-mono text-white tracking-tight">
                     ${currentBalance.toFixed(2)}
                   </p>
-                  <p className="text-sm text-white/60 text-center">
+                  <p className="text-xs sm:text-sm text-white/60 text-center">
                     Remaining balance
                   </p>
                 </div>
@@ -76,19 +76,19 @@ export function BuyCreditsModal({
 
             {/* Payment Method */}
             <div className="flex flex-col gap-2">
-              <Label className="text-base font-mono text-[#e1e1e1]">
+              <Label className="text-sm sm:text-base font-mono text-[#e1e1e1]">
                 Charged to
               </Label>
-              <div className="border border-brand-surface flex items-center justify-between px-2 py-2">
-                <div className="flex items-center gap-2">
-                  <CreditCard className="h-4 w-4 text-[#A2A2A2]" />
-                  <p className="text-base font-mono text-[#e1e1e1] tracking-tight">
+              <div className="border border-brand-surface flex items-center justify-between gap-2 px-2 py-2">
+                <div className="flex items-center gap-2 min-w-0 flex-1">
+                  <CreditCard className="h-4 w-4 text-[#A2A2A2] flex-shrink-0" />
+                  <p className="text-sm sm:text-base font-mono text-[#e1e1e1] tracking-tight truncate">
                     {paymentMethod}
                   </p>
                 </div>
                 <button
                   type="button"
-                  className="text-base font-mono text-white underline hover:text-white/80 transition-colors"
+                  className="text-sm sm:text-base font-mono text-white underline hover:text-white/80 transition-colors flex-shrink-0"
                 >
                   Edit
                 </button>
@@ -100,7 +100,7 @@ export function BuyCreditsModal({
 
             {/* Amount Input */}
             <div className="flex flex-col gap-2">
-              <Label className="text-base font-mono font-medium text-[#e1e1e1]">
+              <Label className="text-sm sm:text-base font-mono font-medium text-[#e1e1e1]">
                 Amount
               </Label>
               <Input
@@ -117,32 +117,32 @@ export function BuyCreditsModal({
             {/* Summary */}
             <div className="flex flex-col gap-2">
               <div className="flex items-center justify-between">
-                <p className="text-sm font-mono font-medium text-[#e1e1e1]">
+                <p className="text-xs sm:text-sm font-mono font-medium text-[#e1e1e1]">
                   Amount credited
                 </p>
-                <p className="text-sm font-mono text-[#717171]">
+                <p className="text-xs sm:text-sm font-mono text-[#717171]">
                   ${amountValue.toFixed(2)}
                 </p>
               </div>
               <div className="flex items-center justify-between">
-                <p className="text-sm font-mono font-medium text-[#e1e1e1]">
+                <p className="text-xs sm:text-sm font-mono font-medium text-[#e1e1e1]">
                   Credit amount
                 </p>
-                <p className="text-sm font-mono text-[#717171]">
+                <p className="text-xs sm:text-sm font-mono text-[#717171]">
                   {creditAmount.toFixed(2)}
                 </p>
               </div>
             </div>
 
             {/* Action Buttons */}
-            <div className="flex items-center justify-end gap-4 w-full">
+            <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-end gap-3 sm:gap-4 w-full">
               <button
                 type="button"
                 onClick={handleCancel}
                 className="relative bg-[rgba(255,88,0,0.25)] px-6 py-3 hover:bg-[rgba(255,88,0,0.35)] transition-colors"
               >
                 <CornerBrackets size="sm" className="opacity-70" />
-                <span className="relative z-10 text-[#FF5800] font-mono font-medium text-base">
+                <span className="relative z-10 text-[#FF5800] font-mono font-medium text-sm sm:text-base">
                   Cancel
                 </span>
               </button>
@@ -153,7 +153,7 @@ export function BuyCreditsModal({
                 disabled={amountValue <= 0}
                 className="bg-white px-6 py-3 hover:bg-white/90 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
               >
-                <span className="text-black font-mono font-medium text-base">
+                <span className="text-black font-mono font-medium text-sm sm:text-base">
                   Buy credits
                 </span>
               </button>
