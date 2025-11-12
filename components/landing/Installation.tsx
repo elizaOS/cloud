@@ -41,12 +41,12 @@ export default function Installation() {
         </div>
 
         {/* Hero heading */}
-        <h2 
+        <h2
           className="text-2xl sm:text-3xl md:text-4xl lg:text-5xl font-medium text-center mb-8 md:mb-12 uppercase max-w-5xl mx-auto px-4"
           style={{
             fontFamily: "var(--font-geist-sans)",
             lineHeight: "1.3",
-            color: "#FFFFFF"
+            color: "#FFFFFF",
           }}
         >
           FROM YOUR TERMINAL TO THE CLOUD — IN ONE LINE.
@@ -117,13 +117,13 @@ export default function Installation() {
                 style={{ backgroundColor: "#FF5800" }}
                 aria-hidden="true"
               />
-              <p 
+              <p
                 className="font-normal uppercase tracking-wide text-sm md:text-base"
                 style={{
                   fontFamily: "var(--font-geist-mono)",
                   lineHeight: "1.5",
                   letterSpacing: "-0.003em",
-                  color: "#858585"
+                  color: "#858585",
                 }}
               >
                 ELIZA CLOUD RUNS YOUR CONTAINERS ON HIGH-PERFORMANCE

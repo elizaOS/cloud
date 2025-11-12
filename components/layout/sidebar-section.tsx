@@ -77,12 +77,12 @@ export function SidebarNavigationSection({
           className="inline-block w-1.5 h-1.5 rounded-full flex-shrink-0"
           style={{ backgroundColor: dotColor }}
         />
-        <h3 
+        <h3
           className="flex-1 text-xs font-semibold uppercase tracking-wider text-white/50 text-left"
           style={{
-            fontFamily: 'var(--font-roboto-mono)',
+            fontFamily: "var(--font-roboto-mono)",
             fontWeight: 400,
-            letterSpacing: '-0.003em',
+            letterSpacing: "-0.003em",
           }}
         >
           {section.title}

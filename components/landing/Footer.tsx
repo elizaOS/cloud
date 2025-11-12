@@ -38,7 +38,10 @@ export default function Footer() {
                   className="inline-block w-2 h-2 rounded-full"
                   style={{ backgroundColor: "#FF5800" }}
                 />
-                <h3 className="text-2xl md:text-3xl font-bold uppercase tracking-wider text-white" style={{ fontFamily: "var(--font-geist-sans)" }}>
+                <h3
+                  className="text-2xl md:text-3xl font-bold uppercase tracking-wider text-white"
+                  style={{ fontFamily: "var(--font-geist-sans)" }}
+                >
                   START
                   <br />
                   BUILDING

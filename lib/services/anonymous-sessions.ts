@@ -83,4 +83,3 @@ class AnonymousSessionsService {
 }
 
 export const anonymousSessionsService = new AnonymousSessionsService();
-

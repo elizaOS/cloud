@@ -429,11 +429,12 @@ async function handlePOST(req: NextRequest) {
       ...request,
       providerOptions: {
         gateway: {
-          order: ['groq'], // Use Groq as preferred provider
+          order: ["groq"], // Use Groq as preferred provider
         },
       },
     };
-    const providerResponse = await providerInstance.chatCompletions(requestWithProvider);
+    const providerResponse =
+      await providerInstance.chatCompletions(requestWithProvider);
 
     // 7. Handle streaming vs non-streaming
     if (isStreaming) {
