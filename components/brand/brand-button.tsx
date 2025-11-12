@@ -15,7 +15,7 @@ const brandButtonVariants = cva(
       variant: {
         // Primary orange button
         primary:
-          "bg-[#FF5800] text-white hover:brightness-110 active:brightness-125",
+          "bg-[#471E08] text-[#FF5800] hover:bg-[#5A2610] active:bg-[#6B2E18]",
         // Ghost button with subtle hover
         ghost: "bg-transparent text-white/70 hover:text-white hover:bg-white/5",
         // Outlined button with white border

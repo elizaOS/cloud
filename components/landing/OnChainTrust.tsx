@@ -60,25 +60,25 @@ export default function OnChainTrust() {
               <SectionLabel>ON-CHAIN TRUST & ECONOMY</SectionLabel>
             </div>
 
-            <h2 
+            <h2
               className="mb-4 md:mb-6 text-2xl sm:text-3xl md:text-4xl lg:text-5xl font-medium uppercase"
               style={{
                 fontFamily: "var(--font-geist-sans)",
                 lineHeight: "1.3",
-                color: "#FFFFFF"
+                color: "#FFFFFF",
               }}
             >
               EVERY AGENT HAS A VERIFIABLE ON-CHAIN IDENTITY — ENABLING
               PROVENANCE, REPUTATION, AND SECURE INTERACTIONS.
             </h2>
 
-            <p 
+            <p
               className="font-normal text-sm md:text-base"
               style={{
                 fontFamily: "var(--font-geist-mono)",
                 lineHeight: "1.5",
                 letterSpacing: "-0.003em",
-                color: "#858585"
+                color: "#858585",
               }}
             >
               Through the x402 standard, agents can also send and receive
@@ -114,11 +114,13 @@ export default function OnChainTrust() {
           {/* Left: 3x3 Grid of Agent wallet cards with radial fade */}
           <div className="relative">
             {/* 3x3 Grid container with radial mask */}
-            <div 
+            <div
               className="grid grid-cols-3 gap-2 relative"
               style={{
-                maskImage: "radial-gradient(circle at center, rgba(0,0,0,1) 0%, rgba(0,0,0,1) 25%, rgba(0,0,0,0.6) 50%, rgba(0,0,0,0.2) 75%, transparent 100%)",
-                WebkitMaskImage: "radial-gradient(circle at center, rgba(0,0,0,1) 0%, rgba(0,0,0,1) 25%, rgba(0,0,0,0.6) 50%, rgba(0,0,0,0.2) 75%, transparent 100%)",
+                maskImage:
+                  "radial-gradient(circle at center, rgba(0,0,0,1) 0%, rgba(0,0,0,1) 25%, rgba(0,0,0,0.6) 50%, rgba(0,0,0,0.2) 75%, transparent 100%)",
+                WebkitMaskImage:
+                  "radial-gradient(circle at center, rgba(0,0,0,1) 0%, rgba(0,0,0,1) 25%, rgba(0,0,0,0.6) 50%, rgba(0,0,0,0.2) 75%, transparent 100%)",
               }}
             >
               {[...Array(9)].map((_, index) => {
@@ -131,8 +133,12 @@ export default function OnChainTrust() {
                       boxShadow: "0 0 20px rgba(0,0,0,0.3)",
                       backdropFilter: "blur(10px)",
                     }}
-                    onMouseEnter={(e) => e.currentTarget.style.transform = "scale(1.02)"}
-                    onMouseLeave={(e) => e.currentTarget.style.transform = "scale(1)"}
+                    onMouseEnter={(e) =>
+                      (e.currentTarget.style.transform = "scale(1.02)")
+                    }
+                    onMouseLeave={(e) =>
+                      (e.currentTarget.style.transform = "scale(1)")
+                    }
                   >
                     <div className="flex flex-col gap-2">
                       <div className="flex items-center gap-2">
@@ -144,11 +150,18 @@ export default function OnChainTrust() {
                             className="object-cover"
                           />
                         </div>
-                        <h3 className="text-xs font-semibold text-white">Eliza</h3>
+                        <h3 className="text-xs font-semibold text-white">
+                          Eliza
+                        </h3>
                       </div>
                       <div className="flex-1 min-w-0">
-                        <p className="text-[10px] text-white/60 mb-1.5 line-clamp-1">Your default AI Companion</p>
-                        <div className="flex items-center gap-1 mb-1" style={{ color: "#FF5800" }}>
+                        <p className="text-[10px] text-white/60 mb-1.5 line-clamp-1">
+                          Your default AI Companion
+                        </p>
+                        <div
+                          className="flex items-center gap-1 mb-1"
+                          style={{ color: "#FF5800" }}
+                        >
                           <Check className="h-2.5 w-2.5" />
                           <span className="text-[10px]">ERC-8004 Verified</span>
                         </div>
@@ -166,7 +179,9 @@ export default function OnChainTrust() {
                               d="M15 7a2 2 0 012 2m4 0a6 6 0 01-7.743 5.743L11 17H9v2H7v2H4a1 1 0 01-1-1v-2.586a1 1 0 01.293-.707l5.964-5.964A6 6 0 1721 9z"
                             />
                           </svg>
-                          <span className="text-[10px] font-mono">0xA9E3...C14</span>
+                          <span className="text-[10px] font-mono">
+                            0xA9E3...C14
+                          </span>
                         </div>
                       </div>
                     </div>
@@ -174,14 +189,14 @@ export default function OnChainTrust() {
                 );
               })}
             </div>
-            
-            <p 
+
+            <p
               className="mt-4 md:mt-6 font-normal text-sm md:text-base"
               style={{
                 fontFamily: "var(--font-geist-mono)",
                 lineHeight: "1.5",
                 letterSpacing: "-0.003em",
-                color: "#858585"
+                color: "#858585",
               }}
             >
               Every agent on Eliza Cloud has a verifiable on-chain identity,
@@ -195,13 +210,13 @@ export default function OnChainTrust() {
             className="flex min-h-[400px] items-center justify-center rounded-sm"
           >
             <div className="w-full text-center">
-              <p 
+              <p
                 className="mb-6 md:mb-8 font-normal text-sm md:text-base"
                 style={{
                   fontFamily: "var(--font-geist-mono)",
                   lineHeight: "1.5",
                   letterSpacing: "-0.003em",
-                  color: "#858585"
+                  color: "#858585",
                 }}
               >
                 Agents can also send and receive micropayments instantly.

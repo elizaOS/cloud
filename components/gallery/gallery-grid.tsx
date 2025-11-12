@@ -12,7 +12,8 @@ import {
   DialogFooter,
 } from "@/components/ui/dialog";
 import { DownloadIcon, TrashIcon, CalendarIcon } from "@radix-ui/react-icons";
-import { Eye } from "lucide-react";
+import { Eye, X } from "lucide-react";
+import { DialogClose } from "@/components/ui/dialog";
 import type { GalleryItem } from "@/app/actions/gallery";
 import { deleteMedia } from "@/app/actions/gallery";
 import { toast } from "sonner";
@@ -135,114 +136,125 @@ export function GalleryGrid({ items, onItemDeleted }: GalleryGridProps) {
         open={!!selectedItem}
         onOpenChange={(open) => !open && setSelectedItem(null)}
       >
-        <DialogContent className="max-w-6xl h-[90vh] flex flex-col p-6">
-          <DialogHeader className="flex-shrink-0">
-            <DialogTitle>Media Details</DialogTitle>
-            <DialogDescription>
-              View and manage your generated media
-            </DialogDescription>
-          </DialogHeader>
-
+        <DialogContent
+          className="!max-w-[99vw] !max-h-[99vh] !w-[99vw] !h-[99vh] p-0 bg-black/80 border-white/10 sm:!max-w-[99vw] md:!max-w-[99vw] lg:!max-w-[99vw]"
+          showCloseButton={false}
+        >
           {selectedItem && (
-            <div className="flex-1 flex flex-col gap-4 min-h-0">
-              <div className="flex-1 relative bg-black/60 rounded-none overflow-hidden">
+            <div className="relative w-full h-full flex items-center justify-center p-1">
+              {/* Main Content */}
+              <div className="relative w-full h-full flex items-center justify-center">
                 {selectedItem.type === "image" ? (
                   <Image
                     src={selectedItem.url}
                     alt={selectedItem.prompt}
-                    fill
-                    className="object-contain"
-                    sizes="(max-width: 768px) 100vw, (max-width: 1280px) 1024px, 1536px"
+                    width={3000}
+                    height={3000}
+                    className="object-contain max-w-full max-h-full w-auto h-auto"
+                    unoptimized
                     priority
                   />
                 ) : (
                   <video
                     src={selectedItem.url}
                     controls
-                    className="w-full h-full object-contain"
+                    className="max-w-full max-h-full object-contain"
                   />
                 )}
               </div>
 
-              <div className="flex-shrink-0 grid grid-cols-3 gap-4 text-sm">
-                <div className="col-span-3">
-                  <p className="text-white/70 line-clamp-2">
-                    {selectedItem.prompt}
-                  </p>
-                </div>
+              {/* Close button */}
+              <DialogClose className="absolute top-4 right-4 z-50 rounded-none border border-white/20 bg-black/60 p-2 hover:bg-[#FF580020] hover:border-[#FF5800]/40 transition-colors">
+                <X className="h-5 w-5 text-white" />
+              </DialogClose>
 
-                <div>
-                  <p className="text-white/50 text-xs uppercase tracking-wide">
-                    Model
-                  </p>
-                  <p className="font-medium truncate text-white">
-                    {selectedItem.model}
-                  </p>
-                </div>
+              {/* Info overlay at bottom */}
+              <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/90 via-black/50 to-transparent p-6 space-y-3">
+                {/* Prompt */}
+                <p className="text-sm text-white/90 leading-relaxed max-w-4xl">
+                  {selectedItem.prompt}
+                </p>
 
-                <div>
-                  <p className="text-white/50 text-xs uppercase tracking-wide">
-                    Type
-                  </p>
-                  <span className="mt-0.5 rounded-none bg-[#FF580020] border border-[#FF5800]/40 px-2 py-0.5 text-xs font-bold uppercase tracking-wide text-[#FF5800]">
-                    {selectedItem.type}
-                  </span>
-                </div>
-
-                <div>
-                  <p className="text-white/50 text-xs uppercase tracking-wide">
-                    Created
-                  </p>
-                  <p className="font-medium text-white">
-                    {format(new Date(selectedItem.createdAt), "MMM d, yyyy")}
-                  </p>
-                </div>
-
-                {selectedItem.dimensions && (
-                  <div>
-                    <p className="text-white/50 text-xs uppercase tracking-wide">
-                      Dimensions
-                    </p>
-                    <p className="font-medium text-white">
-                      {selectedItem.dimensions.width} ×{" "}
-                      {selectedItem.dimensions.height}
-                    </p>
+                {/* Details - Inline compact layout */}
+                <div className="flex flex-wrap items-center gap-x-6 gap-y-2 text-xs">
+                  <div className="flex items-baseline gap-2">
+                    <span className="text-white/50 uppercase tracking-wide">
+                      Model:
+                    </span>
+                    <span className="text-white font-medium">
+                      {selectedItem.model}
+                    </span>
                   </div>
-                )}
 
-                {selectedItem.fileSize && (
-                  <div>
-                    <p className="text-white/50 text-xs uppercase tracking-wide">
-                      File Size
-                    </p>
-                    <p className="font-medium text-white">
-                      {(Number(selectedItem.fileSize) / 1024 / 1024).toFixed(2)}{" "}
-                      MB
-                    </p>
+                  <div className="flex items-center gap-2">
+                    <span className="text-white/50 uppercase tracking-wide">
+                      Type:
+                    </span>
+                    <span className="rounded-none bg-[#FF580020] border border-[#FF5800]/40 px-2 py-0.5 text-[#FF5800] font-bold uppercase">
+                      {selectedItem.type}
+                    </span>
                   </div>
-                )}
+
+                  <div className="flex items-baseline gap-2">
+                    <span className="text-white/50 uppercase tracking-wide">
+                      Created:
+                    </span>
+                    <span className="text-white font-medium">
+                      {format(new Date(selectedItem.createdAt), "MMM d, yyyy")}
+                    </span>
+                  </div>
+
+                  {selectedItem.dimensions && (
+                    <div className="flex items-baseline gap-2">
+                      <span className="text-white/50 uppercase tracking-wide">
+                        Dimensions:
+                      </span>
+                      <span className="text-white font-medium">
+                        {selectedItem.dimensions.width} ×{" "}
+                        {selectedItem.dimensions.height}
+                      </span>
+                    </div>
+                  )}
+
+                  {selectedItem.fileSize && (
+                    <div className="flex items-baseline gap-2">
+                      <span className="text-white/50 uppercase tracking-wide">
+                        Size:
+                      </span>
+                      <span className="text-white font-medium">
+                        {(Number(selectedItem.fileSize) / 1024 / 1024).toFixed(
+                          2,
+                        )}{" "}
+                        MB
+                      </span>
+                    </div>
+                  )}
+                </div>
+
+                {/* Action Buttons */}
+                <div className="flex items-center gap-2 pt-1">
+                  <BrandButton
+                    variant="outline"
+                    size="sm"
+                    onClick={() => handleDownload(selectedItem)}
+                  >
+                    <DownloadIcon className="w-4 h-4 mr-2" />
+                    Download
+                  </BrandButton>
+                  <BrandButton
+                    variant="outline"
+                    size="sm"
+                    className="border-rose-500/40 text-rose-400 hover:bg-rose-500/10"
+                    onClick={() => {
+                      setDeleteConfirmItem(selectedItem);
+                      setSelectedItem(null);
+                    }}
+                  >
+                    <TrashIcon className="w-4 h-4 mr-2" />
+                    Delete
+                  </BrandButton>
+                </div>
               </div>
-
-              <DialogFooter className="flex-shrink-0 gap-2">
-                <BrandButton
-                  variant="outline"
-                  onClick={() => handleDownload(selectedItem)}
-                >
-                  <DownloadIcon className="w-4 h-4 mr-2" />
-                  Download
-                </BrandButton>
-                <BrandButton
-                  variant="outline"
-                  className="border-rose-500/40 text-rose-400 hover:bg-rose-500/10"
-                  onClick={() => {
-                    setDeleteConfirmItem(selectedItem);
-                    setSelectedItem(null);
-                  }}
-                >
-                  <TrashIcon className="w-4 h-4 mr-2" />
-                  Delete
-                </BrandButton>
-              </DialogFooter>
             </div>
           )}
         </DialogContent>

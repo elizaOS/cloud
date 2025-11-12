@@ -189,16 +189,22 @@ export function ChatHeader({ onToggleSidebar }: ChatHeaderProps) {
       </div>
 
       {/* Mode Toggle */}
-      <div className="flex items-center gap-2">
-        <div className="flex items-center gap-1 p-1 rounded-none border border-white/10 bg-black/40">
+      <div className="flex items-center">
+        <div className="flex items-center rounded-none border border-white/10 bg-black/40">
           <button
             onClick={() => handleModeChange("chat")}
             className={cn(
-              "flex items-center gap-2 px-3 py-1.5 rounded-none transition-colors text-sm",
+              "flex items-center gap-2 px-3 py-1.5 rounded-none transition-colors border-0",
               mode === "chat"
-                ? "bg-[#FF5800] text-white"
-                : "text-white/60 hover:text-white hover:bg-white/5",
+                ? "bg-[#471E08] text-[#FF5800]"
+                : "bg-[#1F1F1F] text-[#ADADAD] hover:text-white",
             )}
+            style={{
+              fontFamily: "'Roboto Mono', monospace",
+              fontWeight: 500,
+              fontSize: "14px",
+              lineHeight: "18px",
+            }}
           >
             <MessageSquare className="h-4 w-4" />
             <span className="hidden md:inline">Chat Mode</span>
@@ -206,11 +212,17 @@ export function ChatHeader({ onToggleSidebar }: ChatHeaderProps) {
           <button
             onClick={() => handleModeChange("build")}
             className={cn(
-              "flex items-center gap-2 px-3 py-1.5 rounded-none transition-colors text-sm",
+              "flex items-center gap-2 px-3 py-1.5 rounded-none transition-colors border-0",
               mode === "build"
-                ? "bg-[#FF5800] text-white"
-                : "text-white/60 hover:text-white hover:bg-white/5",
+                ? "bg-[#471E08] text-[#FF5800]"
+                : "bg-[#1F1F1F] text-[#ADADAD] hover:text-white",
             )}
+            style={{
+              fontFamily: "'Roboto Mono', monospace",
+              fontWeight: 500,
+              fontSize: "14px",
+              lineHeight: "18px",
+            }}
           >
             <Wrench className="h-4 w-4" />
             <span className="hidden md:inline">Build Mode</span>

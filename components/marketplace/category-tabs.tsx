@@ -32,9 +32,12 @@ export function CategoryTabs({
   }, []);
 
   const activeValue = activeCategory || "all";
-  const activeCat = activeCategory && activeCategory in CHARACTER_CATEGORIES 
-    ? CHARACTER_CATEGORIES[activeCategory as keyof typeof CHARACTER_CATEGORIES] 
-    : null;
+  const activeCat =
+    activeCategory && activeCategory in CHARACTER_CATEGORIES
+      ? CHARACTER_CATEGORIES[
+          activeCategory as keyof typeof CHARACTER_CATEGORIES
+        ]
+      : null;
 
   return (
     <div className="border-b">

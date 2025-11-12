@@ -27,6 +27,7 @@ interface ChatState {
   entityId: string;
   availableCharacters: Character[];
   selectedCharacterId: string | null;
+  pendingMessage: string | null; // Message from landing page to auto-send
 
   // Actions
   setRooms: (rooms: RoomItem[]) => void;
@@ -34,10 +35,12 @@ interface ChatState {
   setIsLoadingRooms: (isLoading: boolean) => void;
   setAvailableCharacters: (characters: Character[]) => void;
   setSelectedCharacterId: (characterId: string | null) => void;
+  setPendingMessage: (message: string | null) => void;
   loadRooms: () => Promise<RoomItem[]>;
-  createRoom: (characterId?: string | null) => Promise<{ roomId: string; characterId: string | null } | null>;
+  createRoom: (characterId?: string | null) => Promise<string | null>;
   deleteRoom: (roomId: string) => Promise<void>;
   initializeEntityId: () => void;
+  clearChatData: () => void;
 }
 
 // Initialize entity ID from localStorage
@@ -60,6 +63,7 @@ export const useChatStore = create<ChatState>((set, get) => ({
   entityId: "",
   availableCharacters: [],
   selectedCharacterId: null,
+  pendingMessage: null,
 
   // Setters
   setRooms: (rooms) => set({ rooms }),
@@ -74,6 +78,7 @@ export const useChatStore = create<ChatState>((set, get) => ({
     set({ availableCharacters: characters }),
   setSelectedCharacterId: (characterId) =>
     set({ selectedCharacterId: characterId }),
+  setPendingMessage: (message) => set({ pendingMessage: message }),
 
   // Initialize entity ID
   initializeEntityId: () => {
@@ -101,7 +106,7 @@ export const useChatStore = create<ChatState>((set, get) => ({
         if (Array.isArray(data.rooms)) {
           const roomItems: RoomItem[] = data.rooms
             .slice(0, 20)
-            .map((r: any) => ({
+            .map((r: RoomItem) => ({
               id: r.id,
               characterId: r.characterId,
               lastText: r.lastText,
@@ -133,32 +138,57 @@ export const useChatStore = create<ChatState>((set, get) => ({
     }
 
     try {
+      const requestBody = {
+        entityId,
+        characterId: characterId || undefined,
+      };
+      console.log("[ChatStore] Creating room with:", requestBody);
+
       const response = await fetch("/api/eliza/rooms", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          entityId,
-          characterId: characterId || undefined,
-        }),
+        body: JSON.stringify(requestBody),
       });
 
       if (response.ok) {
         const data = await response.json();
+        console.log("[ChatStore] Room creation response:", data);
         const newRoomId = data.roomId;
         const resolvedCharacterId = data.characterId;
 
-        // Reload rooms to get the updated list
-        await loadRooms();
+        if (!newRoomId) {
+          console.error("[ChatStore] API returned empty roomId:", data);
+          throw new Error(
+            "Room creation succeeded but returned empty ID. Check server logs."
+          );
+        }
 
-        // Automatically switch to the new room
+        // Automatically switch to the new room FIRST (before loading rooms)
+        // This ensures the UI updates immediately
         setRoomId(newRoomId);
 
-        return { roomId: newRoomId, characterId: resolvedCharacterId };
+        // Then reload rooms to get the updated list (fire-and-forget)
+        loadRooms().catch((err) => {
+          console.error(
+            "[ChatStore] Failed to reload rooms after creation:",
+            err
+          );
+        });
+
+        return newRoomId;
       }
-      return null;
+
+      // Log the error response for debugging
+      const errorData = await response
+        .json()
+        .catch(() => ({ error: "Unknown error" }));
+      console.error("Failed to create room:", response.status, errorData);
+      throw new Error(
+        errorData.error || `Failed to create room: ${response.status}`
+      );
     } catch (error) {
       console.error("Error creating room:", error);
-      return null;
+      throw error; // Re-throw the error so it can be handled by the caller
     }
   },
 
@@ -187,5 +217,25 @@ export const useChatStore = create<ChatState>((set, get) => ({
     } catch (error) {
       console.error("Error deleting room:", error);
     }
+  },
+
+  // Clear all chat data on logout
+  clearChatData: () => {
+    // Clear localStorage items
+    if (typeof window !== "undefined") {
+      window.localStorage.removeItem("elizaEntityId");
+      window.localStorage.removeItem("elizaRoomId");
+    }
+
+    // Reset store state
+    set({
+      rooms: [],
+      roomId: null,
+      isLoadingRooms: false,
+      entityId: "",
+      availableCharacters: [],
+      selectedCharacterId: null,
+      pendingMessage: null,
+    });
   },
 }));

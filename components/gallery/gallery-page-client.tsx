@@ -24,9 +24,21 @@ export function GalleryPageClient() {
   const [activeTab, setActiveTab] = useState<"all" | "image" | "video">("all");
 
   const galleryTabs: TabItem[] = [
-    { value: "all", label: "All Media", icon: <LayoutGridIcon className="h-4 w-4" /> },
-    { value: "image", label: "Images", icon: <ImageIcon className="h-4 w-4" /> },
-    { value: "video", label: "Videos", icon: <VideoIcon className="h-4 w-4" /> },
+    {
+      value: "all",
+      label: "All Media",
+      icon: <LayoutGridIcon className="h-4 w-4" />,
+    },
+    {
+      value: "image",
+      label: "Images",
+      icon: <ImageIcon className="h-4 w-4" />,
+    },
+    {
+      value: "video",
+      label: "Videos",
+      icon: <VideoIcon className="h-4 w-4" />,
+    },
   ];
   const [items, setItems] = useState<GalleryItem[]>([]);
   const [isLoading, setIsLoading] = useState(true);

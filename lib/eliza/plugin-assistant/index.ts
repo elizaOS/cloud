@@ -307,7 +307,7 @@ const messageReceivedHandler = async ({
 
         if (plannedActions.length > 0) {
           logger.debug("[ElizaAssistant] Executing actions:", plannedActions);
-          
+
           // Create response memory with actions for processActions
           const actionResponse: Memory = {
             id: createUniqueUuid(runtime, v4() as UUID),
@@ -327,11 +327,13 @@ const messageReceivedHandler = async ({
             message,
             [actionResponse],
             updatedState,
-            callback
+            callback,
           );
 
           // Refresh state to get action results
-          const actionState = await runtime.composeState(message, ["ACTION_STATE"]);
+          const actionState = await runtime.composeState(message, [
+            "ACTION_STATE",
+          ]);
           updatedState = { ...updatedState, ...actionState };
         }
       } else {
@@ -403,10 +405,10 @@ const messageReceivedHandler = async ({
     // Extract attachments from action results in state
     const actionResults = await runtime.getActionResults(message.id as UUID);
 
-  
-    logger.info(`[ElizaAssistant] Action results: ${JSON.stringify(actionResults)}`);
+    logger.info(
+      `[ElizaAssistant] Action results: ${JSON.stringify(actionResults)}`,
+    );
 
-    
     const attachments = actionResults
       .flatMap((result) => {
         // Check if action result has attachments in its callback data
@@ -424,10 +426,12 @@ const messageReceivedHandler = async ({
       source: "agent",
       inReplyTo: message.id,
     };
-    
+
     if (attachments.length > 0) {
       content.attachments = attachments;
-      logger.info(`[ElizaAssistant] Including ${attachments.length} attachment(s) in response`);
+      logger.info(
+        `[ElizaAssistant] Including ${attachments.length} attachment(s) in response`,
+      );
     }
 
     const responseMemory: Memory = {
@@ -435,7 +439,7 @@ const messageReceivedHandler = async ({
       entityId: runtime.agentId,
       roomId: message.roomId,
       worldId: message.worldId,
-      content: content as Memory['content'],
+      content: content as Memory["content"],
     };
 
     // Save response
@@ -574,7 +578,12 @@ export const assistantPlugin: Plugin = {
   name: "eliza-assistant",
   description: "Core assistant plugin with message handling and context",
   events,
-  providers: [providersProvider, actionsProvider, characterProvider, actionStateProvider],
+  providers: [
+    providersProvider,
+    actionsProvider,
+    characterProvider,
+    actionStateProvider,
+  ],
   actions: [generateImageAction],
   services: [],
 };

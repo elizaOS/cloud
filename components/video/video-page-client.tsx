@@ -415,7 +415,7 @@ export function VideoPageClient({
       id="video-tabs"
       value={activeTab}
       onValueChange={setActiveTab}
-      className="w-full flex flex-col"
+      className="w-full flex flex-col pb-6 md:pb-8"
     >
       {/* Mobile Dropdown */}
       {isMounted && (
@@ -498,7 +498,7 @@ export function VideoPageClient({
 
       {/* Generate Tab Content */}
       <TabsContent value="generate" className="mt-0">
-        <section className="grid gap-6 xl:grid-cols-[minmax(0,1.1fr)_minmax(0,1fr)]">
+        <section className="grid grid-cols-1 xl:grid-cols-2 gap-4 md:gap-6">
           <VideoGenerationForm
             prompt={prompt}
             onPromptChange={setPrompt}
@@ -520,62 +520,62 @@ export function VideoPageClient({
 
       {/* Activity Tab Content */}
       <TabsContent value="activity" className="mt-0">
-        <section className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_minmax(0,1fr)] xl:grid-cols-[minmax(0,1fr)_minmax(0,0.9fr)]">
+        <section className="grid grid-cols-1 lg:grid-cols-2 gap-4 md:gap-6">
           <BrandCard className="relative">
             <CornerBrackets size="sm" className="opacity-50" />
 
-            <div className="relative z-10 space-y-6">
+            <div className="relative z-10 space-y-4 md:space-y-6">
               <div className="flex items-center gap-2">
-                <Clock4 className="h-5 w-5 text-[#FF5800]" />
-                <h3 className="text-lg font-bold text-white">
+                <div className="w-2 h-2 rounded-full bg-[#FF5800]" />
+                <h3 className="text-sm md:text-base lg:text-lg font-mono font-bold text-[#e1e1e1] uppercase">
                   Capacity overview
                 </h3>
               </div>
-              <p className="text-sm text-white/60">
+              <p className="text-xs md:text-sm font-mono text-[#858585]">
                 Track your render capacity and plan ahead as we connect live
                 credits.
               </p>
 
-              <div className="grid gap-4 sm:grid-cols-3">
-                <div className="rounded-none border border-white/10 bg-black/40 p-4">
-                  <p className="text-xs uppercase tracking-wide text-white/50">
+              <div className="grid gap-3 md:gap-4 grid-cols-1 sm:grid-cols-3">
+                <div className="border border-white/10 bg-black/40 p-3 md:p-4">
+                  <p className="text-xs font-mono uppercase tracking-wide text-white/50">
                     Monthly credits used
                   </p>
-                  <p className="mt-2 text-2xl font-semibold text-white">
+                  <p className="mt-2 text-xl md:text-2xl font-mono font-semibold text-white">
                     {creditsUsed}
                   </p>
-                  <p className="text-xs text-white/50">
+                  <p className="text-xs font-mono text-white/50">
                     of {MONTHLY_CREDIT_CAP}
                   </p>
                 </div>
-                <div className="rounded-none border border-white/10 bg-black/40 p-4">
-                  <p className="text-xs uppercase tracking-wide text-white/50">
+                <div className="border border-white/10 bg-black/40 p-3 md:p-4">
+                  <p className="text-xs font-mono uppercase tracking-wide text-white/50">
                     Remaining renders
                   </p>
-                  <p className="mt-2 text-2xl font-semibold text-white">
+                  <p className="mt-2 text-xl md:text-2xl font-mono font-semibold text-white">
                     {Math.max(MONTHLY_CREDIT_CAP - creditsUsed, 0)}
                   </p>
-                  <p className="text-xs text-white/50">
+                  <p className="text-xs font-mono text-white/50">
                     Estimated based on current mix
                   </p>
                 </div>
-                <div className="rounded-none border border-white/10 bg-black/40 p-4">
-                  <p className="text-xs uppercase tracking-wide text-white/50">
+                <div className="border border-white/10 bg-black/40 p-3 md:p-4">
+                  <p className="text-xs font-mono uppercase tracking-wide text-white/50">
                     Fastest turnaround
                   </p>
-                  <p className="mt-2 text-2xl font-semibold text-white">
+                  <p className="mt-2 text-xl md:text-2xl font-mono font-semibold text-white">
                     {Math.max(usageStats.averageDuration - 1.3, 2).toFixed(0)}s
                   </p>
-                  <p className="text-xs text-white/50">
+                  <p className="text-xs font-mono text-white/50">
                     Using speed-optimized models
                   </p>
                 </div>
               </div>
 
               <div className="space-y-3">
-                <div className="flex items-center justify-between text-sm">
-                  <span className="text-white/60">Monthly spend</span>
-                  <span className="font-medium text-white">
+                <div className="flex items-center justify-between text-xs md:text-sm">
+                  <span className="font-mono text-white/60">Monthly spend</span>
+                  <span className="font-mono font-medium text-white">
                     {creditProgress}%
                   </span>
                 </div>
@@ -585,7 +585,7 @@ export function VideoPageClient({
                     style={{ width: `${creditProgress}%` }}
                   />
                 </Progress>
-                <p className="text-xs text-white/50">
+                <p className="text-xs font-mono text-white/50">
                   Budget resets on the 1st of every month. Reach out if you need
                   a larger allocation.
                 </p>
@@ -599,26 +599,28 @@ export function VideoPageClient({
           >
             <CornerBrackets size="sm" className="opacity-50" />
 
-            <div className="relative z-10 space-y-2 mb-6">
+            <div className="relative z-10 space-y-2 mb-4 md:mb-6">
               <div className="flex items-center gap-2">
-                <History className="h-5 w-5 text-[#FF5800]" />
-                <h3 className="text-lg font-bold text-white">Recent renders</h3>
+                <div className="w-2 h-2 rounded-full bg-[#FF5800]" />
+                <h3 className="text-sm md:text-base lg:text-lg font-mono font-bold text-[#e1e1e1] uppercase">
+                  Recent renders
+                </h3>
               </div>
-              <p className="text-sm text-white/60">
+              <p className="text-xs md:text-sm font-mono text-[#858585]">
                 A quick snapshot of your latest generation attempts.
               </p>
             </div>
 
-            <div className="relative z-10 flex-1 space-y-4 overflow-y-auto">
+            <div className="relative z-10 flex-1 space-y-3 md:space-y-4 overflow-y-auto max-h-[600px]">
               {historyVideos.map((video) => (
                 <div
                   key={video.id}
-                  className="flex flex-col gap-2 rounded-none border border-white/10 bg-black/40 p-4 transition-colors hover:border-[#FF5800]/50"
+                  className="flex flex-col gap-2 border border-white/10 bg-black/40 p-3 md:p-4 transition-colors hover:border-[#FF5800]/50"
                 >
                   <div className="flex flex-wrap items-center gap-2">
                     <span
                       className={cn(
-                        "rounded-none px-3 py-1 text-xs font-bold uppercase tracking-wide border capitalize",
+                        "px-2 md:px-3 py-1 text-xs font-mono font-bold uppercase tracking-wide border capitalize flex-shrink-0",
                         video.status === "completed"
                           ? video.isMock
                             ? "bg-white/10 text-white/80 border-white/20"
@@ -631,22 +633,24 @@ export function VideoPageClient({
                       {video.status}
                     </span>
                     {video.isMock ? (
-                      <span className="rounded-none bg-white/10 px-2.5 py-0.5 text-[11px] uppercase tracking-wide text-white/60">
-                        Mock preview
+                      <span className="bg-white/10 px-2 md:px-2.5 py-0.5 text-[11px] font-mono uppercase tracking-wide text-white/60 flex-shrink-0">
+                        Mock
                       </span>
                     ) : null}
-                    <p className="text-sm font-medium text-white">
-                      {video.prompt.length > 80
-                        ? `${video.prompt.slice(0, 77)}...`
+                    <p className="text-xs md:text-sm font-mono font-medium text-white break-words">
+                      {video.prompt.length > 60
+                        ? `${video.prompt.slice(0, 57)}...`
                         : video.prompt}
                     </p>
                   </div>
-                  <div className="flex flex-wrap items-center gap-3 text-xs text-white/60">
-                    <span className="flex items-center gap-1">
+                  <div className="flex flex-wrap items-center gap-2 md:gap-3 text-xs font-mono text-white/60">
+                    <span className="flex items-center gap-1 flex-shrink-0">
                       <CheckCircle2 className="h-3.5 w-3.5 text-[#FF5800]" />
-                      {video.modelId}
+                      <span className="truncate max-w-[120px]">
+                        {video.modelId.split("/").pop()}
+                      </span>
                     </span>
-                    <span className="flex items-center gap-1">
+                    <span className="flex items-center gap-1 flex-shrink-0">
                       <Clock4 className="h-3.5 w-3.5 text-[#FF5800]" />
                       {video.durationSeconds
                         ? `${video.durationSeconds}s`
@@ -654,7 +658,7 @@ export function VideoPageClient({
                           ? "Rendering"
                           : "Pending"}
                     </span>
-                    <span>
+                    <span className="flex-shrink-0">
                       {new Date(video.createdAt).toLocaleTimeString(undefined, {
                         hour: "2-digit",
                         minute: "2-digit",
@@ -662,37 +666,36 @@ export function VideoPageClient({
                     </span>
                   </div>
                   {video.requestId ? (
-                    <div className="flex flex-wrap items-center gap-2 text-[11px] text-white/50">
-                      <span className="font-medium text-white/80">
-                        Request ID:
+                    <div className="flex flex-wrap items-center gap-2 text-[11px] font-mono text-white/50">
+                      <span className="font-medium text-white/80 flex-shrink-0">
+                        ID:
                       </span>
                       <span className="break-all">{video.requestId}</span>
                     </div>
                   ) : null}
                   {video.failureReason && video.status !== "completed" ? (
-                    <div className="text-[11px] text-rose-400">
+                    <div className="text-[11px] font-mono text-rose-400 break-words">
                       {video.failureReason}
                     </div>
                   ) : null}
                 </div>
               ))}
               {historyVideos.length === 0 && (
-                <div className="flex h-full flex-col items-center justify-center rounded-none border border-dashed border-white/10 bg-black/20 p-6 text-center text-sm text-white/60">
+                <div className="flex h-full flex-col items-center justify-center border border-dashed border-white/10 bg-black/20 p-6 text-center text-xs md:text-sm font-mono text-white/60">
                   <Loader2 className="mb-2 h-5 w-5 animate-spin text-[#FF5800]" />
                   No renders yet — submit a prompt to get started.
                 </div>
               )}
             </div>
 
-            <div className="relative z-10 border-t border-white/10 pt-4 mt-4">
-              <BrandButton
-                variant="outline"
-                className="w-full"
+            <div className="relative z-10 border-t border-white/10 pt-3 md:pt-4 mt-3 md:mt-4">
+              <button
                 type="button"
                 onClick={scrollToHistory}
+                className="w-full px-4 py-2 border border-white/20 bg-transparent text-white hover:bg-white/5 transition-colors"
               >
-                View full history
-              </BrandButton>
+                <span className="font-mono text-sm">View full history</span>
+              </button>
             </div>
           </BrandCard>
         </section>

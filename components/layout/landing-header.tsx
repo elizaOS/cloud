@@ -45,10 +45,10 @@ export default function LandingHeader() {
             />
           </div>
         </Link>
-        
+
         {/* Center Navigation */}
         <nav className="hidden md:flex items-center gap-8">
-          <a 
+          <a
             href="https://eliza.how"
             target="_blank"
             rel="noopener noreferrer"
@@ -59,14 +59,14 @@ export default function LandingHeader() {
               fontSize: "16px",
               lineHeight: "21px",
               letterSpacing: "-0.002em",
-              color: "#A2A0A3"
+              color: "#A2A0A3",
             }}
-            onMouseEnter={(e) => e.currentTarget.style.color = "#FF5800"}
-            onMouseLeave={(e) => e.currentTarget.style.color = "#A2A0A3"}
+            onMouseEnter={(e) => (e.currentTarget.style.color = "#FF5800")}
+            onMouseLeave={(e) => (e.currentTarget.style.color = "#A2A0A3")}
           >
             Docs
           </a>
-          <a 
+          <a
             href="https://github.com/elizaos"
             target="_blank"
             rel="noopener noreferrer"
@@ -77,14 +77,14 @@ export default function LandingHeader() {
               fontSize: "16px",
               lineHeight: "21px",
               letterSpacing: "-0.002em",
-              color: "#A2A0A3"
+              color: "#A2A0A3",
             }}
-            onMouseEnter={(e) => e.currentTarget.style.color = "#FF5800"}
-            onMouseLeave={(e) => e.currentTarget.style.color = "#A2A0A3"}
+            onMouseEnter={(e) => (e.currentTarget.style.color = "#FF5800")}
+            onMouseLeave={(e) => (e.currentTarget.style.color = "#A2A0A3")}
           >
             Github
           </a>
-          <span 
+          <span
             className="opacity-40 cursor-not-allowed"
             style={{
               fontFamily: "Roboto Mono, monospace",
@@ -92,12 +92,12 @@ export default function LandingHeader() {
               fontSize: "16px",
               lineHeight: "21px",
               letterSpacing: "-0.002em",
-              color: "#A2A0A3"
+              color: "#A2A0A3",
             }}
           >
             About
           </span>
-          <span 
+          <span
             className="opacity-40 cursor-not-allowed"
             style={{
               fontFamily: "Roboto Mono, monospace",
@@ -105,7 +105,7 @@ export default function LandingHeader() {
               fontSize: "16px",
               lineHeight: "21px",
               letterSpacing: "-0.002em",
-              color: "#A2A0A3"
+              color: "#A2A0A3",
             }}
           >
             Pricing
@@ -137,11 +137,7 @@ export default function LandingHeader() {
               >
                 Log in
               </Button>
-              <LockOnButton
-                size="sm"
-                onClick={handleLogin}
-                disabled={!ready}
-              >
+              <LockOnButton size="sm" onClick={handleLogin} disabled={!ready}>
                 Get Started
               </LockOnButton>
             </>
