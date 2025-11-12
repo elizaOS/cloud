@@ -39,6 +39,7 @@ import { ApiTester } from "@/components/api-explorer/api-tester";
 import { AuthManager } from "@/components/api-explorer/auth-manager";
 import { EndpointCard } from "@/components/api-explorer/endpoint-card";
 import { SchemaViewer } from "@/components/api-explorer/schema-viewer";
+import { OpenApiViewer } from "@/components/api-explorer/openapi-viewer";
 import { useSetPageHeader } from "@/components/layout/page-header-context";
 import { cn } from "@/lib/utils";
 
@@ -389,15 +390,15 @@ export default function ApiExplorerPage() {
                   </BrandButton>
                 </div>
 
-                <div className="rounded-none border border-white/10 bg-black/60">
-                  <pre className="overflow-x-auto whitespace-pre-wrap break-all p-4 text-xs font-mono text-white/70 max-h-[800px] overflow-y-auto">
-                    <code>
-                      {openApiSpec
-                        ? JSON.stringify(openApiSpec, null, 2)
-                        : "Loading..."}
-                    </code>
-                  </pre>
-                </div>
+                {openApiSpec ? (
+                  <OpenApiViewer
+                    value={JSON.stringify(openApiSpec, null, 2)}
+                  />
+                ) : (
+                  <div className="rounded-none border border-white/10 bg-black/60 p-8 text-center">
+                    <p className="text-white/60">Loading specification...</p>
+                  </div>
+                )}
               </div>
             </BrandCard>
           </BrandTabsContent>

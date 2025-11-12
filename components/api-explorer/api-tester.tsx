@@ -547,7 +547,7 @@ export function ApiTester({
         <Button
           onClick={executeTest}
           disabled={isLoading}
-          className="flex-1 gap-2"
+          className="flex-1 gap-2 bg-[#471E08] text-[#FF5800] hover:bg-[#5A2610] active:bg-[#6B2E18] border-0"
           size="lg"
         >
           {isLoading ? (
