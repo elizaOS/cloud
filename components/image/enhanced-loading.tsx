@@ -23,12 +23,12 @@ export function EnhancedLoading({ message, progress }: EnhancedLoadingProps) {
   const displayMessage = message || randomMessage;
 
   return (
-    <div className="relative w-full rounded-none border border-white/10 bg-black/40 overflow-hidden">
+    <div className="relative w-full h-[500px] rounded-none border border-white/10 bg-black/40 overflow-hidden">
       {/* Animated background */}
       <div className="absolute inset-0 bg-[#FF5800]/5" />
 
       {/* Center content */}
-      <div className="relative z-10 flex flex-col items-center justify-center py-8 px-6 space-y-3">
+      <div className="relative z-10 flex flex-col items-center justify-center h-full px-6 space-y-3">
         {/* Animated icon */}
         <div className="relative">
           <div className="absolute inset-0 animate-ping opacity-75">
