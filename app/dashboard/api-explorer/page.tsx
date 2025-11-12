@@ -15,8 +15,11 @@ import {
   ActivityIcon,
   AudioLinesIcon,
   BookIcon,
+  ChevronLeftIcon,
+  ChevronRightIcon,
   DatabaseIcon,
   KeyIcon,
+  MenuIcon,
   MicIcon,
   SearchIcon,
   ShieldIcon,
@@ -58,6 +61,7 @@ export default function ApiExplorerPage() {
   const [openApiSpec, setOpenApiSpec] = useState<OpenAPISpec | null>(null);
   const [authToken, setAuthToken] = useState<string>("");
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
+  const [showMobileSidebar, setShowMobileSidebar] = useState(false);
 
   const categories = ["All", ...getAvailableCategories()];
   const filteredEndpoints = searchQuery
@@ -122,34 +126,74 @@ export default function ApiExplorerPage() {
   };
 
   return (
-    <div className="flex flex-col lg:flex-row w-full gap-6 px-4 pb-8 lg:px-8">
+    <div className="relative flex flex-col lg:flex-row w-full gap-6 px-4 pb-8 lg:px-8">
+      {/* Mobile Backdrop Overlay */}
+      {showMobileSidebar && (
+        <div
+          className="lg:hidden fixed inset-0 bg-black/60 backdrop-blur-sm z-30"
+          onClick={() => setShowMobileSidebar(false)}
+        />
+      )}
+
+      {/* Mobile Sidebar Toggle Button */}
+      <button
+        onClick={() => setShowMobileSidebar(!showMobileSidebar)}
+        className="lg:hidden fixed bottom-6 right-6 z-50 flex items-center justify-center w-14 h-14 rounded-full border-2 border-[#FF5800] bg-black shadow-lg shadow-[#FF5800]/20 text-white hover:bg-[#FF5800] transition-colors"
+        title={showMobileSidebar ? "Hide filters" : "Show filters"}
+      >
+        {showMobileSidebar ? (
+          <ChevronRightIcon className="h-6 w-6" />
+        ) : (
+          <MenuIcon className="h-6 w-6" />
+        )}
+      </button>
+
       {/* Sidebar */}
       <aside
         className={cn(
-          "lg:sticky lg:top-0 lg:self-start transition-all duration-300 ease-in-out shrink-0",
-          isSidebarCollapsed
-            ? "hidden lg:block lg:w-16"
-            : "w-full lg:w-80 xl:w-96",
+          "transition-all duration-300 ease-in-out shrink-0",
+          // Desktop behavior
+          "lg:sticky lg:top-0 lg:self-start",
+          isSidebarCollapsed ? "hidden lg:block lg:w-16" : "lg:w-80 xl:w-96",
+          // Mobile behavior - fixed overlay
+          "fixed lg:relative inset-0 lg:inset-auto z-40 lg:z-auto",
+          showMobileSidebar
+            ? "translate-x-0"
+            : "-translate-x-full lg:translate-x-0",
+          "bg-black/95 lg:bg-transparent backdrop-blur-sm lg:backdrop-blur-none",
+          "w-full sm:w-96 lg:w-80 xl:w-96",
         )}
       >
         <div
           className={cn(
-            "flex flex-col gap-4 lg:h-[calc(100vh-8rem)]",
+            "flex flex-col gap-4 h-full lg:h-[calc(100vh-8rem)] p-4 lg:p-0 overflow-y-auto",
             isSidebarCollapsed && "lg:items-center",
           )}
         >
-          {/* Collapse Toggle - Desktop Only */}
-          <button
-            onClick={() => setIsSidebarCollapsed(!isSidebarCollapsed)}
-            className="hidden lg:flex items-center justify-center w-12 h-12 rounded-none border border-white/10 bg-black/40 hover:bg-white/5 text-white/60 hover:text-white transition-colors ml-auto shrink-0"
-            title={isSidebarCollapsed ? "Expand sidebar" : "Collapse sidebar"}
-          >
-            {isSidebarCollapsed ? (
-              <ActivityIcon className="h-5 w-5" />
-            ) : (
-              <ActivityIcon className="h-5 w-5 rotate-90" />
-            )}
-          </button>
+          {/* Mobile Close Button & Desktop Collapse Toggle */}
+          <div className="flex items-center justify-between shrink-0">
+            {/* Mobile Close Button */}
+            <button
+              onClick={() => setShowMobileSidebar(false)}
+              className="lg:hidden flex items-center gap-2 px-4 py-2 rounded-none border border-white/10 bg-black/40 hover:bg-white/5 text-white/60 hover:text-white transition-colors"
+            >
+              <ChevronLeftIcon className="h-5 w-5" />
+              <span className="text-sm font-medium">Close</span>
+            </button>
+
+            {/* Desktop Collapse Toggle */}
+            <button
+              onClick={() => setIsSidebarCollapsed(!isSidebarCollapsed)}
+              className="hidden lg:flex items-center justify-center w-12 h-12 rounded-none border border-white/10 bg-black/40 hover:bg-white/5 text-white/60 hover:text-white transition-colors ml-auto shrink-0"
+              title={isSidebarCollapsed ? "Expand sidebar" : "Collapse sidebar"}
+            >
+              {isSidebarCollapsed ? (
+                <ChevronRightIcon className="h-5 w-5" />
+              ) : (
+                <ChevronLeftIcon className="h-5 w-5" />
+              )}
+            </button>
+          </div>
 
           {!isSidebarCollapsed && (
             <>
@@ -195,13 +239,17 @@ export default function ApiExplorerPage() {
                         </h3>
                       </div>
                     </div>
-                    
+
                     <div className="flex-1 overflow-y-auto overflow-x-hidden lg:pr-2 -mr-2">
                       <div className="space-y-1 pb-4">
                         {categories.map((category) => (
                           <button
                             key={category}
-                            onClick={() => setSelectedCategory(category)}
+                            onClick={() => {
+                              setSelectedCategory(category);
+                              // Close mobile sidebar after selection
+                              setShowMobileSidebar(false);
+                            }}
                             className={cn(
                               "flex w-full items-center gap-2 rounded-none px-3 py-2.5 text-left text-sm transition-all border-l-2",
                               selectedCategory === category
@@ -210,9 +258,7 @@ export default function ApiExplorerPage() {
                             )}
                           >
                             {category !== "All" && getCategoryIcon(category)}
-                            <span className="flex-1 truncate">
-                              {category}
-                            </span>
+                            <span className="flex-1 truncate">{category}</span>
                             <span className="rounded-none bg-[#FF580020] px-2 py-0.5 text-[10px] font-semibold text-[#FF5800] border border-[#FF580040] shrink-0">
                               {category === "All"
                                 ? API_ENDPOINTS.length
@@ -396,9 +442,7 @@ export default function ApiExplorerPage() {
                 </div>
 
                 {openApiSpec ? (
-                  <OpenApiViewer
-                    value={JSON.stringify(openApiSpec, null, 2)}
-                  />
+                  <OpenApiViewer value={JSON.stringify(openApiSpec, null, 2)} />
                 ) : (
                   <div className="rounded-none border border-white/10 bg-black/60 p-8 text-center">
                     <p className="text-white/60">Loading specification...</p>

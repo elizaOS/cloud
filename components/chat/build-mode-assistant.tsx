@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useRef, useEffect } from "react";
+import { useState, useRef, useEffect, useCallback } from "react";
 import { useChat } from "@ai-sdk/react";
 import { DefaultChatTransport } from "ai";
 import { ScrollArea } from "@/components/ui/scroll-area";
@@ -98,17 +98,40 @@ Tell me about your vision!`;
     messages.length,
   ]);
 
-  // Auto-scroll to bottom
-  useEffect(() => {
+  // Robust scroll to bottom function
+  const scrollToBottom = useCallback((smooth = false) => {
     if (scrollAreaRef.current) {
       const viewport = scrollAreaRef.current.querySelector(
         "[data-radix-scroll-area-viewport]",
       );
       if (viewport) {
-        viewport.scrollTop = viewport.scrollHeight;
+        // Use requestAnimationFrame to ensure DOM has updated
+        requestAnimationFrame(() => {
+          if (smooth) {
+            viewport.scrollTo({
+              top: viewport.scrollHeight,
+              behavior: "smooth",
+            });
+          } else {
+            viewport.scrollTop = viewport.scrollHeight;
+          }
+        });
       }
     }
-  }, [messages, status]);
+  }, []);
+
+  // Auto-scroll to bottom when messages change
+  useEffect(() => {
+    scrollToBottom();
+  }, [messages, status, scrollToBottom]);
+
+  // Additional scroll after a delay to handle late-loading content
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      scrollToBottom();
+    }, 100);
+    return () => clearTimeout(timer);
+  }, [messages, status, scrollToBottom]);
 
   // Extract and apply character updates in real-time
   useEffect(() => {
