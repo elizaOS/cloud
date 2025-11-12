@@ -375,14 +375,14 @@ export function UpdatePaymentModal({
             </div>
 
             {/* Action Buttons */}
-            <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 sm:gap-4 w-full justify-start">
+            <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-4 w-full justify-end">
               <button
                 type="button"
                 onClick={handleCancel}
-                className="relative bg-[rgba(255,88,0,0.25)] px-6 py-3 hover:bg-[rgba(255,88,0,0.35)] transition-colors"
+                className="relative bg-[rgba(255,88,0,0.25)] px-6 py-3 hover:bg-[rgba(255,88,0,0.35)] transition-colors w-full sm:w-auto"
               >
                 <CornerBrackets size="sm" className="opacity-70" />
-                <span className="relative z-10 text-[#FF5800] font-mono font-medium text-sm sm:text-base">
+                <span className="relative z-10 text-[#FF5800] font-mono font-medium text-sm sm:text-base whitespace-nowrap">
                   Cancel
                 </span>
               </button>
@@ -393,12 +393,12 @@ export function UpdatePaymentModal({
                 disabled={
                   loading || (selectedMethod === "new-card" && !cardComplete)
                 }
-                className="bg-white px-6 py-3 hover:bg-white/90 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+                className="bg-white px-6 py-3 hover:bg-white/90 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2 w-full sm:w-auto"
               >
                 {loading && (
-                  <Loader2 className="h-4 w-4 animate-spin text-black" />
+                  <Loader2 className="h-4 w-4 animate-spin text-black flex-shrink-0" />
                 )}
-                <span className="text-black font-mono font-medium text-sm sm:text-base">
+                <span className="text-black font-mono font-medium text-sm sm:text-base whitespace-nowrap">
                   {loading ? "Processing..." : "Update"}
                 </span>
               </button>

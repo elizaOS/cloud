@@ -82,17 +82,17 @@ export function GeneralTab({ user }: GeneralTabProps) {
   };
 
   return (
-    <div className="flex flex-col gap-6">
+    <div className="flex flex-col gap-4 md:gap-6 pb-6 md:pb-8">
       {/* Profile Information Card */}
       <BrandCard className="relative">
         <CornerBrackets size="sm" className="opacity-50" />
 
-        <div className="relative z-10 space-y-6">
+        <div className="relative z-10 space-y-4 md:space-y-6">
           {/* Full Name and Nickname Row */}
-          <div className="flex gap-4 w-full">
+          <div className="flex flex-col md:flex-row gap-4 w-full">
             {/* Full Name */}
             <div className="flex-1 space-y-2">
-              <Label className="text-white font-mono text-base">
+              <Label className="text-white font-mono text-sm md:text-base">
                 Full name
               </Label>
               <div className="flex gap-2">
@@ -114,7 +114,7 @@ export function GeneralTab({ user }: GeneralTabProps) {
 
             {/* Nickname */}
             <div className="flex-1 space-y-2">
-              <Label className="text-white font-mono text-base">
+              <Label className="text-white font-mono text-sm md:text-base">
                 What should we call you?
               </Label>
               <Input
@@ -128,7 +128,7 @@ export function GeneralTab({ user }: GeneralTabProps) {
 
           {/* Work Function */}
           <div className="space-y-2">
-            <Label className="text-white font-mono text-base">
+            <Label className="text-white font-mono text-sm md:text-base">
               What best describes your work?
             </Label>
             <Select value={workFunction} onValueChange={setWorkFunction}>
@@ -149,7 +149,7 @@ export function GeneralTab({ user }: GeneralTabProps) {
 
           {/* Personal Preferences */}
           <div className="space-y-2">
-            <Label className="text-white font-mono text-base">
+            <Label className="text-white font-mono text-sm md:text-base">
               What personal preferences should Eliza consider in responses?
             </Label>
             <p className="text-xs text-[#858585] font-mono">
@@ -175,7 +175,7 @@ export function GeneralTab({ user }: GeneralTabProps) {
             type="button"
             onClick={handleSave}
             disabled={saving}
-            className="relative bg-[#e1e1e1] px-3 py-2 overflow-hidden group hover:bg-white transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+            className="relative bg-[#e1e1e1] px-4 py-2.5 overflow-hidden group hover:bg-white transition-colors disabled:opacity-50 disabled:cursor-not-allowed w-full md:w-auto"
           >
             {/* Pattern overlay */}
             <div
@@ -185,24 +185,24 @@ export function GeneralTab({ user }: GeneralTabProps) {
                 backgroundSize: "2.915576934814453px 2.915576934814453px",
               }}
             />
-            <span className="relative z-10 text-black font-mono font-medium text-base">
+            <span className="relative z-10 text-black font-mono font-medium text-sm md:text-base whitespace-nowrap">
               {saving ? "Saving..." : "Save changes"}
             </span>
           </button>
         </div>
       </BrandCard>
 
-      {/* Response Copletions Card */}
+      {/* Response Completions Card */}
       <BrandCard className="relative">
         <CornerBrackets size="sm" className="opacity-50" />
 
-        <div className="relative z-10 space-y-6">
+        <div className="relative z-10 space-y-4 md:space-y-6">
           {/* Response Completions */}
           <div className="space-y-2">
-            <Label className="text-white font-mono text-base">
-              Response copletions
+            <Label className="text-white font-mono text-sm md:text-base">
+              Response completions
             </Label>
-            <div className="flex items-center justify-between">
+            <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
               <p className="text-xs text-[#858585] font-mono max-w-2xl">
                 Get notiified when Eliza has finished a response. Most useful
                 for long-running tasks like too calls, and research.
@@ -210,17 +210,17 @@ export function GeneralTab({ user }: GeneralTabProps) {
               <Switch
                 checked={responseNotifications}
                 onCheckedChange={setResponseNotifications}
-                className="data-[state=checked]:bg-[#FF5800]"
+                className="data-[state=checked]:bg-[#FF5800] flex-shrink-0"
               />
             </div>
           </div>
 
           {/* Email Notifications */}
           <div className="space-y-2">
-            <Label className="text-white font-mono text-base">
+            <Label className="text-white font-mono text-sm md:text-base">
               Emails from Eliza
             </Label>
-            <div className="flex items-center justify-between">
+            <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
               <p className="text-xs text-[#858585] font-mono max-w-2xl">
                 Get an email when Eliza has finished building or needs your
                 response.
@@ -228,7 +228,7 @@ export function GeneralTab({ user }: GeneralTabProps) {
               <Switch
                 checked={emailNotifications}
                 onCheckedChange={setEmailNotifications}
-                className="data-[state=checked]:bg-[#FF5800]"
+                className="data-[state=checked]:bg-[#FF5800] flex-shrink-0"
               />
             </div>
           </div>

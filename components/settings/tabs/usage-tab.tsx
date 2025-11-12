@@ -133,18 +133,18 @@ export function UsageTab({ user, onTabChange }: UsageTabProps) {
   }, []);
 
   return (
-    <div className="flex flex-col gap-6">
+    <div className="flex flex-col gap-4 md:gap-6 pb-6 md:pb-8">
       {/* Credits Overview Card */}
       <BrandCard className="relative">
         <CornerBrackets size="sm" className="opacity-50" />
 
-        <div className="relative z-10 space-y-6">
+        <div className="relative z-10 space-y-4 md:space-y-6">
           {/* Header */}
-          <div className="flex items-start justify-between w-full">
-            <div className="flex flex-col gap-2 max-w-xl">
+          <div className="flex flex-col gap-3 md:gap-2 w-full">
+            <div className="flex flex-col gap-2">
               <div className="flex items-center gap-2">
                 <div className="w-2 h-2 rounded-full bg-[#FF5800]" />
-                <h3 className="text-base font-mono text-[#e1e1e1] uppercase">
+                <h3 className="text-sm md:text-base font-mono text-[#e1e1e1] uppercase">
                   Build, deploy, and monitor your ai agents
                 </h3>
               </div>
@@ -155,17 +155,19 @@ export function UsageTab({ user, onTabChange }: UsageTabProps) {
             </div>
 
             <div className="flex items-center gap-2">
-              <Info className="h-4 w-4 text-[#848484]" />
-              <p className="text-sm text-[#848484]">Last updated: just now</p>
+              <Info className="h-4 w-4 text-[#848484] flex-shrink-0" />
+              <p className="text-xs md:text-sm text-[#848484]">
+                Last updated: just now
+              </p>
             </div>
           </div>
 
           {/* Credits Section */}
           <div className="space-y-0 w-full">
             {/* Credits Remaining */}
-            <div className="backdrop-blur-sm bg-[rgba(10,10,10,0.75)] border border-brand-surface p-4 space-y-4">
-              <div className="flex items-start justify-between w-full">
-                <p className="text-base font-mono text-white">
+            <div className="backdrop-blur-sm bg-[rgba(10,10,10,0.75)] border border-brand-surface p-3 md:p-4 space-y-3 md:space-y-4">
+              <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2 w-full">
+                <p className="text-sm md:text-base font-mono text-white">
                   Credits Remaining
                 </p>
                 {loading ? (
@@ -193,9 +195,9 @@ export function UsageTab({ user, onTabChange }: UsageTabProps) {
             </div>
 
             {/* Current Session */}
-            <div className="backdrop-blur-sm bg-[rgba(10,10,10,0.75)] border-t-0 border border-brand-surface p-4 space-y-4">
-              <div className="flex items-center justify-between">
-                <p className="text-base font-mono text-white">
+            <div className="backdrop-blur-sm bg-[rgba(10,10,10,0.75)] border-t-0 border border-brand-surface p-3 md:p-4 space-y-3 md:space-y-4">
+              <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2">
+                <p className="text-sm md:text-base font-mono text-white">
                   Current Session
                 </p>
                 {sessionLoading && !sessionStats ? (
@@ -208,30 +210,30 @@ export function UsageTab({ user, onTabChange }: UsageTabProps) {
               </div>
 
               {sessionStats ? (
-                <div className="grid grid-cols-3 gap-4">
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 md:gap-4">
                   <div className="space-y-1">
                     <p className="text-xs text-white/60 font-mono">
                       Credits Used
                     </p>
-                    <p className="text-lg font-mono text-white">
+                    <p className="text-base md:text-lg font-mono text-white">
                       ${sessionStats.credits_used.toFixed(2)}
                     </p>
                   </div>
                   <div className="space-y-1">
                     <p className="text-xs text-white/60 font-mono">Requests</p>
-                    <p className="text-lg font-mono text-white">
+                    <p className="text-base md:text-lg font-mono text-white">
                       {sessionStats.requests_made.toLocaleString()}
                     </p>
                   </div>
                   <div className="space-y-1">
                     <p className="text-xs text-white/60 font-mono">Tokens</p>
-                    <p className="text-lg font-mono text-white">
+                    <p className="text-base md:text-lg font-mono text-white">
                       {sessionStats.tokens_consumed.toLocaleString()}
                     </p>
                   </div>
                 </div>
               ) : (
-                <p className="text-sm text-white/60">
+                <p className="text-xs md:text-sm text-white/60">
                   No active session data available.
                 </p>
               )}
@@ -244,13 +246,13 @@ export function UsageTab({ user, onTabChange }: UsageTabProps) {
       <BrandCard className="relative">
         <CornerBrackets size="sm" className="opacity-50" />
 
-        <div className="relative z-10 space-y-6">
+        <div className="relative z-10 space-y-4 md:space-y-6">
           {/* Header */}
-          <div className="flex items-start justify-between w-full">
-            <div className="flex flex-col gap-2 max-w-xl">
+          <div className="flex flex-col gap-3 md:gap-2 w-full">
+            <div className="flex flex-col gap-2">
               <div className="flex items-center gap-2">
                 <div className="w-2 h-2 rounded-full bg-[#FF5800]" />
-                <h3 className="text-base font-mono text-[#e1e1e1] uppercase">
+                <h3 className="text-sm md:text-base font-mono text-[#e1e1e1] uppercase">
                   Weekly limits
                 </h3>
               </div>
@@ -265,8 +267,8 @@ export function UsageTab({ user, onTabChange }: UsageTabProps) {
                 <Loader2 className="h-4 w-4 animate-spin text-[#FF5800]" />
               ) : (
                 <>
-                  <Info className="h-4 w-4 text-[#848484]" />
-                  <p className="text-sm text-[#848484]">
+                  <Info className="h-4 w-4 text-[#848484] flex-shrink-0" />
+                  <p className="text-xs md:text-sm text-[#848484]">
                     Updates every 60 seconds
                   </p>
                 </>
@@ -277,12 +279,14 @@ export function UsageTab({ user, onTabChange }: UsageTabProps) {
           {/* Limits Section */}
           <div className="space-y-0 w-full">
             {/* All models */}
-            <div className="backdrop-blur-sm bg-[rgba(10,10,10,0.75)] border border-brand-surface p-4 space-y-4">
-              <p className="text-base font-mono text-white">All models</p>
+            <div className="backdrop-blur-sm bg-[rgba(10,10,10,0.75)] border border-brand-surface p-3 md:p-4 space-y-3 md:space-y-4">
+              <p className="text-sm md:text-base font-mono text-white">
+                All models
+              </p>
 
               <div className="space-y-1">
-                <div className="flex items-center gap-2 w-full">
-                  <div className="flex-1 relative h-[21px] border border-[#e1e1e1] border-[0.5px]">
+                <div className="flex flex-col sm:flex-row items-start sm:items-center gap-2 w-full">
+                  <div className="flex-1 w-full relative h-[21px] border border-[#e1e1e1] border-[0.5px]">
                     <div
                       className="absolute inset-0 bg-[#FF5800]/20"
                       style={{
@@ -292,13 +296,13 @@ export function UsageTab({ user, onTabChange }: UsageTabProps) {
                       }}
                     />
                   </div>
-                  <p className="text-base font-mono text-white tracking-tight">
+                  <p className="text-xs sm:text-sm md:text-base font-mono text-white tracking-tight whitespace-nowrap">
                     {quotaUsage?.global.limit
                       ? `$${quotaUsage.global.used.toFixed(2)} / $${quotaUsage.global.limit.toFixed(2)}`
                       : "No limit set"}
                   </p>
                 </div>
-                <p className="text-sm text-white/60">
+                <p className="text-xs md:text-sm text-white/60">
                   {quotaUsage?.global.limit
                     ? `${((quotaUsage.global.used / quotaUsage.global.limit) * 100).toFixed(1)}% of weekly limit used`
                     : "Weekly usage limits not configured"}
@@ -312,18 +316,18 @@ export function UsageTab({ user, onTabChange }: UsageTabProps) {
                 ([modelName, modelQuota]) => (
                   <div
                     key={modelName}
-                    className="backdrop-blur-sm bg-[rgba(10,10,10,0.75)] border-t-0 border border-brand-surface p-4 space-y-4"
+                    className="backdrop-blur-sm bg-[rgba(10,10,10,0.75)] border-t-0 border border-brand-surface p-3 md:p-4 space-y-3 md:space-y-4"
                   >
                     <div className="flex items-center gap-2">
-                      <p className="text-base font-mono text-white capitalize">
+                      <p className="text-sm md:text-base font-mono text-white capitalize">
                         {modelName}
                       </p>
-                      <Info className="h-4 w-4 text-[#FF5800]/60" />
+                      <Info className="h-4 w-4 text-[#FF5800]/60 flex-shrink-0" />
                     </div>
 
                     <div className="space-y-1">
-                      <div className="flex items-center gap-2 w-full">
-                        <div className="flex-1 relative h-[21px] border border-[#e1e1e1] border-[0.5px]">
+                      <div className="flex flex-col sm:flex-row items-start sm:items-center gap-2 w-full">
+                        <div className="flex-1 w-full relative h-[21px] border border-[#e1e1e1] border-[0.5px]">
                           <div
                             className="absolute inset-0 bg-[#FF5800]/20"
                             style={{
@@ -331,12 +335,12 @@ export function UsageTab({ user, onTabChange }: UsageTabProps) {
                             }}
                           />
                         </div>
-                        <p className="text-base font-mono text-white tracking-tight">
+                        <p className="text-xs sm:text-sm md:text-base font-mono text-white tracking-tight whitespace-nowrap">
                           ${modelQuota.used.toFixed(2)} / $
                           {modelQuota.limit.toFixed(2)}
                         </p>
                       </div>
-                      <p className="text-sm text-white/60">
+                      <p className="text-xs md:text-sm text-white/60">
                         {((modelQuota.used / modelQuota.limit) * 100).toFixed(
                           1,
                         )}
@@ -347,8 +351,8 @@ export function UsageTab({ user, onTabChange }: UsageTabProps) {
                 ),
               )
             ) : !quotaUsage?.global.limit ? (
-              <div className="backdrop-blur-sm bg-[rgba(10,10,10,0.75)] border-t-0 border border-brand-surface p-4">
-                <p className="text-sm text-white/60">
+              <div className="backdrop-blur-sm bg-[rgba(10,10,10,0.75)] border-t-0 border border-brand-surface p-3 md:p-4">
+                <p className="text-xs md:text-sm text-white/60">
                   No model-specific limits configured. Contact your
                   administrator to set up weekly quotas.
                 </p>
@@ -362,13 +366,13 @@ export function UsageTab({ user, onTabChange }: UsageTabProps) {
       <BrandCard className="relative">
         <CornerBrackets size="sm" className="opacity-50" />
 
-        <div className="relative z-10 space-y-6">
+        <div className="relative z-10 space-y-4 md:space-y-6">
           {/* Header */}
           <div className="flex items-start justify-between w-full">
             <div className="flex flex-col gap-2 flex-1">
               <div className="flex items-center gap-2 w-full">
                 <div className="w-2 h-2 rounded-full bg-[#FF5800]" />
-                <h3 className="text-base font-mono text-[#e1e1e1] uppercase flex-1">
+                <h3 className="text-sm md:text-base font-mono text-[#e1e1e1] uppercase flex-1">
                   Usage Signals
                 </h3>
               </div>
@@ -380,19 +384,19 @@ export function UsageTab({ user, onTabChange }: UsageTabProps) {
           </div>
 
           {/* Status Card */}
-          <div className="backdrop-blur-sm bg-[rgba(10,10,10,0.75)] border border-brand-surface p-4 space-y-2">
+          <div className="backdrop-blur-sm bg-[rgba(10,10,10,0.75)] border border-brand-surface p-3 md:p-4 space-y-2">
             <div className="flex items-center gap-2">
-              <p className="text-base font-mono text-white">
+              <p className="text-sm md:text-base font-mono text-white">
                 {creditsRemaining > 10
                   ? "All systems operational"
                   : "Low credit balance"}
               </p>
               <Info
-                className={`h-4 w-4 ${creditsRemaining > 10 ? "text-[#FF5800]" : "text-yellow-500"}`}
+                className={`h-4 w-4 flex-shrink-0 ${creditsRemaining > 10 ? "text-[#FF5800]" : "text-yellow-500"}`}
               />
             </div>
 
-            <p className="text-sm text-white/60">
+            <p className="text-xs md:text-sm text-white/60">
               {creditsRemaining > 10
                 ? "Your infrastructure is running smoothly. All providers are healthy and credit balance is sufficient."
                 : "Your credit balance is low. Consider adding more credits to ensure uninterrupted service."}
@@ -402,7 +406,7 @@ export function UsageTab({ user, onTabChange }: UsageTabProps) {
               <button
                 type="button"
                 onClick={() => onTabChange("billing")}
-                className="relative bg-[#e1e1e1] px-3 py-2 overflow-hidden hover:bg-white transition-colors mt-2"
+                className="relative bg-[#e1e1e1] px-4 py-2.5 overflow-hidden hover:bg-white transition-colors mt-2 w-full sm:w-auto"
               >
                 <div
                   className="absolute inset-0 opacity-20 bg-repeat pointer-events-none"
@@ -411,7 +415,7 @@ export function UsageTab({ user, onTabChange }: UsageTabProps) {
                     backgroundSize: "2.915576934814453px 2.915576934814453px",
                   }}
                 />
-                <span className="relative z-10 text-black font-mono font-medium text-sm">
+                <span className="relative z-10 text-black font-mono font-medium text-sm whitespace-nowrap">
                   Add Credits
                 </span>
               </button>
