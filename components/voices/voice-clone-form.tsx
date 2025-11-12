@@ -332,10 +332,10 @@ export function VoiceCloneForm({
   };
 
   return (
-    <BrandCard className="relative flex flex-col">
+    <BrandCard className="relative flex flex-col h-auto lg:h-full lg:max-h-full lg:overflow-hidden">
       <CornerBrackets size="sm" className="opacity-50" />
 
-      <div className="relative z-10 space-y-3 md:space-y-4 pb-3 md:pb-4">
+      <div className="relative z-10 shrink-0 space-y-3 md:space-y-4 pb-3 md:pb-4">
         <div className="flex items-start sm:items-center justify-between gap-2">
           <div className="flex items-center gap-2">
             <div className="w-2 h-2 rounded-full bg-[#FF5800]" />
@@ -343,7 +343,7 @@ export function VoiceCloneForm({
               Create Voice Clone
             </h3>
           </div>
-          <span className="border border-white/20 bg-white/10 px-2 py-1 text-xs font-mono font-medium text-white whitespace-nowrap">
+          <span className="border border-white/20 bg-transparent px-2 py-1 text-xs font-mono font-medium text-white/80 whitespace-nowrap">
             ${Number(creditBalance).toFixed(2)}
           </span>
         </div>
@@ -351,8 +351,8 @@ export function VoiceCloneForm({
           Upload audio or record your voice to create a custom AI voice
         </p>
       </div>
-      <div className="relative z-10">
-        <form onSubmit={handleSubmit} className="space-y-4 md:space-y-6">
+      <div className="relative z-10 flex-1 lg:overflow-y-auto lg:min-h-0">
+        <form onSubmit={handleSubmit} className="space-y-4 md:space-y-6 pb-4 lg:pb-6">
           {/* Voice Name */}
           <div className="space-y-2">
             <label
