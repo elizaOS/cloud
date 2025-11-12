@@ -11,7 +11,7 @@ export function ImagePageClient() {
   });
 
   return (
-    <div className="flex flex-col w-full h-full overflow-y-auto">
+    <div className="flex flex-col w-full h-full">
       <div className="w-full max-w-[1800px] mx-auto px-6 py-6">
         <ImageGeneratorAdvanced />
       </div>
