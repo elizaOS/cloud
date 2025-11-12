@@ -171,50 +171,55 @@ export default function ApiExplorerPage() {
                 </div>
               </BrandCard>
 
+              <BrandCard className="relative shrink-0">
+                <CornerBrackets size="sm" className="opacity-50" />
+
+                <div className="relative z-10">
+                  <AuthManager
+                    authToken={authToken}
+                    onTokenChange={setAuthToken}
+                  />
+                </div>
+              </BrandCard>
+
               <div className="relative lg:flex-1 lg:min-h-0 overflow-hidden">
                 <BrandCard className="relative lg:h-full">
                   <CornerBrackets size="sm" className="opacity-50" />
 
-                  <div className="relative z-10 lg:h-full lg:overflow-y-auto overflow-x-hidden lg:pr-2">
-                    <div className="space-y-6 pb-4">
-                      <AuthManager
-                        authToken={authToken}
-                        onTokenChange={setAuthToken}
-                      />
-
-                      <div className="border-t border-white/10" />
-
-                      <div className="space-y-3">
-                        <div className="flex items-center gap-2">
-                          <span className="w-1.5 h-1.5 rounded-full bg-[#FF5800]" />
-                          <h3 className="text-xs font-semibold uppercase text-white/50 tracking-wider">
-                            Categories
-                          </h3>
-                        </div>
-                        <div className="space-y-1">
-                          {categories.map((category) => (
-                            <button
-                              key={category}
-                              onClick={() => setSelectedCategory(category)}
-                              className={cn(
-                                "flex w-full items-center gap-2 rounded-none px-3 py-2.5 text-left text-sm transition-all border-l-2",
-                                selectedCategory === category
-                                  ? "bg-white/10 text-white border-[#FF5800]"
-                                  : "text-white/60 border-transparent hover:bg-white/5 hover:text-white",
-                              )}
-                            >
-                              {category !== "All" && getCategoryIcon(category)}
-                              <span className="flex-1 truncate">
-                                {category}
-                              </span>
-                              <span className="rounded-none bg-[#FF580020] px-2 py-0.5 text-[10px] font-semibold text-[#FF5800] border border-[#FF580040] shrink-0">
-                                {category === "All"
-                                  ? API_ENDPOINTS.length
-                                  : getEndpointsByCategory(category).length}
-                              </span>
-                            </button>
-                          ))}
-                        </div>
+                  <div className="relative z-10 lg:h-full flex flex-col">
+                    <div className="space-y-3 pb-3 shrink-0">
+                      <div className="flex items-center gap-2">
+                        <span className="w-1.5 h-1.5 rounded-full bg-[#FF5800]" />
+                        <h3 className="text-xs font-semibold uppercase text-white/50 tracking-wider">
+                          Categories
+                        </h3>
+                      </div>
+                    </div>
+                    
+                    <div className="flex-1 overflow-y-auto overflow-x-hidden lg:pr-2 -mr-2">
+                      <div className="space-y-1 pb-4">
+                        {categories.map((category) => (
+                          <button
+                            key={category}
+                            onClick={() => setSelectedCategory(category)}
+                            className={cn(
+                              "flex w-full items-center gap-2 rounded-none px-3 py-2.5 text-left text-sm transition-all border-l-2",
+                              selectedCategory === category
+                                ? "bg-white/10 text-white border-[#FF5800]"
+                                : "text-white/60 border-transparent hover:bg-white/5 hover:text-white",
+                            )}
+                          >
+                            {category !== "All" && getCategoryIcon(category)}
+                            <span className="flex-1 truncate">
+                              {category}
+                            </span>
+                            <span className="rounded-none bg-[#FF580020] px-2 py-0.5 text-[10px] font-semibold text-[#FF5800] border border-[#FF580040] shrink-0">
+                              {category === "All"
+                                ? API_ENDPOINTS.length
+                                : getEndpointsByCategory(category).length}
+                            </span>
+                          </button>
+                        ))}
                       </div>
                     </div>
                   </div>
