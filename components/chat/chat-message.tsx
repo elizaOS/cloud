@@ -16,6 +16,12 @@ interface ChatMessageProps {
     id: string;
     content: {
       text: string;
+      attachments?: Array<{
+        id: string;
+        url: string;
+        title?: string;
+        contentType: string;
+      }>;
     };
     isAgent: boolean;
     createdAt: number;
@@ -43,6 +49,46 @@ export function ChatMessage({
 
   const copyToClipboard = async () => {
     try {
+      // Check if there are image attachments
+      const imageAttachment = message.content.attachments?.find(
+        (att) =>
+          att.contentType === "IMAGE" ||
+          att.contentType === "image" ||
+          att.contentType.startsWith("image/"),
+      );
+
+      if (imageAttachment) {
+        // Copy the actual image to clipboard
+        try {
+          const response = await fetch(imageAttachment.url);
+          const blob = await response.blob();
+
+          // Ensure the blob is an image type
+          const imageBlob =
+            blob.type.startsWith("image/")
+              ? blob
+              : new Blob([blob], { type: "image/png" });
+
+          const clipboardItem = new ClipboardItem({
+            [imageBlob.type]: imageBlob,
+          });
+
+          await navigator.clipboard.write([clipboardItem]);
+          setIsCopied(true);
+          toast.success("Image copied to clipboard");
+          setTimeout(() => setIsCopied(false), 2000);
+          return;
+        } catch (imageError) {
+          console.error(
+            "Failed to copy image, falling back to text:",
+            imageError,
+          );
+          toast.error("Failed to copy image, try downloading instead");
+          return;
+        }
+      }
+
+      // Fall back to copying text if no image
       await navigator.clipboard.writeText(message.content.text);
       setIsCopied(true);
       toast.success("Message copied to clipboard");
