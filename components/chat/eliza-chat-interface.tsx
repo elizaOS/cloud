@@ -78,6 +78,7 @@ export function ElizaChatInterface() {
   const [inputText, setInputText] = useState("");
   const isPendingMessageProcessingRef = useRef(false);
   const pendingMessageToSendRef = useRef<string | null>(null);
+  const isCreatingRoomRef = useRef(false);
 
   // Get character name from store
   const selectedCharacter = availableCharacters.find(
@@ -190,9 +191,12 @@ export function ElizaChatInterface() {
 
         // Load initial messages for the new room
         await loadMessages(newRoomId);
+
+        return newRoomId;
       } catch (err) {
         setError(err instanceof Error ? err.message : "Failed to create room");
         console.error("[ElizaChat] Error creating room:", err);
+        throw err; // Re-throw so caller can handle
       } finally {
         setIsInitializing(false);
       }
@@ -380,14 +384,8 @@ export function ElizaChatInterface() {
           return;
         }
 
-        // Auto-send the transcribed message directly (like /dashboard/chat does)
-        if (roomId) {
-          await sendMessage(transcript);
-        } else {
-          console.warn(
-            "[ElizaChat STT] No roomId available, skipping auto-send",
-          );
-        }
+        // Auto-send the transcribed message (will create room if needed)
+        await sendMessage(transcript);
       } catch (error) {
         console.error("[ElizaChat STT] Error:", error);
         toast.error(
@@ -524,7 +522,7 @@ export function ElizaChatInterface() {
 
   const sendMessage = async (textOverride?: string) => {
     const messageText = textOverride?.trim() || inputText.trim();
-    if (!messageText || !roomId || isLoading) return;
+    if (!messageText || isLoading) return;
 
     if (!textOverride) {
       setInputText("");
@@ -532,29 +530,76 @@ export function ElizaChatInterface() {
     setIsLoading(true);
     setError(null);
 
-    // Add optimistic temp user message
-    const clientMessageId = `temp-${Date.now()}`;
-    const now = Date.now();
-    const tempUserMessage: Message = {
-      id: clientMessageId,
-      content: { text: messageText },
-      isAgent: false,
-      createdAt: now,
-    };
-    setMessages((prev) => [...prev, tempUserMessage]);
-
-    // Safety timeout: remove thinking indicator after 30 seconds if no response
-    thinkingTimeoutRef.current = setTimeout(() => {
-      setMessages((prev) => prev.filter((m) => !m.id.startsWith("thinking-")));
-      console.warn(
-        "[Chat] Thinking indicator timeout - agent took too long to respond",
-      );
-    }, 30000);
-
     try {
+      // If no room exists, create one first
+      let currentRoomId = roomId;
+      if (!currentRoomId) {
+        console.log("[ElizaChat] No room selected, creating new room...");
+        try {
+          // Prevent duplicate room creation attempts
+          if (isCreatingRoomRef.current) {
+            console.log(
+              "[ElizaChat] Room creation already in progress, waiting...",
+            );
+            await new Promise((resolve) => setTimeout(resolve, 1000));
+            currentRoomId = roomId; // Use the room that was just created
+            if (!currentRoomId) {
+              throw new Error("Room creation timed out");
+            }
+          } else {
+            isCreatingRoomRef.current = true;
+            try {
+              const newRoomId = await createRoom(selectedCharacterId);
+              if (!newRoomId) {
+                throw new Error("Room creation returned empty ID");
+              }
+              currentRoomId = newRoomId;
+              console.log("[ElizaChat] Created new room:", newRoomId);
+
+              // Wait briefly for room to be fully initialized
+              // createRoom already loaded messages, just give it a moment
+              await new Promise((resolve) => setTimeout(resolve, 300));
+            } finally {
+              isCreatingRoomRef.current = false;
+            }
+          }
+        } catch (createError) {
+          console.error("[ElizaChat] Failed to create room:", createError);
+          isCreatingRoomRef.current = false;
+          const errorMsg =
+            createError instanceof Error
+              ? createError.message
+              : "Unable to create conversation. Please try again.";
+          setError(errorMsg);
+          toast.error(errorMsg);
+          return;
+        }
+      }
+
+      // Add optimistic temp user message
+      const clientMessageId = `temp-${Date.now()}`;
+      const now = Date.now();
+      const tempUserMessage: Message = {
+        id: clientMessageId,
+        content: { text: messageText },
+        isAgent: false,
+        createdAt: now,
+      };
+      setMessages((prev) => [...prev, tempUserMessage]);
+
+      // Safety timeout: remove thinking indicator after 30 seconds if no response
+      thinkingTimeoutRef.current = setTimeout(() => {
+        setMessages((prev) =>
+          prev.filter((m) => !m.id.startsWith("thinking-")),
+        );
+        console.warn(
+          "[Chat] Thinking indicator timeout - agent took too long to respond",
+        );
+      }, 30000);
+
       // Stream the response using single endpoint
       await sendStreamingMessage({
-        roomId,
+        roomId: currentRoomId,
         entityId: entityId,
         text: messageText,
         model: selectedModel || undefined, // Pass selected model
@@ -582,11 +627,14 @@ export function ElizaChatInterface() {
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to send message");
       console.error("Error sending message:", err);
+      toast.error(
+        err instanceof Error ? err.message : "Failed to send message",
+      );
       // Remove temp and thinking messages on error
       setMessages((prev) =>
         prev.filter(
           (msg) =>
-            msg.id !== tempUserMessage.id && !msg.id.startsWith("thinking-"),
+            !msg.id.startsWith("temp-") && !msg.id.startsWith("thinking-"),
         ),
       );
       if (thinkingTimeoutRef.current) {
@@ -1028,9 +1076,11 @@ export function ElizaChatInterface() {
                 placeholder={
                   recorder.isRecording
                     ? "Recording... Click stop when done"
-                    : "Type your message here..."
+                    : roomId
+                      ? "Type your message here..."
+                      : "Ask me anything about AI, development, or how elizaOS can help you..."
                 }
-                disabled={isLoading || !roomId || recorder.isRecording}
+                disabled={isLoading || recorder.isRecording}
                 className="w-full bg-transparent px-3 py-2.5 text-sm text-white placeholder:text-white/60 focus:outline-none disabled:opacity-50"
               />
             </div>

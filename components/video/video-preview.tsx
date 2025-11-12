@@ -92,7 +92,9 @@ export function VideoPreview({ video }: VideoPreviewProps) {
         <div className="flex items-start justify-between gap-2">
           <div className="flex items-center gap-2">
             <div className="w-2 h-2 rounded-full bg-[#FF5800]" />
-            <h3 className="text-base md:text-lg lg:text-xl font-mono font-bold text-[#e1e1e1] uppercase">Preview</h3>
+            <h3 className="text-base md:text-lg lg:text-xl font-mono font-bold text-[#e1e1e1] uppercase">
+              Preview
+            </h3>
           </div>
           <div className="flex items-center gap-2 flex-wrap justify-end">
             <span
@@ -273,8 +275,10 @@ export function VideoPreview({ video }: VideoPreviewProps) {
         {hasModerationFlag ? (
           <div className="mt-3 flex items-start gap-2 border border-amber-500/40 bg-amber-500/10 px-3 md:px-4 py-2 md:py-3 text-xs font-mono text-amber-300">
             <ShieldAlert className="h-3.5 w-3.5 flex-shrink-0 mt-0.5" />
-            <span>Potential safety flags were returned for this render. Review before
-            sharing publicly.</span>
+            <span>
+              Potential safety flags were returned for this render. Review
+              before sharing publicly.
+            </span>
           </div>
         ) : null}
       </div>
@@ -318,7 +322,9 @@ export function VideoPreview({ video }: VideoPreviewProps) {
           </button>
         </div>
         {copyFeedback && (
-          <p className="text-center text-xs font-mono text-white/60">{copyFeedback}</p>
+          <p className="text-center text-xs font-mono text-white/60">
+            {copyFeedback}
+          </p>
         )}
       </div>
     </BrandCard>
