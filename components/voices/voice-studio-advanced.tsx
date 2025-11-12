@@ -266,7 +266,10 @@ export function VoiceStudioAdvanced({
       </TabsList>
 
       {/* Clone Tab Content */}
-      <TabsContent value="clone" className="flex-1 lg:overflow-hidden mt-3 lg:h-full">
+      <TabsContent
+        value="clone"
+        className="flex-1 lg:overflow-hidden mt-3 lg:h-full"
+      >
         <VoiceCloneForm
           creditBalance={creditBalance}
           onSuccess={handleVoiceCreated}
@@ -285,14 +288,17 @@ export function VoiceStudioAdvanced({
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-2 mb-2">
                     <div className="w-2 h-2 rounded-full bg-[#FF5800]" />
-                    <h3 className="text-base md:text-lg font-mono font-bold text-[#e1e1e1] uppercase">Voice Library</h3>
+                    <h3 className="text-base md:text-lg font-mono font-bold text-[#e1e1e1] uppercase">
+                      Voice Library
+                    </h3>
                   </div>
                   <p className="text-xs md:text-sm font-mono text-[#858585]">
                     {voices.length} voice{voices.length !== 1 ? "s" : ""}
                     {voices.some((v) => {
                       const mins = Math.max(
                         0,
-                        (new Date().getTime() - new Date(v.createdAt).getTime()) /
+                        (new Date().getTime() -
+                          new Date(v.createdAt).getTime()) /
                           1000 /
                           60,
                       );
@@ -323,7 +329,7 @@ export function VoiceStudioAdvanced({
                     "border px-2 py-1 text-xs font-mono whitespace-nowrap",
                     professionalVoicesRemaining === 0
                       ? "border-amber-500/40 bg-amber-500/10 text-amber-300"
-                      : "border-white/20 bg-white/10 text-white"
+                      : "border-white/20 bg-white/10 text-white",
                   )}
                   title="Professional voice slots (ElevenLabs limitation)"
                 >

@@ -208,7 +208,9 @@ export function ImageGeneratorAdvanced() {
             <div>
               <div className="flex items-center gap-2 mb-2">
                 <div className="w-2 h-2 rounded-full bg-[#FF5800]" />
-                <h3 className="text-base md:text-lg font-mono font-bold text-[#e1e1e1] uppercase">Image Studio</h3>
+                <h3 className="text-base md:text-lg font-mono font-bold text-[#e1e1e1] uppercase">
+                  Image Studio
+                </h3>
               </div>
               <p className="text-xs md:text-sm font-mono text-[#858585]">
                 Create stunning AI-generated images with advanced controls
@@ -267,7 +269,9 @@ export function ImageGeneratorAdvanced() {
                   <button
                     key={preset.label}
                     type="button"
-                    onClick={() => selectSizePreset(preset.width, preset.height)}
+                    onClick={() =>
+                      selectSizePreset(preset.width, preset.height)
+                    }
                     className={`w-full px-1.5 py-1 border transition-colors ${
                       settings.width === preset.width &&
                       settings.height === preset.height
@@ -279,12 +283,14 @@ export function ImageGeneratorAdvanced() {
                       <span className="text-[10px] font-mono font-medium leading-tight">
                         {preset.label}
                       </span>
-                      <span className={`text-[9px] font-mono leading-tight ${
-                        settings.width === preset.width &&
-                        settings.height === preset.height
-                          ? "text-[#FF5800]/80"
-                          : "text-white/60"
-                      }`}>
+                      <span
+                        className={`text-[9px] font-mono leading-tight ${
+                          settings.width === preset.width &&
+                          settings.height === preset.height
+                            ? "text-[#FF5800]/80"
+                            : "text-white/60"
+                        }`}
+                      >
                         {preset.width}×{preset.height}
                       </span>
                     </div>
@@ -423,13 +429,18 @@ export function ImageGeneratorAdvanced() {
           className="w-full"
         >
           <BrandTabsList className="w-full max-w-md">
-            <BrandTabsTrigger value="generate" className="gap-1 md:gap-2 flex-1">
+            <BrandTabsTrigger
+              value="generate"
+              className="gap-1 md:gap-2 flex-1"
+            >
               <ImageIcon className="h-3 md:h-4 w-3 md:w-4" />
               <span className="text-xs md:text-sm">Preview</span>
             </BrandTabsTrigger>
             <BrandTabsTrigger value="history" className="gap-1 md:gap-2 flex-1">
               <History className="h-3 md:h-4 w-3 md:w-4" />
-              <span className="text-xs md:text-sm">History ({imageHistory.length})</span>
+              <span className="text-xs md:text-sm">
+                History ({imageHistory.length})
+              </span>
             </BrandTabsTrigger>
           </BrandTabsList>
 
@@ -437,7 +448,9 @@ export function ImageGeneratorAdvanced() {
           <BrandTabsContent value="generate" className="mt-3 md:mt-4">
             {error && (
               <div className="border border-rose-500/40 bg-rose-500/10 p-3 md:p-4 mb-4">
-                <p className="text-xs md:text-sm font-mono text-rose-400 font-medium">{error}</p>
+                <p className="text-xs md:text-sm font-mono text-rose-400 font-medium">
+                  {error}
+                </p>
               </div>
             )}
 

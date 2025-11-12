@@ -352,7 +352,10 @@ export function VoiceCloneForm({
         </p>
       </div>
       <div className="relative z-10 flex-1 lg:overflow-y-auto lg:min-h-0">
-        <form onSubmit={handleSubmit} className="space-y-4 md:space-y-6 pb-4 lg:pb-6">
+        <form
+          onSubmit={handleSubmit}
+          className="space-y-4 md:space-y-6 pb-4 lg:pb-6"
+        >
           {/* Voice Name */}
           <div className="space-y-2">
             <label
@@ -426,7 +429,9 @@ export function VoiceCloneForm({
                     <div className="flex items-center gap-2 md:gap-3 text-[10px] font-mono text-white/50 flex-wrap">
                       <span className="whitespace-nowrap">⏱️ ~30s</span>
                       <span className="whitespace-nowrap">🎤 1-3 min</span>
-                      <span className="text-green-400 whitespace-nowrap">✓ Unlimited</span>
+                      <span className="text-green-400 whitespace-nowrap">
+                        ✓ Unlimited
+                      </span>
                     </div>
                   </div>
                   <span className="shrink-0 font-mono font-semibold text-xs md:text-sm border border-white/20 bg-white/10 px-2 py-1 text-white whitespace-nowrap">
@@ -469,7 +474,9 @@ export function VoiceCloneForm({
                       <div className="flex items-center gap-2 md:gap-3 text-[10px] font-mono text-white/50 flex-wrap">
                         <span className="whitespace-nowrap">⏱️ 30-60 min</span>
                         <span className="whitespace-nowrap">🎤 30+ min</span>
-                        <span className="text-amber-300 whitespace-nowrap">⚠ Limited</span>
+                        <span className="text-amber-300 whitespace-nowrap">
+                          ⚠ Limited
+                        </span>
                       </div>
                     </div>
                     <span className="shrink-0 font-mono font-semibold text-xs md:text-sm border border-white/20 bg-white/10 px-2 py-1 text-white whitespace-nowrap">
