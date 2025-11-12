@@ -141,13 +141,13 @@ export default function ApiExplorerPage() {
           {/* Collapse Toggle - Desktop Only */}
           <button
             onClick={() => setIsSidebarCollapsed(!isSidebarCollapsed)}
-            className="hidden lg:flex items-center justify-center w-10 h-10 rounded-none border border-white/10 bg-black/40 hover:bg-white/5 text-white/60 hover:text-white transition-colors ml-auto"
+            className="hidden lg:flex items-center justify-center w-12 h-12 rounded-none border border-white/10 bg-black/40 hover:bg-white/5 text-white/60 hover:text-white transition-colors ml-auto shrink-0"
             title={isSidebarCollapsed ? "Expand sidebar" : "Collapse sidebar"}
           >
             {isSidebarCollapsed ? (
-              <ActivityIcon className="h-4 w-4" />
+              <ActivityIcon className="h-5 w-5" />
             ) : (
-              <ActivityIcon className="h-4 w-4 rotate-90" />
+              <ActivityIcon className="h-5 w-5 rotate-90" />
             )}
           </button>
 

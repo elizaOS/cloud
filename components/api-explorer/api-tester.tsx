@@ -36,6 +36,7 @@ import { getApiBaseUrl } from "@/lib/config/client-env";
 import { toast } from "@/lib/utils/toast-adapter";
 import { cn } from "@/lib/utils";
 import { useAudioRecorder } from "@/components/chat/hooks/use-audio-recorder";
+import { CodeDisplay } from "./code-display";
 
 interface ApiTesterProps {
   endpoint: ApiEndpoint;
@@ -1011,10 +1012,11 @@ export function ApiTester({
                         </div>
                       </div>
                     ) : (
-                      <ScrollArea className="h-[400px] w-full rounded-lg border border-border/60 bg-muted/30">
-                        <pre className="overflow-x-auto whitespace-pre-wrap break-words p-4 text-xs font-mono text-muted-foreground">
-                          <code>{formatResponseData(response.data)}</code>
-                        </pre>
+                      <ScrollArea className="h-[400px] w-full">
+                        <CodeDisplay
+                          code={formatResponseData(response.data)}
+                          language="json"
+                        />
                       </ScrollArea>
                     )}
                   </CardContent>
@@ -1077,11 +1079,7 @@ export function ApiTester({
               </CardDescription>
             </CardHeader>
             <CardContent>
-              <ScrollArea className="rounded-lg border border-border/60 bg-muted/40">
-                <pre className="overflow-x-auto p-4 text-xs font-mono text-muted-foreground">
-                  <code>{generateCurlCommand()}</code>
-                </pre>
-              </ScrollArea>
+              <CodeDisplay code={generateCurlCommand()} language="bash" />
             </CardContent>
           </Card>
         </TabsContent>
