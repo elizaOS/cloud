@@ -36,6 +36,7 @@ import { getApiBaseUrl } from "@/lib/config/client-env";
 import { toast } from "@/lib/utils/toast-adapter";
 import { cn } from "@/lib/utils";
 import { useAudioRecorder } from "@/components/chat/hooks/use-audio-recorder";
+import { CodeDisplay } from "./code-display";
 
 interface ApiTesterProps {
   endpoint: ApiEndpoint;
@@ -547,7 +548,7 @@ export function ApiTester({
         <Button
           onClick={executeTest}
           disabled={isLoading}
-          className="flex-1 gap-2"
+          className="flex-1 gap-2 bg-[#471E08] text-[#FF5800] hover:bg-[#5A2610] active:bg-[#6B2E18] border-0"
           size="lg"
         >
           {isLoading ? (
@@ -1011,10 +1012,11 @@ export function ApiTester({
                         </div>
                       </div>
                     ) : (
-                      <ScrollArea className="h-[400px] w-full rounded-lg border border-border/60 bg-muted/30">
-                        <pre className="overflow-x-auto whitespace-pre-wrap break-words p-4 text-xs font-mono text-muted-foreground">
-                          <code>{formatResponseData(response.data)}</code>
-                        </pre>
+                      <ScrollArea className="h-[400px] w-full">
+                        <CodeDisplay
+                          code={formatResponseData(response.data)}
+                          language="json"
+                        />
                       </ScrollArea>
                     )}
                   </CardContent>
@@ -1026,22 +1028,24 @@ export function ApiTester({
                   <CardTitle>Response Headers</CardTitle>
                 </CardHeader>
                 <CardContent>
-                  <ScrollArea className="max-h-64 rounded-lg border border-border/60">
-                    <dl className="divide-y divide-border/60 text-sm">
-                      {Object.entries(response.headers).map(([key, value]) => (
-                        <div
-                          key={key}
-                          className="flex flex-col gap-1 px-4 py-3"
-                        >
-                          <dt className="font-mono text-xs uppercase tracking-wide text-muted-foreground">
-                            {key}
-                          </dt>
-                          <dd className="font-mono text-sm text-foreground break-words">
-                            {value}
-                          </dd>
-                        </div>
-                      ))}
-                    </dl>
+                  <ScrollArea className="h-64 w-full rounded-lg border border-border/60">
+                    <div className="min-w-0">
+                      <dl className="divide-y divide-border/60 text-sm">
+                        {Object.entries(response.headers).map(([key, value]) => (
+                          <div
+                            key={key}
+                            className="flex flex-col gap-1 px-4 py-3 min-w-0"
+                          >
+                            <dt className="font-mono text-xs uppercase tracking-wide text-muted-foreground">
+                              {key}
+                            </dt>
+                            <dd className="font-mono text-sm text-foreground break-all overflow-wrap-anywhere">
+                              {value}
+                            </dd>
+                          </div>
+                        ))}
+                      </dl>
+                    </div>
                   </ScrollArea>
                 </CardContent>
               </Card>
@@ -1077,11 +1081,7 @@ export function ApiTester({
               </CardDescription>
             </CardHeader>
             <CardContent>
-              <ScrollArea className="rounded-lg border border-border/60 bg-muted/40">
-                <pre className="overflow-x-auto p-4 text-xs font-mono text-muted-foreground">
-                  <code>{generateCurlCommand()}</code>
-                </pre>
-              </ScrollArea>
+              <CodeDisplay code={generateCurlCommand()} language="bash" />
             </CardContent>
           </Card>
         </TabsContent>
