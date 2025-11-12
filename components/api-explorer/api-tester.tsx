@@ -1028,22 +1028,24 @@ export function ApiTester({
                   <CardTitle>Response Headers</CardTitle>
                 </CardHeader>
                 <CardContent>
-                  <ScrollArea className="max-h-64 rounded-lg border border-border/60">
-                    <dl className="divide-y divide-border/60 text-sm">
-                      {Object.entries(response.headers).map(([key, value]) => (
-                        <div
-                          key={key}
-                          className="flex flex-col gap-1 px-4 py-3"
-                        >
-                          <dt className="font-mono text-xs uppercase tracking-wide text-muted-foreground">
-                            {key}
-                          </dt>
-                          <dd className="font-mono text-sm text-foreground break-words">
-                            {value}
-                          </dd>
-                        </div>
-                      ))}
-                    </dl>
+                  <ScrollArea className="h-64 w-full rounded-lg border border-border/60">
+                    <div className="min-w-0">
+                      <dl className="divide-y divide-border/60 text-sm">
+                        {Object.entries(response.headers).map(([key, value]) => (
+                          <div
+                            key={key}
+                            className="flex flex-col gap-1 px-4 py-3 min-w-0"
+                          >
+                            <dt className="font-mono text-xs uppercase tracking-wide text-muted-foreground">
+                              {key}
+                            </dt>
+                            <dd className="font-mono text-sm text-foreground break-all overflow-wrap-anywhere">
+                              {value}
+                            </dd>
+                          </div>
+                        ))}
+                      </dl>
+                    </div>
                   </ScrollArea>
                 </CardContent>
               </Card>
