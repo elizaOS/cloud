@@ -602,7 +602,9 @@ export function VideoPageClient({
             <div className="relative z-10 space-y-2 mb-4 md:mb-6">
               <div className="flex items-center gap-2">
                 <div className="w-2 h-2 rounded-full bg-[#FF5800]" />
-                <h3 className="text-sm md:text-base lg:text-lg font-mono font-bold text-[#e1e1e1] uppercase">Recent renders</h3>
+                <h3 className="text-sm md:text-base lg:text-lg font-mono font-bold text-[#e1e1e1] uppercase">
+                  Recent renders
+                </h3>
               </div>
               <p className="text-xs md:text-sm font-mono text-[#858585]">
                 A quick snapshot of your latest generation attempts.
@@ -644,7 +646,9 @@ export function VideoPageClient({
                   <div className="flex flex-wrap items-center gap-2 md:gap-3 text-xs font-mono text-white/60">
                     <span className="flex items-center gap-1 flex-shrink-0">
                       <CheckCircle2 className="h-3.5 w-3.5 text-[#FF5800]" />
-                      <span className="truncate max-w-[120px]">{video.modelId.split('/').pop()}</span>
+                      <span className="truncate max-w-[120px]">
+                        {video.modelId.split("/").pop()}
+                      </span>
                     </span>
                     <span className="flex items-center gap-1 flex-shrink-0">
                       <Clock4 className="h-3.5 w-3.5 text-[#FF5800]" />
