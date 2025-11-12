@@ -19,6 +19,7 @@ import {
   templateToDbFormat
 } from "@/lib/characters/template-loader";
 import { discordService } from "@/lib/services/discord";
+import { ELIZA_CONSTANTS } from "@/lib/eliza/constants";
 
 /**
  * GET /api/eliza/rooms - Get user's rooms
@@ -64,25 +65,34 @@ export async function GET(request: NextRequest) {
       );
     }
 
+    // Batch load room titles for all rooms in a single query
+    const titleMap = new Map<string, string | null>();
+    if (roomIds.length > 0) {
+      try {
+        const roomTitles = await db.execute<{ id: string; name: string | null }>(
+          sql`SELECT id, name FROM rooms WHERE id = ANY(${roomIds}::uuid[])`
+        );
+        for (const row of roomTitles.rows) {
+          titleMap.set(row.id, row.name);
+        }
+        logger.debug(
+          "[Eliza Rooms API] Batch loaded room titles:",
+          titleMap.size
+        );
+      } catch (err) {
+        logger.error(
+          "[Eliza Rooms API] ✗ Failed to batch load room titles:",
+          err
+        );
+      }
+    }
+
     // Get room details with character mappings and titles
     const rooms = await Promise.all(
       roomIds.map(async (roomId) => {
         const room = await runtime.getRoom(roomId);
         const characterId = characterMappings.get(roomId);
-
-        // Fetch room title from database
-        let title: string | null = null;
-        try {
-          const roomData = await db.execute<{ name: string | null }>(
-            sql`SELECT name FROM rooms WHERE id = ${roomId}::uuid LIMIT 1`
-          );
-          title = roomData.rows[0]?.name || null;
-        } catch (err) {
-          logger.error(
-            `[Eliza Rooms API] Failed to fetch title for room ${roomId}:`,
-            err
-          );
-        }
+        const title = titleMap.get(roomId) || null;
 
         return {
           id: roomId,
@@ -168,6 +178,25 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    // Validate characterId format if provided
+    if (characterId) {
+      // Check length limit
+      if (typeof characterId !== "string" || characterId.length > 255) {
+        return NextResponse.json(
+          { error: "Invalid characterId: must be a string with max 255 characters" },
+          { status: 400 }
+        );
+      }
+
+      // Check format (allow alphanumeric, hyphens, and underscores)
+      if (!/^[a-zA-Z0-9-_]+$/.test(characterId)) {
+        return NextResponse.json(
+          { error: "Invalid characterId format: only alphanumeric, hyphens, and underscores allowed" },
+          { status: 400 }
+        );
+      }
+    }
+
     logger.info(`Request: entityId=${entityId}, characterId=${characterId || "DEFAULT"}`);
 
     // ==================== STEP 3: RESOLVE TEMPLATE CHARACTER ====================
@@ -184,11 +213,20 @@ export async function POST(request: NextRequest) {
         );
       }
 
+      // Validate template has required username field
+      if (!template.username) {
+        logger.error(`Template missing required username field: ${characterId}`);
+        return NextResponse.json(
+          { error: "Invalid template: missing username" },
+          { status: 500 }
+        );
+      }
+
       // Check if user already has this template character
-      const existing = await db.query.userCharacters.findFirst({
+      let existing = await db.query.userCharacters.findFirst({
         where: and(
           eq(userCharacters.user_id, user.id),
-          eq(userCharacters.username, template.username!)
+          eq(userCharacters.username, template.username)
         ),
       });
 
@@ -205,7 +243,7 @@ export async function POST(request: NextRequest) {
           );
         }
 
-        // Create character from template
+        // Create character from template (with race condition handling)
         logger.info(`Creating new character from template: ${template.name}`);
         const dbData = templateToDbFormat(
           template,
@@ -213,27 +251,51 @@ export async function POST(request: NextRequest) {
           user.organization_id
         );
 
-        const [created] = await db
-          .insert(userCharacters)
-          .values(dbData)
-          .returning();
+        try {
+          const [created] = await db
+            .insert(userCharacters)
+            .values(dbData)
+            .returning();
 
-        characterId = created.id;
-        logger.info(`Created template character: ${characterId}`);
+          characterId = created.id;
+          logger.info(`Created template character: ${characterId}`);
+        } catch (insertError: any) {
+          // Handle race condition: another request may have created the character
+          if (insertError?.code === "23505") {
+            logger.info(`Character creation race detected, retrying find query`);
+            existing = await db.query.userCharacters.findFirst({
+              where: and(
+                eq(userCharacters.user_id, user.id),
+                eq(userCharacters.username, template.username)
+              ),
+            });
+            if (existing) {
+              characterId = existing.id;
+              logger.info(`Found character after race condition: ${characterId}`);
+            } else {
+              throw new Error("Character creation race condition unresolved");
+            }
+          } else {
+            throw insertError;
+          }
+        }
       }
     }
 
-    // ==================== STEP 4: VERIFY CHARACTER EXISTS ====================
-    // CRITICAL: Verify the character exists before proceeding
+    // ==================== STEP 4: VERIFY CHARACTER EXISTS & OWNERSHIP ====================
+    // CRITICAL: Verify the character exists and belongs to the user before proceeding
     if (characterId) {
       const characterExists = await db.query.userCharacters.findFirst({
-        where: eq(userCharacters.id, characterId),
+        where: and(
+          eq(userCharacters.id, characterId),
+          eq(userCharacters.user_id, user.id)
+        ),
       });
 
       if (!characterExists) {
-        logger.error(`Character not found in database: ${characterId}`);
+        logger.error(`Character not found or access denied: ${characterId}`);
         return NextResponse.json(
-          { error: "Character not found" },
+          { error: "Character not found or access denied" },
           { status: 404 }
         );
       }
@@ -255,11 +317,11 @@ export async function POST(request: NextRequest) {
 
     await runtime.ensureRoomExists({
       id: roomId as UUID,
-      source: "web",
+      source: ELIZA_CONSTANTS.DEFAULT_SOURCE,
       type: ChannelType.DM,
       channelId: roomId,
-      serverId: "eliza-server",
-      worldId: stringToUuid("eliza-world") as UUID,
+      serverId: ELIZA_CONSTANTS.SERVER_ID,
+      worldId: stringToUuid(ELIZA_CONSTANTS.WORLD_ID) as UUID,
       agentId: runtime.agentId,
     });
 
@@ -284,11 +346,11 @@ export async function POST(request: NextRequest) {
     await runtime.ensureConnection({
       entityId: userEntityId,
       roomId: roomId as UUID,
-      worldId: stringToUuid("eliza-world") as UUID,
-      source: "web",
+      worldId: stringToUuid(ELIZA_CONSTANTS.WORLD_ID) as UUID,
+      source: ELIZA_CONSTANTS.DEFAULT_SOURCE,
       type: ChannelType.DM,
       channelId: roomId,
-      serverId: "eliza-server",
+      serverId: ELIZA_CONSTANTS.SERVER_ID,
       userName: entityId,
     });
 
@@ -297,7 +359,7 @@ export async function POST(request: NextRequest) {
     logger.info(`Connection established: ${entityId} → ${roomId}`);
 
     // ==================== STEP 9: STORE CHARACTER MAPPING ====================
-    // CRITICAL: Store the room → character mapping
+    // Store the room → character mapping (non-critical - room works with default if this fails)
     if (characterId) {
       try {
         logger.info(`Storing character mapping: ${roomId} → ${characterId}`);
@@ -319,20 +381,14 @@ export async function POST(request: NextRequest) {
           logger.error(`Expected: ${characterId}, Got: ${verifyMapping?.character_id || "null"}`);
         }
       } catch (mappingError) {
-        logger.error("✗ CRITICAL: Failed to store character mapping");
+        logger.error("⚠ Failed to store character mapping - room will use default character");
         logger.error(mappingError);
-
-        // This is critical - return error instead of continuing
-        return NextResponse.json(
-          {
-            error: "Failed to create room-character association",
-            details: mappingError instanceof Error ? mappingError.message : "Unknown error"
-          },
-          { status: 500 }
-        );
+        // Continue with room creation - it's still usable with default character
+        // Set characterId to undefined so greeting uses default character
+        characterId = undefined;
       }
     } else {
-      logger.info("No characterId provided, skipping mapping storage");
+      logger.info("No characterId provided, using default character");
     }
 
     // ==================== STEP 10: SEND GREETING MESSAGE ====================

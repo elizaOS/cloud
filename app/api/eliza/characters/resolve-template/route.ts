@@ -14,7 +14,30 @@ export async function POST(request: NextRequest) {
     const body = await request.json();
     const { templateId } = body;
 
-    if (!templateId || !isTemplateCharacter(templateId)) {
+    // Validate templateId
+    if (!templateId) {
+      return NextResponse.json(
+        { error: "templateId is required" },
+        { status: 400 }
+      );
+    }
+
+    // Check length and format
+    if (typeof templateId !== "string" || templateId.length > 255) {
+      return NextResponse.json(
+        { error: "Invalid templateId: must be a string with max 255 characters" },
+        { status: 400 }
+      );
+    }
+
+    if (!/^[a-zA-Z0-9-_]+$/.test(templateId)) {
+      return NextResponse.json(
+        { error: "Invalid templateId format: only alphanumeric, hyphens, and underscores allowed" },
+        { status: 400 }
+      );
+    }
+
+    if (!isTemplateCharacter(templateId)) {
       return NextResponse.json(
         { error: "Invalid template ID" },
         { status: 400 }
@@ -29,10 +52,19 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    // Validate template has required username field
+    if (!template.username) {
+      logger.error(`Template missing required username field: ${templateId}`);
+      return NextResponse.json(
+        { error: "Invalid template: missing username" },
+        { status: 500 }
+      );
+    }
+
     const existing = await db.query.userCharacters.findFirst({
       where: and(
         eq(userCharacters.user_id, user.id),
-        eq(userCharacters.username, template.username!)
+        eq(userCharacters.username, template.username)
       ),
     });
 
