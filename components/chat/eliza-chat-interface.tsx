@@ -486,18 +486,41 @@ export function ElizaChatInterface() {
     });
   }, []);
 
-  // Auto-scroll to bottom when messages change
-  useEffect(() => {
+  // Robust scroll to bottom function
+  const scrollToBottom = useCallback((smooth = false) => {
     if (scrollAreaRef.current) {
       // ScrollArea wraps content in a viewport div with data-radix-scroll-area-viewport
       const viewport = scrollAreaRef.current.querySelector(
         "[data-radix-scroll-area-viewport]",
       );
       if (viewport) {
-        viewport.scrollTop = viewport.scrollHeight;
+        // Use requestAnimationFrame to ensure DOM has updated
+        requestAnimationFrame(() => {
+          if (smooth) {
+            viewport.scrollTo({
+              top: viewport.scrollHeight,
+              behavior: "smooth",
+            });
+          } else {
+            viewport.scrollTop = viewport.scrollHeight;
+          }
+        });
       }
     }
-  }, [messages]);
+  }, []);
+
+  // Auto-scroll to bottom when messages change
+  useEffect(() => {
+    scrollToBottom();
+  }, [messages, scrollToBottom]);
+
+  // Additional scroll after a delay to handle late-loading content
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      scrollToBottom();
+    }, 100);
+    return () => clearTimeout(timer);
+  }, [messages, scrollToBottom]);
 
   const sendMessage = async (textOverride?: string) => {
     const messageText = textOverride?.trim() || inputText.trim();
@@ -824,6 +847,7 @@ export function ElizaChatInterface() {
                                                   height={512}
                                                   className="w-full h-auto"
                                                   style={{ display: "block" }}
+                                                  onLoad={() => scrollToBottom()}
                                                 />
                                               </div>
                                             );
