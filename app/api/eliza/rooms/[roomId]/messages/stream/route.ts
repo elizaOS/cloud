@@ -1,21 +1,12 @@
 import { NextRequest } from "next/server";
-import { agentRuntime } from "@/lib/eliza/agent-runtime";
+import { organizationsService } from "@/lib/services";
 import { requireAuthOrApiKey } from "@/lib/auth";
 import { getAnonymousUser, checkAnonymousLimit } from "@/lib/auth-anonymous";
-import {
-  creditsService,
-  usageService,
-  generationsService,
-  anonymousSessionsService,
-} from "@/lib/services";
-import { calculateCost, getProviderFromModel } from "@/lib/pricing";
 import { logger } from "@/lib/utils/logger";
 import { elizaRoomCharactersRepository } from "@/db/repositories";
-import { getUserElizaCloudApiKey } from "@/lib/eliza/user-api-key";
-import { discordService } from "@/lib/services/discord";
-import { db } from "@/db/client";
-import { sql } from "drizzle-orm";
-import { generateRoomTitle } from "@/lib/ai/generate-room-title";
+import { userContextService } from "@/lib/eliza/user-context";
+import { runtimeFactory } from "@/lib/eliza/runtime-factory";
+import { createMessageHandler } from "@/lib/eliza/message-handler";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
@@ -37,32 +28,14 @@ export async function POST(
   const encoder = new TextEncoder();
 
   try {
-    // Authentication
-    let user: any;
-    let apiKey: any = undefined;
-    let isAnonymous = false;
-    let anonymousSession: any = null;
+    // Step 1: Authentication & Context Building (single step, clean!)
+    const userContext = await authenticateAndBuildContext(request);
 
-    try {
-      const authResult = await requireAuthOrApiKey(request);
-      user = authResult.user;
-      apiKey = authResult.apiKey;
-    } catch (error) {
-      const anonData = await getAnonymousUser();
-      if (!anonData) {
-        throw new Error("Authentication required");
-      }
-
-      user = anonData.user;
-      anonymousSession = anonData.session;
-      isAnonymous = true;
-    }
-
+    // Step 2: Parse and validate request
     const { roomId } = await ctx.params;
     const body = await request.json();
     const { entityId, text, model } = body;
 
-    // Validation
     if (!roomId || !entityId || !text?.trim()) {
       return new Response(
         JSON.stringify({ error: "Missing required fields" }),
@@ -70,16 +43,13 @@ export async function POST(
       );
     }
 
-    // Log model selection if provided
     if (model) {
       logger.debug("[Stream] User selected model:", model);
     }
 
-    // Anonymous rate limiting
-    if (isAnonymous && anonymousSession) {
-      const limitCheck = await checkAnonymousLimit(
-        anonymousSession.session_token,
-      );
+    // Step 3: Rate limiting for anonymous users
+    if (userContext.isAnonymous && userContext.sessionToken) {
+      const limitCheck = await checkAnonymousLimit(userContext.sessionToken);
 
       if (!limitCheck.allowed) {
         const errorMessage =
@@ -98,53 +68,30 @@ export async function POST(
       }
     }
 
-    // Get character assignment for room
-    const roomCharacter =
-      await elizaRoomCharactersRepository.findByRoomId(roomId);
+    // Step 4: Get character assignment for room
+    const roomCharacter = await elizaRoomCharactersRepository.findByRoomId(roomId);
     const characterId = roomCharacter?.character_id || undefined;
 
-    // Get user's API key for ElizaCloud plugin authentication
-    let userApiKey: string | null = null;
-    if (!isAnonymous && user.id && user.organization_id) {
-      try {
-        userApiKey = await getUserElizaCloudApiKey(
-          user.id,
-          user.organization_id,
-        );
-        if (userApiKey) {
-          logger.info(
-            `[Stream Messages] Retrieved API key for user ${user.id}: ${userApiKey.substring(0, 12)}...`,
-          );
-        } else {
-          // VALIDATION: Reject request if user has no API key
-          logger.error(
-            `[Stream Messages] No API key found for user ${user.id}`,
-          );
-          return new Response(
-            JSON.stringify({
-              error:
-                "No API key found for your account. Please contact support or try logging out and back in.",
-            }),
-            { status: 500, headers: { "Content-Type": "application/json" } },
-          );
-        }
-      } catch (error) {
-        logger.error(
-          "[Stream Messages] Failed to retrieve user API key:",
-          error,
-        );
-        return new Response(
-          JSON.stringify({
-            error: "Failed to authenticate agent. Please try again.",
-          }),
-          { status: 500, headers: { "Content-Type": "application/json" } },
-        );
-      }
-    } else if (isAnonymous) {
-      logger.info("[Stream Messages] Anonymous user - using shared runtime");
+    // Step 5: Apply model preferences if provided
+    if (model) {
+      userContext.modelPreferences = {
+        smallModel: model,
+        largeModel: model,
+      };
     }
 
-    // Create streaming response
+    // Apply character if specified
+    if (characterId) {
+      userContext.characterId = characterId;
+    }
+
+    // Step 6: Create runtime with user context (clean, no key fetching here!)
+    const runtime = await runtimeFactory.createRuntimeForUser(userContext);
+
+    // Step 7: Create message handler
+    const messageHandler = createMessageHandler(runtime, userContext);
+
+    // Step 8: Create streaming response
     const stream = new ReadableStream({
       async start(controller) {
         const sendEvent = (event: string, data: unknown) => {
@@ -176,26 +123,14 @@ export async function POST(
             type: "thinking",
           });
 
-          // Process message and get response
+          // Process message and get response (much cleaner!)
           logger.info("[Stream Messages] Processing message...");
-          const result = await agentRuntime.handleMessage(
+          const result = await messageHandler.process({
             roomId,
             entityId,
-            { text },
-            characterId,
-            userApiKey
-              ? {
-                  userId: user.id,
-                  apiKey: userApiKey,
-                  modelPreferences: model
-                    ? {
-                        smallModel: model,
-                        largeModel: model,
-                      }
-                    : undefined,
-                }
-              : undefined,
-          );
+            text,
+            model,
+          });
 
           const responseText =
             typeof result.message.content === "string"
@@ -224,156 +159,17 @@ export async function POST(
             type: "agent",
           });
 
-          // Handle credits (if authenticated user with usage data)
-          if (!isAnonymous && result.usage && user.organization_id) {
-            try {
-              const model = result.usage.model || "gpt-4o";
-              const provider = getProviderFromModel(model);
-              const costResult = await calculateCost(
-                model,
-                provider,
-                result.usage.inputTokens,
-                result.usage.outputTokens,
-              );
-
-              const deductResult = await creditsService.deductCredits({
-                organizationId: user.organization_id,
-                amount: costResult.totalCost,
-                description: "Eliza chat message",
-                metadata: {
-                  model,
-                  provider,
-                  inputTokens: result.usage.inputTokens,
-                  outputTokens: result.usage.outputTokens,
-                },
+          // Credits and side effects are handled by MessageHandler
+          // Check if we should send low credit warning
+          if (result.usage && !userContext.isAnonymous) {
+            // This is just for the warning event, actual credit deduction happened in MessageHandler
+            const remainingCredits = await checkUserCredits(userContext.organizationId);
+            if (remainingCredits < 1.0) {
+              sendEvent("warning", {
+                message: "Low credits - please top up to continue",
               });
-
-              await usageService.trackUsage({
-                organization_id: user.organization_id,
-                type: "llm",
-                provider,
-                model,
-              });
-
-              await generationsService.create({
-                organization_id: user.organization_id,
-                type: "chat",
-                model,
-                provider,
-                prompt: text,
-              });
-
-              // Check remaining balance
-              if (deductResult.newBalance < 1.0) {
-                sendEvent("warning", {
-                  message: "Low credits - please top up to continue",
-                });
-              }
-            } catch (creditError) {
-              logger.error(
-                "[Stream Messages] Credit handling error:",
-                creditError,
-              );
             }
           }
-
-          // Increment anonymous message count
-          if (isAnonymous && anonymousSession) {
-            await anonymousSessionsService.incrementMessageCount(
-              anonymousSession.id,
-            );
-          }
-
-          // Send messages to Discord thread (fire-and-forget)
-          (async () => {
-            try {
-              // Get Discord thread ID from room metadata
-              const roomData = await db.execute<{ metadata: any }>(
-                sql`SELECT metadata FROM rooms WHERE id = ${roomId}::uuid LIMIT 1`,
-              );
-
-              const threadId = roomData.rows[0]?.metadata?.discordThreadId;
-
-              if (threadId) {
-                // Get character name from runtime
-                let characterName = "Agent";
-                try {
-                  if (characterId) {
-                    const runtime =
-                      await agentRuntime.getRuntimeForCharacter(characterId);
-                    characterName = runtime.character.name || "Agent";
-                  } else {
-                    const runtime = await agentRuntime.getRuntime();
-                    characterName = runtime.character.name || "Agent";
-                  }
-                } catch (err) {
-                  logger.error(
-                    "[Stream Messages] Failed to fetch character name from runtime:",
-                    err,
-                  );
-                }
-
-                // Send user message
-                await discordService.sendToThread(
-                  threadId,
-                  `**${user.name || user.email || entityId}:** ${text}`,
-                );
-
-                // Send agent response
-                await discordService.sendToThread(
-                  threadId,
-                  `**🤖 ${characterName}:** ${responseText}`,
-                );
-
-                logger.info(
-                  `[Stream Messages] Sent messages to Discord thread ${threadId} for character: ${characterName}`,
-                );
-              }
-            } catch (err) {
-              logger.error(
-                "[Stream Messages] Failed to send to Discord thread:",
-                err,
-              );
-            }
-          })();
-
-          // Generate room title if this is the first user message
-          (async () => {
-            try {
-              // Check if room already has a title
-              const roomCheck = await db.execute<{ name: string | null }>(
-                sql`SELECT name FROM rooms WHERE id = ${roomId}::uuid LIMIT 1`,
-              );
-
-              const currentRoomName = roomCheck.rows[0]?.name;
-
-              // Only generate title if room doesn't have one yet
-              if (!currentRoomName) {
-                logger.debug(
-                  "[Room Title] Room has no title, generating from first message...",
-                );
-
-                // Generate title from the user's message
-                const title = await generateRoomTitle(text);
-
-                // Update room with the generated title
-                await db.execute(
-                  sql`UPDATE rooms SET name = ${title} WHERE id = ${roomId}::uuid`,
-                );
-
-                logger.info("[Room Title] Generated and saved title:", {
-                  roomId,
-                  title,
-                });
-              }
-            } catch (err) {
-              logger.error(
-                "[Room Title] Failed to generate/save room title:",
-                err,
-              );
-              // Non-critical error, don't interrupt the message flow
-            }
-          })();
 
           // Send completion event
           sendEvent("done", { timestamp: Date.now() });
@@ -406,5 +202,48 @@ export async function POST(
       }),
       { status: 500, headers: { "Content-Type": "application/json" } },
     );
+  }
+}
+
+/**
+ * Helper function to authenticate and build user context
+ * Centralizes authentication and context creation
+ */
+async function authenticateAndBuildContext(request: NextRequest) {
+  try {
+    // Try authenticated user first
+    const authResult = await requireAuthOrApiKey(request);
+    return await userContextService.buildContext({
+      ...authResult,
+      isAnonymous: false,
+    });
+  } catch (error) {
+    // Fall back to anonymous user
+    const anonData = await getAnonymousUser();
+    if (!anonData) {
+      throw new Error("Authentication required");
+    }
+    
+    return await userContextService.buildContext({
+      user: anonData.user,
+      anonymousSession: anonData.session,
+      isAnonymous: true,
+    });
+  }
+}
+
+/**
+ * Helper function to check user credits
+ */
+async function checkUserCredits(organizationId: string): Promise<number> {
+  try {
+    const org = await organizationsService.getById(organizationId);
+    if (!org) {
+      return 0;
+    }
+    return Number.parseFloat(String(org.credit_balance));
+  } catch (error) {
+    logger.error("[Stream] Failed to check credits:", error);
+    return 0;
   }
 }
