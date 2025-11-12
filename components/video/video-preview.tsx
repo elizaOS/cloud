@@ -89,12 +89,15 @@ export function VideoPreview({ video }: VideoPreviewProps) {
       <CornerBrackets size="md" className="opacity-50" />
 
       <div className="relative z-10 space-y-2 pb-0">
-        <div className="flex items-center justify-between gap-2">
-          <h3 className="text-xl font-bold text-white">Preview</h3>
+        <div className="flex items-start justify-between gap-2">
           <div className="flex items-center gap-2">
+            <div className="w-2 h-2 rounded-full bg-[#FF5800]" />
+            <h3 className="text-base md:text-lg lg:text-xl font-mono font-bold text-[#e1e1e1] uppercase">Preview</h3>
+          </div>
+          <div className="flex items-center gap-2 flex-wrap justify-end">
             <span
               className={cn(
-                "rounded-none px-3 py-1 text-xs font-bold uppercase tracking-wide border",
+                "px-2 md:px-3 py-1 text-xs font-mono font-bold uppercase tracking-wide border whitespace-nowrap",
                 video
                   ? video.status === "completed"
                     ? video.isMock
@@ -109,19 +112,19 @@ export function VideoPreview({ video }: VideoPreviewProps) {
               {video ? video.status : "Idle"}
             </span>
             {video?.isMock ? (
-              <span className="rounded-none bg-white/10 px-3 py-1 text-xs text-white/60">
-                Mock preview
+              <span className="bg-white/10 px-2 md:px-3 py-1 text-xs font-mono text-white/60 whitespace-nowrap">
+                Mock
               </span>
             ) : null}
           </div>
         </div>
-        <p className="text-sm text-white/60">
+        <p className="text-xs md:text-sm font-mono text-[#858585]">
           The most recent render appears here with metadata and quick actions.
         </p>
       </div>
 
-      <div className="relative z-10 flex-1 min-h-0 pb-0 mt-6">
-        <div className="relative aspect-video w-full overflow-hidden rounded-none border border-white/10 bg-black/60 shadow-inner">
+      <div className="relative z-10 flex-1 min-h-0 pb-0 mt-4 md:mt-6">
+        <div className="relative aspect-video w-full overflow-hidden border border-white/10 bg-black/60 shadow-inner">
           {video ? (
             <>
               {video.videoUrl ? (
@@ -134,7 +137,7 @@ export function VideoPreview({ video }: VideoPreviewProps) {
                 />
               ) : (
                 <div
-                  className="absolute inset-0 flex flex-col items-center justify-center bg-gradient-to-br from-black/40 via-black/70 to-black/90 text-center"
+                  className="absolute inset-0 flex flex-col items-center justify-center bg-gradient-to-br from-black/40 via-black/70 to-black/90 text-center px-4"
                   style={
                     video.thumbnailUrl
                       ? {
@@ -147,8 +150,8 @@ export function VideoPreview({ video }: VideoPreviewProps) {
                 >
                   {!video.thumbnailUrl && (
                     <>
-                      <Play className="h-10 w-10 text-white/50" />
-                      <p className="mt-3 text-sm text-white/60">
+                      <Play className="h-8 md:h-10 w-8 md:w-10 text-white/50" />
+                      <p className="mt-3 text-xs md:text-sm font-mono text-white/60">
                         Generated video preview
                       </p>
                     </>
@@ -156,24 +159,24 @@ export function VideoPreview({ video }: VideoPreviewProps) {
                 </div>
               )}
               {video.status === "processing" && (
-                <div className="absolute inset-0 flex flex-col items-center justify-center gap-3 bg-black/80 text-center">
-                  <Loader2 className="h-8 w-8 animate-spin text-[#FF5800]" />
-                  <p className="text-sm font-medium text-white">
+                <div className="absolute inset-0 flex flex-col items-center justify-center gap-3 bg-black/80 text-center px-4">
+                  <Loader2 className="h-6 md:h-8 w-6 md:w-8 animate-spin text-[#FF5800]" />
+                  <p className="text-xs md:text-sm font-mono font-medium text-white">
                     Sending job to Fal…
                   </p>
-                  <p className="text-xs text-white/60">
+                  <p className="text-xs font-mono text-white/60">
                     This usually takes a few moments.
                   </p>
                 </div>
               )}
             </>
           ) : (
-            <div className="absolute inset-0 flex flex-col items-center justify-center gap-3 text-center text-white/60">
-              <Sparkles className="h-10 w-10 text-[#FF5800]" />
-              <p className="text-sm font-medium text-white">
+            <div className="absolute inset-0 flex flex-col items-center justify-center gap-3 text-center text-white/60 px-4">
+              <Sparkles className="h-8 md:h-10 w-8 md:w-10 text-[#FF5800]" />
+              <p className="text-xs md:text-sm font-mono font-medium text-white">
                 Your video will appear here once generated.
               </p>
-              <p className="text-xs text-white/60">
+              <p className="text-xs font-mono text-white/60">
                 Use the form to create a concept and track progress in real
                 time.
               </p>
@@ -181,26 +184,26 @@ export function VideoPreview({ video }: VideoPreviewProps) {
           )}
         </div>
 
-        <div className="mt-6 grid gap-4 rounded-none border border-white/10 bg-black/40 p-4 text-sm">
+        <div className="mt-4 md:mt-6 grid gap-3 md:gap-4 border border-white/10 bg-black/40 p-3 md:p-4 text-xs md:text-sm">
           <div className="space-y-1">
-            <p className="text-xs font-semibold uppercase tracking-wide text-white/70">
+            <p className="text-xs font-mono font-semibold uppercase tracking-wide text-white/70">
               Prompt
             </p>
-            <p className="text-sm text-white">
+            <p className="text-xs md:text-sm font-mono text-white break-words">
               {video?.prompt ?? "No prompt yet — craft a description to begin."}
             </p>
           </div>
-          <div className="grid gap-2 text-xs text-white/60">
+          <div className="grid gap-2 text-xs font-mono text-white/60">
             <div className="flex flex-wrap items-center justify-between gap-2">
               <span>Model preset</span>
-              <span className="font-medium text-white">
+              <span className="font-medium text-white break-all text-right">
                 {video?.modelId ?? "Not selected"}
               </span>
             </div>
             {video?.requestId ? (
               <div className="flex flex-wrap items-center justify-between gap-2">
                 <span>Request ID</span>
-                <span className="font-medium text-white break-all">
+                <span className="font-medium text-white break-all text-right">
                   {video.requestId}
                 </span>
               </div>
@@ -244,7 +247,7 @@ export function VideoPreview({ video }: VideoPreviewProps) {
                   href={video.referenceUrl}
                   target="_blank"
                   rel="noreferrer"
-                  className="font-medium text-[#FF5800] hover:underline"
+                  className="font-medium text-[#FF5800] hover:underline break-all text-right"
                 >
                   Open link
                 </a>
@@ -256,7 +259,7 @@ export function VideoPreview({ video }: VideoPreviewProps) {
         {video?.failureReason ? (
           <div
             className={cn(
-              "mt-4 rounded-none border px-4 py-3 text-xs leading-relaxed",
+              "mt-3 md:mt-4 border px-3 md:px-4 py-2 md:py-3 text-xs font-mono leading-relaxed break-words",
               video.status === "failed"
                 ? "border-rose-500/40 bg-rose-500/10 text-rose-400"
                 : "border-amber-500/40 bg-amber-500/10 text-amber-300",
@@ -268,16 +271,16 @@ export function VideoPreview({ video }: VideoPreviewProps) {
           </div>
         ) : null}
         {hasModerationFlag ? (
-          <div className="mt-3 flex items-center gap-2 rounded-none border border-amber-500/40 bg-amber-500/10 px-4 py-3 text-xs text-amber-300">
-            <ShieldAlert className="h-3.5 w-3.5" />
-            Potential safety flags were returned for this render. Review before
-            sharing publicly.
+          <div className="mt-3 flex items-start gap-2 border border-amber-500/40 bg-amber-500/10 px-3 md:px-4 py-2 md:py-3 text-xs font-mono text-amber-300">
+            <ShieldAlert className="h-3.5 w-3.5 flex-shrink-0 mt-0.5" />
+            <span>Potential safety flags were returned for this render. Review before
+            sharing publicly.</span>
           </div>
         ) : null}
       </div>
 
-      <div className="relative z-10 flex flex-col gap-3 border-t border-white/10 pt-4 mt-4">
-        <div className="flex flex-wrap items-center gap-2 text-xs text-white/60">
+      <div className="relative z-10 flex flex-col gap-2 md:gap-3 border-t border-white/10 pt-3 md:pt-4 mt-3 md:mt-4">
+        <div className="flex flex-wrap items-center gap-2 text-xs font-mono text-white/60">
           <span>Last generated</span>
           <span className="font-medium text-white">
             {video?.createdAt
@@ -285,28 +288,37 @@ export function VideoPreview({ video }: VideoPreviewProps) {
               : "—"}
           </span>
         </div>
-        <div className="flex flex-wrap gap-2">
-          <BrandButton
-            className="flex-1"
-            variant="primary"
+        <div className="flex flex-col sm:flex-row gap-2">
+          <button
             type="button"
             onClick={handleDownload}
+            className="relative bg-[#e1e1e1] px-4 py-2 overflow-hidden hover:bg-white transition-colors flex-1"
           >
-            <Download className="mr-2 h-4 w-4" />
-            Download
-          </BrandButton>
-          <BrandButton
-            className="flex-1"
-            variant="outline"
+            <div
+              className="absolute inset-0 opacity-20 bg-repeat pointer-events-none"
+              style={{
+                backgroundImage: `url(/assets/settings/pattern-6px-flip.png)`,
+                backgroundSize: "2.915576934814453px 2.915576934814453px",
+              }}
+            />
+            <span className="relative z-10 text-black font-mono font-medium text-sm flex items-center justify-center gap-2">
+              <Download className="h-4 w-4" />
+              Download
+            </span>
+          </button>
+          <button
             type="button"
             onClick={handleCopyLink}
+            className="px-4 py-2 border border-white/20 bg-transparent text-white hover:bg-white/5 transition-colors flex-1"
           >
-            <Link2 className="mr-2 h-4 w-4" />
-            Copy link
-          </BrandButton>
+            <span className="font-mono text-sm flex items-center justify-center gap-2">
+              <Link2 className="h-4 w-4" />
+              Copy link
+            </span>
+          </button>
         </div>
         {copyFeedback && (
-          <p className="text-center text-xs text-white/60">{copyFeedback}</p>
+          <p className="text-center text-xs font-mono text-white/60">{copyFeedback}</p>
         )}
       </div>
     </BrandCard>
