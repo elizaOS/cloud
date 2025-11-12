@@ -143,7 +143,14 @@ export function ElizaPageClient({
     } else {
       setSelectedCharacterId(null);
     }
-  }, [initialRoomId, initialMode, initialCharacterId, setRoomId, setMode, setSelectedCharacterId]);
+  }, [
+    initialRoomId,
+    initialMode,
+    initialCharacterId,
+    setRoomId,
+    setMode,
+    setSelectedCharacterId,
+  ]);
 
   // Initialize anonymous session for unauthenticated users
   useEffect(() => {
@@ -180,7 +187,7 @@ export function ElizaPageClient({
     <div className="flex h-screen w-full flex-col overflow-hidden bg-[#0A0A0A]">
       {/* Custom Chat Header with Agent Switcher and Mode Toggle */}
       <ChatHeader />
-      
+
       {/* Signup prompt banner for anonymous users */}
       {!isAuthenticated && anonymousSession && (
         <SignupPromptBanner

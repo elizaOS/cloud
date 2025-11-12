@@ -79,21 +79,21 @@ export function MyAgentsClient({ initialCharacters }: MyAgentsClientProps) {
       <div className="flex items-start justify-between mb-5">
         <div className="flex flex-col gap-[8px] max-w-[455px]">
           <div className="flex gap-[16px] items-start">
-            <h1 
+            <h1
               className="font-['Roboto_Mono'] font-medium text-[#e1e1e1] text-[24px] leading-normal"
               style={{ fontFamily: "'Roboto Mono', monospace" }}
             >
               My Agents
             </h1>
           </div>
-          <p 
+          <p
             className="font-['Roboto_Mono'] font-normal text-[#858585] text-[16px] leading-normal w-full"
             style={{ fontFamily: "'Roboto Mono', monospace" }}
           >
             Explore Agents that you have created or saved
           </p>
         </div>
-        
+
         {/* New Agent Button - Exact Figma specs: px-[12px] py-[8px], gap-[6px] */}
         <button
           onClick={handleCreateNew}
@@ -102,27 +102,27 @@ export function MyAgentsClient({ initialCharacters }: MyAgentsClientProps) {
           {/* Corner Brackets - positioned at corners */}
           <div className="absolute top-0 left-0 w-2 h-2 pointer-events-none">
             <svg width="8" height="8" viewBox="0 0 8 8" fill="none">
-              <path d="M8 0L0 0L0 8" stroke="#FF5800" strokeWidth="1"/>
+              <path d="M8 0L0 0L0 8" stroke="#FF5800" strokeWidth="1" />
             </svg>
           </div>
           <div className="absolute top-0 right-0 w-2 h-2 pointer-events-none">
             <svg width="8" height="8" viewBox="0 0 8 8" fill="none">
-              <path d="M0 0L8 0L8 8" stroke="#FF5800" strokeWidth="1"/>
+              <path d="M0 0L8 0L8 8" stroke="#FF5800" strokeWidth="1" />
             </svg>
           </div>
           <div className="absolute bottom-0 left-0 w-2 h-2 pointer-events-none">
             <svg width="8" height="8" viewBox="0 0 8 8" fill="none">
-              <path d="M8 8L0 8L0 0" stroke="#FF5800" strokeWidth="1"/>
+              <path d="M8 8L0 8L0 0" stroke="#FF5800" strokeWidth="1" />
             </svg>
           </div>
           <div className="absolute bottom-0 right-0 w-2 h-2 pointer-events-none">
             <svg width="8" height="8" viewBox="0 0 8 8" fill="none">
-              <path d="M0 8L8 8L8 0" stroke="#FF5800" strokeWidth="1"/>
+              <path d="M0 8L8 8L8 0" stroke="#FF5800" strokeWidth="1" />
             </svg>
           </div>
-          
+
           <Plus className="w-[18px] h-[18px] text-[#ff5800]" strokeWidth={2} />
-          <span 
+          <span
             className="font-['Roboto_Mono'] font-medium text-[#ff5800] text-[14px] leading-normal"
             style={{ fontFamily: "'Roboto Mono', monospace" }}
           >

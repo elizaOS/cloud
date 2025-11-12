@@ -17,7 +17,7 @@ export function ChatHeader() {
           className="flex items-center gap-2 text-[#dfdfdf] hover:text-white transition-colors"
         >
           <ArrowLeft className="w-[18px] h-[18px]" />
-          <span 
+          <span
             className="font-['Roboto_Mono'] font-medium text-[16px] leading-normal"
             style={{ fontFamily: "'Roboto Mono', monospace" }}
           >
@@ -35,4 +35,3 @@ export function ChatHeader() {
     </div>
   );
 }
-

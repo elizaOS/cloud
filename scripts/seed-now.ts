@@ -593,7 +593,7 @@ async function seedNow() {
       console.log("Existing template characters:");
       existingTemplates.forEach((t, i) => {
         console.log(
-          `  ${i + 1}. ${t.name} (${t.category}) - Featured: ${t.featured}`
+          `  ${i + 1}. ${t.name} (${t.category}) - Featured: ${t.featured}`,
         );
       });
       console.log("\n✓ Marketplace already has template characters!\n");
@@ -643,7 +643,7 @@ async function seedNow() {
           .returning();
 
         console.log(
-          `  ✓ ${template.name} (${template.category})${template.featured ? " ⭐" : ""}`
+          `  ✓ ${template.name} (${template.category})${template.featured ? " ⭐" : ""}`,
         );
         successCount++;
       } catch (error) {

@@ -10,11 +10,14 @@ import {
 import { db } from "@/db/client";
 import { userCharacters } from "@/db/schemas/user-characters";
 import { eq } from "drizzle-orm";
-import { isTemplateCharacter, getTemplate } from "@/lib/characters/template-loader";
+import {
+  isTemplateCharacter,
+  getTemplate,
+} from "@/lib/characters/template-loader";
 
 interface PageProps {
-  searchParams: Promise<{ 
-    characterId?: string; 
+  searchParams: Promise<{
+    characterId?: string;
     roomId?: string;
     mode?: "chat" | "build";
   }>;
@@ -42,9 +45,7 @@ export async function generateMetadata({
   if (isTemplateCharacter(characterId)) {
     const template = getTemplate(characterId);
     if (template) {
-      const bio = Array.isArray(template.bio)
-        ? template.bio[0]
-        : template.bio;
+      const bio = Array.isArray(template.bio) ? template.bio[0] : template.bio;
       const metadata = generateCharacterMetadata(
         template.id,
         template.name,

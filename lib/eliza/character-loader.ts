@@ -38,7 +38,7 @@ export class CharacterLoader {
     if (!dbCharacter) {
       console.error(
         "[CharacterLoader] ❌ Character not found in database:",
-        characterId
+        characterId,
       );
       throw new Error(`Character not found: ${characterId}`);
     }
@@ -186,7 +186,7 @@ export class CharacterLoader {
         {
           characterId: elizaCharacter.id,
           name: elizaCharacter.name,
-        }
+        },
       );
 
       const bioText = Array.isArray(elizaCharacter.bio)

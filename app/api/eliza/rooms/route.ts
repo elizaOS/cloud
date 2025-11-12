@@ -16,7 +16,7 @@ import { elizaRoomCharactersRepository } from "@/db/repositories";
 import {
   isTemplateCharacter,
   getTemplate,
-  templateToDbFormat
+  templateToDbFormat,
 } from "@/lib/characters/template-loader";
 import { discordService } from "@/lib/services/discord";
 import { ELIZA_CONSTANTS } from "@/lib/eliza/constants";
@@ -40,7 +40,7 @@ export async function GET(request: NextRequest) {
     if (!entityId) {
       return NextResponse.json(
         { error: "entityId is required" },
-        { status: 400 }
+        { status: 400 },
       );
     }
 
@@ -56,12 +56,12 @@ export async function GET(request: NextRequest) {
         await elizaRoomCharactersRepository.findByRoomIds(roomIds);
       logger.debug(
         "[Eliza Rooms API] Batch loaded character mappings:",
-        characterMappings.size
+        characterMappings.size,
       );
     } catch (err) {
       logger.error(
         "[Eliza Rooms API] ✗ Failed to batch load character mappings:",
-        err
+        err,
       );
     }
 
@@ -69,20 +69,21 @@ export async function GET(request: NextRequest) {
     const titleMap = new Map<string, string | null>();
     if (roomIds.length > 0) {
       try {
-        const roomTitles = await db.execute<{ id: string; name: string | null }>(
-          sql`SELECT id, name FROM rooms WHERE id = ANY(${roomIds}::uuid[])`
-        );
+        const roomTitles = await db.execute<{
+          id: string;
+          name: string | null;
+        }>(sql`SELECT id, name FROM rooms WHERE id = ANY(${roomIds}::uuid[])`);
         for (const row of roomTitles.rows) {
           titleMap.set(row.id, row.name);
         }
         logger.debug(
           "[Eliza Rooms API] Batch loaded room titles:",
-          titleMap.size
+          titleMap.size,
         );
       } catch (err) {
         logger.error(
           "[Eliza Rooms API] ✗ Failed to batch load room titles:",
-          err
+          err,
         );
       }
     }
@@ -100,7 +101,7 @@ export async function GET(request: NextRequest) {
           characterId,
           title,
         };
-      })
+      }),
     );
 
     // Sort rooms by most recent first (lastTime descending)
@@ -116,7 +117,7 @@ export async function GET(request: NextRequest) {
         id: r.id,
         characterId: r.characterId,
         lastTime: (r as any).lastTime,
-      }))
+      })),
     );
 
     return NextResponse.json({
@@ -130,7 +131,7 @@ export async function GET(request: NextRequest) {
         error: "Failed to get rooms",
         details: error instanceof Error ? error.message : "Unknown error",
       },
-      { status: 500 }
+      { status: 500 },
     );
   }
 }
@@ -174,7 +175,7 @@ export async function POST(request: NextRequest) {
     if (!entityId) {
       return NextResponse.json(
         { error: "entityId is required" },
-        { status: 400 }
+        { status: 400 },
       );
     }
 
@@ -183,21 +184,31 @@ export async function POST(request: NextRequest) {
       // Check length limit
       if (typeof characterId !== "string" || characterId.length > 255) {
         return NextResponse.json(
-          { error: "Invalid characterId: must be a string with max 255 characters" },
-          { status: 400 }
+          {
+            error:
+              "Invalid characterId: must be a string with max 255 characters",
+          },
+          { status: 400 },
         );
       }
 
-      // Check format (allow alphanumeric, hyphens, and underscores)
-      if (!/^[a-zA-Z0-9-_]+$/.test(characterId)) {
+      // Check format - allow UUIDs (with hyphens) and template IDs (alphanumeric, hyphens, underscores)
+      // UUID format: 8-4-4-4-12 characters with hyphens
+      // Template format: template-name
+      if (!/^[a-zA-Z0-9-]+$/.test(characterId)) {
         return NextResponse.json(
-          { error: "Invalid characterId format: only alphanumeric, hyphens, and underscores allowed" },
-          { status: 400 }
+          {
+            error:
+              "Invalid characterId format: only alphanumeric and hyphens allowed",
+          },
+          { status: 400 },
         );
       }
     }
 
-    logger.info(`Request: entityId=${entityId}, characterId=${characterId || "DEFAULT"}`);
+    logger.info(
+      `Request: entityId=${entityId}, characterId=${characterId || "DEFAULT"}`,
+    );
 
     // ==================== STEP 3: RESOLVE TEMPLATE CHARACTER ====================
     // If characterId is a template, auto-create it in the database
@@ -209,16 +220,18 @@ export async function POST(request: NextRequest) {
         logger.error(`Template not found: ${characterId}`);
         return NextResponse.json(
           { error: "Template character not found" },
-          { status: 404 }
+          { status: 404 },
         );
       }
 
       // Validate template has required username field
       if (!template.username) {
-        logger.error(`Template missing required username field: ${characterId}`);
+        logger.error(
+          `Template missing required username field: ${characterId}`,
+        );
         return NextResponse.json(
           { error: "Invalid template: missing username" },
-          { status: 500 }
+          { status: 500 },
         );
       }
 
@@ -226,7 +239,7 @@ export async function POST(request: NextRequest) {
       let existing = await db.query.userCharacters.findFirst({
         where: and(
           eq(userCharacters.user_id, user.id),
-          eq(userCharacters.username, template.username)
+          eq(userCharacters.username, template.username),
         ),
       });
 
@@ -239,7 +252,7 @@ export async function POST(request: NextRequest) {
           logger.error("User has no organization_id, cannot create character");
           return NextResponse.json(
             { error: "User must be associated with an organization" },
-            { status: 400 }
+            { status: 400 },
           );
         }
 
@@ -248,7 +261,7 @@ export async function POST(request: NextRequest) {
         const dbData = templateToDbFormat(
           template,
           user.id,
-          user.organization_id
+          user.organization_id,
         );
 
         try {
@@ -262,16 +275,20 @@ export async function POST(request: NextRequest) {
         } catch (insertError: any) {
           // Handle race condition: another request may have created the character
           if (insertError?.code === "23505") {
-            logger.info(`Character creation race detected, retrying find query`);
+            logger.info(
+              `Character creation race detected, retrying find query`,
+            );
             existing = await db.query.userCharacters.findFirst({
               where: and(
                 eq(userCharacters.user_id, user.id),
-                eq(userCharacters.username, template.username)
+                eq(userCharacters.username, template.username),
               ),
             });
             if (existing) {
               characterId = existing.id;
-              logger.info(`Found character after race condition: ${characterId}`);
+              logger.info(
+                `Found character after race condition: ${characterId}`,
+              );
             } else {
               throw new Error("Character creation race condition unresolved");
             }
@@ -288,7 +305,7 @@ export async function POST(request: NextRequest) {
       const characterExists = await db.query.userCharacters.findFirst({
         where: and(
           eq(userCharacters.id, characterId),
-          eq(userCharacters.user_id, user.id)
+          eq(userCharacters.user_id, user.id),
         ),
       });
 
@@ -296,11 +313,13 @@ export async function POST(request: NextRequest) {
         logger.error(`Character not found or access denied: ${characterId}`);
         return NextResponse.json(
           { error: "Character not found or access denied" },
-          { status: 404 }
+          { status: 404 },
         );
       }
 
-      logger.info(`Character verified: ${characterExists.name} (${characterId})`);
+      logger.info(
+        `Character verified: ${characterExists.name} (${characterId})`,
+      );
     }
 
     // ==================== STEP 5: GET RUNTIME ====================
@@ -336,8 +355,12 @@ export async function POST(request: NextRequest) {
         metadata: { name: entityId, web: { userName: entityId } },
       });
     } catch (e) {
-      const msg = e instanceof Error ? e.message.toLowerCase() : String(e).toLowerCase();
-      if (!msg.includes("duplicate key") && !msg.includes("unique constraint")) {
+      const msg =
+        e instanceof Error ? e.message.toLowerCase() : String(e).toLowerCase();
+      if (
+        !msg.includes("duplicate key") &&
+        !msg.includes("unique constraint")
+      ) {
         throw e;
       }
     }
@@ -360,6 +383,9 @@ export async function POST(request: NextRequest) {
 
     // ==================== STEP 9: STORE CHARACTER MAPPING ====================
     // Store the room → character mapping (non-critical - room works with default if this fails)
+    const originalCharacterId = characterId; // Store original for response
+    let mappingStored = false;
+
     if (characterId) {
       try {
         logger.info(`Storing character mapping: ${roomId} → ${characterId}`);
@@ -373,19 +399,23 @@ export async function POST(request: NextRequest) {
         logger.info("✓ Character mapping stored successfully");
 
         // VERIFY the mapping was stored
-        const verifyMapping = await elizaRoomCharactersRepository.findByRoomId(roomId);
+        const verifyMapping =
+          await elizaRoomCharactersRepository.findByRoomId(roomId);
         if (verifyMapping?.character_id === characterId) {
           logger.info("✓ Character mapping verified");
+          mappingStored = true;
         } else {
           logger.error("✗ Character mapping verification FAILED!");
-          logger.error(`Expected: ${characterId}, Got: ${verifyMapping?.character_id || "null"}`);
+          logger.error(
+            `Expected: ${characterId}, Got: ${verifyMapping?.character_id || "null"}`,
+          );
         }
       } catch (mappingError) {
-        logger.error("⚠ Failed to store character mapping - room will use default character");
+        logger.error(
+          "⚠ Failed to store character mapping - room will use default character",
+        );
         logger.error(mappingError);
-        // Continue with room creation - it's still usable with default character
-        // Set characterId to undefined so greeting uses default character
-        characterId = undefined;
+        // Continue with room creation - room uses the runtime that was already initialized
       }
     } else {
       logger.info("No characterId provided, using default character");
@@ -408,7 +438,7 @@ export async function POST(request: NextRequest) {
         },
         createdAt: greetingTimestamp,
       },
-      "messages"
+      "messages",
     );
 
     logger.info(`Greeting message saved (character: ${characterName})`);
@@ -428,18 +458,20 @@ export async function POST(request: NextRequest) {
             await db.execute(
               sql`UPDATE rooms
                   SET metadata = COALESCE(metadata, '{}'::jsonb) || ${sql.raw(`'{"discordThreadId": "${threadResult.threadId}"}'`)}::jsonb
-                  WHERE id = ${roomId}::uuid`
+                  WHERE id = ${roomId}::uuid`,
             );
             logger.info(
-              `Discord thread created: ${threadResult.threadId} for room ${roomId}`
+              `Discord thread created: ${threadResult.threadId} for room ${roomId}`,
             );
 
             // Send greeting to Discord thread immediately after thread is created
             await discordService.sendToThread(
               threadResult.threadId,
-              `**🤖 ${characterName}:** ${greetingText}`
+              `**🤖 ${characterName}:** ${greetingText}`,
             );
-            logger.info(`Sent greeting to Discord thread ${threadResult.threadId}`);
+            logger.info(
+              `Sent greeting to Discord thread ${threadResult.threadId}`,
+            );
           } catch (err) {
             logger.error("Failed to store thread ID or send greeting:", err);
           }
@@ -452,25 +484,31 @@ export async function POST(request: NextRequest) {
     // ==================== STEP 12: RETURN RESPONSE ====================
     const duration = Date.now() - startTime;
     logger.info(`Room creation complete in ${duration}ms`);
-    logger.info(`Returning: roomId=${roomId}, characterId=${characterId || "null"}`);
+    logger.info(
+      `Returning: roomId=${roomId}, characterId=${originalCharacterId || "null"}, mappingStored=${mappingStored}`,
+    );
     logger.info("========== ROOM CREATION END ==========");
 
     return NextResponse.json({
       success: true,
       roomId,
-      characterId: characterId || null,
+      characterId: originalCharacterId || null,
+      mappingStored, // Inform client if mapping was successful
       createdAt: greetingTimestamp,
     });
   } catch (error) {
     logger.error("========== ROOM CREATION FAILED ==========");
-    logger.error("Error creating room:", error instanceof Error ? error.stack : error);
+    logger.error(
+      "Error creating room:",
+      error instanceof Error ? error.stack : error,
+    );
 
     return NextResponse.json(
       {
         error: "Failed to create room",
         details: error instanceof Error ? error.message : "Unknown error",
       },
-      { status: 500 }
+      { status: 500 },
     );
   }
 }

@@ -9,7 +9,16 @@ import { useSearchParams, useRouter } from "next/navigation";
 export function SessionsSidebar() {
   const searchParams = useSearchParams();
   const router = useRouter();
-  const { rooms, roomId, setRoomId, loadRooms, deleteRoom, availableCharacters, selectedCharacterId, createRoom } = useChatStore();
+  const {
+    rooms,
+    roomId,
+    setRoomId,
+    loadRooms,
+    deleteRoom,
+    availableCharacters,
+    selectedCharacterId,
+    createRoom,
+  } = useChatStore();
 
   useEffect(() => {
     loadRooms();
@@ -27,14 +36,22 @@ export function SessionsSidebar() {
       return rooms;
     }
     // Show only rooms for this specific agent
-    return rooms.filter(room => room.characterId === urlCharacterId);
+    return rooms.filter((room) => room.characterId === urlCharacterId);
   }, [rooms, urlCharacterId]);
 
   const handleNewChat = async () => {
-    console.log("[SessionsSidebar] Creating new chat for character:", urlCharacterId || "default");
+    console.log(
+      "[SessionsSidebar] Creating new chat for character:",
+      urlCharacterId || "default",
+    );
     const result = await createRoom(urlCharacterId);
     if (result) {
-      console.log("[SessionsSidebar] Room created:", result.roomId, "with characterId:", result.characterId);
+      console.log(
+        "[SessionsSidebar] Room created:",
+        result.roomId,
+        "with characterId:",
+        result.characterId,
+      );
 
       // Update URL with resolved character ID and new room ID
       const params = new URLSearchParams();
@@ -57,7 +74,7 @@ export function SessionsSidebar() {
     setRoomId(selectedRoomId);
 
     // Find the room's characterId to preserve in URL
-    const selectedRoom = rooms.find(r => r.id === selectedRoomId);
+    const selectedRoom = rooms.find((r) => r.id === selectedRoomId);
     const roomCharacterId = selectedRoom?.characterId;
 
     // Update URL with room ID and room's characterId
@@ -75,7 +92,10 @@ export function SessionsSidebar() {
     router.push(`/dashboard/chat?${params.toString()}`);
   };
 
-  const handleDeleteRoom = async (e: React.MouseEvent, roomIdToDelete: string) => {
+  const handleDeleteRoom = async (
+    e: React.MouseEvent,
+    roomIdToDelete: string,
+  ) => {
     e.stopPropagation();
     if (confirm("Delete this conversation?")) {
       await deleteRoom(roomIdToDelete);
@@ -86,7 +106,7 @@ export function SessionsSidebar() {
     <div className="w-[255px] border-r border-[#3e3e43] bg-[#0a0a0a] flex flex-col h-full shrink-0">
       {/* Header with New Chat Button */}
       <div className="p-4 border-b border-[#3e3e43] flex items-center justify-between">
-        <h2 
+        <h2
           className="font-['Roboto_Mono'] font-medium text-white text-[16px] leading-normal"
           style={{ fontFamily: "'Roboto Mono', monospace" }}
         >
@@ -105,15 +125,17 @@ export function SessionsSidebar() {
       <div className="flex-1 overflow-y-auto">
         {filteredRooms.map((room) => {
           const isSelected = room.id === roomId;
-          const character = availableCharacters.find(c => c.id === room.characterId);
-          
+          const character = availableCharacters.find(
+            (c) => c.id === room.characterId,
+          );
+
           return (
             <button
               key={room.id}
               onClick={() => handleSelectRoom(room.id)}
               className={`
                 w-full flex items-start gap-3 px-4 py-3 border-b border-[#2e2e2e] hover:bg-white/5 transition-colors relative
-                ${isSelected ? 'bg-white/5' : ''}
+                ${isSelected ? "bg-white/5" : ""}
               `}
             >
               {/* Selection Indicator */}
@@ -123,14 +145,14 @@ export function SessionsSidebar() {
 
               {/* Content */}
               <div className="flex-1 min-w-0 text-left">
-                <div 
+                <div
                   className="font-['Roboto_Mono'] font-medium text-white text-[14px] leading-normal truncate"
                   style={{ fontFamily: "'Roboto Mono', monospace" }}
                 >
                   {room.title || character?.name || "New Chat"}
                 </div>
                 {room.lastText && (
-                  <div 
+                  <div
                     className="font-['Roboto_Flex'] font-normal text-[#858585] text-[12px] leading-normal truncate mt-1"
                     style={{ fontFamily: "'Roboto Flex', sans-serif" }}
                   >
@@ -153,11 +175,11 @@ export function SessionsSidebar() {
 
         {filteredRooms.length === 0 && (
           <div className="flex flex-col items-center justify-center p-8 text-center gap-4">
-            <p 
+            <p
               className="font-['Roboto_Flex'] font-normal text-[#858585] text-[14px] leading-normal"
               style={{ fontFamily: "'Roboto Flex', sans-serif" }}
             >
-              {urlCharacterId 
+              {urlCharacterId
                 ? "No chats with this agent yet"
                 : "No recent chats"}
             </p>
@@ -174,4 +196,3 @@ export function SessionsSidebar() {
     </div>
   );
 }
-

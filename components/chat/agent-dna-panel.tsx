@@ -20,7 +20,8 @@ type SettingsTab = "general" | "content" | "style" | "avatar";
 
 export function AgentDNAPanel() {
   const [activeTab, setActiveTab] = useState<Tab>("settings");
-  const [activeSettingsTab, setActiveSettingsTab] = useState<SettingsTab>("general");
+  const [activeSettingsTab, setActiveSettingsTab] =
+    useState<SettingsTab>("general");
   const [jsonMode, setJsonMode] = useState(false);
 
   return (
@@ -29,14 +30,14 @@ export function AgentDNAPanel() {
       <div className="p-4 border-b border-[#3e3e43] flex items-center justify-between">
         <div className="flex items-center gap-2">
           <Sparkles className="w-5 h-5 text-[#FF5800]" />
-          <h2 
+          <h2
             className="font-['Roboto_Mono'] font-medium text-white text-[16px] leading-normal"
             style={{ fontFamily: "'Roboto Mono', monospace" }}
           >
             Agent DNA
           </h2>
         </div>
-        <p 
+        <p
           className="font-['Roboto_Flex'] font-normal text-[#858585] text-[12px] leading-normal"
           style={{ fontFamily: "'Roboto Flex', sans-serif" }}
         >
@@ -50,14 +51,15 @@ export function AgentDNAPanel() {
           onClick={() => setActiveTab("settings")}
           className={`
             flex items-center gap-2 px-4 py-3 border-b-2 transition-colors
-            ${activeTab === "settings" 
-              ? "border-white text-white" 
-              : "border-transparent text-[#858585] hover:text-white"
+            ${
+              activeTab === "settings"
+                ? "border-white text-white"
+                : "border-transparent text-[#858585] hover:text-white"
             }
           `}
         >
           <Settings className="w-4 h-4" />
-          <span 
+          <span
             className="font-['Roboto_Mono'] font-medium text-[14px] leading-normal"
             style={{ fontFamily: "'Roboto Mono', monospace" }}
           >
@@ -68,14 +70,15 @@ export function AgentDNAPanel() {
           onClick={() => setActiveTab("model-calls")}
           className={`
             flex items-center gap-2 px-4 py-3 border-b-2 transition-colors
-            ${activeTab === "model-calls" 
-              ? "border-white text-white" 
-              : "border-transparent text-[#858585] hover:text-white"
+            ${
+              activeTab === "model-calls"
+                ? "border-white text-white"
+                : "border-transparent text-[#858585] hover:text-white"
             }
           `}
         >
           <Sparkles className="w-4 h-4" />
-          <span 
+          <span
             className="font-['Roboto_Mono'] font-medium text-[14px] leading-normal"
             style={{ fontFamily: "'Roboto Mono', monospace" }}
           >
@@ -86,14 +89,15 @@ export function AgentDNAPanel() {
           onClick={() => setActiveTab("memories")}
           className={`
             flex items-center gap-2 px-4 py-3 border-b-2 transition-colors
-            ${activeTab === "memories" 
-              ? "border-white text-white" 
-              : "border-transparent text-[#858585] hover:text-white"
+            ${
+              activeTab === "memories"
+                ? "border-white text-white"
+                : "border-transparent text-[#858585] hover:text-white"
             }
           `}
         >
           <Database className="w-4 h-4" />
-          <span 
+          <span
             className="font-['Roboto_Mono'] font-medium text-[14px] leading-normal"
             style={{ fontFamily: "'Roboto Mono', monospace" }}
           >
@@ -104,14 +108,15 @@ export function AgentDNAPanel() {
           onClick={() => setActiveTab("uploads")}
           className={`
             flex items-center gap-2 px-4 py-3 border-b-2 transition-colors
-            ${activeTab === "uploads" 
-              ? "border-white text-white" 
-              : "border-transparent text-[#858585] hover:text-white"
+            ${
+              activeTab === "uploads"
+                ? "border-white text-white"
+                : "border-transparent text-[#858585] hover:text-white"
             }
           `}
         >
           <Upload className="w-4 h-4" />
-          <span 
+          <span
             className="font-['Roboto_Mono'] font-medium text-[14px] leading-normal"
             style={{ fontFamily: "'Roboto Mono', monospace" }}
           >
@@ -130,9 +135,10 @@ export function AgentDNAPanel() {
                 onClick={() => setActiveSettingsTab("general")}
                 className={`
                   font-['Roboto_Mono'] font-medium text-[12px] pb-1 border-b-2 transition-colors
-                  ${activeSettingsTab === "general" 
-                    ? "border-white text-white" 
-                    : "border-transparent text-[#858585] hover:text-white"
+                  ${
+                    activeSettingsTab === "general"
+                      ? "border-white text-white"
+                      : "border-transparent text-[#858585] hover:text-white"
                   }
                 `}
                 style={{ fontFamily: "'Roboto Mono', monospace" }}
@@ -143,9 +149,10 @@ export function AgentDNAPanel() {
                 onClick={() => setActiveSettingsTab("content")}
                 className={`
                   font-['Roboto_Mono'] font-medium text-[12px] pb-1 border-b-2 transition-colors
-                  ${activeSettingsTab === "content" 
-                    ? "border-white text-white" 
-                    : "border-transparent text-[#858585] hover:text-white"
+                  ${
+                    activeSettingsTab === "content"
+                      ? "border-white text-white"
+                      : "border-transparent text-[#858585] hover:text-white"
                   }
                 `}
                 style={{ fontFamily: "'Roboto Mono', monospace" }}
@@ -156,9 +163,10 @@ export function AgentDNAPanel() {
                 onClick={() => setActiveSettingsTab("style")}
                 className={`
                   font-['Roboto_Mono'] font-medium text-[12px] pb-1 border-b-2 transition-colors
-                  ${activeSettingsTab === "style" 
-                    ? "border-white text-white" 
-                    : "border-transparent text-[#858585] hover:text-white"
+                  ${
+                    activeSettingsTab === "style"
+                      ? "border-white text-white"
+                      : "border-transparent text-[#858585] hover:text-white"
                   }
                 `}
                 style={{ fontFamily: "'Roboto Mono', monospace" }}
@@ -169,9 +177,10 @@ export function AgentDNAPanel() {
                 onClick={() => setActiveSettingsTab("avatar")}
                 className={`
                   font-['Roboto_Mono'] font-medium text-[12px] pb-1 border-b-2 transition-colors
-                  ${activeSettingsTab === "avatar" 
-                    ? "border-white text-white" 
-                    : "border-transparent text-[#858585] hover:text-white"
+                  ${
+                    activeSettingsTab === "avatar"
+                      ? "border-white text-white"
+                      : "border-transparent text-[#858585] hover:text-white"
                   }
                 `}
                 style={{ fontFamily: "'Roboto Mono', monospace" }}
@@ -180,7 +189,7 @@ export function AgentDNAPanel() {
               </button>
             </div>
             <div className="flex items-center gap-2">
-              <span 
+              <span
                 className="font-['Roboto_Mono'] font-medium text-[#858585] text-[12px]"
                 style={{ fontFamily: "'Roboto Mono', monospace" }}
               >
@@ -195,7 +204,7 @@ export function AgentDNAPanel() {
             <div className="flex-1 overflow-y-auto p-4 space-y-4">
               {/* Name */}
               <div className="space-y-2">
-                <Label 
+                <Label
                   className="font-['Roboto_Mono'] font-medium text-white text-[14px]"
                   style={{ fontFamily: "'Roboto Mono', monospace" }}
                 >
@@ -206,7 +215,7 @@ export function AgentDNAPanel() {
                   className="bg-[#1d1d1d] border-[#3e3e43] text-white font-['Roboto_Flex']"
                   style={{ fontFamily: "'Roboto Flex', sans-serif" }}
                 />
-                <p 
+                <p
                   className="font-['Roboto_Flex'] font-normal text-[#727272] text-[12px]"
                   style={{ fontFamily: "'Roboto Flex', sans-serif" }}
                 >
@@ -216,7 +225,7 @@ export function AgentDNAPanel() {
 
               {/* Username */}
               <div className="space-y-2">
-                <Label 
+                <Label
                   className="font-['Roboto_Mono'] font-medium text-white text-[14px]"
                   style={{ fontFamily: "'Roboto Mono', monospace" }}
                 >
@@ -227,7 +236,7 @@ export function AgentDNAPanel() {
                   className="bg-[#1d1d1d] border-[#3e3e43] text-white font-['Roboto_Flex']"
                   style={{ fontFamily: "'Roboto Flex', sans-serif" }}
                 />
-                <p 
+                <p
                   className="font-['Roboto_Flex'] font-normal text-[#727272] text-[12px]"
                   style={{ fontFamily: "'Roboto Flex', sans-serif" }}
                 >
@@ -237,7 +246,7 @@ export function AgentDNAPanel() {
 
               {/* System Prompt */}
               <div className="space-y-2">
-                <Label 
+                <Label
                   className="font-['Roboto_Mono'] font-medium text-white text-[14px]"
                   style={{ fontFamily: "'Roboto Mono', monospace" }}
                 >
@@ -248,7 +257,7 @@ export function AgentDNAPanel() {
                   className="bg-[#1d1d1d] border-[#3e3e43] text-white min-h-[100px] font-['Roboto_Flex']"
                   style={{ fontFamily: "'Roboto Flex', sans-serif" }}
                 />
-                <p 
+                <p
                   className="font-['Roboto_Flex'] font-normal text-[#727272] text-[12px]"
                   style={{ fontFamily: "'Roboto Flex', sans-serif" }}
                 >
@@ -258,7 +267,7 @@ export function AgentDNAPanel() {
 
               {/* Voice Model */}
               <div className="space-y-2">
-                <Label 
+                <Label
                   className="font-['Roboto_Mono'] font-medium text-white text-[14px]"
                   style={{ fontFamily: "'Roboto Mono', monospace" }}
                 >
@@ -270,10 +279,12 @@ export function AgentDNAPanel() {
                   </SelectTrigger>
                   <SelectContent>
                     <SelectItem value="default">Default</SelectItem>
-                    <SelectItem value="adam">Eleven Labs &quot;Adam&quot;</SelectItem>
+                    <SelectItem value="adam">
+                      Eleven Labs &quot;Adam&quot;
+                    </SelectItem>
                   </SelectContent>
                 </Select>
-                <p 
+                <p
                   className="font-['Roboto_Flex'] font-normal text-[#727272] text-[12px]"
                   style={{ fontFamily: "'Roboto Flex', sans-serif" }}
                 >
@@ -283,7 +294,7 @@ export function AgentDNAPanel() {
 
               {/* Visibility */}
               <div className="space-y-2">
-                <Label 
+                <Label
                   className="font-['Roboto_Mono'] font-medium text-white text-[14px]"
                   style={{ fontFamily: "'Roboto Mono', monospace" }}
                 >
@@ -298,7 +309,7 @@ export function AgentDNAPanel() {
                     <SelectItem value="private">🔒 Private</SelectItem>
                   </SelectContent>
                 </Select>
-                <p 
+                <p
                   className="font-['Roboto_Flex'] font-normal text-[#727272] text-[12px]"
                   style={{ fontFamily: "'Roboto Flex', sans-serif" }}
                 >
@@ -321,11 +332,12 @@ export function AgentDNAPanel() {
           {/* Other Tabs Placeholder */}
           {activeTab !== "settings" && (
             <div className="flex-1 flex items-center justify-center p-8">
-              <p 
+              <p
                 className="font-['Roboto_Flex'] font-normal text-[#858585] text-[14px] text-center"
                 style={{ fontFamily: "'Roboto Flex', sans-serif" }}
               >
-                {activeTab === "model-calls" && "Model Calls configuration coming soon"}
+                {activeTab === "model-calls" &&
+                  "Model Calls configuration coming soon"}
                 {activeTab === "memories" && "Memory management coming soon"}
                 {activeTab === "uploads" && "File uploads coming soon"}
               </p>
@@ -336,21 +348,19 @@ export function AgentDNAPanel() {
 
       {/* Footer Actions */}
       <div className="p-4 border-t border-[#3e3e43] flex gap-3">
-        <Button 
-          variant="outline" 
+        <Button
+          variant="outline"
           className="flex-1 bg-transparent border-[#3e3e43] text-white hover:bg-white/5"
         >
-          <span 
+          <span
             className="font-['Roboto_Mono'] font-medium text-[14px]"
             style={{ fontFamily: "'Roboto Mono', monospace" }}
           >
             Export
           </span>
         </Button>
-        <Button 
-          className="flex-1 bg-white text-black hover:bg-white/90"
-        >
-          <span 
+        <Button className="flex-1 bg-white text-black hover:bg-white/90">
+          <span
             className="font-['Roboto_Mono'] font-medium text-[14px]"
             style={{ fontFamily: "'Roboto Mono', monospace" }}
           >
@@ -361,4 +371,3 @@ export function AgentDNAPanel() {
     </div>
   );
 }
-

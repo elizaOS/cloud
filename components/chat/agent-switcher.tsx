@@ -12,7 +12,14 @@ import { getAllTemplates } from "@/lib/characters/template-loader";
 export function AgentSwitcher() {
   const router = useRouter();
   const [isOpen, setIsOpen] = useState(false);
-  const { selectedCharacterId, availableCharacters, setSelectedCharacterId, setRoomId, loadRooms, createRoom } = useChatStore();
+  const {
+    selectedCharacterId,
+    availableCharacters,
+    setSelectedCharacterId,
+    setRoomId,
+    loadRooms,
+    createRoom,
+  } = useChatStore();
   const { mode } = useModeStore();
 
   // Get all templates to merge with user's characters
@@ -21,36 +28,38 @@ export function AgentSwitcher() {
   // Combine user characters with template characters
   const allAgents = [
     // User's existing characters
-    ...availableCharacters.map(char => {
+    ...availableCharacters.map((char) => {
       // Try to find matching template for avatar
-      const template = templates.find(t => t.username === char.username);
+      const template = templates.find((t) => t.username === char.username);
       return {
         id: char.id,
         name: char.name,
         username: char.username,
         avatarUrl: template?.avatarUrl,
-        description: '',
+        description: "",
       };
     }),
     // Add templates that user doesn't have yet
-    ...templates.filter(t => !availableCharacters.some(c => c.username === t.username)).map(template => ({
-      id: template.id,
-      name: template.name,
-      username: template.username,
-      avatarUrl: template.avatarUrl,
-      description: typeof template.bio === 'string' ? template.bio : template.bio?.[0],
-    }))
+    ...templates
+      .filter(
+        (t) => !availableCharacters.some((c) => c.username === t.username),
+      )
+      .map((template) => ({
+        id: template.id,
+        name: template.name,
+        username: template.username,
+        avatarUrl: template.avatarUrl,
+        description:
+          typeof template.bio === "string" ? template.bio : template.bio?.[0],
+      })),
   ];
 
-  const selectedAgent = allAgents.find(a => a.id === selectedCharacterId);
+  const selectedAgent = allAgents.find((a) => a.id === selectedCharacterId);
 
   const handleAgentSelect = async (agentId: string) => {
     console.log("[AgentSwitcher] Switching to agent:", agentId);
     setSelectedCharacterId(agentId);
     setIsOpen(false);
-
-    // Reload rooms to get updated list for new agent
-    await loadRooms();
 
     // Check if this agent has any rooms
     const agentRooms = await loadRooms();
@@ -58,7 +67,9 @@ export function AgentSwitcher() {
 
     if (!hasRooms) {
       // No rooms for this agent - create one automatically
-      console.log("[AgentSwitcher] No rooms found for agent, creating new room");
+      console.log(
+        "[AgentSwitcher] No rooms found for agent, creating new room",
+      );
       const result = await createRoom(agentId);
 
       if (result) {
@@ -116,14 +127,14 @@ export function AgentSwitcher() {
 
         {/* Name and Description */}
         <div className="flex flex-col items-start min-w-0">
-          <span 
+          <span
             className="font-['Roboto_Mono'] font-medium text-white text-[14px] leading-normal truncate max-w-[120px]"
             style={{ fontFamily: "'Roboto Mono', monospace" }}
           >
             {selectedAgent?.name || "Select Agent"}
           </span>
           {selectedAgent?.username && (
-            <span 
+            <span
               className="font-['Roboto_Flex'] font-normal text-[#858585] text-[12px] leading-normal truncate max-w-[120px]"
               style={{ fontFamily: "'Roboto Flex', sans-serif" }}
             >
@@ -140,11 +151,11 @@ export function AgentSwitcher() {
       {isOpen && (
         <>
           {/* Backdrop */}
-          <div 
+          <div
             className="fixed inset-0 z-40"
             onClick={() => setIsOpen(false)}
           />
-          
+
           {/* Menu */}
           <div className="absolute top-full left-0 mt-2 w-[280px] bg-[#1d1d1d] border border-[#3e3e43] border-solid z-50 max-h-[500px] overflow-y-auto">
             {/* New Agent Option */}
@@ -155,7 +166,7 @@ export function AgentSwitcher() {
               <div className="w-8 h-8 rounded-full bg-[#FF5800]/20 flex items-center justify-center shrink-0">
                 <Plus className="w-4 h-4 text-[#FF5800]" />
               </div>
-              <span 
+              <span
                 className="font-['Roboto_Mono'] font-medium text-white text-[14px] leading-normal"
                 style={{ fontFamily: "'Roboto Mono', monospace" }}
               >
@@ -170,13 +181,13 @@ export function AgentSwitcher() {
                 <button
                   key={agent.id}
                   onClick={() => handleAgentSelect(agent.id)}
-                  className={`w-full flex items-start gap-3 px-4 py-3 hover:bg-white/5 transition-colors relative ${isSelected ? 'bg-white/5' : ''}`}
+                  className={`w-full flex items-start gap-3 px-4 py-3 hover:bg-white/5 transition-colors relative ${isSelected ? "bg-white/5" : ""}`}
                 >
                   {/* Selection Indicator */}
                   {isSelected && (
                     <div className="absolute left-0 top-0 bottom-0 w-0.5 bg-[#FF5800]" />
                   )}
-                  
+
                   {/* Avatar */}
                   <div className="w-10 h-10 rounded-full bg-[#FF5800]/20 flex items-center justify-center overflow-hidden shrink-0">
                     {agent.avatarUrl ? (
@@ -194,21 +205,20 @@ export function AgentSwitcher() {
 
                   {/* Info */}
                   <div className="flex flex-col items-start min-w-0 flex-1">
-                    <span 
+                    <span
                       className="font-['Roboto_Mono'] font-medium text-white text-[14px] leading-normal truncate w-full"
                       style={{ fontFamily: "'Roboto Mono', monospace" }}
                     >
                       {agent.name}
                     </span>
                     {agent.description && (
-                      <span 
+                      <span
                         className="font-['Roboto_Flex'] font-normal text-[#858585] text-[12px] leading-normal truncate w-full"
                         style={{ fontFamily: "'Roboto Flex', sans-serif" }}
                       >
-                        {typeof agent.description === 'string' 
+                        {typeof agent.description === "string"
                           ? agent.description.substring(0, 30) + "..."
-                          : "Agent Description"
-                        }
+                          : "Agent Description"}
                       </span>
                     )}
                   </div>
@@ -221,4 +231,3 @@ export function AgentSwitcher() {
     </div>
   );
 }
-

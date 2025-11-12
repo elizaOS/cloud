@@ -10,7 +10,7 @@ export type ChatMode = "chat" | "build";
 interface ModeState {
   // State
   mode: ChatMode;
-  
+
   // Actions
   setMode: (mode: ChatMode) => void;
   toggleMode: () => void;
@@ -19,13 +19,12 @@ interface ModeState {
 export const useModeStore = create<ModeState>((set, get) => ({
   // Initial state
   mode: "chat",
-  
+
   // Setters
   setMode: (mode) => set({ mode }),
-  
+
   toggleMode: () => {
     const current = get().mode;
     set({ mode: current === "chat" ? "build" : "chat" });
   },
 }));
-

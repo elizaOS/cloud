@@ -154,12 +154,11 @@ export const useChatStore = create<ChatState>((set, get) => ({
         const data = await response.json();
         console.log("[ChatStore] Room creation response:", data);
         const newRoomId = data.roomId;
-        const resolvedCharacterId = data.characterId;
 
         if (!newRoomId) {
           console.error("[ChatStore] API returned empty roomId:", data);
           throw new Error(
-            "Room creation succeeded but returned empty ID. Check server logs."
+            "Room creation succeeded but returned empty ID. Check server logs.",
           );
         }
 
@@ -171,7 +170,7 @@ export const useChatStore = create<ChatState>((set, get) => ({
         loadRooms().catch((err) => {
           console.error(
             "[ChatStore] Failed to reload rooms after creation:",
-            err
+            err,
           );
         });
 
@@ -184,7 +183,7 @@ export const useChatStore = create<ChatState>((set, get) => ({
         .catch(() => ({ error: "Unknown error" }));
       console.error("Failed to create room:", response.status, errorData);
       throw new Error(
-        errorData.error || `Failed to create room: ${response.status}`
+        errorData.error || `Failed to create room: ${response.status}`,
       );
     } catch (error) {
       console.error("Error creating room:", error);

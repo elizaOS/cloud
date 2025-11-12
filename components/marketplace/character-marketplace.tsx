@@ -119,15 +119,12 @@ export function MyAgentsView({
     window.location.href = "/dashboard/chat?mode=build";
   }, []);
 
-  // Show demo agents if no real characters exist (for Figma design showcase)
+  // Show characters normally, no demo agent fallback
   const displayCharacters = useMemo(() => {
-    if (characters.length === 0 && !isLoading && !error) {
-      return DEMO_AGENTS;
-    }
     return characters;
-  }, [characters, isLoading, error]);
+  }, [characters]);
 
-  const showDemoView = characters.length === 0 && !isLoading && !error;
+  const showEmptyState = characters.length === 0 && !isLoading && !error;
 
   if (isCollapsed) {
     return null;
@@ -139,21 +136,21 @@ export function MyAgentsView({
       <div className="flex items-start justify-between mb-5">
         <div className="flex flex-col gap-[8px] max-w-[455px]">
           <div className="flex gap-[16px] items-start">
-            <h1 
+            <h1
               className="font-['Roboto_Mono'] font-medium text-[#e1e1e1] text-[24px] leading-normal"
               style={{ fontFamily: "'Roboto Mono', monospace" }}
             >
               My Agents
             </h1>
           </div>
-          <p 
+          <p
             className="font-['Roboto_Mono'] font-normal text-[#858585] text-[16px] leading-normal w-full"
             style={{ fontFamily: "'Roboto Mono', monospace" }}
           >
             Explore Agents that you have created or saved
           </p>
         </div>
-        
+
         {/* New Agent Button - Exact Figma specs: px-[12px] py-[8px], gap-[6px] */}
         <button
           onClick={handleCreateNew}
@@ -162,27 +159,27 @@ export function MyAgentsView({
           {/* Corner Brackets - positioned at corners */}
           <div className="absolute top-0 left-0 w-2 h-2 pointer-events-none">
             <svg width="8" height="8" viewBox="0 0 8 8" fill="none">
-              <path d="M8 0L0 0L0 8" stroke="#FF5800" strokeWidth="1"/>
+              <path d="M8 0L0 0L0 8" stroke="#FF5800" strokeWidth="1" />
             </svg>
           </div>
           <div className="absolute top-0 right-0 w-2 h-2 pointer-events-none">
             <svg width="8" height="8" viewBox="0 0 8 8" fill="none">
-              <path d="M0 0L8 0L8 8" stroke="#FF5800" strokeWidth="1"/>
+              <path d="M0 0L8 0L8 8" stroke="#FF5800" strokeWidth="1" />
             </svg>
           </div>
           <div className="absolute bottom-0 left-0 w-2 h-2 pointer-events-none">
             <svg width="8" height="8" viewBox="0 0 8 8" fill="none">
-              <path d="M8 8L0 8L0 0" stroke="#FF5800" strokeWidth="1"/>
+              <path d="M8 8L0 8L0 0" stroke="#FF5800" strokeWidth="1" />
             </svg>
           </div>
           <div className="absolute bottom-0 right-0 w-2 h-2 pointer-events-none">
             <svg width="8" height="8" viewBox="0 0 8 8" fill="none">
-              <path d="M0 8L8 8L8 0" stroke="#FF5800" strokeWidth="1"/>
+              <path d="M0 8L8 8L8 0" stroke="#FF5800" strokeWidth="1" />
             </svg>
           </div>
-          
+
           <Plus className="w-[18px] h-[18px] text-[#ff5800]" strokeWidth={2} />
-          <span 
+          <span
             className="font-['Roboto_Mono'] font-medium text-[#ff5800] text-[14px] leading-normal"
             style={{ fontFamily: "'Roboto Mono', monospace" }}
           >
@@ -214,18 +211,78 @@ export function MyAgentsView({
         />
       </div>
 
-      <CharacterGrid
-        characters={displayCharacters}
-        view={view}
-        isLoading={isLoading}
-        isLoadingMore={showDemoView ? false : isLoadingMore}
-        hasMore={showDemoView ? false : hasMore}
-        error={error}
-        onLoadMore={loadMore}
-        onStartChat={handleStartChat}
-        onCloneCharacter={handleClone}
-        onViewDetails={handleViewDetails}
-      />
+      {showEmptyState ? (
+        <div className="flex flex-col items-center justify-center py-16 px-4">
+          <div className="max-w-md text-center space-y-4">
+            <div className="w-16 h-16 mx-auto bg-[#FF5800]/20 rounded-full flex items-center justify-center">
+              <Plus className="w-8 h-8 text-[#FF5800]" />
+            </div>
+            <h3
+              className="font-['Roboto_Mono'] font-medium text-white text-[20px] leading-normal"
+              style={{ fontFamily: "'Roboto Mono', monospace" }}
+            >
+              No Agents Yet
+            </h3>
+            <p
+              className="font-['Roboto_Flex'] font-normal text-[#858585] text-[16px] leading-normal"
+              style={{ fontFamily: "'Roboto Flex', sans-serif" }}
+            >
+              Get started by creating your first AI agent. Build custom
+              personalities and behaviors tailored to your needs.
+            </p>
+            <button
+              onClick={handleCreateNew}
+              className="relative bg-[rgba(255,88,0,0.25)] flex gap-[6px] items-center px-[16px] py-[10px] mx-auto group hover:bg-[rgba(255,88,0,0.3)] transition-colors mt-6"
+            >
+              {/* Corner Brackets */}
+              <div className="absolute top-0 left-0 w-2 h-2 pointer-events-none">
+                <svg width="8" height="8" viewBox="0 0 8 8" fill="none">
+                  <path d="M8 0L0 0L0 8" stroke="#FF5800" strokeWidth="1" />
+                </svg>
+              </div>
+              <div className="absolute top-0 right-0 w-2 h-2 pointer-events-none">
+                <svg width="8" height="8" viewBox="0 0 8 8" fill="none">
+                  <path d="M0 0L8 0L8 8" stroke="#FF5800" strokeWidth="1" />
+                </svg>
+              </div>
+              <div className="absolute bottom-0 left-0 w-2 h-2 pointer-events-none">
+                <svg width="8" height="8" viewBox="0 0 8 8" fill="none">
+                  <path d="M8 8L0 8L0 0" stroke="#FF5800" strokeWidth="1" />
+                </svg>
+              </div>
+              <div className="absolute bottom-0 right-0 w-2 h-2 pointer-events-none">
+                <svg width="8" height="8" viewBox="0 0 8 8" fill="none">
+                  <path d="M0 8L8 8L8 0" stroke="#FF5800" strokeWidth="1" />
+                </svg>
+              </div>
+
+              <Plus
+                className="w-[18px] h-[18px] text-[#ff5800]"
+                strokeWidth={2}
+              />
+              <span
+                className="font-['Roboto_Mono'] font-medium text-[#ff5800] text-[14px] leading-normal"
+                style={{ fontFamily: "'Roboto Mono', monospace" }}
+              >
+                Create Your First Agent
+              </span>
+            </button>
+          </div>
+        </div>
+      ) : (
+        <CharacterGrid
+          characters={displayCharacters}
+          view={view}
+          isLoading={isLoading}
+          isLoadingMore={isLoadingMore}
+          hasMore={hasMore}
+          error={error}
+          onLoadMore={loadMore}
+          onStartChat={handleStartChat}
+          onCloneCharacter={handleClone}
+          onViewDetails={handleViewDetails}
+        />
+      )}
 
       <CharacterDetailsModal
         character={selectedCharacter}

@@ -56,7 +56,7 @@ async function updateAvatars() {
         const characters = await db.query.userCharacters.findMany({
           where: and(
             eq(userCharacters.username, username),
-            eq(userCharacters.is_template, true)
+            eq(userCharacters.is_template, true),
           ),
         });
 
@@ -83,7 +83,7 @@ async function updateAvatars() {
 
     console.log(`\n✅ Update Complete!`);
     console.log(
-      `   Updated: ${successCount}/${Object.keys(AVATAR_UPDATES).length}`
+      `   Updated: ${successCount}/${Object.keys(AVATAR_UPDATES).length}`,
     );
     if (notFoundCount > 0) {
       console.log(`   Not found: ${notFoundCount}`);

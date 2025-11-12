@@ -45,7 +45,7 @@ export function CharacterCard({
   };
 
   return (
-    <div 
+    <div
       className="border border-[rgba(62,62,67,0.5)] border-solid overflow-hidden relative w-full cursor-pointer hover:border-[rgba(255,88,0,0.5)] transition-colors"
       onClick={handleChatMode}
     >

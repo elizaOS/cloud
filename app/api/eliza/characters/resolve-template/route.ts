@@ -1,6 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireAuthOrApiKey } from "@/lib/auth";
-import { isTemplateCharacter, getTemplate } from "@/lib/characters/template-loader";
+import {
+  isTemplateCharacter,
+  getTemplate,
+} from "@/lib/characters/template-loader";
 import { db } from "@/db/client";
 import { userCharacters } from "@/db/schemas/user-characters";
 import { eq, and } from "drizzle-orm";
@@ -18,29 +21,34 @@ export async function POST(request: NextRequest) {
     if (!templateId) {
       return NextResponse.json(
         { error: "templateId is required" },
-        { status: 400 }
+        { status: 400 },
       );
     }
 
     // Check length and format
     if (typeof templateId !== "string" || templateId.length > 255) {
       return NextResponse.json(
-        { error: "Invalid templateId: must be a string with max 255 characters" },
-        { status: 400 }
+        {
+          error: "Invalid templateId: must be a string with max 255 characters",
+        },
+        { status: 400 },
       );
     }
 
     if (!/^[a-zA-Z0-9-_]+$/.test(templateId)) {
       return NextResponse.json(
-        { error: "Invalid templateId format: only alphanumeric, hyphens, and underscores allowed" },
-        { status: 400 }
+        {
+          error:
+            "Invalid templateId format: only alphanumeric, hyphens, and underscores allowed",
+        },
+        { status: 400 },
       );
     }
 
     if (!isTemplateCharacter(templateId)) {
       return NextResponse.json(
         { error: "Invalid template ID" },
-        { status: 400 }
+        { status: 400 },
       );
     }
 
@@ -48,7 +56,7 @@ export async function POST(request: NextRequest) {
     if (!template) {
       return NextResponse.json(
         { error: "Template not found" },
-        { status: 404 }
+        { status: 404 },
       );
     }
 
@@ -57,14 +65,15 @@ export async function POST(request: NextRequest) {
       logger.error(`Template missing required username field: ${templateId}`);
       return NextResponse.json(
         { error: "Invalid template: missing username" },
-        { status: 500 }
+        { status: 500 },
       );
     }
 
     const existing = await db.query.userCharacters.findFirst({
       where: and(
         eq(userCharacters.user_id, user.id),
-        eq(userCharacters.username, template.username)
+        eq(userCharacters.username, template.username),
+        eq(userCharacters.is_template, true),
       ),
     });
 
@@ -101,7 +110,7 @@ export async function POST(request: NextRequest) {
         error: "Failed to resolve template",
         details: error instanceof Error ? error.message : "Unknown error",
       },
-      { status: 500 }
+      { status: 500 },
     );
   }
 }

@@ -124,7 +124,7 @@ export function ChatSidebar({
     setRoomId(selectedRoomId);
 
     // Find the room's characterId to preserve in URL
-    const selectedRoom = rooms.find(r => r.id === selectedRoomId);
+    const selectedRoom = rooms.find((r) => r.id === selectedRoomId);
     const roomCharacterId = selectedRoom?.characterId;
 
     // Update URL with room ID and room's characterId

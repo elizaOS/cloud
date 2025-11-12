@@ -19,6 +19,10 @@ import edadTemplate from "./templates/edad.json";
 import amaraTemplate from "./templates/amara.json";
 import type { ExtendedCharacter } from "@/lib/types/my-agents";
 
+// Type for message examples in the database schema
+type MessageExample = Record<string, unknown>;
+type MessageExamples = MessageExample[][];
+
 // All available template characters
 export const TEMPLATE_CHARACTERS: Record<string, ExtendedCharacter> = {
   "template-eliza": elizaTemplate as unknown as ExtendedCharacter,
@@ -60,13 +64,51 @@ export function isTemplateCharacter(characterId: string): boolean {
 }
 
 /**
+ * Safely convert message examples to database format
+ */
+function convertMessageExamples(messageExamples: unknown): MessageExamples {
+  if (!messageExamples) return [];
+
+  // Validate that it's an array of arrays
+  if (!Array.isArray(messageExamples)) {
+    console.warn(
+      "Invalid messageExamples format: expected array, got",
+      typeof messageExamples,
+    );
+    return [];
+  }
+
+  // Validate each item is an array of objects
+  return messageExamples.map((exampleSet) => {
+    if (!Array.isArray(exampleSet)) {
+      console.warn(
+        "Invalid message example set: expected array, got",
+        typeof exampleSet,
+      );
+      return [];
+    }
+
+    return exampleSet.map((example) => {
+      if (typeof example !== "object" || example === null) {
+        console.warn(
+          "Invalid message example: expected object, got",
+          typeof example,
+        );
+        return {};
+      }
+      return example as Record<string, unknown>;
+    });
+  });
+}
+
+/**
  * Convert template to database format (for auto-creation)
  * NOTE: organizationId is required by the database schema (NOT NULL constraint)
  */
 export function templateToDbFormat(
   template: ExtendedCharacter,
   userId: string,
-  organizationId: string
+  organizationId: string,
 ) {
   return {
     organization_id: organizationId,
@@ -75,10 +117,7 @@ export function templateToDbFormat(
     username: template.username ?? null,
     system: template.system ?? null,
     bio: template.bio,
-    message_examples: (template.messageExamples ?? []) as Record<
-      string,
-      unknown
-    >[][],
+    message_examples: convertMessageExamples(template.messageExamples),
     post_examples: template.postExamples ?? [],
     topics: template.topics ?? [],
     adjectives: template.adjectives ?? [],

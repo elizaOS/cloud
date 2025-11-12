@@ -99,9 +99,10 @@ export class CharactersService {
    * Convert database character to Eliza character format
    */
   toElizaCharacter(character: UserCharacter): ElizaCharacter {
-    const baseSettings = (character.settings as
-      | Record<string, string | boolean | number | Record<string, unknown>>
-      | undefined) || {};
+    const baseSettings =
+      (character.settings as
+        | Record<string, string | boolean | number | Record<string, unknown>>
+        | undefined) || {};
 
     const settings = {
       ...baseSettings,
