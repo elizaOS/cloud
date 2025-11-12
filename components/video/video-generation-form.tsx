@@ -69,14 +69,19 @@ export function VideoGenerationForm({
         <div className="pb-0 space-y-2">
           <div className="flex items-center gap-2">
             <div className="w-2 h-2 rounded-full bg-[#FF5800]" />
-            <h3 className="text-base md:text-lg lg:text-xl font-mono font-bold text-[#e1e1e1] uppercase">Generate a video</h3>
+            <h3 className="text-base md:text-lg lg:text-xl font-mono font-bold text-[#e1e1e1] uppercase">
+              Generate a video
+            </h3>
           </div>
           <p className="text-xs md:text-sm font-mono text-[#858585]">
             Describe the scene you have in mind, choose the model preset, and
             submit to send a generation job to the Fal runtime.
           </p>
           {errorMessage ? (
-            <p className="text-xs md:text-sm font-mono text-rose-400 bg-rose-500/10 border border-rose-500/40 p-2" role="alert">
+            <p
+              className="text-xs md:text-sm font-mono text-rose-400 bg-rose-500/10 border border-rose-500/40 p-2"
+              role="alert"
+            >
               {errorMessage}
             </p>
           ) : null}
