@@ -69,7 +69,7 @@ export function CodeDisplay({
 
   return (
     <div
-      className={`rounded-lg border border-white/10 bg-black/60 overflow-hidden ${className}`}
+      className={`rounded-none border border-white/10 bg-black/60 overflow-hidden ${className}`}
     >
       <div className="overflow-x-auto">
         <SyntaxHighlighter
