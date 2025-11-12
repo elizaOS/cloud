@@ -135,14 +135,14 @@ export function AutoTopUpModal({
             </div>
 
             {/* Action Buttons */}
-            <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 sm:gap-4 w-full justify-end">
+            <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-4 w-full justify-end">
               <button
                 type="button"
                 onClick={handleCancel}
-                className="relative bg-[rgba(255,88,0,0.25)] px-6 py-3 hover:bg-[rgba(255,88,0,0.35)] transition-colors"
+                className="relative bg-[rgba(255,88,0,0.25)] px-6 py-3 hover:bg-[rgba(255,88,0,0.35)] transition-colors w-full sm:w-auto"
               >
                 <CornerBrackets size="sm" className="opacity-70" />
-                <span className="relative z-10 text-[#FF5800] font-mono font-medium text-sm sm:text-base">
+                <span className="relative z-10 text-[#FF5800] font-mono font-medium text-sm sm:text-base whitespace-nowrap">
                   Cancel
                 </span>
               </button>
@@ -150,9 +150,9 @@ export function AutoTopUpModal({
               <button
                 type="button"
                 onClick={handleUpdate}
-                className="bg-white px-6 py-3 hover:bg-white/90 transition-colors"
+                className="bg-white px-6 py-3 hover:bg-white/90 transition-colors w-full sm:w-auto"
               >
-                <span className="text-black font-mono font-medium text-sm sm:text-base">
+                <span className="text-black font-mono font-medium text-sm sm:text-base whitespace-nowrap">
                   Update
                 </span>
               </button>
