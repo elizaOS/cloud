@@ -55,6 +55,24 @@ export function SessionsSidebar() {
 
   const handleSelectRoom = (selectedRoomId: string) => {
     setRoomId(selectedRoomId);
+
+    // Find the room's characterId to preserve in URL
+    const selectedRoom = rooms.find(r => r.id === selectedRoomId);
+    const roomCharacterId = selectedRoom?.characterId;
+
+    // Update URL with room ID and room's characterId
+    // This keeps the dropdown selected and sidebar filtered correctly
+    const params = new URLSearchParams();
+    params.set("roomId", selectedRoomId);
+    const currentMode = searchParams.get("mode") || "chat";
+    params.set("mode", currentMode);
+
+    // Include the room's characterId if it exists
+    if (roomCharacterId) {
+      params.set("characterId", roomCharacterId);
+    }
+
+    router.push(`/dashboard/chat?${params.toString()}`);
   };
 
   const handleDeleteRoom = async (e: React.MouseEvent, roomIdToDelete: string) => {

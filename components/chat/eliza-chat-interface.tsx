@@ -80,11 +80,13 @@ export function ElizaChatInterface() {
   const pendingMessageToSendRef = useRef<string | null>(null);
   const isCreatingRoomRef = useRef(false);
 
-  // Get character name from store
+  // Get character name from store (for dropdown display)
   const selectedCharacter = availableCharacters.find(
     (char) => char.id === selectedCharacterId,
   );
-  const characterName = selectedCharacter?.name || agentInfo?.name || "Agent";
+  // CRITICAL: Use agentInfo for message display (room's actual character)
+  // selectedCharacter is only for the dropdown, not for message identity
+  const messageCharacterName = agentInfo?.name || "Agent";
   const [isLoading, setIsLoading] = useState(false);
   const [isInitializing, setIsInitializing] = useState(false);
   const [isLoadingMessages, setIsLoadingMessages] = useState(false);
@@ -758,7 +760,7 @@ export function ElizaChatInterface() {
                 <div className="flex flex-col items-center justify-center h-full text-center py-12 space-y-6">
                   <ElizaAvatar
                     avatarUrl={agentInfo?.avatarUrl}
-                    name={characterName}
+                    name={messageCharacterName}
                     className="h-16 w-16 mb-4"
                     fallbackClassName="bg-muted"
                     iconClassName="h-8 w-8 text-muted-foreground"
@@ -808,7 +810,7 @@ export function ElizaChatInterface() {
                 <div className="flex flex-col items-center justify-center h-full text-center py-12">
                   <ElizaAvatar
                     avatarUrl={agentInfo?.avatarUrl}
-                    name={agentInfo?.name}
+                    name={messageCharacterName}
                     className="h-16 w-16 mb-4"
                     fallbackClassName="bg-muted"
                     iconClassName="h-8 w-8 text-muted-foreground"
@@ -840,7 +842,7 @@ export function ElizaChatInterface() {
                           <div className="flex items-center gap-2">
                             <ElizaAvatar
                               avatarUrl={agentInfo?.avatarUrl}
-                              name={characterName}
+                              name={messageCharacterName}
                               className="flex-shrink-0 w-4 h-4"
                               iconClassName="h-3 w-3"
                               animate={isThinking}
@@ -849,7 +851,7 @@ export function ElizaChatInterface() {
                               className="font-[family-name:var(--font-roboto-flex)] text-sm font-medium"
                               style={{ color: "#A1A1AA" }}
                             >
-                              {characterName}
+                              {messageCharacterName}
                             </div>
                           </div>
 

@@ -122,12 +122,21 @@ export function ChatSidebar({
     // Show loading state on the button
     setLoadingRoomId(selectedRoomId);
     setRoomId(selectedRoomId);
-    // Update URL with selected room ID and current character
+
+    // Find the room's characterId to preserve in URL
+    const selectedRoom = rooms.find(r => r.id === selectedRoomId);
+    const roomCharacterId = selectedRoom?.characterId;
+
+    // Update URL with room ID and room's characterId
+    // This keeps the dropdown selected and sidebar filtered correctly
     const params = new URLSearchParams();
     params.set("roomId", selectedRoomId);
-    if (selectedCharacterId) {
-      params.set("characterId", selectedCharacterId);
+
+    // Include the room's characterId if it exists
+    if (roomCharacterId) {
+      params.set("characterId", roomCharacterId);
     }
+
     router.push(`/dashboard/chat?${params.toString()}`);
   };
 

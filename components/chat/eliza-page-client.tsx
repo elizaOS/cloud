@@ -125,15 +125,23 @@ export function ElizaPageClient({
 
   // Sync URL params with store on mount
   useEffect(() => {
+    // CRITICAL: Clear or set roomId based on URL params
+    // This prevents stale room selection from persisting
     if (initialRoomId) {
       setRoomId(initialRoomId);
+    } else {
+      setRoomId(null);
     }
     // Set mode from URL parameter
     if (initialMode) {
       setMode(initialMode);
     }
+    // CRITICAL: Clear character selection when navigating to /chat without characterId
+    // This prevents stale character selection from persisting
     if (initialCharacterId) {
       setSelectedCharacterId(initialCharacterId);
+    } else {
+      setSelectedCharacterId(null);
     }
   }, [initialRoomId, initialMode, initialCharacterId, setRoomId, setMode, setSelectedCharacterId]);
 
