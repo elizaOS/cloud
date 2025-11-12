@@ -162,7 +162,10 @@ export function SchemaViewer({ spec }: SchemaViewerProps) {
     const isExpanded = expandedSchemas.has(name);
 
     return (
-      <Card key={name} className="mb-4 border-border/60 bg-background/60 rounded-none">
+      <Card
+        key={name}
+        className="mb-4 border-border/60 bg-background/60 rounded-none"
+      >
         <Collapsible open={isExpanded} onOpenChange={() => toggleSchema(name)}>
           <CollapsibleTrigger className="w-full">
             <CardHeader className="cursor-pointer transition-colors hover:bg-muted/50">

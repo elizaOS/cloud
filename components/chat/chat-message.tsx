@@ -64,10 +64,9 @@ export function ChatMessage({
           const blob = await response.blob();
 
           // Ensure the blob is an image type
-          const imageBlob =
-            blob.type.startsWith("image/")
-              ? blob
-              : new Blob([blob], { type: "image/png" });
+          const imageBlob = blob.type.startsWith("image/")
+            ? blob
+            : new Blob([blob], { type: "image/png" });
 
           const clipboardItem = new ClipboardItem({
             [imageBlob.type]: imageBlob,

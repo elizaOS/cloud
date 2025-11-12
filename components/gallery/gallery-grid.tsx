@@ -136,7 +136,7 @@ export function GalleryGrid({ items, onItemDeleted }: GalleryGridProps) {
         open={!!selectedItem}
         onOpenChange={(open) => !open && setSelectedItem(null)}
       >
-        <DialogContent 
+        <DialogContent
           className="!max-w-[99vw] !max-h-[99vh] !w-[99vw] !h-[99vh] p-0 bg-black/80 border-white/10 sm:!max-w-[99vw] md:!max-w-[99vw] lg:!max-w-[99vw]"
           showCloseButton={false}
         >
@@ -178,19 +178,27 @@ export function GalleryGrid({ items, onItemDeleted }: GalleryGridProps) {
                 {/* Details - Inline compact layout */}
                 <div className="flex flex-wrap items-center gap-x-6 gap-y-2 text-xs">
                   <div className="flex items-baseline gap-2">
-                    <span className="text-white/50 uppercase tracking-wide">Model:</span>
-                    <span className="text-white font-medium">{selectedItem.model}</span>
+                    <span className="text-white/50 uppercase tracking-wide">
+                      Model:
+                    </span>
+                    <span className="text-white font-medium">
+                      {selectedItem.model}
+                    </span>
                   </div>
 
                   <div className="flex items-center gap-2">
-                    <span className="text-white/50 uppercase tracking-wide">Type:</span>
+                    <span className="text-white/50 uppercase tracking-wide">
+                      Type:
+                    </span>
                     <span className="rounded-none bg-[#FF580020] border border-[#FF5800]/40 px-2 py-0.5 text-[#FF5800] font-bold uppercase">
                       {selectedItem.type}
                     </span>
                   </div>
 
                   <div className="flex items-baseline gap-2">
-                    <span className="text-white/50 uppercase tracking-wide">Created:</span>
+                    <span className="text-white/50 uppercase tracking-wide">
+                      Created:
+                    </span>
                     <span className="text-white font-medium">
                       {format(new Date(selectedItem.createdAt), "MMM d, yyyy")}
                     </span>
@@ -198,18 +206,26 @@ export function GalleryGrid({ items, onItemDeleted }: GalleryGridProps) {
 
                   {selectedItem.dimensions && (
                     <div className="flex items-baseline gap-2">
-                      <span className="text-white/50 uppercase tracking-wide">Dimensions:</span>
+                      <span className="text-white/50 uppercase tracking-wide">
+                        Dimensions:
+                      </span>
                       <span className="text-white font-medium">
-                        {selectedItem.dimensions.width} × {selectedItem.dimensions.height}
+                        {selectedItem.dimensions.width} ×{" "}
+                        {selectedItem.dimensions.height}
                       </span>
                     </div>
                   )}
 
                   {selectedItem.fileSize && (
                     <div className="flex items-baseline gap-2">
-                      <span className="text-white/50 uppercase tracking-wide">Size:</span>
+                      <span className="text-white/50 uppercase tracking-wide">
+                        Size:
+                      </span>
                       <span className="text-white font-medium">
-                        {(Number(selectedItem.fileSize) / 1024 / 1024).toFixed(2)} MB
+                        {(Number(selectedItem.fileSize) / 1024 / 1024).toFixed(
+                          2,
+                        )}{" "}
+                        MB
                       </span>
                     </div>
                   )}

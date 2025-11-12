@@ -10,11 +10,7 @@ import {
   CarouselPrevious,
   type CarouselApi,
 } from "@/components/ui/carousel";
-import {
-  Dialog,
-  DialogContent,
-  DialogClose,
-} from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogClose } from "@/components/ui/dialog";
 import {
   Wand2,
   Sparkles,
@@ -663,7 +659,7 @@ export function ImageGeneratorAdvanced() {
 
       {/* Fullscreen Image Modal */}
       <Dialog open={isFullscreenOpen} onOpenChange={setIsFullscreenOpen}>
-        <DialogContent 
+        <DialogContent
           className="!max-w-[99vw] !max-h-[99vh] !w-[99vw] !h-[99vh] p-0 bg-black/80 border-white/10 sm:!max-w-[99vw] md:!max-w-[99vw] lg:!max-w-[99vw]"
           showCloseButton={false}
         >
@@ -672,15 +668,20 @@ export function ImageGeneratorAdvanced() {
               <>
                 <div className="relative w-full h-full flex items-center justify-center">
                   <Image
-                    src={currentImages[currentImageIndex]?.url ?? currentImage.url}
-                    alt={currentImages[currentImageIndex]?.prompt ?? currentImage.prompt}
+                    src={
+                      currentImages[currentImageIndex]?.url ?? currentImage.url
+                    }
+                    alt={
+                      currentImages[currentImageIndex]?.prompt ??
+                      currentImage.prompt
+                    }
                     width={3000}
                     height={3000}
                     className="object-contain max-w-full max-h-full w-auto h-auto"
                     unoptimized
                   />
                 </div>
-                
+
                 {/* Close button */}
                 <DialogClose className="absolute top-4 right-4 z-50 rounded-none border border-white/20 bg-black/60 p-2 hover:bg-[#FF580020] hover:border-[#FF5800]/40 transition-colors">
                   <X className="h-5 w-5 text-white" />
@@ -689,18 +690,26 @@ export function ImageGeneratorAdvanced() {
                 {/* Image info overlay */}
                 <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/90 via-black/50 to-transparent p-6 space-y-3">
                   <p className="text-sm text-white/90 leading-relaxed max-w-3xl">
-                    {currentImages[currentImageIndex]?.prompt ?? currentImage.prompt}
+                    {currentImages[currentImageIndex]?.prompt ??
+                      currentImage.prompt}
                   </p>
                   <div className="flex items-center gap-2 text-xs">
                     <span className="rounded-none bg-white/10 px-2 py-1 text-white">
-                      {currentImages[currentImageIndex]?.settings.width ?? currentImage.settings.width}×
-                      {currentImages[currentImageIndex]?.settings.height ?? currentImage.settings.height}
+                      {currentImages[currentImageIndex]?.settings.width ??
+                        currentImage.settings.width}
+                      ×
+                      {currentImages[currentImageIndex]?.settings.height ??
+                        currentImage.settings.height}
                     </span>
                     <span className="rounded-none bg-white/10 px-2 py-1 text-white">
-                      {currentImages[currentImageIndex]?.settings.steps ?? currentImage.settings.steps} steps
+                      {currentImages[currentImageIndex]?.settings.steps ??
+                        currentImage.settings.steps}{" "}
+                      steps
                     </span>
                     <span className="rounded-none bg-white/10 px-2 py-1 text-white">
-                      CFG {currentImages[currentImageIndex]?.settings.guidanceScale ?? currentImage.settings.guidanceScale}
+                      CFG{" "}
+                      {currentImages[currentImageIndex]?.settings
+                        .guidanceScale ?? currentImage.settings.guidanceScale}
                     </span>
                     {currentImages.length > 1 && (
                       <span className="rounded-none bg-[#FF580020] border border-[#FF5800]/40 px-2 py-1 text-[#FF5800]">
@@ -708,7 +717,7 @@ export function ImageGeneratorAdvanced() {
                       </span>
                     )}
                   </div>
-                  
+
                   {/* Navigation buttons for multiple images */}
                   {currentImages.length > 1 && (
                     <div className="flex items-center gap-2 pt-2">
@@ -716,7 +725,10 @@ export function ImageGeneratorAdvanced() {
                         variant="outline"
                         size="sm"
                         onClick={() => {
-                          const newIndex = currentImageIndex > 0 ? currentImageIndex - 1 : currentImages.length - 1;
+                          const newIndex =
+                            currentImageIndex > 0
+                              ? currentImageIndex - 1
+                              : currentImages.length - 1;
                           setCurrentImageIndex(newIndex);
                           setCurrentImage(currentImages[newIndex]);
                         }}
@@ -728,7 +740,10 @@ export function ImageGeneratorAdvanced() {
                         variant="outline"
                         size="sm"
                         onClick={() => {
-                          const newIndex = currentImageIndex < currentImages.length - 1 ? currentImageIndex + 1 : 0;
+                          const newIndex =
+                            currentImageIndex < currentImages.length - 1
+                              ? currentImageIndex + 1
+                              : 0;
                           setCurrentImageIndex(newIndex);
                           setCurrentImage(currentImages[newIndex]);
                         }}
@@ -740,7 +755,11 @@ export function ImageGeneratorAdvanced() {
                         variant="outline"
                         size="sm"
                         className="gap-2 ml-auto"
-                        onClick={() => handleDownload(currentImages[currentImageIndex] ?? currentImage)}
+                        onClick={() =>
+                          handleDownload(
+                            currentImages[currentImageIndex] ?? currentImage,
+                          )
+                        }
                       >
                         <Download className="h-4 w-4" />
                         Download
