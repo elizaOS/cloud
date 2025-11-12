@@ -344,7 +344,7 @@ export function BillingTab({ user }: BillingTabProps) {
   };
 
   return (
-    <div className="flex flex-col gap-6">
+    <div className="flex flex-col gap-4 md:gap-6 pb-6 md:pb-8">
       {/* Credit Balance Card */}
       <BrandCard className="relative">
         <CornerBrackets size="sm" className="opacity-50" />
@@ -377,17 +377,15 @@ export function BillingTab({ user }: BillingTabProps) {
             {/* Right Section */}
             <div className="flex-1 flex flex-col gap-6 lg:justify-between">
               {/* Top Section - Payment Method & Buy Credits */}
-              <div className="flex flex-col gap-2">
+              <div className="flex flex-col gap-4">
                 {/* Label */}
-                <p className="text-base font-mono text-[#e1e1e1]">
-                  Charged to
-                </p>
-                
+                <p className="text-base font-mono text-[#e1e1e1]">Charged to</p>
+
                 {/* Payment Method Display and Buy Credits Button */}
-                <div className="flex flex-col md:flex-row items-stretch md:items-center md:justify-between gap-3 md:gap-4">
+                <div className="flex flex-col md:flex-row items-stretch gap-4">
                   {/* Payment Method Box */}
                   <div
-                    className={`border ${paymentMethods.length === 0 ? "border-white/20" : "border-brand-surface"} flex items-center justify-between gap-2 px-2 py-2 w-full md:max-w-xs`}
+                    className={`border ${paymentMethods.length === 0 ? "border-white/20" : "border-brand-surface"} flex items-center justify-between gap-2 px-3 py-2.5 w-full md:flex-1 md:max-w-xs`}
                   >
                     <div className="flex items-center gap-2 min-w-0 flex-1">
                       <CreditCard
@@ -412,13 +410,14 @@ export function BillingTab({ user }: BillingTabProps) {
                   <button
                     type="button"
                     onClick={handleOpenBuyCredits}
-                    className="relative bg-[#e1e1e1] px-3 py-2 overflow-hidden hover:bg-white transition-colors w-full md:w-auto flex-shrink-0 md:ml-auto"
+                    className="relative bg-[#e1e1e1] px-4 py-2.5 overflow-hidden hover:bg-white transition-colors w-full md:w-auto flex-shrink-0"
                   >
                     <div
                       className="absolute inset-0 opacity-20 bg-repeat pointer-events-none"
                       style={{
                         backgroundImage: `url(/assets/settings/pattern-6px-flip.png)`,
-                        backgroundSize: "2.915576934814453px 2.915576934814453px",
+                        backgroundSize:
+                          "2.915576934814453px 2.915576934814453px",
                       }}
                     />
                     <span className="relative z-10 text-black font-mono font-medium text-base whitespace-nowrap">
@@ -449,7 +448,7 @@ export function BillingTab({ user }: BillingTabProps) {
                   />
                 </div>
 
-                <div className="flex flex-col sm:flex-row items-start gap-3 flex-wrap">
+                <div className="flex flex-col sm:flex-row items-start gap-4 flex-wrap">
                   <button
                     type="button"
                     onClick={handleSimulateUsage}
