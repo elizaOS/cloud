@@ -22,22 +22,28 @@ export class DatabasePriorityManager {
    * Uses simple sequential allocation with database transaction
    */
   async allocatePriority(userId: string): Promise<number> {
-    console.log(`[ALB allocatePriority] Starting allocation for user ${userId}`);
+    console.log(
+      `[ALB allocatePriority] Starting allocation for user ${userId}`,
+    );
     const { db } = await import("@/db/client");
     const { albPriorities } = await import("@/db/schemas/alb-priorities");
     const { eq, sql } = await import("drizzle-orm");
 
     try {
       return await db.transaction(async (tx) => {
-        console.log(`[ALB allocatePriority] Inside transaction for user ${userId}`);
-        
+        console.log(
+          `[ALB allocatePriority] Inside transaction for user ${userId}`,
+        );
+
         // Check if user already has an active priority
         const existing = await tx.query.albPriorities.findFirst({
           where: eq(albPriorities.userId, userId),
         });
 
         if (existing && !existing.expiresAt) {
-          console.log(`[ALB allocatePriority] User ${userId} already has priority ${existing.priority}`);
+          console.log(
+            `[ALB allocatePriority] User ${userId} already has priority ${existing.priority}`,
+          );
           return existing.priority;
         }
 
@@ -80,7 +86,10 @@ export class DatabasePriorityManager {
       });
     } catch (error) {
       const errorMsg = error instanceof Error ? error.message : String(error);
-      console.error(`[ALB allocatePriority] Failed for user ${userId}:`, errorMsg);
+      console.error(
+        `[ALB allocatePriority] Failed for user ${userId}:`,
+        errorMsg,
+      );
       throw error;
     }
   }

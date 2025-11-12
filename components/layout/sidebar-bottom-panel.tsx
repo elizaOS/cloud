@@ -8,7 +8,14 @@
 import { usePrivy, useLogout } from "@privy-io/react-auth";
 import { useRouter, usePathname } from "next/navigation";
 import { useCreditsStream } from "@/hooks/use-credits-stream";
-import { CreditCard, LogOut, Loader2, Settings, UserPlus, LogIn } from "lucide-react";
+import {
+  CreditCard,
+  LogOut,
+  Loader2,
+  Settings,
+  UserPlus,
+  LogIn,
+} from "lucide-react";
 import { cn } from "@/lib/utils";
 import { CornerBrackets } from "@/components/brand";
 import { useChatStore } from "@/stores/chat-store";
@@ -127,18 +134,18 @@ export function SidebarBottomPanel({ className }: SidebarBottomPanelProps) {
 
         {/* Anonymous User CTA */}
         <div className="relative z-10 px-4 py-4">
-          <div 
+          <div
             className="flex flex-col gap-3"
             style={{
-              fontFamily: 'var(--font-roboto-mono)',
+              fontFamily: "var(--font-roboto-mono)",
               fontWeight: 400,
-              letterSpacing: '-0.003em',
+              letterSpacing: "-0.003em",
             }}
           >
             <div className="text-sm text-white/60 mb-1">
               Sign up for full access
             </div>
-            
+
             {/* Sign Up Button */}
             <button
               onClick={() => router.push("/login")}
@@ -146,14 +153,14 @@ export function SidebarBottomPanel({ className }: SidebarBottomPanelProps) {
                 "w-full flex items-center justify-center gap-2 px-4 py-2.5",
                 "bg-[#FF5800] hover:bg-[#FF5800]/90",
                 "text-white font-medium rounded-none",
-                "transition-all duration-200 cursor-pointer"
+                "transition-all duration-200 cursor-pointer",
               )}
               style={{
-                fontFamily: 'var(--font-roboto-mono)',
+                fontFamily: "var(--font-roboto-mono)",
                 fontWeight: 500,
-                fontSize: '14px',
-                lineHeight: '18px',
-                letterSpacing: '-0.003em',
+                fontSize: "14px",
+                lineHeight: "18px",
+                letterSpacing: "-0.003em",
               }}
             >
               <UserPlus className="h-4 w-4" />
@@ -167,14 +174,14 @@ export function SidebarBottomPanel({ className }: SidebarBottomPanelProps) {
                 "w-full flex items-center justify-center gap-2 px-4 py-2.5",
                 "border border-white/20 hover:bg-white/5",
                 "text-white/80 hover:text-white rounded-none",
-                "transition-all duration-200 cursor-pointer"
+                "transition-all duration-200 cursor-pointer",
               )}
               style={{
-                fontFamily: 'var(--font-roboto-mono)',
+                fontFamily: "var(--font-roboto-mono)",
                 fontWeight: 400,
-                fontSize: '14px',
-                lineHeight: '18px',
-                letterSpacing: '-0.003em',
+                fontSize: "14px",
+                lineHeight: "18px",
+                letterSpacing: "-0.003em",
               }}
             >
               <LogIn className="h-4 w-4" />
@@ -227,12 +234,12 @@ export function SidebarBottomPanel({ className }: SidebarBottomPanelProps) {
 
       {/* User Info Header - Clickable to expand/collapse */}
       <div className="relative z-10 px-4 py-3 border-b border-white/10">
-        <div 
+        <div
           className="flex flex-col gap-2"
           style={{
-            fontFamily: 'var(--font-roboto-mono)',
+            fontFamily: "var(--font-roboto-mono)",
             fontWeight: 400,
-            letterSpacing: '-0.003em',
+            letterSpacing: "-0.003em",
           }}
         >
           <div className="text-sm font-medium text-white truncate">
@@ -245,12 +252,12 @@ export function SidebarBottomPanel({ className }: SidebarBottomPanelProps) {
       </div>
 
       {/* Balance Display - Always Visible */}
-      <div 
+      <div
         className="relative z-10 px-4 py-3 border-b border-white/10"
         style={{
-          fontFamily: 'var(--font-roboto-mono)',
+          fontFamily: "var(--font-roboto-mono)",
           fontWeight: 400,
-          letterSpacing: '-0.003em',
+          letterSpacing: "-0.003em",
         }}
       >
         {loadingCredits && creditBalance === null ? (
@@ -292,11 +299,11 @@ export function SidebarBottomPanel({ className }: SidebarBottomPanelProps) {
                   : "text-white/60 hover:bg-white/5 hover:text-white border-transparent",
               )}
               style={{
-                fontFamily: 'var(--font-roboto-mono)',
+                fontFamily: "var(--font-roboto-mono)",
                 fontWeight: 400,
-                fontSize: '14px',
-                lineHeight: '18px',
-                letterSpacing: '-0.003em',
+                fontSize: "14px",
+                lineHeight: "18px",
+                letterSpacing: "-0.003em",
               }}
             >
               <Icon
@@ -317,11 +324,11 @@ export function SidebarBottomPanel({ className }: SidebarBottomPanelProps) {
           onClick={onSignOut}
           className="w-full flex items-center gap-3 px-4 py-2.5 text-white/60 hover:bg-white/5 hover:text-red-400 transition-all duration-200 cursor-pointer"
           style={{
-            fontFamily: 'var(--font-roboto-mono)',
+            fontFamily: "var(--font-roboto-mono)",
             fontWeight: 400,
-            fontSize: '14px',
-            lineHeight: '18px',
-            letterSpacing: '-0.003em',
+            fontSize: "14px",
+            lineHeight: "18px",
+            letterSpacing: "-0.003em",
           }}
         >
           <LogOut className="h-4 w-4" />

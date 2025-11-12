@@ -567,7 +567,8 @@ async function deployContainerAsync(
         `📊 [deployContainerAsync] Shared infrastructure exists: ${sharedInfraExists}`,
       );
     } catch (cfError) {
-      const errorMsg = cfError instanceof Error ? cfError.message : String(cfError);
+      const errorMsg =
+        cfError instanceof Error ? cfError.message : String(cfError);
       console.error(
         `❌ [deployContainerAsync] CloudFormation check failed:`,
         errorMsg,
@@ -658,7 +659,8 @@ async function deployContainerAsync(
         `✅ [deployContainerAsync] CloudFormation stack ${isUpdate ? "update" : "creation"} initiated: ${stackId}`,
       );
     } catch (stackError) {
-      const errorMsg = stackError instanceof Error ? stackError.message : String(stackError);
+      const errorMsg =
+        stackError instanceof Error ? stackError.message : String(stackError);
       console.error(
         `❌ [deployContainerAsync] CloudFormation stack ${isUpdate ? "update" : "creation"} failed:`,
         errorMsg,

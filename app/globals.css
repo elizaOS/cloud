@@ -414,23 +414,23 @@
   }
 
   .group:hover .corner-bracket-hover {
-    border-color: #FF5800 !important;
-    filter: drop-shadow(0 0 8px #FF5800);
+    border-color: #ff5800 !important;
+    filter: drop-shadow(0 0 8px #ff5800);
   }
 
   /* Individual corner scaling with proper origins */
   .corner-bracket-tl {
     transform-origin: top left;
   }
-  
+
   .corner-bracket-tr {
     transform-origin: top right;
   }
-  
+
   .corner-bracket-bl {
     transform-origin: bottom left;
   }
-  
+
   .corner-bracket-br {
     transform-origin: bottom right;
   }
@@ -533,4 +533,3 @@ button:not(:disabled),
 [data-slot="button"]:not(:disabled) {
   cursor: pointer;
 }
-

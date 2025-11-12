@@ -271,7 +271,7 @@ Tell me about your vision, and I'll help you craft a detailed character definiti
                 .map((part) => (part as { text: string }).text)
                 .join("")
                 .trim();
-              
+
               return (
                 <div
                   key={message.id}
@@ -307,7 +307,9 @@ Tell me about your vision, and I'll help you craft a detailed character definiti
                         </ReactMarkdown>
                       </div>
                     </div>
-                    <div className={`flex items-center gap-1 ${message.role === "user" ? "justify-end" : "justify-start"}`}>
+                    <div
+                      className={`flex items-center gap-1 ${message.role === "user" ? "justify-end" : "justify-start"}`}
+                    >
                       <Button
                         size="sm"
                         variant="ghost"

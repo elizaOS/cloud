@@ -1,11 +1,11 @@
 /**
  * Brand Tabs Responsive Component
  * Automatically switches between tabs (desktop) and dropdown (mobile)
- * 
+ *
  * IMPORTANT: Always provide a unique `id` prop to prevent hydration errors
- * 
+ *
  * @example
- * <BrandTabsResponsive 
+ * <BrandTabsResponsive
  *   id="my-tabs"
  *   tabs={[
  *     { value: "tab1", label: "Tab 1", icon: <Icon /> },
@@ -81,13 +81,20 @@ export function BrandTabsResponsive({
       className={cn("w-full", className)}
     >
       {/* Mobile Dropdown - Hidden on desktop */}
-      <div className={cn("block", breakpoint === "sm" && "sm:hidden", breakpoint === "md" && "md:hidden", breakpoint === "lg" && "lg:hidden")}>
+      <div
+        className={cn(
+          "block",
+          breakpoint === "sm" && "sm:hidden",
+          breakpoint === "md" && "md:hidden",
+          breakpoint === "lg" && "lg:hidden",
+        )}
+      >
         <Select value={value || defaultValue} onValueChange={onValueChange}>
           <SelectTrigger
             className={cn(
               "w-full h-12 rounded-sm border border-white/10 bg-black/50 backdrop-blur-sm",
               "text-white px-4 py-3",
-              "hover:bg-[#252527] transition-colors"
+              "hover:bg-[#252527] transition-colors",
             )}
           >
             <SelectValue>
@@ -103,7 +110,7 @@ export function BrandTabsResponsive({
                 className={cn(
                   "text-white cursor-pointer",
                   "hover:bg-[#252527] focus:bg-[#252527]",
-                  "data-[disabled]:opacity-50 data-[disabled]:cursor-not-allowed"
+                  "data-[disabled]:opacity-50 data-[disabled]:cursor-not-allowed",
                 )}
               >
                 <div className="flex items-center gap-2">
@@ -123,7 +130,7 @@ export function BrandTabsResponsive({
           breakpoint === "sm" && "sm:inline-flex",
           breakpoint === "md" && "md:inline-flex",
           breakpoint === "lg" && "lg:inline-flex",
-          "h-12 items-center justify-center rounded-none bg-black/50 border border-white/10 p-0 backdrop-blur-sm"
+          "h-12 items-center justify-center rounded-none bg-black/50 border border-white/10 p-0 backdrop-blur-sm",
         )}
       >
         {tabs.map((tab) => (
@@ -137,7 +144,7 @@ export function BrandTabsResponsive({
               "text-white/70 hover:text-white/90",
               "data-[state=active]:border-white data-[state=active]:bg-[#252527] data-[state=active]:text-white",
               "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2",
-              "disabled:pointer-events-none disabled:opacity-50"
+              "disabled:pointer-events-none disabled:opacity-50",
             )}
           >
             {tab.icon}
@@ -153,4 +160,3 @@ export function BrandTabsResponsive({
 }
 
 export { BrandTabsContent };
-

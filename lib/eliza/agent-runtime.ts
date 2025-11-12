@@ -722,7 +722,7 @@ class AgentRuntimeManager {
             text: responseText,
             type: "agent",
           };
-          
+
           if (responseAttachments && responseAttachments.length > 0) {
             content.attachments = responseAttachments;
             elizaLogger.debug(
@@ -730,14 +730,14 @@ class AgentRuntimeManager {
               `Including ${responseAttachments.length} attachment(s) in response`,
             );
           }
-          
+
           agentResponse = {
             id: uuidv4() as UUID,
             roomId: roomId as UUID,
             entityId: runtime.agentId as UUID,
             agentId: runtime.agentId as UUID,
             createdAt: Date.now(),
-            content: content as Memory['content'],
+            content: content as Memory["content"],
           };
 
           elizaLogger.debug(

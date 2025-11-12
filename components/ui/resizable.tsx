@@ -3,7 +3,8 @@
 import * as React from "react";
 import { cn } from "@/lib/utils";
 
-interface ResizablePanelGroupProps extends React.HTMLAttributes<HTMLDivElement> {
+interface ResizablePanelGroupProps
+  extends React.HTMLAttributes<HTMLDivElement> {
   direction?: "horizontal" | "vertical";
 }
 
@@ -25,7 +26,7 @@ const ResizablePanelGroupContext = React.createContext<{
     index: number,
     size: number,
     minSize: number,
-    maxSize: number
+    maxSize: number,
   ) => void;
   unregisterPanel: (index: number) => void;
 }>({
@@ -54,7 +55,7 @@ export function ResizablePanelGroup({
         return next;
       });
     },
-    []
+    [],
   );
 
   const unregisterPanel = React.useCallback((index: number) => {
@@ -90,7 +91,7 @@ export function ResizablePanelGroup({
         className={cn(
           "flex h-full w-full",
           direction === "horizontal" ? "flex-row" : "flex-col",
-          className
+          className,
         )}
         {...props}
       >
@@ -144,7 +145,7 @@ export function ResizableHandle({
   ...props
 }: ResizableHandleProps) {
   const { direction, panels, setPanelSize } = React.useContext(
-    ResizablePanelGroupContext
+    ResizablePanelGroupContext,
   );
   const [isDragging, setIsDragging] = React.useState(false);
 
@@ -161,30 +162,25 @@ export function ResizableHandle({
       if (!container) return;
 
       const containerRect = container.getBoundingClientRect();
-      const startPos =
-        direction === "horizontal" ? e.clientX : e.clientY;
+      const startPos = direction === "horizontal" ? e.clientX : e.clientY;
       const containerSize =
-        direction === "horizontal"
-          ? containerRect.width
-          : containerRect.height;
+        direction === "horizontal" ? containerRect.width : containerRect.height;
 
       const handleMouseMove = (moveEvent: MouseEvent) => {
         const currentPos =
           direction === "horizontal" ? moveEvent.clientX : moveEvent.clientY;
         const containerStart =
-          direction === "horizontal"
-            ? containerRect.left
-            : containerRect.top;
+          direction === "horizontal" ? containerRect.left : containerRect.top;
         const delta = currentPos - startPos;
         const deltaPercent = (delta / containerSize) * 100;
 
         const newLeftSize = Math.min(
           Math.max(leftPanel.size + deltaPercent, leftPanel.minSize),
-          leftPanel.maxSize
+          leftPanel.maxSize,
         );
         const newRightSize = Math.min(
           Math.max(rightPanel.size - deltaPercent, rightPanel.minSize),
-          rightPanel.maxSize
+          rightPanel.maxSize,
         );
 
         // Ensure total is 100%
@@ -204,7 +200,7 @@ export function ResizableHandle({
       document.addEventListener("mousemove", handleMouseMove);
       document.addEventListener("mouseup", handleMouseUp);
     },
-    [direction, panels, setPanelSize]
+    [direction, panels, setPanelSize],
   );
 
   return (
@@ -215,7 +211,7 @@ export function ResizableHandle({
           ? "w-[6px] cursor-col-resize"
           : "h-[6px] cursor-row-resize",
         isDragging && "bg-white/10",
-        className
+        className,
       )}
       onMouseDown={handleMouseDown}
       {...props}
@@ -224,14 +220,11 @@ export function ResizableHandle({
         <div
           className={cn(
             "absolute z-10 rounded-sm bg-white/20 transition-all group-hover:bg-white/40",
-            direction === "horizontal"
-              ? "h-12 w-1"
-              : "h-1 w-12",
-            isDragging && "bg-white/60"
+            direction === "horizontal" ? "h-12 w-1" : "h-1 w-12",
+            isDragging && "bg-white/60",
           )}
         />
       )}
     </div>
   );
 }
-
