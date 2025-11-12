@@ -5,7 +5,7 @@ import { Download, Save, AlertCircle, CheckCircle } from "lucide-react";
 import { toast } from "sonner";
 import type { ElizaCharacter } from "@/lib/types";
 import { BrandButton } from "@/components/brand";
-import { JsonEditorWithHighlight } from "@/components/chat/json-editor-with-highlight";
+import { MonacoJsonEditor } from "@/components/chat/monaco-json-editor";
 
 interface JsonEditorProps {
   character: ElizaCharacter;
@@ -126,7 +126,7 @@ export function JsonEditor({
         </div>
       )}
       <div className="flex-1 overflow-hidden">
-        <JsonEditorWithHighlight
+        <MonacoJsonEditor
           value={jsonText}
           onChange={handleJsonChange}
           isValid={isValid}

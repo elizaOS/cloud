@@ -1,9 +1,19 @@
 "use client";
 
 import { useState, useEffect, useRef, useCallback } from "react";
+import Image from "next/image";
 import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { Loader2, Send, Mic, Square, Volume2, Plus, Copy, Check } from "lucide-react";
+import {
+  Loader2,
+  Send,
+  Mic,
+  Square,
+  Volume2,
+  Plus,
+  Copy,
+  Check,
+} from "lucide-react";
 import { ElizaAvatar } from "./eliza-avatar";
 import { KnowledgeDrawer } from "./knowledge-drawer";
 import { useAudioRecorder } from "./hooks/use-audio-recorder";
@@ -196,29 +206,41 @@ export function ElizaChatInterface() {
   // Check for pending message from landing page and auto-send it
   useEffect(() => {
     // Guard: Only process if we have a pending message and not already processing
-    if (!pendingMessage || isPendingMessageProcessingRef.current || isLoading || isInitializing) {
+    if (
+      !pendingMessage ||
+      isPendingMessageProcessingRef.current ||
+      isLoading ||
+      isInitializing
+    ) {
       return;
     }
 
     // If no roomId exists, create one first
     if (!roomId) {
-      console.log("[ElizaChat] Pending message found but no room - creating room first");
+      console.log(
+        "[ElizaChat] Pending message found but no room - creating room first",
+      );
       isPendingMessageProcessingRef.current = true;
-      
+
       // Store the message in ref so we can send it after room is created
       pendingMessageToSendRef.current = pendingMessage;
-      
+
       // Clear from Zustand immediately to prevent re-triggering
       setPendingMessage(null);
-      
-      createRoom().then(() => {
-        // Room creation will update roomId, which will trigger sending logic
-        console.log("[ElizaChat] Room created for pending message");
-      }).catch((err) => {
-        console.error("[ElizaChat] Failed to create room for pending message:", err);
-        isPendingMessageProcessingRef.current = false;
-        pendingMessageToSendRef.current = null;
-      });
+
+      createRoom()
+        .then(() => {
+          // Room creation will update roomId, which will trigger sending logic
+          console.log("[ElizaChat] Room created for pending message");
+        })
+        .catch((err) => {
+          console.error(
+            "[ElizaChat] Failed to create room for pending message:",
+            err,
+          );
+          isPendingMessageProcessingRef.current = false;
+          pendingMessageToSendRef.current = null;
+        });
       return;
     }
 
@@ -226,7 +248,7 @@ export function ElizaChatInterface() {
     if (roomId && pendingMessageToSendRef.current && !isLoadingMessages) {
       const messageToSend = pendingMessageToSendRef.current;
       console.log("[ElizaChat] Auto-sending pending message:", messageToSend);
-      
+
       // Clear the ref
       pendingMessageToSendRef.current = null;
 
@@ -624,7 +646,9 @@ export function ElizaChatInterface() {
                     animate={true}
                   />
                   <div className="space-y-2">
-                    <p className="text-base font-semibold">Loading conversation...</p>
+                    <p className="text-base font-semibold">
+                      Loading conversation...
+                    </p>
                     <p className="text-sm text-muted-foreground">
                       Retrieving message history
                     </p>
@@ -680,174 +704,201 @@ export function ElizaChatInterface() {
                 </div>
               )}
 
-              {!isLoadingMessages && messages.map((message, index) => {
-                const isThinking = message.id.startsWith("thinking-");
-                return (
-                  <div
-                    key={message.id}
-                    className={`flex ${
-                      message.isAgent ? "justify-start" : "justify-end"
-                    } animate-in fade-in slide-in-from-bottom-4 duration-500`}
-                    style={{ animationDelay: `${index * 50}ms` }}
-                  >
-                    {message.isAgent ? (
-                      <div className="flex flex-col gap-1 max-w-[70%]">
-                        {/* Agent Name Row with Avatar */}
-                        <div className="flex items-center gap-2">
-                          <ElizaAvatar
-                            avatarUrl={agentInfo?.avatarUrl}
-                            name={characterName}
-                            className="flex-shrink-0 w-4 h-4"
-                            iconClassName="h-3 w-3"
-                            animate={isThinking}
-                          />
-                          <div
-                            className="font-[family-name:var(--font-roboto-flex)] text-sm font-medium"
-                            style={{ color: "#A1A1AA" }}
-                          >
-                            {characterName}
-                          </div>
-                        </div>
-
-                        <div className="flex flex-col gap-1">
-                          {isThinking ? (
-                            <div className="flex items-center gap-3 py-2">
-                              <Loader2 className="h-4 w-4 animate-spin" />
-                              <p className="text-sm text-muted-foreground font-[family-name:var(--font-roboto-flex)]">
-                                is thinking...
-                              </p>
+              {!isLoadingMessages &&
+                messages.map((message, index) => {
+                  const isThinking = message.id.startsWith("thinking-");
+                  return (
+                    <div
+                      key={message.id}
+                      className={`flex ${
+                        message.isAgent ? "justify-start" : "justify-end"
+                      } animate-in fade-in slide-in-from-bottom-4 duration-500`}
+                      style={{ animationDelay: `${index * 50}ms` }}
+                    >
+                      {message.isAgent ? (
+                        <div className="flex flex-col gap-1 max-w-[70%]">
+                          {/* Agent Name Row with Avatar */}
+                          <div className="flex items-center gap-2">
+                            <ElizaAvatar
+                              avatarUrl={agentInfo?.avatarUrl}
+                              name={characterName}
+                              className="flex-shrink-0 w-4 h-4"
+                              iconClassName="h-3 w-3"
+                              animate={isThinking}
+                            />
+                            <div
+                              className="font-[family-name:var(--font-roboto-flex)] text-sm font-medium"
+                              style={{ color: "#A1A1AA" }}
+                            >
+                              {characterName}
                             </div>
-                          ) : (
-                            <>
-                              {/* Message Text */}
-                              <div
-                                className="py-2 rounded-none font-[family-name:var(--font-roboto-flex)] text-[16px] leading-[1.5]"
-                                style={{ fontWeight: 500 }}
-                              >
-                                <div className="whitespace-pre-wrap text-white">
-                                  {message.content.text}
-                                </div>
+                          </div>
+
+                          <div className="flex flex-col gap-1">
+                            {isThinking ? (
+                              <div className="flex items-center gap-3 py-2">
+                                <Loader2 className="h-4 w-4 animate-spin" />
+                                <p className="text-sm text-muted-foreground font-[family-name:var(--font-roboto-flex)]">
+                                  is thinking...
+                                </p>
                               </div>
-                              
-                              {/* Image Attachments */}
-                              {message.content.attachments && message.content.attachments.length > 0 && (
-                                <div className="mt-2 space-y-2">
-                                  {message.content.attachments.map((attachment) => {
-                                    if (attachment.contentType === "IMAGE" || attachment.contentType === "image") {
-                                      return (
-                                        <div key={attachment.id} className="inline-block rounded-lg overflow-hidden border border-white/10 max-w-md">
-                                          <img
-                                            src={attachment.url}
-                                            alt={attachment.title || "Generated image"}
-                                            className="w-full h-auto"
-                                            style={{ display: 'block' }}
-                                          />
-                                        </div>
-                                      );
-                                    }
-                                    return null;
-                                  })}
+                            ) : (
+                              <>
+                                {/* Message Text */}
+                                <div
+                                  className="py-2 rounded-none font-[family-name:var(--font-roboto-flex)] text-[16px] leading-[1.5]"
+                                  style={{ fontWeight: 500 }}
+                                >
+                                  <div className="whitespace-pre-wrap text-white">
+                                    {message.content.text}
+                                  </div>
                                 </div>
-                              )}
-                              
-                              {/* Time and Actions */}
-                              <div className="flex items-center gap-2">
-                                <span
-                                  className="text-sm font-[family-name:var(--font-roboto-mono)]"
-                                  style={{ color: "#A1A1AA" }}
-                                >
-                                  {formatTimestamp(message.createdAt)}
-                                </span>
-                                <Button
-                                  size="sm"
-                                  variant="ghost"
-                                  className="h-5 w-5 p-0 hover:bg-white/10"
-                                  onClick={() => copyToClipboard(message.content.text, message.id)}
-                                  title="Copy message"
-                                >
-                                  {copiedMessageId === message.id ? (
-                                    <Check className="h-3 w-3 text-green-500" />
-                                  ) : (
-                                    <Copy className="h-3 w-3 text-white/60" />
+
+                                {/* Image Attachments */}
+                                {message.content.attachments &&
+                                  message.content.attachments.length > 0 && (
+                                    <div className="mt-2 space-y-2">
+                                      {message.content.attachments.map(
+                                        (attachment) => {
+                                          if (
+                                            attachment.contentType ===
+                                              "IMAGE" ||
+                                            attachment.contentType === "image"
+                                          ) {
+                                            return (
+                                              <div
+                                                key={attachment.id}
+                                                className="inline-block rounded-lg overflow-hidden border border-white/10 max-w-md"
+                                              >
+                                                <Image
+                                                  src={attachment.url}
+                                                  alt={
+                                                    attachment.title ||
+                                                    "Generated image"
+                                                  }
+                                                  width={512}
+                                                  height={512}
+                                                  className="w-full h-auto"
+                                                  style={{ display: "block" }}
+                                                />
+                                              </div>
+                                            );
+                                          }
+                                          return null;
+                                        },
+                                      )}
+                                    </div>
                                   )}
-                                </Button>
-                                {messageAudioUrls.current.has(message.id) && (
+
+                                {/* Time and Actions */}
+                                <div className="flex items-center gap-2">
+                                  <span
+                                    className="text-sm font-[family-name:var(--font-roboto-mono)]"
+                                    style={{ color: "#A1A1AA" }}
+                                  >
+                                    {formatTimestamp(message.createdAt)}
+                                  </span>
                                   <Button
                                     size="sm"
                                     variant="ghost"
                                     className="h-5 w-5 p-0 hover:bg-white/10"
-                                    onClick={() => {
-                                      const url = messageAudioUrls.current.get(
+                                    onClick={() =>
+                                      copyToClipboard(
+                                        message.content.text,
                                         message.id,
-                                      );
-                                      if (url) {
-                                        if (
-                                          currentPlayingId === message.id &&
-                                          player.isPlaying
-                                        ) {
-                                          player.stopAudio();
-                                          setCurrentPlayingId(null);
-                                        } else {
-                                          setCurrentPlayingId(message.id);
-                                          player.playAudio(url);
-                                        }
-                                      }
-                                    }}
+                                      )
+                                    }
+                                    title="Copy message"
                                   >
-                                    {currentPlayingId === message.id &&
-                                    player.isPlaying ? (
-                                      <Square className="h-3 w-3 text-white/60" />
+                                    {copiedMessageId === message.id ? (
+                                      <Check className="h-3 w-3 text-green-500" />
                                     ) : (
-                                      <Volume2 className="h-3 w-3 text-white/60" />
+                                      <Copy className="h-3 w-3 text-white/60" />
                                     )}
                                   </Button>
-                                )}
-                              </div>
-                            </>
-                          )}
-                        </div>
-                      </div>
-                    ) : (
-                      <div className="flex flex-col gap-1 max-w-[70%]">
-                        {/* User Message */}
-                        <div
-                          className="px-4 py-3 rounded-none font-[family-name:var(--font-roboto-flex)] text-[16px] leading-[1.5]"
-                          style={{
-                            backgroundColor: "#3A3A3A",
-                            fontWeight: 500,
-                          }}
-                        >
-                          <div className="whitespace-pre-wrap text-white">
-                            {message.content.text}
+                                  {messageAudioUrls.current.has(message.id) && (
+                                    <Button
+                                      size="sm"
+                                      variant="ghost"
+                                      className="h-5 w-5 p-0 hover:bg-white/10"
+                                      onClick={() => {
+                                        const url =
+                                          messageAudioUrls.current.get(
+                                            message.id,
+                                          );
+                                        if (url) {
+                                          if (
+                                            currentPlayingId === message.id &&
+                                            player.isPlaying
+                                          ) {
+                                            player.stopAudio();
+                                            setCurrentPlayingId(null);
+                                          } else {
+                                            setCurrentPlayingId(message.id);
+                                            player.playAudio(url);
+                                          }
+                                        }
+                                      }}
+                                    >
+                                      {currentPlayingId === message.id &&
+                                      player.isPlaying ? (
+                                        <Square className="h-3 w-3 text-white/60" />
+                                      ) : (
+                                        <Volume2 className="h-3 w-3 text-white/60" />
+                                      )}
+                                    </Button>
+                                  )}
+                                </div>
+                              </>
+                            )}
                           </div>
                         </div>
-                        {/* Time and Actions */}
-                        <div className="flex items-center gap-2 justify-end px-1">
-                          <span
-                            className="text-sm font-[family-name:var(--font-roboto-mono)]"
-                            style={{ color: "#A1A1AA" }}
+                      ) : (
+                        <div className="flex flex-col gap-1 max-w-[70%]">
+                          {/* User Message */}
+                          <div
+                            className="px-4 py-3 rounded-none font-[family-name:var(--font-roboto-flex)] text-[16px] leading-[1.5]"
+                            style={{
+                              backgroundColor: "#3A3A3A",
+                              fontWeight: 500,
+                            }}
                           >
-                            {formatTimestamp(message.createdAt)}
-                          </span>
-                          <Button
-                            size="sm"
-                            variant="ghost"
-                            className="h-5 w-5 p-0 hover:bg-white/10"
-                            onClick={() => copyToClipboard(message.content.text, message.id)}
-                            title="Copy message"
-                          >
-                            {copiedMessageId === message.id ? (
-                              <Check className="h-3 w-3 text-green-500" />
-                            ) : (
-                              <Copy className="h-3 w-3 text-white/60" />
-                            )}
-                          </Button>
+                            <div className="whitespace-pre-wrap text-white">
+                              {message.content.text}
+                            </div>
+                          </div>
+                          {/* Time and Actions */}
+                          <div className="flex items-center gap-2 justify-end px-1">
+                            <span
+                              className="text-sm font-[family-name:var(--font-roboto-mono)]"
+                              style={{ color: "#A1A1AA" }}
+                            >
+                              {formatTimestamp(message.createdAt)}
+                            </span>
+                            <Button
+                              size="sm"
+                              variant="ghost"
+                              className="h-5 w-5 p-0 hover:bg-white/10"
+                              onClick={() =>
+                                copyToClipboard(
+                                  message.content.text,
+                                  message.id,
+                                )
+                              }
+                              title="Copy message"
+                            >
+                              {copiedMessageId === message.id ? (
+                                <Check className="h-3 w-3 text-green-500" />
+                              ) : (
+                                <Copy className="h-3 w-3 text-white/60" />
+                              )}
+                            </Button>
+                          </div>
                         </div>
-                      </div>
-                    )}
-                  </div>
-                );
-              })}
+                      )}
+                    </div>
+                  );
+                })}
             </div>
           </ScrollArea>
         </div>
@@ -871,7 +922,8 @@ export function ElizaChatInterface() {
                   <div
                     className="absolute h-full w-24 bg-gradient-to-r from-transparent via-[#FF5800] to-transparent"
                     style={{
-                      animation: "visor-scan 4.8s cubic-bezier(0.4, 0, 0.6, 1) infinite",
+                      animation:
+                        "visor-scan 4.8s cubic-bezier(0.4, 0, 0.6, 1) infinite",
                       boxShadow: "0 0 15px 3px rgba(255, 88, 0, 0.7)",
                       filter: "blur(0.5px)",
                     }}
@@ -880,7 +932,8 @@ export function ElizaChatInterface() {
                   <div
                     className="absolute h-full w-16 bg-gradient-to-r from-transparent via-[#FF5800]/60 to-transparent"
                     style={{
-                      animation: "visor-scan-delayed 6.2s cubic-bezier(0.3, 0.1, 0.7, 0.9) infinite 1.5s",
+                      animation:
+                        "visor-scan-delayed 6.2s cubic-bezier(0.3, 0.1, 0.7, 0.9) infinite 1.5s",
                       boxShadow: "0 0 10px 2px rgba(255, 88, 0, 0.5)",
                       filter: "blur(1px)",
                     }}

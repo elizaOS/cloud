@@ -8,6 +8,8 @@ import { Bot, User, Send, Loader2, Copy, Check } from "lucide-react";
 import type { ElizaCharacter } from "@/lib/types";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
+import rehypeHighlight from "rehype-highlight";
+import "highlight.js/styles/github-dark.css";
 import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
 
@@ -231,7 +233,7 @@ Tell me about your vision!`;
                   style={{ animationDelay: `${index * 50}ms` }}
                 >
                   {message.role === "assistant" ? (
-                    <div className="flex flex-col gap-1 max-w-[70%]">
+                    <div className="flex flex-col gap-1 max-w-[70%] min-w-0">
                       {/* Agent Name Row with Avatar */}
                       <div className="flex items-center gap-2">
                         <div className="flex h-4 w-4 flex-shrink-0 items-center justify-center rounded-full bg-[#FF5800]">
@@ -251,8 +253,63 @@ Tell me about your vision!`;
                           className="py-2 rounded-none font-[family-name:var(--font-roboto-flex)] text-[16px] leading-[1.5]"
                           style={{ fontWeight: 500 }}
                         >
-                          <div className="prose prose-sm max-w-none dark:prose-invert text-white [&_pre]:bg-black/40 [&_pre]:p-3 [&_pre]:rounded-none [&_code]:text-[#FF5800]">
-                            <ReactMarkdown remarkPlugins={[remarkGfm]}>
+                          <style jsx>{`
+                            .json-syntax :global(pre) {
+                              background: rgba(0, 0, 0, 0.4) !important;
+                              padding: 12px !important;
+                              border-radius: 0 !important;
+                              overflow-x: auto !important;
+                              max-width: 100% !important;
+                            }
+                            .json-syntax :global(pre)::-webkit-scrollbar {
+                              height: 8px;
+                            }
+                            .json-syntax :global(pre)::-webkit-scrollbar-track {
+                              background: rgba(0, 0, 0, 0.2);
+                            }
+                            .json-syntax :global(pre)::-webkit-scrollbar-thumb {
+                              background: rgba(255, 88, 0, 0.4);
+                              border-radius: 0;
+                            }
+                            .json-syntax
+                              :global(pre)::-webkit-scrollbar-thumb:hover {
+                              background: rgba(255, 88, 0, 0.6);
+                            }
+                            .json-syntax :global(code) {
+                              font-family:
+                                "Monaco", "Menlo", "Ubuntu Mono", "Consolas",
+                                monospace !important;
+                              font-size: 13px !important;
+                              white-space: pre !important;
+                            }
+                            /* JSON property keys */
+                            .json-syntax :global(.token.property),
+                            .json-syntax :global(.token.key) {
+                              color: #fe9f6d !important;
+                            }
+                            /* JSON punctuation (brackets, braces, commas, colons) */
+                            .json-syntax :global(.token.punctuation) {
+                              color: #e434bb !important;
+                            }
+                            /* JSON string values */
+                            .json-syntax :global(.token.string) {
+                              color: #d4d4d4 !important;
+                            }
+                            /* JSON numbers */
+                            .json-syntax :global(.token.number) {
+                              color: #d4d4d4 !important;
+                            }
+                            /* JSON booleans and null */
+                            .json-syntax :global(.token.boolean),
+                            .json-syntax :global(.token.null) {
+                              color: #d4d4d4 !important;
+                            }
+                          `}</style>
+                          <div className="json-syntax prose prose-sm max-w-none dark:prose-invert text-white overflow-hidden">
+                            <ReactMarkdown
+                              remarkPlugins={[remarkGfm]}
+                              rehypePlugins={[rehypeHighlight]}
+                            >
                               {content}
                             </ReactMarkdown>
                           </div>
@@ -282,7 +339,7 @@ Tell me about your vision!`;
                       </div>
                     </div>
                   ) : (
-                    <div className="flex flex-col gap-1 max-w-[70%]">
+                    <div className="flex flex-col gap-1 max-w-[70%] min-w-0">
                       {/* User Message */}
                       <div
                         className="px-4 py-3 rounded-none font-[family-name:var(--font-roboto-flex)] text-[16px] leading-[1.5]"
@@ -325,7 +382,7 @@ Tell me about your vision!`;
 
             {isLoading && (
               <div className="flex justify-start">
-                <div className="flex flex-col gap-1 max-w-[70%]">
+                <div className="flex flex-col gap-1 max-w-[70%] min-w-0">
                   <div className="flex items-center gap-2">
                     <div className="flex h-4 w-4 flex-shrink-0 items-center justify-center rounded-full bg-[#FF5800]">
                       <Bot className="h-3 w-3 animate-pulse text-white" />
@@ -414,7 +471,8 @@ Tell me about your vision!`;
                 <div
                   className="absolute h-full w-24 bg-gradient-to-r from-transparent via-[#FF5800] to-transparent"
                   style={{
-                    animation: "visor-scan 4.8s cubic-bezier(0.4, 0, 0.6, 1) infinite",
+                    animation:
+                      "visor-scan 4.8s cubic-bezier(0.4, 0, 0.6, 1) infinite",
                     boxShadow: "0 0 15px 3px rgba(255, 88, 0, 0.7)",
                     filter: "blur(0.5px)",
                   }}
@@ -423,7 +481,8 @@ Tell me about your vision!`;
                 <div
                   className="absolute h-full w-16 bg-gradient-to-r from-transparent via-[#FF5800]/60 to-transparent"
                   style={{
-                    animation: "visor-scan-delayed 6.2s cubic-bezier(0.3, 0.1, 0.7, 0.9) infinite 1.5s",
+                    animation:
+                      "visor-scan-delayed 6.2s cubic-bezier(0.3, 0.1, 0.7, 0.9) infinite 1.5s",
                     boxShadow: "0 0 10px 2px rgba(255, 88, 0, 0.5)",
                     filter: "blur(1px)",
                   }}

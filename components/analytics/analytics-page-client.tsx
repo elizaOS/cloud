@@ -47,7 +47,11 @@ export function AnalyticsPageClient({
 
   const analyticsTabs: TabItem[] = [
     { value: "breakdown", label: "Breakdown" },
-    { value: "projections", label: "Projections", icon: <TrendingUp className="h-4 w-4" /> },
+    {
+      value: "projections",
+      label: "Projections",
+      icon: <TrendingUp className="h-4 w-4" />,
+    },
   ];
 
   const rangeLabel = `${format(data.filters.startDate, "MMM d, yyyy")} → ${format(data.filters.endDate, "MMM d, yyyy")}`;
@@ -236,7 +240,6 @@ export function AnalyticsPageClient({
             defaultValue="breakdown"
             breakpoint="md"
           >
-
             <BrandTabsContent
               value="breakdown"
               className="space-y-8 lg:space-y-10 mb-4"
