@@ -169,14 +169,14 @@ export function ApisTab({ user }: ApisTabProps) {
   };
 
   return (
-    <div className="flex flex-col gap-6">
+    <div className="flex flex-col gap-4 md:gap-6 pb-6 md:pb-8">
       {/* API Keys Card */}
       <BrandCard className="relative">
         <CornerBrackets size="sm" className="opacity-50" />
 
         <div className="relative z-10 space-y-6">
           {/* Header */}
-          <div className="flex items-start justify-between w-full">
+          <div className="flex flex-col md:flex-row items-start md:justify-between gap-4 w-full">
             <div className="flex flex-col gap-2 max-w-[850px]">
               <div className="flex items-center gap-2">
                 <div className="w-2 h-2 rounded-full bg-[#FF5800]" />
@@ -184,7 +184,7 @@ export function ApisTab({ user }: ApisTabProps) {
                   API keys
                 </h3>
               </div>
-              <div className="text-sm font-mono text-[#858585] tracking-tight space-y-2">
+              <div className="text-xs md:text-sm font-mono text-[#858585] tracking-tight space-y-2">
                 <p>
                   You have permission to view and manage all API Keys in this
                   project.
@@ -209,7 +209,7 @@ export function ApisTab({ user }: ApisTabProps) {
             <button
               type="button"
               onClick={handleCreateNewKey}
-              className="relative bg-[#e1e1e1] px-3 py-2 overflow-hidden hover:bg-white transition-colors flex items-center gap-2"
+              className="relative bg-[#e1e1e1] px-4 py-2.5 overflow-hidden hover:bg-white transition-colors flex items-center justify-center gap-2 w-full md:w-auto md:flex-shrink-0"
             >
               <div
                 className="absolute inset-0 opacity-20 bg-repeat pointer-events-none"
@@ -218,15 +218,15 @@ export function ApisTab({ user }: ApisTabProps) {
                   backgroundSize: "2.915576934814453px 2.915576934814453px",
                 }}
               />
-              <Plus className="relative z-10 h-[18px] w-[18px] text-black" />
-              <span className="relative z-10 text-black font-mono font-medium text-base">
+              <Plus className="relative z-10 h-[18px] w-[18px] text-black flex-shrink-0" />
+              <span className="relative z-10 text-black font-mono font-medium text-sm md:text-base whitespace-nowrap">
                 Create new secret key
               </span>
             </button>
           </div>
 
           {/* API Keys Table */}
-          <div className="space-y-0 w-full">
+          <div className="w-full">
             {loading ? (
               <div className="flex items-center justify-center p-8 border border-brand-surface">
                 <Loader2 className="h-6 w-6 animate-spin text-[#FF5800]" />
@@ -238,114 +238,260 @@ export function ApisTab({ user }: ApisTabProps) {
                 </p>
               </div>
             ) : (
-              apiKeys.map((apiKey) => (
-                <div key={apiKey.id} className="flex w-full">
-                  {/* Name Column */}
-                  <div className="backdrop-blur-sm bg-[rgba(10,10,10,0.75)] border border-brand-surface flex-[1.1] p-4 space-y-1">
-                    <p className="text-sm font-mono text-white uppercase">
-                      Name
-                    </p>
-                    <p className="text-sm text-white/60">{apiKey.name}</p>
-                    {apiKey.description && (
-                      <p className="text-xs text-white/40">
-                        {apiKey.description}
-                      </p>
-                    )}
-                  </div>
-
-                  {/* Secret Key Column */}
-                  <div className="backdrop-blur-sm bg-[rgba(10,10,10,0.75)] border-t border-r border-b border-brand-surface flex-1 p-4 space-y-1">
-                    <p className="text-sm font-mono text-white uppercase">
-                      Secret Key
-                    </p>
-                    <p className="text-sm text-white/60 font-mono">
-                      {apiKey.key_prefix}...
-                    </p>
-                  </div>
-
-                  {/* Created Column */}
-                  <div className="backdrop-blur-sm bg-[rgba(10,10,10,0.75)] border-t border-r border-b border-brand-surface flex-1 p-4 space-y-1">
-                    <p className="text-sm font-mono text-white uppercase">
-                      Created
-                    </p>
-                    <p className="text-sm text-white/60">
-                      {new Date(apiKey.created_at).toLocaleDateString("en-US", {
-                        year: "numeric",
-                        month: "short",
-                        day: "numeric",
-                      })}
-                    </p>
-                  </div>
-
-                  {/* Last Used Column */}
-                  <div className="backdrop-blur-sm bg-[rgba(10,10,10,0.75)] border-t border-r border-b border-brand-surface flex-1 p-4 space-y-1">
-                    <p className="text-sm font-mono text-white uppercase">
-                      Last used
-                    </p>
-                    <p className="text-sm text-white/60">
-                      {apiKey.last_used_at
-                        ? new Date(apiKey.last_used_at).toLocaleDateString(
-                            "en-US",
-                            {
-                              year: "numeric",
-                              month: "short",
-                              day: "numeric",
-                            },
-                          )
-                        : "Never"}
-                    </p>
-                  </div>
-
-                  {/* Created By Column */}
-                  <div className="backdrop-blur-sm border-t border-r border-b border-brand-surface flex-1 p-4 space-y-1">
-                    <p className="text-sm font-mono text-white uppercase">
-                      Created by
-                    </p>
-                    <p className="text-sm text-white/60">
-                      {user.name || user.email}
-                    </p>
-                  </div>
-
-                  {/* Permissions Column */}
-                  <div className="backdrop-blur-sm border-t border-r border-b border-brand-surface flex-1 p-4 space-y-1">
-                    <p className="text-sm font-mono text-white uppercase">
-                      Permissions
-                    </p>
-                    <p className="text-sm text-white/60">
-                      {apiKey.permissions.length > 0
-                        ? apiKey.permissions.join(", ")
-                        : "All"}
-                    </p>
-                  </div>
-
-                  {/* Actions Column */}
-                  <div className="backdrop-blur-sm border-t border-r border-b border-brand-surface w-[92px] p-4 flex items-end justify-center">
-                    <div className="flex items-center gap-4">
-                      <button
-                        type="button"
-                        onClick={() => handleCopyKey(apiKey.key_prefix)}
-                        className="hover:opacity-80 transition-opacity"
-                        title="Copy API key prefix"
-                      >
-                        <Copy className="h-4 w-4 text-[#A2A2A2]" />
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => handleDeleteKey(apiKey.id, apiKey.name)}
-                        disabled={deletingKeyId === apiKey.id}
-                        className="hover:opacity-80 transition-opacity disabled:opacity-50"
-                        title="Delete API key"
-                      >
-                        {deletingKeyId === apiKey.id ? (
-                          <Loader2 className="h-4 w-4 text-[#EB4335] animate-spin" />
-                        ) : (
-                          <Trash2 className="h-4 w-4 text-[#EB4335]" />
+              <>
+                {/* Mobile Card Layout */}
+                <div className="md:hidden space-y-4">
+                  {apiKeys.map((apiKey) => (
+                    <div
+                      key={apiKey.id}
+                      className="backdrop-blur-sm bg-[rgba(10,10,10,0.75)] border border-brand-surface p-4 space-y-3"
+                    >
+                      {/* Name and Permission Badge */}
+                      <div className="space-y-2">
+                        <div className="flex items-start justify-between gap-2">
+                          <h4 className="text-base font-mono font-semibold text-white">
+                            {apiKey.name}
+                          </h4>
+                          <span className="px-2 py-0.5 bg-[rgba(255,88,0,0.25)] border border-[#FF5800]/40 text-[#FF5800] text-xs font-mono uppercase flex-shrink-0">
+                            {apiKey.permissions.length > 0
+                              ? apiKey.permissions.join(", ")
+                              : "All"}
+                          </span>
+                        </div>
+                        {apiKey.description && (
+                          <p className="text-xs font-mono text-white/40">
+                            {apiKey.description}
+                          </p>
                         )}
-                      </button>
+                      </div>
+
+                      {/* Secret Key with Copy */}
+                      <div className="space-y-2">
+                        <p className="text-xs font-mono text-white/40 uppercase">
+                          Secret Key
+                        </p>
+                        <div className="flex items-center gap-2">
+                          <div className="bg-[rgba(255,255,255,0.03)] border border-white/10 px-3 py-2 flex-1">
+                            <p className="text-sm font-mono text-white/80 break-all">
+                              {apiKey.key_prefix}...
+                            </p>
+                          </div>
+                          <button
+                            type="button"
+                            onClick={() => handleCopyKey(apiKey.key_prefix)}
+                            className="px-3 py-2 border border-white/20 hover:bg-white/5 transition-colors flex-shrink-0"
+                          >
+                            <Copy className="h-4 w-4 text-white/60" />
+                          </button>
+                        </div>
+                      </div>
+
+                      {/* Info Grid */}
+                      <div className="grid grid-cols-2 gap-3 pt-2 border-t border-white/10">
+                        <div className="space-y-1">
+                          <p className="text-xs font-mono text-white/40 uppercase">
+                            Created
+                          </p>
+                          <p className="text-xs font-mono text-white/80">
+                            {new Date(apiKey.created_at).toLocaleDateString(
+                              "en-US",
+                              {
+                                year: "numeric",
+                                month: "short",
+                                day: "numeric",
+                              },
+                            )}
+                          </p>
+                        </div>
+
+                        <div className="space-y-1">
+                          <p className="text-xs font-mono text-white/40 uppercase">
+                            Last used
+                          </p>
+                          <p className="text-xs font-mono text-white/80">
+                            {apiKey.last_used_at
+                              ? new Date(
+                                  apiKey.last_used_at,
+                                ).toLocaleDateString("en-US", {
+                                  year: "numeric",
+                                  month: "short",
+                                  day: "numeric",
+                                })
+                              : "Never"}
+                          </p>
+                        </div>
+
+                        <div className="space-y-1">
+                          <p className="text-xs font-mono text-white/40 uppercase">
+                            Usage Count
+                          </p>
+                          <p className="text-xs font-mono text-white/80">
+                            {apiKey.usage_count.toLocaleString()}
+                          </p>
+                        </div>
+
+                        <div className="space-y-1">
+                          <p className="text-xs font-mono text-white/40 uppercase">
+                            Status
+                          </p>
+                          <p className="text-xs font-mono text-white/80">
+                            {apiKey.is_active ? (
+                              <span className="text-green-400">Active</span>
+                            ) : (
+                              <span className="text-white/40">Inactive</span>
+                            )}
+                          </p>
+                        </div>
+                      </div>
+
+                      {/* Actions */}
+                      <div className="flex items-center gap-2 pt-2 border-t border-white/10">
+                        <button
+                          type="button"
+                          onClick={() =>
+                            handleDeleteKey(apiKey.id, apiKey.name)
+                          }
+                          disabled={deletingKeyId === apiKey.id}
+                          className="flex-1 px-4 py-2 border border-[#EB4335]/40 bg-[#EB4335]/10 hover:bg-[#EB4335]/20 transition-colors disabled:opacity-50 flex items-center justify-center gap-2"
+                        >
+                          {deletingKeyId === apiKey.id ? (
+                            <>
+                              <Loader2 className="h-4 w-4 animate-spin text-[#EB4335]" />
+                              <span className="text-xs font-mono text-[#EB4335]">
+                                Deleting...
+                              </span>
+                            </>
+                          ) : (
+                            <>
+                              <Trash2 className="h-4 w-4 text-[#EB4335]" />
+                              <span className="text-xs font-mono text-[#EB4335]">
+                                Delete
+                              </span>
+                            </>
+                          )}
+                        </button>
+                      </div>
                     </div>
-                  </div>
+                  ))}
                 </div>
-              ))
+
+                {/* Desktop Table Layout */}
+                <div className="hidden md:block w-full space-y-3">
+                  {apiKeys.map((apiKey, index) => (
+                    <div
+                      key={apiKey.id}
+                      className="backdrop-blur-sm bg-[rgba(10,10,10,0.75)] border border-brand-surface hover:bg-[rgba(10,10,10,0.85)] transition-colors"
+                    >
+                      {/* Main Info Row */}
+                      <div className="p-4 flex items-start justify-between gap-6">
+                        {/* Left: Name and Key */}
+                        <div className="flex-1 min-w-0 space-y-3">
+                          {/* Name and Description */}
+                          <div>
+                            <div className="flex items-center gap-3 mb-1">
+                              <h4 className="text-base font-mono font-semibold text-white">
+                                {apiKey.name}
+                              </h4>
+                              <span className="px-2 py-0.5 bg-[rgba(255,88,0,0.25)] border border-[#FF5800]/40 text-[#FF5800] text-xs font-mono uppercase">
+                                {apiKey.permissions.length > 0
+                                  ? apiKey.permissions.join(", ")
+                                  : "All"}
+                              </span>
+                            </div>
+                            {apiKey.description && (
+                              <p className="text-xs font-mono text-white/40">
+                                {apiKey.description}
+                              </p>
+                            )}
+                          </div>
+
+                          {/* API Key with Copy */}
+                          <div className="flex items-center gap-2">
+                            <div className="bg-[rgba(255,255,255,0.03)] border border-white/10 px-3 py-2 flex-1">
+                              <p className="text-sm font-mono text-white/80">
+                                {apiKey.key_prefix}...
+                              </p>
+                            </div>
+                            <button
+                              type="button"
+                              onClick={() => handleCopyKey(apiKey.key_prefix)}
+                              className="px-3 py-2 border border-white/20 hover:bg-white/5 transition-colors group"
+                              title="Copy API key"
+                            >
+                              <Copy className="h-4 w-4 text-white/60 group-hover:text-white transition-colors" />
+                            </button>
+                          </div>
+                        </div>
+
+                        {/* Right: Metadata and Actions */}
+                        <div className="flex items-start gap-6">
+                          {/* Metadata */}
+                          <div className="flex gap-6">
+                            <div className="space-y-1">
+                              <p className="text-xs font-mono text-white/40 uppercase">
+                                Created
+                              </p>
+                              <p className="text-xs font-mono text-white/80">
+                                {new Date(apiKey.created_at).toLocaleDateString(
+                                  "en-US",
+                                  {
+                                    year: "numeric",
+                                    month: "short",
+                                    day: "numeric",
+                                  },
+                                )}
+                              </p>
+                            </div>
+
+                            <div className="space-y-1">
+                              <p className="text-xs font-mono text-white/40 uppercase">
+                                Last Used
+                              </p>
+                              <p className="text-xs font-mono text-white/80">
+                                {apiKey.last_used_at
+                                  ? new Date(
+                                      apiKey.last_used_at,
+                                    ).toLocaleDateString("en-US", {
+                                      year: "numeric",
+                                      month: "short",
+                                      day: "numeric",
+                                    })
+                                  : "Never"}
+                              </p>
+                            </div>
+
+                            <div className="space-y-1">
+                              <p className="text-xs font-mono text-white/40 uppercase">
+                                Usage
+                              </p>
+                              <p className="text-xs font-mono text-white/80">
+                                {apiKey.usage_count.toLocaleString()}
+                              </p>
+                            </div>
+                          </div>
+
+                          {/* Delete Action */}
+                          <button
+                            type="button"
+                            onClick={() =>
+                              handleDeleteKey(apiKey.id, apiKey.name)
+                            }
+                            disabled={deletingKeyId === apiKey.id}
+                            className="px-3 py-2 border border-[#EB4335]/40 bg-[#EB4335]/10 hover:bg-[#EB4335]/20 transition-colors disabled:opacity-50 group"
+                            title="Delete API key"
+                          >
+                            {deletingKeyId === apiKey.id ? (
+                              <Loader2 className="h-4 w-4 text-[#EB4335] animate-spin" />
+                            ) : (
+                              <Trash2 className="h-4 w-4 text-[#EB4335] group-hover:scale-110 transition-transform" />
+                            )}
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </>
             )}
           </div>
         </div>
@@ -353,8 +499,8 @@ export function ApisTab({ user }: ApisTabProps) {
 
       {/* Create Key Modal */}
       {showCreateModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm">
-          <div className="relative bg-[#0a0a0a] border border-brand-surface p-6 w-full max-w-md">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4">
+          <div className="relative bg-[#0a0a0a] border border-brand-surface p-4 sm:p-6 w-full max-w-md">
             <CornerBrackets size="sm" className="opacity-50" />
 
             <div className="relative z-10 space-y-4">
@@ -397,20 +543,22 @@ export function ApisTab({ user }: ApisTabProps) {
                 </div>
               </div>
 
-              <div className="flex gap-2 justify-end pt-4">
+              <div className="flex flex-col sm:flex-row gap-4 justify-end pt-4">
                 <button
                   type="button"
                   onClick={() => setShowCreateModal(false)}
-                  className="px-4 py-2 border border-[#303030] text-white hover:bg-white/5 transition-colors"
+                  className="px-4 py-2.5 border border-[#303030] text-white hover:bg-white/5 transition-colors order-2 sm:order-1 w-full sm:w-auto"
                   disabled={creating}
                 >
-                  Cancel
+                  <span className="font-mono text-sm whitespace-nowrap">
+                    Cancel
+                  </span>
                 </button>
                 <button
                   type="button"
                   onClick={handleCreateSubmit}
                   disabled={creating || !newKeyName.trim()}
-                  className="relative bg-[#e1e1e1] px-4 py-2 overflow-hidden hover:bg-white transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                  className="relative bg-[#e1e1e1] px-4 py-2.5 overflow-hidden hover:bg-white transition-colors disabled:opacity-50 disabled:cursor-not-allowed order-1 sm:order-2 w-full sm:w-auto"
                 >
                   <div
                     className="absolute inset-0 opacity-20 bg-repeat pointer-events-none"
@@ -419,10 +567,10 @@ export function ApisTab({ user }: ApisTabProps) {
                       backgroundSize: "2.915576934814453px 2.915576934814453px",
                     }}
                   />
-                  <span className="relative z-10 text-black font-mono font-medium text-sm flex items-center gap-2">
+                  <span className="relative z-10 text-black font-mono font-medium text-sm flex items-center justify-center gap-2 whitespace-nowrap">
                     {creating ? (
                       <>
-                        <Loader2 className="h-4 w-4 animate-spin" />
+                        <Loader2 className="h-4 w-4 animate-spin flex-shrink-0" />
                         Creating...
                       </>
                     ) : (
@@ -438,8 +586,8 @@ export function ApisTab({ user }: ApisTabProps) {
 
       {/* Show Full Key Modal */}
       {showKeyModal && newlyCreatedKey && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm">
-          <div className="relative bg-[#0a0a0a] border border-brand-surface p-6 w-full max-w-2xl">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4">
+          <div className="relative bg-[#0a0a0a] border border-brand-surface p-4 sm:p-6 w-full max-w-2xl">
             <CornerBrackets size="sm" className="opacity-50" />
 
             <div className="relative z-10 space-y-4">
@@ -471,19 +619,22 @@ export function ApisTab({ user }: ApisTabProps) {
                   <Label className="text-white font-mono text-sm">
                     API Key
                   </Label>
-                  <div className="flex gap-2">
+                  <div className="flex flex-col sm:flex-row gap-2">
                     <div className="flex-1 bg-[rgba(10,10,10,0.75)] border border-brand-surface p-3">
-                      <p className="text-sm text-white/80 font-mono break-all">
+                      <p className="text-xs sm:text-sm text-white/80 font-mono break-all">
                         {newlyCreatedKey}
                       </p>
                     </div>
                     <button
                       type="button"
                       onClick={handleCopyFullKey}
-                      className="px-4 py-2 bg-[#e1e1e1] hover:bg-white transition-colors"
+                      className="px-4 py-2 bg-[#e1e1e1] hover:bg-white transition-colors flex items-center justify-center gap-2"
                       title="Copy to clipboard"
                     >
                       <Copy className="h-5 w-5 text-black" />
+                      <span className="text-black font-mono text-sm sm:hidden">
+                        Copy
+                      </span>
                     </button>
                   </div>
                 </div>
@@ -496,7 +647,7 @@ export function ApisTab({ user }: ApisTabProps) {
                     setShowKeyModal(false);
                     setNewlyCreatedKey(null);
                   }}
-                  className="relative bg-[#e1e1e1] px-4 py-2 overflow-hidden hover:bg-white transition-colors"
+                  className="relative bg-[#e1e1e1] px-6 py-3 overflow-hidden hover:bg-white transition-colors w-full sm:w-auto"
                 >
                   <div
                     className="absolute inset-0 opacity-20 bg-repeat pointer-events-none"
@@ -505,7 +656,7 @@ export function ApisTab({ user }: ApisTabProps) {
                       backgroundSize: "2.915576934814453px 2.915576934814453px",
                     }}
                   />
-                  <span className="relative z-10 text-black font-mono font-medium text-sm">
+                  <span className="relative z-10 text-black font-mono font-medium text-sm sm:text-base whitespace-nowrap">
                     Done
                   </span>
                 </button>

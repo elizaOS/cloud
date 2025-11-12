@@ -96,22 +96,22 @@ export function AnalyticsTab({ user }: AnalyticsTabProps) {
   };
 
   return (
-    <div className="flex flex-col gap-6">
+    <div className="flex flex-col gap-4 md:gap-6 pb-6 md:pb-8">
       {/* Controls Card */}
       <BrandCard className="relative">
         <CornerBrackets size="sm" className="opacity-50" />
 
-        <div className="relative z-10 space-y-6">
+        <div className="relative z-10 space-y-4 md:space-y-6">
           {/* Header */}
           <div className="flex items-start justify-between w-full">
             <div className="flex flex-col gap-2 max-w-[500px]">
               <div className="flex items-center gap-2">
                 <div className="w-2 h-2 rounded-full bg-[#FF5800]" />
-                <h3 className="text-base font-mono text-[#e1e1e1] uppercase">
+                <h3 className="text-sm md:text-base font-mono text-[#e1e1e1] uppercase">
                   Controls
                 </h3>
               </div>
-              <p className="text-sm font-mono text-[#858585] tracking-tight">
+              <p className="text-xs md:text-sm font-mono text-[#858585] tracking-tight">
                 Adjust the aggregation cadence and time range to refocus the
                 analytics surface. All widgets update in real time.
               </p>
@@ -119,14 +119,14 @@ export function AnalyticsTab({ user }: AnalyticsTabProps) {
           </div>
 
           {/* Time Controls */}
-          <div className="flex items-start gap-2">
+          <div className="flex flex-col sm:flex-row items-stretch sm:items-start gap-2">
             {/* Cadence Dropdown */}
-            <div className="w-[100px]">
+            <div className="w-full sm:w-[100px]">
               <Select
                 value={cadence}
                 onValueChange={(v) => setCadence(v as Cadence)}
               >
-                <SelectTrigger className="bg-transparent border-[#303030] text-white/60 h-9">
+                <SelectTrigger className="bg-transparent border-[#303030] text-white/60 h-9 w-full">
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent className="bg-[#1a1a1a] border-[#303030]">
@@ -138,63 +138,67 @@ export function AnalyticsTab({ user }: AnalyticsTabProps) {
             </div>
 
             {/* Time Range Buttons */}
-            <button
-              type="button"
-              onClick={() => setTimeRange("7days")}
-              disabled={loading}
-              className={`
-                border border-[#303030] px-2 py-2 transition-colors text-sm text-white/60 disabled:opacity-50
-                ${timeRange === "7days" ? "bg-white/10" : "hover:bg-white/5"}
-              `}
-            >
-              Last 7 days
-            </button>
+            <div className="grid grid-cols-3 sm:flex gap-2 flex-1 sm:flex-initial">
+              <button
+                type="button"
+                onClick={() => setTimeRange("7days")}
+                disabled={loading}
+                className={`
+                  border border-[#303030] px-2 py-2 transition-colors text-xs sm:text-sm text-white/60 disabled:opacity-50 whitespace-nowrap
+                  ${timeRange === "7days" ? "bg-white/10" : "hover:bg-white/5"}
+                `}
+              >
+                7 days
+              </button>
 
-            <button
-              type="button"
-              onClick={() => setTimeRange("30days")}
-              disabled={loading}
-              className={`
-                border border-[#303030] px-2 py-2 transition-colors text-sm text-white/60 disabled:opacity-50
-                ${timeRange === "30days" ? "bg-white/10" : "hover:bg-white/5"}
-              `}
-            >
-              Last 30 days
-            </button>
+              <button
+                type="button"
+                onClick={() => setTimeRange("30days")}
+                disabled={loading}
+                className={`
+                  border border-[#303030] px-2 py-2 transition-colors text-xs sm:text-sm text-white/60 disabled:opacity-50 whitespace-nowrap
+                  ${timeRange === "30days" ? "bg-white/10" : "hover:bg-white/5"}
+                `}
+              >
+                30 days
+              </button>
 
-            <button
-              type="button"
-              onClick={() => setTimeRange("90days")}
-              disabled={loading}
-              className={`
-                border border-[#303030] px-2 py-2 transition-colors text-sm text-white/60 disabled:opacity-50
-                ${timeRange === "90days" ? "bg-white/10" : "hover:bg-white/5"}
-              `}
-            >
-              Last 90 days
-            </button>
+              <button
+                type="button"
+                onClick={() => setTimeRange("90days")}
+                disabled={loading}
+                className={`
+                  border border-[#303030] px-2 py-2 transition-colors text-xs sm:text-sm text-white/60 disabled:opacity-50 whitespace-nowrap
+                  ${timeRange === "90days" ? "bg-white/10" : "hover:bg-white/5"}
+                `}
+              >
+                90 days
+              </button>
+            </div>
           </div>
         </div>
       </BrandCard>
 
       {/* Stats Grid */}
-      <div className="grid grid-cols-4 gap-0">
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-0">
         {/* Total Requests */}
-        <div className="backdrop-blur-sm bg-[rgba(10,10,10,0.75)] border border-brand-surface p-4 space-y-1">
+        <div className="backdrop-blur-sm bg-[rgba(10,10,10,0.75)] border border-brand-surface p-3 md:p-4 space-y-1">
           <div className="flex items-center justify-between">
-            <p className="text-base font-mono text-white">Total Requests</p>
-            <Activity className="h-4 w-4 text-[#A2A2A2]" />
+            <p className="text-xs md:text-sm lg:text-base font-mono text-white">
+              Total Requests
+            </p>
+            <Activity className="h-3 md:h-4 w-3 md:w-4 text-[#A2A2A2] flex-shrink-0" />
           </div>
           {loading ? (
-            <Loader2 className="h-6 w-6 animate-spin text-[#FF5800] my-2" />
+            <Loader2 className="h-5 md:h-6 w-5 md:w-6 animate-spin text-[#FF5800] my-2" />
           ) : (
             <>
-              <p className="text-2xl font-mono text-white tracking-tight">
+              <p className="text-xl md:text-2xl font-mono text-white tracking-tight">
                 {analyticsData?.totalRequests
                   ? analyticsData.totalRequests.toLocaleString()
                   : "0"}
               </p>
-              <p className="text-sm text-white/60">
+              <p className="text-xs md:text-sm text-white/60">
                 {cadence === "day"
                   ? "Daily"
                   : cadence === "week"
@@ -207,22 +211,24 @@ export function AnalyticsTab({ user }: AnalyticsTabProps) {
         </div>
 
         {/* Total Cost */}
-        <div className="backdrop-blur-sm bg-[rgba(10,10,10,0.75)] border-t border-r border-b border-brand-surface p-4 space-y-1">
+        <div className="backdrop-blur-sm bg-[rgba(10,10,10,0.75)] border-t border-r border-b border-brand-surface p-3 md:p-4 space-y-1">
           <div className="flex items-center justify-between">
-            <p className="text-base font-mono text-white">Total Cost</p>
-            <Coins className="h-4 w-4 text-[#A2A2A2]" />
+            <p className="text-xs md:text-sm lg:text-base font-mono text-white">
+              Total Cost
+            </p>
+            <Coins className="h-3 md:h-4 w-3 md:w-4 text-[#A2A2A2] flex-shrink-0" />
           </div>
           {loading ? (
-            <Loader2 className="h-6 w-6 animate-spin text-[#FF5800] my-2" />
+            <Loader2 className="h-5 md:h-6 w-5 md:w-6 animate-spin text-[#FF5800] my-2" />
           ) : (
             <>
-              <p className="text-2xl font-mono text-white tracking-tight">
+              <p className="text-xl md:text-2xl font-mono text-white tracking-tight">
                 $
                 {analyticsData?.totalCost !== undefined
                   ? analyticsData.totalCost.toFixed(2)
                   : "0.00"}
               </p>
-              <p className="text-sm text-white/60">
+              <p className="text-xs md:text-sm text-white/60">
                 $
                 {analyticsData?.avgCostPerRequest !== undefined
                   ? analyticsData.avgCostPerRequest.toFixed(4)
@@ -234,22 +240,24 @@ export function AnalyticsTab({ user }: AnalyticsTabProps) {
         </div>
 
         {/* Success Rate */}
-        <div className="backdrop-blur-sm bg-[rgba(10,10,10,0.75)] border-t border-r border-b border-brand-surface p-4 space-y-1">
+        <div className="backdrop-blur-sm bg-[rgba(10,10,10,0.75)] border-t lg:border-t border-r border-b lg:border-l-0 border-brand-surface p-3 md:p-4 space-y-1">
           <div className="flex items-center justify-between">
-            <p className="text-base font-mono text-white">Success Rate</p>
-            <Shield className="h-4 w-4 text-[#A2A2A2]" />
+            <p className="text-xs md:text-sm lg:text-base font-mono text-white">
+              Success Rate
+            </p>
+            <Shield className="h-3 md:h-4 w-3 md:w-4 text-[#A2A2A2] flex-shrink-0" />
           </div>
           {loading ? (
-            <Loader2 className="h-6 w-6 animate-spin text-[#FF5800] my-2" />
+            <Loader2 className="h-5 md:h-6 w-5 md:w-6 animate-spin text-[#FF5800] my-2" />
           ) : (
             <>
-              <p className="text-2xl font-mono text-white tracking-tight">
+              <p className="text-xl md:text-2xl font-mono text-white tracking-tight">
                 {analyticsData?.successRate !== undefined
                   ? (analyticsData.successRate * 100).toFixed(1)
                   : "0.0"}
                 %
               </p>
-              <p className="text-sm text-white/60">
+              <p className="text-xs md:text-sm text-white/60">
                 Ratio of successful completions across{" "}
                 {analyticsData?.totalRequests || 0} data points
               </p>
@@ -258,21 +266,23 @@ export function AnalyticsTab({ user }: AnalyticsTabProps) {
         </div>
 
         {/* Token Volume */}
-        <div className="backdrop-blur-sm border-t border-r border-b border-brand-surface p-4 space-y-1">
+        <div className="backdrop-blur-sm border-t lg:border-t border-r border-b border-brand-surface p-3 md:p-4 space-y-1">
           <div className="flex items-center justify-between">
-            <p className="text-base font-mono text-white">Token Volume</p>
-            <BarChart className="h-4 w-4 text-[#A2A2A2]" />
+            <p className="text-xs md:text-sm lg:text-base font-mono text-white">
+              Token Volume
+            </p>
+            <BarChart className="h-3 md:h-4 w-3 md:w-4 text-[#A2A2A2] flex-shrink-0" />
           </div>
           {loading ? (
-            <Loader2 className="h-6 w-6 animate-spin text-[#FF5800] my-2" />
+            <Loader2 className="h-5 md:h-6 w-5 md:w-6 animate-spin text-[#FF5800] my-2" />
           ) : (
             <>
-              <p className="text-2xl font-mono text-white tracking-tight">
+              <p className="text-xl md:text-2xl font-mono text-white tracking-tight">
                 {analyticsData?.totalTokens
                   ? analyticsData.totalTokens.toLocaleString()
                   : "0"}
               </p>
-              <p className="text-sm text-white/60">
+              <p className="text-xs md:text-sm text-white/60">
                 ±{" "}
                 {analyticsData?.avgTokensPerRequest
                   ? analyticsData.avgTokensPerRequest.toLocaleString()
@@ -285,17 +295,17 @@ export function AnalyticsTab({ user }: AnalyticsTabProps) {
       </div>
 
       {/* Analytics Content Grid */}
-      <div className="grid grid-cols-[1fr_auto] gap-6">
+      <div className="grid grid-cols-1 lg:grid-cols-[1fr_auto] gap-4 md:gap-6">
         {/* Usage Visibility Card */}
         <BrandCard className="relative">
           <CornerBrackets size="sm" className="opacity-50" />
 
-          <div className="relative z-10 space-y-6">
+          <div className="relative z-10 space-y-4 md:space-y-6">
             {/* Header */}
             <div className="flex flex-col gap-2">
               <div className="flex items-center gap-2">
                 <div className="w-2 h-2 rounded-full bg-[#FF5800]" />
-                <h3 className="text-base font-mono text-[#e1e1e1] uppercase">
+                <h3 className="text-sm md:text-base font-mono text-[#e1e1e1] uppercase">
                   Usage Visibility
                 </h3>
               </div>
@@ -306,21 +316,21 @@ export function AnalyticsTab({ user }: AnalyticsTabProps) {
             </div>
 
             {/* Focus Metric Section */}
-            <div className="space-y-4">
-              <div className="flex items-center justify-between">
+            <div className="space-y-3 md:space-y-4">
+              <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
                 <div className="flex items-center gap-2">
                   <div className="h-px w-4 bg-[#FF5800]" />
-                  <p className="text-base font-mono text-white tracking-tight">
+                  <p className="text-sm md:text-base font-mono text-white tracking-tight">
                     Latest data point
                   </p>
                 </div>
 
-                <div className="flex items-start gap-0">
+                <div className="flex flex-wrap items-start gap-0 w-full sm:w-auto">
                   <button
                     type="button"
                     onClick={() => setFocusMetric("requests")}
                     className={`
-                      relative px-3 py-2 transition-colors text-xs font-mono font-medium
+                      relative px-2 md:px-3 py-2 transition-colors text-xs font-mono font-medium flex-1 sm:flex-initial
                       ${focusMetric === "requests" ? "bg-[rgba(255,88,0,0.24)] text-[#FF5800]" : "bg-neutral-950 border border-brand-surface border-r-0 text-[#e1e1e1]"}
                     `}
                   >
@@ -341,27 +351,27 @@ export function AnalyticsTab({ user }: AnalyticsTabProps) {
                     type="button"
                     onClick={() => setFocusMetric("costs")}
                     className={`
-                      px-3 py-2 transition-colors text-xs font-mono font-medium border-t border-b border-brand-surface
+                      px-2 md:px-3 py-2 transition-colors text-xs font-mono font-medium border-t border-b border-brand-surface flex-1 sm:flex-initial
                       ${focusMetric === "costs" ? "bg-[rgba(255,88,0,0.24)] text-[#FF5800]" : "bg-neutral-950 text-[#e1e1e1]"}
                     `}
                   >
-                    Costs (credits)
+                    Costs
                   </button>
 
                   <button
                     type="button"
                     onClick={() => setFocusMetric("success-rate")}
                     className={`
-                      px-3 py-2 transition-colors text-xs font-mono font-medium border border-brand-surface
+                      px-2 md:px-3 py-2 transition-colors text-xs font-mono font-medium border border-brand-surface flex-1 sm:flex-initial
                       ${focusMetric === "success-rate" ? "bg-[rgba(255,88,0,0.24)] text-[#FF5800]" : "bg-neutral-950 text-[#e1e1e1]"}
                     `}
                   >
-                    Success rate (%)
+                    Success %
                   </button>
                 </div>
               </div>
 
-              <p className="text-sm text-white/60">
+              <p className="text-xs md:text-sm text-white/60">
                 Raw throughput captured at the selected cadence.
               </p>
             </div>
@@ -369,15 +379,15 @@ export function AnalyticsTab({ user }: AnalyticsTabProps) {
         </BrandCard>
 
         {/* Cost Outlook Card */}
-        <BrandCard className="relative flex-1">
+        <BrandCard className="relative lg:flex-1">
           <CornerBrackets size="sm" className="opacity-50" />
 
-          <div className="relative z-10 space-y-6">
+          <div className="relative z-10 space-y-4 md:space-y-6">
             {/* Header */}
             <div className="flex flex-col gap-2">
-              <div className="flex items-center gap-2">
+              <div className="flex items-center gap-2 flex-wrap">
                 <div className="w-2 h-2 rounded-full bg-[#FF5800]" />
-                <h3 className="text-base font-mono text-[#e1e1e1] uppercase">
+                <h3 className="text-sm md:text-base font-mono text-[#e1e1e1] uppercase">
                   Cost outlook
                 </h3>
                 <div className="bg-[rgba(255,88,0,0.25)] px-2 py-1">
@@ -393,16 +403,16 @@ export function AnalyticsTab({ user }: AnalyticsTabProps) {
             {/* Burn Rate Cards */}
             <div className="space-y-0">
               {/* Daily Burn Card */}
-              <div className="backdrop-blur-sm bg-[rgba(10,10,10,0.75)] border border-brand-surface p-4 space-y-2">
-                <p className="text-sm font-mono text-white/60 uppercase">
+              <div className="backdrop-blur-sm bg-[rgba(10,10,10,0.75)] border border-brand-surface p-3 md:p-4 space-y-2">
+                <p className="text-xs md:text-sm font-mono text-white/60 uppercase">
                   Daily Burn (24h)
                 </p>
                 {loading ? (
                   <Loader2 className="h-5 w-5 animate-spin text-[#FF5800]" />
                 ) : (
                   <>
-                    <div className="flex items-center justify-between">
-                      <p className="text-base font-mono text-white">
+                    <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2">
+                      <p className="text-sm md:text-base font-mono text-white">
                         $
                         {analyticsData?.dailyBurn !== undefined
                           ? analyticsData.dailyBurn.toFixed(2)
@@ -417,7 +427,7 @@ export function AnalyticsTab({ user }: AnalyticsTabProps) {
                         </p>
                       </div>
                     </div>
-                    <p className="text-sm text-white/60">
+                    <p className="text-xs md:text-sm text-white/60">
                       Credits spent in the last 24 hours
                     </p>
                   </>
@@ -425,16 +435,16 @@ export function AnalyticsTab({ user }: AnalyticsTabProps) {
               </div>
 
               {/* Weekly Projection */}
-              <div className="backdrop-blur-sm bg-[rgba(10,10,10,0.75)] border-l border-r border-b border-brand-surface p-4 space-y-2">
-                <p className="text-sm font-mono text-white/60 uppercase">
+              <div className="backdrop-blur-sm bg-[rgba(10,10,10,0.75)] border-l border-r border-b border-brand-surface p-3 md:p-4 space-y-2">
+                <p className="text-xs md:text-sm font-mono text-white/60 uppercase">
                   Weekly Projection
                 </p>
                 {loading ? (
                   <Loader2 className="h-5 w-5 animate-spin text-[#FF5800]" />
                 ) : (
                   <>
-                    <div className="flex items-center justify-between">
-                      <p className="text-base font-mono text-white">
+                    <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2">
+                      <p className="text-sm md:text-base font-mono text-white">
                         $
                         {analyticsData?.dailyBurn !== undefined
                           ? (analyticsData.dailyBurn * 7).toFixed(2)
@@ -445,7 +455,7 @@ export function AnalyticsTab({ user }: AnalyticsTabProps) {
                         <p className="text-xs font-mono text-[#FF5800]">Est.</p>
                       </div>
                     </div>
-                    <p className="text-sm text-white/60">
+                    <p className="text-xs md:text-sm text-white/60">
                       Estimated burn based on current daily rate
                     </p>
                   </>
