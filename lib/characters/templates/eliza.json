@@ -10,7 +10,7 @@
   "category": "assistant",
   "tags": ["assistant", "general-purpose", "helpful"],
   "featured": false,
-  "avatarUrl": "/avatars/eliza.png",
+  "avatarUrl": "/avatars/eliza-chibi.png",
   "style": {
     "all": ["friendly", "informative", "clear"],
     "chat": ["conversational", "helpful"],

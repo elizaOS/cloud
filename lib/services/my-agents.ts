@@ -84,11 +84,16 @@ export class MyAgentsService {
     );
 
     // On page 1, prepend template characters (excluding ones user already has)
+    // Deduplicate by NAME since cloned templates get new IDs
     let addedTemplateCount = 0;
     if (pagination.page === 1) {
       const templates = getAllTemplates();
-      const existingCharacterIds = new Set(enrichedCharacters.map(c => c.id));
-      const uniqueTemplates = templates.filter(t => !existingCharacterIds.has(t.id));
+      const existingCharacterNames = new Set(
+        enrichedCharacters.map(c => c.name?.toLowerCase().trim()).filter(Boolean)
+      );
+      const uniqueTemplates = templates.filter(
+        t => !existingCharacterNames.has(t.name?.toLowerCase().trim())
+      );
       addedTemplateCount = uniqueTemplates.length;
       enrichedCharacters = [...uniqueTemplates, ...enrichedCharacters];
     }
