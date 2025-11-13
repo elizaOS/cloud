@@ -36,7 +36,19 @@ export class CharactersService {
         userCharactersRepository.listByUser(userId),
         userCharactersRepository.listTemplates(),
       ]);
-      return [...userChars, ...templates];
+
+      // Deduplicate by ID to avoid showing the same character twice
+      const seen = new Set<string>();
+      const uniqueCharacters: UserCharacter[] = [];
+
+      for (const char of [...userChars, ...templates]) {
+        if (!seen.has(char.id)) {
+          seen.add(char.id);
+          uniqueCharacters.push(char);
+        }
+      }
+
+      return uniqueCharacters;
     }
 
     return await userCharactersRepository.listByUser(userId);
