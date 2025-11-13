@@ -8,7 +8,7 @@ import { elizaRoomCharactersRepository } from "@/db/repositories";
 import { logger } from "@/lib/utils/logger";
 import { db } from "@/db/client";
 import { sql } from "drizzle-orm";
-import { connectionCache } from "@/lib/cache/connection-cache";
+import { charactersService } from "@/lib/services";
 
 // GET /api/eliza/rooms/[roomId] - Get room details and messages
 export async function GET(
@@ -70,7 +70,6 @@ export async function GET(
         await elizaRoomCharactersRepository.findByRoomId(roomId);
       if (roomCharacter) {
         characterId = roomCharacter.character_id;
-        logger.debug("[Eliza Room API] Room has character:", characterId);
       }
     } catch (err) {
       logger.warn(
@@ -81,37 +80,35 @@ export async function GET(
     }
 
     // Get agent info including avatar
-    // If room has a specific character, use that character's avatar
+    // If room has a specific character, get avatar directly from character DB
     let agent: Agent | null = null;
     let avatarUrl: string | undefined;
     let agentName: string | undefined;
 
     if (characterId) {
-      // Load character-specific runtime to get character's avatar and name
+      // Get character from database to get avatar URL
       try {
+        const dbCharacter = await charactersService.getById(characterId);
+        if (dbCharacter) {
+          avatarUrl = dbCharacter.avatar_url ?? undefined;
+          agentName = dbCharacter.name;
+        }
+        // Get agent for other info (but not avatar - that's character-specific)
         const characterRuntime =
           await agentRuntime.getRuntimeForCharacter(characterId);
         agent = await characterRuntime.getAgent(characterRuntime.agentId);
-        avatarUrl = agent?.settings?.avatarUrl as string | undefined;
-        agentName = agent?.name;
-        logger.debug("[Eliza Room API] Loaded character avatar:", {
-          name: agentName,
-          avatarUrl,
-        });
       } catch (err) {
         logger.warn(
-          "[Eliza Room API] Failed to load character runtime, using default:",
+          "[Eliza Room API] Failed to load character, using default:",
           err,
         );
         // Fall back to default agent
         agent = await runtime.getAgent(runtime.agentId);
-        avatarUrl = agent?.settings?.avatarUrl as string | undefined;
         agentName = agent?.name;
       }
     } else {
       // Use default agent
       agent = await runtime.getAgent(runtime.agentId);
-      avatarUrl = agent?.settings?.avatarUrl as string | undefined;
       agentName = agent?.name;
     }
 

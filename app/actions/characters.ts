@@ -119,12 +119,13 @@ export async function deleteCharacter(characterId: string) {
 
 /**
  * List all characters for the current user
+ * Includes both user characters and template characters from database
  */
 export async function listCharacters() {
   const user = await requireAuthWithOrg();
 
   const characters = await charactersService.listByUser(user.id, {
-    includeTemplates: false,
+    includeTemplates: true,
   });
 
   return characters.map((c) => charactersService.toElizaCharacter(c));

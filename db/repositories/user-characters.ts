@@ -112,8 +112,13 @@ export class UserCharactersRepository {
       conditions.push(eq(userCharacters.featured, filters.featured));
     }
 
-    // Always filter by userId to ensure users only see their own agents
-    conditions.push(eq(userCharacters.user_id, userId));
+    // Filter by userId OR is_template (users see their own agents + all templates)
+    conditions.push(
+      or(
+        eq(userCharacters.user_id, userId),
+        eq(userCharacters.is_template, true)
+      )!
+    );
 
     const { sortBy, order } = sortOptions;
     const direction = order === "asc" ? "asc" : "desc";
@@ -193,8 +198,13 @@ export class UserCharactersRepository {
       conditions.push(eq(userCharacters.featured, filters.featured));
     }
 
-    // Always filter by userId to ensure users only see their own agents
-    conditions.push(eq(userCharacters.user_id, userId));
+    // Filter by userId OR is_template (users see their own agents + all templates)
+    conditions.push(
+      or(
+        eq(userCharacters.user_id, userId),
+        eq(userCharacters.is_template, true)
+      )!
+    );
 
     const result = await db
       .select({ count: sql<number>`count(*)` })
