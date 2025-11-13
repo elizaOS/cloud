@@ -83,14 +83,28 @@ export class MyAgentsService {
       this.toExtendedCharacter(char)
     );
 
-    // On page 1, prepend template characters (excluding ones user already has)
+    // On page 1, prepend template characters and exclude database characters with matching names
+    // ALWAYS prefer JSON templates over database versions to ensure latest avatars/data
     let addedTemplateCount = 0;
+    let removedDatabaseCount = 0;
     if (pagination.page === 1) {
       const templates = getAllTemplates();
-      const existingCharacterIds = new Set(enrichedCharacters.map(c => c.id));
-      const uniqueTemplates = templates.filter(t => !existingCharacterIds.has(t.id));
-      addedTemplateCount = uniqueTemplates.length;
-      enrichedCharacters = [...uniqueTemplates, ...enrichedCharacters];
+      const templateNames = new Set(
+        templates.map(t => t.name?.toLowerCase().trim()).filter(Boolean)
+      );
+
+      const originalCount = enrichedCharacters.length;
+
+      // Filter OUT database characters that match template names (prefer JSON templates)
+      enrichedCharacters = enrichedCharacters.filter(
+        c => !templateNames.has(c.name?.toLowerCase().trim())
+      );
+
+      removedDatabaseCount = originalCount - enrichedCharacters.length;
+
+      // Prepend all JSON templates
+      addedTemplateCount = templates.length;
+      enrichedCharacters = [...templates, ...enrichedCharacters];
     }
 
     if (includeStats) {
@@ -124,8 +138,8 @@ export class MyAgentsService {
       });
     }
 
-    // Include only unique template count in total for page 1
-    const totalWithTemplates = total + addedTemplateCount;
+    // Adjust total: add templates, subtract database duplicates we filtered out
+    const totalWithTemplates = total + addedTemplateCount - removedDatabaseCount;
 
     const result: MyAgentsSearchResult = {
       characters: enrichedCharacters,
