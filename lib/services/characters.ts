@@ -12,7 +12,7 @@ export class CharactersService {
 
   async getByIdForUser(
     characterId: string,
-    userId: string,
+    userId: string
   ): Promise<UserCharacter | null> {
     const character = await userCharactersRepository.findById(characterId);
 
@@ -28,7 +28,7 @@ export class CharactersService {
     options?: {
       limit?: number;
       includeTemplates?: boolean;
-    },
+    }
   ): Promise<UserCharacter[]> {
     // If templates are requested, get them separately
     if (options?.includeTemplates) {
@@ -72,7 +72,7 @@ export class CharactersService {
 
   async update(
     id: string,
-    data: Partial<NewUserCharacter>,
+    data: Partial<NewUserCharacter>
   ): Promise<UserCharacter | undefined> {
     return await userCharactersRepository.update(id, data);
   }
@@ -80,7 +80,7 @@ export class CharactersService {
   async updateForUser(
     characterId: string,
     userId: string,
-    updates: Partial<NewUserCharacter>,
+    updates: Partial<NewUserCharacter>
   ): Promise<UserCharacter | null> {
     // Verify ownership
     const character = await this.getByIdForUser(characterId, userId);
@@ -149,6 +149,7 @@ export class CharactersService {
             post?: string[];
           }
         | undefined,
+      avatar_url: character.avatar_url ?? undefined,
     };
   }
 }

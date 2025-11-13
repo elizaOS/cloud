@@ -17,6 +17,7 @@ export interface Character {
   id: string;
   name: string;
   username?: string;
+  avatarUrl?: string;
 }
 
 interface ChatState {
@@ -95,7 +96,9 @@ export const useChatStore = create<ChatState>((set, get) => ({
 
     // If already loading and not forcing, return existing promise to avoid concurrent calls
     if (loadRoomsPromise && !force) {
-      console.log("[ChatStore] loadRooms already in progress, waiting for it to complete");
+      console.log(
+        "[ChatStore] loadRooms already in progress, waiting for it to complete"
+      );
       return loadRoomsPromise;
     }
 
@@ -143,7 +146,9 @@ export const useChatStore = create<ChatState>((set, get) => ({
           }
         } else {
           const errorText = await res.text().catch(() => "Unknown error");
-          console.error(`[ChatStore] Failed to load rooms: ${res.status} ${errorText}`);
+          console.error(
+            `[ChatStore] Failed to load rooms: ${res.status} ${errorText}`
+          );
           throw new Error(`Failed to load rooms: ${res.status}`);
         }
       } catch (error) {
@@ -192,7 +197,7 @@ export const useChatStore = create<ChatState>((set, get) => ({
         if (!newRoomId) {
           console.error("[ChatStore] API returned empty roomId:", data);
           throw new Error(
-            "Room creation succeeded but returned empty ID. Check server logs.",
+            "Room creation succeeded but returned empty ID. Check server logs."
           );
         }
 
@@ -217,7 +222,7 @@ export const useChatStore = create<ChatState>((set, get) => ({
           .catch(() => ({ error: "Unknown error" }));
         console.error("Failed to create room:", response.status, errorData);
         throw new Error(
-          errorData.error || `Failed to create room: ${response.status}`,
+          errorData.error || `Failed to create room: ${response.status}`
         );
       }
     } catch (error) {

@@ -16,7 +16,6 @@ import {
   Loader2,
   Trash2,
   Edit3,
-  Bot,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { CornerBrackets, BrandButton } from "@/components/brand";
@@ -67,18 +66,26 @@ export function ChatSidebar({
 
   // Filter rooms by selected character
   const filteredRooms = useMemo(() => {
-    console.log(`[ChatSidebar] Filtering rooms: total=${rooms.length}, selectedCharacterId=${selectedCharacterId}`);
+    console.log(
+      `[ChatSidebar] Filtering rooms: total=${rooms.length}, selectedCharacterId=${selectedCharacterId}`
+    );
 
     if (!selectedCharacterId) {
       // Show rooms with no character assignment (default Eliza)
       const filtered = rooms.filter((room) => !room.characterId);
-      console.log(`[ChatSidebar] No character selected, showing ${filtered.length} rooms without character`);
+      console.log(
+        `[ChatSidebar] No character selected, showing ${filtered.length} rooms without character`
+      );
       return filtered;
     }
 
     // Show rooms for the selected character
-    const filtered = rooms.filter((room) => room.characterId === selectedCharacterId);
-    console.log(`[ChatSidebar] Character selected, showing ${filtered.length} rooms for character ${selectedCharacterId}`);
+    const filtered = rooms.filter(
+      (room) => room.characterId === selectedCharacterId
+    );
+    console.log(
+      `[ChatSidebar] Character selected, showing ${filtered.length} rooms for character ${selectedCharacterId}`
+    );
     return filtered;
   }, [rooms, selectedCharacterId]);
 
@@ -200,10 +207,6 @@ export function ChatSidebar({
             href="/dashboard"
             className="flex items-center gap-2 transition-opacity hover:opacity-80 relative z-10"
           >
-            <span
-              className="inline-block w-2 h-2 rounded-full flex-shrink-0"
-              style={{ backgroundColor: "#FF5800" }}
-            />
             <Image
               src="/eliza-font.svg"
               alt="ELIZA"
@@ -249,12 +252,24 @@ export function ChatSidebar({
         <div className="border-b border-white/10 px-4 py-4">
           <div className="flex items-center gap-3">
             {/* Character Avatar */}
-            <div className="relative flex-shrink-0">
-              <div className="w-10 h-10 rounded-full bg-[#FF5800]/10 flex items-center justify-center overflow-hidden">
-                {selectedCharacter ? (
-                  <Bot className="h-5 w-5 text-[#FF5800]" />
+            <div className="relative shrink-0">
+              <div className="w-10 h-10 rounded-full bg-neutral-800 flex items-center justify-center overflow-hidden">
+                {selectedCharacter?.avatarUrl ? (
+                  <Image
+                    src={selectedCharacter.avatarUrl}
+                    alt={selectedCharacter.name}
+                    width={40}
+                    height={40}
+                    className="w-full h-full object-cover"
+                  />
                 ) : (
-                  <Bot className="h-5 w-5 text-[#FF5800]" />
+                  <Image
+                    src="/avatars/eliza-chibi.png"
+                    alt="Eliza"
+                    width={40}
+                    height={40}
+                    className="w-full h-full object-cover"
+                  />
                 )}
               </div>
             </div>
@@ -292,7 +307,7 @@ export function ChatSidebar({
               onClick={handleNewChat}
               disabled={isCreatingRoom}
               size="sm"
-              className="flex-shrink-0 gap-1.5 px-3 h-8"
+              className="shrink-0 gap-1.5 px-3 h-8"
               title="Start new conversation"
             >
               {isCreatingRoom ? (
@@ -327,8 +342,7 @@ export function ChatSidebar({
                     className={cn(
                       "group relative w-full text-left px-3 py-3 rounded-none transition-colors",
                       "hover:bg-white/5",
-                      roomId === room.id &&
-                        "bg-white/10 border-l-2 border-[#FF5800]",
+                      roomId === room.id && "bg-white/10",
                       (isDeleting || isLoading) &&
                         "opacity-50 pointer-events-none"
                     )}
