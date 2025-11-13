@@ -91,6 +91,7 @@ export function ElizaChatInterface() {
     }
     return null;
   });
+  const isCreatingRoomRef = useRef(false);
 
   // Clear audio cache when voice changes (so messages regenerate with new voice)
   useEffect(() => {
@@ -145,6 +146,12 @@ export function ElizaChatInterface() {
   // Load messages when roomId from context changes
   useEffect(() => {
     if (roomId) {
+      // Skip loading if we're in the middle of creating a room for first message
+      // The sendMessage function will handle this case
+      if (isCreatingRoomRef.current) {
+        console.log("[ElizaChat] Skipping loadMessages - creating room for first message");
+        return;
+      }
       console.log("[ElizaChat] Room ID changed, loading messages:", roomId);
       loadMessages(roomId);
     } else {
@@ -353,15 +360,9 @@ export function ElizaChatInterface() {
 
         console.log("[ElizaChat STT] Transcription successful:", transcript);
 
-        // Auto-send the transcribed message directly (like /dashboard/chat does)
-        if (roomId) {
-          console.log("[ElizaChat STT] Auto-sending transcribed message...");
-          await sendMessage(transcript);
-        } else {
-          console.warn(
-            "[ElizaChat STT] No roomId available, skipping auto-send",
-          );
-        }
+        // Auto-send the transcribed message (room will be created if needed)
+        console.log("[ElizaChat STT] Auto-sending transcribed message...");
+        await sendMessage(transcript);
       } catch (error) {
         console.error("[ElizaChat STT] Error:", error);
         toast.error(
@@ -377,7 +378,7 @@ export function ElizaChatInterface() {
 
     processAudioBlob();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [recorder.audioBlob, isProcessingSTT, recorder, roomId]);
+  }, [recorder.audioBlob, isProcessingSTT, recorder]);
 
   // Auto-generate TTS for new agent messages (only if autoPlayTTS is enabled)
   useEffect(() => {
@@ -478,13 +479,50 @@ export function ElizaChatInterface() {
 
   const sendMessage = async (textOverride?: string) => {
     const messageText = textOverride?.trim() || inputText.trim();
-    if (!messageText || !roomId || isLoading) return;
+    if (!messageText || isLoading) return;
 
     if (!textOverride) {
       setInputText("");
     }
     setIsLoading(true);
     setError(null);
+
+    // Create room if it doesn't exist
+    let activeRoomId = roomId;
+    if (!activeRoomId) {
+      console.log("[ElizaChat] No room exists, creating one before sending message...");
+      isCreatingRoomRef.current = true;
+      try {
+        const newRoomId = await createRoomInStore(selectedCharacterId);
+        if (!newRoomId) {
+          throw new Error("Failed to create room");
+        }
+        activeRoomId = newRoomId;
+        console.log("[ElizaChat] Room created successfully:", newRoomId);
+
+        // Load agent info (avatar, name) for the new room
+        // We do this manually because we're skipping the useEffect
+        try {
+          const response = await fetch(`/api/eliza/rooms/${newRoomId}`);
+          if (response.ok) {
+            const data = await response.json();
+            if (data.agent) {
+              setAgentInfo(data.agent);
+              console.log("[ElizaChat] Agent info loaded:", data.agent);
+            }
+          }
+        } catch (err) {
+          console.warn("[ElizaChat] Failed to load agent info:", err);
+        }
+      } catch (err) {
+        const errorMessage = err instanceof Error ? err.message : "Failed to create room";
+        setError(errorMessage);
+        toast.error(errorMessage);
+        setIsLoading(false);
+        isCreatingRoomRef.current = false;
+        return;
+      }
+    }
 
     // Add optimistic temp user message
     const clientMessageId = `temp-${Date.now()}`;
@@ -508,7 +546,7 @@ export function ElizaChatInterface() {
     try {
       // Stream the response using single endpoint
       await sendStreamingMessage({
-        roomId,
+        roomId: activeRoomId,
         entityId: entityId,
         text: messageText,
         model: selectedModel || undefined, // Pass selected model
@@ -532,6 +570,12 @@ export function ElizaChatInterface() {
         onComplete: () => {
           console.log("[Chat] Message streaming completed");
           loadRooms();
+          // If this was the first message to a new room, load messages now
+          // This ensures proper state for subsequent messages
+          if (isCreatingRoomRef.current && activeRoomId) {
+            console.log("[Chat] Loading messages after first message to new room");
+            loadMessages(activeRoomId);
+          }
         },
       });
     } catch (err) {
@@ -550,6 +594,7 @@ export function ElizaChatInterface() {
       }
     } finally {
       setIsLoading(false);
+      isCreatingRoomRef.current = false;
     }
   };
 
@@ -775,13 +820,11 @@ export function ElizaChatInterface() {
                   }
                 }}
                 placeholder={
-                  !roomId
-                    ? "Create a new chat to start messaging..."
-                    : recorder.isRecording
-                      ? "Recording... Click stop when done"
-                      : "Type your message here..."
+                  recorder.isRecording
+                    ? "Recording... Click stop when done"
+                    : "Type your message here..."
                 }
-                disabled={isLoading || !roomId || recorder.isRecording}
+                disabled={isLoading || recorder.isRecording}
                 className="w-full bg-transparent px-4 py-3.5 text-sm text-white placeholder:text-white/60 focus:outline-none disabled:opacity-50"
               />
             </div>
@@ -926,7 +969,7 @@ export function ElizaChatInterface() {
                   type="button"
                   variant="outline"
                   size="icon"
-                  disabled={isLoading || !roomId}
+                  disabled={isLoading}
                   onClick={handleVoiceInput}
                   className="h-10 w-10 rounded-none"
                 >
@@ -941,7 +984,6 @@ export function ElizaChatInterface() {
                   type="submit"
                   disabled={
                     isLoading ||
-                    !roomId ||
                     !inputText.trim() ||
                     recorder.isRecording
                   }
