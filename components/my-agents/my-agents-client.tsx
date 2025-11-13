@@ -70,7 +70,7 @@ export function MyAgentsClient({ initialCharacters }: MyAgentsClientProps) {
         </BrandButton>
       ),
     },
-    [initialCharacters.length, handleCreateNew],
+    [initialCharacters.length, handleCreateNew]
   );
 
   return (

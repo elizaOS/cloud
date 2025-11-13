@@ -25,15 +25,15 @@ const AVATAR_MAPPINGS: CharacterAvatarMapping[] = [
   { username: "eliza", avatarFilename: "eliza.png" },
   { username: "codementor", avatarFilename: "codementor.png" },
   { username: "luna_anime", avatarFilename: "luna.png" },
-  { username: "creativespark", avatarFilename: "creativespark.png" },
-  { username: "gamemaster", avatarFilename: "gamemaster.png" },
+  { username: "creativespark", avatarFilename: "creative-spark.png" },
+  { username: "gamemaster", avatarFilename: "game-master.png" },
   { username: "prof_ada", avatarFilename: "prof_ada.png" },
   { username: "comedybot", avatarFilename: "comedybot.png" },
   { username: "voiceai", avatarFilename: "voiceai.png" },
   { username: "historyscholar", avatarFilename: "historyscholar.png" },
   { username: "wellnesscoach", avatarFilename: "wellnesscoach.png" },
   { username: "edad", avatarFilename: "edad.png" },
-  { username: "mysticoracle", avatarFilename: "mysticoracle.png" },
+  { username: "mysticoracle", avatarFilename: "mystic-oracle.png" },
   { username: "amara", avatarFilename: "amara.png" },
 ];
 

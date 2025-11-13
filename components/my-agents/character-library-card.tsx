@@ -111,15 +111,26 @@ export function CharacterLibraryCard({
     <div
       className="border border-[rgba(62,62,67,0.5)] border-solid overflow-hidden relative w-full cursor-pointer hover:border-[rgba(255,88,0,0.5)] transition-colors"
       onClick={handleTest}
+      role="button"
+      tabIndex={0}
+      aria-label={`Open chat with ${character.name || "Agent"}`}
+      onKeyDown={(e) => {
+        if (e.key === "Enter" || e.key === " ") {
+          e.preventDefault();
+          handleTest();
+        }
+      }}
     >
       {/* Image Area - 347px height with 12px padding */}
       <div className="relative h-[347px] w-full p-[12px] flex items-center justify-center bg-black/40">
         {avatarUrl ? (
           <Image
+            key={`${character.id}-${avatarUrl}`}
             src={avatarUrl}
             alt={character.name || "Agent"}
             fill
             className="object-cover"
+            unoptimized
           />
         ) : (
           <div className="w-full h-full bg-gradient-to-br from-[#FF5800]/20 to-[#FF5800]/5" />
@@ -155,6 +166,7 @@ export function CharacterLibraryCard({
           {/* Right: Action Icons - gap-[4px], 28x28px containers */}
           <div className="flex items-center gap-[4px] shrink-0">
             <button
+              type="button"
               onClick={(e) => {
                 e.stopPropagation();
                 handleTest();
@@ -165,6 +177,7 @@ export function CharacterLibraryCard({
               <MessageSquare className="w-[18px] h-[18px] text-[#adadad]" />
             </button>
             <button
+              type="button"
               onClick={(e) => {
                 e.stopPropagation();
                 handleEdit();
