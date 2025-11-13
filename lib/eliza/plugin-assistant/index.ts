@@ -216,6 +216,9 @@ const messageReceivedHandler = async ({
     // No need to emit events here - the streaming POST endpoint handles it directly
 
     // PHASE 1: Compose initial state with memory providers
+    logger.info(
+      `[ElizaAssistant] Processing message for character: ${runtime.character.name} (ID: ${runtime.character.id})`
+    );
     logger.debug("[ElizaAssistant] Composing state with memory providers");
     const initialState = await runtime.composeState(message, [
       "SHORT_TERM_MEMORY",
