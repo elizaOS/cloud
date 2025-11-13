@@ -125,10 +125,12 @@ export function CharacterLibraryCard({
       <div className="relative h-[347px] w-full p-[12px] flex items-center justify-center bg-black/40">
         {avatarUrl ? (
           <Image
+            key={`${character.id}-${avatarUrl}`}
             src={avatarUrl}
             alt={character.name || "Agent"}
             fill
             className="object-cover"
+            unoptimized
           />
         ) : (
           <div className="w-full h-full bg-gradient-to-br from-[#FF5800]/20 to-[#FF5800]/5" />
