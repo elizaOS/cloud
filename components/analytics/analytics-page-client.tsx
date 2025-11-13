@@ -23,13 +23,12 @@ import type {
   ProjectionsData,
 } from "@/lib/actions/analytics-enhanced";
 import {
-  BrandTabs,
-  BrandTabsList,
-  BrandTabsTrigger,
+  BrandTabsResponsive,
   BrandTabsContent,
   BrandCard,
   CornerBrackets,
 } from "@/components/brand";
+import type { TabItem } from "@/components/brand";
 
 interface AnalyticsPageClientProps {
   data: EnhancedAnalyticsData;
@@ -45,6 +44,15 @@ export function AnalyticsPageClient({
     description:
       "Deep visibility into request throughput, spend efficiency, and credit runway",
   });
+
+  const analyticsTabs: TabItem[] = [
+    { value: "breakdown", label: "Breakdown" },
+    {
+      value: "projections",
+      label: "Projections",
+      icon: <TrendingUp className="h-4 w-4" />,
+    },
+  ];
 
   const rangeLabel = `${format(data.filters.startDate, "MMM d, yyyy")} → ${format(data.filters.endDate, "MMM d, yyyy")}`;
   const granularityLabel =
@@ -226,21 +234,12 @@ export function AnalyticsPageClient({
         </section>
 
         <section className="space-y-8 lg:space-y-10">
-          <BrandTabs
+          <BrandTabsResponsive
             id="analytics-tabs"
+            tabs={analyticsTabs}
             defaultValue="breakdown"
-            className="w-full"
+            breakpoint="md"
           >
-            <BrandTabsList className="w-full max-w-md">
-              <BrandTabsTrigger value="breakdown" className="flex-1">
-                Breakdown
-              </BrandTabsTrigger>
-              <BrandTabsTrigger value="projections" className="flex-1">
-                <TrendingUp className="mr-2 h-4 w-4" />
-                Projections
-              </BrandTabsTrigger>
-            </BrandTabsList>
-
             <BrandTabsContent
               value="breakdown"
               className="space-y-8 lg:space-y-10 mb-4"
@@ -257,7 +256,7 @@ export function AnalyticsPageClient({
             >
               <ProjectionsChart data={projectionsData} />
             </BrandTabsContent>
-          </BrandTabs>
+          </BrandTabsResponsive>
         </section>
       </div>
     </>

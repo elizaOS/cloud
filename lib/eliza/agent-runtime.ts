@@ -664,6 +664,7 @@ class AgentRuntimeManager {
           | { inputTokens: number; outputTokens: number; model: string }
           | undefined;
         let responseText: string | undefined;
+        let responseAttachments: unknown[] | undefined;
         let agentResponse: Memory | undefined;
 
         // Process message through event pipeline to generate response
@@ -673,6 +674,7 @@ class AgentRuntimeManager {
             message: userMessage,
             callback: async (result: {
               text?: string;
+              attachments?: unknown[];
               usage?: {
                 inputTokens: number;
                 outputTokens: number;
@@ -685,6 +687,9 @@ class AgentRuntimeManager {
               );
               if (result.text) {
                 responseText = result.text;
+              }
+              if (result.attachments) {
+                responseAttachments = result.attachments;
               }
               if (result.usage) {
                 usage = result.usage;
@@ -713,16 +718,26 @@ class AgentRuntimeManager {
         // NOTE: The message is already created and saved by the plugin-assistant event handler
         // We only create this object for the return value, not to save it again
         if (responseText) {
+          const content: Record<string, unknown> = {
+            text: responseText,
+            type: "agent",
+          };
+
+          if (responseAttachments && responseAttachments.length > 0) {
+            content.attachments = responseAttachments;
+            elizaLogger.debug(
+              "#Eliza",
+              `Including ${responseAttachments.length} attachment(s) in response`,
+            );
+          }
+
           agentResponse = {
             id: uuidv4() as UUID,
             roomId: roomId as UUID,
             entityId: runtime.agentId as UUID,
             agentId: runtime.agentId as UUID,
             createdAt: Date.now(),
-            content: {
-              text: responseText,
-              type: "agent",
-            },
+            content: content as Memory["content"],
           };
 
           elizaLogger.debug(

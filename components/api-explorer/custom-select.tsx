@@ -64,7 +64,7 @@ export function CustomSelect({
         type="button"
         onClick={handleToggle}
         className={cn(
-          "flex h-10 w-full items-center justify-between rounded-md border px-3 py-2 text-sm transition-colors",
+          "flex h-10 w-full items-center justify-between rounded-none border px-3 py-2 text-sm transition-colors",
           "border-border bg-background/80",
           "text-foreground",
           "hover:bg-muted",
@@ -90,7 +90,7 @@ export function CustomSelect({
       {isOpen && (
         <div
           className={cn(
-            "absolute z-50 mt-1 w-full overflow-hidden rounded-md border shadow-lg",
+            "absolute z-50 mt-1 w-full overflow-hidden rounded-none border shadow-lg",
             "border-border bg-background",
             "animate-in fade-in-0 zoom-in-95",
           )}
@@ -104,7 +104,7 @@ export function CustomSelect({
                   type="button"
                   onClick={() => handleSelect(option)}
                   className={cn(
-                    "w-full flex items-center rounded-sm px-2 py-1.5 text-sm transition-colors",
+                    "w-full flex items-center rounded-none px-2 py-1.5 text-sm transition-colors",
                     "text-left cursor-pointer select-none outline-none",
                     "text-foreground",
                     "hover:bg-muted",

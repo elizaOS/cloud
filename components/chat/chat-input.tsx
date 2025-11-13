@@ -42,7 +42,35 @@ export function ChatInput({
 
   return (
     <form onSubmit={onSubmit} className={cn("p-4", className)}>
-      <HUDContainer className="flex items-center gap-3 p-4" cornerSize="sm">
+      <HUDContainer
+        className="relative flex items-center gap-3 p-4"
+        cornerSize="sm"
+      >
+        {/* Robot Eye Visor Scanner - Animated line on top edge with randomness - Only show when waiting for agent */}
+        {isLoading && (
+          <div className="absolute top-0 left-0 right-0 h-[2px] overflow-hidden pointer-events-none">
+            {/* Primary scanner */}
+            <div
+              className="absolute h-full w-20 bg-gradient-to-r from-transparent via-[#FF5800] to-transparent"
+              style={{
+                animation:
+                  "visor-scan 4.8s cubic-bezier(0.4, 0, 0.6, 1) infinite",
+                boxShadow: "0 0 10px 2px rgba(255, 88, 0, 0.6)",
+              }}
+            />
+            {/* Secondary scanner for organic feel */}
+            <div
+              className="absolute h-full w-16 bg-gradient-to-r from-transparent via-[#FF5800]/60 to-transparent"
+              style={{
+                animation:
+                  "visor-scan-delayed 6.2s cubic-bezier(0.3, 0.1, 0.7, 0.9) infinite 1.5s",
+                boxShadow: "0 0 8px 2px rgba(255, 88, 0, 0.4)",
+                filter: "blur(1px)",
+              }}
+            />
+          </div>
+        )}
+
         {/* Voice Input Button */}
         {onVoiceInput && (
           <BrandButton

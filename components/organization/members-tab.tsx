@@ -139,23 +139,35 @@ export function MembersTab({ user }: MembersTabProps) {
   const isOwner = user.role === "owner";
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-4 md:space-y-6">
       {/* Header with Invite Button */}
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
         <div>
-          <h3 className="text-lg font-semibold text-white">Team Members</h3>
-          <p className="text-sm text-white/60">
+          <h3 className="text-base md:text-lg font-mono font-semibold text-white">
+            Team Members
+          </h3>
+          <p className="text-xs md:text-sm font-mono text-white/60">
             Manage who has access to your organization
           </p>
         </div>
         {canManageMembers && (
-          <BrandButton
-            variant="primary"
+          <button
+            type="button"
             onClick={() => setIsInviteDialogOpen(true)}
+            className="relative bg-[#e1e1e1] px-3 py-2 overflow-hidden hover:bg-white transition-colors flex items-center gap-2 w-full sm:w-auto"
           >
-            <UserPlus className="h-4 w-4 mr-2" />
-            Invite Member
-          </BrandButton>
+            <div
+              className="absolute inset-0 opacity-20 bg-repeat pointer-events-none"
+              style={{
+                backgroundImage: `url(/assets/settings/pattern-6px-flip.png)`,
+                backgroundSize: "2.915576934814453px 2.915576934814453px",
+              }}
+            />
+            <UserPlus className="relative z-10 h-4 w-4 text-black" />
+            <span className="relative z-10 text-black font-mono font-medium text-sm md:text-base">
+              Invite Member
+            </span>
+          </button>
         )}
       </div>
 
@@ -178,8 +190,8 @@ export function MembersTab({ user }: MembersTabProps) {
       {/* Pending Invites */}
       {canManageMembers && (
         <>
-          <div className="pt-6 border-t border-white/10">
-            <h3 className="text-lg font-semibold mb-4 text-white">
+          <div className="pt-4 md:pt-6 border-t border-white/10">
+            <h3 className="text-base md:text-lg font-mono font-semibold mb-3 md:mb-4 text-white">
               Pending Invitations
             </h3>
             {isLoadingInvites ? (

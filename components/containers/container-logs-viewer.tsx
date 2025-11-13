@@ -2,14 +2,7 @@
 
 import { useEffect, useState, useRef, useCallback } from "react";
 import { toast } from "sonner";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
+import { BrandCard, BrandButton } from "@/components/brand";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -284,17 +277,29 @@ export function ContainerLogsViewer({
   });
 
   return (
-    <Card>
-      <CardHeader>
-        <div className="flex items-center justify-between mb-4">
+    <BrandCard className="relative shadow-lg shadow-black/50" cornerSize="sm">
+      <div className="relative z-10 space-y-6">
+        {/* Header */}
+        <div className="flex items-center justify-between pb-4 border-b border-white/10">
           <div>
-            <CardTitle>Container Logs</CardTitle>
-            <CardDescription>
+            <div className="flex items-center gap-2 mb-2">
+              <span
+                className="inline-block w-2 h-2 rounded-full"
+                style={{ backgroundColor: "#FF5800" }}
+              />
+              <h2
+                className="text-xl font-normal text-white"
+                style={{ fontFamily: "var(--font-roboto-mono)" }}
+              >
+                Container Logs
+              </h2>
+            </div>
+            <p className="text-sm text-white/60">
               Real-time logs from {containerName}
-            </CardDescription>
+            </p>
           </div>
           <div className="flex items-center gap-2">
-            <Button
+            <BrandButton
               variant="outline"
               size="sm"
               onClick={() => setAutoRefresh(!autoRefresh)}
@@ -313,8 +318,8 @@ export function ContainerLogsViewer({
               ) : (
                 <WifiOff className="h-4 w-4" />
               )}
-            </Button>
-            <Button
+            </BrandButton>
+            <BrandButton
               variant="outline"
               size="sm"
               onClick={copyAllLogs}
@@ -322,8 +327,8 @@ export function ContainerLogsViewer({
               title="Copy all logs"
             >
               <Copy className="h-4 w-4" />
-            </Button>
-            <Button
+            </BrandButton>
+            <BrandButton
               variant="outline"
               size="sm"
               onClick={downloadLogs}
@@ -331,26 +336,30 @@ export function ContainerLogsViewer({
               title="Download logs"
             >
               <Download className="h-4 w-4" />
-            </Button>
+            </BrandButton>
           </div>
         </div>
 
         {/* Search and Filter Bar */}
         <div className="flex flex-col sm:flex-row gap-3">
           <div className="relative flex-1">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-white/60" />
             <Input
               placeholder="Search logs..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              className="pl-9"
+              className="pl-9 rounded-none border-white/10 bg-black/40 text-white placeholder:text-white/40 focus-visible:ring-[#FF5800]/50"
+              style={{ fontFamily: "var(--font-roboto-mono)" }}
             />
           </div>
           <Select value={level} onValueChange={setLevel}>
-            <SelectTrigger className="w-full sm:w-[140px]">
+            <SelectTrigger
+              className="w-full sm:w-[140px] rounded-none border-white/10 bg-black/40"
+              style={{ fontFamily: "var(--font-roboto-mono)" }}
+            >
               <SelectValue />
             </SelectTrigger>
-            <SelectContent>
+            <SelectContent className="rounded-none border-white/10 bg-[#0A0A0A]">
               <SelectItem value="all">All Levels</SelectItem>
               <SelectItem value="error">Errors</SelectItem>
               <SelectItem value="warn">Warnings</SelectItem>
@@ -362,147 +371,169 @@ export function ContainerLogsViewer({
 
         {(searchQuery || level !== "all") &&
           filteredLogs.length < logs.length && (
-            <div className="text-sm text-muted-foreground mt-2">
+            <div
+              className="text-sm text-white/60 mt-2"
+              style={{ fontFamily: "var(--font-roboto-mono)" }}
+            >
               Showing {filteredLogs.length} of {logs.length} logs
             </div>
           )}
-      </CardHeader>
-      <CardContent>
-        {loading && logs.length === 0 ? (
-          <div className="space-y-2">
-            <Skeleton className="h-8 w-full" />
-            <Skeleton className="h-8 w-full" />
-            <Skeleton className="h-8 w-full" />
-          </div>
-        ) : error ? (
-          <div className="text-center py-8">
-            <div className="mb-4">
-              <p className="text-red-500 font-semibold mb-2">
-                {error.includes("not been deployed")
-                  ? "Container Not Yet Deployed"
-                  : error.includes("not found")
-                    ? "Container Logs Not Found"
-                    : "Error Loading Logs"}
-              </p>
-              <p className="text-sm text-muted-foreground">{error}</p>
-            </div>
-            {!error.includes("not been deployed") && (
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={fetchLogs}
-                className="mt-4"
-              >
-                <RefreshCw className="h-4 w-4 mr-2" />
-                Retry
-              </Button>
-            )}
-          </div>
-        ) : logs.length === 0 ? (
-          <div className="text-center py-8">
+
+        <div>
+          {loading && logs.length === 0 ? (
             <div className="space-y-2">
-              <p className="text-muted-foreground">
-                {infoMessage || "No logs available for this container"}
-              </p>
-              {!infoMessage && (
-                <p className="text-xs text-muted-foreground">
-                  Logs may take a few moments to appear after deployment
+              <Skeleton className="h-8 w-full rounded-none" />
+              <Skeleton className="h-8 w-full rounded-none" />
+              <Skeleton className="h-8 w-full rounded-none" />
+            </div>
+          ) : error ? (
+            <div className="text-center py-8">
+              <div className="mb-4">
+                <p
+                  className="text-red-400 font-medium mb-2"
+                  style={{ fontFamily: "var(--font-roboto-mono)" }}
+                >
+                  {error.includes("not been deployed")
+                    ? "Container Not Yet Deployed"
+                    : error.includes("not found")
+                      ? "Container Logs Not Found"
+                      : "Error Loading Logs"}
                 </p>
+                <p className="text-sm text-white/60">{error}</p>
+              </div>
+              {!error.includes("not been deployed") && (
+                <BrandButton
+                  variant="outline"
+                  size="sm"
+                  onClick={fetchLogs}
+                  className="mt-4"
+                >
+                  <RefreshCw className="h-4 w-4 mr-2" />
+                  Retry
+                </BrandButton>
               )}
-              <Button
+            </div>
+          ) : logs.length === 0 ? (
+            <div className="text-center py-8">
+              <div className="space-y-2">
+                <p className="text-white/60">
+                  {infoMessage || "No logs available for this container"}
+                </p>
+                {!infoMessage && (
+                  <p className="text-xs text-white/50">
+                    Logs may take a few moments to appear after deployment
+                  </p>
+                )}
+                <BrandButton
+                  variant="outline"
+                  size="sm"
+                  onClick={fetchLogs}
+                  className="mt-4"
+                >
+                  <RefreshCw className="h-4 w-4 mr-2" />
+                  Refresh
+                </BrandButton>
+              </div>
+            </div>
+          ) : filteredLogs.length === 0 ? (
+            <div className="text-center py-8">
+              <p className="text-white/60">
+                No logs match your search criteria
+              </p>
+              <BrandButton
                 variant="outline"
                 size="sm"
-                onClick={fetchLogs}
+                onClick={() => {
+                  setSearchQuery("");
+                  setLevel("all");
+                }}
                 className="mt-4"
               >
-                <RefreshCw className="h-4 w-4 mr-2" />
-                Refresh
-              </Button>
+                Clear Filters
+              </BrandButton>
             </div>
-          </div>
-        ) : filteredLogs.length === 0 ? (
-          <div className="text-center py-8">
-            <p className="text-muted-foreground">
-              No logs match your search criteria
-            </p>
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => {
-                setSearchQuery("");
-                setLevel("all");
-              }}
-              className="mt-4"
+          ) : (
+            <ScrollArea
+              className="h-[400px] w-full rounded-none border border-white/10"
+              ref={scrollRef}
             >
-              Clear Filters
-            </Button>
-          </div>
-        ) : (
-          <ScrollArea
-            className="h-[400px] w-full rounded-md border"
-            ref={scrollRef}
-          >
-            <div className="p-4 font-mono text-sm space-y-1">
-              {filteredLogs.map((log, index) => (
-                <div
-                  key={`${log.timestamp}-${index}`}
-                  className={`group flex gap-3 p-2 hover:bg-muted/50 rounded transition-colors ${getLevelColor(log.level)}`}
-                >
-                  <Badge
-                    variant={
-                      getLevelBadge(log.level) as
-                        | "default"
-                        | "destructive"
-                        | "outline"
-                        | "secondary"
-                    }
-                    className="shrink-0 h-5 text-xs"
+              <div
+                className="p-4 font-mono text-sm space-y-1"
+                style={{ fontFamily: "var(--font-roboto-mono)" }}
+              >
+                {filteredLogs.map((log, index) => (
+                  <div
+                    key={`${log.timestamp}-${index}`}
+                    className={`group flex gap-3 p-2 hover:bg-white/5 rounded-none transition-colors border-l-2 ${getLevelColor(log.level)}`}
+                    style={{
+                      borderLeftColor:
+                        log.level === "error"
+                          ? "#ef4444"
+                          : log.level === "warn"
+                            ? "#eab308"
+                            : log.level === "info"
+                              ? "#3b82f6"
+                              : "#6b7280",
+                    }}
                   >
-                    {log.level.toUpperCase()}
-                  </Badge>
-                  <span className="text-xs text-muted-foreground shrink-0 min-w-[70px]">
-                    {new Date(log.timestamp).toLocaleTimeString()}
-                  </span>
-                  <span className="flex-1 break-all whitespace-pre-wrap">
-                    {log.message}
-                  </span>
-                  {log.metadata && Object.keys(log.metadata).length > 0 && (
-                    <span className="text-xs text-muted-foreground max-w-[200px] truncate">
-                      {JSON.stringify(log.metadata)}
+                    <Badge
+                      variant={
+                        getLevelBadge(log.level) as
+                          | "default"
+                          | "destructive"
+                          | "outline"
+                          | "secondary"
+                      }
+                      className="shrink-0 h-5 text-xs rounded-none"
+                      style={{ fontFamily: "var(--font-roboto-mono)" }}
+                    >
+                      {log.level.toUpperCase()}
+                    </Badge>
+                    <span className="text-xs text-white/60 shrink-0 min-w-[70px]">
+                      {new Date(log.timestamp).toLocaleTimeString()}
                     </span>
-                  )}
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    onClick={() => copyLogLine(log)}
-                    className="opacity-0 group-hover:opacity-100 transition-opacity h-6 w-6 p-0 shrink-0"
-                    title="Copy log line"
-                  >
-                    <Copy className="h-3 w-3" />
-                  </Button>
-                </div>
-              ))}
+                    <span className="flex-1 break-all whitespace-pre-wrap text-white/80">
+                      {log.message}
+                    </span>
+                    {log.metadata && Object.keys(log.metadata).length > 0 && (
+                      <span className="text-xs text-white/50 max-w-[200px] truncate">
+                        {JSON.stringify(log.metadata)}
+                      </span>
+                    )}
+                    <BrandButton
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => copyLogLine(log)}
+                      className="opacity-0 group-hover:opacity-100 transition-opacity h-6 w-6 p-0 shrink-0"
+                      title="Copy log line"
+                    >
+                      <Copy className="h-3 w-3" />
+                    </BrandButton>
+                  </div>
+                ))}
+              </div>
+            </ScrollArea>
+          )}
+          {(autoRefresh || isStreaming) && (
+            <div
+              className="flex items-center justify-center gap-2 mt-2 text-xs text-white/60"
+              style={{ fontFamily: "var(--font-roboto-mono)" }}
+            >
+              {isStreaming ? (
+                <>
+                  <Wifi className="h-3 w-3 text-green-500" />
+                  <span className="text-green-500">Live streaming enabled</span>
+                </>
+              ) : (
+                <>
+                  <RefreshCw className="h-3 w-3 animate-spin" />
+                  Auto-refreshing every 5 seconds
+                </>
+              )}
             </div>
-          </ScrollArea>
-        )}
-        {(autoRefresh || isStreaming) && (
-          <div className="flex items-center justify-center gap-2 mt-2 text-xs text-muted-foreground">
-            {isStreaming ? (
-              <>
-                <Wifi className="h-3 w-3 text-green-500" />
-                <span className="text-green-600 dark:text-green-400">
-                  Live streaming enabled
-                </span>
-              </>
-            ) : (
-              <>
-                <RefreshCw className="h-3 w-3 animate-spin" />
-                Auto-refreshing every 5 seconds
-              </>
-            )}
-          </div>
-        )}
-      </CardContent>
-    </Card>
+          )}
+        </div>
+      </div>
+    </BrandCard>
   );
 }

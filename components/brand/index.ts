@@ -15,6 +15,8 @@ export {
   BrandTabsContent,
   SimpleBrandTabs,
 } from "./brand-tabs";
+export { BrandTabsResponsive } from "./brand-tabs-responsive";
+export type { TabItem } from "./brand-tabs-responsive";
 export { SectionHeader, SectionLabel } from "./section-header";
 export { HUDContainer } from "./hud-container";
 export { BrandCard, AgentCard } from "./brand-card";

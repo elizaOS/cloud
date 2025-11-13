@@ -567,8 +567,11 @@ async function deployContainerAsync(
         `📊 [deployContainerAsync] Shared infrastructure exists: ${sharedInfraExists}`,
       );
     } catch (cfError) {
+      const errorMsg =
+        cfError instanceof Error ? cfError.message : String(cfError);
       console.error(
         `❌ [deployContainerAsync] CloudFormation check failed:`,
+        errorMsg,
         cfError,
       );
       throw cfError;
@@ -633,21 +636,38 @@ async function deployContainerAsync(
 
     // Use update or create based on whether project exists
     let stackId: string;
-    if (isUpdate) {
-      console.log(
-        `🔄 [deployContainerAsync] Updating existing CloudFormation stack for project "${config.project_name}"...`,
-      );
-      stackId = await cloudFormationService.updateUserStack(stackConfig);
-    } else {
-      console.log(
-        `🆕 [deployContainerAsync] Creating new CloudFormation stack for project "${config.project_name}"...`,
-      );
-      stackId = await cloudFormationService.createUserStack(stackConfig);
-    }
+    try {
+      if (isUpdate) {
+        console.log(
+          `🔄 [deployContainerAsync] Updating existing CloudFormation stack for project "${config.project_name}"...`,
+        );
+        stackId = await cloudFormationService.updateUserStack(stackConfig);
+      } else {
+        console.log(
+          `🆕 [deployContainerAsync] Creating new CloudFormation stack for project "${config.project_name}"...`,
+        );
+        console.log(`[DEBUG] About to call createUserStack with config:`, {
+          userId: stackConfig.userId,
+          projectName: stackConfig.projectName,
+          architecture: stackConfig.architecture,
+        });
+        stackId = await cloudFormationService.createUserStack(stackConfig);
+        console.log(`[DEBUG] createUserStack returned stackId: ${stackId}`);
+      }
 
-    console.log(
-      `✅ [deployContainerAsync] CloudFormation stack ${isUpdate ? "update" : "creation"} initiated: ${stackId}`,
-    );
+      console.log(
+        `✅ [deployContainerAsync] CloudFormation stack ${isUpdate ? "update" : "creation"} initiated: ${stackId}`,
+      );
+    } catch (stackError) {
+      const errorMsg =
+        stackError instanceof Error ? stackError.message : String(stackError);
+      console.error(
+        `❌ [deployContainerAsync] CloudFormation stack ${isUpdate ? "update" : "creation"} failed:`,
+        errorMsg,
+      );
+      console.error(`[DEBUG] Full stack error:`, stackError);
+      throw stackError;
+    }
 
     // Store the stack name in container metadata for future reference
     const stackName = cloudFormationService.getStackName(

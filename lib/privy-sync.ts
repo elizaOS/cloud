@@ -57,15 +57,6 @@ export async function syncUserFromPrivy(
 ): Promise<UserWithOrganization> {
   const privyUserId = privyUser.id;
 
-  console.log("[PrivySync] Received user data:", {
-    privyUserId: privyUser.id,
-    hasEmail: !!privyUser.email,
-    emailAddress: privyUser.email?.address,
-    hasLinkedAccounts: !!privyUser.linkedAccounts,
-    linkedAccountsCount: privyUser.linkedAccounts?.length || 0,
-    accountTypes: privyUser.linkedAccounts?.map((a) => a.type) || [],
-  });
-
   // Extract email
   let email: string | undefined;
   if (privyUser.email?.address) {
@@ -130,14 +121,6 @@ export async function syncUserFromPrivy(
       }
     }
   }
-
-  console.log("[PrivySync] Extracted data:", {
-    privyUserId,
-    email,
-    walletAddress,
-    walletChainType,
-    walletVerified,
-  });
 
   // Validation: User must have email OR wallet (hybrid approach)
   if (!email && !walletAddress) {
@@ -216,10 +199,6 @@ export async function syncUserFromPrivy(
     const pendingInvite = await invitesService.findPendingInviteByEmail(email);
 
     if (pendingInvite) {
-      console.log(
-        `Found pending invite for ${email}, joining organization ${pendingInvite.organization_id}`,
-      );
-
       try {
         const newUser = await usersService.create({
           privy_user_id: privyUserId,
@@ -249,10 +228,6 @@ export async function syncUserFromPrivy(
             `Failed to fetch newly created user ${privyUserId} after accepting invite`,
           );
         }
-
-        console.log(
-          `User ${privyUserId} successfully joined organization ${pendingInvite.organization_id} via invite`,
-        );
 
         // Log to Discord (fire-and-forget)
         discordService
@@ -345,10 +320,6 @@ export async function syncUserFromPrivy(
           error.cause.code === "23505"));
 
     if (isDuplicateError) {
-      console.log(
-        `Duplicate key error detected for user ${privyUserId}, handling race condition...`,
-      );
-
       // Try to find existing user with retries (in case parallel transaction hasn't committed yet)
       let existingUser: UserWithOrganization | undefined;
       const maxRetries = 3;
@@ -358,9 +329,6 @@ export async function syncUserFromPrivy(
           // Wait a bit for the other transaction to commit
           await new Promise((resolve) =>
             setTimeout(resolve, 50 * Math.pow(2, attempt - 1)),
-          );
-          console.log(
-            `Retry ${attempt}/${maxRetries} to find existing user ${privyUserId}`,
           );
         }
 
@@ -399,9 +367,6 @@ export async function syncUserFromPrivy(
       }
 
       if (existingUser) {
-        console.log(
-          `Found existing user ${privyUserId}, cleaning up orphaned org and returning existing user`,
-        );
         // Clean up the orphaned organization we just created
         try {
           await organizationsService.delete(organization.id);
@@ -515,7 +480,6 @@ async function ensureUserHasApiKey(
     const userHasKey = existingKeys.some((key) => key.user_id === userId);
 
     if (userHasKey) {
-      console.log(`[PrivySync] User ${userId} already has an API key`);
       return;
     }
 
@@ -526,8 +490,6 @@ async function ensureUserHasApiKey(
       name: "Default API Key",
       is_active: true,
     });
-
-    console.log(`[PrivySync] Created default API key for user ${userId}`);
   } catch (error) {
     console.error(
       `[PrivySync] Error creating API key for user ${userId}:`,
