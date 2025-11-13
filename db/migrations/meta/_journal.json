@@ -15,6 +15,13 @@
       "when": 1762457959420,
       "tag": "0001_init",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1763054870443,
+      "tag": "0002_natural_randall_flagg",
+      "breakpoints": true
     }
   ]
 }
