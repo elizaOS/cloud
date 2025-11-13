@@ -1,75 +1,55 @@
 "use client";
 
-import { BrandCard, BrandButton, CornerBrackets } from "@/components/brand";
-import { Plus, Bot, Store } from "lucide-react";
-import { useRouter } from "next/navigation";
+import { PlusCircle } from "lucide-react";
 
 interface EmptyStateProps {
   onCreateNew: () => void;
 }
 
 export function EmptyState({ onCreateNew }: EmptyStateProps) {
-  const router = useRouter();
-
   return (
-    <div className="flex items-center justify-center h-full min-h-[400px]">
-      <BrandCard className="relative max-w-2xl w-full p-12">
-        <CornerBrackets size="md" className="opacity-50" />
-        <div className="relative z-10 text-center space-y-6">
-          {/* Icon */}
-          <div className="flex justify-center">
-            <div className="w-20 h-20 rounded-full bg-[#FF5800]/20 flex items-center justify-center">
-              <Bot className="h-10 w-10 text-[#FF5800]" />
-            </div>
-          </div>
-
-          {/* Text */}
-          <div className="space-y-2">
-            <h3 className="text-2xl font-bold text-white">No Agents Yet</h3>
-            <p className="text-white/60 max-w-md mx-auto">
-              Create your first AI agent to get started, or browse the
-              marketplace to discover and clone existing agents.
-            </p>
-          </div>
-
-          {/* Actions */}
-          <div className="flex flex-col sm:flex-row gap-3 justify-center pt-4">
-            <BrandButton onClick={onCreateNew} size="lg">
-              <Plus className="h-5 w-5 mr-2" />
-              Create Your First Agent
-            </BrandButton>
-            <BrandButton
-              variant="outline"
-              size="lg"
-              onClick={() => router.push("/dashboard/agent-marketplace")}
-            >
-              <Store className="h-5 w-5 mr-2" />
-              Browse Marketplace
-            </BrandButton>
-          </div>
-
-          {/* Quick tips */}
-          <div className="pt-6 border-t border-white/10">
-            <p className="text-sm text-white/50 mb-3">Quick tips:</p>
-            <ul className="text-sm text-white/60 space-y-2 text-left max-w-md mx-auto">
-              <li className="flex items-start gap-2">
-                <span className="text-[#FF5800] mt-0.5">•</span>
-                <span>
-                  Define personality traits, knowledge, and conversation style
-                </span>
-              </li>
-              <li className="flex items-start gap-2">
-                <span className="text-[#FF5800] mt-0.5">•</span>
-                <span>Test your agent in real-time chat before deployment</span>
-              </li>
-              <li className="flex items-start gap-2">
-                <span className="text-[#FF5800] mt-0.5">•</span>
-                <span>Clone and customize agents from the marketplace</span>
-              </li>
-            </ul>
-          </div>
+    <div className="flex items-center justify-center min-h-[300px] w-full">
+      <div
+        className="bg-[#161616] flex flex-col gap-[8px] items-center justify-center p-[16px] w-full h-[300px] cursor-pointer hover:bg-[#1a1a1a] transition-colors"
+        onClick={onCreateNew}
+        role="button"
+        tabIndex={0}
+        onKeyDown={(e) => {
+          if (e.key === "Enter" || e.key === " ") {
+            e.preventDefault();
+            onCreateNew();
+          }
+        }}
+        aria-label="Create New Agent"
+      >
+        {/* Plus Icon - 48x48px */}
+        <div className="w-[48px] h-[48px] flex items-center justify-center shrink-0">
+          <PlusCircle
+            className="w-[48px] h-[48px] text-[#e1e1e1]"
+            strokeWidth={1.5}
+          />
         </div>
-      </BrandCard>
+
+        {/* Text Content - gap-[8px] */}
+        <div className="flex flex-col gap-[8px] items-center w-full shrink-0">
+          <p
+            className="font-['Roboto_Mono'] font-medium text-[#e1e1e1] text-[20px] leading-normal text-center shrink-0"
+            style={{ fontFamily: "'Roboto Mono', monospace" }}
+          >
+            Create New Agent
+          </p>
+          <p
+            className="font-['Roboto_Flex'] font-normal text-[#727272] text-[14px] leading-[18px] text-center w-[272px] shrink-0"
+            style={{
+              fontFamily: "'Roboto Flex', sans-serif",
+              fontVariationSettings:
+                "'GRAD' 0, 'XOPQ' 96, 'XTRA' 468, 'YOPQ' 79, 'YTAS' 750, 'YTDE' -203, 'YTFI' 738, 'YTLC' 514, 'YTUC' 712, 'wdth' 100",
+            }}
+          >
+            ElizaOS Cloud is your complete AI agent development platform.
+          </p>
+        </div>
+      </div>
     </div>
   );
 }

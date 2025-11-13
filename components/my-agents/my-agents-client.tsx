@@ -70,21 +70,46 @@ export function MyAgentsClient({ initialCharacters }: MyAgentsClientProps) {
         </BrandButton>
       ),
     },
-    [initialCharacters.length, handleCreateNew],
+    [initialCharacters.length, handleCreateNew]
   );
 
   return (
-    <div className="flex flex-col h-full gap-6">
-      <CharacterFilters
-        searchQuery={searchQuery}
-        onSearchChange={setSearchQuery}
-        viewMode={viewMode}
-        onViewModeChange={setViewMode}
-        sortBy={sortBy}
-        onSortChange={setSortBy}
-        totalCount={initialCharacters.length}
-        filteredCount={filteredCharacters.length}
-      />
+    <div className="flex flex-col h-full">
+      {/* Page Header with New Agent Button - Exact Figma specs */}
+      <div className="flex items-start justify-between mb-5">
+        <div className="flex flex-col gap-[8px] max-w-[455px]">
+          <div className="flex gap-[16px] items-start">
+            <h1
+              className="font-['Roboto_Mono'] font-medium text-[#e1e1e1] text-[24px] leading-normal"
+              style={{ fontFamily: "'Roboto Mono', monospace" }}
+            >
+              My Agents
+            </h1>
+          </div>
+          <p
+            className="font-['Roboto_Mono'] font-normal text-[#858585] text-[16px] leading-normal w-full"
+            style={{ fontFamily: "'Roboto Mono', monospace" }}
+          >
+            Explore Agents that you have created or saved
+          </p>
+        </div>
+
+
+      </div>
+
+      {/* Hidden Filters - Keep for later */}
+      <div className="hidden">
+        <CharacterFilters
+          searchQuery={searchQuery}
+          onSearchChange={setSearchQuery}
+          viewMode={viewMode}
+          onViewModeChange={setViewMode}
+          sortBy={sortBy}
+          onSortChange={setSortBy}
+          totalCount={initialCharacters.length}
+          filteredCount={filteredCharacters.length}
+        />
+      </div>
 
       <CharacterLibraryGrid
         characters={sortedCharacters}

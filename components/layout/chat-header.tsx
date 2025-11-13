@@ -7,6 +7,7 @@
 
 import { useRouter, usePathname } from "next/navigation";
 import { Menu, ChevronDown, MessageSquare, Wrench } from "lucide-react";
+import Image from "next/image";
 import { BrandButton } from "@/components/brand";
 import { cn } from "@/lib/utils";
 import {
@@ -36,7 +37,7 @@ export function ChatHeader({ onToggleSidebar }: ChatHeaderProps) {
 
   // Find selected agent
   const selectedAgent = availableCharacters.find(
-    (a) => a.id === selectedCharacterId,
+    (a) => a.id === selectedCharacterId
   );
 
   const handleAgentChange = (characterId: string) => {
@@ -87,20 +88,33 @@ export function ChatHeader({ onToggleSidebar }: ChatHeaderProps) {
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
             <button
+              type="button"
               className={cn(
                 "flex items-center gap-2 px-3 py-2 rounded-none",
                 "border border-white/10 bg-black/40",
                 "hover:bg-white/5 transition-colors",
-                "focus:outline-none focus:ring-2 focus:ring-[#FF5800]/50",
+                "focus:outline-none focus:ring-2 focus:ring-[#FF5800]/50"
               )}
             >
               {selectedAgent ? (
                 <>
                   <div className="flex items-center gap-2">
-                    <span
-                      className="inline-block w-2 h-2 rounded-full"
-                      style={{ backgroundColor: "#FF5800" }}
-                    />
+                    {/* Agent Avatar */}
+                    <div className="w-6 h-6 rounded-full overflow-hidden bg-neutral-800 shrink-0">
+                      {selectedAgent.avatarUrl ? (
+                        <Image
+                          src={selectedAgent.avatarUrl}
+                          alt={selectedAgent.name}
+                          width={24}
+                          height={24}
+                          className="w-full h-full object-cover"
+                        />
+                      ) : (
+                        <div className="w-full h-full flex items-center justify-center text-white text-xs font-medium">
+                          {selectedAgent.name?.[0] || "A"}
+                        </div>
+                      )}
+                    </div>
                     <div className="flex flex-col items-start">
                       <span className="text-sm font-medium text-white">
                         {selectedAgent.name}
@@ -117,10 +131,16 @@ export function ChatHeader({ onToggleSidebar }: ChatHeaderProps) {
               ) : (
                 <>
                   <div className="flex items-center gap-2">
-                    <span
-                      className="inline-block w-2 h-2 rounded-full"
-                      style={{ backgroundColor: "#FF5800" }}
-                    />
+                    {/* Default Eliza Avatar */}
+                    <div className="w-6 h-6 rounded-full overflow-hidden bg-neutral-800 shrink-0">
+                      <Image
+                        src="/avatars/eliza-chibi.png"
+                        alt="Eliza"
+                        width={24}
+                        height={24}
+                        className="w-full h-full object-cover"
+                      />
+                    </div>
                     <span className="text-sm text-white">Default (Eliza)</span>
                   </div>
                   <ChevronDown className="h-4 w-4 text-white/60" />
@@ -136,15 +156,21 @@ export function ChatHeader({ onToggleSidebar }: ChatHeaderProps) {
             <DropdownMenuItem
               onClick={() => handleAgentChange("")}
               className={cn(
-                "flex items-center gap-2 px-3 py-2 cursor-pointer",
+                "flex items-center gap-3 px-3 py-2 cursor-pointer",
                 "hover:bg-white/5 focus:bg-white/5",
-                !selectedCharacterId && "bg-white/10",
+                !selectedCharacterId && "bg-white/10"
               )}
             >
-              <span
-                className="inline-block w-2 h-2 rounded-full"
-                style={{ backgroundColor: "#FF5800" }}
-              />
+              {/* Default Eliza Avatar */}
+              <div className="w-8 h-8 rounded-full overflow-hidden bg-neutral-800 shrink-0">
+                <Image
+                  src="/avatars/eliza-chibi.png"
+                  alt="Eliza"
+                  width={32}
+                  height={32}
+                  className="w-full h-full object-cover"
+                />
+              </div>
               <div className="flex flex-col">
                 <span className="text-sm font-medium text-white">
                   Default (Eliza)
@@ -161,15 +187,27 @@ export function ChatHeader({ onToggleSidebar }: ChatHeaderProps) {
                     key={character.id}
                     onClick={() => handleAgentChange(character.id)}
                     className={cn(
-                      "flex items-center gap-2 px-3 py-2 cursor-pointer",
+                      "flex items-center gap-3 px-3 py-2 cursor-pointer",
                       "hover:bg-white/5 focus:bg-white/5",
-                      selectedCharacterId === character.id && "bg-white/10",
+                      selectedCharacterId === character.id && "bg-white/10"
                     )}
                   >
-                    <span
-                      className="inline-block w-2 h-2 rounded-full"
-                      style={{ backgroundColor: "#FF5800" }}
-                    />
+                    {/* Character Avatar */}
+                    <div className="w-8 h-8 rounded-full overflow-hidden bg-neutral-800 shrink-0">
+                      {character.avatarUrl ? (
+                        <Image
+                          src={character.avatarUrl}
+                          alt={character.name}
+                          width={32}
+                          height={32}
+                          className="w-full h-full object-cover"
+                        />
+                      ) : (
+                        <div className="w-full h-full flex items-center justify-center text-white text-sm font-medium">
+                          {character.name?.[0] || "A"}
+                        </div>
+                      )}
+                    </div>
                     <div className="flex flex-col">
                       <span className="text-sm font-medium text-white">
                         {character.name}
@@ -192,12 +230,13 @@ export function ChatHeader({ onToggleSidebar }: ChatHeaderProps) {
       <div className="flex items-center">
         <div className="flex items-center rounded-none border border-white/10 bg-black/40">
           <button
+            type="button"
             onClick={() => handleModeChange("chat")}
             className={cn(
               "flex items-center gap-2 px-3 py-1.5 rounded-none transition-colors border-0",
               mode === "chat"
                 ? "bg-[#471E08] text-[#FF5800]"
-                : "bg-[#1F1F1F] text-[#ADADAD] hover:text-white",
+                : "bg-[#1F1F1F] text-[#ADADAD] hover:text-white"
             )}
             style={{
               fontFamily: "'Roboto Mono', monospace",
@@ -210,12 +249,13 @@ export function ChatHeader({ onToggleSidebar }: ChatHeaderProps) {
             <span className="hidden md:inline">Chat Mode</span>
           </button>
           <button
+            type="button"
             onClick={() => handleModeChange("build")}
             className={cn(
               "flex items-center gap-2 px-3 py-1.5 rounded-none transition-colors border-0",
               mode === "build"
                 ? "bg-[#471E08] text-[#FF5800]"
-                : "bg-[#1F1F1F] text-[#ADADAD] hover:text-white",
+                : "bg-[#1F1F1F] text-[#ADADAD] hover:text-white"
             )}
             style={{
               fontFamily: "'Roboto Mono', monospace",

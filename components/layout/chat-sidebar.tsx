@@ -16,10 +16,9 @@ import {
   Loader2,
   Trash2,
   Edit3,
-  Bot,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { CornerBrackets } from "@/components/brand";
+import { CornerBrackets, BrandButton } from "@/components/brand";
 import { useChatStore } from "@/stores/chat-store";
 import { SidebarBottomPanel } from "./sidebar-bottom-panel";
 
@@ -67,17 +66,32 @@ export function ChatSidebar({
 
   // Filter rooms by selected character
   const filteredRooms = useMemo(() => {
+    console.log(
+      `[ChatSidebar] Filtering rooms: total=${rooms.length}, selectedCharacterId=${selectedCharacterId}`
+    );
+
     if (!selectedCharacterId) {
       // Show rooms with no character assignment (default Eliza)
-      return rooms.filter((room) => !room.characterId);
+      const filtered = rooms.filter((room) => !room.characterId);
+      console.log(
+        `[ChatSidebar] No character selected, showing ${filtered.length} rooms without character`
+      );
+      return filtered;
     }
+
     // Show rooms for the selected character
-    return rooms.filter((room) => room.characterId === selectedCharacterId);
+    const filtered = rooms.filter(
+      (room) => room.characterId === selectedCharacterId
+    );
+    console.log(
+      `[ChatSidebar] Character selected, showing ${filtered.length} rooms for character ${selectedCharacterId}`
+    );
+    return filtered;
   }, [rooms, selectedCharacterId]);
 
   // Find selected character details
   const selectedCharacter = availableCharacters.find(
-    (c) => c.id === selectedCharacterId,
+    (c) => c.id === selectedCharacterId
   );
 
   useEffect(() => {
@@ -90,10 +104,12 @@ export function ChatSidebar({
     return () => window.removeEventListener("resize", checkScreenSize);
   }, []);
 
-  // Load rooms on mount
+  // Load rooms on mount - Zustand functions are stable, so empty deps array is safe
   useEffect(() => {
+    console.log("[ChatSidebar] Mounting, loading rooms");
     loadRooms();
-  }, [loadRooms]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const handleNewChat = async () => {
     if (isCreatingRoom) return; // Prevent double-clicking
@@ -163,6 +179,12 @@ export function ChatSidebar({
         <div
           className="fixed inset-0 z-40 bg-black/50 md:hidden"
           onClick={onToggle}
+          onKeyDown={(e) => {
+            if (e.key === "Escape") onToggle?.();
+          }}
+          role="button"
+          tabIndex={0}
+          aria-label="Close sidebar"
         />
       )}
 
@@ -173,7 +195,7 @@ export function ChatSidebar({
           isMobile
             ? `fixed inset-y-0 left-0 z-50 w-64 ${isOpen ? "translate-x-0" : "-translate-x-full"}`
             : "w-64",
-          className,
+          className
         )}
       >
         {/* Header with Logo */}
@@ -185,10 +207,6 @@ export function ChatSidebar({
             href="/dashboard"
             className="flex items-center gap-2 transition-opacity hover:opacity-80 relative z-10"
           >
-            <span
-              className="inline-block w-2 h-2 rounded-full flex-shrink-0"
-              style={{ backgroundColor: "#FF5800" }}
-            />
             <Image
               src="/eliza-font.svg"
               alt="ELIZA"
@@ -201,6 +219,7 @@ export function ChatSidebar({
           {/* Mobile Close Button */}
           {isMobile && onToggle && (
             <button
+              type="button"
               onClick={onToggle}
               className="rounded-none p-2 hover:bg-white/10 focus:bg-white/10 focus:outline-none relative z-10 transition-colors"
               aria-label="Close navigation"
@@ -212,9 +231,10 @@ export function ChatSidebar({
 
         {/* Back Button */}
         <div className="border-b border-white/10 px-4 py-3">
-          <Link
-            href="/dashboard"
-            className="flex items-center gap-2 text-white/70 hover:text-white transition-colors"
+          <button
+            type="button"
+            onClick={() => router.back()}
+            className="flex items-center gap-2 text-white/70 hover:text-white transition-colors cursor-pointer"
             style={{
               fontFamily: "var(--font-roboto-mono)",
               fontWeight: 400,
@@ -225,19 +245,31 @@ export function ChatSidebar({
           >
             <ArrowLeft className="h-4 w-4" />
             <span>Back</span>
-          </Link>
+          </button>
         </div>
 
         {/* Selected Character Profile with New Chat Icon */}
         <div className="border-b border-white/10 px-4 py-4">
           <div className="flex items-center gap-3">
             {/* Character Avatar */}
-            <div className="relative flex-shrink-0">
-              <div className="w-10 h-10 rounded-full bg-[#FF5800]/10 flex items-center justify-center overflow-hidden">
-                {selectedCharacter ? (
-                  <Bot className="h-5 w-5 text-[#FF5800]" />
+            <div className="relative shrink-0">
+              <div className="w-10 h-10 rounded-full bg-neutral-800 flex items-center justify-center overflow-hidden">
+                {selectedCharacter?.avatarUrl ? (
+                  <Image
+                    src={selectedCharacter.avatarUrl}
+                    alt={selectedCharacter.name}
+                    width={40}
+                    height={40}
+                    className="w-full h-full object-cover"
+                  />
                 ) : (
-                  <Bot className="h-5 w-5 text-[#FF5800]" />
+                  <Image
+                    src="/avatars/eliza-chibi.png"
+                    alt="Eliza"
+                    width={40}
+                    height={40}
+                    className="w-full h-full object-cover"
+                  />
                 )}
               </div>
             </div>
@@ -270,19 +302,26 @@ export function ChatSidebar({
               </div>
             </div>
 
-            {/* New Chat Icon Button */}
-            <button
+            {/* New Chat Button - Enhanced with Label */}
+            <BrandButton
               onClick={handleNewChat}
               disabled={isCreatingRoom}
-              className="flex-shrink-0 p-2 rounded-none hover:bg-white/10 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-              title="New chat"
+              size="sm"
+              className="shrink-0 gap-1.5 px-3 h-8"
+              title="Start new conversation"
             >
               {isCreatingRoom ? (
-                <Loader2 className="h-4 w-4 text-white/80 animate-spin" />
+                <>
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                  <span className="text-xs hidden sm:inline">Creating...</span>
+                </>
               ) : (
-                <Edit3 className="h-4 w-4 text-white/80" />
+                <>
+                  <Edit3 className="h-4 w-4" />
+                  <span className="text-xs">New</span>
+                </>
               )}
-            </button>
+            </BrandButton>
           </div>
         </div>
 
@@ -303,13 +342,13 @@ export function ChatSidebar({
                     className={cn(
                       "group relative w-full text-left px-3 py-3 rounded-none transition-colors",
                       "hover:bg-white/5",
-                      roomId === room.id &&
-                        "bg-white/10 border-l-2 border-[#FF5800]",
+                      roomId === room.id && "bg-white/10",
                       (isDeleting || isLoading) &&
-                        "opacity-50 pointer-events-none",
+                        "opacity-50 pointer-events-none"
                     )}
                   >
                     <button
+                      type="button"
                       onClick={() => handleSelectRoom(room.id)}
                       disabled={isDeleting || isLoading}
                       className="w-full text-left"
@@ -376,6 +415,7 @@ export function ChatSidebar({
                       </div>
                     </button>
                     <button
+                      type="button"
                       onClick={(e) => {
                         e.stopPropagation();
                         handleDeleteRoom(room.id);
@@ -384,7 +424,7 @@ export function ChatSidebar({
                       className={cn(
                         "absolute top-3 right-3 p-1 rounded-none",
                         "opacity-0 group-hover:opacity-100 transition-opacity",
-                        "hover:bg-red-500/10 hover:text-red-500",
+                        "hover:bg-red-500/10 hover:text-red-500"
                       )}
                       title="Delete conversation"
                     >
@@ -406,9 +446,12 @@ export function ChatSidebar({
                     letterSpacing: "-0.003em",
                   }}
                 >
-                  <p className="text-xs text-white/60">No conversations yet</p>
-                  <p className="text-xs text-white/40 mt-2">
-                    Click the edit icon to start
+                  <MessageSquare className="h-12 w-12 text-white/20 mx-auto mb-3" />
+                  <p className="text-sm font-medium text-white/70 mb-2">
+                    No conversations yet
+                  </p>
+                  <p className="text-xs text-white/50 leading-relaxed">
+                    Click &ldquo;New&rdquo; above or the button in chat to start
                   </p>
                 </div>
               )}

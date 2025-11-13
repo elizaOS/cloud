@@ -10,6 +10,7 @@ import { Loader2, Upload, User, Mail, Shield } from "lucide-react";
 import type { UserWithOrganization } from "@/lib/types";
 import { toast } from "sonner";
 import { BrandCard, BrandButton, CornerBrackets } from "@/components/brand";
+import { optimizeImage, validateImageFile } from "@/lib/image-utils";
 
 interface ProfileFormProps {
   user: UserWithOrganization;
@@ -23,6 +24,7 @@ export function ProfileForm({ user }: ProfileFormProps) {
   const [isUploadingAvatar, setIsUploadingAvatar] = useState(false);
   const [isUpdatingEmail, setIsUpdatingEmail] = useState(false);
   const [emailAdded, setEmailAdded] = useState(false);
+  const [currentAvatar, setCurrentAvatar] = useState<string | null>(user.avatar);
 
   const getInitials = (
     name: string | null,
@@ -50,16 +52,33 @@ export function ProfileForm({ user }: ProfileFormProps) {
     const file = e.target.files?.[0];
     if (!file) return;
 
+    // Validate file
+    const validation = validateImageFile(file);
+    if (!validation.valid) {
+      setError(validation.error || "Invalid file");
+      toast.error(validation.error || "Invalid file");
+      return;
+    }
+
     setIsUploadingAvatar(true);
     setError(null);
 
     try {
+      // Optimize image client-side (resize to 400x400, compress)
+      toast.info("Optimizing image...");
+      const optimizedDataUrl = await optimizeImage(file, 400, 400, 0.85);
+
+      // Send optimized base64 data to server
       const formData = new FormData();
-      formData.append("file", file);
+      formData.append("imageData", optimizedDataUrl);
 
       const result = await uploadAvatar(formData);
 
       if (result.success) {
+        // Update local state with new avatar URL
+        if (result.avatarUrl) {
+          setCurrentAvatar(result.avatarUrl);
+        }
         toast.success(result.message || "Avatar uploaded successfully");
         router.refresh();
       } else {
@@ -243,7 +262,7 @@ export function ProfileForm({ user }: ProfileFormProps) {
           <div className="flex flex-col sm:flex-row items-start sm:items-center gap-4 pb-6 border-b border-white/10">
             <Avatar className="h-20 w-20 ring-2 ring-[#FF5800]">
               <AvatarImage
-                src={user.avatar || undefined}
+                src={currentAvatar || undefined}
                 alt={
                   user.name ||
                   user.email ||
@@ -341,26 +360,6 @@ export function ProfileForm({ user }: ProfileFormProps) {
               </div>
             )}
 
-            <div className="space-y-2">
-              <label
-                htmlFor="avatar"
-                className="text-xs font-medium text-white/70 uppercase tracking-wide"
-              >
-                Avatar URL (Optional)
-              </label>
-              <Input
-                id="avatar"
-                name="avatar"
-                type="url"
-                defaultValue={user.avatar || ""}
-                placeholder="https://example.com/avatar.jpg"
-                disabled={isPending}
-                className="rounded-none border-white/10 bg-black/40 text-white placeholder:text-white/40 focus:ring-1 focus:ring-[#FF5800] focus:border-[#FF5800]"
-              />
-              <p className="text-xs text-white/50">
-                Or use the upload button above to add a profile picture.
-              </p>
-            </div>
 
             <div className="space-y-2">
               <label className="text-xs font-medium text-white/70 uppercase tracking-wide flex items-center gap-2">

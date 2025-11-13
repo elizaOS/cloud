@@ -6,7 +6,6 @@ import { withRateLimit, RateLimitPresets } from "@/lib/middleware/rate-limit";
 
 const updateUserSchema = z.object({
   name: z.string().min(1).max(100).optional(),
-  avatar: z.string().url().optional().or(z.literal("")),
   nickname: z.string().max(50).optional(),
   work_function: z
     .enum([
@@ -94,9 +93,6 @@ async function handlePATCH(request: NextRequest) {
     // Update user
     const updated = await usersService.update(user.id, {
       ...(validated.name && { name: validated.name }),
-      ...(validated.avatar !== undefined && {
-        avatar: validated.avatar || null,
-      }),
       ...(validated.nickname !== undefined && { nickname: validated.nickname }),
       ...(validated.work_function !== undefined && {
         work_function: validated.work_function,

@@ -12,7 +12,7 @@ export class CharactersService {
 
   async getByIdForUser(
     characterId: string,
-    userId: string,
+    userId: string
   ): Promise<UserCharacter | null> {
     const character = await userCharactersRepository.findById(characterId);
 
@@ -28,7 +28,7 @@ export class CharactersService {
     options?: {
       limit?: number;
       includeTemplates?: boolean;
-    },
+    }
   ): Promise<UserCharacter[]> {
     // If templates are requested, get them separately
     if (options?.includeTemplates) {
@@ -36,7 +36,19 @@ export class CharactersService {
         userCharactersRepository.listByUser(userId),
         userCharactersRepository.listTemplates(),
       ]);
-      return [...userChars, ...templates];
+
+      // Deduplicate by ID to avoid showing the same character twice
+      const seen = new Set<string>();
+      const uniqueCharacters: UserCharacter[] = [];
+
+      for (const char of [...userChars, ...templates]) {
+        if (!seen.has(char.id)) {
+          seen.add(char.id);
+          uniqueCharacters.push(char);
+        }
+      }
+
+      return uniqueCharacters;
     }
 
     return await userCharactersRepository.listByUser(userId);
@@ -60,7 +72,7 @@ export class CharactersService {
 
   async update(
     id: string,
-    data: Partial<NewUserCharacter>,
+    data: Partial<NewUserCharacter>
   ): Promise<UserCharacter | undefined> {
     return await userCharactersRepository.update(id, data);
   }
@@ -68,7 +80,7 @@ export class CharactersService {
   async updateForUser(
     characterId: string,
     userId: string,
-    updates: Partial<NewUserCharacter>,
+    updates: Partial<NewUserCharacter>
   ): Promise<UserCharacter | null> {
     // Verify ownership
     const character = await this.getByIdForUser(characterId, userId);
@@ -137,6 +149,7 @@ export class CharactersService {
             post?: string[];
           }
         | undefined,
+      avatar_url: character.avatar_url ?? undefined,
     };
   }
 }

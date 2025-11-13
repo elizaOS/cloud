@@ -15,6 +15,7 @@ import {
   Check,
 } from "lucide-react";
 import { ElizaAvatar } from "./eliza-avatar";
+import { EmptyChatState } from "./empty-chat-state";
 import { KnowledgeDrawer } from "./knowledge-drawer";
 import { useAudioRecorder } from "./hooks/use-audio-recorder";
 import { useAudioPlayer } from "./hooks/use-audio-player";
@@ -82,7 +83,7 @@ export function ElizaChatInterface() {
 
   // Get character name from store
   const selectedCharacter = availableCharacters.find(
-    (char) => char.id === selectedCharacterId,
+    (char) => char.id === selectedCharacterId
   );
   const characterName = selectedCharacter?.name || agentInfo?.name || "Agent";
   const [isLoading, setIsLoading] = useState(false);
@@ -201,7 +202,7 @@ export function ElizaChatInterface() {
         setIsInitializing(false);
       }
     },
-    [createRoomInStore, loadMessages, selectedCharacterId],
+    [createRoomInStore, loadMessages, selectedCharacterId]
   );
 
   // Note: Room and character initialization is now handled by URL params
@@ -222,7 +223,7 @@ export function ElizaChatInterface() {
     // If no roomId exists, create one first
     if (!roomId) {
       console.log(
-        "[ElizaChat] Pending message found but no room - creating room first",
+        "[ElizaChat] Pending message found but no room - creating room first"
       );
       isPendingMessageProcessingRef.current = true;
 
@@ -240,7 +241,7 @@ export function ElizaChatInterface() {
         .catch((err) => {
           console.error(
             "[ElizaChat] Failed to create room for pending message:",
-            err,
+            err
           );
           isPendingMessageProcessingRef.current = false;
           pendingMessageToSendRef.current = null;
@@ -311,7 +312,7 @@ export function ElizaChatInterface() {
         toast.error("Failed to generate speech");
       }
     },
-    [autoPlayTTS, player, selectedVoiceId, customVoices],
+    [autoPlayTTS, player, selectedVoiceId, customVoices]
   );
 
   // Load custom voices on mount
@@ -389,7 +390,7 @@ export function ElizaChatInterface() {
       } catch (error) {
         console.error("[ElizaChat STT] Error:", error);
         toast.error(
-          error instanceof Error ? error.message : "Failed to transcribe audio",
+          error instanceof Error ? error.message : "Failed to transcribe audio"
         );
       } finally {
         // Cleanup: Clear recording and reset processing state
@@ -400,7 +401,7 @@ export function ElizaChatInterface() {
 
     processAudioBlob();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [recorder.audioBlob, isProcessingSTT, recorder, roomId]);
+  }, [recorder.audioBlob, isProcessingSTT, recorder]);
 
   // Auto-generate TTS for new agent messages (only if autoPlayTTS is enabled)
   useEffect(() => {
@@ -411,7 +412,7 @@ export function ElizaChatInterface() {
       (msg) =>
         msg.isAgent &&
         !msg.id.startsWith("thinking-") &&
-        !messageAudioUrls.current.has(msg.id),
+        !messageAudioUrls.current.has(msg.id)
     );
 
     newAgentMessages.forEach((msg) => {
@@ -427,7 +428,7 @@ export function ElizaChatInterface() {
       // Handle agent response - remove thinking indicator
       if (messageData.type === "agent") {
         const withoutThinking = prev.filter(
-          (m) => !m.id.startsWith("thinking-"),
+          (m) => !m.id.startsWith("thinking-")
         );
 
         // Clear thinking timeout
@@ -443,7 +444,7 @@ export function ElizaChatInterface() {
 
         // Remove temp messages
         const filtered = withoutThinking.filter(
-          (m) => !m.id.startsWith("temp-"),
+          (m) => !m.id.startsWith("temp-")
         );
 
         return [...filtered, messageData];
@@ -452,7 +453,7 @@ export function ElizaChatInterface() {
       // Handle thinking indicator
       if (messageData.type === "thinking") {
         const withoutThinking = prev.filter(
-          (m) => !m.id.startsWith("thinking-"),
+          (m) => !m.id.startsWith("thinking-")
         );
         return [...withoutThinking, messageData];
       }
@@ -463,7 +464,7 @@ export function ElizaChatInterface() {
         const tempIndex = prev.findIndex(
           (m) =>
             m.id.startsWith("temp-") &&
-            m.content.text === messageData.content.text,
+            m.content.text === messageData.content.text
         );
 
         if (tempIndex !== -1) {
@@ -489,7 +490,7 @@ export function ElizaChatInterface() {
     if (scrollAreaRef.current) {
       // ScrollArea wraps content in a viewport div with data-radix-scroll-area-viewport
       const viewport = scrollAreaRef.current.querySelector(
-        "[data-radix-scroll-area-viewport]",
+        "[data-radix-scroll-area-viewport]"
       );
       if (viewport) {
         // Use requestAnimationFrame to ensure DOM has updated
@@ -539,7 +540,7 @@ export function ElizaChatInterface() {
           // Prevent duplicate room creation attempts
           if (isCreatingRoomRef.current) {
             console.log(
-              "[ElizaChat] Room creation already in progress, waiting...",
+              "[ElizaChat] Room creation already in progress, waiting..."
             );
             await new Promise((resolve) => setTimeout(resolve, 1000));
             currentRoomId = roomId; // Use the room that was just created
@@ -590,10 +591,10 @@ export function ElizaChatInterface() {
       // Safety timeout: remove thinking indicator after 30 seconds if no response
       thinkingTimeoutRef.current = setTimeout(() => {
         setMessages((prev) =>
-          prev.filter((m) => !m.id.startsWith("thinking-")),
+          prev.filter((m) => !m.id.startsWith("thinking-"))
         );
         console.warn(
-          "[Chat] Thinking indicator timeout - agent took too long to respond",
+          "[Chat] Thinking indicator timeout - agent took too long to respond"
         );
       }, 30000);
 
@@ -611,31 +612,34 @@ export function ElizaChatInterface() {
           setMessages((prev) =>
             prev.filter(
               (msg) =>
-                msg.id !== tempUserMessage.id &&
-                !msg.id.startsWith("thinking-"),
-            ),
+                msg.id !== tempUserMessage.id && !msg.id.startsWith("thinking-")
+            )
           );
           if (thinkingTimeoutRef.current) {
             clearTimeout(thinkingTimeoutRef.current);
             thinkingTimeoutRef.current = null;
           }
         },
-        onComplete: () => {
-          loadRooms();
+        onComplete: async () => {
+          // Force reload rooms after message completion to update sidebar
+          console.log("[ElizaChat] Message complete, reloading rooms");
+          await loadRooms(true).catch((err) => {
+            console.error("[ElizaChat] Failed to reload rooms:", err);
+          });
         },
       });
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to send message");
       console.error("Error sending message:", err);
       toast.error(
-        err instanceof Error ? err.message : "Failed to send message",
+        err instanceof Error ? err.message : "Failed to send message"
       );
       // Remove temp and thinking messages on error
       setMessages((prev) =>
         prev.filter(
           (msg) =>
-            !msg.id.startsWith("temp-") && !msg.id.startsWith("thinking-"),
-        ),
+            !msg.id.startsWith("temp-") && !msg.id.startsWith("thinking-")
+        )
       );
       if (thinkingTimeoutRef.current) {
         clearTimeout(thinkingTimeoutRef.current);
@@ -643,6 +647,7 @@ export function ElizaChatInterface() {
       }
     } finally {
       setIsLoading(false);
+      isCreatingRoomRef.current = false;
     }
   };
 
@@ -666,7 +671,7 @@ export function ElizaChatInterface() {
       url: string;
       title?: string;
       contentType: string;
-    }>,
+    }>
   ) => {
     try {
       // Check if there are image attachments
@@ -674,7 +679,7 @@ export function ElizaChatInterface() {
         (att) =>
           att.contentType === "IMAGE" ||
           att.contentType === "image" ||
-          att.contentType.startsWith("image/"),
+          att.contentType.startsWith("image/")
       );
 
       if (imageAttachment) {
@@ -700,7 +705,7 @@ export function ElizaChatInterface() {
         } catch (imageError) {
           console.error(
             "Failed to copy image, falling back to text:",
-            imageError,
+            imageError
           );
           toast.error("Failed to copy image, try downloading instead");
           return;
@@ -805,22 +810,32 @@ export function ElizaChatInterface() {
               )}
 
               {!isLoadingMessages && messages.length === 0 && !error && (
-                <div className="flex flex-col items-center justify-center h-full text-center py-12">
-                  <ElizaAvatar
-                    avatarUrl={agentInfo?.avatarUrl}
-                    name={agentInfo?.name}
-                    className="h-16 w-16 mb-4"
-                    fallbackClassName="bg-muted"
-                    iconClassName="h-8 w-8 text-muted-foreground"
-                  />
-                  <h3 className="text-lg font-semibold mb-2">
-                    Start a conversation
-                  </h3>
-                  <p className="text-sm text-muted-foreground max-w-md">
-                    Ask me anything about AI, development, or how elizaOS can
-                    help you build intelligent agents.
-                  </p>
-                </div>
+                <>
+                  {!roomId ? (
+                    <EmptyChatState
+                      agentName={agentInfo?.name}
+                      agentAvatar={agentInfo?.avatarUrl}
+                      selectedCharacterId={selectedCharacterId}
+                    />
+                  ) : (
+                    <div className="flex flex-col items-center justify-center h-full text-center py-12">
+                      <ElizaAvatar
+                        avatarUrl={agentInfo?.avatarUrl}
+                        name={agentInfo?.name}
+                        className="h-16 w-16 mb-4"
+                        fallbackClassName="bg-muted"
+                        iconClassName="h-8 w-8 text-muted-foreground"
+                      />
+                      <h3 className="text-lg font-semibold mb-2">
+                        Start a conversation
+                      </h3>
+                      <p className="text-sm text-muted-foreground max-w-md">
+                        Ask me anything about AI, development, or how elizaOS
+                        can help you build intelligent agents.
+                      </p>
+                    </div>
+                  )}
+                </>
               )}
 
               {!isLoadingMessages &&
@@ -907,7 +922,7 @@ export function ElizaChatInterface() {
                                             );
                                           }
                                           return null;
-                                        },
+                                        }
                                       )}
                                     </div>
                                   )}
@@ -928,7 +943,7 @@ export function ElizaChatInterface() {
                                       copyToClipboard(
                                         message.content.text,
                                         message.id,
-                                        message.content.attachments,
+                                        message.content.attachments
                                       )
                                     }
                                     title="Copy message"
@@ -947,7 +962,7 @@ export function ElizaChatInterface() {
                                       onClick={() => {
                                         const url =
                                           messageAudioUrls.current.get(
-                                            message.id,
+                                            message.id
                                           );
                                         if (url) {
                                           if (
@@ -1006,7 +1021,7 @@ export function ElizaChatInterface() {
                                 copyToClipboard(
                                   message.content.text,
                                   message.id,
-                                  message.content.attachments,
+                                  message.content.attachments
                                 )
                               }
                               title="Copy message"
@@ -1167,11 +1182,11 @@ export function ElizaChatInterface() {
                                     if (newVoiceId) {
                                       localStorage.setItem(
                                         "eliza-selected-voice-id",
-                                        newVoiceId,
+                                        newVoiceId
                                       );
                                     } else {
                                       localStorage.removeItem(
-                                        "eliza-selected-voice-id",
+                                        "eliza-selected-voice-id"
                                       );
                                     }
                                   }
@@ -1179,7 +1194,7 @@ export function ElizaChatInterface() {
                                   const voiceName = newVoiceId
                                     ? customVoices.find(
                                         (v) =>
-                                          v.elevenlabsVoiceId === newVoiceId,
+                                          v.elevenlabsVoiceId === newVoiceId
                                       )?.name || "Custom"
                                     : "Default";
 
@@ -1225,7 +1240,7 @@ export function ElizaChatInterface() {
                   type="button"
                   variant="outline"
                   size="icon"
-                  disabled={isLoading || !roomId}
+                  disabled={isLoading}
                   onClick={handleVoiceInput}
                   className="h-10 w-10 rounded-none"
                 >
@@ -1239,10 +1254,7 @@ export function ElizaChatInterface() {
                 <Button
                   type="submit"
                   disabled={
-                    isLoading ||
-                    !roomId ||
-                    !inputText.trim() ||
-                    recorder.isRecording
+                    isLoading || !inputText.trim() || recorder.isRecording
                   }
                   size="icon"
                   className="h-10 w-10 rounded-none border-none"

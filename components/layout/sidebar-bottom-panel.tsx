@@ -8,6 +8,7 @@
 import { usePrivy, useLogout } from "@privy-io/react-auth";
 import { useRouter, usePathname } from "next/navigation";
 import { useCreditsStream } from "@/hooks/use-credits-stream";
+import { useUserProfile } from "@/hooks/use-user-profile";
 import {
   CreditCard,
   LogOut,
@@ -19,6 +20,7 @@ import {
 import { cn } from "@/lib/utils";
 import { CornerBrackets } from "@/components/brand";
 import { useChatStore } from "@/stores/chat-store";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 
 interface SidebarBottomPanelProps {
   className?: string;
@@ -30,6 +32,7 @@ export function SidebarBottomPanel({ className }: SidebarBottomPanelProps) {
   const router = useRouter();
   const pathname = usePathname();
   const { creditBalance, isLoading: loadingCredits } = useCreditsStream();
+  const { profile } = useUserProfile();
   const { clearChatData } = useChatStore();
 
   // Get user details
@@ -232,21 +235,31 @@ export function SidebarBottomPanel({ className }: SidebarBottomPanelProps) {
       {/* Corner brackets for the panel */}
       <CornerBrackets size="sm" className="opacity-30" />
 
-      {/* User Info Header - Clickable to expand/collapse */}
+      {/* User Info Header - with Avatar */}
       <div className="relative z-10 px-4 py-3 border-b border-white/10">
         <div
-          className="flex flex-col gap-2"
+          className="flex items-center gap-3"
           style={{
             fontFamily: "var(--font-roboto-mono)",
             fontWeight: 400,
             letterSpacing: "-0.003em",
           }}
         >
-          <div className="text-sm font-medium text-white truncate">
-            {getUserName()}
-          </div>
-          <div className="text-xs text-white/40 truncate">
-            {getUserIdentifier()}
+          <Avatar className="h-10 w-10 ring-2 ring-[#FF5800]/50">
+            {profile?.avatar && (
+              <AvatarImage src={profile.avatar} alt={getUserName()} />
+            )}
+            <AvatarFallback className="bg-gradient-to-br from-purple-500 to-blue-600 text-white text-sm">
+              {getUserName().slice(0, 2).toUpperCase()}
+            </AvatarFallback>
+          </Avatar>
+          <div className="flex-1 min-w-0">
+            <div className="text-sm font-medium text-white truncate">
+              {getUserName()}
+            </div>
+            <div className="text-xs text-white/40 truncate">
+              {getUserIdentifier()}
+            </div>
           </div>
         </div>
       </div>

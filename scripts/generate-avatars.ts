@@ -58,14 +58,14 @@ const CHARACTER_PROMPTS: CharacterAvatarPrompt[] = [
     name: "Creative Spark",
     prompt:
       "An artistic creative muse avatar surrounded by paint splashes, stars, and creative energy. Vibrant purple and gold colors. Imaginative and inspiring digital illustration, circular portrait. Artistic and innovative appearance.",
-    filename: "creativespark.png",
+    filename: "creative-spark.png",
   },
   {
     username: "gamemaster",
     name: "Game Master",
     prompt:
       "A fantasy RPG dungeon master avatar with mystical elements, dice, and gaming symbols. Medieval fantasy aesthetic with rich colors. Epic digital illustration, circular portrait format. Strategic and adventurous appearance.",
-    filename: "gamemaster.png",
+    filename: "game-master.png",
   },
   {
     username: "prof_ada",
@@ -114,7 +114,7 @@ const CHARACTER_PROMPTS: CharacterAvatarPrompt[] = [
     name: "Mystic Oracle",
     prompt:
       "A mystical psychic oracle avatar with third eye, tarot cards, and crystal ball elements. Deep purple and mysterious colors with ethereal glow. Spiritual mystical illustration, circular portrait. Intuitive and mysterious appearance.",
-    filename: "mysticoracle.png",
+    filename: "mystic-oracle.png",
   },
   {
     username: "amara",

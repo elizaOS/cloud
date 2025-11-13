@@ -1,68 +1,43 @@
-"use client";
+import { myAgentsService } from "@/lib/services/my-agents";
+import { requireAuthWithOrg } from "@/lib/auth";
+import { MyAgentsClient as MyAgentsClientComponent } from "@/components/my-agents";
+import type { ElizaCharacter } from "@/lib/types";
 
-import { useCallback } from "react";
-import { useRouter } from "next/navigation";
-import { MyAgentsView } from "@/components/marketplace";
-import { useSetPageHeader } from "@/components/layout/page-header-context";
-import type { ExtendedCharacter } from "@/lib/types/my-agents";
-import { toast } from "sonner";
+export async function MyAgentsClient() {
+  const user = await requireAuthWithOrg();
 
-export function MyAgentsClient() {
-  const router = useRouter();
-
-  useSetPageHeader({
-    title: "My Agents",
-    description:
-      "Manage and interact with your personal AI agents. View, deploy, and chat with your characters.",
+  const result = await myAgentsService.searchCharacters({
+    userId: user.id,
+    organizationId: user.organization_id!,
+    filters: {},
+    sortOptions: {
+      sortBy: "updated",
+      order: "desc",
+    },
+    pagination: {
+      page: 1,
+      limit: 100,
+    },
+    includeStats: false,
   });
 
-  const handleSelectCharacter = useCallback(
-    async (character: ExtendedCharacter) => {
-      try {
-        toast.success(`Opening chat with ${character.name}...`);
+  const characters: ElizaCharacter[] = result.characters.map(char => ({
+    id: char.id,
+    name: char.name,
+    username: char.username,
+    system: char.system,
+    bio: char.bio,
+    messageExamples: char.messageExamples,
+    postExamples: char.postExamples,
+    topics: char.topics,
+    adjectives: char.adjectives,
+    knowledge: char.knowledge,
+    plugins: char.plugins,
+    settings: char.settings,
+    secrets: char.secrets,
+    style: char.style,
+    ...(char.avatarUrl && { avatarUrl: char.avatarUrl }),
+  }));
 
-        router.push(`/dashboard/chat?characterId=${character.id}`);
-      } catch (error) {
-        console.error("[My Agents] Error navigating to chat:", error);
-        toast.error(
-          error instanceof Error ? error.message : "Failed to open chat",
-        );
-      }
-    },
-    [router],
-  );
-
-  const handleCloneCharacter = useCallback(
-    async (character: ExtendedCharacter) => {
-      try {
-        const response = await fetch(
-          `/api/my-agents/characters/${character.id}/clone`,
-          {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-          },
-        );
-
-        if (!response.ok) {
-          const error = await response.json();
-          throw new Error(error.error || "Failed to clone character");
-        }
-
-        const result = await response.json();
-        toast.success(`Cloned ${character.name} to your library`);
-      } catch (error) {
-        console.error("[My Agents] Error cloning character:", error);
-        throw error;
-      }
-    },
-    [],
-  );
-
-  return (
-    <MyAgentsView
-      onSelectCharacter={handleSelectCharacter}
-      onCloneCharacter={handleCloneCharacter}
-      isCollapsed={false}
-    />
-  );
+  return <MyAgentsClientComponent initialCharacters={characters} />;
 }
