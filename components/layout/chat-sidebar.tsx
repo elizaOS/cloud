@@ -75,7 +75,7 @@ export function ChatSidebar({
 
   // Find selected character details
   const selectedCharacter = availableCharacters.find(
-    (c) => c.id === selectedCharacterId,
+    (c) => c.id === selectedCharacterId
   );
 
   useEffect(() => {
@@ -158,7 +158,7 @@ export function ChatSidebar({
           isMobile
             ? `fixed inset-y-0 left-0 z-50 w-64 ${isOpen ? "translate-x-0" : "-translate-x-full"}`
             : "w-64",
-          className,
+          className
         )}
       >
         {/* Header with Logo */}
@@ -193,13 +193,14 @@ export function ChatSidebar({
 
         {/* Back Button */}
         <div className="border-b border-white/10 px-4 py-3">
-          <Link
-            href="/dashboard"
-            className="flex items-center gap-2 text-white/70 hover:text-white transition-colors text-sm"
+          <button
+            type="button"
+            onClick={() => router.back()}
+            className="flex items-center gap-2 text-white/70 hover:text-white transition-colors text-sm cursor-pointer"
           >
             <ArrowLeft className="h-4 w-4" />
             <span className="font-medium">Back</span>
-          </Link>
+          </button>
         </div>
 
         {/* Selected Character Profile with New Chat Icon */}
@@ -269,7 +270,7 @@ export function ChatSidebar({
                       "hover:bg-white/5",
                       roomId === room.id &&
                         "bg-white/10 border-l-2 border-[#FF5800]",
-                      isDeleting && "opacity-50 pointer-events-none",
+                      isDeleting && "opacity-50 pointer-events-none"
                     )}
                   >
                     <button
@@ -308,7 +309,7 @@ export function ChatSidebar({
                       className={cn(
                         "absolute top-3 right-3 p-1 rounded-none",
                         "opacity-0 group-hover:opacity-100 transition-opacity",
-                        "hover:bg-red-500/10 hover:text-red-500",
+                        "hover:bg-red-500/10 hover:text-red-500"
                       )}
                       title="Delete conversation"
                     >
