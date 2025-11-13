@@ -621,8 +621,12 @@ export function ElizaChatInterface() {
             thinkingTimeoutRef.current = null;
           }
         },
-        onComplete: () => {
-          loadRooms();
+        onComplete: async () => {
+          // Force reload rooms after message completion to update sidebar
+          console.log("[ElizaChat] Message complete, reloading rooms");
+          await loadRooms(true).catch((err) => {
+            console.error("[ElizaChat] Failed to reload rooms:", err);
+          });
         },
       });
     } catch (err) {

@@ -67,12 +67,19 @@ export function ChatSidebar({
 
   // Filter rooms by selected character
   const filteredRooms = useMemo(() => {
+    console.log(`[ChatSidebar] Filtering rooms: total=${rooms.length}, selectedCharacterId=${selectedCharacterId}`);
+
     if (!selectedCharacterId) {
       // Show rooms with no character assignment (default Eliza)
-      return rooms.filter((room) => !room.characterId);
+      const filtered = rooms.filter((room) => !room.characterId);
+      console.log(`[ChatSidebar] No character selected, showing ${filtered.length} rooms without character`);
+      return filtered;
     }
+
     // Show rooms for the selected character
-    return rooms.filter((room) => room.characterId === selectedCharacterId);
+    const filtered = rooms.filter((room) => room.characterId === selectedCharacterId);
+    console.log(`[ChatSidebar] Character selected, showing ${filtered.length} rooms for character ${selectedCharacterId}`);
+    return filtered;
   }, [rooms, selectedCharacterId]);
 
   // Find selected character details
@@ -90,10 +97,12 @@ export function ChatSidebar({
     return () => window.removeEventListener("resize", checkScreenSize);
   }, []);
 
-  // Load rooms on mount
+  // Load rooms on mount - Zustand functions are stable, so empty deps array is safe
   useEffect(() => {
+    console.log("[ChatSidebar] Mounting, loading rooms");
     loadRooms();
-  }, [loadRooms]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const handleNewChat = async () => {
     if (isCreatingRoom) return; // Prevent double-clicking
