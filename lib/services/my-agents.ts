@@ -83,19 +83,28 @@ export class MyAgentsService {
       this.toExtendedCharacter(char)
     );
 
-    // On page 1, prepend template characters (excluding ones user already has)
-    // Deduplicate by NAME since cloned templates get new IDs
+    // On page 1, prepend template characters and exclude database characters with matching names
+    // ALWAYS prefer JSON templates over database versions to ensure latest avatars/data
     let addedTemplateCount = 0;
+    let removedDatabaseCount = 0;
     if (pagination.page === 1) {
       const templates = getAllTemplates();
-      const existingCharacterNames = new Set(
-        enrichedCharacters.map(c => c.name?.toLowerCase().trim()).filter(Boolean)
+      const templateNames = new Set(
+        templates.map(t => t.name?.toLowerCase().trim()).filter(Boolean)
       );
-      const uniqueTemplates = templates.filter(
-        t => !existingCharacterNames.has(t.name?.toLowerCase().trim())
+
+      const originalCount = enrichedCharacters.length;
+
+      // Filter OUT database characters that match template names (prefer JSON templates)
+      enrichedCharacters = enrichedCharacters.filter(
+        c => !templateNames.has(c.name?.toLowerCase().trim())
       );
-      addedTemplateCount = uniqueTemplates.length;
-      enrichedCharacters = [...uniqueTemplates, ...enrichedCharacters];
+
+      removedDatabaseCount = originalCount - enrichedCharacters.length;
+
+      // Prepend all JSON templates
+      addedTemplateCount = templates.length;
+      enrichedCharacters = [...templates, ...enrichedCharacters];
     }
 
     if (includeStats) {
@@ -129,8 +138,8 @@ export class MyAgentsService {
       });
     }
 
-    // Include only unique template count in total for page 1
-    const totalWithTemplates = total + addedTemplateCount;
+    // Adjust total: add templates, subtract database duplicates we filtered out
+    const totalWithTemplates = total + addedTemplateCount - removedDatabaseCount;
 
     const result: MyAgentsSearchResult = {
       characters: enrichedCharacters,

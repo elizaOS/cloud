@@ -17,6 +17,7 @@ import historyScholarTemplate from "./templates/history-scholar.json";
 import wellnessCoachTemplate from "./templates/wellness-coach.json";
 import edadTemplate from "./templates/edad.json";
 import amaraTemplate from "./templates/amara.json";
+import creativeSparkTemplate from "./templates/creative-spark.json";
 import type { ExtendedCharacter } from "@/lib/types/my-agents";
 
 // All available template characters
@@ -36,6 +37,8 @@ export const TEMPLATE_CHARACTERS: Record<string, ExtendedCharacter> = {
     wellnessCoachTemplate as unknown as ExtendedCharacter,
   "template-edad": edadTemplate as unknown as ExtendedCharacter,
   "template-amara": amaraTemplate as unknown as ExtendedCharacter,
+  "template-creative-spark":
+    creativeSparkTemplate as unknown as ExtendedCharacter,
 };
 
 /**
