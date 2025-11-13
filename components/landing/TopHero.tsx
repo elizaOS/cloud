@@ -13,27 +13,42 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { Textarea } from "@/components/ui/textarea";
 import {
-  BrandTabs,
-  BrandTabsList,
-  BrandTabsTrigger,
+  BrandTabsResponsive,
   BrandTabsContent,
   HUDContainer,
   BrandButton,
   PromptCardGrid,
 } from "@/components/brand";
+import type { TabItem } from "@/components/brand";
+import { useChatStore } from "@/stores/chat-store";
+import { useRouter } from "next/navigation";
 
 const TopHero = () => {
   const [chatInput, setChatInput] = useState("");
+  const [activeTab, setActiveTab] = useState("agent");
+  const setPendingMessage = useChatStore((state) => state.setPendingMessage);
+  const router = useRouter();
+
+  const heroTabs: TabItem[] = [
+    { value: "agent", label: "Agent", icon: <Bot className="h-4 w-4" /> },
+    { value: "image", label: "Image", icon: <ImageIcon className="h-4 w-4" /> },
+    { value: "video", label: "Video", icon: <Video className="h-4 w-4" /> },
+    {
+      value: "pro-studio",
+      label: "Pro Studio",
+      icon: <Sparkles className="h-4 w-4" />,
+      disabled: true,
+    },
+  ];
 
   const handleFreeChatSubmit = () => {
     if (!chatInput.trim()) return;
 
-    // Store the message in localStorage for pre-filling in chat
-    localStorage.setItem("eliza-pending-message", chatInput.trim());
+    // Store the message in Zustand for auto-sending in chat
+    setPendingMessage(chatInput.trim());
 
     // Redirect to Eliza chat (anonymous users will be created automatically)
-    // Use window.location for reliable navigation
-    window.location.href = "/dashboard/chat";
+    router.push("/dashboard/chat");
   };
 
   const handleChatKeyPress = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
@@ -46,7 +61,7 @@ const TopHero = () => {
 
   return (
     <section
-      className="w-full py-20 md:py-32 relative overflow-hidden"
+      className="w-full py-12 md:py-20 lg:py-32 relative overflow-hidden"
       style={{ backgroundColor: "#0A0A0A" }}
     >
       {/* Fullscreen background video */}
@@ -89,47 +104,13 @@ const TopHero = () => {
             ElizaOS Cloud is your complete AI development platform.
           </p>
 
-          <BrandTabs
+          <BrandTabsResponsive
             id="hero-tabs"
-            defaultValue="agent"
+            tabs={heroTabs}
+            value={activeTab}
+            onValueChange={setActiveTab}
             className="relative z-10"
           >
-            <BrandTabsList>
-              <BrandTabsTrigger value="agent">
-                <Bot className="h-4 w-4" />
-                Agent
-              </BrandTabsTrigger>
-              <BrandTabsTrigger value="image">
-                <ImageIcon className="h-4 w-4" />
-                Image
-              </BrandTabsTrigger>
-              <BrandTabsTrigger value="video">
-                <Video className="h-4 w-4" />
-                Video
-              </BrandTabsTrigger>
-              <BrandTabsTrigger value="pro-studio" disabled>
-                <Sparkles className="h-4 w-4" />
-                <span
-                  style={{
-                    background:
-                      "linear-gradient(90deg, #EC594F 0%, #7E6BF0 100%)",
-                    WebkitBackgroundClip: "text",
-                    WebkitTextFillColor: "transparent",
-                    backgroundClip: "text",
-                  }}
-                >
-                  Pro Studio
-                </span>
-                <Badge
-                  variant="outline"
-                  className="ml-1 text-[10px] md:text-xs border-white/20 px-1 md:px-2"
-                >
-                  <span className="hidden md:inline">Coming soon</span>
-                  <span className="md:hidden">Soon</span>
-                </Badge>
-              </BrandTabsTrigger>
-            </BrandTabsList>
-
             <BrandTabsContent value="agent">
               <div className="relative mx-auto max-w-5xl">
                 {/* HUD-style container with corner decorations */}
@@ -264,7 +245,7 @@ const TopHero = () => {
                 <p>Professional studio features coming soon</p>
               </div>
             </BrandTabsContent>
-          </BrandTabs>
+          </BrandTabsResponsive>
         </div>
       </div>
     </section>

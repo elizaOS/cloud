@@ -42,15 +42,20 @@ export function InvoiceDetailClient({ invoice }: InvoiceDetailClientProps) {
 
   return (
     <div className="flex flex-col gap-6 max-w-6xl mx-auto p-6">
-      {/* Back Button */}
-      <button
-        type="button"
-        onClick={() => router.push("/dashboard/settings?tab=billing")}
-        className="flex items-center gap-2 text-base font-mono text-white/60 hover:text-white transition-colors w-fit"
-      >
-        <ArrowLeft className="h-4 w-4" />
-        Back to Billing
-      </button>
+      {/* Back Navigation */}
+      <div className="border-b border-white/10 pb-4">
+        <button
+          type="button"
+          onClick={() => router.push("/dashboard/settings?tab=billing")}
+          className="group flex items-center gap-2 text-sm text-white/70 hover:text-white transition-all duration-200"
+          style={{ fontFamily: "var(--font-roboto-mono)" }}
+        >
+          <div className="flex items-center justify-center w-8 h-8 rounded-none border border-white/10 bg-black/40 group-hover:bg-white/5 group-hover:border-[#FF5800]/50 transition-all duration-200">
+            <ArrowLeft className="h-4 w-4" />
+          </div>
+          <span className="font-medium">Back to Billing</span>
+        </button>
+      </div>
 
       {/* Invoice Header Card */}
       <BrandCard className="relative">

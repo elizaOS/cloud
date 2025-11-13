@@ -423,9 +423,18 @@ async function handlePOST(req: NextRequest) {
       estimatedCost,
     });
 
-    // 6. Forward to Vercel AI Gateway
+    // 6. Forward to Vercel AI Gateway with Groq as preferred provider
     const providerInstance = getProvider();
-    const providerResponse = await providerInstance.chatCompletions(request);
+    const requestWithProvider = {
+      ...request,
+      providerOptions: {
+        gateway: {
+          order: ["groq"], // Use Groq as preferred provider
+        },
+      },
+    };
+    const providerResponse =
+      await providerInstance.chatCompletions(requestWithProvider);
 
     // 7. Handle streaming vs non-streaming
     if (isStreaming) {

@@ -10,7 +10,7 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { MessageSquare, Users, Eye, TrendingUp } from "lucide-react";
+import { MessageSquare, Users, Eye, TrendingUp, ArrowLeft } from "lucide-react";
 import Link from "next/link";
 import type { UserCharacter } from "@/db/schemas/user-characters";
 
@@ -30,6 +30,20 @@ export function CharacterDetailClient({
 
   return (
     <div className="container max-w-5xl mx-auto py-12 px-4">
+      {/* Back Navigation */}
+      <div className="mb-8 border-b border-white/10 pb-4">
+        <Link
+          href="/marketplace/gallery"
+          className="group flex items-center gap-2 text-sm text-white/70 hover:text-white transition-all duration-200 w-fit"
+          style={{ fontFamily: "var(--font-roboto-mono)" }}
+        >
+          <div className="flex items-center justify-center w-8 h-8 rounded-none border border-white/10 bg-black/40 group-hover:bg-white/5 group-hover:border-[#FF5800]/50 transition-all duration-200">
+            <ArrowLeft className="h-4 w-4" />
+          </div>
+          <span className="font-medium">Back to Gallery</span>
+        </Link>
+      </div>
+
       <div className="grid gap-8 md:grid-cols-3">
         <div className="md:col-span-1">
           <Card>

@@ -16,6 +16,8 @@ import { v4 } from "uuid";
 import { providersProvider } from "./providers/providers";
 import { actionsProvider } from "./providers/actions";
 import { characterProvider } from "./providers/character";
+import { generateImageAction } from "./actions/image-generation";
+import { actionStateProvider } from "./providers/actionState";
 
 // Track usage per message for credit deduction
 const messageUsageMap = new Map<
@@ -43,36 +45,39 @@ export const planningTemplate = `
 <instructions>
 You are analyzing the user's message to determine the best approach.
 
+**CRITICAL RULE: If you need ANY actions or providers, you MUST select Option 2.**
+
 **Option 1 - Respond Immediately (1 LLM call):**
-If you have all the information needed to provide a complete, helpful response RIGHT NOW:
+ONLY use this if ALL of these are true:
 - Simple greeting, thanks, or social interaction
-- General question answerable from existing context
-- No external data, calculations, or tools needed
+- General knowledge question answerable from memory
+- NO actions needed (no image generation, no tools, no external operations)
+- NO providers needed (no document lookup, no data retrieval)
+- You can give a complete answer with existing context alone
 
-Then generate your response immediately and skip additional context gathering.
+**Option 2 - Use Actions/Providers (2+ LLM calls):**
+Use this if ANY of these apply:
+- User requests an action (generate image, search, calculate, etc.)
+- Need to check documents, knowledge base, or user data
+- Need specific providers for context
+- ANY tool or external operation required
 
-**Option 2 - Gather More Context (2+ LLM calls):**
-If the request requires:
-- Specific data from providers (e.g., knowledge documents, user data)
-- Execution of actions or tools
-- Additional context you don't currently have
-
-Then specify which providers/actions are needed, and you'll generate the response later.
+IMPORTANT: If listing actions or providers, set canRespondNow to NO.
 </instructions>
 
 <output>
 Respond using XML format:
 
-**If you can respond immediately:**
+**If you can respond immediately (NO actions/providers needed):**
 <plan>
   <thought>Brief reasoning why you can respond now</thought>
   <canRespondNow>YES</canRespondNow>
   <text>Your complete response to the user here</text>
 </plan>
 
-**If you need more context:**
+**If you need actions or providers:**
 <plan>
-  <thought>Reasoning about what additional context you need</thought>
+  <thought>Reasoning about what you need</thought>
   <canRespondNow>NO</canRespondNow>
   <providers>PROVIDER_1,PROVIDER_2</providers>
   <actions>ACTION_1,ACTION_2</actions>
@@ -302,12 +307,34 @@ const messageReceivedHandler = async ({
 
         if (plannedActions.length > 0) {
           logger.debug("[ElizaAssistant] Executing actions:", plannedActions);
-          // Actions will be executed via processActions if needed
-          // For now, we just note them in state
-          updatedState.data = {
-            ...updatedState.data,
-            plannedActions,
+
+          // Create response memory with actions for processActions
+          const actionResponse: Memory = {
+            id: createUniqueUuid(runtime, v4() as UUID),
+            entityId: runtime.agentId,
+            roomId: message.roomId,
+            worldId: message.worldId,
+            content: {
+              text: plan?.thought || "Executing actions",
+              actions: plannedActions,
+              source: "agent",
+            },
           };
+
+          // Execute actions via processActions
+          // The action results will be stored in state by processActions
+          await runtime.processActions(
+            message,
+            [actionResponse],
+            updatedState,
+            callback,
+          );
+
+          // Refresh state to get action results
+          const actionState = await runtime.composeState(message, [
+            "ACTION_STATE",
+          ]);
+          updatedState = { ...updatedState, ...actionState };
         }
       } else {
         logger.info(
@@ -375,18 +402,44 @@ const messageReceivedHandler = async ({
     // Clean up the response ID
     await clearLatestResponseId(runtime, message.roomId);
 
-    // Create response memory
+    // Extract attachments from action results in state
+    const actionResults = await runtime.getActionResults(message.id as UUID);
+
+    logger.info(
+      `[ElizaAssistant] Action results: ${JSON.stringify(actionResults)}`,
+    );
+
+    const attachments = actionResults
+      .flatMap((result) => {
+        // Check if action result has attachments in its callback data
+        if (result.data?.attachments) {
+          return result.data.attachments;
+        }
+        return [];
+      })
+      .filter(Boolean);
+
+    // Create response memory with attachments if any
+    const content: Record<string, unknown> = {
+      text: responseContent,
+      thought,
+      source: "agent",
+      inReplyTo: message.id,
+    };
+
+    if (attachments.length > 0) {
+      content.attachments = attachments;
+      logger.info(
+        `[ElizaAssistant] Including ${attachments.length} attachment(s) in response`,
+      );
+    }
+
     const responseMemory: Memory = {
       id: createUniqueUuid(runtime, (message.id ?? v4()) as UUID),
       entityId: runtime.agentId,
       roomId: message.roomId,
       worldId: message.worldId,
-      content: {
-        text: responseContent,
-        thought,
-        source: "agent",
-        inReplyTo: message.id,
-      },
+      content: content as Memory["content"],
     };
 
     // Save response
@@ -411,6 +464,7 @@ const messageReceivedHandler = async ({
     if (callback) {
       await callback({
         text: responseContent,
+        ...(attachments.length > 0 && { attachments }),
         usage: {
           inputTokens: totalInputTokens,
           outputTokens: totalOutputTokens,
@@ -524,8 +578,13 @@ export const assistantPlugin: Plugin = {
   name: "eliza-assistant",
   description: "Core assistant plugin with message handling and context",
   events,
-  providers: [providersProvider, actionsProvider, characterProvider],
-  actions: [],
+  providers: [
+    providersProvider,
+    actionsProvider,
+    characterProvider,
+    actionStateProvider,
+  ],
+  actions: [generateImageAction],
   services: [],
 };
 

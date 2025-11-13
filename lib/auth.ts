@@ -51,15 +51,12 @@ async function ensureUserHasApiKey(
     }
 
     // Create default API key for existing user
-    console.log(`[Auth] Creating API key for existing user ${userId}`);
     await apiKeysService.create({
       user_id: userId,
       organization_id: organizationId,
       name: "Default API Key",
       is_active: true,
     });
-
-    console.log(`[Auth] Created default API key for existing user ${userId}`);
   } catch (error) {
     console.error(`[Auth] Error ensuring API key for user ${userId}:`, error);
     throw error;
@@ -103,31 +100,15 @@ export const getCurrentUser = cache(
         return null;
       }
 
-      console.log("[Auth] Privy token verified:", {
-        userId: verifiedClaims.userId,
-        issuedAt: verifiedClaims.issuedAt,
-      });
-
       // Get user from database by Privy ID
       let user = await usersService.getByPrivyId(verifiedClaims.userId);
 
       // Just-in-time sync: If user doesn't exist, fetch from Privy and create
       // This handles race conditions where webhooks haven't fired yet
       if (!user) {
-        console.log(
-          `User ${verifiedClaims.userId} not in database, performing just-in-time sync...`,
-        );
-
         try {
           // Fetch full user data from Privy API
           const privyUser = await privyClient.getUser(verifiedClaims.userId);
-
-          console.log("[Auth] Fetched user from Privy API:", {
-            userId: privyUser?.id,
-            hasEmail: !!privyUser?.email,
-            hasLinkedAccounts: !!privyUser?.linkedAccounts,
-            linkedAccountsCount: privyUser?.linkedAccounts?.length || 0,
-          });
 
           if (privyUser) {
             // Import the sync logic from webhook
@@ -140,9 +121,6 @@ export const getCurrentUser = cache(
                 name?: string | null;
                 linkedAccounts?: Array<Record<string, unknown>>;
               },
-            );
-            console.log(
-              `Successfully synced user ${verifiedClaims.userId} just-in-time`,
             );
           }
         } catch (syncError) {
