@@ -57,7 +57,8 @@ export class RuntimeFactory {
     elizaLogger.info(
       "[RuntimeFactory] Creating runtime for user",
       context.userId,
-      "anonymous:", context.isAnonymous
+      "anonymous:", context.isAnonymous,
+      "characterId:", context.characterId || "default"
     );
     
     // 1. Get or create database adapter (cached, safe to share)
@@ -67,6 +68,13 @@ export class RuntimeFactory {
     const { character, plugins } = context.characterId
       ? await characterLoader.loadCharacter(context.characterId)
       : await characterLoader.getDefaultCharacter();
+    
+    elizaLogger.info(
+      "[RuntimeFactory] Loaded character:",
+      character.name,
+      "| Bio:",
+      Array.isArray(character.bio) ? character.bio[0] : character.bio?.toString().substring(0, 100)
+    );
     
     // 3. Build complete settings upfront with user context
     const settings = this.buildSettings(character, context);
@@ -83,7 +91,7 @@ export class RuntimeFactory {
     const runtime = new AgentRuntime({
       character: {
         ...character,
-        id: this.AGENT_ID, // Always use consistent agent ID
+        id: this.AGENT_ID, // Always use consistent agent ID for database consistency
         settings, // All settings including API key are here
       },
       plugins: filteredPlugins,
@@ -102,7 +110,9 @@ export class RuntimeFactory {
     
     elizaLogger.success(
       "[RuntimeFactory] Runtime created successfully for user",
-      context.userId
+      context.userId,
+      "with character:",
+      character.name
     );
     
     return runtime;

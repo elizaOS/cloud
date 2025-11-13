@@ -71,6 +71,11 @@ export async function POST(
     // Step 4: Get character assignment for room
     const roomCharacter = await elizaRoomCharactersRepository.findByRoomId(roomId);
     const characterId = roomCharacter?.character_id || undefined;
+    
+    logger.info(
+      `[Stream] Room ${roomId} - Character lookup:`,
+      characterId ? `Using character ${characterId}` : "Using default character"
+    );
 
     // Step 5: Apply model preferences if provided
     if (model) {
@@ -83,6 +88,7 @@ export async function POST(
     // Apply character if specified
     if (characterId) {
       userContext.characterId = characterId;
+      logger.info(`[Stream] Set characterId in userContext: ${characterId}`);
     }
 
     // Step 6: Create runtime with user context (clean, no key fetching here!)
