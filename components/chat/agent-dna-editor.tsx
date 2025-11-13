@@ -162,41 +162,364 @@ export function AgentDnaEditor({
               <CharacterFormClean character={character} onChange={onChange} />
             )}
             {activeTab === "model-calls" && (
-              <div className="flex h-full items-center justify-center p-6">
-                <div className="text-center">
-                  <Zap className="h-12 w-12 text-white/40 mx-auto mb-4" />
-                  <h3 className="text-lg font-semibold text-white mb-2">
-                    Model Calls
-                  </h3>
-                  <p className="text-sm text-white/60">
-                    Configure model settings and API calls
-                  </p>
+              <div className="flex h-full flex-col overflow-y-auto p-6">
+                <div className="space-y-6 max-w-2xl">
+                  {/* Model Settings Section */}
+                  <div className="space-y-4">
+                    <div>
+                      <h3 className="text-lg font-semibold text-white mb-1">
+                        Model Configuration
+                      </h3>
+                      <p className="text-sm text-white/60">
+                        Configure default model parameters for this agent
+                      </p>
+                    </div>
+
+                    {/* Temperature */}
+                    <div className="space-y-2">
+                      <label
+                        htmlFor="temperature"
+                        className="text-xs font-medium text-white/70 uppercase tracking-wide"
+                      >
+                        Temperature
+                      </label>
+                      <input
+                        id="temperature"
+                        type="number"
+                        min="0"
+                        max="2"
+                        step="0.1"
+                        value={
+                          typeof character.settings?.temperature === "number"
+                            ? character.settings.temperature
+                            : 0.7
+                        }
+                        onChange={(e) =>
+                          onChange({
+                            ...character,
+                            settings: {
+                              ...character.settings,
+                              temperature: parseFloat(e.target.value),
+                            },
+                          })
+                        }
+                        className="w-full rounded-none border border-white/10 bg-black/40 px-3 py-2 text-white placeholder:text-white/40 focus:ring-1 focus:ring-[#FF5800] focus:border-[#FF5800]"
+                      />
+                      <p className="text-xs text-white/50">
+                        Controls randomness: 0 = focused, 2 = creative (default: 0.7)
+                      </p>
+                    </div>
+
+                    {/* Max Tokens */}
+                    <div className="space-y-2">
+                      <label
+                        htmlFor="max-tokens"
+                        className="text-xs font-medium text-white/70 uppercase tracking-wide"
+                      >
+                        Max Tokens
+                      </label>
+                      <input
+                        id="max-tokens"
+                        type="number"
+                        min="1"
+                        max="32000"
+                        step="1"
+                        value={
+                          typeof character.settings?.maxTokens === "number"
+                            ? character.settings.maxTokens
+                            : 2000
+                        }
+                        onChange={(e) =>
+                          onChange({
+                            ...character,
+                            settings: {
+                              ...character.settings,
+                              maxTokens: parseInt(e.target.value, 10),
+                            },
+                          })
+                        }
+                        className="w-full rounded-none border border-white/10 bg-black/40 px-3 py-2 text-white placeholder:text-white/40 focus:ring-1 focus:ring-[#FF5800] focus:border-[#FF5800]"
+                      />
+                      <p className="text-xs text-white/50">
+                        Maximum length of generated responses (default: 2000)
+                      </p>
+                    </div>
+
+                    {/* Top P */}
+                    <div className="space-y-2">
+                      <label
+                        htmlFor="top-p"
+                        className="text-xs font-medium text-white/70 uppercase tracking-wide"
+                      >
+                        Top P
+                      </label>
+                      <input
+                        id="top-p"
+                        type="number"
+                        min="0"
+                        max="1"
+                        step="0.1"
+                        value={
+                          typeof character.settings?.topP === "number"
+                            ? character.settings.topP
+                            : 0.9
+                        }
+                        onChange={(e) =>
+                          onChange({
+                            ...character,
+                            settings: {
+                              ...character.settings,
+                              topP: parseFloat(e.target.value),
+                            },
+                          })
+                        }
+                        className="w-full rounded-none border border-white/10 bg-black/40 px-3 py-2 text-white placeholder:text-white/40 focus:ring-1 focus:ring-[#FF5800] focus:border-[#FF5800]"
+                      />
+                      <p className="text-xs text-white/50">
+                        Nucleus sampling: considers top tokens (default: 0.9)
+                      </p>
+                    </div>
+
+                    {/* Frequency Penalty */}
+                    <div className="space-y-2">
+                      <label
+                        htmlFor="frequency-penalty"
+                        className="text-xs font-medium text-white/70 uppercase tracking-wide"
+                      >
+                        Frequency Penalty
+                      </label>
+                      <input
+                        id="frequency-penalty"
+                        type="number"
+                        min="-2"
+                        max="2"
+                        step="0.1"
+                        value={
+                          typeof character.settings?.frequencyPenalty === "number"
+                            ? character.settings.frequencyPenalty
+                            : 0
+                        }
+                        onChange={(e) =>
+                          onChange({
+                            ...character,
+                            settings: {
+                              ...character.settings,
+                              frequencyPenalty: parseFloat(e.target.value),
+                            },
+                          })
+                        }
+                        className="w-full rounded-none border border-white/10 bg-black/40 px-3 py-2 text-white placeholder:text-white/40 focus:ring-1 focus:ring-[#FF5800] focus:border-[#FF5800]"
+                      />
+                      <p className="text-xs text-white/50">
+                        Reduces repetition of frequent tokens (default: 0)
+                      </p>
+                    </div>
+
+                    {/* Presence Penalty */}
+                    <div className="space-y-2">
+                      <label
+                        htmlFor="presence-penalty"
+                        className="text-xs font-medium text-white/70 uppercase tracking-wide"
+                      >
+                        Presence Penalty
+                      </label>
+                      <input
+                        id="presence-penalty"
+                        type="number"
+                        min="-2"
+                        max="2"
+                        step="0.1"
+                        value={
+                          typeof character.settings?.presencePenalty === "number"
+                            ? character.settings.presencePenalty
+                            : 0
+                        }
+                        onChange={(e) =>
+                          onChange({
+                            ...character,
+                            settings: {
+                              ...character.settings,
+                              presencePenalty: parseFloat(e.target.value),
+                            },
+                          })
+                        }
+                        className="w-full rounded-none border border-white/10 bg-black/40 px-3 py-2 text-white placeholder:text-white/40 focus:ring-1 focus:ring-[#FF5800] focus:border-[#FF5800]"
+                      />
+                      <p className="text-xs text-white/50">
+                        Encourages new topics (default: 0)
+                      </p>
+                    </div>
+                  </div>
+
+                  {/* Info Box */}
+                  <div className="rounded-none bg-black/40 border border-white/10 p-4">
+                    <p className="text-sm text-white/60">
+                      These settings control how the AI model generates responses.
+                      Adjust them to fine-tune your agent&apos;s behavior. Changes apply
+                      to new conversations.
+                    </p>
+                  </div>
                 </div>
               </div>
             )}
             {activeTab === "memories" && (
-              <div className="flex h-full items-center justify-center p-6">
-                <div className="text-center">
-                  <BookOpen className="h-12 w-12 text-white/40 mx-auto mb-4" />
-                  <h3 className="text-lg font-semibold text-white mb-2">
-                    Memories
-                  </h3>
-                  <p className="text-sm text-white/60">
-                    View and manage agent memories
-                  </p>
+              <div className="flex h-full flex-col overflow-y-auto p-6">
+                <div className="space-y-6 max-w-2xl">
+                  {/* Memories Section */}
+                  <div className="space-y-4">
+                    <div>
+                      <h3 className="text-lg font-semibold text-white mb-1">
+                        Agent Knowledge & Memories
+                      </h3>
+                      <p className="text-sm text-white/60">
+                        Define knowledge sources and long-term memory for your agent
+                      </p>
+                    </div>
+
+                    {/* Knowledge Section */}
+                    <div className="space-y-2">
+                      <label className="text-xs font-medium text-white/70 uppercase tracking-wide">
+                        Knowledge Base
+                      </label>
+                      <textarea
+                        value={
+                          Array.isArray(character.knowledge)
+                            ? character.knowledge
+                                .map((k) =>
+                                  typeof k === "string" ? k : k.path,
+                                )
+                                .join("\n")
+                            : ""
+                        }
+                        onChange={(e) => {
+                          const lines = e.target.value
+                            .split("\n")
+                            .filter((l) => l.trim());
+                          onChange({
+                            ...character,
+                            knowledge: lines,
+                          });
+                        }}
+                        placeholder="Add knowledge sources (one per line)..."
+                        rows={8}
+                        className="w-full rounded-none border border-white/10 bg-black/40 px-3 py-2 text-white placeholder:text-white/40 focus:ring-1 focus:ring-[#FF5800] focus:border-[#FF5800] font-mono text-sm"
+                      />
+                      <p className="text-xs text-white/50">
+                        Enter file paths, URLs, or text snippets (one per line)
+                      </p>
+                    </div>
+
+                    {/* Message Examples */}
+                    <div className="space-y-2">
+                      <label className="text-xs font-medium text-white/70 uppercase tracking-wide">
+                        Conversation Examples
+                      </label>
+                      <div className="rounded-none bg-black/40 border border-white/10 p-4">
+                        <p className="text-sm text-white/60 mb-2">
+                          Message examples help the agent learn conversation patterns.
+                        </p>
+                        <p className="text-xs text-white/50">
+                          {character.messageExamples &&
+                          character.messageExamples.length > 0
+                            ? `${character.messageExamples.length} conversation example(s) configured`
+                            : "No message examples configured yet"}
+                        </p>
+                      </div>
+                      <p className="text-xs text-white/50">
+                        Configure detailed message examples in JSON mode
+                      </p>
+                    </div>
+                  </div>
+
+                  {/* Info Box */}
+                  <div className="rounded-none bg-black/40 border border-white/10 p-4">
+                    <p className="text-sm text-white/60">
+                      Knowledge and memories help your agent provide contextually relevant
+                      responses. Knowledge sources can include documentation, FAQs, or any
+                      text that should inform the agent&apos;s responses.
+                    </p>
+                  </div>
                 </div>
               </div>
             )}
             {activeTab === "uploads" && (
-              <div className="flex h-full items-center justify-center p-6">
-                <div className="text-center">
-                  <Upload className="h-12 w-12 text-white/40 mx-auto mb-4" />
-                  <h3 className="text-lg font-semibold text-white mb-2">
-                    Uploads
-                  </h3>
-                  <p className="text-sm text-white/60">
-                    Upload files and documents
-                  </p>
+              <div className="flex h-full flex-col overflow-y-auto p-6">
+                <div className="space-y-6 max-w-2xl">
+                  {/* Uploads Section */}
+                  <div className="space-y-4">
+                    <div>
+                      <h3 className="text-lg font-semibold text-white mb-1">
+                        File Uploads & Documents
+                      </h3>
+                      <p className="text-sm text-white/60">
+                        Upload and manage files for your agent&apos;s knowledge base
+                      </p>
+                    </div>
+
+                    {/* Upload Area */}
+                    <div className="rounded-none border-2 border-dashed border-white/20 bg-black/40 p-8 text-center">
+                      <Upload className="h-12 w-12 text-white/40 mx-auto mb-4" />
+                      <h4 className="text-base font-semibold text-white mb-2">
+                        File Upload Coming Soon
+                      </h4>
+                      <p className="text-sm text-white/60 mb-4">
+                        Direct file upload functionality will be available in a future
+                        update.
+                      </p>
+                      <div className="text-xs text-white/50 text-left max-w-md mx-auto space-y-1">
+                        <p className="font-medium text-white/70 mb-2">
+                          Supported file types (planned):
+                        </p>
+                        <ul className="list-disc list-inside space-y-1 pl-2">
+                          <li>Documents: PDF, TXT, MD, DOC, DOCX</li>
+                          <li>Data: JSON, CSV, XML</li>
+                          <li>Code: JS, TS, PY, and more</li>
+                          <li>Maximum file size: 10MB</li>
+                        </ul>
+                      </div>
+                    </div>
+
+                    {/* Current Workaround */}
+                    <div className="space-y-2">
+                      <label className="text-xs font-medium text-white/70 uppercase tracking-wide">
+                        Current Workaround
+                      </label>
+                      <div className="rounded-none bg-black/40 border border-white/10 p-4">
+                        <p className="text-sm text-white/60 mb-2">
+                          For now, you can add knowledge sources in the{" "}
+                          <span className="text-[#FF5800] font-medium">Memories</span>{" "}
+                          tab by:
+                        </p>
+                        <ul className="text-xs text-white/50 space-y-1 list-disc list-inside pl-2">
+                          <li>Entering file paths to local documents</li>
+                          <li>Adding URLs to online resources</li>
+                          <li>Pasting text content directly</li>
+                        </ul>
+                      </div>
+                    </div>
+
+                    {/* Uploaded Files List (Placeholder) */}
+                    <div className="space-y-2">
+                      <label className="text-xs font-medium text-white/70 uppercase tracking-wide">
+                        Uploaded Files
+                      </label>
+                      <div className="rounded-none bg-black/40 border border-white/10 p-6 text-center">
+                        <p className="text-sm text-white/60">
+                          No files uploaded yet
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Info Box */}
+                  <div className="rounded-none bg-black/40 border border-white/10 p-4">
+                    <p className="text-sm text-white/60">
+                      File uploads will allow you to easily add documents and resources
+                      to your agent&apos;s knowledge base. The system will automatically
+                      process and index the content for efficient retrieval during
+                      conversations.
+                    </p>
+                  </div>
                 </div>
               </div>
             )}
