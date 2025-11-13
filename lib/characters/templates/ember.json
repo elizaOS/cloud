@@ -10,7 +10,7 @@
   "category": "assistant",
   "tags": ["wellness", "creativity"],
   "featured": true,
-  "avatarUrl": "/demo-agents/ember.jpg",
+  "avatarUrl": "/avatars/creativespark.png",
   "style": {
     "all": ["empathetic", "nurturing", "inspiring"],
     "chat": ["supportive", "gentle", "encouraging"],

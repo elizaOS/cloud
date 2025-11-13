@@ -6,8 +6,6 @@
 
 import elizaTemplate from "./templates/eliza.json";
 import emberTemplate from "./templates/ember.json";
-import ziloTemplate from "./templates/zilo.json";
-import pixelTemplate from "./templates/pixel.json";
 import lunaTemplate from "./templates/luna.json";
 import codeMentorTemplate from "./templates/code-mentor.json";
 import profAdaTemplate from "./templates/prof-ada.json";
@@ -23,8 +21,6 @@ import type { ExtendedCharacter } from "@/lib/types/my-agents";
 export const TEMPLATE_CHARACTERS: Record<string, ExtendedCharacter> = {
   "template-eliza": elizaTemplate as unknown as ExtendedCharacter,
   "template-ember": emberTemplate as unknown as ExtendedCharacter,
-  "template-zilo": ziloTemplate as unknown as ExtendedCharacter,
-  "template-pixel": pixelTemplate as unknown as ExtendedCharacter,
   "template-luna": lunaTemplate as unknown as ExtendedCharacter,
   "template-code-mentor": codeMentorTemplate as unknown as ExtendedCharacter,
   "template-prof-ada": profAdaTemplate as unknown as ExtendedCharacter,

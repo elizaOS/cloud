@@ -10,7 +10,7 @@
   "category": "assistant",
   "tags": ["voice", "tts", "accessibility", "assistant"],
   "featured": false,
-  "avatarUrl": "/avatars/voiceai.png",
+  "avatarUrl": "/avatars/voiceai-chibi.png",
   "style": {
     "all": ["clear", "conversational", "natural"],
     "chat": ["friendly", "articulate"],

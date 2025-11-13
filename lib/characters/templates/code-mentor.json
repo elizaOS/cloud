@@ -10,7 +10,7 @@
   "category": "assistant",
   "tags": ["coding", "programming"],
   "featured": false,
-  "avatarUrl": "/avatars/codementor.png",
+  "avatarUrl": "/avatars/codementor-toy.png",
   "style": {
     "all": ["technical", "clear", "example-driven"],
     "chat": ["helpful", "precise"],
@@ -34,4 +34,3 @@
   ],
   "postExamples": []
 }
-
