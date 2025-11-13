@@ -3,9 +3,10 @@
 import { useState } from "react";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
-import { X, Plus } from "lucide-react";
+import { X, Plus, Upload, Link as LinkIcon } from "lucide-react";
 import type { ElizaCharacter } from "@/lib/types";
 import { cn } from "@/lib/utils";
+import { ElizaAvatar } from "./eliza-avatar";
 
 interface CharacterFormCleanProps {
   character: ElizaCharacter;
@@ -393,6 +394,61 @@ export function CharacterFormClean({
         {/* Avatar Tab */}
         {activeSubTab === "avatar" && (
           <div className="space-y-6 max-w-2xl">
+            {/* Avatar Editor Section */}
+            <div className="space-y-4">
+              <label className="text-xs font-medium text-white/70 uppercase tracking-wide">
+                Character Avatar
+              </label>
+
+              {/* Avatar Preview */}
+              <div className="flex items-center gap-6 p-4 rounded-none bg-black/40 border border-white/10">
+                <ElizaAvatar
+                  avatarUrl={character.avatar_url}
+                  name={character.name}
+                  className="h-24 w-24"
+                  fallbackClassName="bg-gradient-to-br from-purple-500 to-blue-600"
+                  iconClassName="h-12 w-12"
+                />
+                <div className="flex-1 space-y-2">
+                  <p className="text-sm text-white">
+                    {character.avatar_url ? "Current avatar" : "No avatar set"}
+                  </p>
+                  <p className="text-xs text-white/60">
+                    Recommended: Square image, at least 256x256px
+                  </p>
+                </div>
+              </div>
+
+              {/* Avatar URL Input */}
+              <div className="space-y-2">
+                <label
+                  htmlFor="avatar-url"
+                  className="text-xs font-medium text-white/70 uppercase tracking-wide"
+                >
+                  Avatar URL
+                </label>
+                <div className="flex gap-2">
+                  <div className="relative flex-1">
+                    <LinkIcon className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-white/40" />
+                    <Input
+                      id="avatar-url"
+                      value={character.avatar_url || ""}
+                      onChange={(e) => updateField("avatar_url", e.target.value)}
+                      placeholder="https://example.com/avatar.png"
+                      className="pl-10 rounded-none border-white/10 bg-black/40 text-white placeholder:text-white/40 focus:ring-1 focus:ring-[#FF5800] focus:border-[#FF5800]"
+                    />
+                  </div>
+                </div>
+                <p className="text-xs text-white/50">
+                  Provide a direct URL to an image (PNG, JPG, WebP, or GIF)
+                </p>
+              </div>
+            </div>
+
+            {/* Divider */}
+            <div className="border-t border-white/10" />
+
+            {/* Plugins Section */}
             <div className="space-y-2">
               <label className="text-xs font-medium text-white/70 uppercase tracking-wide">
                 Plugins
@@ -436,6 +492,7 @@ export function CharacterFormClean({
               </div>
             </div>
 
+            {/* Info Box */}
             <div className="rounded-none bg-black/40 border border-white/10 p-4">
               <p className="text-sm text-white/60">
                 Additional settings like{" "}

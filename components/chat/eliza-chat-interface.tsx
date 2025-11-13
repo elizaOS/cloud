@@ -401,7 +401,7 @@ export function ElizaChatInterface() {
 
     processAudioBlob();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [recorder.audioBlob, isProcessingSTT, recorder, roomId]);
+  }, [recorder.audioBlob, isProcessingSTT, recorder]);
 
   // Auto-generate TTS for new agent messages (only if autoPlayTTS is enabled)
   useEffect(() => {
@@ -621,8 +621,12 @@ export function ElizaChatInterface() {
             thinkingTimeoutRef.current = null;
           }
         },
-        onComplete: () => {
-          loadRooms();
+        onComplete: async () => {
+          // Force reload rooms after message completion to update sidebar
+          console.log("[ElizaChat] Message complete, reloading rooms");
+          await loadRooms(true).catch((err) => {
+            console.error("[ElizaChat] Failed to reload rooms:", err);
+          });
         },
       });
     } catch (err) {
@@ -644,6 +648,7 @@ export function ElizaChatInterface() {
       }
     } finally {
       setIsLoading(false);
+      isCreatingRoomRef.current = false;
     }
   };
 
@@ -1236,7 +1241,7 @@ export function ElizaChatInterface() {
                   type="button"
                   variant="outline"
                   size="icon"
-                  disabled={isLoading || !roomId}
+                  disabled={isLoading}
                   onClick={handleVoiceInput}
                   className="h-10 w-10 rounded-none"
                 >
@@ -1251,7 +1256,6 @@ export function ElizaChatInterface() {
                   type="submit"
                   disabled={
                     isLoading ||
-                    !roomId ||
                     !inputText.trim() ||
                     recorder.isRecording
                   }
