@@ -10,7 +10,6 @@ import {
   getAllCategories,
   getCategoryById,
 } from "@/lib/constants/character-categories";
-import { getAllTemplates } from "@/lib/characters/template-loader";
 import type {
   SearchFilters,
   SortOptions,
@@ -83,30 +82,6 @@ export class MyAgentsService {
       this.toExtendedCharacter(char)
     );
 
-    // On page 1, prepend template characters and exclude database characters with matching names
-    // ALWAYS prefer JSON templates over database versions to ensure latest avatars/data
-    let addedTemplateCount = 0;
-    let removedDatabaseCount = 0;
-    if (pagination.page === 1) {
-      const templates = getAllTemplates();
-      const templateNames = new Set(
-        templates.map(t => t.name?.toLowerCase().trim()).filter(Boolean)
-      );
-
-      const originalCount = enrichedCharacters.length;
-
-      // Filter OUT database characters that match template names (prefer JSON templates)
-      enrichedCharacters = enrichedCharacters.filter(
-        c => !templateNames.has(c.name?.toLowerCase().trim())
-      );
-
-      removedDatabaseCount = originalCount - enrichedCharacters.length;
-
-      // Prepend all JSON templates
-      addedTemplateCount = templates.length;
-      enrichedCharacters = [...templates, ...enrichedCharacters];
-    }
-
     if (includeStats) {
       // Batch fetch stats to avoid N+1 queries
       const characterIds = enrichedCharacters.map((char) => char.id);
@@ -138,8 +113,8 @@ export class MyAgentsService {
       });
     }
 
-    // Adjust total: add templates, subtract database duplicates we filtered out
-    const totalWithTemplates = total + addedTemplateCount - removedDatabaseCount;
+    // Total count from database (includes templates)
+    const totalWithTemplates = total;
 
     const result: MyAgentsSearchResult = {
       characters: enrichedCharacters,

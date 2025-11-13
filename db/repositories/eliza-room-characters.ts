@@ -12,10 +12,11 @@ export const elizaRoomCharactersRepository = {
   async findByRoomId(roomId: string): Promise<ElizaRoomCharacter | undefined> {
     // Try cache first - room character mappings rarely change
     const cacheKey = CacheKeys.eliza.roomCharacter(roomId);
-    const cached = await cache.get<ElizaRoomCharacter | null>(cacheKey);
+    const cached = await cache.get<ElizaRoomCharacter>(cacheKey);
 
-    if (cached !== undefined) {
-      return cached || undefined;
+    // Only return cached value if it's an actual character object (not null/undefined)
+    if (cached) {
+      return cached;
     }
 
     // Cache miss - fetch from DB
@@ -27,8 +28,11 @@ export const elizaRoomCharactersRepository = {
 
     const character = result[0];
 
-    // Cache the result (including null/undefined for rooms without character mappings)
-    await cache.set(cacheKey, character || null, CacheTTL.eliza.roomCharacter);
+    // Only cache if we found a character (don't cache null/undefined)
+    // This allows rooms without characters to be checked each time (rare case)
+    if (character) {
+      await cache.set(cacheKey, character, CacheTTL.eliza.roomCharacter);
+    }
 
     return character;
   },
