@@ -4,7 +4,7 @@ import { useState, useRef, useEffect, useCallback } from "react";
 import { useChat } from "@ai-sdk/react";
 import { DefaultChatTransport } from "ai";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { Bot, User, Send, Loader2, Copy, Check } from "lucide-react";
+import { Bot, User, Send, Loader2, Copy, Check, Plus, Mic, ChevronDown, ArrowUp } from "lucide-react";
 import type { ElizaCharacter } from "@/lib/types";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
@@ -27,6 +27,7 @@ export function BuildModeAssistant({
   const [inputText, setInputText] = useState("");
   const [currentTime] = useState(() => Date.now());
   const [copiedMessageId, setCopiedMessageId] = useState<string | null>(null);
+  const [selectedModel, setSelectedModel] = useState("Gemini");
   const [quickPrompts] = useState<string[]>([
     "Add personality traits",
     "Improve the bio",
@@ -466,119 +467,102 @@ Tell me about your vision!`;
         </ScrollArea>
       </div>
 
-      {/* Quick Prompts */}
-      {messages.length === 1 && (
-        <div className="flex-shrink-0 px-6 pb-4 relative z-10">
-          <div className="max-w-4xl mx-auto flex flex-wrap gap-2">
-            {isEditMode ? (
-              <>
-                <button
-                  onClick={() => setInputText("Add more personality traits")}
-                  className="px-4 py-2 text-sm rounded-lg bg-white/5 hover:bg-white/10 text-white/70 hover:text-white border border-white/10 transition-all hover:border-white/20"
-                >
-                  Add personality traits
-                </button>
-                <button
-                  onClick={() => setInputText("Improve the bio description")}
-                  className="px-4 py-2 text-sm rounded-lg bg-white/5 hover:bg-white/10 text-white/70 hover:text-white border border-white/10 transition-all hover:border-white/20"
-                >
-                  Improve bio
-                </button>
-                <button
-                  onClick={() => setInputText("Add conversation examples")}
-                  className="px-4 py-2 text-sm rounded-lg bg-white/5 hover:bg-white/10 text-white/70 hover:text-white border border-white/10 transition-all hover:border-white/20"
-                >
-                  Add examples
-                </button>
-                <button
-                  onClick={() => setInputText("Refine the writing style")}
-                  className="px-4 py-2 text-sm rounded-lg bg-white/5 hover:bg-white/10 text-white/70 hover:text-white border border-white/10 transition-all hover:border-white/20"
-                >
-                  Refine style
-                </button>
-              </>
-            ) : (
-              quickPrompts.map((prompt, index) => (
-                <button
-                  key={index}
-                  onClick={() => setInputText(prompt)}
-                  className="px-4 py-2 text-sm rounded-lg bg-white/5 hover:bg-white/10 text-white/70 hover:text-white border border-white/10 transition-all hover:border-white/20"
-                >
-                  {prompt}
-                </button>
-              ))
-            )}
-          </div>
-        </div>
-      )}
 
-      {/* Input Area - Matching main chat style */}
+
+      {/* Input Area - Matching Figma design */}
       <form
         onSubmit={handleSubmit}
-        className="border-t p-4 mb-4 mx-6 relative z-10"
-        style={{ backgroundColor: "#1D1D1D" }}
+        className="p-4 mb-4 mx-6 relative z-10"
+        style={{ borderColor: "#353535" }}
       >
-        <div className="max-w-4xl mx-auto space-y-2">
-          {/* Text Input Box */}
-          <div className="relative rounded-lg border border-white/10 shadow-sm bg-black/30 overflow-hidden">
-            {/* Robot Eye Visor Scanner - Animated line on top edge with randomness - Only show when waiting for agent */}
-            {isLoading && (
-              <div className="absolute top-0 left-0 right-0 h-[2px] overflow-hidden pointer-events-none z-10">
-                {/* Primary scanner */}
-                <div
-                  className="absolute h-full w-24 bg-gradient-to-r from-transparent via-[#FF5800] to-transparent"
-                  style={{
-                    animation:
-                      "visor-scan 4.8s cubic-bezier(0.4, 0, 0.6, 1) infinite",
-                    boxShadow: "0 0 15px 3px rgba(255, 88, 0, 0.7)",
-                    filter: "blur(0.5px)",
-                  }}
-                />
-                {/* Secondary scanner for organic feel */}
-                <div
-                  className="absolute h-full w-16 bg-gradient-to-r from-transparent via-[#FF5800]/60 to-transparent"
-                  style={{
-                    animation:
-                      "visor-scan-delayed 6.2s cubic-bezier(0.3, 0.1, 0.7, 0.9) infinite 1.5s",
-                    boxShadow: "0 0 10px 2px rgba(255, 88, 0, 0.5)",
-                    filter: "blur(1px)",
-                  }}
-                />
-              </div>
-            )}
-            <input
+        <div className="max-w-4xl mx-auto">
+          {/* Textarea Input Box with Controls Inside */}
+          <div className="relative">
+            <textarea
               value={inputText}
               onChange={(e) => setInputText(e.currentTarget.value)}
               onKeyDown={(e) => {
                 if (e.key === "Enter" && !e.shiftKey) {
                   e.preventDefault();
-                  handleSubmit(e);
+                  handleSubmit(e as any);
                 }
               }}
-              placeholder="Describe your character or ask for help..."
+              placeholder="How do you want your agent to be?"
               disabled={isLoading}
-              className="w-full bg-transparent px-3 py-2.5 text-sm text-white placeholder:text-white/60 focus:outline-none disabled:opacity-50"
+              rows={4}
+              className="w-full bg-transparent px-4 py-3 pb-12 text-sm text-white placeholder:text-white/40 focus:outline-none disabled:opacity-50 resize-none border"
+              style={{
+                fontFamily: "'Geist', sans-serif",
+                backgroundColor: "#0A0A0A",
+                borderColor: "#2A2A2A",
+                borderRadius: "0",
+              }}
             />
-          </div>
 
-          {/* Bottom Row: Send Button */}
-          <div className="flex items-center justify-end">
-            <Button
-              type="submit"
-              disabled={isLoading || !inputText.trim()}
-              size="icon"
-              className="h-10 w-10 rounded-lg border-none hover:opacity-90 transition-opacity"
-              style={{ backgroundColor: "rgba(255, 88, 0, 0.2)" }}
-            >
-              {isLoading ? (
-                <Loader2
-                  className="h-4 w-4 animate-spin"
-                  style={{ color: "#FF5800" }}
-                />
-              ) : (
-                <Send className="h-4 w-4" style={{ color: "#FF5800" }} />
-              )}
-            </Button>
+            {/* Bottom Row: Model Selector + Action Buttons - Positioned Inside */}
+            <div className="absolute pb-2 bottom-3 left-3 right-3 flex items-center justify-between">
+              {/* Gemini Dropdown */}
+              <button
+                type="button"
+                className="flex items-center gap-2 px-3 py-1.5 transition-colors hover:bg-white/5"
+                style={{
+                  backgroundColor: "transparent",
+                  border: "1px solid #2A2A2A",
+                  borderRadius: "0",
+                }}
+              >
+                <span className="text-sm text-white/90" style={{ fontFamily: "'Geist', sans-serif" }}>
+                  {selectedModel}
+                </span>
+                <ChevronDown className="h-3 w-3 text-white/50" />
+              </button>
+
+              {/* Action Buttons */}
+              <div className="flex items-center gap-1.5">
+                {/* Add/Plus Button */}
+                <button
+                  type="button"
+                  className="h-8 w-8 flex items-center justify-center transition-colors hover:bg-white/5"
+                  style={{
+                    backgroundColor: "transparent",
+                    border: "1px solid #2A2A2A",
+                    borderRadius: "0",
+                  }}
+                >
+                  <Plus className="h-4 w-4 text-white/60" />
+                </button>
+
+                {/* Microphone Button */}
+                <button
+                  type="button"
+                  className="h-8 w-8 flex items-center justify-center transition-colors hover:bg-white/5"
+                  style={{
+                    backgroundColor: "transparent",
+                    border: "1px solid #2A2A2A",
+                    borderRadius: "0",
+                  }}
+                >
+                  <Mic className="h-4 w-4 text-white/60" />
+                </button>
+
+                {/* Send Button */}
+                <button
+                  type="submit"
+                  disabled={isLoading || !inputText.trim()}
+                  className="h-8 w-8 flex items-center justify-center transition-opacity hover:opacity-90 disabled:opacity-50"
+                  style={{
+                    backgroundColor: "#E500FF",
+                    borderRadius: "0",
+                  }}
+                >
+                  {isLoading ? (
+                    <Loader2 className="h-4 w-4 animate-spin text-white" />
+                  ) : (
+                    <ArrowUp className="h-4 w-4 text-white" />
+                  )}
+                </button>
+              </div>
+            </div>
           </div>
         </div>
       </form>
