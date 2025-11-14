@@ -70,6 +70,8 @@ export function ChatHeader({ onToggleSidebar }: ChatHeaderProps) {
     router.push(url);
   };
 
+  const isBuildMode = mode === "build";
+
   return (
     <header className="flex h-16 items-center justify-between border-b border-white/10 bg-black/40 px-4 md:px-6">
       <div className="flex items-center gap-4">
@@ -90,63 +92,57 @@ export function ChatHeader({ onToggleSidebar }: ChatHeaderProps) {
             <button
               type="button"
               className={cn(
-                "flex items-center gap-2 px-3 py-2 rounded-none",
-                "border border-white/10 bg-black/40",
-                "hover:bg-white/5 transition-colors",
-                "focus:outline-none focus:ring-2 focus:ring-[#FF5800]/50"
+                "flex items-center gap-3 px-3 py-2",
+                isBuildMode
+                  ? "hover:bg-white/5 transition-colors focus:outline-none"
+                  : "rounded-none border border-white/10 bg-black/40 hover:bg-white/5 transition-colors focus:outline-none focus:ring-2 focus:ring-[#FF5800]/50"
               )}
             >
               {selectedAgent ? (
                 <>
-                  <div className="w-40 flex items-center gap-3">
-                    {/* Agent Avatar */}
-
-
-                    <div className="w-10 h-10 rounded-full overflow-hidden bg-neutral-800 shrink-0">
-                      {selectedAgent.avatarUrl ? (
-                        <Image
-                          src={selectedAgent.avatarUrl}
-                          alt={selectedAgent.name}
-                          width={24}
-                          height={24}
-                          className="w-full h-full object-cover"
-                        />
-                      ) : (
-                        <div className="w-full h-full flex items-center justify-center text-white text-xs font-medium">
-                          {selectedAgent.name?.[0] || "A"}
-                        </div>
-                      )}
-                    </div>
-                    <div className="flex flex-col items-start">
-                      <span className="text-sm font-medium text-white">
-                        {selectedAgent.name}
-                      </span>
-                      {selectedAgent.username && (
-                        <span className="text-xs text-white/60">
-                          @{selectedAgent.username}
-                        </span>
-                      )}
-                    </div>
-
+                  {/* Agent Avatar */}
+                  <div className="w-10 h-10 rounded-full overflow-hidden bg-neutral-800 shrink-0">
+                    {selectedAgent.avatarUrl ? (
+                      <Image
+                        src={selectedAgent.avatarUrl}
+                        alt={selectedAgent.name}
+                        width={40}
+                        height={40}
+                        className="w-full h-full object-cover"
+                      />
+                    ) : (
+                      <div className="w-full h-full flex items-center justify-center text-white text-sm font-medium">
+                        {selectedAgent.name?.[0] || "A"}
+                      </div>
+                    )}
                   </div>
-                  <ChevronDown className="h-4 w-4 text-white/60" />
+                  <div className="flex flex-col items-start">
+                    <span className="text-sm font-medium text-white">
+                      {selectedAgent.name}
+                    </span>
+                    <span className="text-xs text-white/50">
+                      {selectedAgent.username ? `@${selectedAgent.username}` : "Agent Description"}
+                    </span>
+                  </div>
+                  <ChevronDown className="h-4 w-4 text-white/60 ml-2" />
                 </>
               ) : (
                 <>
-                  <div className="flex items-center gap-2">
-                    {/* Default Eliza Avatar */}
-                    <div className="w-6 h-6 rounded-full overflow-hidden bg-neutral-800 shrink-0">
-                      <Image
-                        src="/avatars/eliza-chibi.png"
-                        alt="Eliza"
-                        width={24}
-                        height={24}
-                        className="w-full h-full object-cover"
-                      />
-                    </div>
-                    <span className="text-sm text-white">Default (Eliza)</span>
+                  {/* Default Eliza Avatar */}
+                  <div className="w-10 h-10 rounded-full overflow-hidden bg-neutral-800 shrink-0">
+                    <Image
+                      src="/avatars/eliza-chibi.png"
+                      alt="Eliza"
+                      width={40}
+                      height={40}
+                      className="w-full h-full object-cover"
+                    />
                   </div>
-                  <ChevronDown className="h-4 w-4 text-white/60" />
+                  <div className="flex flex-col items-start">
+                    <span className="text-sm font-medium text-white">Eliza</span>
+                    <span className="text-xs text-white/50">Marketing Agent</span>
+                  </div>
+                  <ChevronDown className="h-4 w-4 text-white/60 ml-2" />
                 </>
               )}
             </button>
@@ -221,7 +217,7 @@ export function ChatHeader({ onToggleSidebar }: ChatHeaderProps) {
             type="button"
             onClick={() => handleModeChange("chat")}
             className={cn(
-              "flex items-center gap-2 px-3 py-1.5 rounded-none transition-colors border-0",
+              "flex items-center gap-2 px-4 py-2 rounded-none transition-colors border-0",
               mode === "chat"
                 ? "bg-[#471E08] text-[#FF5800]"
                 : "bg-[#1F1F1F] text-[#ADADAD] hover:text-white"
@@ -240,9 +236,9 @@ export function ChatHeader({ onToggleSidebar }: ChatHeaderProps) {
             type="button"
             onClick={() => handleModeChange("build")}
             className={cn(
-              "flex items-center gap-2 px-3 py-1.5 rounded-none transition-colors border-0",
+              "flex items-center gap-2 px-4 py-2 rounded-none transition-colors border-0",
               mode === "build"
-                ? "bg-[#471E08] text-[#FF5800]"
+                ? "bg-[#220725] text-[#E500FF]"
                 : "bg-[#1F1F1F] text-[#ADADAD] hover:text-white"
             )}
             style={{

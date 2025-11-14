@@ -81,25 +81,24 @@ export function AgentDnaEditor({
         <div className="flex items-center justify-between mb-2">
           <div className="flex items-center gap-2">
             <h2 className="text-xl font-bold text-white">Agent DNA</h2>
-            <Zap className="h-5 w-5 text-[#FF5800]" />
+            <Zap className="h-5 w-5" />
           </div>
           <div className="flex items-center gap-2">
             <Button
               variant="outline"
-              size="sm"
+              size="lg"
               onClick={handleExport}
-              className="rounded-none border-white/10 bg-transparent text-white hover:bg-white/5"
+              className="rounded-none bg-transparent text-white hover:bg-white/5"
             >
-              <Download className="mr-2 h-4 w-4" />
               Export
             </Button>
             <Button
-              size="sm"
+              size="lg"
               onClick={handleSave}
               disabled={isSaving}
-              className="rounded-none bg-[#FF5800] text-white hover:bg-[#FF5800]/90"
+              className="rounded-none bg-white text-black"
             >
-              <Save className="mr-2 h-4 w-4" />
+
               {isSaving ? "Saving..." : "Save"}
             </Button>
           </div>
@@ -385,10 +384,10 @@ export function AgentDnaEditor({
                         value={
                           Array.isArray(character.knowledge)
                             ? character.knowledge
-                                .map((k) =>
-                                  typeof k === "string" ? k : k.path,
-                                )
-                                .join("\n")
+                              .map((k) =>
+                                typeof k === "string" ? k : k.path,
+                              )
+                              .join("\n")
                             : ""
                         }
                         onChange={(e) => {
@@ -420,7 +419,7 @@ export function AgentDnaEditor({
                         </p>
                         <p className="text-xs text-white/50">
                           {character.messageExamples &&
-                          character.messageExamples.length > 0
+                            character.messageExamples.length > 0
                             ? `${character.messageExamples.length} conversation example(s) configured`
                             : "No message examples configured yet"}
                         </p>
