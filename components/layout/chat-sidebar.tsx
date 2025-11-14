@@ -7,7 +7,7 @@
 
 import Link from "next/link";
 import Image from "next/image";
-import { useRouter } from "next/navigation";
+import { useRouter, usePathname } from "next/navigation";
 import { useState, useEffect, useMemo } from "react";
 import {
   ArrowLeft,
@@ -16,11 +16,13 @@ import {
   Loader2,
   Trash2,
   Edit3,
+  FileText,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { CornerBrackets, BrandButton } from "@/components/brand";
 import { useChatStore } from "@/stores/chat-store";
 import { SidebarBottomPanel } from "./sidebar-bottom-panel";
+import { BuildModeBottomPanel } from "./build-mode-bottom-panel";
 
 interface ChatSidebarProps {
   className?: string;
@@ -48,7 +50,9 @@ export function ChatSidebar({
   onToggle,
 }: ChatSidebarProps) {
   const router = useRouter();
+  const pathname = usePathname();
   const [isMobile, setIsMobile] = useState(false);
+  const isBuildMode = pathname?.includes("/build");
   const {
     rooms,
     roomId,
@@ -340,7 +344,7 @@ export function ChatSidebar({
                   <div
                     key={room.id}
                     className={cn(
-                      "group relative w-full text-left px-3 py-3 rounded-none transition-colors",
+                      "group relative w-full text-left px-3 py-2.5 rounded-none transition-colors",
                       "hover:bg-white/5",
                       roomId === room.id && "bg-white/10",
                       (isDeleting || isLoading) &&
@@ -353,65 +357,25 @@ export function ChatSidebar({
                       disabled={isDeleting || isLoading}
                       className="w-full text-left"
                     >
-                      <div className="flex items-start gap-3">
+                      <div className="flex items-center gap-3">
                         {isLoading ? (
-                          <Loader2 className="h-4 w-4 text-[#FF5800] mt-0.5 shrink-0 animate-spin" />
+                          <Loader2 className="h-4 w-4 text-[#FF5800] shrink-0 animate-spin" />
                         ) : (
-                          <MessageSquare className="h-4 w-4 text-white/60 mt-0.5 shrink-0" />
+                          <FileText className="h-4 w-4 text-white/50 shrink-0" />
                         )}
-                        <div className="flex-1 min-w-0">
-                          <div className="flex items-center justify-between gap-2 mb-1">
-                            <span
-                              className="text-sm font-medium text-white truncate"
-                              style={{
-                                fontFamily: "var(--font-roboto-mono)",
-                                fontWeight: 400,
-                                fontSize: "14px",
-                                lineHeight: "18px",
-                                letterSpacing: "-0.003em",
-                              }}
-                            >
-                              {room.title ||
-                                `Room ID: ${room.id.substring(0, 8)}`}
-                            </span>
-                            {room.lastTime && !isLoading && (
-                              <span
-                                className="text-xs text-white/40 shrink-0"
-                                style={{
-                                  fontFamily: "var(--font-roboto-mono)",
-                                  fontWeight: 400,
-                                  letterSpacing: "-0.003em",
-                                }}
-                              >
-                                {formatTimestamp(room.lastTime)}
-                              </span>
-                            )}
-                            {isLoading && (
-                              <span
-                                className="text-xs text-[#FF5800] shrink-0"
-                                style={{
-                                  fontFamily: "var(--font-roboto-mono)",
-                                  fontWeight: 400,
-                                  letterSpacing: "-0.003em",
-                                }}
-                              >
-                                Loading...
-                              </span>
-                            )}
-                          </div>
-                          {room.lastText && (
-                            <p
-                              className="text-xs text-white/60 truncate"
-                              style={{
-                                fontFamily: "var(--font-roboto-mono)",
-                                fontWeight: 400,
-                                letterSpacing: "-0.003em",
-                              }}
-                            >
-                              {room.lastText}
-                            </p>
-                          )}
-                        </div>
+                        <span
+                          className="text-sm font-medium text-white/80 truncate"
+                          style={{
+                            fontFamily: "var(--font-roboto-mono)",
+                            fontWeight: 400,
+                            fontSize: "13px",
+                            lineHeight: "18px",
+                            letterSpacing: "-0.003em",
+                          }}
+                        >
+                          {room.title ||
+                            `Room ID: ${room.id.substring(0, 8)}`}
+                        </span>
                       </div>
                     </button>
                     <button
@@ -422,7 +386,7 @@ export function ChatSidebar({
                       }}
                       disabled={isDeleting}
                       className={cn(
-                        "absolute top-3 right-3 p-1 rounded-none",
+                        "absolute top-2 right-3 p-1 rounded-none",
                         "opacity-0 group-hover:opacity-100 transition-opacity",
                         "hover:bg-red-500/10 hover:text-red-500"
                       )}
@@ -460,7 +424,7 @@ export function ChatSidebar({
         </nav>
 
         {/* User Settings Panel */}
-        <SidebarBottomPanel />
+        {isBuildMode ? <BuildModeBottomPanel /> : <SidebarBottomPanel />}
       </aside>
     </>
   );
