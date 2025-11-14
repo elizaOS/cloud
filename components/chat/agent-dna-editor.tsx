@@ -19,6 +19,7 @@ interface AgentDnaEditorProps {
 }
 
 type MainTab = "settings" | "model-calls" | "memories" | "uploads";
+type SettingsSubTab = "general" | "content" | "style" | "avatar";
 
 export function AgentDnaEditor({
   character,
@@ -26,6 +27,7 @@ export function AgentDnaEditor({
   onSave,
 }: AgentDnaEditorProps) {
   const [activeTab, setActiveTab] = useState<MainTab>("settings");
+  const [settingsSubTab, setSettingsSubTab] = useState<SettingsSubTab>("general");
   const [showJson, setShowJson] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
 
@@ -108,43 +110,114 @@ export function AgentDnaEditor({
         </p>
       </div>
 
-      {/* Responsive Tabs + JSON Toggle */}
+      {/* Main Tabs */}
       <div className="flex-shrink-0 border-b border-white/10 px-6">
-        <div className="flex flex-col md:flex-row md:items-center gap-3 py-3">
-          {/* Tabs - Dropdown on mobile, tabs on desktop */}
-          <div className="flex-1 min-w-0">
-            <BrandTabsResponsive
-              id="agent-dna-tabs"
-              tabs={tabs}
-              value={activeTab}
-              onValueChange={(value) => setActiveTab(value as MainTab)}
-              breakpoint="md"
-            >
-              {/* Empty children - content is rendered below */}
-              <div className="hidden" />
-            </BrandTabsResponsive>
-          </div>
-
-          {/* JSON Toggle Switch */}
-          <div className="flex items-center gap-2 shrink-0 md:ml-auto md:pl-4">
-            <span className="text-xs text-white/60">JSON</span>
-            <button
-              onClick={() => setShowJson(!showJson)}
-              className={cn(
-                "relative inline-flex h-5 w-9 items-center rounded-full transition-colors",
-                showJson ? "bg-[#FF5800]" : "bg-white/20",
-              )}
-            >
-              <span
-                className={cn(
-                  "inline-block h-3 w-3 transform rounded-full bg-white transition-transform",
-                  showJson ? "translate-x-5" : "translate-x-1",
-                )}
-              />
-            </button>
-          </div>
+        <div className="py-3">
+          <BrandTabsResponsive
+            id="agent-dna-tabs"
+            tabs={tabs}
+            value={activeTab}
+            onValueChange={(value) => setActiveTab(value as MainTab)}
+            breakpoint="md"
+          >
+            {/* Empty children - content is rendered below */}
+            <div className="hidden" />
+          </BrandTabsResponsive>
         </div>
       </div>
+
+      {/* Settings Sub-Tabs + JSON Toggle */}
+      {activeTab === "settings" && (
+        <div className="flex-shrink-0 border-b border-white/10 px-6">
+          <div className="flex items-center justify-between">
+            <div className="flex gap-1">
+              <button
+                onClick={() => setSettingsSubTab("general")}
+                className={cn(
+                  "px-4 py-3 text-sm font-medium transition-colors",
+                  settingsSubTab === "general"
+                    ? "text-white border-b-2 border-white"
+                    : "text-white/60 hover:text-white",
+                )}
+                style={{
+                  fontFamily: "var(--font-roboto-mono)",
+                  fontSize: "14px",
+                  lineHeight: "18px",
+                }}
+              >
+                General
+              </button>
+              <button
+                onClick={() => setSettingsSubTab("content")}
+                className={cn(
+                  "px-4 py-3 text-sm font-medium transition-colors",
+                  settingsSubTab === "content"
+                    ? "text-white border-b-2 border-white"
+                    : "text-white/60 hover:text-white",
+                )}
+                style={{
+                  fontFamily: "var(--font-roboto-mono)",
+                  fontSize: "14px",
+                  lineHeight: "18px",
+                }}
+              >
+                Content
+              </button>
+              <button
+                onClick={() => setSettingsSubTab("style")}
+                className={cn(
+                  "px-4 py-3 text-sm font-medium transition-colors",
+                  settingsSubTab === "style"
+                    ? "text-white border-b-2 border-white"
+                    : "text-white/60 hover:text-white",
+                )}
+                style={{
+                  fontFamily: "var(--font-roboto-mono)",
+                  fontSize: "14px",
+                  lineHeight: "18px",
+                }}
+              >
+                Style
+              </button>
+              <button
+                onClick={() => setSettingsSubTab("avatar")}
+                className={cn(
+                  "px-4 py-3 text-sm font-medium transition-colors",
+                  settingsSubTab === "avatar"
+                    ? "text-white border-b-2 border-white"
+                    : "text-white/60 hover:text-white",
+                )}
+                style={{
+                  fontFamily: "var(--font-roboto-mono)",
+                  fontSize: "14px",
+                  lineHeight: "18px",
+                }}
+              >
+                Avatar
+              </button>
+            </div>
+
+            {/* JSON Toggle Switch */}
+            <div className="flex items-center gap-2 shrink-0">
+              <span className="text-xs text-white/60">JSON</span>
+              <button
+                onClick={() => setShowJson(!showJson)}
+                className={cn(
+                  "relative inline-flex h-5 w-9 items-center rounded-full transition-colors",
+                  showJson ? "bg-[#FF5800]" : "bg-white/20",
+                )}
+              >
+                <span
+                  className={cn(
+                    "inline-block h-3 w-3 transform rounded-full bg-white transition-transform",
+                    showJson ? "translate-x-5" : "translate-x-1",
+                  )}
+                />
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Content Area - Full Height */}
       <div className="flex-1 overflow-hidden">
@@ -158,7 +231,11 @@ export function AgentDnaEditor({
         ) : (
           <>
             {activeTab === "settings" && (
-              <CharacterFormClean character={character} onChange={onChange} />
+              <CharacterFormClean
+                character={character}
+                onChange={onChange}
+                activeSubTab={settingsSubTab}
+              />
             )}
             {activeTab === "model-calls" && (
               <div className="flex h-full flex-col overflow-y-auto p-6">

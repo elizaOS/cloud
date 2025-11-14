@@ -11,6 +11,7 @@ import { ElizaAvatar } from "./eliza-avatar";
 interface CharacterFormCleanProps {
   character: ElizaCharacter;
   onChange: (character: ElizaCharacter) => void;
+  activeSubTab?: SubTab;
 }
 
 type TagType = "topics" | "adjectives" | "plugins" | "postExamples";
@@ -19,9 +20,9 @@ type SubTab = "general" | "content" | "style" | "avatar";
 export function CharacterFormClean({
   character,
   onChange,
+  activeSubTab = "general",
 }: CharacterFormCleanProps) {
   const [newTag, setNewTag] = useState("");
-  const [activeSubTab, setActiveSubTab] = useState<SubTab>("general");
 
   const updateField = (field: keyof ElizaCharacter, value: unknown) => {
     onChange({ ...character, [field]: value });
@@ -50,56 +51,6 @@ export function CharacterFormClean({
 
   return (
     <div className="flex h-full flex-col">
-      {/* Sub Navigation */}
-      <div className="flex-shrink-0 border-b border-white/10 px-6">
-        <div className="flex gap-1">
-          <button
-            onClick={() => setActiveSubTab("general")}
-            className={cn(
-              "px-4 py-3 text-sm font-medium transition-colors",
-              activeSubTab === "general"
-                ? "text-white border-b-2 border-white"
-                : "text-white/60 hover:text-white",
-            )}
-          >
-            General
-          </button>
-          <button
-            onClick={() => setActiveSubTab("content")}
-            className={cn(
-              "px-4 py-3 text-sm font-medium transition-colors",
-              activeSubTab === "content"
-                ? "text-white border-b-2 border-white"
-                : "text-white/60 hover:text-white",
-            )}
-          >
-            Content
-          </button>
-          <button
-            onClick={() => setActiveSubTab("style")}
-            className={cn(
-              "px-4 py-3 text-sm font-medium transition-colors",
-              activeSubTab === "style"
-                ? "text-white border-b-2 border-white"
-                : "text-white/60 hover:text-white",
-            )}
-          >
-            Style
-          </button>
-          <button
-            onClick={() => setActiveSubTab("avatar")}
-            className={cn(
-              "px-4 py-3 text-sm font-medium transition-colors",
-              activeSubTab === "avatar"
-                ? "text-white border-b-2 border-white"
-                : "text-white/60 hover:text-white",
-            )}
-          >
-            Avatar
-          </button>
-        </div>
-      </div>
-
       {/* Content Area */}
       <div className="flex-1 overflow-y-auto p-6">
         {/* General Tab */}
