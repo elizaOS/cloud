@@ -6,7 +6,7 @@
 "use client";
 
 import { useRouter, usePathname } from "next/navigation";
-import { Menu, ChevronDown, MessageSquare, Wrench } from "lucide-react";
+import { Menu, ChevronDown, MessageSquare, Wrench, PlusCircleIcon, CheckCircle2Icon } from "lucide-react";
 import Image from "next/image";
 import { BrandButton } from "@/components/brand";
 import { cn } from "@/lib/utils";
@@ -98,9 +98,11 @@ export function ChatHeader({ onToggleSidebar }: ChatHeaderProps) {
             >
               {selectedAgent ? (
                 <>
-                  <div className="flex items-center gap-2">
+                  <div className="w-40 flex items-center gap-3">
                     {/* Agent Avatar */}
-                    <div className="w-6 h-6 rounded-full overflow-hidden bg-neutral-800 shrink-0">
+
+
+                    <div className="w-10 h-10 rounded-full overflow-hidden bg-neutral-800 shrink-0">
                       {selectedAgent.avatarUrl ? (
                         <Image
                           src={selectedAgent.avatarUrl}
@@ -125,6 +127,7 @@ export function ChatHeader({ onToggleSidebar }: ChatHeaderProps) {
                         </span>
                       )}
                     </div>
+
                   </div>
                   <ChevronDown className="h-4 w-4 text-white/60" />
                 </>
@@ -152,29 +155,14 @@ export function ChatHeader({ onToggleSidebar }: ChatHeaderProps) {
             align="start"
             className="w-64 bg-[#0A0A0A] border-white/10"
           >
-            {/* Default Eliza option */}
+            {/* New agent option */}
+
             <DropdownMenuItem
-              onClick={() => handleAgentChange("")}
-              className={cn(
-                "flex items-center gap-3 px-3 py-2 cursor-pointer",
-                "hover:bg-white/5 focus:bg-white/5",
-                !selectedCharacterId && "bg-white/10"
-              )}
-            >
-              {/* Default Eliza Avatar */}
-              <div className="w-8 h-8 rounded-full overflow-hidden bg-neutral-800 shrink-0">
-                <Image
-                  src="/avatars/eliza-chibi.png"
-                  alt="Eliza"
-                  width={32}
-                  height={32}
-                  className="w-full h-full object-cover"
-                />
-              </div>
-              <div className="flex flex-col">
-                <span className="text-sm font-medium text-white">
-                  Default (Eliza)
-                </span>
+              onClick={() => router.push("/dashboard/character-creator")}
+              className="">
+              <div className="flex items-center gap-2">
+                <PlusCircleIcon />
+                New Agent
               </div>
             </DropdownMenuItem>
 

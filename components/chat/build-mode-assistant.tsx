@@ -221,9 +221,24 @@ Tell me about your vision!`;
   };
 
   return (
-    <div className="flex h-full w-full min-h-0 flex-col bg-[#0A0A0A]">
+    <div className="flex h-full w-full min-h-0 flex-col bg-[#0A0A0A] relative overflow-hidden">
+      {/* Purple Gradient Background Effect */}
+      <div
+        className="absolute pointer-events-none"
+        style={{
+          left: "50%",
+          bottom: "30%",
+          width: "800px",
+          height: "800px",
+          background: "radial-gradient(circle, #E500FF 0%, rgba(229, 0, 255, 0.4) 40%, transparent 70%)",
+          filter: "blur(150px)",
+          opacity: 0.5,
+          zIndex: 0,
+        }}
+      />
+
       {/* Messages Area */}
-      <div className="flex-1 min-h-0 overflow-hidden">
+      <div className="flex-1 min-h-0 overflow-hidden relative z-10">
         <ScrollArea className="h-full p-4" ref={scrollAreaRef}>
           <div className="space-y-4 max-w-5xl mx-auto">
             {messages.length === 0 && (
@@ -250,9 +265,8 @@ Tell me about your vision!`;
               return (
                 <div
                   key={message.id}
-                  className={`flex ${
-                    message.role === "user" ? "justify-end" : "justify-start"
-                  } animate-in fade-in slide-in-from-bottom-4 duration-500`}
+                  className={`flex ${message.role === "user" ? "justify-end" : "justify-start"
+                    } animate-in fade-in slide-in-from-bottom-4 duration-500`}
                   style={{ animationDelay: `${index * 50}ms` }}
                 >
                   {message.role === "assistant" ? (
@@ -434,7 +448,7 @@ Tell me about your vision!`;
 
       {/* Quick Prompts */}
       {messages.length === 1 && (
-        <div className="flex-shrink-0 px-6 pb-3">
+        <div className="flex-shrink-0 px-6 pb-3 relative z-10">
           <div className="max-w-5xl mx-auto flex flex-wrap gap-2">
             {isEditMode ? (
               <>
@@ -481,7 +495,7 @@ Tell me about your vision!`;
       {/* Input Area - Matching main chat style */}
       <form
         onSubmit={handleSubmit}
-        className="border-t p-3 mb-4 mx-4"
+        className="border-t p-3 mb-4 mx-4 relative z-10"
         style={{ backgroundColor: "#1D1D1D" }}
       >
         <div className="max-w-5xl mx-auto space-y-2">
