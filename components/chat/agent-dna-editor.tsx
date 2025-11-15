@@ -965,81 +965,413 @@ export function AgentDnaEditor({
               </div>
             )}
             {activeTab === "memories" && (
-              <div className="flex h-full flex-col overflow-y-auto p-6">
-                <div className="space-y-6 max-w-2xl">
-                  {/* Memories Section */}
-                  <div className="space-y-4">
-                    <div>
-                      <h3 className="text-lg font-semibold text-white mb-1">
-                        Agent Knowledge & Memories
-                      </h3>
-                      <p className="text-sm text-white/60">
-                        Define knowledge sources and long-term memory for your agent
-                      </p>
-                    </div>
-
-                    {/* Knowledge Section */}
-                    <div className="space-y-2">
-                      <label className="text-xs font-medium text-white/70 uppercase tracking-wide">
-                        Knowledge Base
-                      </label>
-                      <textarea
-                        value={
-                          Array.isArray(character.knowledge)
-                            ? character.knowledge
-                              .map((k) =>
-                                typeof k === "string" ? k : k.path,
-                              )
-                              .join("\n")
-                            : ""
-                        }
-                        onChange={(e) => {
-                          const lines = e.target.value
-                            .split("\n")
-                            .filter((l) => l.trim());
-                          onChange({
-                            ...character,
-                            knowledge: lines,
-                          });
+              <div className="flex h-full flex-col overflow-y-auto">
+                {/* Header with Memories count, Search, and Filter */}
+                <div className="flex-shrink-0 border-b border-white/10 px-6 py-6">
+                  <div className="flex items-center justify-between gap-4">
+                    {/* Memories Label with Count */}
+                    <div className="flex items-center gap-2">
+                      <span
+                        style={{
+                          fontFamily: "var(--font-roboto-mono)",
+                          fontSize: "14px",
+                          fontWeight: 500,
+                          color: "#ffffff",
                         }}
-                        placeholder="Add knowledge sources (one per line)..."
-                        rows={8}
-                        className="w-full rounded-none border border-white/10 bg-black/40 px-3 py-2 text-white placeholder:text-white/40 focus:ring-1 focus:ring-[#FF5800] focus:border-[#FF5800] font-mono text-sm"
-                      />
-                      <p className="text-xs text-white/50">
-                        Enter file paths, URLs, or text snippets (one per line)
-                      </p>
+                      >
+                        Memories
+                      </span>
+                      <span
+                        className="px-2 py-0.5 rounded-none bg-white/10"
+                        style={{
+                          fontFamily: "var(--font-roboto-mono)",
+                          fontSize: "12px",
+                          fontWeight: 400,
+                          color: "#a1a1a1",
+                        }}
+                      >
+                        2
+                      </span>
                     </div>
 
-                    {/* Message Examples */}
-                    <div className="space-y-2">
-                      <label className="text-xs font-medium text-white/70 uppercase tracking-wide">
-                        Conversation Examples
-                      </label>
-                      <div className="rounded-none bg-black/40 border border-white/10 p-4">
-                        <p className="text-sm text-white/60 mb-2">
-                          Message examples help the agent learn conversation patterns.
-                        </p>
-                        <p className="text-xs text-white/50">
-                          {character.messageExamples &&
-                            character.messageExamples.length > 0
-                            ? `${character.messageExamples.length} conversation example(s) configured`
-                            : "No message examples configured yet"}
-                        </p>
+                    {/* Search and Filter */}
+                    <div className="flex items-center gap-3">
+                      {/* Search Input */}
+                      <div className="relative">
+                        <div className="absolute left-3 top-1/2 -translate-y-1/2">
+                          <svg
+                            width="16"
+                            height="16"
+                            viewBox="0 0 16 16"
+                            fill="none"
+                            xmlns="http://www.w3.org/2000/svg"
+                          >
+                            <path
+                              d="M14 14L11.1 11.1M12.6667 7.33333C12.6667 10.2789 10.2789 12.6667 7.33333 12.6667C4.38781 12.6667 2 10.2789 2 7.33333C2 4.38781 4.38781 2 7.33333 2C10.2789 2 12.6667 4.38781 12.6667 7.33333Z"
+                              stroke="#6B7280"
+                              strokeWidth="1.5"
+                              strokeLinecap="round"
+                              strokeLinejoin="round"
+                            />
+                          </svg>
+                        </div>
+                        <input
+                          type="text"
+                          placeholder="Search memories..."
+                          className="h-11 w-56 pl-10 pr-3 rounded-none border border-white/10 bg-black/40 text-white placeholder:text-white/40 focus:outline-none focus:ring-1 focus:ring-[#FF5800] focus:border-[#FF5800]"
+                          style={{
+                            fontFamily: "var(--font-roboto-mono)",
+                            fontSize: "14px",
+                          }}
+                        />
                       </div>
-                      <p className="text-xs text-white/50">
-                        Configure detailed message examples in JSON mode
-                      </p>
+
+                      {/* All Messages Dropdown */}
+                      <button
+                        className="h-11 px-4 rounded-none border border-white/10 bg-black/40 text-white hover:bg-white/5 transition-colors flex items-center gap-2"
+                        style={{
+                          fontFamily: "var(--font-roboto-mono)",
+                          fontSize: "14px",
+                        }}
+                      >
+                        <span>All Messages</span>
+                        <svg
+                          width="16"
+                          height="16"
+                          viewBox="0 0 16 16"
+                          fill="none"
+                          xmlns="http://www.w3.org/2000/svg"
+                        >
+                          <path
+                            d="M4 6L8 10L12 6"
+                            stroke="currentColor"
+                            strokeWidth="1.5"
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                          />
+                        </svg>
+                      </button>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Date Separator */}
+                <div className="px-6 py-4">
+                  <p
+                    className="text-center"
+                    style={{
+                      fontFamily: "var(--font-roboto-mono)",
+                      fontSize: "12px",
+                      fontWeight: 400,
+                      color: "#a1a1a1",
+                    }}
+                  >
+                    11/04/2025
+                  </p>
+                </div>
+
+                {/* Memory Cards List */}
+                <div className="flex-1 px-6 pb-6 space-y-0">
+                  {/* Eliza Thought Memory Card */}
+                  <div className="border border-white/10 bg-black/20">
+                    <div className="p-3">
+                      <div className="flex items-start gap-3">
+                        {/* Icon */}
+                        <div className="flex-shrink-0 w-8 h-8 rounded-none bg-white/5 flex items-center justify-center">
+                          <svg
+                            width="16"
+                            height="16"
+                            viewBox="0 0 16 16"
+                            fill="none"
+                            xmlns="http://www.w3.org/2000/svg"
+                          >
+                            <rect
+                              x="3"
+                              y="3"
+                              width="10"
+                              height="10"
+                              rx="1"
+                              stroke="#a1a1a1"
+                              strokeWidth="1.5"
+                            />
+                            <path
+                              d="M6 6H10M6 8H8"
+                              stroke="#a1a1a1"
+                              strokeWidth="1.5"
+                              strokeLinecap="round"
+                            />
+                          </svg>
+                        </div>
+
+                        {/* Content */}
+                        <div className="flex-1 min-w-0">
+                          {/* Title Row */}
+                          <div className="flex items-center gap-2 mb-2">
+                            <span
+                              style={{
+                                fontFamily: "var(--font-roboto-mono)",
+                                fontSize: "14px",
+                                fontWeight: 500,
+                                color: "#ffffff",
+                              }}
+                            >
+                              Eliza
+                            </span>
+                            <span
+                              className="px-2 py-0.5 rounded-none bg-white/10"
+                              style={{
+                                fontFamily: "var(--font-roboto-mono)",
+                                fontSize: "10px",
+                                fontWeight: 400,
+                                color: "#a1a1a1",
+                              }}
+                            >
+                              Thought
+                            </span>
+                          </div>
+
+                          {/* Timestamp Row */}
+                          <div className="flex items-center gap-2 mb-3">
+                            <svg
+                              width="16"
+                              height="16"
+                              viewBox="0 0 16 16"
+                              fill="none"
+                              xmlns="http://www.w3.org/2000/svg"
+                            >
+                              <path
+                                d="M8 14C11.3137 14 14 11.3137 14 8C14 4.68629 11.3137 2 8 2C4.68629 2 2 4.68629 2 8C2 11.3137 4.68629 14 8 14Z"
+                                stroke="#a1a1a1"
+                                strokeWidth="1.5"
+                              />
+                              <path
+                                d="M8 4V8L10.5 10.5"
+                                stroke="#a1a1a1"
+                                strokeWidth="1.5"
+                                strokeLinecap="round"
+                              />
+                            </svg>
+                            <span
+                              style={{
+                                fontFamily: "var(--font-roboto-mono)",
+                                fontSize: "12px",
+                                fontWeight: 400,
+                                color: "#a1a1a1",
+                              }}
+                            >
+                              01:57 PM
+                            </span>
+                            <span
+                              className="px-2 py-0.5 rounded-none bg-white/5"
+                              style={{
+                                fontFamily: "var(--font-roboto-mono)",
+                                fontSize: "10px",
+                                fontWeight: 400,
+                                color: "#a1a1a1",
+                              }}
+                            >
+                              2ec54b78
+                            </span>
+                          </div>
+
+                          {/* Message Content */}
+                          <div
+                            className="mb-3 px-2 py-2 bg-white/5 rounded-none"
+                            style={{
+                              fontFamily: "var(--font-roboto-mono)",
+                              fontSize: "14px",
+                              fontWeight: 400,
+                              color: "#e5e5e5",
+                              lineHeight: "1.5",
+                            }}
+                          >
+                            Hey there! I&apos;m doing great, thanks for asking. How about you?
+                          </div>
+
+                          {/* Thought Process Section */}
+                          <div className="mb-3">
+                            <div className="flex items-center gap-2 mb-2">
+                              <svg
+                                width="12"
+                                height="12"
+                                viewBox="0 0 12 12"
+                                fill="none"
+                                xmlns="http://www.w3.org/2000/svg"
+                              >
+                                <rect
+                                  x="2"
+                                  y="2"
+                                  width="8"
+                                  height="8"
+                                  rx="1"
+                                  stroke="#a1a1a1"
+                                  strokeWidth="1.2"
+                                />
+                              </svg>
+                              <span
+                                style={{
+                                  fontFamily: "var(--font-roboto-mono)",
+                                  fontSize: "12px",
+                                  fontWeight: 500,
+                                  color: "#a1a1a1",
+                                }}
+                              >
+                                Thought process
+                              </span>
+                            </div>
+                            <p
+                              style={{
+                                fontFamily: "var(--font-roboto-mono)",
+                                fontSize: "12px",
+                                fontWeight: 400,
+                                color: "#a1a1a1",
+                                lineHeight: "1.5",
+                              }}
+                            >
+                              Engage with the user and ask how they&apos;re doing.
+                            </p>
+                          </div>
+
+                          {/* Reply Button */}
+                          <button
+                            className="px-3 py-1.5 rounded-none bg-white/10 hover:bg-white/15 transition-colors"
+                            style={{
+                              fontFamily: "var(--font-roboto-mono)",
+                              fontSize: "12px",
+                              fontWeight: 500,
+                              color: "#ffffff",
+                            }}
+                          >
+                            REPLY
+                          </button>
+                        </div>
+                      </div>
                     </div>
                   </div>
 
-                  {/* Info Box */}
-                  <div className="rounded-none bg-black/40 border border-white/10 p-4">
-                    <p className="text-sm text-white/60">
-                      Knowledge and memories help your agent provide contextually relevant
-                      responses. Knowledge sources can include documentation, FAQs, or any
-                      text that should inform the agent&apos;s responses.
-                    </p>
+                  {/* User Memory Card */}
+                  <div className="border border-white/10 border-t-0 bg-black/20">
+                    <div className="p-3">
+                      <div className="flex items-start gap-3">
+                        {/* Icon */}
+                        <div className="flex-shrink-0 w-8 h-8 rounded-none bg-white/5 flex items-center justify-center">
+                          <svg
+                            width="16"
+                            height="16"
+                            viewBox="0 0 16 16"
+                            fill="none"
+                            xmlns="http://www.w3.org/2000/svg"
+                          >
+                            <path
+                              d="M13 14V12.6667C13 11.9594 12.719 11.2811 12.219 10.781C11.7189 10.281 11.0406 10 10.3333 10H5.66667C4.95942 10 4.28115 10.281 3.78105 10.781C3.28095 11.2811 3 11.9594 3 12.6667V14M10.6667 4.66667C10.6667 6.13943 9.47276 7.33333 8 7.33333C6.52724 7.33333 5.33333 6.13943 5.33333 4.66667C5.33333 3.19391 6.52724 2 8 2C9.47276 2 10.6667 3.19391 10.6667 4.66667Z"
+                              stroke="#a1a1a1"
+                              strokeWidth="1.5"
+                              strokeLinecap="round"
+                              strokeLinejoin="round"
+                            />
+                          </svg>
+                        </div>
+
+                        {/* Content */}
+                        <div className="flex-1 min-w-0">
+                          {/* Title Row */}
+                          <div className="flex items-center gap-2 mb-2">
+                            <span
+                              style={{
+                                fontFamily: "var(--font-roboto-mono)",
+                                fontSize: "14px",
+                                fontWeight: 500,
+                                color: "#ffffff",
+                              }}
+                            >
+                              User
+                            </span>
+                            <span
+                              className="px-2 py-0.5 rounded-none bg-white/10"
+                              style={{
+                                fontFamily: "var(--font-roboto-mono)",
+                                fontSize: "10px",
+                                fontWeight: 400,
+                                color: "#a1a1a1",
+                              }}
+                            >
+                              User
+                            </span>
+                          </div>
+
+                          {/* Timestamp Row */}
+                          <div className="flex items-center gap-2 mb-3">
+                            <svg
+                              width="16"
+                              height="16"
+                              viewBox="0 0 16 16"
+                              fill="none"
+                              xmlns="http://www.w3.org/2000/svg"
+                            >
+                              <path
+                                d="M8 14C11.3137 14 14 11.3137 14 8C14 4.68629 11.3137 2 8 2C4.68629 2 2 4.68629 2 8C2 11.3137 4.68629 14 8 14Z"
+                                stroke="#a1a1a1"
+                                strokeWidth="1.5"
+                              />
+                              <path
+                                d="M8 4V8L10.5 10.5"
+                                stroke="#a1a1a1"
+                                strokeWidth="1.5"
+                                strokeLinecap="round"
+                              />
+                            </svg>
+                            <span
+                              style={{
+                                fontFamily: "var(--font-roboto-mono)",
+                                fontSize: "12px",
+                                fontWeight: 400,
+                                color: "#a1a1a1",
+                              }}
+                            >
+                              01:56 PM
+                            </span>
+                            <span
+                              className="px-2 py-0.5 rounded-none bg-white/5"
+                              style={{
+                                fontFamily: "var(--font-roboto-mono)",
+                                fontSize: "10px",
+                                fontWeight: 400,
+                                color: "#a1a1a1",
+                              }}
+                            >
+                              3b022fdc
+                            </span>
+                          </div>
+
+                          {/* Message Content */}
+                          <div
+                            className="mb-3 px-2 py-2 bg-white/5 rounded-none"
+                            style={{
+                              fontFamily: "var(--font-roboto-mono)",
+                              fontSize: "14px",
+                              fontWeight: 400,
+                              color: "#e5e5e5",
+                              lineHeight: "1.5",
+                            }}
+                          >
+                            Hey there! How are you?
+                          </div>
+
+                          {/* Tag */}
+                          <div
+                            className="inline-block px-2 py-1 rounded-none bg-white/10"
+                            style={{
+                              fontFamily: "var(--font-roboto-mono)",
+                              fontSize: "11px",
+                              fontWeight: 400,
+                              color: "#a1a1a1",
+                            }}
+                          >
+                            client_chat
+                          </div>
+                        </div>
+                      </div>
+                    </div>
                   </div>
                 </div>
               </div>
