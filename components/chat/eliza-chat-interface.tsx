@@ -17,6 +17,8 @@ import {
 import { ElizaAvatar } from "./eliza-avatar";
 import { EmptyChatState } from "./empty-chat-state";
 import { KnowledgeDrawer } from "./knowledge-drawer";
+import { CreditsExhaustedModal } from "./credits-exhausted-modal";
+import { BuyCreditsModal } from "./buy-credits-modal";
 import { useAudioRecorder } from "./hooks/use-audio-recorder";
 import { useAudioPlayer } from "./hooks/use-audio-player";
 import { useAvailableModels } from "./hooks/use-available-models";
@@ -90,6 +92,8 @@ export function ElizaChatInterface() {
   const [isInitializing, setIsInitializing] = useState(false);
   const [isLoadingMessages, setIsLoadingMessages] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [showCreditsModal, setShowCreditsModal] = useState(false);
+  const [showBuyCreditsModal, setShowBuyCreditsModal] = useState(false);
   const scrollAreaRef = useRef<HTMLDivElement>(null);
   const thinkingTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const [autoPlayTTS, setAutoPlayTTS] = useState(false);
@@ -606,8 +610,13 @@ export function ElizaChatInterface() {
         model: selectedModel || undefined, // Pass selected model
         onMessage: handleStreamMessage,
         onError: (errorMsg) => {
-          setError(errorMsg);
-          toast.error(errorMsg);
+          // Check if it's an insufficient credits error
+          if (errorMsg.includes("Insufficient balance")) {
+            setShowCreditsModal(true);
+          } else {
+            setError(errorMsg);
+            toast.error(errorMsg);
+          }
           // Remove temp and thinking messages on error
           setMessages((prev) =>
             prev.filter(
@@ -629,11 +638,18 @@ export function ElizaChatInterface() {
         },
       });
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to send message");
+      const errorMessage = err instanceof Error ? err.message : "Failed to send message";
+      const error = err as Error & { status?: number };
+
+      // Check if it's an insufficient credits error
+      if (error.status === 402 || errorMessage.includes("Insufficient balance")) {
+        setShowCreditsModal(true);
+      } else {
+        setError(errorMessage);
+        toast.error(errorMessage);
+      }
+
       console.error("Error sending message:", err);
-      toast.error(
-        err instanceof Error ? err.message : "Failed to send message"
-      );
       // Remove temp and thinking messages on error
       setMessages((prev) =>
         prev.filter(
@@ -1332,6 +1348,22 @@ export function ElizaChatInterface() {
           </div>
         </form>
       </div>
+
+      {/* Credits Exhausted Modal */}
+      <CreditsExhaustedModal
+        isOpen={showCreditsModal}
+        onClose={() => setShowCreditsModal(false)}
+        onTopUp={() => {
+          setShowCreditsModal(false);
+          setShowBuyCreditsModal(true);
+        }}
+      />
+
+      {/* Buy Credits Modal */}
+      <BuyCreditsModal
+        isOpen={showBuyCreditsModal}
+        onClose={() => setShowBuyCreditsModal(false)}
+      />
     </div>
   );
 }

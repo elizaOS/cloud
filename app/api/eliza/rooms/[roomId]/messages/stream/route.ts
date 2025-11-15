@@ -7,8 +7,13 @@ import {
   usageService,
   generationsService,
   anonymousSessionsService,
+  organizationsService,
 } from "@/lib/services";
-import { calculateCost, getProviderFromModel } from "@/lib/pricing";
+import {
+  calculateCost,
+  getProviderFromModel,
+  estimateTokens,
+} from "@/lib/pricing";
 import { logger } from "@/lib/utils/logger";
 import { elizaRoomCharactersRepository } from "@/db/repositories";
 import { getUserElizaCloudApiKey } from "@/lib/eliza/user-api-key";
@@ -142,6 +147,56 @@ export async function POST(
       }
     } else if (isAnonymous) {
       logger.info("[Stream Messages] Anonymous user - using shared runtime");
+    }
+
+    // For authenticated users: Check credit balance BEFORE processing
+    if (!isAnonymous) {
+      const estimatedInputTokens = estimateTokens(text);
+      const estimatedOutputTokens = 100;
+      const estimationModel = model || "gpt-4o";
+      const provider = getProviderFromModel(estimationModel);
+
+      const { totalCost: estimatedCost } = await calculateCost(
+        estimationModel,
+        provider,
+        estimatedInputTokens,
+        estimatedOutputTokens,
+      );
+
+      if (!user.organization_id) {
+        return new Response(
+          JSON.stringify({
+            error: "Organization required for authenticated users",
+          }),
+          { status: 500, headers: { "Content-Type": "application/json" } },
+        );
+      }
+
+      const org = await organizationsService.getById(user.organization_id);
+      if (!org) {
+        logger.error("[Stream Messages] Organization not found", {
+          organizationId: user.organization_id,
+        });
+        return new Response(
+          JSON.stringify({ error: "Organization not found" }),
+          { status: 404, headers: { "Content-Type": "application/json" } },
+        );
+      }
+
+      if (Number(org.credit_balance) < estimatedCost) {
+        logger.warn("[Stream Messages] Insufficient credits", {
+          organizationId: user.organization_id,
+          required: estimatedCost,
+          balance: org.credit_balance,
+        });
+        return new Response(
+          JSON.stringify({
+            error: "Insufficient balance",
+            details: `Required: ${estimatedCost}, Available: ${org.credit_balance}`,
+          }),
+          { status: 402, headers: { "Content-Type": "application/json" } },
+        );
+      }
     }
 
     // Create streaming response
