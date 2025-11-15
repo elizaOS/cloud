@@ -151,7 +151,7 @@ export default function Sidebar({
 
         {/* Navigation Content */}
         <nav className="flex-1 overflow-y-auto px-4 py-6">
-          <div className={cn("space-y-8", isCollapsed && "space-y-6")}>
+          <div className="space-y-1">
             {sidebarSections.map((section, index) => (
               <SidebarNavigationSection key={index} section={section} isCollapsed={isCollapsed} />
             ))}

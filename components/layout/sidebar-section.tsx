@@ -70,7 +70,7 @@ export function SidebarNavigationSection({
 
   return (
     <Collapsible open={isOpen} onOpenChange={setIsOpen}>
-      <CollapsibleTrigger className="group w-full mb-3 px-3 flex items-center gap-2 hover:opacity-80 transition-opacity">
+      <CollapsibleTrigger className="group w-full px-3 py-2.5 flex items-center gap-2 hover:opacity-80 transition-opacity">
         <span
           className="inline-block w-1.5 h-1.5 rounded-full flex-shrink-0"
           style={{ backgroundColor: dotColor }}
