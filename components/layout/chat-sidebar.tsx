@@ -17,12 +17,14 @@ import {
   Trash2,
   Edit3,
   FileText,
+  Image as ImageIcon,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { CornerBrackets, BrandButton } from "@/components/brand";
 import { useChatStore } from "@/stores/chat-store";
 import { SidebarBottomPanel } from "./sidebar-bottom-panel";
 import { BuildModeBottomPanel } from "./build-mode-bottom-panel";
+import { ChatSidebarBottomPanel } from "./chat-sidebar-bottom-panel";
 
 interface ChatSidebarProps {
   className?: string;
@@ -253,25 +255,26 @@ export function ChatSidebar({
         </div>
 
         {/* Selected Character Profile with New Chat Icon */}
-        <div className="border-b border-white/10 px-4 py-4">
-          <div className="flex items-center gap-3">
+        <div className="border-b border-white/10 px-6 py-4">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2">
             {/* Character Avatar */}
             <div className="relative shrink-0">
-              <div className="w-10 h-10 rounded-full bg-neutral-800 flex items-center justify-center overflow-hidden">
+              <div className="w-6 h-6 rounded-full bg-neutral-800 flex items-center justify-center overflow-hidden">
                 {selectedCharacter?.avatarUrl ? (
                   <Image
                     src={selectedCharacter.avatarUrl}
                     alt={selectedCharacter.name}
-                    width={40}
-                    height={40}
+                    width={24}
+                    height={24}
                     className="w-full h-full object-cover"
                   />
                 ) : (
                   <Image
                     src="/avatars/eliza-chibi.png"
                     alt="Eliza"
-                    width={40}
-                    height={40}
+                    width={24}
+                    height={24}
                     className="w-full h-full object-cover"
                   />
                 )}
@@ -279,58 +282,53 @@ export function ChatSidebar({
             </div>
 
             {/* Character Info */}
-            <div className="flex-1 min-w-0">
-              <div
-                className="text-sm font-medium text-white truncate"
+            <div className="flex flex-col justify-center">
+              <p
+                className="truncate"
                 style={{
                   fontFamily: "var(--font-roboto-mono)",
-                  fontWeight: 400,
+                  fontWeight: 500,
                   fontSize: "14px",
-                  lineHeight: "18px",
-                  letterSpacing: "-0.003em",
+                  lineHeight: "normal",
+                  letterSpacing: "-0.042px",
+                  color: "#dfdfdf",
                 }}
               >
-                {selectedCharacter?.name || "Eliza"}
-              </div>
-              <div
-                className="text-xs text-white/60 truncate"
+                {selectedCharacter?.name || "Zilo"}
+              </p>
+              <p
+                className="truncate opacity-50"
                 style={{
                   fontFamily: "var(--font-roboto-mono)",
-                  fontWeight: 400,
-                  letterSpacing: "-0.003em",
+                  fontWeight: 500,
+                  fontSize: "10px",
+                  lineHeight: "normal",
+                  color: "#a1a1a1",
                 }}
               >
-                {selectedCharacter
-                  ? `${filteredRooms.length} interaction${filteredRooms.length !== 1 ? "s" : ""}`
-                  : `${filteredRooms.length} interaction${filteredRooms.length !== 1 ? "s" : ""}`}
-              </div>
+                {filteredRooms.length} Interaction{filteredRooms.length !== 1 ? "s" : ""}
+              </p>
+            </div>
             </div>
 
-            {/* New Chat Button - Enhanced with Label */}
-            <BrandButton
+            {/* Edit Icon Button */}
+            <button
               onClick={handleNewChat}
               disabled={isCreatingRoom}
-              size="sm"
-              className="shrink-0 gap-1.5 px-3 h-8"
-              title="Start new conversation"
+              className="shrink-0 p-1 hover:bg-white/5 rounded-none transition-colors"
+              title="Edit agent"
             >
               {isCreatingRoom ? (
-                <>
-                  <Loader2 className="h-4 w-4 animate-spin" />
-                  <span className="text-xs hidden sm:inline">Creating...</span>
-                </>
+                <Loader2 className="h-6 w-6 animate-spin" style={{ color: "#dfdfdf" }} />
               ) : (
-                <>
-                  <Edit3 className="h-4 w-4" />
-                  <span className="text-xs">New</span>
-                </>
+                <Edit3 className="h-6 w-6" style={{ color: "#dfdfdf" }} />
               )}
-            </BrandButton>
+            </button>
           </div>
         </div>
 
         {/* Rooms/Conversations List */}
-        <nav className="flex-1 overflow-y-auto px-2 py-4">
+        <nav className="flex-1 overflow-y-auto px-6 py-4">
           {isLoadingRooms && filteredRooms.length === 0 ? (
             <div className="flex items-center justify-center py-8">
               <Loader2 className="h-5 w-5 animate-spin text-white/60" />
@@ -344,9 +342,7 @@ export function ChatSidebar({
                   <div
                     key={room.id}
                     className={cn(
-                      "group relative w-full text-left px-3 py-2.5 rounded-none transition-colors",
-                      "hover:bg-white/5",
-                      roomId === room.id && "bg-white/10",
+                      "group relative w-full text-left rounded-none transition-colors",
                       (isDeleting || isLoading) &&
                         "opacity-50 pointer-events-none"
                     )}
@@ -355,27 +351,31 @@ export function ChatSidebar({
                       type="button"
                       onClick={() => handleSelectRoom(room.id)}
                       disabled={isDeleting || isLoading}
-                      className="w-full text-left"
+                      className={cn(
+                        "w-full text-left px-2 py-2 rounded-lg",
+                        roomId === room.id ? "bg-neutral-900" : "hover:bg-neutral-900/50"
+                      )}
                     >
-                      <div className="flex items-center gap-3">
+                      <div className="flex items-center gap-2">
                         {isLoading ? (
                           <Loader2 className="h-4 w-4 text-[#FF5800] shrink-0 animate-spin" />
                         ) : (
-                          <FileText className="h-4 w-4 text-white/50 shrink-0" />
+                          <ImageIcon className="h-4 w-4 shrink-0" style={{ color: "#adadad" }} />
                         )}
-                        <span
-                          className="text-sm font-medium text-white/80 truncate"
+                        <p
+                          className="truncate"
                           style={{
                             fontFamily: "var(--font-roboto-mono)",
                             fontWeight: 400,
-                            fontSize: "13px",
-                            lineHeight: "18px",
-                            letterSpacing: "-0.003em",
+                            fontSize: "14px",
+                            lineHeight: "normal",
+                            letterSpacing: "-0.042px",
+                            color: "#a1a1a1",
                           }}
                         >
                           {room.title ||
                             `Room ID: ${room.id.substring(0, 8)}`}
-                        </span>
+                        </p>
                       </div>
                     </button>
                     <button
@@ -386,7 +386,7 @@ export function ChatSidebar({
                       }}
                       disabled={isDeleting}
                       className={cn(
-                        "absolute top-2 right-3 p-1 rounded-none",
+                        "absolute top-2 right-2 p-1 rounded-none",
                         "opacity-0 group-hover:opacity-100 transition-opacity",
                         "hover:bg-red-500/10 hover:text-red-500"
                       )}
@@ -424,7 +424,7 @@ export function ChatSidebar({
         </nav>
 
         {/* User Settings Panel */}
-        {isBuildMode ? <BuildModeBottomPanel /> : <SidebarBottomPanel />}
+        {isBuildMode ? <BuildModeBottomPanel /> : <ChatSidebarBottomPanel />}
       </aside>
     </>
   );

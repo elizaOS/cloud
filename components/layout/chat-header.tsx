@@ -92,22 +92,20 @@ export function ChatHeader({ onToggleSidebar }: ChatHeaderProps) {
             <button
               type="button"
               className={cn(
-                "flex items-center gap-3 px-3 py-2",
-                isBuildMode
-                  ? "hover:bg-white/5 transition-colors focus:outline-none"
-                  : "rounded-none border border-white/10 bg-black/40 hover:bg-white/5 transition-colors focus:outline-none focus:ring-2 focus:ring-[#FF5800]/50"
+                "flex items-center gap-4 px-0 py-2",
+                "hover:bg-white/5 transition-colors focus:outline-none"
               )}
             >
               {selectedAgent ? (
                 <>
                   {/* Agent Avatar */}
-                  <div className="w-10 h-10 rounded-full overflow-hidden bg-neutral-800 shrink-0">
+                  <div className="w-12 h-12 rounded-full overflow-hidden bg-neutral-800 shrink-0">
                     {selectedAgent.avatarUrl ? (
                       <Image
                         src={selectedAgent.avatarUrl}
                         alt={selectedAgent.name}
-                        width={40}
-                        height={40}
+                        width={48}
+                        height={48}
                         className="w-full h-full object-cover"
                       />
                     ) : (
@@ -116,33 +114,71 @@ export function ChatHeader({ onToggleSidebar }: ChatHeaderProps) {
                       </div>
                     )}
                   </div>
-                  <div className="flex flex-col items-start">
-                    <span className="text-sm font-medium text-white">
+                  <div className="flex flex-col items-start gap-0.5">
+                    <p
+                      className="font-medium text-white"
+                      style={{
+                        fontFamily: "'Roboto Mono', monospace",
+                        fontSize: "16px",
+                        lineHeight: "normal",
+                        letterSpacing: "-0.048px",
+                      }}
+                    >
                       {selectedAgent.name}
-                    </span>
-                    <span className="text-xs text-white/50">
-                      {selectedAgent.username ? `@${selectedAgent.username}` : "Agent Description"}
-                    </span>
+                    </p>
+                    <p
+                      className="text-[#a1a1a1]"
+                      style={{
+                        fontFamily: "'Roboto Mono', monospace",
+                        fontSize: "14px",
+                        lineHeight: "normal",
+                        letterSpacing: "-0.042px",
+                        fontWeight: 400,
+                      }}
+                    >
+                      {selectedAgent.username ? `@${selectedAgent.username}` : "Marketing Agent"}
+                    </p>
                   </div>
-                  <ChevronDown className="h-4 w-4 text-white/60 ml-2" />
+                  <ChevronDown className="h-4 w-4 text-white/60" />
                 </>
               ) : (
                 <>
                   {/* Default Eliza Avatar */}
-                  <div className="w-10 h-10 rounded-full overflow-hidden bg-neutral-800 shrink-0">
+                  <div className="w-12 h-12 rounded-full overflow-hidden bg-neutral-800 shrink-0">
                     <Image
                       src="/avatars/eliza-chibi.png"
                       alt="Eliza"
-                      width={40}
-                      height={40}
+                      width={48}
+                      height={48}
                       className="w-full h-full object-cover"
                     />
                   </div>
-                  <div className="flex flex-col items-start">
-                    <span className="text-sm font-medium text-white">Eliza</span>
-                    <span className="text-xs text-white/50">Marketing Agent</span>
+                  <div className="flex flex-col items-start gap-0.5">
+                    <p
+                      className="font-medium text-white"
+                      style={{
+                        fontFamily: "'Roboto Mono', monospace",
+                        fontSize: "16px",
+                        lineHeight: "normal",
+                        letterSpacing: "-0.048px",
+                      }}
+                    >
+                      Zilo
+                    </p>
+                    <p
+                      className="text-[#a1a1a1]"
+                      style={{
+                        fontFamily: "'Roboto Mono', monospace",
+                        fontSize: "14px",
+                        lineHeight: "normal",
+                        letterSpacing: "-0.042px",
+                        fontWeight: 400,
+                      }}
+                    >
+                      Marketing Agent
+                    </p>
                   </div>
-                  <ChevronDown className="h-4 w-4 text-white/60 ml-2" />
+                  <ChevronDown className="h-4 w-4 text-white/60" />
                 </>
               )}
             </button>
