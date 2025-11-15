@@ -41,23 +41,8 @@ export function SidebarNavigationSection({
     }
   }, [isOpen, storageKey]);
 
-  // Assign colors based on section type
-  const getSectionColor = () => {
-    if (!section.title) return "#FF5800"; // Default orange
-
-    switch (section.title.toLowerCase()) {
-      case "generation studio":
-        return "#FF5800"; // Orange - Creative/Generation
-      case "agent development":
-        return "#0B35F1"; // Blue - AI/Development
-      case "infrastructure":
-        return "#22C55E"; // Green - System/Infrastructure
-      default:
-        return "#FF5800"; // Default orange
-    }
-  };
-
-  const dotColor = getSectionColor();
+  // Use white for all section dots
+  const dotColor = "#ffffff";
 
   // If there's no title, render without collapsible (e.g., Dashboard section)
   if (!section.title) {

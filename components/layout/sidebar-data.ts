@@ -3,7 +3,7 @@
  */
 
 import { HomeIcon, ImageIcon, LayersIcon } from "@radix-ui/react-icons";
-import { Server, Video, UserCog, Bot, Code, Mic, Store, Sparkles } from "lucide-react";
+import { Server, Video, UserCog, Bot, Code, Mic, Store, Sparkles, Image } from "lucide-react";
 import type { ComponentType } from "react";
 
 export interface SidebarItem {
@@ -38,14 +38,43 @@ export const sidebarSections: SidebarSection[] = [
         icon: Bot,
         freeAllowed: false,
       },
+    ],
+  },
+  {
+    title: "Studio",
+    items: [
       {
-        id: "studio",
-        label: "Studio",
+        id: "image",
+        label: "Image",
         href: "/dashboard/image",
-        icon: Sparkles,
-        comingSoon: true,
+        icon: Image,
         freeAllowed: false,
       },
+      {
+        id: "video",
+        label: "Video",
+        href: "/dashboard/video",
+        icon: Video,
+        freeAllowed: false,
+      },
+      {
+        id: "voice",
+        label: "Voice",
+        href: "/dashboard/voice",
+        icon: Mic,
+        freeAllowed: false,
+      },
+      {
+        id: "gallery",
+        label: "Gallery",
+        href: "/dashboard/gallery",
+        icon: LayersIcon,
+        freeAllowed: false,
+      }
+    ],
+  },
+  {
+    items: [
       {
         id: "infrastructure",
         label: "Infrastructure",

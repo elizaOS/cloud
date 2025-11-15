@@ -154,8 +154,8 @@ export function SidebarBottomPanel({ className }: SidebarBottomPanelProps) {
               onClick={() => router.push("/login")}
               className={cn(
                 "w-full flex items-center justify-center gap-2 px-4 py-2.5",
-                "bg-[#FF5800] hover:bg-[#FF5800]/90",
-                "text-white font-medium rounded-none",
+                "bg-white hover:bg-white/90",
+                "text-black font-medium rounded-none",
                 "transition-all duration-200 cursor-pointer",
               )}
               style={{
@@ -196,21 +196,21 @@ export function SidebarBottomPanel({ className }: SidebarBottomPanelProps) {
               <div className="flex items-center gap-2">
                 <div
                   className="h-1 w-1 rounded-full flex-shrink-0"
-                  style={{ backgroundColor: "#FF5800" }}
+                  style={{ backgroundColor: "#ffffff" }}
                 />
                 <span>Unlimited conversations</span>
               </div>
               <div className="flex items-center gap-2">
                 <div
                   className="h-1 w-1 rounded-full flex-shrink-0"
-                  style={{ backgroundColor: "#FF5800" }}
+                  style={{ backgroundColor: "#ffffff" }}
                 />
                 <span>Create custom agents</span>
               </div>
               <div className="flex items-center gap-2">
                 <div
                   className="h-1 w-1 rounded-full flex-shrink-0"
-                  style={{ backgroundColor: "#FF5800" }}
+                  style={{ backgroundColor: "#ffffff" }}
                 />
                 <span>Access premium features</span>
               </div>
@@ -245,7 +245,7 @@ export function SidebarBottomPanel({ className }: SidebarBottomPanelProps) {
             letterSpacing: "-0.003em",
           }}
         >
-          <Avatar className="h-10 w-10 ring-2 ring-[#FF5800]/50">
+          <Avatar className="h-10 w-10 ring-2 ring-white/30">
             {profile?.avatar && (
               <AvatarImage src={profile.avatar} alt={getUserName()} />
             )}
@@ -282,7 +282,7 @@ export function SidebarBottomPanel({ className }: SidebarBottomPanelProps) {
           <div className="flex items-center gap-2">
             <div
               className="h-2 w-2 rounded-full flex-shrink-0"
-              style={{ backgroundColor: "#FF5800" }}
+              style={{ backgroundColor: "#ffffff" }}
             />
             <span className="text-lg font-bold text-white">
               {creditBalance !== null
@@ -308,7 +308,7 @@ export function SidebarBottomPanel({ className }: SidebarBottomPanelProps) {
               className={cn(
                 "w-full flex items-center gap-3 px-4 py-2.5 transition-all duration-200 border-l-2 cursor-pointer",
                 isActive
-                  ? "bg-white/10 text-white border-[#FF5800]"
+                  ? "bg-white/10 text-white border-white"
                   : "text-white/60 hover:bg-white/5 hover:text-white border-transparent",
               )}
               style={{
@@ -322,7 +322,7 @@ export function SidebarBottomPanel({ className }: SidebarBottomPanelProps) {
               <Icon
                 className={cn(
                   "h-4 w-4 transition-colors",
-                  isActive && "text-[#FF5800]",
+                  isActive && "text-white",
                 )}
               />
               <span>{item.label}</span>

@@ -96,7 +96,7 @@ export function SidebarNavigationItem({ item }: SidebarNavigationItemProps) {
         "relative flex items-center gap-3 rounded-none px-3 py-2.5 transition-all duration-200",
         "hover:bg-white/5 hover:text-white",
         isActive
-          ? "bg-white/10 text-white border-l-2 border-[#FF5800]"
+          ? "bg-white/10 text-white border-l-2 border-white"
           : "text-white/60 border-l-2 border-transparent",
       )}
       style={{
@@ -110,7 +110,7 @@ export function SidebarNavigationItem({ item }: SidebarNavigationItemProps) {
       <Icon
         className={cn(
           "h-4 w-4 transition-colors",
-          isActive && "text-[#FF5800]",
+          isActive && "text-white",
         )}
       />
       <span className="flex-1">{item.label}</span>
@@ -118,9 +118,9 @@ export function SidebarNavigationItem({ item }: SidebarNavigationItemProps) {
         <span
           className="rounded-none px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide"
           style={{
-            backgroundColor: "#FF580020",
-            color: "#FF5800",
-            border: "1px solid #FF580040",
+            backgroundColor: "rgba(255, 255, 255, 0.1)",
+            color: "#ffffff",
+            border: "1px solid rgba(255, 255, 255, 0.2)",
           }}
         >
           NEW
