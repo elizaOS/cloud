@@ -17,10 +17,12 @@ import { cn } from "@/lib/utils";
 
 interface SidebarNavigationSectionProps {
   section: SidebarSection;
+  isCollapsed?: boolean;
 }
 
 export function SidebarNavigationSection({
   section,
+  isCollapsed = false,
 }: SidebarNavigationSectionProps) {
   // Generate a storage key based on section title
   const storageKey = section.title
@@ -49,7 +51,18 @@ export function SidebarNavigationSection({
     return (
       <nav className="space-y-1">
         {section.items.map((item) => (
-          <SidebarNavigationItem key={item.id} item={item} />
+          <SidebarNavigationItem key={item.id} item={item} isCollapsed={isCollapsed} />
+        ))}
+      </nav>
+    );
+  }
+
+  // If sidebar is collapsed, don't show section header and collapsible
+  if (isCollapsed) {
+    return (
+      <nav className="space-y-1">
+        {section.items.map((item) => (
+          <SidebarNavigationItem key={item.id} item={item} isCollapsed={isCollapsed} />
         ))}
       </nav>
     );
@@ -82,7 +95,7 @@ export function SidebarNavigationSection({
       <CollapsibleContent className="overflow-hidden data-[state=closed]:animate-collapsible-up data-[state=open]:animate-collapsible-down">
         <nav className="space-y-1">
           {section.items.map((item) => (
-            <SidebarNavigationItem key={item.id} item={item} />
+            <SidebarNavigationItem key={item.id} item={item} isCollapsed={isCollapsed} />
           ))}
         </nav>
       </CollapsibleContent>
