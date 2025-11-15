@@ -1377,82 +1377,160 @@ export function AgentDnaEditor({
               </div>
             )}
             {activeTab === "uploads" && (
-              <div className="flex h-full flex-col overflow-y-auto p-6">
-                <div className="space-y-6 max-w-2xl">
-                  {/* Uploads Section */}
-                  <div className="space-y-4">
-                    <div>
-                      <h3 className="text-lg font-semibold text-white mb-1">
-                        File Uploads & Documents
-                      </h3>
-                      <p className="text-sm text-white/60">
-                        Upload and manage files for your agent&apos;s knowledge base
-                      </p>
+              <div className="flex h-full flex-col overflow-y-auto">
+                {/* Header with Documents count, Search, and Filter */}
+                <div className="flex-shrink-0 border-b border-white/10 px-6 py-6">
+                  <div className="flex items-center justify-between gap-4">
+                    {/* Documents Label with Count */}
+                    <div className="flex items-center gap-2">
+                      <span
+                        style={{
+                          fontFamily: "var(--font-roboto-mono)",
+                          fontSize: "14px",
+                          fontWeight: 500,
+                          lineHeight: "normal",
+                          color: "#ffffff",
+                        }}
+                      >
+                        Documents
+                      </span>
+                      <span
+                        className="px-2 py-0.5 rounded-none bg-white/10"
+                        style={{
+                          fontFamily: "var(--font-roboto-mono)",
+                          fontSize: "12px",
+                          fontWeight: 400,
+                          lineHeight: "normal",
+                          color: "#a1a1a1",
+                        }}
+                      >
+                        0
+                      </span>
                     </div>
 
-                    {/* Upload Area */}
-                    <div className="rounded-none border-2 border-dashed border-white/20 bg-black/40 p-8 text-center">
-                      <Upload className="h-12 w-12 text-white/40 mx-auto mb-4" />
-                      <h4 className="text-base font-semibold text-white mb-2">
-                        File Upload Coming Soon
-                      </h4>
-                      <p className="text-sm text-white/60 mb-4">
-                        Direct file upload functionality will be available in a future
-                        update.
-                      </p>
-                      <div className="text-xs text-white/50 text-left max-w-md mx-auto space-y-1">
-                        <p className="font-medium text-white/70 mb-2">
-                          Supported file types (planned):
-                        </p>
-                        <ul className="list-disc list-inside space-y-1 pl-2">
-                          <li>Documents: PDF, TXT, MD, DOC, DOCX</li>
-                          <li>Data: JSON, CSV, XML</li>
-                          <li>Code: JS, TS, PY, and more</li>
-                          <li>Maximum file size: 10MB</li>
-                        </ul>
+                    {/* Right side: Search and Filter */}
+                    <div className="flex items-center gap-2">
+                      {/* Search Input */}
+                      <div className="relative">
+                        <input
+                          type="text"
+                          placeholder="Search documents..."
+                          className="w-[200px] h-8 bg-black/40 border border-white/10 rounded-none px-3 text-white/90 placeholder:text-white/40 focus:outline-none focus:border-white/20"
+                          style={{
+                            fontFamily: "var(--font-roboto-mono)",
+                            fontSize: "12px",
+                            fontWeight: 400,
+                          }}
+                        />
                       </div>
-                    </div>
 
-                    {/* Current Workaround */}
-                    <div className="space-y-2">
-                      <label className="text-xs font-medium text-white/70 uppercase tracking-wide">
-                        Current Workaround
-                      </label>
-                      <div className="rounded-none bg-black/40 border border-white/10 p-4">
-                        <p className="text-sm text-white/60 mb-2">
-                          For now, you can add knowledge sources in the{" "}
-                          <span className="text-[#FF5800] font-medium">Memories</span>{" "}
-                          tab by:
-                        </p>
-                        <ul className="text-xs text-white/50 space-y-1 list-disc list-inside pl-2">
-                          <li>Entering file paths to local documents</li>
-                          <li>Adding URLs to online resources</li>
-                          <li>Pasting text content directly</li>
-                        </ul>
-                      </div>
-                    </div>
-
-                    {/* Uploaded Files List (Placeholder) */}
-                    <div className="space-y-2">
-                      <label className="text-xs font-medium text-white/70 uppercase tracking-wide">
-                        Uploaded Files
-                      </label>
-                      <div className="rounded-none bg-black/40 border border-white/10 p-6 text-center">
-                        <p className="text-sm text-white/60">
-                          No files uploaded yet
-                        </p>
-                      </div>
+                      {/* Filter Dropdown */}
+                      <button
+                        className="h-8 px-3 bg-black/40 border border-white/10 rounded-none hover:bg-black/60 transition-colors"
+                        style={{
+                          fontFamily: "var(--font-roboto-mono)",
+                          fontSize: "12px",
+                          fontWeight: 400,
+                          color: "#a1a1a1",
+                        }}
+                      >
+                        All Documents
+                      </button>
                     </div>
                   </div>
+                </div>
 
-                  {/* Info Box */}
-                  <div className="rounded-none bg-black/40 border border-white/10 p-4">
-                    <p className="text-sm text-white/60">
-                      File uploads will allow you to easily add documents and resources
-                      to your agent&apos;s knowledge base. The system will automatically
-                      process and index the content for efficient retrieval during
-                      conversations.
+                {/* Upload Section */}
+                <div className="flex-1 px-6 py-6">
+                  {/* Section Header */}
+                  <div className="mb-6">
+                    <h3
+                      className="mb-1"
+                      style={{
+                        fontFamily: "var(--font-roboto-mono)",
+                        fontSize: "14px",
+                        fontWeight: 500,
+                        lineHeight: "normal",
+                        color: "#ffffff",
+                      }}
+                    >
+                      Upload documents
+                    </h3>
+                    <p
+                      style={{
+                        fontFamily: "var(--font-roboto-mono)",
+                        fontSize: "12px",
+                        fontWeight: 400,
+                        lineHeight: "normal",
+                        color: "#a1a1a1",
+                      }}
+                    >
+                      Supported: PDF, TXT, MD, DOC, DOCX, JSON, and code files
                     </p>
+                  </div>
+
+                  {/* Upload Cards Grid */}
+                  <div className="grid grid-cols-2 gap-4">
+                    {/* Add Document Card */}
+                    <button className="group bg-[#161616] border border-white/10 hover:bg-black/40 transition-colors px-3 py-16 text-center">
+                      <div className="flex flex-col items-center gap-3">
+                        {/* Plus Circle Icon */}
+                        <div className="w-12 h-12 flex items-center justify-center">
+                          <svg
+                            width="48"
+                            height="48"
+                            viewBox="0 0 48 48"
+                            fill="none"
+                            xmlns="http://www.w3.org/2000/svg"
+                          >
+                            <circle
+                              cx="24"
+                              cy="24"
+                              r="23"
+                              stroke="#a1a1a1"
+                              strokeWidth="2"
+                              className="group-hover:stroke-white/70 transition-colors"
+                            />
+                            <path
+                              d="M24 16V32M16 24H32"
+                              stroke="#a1a1a1"
+                              strokeWidth="2"
+                              strokeLinecap="round"
+                              className="group-hover:stroke-white/70 transition-colors"
+                            />
+                          </svg>
+                        </div>
+
+                        {/* Card Text */}
+                        <div>
+                          <h4
+                            className="mb-1"
+                            style={{
+                              fontFamily: "var(--font-roboto-mono)",
+                              fontSize: "14px",
+                              fontWeight: 500,
+                              lineHeight: "normal",
+                              color: "#ffffff",
+                            }}
+                          >
+                            Add Document
+                          </h4>
+                          <p
+                            style={{
+                              fontFamily: "var(--font-roboto-mono)",
+                              fontSize: "12px",
+                              fontWeight: 400,
+                              lineHeight: "normal",
+                              color: "#a1a1a1",
+                            }}
+                          >
+                            Upload your first document to get started with RAG
+                          </p>
+                        </div>
+                      </div>
+                    </button>
+
+
                   </div>
                 </div>
               </div>
