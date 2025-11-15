@@ -3,7 +3,7 @@
 import { useState, useEffect } from "react";
 import { BrandCard, CornerBrackets } from "@/components/brand";
 import type { UserWithOrganization } from "@/lib/types";
-import { Info, DollarSign, Loader2 } from "lucide-react";
+import { Info, Loader2, Circle } from "lucide-react";
 import { toast } from "sonner";
 import type { SettingsTab } from "../settings-page-client";
 
@@ -140,8 +140,8 @@ export function UsageTab({ user, onTabChange }: UsageTabProps) {
 
         <div className="relative z-10 space-y-4 md:space-y-6">
           {/* Header */}
-          <div className="flex flex-col gap-3 md:gap-2 w-full">
-            <div className="flex flex-col gap-2">
+          <div className="flex flex-col md:flex-row md:items-start md:justify-between gap-3 md:gap-2 w-full">
+            <div className="flex flex-col gap-2 flex-1">
               <div className="flex items-center gap-2">
                 <div className="w-2 h-2 rounded-full bg-[#FF5800]" />
                 <h3 className="text-sm md:text-base font-mono text-[#e1e1e1] uppercase">
@@ -154,9 +154,9 @@ export function UsageTab({ user, onTabChange }: UsageTabProps) {
               </p>
             </div>
 
-            <div className="flex items-center gap-2">
-              <Info className="h-4 w-4 text-[#848484] flex-shrink-0" />
-              <p className="text-xs md:text-sm text-[#848484]">
+            <div className="flex items-center gap-2 flex-shrink-0">
+              <Circle className="h-3 w-3 text-[#848484] fill-[#848484]" />
+              <p className="text-xs md:text-sm text-[#848484] whitespace-nowrap">
                 Last updated: just now
               </p>
             </div>
@@ -174,18 +174,16 @@ export function UsageTab({ user, onTabChange }: UsageTabProps) {
                   <Loader2 className="h-4 w-4 animate-spin text-[#FF5800]" />
                 ) : (
                   <p className="text-xs text-[#FF5800]">
-                    ${dailyBurn.toFixed(2)} daily burn
+                    {Math.round(dailyBurn)} daily burn
                   </p>
                 )}
               </div>
 
               <div className="space-y-1">
                 <div className="flex items-center gap-2">
-                  <div className="bg-[rgba(255,88,0,0.25)] flex items-center justify-center size-7">
-                    <DollarSign className="h-[13px] w-[13px] text-[#FF5800]" />
-                  </div>
+                  <div className="w-2 h-2 rounded-full bg-[#FF5800]" />
                   <p className="text-2xl font-mono text-white tracking-tight">
-                    ${creditsRemaining.toFixed(2)}
+                    {Math.round(creditsRemaining).toLocaleString()}
                   </p>
                 </div>
                 <p className="text-sm text-white/60">
@@ -196,47 +194,32 @@ export function UsageTab({ user, onTabChange }: UsageTabProps) {
 
             {/* Current Session */}
             <div className="backdrop-blur-sm bg-[rgba(10,10,10,0.75)] border-t-0 border border-brand-surface p-3 md:p-4 space-y-3 md:space-y-4">
-              <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2">
-                <p className="text-sm md:text-base font-mono text-white">
-                  Current Session
-                </p>
-                {sessionLoading && !sessionStats ? (
-                  <Loader2 className="h-4 w-4 animate-spin text-[#FF5800]" />
-                ) : (
-                  <p className="text-xs text-[#848484]">
-                    Updates every 30 seconds
-                  </p>
-                )}
-              </div>
+              <p className="text-sm md:text-base font-mono text-white">
+                Current Session
+              </p>
 
-              {sessionStats ? (
-                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 md:gap-4">
-                  <div className="space-y-1">
-                    <p className="text-xs text-white/60 font-mono">
-                      Credits Used
-                    </p>
-                    <p className="text-base md:text-lg font-mono text-white">
-                      ${sessionStats.credits_used.toFixed(2)}
-                    </p>
+              <div className="space-y-1">
+                <div className="flex flex-col sm:flex-row items-start sm:items-center gap-2 w-full">
+                  <div className="flex-1 w-full relative h-[21px] border border-[#e1e1e1] border-[0.5px]">
+                    <div
+                      className="absolute inset-0 bg-[#FF5800]"
+                      style={{
+                        width: sessionStats
+                          ? `${Math.min(100, (sessionStats.credits_used / (creditsRemaining + sessionStats.credits_used)) * 100)}%`
+                          : "5%",
+                      }}
+                    />
                   </div>
-                  <div className="space-y-1">
-                    <p className="text-xs text-white/60 font-mono">Requests</p>
-                    <p className="text-base md:text-lg font-mono text-white">
-                      {sessionStats.requests_made.toLocaleString()}
-                    </p>
-                  </div>
-                  <div className="space-y-1">
-                    <p className="text-xs text-white/60 font-mono">Tokens</p>
-                    <p className="text-base md:text-lg font-mono text-white">
-                      {sessionStats.tokens_consumed.toLocaleString()}
-                    </p>
-                  </div>
+                  <p className="text-xs sm:text-sm md:text-base font-mono text-white tracking-tight whitespace-nowrap">
+                    {sessionStats
+                      ? `${Math.round((sessionStats.credits_used / (creditsRemaining + sessionStats.credits_used)) * 100)}% used`
+                      : "5% used"}
+                  </p>
                 </div>
-              ) : (
                 <p className="text-xs md:text-sm text-white/60">
-                  No active session data available.
+                  Starts when a message is sent
                 </p>
-              )}
+              </div>
             </div>
           </div>
         </div>
@@ -248,8 +231,8 @@ export function UsageTab({ user, onTabChange }: UsageTabProps) {
 
         <div className="relative z-10 space-y-4 md:space-y-6">
           {/* Header */}
-          <div className="flex flex-col gap-3 md:gap-2 w-full">
-            <div className="flex flex-col gap-2">
+          <div className="flex flex-col md:flex-row md:items-start md:justify-between gap-3 md:gap-2 w-full">
+            <div className="flex flex-col gap-2 flex-1">
               <div className="flex items-center gap-2">
                 <div className="w-2 h-2 rounded-full bg-[#FF5800]" />
                 <h3 className="text-sm md:text-base font-mono text-[#e1e1e1] uppercase">
@@ -257,19 +240,18 @@ export function UsageTab({ user, onTabChange }: UsageTabProps) {
                 </h3>
               </div>
               <p className="text-xs font-mono text-[#858585] tracking-tight">
-                Configure weekly credit limits to control spending across all
-                models or specific models.
+                Learn more about usage limits
               </p>
             </div>
 
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-2 flex-shrink-0">
               {quotaLoading && !quotaUsage ? (
                 <Loader2 className="h-4 w-4 animate-spin text-[#FF5800]" />
               ) : (
                 <>
-                  <Info className="h-4 w-4 text-[#848484] flex-shrink-0" />
-                  <p className="text-xs md:text-sm text-[#848484]">
-                    Updates every 60 seconds
+                  <Circle className="h-3 w-3 text-[#848484] fill-[#848484]" />
+                  <p className="text-xs md:text-sm text-[#848484] whitespace-nowrap">
+                    Last updated: just now
                   </p>
                 </>
               )}
@@ -288,7 +270,7 @@ export function UsageTab({ user, onTabChange }: UsageTabProps) {
                 <div className="flex flex-col sm:flex-row items-start sm:items-center gap-2 w-full">
                   <div className="flex-1 w-full relative h-[21px] border border-[#e1e1e1] border-[0.5px]">
                     <div
-                      className="absolute inset-0 bg-[#FF5800]/20"
+                      className="absolute inset-0 bg-[#FF5800]"
                       style={{
                         width: quotaUsage?.global.limit
                           ? `${Math.min(100, (quotaUsage.global.used / quotaUsage.global.limit) * 100)}%`
@@ -298,14 +280,12 @@ export function UsageTab({ user, onTabChange }: UsageTabProps) {
                   </div>
                   <p className="text-xs sm:text-sm md:text-base font-mono text-white tracking-tight whitespace-nowrap">
                     {quotaUsage?.global.limit
-                      ? `$${quotaUsage.global.used.toFixed(2)} / $${quotaUsage.global.limit.toFixed(2)}`
-                      : "No limit set"}
+                      ? `${Math.round((quotaUsage.global.used / quotaUsage.global.limit) * 100)}% used`
+                      : "0% used"}
                   </p>
                 </div>
                 <p className="text-xs md:text-sm text-white/60">
-                  {quotaUsage?.global.limit
-                    ? `${((quotaUsage.global.used / quotaUsage.global.limit) * 100).toFixed(1)}% of weekly limit used`
-                    : "Weekly usage limits not configured"}
+                  Starts when a message is sent
                 </p>
               </div>
             </div>
@@ -329,35 +309,51 @@ export function UsageTab({ user, onTabChange }: UsageTabProps) {
                       <div className="flex flex-col sm:flex-row items-start sm:items-center gap-2 w-full">
                         <div className="flex-1 w-full relative h-[21px] border border-[#e1e1e1] border-[0.5px]">
                           <div
-                            className="absolute inset-0 bg-[#FF5800]/20"
+                            className="absolute inset-0 bg-[#FF5800]"
                             style={{
                               width: `${Math.min(100, (modelQuota.used / modelQuota.limit) * 100)}%`,
                             }}
                           />
                         </div>
                         <p className="text-xs sm:text-sm md:text-base font-mono text-white tracking-tight whitespace-nowrap">
-                          ${modelQuota.used.toFixed(2)} / $
-                          {modelQuota.limit.toFixed(2)}
+                          {Math.round((modelQuota.used / modelQuota.limit) * 100)}% used
                         </p>
                       </div>
                       <p className="text-xs md:text-sm text-white/60">
-                        {((modelQuota.used / modelQuota.limit) * 100).toFixed(
-                          1,
-                        )}
-                        % of weekly limit used
+                        You haven&apos;t used {modelName} yet
                       </p>
                     </div>
                   </div>
                 ),
               )
-            ) : !quotaUsage?.global.limit ? (
-              <div className="backdrop-blur-sm bg-[rgba(10,10,10,0.75)] border-t-0 border border-brand-surface p-3 md:p-4">
+            ) : null}
+
+            {/* Opus only section */}
+            <div className="backdrop-blur-sm bg-[rgba(10,10,10,0.75)] border-t-0 border border-brand-surface p-3 md:p-4 space-y-3 md:space-y-4">
+              <div className="flex items-center gap-2">
+                <p className="text-sm md:text-base font-mono text-white">
+                  Opus only
+                </p>
+                <Info className="h-4 w-4 text-[#FF5800]/60 flex-shrink-0" />
+              </div>
+
+              <div className="space-y-1">
+                <div className="flex flex-col sm:flex-row items-start sm:items-center gap-2 w-full">
+                  <div className="flex-1 w-full relative h-[21px] border border-[#e1e1e1] border-[0.5px]">
+                    <div
+                      className="absolute inset-0 bg-[#FF5800]"
+                      style={{ width: "0%" }}
+                    />
+                  </div>
+                  <p className="text-xs sm:text-sm md:text-base font-mono text-white tracking-tight whitespace-nowrap">
+                    0% used
+                  </p>
+                </div>
                 <p className="text-xs md:text-sm text-white/60">
-                  No model-specific limits configured. Contact your
-                  administrator to set up weekly quotas.
+                  You haven&apos;t used Opus yet
                 </p>
               </div>
-            ) : null}
+            </div>
           </div>
         </div>
       </BrandCard>

@@ -53,7 +53,10 @@ export async function sendStreamingMessage({
 
     if (!response.ok) {
       const errorData = await response.json().catch(() => ({}));
-      throw new Error(errorData.error || "Failed to send message");
+      const errorMessage = errorData.error || "Failed to send message";
+      const error = new Error(errorMessage) as Error & { status?: number };
+      error.status = response.status;
+      throw error;
     }
 
     if (!response.body) {

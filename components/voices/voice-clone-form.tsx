@@ -338,7 +338,7 @@ export function VoiceCloneForm({
       <div className="relative z-10 shrink-0 space-y-3 md:space-y-4 pb-3 md:pb-4">
         <div className="flex items-start sm:items-center justify-between gap-2">
           <div className="flex items-center gap-2">
-            <div className="w-2 h-2 rounded-full bg-[#FF5800]" />
+            <div className="w-2 h-2 rounded-full bg-white" />
             <h3 className="text-base md:text-lg lg:text-xl font-mono font-semibold text-[#e1e1e1] uppercase">
               Create Voice Clone
             </h3>
@@ -371,7 +371,7 @@ export function VoiceCloneForm({
               onChange={(e) => setName(e.target.value)}
               disabled={isUploading}
               required
-              className="border-white/10 bg-black/40 text-white placeholder:text-white/40 focus:ring-1 focus:ring-[#FF5800] focus:border-[#FF5800]"
+              className="border-white/10 bg-black/40 text-white placeholder:text-white/40 focus:ring-1 focus:ring-white focus:border-white"
             />
           </div>
 
@@ -390,7 +390,7 @@ export function VoiceCloneForm({
               onChange={(e) => setDescription(e.target.value)}
               disabled={isUploading}
               rows={3}
-              className="border-white/10 bg-black/40 text-white placeholder:text-white/40 focus:ring-1 focus:ring-[#FF5800] focus:border-[#FF5800]"
+              className="border-white/10 bg-black/40 text-white placeholder:text-white/40 focus:ring-1 focus:ring-white focus:border-white"
             />
           </div>
 
@@ -412,7 +412,7 @@ export function VoiceCloneForm({
                 className={cn(
                   "relative border p-3 text-left transition-all",
                   cloneType === "instant"
-                    ? "border-[#FF5800] bg-[#FF580010]"
+                    ? "border-white bg-white/10"
                     : "border-white/10 hover:border-white/30 hover:bg-white/5",
                 )}
               >
@@ -447,7 +447,7 @@ export function VoiceCloneForm({
                 className={cn(
                   "relative border p-3 text-left transition-all",
                   cloneType === "professional"
-                    ? "border-[#FF5800] bg-[#FF580010]"
+                    ? "border-white bg-white/10"
                     : "border-white/10 hover:border-white/30 hover:bg-white/5",
                 )}
               >
@@ -532,7 +532,7 @@ export function VoiceCloneForm({
                   className={cn(
                     "border-2 border-dashed p-6 md:p-8 text-center transition-colors cursor-pointer w-full",
                     isDragging
-                      ? "border-[#FF5800] bg-[#FF5800]/5"
+                      ? "border-white bg-white/5"
                       : "border-white/20 hover:border-white/40 bg-black/20",
                   )}
                   onClick={() => fileInputRef.current?.click()}

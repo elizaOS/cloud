@@ -17,6 +17,8 @@ import {
 import { ElizaAvatar } from "./eliza-avatar";
 import { EmptyChatState } from "./empty-chat-state";
 import { KnowledgeDrawer } from "./knowledge-drawer";
+import { CreditsExhaustedModal } from "./credits-exhausted-modal";
+import { BuyCreditsModal } from "./buy-credits-modal";
 import { useAudioRecorder } from "./hooks/use-audio-recorder";
 import { useAudioPlayer } from "./hooks/use-audio-player";
 import { useAvailableModels } from "./hooks/use-available-models";
@@ -90,6 +92,8 @@ export function ElizaChatInterface() {
   const [isInitializing, setIsInitializing] = useState(false);
   const [isLoadingMessages, setIsLoadingMessages] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [showCreditsModal, setShowCreditsModal] = useState(false);
+  const [showBuyCreditsModal, setShowBuyCreditsModal] = useState(false);
   const scrollAreaRef = useRef<HTMLDivElement>(null);
   const thinkingTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const [autoPlayTTS, setAutoPlayTTS] = useState(false);
@@ -278,7 +282,7 @@ export function ElizaChatInterface() {
         const currentVoiceId = selectedVoiceId;
         const voiceName = currentVoiceId
           ? customVoices.find((v) => v.elevenlabsVoiceId === currentVoiceId)
-              ?.name || "Custom Voice"
+            ?.name || "Custom Voice"
           : "Default Voice";
 
         // Build request body - IMPORTANT: Only add voiceId if we actually have one
@@ -606,8 +610,13 @@ export function ElizaChatInterface() {
         model: selectedModel || undefined, // Pass selected model
         onMessage: handleStreamMessage,
         onError: (errorMsg) => {
-          setError(errorMsg);
-          toast.error(errorMsg);
+          // Check if it's an insufficient credits error
+          if (errorMsg.includes("Insufficient balance")) {
+            setShowCreditsModal(true);
+          } else {
+            setError(errorMsg);
+            toast.error(errorMsg);
+          }
           // Remove temp and thinking messages on error
           setMessages((prev) =>
             prev.filter(
@@ -629,11 +638,18 @@ export function ElizaChatInterface() {
         },
       });
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to send message");
+      const errorMessage = err instanceof Error ? err.message : "Failed to send message";
+      const error = err as Error & { status?: number };
+
+      // Check if it's an insufficient credits error
+      if (error.status === 402 || errorMessage.includes("Insufficient balance")) {
+        setShowCreditsModal(true);
+      } else {
+        setError(errorMessage);
+        toast.error(errorMessage);
+      }
+
       console.error("Error sending message:", err);
-      toast.error(
-        err instanceof Error ? err.message : "Failed to send message"
-      );
       // Remove temp and thinking messages on error
       setMessages((prev) =>
         prev.filter(
@@ -746,298 +762,340 @@ export function ElizaChatInterface() {
   }
 
   return (
-    <div className="flex h-full w-full min-h-0 justify-center">
-      {/* Main Chat Area - Centered with max width */}
-      <div className="flex flex-col flex-1 min-h-0 max-w-5xl w-full px-6">
+    <div className="flex h-full w-full min-h-0">
+      {/* Main Chat Area - Full width */}
+      <div className="flex flex-col flex-1 min-h-0 w-full px-6">
         {/* Messages Area - No Header */}
         <div className="flex-1 min-h-0 overflow-hidden">
-          <ScrollArea className="h-full p-4" ref={scrollAreaRef}>
-            <div className="space-y-4">
-              {error && (
-                <div className="rounded-lg border border-destructive bg-destructive/10 p-3">
-                  <p className="text-sm text-destructive">{error}</p>
-                </div>
-              )}
-
-              {isLoadingMessages && (
-                <div className="flex flex-col items-center justify-center h-full text-center py-12 space-y-6">
-                  <ElizaAvatar
-                    avatarUrl={agentInfo?.avatarUrl}
-                    name={characterName}
-                    className="h-16 w-16 mb-4"
-                    fallbackClassName="bg-muted"
-                    iconClassName="h-8 w-8 text-muted-foreground"
-                    animate={true}
-                  />
-                  <div className="space-y-2">
-                    <p className="text-base font-semibold">
-                      Loading conversation...
-                    </p>
-                    <p className="text-sm text-muted-foreground">
-                      Retrieving message history
-                    </p>
+          <ScrollArea className="h-full" ref={scrollAreaRef}>
+            <div className="min-h-full flex flex-col justify-end px-32 py-4">
+              <div className="space-y-5">
+                {error && (
+                  <div className="rounded-lg border border-destructive bg-destructive/10 p-3">
+                    <p className="text-sm text-destructive">{error}</p>
                   </div>
-                  {/* Message Skeletons */}
-                  <div className="w-full max-w-2xl space-y-4 mt-8">
-                    {/* Agent message skeleton */}
-                    <div className="flex justify-start animate-pulse">
-                      <div className="flex flex-col gap-2 max-w-[70%]">
-                        <div className="flex items-center gap-2">
-                          <div className="w-4 h-4 rounded-full bg-white/10" />
-                          <div className="h-4 w-20 bg-white/10 rounded" />
-                        </div>
-                        <div className="h-16 bg-white/5 rounded" />
-                      </div>
-                    </div>
-                    {/* User message skeleton */}
-                    <div className="flex justify-end animate-pulse">
-                      <div className="flex flex-col gap-2 max-w-[70%]">
-                        <div className="h-12 bg-white/10 rounded" />
-                      </div>
-                    </div>
-                    {/* Agent message skeleton */}
-                    <div className="flex justify-start animate-pulse">
-                      <div className="flex flex-col gap-2 max-w-[70%]">
-                        <div className="flex items-center gap-2">
-                          <div className="w-4 h-4 rounded-full bg-white/10" />
-                          <div className="h-4 w-20 bg-white/10 rounded" />
-                        </div>
-                        <div className="h-20 bg-white/5 rounded" />
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              )}
+                )}
 
-              {!isLoadingMessages && messages.length === 0 && !error && (
-                <>
-                  {!roomId ? (
-                    <EmptyChatState
-                      agentName={agentInfo?.name}
-                      agentAvatar={agentInfo?.avatarUrl}
-                      selectedCharacterId={selectedCharacterId}
+                {isLoadingMessages && (
+                  <div className="flex flex-col items-center justify-center h-full text-center py-12 space-y-6">
+                    <ElizaAvatar
+                      avatarUrl={agentInfo?.avatarUrl}
+                      name={characterName}
+                      className="h-16 w-16 mb-4"
+                      fallbackClassName="bg-muted"
+                      iconClassName="h-8 w-8 text-muted-foreground"
+                      animate={true}
                     />
-                  ) : (
-                    <div className="flex flex-col items-center justify-center h-full text-center py-12">
-                      <ElizaAvatar
-                        avatarUrl={agentInfo?.avatarUrl}
-                        name={agentInfo?.name}
-                        className="h-16 w-16 mb-4"
-                        fallbackClassName="bg-muted"
-                        iconClassName="h-8 w-8 text-muted-foreground"
-                      />
-                      <h3 className="text-lg font-semibold mb-2">
-                        Start a conversation
-                      </h3>
-                      <p className="text-sm text-muted-foreground max-w-md">
-                        Ask me anything about AI, development, or how elizaOS
-                        can help you build intelligent agents.
+                    <div className="space-y-2">
+                      <p className="text-base font-semibold">
+                        Loading conversation...
+                      </p>
+                      <p className="text-sm text-muted-foreground">
+                        Retrieving message history
                       </p>
                     </div>
-                  )}
-                </>
-              )}
-
-              {!isLoadingMessages &&
-                messages.map((message, index) => {
-                  const isThinking = message.id.startsWith("thinking-");
-                  return (
-                    <div
-                      key={message.id}
-                      className={`flex ${
-                        message.isAgent ? "justify-start" : "justify-end"
-                      } animate-in fade-in slide-in-from-bottom-4 duration-500`}
-                      style={{ animationDelay: `${index * 50}ms` }}
-                    >
-                      {message.isAgent ? (
-                        <div className="flex flex-col gap-1 max-w-[70%]">
-                          {/* Agent Name Row with Avatar */}
+                    {/* Message Skeletons */}
+                    <div className="w-full max-w-2xl space-y-4 mt-8">
+                      {/* Agent message skeleton */}
+                      <div className="flex justify-start animate-pulse">
+                        <div className="flex flex-col gap-2 max-w-[70%]">
                           <div className="flex items-center gap-2">
-                            <ElizaAvatar
-                              avatarUrl={agentInfo?.avatarUrl}
-                              name={characterName}
-                              className="flex-shrink-0 w-4 h-4"
-                              iconClassName="h-3 w-3"
-                              animate={isThinking}
-                            />
-                            <div
-                              className="font-[family-name:var(--font-roboto-flex)] text-sm font-medium"
-                              style={{ color: "#A1A1AA" }}
-                            >
-                              {characterName}
-                            </div>
+                            <div className="w-4 h-4 rounded-full bg-white/10" />
+                            <div className="h-4 w-20 bg-white/10 rounded" />
                           </div>
+                          <div className="h-16 bg-white/5 rounded" />
+                        </div>
+                      </div>
+                      {/* User message skeleton */}
+                      <div className="flex justify-end animate-pulse">
+                        <div className="flex flex-col gap-2 max-w-[70%]">
+                          <div className="h-12 bg-white/10 rounded" />
+                        </div>
+                      </div>
+                      {/* Agent message skeleton */}
+                      <div className="flex justify-start animate-pulse">
+                        <div className="flex flex-col gap-2 max-w-[70%]">
+                          <div className="flex items-center gap-2">
+                            <div className="w-4 h-4 rounded-full bg-white/10" />
+                            <div className="h-4 w-20 bg-white/10 rounded" />
+                          </div>
+                          <div className="h-20 bg-white/5 rounded" />
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                )}
 
-                          <div className="flex flex-col gap-1">
-                            {isThinking ? (
-                              <div className="flex items-center gap-3 py-2">
-                                <Loader2 className="h-4 w-4 animate-spin" />
-                                <p className="text-sm text-muted-foreground font-[family-name:var(--font-roboto-flex)]">
-                                  is thinking...
-                                </p>
-                              </div>
-                            ) : (
-                              <>
-                                {/* Message Text */}
-                                <div
-                                  className="py-2 rounded-none font-[family-name:var(--font-roboto-flex)] text-[16px] leading-[1.5]"
-                                  style={{ fontWeight: 500 }}
-                                >
-                                  <div className="whitespace-pre-wrap text-white">
-                                    {message.content.text}
-                                  </div>
+                {!isLoadingMessages && messages.length === 0 && !error && (
+                  <>
+                    {!roomId ? (
+                      <EmptyChatState
+                        agentName={agentInfo?.name}
+                        agentAvatar={agentInfo?.avatarUrl}
+                        selectedCharacterId={selectedCharacterId}
+                      />
+                    ) : (
+                      <div className="flex flex-col items-center justify-center h-full text-center py-12">
+                        <ElizaAvatar
+                          avatarUrl={agentInfo?.avatarUrl}
+                          name={agentInfo?.name}
+                          className="h-16 w-16 mb-4"
+                          fallbackClassName="bg-muted"
+                          iconClassName="h-8 w-8 text-muted-foreground"
+                        />
+                        <h3 className="text-lg font-semibold mb-2">
+                          Start a conversation
+                        </h3>
+                        <p className="text-sm text-muted-foreground max-w-md">
+                          Ask me anything about AI, development, or how elizaOS
+                          can help you build intelligent agents.
+                        </p>
+                      </div>
+                    )}
+                  </>
+                )}
+
+                {!isLoadingMessages &&
+                  messages.map((message, index) => {
+                    const isThinking = message.id.startsWith("thinking-");
+                    return (
+                      <div
+                        key={message.id}
+                        className="flex justify-start animate-in fade-in slide-in-from-bottom-4 duration-500"
+                        style={{ animationDelay: `${index * 50}ms` }}
+                      >
+                        {message.isAgent ? (
+                          <div className="flex flex-col gap-1 max-w-[70%]">
+                            {/* Agent Name Row with Avatar */}
+                            <div className="flex items-center gap-2">
+                              <ElizaAvatar
+                                avatarUrl={agentInfo?.avatarUrl}
+                                name={characterName}
+                                className="flex-shrink-0 w-4 h-4 rounded-full"
+                                iconClassName="h-3 w-3"
+                                animate={isThinking}
+                              />
+                              <p
+                                className="font-[family-name:var(--font-roboto-mono)]"
+                                style={{
+                                  fontSize: "12px",
+                                  lineHeight: "16px",
+                                  color: "rgb(161, 161, 170)",
+                                  fontWeight: 400,
+                                }}
+                              >
+                                {characterName}
+                              </p>
+                            </div>
+
+                            <div className="flex flex-col gap-1">
+                              {isThinking ? (
+                                <div className="flex items-center gap-3 py-2">
+                                  <Loader2 className="h-4 w-4 animate-spin" />
+                                  <p className="text-sm text-muted-foreground font-[family-name:var(--font-roboto-flex)]">
+                                    is thinking...
+                                  </p>
                                 </div>
+                              ) : (
+                                <>
+                                  {/* Message Text */}
+                                  <div
+                                    className="py-1 rounded-none font-[family-name:var(--font-geist)]"
+                                    style={{
+                                      fontSize: "14px",
+                                      lineHeight: "normal",
+                                      letterSpacing: "-0.042px",
+                                      fontWeight: 400,
+                                    }}
+                                  >
+                                    <p className="whitespace-pre-wrap" style={{ color: "#f2f2f2" }}>
+                                      {message.content.text}
+                                    </p>
+                                  </div>
 
-                                {/* Image Attachments */}
-                                {message.content.attachments &&
-                                  message.content.attachments.length > 0 && (
-                                    <div className="mt-2 space-y-2">
-                                      {message.content.attachments.map(
-                                        (attachment) => {
-                                          if (
-                                            attachment.contentType ===
+                                  {/* Image Attachments */}
+                                  {message.content.attachments &&
+                                    message.content.attachments.length > 0 && (
+                                      <div className="mt-2 space-y-2">
+                                        {message.content.attachments.map(
+                                          (attachment) => {
+                                            if (
+                                              attachment.contentType ===
                                               "IMAGE" ||
-                                            attachment.contentType === "image"
-                                          ) {
-                                            return (
-                                              <div
-                                                key={attachment.id}
-                                                className="inline-block rounded-lg overflow-hidden border border-white/10 max-w-md"
-                                              >
-                                                <Image
-                                                  src={attachment.url}
-                                                  alt={
-                                                    attachment.title ||
-                                                    "Generated image"
-                                                  }
-                                                  width={512}
-                                                  height={512}
-                                                  className="w-full h-auto"
-                                                  style={{ display: "block" }}
-                                                  onLoad={() =>
-                                                    scrollToBottom()
-                                                  }
-                                                />
-                                              </div>
-                                            );
+                                              attachment.contentType === "image"
+                                            ) {
+                                              return (
+                                                <div
+                                                  key={attachment.id}
+                                                  className="inline-block rounded-lg overflow-hidden border border-white/10 max-w-md"
+                                                >
+                                                  <Image
+                                                    src={attachment.url}
+                                                    alt={
+                                                      attachment.title ||
+                                                      "Generated image"
+                                                    }
+                                                    width={512}
+                                                    height={512}
+                                                    className="w-full h-auto"
+                                                    style={{ display: "block" }}
+                                                    onLoad={() =>
+                                                      scrollToBottom()
+                                                    }
+                                                  />
+                                                </div>
+                                              );
+                                            }
+                                            return null;
                                           }
-                                          return null;
-                                        }
-                                      )}
-                                    </div>
-                                  )}
-
-                                {/* Time and Actions */}
-                                <div className="flex items-center gap-2">
-                                  <span
-                                    className="text-sm font-[family-name:var(--font-roboto-mono)]"
-                                    style={{ color: "#A1A1AA" }}
-                                  >
-                                    {formatTimestamp(message.createdAt)}
-                                  </span>
-                                  <Button
-                                    size="sm"
-                                    variant="ghost"
-                                    className="h-5 w-5 p-0 hover:bg-white/10"
-                                    onClick={() =>
-                                      copyToClipboard(
-                                        message.content.text,
-                                        message.id,
-                                        message.content.attachments
-                                      )
-                                    }
-                                    title="Copy message"
-                                  >
-                                    {copiedMessageId === message.id ? (
-                                      <Check className="h-3 w-3 text-green-500" />
-                                    ) : (
-                                      <Copy className="h-3 w-3 text-white/60" />
+                                        )}
+                                      </div>
                                     )}
-                                  </Button>
-                                  {messageAudioUrls.current.has(message.id) && (
+
+                                  {/* Time and Actions */}
+                                  <div className="flex items-center gap-2">
+                                    <p
+                                      className="font-[family-name:var(--font-roboto-mono)]"
+                                      style={{
+                                        fontSize: "12px",
+                                        lineHeight: "normal",
+                                        color: "rgb(161, 161, 170)",
+                                        fontWeight: 500,
+                                      }}
+                                    >
+                                      {formatTimestamp(message.createdAt)}
+                                    </p>
                                     <Button
                                       size="sm"
                                       variant="ghost"
                                       className="h-5 w-5 p-0 hover:bg-white/10"
-                                      onClick={() => {
-                                        const url =
-                                          messageAudioUrls.current.get(
-                                            message.id
-                                          );
-                                        if (url) {
-                                          if (
-                                            currentPlayingId === message.id &&
-                                            player.isPlaying
-                                          ) {
-                                            player.stopAudio();
-                                            setCurrentPlayingId(null);
-                                          } else {
-                                            setCurrentPlayingId(message.id);
-                                            player.playAudio(url);
-                                          }
-                                        }
-                                      }}
+                                      onClick={() =>
+                                        copyToClipboard(
+                                          message.content.text,
+                                          message.id,
+                                          message.content.attachments
+                                        )
+                                      }
+                                      title="Copy message"
                                     >
-                                      {currentPlayingId === message.id &&
-                                      player.isPlaying ? (
-                                        <Square className="h-3 w-3 text-white/60" />
+                                      {copiedMessageId === message.id ? (
+                                        <Check className="h-3 w-3 text-green-500" />
                                       ) : (
-                                        <Volume2 className="h-3 w-3 text-white/60" />
+                                        <Copy className="h-3 w-3 text-white/60" />
                                       )}
                                     </Button>
-                                  )}
-                                </div>
-                              </>
-                            )}
-                          </div>
-                        </div>
-                      ) : (
-                        <div className="flex flex-col gap-1 max-w-[70%]">
-                          {/* User Message */}
-                          <div
-                            className="px-4 py-3 rounded-none font-[family-name:var(--font-roboto-flex)] text-[16px] leading-[1.5]"
-                            style={{
-                              backgroundColor: "#3A3A3A",
-                              fontWeight: 500,
-                            }}
-                          >
-                            <div className="whitespace-pre-wrap text-white">
-                              {message.content.text}
+                                    {messageAudioUrls.current.has(message.id) && (
+                                      <Button
+                                        size="sm"
+                                        variant="ghost"
+                                        className="h-5 w-5 p-0 hover:bg-white/10"
+                                        onClick={() => {
+                                          const url =
+                                            messageAudioUrls.current.get(
+                                              message.id
+                                            );
+                                          if (url) {
+                                            if (
+                                              currentPlayingId === message.id &&
+                                              player.isPlaying
+                                            ) {
+                                              player.stopAudio();
+                                              setCurrentPlayingId(null);
+                                            } else {
+                                              setCurrentPlayingId(message.id);
+                                              player.playAudio(url);
+                                            }
+                                          }
+                                        }}
+                                      >
+                                        {currentPlayingId === message.id &&
+                                          player.isPlaying ? (
+                                          <Square className="h-3 w-3 text-white/60" />
+                                        ) : (
+                                          <Volume2 className="h-3 w-3 text-white/60" />
+                                        )}
+                                      </Button>
+                                    )}
+                                  </div>
+                                </>
+                              )}
                             </div>
                           </div>
-                          {/* Time and Actions */}
-                          <div className="flex items-center gap-2 justify-end px-1">
-                            <span
-                              className="text-sm font-[family-name:var(--font-roboto-mono)]"
-                              style={{ color: "#A1A1AA" }}
+                        ) : (
+                          <div className="flex flex-col gap-2 max-w-full">
+                            {/* User Name Row with Avatar */}
+                            <div className="flex items-center gap-2">
+                              <div className="w-4 h-4 rounded-full bg-neutral-800 flex-shrink-0" />
+                              <p
+                                className="font-[family-name:var(--font-roboto-mono)]"
+                                style={{
+                                  fontSize: "12px",
+                                  lineHeight: "16px",
+                                  color: "rgb(161, 161, 170)",
+                                  fontWeight: 400,
+                                  opacity: 0.8,
+                                }}
+                              >
+                                {characterName}
+                              </p>
+                            </div>
+
+                            {/* User Message */}
+                            <div
+                              className="rounded-none font-[family-name:var(--font-geist)] max-w-[500px]"
+                              style={{
+                                fontSize: "14px",
+                                lineHeight: "normal",
+                                letterSpacing: "-0.042px",
+                                fontWeight: 400,
+                              }}
                             >
-                              {formatTimestamp(message.createdAt)}
-                            </span>
-                            <Button
-                              size="sm"
-                              variant="ghost"
-                              className="h-5 w-5 p-0 hover:bg-white/10"
-                              onClick={() =>
-                                copyToClipboard(
-                                  message.content.text,
-                                  message.id,
-                                  message.content.attachments
-                                )
-                              }
-                              title="Copy message"
-                            >
-                              {copiedMessageId === message.id ? (
-                                <Check className="h-3 w-3 text-green-500" />
-                              ) : (
-                                <Copy className="h-3 w-3 text-white/60" />
-                              )}
-                            </Button>
+                              <p className="whitespace-pre-wrap" style={{ color: "#f2f2f2" }}>
+                                {message.content.text}
+                              </p>
+                            </div>
+
+                            {/* Time and Actions */}
+                            <div className="flex items-center gap-4">
+                              <div className="flex items-center gap-2">
+                                <p
+                                  className="font-[family-name:var(--font-roboto-mono)]"
+                                  style={{
+                                    fontSize: "12px",
+                                    lineHeight: "normal",
+                                    color: "rgb(161, 161, 170)",
+                                    fontWeight: 500,
+                                  }}
+                                >
+                                  {formatTimestamp(message.createdAt)}
+                                </p>
+                                <Button
+                                  size="sm"
+                                  variant="ghost"
+                                  className="h-5 w-5 p-0 hover:bg-white/10"
+                                  onClick={() =>
+                                    copyToClipboard(
+                                      message.content.text,
+                                      message.id,
+                                      message.content.attachments
+                                    )
+                                  }
+                                  title="Copy message"
+                                >
+                                  {copiedMessageId === message.id ? (
+                                    <Check className="h-3 w-3 text-green-500" />
+                                  ) : (
+                                    <Copy className="h-3 w-3 text-white/60" />
+                                  )}
+                                </Button>
+                              </div>
+                            </div>
                           </div>
-                        </div>
-                      )}
-                    </div>
-                  );
-                })}
+                        )}
+                      </div>
+                    );
+                  })}
+              </div>
             </div>
           </ScrollArea>
         </div>
@@ -1048,12 +1106,12 @@ export function ElizaChatInterface() {
             e.preventDefault();
             sendMessage();
           }}
-          className="border-t p-3 mb-4"
+          className="border border-zinc-800 p-3 mb-4 mx-32"
           style={{ backgroundColor: "#1D1D1D" }}
         >
-          <div className="space-y-2">
+          <div className="space-y-12">
             {/* Text Input Box - Prominent standalone */}
-            <div className="relative rounded-none border-2 border-border shadow-sm bg-black/20 overflow-hidden">
+            <div className="relative rounded-none overflow-hidden">
               {/* Robot Eye Visor Scanner - Animated line on top edge with randomness - Only show when waiting for agent */}
               {isLoading && (
                 <div className="absolute top-0 left-0 right-0 h-[2px] overflow-hidden pointer-events-none z-10">
@@ -1088,15 +1146,16 @@ export function ElizaChatInterface() {
                     sendMessage();
                   }
                 }}
-                placeholder={
-                  recorder.isRecording
-                    ? "Recording... Click stop when done"
-                    : roomId
-                      ? "Type your message here..."
-                      : "Ask me anything about AI, development, or how elizaOS can help you..."
-                }
+                placeholder="Type your message here..."
                 disabled={isLoading || recorder.isRecording}
-                className="w-full bg-transparent px-3 py-2.5 text-sm text-white placeholder:text-white/60 focus:outline-none disabled:opacity-50"
+                className="w-full bg-transparent px-0 py-0 text-white focus:outline-none disabled:opacity-50"
+                style={{
+                  fontFamily: "'Roboto Flex', sans-serif",
+                  fontSize: "14px",
+                  lineHeight: "normal",
+                  letterSpacing: "-0.042px",
+                  fontWeight: 400,
+                }}
               />
             </div>
 
@@ -1112,14 +1171,23 @@ export function ElizaChatInterface() {
                 }}
                 disabled={isLoadingModels}
               >
-                <SelectTrigger className="w-[140px] h-10 border-muted rounded-none">
-                  <SelectValue placeholder="Select model">
+                <SelectTrigger
+                  className="w-auto border border-zinc-800 rounded-none bg-[#0A0A0A] h-[24px] px-2 py-1"
+                  style={{
+                    fontFamily: "'Roboto Mono', monospace",
+                    fontSize: "12px",
+                    fontWeight: 500,
+                    lineHeight: "1.221",
+                    color: "#a2a0a3",
+                  }}
+                >
+                  <SelectValue placeholder="Gemini">
                     {selectedModel
-                      ? selectedModel.split("/")[1] || selectedModel
-                      : "Select model"}
+                      ? selectedModel.split("/")[1] || "Gemini"
+                      : "Gemini"}
                   </SelectValue>
                 </SelectTrigger>
-                <SelectContent className="rounded-none">
+                <SelectContent className="rounded-none bg-[#0A0A0A] border-zinc-800">
                   {models.map((model) => (
                     <SelectItem key={model.id} value={model.id}>
                       {model.id.split("/")[1] || model.id}
@@ -1136,9 +1204,12 @@ export function ElizaChatInterface() {
                       type="button"
                       variant="outline"
                       size="icon"
-                      className="h-10 w-10 rounded-none"
+                      className="h-6 w-6 rounded-none border-[#555555] p-0"
+                      style={{
+                        backgroundColor: "#302f2f",
+                      }}
                     >
-                      <Plus className="h-4 w-4" />
+                      <Plus className="h-[17.199px] w-[17.199px]" style={{ color: "#a2a0a3" }} />
                     </Button>
                   </DropdownMenuTrigger>
                   <DropdownMenuContent
@@ -1193,9 +1264,9 @@ export function ElizaChatInterface() {
 
                                   const voiceName = newVoiceId
                                     ? customVoices.find(
-                                        (v) =>
-                                          v.elevenlabsVoiceId === newVoiceId
-                                      )?.name || "Custom"
+                                      (v) =>
+                                        v.elevenlabsVoiceId === newVoiceId
+                                    )?.name || "Custom"
                                     : "Default";
 
                                   toast.success(`Voice: ${voiceName}`);
@@ -1242,12 +1313,15 @@ export function ElizaChatInterface() {
                   size="icon"
                   disabled={isLoading}
                   onClick={handleVoiceInput}
-                  className="h-10 w-10 rounded-none"
+                  className="h-6 w-6 rounded-none border-[#555555] p-0"
+                  style={{
+                    backgroundColor: "#302f2f",
+                  }}
                 >
                   {recorder.isRecording ? (
-                    <Square className="h-4 w-4" />
+                    <Square className="h-[17.455px] w-[17.455px]" style={{ color: "#ffffff" }} />
                   ) : (
-                    <Mic className="h-4 w-4" />
+                    <Mic className="h-[17.455px] w-[17.455px]" style={{ color: "#ffffff" }} />
                   )}
                 </Button>
 
@@ -1257,16 +1331,16 @@ export function ElizaChatInterface() {
                     isLoading || !inputText.trim() || recorder.isRecording
                   }
                   size="icon"
-                  className="h-10 w-10 rounded-none border-none"
+                  className="h-6 w-6 rounded-none border-none p-0"
                   style={{ backgroundColor: "rgba(255, 88, 0, 0.25)" }}
                 >
                   {isLoading ? (
                     <Loader2
-                      className="h-4 w-4 animate-spin"
+                      className="h-[17.4px] w-[17.4px] animate-spin"
                       style={{ color: "#FF5800" }}
                     />
                   ) : (
-                    <Send className="h-4 w-4" style={{ color: "#FF5800" }} />
+                    <Send className="h-[17.4px] w-[17.4px]" style={{ color: "#FF5800" }} />
                   )}
                 </Button>
               </div>
@@ -1274,6 +1348,22 @@ export function ElizaChatInterface() {
           </div>
         </form>
       </div>
+
+      {/* Credits Exhausted Modal */}
+      <CreditsExhaustedModal
+        isOpen={showCreditsModal}
+        onClose={() => setShowCreditsModal(false)}
+        onTopUp={() => {
+          setShowCreditsModal(false);
+          setShowBuyCreditsModal(true);
+        }}
+      />
+
+      {/* Buy Credits Modal */}
+      <BuyCreditsModal
+        isOpen={showBuyCreditsModal}
+        onClose={() => setShowBuyCreditsModal(false)}
+      />
     </div>
   );
 }

@@ -27,17 +27,14 @@ export function GalleryPageClient() {
     {
       value: "all",
       label: "All Media",
-      icon: <LayoutGridIcon className="h-4 w-4" />,
     },
     {
       value: "image",
       label: "Images",
-      icon: <ImageIcon className="h-4 w-4" />,
     },
     {
       value: "video",
       label: "Videos",
-      icon: <VideoIcon className="h-4 w-4" />,
     },
   ];
   const [items, setItems] = useState<GalleryItem[]>([]);
@@ -124,49 +121,85 @@ export function GalleryPageClient() {
           </>
         ) : stats ? (
           <>
-            <BrandCard corners={false} className="p-4">
+            <BrandCard corners={false} className="p-4 bg-[#161616]">
               <div className="flex items-center gap-3">
-                <div className="rounded-full bg-blue-500/20 border border-blue-500/40 p-2">
-                  <ImageIcon className="w-5 h-5 text-blue-400" />
-                </div>
+                <ImageIcon className="w-6 h-6 text-blue-500" style={{ flexShrink: 0 }} />
                 <div>
-                  <p className="text-2xl font-bold text-white">
+                  <p
+                    className="text-2xl font-bold text-white"
+                    style={{
+                      fontFamily: "var(--font-roboto-mono)",
+                      fontSize: "24px",
+                      lineHeight: "28px",
+                    }}
+                  >
                     {stats.totalImages}
                   </p>
-                  <p className="text-sm text-white/50 uppercase tracking-wide">
+                  <p
+                    className="text-sm text-white/50"
+                    style={{
+                      fontFamily: "var(--font-roboto-mono)",
+                      fontSize: "12px",
+                      lineHeight: "16px",
+                    }}
+                  >
                     Images
                   </p>
                 </div>
               </div>
             </BrandCard>
 
-            <BrandCard corners={false} className="p-4">
+            <BrandCard corners={false} className="p-4 bg-[#161616]">
               <div className="flex items-center gap-3">
-                <div className="rounded-full bg-purple-500/20 border border-purple-500/40 p-2">
-                  <VideoIcon className="w-5 h-5 text-purple-400" />
-                </div>
+                <VideoIcon className="w-6 h-6 text-purple-500" style={{ flexShrink: 0 }} />
                 <div>
-                  <p className="text-2xl font-bold text-white">
+                  <p
+                    className="text-2xl font-bold text-white"
+                    style={{
+                      fontFamily: "var(--font-roboto-mono)",
+                      fontSize: "24px",
+                      lineHeight: "28px",
+                    }}
+                  >
                     {stats.totalVideos}
                   </p>
-                  <p className="text-sm text-white/50 uppercase tracking-wide">
+                  <p
+                    className="text-sm text-white/50"
+                    style={{
+                      fontFamily: "var(--font-roboto-mono)",
+                      fontSize: "12px",
+                      lineHeight: "16px",
+                    }}
+                  >
                     Videos
                   </p>
                 </div>
               </div>
             </BrandCard>
 
-            <BrandCard corners={false} className="p-4">
+            <BrandCard corners={false} className="p-4 bg-[#161616]">
               <div className="flex items-center gap-3">
-                <div className="rounded-full bg-green-500/20 border border-green-500/40 p-2">
-                  <LayoutGridIcon className="w-5 h-5 text-green-400" />
-                </div>
+                <LayoutGridIcon className="w-6 h-6 text-green-500" style={{ flexShrink: 0 }} />
                 <div>
-                  <p className="text-2xl font-bold text-white">
-                    {(stats.totalSize / 1024 / 1024).toFixed(1)} MB
+                  <p
+                    className="text-2xl font-bold text-white"
+                    style={{
+                      fontFamily: "var(--font-roboto-mono)",
+                      fontSize: "24px",
+                      lineHeight: "28px",
+                    }}
+                  >
+                    {stats.totalSize === 0 ? "0" : (stats.totalSize / 1024 / 1024).toFixed(1) + " MB"}
                   </p>
-                  <p className="text-sm text-white/50 uppercase tracking-wide">
-                    Total Size
+                  <p
+                    className="text-sm text-white/50"
+                    style={{
+                      fontFamily: "var(--font-roboto-mono)",
+                      fontSize: "12px",
+                      lineHeight: "16px",
+                    }}
+                  >
+                    Total size
                   </p>
                 </div>
               </div>

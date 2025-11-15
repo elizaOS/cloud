@@ -17,10 +17,12 @@ import { cn } from "@/lib/utils";
 
 interface SidebarNavigationSectionProps {
   section: SidebarSection;
+  isCollapsed?: boolean;
 }
 
 export function SidebarNavigationSection({
   section,
+  isCollapsed = false,
 }: SidebarNavigationSectionProps) {
   // Generate a storage key based on section title
   const storageKey = section.title
@@ -41,30 +43,26 @@ export function SidebarNavigationSection({
     }
   }, [isOpen, storageKey]);
 
-  // Assign colors based on section type
-  const getSectionColor = () => {
-    if (!section.title) return "#FF5800"; // Default orange
-
-    switch (section.title.toLowerCase()) {
-      case "generation studio":
-        return "#FF5800"; // Orange - Creative/Generation
-      case "agent development":
-        return "#0B35F1"; // Blue - AI/Development
-      case "infrastructure":
-        return "#22C55E"; // Green - System/Infrastructure
-      default:
-        return "#FF5800"; // Default orange
-    }
-  };
-
-  const dotColor = getSectionColor();
+  // Use white for all section dots
+  const dotColor = "#ffffff";
 
   // If there's no title, render without collapsible (e.g., Dashboard section)
   if (!section.title) {
     return (
       <nav className="space-y-1">
         {section.items.map((item) => (
-          <SidebarNavigationItem key={item.id} item={item} />
+          <SidebarNavigationItem key={item.id} item={item} isCollapsed={isCollapsed} />
+        ))}
+      </nav>
+    );
+  }
+
+  // If sidebar is collapsed, don't show section header and collapsible
+  if (isCollapsed) {
+    return (
+      <nav className="space-y-1">
+        {section.items.map((item) => (
+          <SidebarNavigationItem key={item.id} item={item} isCollapsed={isCollapsed} />
         ))}
       </nav>
     );
@@ -72,7 +70,7 @@ export function SidebarNavigationSection({
 
   return (
     <Collapsible open={isOpen} onOpenChange={setIsOpen}>
-      <CollapsibleTrigger className="group w-full mb-3 px-3 flex items-center gap-2 hover:opacity-80 transition-opacity">
+      <CollapsibleTrigger className="group w-full px-3 py-2.5 flex items-center gap-2 hover:opacity-80 transition-opacity">
         <span
           className="inline-block w-1.5 h-1.5 rounded-full flex-shrink-0"
           style={{ backgroundColor: dotColor }}
@@ -97,7 +95,7 @@ export function SidebarNavigationSection({
       <CollapsibleContent className="overflow-hidden data-[state=closed]:animate-collapsible-up data-[state=open]:animate-collapsible-down">
         <nav className="space-y-1">
           {section.items.map((item) => (
-            <SidebarNavigationItem key={item.id} item={item} />
+            <SidebarNavigationItem key={item.id} item={item} isCollapsed={isCollapsed} />
           ))}
         </nav>
       </CollapsibleContent>

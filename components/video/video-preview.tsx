@@ -91,7 +91,7 @@ export function VideoPreview({ video }: VideoPreviewProps) {
       <div className="relative z-10 space-y-2 pb-0">
         <div className="flex items-start justify-between gap-2">
           <div className="flex items-center gap-2">
-            <div className="w-2 h-2 rounded-full bg-[#FF5800]" />
+            <div className="w-2 h-2 rounded-full bg-[white]" />
             <h3 className="text-base md:text-lg lg:text-xl font-mono font-bold text-[#e1e1e1] uppercase">
               Preview
             </h3>
@@ -143,10 +143,10 @@ export function VideoPreview({ video }: VideoPreviewProps) {
                   style={
                     video.thumbnailUrl
                       ? {
-                          backgroundImage: `url(${video.thumbnailUrl})`,
-                          backgroundSize: "cover",
-                          backgroundPosition: "center",
-                        }
+                        backgroundImage: `url(${video.thumbnailUrl})`,
+                        backgroundSize: "cover",
+                        backgroundPosition: "center",
+                      }
                       : undefined
                   }
                 >
@@ -162,7 +162,7 @@ export function VideoPreview({ video }: VideoPreviewProps) {
               )}
               {video.status === "processing" && (
                 <div className="absolute inset-0 flex flex-col items-center justify-center gap-3 bg-black/80 text-center px-4">
-                  <Loader2 className="h-6 md:h-8 w-6 md:w-8 animate-spin text-[#FF5800]" />
+                  <Loader2 className="h-6 md:h-8 w-6 md:w-8 animate-spin text-[white]" />
                   <p className="text-xs md:text-sm font-mono font-medium text-white">
                     Sending job to Fal…
                   </p>
@@ -174,7 +174,7 @@ export function VideoPreview({ video }: VideoPreviewProps) {
             </>
           ) : (
             <div className="absolute inset-0 flex flex-col items-center justify-center gap-3 text-center text-white/60 px-4">
-              <Sparkles className="h-8 md:h-10 w-8 md:w-10 text-[#FF5800]" />
+              <Sparkles className="h-8 md:h-10 w-8 md:w-10 text-[white]" />
               <p className="text-xs md:text-sm font-mono font-medium text-white">
                 Your video will appear here once generated.
               </p>
@@ -212,7 +212,7 @@ export function VideoPreview({ video }: VideoPreviewProps) {
             ) : null}
             <div className="flex flex-wrap items-center justify-between gap-2">
               <span className="flex items-center gap-2">
-                <Clock className="h-3.5 w-3.5 text-[#FF5800]" /> Duration
+                <Clock className="h-3.5 w-3.5 text-[white]" /> Duration
               </span>
               <span className="font-medium text-white">
                 {video?.durationSeconds
@@ -249,7 +249,7 @@ export function VideoPreview({ video }: VideoPreviewProps) {
                   href={video.referenceUrl}
                   target="_blank"
                   rel="noreferrer"
-                  className="font-medium text-[#FF5800] hover:underline break-all text-right"
+                  className="font-medium text-[white] hover:underline break-all text-right"
                 >
                   Open link
                 </a>
@@ -296,7 +296,7 @@ export function VideoPreview({ video }: VideoPreviewProps) {
           <button
             type="button"
             onClick={handleDownload}
-            className="relative bg-[#e1e1e1] px-4 py-2 overflow-hidden hover:bg-white transition-colors flex-1"
+            className="relative bg-transparent border px-4 py-2 overflow-hidden transition-colors flex-1"
           >
             <div
               className="absolute inset-0 opacity-20 bg-repeat pointer-events-none"
@@ -305,19 +305,17 @@ export function VideoPreview({ video }: VideoPreviewProps) {
                 backgroundSize: "2.915576934814453px 2.915576934814453px",
               }}
             />
-            <span className="relative z-10 text-black font-mono font-medium text-sm flex items-center justify-center gap-2">
-              <Download className="h-4 w-4" />
-              Download
+            <span className="relative z-10 text-white font-mono font-medium text-sm flex items-center justify-center gap-2">
+              Re-generate video
             </span>
           </button>
           <button
             type="button"
             onClick={handleCopyLink}
-            className="px-4 py-2 border border-white/20 bg-transparent text-white hover:bg-white/5 transition-colors flex-1"
+            className="px-4 py-2  bg-[#FF580040] hover:bg-[#FF580040]  text-orange-500 transition-colors flex-1"
           >
             <span className="font-mono text-sm flex items-center justify-center gap-2">
-              <Link2 className="h-4 w-4" />
-              Copy link
+              Save
             </span>
           </button>
         </div>

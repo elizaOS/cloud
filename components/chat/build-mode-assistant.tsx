@@ -4,7 +4,7 @@ import { useState, useRef, useEffect, useCallback } from "react";
 import { useChat } from "@ai-sdk/react";
 import { DefaultChatTransport } from "ai";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { Bot, User, Send, Loader2, Copy, Check } from "lucide-react";
+import { Bot, User, Send, Loader2, Copy, Check, Plus, Mic, ChevronDown, ArrowUp } from "lucide-react";
 import type { ElizaCharacter } from "@/lib/types";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
@@ -27,6 +27,7 @@ export function BuildModeAssistant({
   const [inputText, setInputText] = useState("");
   const [currentTime] = useState(() => Date.now());
   const [copiedMessageId, setCopiedMessageId] = useState<string | null>(null);
+  const [selectedModel, setSelectedModel] = useState("Gemini");
   const [quickPrompts] = useState<string[]>([
     "Add personality traits",
     "Improve the bio",
@@ -221,11 +222,26 @@ Tell me about your vision!`;
   };
 
   return (
-    <div className="flex h-full w-full min-h-0 flex-col bg-[#0A0A0A]">
+    <div className="flex h-full w-full min-h-0 flex-col bg-[#0A0A0A] relative overflow-hidden">
+      {/* Purple Gradient Background Effect */}
+      <div
+        className="absolute pointer-events-none"
+        style={{
+          left: "50%",
+          bottom: "30%",
+          width: "800px",
+          height: "800px",
+          background: "radial-gradient(circle, #E500FF 0%, rgba(229, 0, 255, 0.4) 40%, transparent 70%)",
+          filter: "blur(150px)",
+          opacity: 0.5,
+          zIndex: 0,
+        }}
+      />
+
       {/* Messages Area */}
-      <div className="flex-1 min-h-0 overflow-hidden">
-        <ScrollArea className="h-full p-4" ref={scrollAreaRef}>
-          <div className="space-y-4 max-w-5xl mx-auto">
+      <div className="flex-1 min-h-0 overflow-hidden relative z-10">
+        <ScrollArea className="h-full p-6" ref={scrollAreaRef}>
+          <div className="space-y-6 max-w-4xl mx-auto">
             {messages.length === 0 && (
               <div className="flex flex-col items-center justify-center h-full text-center py-12">
                 <div className="flex h-16 w-16 flex-shrink-0 items-center justify-center rounded-full bg-[#FF5800] mb-4">
@@ -250,31 +266,38 @@ Tell me about your vision!`;
               return (
                 <div
                   key={message.id}
-                  className={`flex ${
-                    message.role === "user" ? "justify-end" : "justify-start"
-                  } animate-in fade-in slide-in-from-bottom-4 duration-500`}
+                  className={`flex ${message.role === "user" ? "justify-end" : "justify-start"
+                    } animate-in fade-in slide-in-from-bottom-4 duration-500`}
                   style={{ animationDelay: `${index * 50}ms` }}
                 >
                   {message.role === "assistant" ? (
-                    <div className="flex flex-col gap-1 max-w-[70%] min-w-0">
+                    <div className="flex flex-col gap-2 max-w-[85%] min-w-0">
                       {/* Agent Name Row with Avatar */}
-                      <div className="flex items-center gap-2">
-                        <div className="flex h-4 w-4 flex-shrink-0 items-center justify-center rounded-full bg-[#FF5800]">
+                      <div className="flex items-center gap-2 px-1">
+                        <div className="flex h-5 w-5 flex-shrink-0 items-center justify-center rounded-full bg-[#FF5800]">
                           <Bot className="h-3 w-3 text-white" />
                         </div>
                         <div
                           className="font-[family-name:var(--font-roboto-flex)] text-sm font-medium"
                           style={{ color: "#A1A1AA" }}
                         >
-                          {character.name || "New Character"}
+                          Agent Creator Assistant
                         </div>
                       </div>
 
-                      <div className="flex flex-col gap-1">
+                      {/* Message Container with Background */}
+                      <div
+                        className="px-4 py-3 rounded-lg"
+                        style={{
+                          background: "rgba(255, 255, 255, 0.03)",
+                          backdropFilter: "blur(10px)",
+                          border: "1px solid rgba(255, 255, 255, 0.05)",
+                        }}
+                      >
                         {/* Message Text */}
                         <div
-                          className="py-2 rounded-none font-[family-name:var(--font-roboto-flex)] text-[16px] leading-[1.5]"
-                          style={{ fontWeight: 500 }}
+                          className="font-[family-name:var(--font-roboto-flex)] text-[15px] leading-[1.6]"
+                          style={{ fontWeight: 400 }}
                         >
                           <style jsx>{`
                             .json-syntax :global(pre) {
@@ -328,7 +351,7 @@ Tell me about your vision!`;
                               color: #d4d4d4 !important;
                             }
                           `}</style>
-                          <div className="json-syntax prose prose-sm max-w-none dark:prose-invert text-white overflow-hidden">
+                          <div className="json-syntax prose prose-sm max-w-none dark:prose-invert text-white overflow-hidden prose-p:my-2 prose-p:leading-relaxed prose-headings:font-semibold prose-headings:text-white prose-strong:text-white prose-strong:font-semibold prose-ul:my-2 prose-li:my-1">
                             <ReactMarkdown
                               remarkPlugins={[remarkGfm]}
                               rehypePlugins={[rehypeHighlight]}
@@ -337,38 +360,41 @@ Tell me about your vision!`;
                             </ReactMarkdown>
                           </div>
                         </div>
-                        {/* Time and Actions */}
-                        <div className="flex items-center gap-2">
-                          <span
-                            className="text-sm font-[family-name:var(--font-roboto-mono)]"
-                            style={{ color: "#A1A1AA" }}
-                          >
-                            {formatTimestamp(currentTime)}
-                          </span>
-                          <Button
-                            size="sm"
-                            variant="ghost"
-                            className="h-5 w-5 p-0 hover:bg-white/10"
-                            onClick={() => copyToClipboard(content, message.id)}
-                            title="Copy message"
-                          >
-                            {copiedMessageId === message.id ? (
-                              <Check className="h-3 w-3 text-green-500" />
-                            ) : (
-                              <Copy className="h-3 w-3 text-white/60" />
-                            )}
-                          </Button>
-                        </div>
+                      </div>
+
+                      {/* Time and Actions */}
+                      <div className="flex items-center gap-2 px-1">
+                        <span
+                          className="text-xs font-[family-name:var(--font-roboto-mono)]"
+                          style={{ color: "#71717A" }}
+                        >
+                          {formatTimestamp(currentTime)}
+                        </span>
+                        <Button
+                          size="sm"
+                          variant="ghost"
+                          className="h-4 w-4 p-0 hover:bg-white/10"
+                          onClick={() => copyToClipboard(content, message.id)}
+                          title="Copy message"
+                        >
+                          {copiedMessageId === message.id ? (
+                            <Check className="h-3 w-3 text-green-500" />
+                          ) : (
+                            <Copy className="h-3 w-3 text-white/40" />
+                          )}
+                        </Button>
                       </div>
                     </div>
                   ) : (
-                    <div className="flex flex-col gap-1 max-w-[70%] min-w-0">
+                    <div className="flex flex-col gap-2 max-w-[85%] min-w-0">
                       {/* User Message */}
                       <div
-                        className="px-4 py-3 rounded-none font-[family-name:var(--font-roboto-flex)] text-[16px] leading-[1.5]"
+                        className="px-5 py-3.5 rounded-lg font-[family-name:var(--font-roboto-flex)] text-[15px] leading-[1.6]"
                         style={{
-                          backgroundColor: "#3A3A3A",
-                          fontWeight: 500,
+                          background: "rgba(58, 58, 58, 0.7)",
+                          backdropFilter: "blur(10px)",
+                          border: "1px solid rgba(255, 255, 255, 0.08)",
+                          fontWeight: 400,
                         }}
                       >
                         <div className="whitespace-pre-wrap text-white">
@@ -378,22 +404,22 @@ Tell me about your vision!`;
                       {/* Time and Actions */}
                       <div className="flex items-center gap-2 justify-end px-1">
                         <span
-                          className="text-sm font-[family-name:var(--font-roboto-mono)]"
-                          style={{ color: "#A1A1AA" }}
+                          className="text-xs font-[family-name:var(--font-roboto-mono)]"
+                          style={{ color: "#71717A" }}
                         >
                           {formatTimestamp(currentTime)}
                         </span>
                         <Button
                           size="sm"
                           variant="ghost"
-                          className="h-5 w-5 p-0 hover:bg-white/10"
+                          className="h-4 w-4 p-0 hover:bg-white/10"
                           onClick={() => copyToClipboard(content, message.id)}
                           title="Copy message"
                         >
                           {copiedMessageId === message.id ? (
                             <Check className="h-3 w-3 text-green-500" />
                           ) : (
-                            <Copy className="h-3 w-3 text-white/60" />
+                            <Copy className="h-3 w-3 text-white/40" />
                           )}
                         </Button>
                       </div>
@@ -405,23 +431,32 @@ Tell me about your vision!`;
 
             {isLoading && (
               <div className="flex justify-start">
-                <div className="flex flex-col gap-1 max-w-[70%] min-w-0">
-                  <div className="flex items-center gap-2">
-                    <div className="flex h-4 w-4 flex-shrink-0 items-center justify-center rounded-full bg-[#FF5800]">
+                <div className="flex flex-col gap-2 max-w-[85%] min-w-0">
+                  <div className="flex items-center gap-2 px-1">
+                    <div className="flex h-5 w-5 flex-shrink-0 items-center justify-center rounded-full bg-[#FF5800]">
                       <Bot className="h-3 w-3 animate-pulse text-white" />
                     </div>
                     <div
                       className="font-[family-name:var(--font-roboto-flex)] text-sm font-medium"
                       style={{ color: "#A1A1AA" }}
                     >
-                      {character.name || "New Character"}
+                      Agent Creator Assistant
                     </div>
                   </div>
-                  <div className="flex items-center gap-3 py-2">
-                    <Loader2 className="h-4 w-4 animate-spin text-white/60" />
-                    <p className="text-sm text-white/60 font-[family-name:var(--font-roboto-flex)]">
-                      is thinking...
-                    </p>
+                  <div
+                    className="px-4 py-3 rounded-lg"
+                    style={{
+                      background: "rgba(255, 255, 255, 0.03)",
+                      backdropFilter: "blur(10px)",
+                      border: "1px solid rgba(255, 255, 255, 0.05)",
+                    }}
+                  >
+                    <div className="flex items-center gap-3">
+                      <Loader2 className="h-4 w-4 animate-spin text-white/60" />
+                      <p className="text-sm text-white/60 font-[family-name:var(--font-roboto-flex)]">
+                        Thinking...
+                      </p>
+                    </div>
                   </div>
                 </div>
               </div>
@@ -432,119 +467,102 @@ Tell me about your vision!`;
         </ScrollArea>
       </div>
 
-      {/* Quick Prompts */}
-      {messages.length === 1 && (
-        <div className="flex-shrink-0 px-6 pb-3">
-          <div className="max-w-5xl mx-auto flex flex-wrap gap-2">
-            {isEditMode ? (
-              <>
-                <button
-                  onClick={() => setInputText("Add more personality traits")}
-                  className="px-3 py-1.5 text-xs rounded-none bg-white/5 hover:bg-white/10 text-white/80 hover:text-white border border-white/10 transition-colors"
-                >
-                  Add personality traits
-                </button>
-                <button
-                  onClick={() => setInputText("Improve the bio description")}
-                  className="px-3 py-1.5 text-xs rounded-none bg-white/5 hover:bg-white/10 text-white/80 hover:text-white border border-white/10 transition-colors"
-                >
-                  Improve bio
-                </button>
-                <button
-                  onClick={() => setInputText("Add conversation examples")}
-                  className="px-3 py-1.5 text-xs rounded-none bg-white/5 hover:bg-white/10 text-white/80 hover:text-white border border-white/10 transition-colors"
-                >
-                  Add examples
-                </button>
-                <button
-                  onClick={() => setInputText("Refine the writing style")}
-                  className="px-3 py-1.5 text-xs rounded-none bg-white/5 hover:bg-white/10 text-white/80 hover:text-white border border-white/10 transition-colors"
-                >
-                  Refine style
-                </button>
-              </>
-            ) : (
-              quickPrompts.map((prompt, index) => (
-                <button
-                  key={index}
-                  onClick={() => setInputText(prompt)}
-                  className="px-3 py-1.5 text-xs rounded-none bg-white/5 hover:bg-white/10 text-white/80 hover:text-white border border-white/10 transition-colors"
-                >
-                  {prompt}
-                </button>
-              ))
-            )}
-          </div>
-        </div>
-      )}
 
-      {/* Input Area - Matching main chat style */}
+
+      {/* Input Area - Matching Figma design */}
       <form
         onSubmit={handleSubmit}
-        className="border-t p-3 mb-4 mx-4"
-        style={{ backgroundColor: "#1D1D1D" }}
+        className="p-4 mb-4 mx-6 relative z-10"
+        style={{ borderColor: "#353535" }}
       >
-        <div className="max-w-5xl mx-auto space-y-2">
-          {/* Text Input Box */}
-          <div className="relative rounded-none border-2 border-border shadow-sm bg-black/20 overflow-hidden">
-            {/* Robot Eye Visor Scanner - Animated line on top edge with randomness - Only show when waiting for agent */}
-            {isLoading && (
-              <div className="absolute top-0 left-0 right-0 h-[2px] overflow-hidden pointer-events-none z-10">
-                {/* Primary scanner */}
-                <div
-                  className="absolute h-full w-24 bg-gradient-to-r from-transparent via-[#FF5800] to-transparent"
-                  style={{
-                    animation:
-                      "visor-scan 4.8s cubic-bezier(0.4, 0, 0.6, 1) infinite",
-                    boxShadow: "0 0 15px 3px rgba(255, 88, 0, 0.7)",
-                    filter: "blur(0.5px)",
-                  }}
-                />
-                {/* Secondary scanner for organic feel */}
-                <div
-                  className="absolute h-full w-16 bg-gradient-to-r from-transparent via-[#FF5800]/60 to-transparent"
-                  style={{
-                    animation:
-                      "visor-scan-delayed 6.2s cubic-bezier(0.3, 0.1, 0.7, 0.9) infinite 1.5s",
-                    boxShadow: "0 0 10px 2px rgba(255, 88, 0, 0.5)",
-                    filter: "blur(1px)",
-                  }}
-                />
-              </div>
-            )}
-            <input
+        <div className="max-w-4xl mx-auto">
+          {/* Textarea Input Box with Controls Inside */}
+          <div className="relative">
+            <textarea
               value={inputText}
               onChange={(e) => setInputText(e.currentTarget.value)}
               onKeyDown={(e) => {
                 if (e.key === "Enter" && !e.shiftKey) {
                   e.preventDefault();
-                  handleSubmit(e);
+                  handleSubmit(e as any);
                 }
               }}
-              placeholder="Describe your character or ask for help..."
+              placeholder="How do you want your agent to be?"
               disabled={isLoading}
-              className="w-full bg-transparent px-3 py-2.5 text-sm text-white placeholder:text-white/60 focus:outline-none disabled:opacity-50"
+              rows={4}
+              className="w-full bg-transparent px-4 py-3 pb-12 text-sm text-white placeholder:text-white/40 focus:outline-none disabled:opacity-50 resize-none border"
+              style={{
+                fontFamily: "'Geist', sans-serif",
+                backgroundColor: "#0A0A0A",
+                borderColor: "#2A2A2A",
+                borderRadius: "0",
+              }}
             />
-          </div>
 
-          {/* Bottom Row: Send Button */}
-          <div className="flex items-center justify-end">
-            <Button
-              type="submit"
-              disabled={isLoading || !inputText.trim()}
-              size="icon"
-              className="h-10 w-10 rounded-none border-none"
-              style={{ backgroundColor: "rgba(255, 88, 0, 0.25)" }}
-            >
-              {isLoading ? (
-                <Loader2
-                  className="h-4 w-4 animate-spin"
-                  style={{ color: "#FF5800" }}
-                />
-              ) : (
-                <Send className="h-4 w-4" style={{ color: "#FF5800" }} />
-              )}
-            </Button>
+            {/* Bottom Row: Model Selector + Action Buttons - Positioned Inside */}
+            <div className="absolute pb-2 bottom-3 left-3 right-3 flex items-center justify-between">
+              {/* Gemini Dropdown */}
+              <button
+                type="button"
+                className="flex items-center gap-2 px-3 py-1.5 transition-colors hover:bg-white/5"
+                style={{
+                  backgroundColor: "transparent",
+                  border: "1px solid #2A2A2A",
+                  borderRadius: "0",
+                }}
+              >
+                <span className="text-sm text-white/90" style={{ fontFamily: "'Geist', sans-serif" }}>
+                  {selectedModel}
+                </span>
+                <ChevronDown className="h-3 w-3 text-white/50" />
+              </button>
+
+              {/* Action Buttons */}
+              <div className="flex items-center gap-1.5">
+                {/* Add/Plus Button */}
+                <button
+                  type="button"
+                  className="h-8 w-8 flex items-center justify-center transition-colors hover:bg-white/5"
+                  style={{
+                    backgroundColor: "transparent",
+                    border: "1px solid #2A2A2A",
+                    borderRadius: "0",
+                  }}
+                >
+                  <Plus className="h-4 w-4 text-white/60" />
+                </button>
+
+                {/* Microphone Button */}
+                <button
+                  type="button"
+                  className="h-8 w-8 flex items-center justify-center transition-colors hover:bg-white/5"
+                  style={{
+                    backgroundColor: "transparent",
+                    border: "1px solid #2A2A2A",
+                    borderRadius: "0",
+                  }}
+                >
+                  <Mic className="h-4 w-4 text-white/60" />
+                </button>
+
+                {/* Send Button */}
+                <button
+                  type="submit"
+                  disabled={isLoading || !inputText.trim()}
+                  className="h-8 w-8 flex items-center justify-center transition-opacity hover:opacity-90 disabled:opacity-50"
+                  style={{
+                    backgroundColor: "#E500FF",
+                    borderRadius: "0",
+                  }}
+                >
+                  {isLoading ? (
+                    <Loader2 className="h-4 w-4 animate-spin text-white" />
+                  ) : (
+                    <ArrowUp className="h-4 w-4 text-white" />
+                  )}
+                </button>
+              </div>
+            </div>
           </div>
         </div>
       </form>

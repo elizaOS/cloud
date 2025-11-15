@@ -68,7 +68,7 @@ export function VideoGenerationForm({
       >
         <div className="pb-0 space-y-2">
           <div className="flex items-center gap-2">
-            <div className="w-2 h-2 rounded-full bg-[#FF5800]" />
+            <div className="w-2 h-2 rounded-full bg-white" />
             <h3 className="text-base md:text-lg lg:text-xl font-mono font-bold text-[#e1e1e1] uppercase">
               Generate a video
             </h3>
@@ -101,7 +101,7 @@ export function VideoGenerationForm({
               rows={4}
               value={prompt}
               onChange={(event) => onPromptChange(event.target.value)}
-              className="min-h-[100px] md:min-h-[120px] resize-none border-white/10 bg-black/40 text-white placeholder:text-white/40 focus:ring-1 focus:ring-[#FF5800] focus:border-[#FF5800]"
+              className="min-h-[100px] md:min-h-[120px] resize-none border-white/10 bg-black/40 text-white placeholder:text-white/40 focus:ring-1 focus:ring-white focus:border-white"
             />
           </div>
 
@@ -110,7 +110,7 @@ export function VideoGenerationForm({
               Model preset
             </label>
             <Select value={selectedModel} onValueChange={onModelChange}>
-              <SelectTrigger className="w-full border-white/10 bg-black/40 text-white focus:ring-1 focus:ring-[#FF5800] h-auto min-h-[60px]">
+              <SelectTrigger className="w-full border-white/10 bg-black/40 text-white focus:ring-1 focus:ring-white h-auto min-h-[60px]">
                 <SelectValue placeholder="Select a model">
                   {activeModel && (
                     <div className="flex flex-col gap-1 py-1 text-left min-w-0 w-full pr-6">
@@ -147,7 +147,7 @@ export function VideoGenerationForm({
 
           <div className="grid gap-3 border border-dashed border-white/10 bg-black/40 p-3 md:p-4 text-xs md:text-sm text-white/60">
             <div className="flex items-center gap-2 text-xs font-mono font-semibold uppercase tracking-wide text-white/70">
-              <Sparkles className="h-4 w-4 text-[#FF5800]" />
+              <Sparkles className="h-4 w-4 text-[white]" />
               Model insights
             </div>
             <div className="grid gap-2 bg-black/60 border border-white/10 p-2 md:p-3">
@@ -159,7 +159,7 @@ export function VideoGenerationForm({
               </div>
               <div className="flex items-center justify-between text-xs font-mono text-white/60">
                 <span className="flex items-center gap-2">
-                  <Timer className="h-4 w-4 text-[#FF5800]" />
+                  <Timer className="h-4 w-4 text-[white]" />
                   Est. duration
                 </span>
                 <span className="font-medium text-white">
@@ -184,7 +184,7 @@ export function VideoGenerationForm({
               id="video-reference"
               type="url"
               placeholder="https://..."
-              className="border-white/10 bg-black/40 text-white placeholder:text-white/40 focus:ring-1 focus:ring-[#FF5800] focus:border-[#FF5800]"
+              className="border-white/10 bg-black/40 text-white placeholder:text-white/40 focus:ring-1 focus:ring-[white] focus:border-[white]"
               value={referenceUrl}
               onChange={(event) => onReferenceChange(event.target.value)}
             />
@@ -198,7 +198,7 @@ export function VideoGenerationForm({
           <button
             type="submit"
             disabled={isSubmitting}
-            className="relative bg-[#e1e1e1] px-4 py-3 overflow-hidden hover:bg-white transition-colors disabled:opacity-50 disabled:cursor-not-allowed w-full"
+            className="relative  px-4 py-3 overflow-hidden bg-[#FF580040] hover:bg-[#FF580040]  text-orange-500  transition-colors disabled:opacity-50 disabled:cursor-not-allowed w-full"
           >
             <div
               className="absolute inset-0 opacity-20 bg-repeat pointer-events-none"
@@ -207,7 +207,7 @@ export function VideoGenerationForm({
                 backgroundSize: "2.915576934814453px 2.915576934814453px",
               }}
             />
-            <span className="relative z-10 text-black font-mono font-medium text-sm md:text-base flex items-center justify-center gap-2">
+            <span className="relative z-10  font-mono font-medium text-sm md:text-base flex items-center justify-center gap-2">
               {isSubmitting ? (
                 <>
                   <Loader2 className="h-4 w-4 animate-spin" />

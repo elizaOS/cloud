@@ -33,22 +33,36 @@ interface AgentsSectionProps {
 }
 
 export function AgentsSection({ agents, className }: AgentsSectionProps) {
-  // Show max 4 agents on dashboard (2x2 grid)
-  const displayAgents = agents.slice(0, 4);
-  const hasMore = agents.length > 4;
+  // Show max 5 agents on dashboard (3-column grid, 2 rows)
+  const displayAgents = agents.slice(0, 5);
+  const hasMore = agents.length > 5;
 
   return (
     <div className={cn("space-y-6", className)}>
       {/* Section Header */}
       <div className="flex items-center justify-between">
         <div>
-          <h2 className="text-2xl font-bold text-white flex items-center gap-2">
+          <h2
+            className="text-2xl font-bold text-white flex items-center gap-2"
+            style={{
+              fontFamily: "var(--font-roboto-mono)",
+              fontSize: "24px",
+              lineHeight: "32px",
+              fontWeight: 700,
+            }}
+          >
             Agents
-            <span className="text-lg text-white/40">({agents.length})</span>
+            <span
+              className="text-lg text-white/40"
+              style={{
+                fontFamily: "var(--font-roboto-mono)",
+                fontSize: "16px",
+                fontWeight: 400,
+              }}
+            >
+              ({agents.length})
+            </span>
           </h2>
-          <p className="text-white/60 mt-1">
-            Manage and interact with your AI agents
-          </p>
         </div>
         <LockOnButton
           onClick={() => (window.location.href = "/dashboard/my-agents")}
@@ -63,7 +77,7 @@ export function AgentsSection({ agents, className }: AgentsSectionProps) {
         <AgentsEmptyState />
       ) : (
         <>
-          <div className="grid gap-4 md:grid-cols-2">
+          <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
             {displayAgents.map((agent) => (
               <AgentCard key={agent.id} agent={agent} />
             ))}
@@ -73,8 +87,14 @@ export function AgentsSection({ agents, className }: AgentsSectionProps) {
           {hasMore && (
             <div className="flex justify-center pt-2">
               <BrandButton variant="ghost" asChild>
-                <Link href="/dashboard/my-agents">
-                  View all {agents.length} agents
+                <Link
+                  href="/dashboard/my-agents"
+                  style={{
+                    fontFamily: "var(--font-roboto-mono)",
+                    fontSize: "14px",
+                  }}
+                >
+                  View All
                   <Sparkles className="ml-2 h-4 w-4" />
                 </Link>
               </BrandButton>
@@ -90,46 +110,69 @@ export function AgentsSection({ agents, className }: AgentsSectionProps) {
 function AgentCard({ agent }: { agent: Agent }) {
   const bioText = Array.isArray(agent.bio) ? agent.bio[0] : agent.bio;
   const truncatedBio =
-    bioText.length > 100 ? `${bioText.substring(0, 100)}...` : bioText;
+    bioText.length > 80 ? `${bioText.substring(0, 80)}...` : bioText;
 
   return (
     <Link href={`/dashboard/chat?characterId=${agent.id}`}>
       <BrandCard
-        corners={true}
-        cornerSize="sm"
+        corners={false}
         hover
-        className="group transition-all duration-300 hover:border-[#FF5800]/50"
+        className="group transition-all duration-300 hover:border-white/30 overflow-hidden p-0 bg-[#161616]"
       >
-        <div className="flex items-center gap-4">
-          {/* Avatar */}
-          <div className="relative h-16 w-16 flex-shrink-0 rounded-sm overflow-hidden bg-gradient-to-br from-[#FF5800]/20 to-orange-600/20 border border-white/10 flex items-center justify-center">
-            {agent.avatarUrl ? (
-              <Image
-                src={agent.avatarUrl}
-                alt={agent.name}
-                fill
-                className="object-cover"
-              />
-            ) : (
-              <Bot className="h-8 w-8 text-white/40" />
-            )}
-          </div>
-
-          {/* Content */}
-          <div className="flex-1 min-w-0">
-            <div className="flex items-center gap-2 mb-1">
-              <h3 className="font-semibold text-white truncate group-hover:text-[#FF5800] transition-colors">
-                {agent.name}
-              </h3>
-              {agent.category && (
-                <Badge variant="outline" className="text-xs flex-shrink-0">
-                  {agent.category}
-                </Badge>
-              )}
+        <div className="relative h-[320px] w-full overflow-hidden bg-gradient-to-br from-white/5 to-white/10">
+          {agent.avatarUrl ? (
+            <Image
+              src={agent.avatarUrl}
+              alt={agent.name}
+              fill
+              className="object-cover group-hover:scale-105 transition-transform duration-300"
+            />
+          ) : (
+            <div className="absolute inset-0 flex items-center justify-center">
+              <Bot className="h-20 w-20 text-white/20" />
             </div>
-            {/* Bio */}
-            <p className="text-sm text-white/60 line-clamp-2">{truncatedBio}</p>
-          </div>
+          )}
+
+          {/* Status badge overlay */}
+          {agent.category && (
+            <div className="absolute top-3 right-3">
+              <Badge
+                variant="outline"
+                className="text-xs bg-black/60 backdrop-blur-sm border-white/20 text-white"
+                style={{
+                  fontFamily: "var(--font-roboto-mono)",
+                  fontSize: "10px",
+                }}
+              >
+                {agent.category}
+              </Badge>
+            </div>
+          )}
+        </div>
+
+        {/* Agent Info */}
+        <div className="p-4 space-y-2">
+          <h3
+            className="font-semibold text-white group-hover:text-[#FF5800] transition-colors truncate"
+            style={{
+              fontFamily: "var(--font-roboto-mono)",
+              fontSize: "16px",
+              lineHeight: "20px",
+              fontWeight: 600,
+            }}
+          >
+            {agent.name}
+          </h3>
+          <p
+            className="text-sm text-white/60 line-clamp-2"
+            style={{
+              fontFamily: "var(--font-roboto-mono)",
+              fontSize: "12px",
+              lineHeight: "16px",
+            }}
+          >
+            {truncatedBio}
+          </p>
         </div>
       </BrandCard>
     </Link>

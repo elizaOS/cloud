@@ -12,7 +12,7 @@ import {
   DialogFooter,
 } from "@/components/ui/dialog";
 import { DownloadIcon, TrashIcon, CalendarIcon } from "@radix-ui/react-icons";
-import { Eye, X } from "lucide-react";
+import { Eye, X, LayoutGridIcon } from "lucide-react";
 import { DialogClose } from "@/components/ui/dialog";
 import type { GalleryItem } from "@/app/actions/gallery";
 import { deleteMedia } from "@/app/actions/gallery";
@@ -70,11 +70,27 @@ export function GalleryGrid({ items, onItemDeleted }: GalleryGridProps) {
   if (items.length === 0) {
     return (
       <div className="flex flex-col items-center justify-center py-16 text-center">
-        <div className="rounded-full bg-[#FF580020] border border-[#FF5800]/40 p-6 mb-4">
-          <Eye className="w-12 h-12 text-[#FF5800]" />
+        <div className="rounded-none bg-white/5 border border-white/10 p-6 mb-4">
+          <LayoutGridIcon className="w-12 h-12 text-white/40" />
         </div>
-        <h3 className="text-xl font-semibold mb-2 text-white">No media yet</h3>
-        <p className="text-white/60 max-w-md">
+        <h3
+          className="text-xl font-semibold mb-2 text-white"
+          style={{
+            fontFamily: "var(--font-roboto-mono)",
+            fontSize: "20px",
+            lineHeight: "28px",
+          }}
+        >
+          No media yet
+        </h3>
+        <p
+          className="text-white/60 max-w-md"
+          style={{
+            fontFamily: "var(--font-roboto-mono)",
+            fontSize: "14px",
+            lineHeight: "20px",
+          }}
+        >
           Generate some images or videos to see them appear in your gallery
         </p>
       </div>
@@ -109,19 +125,19 @@ export function GalleryGrid({ items, onItemDeleted }: GalleryGridProps) {
                 />
               )}
               <div className="absolute inset-0 bg-black/0 group-hover:bg-black/40 transition-colors flex items-center justify-center">
-                <Eye className="w-8 h-8 text-[#FF5800] opacity-0 group-hover:opacity-100 transition-opacity" />
+                <Eye className="w-8 h-8 text-white opacity-0 group-hover:opacity-100 transition-opacity" />
               </div>
-              <span className="absolute top-2 right-2 text-xs rounded-none bg-[#FF580020] border border-[#FF5800]/40 px-2 py-0.5 font-bold uppercase tracking-wide text-[#FF5800]">
+              <span className="absolute top-2 right-2 text-xs rounded-none bg-white/10 border border-white/20 px-2 py-0.5 uppercase tracking-wide text-white/80" style={{ fontFamily: "var(--font-roboto-mono)", fontSize: "10px" }}>
                 {item.type}
               </span>
             </div>
             <div className="p-3">
-              <p className="text-sm font-medium line-clamp-2 mb-2 text-white">
+              <p className="text-sm font-medium line-clamp-2 mb-2 text-white" style={{ fontFamily: "var(--font-roboto-mono)", fontSize: "13px", lineHeight: "18px" }}>
                 {item.prompt}
               </p>
-              <div className="flex items-center justify-between text-xs text-white/60">
+              <div className="flex items-center justify-between text-xs text-white/60" style={{ fontFamily: "var(--font-roboto-mono)", fontSize: "12px" }}>
                 <span className="flex items-center gap-1">
-                  <CalendarIcon className="w-3 h-3 text-[#FF5800]" />
+                  <CalendarIcon className="w-3 h-3 text-white/40" />
                   {format(new Date(item.createdAt), "MMM d, yyyy")}
                 </span>
                 <span className="truncate max-w-[100px]">{item.model}</span>
@@ -164,7 +180,7 @@ export function GalleryGrid({ items, onItemDeleted }: GalleryGridProps) {
               </div>
 
               {/* Close button */}
-              <DialogClose className="absolute top-4 right-4 z-50 rounded-none border border-white/20 bg-black/60 p-2 hover:bg-[#FF580020] hover:border-[#FF5800]/40 transition-colors">
+              <DialogClose className="absolute top-4 right-4 z-50 rounded-none border border-white/20 bg-black/60 p-2 hover:bg-white/10 hover:border-white/30 transition-colors">
                 <X className="h-5 w-5 text-white" />
               </DialogClose>
 
@@ -190,7 +206,7 @@ export function GalleryGrid({ items, onItemDeleted }: GalleryGridProps) {
                     <span className="text-white/50 uppercase tracking-wide">
                       Type:
                     </span>
-                    <span className="rounded-none bg-[#FF580020] border border-[#FF5800]/40 px-2 py-0.5 text-[#FF5800] font-bold uppercase">
+                    <span className="rounded-none bg-white/10 border border-white/20 px-2 py-0.5 text-white/80 uppercase" style={{ fontFamily: "var(--font-roboto-mono)", fontSize: "10px" }}>
                       {selectedItem.type}
                     </span>
                   </div>
