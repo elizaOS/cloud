@@ -2,7 +2,7 @@
 
 import { BrandCard, CornerBrackets } from "@/components/brand";
 import type { UserWithOrganization } from "@/lib/types";
-import { Plus, Copy, Trash2, Loader2, Eye, EyeOff, X } from "lucide-react";
+import { Plus, Copy, Trash2, Loader2, X } from "lucide-react";
 import { toast } from "sonner";
 import { useState, useEffect } from "react";
 import { Input } from "@/components/ui/input";
@@ -168,6 +168,13 @@ export function ApisTab({ user }: ApisTabProps) {
     }
   };
 
+  // Get user full name
+  const getUserFullName = () => {
+    if (user.name) return user.name;
+    if (user.nickname) return user.nickname;
+    return user.email?.split("@")[0] || "Unknown User";
+  };
+
   return (
     <div className="flex flex-col gap-4 md:gap-6 pb-6 md:pb-8">
       {/* API Keys Card */}
@@ -226,7 +233,7 @@ export function ApisTab({ user }: ApisTabProps) {
           </div>
 
           {/* API Keys Table */}
-          <div className="w-full">
+          <div className="w-full flex flex-col">
             {loading ? (
               <div className="flex items-center justify-center p-8 border border-brand-surface">
                 <Loader2 className="h-6 w-6 animate-spin text-[#FF5800]" />
@@ -239,60 +246,62 @@ export function ApisTab({ user }: ApisTabProps) {
               </div>
             ) : (
               <>
-                {/* Mobile Card Layout */}
-                <div className="md:hidden space-y-4">
-                  {apiKeys.map((apiKey) => (
-                    <div
-                      key={apiKey.id}
-                      className="backdrop-blur-sm bg-[rgba(10,10,10,0.75)] border border-brand-surface p-4 space-y-3"
-                    >
-                      {/* Name and Permission Badge */}
-                      <div className="space-y-2">
-                        <div className="flex items-start justify-between gap-2">
-                          <h4 className="text-base font-mono font-semibold text-white">
-                            {apiKey.name}
-                          </h4>
-                          <span className="px-2 py-0.5 bg-[rgba(255,88,0,0.25)] border border-[#FF5800]/40 text-[#FF5800] text-xs font-mono uppercase flex-shrink-0">
-                            {apiKey.permissions.length > 0
-                              ? apiKey.permissions.join(", ")
-                              : "All"}
-                          </span>
-                        </div>
-                        {apiKey.description && (
-                          <p className="text-xs font-mono text-white/40">
-                            {apiKey.description}
-                          </p>
-                        )}
-                      </div>
-
-                      {/* Secret Key with Copy */}
-                      <div className="space-y-2">
-                        <p className="text-xs font-mono text-white/40 uppercase">
-                          Secret Key
-                        </p>
-                        <div className="flex items-center gap-2">
-                          <div className="bg-[rgba(255,255,255,0.03)] border border-white/10 px-3 py-2 flex-1">
-                            <p className="text-sm font-mono text-white/80 break-all">
-                              {apiKey.key_prefix}...
-                            </p>
-                          </div>
-                          <button
-                            type="button"
-                            onClick={() => handleCopyKey(apiKey.key_prefix)}
-                            className="px-3 py-2 border border-white/20 hover:bg-white/5 transition-colors flex-shrink-0"
+                {apiKeys.map((apiKey) => (
+                  <div key={apiKey.id} className="flex items-end w-full">
+                    {/* NAME */}
+                    <div className="w-[260px] shrink-0">
+                      <div className="backdrop-blur-sm bg-[rgba(10,10,10,0.75)] border border-[#252527] h-full">
+                        <div className="p-4 flex flex-col gap-1">
+                          <p
+                            className="text-[14px] leading-[24px] text-white uppercase"
+                            style={{ fontFamily: "var(--font-roboto-mono)" }}
                           >
-                            <Copy className="h-4 w-4 text-white/60" />
-                          </button>
+                            NAME
+                          </p>
+                          <p
+                            className="text-[14px] leading-[20px] text-[rgba(255,255,255,0.6)]"
+                            style={{ fontFamily: "var(--font-roboto-mono)" }}
+                          >
+                            {apiKey.name}
+                          </p>
                         </div>
                       </div>
+                    </div>
 
-                      {/* Info Grid */}
-                      <div className="grid grid-cols-2 gap-3 pt-2 border-t border-white/10">
-                        <div className="space-y-1">
-                          <p className="text-xs font-mono text-white/40 uppercase">
-                            Created
+                    {/* SECRET KEY */}
+                    <div className="flex-1">
+                      <div className="backdrop-blur-sm bg-[rgba(10,10,10,0.75)] border border-[#252527] border-l-0 h-full">
+                        <div className="p-4 flex flex-col gap-1">
+                          <p
+                            className="text-[14px] leading-[24px] text-white uppercase"
+                            style={{ fontFamily: "var(--font-roboto-mono)" }}
+                          >
+                            SECRET KEY
                           </p>
-                          <p className="text-xs font-mono text-white/80">
+                          <p
+                            className="text-[14px] leading-[20px] text-[rgba(255,255,255,0.6)]"
+                            style={{ fontFamily: "var(--font-roboto-mono)" }}
+                          >
+                            {apiKey.key_prefix}...
+                          </p>
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* CREATED */}
+                    <div className="flex-1">
+                      <div className="backdrop-blur-sm bg-[rgba(10,10,10,0.75)] border border-[#252527] border-l-0 h-full">
+                        <div className="p-4 flex flex-col gap-1">
+                          <p
+                            className="text-[14px] leading-[24px] text-white uppercase"
+                            style={{ fontFamily: "var(--font-roboto-mono)" }}
+                          >
+                            CREATED
+                          </p>
+                          <p
+                            className="text-[14px] leading-[20px] text-[rgba(255,255,255,0.6)]"
+                            style={{ fontFamily: "var(--font-roboto-mono)" }}
+                          >
                             {new Date(apiKey.created_at).toLocaleDateString(
                               "en-US",
                               {
@@ -303,194 +312,112 @@ export function ApisTab({ user }: ApisTabProps) {
                             )}
                           </p>
                         </div>
+                      </div>
+                    </div>
 
-                        <div className="space-y-1">
-                          <p className="text-xs font-mono text-white/40 uppercase">
-                            Last used
+                    {/* LAST USED */}
+                    <div className="flex-1">
+                      <div className="backdrop-blur-sm bg-[rgba(10,10,10,0.75)] border border-[#252527] border-l-0 h-full">
+                        <div className="p-4 flex flex-col gap-1">
+                          <p
+                            className="text-[14px] leading-[24px] text-white uppercase"
+                            style={{ fontFamily: "var(--font-roboto-mono)" }}
+                          >
+                            LAST USED
                           </p>
-                          <p className="text-xs font-mono text-white/80">
+                          <p
+                            className="text-[14px] leading-[20px] text-[rgba(255,255,255,0.6)]"
+                            style={{ fontFamily: "var(--font-roboto-mono)" }}
+                          >
                             {apiKey.last_used_at
-                              ? new Date(
-                                  apiKey.last_used_at,
-                                ).toLocaleDateString("en-US", {
+                              ? new Date(apiKey.last_used_at).toLocaleDateString(
+                                "en-US",
+                                {
                                   year: "numeric",
                                   month: "short",
                                   day: "numeric",
-                                })
+                                },
+                              )
                               : "Never"}
                           </p>
                         </div>
-
-                        <div className="space-y-1">
-                          <p className="text-xs font-mono text-white/40 uppercase">
-                            Usage Count
-                          </p>
-                          <p className="text-xs font-mono text-white/80">
-                            {apiKey.usage_count.toLocaleString()}
-                          </p>
-                        </div>
-
-                        <div className="space-y-1">
-                          <p className="text-xs font-mono text-white/40 uppercase">
-                            Status
-                          </p>
-                          <p className="text-xs font-mono text-white/80">
-                            {apiKey.is_active ? (
-                              <span className="text-green-400">Active</span>
-                            ) : (
-                              <span className="text-white/40">Inactive</span>
-                            )}
-                          </p>
-                        </div>
-                      </div>
-
-                      {/* Actions */}
-                      <div className="flex items-center gap-2 pt-2 border-t border-white/10">
-                        <button
-                          type="button"
-                          onClick={() =>
-                            handleDeleteKey(apiKey.id, apiKey.name)
-                          }
-                          disabled={deletingKeyId === apiKey.id}
-                          className="flex-1 px-4 py-2 border border-[#EB4335]/40 bg-[#EB4335]/10 hover:bg-[#EB4335]/20 transition-colors disabled:opacity-50 flex items-center justify-center gap-2"
-                        >
-                          {deletingKeyId === apiKey.id ? (
-                            <>
-                              <Loader2 className="h-4 w-4 animate-spin text-[#EB4335]" />
-                              <span className="text-xs font-mono text-[#EB4335]">
-                                Deleting...
-                              </span>
-                            </>
-                          ) : (
-                            <>
-                              <Trash2 className="h-4 w-4 text-[#EB4335]" />
-                              <span className="text-xs font-mono text-[#EB4335]">
-                                Delete
-                              </span>
-                            </>
-                          )}
-                        </button>
                       </div>
                     </div>
-                  ))}
-                </div>
 
-                {/* Desktop Table Layout */}
-                <div className="hidden md:block w-full space-y-3">
-                  {apiKeys.map((apiKey, index) => (
-                    <div
-                      key={apiKey.id}
-                      className="backdrop-blur-sm bg-[rgba(10,10,10,0.75)] border border-brand-surface hover:bg-[rgba(10,10,10,0.85)] transition-colors"
-                    >
-                      {/* Main Info Row */}
-                      <div className="p-4 flex items-start justify-between gap-6">
-                        {/* Left: Name and Key */}
-                        <div className="flex-1 min-w-0 space-y-3">
-                          {/* Name and Description */}
-                          <div>
-                            <div className="flex items-center gap-3 mb-1">
-                              <h4 className="text-base font-mono font-semibold text-white">
-                                {apiKey.name}
-                              </h4>
-                              <span className="px-2 py-0.5 bg-[rgba(255,88,0,0.25)] border border-[#FF5800]/40 text-[#FF5800] text-xs font-mono uppercase">
-                                {apiKey.permissions.length > 0
-                                  ? apiKey.permissions.join(", ")
-                                  : "All"}
-                              </span>
-                            </div>
-                            {apiKey.description && (
-                              <p className="text-xs font-mono text-white/40">
-                                {apiKey.description}
-                              </p>
-                            )}
-                          </div>
-
-                          {/* API Key with Copy */}
-                          <div className="flex items-center gap-2">
-                            <div className="bg-[rgba(255,255,255,0.03)] border border-white/10 px-3 py-2 flex-1">
-                              <p className="text-sm font-mono text-white/80">
-                                {apiKey.key_prefix}...
-                              </p>
-                            </div>
-                            <button
-                              type="button"
-                              onClick={() => handleCopyKey(apiKey.key_prefix)}
-                              className="px-3 py-2 border border-white/20 hover:bg-white/5 transition-colors group"
-                              title="Copy API key"
-                            >
-                              <Copy className="h-4 w-4 text-white/60 group-hover:text-white transition-colors" />
-                            </button>
-                          </div>
+                    {/* CREATED BY */}
+                    <div className="flex-1">
+                      <div className="backdrop-blur-sm bg-[rgba(10,10,10,0.75)] border border-[#252527] border-l-0 h-full">
+                        <div className="p-4 flex flex-col gap-1">
+                          <p
+                            className="text-[14px] leading-[24px] text-white uppercase"
+                            style={{ fontFamily: "var(--font-roboto-mono)" }}
+                          >
+                            CREATED BY
+                          </p>
+                          <p
+                            className="text-[14px] leading-[20px] text-[rgba(255,255,255,0.6)]"
+                            style={{ fontFamily: "var(--font-roboto-mono)" }}
+                          >
+                            {getUserFullName()}
+                          </p>
                         </div>
+                      </div>
+                    </div>
 
-                        {/* Right: Metadata and Actions */}
-                        <div className="flex items-start gap-6">
-                          {/* Metadata */}
-                          <div className="flex gap-6">
-                            <div className="space-y-1">
-                              <p className="text-xs font-mono text-white/40 uppercase">
-                                Created
-                              </p>
-                              <p className="text-xs font-mono text-white/80">
-                                {new Date(apiKey.created_at).toLocaleDateString(
-                                  "en-US",
-                                  {
-                                    year: "numeric",
-                                    month: "short",
-                                    day: "numeric",
-                                  },
-                                )}
-                              </p>
-                            </div>
+                    {/* PERMISSIONS */}
+                    <div className="flex-1">
+                      <div className="backdrop-blur-sm bg-[rgba(10,10,10,0.75)] border border-[#252527] border-l-0 h-full">
+                        <div className="p-4 flex flex-col gap-1">
+                          <p
+                            className="text-[14px] leading-[24px] text-white uppercase"
+                            style={{ fontFamily: "var(--font-roboto-mono)" }}
+                          >
+                            PERMISSIONS
+                          </p>
+                          <p
+                            className="text-[14px] leading-[20px] text-[rgba(255,255,255,0.6)]"
+                            style={{ fontFamily: "var(--font-roboto-mono)" }}
+                          >
+                            {apiKey.permissions.length > 0
+                              ? apiKey.permissions.join(", ")
+                              : "All"}
+                          </p>
+                        </div>
+                      </div>
+                    </div>
 
-                            <div className="space-y-1">
-                              <p className="text-xs font-mono text-white/40 uppercase">
-                                Last Used
-                              </p>
-                              <p className="text-xs font-mono text-white/80">
-                                {apiKey.last_used_at
-                                  ? new Date(
-                                      apiKey.last_used_at,
-                                    ).toLocaleDateString("en-US", {
-                                      year: "numeric",
-                                      month: "short",
-                                      day: "numeric",
-                                    })
-                                  : "Never"}
-                              </p>
-                            </div>
-
-                            <div className="space-y-1">
-                              <p className="text-xs font-mono text-white/40 uppercase">
-                                Usage
-                              </p>
-                              <p className="text-xs font-mono text-white/80">
-                                {apiKey.usage_count.toLocaleString()}
-                              </p>
-                            </div>
-                          </div>
-
-                          {/* Delete Action */}
+                    {/* ACTIONS */}
+                    <div className="w-[92px] shrink-0 h-[82px]">
+                      <div className="backdrop-blur-sm bg-[rgba(10,10,10,0.75)] border border-[#252527] border-l-0 h-full flex items-end">
+                        <div className="p-4 flex items-center justify-center gap-4 w-full h-full">
+                          <button
+                            type="button"
+                            onClick={() => handleCopyKey(apiKey.key_prefix)}
+                            className="hover:opacity-80 transition-opacity"
+                            title="Copy API key"
+                          >
+                            <Copy className="h-4 w-4 text-[#A2A2A2]" />
+                          </button>
                           <button
                             type="button"
                             onClick={() =>
                               handleDeleteKey(apiKey.id, apiKey.name)
                             }
                             disabled={deletingKeyId === apiKey.id}
-                            className="px-3 py-2 border border-[#EB4335]/40 bg-[#EB4335]/10 hover:bg-[#EB4335]/20 transition-colors disabled:opacity-50 group"
+                            className="hover:opacity-80 transition-opacity disabled:opacity-50"
                             title="Delete API key"
                           >
                             {deletingKeyId === apiKey.id ? (
                               <Loader2 className="h-4 w-4 text-[#EB4335] animate-spin" />
                             ) : (
-                              <Trash2 className="h-4 w-4 text-[#EB4335] group-hover:scale-110 transition-transform" />
+                              <Trash2 className="h-4 w-4 text-[#EB4335]" />
                             )}
                           </button>
                         </div>
                       </div>
                     </div>
-                  ))}
-                </div>
+                  </div>
+                ))}
               </>
             )}
           </div>
