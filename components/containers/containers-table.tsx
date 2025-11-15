@@ -193,12 +193,16 @@ export function ContainersTable({ containers }: ContainersTableProps) {
     const now = new Date();
     const deployDate = new Date(date);
     const diffMs = now.getTime() - deployDate.getTime();
+    const diffMinutes = Math.floor(diffMs / (1000 * 60));
+    const diffHours = Math.floor(diffMs / (1000 * 60 * 60));
     const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24));
+    const diffMonths = Math.floor(diffDays / 30);
 
-    if (diffDays === 0) return "Today";
-    if (diffDays === 1) return "Yesterday";
-    if (diffDays < 7) return `${diffDays} days ago`;
-    return deployDate.toLocaleDateString();
+    if (diffMinutes < 60) return `${diffMinutes}m`;
+    if (diffHours < 24) return `${diffHours}h`;
+    if (diffDays < 30) return `${diffDays}d`;
+    if (diffMonths < 12) return `${diffMonths}mo`;
+    return `${Math.floor(diffMonths / 12)}y`;
   };
 
   if (containers.length === 0) {
@@ -295,9 +299,14 @@ export function ContainersTable({ containers }: ContainersTableProps) {
                       size="sm"
                       onClick={() => handleSort("name")}
                       className="hover:bg-white/5"
-                      style={{ fontFamily: "var(--font-roboto-mono)" }}
+                      style={{
+                        fontFamily: "var(--font-roboto-mono)",
+                        fontSize: "12px",
+                        fontWeight: 500,
+                        textTransform: "uppercase",
+                      }}
                     >
-                      Container
+                      SERVICE NAME
                       <ArrowUpDown className="ml-2 h-3 w-3" />
                     </BrandButton>
                   </TableHead>
@@ -307,26 +316,36 @@ export function ContainersTable({ containers }: ContainersTableProps) {
                       size="sm"
                       onClick={() => handleSort("status")}
                       className="hover:bg-white/5"
-                      style={{ fontFamily: "var(--font-roboto-mono)" }}
+                      style={{
+                        fontFamily: "var(--font-roboto-mono)",
+                        fontSize: "12px",
+                        fontWeight: 500,
+                        textTransform: "uppercase",
+                      }}
                     >
-                      Status
+                      STATUS
                       <ArrowUpDown className="ml-2 h-3 w-3" />
                     </BrandButton>
                   </TableHead>
-                  <TableHead>
-                    <BrandButton
-                      variant="ghost"
-                      size="sm"
-                      onClick={() => handleSort("cpu")}
-                      className="hover:bg-white/5"
-                      style={{ fontFamily: "var(--font-roboto-mono)" }}
-                    >
-                      Resources
-                      <ArrowUpDown className="ml-2 h-3 w-3" />
-                    </BrandButton>
+                  <TableHead
+                    style={{
+                      fontFamily: "var(--font-roboto-mono)",
+                      fontSize: "12px",
+                      fontWeight: 500,
+                      textTransform: "uppercase",
+                    }}
+                  >
+                    RUNTIME
                   </TableHead>
-                  <TableHead style={{ fontFamily: "var(--font-roboto-mono)" }}>
-                    Instances
+                  <TableHead
+                    style={{
+                      fontFamily: "var(--font-roboto-mono)",
+                      fontSize: "12px",
+                      fontWeight: 500,
+                      textTransform: "uppercase",
+                    }}
+                  >
+                    REGION
                   </TableHead>
                   <TableHead>
                     <BrandButton
@@ -334,17 +353,26 @@ export function ContainersTable({ containers }: ContainersTableProps) {
                       size="sm"
                       onClick={() => handleSort("deployed")}
                       className="hover:bg-white/5"
-                      style={{ fontFamily: "var(--font-roboto-mono)" }}
+                      style={{
+                        fontFamily: "var(--font-roboto-mono)",
+                        fontSize: "12px",
+                        fontWeight: 500,
+                        textTransform: "uppercase",
+                      }}
                     >
-                      Deployed
+                      UPDATED
                       <ArrowUpDown className="ml-2 h-3 w-3" />
                     </BrandButton>
                   </TableHead>
                   <TableHead
                     className="text-right"
-                    style={{ fontFamily: "var(--font-roboto-mono)" }}
+                    style={{
+                      fontFamily: "var(--font-roboto-mono)",
+                      fontSize: "12px",
+                      fontWeight: 500,
+                    }}
                   >
-                    Actions
+                    ...
                   </TableHead>
                 </TableRow>
               </TableHeader>
@@ -365,140 +393,89 @@ export function ContainersTable({ containers }: ContainersTableProps) {
                       className="hover:bg-white/5 transition-colors border-b border-white/10"
                     >
                       <TableCell>
-                        <div className="space-y-1">
+                        <div className="flex items-center gap-3">
+                          <Server
+                            className="h-4 w-4 text-white/40"
+                            style={{ flexShrink: 0 }}
+                          />
                           <Link
                             href={`/dashboard/containers/${container.id}`}
-                            className="font-medium hover:underline"
+                            className="font-medium hover:underline text-white"
+                            style={{
+                              fontFamily: "var(--font-roboto-mono)",
+                              fontSize: "14px",
+                            }}
                           >
                             {container.name}
                           </Link>
-                          {container.description && (
-                            <p className="text-sm text-muted-foreground line-clamp-1">
-                              {container.description}
-                            </p>
-                          )}
-                          <div className="flex items-center gap-2 text-xs text-muted-foreground">
-                            <span>Port: {container.port}</span>
-                          </div>
                         </div>
                       </TableCell>
                       <TableCell>
-                        <div className="flex flex-col gap-2">
-                          <Badge
-                            variant="outline"
-                            className={`${getStatusColor(container.status)} text-white border-none w-fit rounded-none`}
-                            style={{ fontFamily: "var(--font-roboto-mono)" }}
+                        <div className="flex items-center gap-2">
+                          {container.status === "running" && (
+                            <span className="text-green-500">✓</span>
+                          )}
+                          <span
+                            className="text-white"
+                            style={{
+                              fontFamily: "var(--font-roboto-mono)",
+                              fontSize: "14px",
+                              textTransform: "capitalize",
+                            }}
                           >
-                            <span className="mr-1">
-                              {getStatusIcon(container.status)}
-                            </span>
-                            {container.status}
-                          </Badge>
-                          {container.error_message && (
-                            <Tooltip>
-                              <TooltipTrigger asChild>
-                                <p className="text-xs text-red-500 truncate max-w-[200px] cursor-help">
-                                  {container.error_message}
-                                </p>
-                              </TooltipTrigger>
-                              <TooltipContent className="max-w-xs">
-                                <p>{container.error_message}</p>
-                              </TooltipContent>
-                            </Tooltip>
-                          )}
-                        </div>
-                      </TableCell>
-                      <TableCell>
-                        <div className="flex flex-col gap-1 text-sm">
-                          <div className="flex items-center gap-1">
-                            <span className="text-muted-foreground">CPU:</span>
-                            <span className="font-medium">{container.cpu}</span>
-                          </div>
-                          <div className="flex items-center gap-1">
-                            <span className="text-muted-foreground">RAM:</span>
-                            <span className="font-medium">
-                              {container.memory}MB
-                            </span>
-                          </div>
-                        </div>
-                      </TableCell>
-                      <TableCell>
-                        <div className="flex items-center gap-1">
-                          <Server className="h-3 w-3 text-muted-foreground" />
-                          <span className="font-medium">
-                            {container.desired_count}
+                            {container.status === "running"
+                              ? "Deployed"
+                              : container.status}
                           </span>
                         </div>
                       </TableCell>
                       <TableCell>
-                        <div className="text-sm">
-                          <div className="font-medium">
-                            {formatDate(container.last_deployed_at)}
-                          </div>
-                          {container.last_deployed_at && (
-                            <div className="text-xs text-muted-foreground">
-                              {new Date(
-                                container.last_deployed_at,
-                              ).toLocaleTimeString([], {
-                                hour: "2-digit",
-                                minute: "2-digit",
-                              })}
-                            </div>
-                          )}
-                        </div>
+                        <span
+                          className="text-white/80"
+                          style={{
+                            fontFamily: "var(--font-roboto-mono)",
+                            fontSize: "14px",
+                          }}
+                        >
+                          Node
+                        </span>
+                      </TableCell>
+                      <TableCell>
+                        <span
+                          className="text-white/80"
+                          style={{
+                            fontFamily: "var(--font-roboto-mono)",
+                            fontSize: "14px",
+                          }}
+                        >
+                          Frankfurt
+                        </span>
+                      </TableCell>
+                      <TableCell>
+                        <span
+                          className="text-white/80"
+                          style={{
+                            fontFamily: "var(--font-roboto-mono)",
+                            fontSize: "14px",
+                          }}
+                        >
+                          {formatDate(container.last_deployed_at)}
+                        </span>
                       </TableCell>
                       <TableCell className="text-right">
-                        <div className="flex justify-end gap-1">
-                          <Tooltip>
-                            <TooltipTrigger asChild>
-                              <Link
-                                href={`/dashboard/containers/${container.id}`}
-                              >
-                                <BrandButton variant="ghost" size="sm">
-                                  <FileText className="h-4 w-4" />
-                                </BrandButton>
-                              </Link>
-                            </TooltipTrigger>
-                            <TooltipContent>View details & logs</TooltipContent>
-                          </Tooltip>
-
-                          {container.load_balancer_url && (
-                            <Tooltip>
-                              <TooltipTrigger asChild>
-                                <BrandButton
-                                  variant="ghost"
-                                  size="sm"
-                                  onClick={() => {
-                                    window.open(
-                                      container.load_balancer_url!,
-                                      "_blank",
-                                    );
-                                  }}
-                                >
-                                  <ExternalLink className="h-4 w-4" />
-                                </BrandButton>
-                              </TooltipTrigger>
-                              <TooltipContent>
-                                Open container URL
-                              </TooltipContent>
-                            </Tooltip>
-                          )}
-
-                          <Tooltip>
-                            <TooltipTrigger asChild>
-                              <BrandButton
-                                variant="ghost"
-                                size="sm"
-                                onClick={() => setDeleteId(container.id)}
-                                disabled={isDeleting}
-                                className="hover:bg-red-50 dark:hover:bg-red-950"
-                              >
-                                <Trash2 className="h-4 w-4 text-red-500" />
-                              </BrandButton>
-                            </TooltipTrigger>
-                            <TooltipContent>Delete container</TooltipContent>
-                          </Tooltip>
-                        </div>
+                        <BrandButton
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => setDeleteId(container.id)}
+                          disabled={isDeleting}
+                          style={{
+                            fontFamily: "var(--font-roboto-mono)",
+                            fontSize: "16px",
+                            fontWeight: 700,
+                          }}
+                        >
+                          ...
+                        </BrandButton>
                       </TableCell>
                     </TableRow>
                   ))

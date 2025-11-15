@@ -42,7 +42,7 @@ export function OverviewMetrics({
     {
       label: "API Calls (24h)",
       value: apiCalls24h.toLocaleString(),
-      subtitle: "o successful",
+      subtitle: "0 successful",
       icon: <Activity className="h-5 w-5" />,
       accent: "from-blue-500/20 to-blue-600/20 border-blue-500/40",
     },
@@ -68,33 +68,40 @@ export function OverviewMetrics({
         <BrandCard
           key={index}
           corners={false}
-          className="group hover:border-white/30 transition-all duration-300"
+          className="group hover:border-white/30 transition-all duration-300 bg-[#161616]"
         >
-          <div className="flex items-start gap-4">
-            {/* Icon with gradient background */}
-            <div
-              className={cn(
-                "flex-shrink-0 inline-flex p-2.5 rounded-none border bg-gradient-to-br",
-                metric.accent,
-              )}
+          <div className="space-y-2">
+            <p
+              className="text-xs font-medium text-white/50 uppercase tracking-wide"
+              style={{
+                fontFamily: "var(--font-roboto-mono)",
+                fontSize: "12px",
+                lineHeight: "16px",
+              }}
             >
-              {metric.icon}
-            </div>
-
-            {/* Metric Content */}
-            <div className="flex-1 min-w-0">
-              <p className="text-xs font-medium text-white/50 uppercase tracking-wide mb-1">
-                {metric.label}
-              </p>
-              {/* Metric Value */}
-              <p className="text-3xl font-bold text-white tracking-tight mb-1">
-                {metric.value}
-              </p>
-              {/* Subtitle */}
-              <p className="text-xs text-white/60 truncate">
-                {metric.subtitle}
-              </p>
-            </div>
+              {metric.label}
+            </p>
+            <p
+              className="text-4xl font-bold text-white"
+              style={{
+                fontFamily: "var(--font-roboto-mono)",
+                fontSize: "36px",
+                lineHeight: "40px",
+                fontWeight: 700,
+              }}
+            >
+              {metric.value}
+            </p>
+            <p
+              className="text-xs text-white/60"
+              style={{
+                fontFamily: "var(--font-roboto-mono)",
+                fontSize: "12px",
+                lineHeight: "16px",
+              }}
+            >
+              {metric.subtitle}
+            </p>
           </div>
         </BrandCard>
       ))}

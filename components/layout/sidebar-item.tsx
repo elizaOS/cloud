@@ -27,6 +27,39 @@ export function SidebarNavigationItem({ item }: SidebarNavigationItemProps) {
   // Check if this item is locked for anonymous users
   const isLocked = !authenticated && item.freeAllowed === false;
 
+  // If item is coming soon, show as disabled button
+  if (item.comingSoon) {
+    return (
+      <button
+        disabled
+        className={cn(
+          "relative flex w-full items-center gap-3 rounded-none px-3 py-2.5 transition-all duration-200",
+          "text-white/40 border-l-2 border-transparent cursor-not-allowed",
+        )}
+        style={{
+          fontFamily: "var(--font-roboto-mono)",
+          fontWeight: 400,
+          fontSize: "14px",
+          lineHeight: "18px",
+          letterSpacing: "-0.003em",
+        }}
+      >
+        <Icon className="h-4 w-4 opacity-50" />
+        <span className="flex-1">{item.label}</span>
+        <span
+          className="rounded-none px-2 py-0.5 text-[10px] font-medium tracking-wide"
+          style={{
+            fontFamily: "var(--font-roboto-mono)",
+            fontSize: "10px",
+            color: "#a1a1a1",
+          }}
+        >
+          Coming soon
+        </span>
+      </button>
+    );
+  }
+
   // If item is locked, show as button with login prompt
   if (isLocked) {
     return (
