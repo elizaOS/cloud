@@ -587,7 +587,7 @@ export function ImageGeneratorAdvanced() {
                 <EnhancedLoading />
               </div>
             ) : (
-              <BrandCard className="relative">
+              <BrandCard className="relative bg-[#161616]" corners={false}>
                 <div className="relative z-10 p-6 md:p-12 text-center">
                   <div className="flex flex-col items-center space-y-3 md:space-y-4">
                     <div className="inline-flex items-center justify-center w-12 md:w-16 h-12 md:h-16 bg-[#1B1B1B]">
@@ -642,7 +642,7 @@ export function ImageGeneratorAdvanced() {
                 ))}
               </div>
             ) : (
-              <BrandCard className="relative border-dashed">
+              <BrandCard corners={false} className="relative border-dashed bg-[#161616]">
                 <div className="relative z-10 p-8 md:p-12 lg:p-20 text-center">
                   <div className="flex flex-col items-center space-y-3 md:space-y-4">
                     <History className="h-8 md:h-10 lg:h-12 w-8 md:w-10 lg:w-12 text-white" />
