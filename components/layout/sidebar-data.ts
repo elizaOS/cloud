@@ -60,7 +60,7 @@ export const sidebarSections: SidebarSection[] = [
       {
         id: "voice",
         label: "Voice",
-        href: "/dashboard/voice",
+        href: "/dashboard/voices",
         icon: Mic,
         freeAllowed: false,
       },
