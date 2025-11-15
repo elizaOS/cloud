@@ -207,7 +207,7 @@ export function ImageGeneratorAdvanced() {
           <div className="relative z-10 space-y-4 md:space-y-6">
             <div>
               <div className="flex items-center gap-2 mb-2">
-                <div className="w-2 h-2 rounded-full bg-[#FF5800]" />
+                <Settings2 className="h-4 w-4 text-[#FF5800]" />
                 <h3 className="text-base md:text-lg font-mono font-bold text-[#e1e1e1] uppercase">
                   Image Studio
                 </h3>
@@ -246,13 +246,14 @@ export function ImageGeneratorAdvanced() {
               </label>
               <div className="flex flex-wrap gap-2">
                 {PRESET_PROMPTS.slice(0, 3).map((preset, index) => (
-                  <span
+                  <button
                     key={index}
-                    className="cursor-pointer border border-white/20 bg-white/10 px-2 py-1 text-xs font-mono text-white/70 hover:bg-[#FF580020] hover:border-[#FF5800]/40 hover:text-[#FF5800] transition-colors"
+                    type="button"
+                    className="cursor-pointer border border-white/10 bg-black/40 px-3 py-2 text-xs font-mono text-white/80 hover:bg-[#FF5800]/20 hover:border-[#FF5800]/40 hover:text-[#FF5800] transition-colors text-left w-full"
                     onClick={() => selectPresetPrompt(preset)}
                   >
-                    {preset.slice(0, 20)}...
-                  </span>
+                    {preset.slice(0, 30)}...
+                  </button>
                 ))}
               </div>
             </div>
@@ -264,7 +265,7 @@ export function ImageGeneratorAdvanced() {
               <label className="text-xs font-mono font-medium text-white/70 uppercase tracking-wide">
                 Image Size
               </label>
-              <div className="grid grid-cols-4 gap-1.5">
+              <div className="grid grid-cols-2 gap-2">
                 {SIZE_PRESETS.map((preset) => (
                   <button
                     key={preset.label}
@@ -272,25 +273,17 @@ export function ImageGeneratorAdvanced() {
                     onClick={() =>
                       selectSizePreset(preset.width, preset.height)
                     }
-                    className={`w-full px-1.5 py-1 border transition-colors ${
-                      settings.width === preset.width &&
+                    className={`w-full px-3 py-2.5 border transition-colors ${settings.width === preset.width &&
                       settings.height === preset.height
-                        ? "bg-[#FF5800]/20 border-[#FF5800] text-[#FF5800]"
-                        : "border-white/20 bg-transparent text-white hover:bg-white/5"
-                    }`}
+                      ? "bg-[#FF5800] border-[#FF5800] text-white"
+                      : "border-white/20 bg-black/40 text-white/70 hover:bg-white/5"
+                      }`}
                   >
                     <div className="flex flex-col items-center">
-                      <span className="text-[10px] font-mono font-medium leading-tight">
+                      <span className="text-xs font-mono font-medium leading-tight">
                         {preset.label}
                       </span>
-                      <span
-                        className={`text-[9px] font-mono leading-tight ${
-                          settings.width === preset.width &&
-                          settings.height === preset.height
-                            ? "text-[#FF5800]/80"
-                            : "text-white/60"
-                        }`}
-                      >
+                      <span className="text-[10px] font-mono leading-tight text-white/80">
                         {preset.width}×{preset.height}
                       </span>
                     </div>
@@ -365,7 +358,7 @@ export function ImageGeneratorAdvanced() {
                 <div className="space-y-2">
                   <div className="flex items-center justify-between">
                     <label className="text-xs font-mono text-white/50 uppercase tracking-wide">
-                      Images
+                      Quantity
                     </label>
                     <span className="text-xs font-mono font-medium text-white">
                       {numImages}
@@ -393,7 +386,7 @@ export function ImageGeneratorAdvanced() {
               type="button"
               onClick={handleGenerate}
               disabled={isLoading || !prompt.trim()}
-              className="relative bg-[#e1e1e1] px-4 py-3 overflow-hidden hover:bg-white transition-colors disabled:opacity-50 disabled:cursor-not-allowed w-full"
+              className="relative bg-[#B85C3B] px-4 py-3 overflow-hidden hover:bg-[#C66D4B] transition-colors disabled:opacity-50 disabled:cursor-not-allowed w-full"
             >
               <div
                 className="absolute inset-0 opacity-20 bg-repeat pointer-events-none"
@@ -402,7 +395,7 @@ export function ImageGeneratorAdvanced() {
                   backgroundSize: "2.915576934814453px 2.915576934814453px",
                 }}
               />
-              <span className="relative z-10 text-black font-mono font-medium text-sm md:text-base flex items-center justify-center gap-2">
+              <span className="relative z-10 text-white font-mono font-medium text-sm md:text-base flex items-center justify-center gap-2">
                 {isLoading ? (
                   <>
                     <Loader2 className="h-5 w-5 animate-spin" />
@@ -468,11 +461,10 @@ export function ImageGeneratorAdvanced() {
                             carouselApi.scrollTo(idx);
                           }
                         }}
-                        className={`group relative block overflow-hidden border ${
-                          idx === currentImageIndex
-                            ? "border-[#FF5800] ring-2 ring-[#FF5800]/40"
-                            : "border-white/10"
-                        }`}
+                        className={`group relative block overflow-hidden border ${idx === currentImageIndex
+                          ? "border-[#FF5800] ring-2 ring-[#FF5800]/40"
+                          : "border-white/10"
+                          }`}
                         aria-label={`Select image ${idx + 1}`}
                         type="button"
                       >
@@ -491,7 +483,6 @@ export function ImageGeneratorAdvanced() {
                 )}
 
                 <BrandCard className="relative overflow-hidden">
-                  <CornerBrackets size="md" className="opacity-50" />
                   <div className="relative z-10 p-0">
                     {currentImages.length > 1 ? (
                       <div className="relative w-full bg-black/40">
@@ -596,12 +587,11 @@ export function ImageGeneratorAdvanced() {
                 <EnhancedLoading />
               </div>
             ) : (
-              <BrandCard className="relative border-dashed">
-                <CornerBrackets size="md" className="opacity-50" />
+              <BrandCard className="relative">
                 <div className="relative z-10 p-6 md:p-12 text-center">
                   <div className="flex flex-col items-center space-y-3 md:space-y-4">
-                    <div className="inline-flex items-center justify-center w-12 md:w-16 h-12 md:h-16 bg-[#FF580020] border border-[#FF5800]/40">
-                      <ImageIcon className="h-6 md:h-8 w-6 md:w-8 text-[#FF5800]" />
+                    <div className="inline-flex items-center justify-center w-12 md:w-16 h-12 md:h-16 bg-[#1B1B1B]">
+                      <ImageIcon className="h-6 md:h-8 w-6 md:w-8 text-white" />
                     </div>
                     <div className="space-y-2 max-w-md">
                       <h3 className="text-base md:text-lg font-mono font-bold text-white">
@@ -653,10 +643,9 @@ export function ImageGeneratorAdvanced() {
               </div>
             ) : (
               <BrandCard className="relative border-dashed">
-                <CornerBrackets size="md" className="opacity-50" />
                 <div className="relative z-10 p-8 md:p-12 lg:p-20 text-center">
                   <div className="flex flex-col items-center space-y-3 md:space-y-4">
-                    <History className="h-8 md:h-10 lg:h-12 w-8 md:w-10 lg:w-12 text-[#FF5800]" />
+                    <History className="h-8 md:h-10 lg:h-12 w-8 md:w-10 lg:w-12 text-white" />
                     <div className="space-y-2">
                       <h3 className="text-base md:text-lg font-mono font-semibold text-white">
                         No History Yet
