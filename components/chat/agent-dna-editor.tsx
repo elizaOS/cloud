@@ -27,7 +27,8 @@ export function AgentDnaEditor({
   onSave,
 }: AgentDnaEditorProps) {
   const [activeTab, setActiveTab] = useState<MainTab>("settings");
-  const [settingsSubTab, setSettingsSubTab] = useState<SettingsSubTab>("general");
+  const [settingsSubTab, setSettingsSubTab] =
+    useState<SettingsSubTab>("general");
   const [showJson, setShowJson] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
 
@@ -100,7 +101,6 @@ export function AgentDnaEditor({
               disabled={isSaving}
               className="rounded-none bg-white text-black"
             >
-
               {isSaving ? "Saving..." : "Save"}
             </Button>
           </div>
@@ -111,38 +111,37 @@ export function AgentDnaEditor({
       </div>
 
       {/* Main Tabs */}
-      <div className="flex-shrink-0 border-b border-white/10 px-6">
-        <div className="py-3">
-          <BrandTabsResponsive
-            id="agent-dna-tabs"
-            tabs={tabs}
-            value={activeTab}
-            onValueChange={(value) => setActiveTab(value as MainTab)}
-            breakpoint="md"
-          >
-            {/* Empty children - content is rendered below */}
-            <div className="hidden" />
-          </BrandTabsResponsive>
-        </div>
+      <div className="flex-shrink-0 border-t border-[#3e3e43]">
+        <BrandTabsResponsive
+          id="agent-dna-tabs"
+          tabs={tabs}
+          value={activeTab}
+          onValueChange={(value) => setActiveTab(value as MainTab)}
+          breakpoint="md"
+          className="[&>div[role=tablist]]:flex [&>div[role=tablist]]:w-full [&>div[role=tablist]]:border-0 [&>div[role=tablist]]:bg-transparent [&>div[role=tablist]]:backdrop-blur-none [&>div[role=tablist]]:p-0 [&>div[role=tablist]]:h-auto [&>div[role=tablist]]:justify-center [&>div[role=tablist]]:items-start [&>div[role=tablist]>button]:flex-[1_0_0] [&>div[role=tablist]>button]:px-0 [&>div[role=tablist]>button]:py-3 [&>div[role=tablist]>button]:border-b [&>div[role=tablist]>button]:border-r [&>div[role=tablist]>button]:border-[#3e3e43] [&>div[role=tablist]>button]:rounded-none [&>div[role=tablist]>button]:justify-center [&>div[role=tablist]>button]:items-center [&>div[role=tablist]>button[data-state=active]]:bg-[rgba(255,255,255,0.07)] [&>div[role=tablist]>button[data-state=active]]:border-b-2 [&>div[role=tablist]>button[data-state=active]]:border-b-white [&>div[role=tablist]>button[data-state=active]]:text-white [&>div[role=tablist]>button:last-child]:border-r-0"
+        >
+          {/* Empty children - content is rendered below */}
+          <div className="hidden" />
+        </BrandTabsResponsive>
       </div>
 
       {/* Settings Sub-Tabs + JSON Toggle */}
       {activeTab === "settings" && (
         <div className="flex-shrink-0 border-b border-white/10 px-6">
-          <div className="flex items-center justify-between">
-            <div className="flex gap-1">
+          <div className="flex items-center justify-between w-full">
+            <div className="flex items-center">
               <button
                 onClick={() => setSettingsSubTab("general")}
                 className={cn(
-                  "px-4 py-3 text-sm font-medium transition-colors",
+                  "p-[10px] text-sm font-medium transition-colors",
                   settingsSubTab === "general"
                     ? "text-white border-b-2 border-white"
-                    : "text-white/60 hover:text-white",
+                    : "text-[#a2a2a2] hover:text-white"
                 )}
                 style={{
                   fontFamily: "var(--font-roboto-mono)",
                   fontSize: "14px",
-                  lineHeight: "18px",
+                  lineHeight: "normal",
                 }}
               >
                 General
@@ -150,15 +149,15 @@ export function AgentDnaEditor({
               <button
                 onClick={() => setSettingsSubTab("content")}
                 className={cn(
-                  "px-4 py-3 text-sm font-medium transition-colors",
+                  "p-[10px] text-sm font-medium transition-colors",
                   settingsSubTab === "content"
                     ? "text-white border-b-2 border-white"
-                    : "text-white/60 hover:text-white",
+                    : "text-[#a2a2a2] hover:text-white"
                 )}
                 style={{
                   fontFamily: "var(--font-roboto-mono)",
                   fontSize: "14px",
-                  lineHeight: "18px",
+                  lineHeight: "normal",
                 }}
               >
                 Content
@@ -166,15 +165,15 @@ export function AgentDnaEditor({
               <button
                 onClick={() => setSettingsSubTab("style")}
                 className={cn(
-                  "px-4 py-3 text-sm font-medium transition-colors",
+                  "p-[10px] text-sm font-medium transition-colors",
                   settingsSubTab === "style"
                     ? "text-white border-b-2 border-white"
-                    : "text-white/60 hover:text-white",
+                    : "text-[#a2a2a2] hover:text-white"
                 )}
                 style={{
                   fontFamily: "var(--font-roboto-mono)",
                   fontSize: "14px",
-                  lineHeight: "18px",
+                  lineHeight: "normal",
                 }}
               >
                 Style
@@ -182,15 +181,15 @@ export function AgentDnaEditor({
               <button
                 onClick={() => setSettingsSubTab("avatar")}
                 className={cn(
-                  "px-4 py-3 text-sm font-medium transition-colors",
+                  "p-[10px] text-sm font-medium transition-colors",
                   settingsSubTab === "avatar"
                     ? "text-white border-b-2 border-white"
-                    : "text-white/60 hover:text-white",
+                    : "text-[#a2a2a2] hover:text-white"
                 )}
                 style={{
                   fontFamily: "var(--font-roboto-mono)",
                   fontSize: "14px",
-                  lineHeight: "18px",
+                  lineHeight: "normal",
                 }}
               >
                 Avatar
@@ -204,13 +203,13 @@ export function AgentDnaEditor({
                 onClick={() => setShowJson(!showJson)}
                 className={cn(
                   "relative inline-flex h-5 w-9 items-center rounded-full transition-colors",
-                  showJson ? "bg-[#FF5800]" : "bg-white/20",
+                  showJson ? "bg-[#FF5800]" : "bg-white/20"
                 )}
               >
                 <span
                   className={cn(
                     "inline-block h-3 w-3 transform rounded-full bg-white transition-transform",
-                    showJson ? "translate-x-5" : "translate-x-1",
+                    showJson ? "translate-x-5" : "translate-x-1"
                   )}
                 />
               </button>
@@ -401,7 +400,10 @@ export function AgentDnaEditor({
 
                           {/* Second Row - Type Badge */}
                           <div className="flex items-center gap-2 mb-2">
-                            <Zap className="w-4 h-4" style={{ color: "#a1a1a1" }} />
+                            <Zap
+                              className="w-4 h-4"
+                              style={{ color: "#a1a1a1" }}
+                            />
                             <span
                               style={{
                                 fontFamily: "var(--font-roboto-mono)",
@@ -671,7 +673,10 @@ export function AgentDnaEditor({
 
                           {/* Second Row - Type Badge */}
                           <div className="flex items-center gap-2 mb-2">
-                            <Zap className="w-4 h-4" style={{ color: "#a1a1a1" }} />
+                            <Zap
+                              className="w-4 h-4"
+                              style={{ color: "#a1a1a1" }}
+                            />
                             <span
                               style={{
                                 fontFamily: "var(--font-roboto-mono)",
@@ -855,7 +860,10 @@ export function AgentDnaEditor({
 
                           {/* Second Row - Type Badge */}
                           <div className="flex items-center gap-2 mb-2">
-                            <Zap className="w-4 h-4" style={{ color: "#a1a1a1" }} />
+                            <Zap
+                              className="w-4 h-4"
+                              style={{ color: "#a1a1a1" }}
+                            />
                             <span
                               style={{
                                 fontFamily: "var(--font-roboto-mono)",
@@ -1185,7 +1193,8 @@ export function AgentDnaEditor({
                               lineHeight: "1.5",
                             }}
                           >
-                            Hey there! I&apos;m doing great, thanks for asking. How about you?
+                            Hey there! I&apos;m doing great, thanks for asking.
+                            How about you?
                           </div>
 
                           {/* Thought Process Section */}
@@ -1228,7 +1237,8 @@ export function AgentDnaEditor({
                                 lineHeight: "1.5",
                               }}
                             >
-                              Engage with the user and ask how they&apos;re doing.
+                              Engage with the user and ask how they&apos;re
+                              doing.
                             </p>
                           </div>
 
@@ -1529,8 +1539,6 @@ export function AgentDnaEditor({
                         </div>
                       </div>
                     </button>
-
-
                   </div>
                 </div>
               </div>

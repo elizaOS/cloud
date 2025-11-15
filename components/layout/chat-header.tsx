@@ -6,7 +6,7 @@
 "use client";
 
 import { useRouter, usePathname } from "next/navigation";
-import { Menu, ChevronDown, MessageSquare, Wrench, PlusCircleIcon, CheckCircle2Icon } from "lucide-react";
+import { Menu, ChevronDown, MessageSquare, Wrench, PlusCircleIcon, Check } from "lucide-react";
 import Image from "next/image";
 import { BrandButton } from "@/components/brand";
 import { cn } from "@/lib/utils";
@@ -92,7 +92,7 @@ export function ChatHeader({ onToggleSidebar }: ChatHeaderProps) {
             <button
               type="button"
               className={cn(
-                "flex items-center gap-4 px-0 py-2",
+                "flex items-center gap-4 bg-[#1b1b1b] px-2 py-0 w-[238px]",
                 "hover:bg-white/5 transition-colors focus:outline-none"
               )}
             >
@@ -114,14 +114,15 @@ export function ChatHeader({ onToggleSidebar }: ChatHeaderProps) {
                       </div>
                     )}
                   </div>
-                  <div className="flex flex-col items-start gap-0.5">
+                  <div className="flex flex-col items-start justify-center gap-[2px] h-16 flex-1">
                     <p
-                      className="font-medium text-white"
+                      className="text-white"
                       style={{
                         fontFamily: "'Roboto Mono', monospace",
                         fontSize: "16px",
                         lineHeight: "normal",
                         letterSpacing: "-0.048px",
+                        fontWeight: 500,
                       }}
                     >
                       {selectedAgent.name}
@@ -139,7 +140,7 @@ export function ChatHeader({ onToggleSidebar }: ChatHeaderProps) {
                       {selectedAgent.username ? `@${selectedAgent.username}` : "Marketing Agent"}
                     </p>
                   </div>
-                  <ChevronDown className="h-4 w-4 text-white/60" />
+                  <ChevronDown className="h-4 w-4 text-[#a2a0a3] shrink-0" />
                 </>
               ) : (
                 <>
@@ -153,14 +154,15 @@ export function ChatHeader({ onToggleSidebar }: ChatHeaderProps) {
                       className="w-full h-full object-cover"
                     />
                   </div>
-                  <div className="flex flex-col items-start gap-0.5">
+                  <div className="flex flex-col items-start justify-center gap-[2px] h-16 flex-1">
                     <p
-                      className="font-medium text-white"
+                      className="text-white"
                       style={{
                         fontFamily: "'Roboto Mono', monospace",
                         fontSize: "16px",
                         lineHeight: "normal",
                         letterSpacing: "-0.048px",
+                        fontWeight: 500,
                       }}
                     >
                       Zilo
@@ -175,70 +177,118 @@ export function ChatHeader({ onToggleSidebar }: ChatHeaderProps) {
                         fontWeight: 400,
                       }}
                     >
-                      Marketing Agent
+                      @zilo
                     </p>
                   </div>
-                  <ChevronDown className="h-4 w-4 text-white/60" />
+                  <ChevronDown className="h-4 w-4 text-[#a2a0a3] shrink-0" />
                 </>
               )}
             </button>
           </DropdownMenuTrigger>
           <DropdownMenuContent
             align="start"
-            className="w-64 bg-[#0A0A0A] border-white/10"
+            className="w-[238px] rounded-none bg-[#101010] border border-[#2e2e2e] p-0 max-h-[400px] overflow-y-auto"
           >
             {/* New agent option */}
+            <div className="px-2 py-0 transition-colors hover:bg-white/5">
+              <DropdownMenuItem
+                onClick={() => router.push("/dashboard/character-creator")}
+                className="px-0 py-3 rounded-none hover:bg-transparent focus:bg-transparent cursor-pointer"
+              >
+                <div className="flex items-center gap-2">
+                  <PlusCircleIcon className="h-[18px] w-[18px] text-[#a2a2a2]" />
+                  <span
+                    className="text-[#a2a2a2]"
+                    style={{
+                      fontFamily: "'Roboto Mono', monospace",
+                      fontSize: "14px",
+                      lineHeight: "normal",
+                      fontWeight: 400,
+                    }}
+                  >
+                    New Agent
+                  </span>
+                </div>
+              </DropdownMenuItem>
+            </div>
 
-            <DropdownMenuItem
-              onClick={() => router.push("/dashboard/character-creator")}
-              className="">
-              <div className="flex items-center gap-2">
-                <PlusCircleIcon />
-                New Agent
-              </div>
-            </DropdownMenuItem>
-
-            {/* User's custom characters */}
+            {/* User's custom characters - All agents with scroll */}
             {availableCharacters.length > 0 && (
               <>
-                <div className="border-t border-white/10 my-1" />
                 {availableCharacters.map((character) => (
-                  <DropdownMenuItem
+                  <div
                     key={character.id}
-                    onClick={() => handleAgentChange(character.id)}
                     className={cn(
-                      "flex items-center gap-3 px-3 py-2 cursor-pointer",
-                      "hover:bg-white/5 focus:bg-white/5",
-                      selectedCharacterId === character.id && "bg-white/10"
+                      "border-t border-[#2e2e2e] p-2 transition-colors",
+                      selectedCharacterId === character.id && "bg-[#1b1b1b]",
+                      "hover:bg-white/5"
                     )}
                   >
-                    {/* Character Avatar */}
-                    <div className="w-8 h-8 rounded-full overflow-hidden bg-neutral-800 shrink-0">
-                      {character.avatarUrl ? (
-                        <Image
-                          src={character.avatarUrl}
-                          alt={character.name}
-                          width={32}
-                          height={32}
-                          className="w-full h-full object-cover"
-                        />
-                      ) : (
-                        <div className="w-full h-full flex items-center justify-center text-white text-sm font-medium">
-                          {character.name?.[0] || "A"}
+                    <DropdownMenuItem
+                      onClick={() => handleAgentChange(character.id)}
+                      className="flex items-center justify-between p-0 rounded-none hover:bg-transparent focus:bg-transparent cursor-pointer"
+                    >
+                      <div className="flex items-center gap-2 flex-1 min-w-0">
+                        {/* Character Avatar */}
+                        <div className="w-8 h-8 rounded-full overflow-hidden bg-neutral-800 shrink-0">
+                          {character.avatarUrl ? (
+                            <Image
+                              src={character.avatarUrl}
+                              alt={character.name}
+                              width={32}
+                              height={32}
+                              className="w-full h-full object-cover"
+                            />
+                          ) : (
+                            <div className="w-full h-full flex items-center justify-center text-white text-sm font-medium">
+                              {character.name?.[0] || "A"}
+                            </div>
+                          )}
                         </div>
-                      )}
-                    </div>
-                    <div className="flex flex-col">
-                      <span className="text-sm font-medium text-white">
-                        {character.name}
-                      </span>
-                      {character.username && (
-                        <span className="text-xs text-white/60">
-                          @{character.username}
-                        </span>
-                      )}
-                    </div>
-                  </DropdownMenuItem>
+                        <div className="flex flex-col items-start justify-center flex-1 min-w-0">
+                          <p
+                            className="text-[#e1e1e1] truncate w-full"
+                            style={{
+                              fontFamily: "'Roboto Mono', monospace",
+                              fontSize: "14px",
+                              lineHeight: "normal",
+                              fontWeight: 400,
+                            }}
+                          >
+                            {character.name}
+                          </p>
+                          <p
+                            className="text-[#a2a2a2] truncate w-full"
+                            style={{
+                              fontFamily: "'Roboto Mono', monospace",
+                              fontSize: "10px",
+                              lineHeight: "normal",
+                              fontWeight: 400,
+                            }}
+                          >
+                            {character.username ? `@${character.username}` : "Agent Description"}
+                          </p>
+                        </div>
+                      </div>
+                      {/* Checkmark indicator */}
+                      <div
+                        className={cn(
+                          "flex items-center justify-center rounded-[10.667px] p-1",
+                          selectedCharacterId === character.id
+                            ? "bg-[rgba(255,88,0,0.1)]"
+                            : "bg-neutral-800 opacity-0"
+                        )}
+                      >
+                        <Check
+                          className="h-4 w-4"
+                          style={{
+                            color: selectedCharacterId === character.id ? "#FF5800" : "#fafafa",
+                            strokeWidth: 2.5,
+                          }}
+                        />
+                      </div>
+                    </DropdownMenuItem>
+                  </div>
                 ))}
               </>
             )}
