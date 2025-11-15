@@ -45,21 +45,40 @@ export function ContainersSection({
       {/* Section Header */}
       <div className="flex items-center justify-between">
         <div>
-          <h2 className="text-2xl font-bold text-white flex items-center gap-2">
+          <h2
+            className="text-2xl font-bold text-white flex items-center gap-2"
+            style={{
+              fontFamily: "var(--font-roboto-mono)",
+              fontSize: "24px",
+              lineHeight: "32px",
+              fontWeight: 700,
+            }}
+          >
             Containers
-            <span className="text-lg text-white/40">({containers.length})</span>
+            <span
+              className="text-lg text-white/40"
+              style={{
+                fontFamily: "var(--font-roboto-mono)",
+                fontSize: "16px",
+                fontWeight: 400,
+              }}
+            >
+              ({containers.length})
+            </span>
           </h2>
-          <p className="text-white/60 mt-1">
-            {runningContainers.length > 0
-              ? `${runningContainers.length} running container${runningContainers.length !== 1 ? "s" : ""}`
-              : "Deploy ElizaOS containers"}
-          </p>
         </div>
-        {containers.length > 0 && (
-          <BrandButton variant="outline" asChild>
-            <Link href="/dashboard/containers">View All</Link>
-          </BrandButton>
-        )}
+        <BrandButton variant="outline" asChild>
+          <Link
+            href="/dashboard/containers"
+            style={{
+              fontFamily: "var(--font-roboto-mono)",
+              fontSize: "14px",
+            }}
+          >
+            <Plus className="h-4 w-4 mr-2" />
+            Create New
+          </Link>
+        </BrandButton>
       </div>
 
       {/* Containers Content */}

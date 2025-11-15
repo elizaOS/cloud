@@ -3,7 +3,7 @@
  */
 
 import { HomeIcon, ImageIcon, LayersIcon } from "@radix-ui/react-icons";
-import { Server, Video, UserCog, Bot, Code, Mic, Store } from "lucide-react";
+import { Server, Video, UserCog, Bot, Code, Mic, Store, Sparkles, Image } from "lucide-react";
 import type { ComponentType } from "react";
 
 export interface SidebarItem {
@@ -13,6 +13,7 @@ export interface SidebarItem {
   icon: ComponentType<{ className?: string }>;
   badge?: string | number;
   isNew?: boolean;
+  comingSoon?: boolean;
   freeAllowed?: boolean; // Whether anonymous users can access this
 }
 
@@ -30,83 +31,56 @@ export const sidebarSections: SidebarSection[] = [
         href: "/dashboard",
         icon: HomeIcon,
       },
+      {
+        id: "agents",
+        label: "Agents",
+        href: "/dashboard/my-agents",
+        icon: Bot,
+        freeAllowed: false,
+      },
     ],
   },
   {
-    title: "Generation Studio",
+    title: "Studio",
     items: [
       {
-        id: "image-generation",
-        label: "Images",
+        id: "image",
+        label: "Image",
         href: "/dashboard/image",
-        icon: ImageIcon,
-        freeAllowed: false, // Requires signup
+        icon: Image,
+        freeAllowed: false,
       },
       {
-        id: "video-generation",
-        label: "Videos",
+        id: "video",
+        label: "Video",
         href: "/dashboard/video",
         icon: Video,
-        freeAllowed: false, // Requires signup
+        freeAllowed: false,
       },
       {
-        id: "voices",
-        label: "Voices",
+        id: "voice",
+        label: "Voice",
         href: "/dashboard/voices",
         icon: Mic,
-        freeAllowed: false, // Requires signup
+        freeAllowed: false,
       },
       {
         id: "gallery",
         label: "Gallery",
         href: "/dashboard/gallery",
         icon: LayersIcon,
-        freeAllowed: false, // Requires signup
-      },
+        freeAllowed: false,
+      }
     ],
   },
   {
-    title: "Agents",
     items: [
       {
-        id: "chat",
-        label: "Chat",
-        href: "/dashboard/chat",
-        icon: Bot,
-        freeAllowed: true, // Free tier can access Chat
-      },
-      {
-        id: "my-agents",
-        label: "My Agents",
-        href: "/dashboard/my-agents",
-        icon: Store,
-        freeAllowed: false, // Requires signup
-      },
-      {
-        id: "character-creator",
-        label: "Creator",
-        href: "/dashboard/character-creator",
-        icon: UserCog,
-        freeAllowed: false, // Requires signup
-      },
-      {
-        id: "api-explorer",
-        label: "API Explorer",
-        href: "/dashboard/api-explorer",
-        icon: Code,
-        freeAllowed: false, // Requires signup
-      },
-    ],
-  },
-  {
-    title: "Infrastructure",
-    items: [
-      {
-        id: "containers",
-        label: "Containers",
+        id: "infrastructure",
+        label: "Infrastructure",
         href: "/dashboard/containers",
         icon: Server,
-        freeAllowed: false, // Requires signup
+        freeAllowed: false,
       },
     ],
   },

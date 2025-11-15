@@ -8,6 +8,7 @@
 import { usePrivy, useLogout } from "@privy-io/react-auth";
 import { useRouter, usePathname } from "next/navigation";
 import { useCreditsStream } from "@/hooks/use-credits-stream";
+import { useUserProfile } from "@/hooks/use-user-profile";
 import {
   CreditCard,
   LogOut,
@@ -19,17 +20,20 @@ import {
 import { cn } from "@/lib/utils";
 import { CornerBrackets } from "@/components/brand";
 import { useChatStore } from "@/stores/chat-store";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 
 interface SidebarBottomPanelProps {
   className?: string;
+  isCollapsed?: boolean;
 }
 
-export function SidebarBottomPanel({ className }: SidebarBottomPanelProps) {
+export function SidebarBottomPanel({ className, isCollapsed = false }: SidebarBottomPanelProps) {
   const { ready, authenticated, user } = usePrivy();
   const { logout } = useLogout();
   const router = useRouter();
   const pathname = usePathname();
   const { creditBalance, isLoading: loadingCredits } = useCreditsStream();
+  const { profile } = useUserProfile();
   const { clearChatData } = useChatStore();
 
   // Get user details
@@ -127,6 +131,30 @@ export function SidebarBottomPanel({ className }: SidebarBottomPanelProps) {
     }
 
     // Anonymous user CTA panel
+    if (isCollapsed) {
+      return (
+        <div className={cn("relative border-t border-white/10", className)}>
+          {/* Anonymous User CTA - Collapsed */}
+          <div className="relative z-10 px-4 py-4 flex flex-col items-center gap-3">
+            <button
+              onClick={() => router.push("/login")}
+              title="Sign Up"
+              className="p-2.5 bg-white hover:bg-white/90 text-black rounded-none transition-all duration-200"
+            >
+              <UserPlus className="h-6 w-6" />
+            </button>
+            <button
+              onClick={() => router.push("/login")}
+              title="Log In"
+              className="p-2.5 border border-white/20 hover:bg-white/5 text-white/80 hover:text-white rounded-none transition-all duration-200"
+            >
+              <LogIn className="h-6 w-6" />
+            </button>
+          </div>
+        </div>
+      );
+    }
+
     return (
       <div className={cn("relative border-t border-white/10", className)}>
         {/* Corner brackets for the panel */}
@@ -151,8 +179,8 @@ export function SidebarBottomPanel({ className }: SidebarBottomPanelProps) {
               onClick={() => router.push("/login")}
               className={cn(
                 "w-full flex items-center justify-center gap-2 px-4 py-2.5",
-                "bg-[#FF5800] hover:bg-[#FF5800]/90",
-                "text-white font-medium rounded-none",
+                "bg-white hover:bg-white/90",
+                "text-black font-medium rounded-none",
                 "transition-all duration-200 cursor-pointer",
               )}
               style={{
@@ -193,21 +221,21 @@ export function SidebarBottomPanel({ className }: SidebarBottomPanelProps) {
               <div className="flex items-center gap-2">
                 <div
                   className="h-1 w-1 rounded-full flex-shrink-0"
-                  style={{ backgroundColor: "#FF5800" }}
+                  style={{ backgroundColor: "#ffffff" }}
                 />
                 <span>Unlimited conversations</span>
               </div>
               <div className="flex items-center gap-2">
                 <div
                   className="h-1 w-1 rounded-full flex-shrink-0"
-                  style={{ backgroundColor: "#FF5800" }}
+                  style={{ backgroundColor: "#ffffff" }}
                 />
                 <span>Create custom agents</span>
               </div>
               <div className="flex items-center gap-2">
                 <div
                   className="h-1 w-1 rounded-full flex-shrink-0"
-                  style={{ backgroundColor: "#FF5800" }}
+                  style={{ backgroundColor: "#ffffff" }}
                 />
                 <span>Access premium features</span>
               </div>
@@ -227,26 +255,109 @@ export function SidebarBottomPanel({ className }: SidebarBottomPanelProps) {
     },
   ];
 
+  // Collapsed authenticated view
+  if (isCollapsed) {
+    return (
+      <div className={cn("relative border-t border-white/10", className)}>
+        {/* User Avatar - Collapsed */}
+        <div className="relative z-10 px-4 py-4 border-b border-white/10 flex justify-center">
+          <Avatar className="h-10 w-10 ring-2 ring-white/30">
+            {profile?.avatar && (
+              <AvatarImage src={profile.avatar} alt={getUserName()} />
+            )}
+            <AvatarFallback className="bg-gradient-to-br from-purple-500 to-blue-600 text-white text-sm">
+              {getUserName().slice(0, 2).toUpperCase()}
+            </AvatarFallback>
+          </Avatar>
+        </div>
+
+        {/* Balance Display - Collapsed */}
+        <div className="relative z-10 px-4 py-4 border-b border-white/10 flex justify-center">
+          {loadingCredits && creditBalance === null ? (
+            <Loader2 className="h-6 w-6 animate-spin text-white/40" />
+          ) : (
+            <div
+              className="h-3 w-3 rounded-full flex-shrink-0"
+              style={{ backgroundColor: "#ffffff" }}
+              title={`${creditBalance !== null ? Number(creditBalance).toFixed(2) : "0.00"} balance`}
+            />
+          )}
+        </div>
+
+        {/* Menu Items - Collapsed */}
+        <div className="relative z-10 py-2">
+          {menuItems.map((item) => {
+            const Icon = item.icon;
+            const isActive =
+              pathname === item.href || pathname.startsWith(`${item.href}/`);
+
+            return (
+              <button
+                key={item.id}
+                onClick={() => router.push(item.href)}
+                title={item.label}
+                className={cn(
+                  "w-full flex items-center justify-center px-4 py-3 transition-all duration-200 border-l-2 cursor-pointer",
+                  isActive
+                    ? "bg-white/10 text-white border-white"
+                    : "text-white/60 hover:bg-white/5 hover:text-white border-transparent",
+                )}
+              >
+                <Icon
+                  className={cn(
+                    "h-6 w-6 transition-colors",
+                    isActive && "text-white",
+                  )}
+                />
+              </button>
+            );
+          })}
+        </div>
+
+        {/* Logout Button - Collapsed */}
+        <div className="relative z-10 border-t border-white/5">
+          <button
+            onClick={onSignOut}
+            title="Logout"
+            className="w-full flex items-center justify-center px-4 py-3 text-white/60 hover:bg-white/5 hover:text-red-400 transition-all duration-200 cursor-pointer"
+          >
+            <LogOut className="h-6 w-6" />
+          </button>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className={cn("relative border-t border-white/10", className)}>
       {/* Corner brackets for the panel */}
       <CornerBrackets size="sm" className="opacity-30" />
 
-      {/* User Info Header - Clickable to expand/collapse */}
+      {/* User Info Header - with Avatar */}
       <div className="relative z-10 px-4 py-3 border-b border-white/10">
         <div
-          className="flex flex-col gap-2"
+          className="flex items-center gap-3"
           style={{
             fontFamily: "var(--font-roboto-mono)",
             fontWeight: 400,
             letterSpacing: "-0.003em",
           }}
         >
-          <div className="text-sm font-medium text-white truncate">
-            {getUserName()}
-          </div>
-          <div className="text-xs text-white/40 truncate">
-            {getUserIdentifier()}
+          <Avatar className="h-10 w-10 ring-2 ring-white/30">
+            {profile?.avatar && (
+              <AvatarImage src={profile.avatar} alt={getUserName()} />
+            )}
+            <AvatarFallback className="bg-gradient-to-br from-purple-500 to-blue-600 text-white text-sm">
+              {getUserName().slice(0, 2).toUpperCase()}
+            </AvatarFallback>
+          </Avatar>
+          <div className="flex-1 min-w-0">
+            <div className="text-sm font-medium text-white truncate">
+              {getUserName()}
+            </div>
+            <div className="text-xs text-white/40 truncate">
+              {getUserIdentifier()}
+            </div>
           </div>
         </div>
       </div>
@@ -269,7 +380,7 @@ export function SidebarBottomPanel({ className }: SidebarBottomPanelProps) {
           <div className="flex items-center gap-2">
             <div
               className="h-2 w-2 rounded-full flex-shrink-0"
-              style={{ backgroundColor: "#FF5800" }}
+              style={{ backgroundColor: "#ffffff" }}
             />
             <span className="text-lg font-bold text-white">
               {creditBalance !== null
@@ -295,7 +406,7 @@ export function SidebarBottomPanel({ className }: SidebarBottomPanelProps) {
               className={cn(
                 "w-full flex items-center gap-3 px-4 py-2.5 transition-all duration-200 border-l-2 cursor-pointer",
                 isActive
-                  ? "bg-white/10 text-white border-[#FF5800]"
+                  ? "bg-white/10 text-white border-white"
                   : "text-white/60 hover:bg-white/5 hover:text-white border-transparent",
               )}
               style={{
@@ -309,7 +420,7 @@ export function SidebarBottomPanel({ className }: SidebarBottomPanelProps) {
               <Icon
                 className={cn(
                   "h-4 w-4 transition-colors",
-                  isActive && "text-[#FF5800]",
+                  isActive && "text-white",
                 )}
               />
               <span>{item.label}</span>

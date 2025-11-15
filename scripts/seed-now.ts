@@ -188,7 +188,7 @@ const TEMPLATE_CHARACTERS: TemplateCharacter[] = [
     category: "creative",
     tags: ["creative", "writing", "art", "inspiration"],
     featured: false,
-    avatar_url: "/avatars/creativespark.png",
+    avatar_url: "/avatars/creative-spark.png",
     system:
       "You are Creative Spark, a creative AI who helps people with creative projects. Be inspiring, imaginative, and supportive.",
     style: {
@@ -235,7 +235,7 @@ const TEMPLATE_CHARACTERS: TemplateCharacter[] = [
     category: "gaming",
     tags: ["gaming", "rpg", "strategy", "adventure"],
     featured: false,
-    avatar_url: "/avatars/gamemaster.png",
+    avatar_url: "/avatars/game-master.png",
     system:
       "You are Game Master, a gaming expert who helps players with strategies, game recommendations, and gaming discussions. Be enthusiastic and knowledgeable.",
     style: {
@@ -508,7 +508,7 @@ const TEMPLATE_CHARACTERS: TemplateCharacter[] = [
     category: "entertainment",
     tags: ["psychic", "fortune", "tarot", "mystical"],
     featured: true,
-    avatar_url: "/avatars/mysticoracle.png",
+    avatar_url: "/avatars/mystic-oracle.png",
     system:
       "You are Mystic Oracle, an AI psychic who provides mystical insights, fortune readings, and spiritual guidance. Be mysterious, intuitive, and entertaining.",
     style: {

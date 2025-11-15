@@ -17,6 +17,7 @@ export interface Character {
   id: string;
   name: string;
   username?: string;
+  avatarUrl?: string;
 }
 
 interface ChatState {
@@ -28,6 +29,7 @@ interface ChatState {
   availableCharacters: Character[];
   selectedCharacterId: string | null;
   pendingMessage: string | null; // Message from landing page to auto-send
+  loadRoomsPromise: Promise<void> | null; // Track ongoing loadRooms operation
 
   // Actions
   setRooms: (rooms: RoomItem[]) => void;
@@ -36,7 +38,7 @@ interface ChatState {
   setAvailableCharacters: (characters: Character[]) => void;
   setSelectedCharacterId: (characterId: string | null) => void;
   setPendingMessage: (message: string | null) => void;
-  loadRooms: () => Promise<void>;
+  loadRooms: (force?: boolean) => Promise<void>;
   createRoom: (characterId?: string | null) => Promise<string | null>;
   deleteRoom: (roomId: string) => Promise<void>;
   initializeEntityId: () => void;
@@ -64,6 +66,7 @@ export const useChatStore = create<ChatState>((set, get) => ({
   availableCharacters: [],
   selectedCharacterId: null,
   pendingMessage: null,
+  loadRoomsPromise: null,
 
   // Setters
   setRooms: (rooms) => set({ rooms }),
@@ -87,8 +90,17 @@ export const useChatStore = create<ChatState>((set, get) => ({
   },
 
   // Load rooms from API
-  loadRooms: async () => {
-    let { entityId, setIsLoadingRooms, setRooms } = get();
+  loadRooms: async (force = false) => {
+    const state = get();
+    let { entityId, loadRoomsPromise } = state;
+
+    // If already loading and not forcing, return existing promise to avoid concurrent calls
+    if (loadRoomsPromise && !force) {
+      console.log(
+        "[ChatStore] loadRooms already in progress, waiting for it to complete"
+      );
+      return loadRoomsPromise;
+    }
 
     // Ensure entityId is initialized
     if (!entityId) {
@@ -97,31 +109,60 @@ export const useChatStore = create<ChatState>((set, get) => ({
       entityId = newEntityId;
     }
 
-    setIsLoadingRooms(true);
-    try {
-      const params = new URLSearchParams({ entityId });
-      const res = await fetch(`/api/eliza/rooms?${params.toString()}`);
-      if (res.ok) {
-        const data = await res.json();
-        if (Array.isArray(data.rooms)) {
-          const roomItems: RoomItem[] = data.rooms
-            .slice(0, 20)
-            .map((r: any) => ({
-              id: r.id,
-              characterId: r.characterId,
-              lastText: r.lastText,
-              lastTime: r.lastTime,
-              title: r.title, // AI-generated title
-            }));
+    // Create new promise for this load operation
+    const promise = (async () => {
+      console.log("[ChatStore] Starting loadRooms, entityId:", entityId);
+      set({ isLoadingRooms: true });
 
-          setRooms(roomItems);
+      try {
+        const params = new URLSearchParams({ entityId });
+        const res = await fetch(`/api/eliza/rooms?${params.toString()}`, {
+          // Disable caching to ensure fresh data
+          cache: "no-store",
+          headers: {
+            "Cache-Control": "no-cache",
+          },
+        });
+
+        if (res.ok) {
+          const data = await res.json();
+          console.log("[ChatStore] loadRooms response:", data);
+
+          if (Array.isArray(data.rooms)) {
+            const roomItems: RoomItem[] = data.rooms
+              .slice(0, 20)
+              .map((r: any) => ({
+                id: r.id,
+                characterId: r.characterId,
+                lastText: r.lastText,
+                lastTime: r.lastTime,
+                title: r.title, // AI-generated title
+              }));
+
+            console.log(`[ChatStore] Loaded ${roomItems.length} rooms`);
+            set({ rooms: roomItems });
+          } else {
+            console.warn("[ChatStore] Invalid rooms data format:", data);
+          }
+        } else {
+          const errorText = await res.text().catch(() => "Unknown error");
+          console.error(
+            `[ChatStore] Failed to load rooms: ${res.status} ${errorText}`
+          );
+          throw new Error(`Failed to load rooms: ${res.status}`);
         }
+      } catch (error) {
+        console.error("[ChatStore] Error loading rooms:", error);
+        // Don't throw - just log the error so UI doesn't break
+      } finally {
+        set({ isLoadingRooms: false, loadRoomsPromise: null });
       }
-    } catch (error) {
-      console.error("Error loading rooms:", error);
-    } finally {
-      setIsLoadingRooms(false);
-    }
+    })();
+
+    // Store promise in state
+    set({ loadRoomsPromise: promise });
+
+    return promise;
   },
 
   // Create new room
@@ -156,21 +197,22 @@ export const useChatStore = create<ChatState>((set, get) => ({
         if (!newRoomId) {
           console.error("[ChatStore] API returned empty roomId:", data);
           throw new Error(
-            "Room creation succeeded but returned empty ID. Check server logs.",
+            "Room creation succeeded but returned empty ID. Check server logs."
           );
         }
 
-        // Automatically switch to the new room FIRST (before loading rooms)
-        // This ensures the UI updates immediately
+        // Automatically switch to the new room FIRST
         setRoomId(newRoomId);
+        console.log("[ChatStore] Switched to new room:", newRoomId);
 
-        // Then reload rooms to get the updated list (fire-and-forget)
-        loadRooms().catch((err) => {
-          console.error(
-            "[ChatStore] Failed to reload rooms after creation:",
-            err,
-          );
-        });
+        // Wait a brief moment for backend to persist, then reload rooms
+        // Use a small delay to ensure the room is fully persisted before fetching
+        await new Promise((resolve) => setTimeout(resolve, 300));
+
+        // Force reload to ensure we get the latest data
+        console.log("[ChatStore] Reloading rooms after creation...");
+        await loadRooms(true);
+        console.log("[ChatStore] Rooms reloaded successfully");
 
         return newRoomId;
       } else {
@@ -180,7 +222,7 @@ export const useChatStore = create<ChatState>((set, get) => ({
           .catch(() => ({ error: "Unknown error" }));
         console.error("Failed to create room:", response.status, errorData);
         throw new Error(
-          errorData.error || `Failed to create room: ${response.status}`,
+          errorData.error || `Failed to create room: ${response.status}`
         );
       }
     } catch (error) {

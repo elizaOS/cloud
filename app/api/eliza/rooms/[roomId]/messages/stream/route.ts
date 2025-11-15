@@ -2,6 +2,11 @@ import { NextRequest } from "next/server";
 import { organizationsService } from "@/lib/services";
 import { requireAuthOrApiKey } from "@/lib/auth";
 import { getAnonymousUser, checkAnonymousLimit } from "@/lib/auth-anonymous";
+import {
+  calculateCost,
+  getProviderFromModel,
+  estimateTokens,
+} from "@/lib/pricing";
 import { logger } from "@/lib/utils/logger";
 import { elizaRoomCharactersRepository } from "@/db/repositories";
 import { userContextService } from "@/lib/eliza/user-context";
@@ -91,13 +96,54 @@ export async function POST(
       logger.info(`[Stream] Set characterId in userContext: ${characterId}`);
     }
 
-    // Step 6: Create runtime with user context (clean, no key fetching here!)
+    // Step 6: Check credit balance BEFORE processing (for authenticated users)
+    if (!userContext.isAnonymous && userContext.organizationId) {
+      const estimatedInputTokens = estimateTokens(text);
+      const estimatedOutputTokens = 100;
+      const estimationModel = model || "gpt-4o";
+      const provider = getProviderFromModel(estimationModel);
+
+      const { totalCost: estimatedCost } = await calculateCost(
+        estimationModel,
+        provider,
+        estimatedInputTokens,
+        estimatedOutputTokens,
+      );
+
+      const org = await organizationsService.getById(userContext.organizationId);
+      if (!org) {
+        logger.error("[Stream Messages] Organization not found", {
+          organizationId: userContext.organizationId,
+        });
+        return new Response(
+          JSON.stringify({ error: "Organization not found" }),
+          { status: 404, headers: { "Content-Type": "application/json" } },
+        );
+      }
+
+      if (Number(org.credit_balance) < estimatedCost) {
+        logger.warn("[Stream Messages] Insufficient credits", {
+          organizationId: userContext.organizationId,
+          required: estimatedCost,
+          balance: org.credit_balance,
+        });
+        return new Response(
+          JSON.stringify({
+            error: "Insufficient balance",
+            details: `Required: ${estimatedCost}, Available: ${org.credit_balance}`,
+          }),
+          { status: 402, headers: { "Content-Type": "application/json" } },
+        );
+      }
+    }
+
+    // Step 7: Create runtime with user context (includes character!)
     const runtime = await runtimeFactory.createRuntimeForUser(userContext);
 
-    // Step 7: Create message handler
+    // Step 8: Create message handler
     const messageHandler = createMessageHandler(runtime, userContext);
 
-    // Step 8: Create streaming response
+    // Step 9: Create streaming response
     const stream = new ReadableStream({
       async start(controller) {
         const sendEvent = (event: string, data: unknown) => {

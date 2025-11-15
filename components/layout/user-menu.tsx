@@ -16,10 +16,11 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { LogOut, Loader2, Coins, Settings, UserCircle } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useCreditsStream } from "@/hooks/use-credits-stream";
+import { useUserProfile } from "@/hooks/use-user-profile";
 import { useChatStore } from "@/stores/chat-store";
 
 export default function UserMenu() {
@@ -27,6 +28,7 @@ export default function UserMenu() {
   const { logout } = useLogout();
   const router = useRouter();
   const { creditBalance, isLoading: loadingCredits } = useCreditsStream();
+  const { profile } = useUserProfile();
   const { clearChatData } = useChatStore();
 
   // Loading state
@@ -178,6 +180,9 @@ export default function UserMenu() {
       <DropdownMenuTrigger asChild>
         <Button variant="ghost" className="relative h-10 w-10 rounded-full">
           <Avatar className="h-10 w-10">
+            {profile?.avatar && (
+              <AvatarImage src={profile.avatar} alt={getUserName()} />
+            )}
             <AvatarFallback className="bg-primary text-primary-foreground">
               {getUserInitials()}
             </AvatarFallback>

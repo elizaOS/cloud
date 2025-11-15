@@ -44,6 +44,8 @@ export const users = pgTable(
     role: text("role").notNull().default("member"),
 
     avatar: text("avatar"),
+    avatar_data: text("avatar_data"), // Base64 encoded image data
+    avatar_mime_type: text("avatar_mime_type"), // MIME type (image/jpeg, image/png, etc)
     is_active: boolean("is_active").default(true).notNull(),
 
     // Lifecycle

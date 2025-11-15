@@ -8,7 +8,7 @@ import { elizaRoomCharactersRepository } from "@/db/repositories";
 import { logger } from "@/lib/utils/logger";
 import { db } from "@/db/client";
 import { sql } from "drizzle-orm";
-import { connectionCache } from "@/lib/cache/connection-cache";
+import { charactersService } from "@/lib/services";
 
 // GET /api/eliza/rooms/[roomId] - Get room details and messages
 export async function GET(
@@ -92,9 +92,32 @@ export async function GET(
       .sort((a, b) => a.createdAt - b.createdAt);
 
     // Get agent info from the runtime we already created
+    // (characterId was already looked up above and runtime was created accordingly)
     const agent = await runtime.getAgent(runtime.agentId);
-    const avatarUrl = agent?.settings?.avatarUrl as string | undefined;
-    const agentName = agent?.name;
+    let avatarUrl: string | undefined;
+    let agentName: string | undefined;
+    
+    // Get avatar from character database if we have a characterId
+    if (characterId) {
+      try {
+        const dbCharacter = await charactersService.getById(characterId);
+        if (dbCharacter) {
+          avatarUrl = dbCharacter.avatar_url ?? undefined;
+          agentName = dbCharacter.name;
+        }
+      } catch (err) {
+        logger.warn(
+          "[Eliza Room API] Failed to load character for avatar, using runtime:",
+          err,
+        );
+        avatarUrl = agent?.settings?.avatarUrl as string | undefined;
+        agentName = agent?.name;
+      }
+    } else {
+      // Use default agent info
+      avatarUrl = agent?.settings?.avatarUrl as string | undefined;
+      agentName = agent?.name;
+    }
 
     return NextResponse.json(
       {

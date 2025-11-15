@@ -7,7 +7,7 @@
 
 import Link from "next/link";
 import Image from "next/image";
-import { useRouter } from "next/navigation";
+import { useRouter, usePathname } from "next/navigation";
 import { useState, useEffect, useMemo } from "react";
 import {
   ArrowLeft,
@@ -16,12 +16,15 @@ import {
   Loader2,
   Trash2,
   Edit3,
-  Bot,
+  FileText,
+  Image as ImageIcon,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { CornerBrackets } from "@/components/brand";
+import { CornerBrackets, BrandButton } from "@/components/brand";
 import { useChatStore } from "@/stores/chat-store";
 import { SidebarBottomPanel } from "./sidebar-bottom-panel";
+import { BuildModeBottomPanel } from "./build-mode-bottom-panel";
+import { ChatSidebarBottomPanel } from "./chat-sidebar-bottom-panel";
 
 interface ChatSidebarProps {
   className?: string;
@@ -49,7 +52,9 @@ export function ChatSidebar({
   onToggle,
 }: ChatSidebarProps) {
   const router = useRouter();
+  const pathname = usePathname();
   const [isMobile, setIsMobile] = useState(false);
+  const isBuildMode = pathname?.includes("/build");
   const {
     rooms,
     roomId,
@@ -67,17 +72,32 @@ export function ChatSidebar({
 
   // Filter rooms by selected character
   const filteredRooms = useMemo(() => {
+    console.log(
+      `[ChatSidebar] Filtering rooms: total=${rooms.length}, selectedCharacterId=${selectedCharacterId}`
+    );
+
     if (!selectedCharacterId) {
       // Show rooms with no character assignment (default Eliza)
-      return rooms.filter((room) => !room.characterId);
+      const filtered = rooms.filter((room) => !room.characterId);
+      console.log(
+        `[ChatSidebar] No character selected, showing ${filtered.length} rooms without character`
+      );
+      return filtered;
     }
+
     // Show rooms for the selected character
-    return rooms.filter((room) => room.characterId === selectedCharacterId);
+    const filtered = rooms.filter(
+      (room) => room.characterId === selectedCharacterId
+    );
+    console.log(
+      `[ChatSidebar] Character selected, showing ${filtered.length} rooms for character ${selectedCharacterId}`
+    );
+    return filtered;
   }, [rooms, selectedCharacterId]);
 
   // Find selected character details
   const selectedCharacter = availableCharacters.find(
-    (c) => c.id === selectedCharacterId,
+    (c) => c.id === selectedCharacterId
   );
 
   useEffect(() => {
@@ -90,10 +110,12 @@ export function ChatSidebar({
     return () => window.removeEventListener("resize", checkScreenSize);
   }, []);
 
-  // Load rooms on mount
+  // Load rooms on mount - Zustand functions are stable, so empty deps array is safe
   useEffect(() => {
+    console.log("[ChatSidebar] Mounting, loading rooms");
     loadRooms();
-  }, [loadRooms]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const handleNewChat = async () => {
     if (isCreatingRoom) return; // Prevent double-clicking
@@ -163,6 +185,12 @@ export function ChatSidebar({
         <div
           className="fixed inset-0 z-40 bg-black/50 md:hidden"
           onClick={onToggle}
+          onKeyDown={(e) => {
+            if (e.key === "Escape") onToggle?.();
+          }}
+          role="button"
+          tabIndex={0}
+          aria-label="Close sidebar"
         />
       )}
 
@@ -173,7 +201,7 @@ export function ChatSidebar({
           isMobile
             ? `fixed inset-y-0 left-0 z-50 w-64 ${isOpen ? "translate-x-0" : "-translate-x-full"}`
             : "w-64",
-          className,
+          className
         )}
       >
         {/* Header with Logo */}
@@ -185,10 +213,6 @@ export function ChatSidebar({
             href="/dashboard"
             className="flex items-center gap-2 transition-opacity hover:opacity-80 relative z-10"
           >
-            <span
-              className="inline-block w-2 h-2 rounded-full flex-shrink-0"
-              style={{ backgroundColor: "#FF5800" }}
-            />
             <Image
               src="/eliza-font.svg"
               alt="ELIZA"
@@ -201,6 +225,7 @@ export function ChatSidebar({
           {/* Mobile Close Button */}
           {isMobile && onToggle && (
             <button
+              type="button"
               onClick={onToggle}
               className="rounded-none p-2 hover:bg-white/10 focus:bg-white/10 focus:outline-none relative z-10 transition-colors"
               aria-label="Close navigation"
@@ -212,9 +237,10 @@ export function ChatSidebar({
 
         {/* Back Button */}
         <div className="border-b border-white/10 px-4 py-3">
-          <Link
-            href="/dashboard"
-            className="flex items-center gap-2 text-white/70 hover:text-white transition-colors"
+          <button
+            type="button"
+            onClick={() => router.back()}
+            className="flex items-center gap-2 text-white/70 hover:text-white transition-colors cursor-pointer"
             style={{
               fontFamily: "var(--font-roboto-mono)",
               fontWeight: 400,
@@ -225,69 +251,84 @@ export function ChatSidebar({
           >
             <ArrowLeft className="h-4 w-4" />
             <span>Back</span>
-          </Link>
+          </button>
         </div>
 
         {/* Selected Character Profile with New Chat Icon */}
-        <div className="border-b border-white/10 px-4 py-4">
-          <div className="flex items-center gap-3">
+        <div className="border-b border-white/10 px-6 py-4">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2">
             {/* Character Avatar */}
-            <div className="relative flex-shrink-0">
-              <div className="w-10 h-10 rounded-full bg-[#FF5800]/10 flex items-center justify-center overflow-hidden">
-                {selectedCharacter ? (
-                  <Bot className="h-5 w-5 text-[#FF5800]" />
+            <div className="relative shrink-0">
+              <div className="w-6 h-6 rounded-full bg-neutral-800 flex items-center justify-center overflow-hidden">
+                {selectedCharacter?.avatarUrl ? (
+                  <Image
+                    src={selectedCharacter.avatarUrl}
+                    alt={selectedCharacter.name}
+                    width={24}
+                    height={24}
+                    className="w-full h-full object-cover"
+                  />
                 ) : (
-                  <Bot className="h-5 w-5 text-[#FF5800]" />
+                  <Image
+                    src="/avatars/eliza-chibi.png"
+                    alt="Eliza"
+                    width={24}
+                    height={24}
+                    className="w-full h-full object-cover"
+                  />
                 )}
               </div>
             </div>
 
             {/* Character Info */}
-            <div className="flex-1 min-w-0">
-              <div
-                className="text-sm font-medium text-white truncate"
+            <div className="flex flex-col justify-center">
+              <p
+                className="truncate"
                 style={{
                   fontFamily: "var(--font-roboto-mono)",
-                  fontWeight: 400,
+                  fontWeight: 500,
                   fontSize: "14px",
-                  lineHeight: "18px",
-                  letterSpacing: "-0.003em",
+                  lineHeight: "normal",
+                  letterSpacing: "-0.042px",
+                  color: "#dfdfdf",
                 }}
               >
-                {selectedCharacter?.name || "Eliza"}
-              </div>
-              <div
-                className="text-xs text-white/60 truncate"
+                {selectedCharacter?.name || "Zilo"}
+              </p>
+              <p
+                className="truncate opacity-50"
                 style={{
                   fontFamily: "var(--font-roboto-mono)",
-                  fontWeight: 400,
-                  letterSpacing: "-0.003em",
+                  fontWeight: 500,
+                  fontSize: "10px",
+                  lineHeight: "normal",
+                  color: "#a1a1a1",
                 }}
               >
-                {selectedCharacter
-                  ? `${filteredRooms.length} interaction${filteredRooms.length !== 1 ? "s" : ""}`
-                  : `${filteredRooms.length} interaction${filteredRooms.length !== 1 ? "s" : ""}`}
-              </div>
+                {filteredRooms.length} Interaction{filteredRooms.length !== 1 ? "s" : ""}
+              </p>
+            </div>
             </div>
 
-            {/* New Chat Icon Button */}
+            {/* Edit Icon Button */}
             <button
               onClick={handleNewChat}
               disabled={isCreatingRoom}
-              className="flex-shrink-0 p-2 rounded-none hover:bg-white/10 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-              title="New chat"
+              className="shrink-0 p-1 hover:bg-white/5 rounded-none transition-colors"
+              title="Edit agent"
             >
               {isCreatingRoom ? (
-                <Loader2 className="h-4 w-4 text-white/80 animate-spin" />
+                <Loader2 className="h-6 w-6 animate-spin" style={{ color: "#dfdfdf" }} />
               ) : (
-                <Edit3 className="h-4 w-4 text-white/80" />
+                <Edit3 className="h-6 w-6" style={{ color: "#dfdfdf" }} />
               )}
             </button>
           </div>
         </div>
 
         {/* Rooms/Conversations List */}
-        <nav className="flex-1 overflow-y-auto px-2 py-4">
+        <nav className="flex-1 overflow-y-auto px-6 py-4">
           {isLoadingRooms && filteredRooms.length === 0 ? (
             <div className="flex items-center justify-center py-8">
               <Loader2 className="h-5 w-5 animate-spin text-white/60" />
@@ -301,90 +342,53 @@ export function ChatSidebar({
                   <div
                     key={room.id}
                     className={cn(
-                      "group relative w-full text-left px-3 py-3 rounded-none transition-colors",
-                      "hover:bg-white/5",
-                      roomId === room.id &&
-                        "bg-white/10 border-l-2 border-[#FF5800]",
+                      "group relative w-full text-left rounded-none transition-colors",
                       (isDeleting || isLoading) &&
-                        "opacity-50 pointer-events-none",
+                        "opacity-50 pointer-events-none"
                     )}
                   >
                     <button
+                      type="button"
                       onClick={() => handleSelectRoom(room.id)}
                       disabled={isDeleting || isLoading}
-                      className="w-full text-left"
+                      className={cn(
+                        "w-full text-left px-2 py-2 rounded-lg",
+                        roomId === room.id ? "bg-neutral-900" : "hover:bg-neutral-900/50"
+                      )}
                     >
-                      <div className="flex items-start gap-3">
+                      <div className="flex items-center gap-2">
                         {isLoading ? (
-                          <Loader2 className="h-4 w-4 text-[#FF5800] mt-0.5 shrink-0 animate-spin" />
+                          <Loader2 className="h-4 w-4 text-[#FF5800] shrink-0 animate-spin" />
                         ) : (
-                          <MessageSquare className="h-4 w-4 text-white/60 mt-0.5 shrink-0" />
+                          <ImageIcon className="h-4 w-4 shrink-0" style={{ color: "#adadad" }} />
                         )}
-                        <div className="flex-1 min-w-0">
-                          <div className="flex items-center justify-between gap-2 mb-1">
-                            <span
-                              className="text-sm font-medium text-white truncate"
-                              style={{
-                                fontFamily: "var(--font-roboto-mono)",
-                                fontWeight: 400,
-                                fontSize: "14px",
-                                lineHeight: "18px",
-                                letterSpacing: "-0.003em",
-                              }}
-                            >
-                              {room.title ||
-                                `Room ID: ${room.id.substring(0, 8)}`}
-                            </span>
-                            {room.lastTime && !isLoading && (
-                              <span
-                                className="text-xs text-white/40 shrink-0"
-                                style={{
-                                  fontFamily: "var(--font-roboto-mono)",
-                                  fontWeight: 400,
-                                  letterSpacing: "-0.003em",
-                                }}
-                              >
-                                {formatTimestamp(room.lastTime)}
-                              </span>
-                            )}
-                            {isLoading && (
-                              <span
-                                className="text-xs text-[#FF5800] shrink-0"
-                                style={{
-                                  fontFamily: "var(--font-roboto-mono)",
-                                  fontWeight: 400,
-                                  letterSpacing: "-0.003em",
-                                }}
-                              >
-                                Loading...
-                              </span>
-                            )}
-                          </div>
-                          {room.lastText && (
-                            <p
-                              className="text-xs text-white/60 truncate"
-                              style={{
-                                fontFamily: "var(--font-roboto-mono)",
-                                fontWeight: 400,
-                                letterSpacing: "-0.003em",
-                              }}
-                            >
-                              {room.lastText}
-                            </p>
-                          )}
-                        </div>
+                        <p
+                          className="truncate"
+                          style={{
+                            fontFamily: "var(--font-roboto-mono)",
+                            fontWeight: 400,
+                            fontSize: "14px",
+                            lineHeight: "normal",
+                            letterSpacing: "-0.042px",
+                            color: "#a1a1a1",
+                          }}
+                        >
+                          {room.title ||
+                            `Room ID: ${room.id.substring(0, 8)}`}
+                        </p>
                       </div>
                     </button>
                     <button
+                      type="button"
                       onClick={(e) => {
                         e.stopPropagation();
                         handleDeleteRoom(room.id);
                       }}
                       disabled={isDeleting}
                       className={cn(
-                        "absolute top-3 right-3 p-1 rounded-none",
+                        "absolute top-2 right-2 p-1 rounded-none",
                         "opacity-0 group-hover:opacity-100 transition-opacity",
-                        "hover:bg-red-500/10 hover:text-red-500",
+                        "hover:bg-red-500/10 hover:text-red-500"
                       )}
                       title="Delete conversation"
                     >
@@ -406,9 +410,12 @@ export function ChatSidebar({
                     letterSpacing: "-0.003em",
                   }}
                 >
-                  <p className="text-xs text-white/60">No conversations yet</p>
-                  <p className="text-xs text-white/40 mt-2">
-                    Click the edit icon to start
+                  <MessageSquare className="h-12 w-12 text-white/20 mx-auto mb-3" />
+                  <p className="text-sm font-medium text-white/70 mb-2">
+                    No conversations yet
+                  </p>
+                  <p className="text-xs text-white/50 leading-relaxed">
+                    Click &ldquo;New&rdquo; above or the button in chat to start
                   </p>
                 </div>
               )}
@@ -417,7 +424,7 @@ export function ChatSidebar({
         </nav>
 
         {/* User Settings Panel */}
-        <SidebarBottomPanel />
+        {isBuildMode ? <BuildModeBottomPanel /> : <ChatSidebarBottomPanel />}
       </aside>
     </>
   );

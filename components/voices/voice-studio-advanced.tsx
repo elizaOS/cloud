@@ -244,7 +244,8 @@ export function VoiceStudioAdvanced({
       <TabsList className="w-full border-b border-white/10 bg-transparent h-10 p-0 justify-start">
         <TabsTrigger
           value="clone"
-          className="data-[state=active]:bg-[#FF5800]/10 data-[state=active]:border-b-2 data-[state=active]:border-[#FF5800] px-3 md:px-4 h-full text-xs md:text-sm"
+          className="data-[state=active]:bg-white/10 data-[state=active]:border-b-2 data-[state=active]:border-white px-3 md:px-4 h-full text-xs md:text-sm"
+          style={{ fontFamily: "var(--font-roboto-mono)" }}
         >
           <Mic className="h-3.5 w-3.5 mr-1 md:mr-2" />
           <span className="hidden sm:inline">Clone Voice</span>
@@ -252,7 +253,8 @@ export function VoiceStudioAdvanced({
         </TabsTrigger>
         <TabsTrigger
           value="voices"
-          className="data-[state=active]:bg-[#FF5800]/10 data-[state=active]:border-b-2 data-[state=active]:border-[#FF5800] px-3 md:px-4 h-full text-xs md:text-sm"
+          className="data-[state=active]:bg-white/10 data-[state=active]:border-b-2 data-[state=active]:border-white px-3 md:px-4 h-full text-xs md:text-sm"
+          style={{ fontFamily: "var(--font-roboto-mono)" }}
         >
           <Library className="h-3.5 w-3.5 mr-1 md:mr-2" />
           <span className="hidden sm:inline">Voice Library</span>
@@ -283,44 +285,23 @@ export function VoiceStudioAdvanced({
           <CornerBrackets size="sm" className="opacity-50" />
 
           <div className="relative z-10 shrink-0">
-            <div className="flex flex-col gap-3 md:gap-4 mb-4">
-              <div className="flex items-start justify-between gap-2">
-                <div className="flex-1 min-w-0">
-                  <div className="flex items-center gap-2 mb-2">
-                    <div className="w-2 h-2 rounded-full bg-[#FF5800]" />
-                    <h3 className="text-base md:text-lg font-mono font-bold text-[#e1e1e1] uppercase">
-                      Voice Library
-                    </h3>
-                  </div>
-                  <p className="text-xs md:text-sm font-mono text-[#858585]">
-                    {voices.length} voice{voices.length !== 1 ? "s" : ""}
-                    {voices.some((v) => {
-                      const mins = Math.max(
-                        0,
-                        (new Date().getTime() -
-                          new Date(v.createdAt).getTime()) /
-                          1000 /
-                          60,
-                      );
-                      return v.cloneType === "professional" && mins < 60;
-                    }) && " • Some may still be processing"}
-                  </p>
+            <div className="flex items-start justify-between gap-4 mb-4">
+              {/* Left: Title and subtitle stacked */}
+              <div className="flex-1 min-w-0">
+                <div className="flex items-center gap-2 mb-1">
+                  <div className="w-2 h-2 rounded-full bg-white" />
+                  <h3 className="text-sm font-mono font-bold text-white uppercase" style={{ fontFamily: "var(--font-roboto-mono)", letterSpacing: "0.05em" }}>
+                    Voice Library
+                  </h3>
                 </div>
-                <button
-                  type="button"
-                  onClick={manualRefresh}
-                  disabled={isRefreshing}
-                  className="px-3 py-2 border border-white/20 bg-transparent text-white hover:bg-white/5 transition-colors disabled:opacity-50 flex-shrink-0"
-                >
-                  {isRefreshing ? (
-                    <Loader2 className="h-3 w-3 animate-spin" />
-                  ) : (
-                    <span className="text-xs font-mono">Refresh</span>
-                  )}
-                </button>
+                <p className="text-xs font-mono text-white/50" style={{ fontFamily: "var(--font-roboto-mono)" }}>
+                  {voices.length} voice{voices.length !== 1 ? "s" : ""}
+                </p>
               </div>
-              <div className="flex items-center gap-2 flex-wrap">
-                <span className="flex items-center gap-1 border border-white/20 bg-white/10 px-2 py-1 text-xs font-mono text-white whitespace-nowrap">
+
+              {/* Right: Stats and Refresh button inline */}
+              <div className="flex items-center gap-2 flex-shrink-0">
+                <span className="flex items-center gap-1 border border-white/20 bg-transparent px-2 py-1 text-xs font-mono text-white whitespace-nowrap" style={{ fontFamily: "var(--font-roboto-mono)" }}>
                   <BarChart3 className="h-3 w-3 flex-shrink-0" />
                   {voices.reduce((sum, v) => sum + v.usageCount, 0)} uses
                 </span>
@@ -329,12 +310,26 @@ export function VoiceStudioAdvanced({
                     "border px-2 py-1 text-xs font-mono whitespace-nowrap",
                     professionalVoicesRemaining === 0
                       ? "border-amber-500/40 bg-amber-500/10 text-amber-300"
-                      : "border-white/20 bg-white/10 text-white",
+                      : "border-white/20 bg-transparent text-white",
                   )}
                   title="Professional voice slots (ElevenLabs limitation)"
+                  style={{ fontFamily: "var(--font-roboto-mono)" }}
                 >
                   Pro: {professionalVoiceCount}/1
                 </span>
+                <button
+                  type="button"
+                  onClick={manualRefresh}
+                  disabled={isRefreshing}
+                  className="px-3 py-1.5 border border-white/20 bg-white text-black hover:bg-white/90 transition-colors disabled:opacity-50 flex-shrink-0"
+                  style={{ fontFamily: "var(--font-roboto-mono)" }}
+                >
+                  {isRefreshing ? (
+                    <Loader2 className="h-3 w-3 animate-spin" />
+                  ) : (
+                    <span className="text-xs font-mono font-medium">Refresh</span>
+                  )}
+                </button>
               </div>
             </div>
           </div>
@@ -343,15 +338,15 @@ export function VoiceStudioAdvanced({
 
           <div className="relative z-10 flex-1 p-0 overflow-hidden">
             {voices.length === 0 ? (
-              <div className="flex flex-col items-center justify-center h-full py-12 px-6 text-center">
-                <div className="rounded-full bg-[#FF580020] border border-[#FF5800]/40 p-6 mb-4">
-                  <Mic className="h-10 w-10 text-[#FF5800]" />
+              <div className="flex flex-col items-center justify-center h-full py-20 px-6 text-center">
+                <div className="rounded-none bg-white/5 border border-white/10 p-6 mb-6">
+                  <Mic className="h-12 w-12 text-white mx-auto" />
                 </div>
-                <h3 className="text-lg font-semibold mb-2 text-white">
+                <h3 className="text-xl font-semibold mb-3 text-white" style={{ fontFamily: "var(--font-roboto-mono)", fontSize: "20px", lineHeight: "28px" }}>
                   No voices yet
                 </h3>
-                <p className="text-sm text-white/60 max-w-sm">
-                  Create your first voice clone using the form on the left.
+                <p className="text-sm text-white/60 max-w-lg leading-relaxed" style={{ fontFamily: "var(--font-roboto-mono)", fontSize: "14px", lineHeight: "20px" }}>
+                  Create your first voice clone using the form on the left.<br />
                   Upload audio or record your voice to get started.
                 </p>
               </div>
@@ -368,7 +363,7 @@ export function VoiceStudioAdvanced({
                         hover
                         className={`cursor-pointer transition-all ${
                           selectedVoice?.id === voice.id
-                            ? "border-[#FF5800] ring-2 ring-[#FF5800]/40"
+                            ? "border-white ring-2 ring-white/40"
                             : ""
                         }`}
                         onClick={() => setSelectedVoice(voice)}
@@ -537,7 +532,7 @@ export function VoiceStudioAdvanced({
                       <div className="my-6 border-t border-white/10" />
                       <div className="pb-4">
                         <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-wide text-white/50 mb-3">
-                          <Sparkles className="h-4 w-4 text-[#FF5800]" />
+                          <Sparkles className="h-4 w-4 text-white" />
                           Voice Insights
                         </div>
                         <div className="grid gap-3 rounded-none bg-black/40 border border-white/10 p-4 text-xs">
@@ -645,7 +640,7 @@ export function VoiceStudioAdvanced({
           <div className="space-y-4">
             {isLoadingPreview ? (
               <div className="flex items-center justify-center py-8">
-                <Loader2 className="h-8 w-8 animate-spin text-[#FF5800]" />
+                <Loader2 className="h-8 w-8 animate-spin text-white" />
               </div>
             ) : previewAudioUrl ? (
               <div className="p-4 rounded-none bg-black/40 border border-white/10">

@@ -7,7 +7,6 @@ import { z } from "zod";
 
 const updateProfileSchema = z.object({
   name: z.string().min(1, "Name is required").max(100, "Name too long"),
-  avatar: z.string().url("Invalid avatar URL").optional().or(z.literal("")),
 });
 
 const updateEmailSchema = z.object({
@@ -20,7 +19,6 @@ export async function updateProfile(formData: FormData) {
 
     const data = {
       name: formData.get("name") as string,
-      avatar: formData.get("avatar") as string,
     };
 
     // Validate input
@@ -29,7 +27,6 @@ export async function updateProfile(formData: FormData) {
     // Update user
     await usersService.update(user.id, {
       name: validated.name,
-      avatar: validated.avatar || null,
     });
 
     // Revalidate cache
@@ -124,48 +121,67 @@ export async function updateEmail(formData: FormData) {
 export async function uploadAvatar(formData: FormData) {
   try {
     const user = await requireAuth();
-    const file = formData.get("file") as File;
+    const imageData = formData.get("imageData") as string;
 
-    if (!file) {
+    if (!imageData) {
       return {
         success: false,
-        error: "No file provided",
+        error: "No image data provided",
       };
     }
 
-    // Validate file type
+    // Validate it's a base64 data URL
+    if (!imageData.startsWith("data:image/")) {
+      return {
+        success: false,
+        error: "Invalid image data format",
+      };
+    }
+
+    // Extract MIME type
+    const mimeMatch = imageData.match(/^data:([^;]+);base64,/);
+    if (!mimeMatch) {
+      return {
+        success: false,
+        error: "Invalid image data format",
+      };
+    }
+
+    const mimeType = mimeMatch[1];
+
+    // Validate MIME type
     const validTypes = ["image/jpeg", "image/jpg", "image/png", "image/webp"];
-    if (!validTypes.includes(file.type)) {
+    if (!validTypes.includes(mimeType)) {
       return {
         success: false,
-        error: "Invalid file type. Only JPEG, PNG, and WebP are allowed.",
+        error: "Invalid image type. Only JPEG, PNG, and WebP are allowed.",
       };
     }
 
-    // Validate file size (5MB max)
-    if (file.size > 5 * 1024 * 1024) {
+    // Validate base64 data size (limit to ~500KB after optimization)
+    const base64Length = imageData.length;
+    const sizeInBytes = (base64Length * 3) / 4;
+    if (sizeInBytes > 500 * 1024) {
       return {
         success: false,
-        error: "File too large. Maximum size is 5MB.",
+        error: "Optimized image is too large. Please try a smaller image.",
       };
     }
 
-    // TODO: Implement actual file upload to your storage service
-    // For now, we'll just return a placeholder URL
-    // In production, you'd upload to S3, Cloudflare R2, etc.
-    const seed =
-      user.name ||
-      user.email ||
-      (user.wallet_address
-        ? `${user.wallet_address.substring(0, 6)}...${user.wallet_address.substring(user.wallet_address.length - 4)}`
-        : "User");
-    const avatarUrl = `https://api.dicebear.com/7.x/initials/svg?seed=${encodeURIComponent(seed)}`;
+    // Generate avatar URL (API endpoint)
+    const avatarUrl = `/api/avatar/${user.id}`;
 
+    // Update user in database with base64 data
     await usersService.update(user.id, {
       avatar: avatarUrl,
+      avatar_data: imageData,
+      avatar_mime_type: mimeType,
     });
 
+    // Revalidate pages that display the avatar
     revalidatePath("/dashboard/account");
+    revalidatePath("/dashboard/settings");
+    revalidatePath("/");
 
     return {
       success: true,

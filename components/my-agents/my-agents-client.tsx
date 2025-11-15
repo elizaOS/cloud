@@ -70,21 +70,24 @@ export function MyAgentsClient({ initialCharacters }: MyAgentsClientProps) {
         </BrandButton>
       ),
     },
-    [initialCharacters.length, handleCreateNew],
+    [initialCharacters.length, handleCreateNew]
   );
 
   return (
-    <div className="flex flex-col h-full gap-6">
-      <CharacterFilters
-        searchQuery={searchQuery}
-        onSearchChange={setSearchQuery}
-        viewMode={viewMode}
-        onViewModeChange={setViewMode}
-        sortBy={sortBy}
-        onSortChange={setSortBy}
-        totalCount={initialCharacters.length}
-        filteredCount={filteredCharacters.length}
-      />
+    <div className="flex flex-col h-full">
+      {/* Hidden Filters - Keep for later */}
+      <div className="hidden">
+        <CharacterFilters
+          searchQuery={searchQuery}
+          onSearchChange={setSearchQuery}
+          viewMode={viewMode}
+          onViewModeChange={setViewMode}
+          sortBy={sortBy}
+          onSortChange={setSortBy}
+          totalCount={initialCharacters.length}
+          filteredCount={filteredCharacters.length}
+        />
+      </div>
 
       <CharacterLibraryGrid
         characters={sortedCharacters}

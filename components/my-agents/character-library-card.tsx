@@ -2,7 +2,6 @@
 
 import { useState, useCallback } from "react";
 import { useRouter } from "next/navigation";
-import { BrandCard, CornerBrackets } from "@/components/brand";
 import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
@@ -11,7 +10,6 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { Badge } from "@/components/ui/badge";
 import {
   MessageSquare,
   Edit,
@@ -19,11 +17,12 @@ import {
   Download,
   Trash2,
   MoreVertical,
-  Bot,
+  Code,
 } from "lucide-react";
 import { toast } from "sonner";
 import type { ElizaCharacter } from "@/lib/types";
 import type { ViewMode } from "./my-agents-client";
+import Image from "next/image";
 
 interface CharacterLibraryCardProps {
   character: ElizaCharacter;
@@ -38,8 +37,13 @@ export function CharacterLibraryCard({
   const [isDeleting, setIsDeleting] = useState(false);
 
   const handleTest = useCallback(() => {
+    console.log("[CharacterCard] Navigating to chat with:", {
+      characterId: character.id,
+      characterName: character.name,
+      url: `/dashboard/chat?characterId=${character.id}`,
+    });
     router.push(`/dashboard/chat?characterId=${character.id}`);
-  }, [router, character.id]);
+  }, [router, character.id, character.name]);
 
   const handleEdit = useCallback(() => {
     router.push(`/dashboard/character-creator?id=${character.id}`);
@@ -49,7 +53,6 @@ export function CharacterLibraryCard({
     try {
       toast.info("Duplicating character...");
       // TODO: Implement duplicate functionality
-      // For now, just navigate to creator with character data
       router.push(`/dashboard/character-creator`);
     } catch (error) {
       toast.error("Failed to duplicate character");
@@ -75,7 +78,7 @@ export function CharacterLibraryCard({
   const handleDelete = useCallback(async () => {
     if (
       !confirm(
-        `Are you sure you want to delete "${character.name}"? This action cannot be undone.`,
+        `Are you sure you want to delete "${character.name}"? This action cannot be undone.`
       )
     ) {
       return;
@@ -96,172 +99,141 @@ export function CharacterLibraryCard({
     ? character.bio[0] || ""
     : character.bio || "";
 
-  const topicCount = character.topics?.length || 0;
-  const pluginCount = character.plugins?.length || 0;
+  // Check if this is a top performing agent (use featured property from template)
+  const isTopPerforming = (character as any).featured || false;
 
-  if (viewMode === "list") {
-    return (
-      <BrandCard className="relative p-4 hover:border-[#FF5800]/50 transition-colors">
-        <CornerBrackets size="sm" className="opacity-30" />
-        <div className="relative z-10 flex items-center gap-4">
-          {/* Avatar */}
-          <div className="flex-shrink-0 w-12 h-12 rounded-full bg-[#FF5800]/20 flex items-center justify-center">
-            <Bot className="h-6 w-6 text-[#FF5800]" />
-          </div>
+  // Get avatar URL - handle both ElizaCharacter (no avatarUrl) and ExtendedCharacter (has avatarUrl)
+  const avatarUrl =
+    (character as any).avatarUrl || (character as any).avatar_url;
 
-          {/* Info */}
-          <div className="flex-1 min-w-0">
-            <h3 className="text-lg font-bold text-white truncate">
-              {character.name || "Unnamed Character"}
-            </h3>
-            <p className="text-sm text-white/60 truncate">{bio}</p>
-            <div className="flex gap-2 mt-2">
-              {topicCount > 0 && (
-                <Badge variant="outline" className="text-xs">
-                  {topicCount} topic{topicCount !== 1 ? "s" : ""}
-                </Badge>
-              )}
-              {pluginCount > 0 && (
-                <Badge variant="outline" className="text-xs">
-                  {pluginCount} plugin{pluginCount !== 1 ? "s" : ""}
-                </Badge>
-              )}
-            </div>
-          </div>
-
-          {/* Actions */}
-          <div className="flex items-center gap-2">
-            <Button
-              size="sm"
-              variant="default"
-              onClick={handleTest}
-              className="bg-[#FF5800] hover:bg-[#FF5800]/90"
-            >
-              <MessageSquare className="h-4 w-4 mr-2" />
-              Test
-            </Button>
-            <Button size="sm" variant="outline" onClick={handleEdit}>
-              <Edit className="h-4 w-4 mr-2" />
-              Edit
-            </Button>
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <Button size="sm" variant="ghost">
-                  <MoreVertical className="h-4 w-4" />
-                </Button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent align="end">
-                <DropdownMenuItem onClick={handleDuplicate}>
-                  <Copy className="h-4 w-4 mr-2" />
-                  Duplicate
-                </DropdownMenuItem>
-                <DropdownMenuItem onClick={handleExport}>
-                  <Download className="h-4 w-4 mr-2" />
-                  Export JSON
-                </DropdownMenuItem>
-                <DropdownMenuSeparator />
-                <DropdownMenuItem
-                  onClick={handleDelete}
-                  className="text-destructive focus:text-destructive"
-                  disabled={isDeleting}
-                >
-                  <Trash2 className="h-4 w-4 mr-2" />
-                  Delete
-                </DropdownMenuItem>
-              </DropdownMenuContent>
-            </DropdownMenu>
-          </div>
-        </div>
-      </BrandCard>
-    );
-  }
-
-  // Grid view
+  // Grid view - Exact Figma design specs
   return (
-    <BrandCard className="relative p-6 hover:border-[#FF5800]/50 transition-colors group">
-      <CornerBrackets size="sm" className="opacity-30" />
-      <div className="relative z-10 flex flex-col h-full">
-        {/* Header with avatar and menu */}
-        <div className="flex items-start justify-between mb-4">
-          <div className="w-16 h-16 rounded-full bg-[#FF5800]/20 flex items-center justify-center">
-            <Bot className="h-8 w-8 text-[#FF5800]" />
-          </div>
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <Button
-                size="sm"
-                variant="ghost"
-                className="opacity-0 group-hover:opacity-100 transition-opacity"
-              >
-                <MoreVertical className="h-4 w-4" />
-              </Button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="end">
-              <DropdownMenuItem onClick={handleDuplicate}>
-                <Copy className="h-4 w-4 mr-2" />
-                Duplicate
-              </DropdownMenuItem>
-              <DropdownMenuItem onClick={handleExport}>
-                <Download className="h-4 w-4 mr-2" />
-                Export JSON
-              </DropdownMenuItem>
-              <DropdownMenuSeparator />
-              <DropdownMenuItem
-                onClick={handleDelete}
-                className="text-destructive focus:text-destructive"
-                disabled={isDeleting}
-              >
-                <Trash2 className="h-4 w-4 mr-2" />
-                Delete
-              </DropdownMenuItem>
-            </DropdownMenuContent>
-          </DropdownMenu>
-        </div>
+    <div
+      className="border border-[rgba(62,62,67,0.5)] border-solid overflow-hidden relative w-full cursor-pointer hover:border-[rgba(255,88,0,0.5)] transition-colors"
+      onClick={handleTest}
+      role="button"
+      tabIndex={0}
+      aria-label={`Open chat with ${character.name || "Agent"}`}
+      onKeyDown={(e) => {
+        if (e.key === "Enter" || e.key === " ") {
+          e.preventDefault();
+          handleTest();
+        }
+      }}
+    >
+      {/* Image Area - 347px height with 12px padding */}
+      <div className="relative h-[347px] w-full p-[12px] flex items-center justify-center bg-black/40">
+        {avatarUrl ? (
+          <Image
+            key={`${character.id}-${avatarUrl}`}
+            src={avatarUrl}
+            alt={character.name || "Agent"}
+            fill
+            className="object-cover"
+            unoptimized
+          />
+        ) : (
+          <div className="w-full h-full bg-gradient-to-br from-[#FF5800]/20 to-[#FF5800]/5" />
+        )}
+      </div>
 
-        {/* Content */}
-        <div className="flex-1">
-          <h3 className="text-lg font-bold text-white mb-2 line-clamp-1">
-            {character.name || "Unnamed Character"}
-          </h3>
-          <p className="text-sm text-white/60 mb-4 line-clamp-3">{bio}</p>
-
-          {/* Tags */}
-          <div className="flex flex-wrap gap-2 mb-4">
-            {topicCount > 0 && (
-              <Badge variant="outline" className="text-xs">
-                {topicCount} topic{topicCount !== 1 ? "s" : ""}
-              </Badge>
-            )}
-            {pluginCount > 0 && (
-              <Badge variant="outline" className="text-xs">
-                {pluginCount} plugin{pluginCount !== 1 ? "s" : ""}
-              </Badge>
+      {/* Content Area - 16px padding */}
+      <div className="p-[16px] flex flex-col gap-[12px]">
+        {/* Heading and Icons - gap-[12px] */}
+        <div className="flex items-center justify-between gap-[12px]">
+          {/* Left: Name and Badge - gap-[8px] */}
+          <div className="flex items-center gap-[8px] flex-1 min-w-0">
+            <h3
+              className="font-['Roboto_Mono'] font-bold text-white text-[16px] leading-[24px] truncate"
+              style={{ fontFamily: "'Roboto Mono', monospace" }}
+            >
+              {character.name || "Unnamed"}
+            </h3>
+            {isTopPerforming && (
+              <span
+                className="font-['Roboto_Flex'] font-medium text-[#ff5800] text-[12px] leading-normal whitespace-nowrap"
+                style={{
+                  fontFamily: "'Roboto Flex', sans-serif",
+                  fontVariationSettings:
+                    "'GRAD' 0, 'XOPQ' 96, 'XTRA' 468, 'YOPQ' 79, 'YTAS' 750, 'YTDE' -203, 'YTFI' 738, 'YTLC' 514, 'YTUC' 712, 'wdth' 100",
+                }}
+              >
+                Top performing
+              </span>
             )}
           </div>
+
+          {/* Right: Action Icons - gap-[4px], 28x28px containers */}
+          <div className="flex items-center gap-[4px] shrink-0">
+            <button
+              type="button"
+              onClick={(e) => {
+                e.stopPropagation();
+                handleTest();
+              }}
+              className="w-[28px] h-[28px] flex items-center justify-center hover:bg-white/5 transition-colors rounded-[8px]"
+              title="Chat"
+            >
+              <MessageSquare className="w-[18px] h-[18px] text-[#adadad]" />
+            </button>
+            <button
+              type="button"
+              onClick={(e) => {
+                e.stopPropagation();
+                handleEdit();
+              }}
+              className="w-[28px] h-[28px] flex items-center justify-center hover:bg-white/5 transition-colors rounded-[8px]"
+              title="Code view"
+            >
+              <Code className="w-[18px] h-[18px] text-[#adadad]" />
+            </button>
+          </div>
         </div>
 
-        {/* Actions */}
-        <div className="flex gap-2">
-          <Button
-            size="sm"
-            variant="default"
-            onClick={handleTest}
-            className="flex-1 bg-[#FF5800] hover:bg-[#FF5800]/90"
+        {/* Description - gap-[4px] from heading */}
+        <div className="flex items-end gap-[4px]">
+          <p
+            className="flex-1 font-['Roboto_Flex'] font-normal text-[16px] leading-[20px] text-[rgba(255,255,255,0.6)] line-clamp-2 min-w-0"
+            style={{
+              fontFamily: "'Roboto Flex', sans-serif",
+              fontVariationSettings:
+                "'GRAD' 0, 'XOPQ' 96, 'XTRA' 468, 'YOPQ' 79, 'YTAS' 750, 'YTDE' -203, 'YTFI' 738, 'YTLC' 514, 'YTUC' 712, 'wdth' 100",
+            }}
           >
-            <MessageSquare className="h-4 w-4 mr-2" />
-            Test
-          </Button>
-          <Button
-            size="sm"
-            variant="outline"
-            onClick={handleEdit}
-            className="flex-1"
-          >
-            <Edit className="h-4 w-4 mr-2" />
-            Edit
-          </Button>
+            {bio || "No description available"}
+          </p>
         </div>
       </div>
-    </BrandCard>
+
+      {/* Hidden dropdown menu for future actions */}
+      <div className="hidden">
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <Button size="sm" variant="ghost">
+              <MoreVertical className="h-4 w-4" />
+            </Button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="end">
+            <DropdownMenuItem onClick={handleDuplicate}>
+              <Copy className="h-4 w-4 mr-2" />
+              Duplicate
+            </DropdownMenuItem>
+            <DropdownMenuItem onClick={handleExport}>
+              <Download className="h-4 w-4 mr-2" />
+              Export JSON
+            </DropdownMenuItem>
+            <DropdownMenuSeparator />
+            <DropdownMenuItem
+              onClick={handleDelete}
+              className="text-destructive focus:text-destructive"
+              disabled={isDeleting}
+            >
+              <Trash2 className="h-4 w-4 mr-2" />
+              Delete
+            </DropdownMenuItem>
+          </DropdownMenuContent>
+        </DropdownMenu>
+      </div>
+    </div>
   );
 }
