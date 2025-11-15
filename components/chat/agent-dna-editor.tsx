@@ -238,202 +238,728 @@ export function AgentDnaEditor({
               />
             )}
             {activeTab === "model-calls" && (
-              <div className="flex h-full flex-col overflow-y-auto p-6">
-                <div className="space-y-6 max-w-2xl">
-                  {/* Model Settings Section */}
-                  <div className="space-y-4">
-                    <div>
-                      <h3 className="text-lg font-semibold text-white mb-1">
-                        Model Configuration
-                      </h3>
-                      <p className="text-sm text-white/60">
-                        Configure default model parameters for this agent
-                      </p>
+              <div className="flex h-full flex-col overflow-y-auto">
+                {/* Header with Actions count, Search, and Filter */}
+                <div className="flex-shrink-0 border-b border-white/10 px-6 py-6">
+                  <div className="flex items-center justify-between gap-4">
+                    {/* Actions Label with Count */}
+                    <div className="flex items-center gap-2">
+                      <span
+                        style={{
+                          fontFamily: "var(--font-roboto-mono)",
+                          fontSize: "14px",
+                          fontWeight: 500,
+                          color: "#ffffff",
+                        }}
+                      >
+                        Actions
+                      </span>
+                      <span
+                        className="px-2 py-0.5 rounded-none bg-white/10"
+                        style={{
+                          fontFamily: "var(--font-roboto-mono)",
+                          fontSize: "12px",
+                          fontWeight: 400,
+                          color: "#a1a1a1",
+                        }}
+                      >
+                        4
+                      </span>
                     </div>
 
-                    {/* Temperature */}
-                    <div className="space-y-2">
-                      <label
-                        htmlFor="temperature"
-                        className="text-xs font-medium text-white/70 uppercase tracking-wide"
+                    {/* Search and Filter */}
+                    <div className="flex items-center gap-3">
+                      {/* Search Input */}
+                      <div className="relative">
+                        <div className="absolute left-3 top-1/2 -translate-y-1/2">
+                          <svg
+                            width="16"
+                            height="16"
+                            viewBox="0 0 16 16"
+                            fill="none"
+                            xmlns="http://www.w3.org/2000/svg"
+                          >
+                            <path
+                              d="M14 14L11.1 11.1M12.6667 7.33333C12.6667 10.2789 10.2789 12.6667 7.33333 12.6667C4.38781 12.6667 2 10.2789 2 7.33333C2 4.38781 4.38781 2 7.33333 2C10.2789 2 12.6667 4.38781 12.6667 7.33333Z"
+                              stroke="#6B7280"
+                              strokeWidth="1.5"
+                              strokeLinecap="round"
+                              strokeLinejoin="round"
+                            />
+                          </svg>
+                        </div>
+                        <input
+                          type="text"
+                          placeholder="Search actions..."
+                          className="h-11 w-64 pl-10 pr-3 rounded-none border border-white/10 bg-black/40 text-white placeholder:text-white/40 focus:outline-none focus:ring-1 focus:ring-[#FF5800] focus:border-[#FF5800]"
+                          style={{
+                            fontFamily: "var(--font-roboto-mono)",
+                            fontSize: "14px",
+                          }}
+                        />
+                      </div>
+
+                      {/* All Actions Dropdown */}
+                      <button
+                        className="h-11 px-4 rounded-none border border-white/10 bg-black/40 text-white hover:bg-white/5 transition-colors flex items-center gap-2"
+                        style={{
+                          fontFamily: "var(--font-roboto-mono)",
+                          fontSize: "14px",
+                        }}
                       >
-                        Temperature
-                      </label>
-                      <input
-                        id="temperature"
-                        type="number"
-                        min="0"
-                        max="2"
-                        step="0.1"
-                        value={
-                          typeof character.settings?.temperature === "number"
-                            ? character.settings.temperature
-                            : 0.7
-                        }
-                        onChange={(e) =>
-                          onChange({
-                            ...character,
-                            settings: {
-                              ...character.settings,
-                              temperature: parseFloat(e.target.value),
-                            },
-                          })
-                        }
-                        className="w-full rounded-none border border-white/10 bg-black/40 px-3 py-2 text-white placeholder:text-white/40 focus:ring-1 focus:ring-[#FF5800] focus:border-[#FF5800]"
-                      />
-                      <p className="text-xs text-white/50">
-                        Controls randomness: 0 = focused, 2 = creative (default: 0.7)
-                      </p>
+                        <span>All Actions</span>
+                        <svg
+                          width="16"
+                          height="16"
+                          viewBox="0 0 16 16"
+                          fill="none"
+                          xmlns="http://www.w3.org/2000/svg"
+                        >
+                          <path
+                            d="M4 6L8 10L12 6"
+                            stroke="currentColor"
+                            strokeWidth="1.5"
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                          />
+                        </svg>
+                      </button>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Date Separator */}
+                <div className="px-6 py-4">
+                  <p
+                    className="text-center"
+                    style={{
+                      fontFamily: "var(--font-roboto-mono)",
+                      fontSize: "12px",
+                      fontWeight: 400,
+                      color: "#a1a1a1",
+                    }}
+                  >
+                    11/04/2025
+                  </p>
+                </div>
+
+                {/* Action Cards List */}
+                <div className="flex-1 px-6 pb-6 space-y-0">
+                  {/* LLM Action Card */}
+                  <div className="border border-white/10 bg-black/20">
+                    <div className="p-3">
+                      <div className="flex items-start gap-3">
+                        {/* Icon */}
+                        <div className="flex-shrink-0 w-8 h-8 rounded-none bg-white/5 flex items-center justify-center">
+                          <svg
+                            width="16"
+                            height="16"
+                            viewBox="0 0 16 16"
+                            fill="none"
+                            xmlns="http://www.w3.org/2000/svg"
+                          >
+                            <path
+                              d="M8 14C11.3137 14 14 11.3137 14 8C14 4.68629 11.3137 2 8 2C4.68629 2 2 4.68629 2 8C2 11.3137 4.68629 14 8 14Z"
+                              stroke="#a1a1a1"
+                              strokeWidth="1.5"
+                            />
+                            <path
+                              d="M5 7.5H6.5M9.5 7.5H11M6.5 10C6.5 10 7 11 8 11C9 11 9.5 10 9.5 10"
+                              stroke="#a1a1a1"
+                              strokeWidth="1.5"
+                              strokeLinecap="round"
+                            />
+                          </svg>
+                        </div>
+
+                        {/* Content */}
+                        <div className="flex-1 min-w-0">
+                          {/* Title Row */}
+                          <div className="flex items-center gap-2 mb-2">
+                            <span
+                              style={{
+                                fontFamily: "var(--font-roboto-mono)",
+                                fontSize: "14px",
+                                fontWeight: 500,
+                                color: "#ffffff",
+                              }}
+                            >
+                              LLM
+                            </span>
+                            <span
+                              className="px-2 py-0.5 rounded-none bg-white/10"
+                              style={{
+                                fontFamily: "var(--font-roboto-mono)",
+                                fontSize: "10px",
+                                fontWeight: 400,
+                                color: "#a1a1a1",
+                              }}
+                            >
+                              TEXT_LARGE
+                            </span>
+                          </div>
+
+                          {/* Second Row - Type Badge */}
+                          <div className="flex items-center gap-2 mb-2">
+                            <Zap className="w-4 h-4" style={{ color: "#a1a1a1" }} />
+                            <span
+                              style={{
+                                fontFamily: "var(--font-roboto-mono)",
+                                fontSize: "12px",
+                                fontWeight: 400,
+                                color: "#a1a1a1",
+                              }}
+                            >
+                              TEXT_LARGE
+                            </span>
+                          </div>
+
+                          {/* Timestamp Row */}
+                          <div className="flex items-center gap-2">
+                            <svg
+                              width="16"
+                              height="16"
+                              viewBox="0 0 16 16"
+                              fill="none"
+                              xmlns="http://www.w3.org/2000/svg"
+                            >
+                              <path
+                                d="M8 14C11.3137 14 14 11.3137 14 8C14 4.68629 11.3137 2 8 2C4.68629 2 2 4.68629 2 8C2 11.3137 4.68629 14 8 14Z"
+                                stroke="#a1a1a1"
+                                strokeWidth="1.5"
+                              />
+                              <path
+                                d="M8 4V8L10.5 10.5"
+                                stroke="#a1a1a1"
+                                strokeWidth="1.5"
+                                strokeLinecap="round"
+                              />
+                            </svg>
+                            <span
+                              style={{
+                                fontFamily: "var(--font-roboto-mono)",
+                                fontSize: "12px",
+                                fontWeight: 400,
+                                color: "#a1a1a1",
+                              }}
+                            >
+                              0s ago
+                            </span>
+                            <span
+                              className="px-2 py-0.5 rounded-none bg-white/5"
+                              style={{
+                                fontFamily: "var(--font-roboto-mono)",
+                                fontSize: "10px",
+                                fontWeight: 400,
+                                color: "#a1a1a1",
+                              }}
+                            >
+                              e362f395
+                            </span>
+                          </div>
+                        </div>
+                      </div>
                     </div>
 
-                    {/* Max Tokens */}
-                    <div className="space-y-2">
-                      <label
-                        htmlFor="max-tokens"
-                        className="text-xs font-medium text-white/70 uppercase tracking-wide"
+                    {/* Footer */}
+                    <div className="border-t border-white/10 px-3 py-2 flex items-center justify-between">
+                      <div className="flex items-center gap-2">
+                        <svg
+                          width="16"
+                          height="16"
+                          viewBox="0 0 16 16"
+                          fill="none"
+                          xmlns="http://www.w3.org/2000/svg"
+                        >
+                          <path
+                            d="M8 14C11.3137 14 14 11.3137 14 8C14 4.68629 11.3137 2 8 2C4.68629 2 2 4.68629 2 8C2 11.3137 4.68629 14 8 14Z"
+                            stroke="#a1a1a1"
+                            strokeWidth="1.5"
+                          />
+                          <path
+                            d="M8 8H8.00667M8 5.33333H8.00667M8 10.6667H8.00667"
+                            stroke="#a1a1a1"
+                            strokeWidth="2"
+                            strokeLinecap="round"
+                          />
+                        </svg>
+                        <span
+                          style={{
+                            fontFamily: "var(--font-roboto-mono)",
+                            fontSize: "12px",
+                            fontWeight: 400,
+                            color: "#a1a1a1",
+                          }}
+                        >
+                          Contains parameters and response data
+                        </span>
+                      </div>
+                      <button
+                        className="hover:text-white transition-colors"
+                        style={{
+                          fontFamily: "var(--font-roboto-mono)",
+                          fontSize: "12px",
+                          fontWeight: 400,
+                          color: "#a1a1a1",
+                        }}
                       >
-                        Max Tokens
-                      </label>
-                      <input
-                        id="max-tokens"
-                        type="number"
-                        min="1"
-                        max="32000"
-                        step="1"
-                        value={
-                          typeof character.settings?.maxTokens === "number"
-                            ? character.settings.maxTokens
-                            : 2000
-                        }
-                        onChange={(e) =>
-                          onChange({
-                            ...character,
-                            settings: {
-                              ...character.settings,
-                              maxTokens: parseInt(e.target.value, 10),
-                            },
-                          })
-                        }
-                        className="w-full rounded-none border border-white/10 bg-black/40 px-3 py-2 text-white placeholder:text-white/40 focus:ring-1 focus:ring-[#FF5800] focus:border-[#FF5800]"
-                      />
-                      <p className="text-xs text-white/50">
-                        Maximum length of generated responses (default: 2000)
-                      </p>
-                    </div>
-
-                    {/* Top P */}
-                    <div className="space-y-2">
-                      <label
-                        htmlFor="top-p"
-                        className="text-xs font-medium text-white/70 uppercase tracking-wide"
-                      >
-                        Top P
-                      </label>
-                      <input
-                        id="top-p"
-                        type="number"
-                        min="0"
-                        max="1"
-                        step="0.1"
-                        value={
-                          typeof character.settings?.topP === "number"
-                            ? character.settings.topP
-                            : 0.9
-                        }
-                        onChange={(e) =>
-                          onChange({
-                            ...character,
-                            settings: {
-                              ...character.settings,
-                              topP: parseFloat(e.target.value),
-                            },
-                          })
-                        }
-                        className="w-full rounded-none border border-white/10 bg-black/40 px-3 py-2 text-white placeholder:text-white/40 focus:ring-1 focus:ring-[#FF5800] focus:border-[#FF5800]"
-                      />
-                      <p className="text-xs text-white/50">
-                        Nucleus sampling: considers top tokens (default: 0.9)
-                      </p>
-                    </div>
-
-                    {/* Frequency Penalty */}
-                    <div className="space-y-2">
-                      <label
-                        htmlFor="frequency-penalty"
-                        className="text-xs font-medium text-white/70 uppercase tracking-wide"
-                      >
-                        Frequency Penalty
-                      </label>
-                      <input
-                        id="frequency-penalty"
-                        type="number"
-                        min="-2"
-                        max="2"
-                        step="0.1"
-                        value={
-                          typeof character.settings?.frequencyPenalty === "number"
-                            ? character.settings.frequencyPenalty
-                            : 0
-                        }
-                        onChange={(e) =>
-                          onChange({
-                            ...character,
-                            settings: {
-                              ...character.settings,
-                              frequencyPenalty: parseFloat(e.target.value),
-                            },
-                          })
-                        }
-                        className="w-full rounded-none border border-white/10 bg-black/40 px-3 py-2 text-white placeholder:text-white/40 focus:ring-1 focus:ring-[#FF5800] focus:border-[#FF5800]"
-                      />
-                      <p className="text-xs text-white/50">
-                        Reduces repetition of frequent tokens (default: 0)
-                      </p>
-                    </div>
-
-                    {/* Presence Penalty */}
-                    <div className="space-y-2">
-                      <label
-                        htmlFor="presence-penalty"
-                        className="text-xs font-medium text-white/70 uppercase tracking-wide"
-                      >
-                        Presence Penalty
-                      </label>
-                      <input
-                        id="presence-penalty"
-                        type="number"
-                        min="-2"
-                        max="2"
-                        step="0.1"
-                        value={
-                          typeof character.settings?.presencePenalty === "number"
-                            ? character.settings.presencePenalty
-                            : 0
-                        }
-                        onChange={(e) =>
-                          onChange({
-                            ...character,
-                            settings: {
-                              ...character.settings,
-                              presencePenalty: parseFloat(e.target.value),
-                            },
-                          })
-                        }
-                        className="w-full rounded-none border border-white/10 bg-black/40 px-3 py-2 text-white placeholder:text-white/40 focus:ring-1 focus:ring-[#FF5800] focus:border-[#FF5800]"
-                      />
-                      <p className="text-xs text-white/50">
-                        Encourages new topics (default: 0)
-                      </p>
+                        View details
+                      </button>
                     </div>
                   </div>
 
-                  {/* Info Box */}
-                  <div className="rounded-none bg-black/40 border border-white/10 p-4">
-                    <p className="text-sm text-white/60">
-                      These settings control how the AI model generates responses.
-                      Adjust them to fine-tune your agent&apos;s behavior. Changes apply
-                      to new conversations.
-                    </p>
+                  {/* Other Action Card */}
+                  <div className="border border-white/10 border-t-0 bg-black/20">
+                    <div className="p-3">
+                      <div className="flex items-start gap-3">
+                        {/* Icon */}
+                        <div className="flex-shrink-0 w-8 h-8 rounded-none bg-white/5 flex items-center justify-center">
+                          <svg
+                            width="16"
+                            height="16"
+                            viewBox="0 0 16 16"
+                            fill="none"
+                            xmlns="http://www.w3.org/2000/svg"
+                          >
+                            <path
+                              d="M2 8H6M10 8H14M8 2L8 6M8 10L8 14"
+                              stroke="#a1a1a1"
+                              strokeWidth="1.5"
+                              strokeLinecap="round"
+                            />
+                          </svg>
+                        </div>
+
+                        {/* Content */}
+                        <div className="flex-1 min-w-0">
+                          {/* Title Row */}
+                          <div className="flex items-center gap-2 mb-2">
+                            <span
+                              style={{
+                                fontFamily: "var(--font-roboto-mono)",
+                                fontSize: "14px",
+                                fontWeight: 500,
+                                color: "#ffffff",
+                              }}
+                            >
+                              Other
+                            </span>
+                          </div>
+
+                          {/* Timestamp Row */}
+                          <div className="flex items-center gap-2">
+                            <svg
+                              width="16"
+                              height="16"
+                              viewBox="0 0 16 16"
+                              fill="none"
+                              xmlns="http://www.w3.org/2000/svg"
+                            >
+                              <path
+                                d="M8 14C11.3137 14 14 11.3137 14 8C14 4.68629 11.3137 2 8 2C4.68629 2 2 4.68629 2 8C2 11.3137 4.68629 14 8 14Z"
+                                stroke="#a1a1a1"
+                                strokeWidth="1.5"
+                              />
+                              <path
+                                d="M8 4V8L10.5 10.5"
+                                stroke="#a1a1a1"
+                                strokeWidth="1.5"
+                                strokeLinecap="round"
+                              />
+                            </svg>
+                            <span
+                              style={{
+                                fontFamily: "var(--font-roboto-mono)",
+                                fontSize: "12px",
+                                fontWeight: 400,
+                                color: "#a1a1a1",
+                              }}
+                            >
+                              0s ago
+                            </span>
+                            <span
+                              className="px-2 py-0.5 rounded-none bg-white/5"
+                              style={{
+                                fontFamily: "var(--font-roboto-mono)",
+                                fontSize: "10px",
+                                fontWeight: 400,
+                                color: "#a1a1a1",
+                              }}
+                            >
+                              4bfd09b2
+                            </span>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Embedding Action Card 1 */}
+                  <div className="border border-white/10 border-t-0 bg-black/20">
+                    <div className="p-3">
+                      <div className="flex items-start gap-3">
+                        {/* Icon */}
+                        <div className="flex-shrink-0 w-8 h-8 rounded-none bg-white/5 flex items-center justify-center">
+                          <svg
+                            width="16"
+                            height="16"
+                            viewBox="0 0 16 16"
+                            fill="none"
+                            xmlns="http://www.w3.org/2000/svg"
+                          >
+                            <rect
+                              x="3"
+                              y="3"
+                              width="4"
+                              height="4"
+                              stroke="#a1a1a1"
+                              strokeWidth="1.5"
+                            />
+                            <rect
+                              x="9"
+                              y="3"
+                              width="4"
+                              height="4"
+                              stroke="#a1a1a1"
+                              strokeWidth="1.5"
+                            />
+                            <rect
+                              x="3"
+                              y="9"
+                              width="4"
+                              height="4"
+                              stroke="#a1a1a1"
+                              strokeWidth="1.5"
+                            />
+                            <rect
+                              x="9"
+                              y="9"
+                              width="4"
+                              height="4"
+                              stroke="#a1a1a1"
+                              strokeWidth="1.5"
+                            />
+                          </svg>
+                        </div>
+
+                        {/* Content */}
+                        <div className="flex-1 min-w-0">
+                          {/* Title Row */}
+                          <div className="flex items-center gap-2 mb-2">
+                            <span
+                              style={{
+                                fontFamily: "var(--font-roboto-mono)",
+                                fontSize: "14px",
+                                fontWeight: 500,
+                                color: "#ffffff",
+                              }}
+                            >
+                              Embedding
+                            </span>
+                            <span
+                              className="px-2 py-0.5 rounded-none bg-white/10"
+                              style={{
+                                fontFamily: "var(--font-roboto-mono)",
+                                fontSize: "10px",
+                                fontWeight: 400,
+                                color: "#a1a1a1",
+                              }}
+                            >
+                              TEXT_EMBEDDING
+                            </span>
+                          </div>
+
+                          {/* Second Row - Type Badge */}
+                          <div className="flex items-center gap-2 mb-2">
+                            <Zap className="w-4 h-4" style={{ color: "#a1a1a1" }} />
+                            <span
+                              style={{
+                                fontFamily: "var(--font-roboto-mono)",
+                                fontSize: "12px",
+                                fontWeight: 400,
+                                color: "#a1a1a1",
+                              }}
+                            >
+                              TEXT_EMBEDDING
+                            </span>
+                          </div>
+
+                          {/* Timestamp Row */}
+                          <div className="flex items-center gap-2">
+                            <svg
+                              width="16"
+                              height="16"
+                              viewBox="0 0 16 16"
+                              fill="none"
+                              xmlns="http://www.w3.org/2000/svg"
+                            >
+                              <path
+                                d="M8 14C11.3137 14 14 11.3137 14 8C14 4.68629 11.3137 2 8 2C4.68629 2 2 4.68629 2 8C2 11.3137 4.68629 14 8 14Z"
+                                stroke="#a1a1a1"
+                                strokeWidth="1.5"
+                              />
+                              <path
+                                d="M8 4V8L10.5 10.5"
+                                stroke="#a1a1a1"
+                                strokeWidth="1.5"
+                                strokeLinecap="round"
+                              />
+                            </svg>
+                            <span
+                              style={{
+                                fontFamily: "var(--font-roboto-mono)",
+                                fontSize: "12px",
+                                fontWeight: 400,
+                                color: "#a1a1a1",
+                              }}
+                            >
+                              0s ago
+                            </span>
+                            <span
+                              className="px-2 py-0.5 rounded-none bg-white/5"
+                              style={{
+                                fontFamily: "var(--font-roboto-mono)",
+                                fontSize: "10px",
+                                fontWeight: 400,
+                                color: "#a1a1a1",
+                              }}
+                            >
+                              Cf36E0E1
+                            </span>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Footer */}
+                    <div className="border-t border-white/10 px-3 py-2 flex items-center justify-between">
+                      <div className="flex items-center gap-2">
+                        <svg
+                          width="16"
+                          height="16"
+                          viewBox="0 0 16 16"
+                          fill="none"
+                          xmlns="http://www.w3.org/2000/svg"
+                        >
+                          <path
+                            d="M8 14C11.3137 14 14 11.3137 14 8C14 4.68629 11.3137 2 8 2C4.68629 2 2 4.68629 2 8C2 11.3137 4.68629 14 8 14Z"
+                            stroke="#a1a1a1"
+                            strokeWidth="1.5"
+                          />
+                          <path
+                            d="M8 8H8.00667M8 5.33333H8.00667M8 10.6667H8.00667"
+                            stroke="#a1a1a1"
+                            strokeWidth="2"
+                            strokeLinecap="round"
+                          />
+                        </svg>
+                        <span
+                          style={{
+                            fontFamily: "var(--font-roboto-mono)",
+                            fontSize: "12px",
+                            fontWeight: 400,
+                            color: "#a1a1a1",
+                          }}
+                        >
+                          Contains parameters and response data
+                        </span>
+                      </div>
+                      <button
+                        className="hover:text-white transition-colors"
+                        style={{
+                          fontFamily: "var(--font-roboto-mono)",
+                          fontSize: "12px",
+                          fontWeight: 400,
+                          color: "#a1a1a1",
+                        }}
+                      >
+                        View details
+                      </button>
+                    </div>
+                  </div>
+
+                  {/* Embedding Action Card 2 */}
+                  <div className="border border-white/10 border-t-0 bg-black/20">
+                    <div className="p-3">
+                      <div className="flex items-start gap-3">
+                        {/* Icon */}
+                        <div className="flex-shrink-0 w-8 h-8 rounded-none bg-white/5 flex items-center justify-center">
+                          <svg
+                            width="16"
+                            height="16"
+                            viewBox="0 0 16 16"
+                            fill="none"
+                            xmlns="http://www.w3.org/2000/svg"
+                          >
+                            <rect
+                              x="3"
+                              y="3"
+                              width="4"
+                              height="4"
+                              stroke="#a1a1a1"
+                              strokeWidth="1.5"
+                            />
+                            <rect
+                              x="9"
+                              y="3"
+                              width="4"
+                              height="4"
+                              stroke="#a1a1a1"
+                              strokeWidth="1.5"
+                            />
+                            <rect
+                              x="3"
+                              y="9"
+                              width="4"
+                              height="4"
+                              stroke="#a1a1a1"
+                              strokeWidth="1.5"
+                            />
+                            <rect
+                              x="9"
+                              y="9"
+                              width="4"
+                              height="4"
+                              stroke="#a1a1a1"
+                              strokeWidth="1.5"
+                            />
+                          </svg>
+                        </div>
+
+                        {/* Content */}
+                        <div className="flex-1 min-w-0">
+                          {/* Title Row */}
+                          <div className="flex items-center gap-2 mb-2">
+                            <span
+                              style={{
+                                fontFamily: "var(--font-roboto-mono)",
+                                fontSize: "14px",
+                                fontWeight: 500,
+                                color: "#ffffff",
+                              }}
+                            >
+                              Embedding
+                            </span>
+                            <span
+                              className="px-2 py-0.5 rounded-none bg-white/10"
+                              style={{
+                                fontFamily: "var(--font-roboto-mono)",
+                                fontSize: "10px",
+                                fontWeight: 400,
+                                color: "#a1a1a1",
+                              }}
+                            >
+                              TEXT_EMBEDDING
+                            </span>
+                          </div>
+
+                          {/* Second Row - Type Badge */}
+                          <div className="flex items-center gap-2 mb-2">
+                            <Zap className="w-4 h-4" style={{ color: "#a1a1a1" }} />
+                            <span
+                              style={{
+                                fontFamily: "var(--font-roboto-mono)",
+                                fontSize: "12px",
+                                fontWeight: 400,
+                                color: "#a1a1a1",
+                              }}
+                            >
+                              TEXT_EMBEDDING
+                            </span>
+                          </div>
+
+                          {/* Timestamp Row */}
+                          <div className="flex items-center gap-2">
+                            <svg
+                              width="16"
+                              height="16"
+                              viewBox="0 0 16 16"
+                              fill="none"
+                              xmlns="http://www.w3.org/2000/svg"
+                            >
+                              <path
+                                d="M8 14C11.3137 14 14 11.3137 14 8C14 4.68629 11.3137 2 8 2C4.68629 2 2 4.68629 2 8C2 11.3137 4.68629 14 8 14Z"
+                                stroke="#a1a1a1"
+                                strokeWidth="1.5"
+                              />
+                              <path
+                                d="M8 4V8L10.5 10.5"
+                                stroke="#a1a1a1"
+                                strokeWidth="1.5"
+                                strokeLinecap="round"
+                              />
+                            </svg>
+                            <span
+                              style={{
+                                fontFamily: "var(--font-roboto-mono)",
+                                fontSize: "12px",
+                                fontWeight: 400,
+                                color: "#a1a1a1",
+                              }}
+                            >
+                              0s ago
+                            </span>
+                            <span
+                              className="px-2 py-0.5 rounded-none bg-white/5"
+                              style={{
+                                fontFamily: "var(--font-roboto-mono)",
+                                fontSize: "10px",
+                                fontWeight: 400,
+                                color: "#a1a1a1",
+                              }}
+                            >
+                              Cf36E0E1
+                            </span>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Footer */}
+                    <div className="border-t border-white/10 px-3 py-2 flex items-center justify-between">
+                      <div className="flex items-center gap-2">
+                        <svg
+                          width="16"
+                          height="16"
+                          viewBox="0 0 16 16"
+                          fill="none"
+                          xmlns="http://www.w3.org/2000/svg"
+                        >
+                          <path
+                            d="M8 14C11.3137 14 14 11.3137 14 8C14 4.68629 11.3137 2 8 2C4.68629 2 2 4.68629 2 8C2 11.3137 4.68629 14 8 14Z"
+                            stroke="#a1a1a1"
+                            strokeWidth="1.5"
+                          />
+                          <path
+                            d="M8 8H8.00667M8 5.33333H8.00667M8 10.6667H8.00667"
+                            stroke="#a1a1a1"
+                            strokeWidth="2"
+                            strokeLinecap="round"
+                          />
+                        </svg>
+                        <span
+                          style={{
+                            fontFamily: "var(--font-roboto-mono)",
+                            fontSize: "12px",
+                            fontWeight: 400,
+                            color: "#a1a1a1",
+                          }}
+                        >
+                          Contains parameters and response data
+                        </span>
+                      </div>
+                      <button
+                        className="hover:text-white transition-colors"
+                        style={{
+                          fontFamily: "var(--font-roboto-mono)",
+                          fontSize: "12px",
+                          fontWeight: 400,
+                          color: "#a1a1a1",
+                        }}
+                      >
+                        View details
+                      </button>
+                    </div>
                   </div>
                 </div>
               </div>
