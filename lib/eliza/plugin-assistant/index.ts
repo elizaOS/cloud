@@ -178,6 +178,8 @@ const messageReceivedHandler = async ({
     responseId.substring(0, 8),
   );
 
+  console.log("MESSAGE RECEIVED", message);
+
   // Set this as the latest response ID for this room
   await setLatestResponseId(runtime, message.roomId, responseId);
 
