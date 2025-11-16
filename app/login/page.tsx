@@ -1,12 +1,12 @@
 "use client";
 
-import { useEffect, useState, useRef } from "react";
+import { useEffect, useState, useRef, Suspense } from "react";
 import {
   usePrivy,
   useLoginWithEmail,
   useLoginWithOAuth,
 } from "@privy-io/react-auth";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { BrandButton, BrandCard, CornerBrackets } from "@/components/brand";
 import { Input } from "@/components/ui/input";
 import { Loader2, Mail, Wallet, Github, Chrome, ArrowLeft } from "lucide-react";
@@ -25,17 +25,21 @@ const DiscordIcon = ({ className }: { className?: string }) => (
   </svg>
 );
 
-export default function LoginPage() {
+function LoginPageContent() {
   const { ready, authenticated, login, user } = usePrivy();
   const { sendCode, loginWithCode, state: emailState } = useLoginWithEmail();
   const { initOAuth } = useLoginWithOAuth();
   const router = useRouter();
+  const searchParams = useSearchParams();
 
   const [email, setEmail] = useState("");
   const [code, setCode] = useState("");
   const [showCodeInput, setShowCodeInput] = useState(false);
   const [loadingButton, setLoadingButton] = useState<string | null>(null);
   const [isSyncing, setIsSyncing] = useState(false);
+  
+  // Check if this is a signup intent (from "Get Started" button)
+  const isSignupIntent = searchParams.get("intent") === "signup";
 
   // Guard against multiple simultaneous login() calls (critical for macOS/Brave)
   const loginInProgressRef = useRef(false);
@@ -273,18 +277,13 @@ export default function LoginPage() {
           <div className="relative z-10 space-y-6">
             {/* Header */}
             <div className="space-y-3 text-center pb-2">
-              <div className="flex items-center justify-center gap-2">
-                <span
-                  className="inline-block w-2 h-2 rounded-full"
-                  style={{ backgroundColor: "#FF5800" }}
-                />
-                <span className="text-white text-2xl font-bold">ELIZA</span>
-              </div>
               <h1 className="text-3xl font-bold tracking-tight text-white">
-                Welcome back
+                {isSignupIntent ? "Sign Up" : "Welcome back"}
               </h1>
               <p className="text-base text-white/60">
-                Sign in to your elizaOS account
+                {isSignupIntent 
+                  ? "Create your elizaOS account" 
+                  : "Sign in to your elizaOS account"}
               </p>
             </div>
             {/* Email/Code Login Section */}
@@ -512,5 +511,26 @@ export default function LoginPage() {
         </BrandCard>
       </div>
     </div>
+  );
+}
+
+// Loading fallback component
+function LoginPageFallback() {
+  return (
+    <div className="flex min-h-screen w-full items-center justify-center bg-background">
+      <div className="flex flex-col items-center gap-3">
+        <Loader2 className="h-8 w-8 animate-spin text-primary" />
+        <p className="text-sm text-muted-foreground">Loading...</p>
+      </div>
+    </div>
+  );
+}
+
+// Main page component with Suspense boundary
+export default function LoginPage() {
+  return (
+    <Suspense fallback={<LoginPageFallback />}>
+      <LoginPageContent />
+    </Suspense>
   );
 }
