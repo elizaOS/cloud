@@ -23,6 +23,10 @@ export default function LandingHeader() {
     router.push("/login");
   };
 
+  const handleGetStarted = () => {
+    router.push("/login?intent=signup");
+  };
+
   const handleDashboard = () => {
     router.push("/dashboard");
   };
@@ -137,7 +141,7 @@ export default function LandingHeader() {
               >
                 Log in
               </Button>
-              <LockOnButton size="sm" onClick={handleLogin} disabled={!ready}>
+              <LockOnButton size="sm" onClick={handleGetStarted} disabled={!ready}>
                 Get Started
               </LockOnButton>
             </>

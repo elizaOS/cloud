@@ -6,7 +6,7 @@ import {
   useLoginWithEmail,
   useLoginWithOAuth,
 } from "@privy-io/react-auth";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { BrandButton, BrandCard, CornerBrackets } from "@/components/brand";
 import { Input } from "@/components/ui/input";
 import { Loader2, Mail, Wallet, Github, Chrome, ArrowLeft } from "lucide-react";
@@ -30,12 +30,16 @@ export default function LoginPage() {
   const { sendCode, loginWithCode, state: emailState } = useLoginWithEmail();
   const { initOAuth } = useLoginWithOAuth();
   const router = useRouter();
+  const searchParams = useSearchParams();
 
   const [email, setEmail] = useState("");
   const [code, setCode] = useState("");
   const [showCodeInput, setShowCodeInput] = useState(false);
   const [loadingButton, setLoadingButton] = useState<string | null>(null);
   const [isSyncing, setIsSyncing] = useState(false);
+  
+  // Check if this is a signup intent (from "Get Started" button)
+  const isSignupIntent = searchParams.get("intent") === "signup";
 
   // Guard against multiple simultaneous login() calls (critical for macOS/Brave)
   const loginInProgressRef = useRef(false);
@@ -281,10 +285,12 @@ export default function LoginPage() {
                 <span className="text-white text-2xl font-bold">ELIZA</span>
               </div>
               <h1 className="text-3xl font-bold tracking-tight text-white">
-                Welcome back
+                {isSignupIntent ? "Get Started" : "Welcome back"}
               </h1>
               <p className="text-base text-white/60">
-                Sign in to your elizaOS account
+                {isSignupIntent 
+                  ? "Create your elizaOS account" 
+                  : "Sign in to your elizaOS account"}
               </p>
             </div>
             {/* Email/Code Login Section */}
