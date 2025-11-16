@@ -1,6 +1,6 @@
 /**
  * Sidebar Bottom Panel Component
- * Displays user info, balance, and settings menu items
+ * Bottom panel for main sidebar matching Figma design node-id=1079-21934
  */
 
 "use client";
@@ -10,12 +10,16 @@ import { useRouter, usePathname } from "next/navigation";
 import { useCreditsStream } from "@/hooks/use-credits-stream";
 import { useUserProfile } from "@/hooks/use-user-profile";
 import {
+  Building2,
   CreditCard,
+  Key,
+  HelpCircle,
   LogOut,
+  Coins,
   Loader2,
-  Settings,
   UserPlus,
   LogIn,
+  Settings,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { CornerBrackets } from "@/components/brand";
@@ -36,7 +40,6 @@ export function SidebarBottomPanel({ className, isCollapsed = false }: SidebarBo
   const { profile } = useUserProfile();
   const { clearChatData } = useChatStore();
 
-  // Get user details
   const getUserWallet = () => {
     if (user?.linkedAccounts) {
       for (const account of user.linkedAccounts) {
@@ -97,24 +100,17 @@ export function SidebarBottomPanel({ className, isCollapsed = false }: SidebarBo
     return "User";
   };
 
-  const getUserIdentifier = () => {
+  const getWalletAddress = () => {
     const wallet = getUserWallet();
     if (wallet) {
       return `${wallet.substring(0, 8)}...${wallet.substring(wallet.length - 6)}`;
     }
-    const email = getUserEmail();
-    if (email) {
-      return email;
-    }
-    return "No identifier";
+    return null;
   };
 
-  // Handle sign out
   const onSignOut = async () => {
     try {
-      // Clear chat data (rooms, entityId, localStorage)
       clearChatData();
-
       await logout();
       router.push("/");
     } catch (error) {
@@ -123,18 +119,15 @@ export function SidebarBottomPanel({ className, isCollapsed = false }: SidebarBo
     }
   };
 
-  // If not authenticated, show sign up/login CTA
+  // Anonymous user view
   if (!ready || !authenticated || !user) {
-    // Don't show anything while checking auth state
     if (!ready) {
       return null;
     }
 
-    // Anonymous user CTA panel
     if (isCollapsed) {
       return (
         <div className={cn("relative border-t border-white/10", className)}>
-          {/* Anonymous User CTA - Collapsed */}
           <div className="relative z-10 px-4 py-4 flex flex-col items-center gap-3">
             <button
               onClick={() => router.push("/login")}
@@ -157,10 +150,7 @@ export function SidebarBottomPanel({ className, isCollapsed = false }: SidebarBo
 
     return (
       <div className={cn("relative border-t border-white/10", className)}>
-        {/* Corner brackets for the panel */}
         <CornerBrackets size="sm" className="opacity-30" />
-
-        {/* Anonymous User CTA */}
         <div className="relative z-10 px-4 py-4">
           <div
             className="flex flex-col gap-3"
@@ -173,8 +163,6 @@ export function SidebarBottomPanel({ className, isCollapsed = false }: SidebarBo
             <div className="text-sm text-white/60 mb-1">
               Sign up for full access
             </div>
-
-            {/* Sign Up Button */}
             <button
               onClick={() => router.push("/login")}
               className={cn(
@@ -194,8 +182,6 @@ export function SidebarBottomPanel({ className, isCollapsed = false }: SidebarBo
               <UserPlus className="h-4 w-4" />
               <span>Sign Up</span>
             </button>
-
-            {/* Login Button */}
             <button
               onClick={() => router.push("/login")}
               className={cn(
@@ -215,8 +201,6 @@ export function SidebarBottomPanel({ className, isCollapsed = false }: SidebarBo
               <LogIn className="h-4 w-4" />
               <span>Log In</span>
             </button>
-
-            {/* Benefits list */}
             <div className="mt-2 space-y-1.5 text-xs text-white/40">
               <div className="flex items-center gap-2">
                 <div
@@ -259,7 +243,6 @@ export function SidebarBottomPanel({ className, isCollapsed = false }: SidebarBo
   if (isCollapsed) {
     return (
       <div className={cn("relative border-t border-white/10", className)}>
-        {/* User Avatar - Collapsed */}
         <div className="relative z-10 px-4 py-4 border-b border-white/10 flex justify-center">
           <Avatar className="h-10 w-10 ring-2 ring-white/30">
             {profile?.avatar && (
@@ -271,7 +254,6 @@ export function SidebarBottomPanel({ className, isCollapsed = false }: SidebarBo
           </Avatar>
         </div>
 
-        {/* Balance Display - Collapsed */}
         <div className="relative z-10 px-4 py-4 border-b border-white/10 flex justify-center">
           {loadingCredits && creditBalance === null ? (
             <Loader2 className="h-6 w-6 animate-spin text-white/40" />
@@ -284,7 +266,6 @@ export function SidebarBottomPanel({ className, isCollapsed = false }: SidebarBo
           )}
         </div>
 
-        {/* Menu Items - Collapsed */}
         <div className="relative z-10 py-2">
           {menuItems.map((item) => {
             const Icon = item.icon;
@@ -314,7 +295,6 @@ export function SidebarBottomPanel({ className, isCollapsed = false }: SidebarBo
           })}
         </div>
 
-        {/* Logout Button - Collapsed */}
         <div className="relative z-10 border-t border-white/5">
           <button
             onClick={onSignOut}
@@ -328,122 +308,187 @@ export function SidebarBottomPanel({ className, isCollapsed = false }: SidebarBo
     );
   }
 
+  // Expanded authenticated view - matching Figma design
   return (
-    <div className={cn("relative border-t border-white/10", className)}>
-      {/* Corner brackets for the panel */}
-      <CornerBrackets size="sm" className="opacity-30" />
+    <div className={cn("flex flex-col gap-2 backdrop-blur backdrop-filter bg-[#101010] border border-[#2e2e2e]", className)}>
+      {/* User Info Section */}
+      <div className="border-b border-[#2e2e2e] px-4 py-4">
+        <div className="flex flex-col gap-1">
+          <p
+            className="truncate"
+            style={{
+              fontFamily: "Geist Mono, monospace",
+              fontWeight: 400,
+              fontSize: "16px",
+              lineHeight: "normal",
+              color: "#e1e1e1",
+            }}
+          >
+            {getUserName()}
+          </p>
+          {getWalletAddress() && (
+            <p
+              style={{
+                fontFamily: "Geist Mono, monospace",
+                fontWeight: 400,
+                fontSize: "14px",
+                lineHeight: "normal",
+                color: "#a2a2a2",
+              }}
+            >
+              {getWalletAddress()}
+            </p>
+          )}
+        </div>
+      </div>
 
-      {/* User Info Header - with Avatar */}
-      <div className="relative z-10 px-4 py-3 border-b border-white/10">
-        <div
-          className="flex items-center gap-3"
-          style={{
-            fontFamily: "var(--font-roboto-mono)",
-            fontWeight: 400,
-            letterSpacing: "-0.003em",
-          }}
-        >
-          <Avatar className="h-10 w-10 ring-2 ring-white/30">
-            {profile?.avatar && (
-              <AvatarImage src={profile.avatar} alt={getUserName()} />
+      {/* Balance Section */}
+      <div className="px-4">
+        <div className="bg-[#1b1b1b] flex items-center gap-2 px-2 py-2">
+          <Coins className="h-4 w-4 shrink-0" style={{ color: "#a2a2a2" }} />
+          <div className="flex items-center gap-1">
+            {loadingCredits && creditBalance === null ? (
+              <span
+                style={{
+                  fontFamily: "Geist Mono, monospace",
+                  fontWeight: 400,
+                  fontSize: "14px",
+                  lineHeight: "normal",
+                  color: "#a2a2a2",
+                }}
+              >
+                Loading...
+              </span>
+            ) : (
+              <>
+                <span
+                  style={{
+                    fontFamily: "Geist Mono, monospace",
+                    fontWeight: 400,
+                    fontSize: "14px",
+                    lineHeight: "normal",
+                    color: "#e1e1e1",
+                  }}
+                >
+                  {creditBalance !== null ? Number(creditBalance).toFixed(2) : "0.00"}
+                </span>
+                <span
+                  style={{
+                    fontFamily: "Geist Mono, monospace",
+                    fontWeight: 400,
+                    fontSize: "14px",
+                    lineHeight: "normal",
+                    color: "#a2a2a2",
+                  }}
+                >
+                  {" balance"}
+                </span>
+              </>
             )}
-            <AvatarFallback className="bg-gradient-to-br from-purple-500 to-blue-600 text-white text-sm">
-              {getUserName().slice(0, 2).toUpperCase()}
-            </AvatarFallback>
-          </Avatar>
-          <div className="flex-1 min-w-0">
-            <div className="text-sm font-medium text-white truncate">
-              {getUserName()}
-            </div>
-            <div className="text-xs text-white/40 truncate">
-              {getUserIdentifier()}
-            </div>
           </div>
         </div>
       </div>
 
-      {/* Balance Display - Always Visible */}
-      <div
-        className="relative z-10 px-4 py-3 border-b border-white/10"
-        style={{
-          fontFamily: "var(--font-roboto-mono)",
-          fontWeight: 400,
-          letterSpacing: "-0.003em",
-        }}
-      >
-        {loadingCredits && creditBalance === null ? (
-          <div className="flex items-center gap-2 text-white/40">
-            <Loader2 className="h-4 w-4 animate-spin" />
-            <span className="text-sm">Loading...</span>
-          </div>
-        ) : (
-          <div className="flex items-center gap-2">
-            <div
-              className="h-2 w-2 rounded-full flex-shrink-0"
-              style={{ backgroundColor: "#ffffff" }}
-            />
-            <span className="text-lg font-bold text-white">
-              {creditBalance !== null
-                ? Number(creditBalance).toFixed(2)
-                : "0.00"}
-            </span>
-            <span className="text-xs text-white/40 ml-1">balance</span>
-          </div>
-        )}
-      </div>
-
-      {/* Menu Items - Always Visible */}
-      <div className="relative z-10 py-2">
-        {menuItems.map((item) => {
-          const Icon = item.icon;
-          const isActive =
-            pathname === item.href || pathname.startsWith(`${item.href}/`);
-
-          return (
-            <button
-              key={item.id}
-              onClick={() => router.push(item.href)}
-              className={cn(
-                "w-full flex items-center gap-3 px-4 py-2.5 transition-all duration-200 border-l-2 cursor-pointer",
-                isActive
-                  ? "bg-white/10 text-white border-white"
-                  : "text-white/60 hover:bg-white/5 hover:text-white border-transparent",
-              )}
+      {/* Menu Items Section */}
+      <div className="border-t border-[#2e2e2e] pt-4 px-4">
+        <div className="flex flex-col gap-4">
+          <button
+            onClick={() => router.push("/dashboard/settings")}
+            className="flex items-center gap-2 w-full hover:opacity-80 transition-opacity"
+          >
+            <Building2 className="h-4 w-4 shrink-0" style={{ color: "#a2a2a2" }} />
+            <span
               style={{
-                fontFamily: "var(--font-roboto-mono)",
-                fontWeight: 400,
+                fontFamily: "Geist Mono, monospace",
+                fontWeight: 500,
                 fontSize: "14px",
-                lineHeight: "18px",
-                letterSpacing: "-0.003em",
+                lineHeight: "normal",
+                letterSpacing: "-0.056px",
+                color: "#a2a2a2",
               }}
             >
-              <Icon
-                className={cn(
-                  "h-4 w-4 transition-colors",
-                  isActive && "text-white",
-                )}
-              />
-              <span>{item.label}</span>
-            </button>
-          );
-        })}
+              Account
+            </span>
+          </button>
+
+          <button
+            onClick={() => router.push("/dashboard/settings?tab=usage")}
+            className="flex items-center gap-2 w-full hover:opacity-80 transition-opacity"
+          >
+            <CreditCard className="h-4 w-4 shrink-0" style={{ color: "#a2a2a2" }} />
+            <span
+              style={{
+                fontFamily: "Geist Mono, monospace",
+                fontWeight: 500,
+                fontSize: "14px",
+                lineHeight: "normal",
+                letterSpacing: "-0.056px",
+                color: "#a2a2a2",
+              }}
+            >
+              Billing
+            </span>
+          </button>
+
+          <button
+            onClick={() => router.push("/dashboard/settings?tab=api-keys")}
+            className="flex items-center gap-2 w-full hover:opacity-80 transition-opacity"
+          >
+            <Key className="h-4 w-4 shrink-0" style={{ color: "#a2a2a2" }} />
+            <span
+              style={{
+                fontFamily: "Geist Mono, monospace",
+                fontWeight: 500,
+                fontSize: "14px",
+                lineHeight: "normal",
+                letterSpacing: "-0.056px",
+                color: "#a2a2a2",
+              }}
+            >
+              API Keys
+            </span>
+          </button>
+
+          <button
+            onClick={() => window.open("https://docs.eliza.com", "_blank")}
+            className="flex items-center gap-2 w-full hover:opacity-80 transition-opacity"
+          >
+            <HelpCircle className="h-4 w-4 shrink-0" style={{ color: "#a2a2a2" }} />
+            <span
+              style={{
+                fontFamily: "Geist Mono, monospace",
+                fontWeight: 500,
+                fontSize: "14px",
+                lineHeight: "normal",
+                letterSpacing: "-0.056px",
+                color: "#a2a2a2",
+              }}
+            >
+              Help
+            </span>
+          </button>
+        </div>
       </div>
 
-      {/* Logout Button - Always Visible */}
-      <div className="relative z-10 border-t border-white/5">
+      {/* Logout Section */}
+      <div className="border-t border-[#2e2e2e] px-4 py-4">
         <button
           onClick={onSignOut}
-          className="w-full flex items-center gap-3 px-4 py-2.5 text-white/60 hover:bg-white/5 hover:text-red-400 transition-all duration-200 cursor-pointer"
-          style={{
-            fontFamily: "var(--font-roboto-mono)",
-            fontWeight: 400,
-            fontSize: "14px",
-            lineHeight: "18px",
-            letterSpacing: "-0.003em",
-          }}
+          className="flex items-center gap-2 w-full hover:opacity-80 transition-opacity"
         >
-          <LogOut className="h-4 w-4" />
-          <span>Logout</span>
+          <LogOut className="h-4 w-4 shrink-0" style={{ color: "#a2a2a2" }} />
+          <span
+            style={{
+              fontFamily: "Geist Mono, monospace",
+              fontWeight: 500,
+              fontSize: "14px",
+              lineHeight: "normal",
+              letterSpacing: "-0.056px",
+              color: "#a2a2a2",
+            }}
+          >
+            Logout
+          </span>
         </button>
       </div>
     </div>
