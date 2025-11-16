@@ -142,7 +142,7 @@ export function ChatSidebarBottomPanel({ className }: ChatSidebarBottomPanelProp
       {isDropdownOpen && (
         <div
           className="absolute left-6 backdrop-blur backdrop-filter bg-[#101010] border border-[#2e2e2e] z-50"
-          style={{ bottom: "calc(100% - 8px)", width: "207px" }}
+          style={{ bottom: "69px", width: "207px" }}
         >
           {/* User Info Section */}
           <div className="border-b border-[#2e2e2e] px-4 py-4">
