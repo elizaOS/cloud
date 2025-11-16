@@ -88,7 +88,7 @@ export function GalleryPageClient() {
 
   return (
     <div className="flex flex-col gap-6">
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-3">
         {isLoadingStats ? (
           <>
             <BrandCard corners={false} className="p-4">
