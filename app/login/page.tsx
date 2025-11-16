@@ -285,7 +285,7 @@ export default function LoginPage() {
                 <span className="text-white text-2xl font-bold">ELIZA</span>
               </div>
               <h1 className="text-3xl font-bold tracking-tight text-white">
-                {isSignupIntent ? "Get Started" : "Welcome back"}
+                {isSignupIntent ? "Sign Up" : "Welcome back"}
               </h1>
               <p className="text-base text-white/60">
                 {isSignupIntent 
