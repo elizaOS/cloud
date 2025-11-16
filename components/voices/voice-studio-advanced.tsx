@@ -301,13 +301,13 @@ export function VoiceStudioAdvanced({
 
               {/* Right: Stats and Refresh button inline */}
               <div className="flex items-center gap-2 flex-shrink-0">
-                <span className="flex items-center gap-1 border border-white/20 bg-transparent px-2 py-1 text-xs font-mono text-white whitespace-nowrap" style={{ fontFamily: "var(--font-roboto-mono)" }}>
+                <span className="flex items-center gap-1 border border-white/20 bg-transparent px-3 py-2.5 text-xs font-mono text-white whitespace-nowrap" style={{ fontFamily: "var(--font-roboto-mono)" }}>
                   <BarChart3 className="h-3 w-3 flex-shrink-0" />
                   {voices.reduce((sum, v) => sum + v.usageCount, 0)} uses
                 </span>
                 <span
                   className={cn(
-                    "border px-2 py-1 text-xs font-mono whitespace-nowrap",
+                    "border px-3 py-2.5 text-xs font-mono whitespace-nowrap",
                     professionalVoicesRemaining === 0
                       ? "border-amber-500/40 bg-amber-500/10 text-amber-300"
                       : "border-white/20 bg-transparent text-white",
@@ -361,11 +361,10 @@ export function VoiceStudioAdvanced({
                         key={voice.id}
                         corners={false}
                         hover
-                        className={`cursor-pointer transition-all ${
-                          selectedVoice?.id === voice.id
-                            ? "border-white ring-2 ring-white/40"
-                            : ""
-                        }`}
+                        className={`cursor-pointer transition-all ${selectedVoice?.id === voice.id
+                          ? "border-white ring-2 ring-white/40"
+                          : ""
+                          }`}
                         onClick={() => setSelectedVoice(voice)}
                       >
                         <div className="pb-3">
@@ -423,8 +422,8 @@ export function VoiceStudioAdvanced({
                                 0,
                                 (now.getTime() -
                                   new Date(voice.createdAt).getTime()) /
-                                  1000 /
-                                  60,
+                                1000 /
+                                60,
                               );
                               const isProcessing =
                                 voice.cloneType === "professional" && mins < 60;
@@ -462,8 +461,8 @@ export function VoiceStudioAdvanced({
                                 0,
                                 (now.getTime() -
                                   new Date(voice.createdAt).getTime()) /
-                                  1000 /
-                                  60,
+                                1000 /
+                                60,
                               );
                               const isProcessing =
                                 voice.cloneType === "professional" && mins < 60;
