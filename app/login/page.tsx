@@ -277,13 +277,6 @@ function LoginPageContent() {
           <div className="relative z-10 space-y-6">
             {/* Header */}
             <div className="space-y-3 text-center pb-2">
-              <div className="flex items-center justify-center gap-2">
-                <span
-                  className="inline-block w-2 h-2 rounded-full"
-                  style={{ backgroundColor: "#FF5800" }}
-                />
-                <span className="text-white text-2xl font-bold">ELIZA</span>
-              </div>
               <h1 className="text-3xl font-bold tracking-tight text-white">
                 {isSignupIntent ? "Sign Up" : "Welcome back"}
               </h1>
