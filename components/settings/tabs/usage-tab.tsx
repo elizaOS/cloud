@@ -380,42 +380,39 @@ export function UsageTab({ user, onTabChange }: UsageTabProps) {
           </div>
 
           {/* Status Card */}
-          <div className="backdrop-blur-sm bg-[rgba(10,10,10,0.75)] border border-brand-surface p-3 md:p-4 space-y-2">
-            <div className="flex items-center gap-2">
-              <p className="text-sm md:text-base font-mono text-white">
-                {creditsRemaining > 10
-                  ? "All systems operational"
-                  : "Low credit balance"}
-              </p>
-              <Info
-                className={`h-4 w-4 flex-shrink-0 ${creditsRemaining > 10 ? "text-[#FF5800]" : "text-yellow-500"}`}
-              />
-            </div>
-
-            <p className="text-xs md:text-sm text-white/60">
-              {creditsRemaining > 10
-                ? "Your infrastructure is running smoothly. All providers are healthy and credit balance is sufficient."
-                : "Your credit balance is low. Consider adding more credits to ensure uninterrupted service."}
-            </p>
-
-            {creditsRemaining <= 10 && (
-              <button
-                type="button"
-                onClick={() => onTabChange("billing")}
-                className="relative bg-[#e1e1e1] px-4 py-2.5 overflow-hidden hover:bg-white transition-colors mt-2 w-full sm:w-auto"
-              >
-                <div
-                  className="absolute inset-0 opacity-20 bg-repeat pointer-events-none"
+          <div className="backdrop-blur-sm bg-[rgba(10,10,10,0.75)] border border-brand-surface p-[16px] flex flex-col gap-[16px]">
+            <div className="flex flex-col gap-[4px]">
+              <div className="flex items-start gap-[12px] w-full">
+                <div className="flex flex-[1_0_0] items-center gap-[8px]">
+                  <p
+                    className="text-white"
+                    style={{
+                      fontFamily: "var(--font-roboto-mono)",
+                      fontSize: "16px",
+                      fontWeight: 400,
+                      lineHeight: "24px",
+                    }}
+                  >
+                    All systems operational
+                  </p>
+                  <Info className="h-4 w-4 flex-shrink-0 text-[#FF5800]" />
+                </div>
+              </div>
+              <div className="flex flex-col gap-[4px] items-start justify-end w-full">
+                <p
+                  className="text-[rgba(255,255,255,0.6)] w-full whitespace-pre-wrap"
                   style={{
-                    backgroundImage: `url(/assets/settings/pattern-6px-flip.png)`,
-                    backgroundSize: "2.915576934814453px 2.915576934814453px",
+                    fontFamily: "var(--font-roboto-flex)",
+                    fontSize: "14px",
+                    fontWeight: 400,
+                    lineHeight: "20px",
+                    letterSpacing: "-0.042px",
                   }}
-                />
-                <span className="relative z-10 text-black font-mono font-medium text-sm whitespace-nowrap">
-                  Add Credits
-                </span>
-              </button>
-            )}
+                >
+                  Your infrastructure is running smoothly. All providers are healthy and credit balance is suficient.
+                </p>
+              </div>
+            </div>
           </div>
         </div>
       </BrandCard>
