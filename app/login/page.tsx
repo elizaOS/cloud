@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, useRef } from "react";
+import { useEffect, useState, useRef, Suspense } from "react";
 import {
   usePrivy,
   useLoginWithEmail,
@@ -25,7 +25,7 @@ const DiscordIcon = ({ className }: { className?: string }) => (
   </svg>
 );
 
-export default function LoginPage() {
+function LoginPageContent() {
   const { ready, authenticated, login, user } = usePrivy();
   const { sendCode, loginWithCode, state: emailState } = useLoginWithEmail();
   const { initOAuth } = useLoginWithOAuth();
@@ -518,5 +518,26 @@ export default function LoginPage() {
         </BrandCard>
       </div>
     </div>
+  );
+}
+
+// Loading fallback component
+function LoginPageFallback() {
+  return (
+    <div className="flex min-h-screen w-full items-center justify-center bg-background">
+      <div className="flex flex-col items-center gap-3">
+        <Loader2 className="h-8 w-8 animate-spin text-primary" />
+        <p className="text-sm text-muted-foreground">Loading...</p>
+      </div>
+    </div>
+  );
+}
+
+// Main page component with Suspense boundary
+export default function LoginPage() {
+  return (
+    <Suspense fallback={<LoginPageFallback />}>
+      <LoginPageContent />
+    </Suspense>
   );
 }
