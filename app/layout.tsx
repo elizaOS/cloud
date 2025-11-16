@@ -6,6 +6,7 @@ import { ThemeProvider } from "@/components/theme/theme-provider";
 import { Toaster } from "sonner";
 import NextTopLoader from "nextjs-toploader";
 import PrivyProvider from "@/providers/PrivyProvider";
+import { GoogleAnalytics } from '@next/third-parties/google'
 
 const robotoMono = Roboto_Mono({
   variable: "--font-roboto-mono",
@@ -141,6 +142,7 @@ export default function RootLayout({
           </ThemeProvider>
         </PrivyProvider>
         <Analytics />
+        <GoogleAnalytics gaId="G-51LEW2LXQE" />
       </body>
     </html>
   );
