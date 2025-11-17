@@ -7,7 +7,7 @@
 
 import { usePrivy } from "@privy-io/react-auth";
 import { useRouter } from "next/navigation";
-import { Building2, CreditCard, Key, HelpCircle, LogOut, Coins, Settings, User } from "lucide-react";
+import { Building2, CreditCard, Key, HelpCircle, LogOut, Coins, User, Settings2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useState, useEffect, useRef } from "react";
 
@@ -101,7 +101,7 @@ export function ChatSidebarBottomPanel({ className }: ChatSidebarBottomPanelProp
       {/* Settings Section */}
       <div className="px-6 py-4">
         <div className="flex items-center gap-2 px-4 py-4">
-          <Settings className="h-4 w-4 shrink-0" style={{ color: "#a2a2a2" }} />
+          <Settings2 className="h-4 w-4 shrink-0" style={{ color: "#a2a2a2" }} />
           <span
             style={{
               fontFamily: "Geist Mono, monospace",

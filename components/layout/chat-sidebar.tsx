@@ -258,57 +258,57 @@ export function ChatSidebar({
         <div className="border-b border-white/10 px-6 py-4">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2">
-            {/* Character Avatar */}
-            <div className="relative shrink-0">
-              <div className="w-6 h-6 rounded-full bg-neutral-800 flex items-center justify-center overflow-hidden">
-                {selectedCharacter?.avatarUrl ? (
-                  <Image
-                    src={selectedCharacter.avatarUrl}
-                    alt={selectedCharacter.name}
-                    width={24}
-                    height={24}
-                    className="w-full h-full object-cover"
-                  />
-                ) : (
-                  <Image
-                    src="/avatars/eliza-chibi.png"
-                    alt="Eliza"
-                    width={24}
-                    height={24}
-                    className="w-full h-full object-cover"
-                  />
-                )}
+              {/* Character Avatar */}
+              <div className="relative shrink-0">
+                <div className="w-6 h-6 rounded-full bg-neutral-800 flex items-center justify-center overflow-hidden">
+                  {selectedCharacter?.avatarUrl ? (
+                    <Image
+                      src={selectedCharacter.avatarUrl}
+                      alt={selectedCharacter.name}
+                      width={24}
+                      height={24}
+                      className="w-full h-full object-cover"
+                    />
+                  ) : (
+                    <Image
+                      src="/avatars/eliza-chibi.png"
+                      alt="Eliza"
+                      width={24}
+                      height={24}
+                      className="w-full h-full object-cover"
+                    />
+                  )}
+                </div>
               </div>
-            </div>
 
-            {/* Character Info */}
-            <div className="flex flex-col justify-center">
-              <p
-                className="truncate"
-                style={{
-                  fontFamily: "var(--font-roboto-mono)",
-                  fontWeight: 500,
-                  fontSize: "14px",
-                  lineHeight: "normal",
-                  letterSpacing: "-0.042px",
-                  color: "#dfdfdf",
-                }}
-              >
-                {selectedCharacter?.name || "Zilo"}
-              </p>
-              <p
-                className="truncate opacity-50"
-                style={{
-                  fontFamily: "var(--font-roboto-mono)",
-                  fontWeight: 500,
-                  fontSize: "10px",
-                  lineHeight: "normal",
-                  color: "#a1a1a1",
-                }}
-              >
-                {filteredRooms.length} Interaction{filteredRooms.length !== 1 ? "s" : ""}
-              </p>
-            </div>
+              {/* Character Info */}
+              <div className="flex flex-col justify-center">
+                <p
+                  className="truncate"
+                  style={{
+                    fontFamily: "var(--font-roboto-mono)",
+                    fontWeight: 500,
+                    fontSize: "14px",
+                    lineHeight: "normal",
+                    letterSpacing: "-0.042px",
+                    color: "#dfdfdf",
+                  }}
+                >
+                  {selectedCharacter?.name || "Zilo"}
+                </p>
+                <p
+                  className="truncate opacity-50"
+                  style={{
+                    fontFamily: "var(--font-roboto-mono)",
+                    fontWeight: 500,
+                    fontSize: "10px",
+                    lineHeight: "normal",
+                    color: "#a1a1a1",
+                  }}
+                >
+                  {filteredRooms.length} Interaction{filteredRooms.length !== 1 ? "s" : ""}
+                </p>
+              </div>
             </div>
 
             {/* Edit Icon Button */}
@@ -344,7 +344,7 @@ export function ChatSidebar({
                     className={cn(
                       "group relative w-full text-left rounded-none transition-colors",
                       (isDeleting || isLoading) &&
-                        "opacity-50 pointer-events-none"
+                      "opacity-50 pointer-events-none"
                     )}
                   >
                     <button
@@ -352,7 +352,7 @@ export function ChatSidebar({
                       onClick={() => handleSelectRoom(room.id)}
                       disabled={isDeleting || isLoading}
                       className={cn(
-                        "w-full text-left px-2 py-2 rounded-lg",
+                        "w-full text-left px-2.5 py-2.5",
                         roomId === room.id ? "bg-neutral-900" : "hover:bg-neutral-900/50"
                       )}
                     >
