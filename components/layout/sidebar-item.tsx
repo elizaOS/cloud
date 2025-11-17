@@ -21,8 +21,10 @@ export function SidebarNavigationItem({ item, isCollapsed = false }: SidebarNavi
   const router = useRouter();
   const { authenticated } = usePrivy();
 
-  const isActive =
-    pathname === item.href || pathname.startsWith(`${item.href}/`);
+  // For Dashboard, only match exact path to avoid matching all /dashboard/* routes
+  const isActive = item.href === "/dashboard"
+    ? pathname === "/dashboard"
+    : pathname === item.href || pathname.startsWith(`${item.href}/`);
   const Icon = item.icon;
 
   // Check if this item is locked for anonymous users
