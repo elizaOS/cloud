@@ -76,7 +76,10 @@ export default function Sidebar({
         )}
       >
         {/* Header with Logo */}
-        <div className="relative flex h-16 items-center justify-between border-b border-white/10 px-4">
+        <div className={cn(
+          "relative flex h-16 items-center justify-between border-b border-white/10 px-4",
+          isCollapsed && "group"
+        )}>
           {/* Corner brackets for logo area */}
           {!isCollapsed && <CornerBrackets size="sm" className="opacity-30" />}
 
@@ -98,7 +101,7 @@ export default function Sidebar({
                   className="h-5 w-auto"
                 />
               </Link>
-              {/* Desktop Collapse Toggle Button */}
+              {/* Desktop Collapse Toggle Button - always visible */}
               <button
                 onClick={toggleCollapse}
                 className="rounded-none p-1.5 hover:bg-white/10 focus:bg-white/10 focus:outline-none relative z-10 transition-colors"
@@ -108,18 +111,28 @@ export default function Sidebar({
               </button>
             </>
           ) : !isMobile && isCollapsed ? (
-            <Link
-              href="/dashboard"
-              className="flex items-center justify-center w-full transition-opacity hover:opacity-80 relative z-10"
-            >
-              <Image
-                src="/eliza-font.svg"
-                alt="ELIZA"
-                width={64}
-                height={16}
-                className="h-4 w-auto"
-              />
-            </Link>
+            <div className="flex items-center justify-center w-full relative">
+              <Link
+                href="/dashboard"
+                className="flex items-center justify-center transition-opacity duration-200 group-hover:opacity-0 absolute inset-0 z-10"
+              >
+                <Image
+                  src="/eliza-font.svg"
+                  alt="ELIZA"
+                  width={80}
+                  height={24}
+                  className="h-5 w-auto"
+                />
+              </Link>
+              {/* Desktop Expand Toggle Button - shown on hover */}
+              <button
+                onClick={toggleCollapse}
+                className="flex items-center justify-center rounded-none p-1.5 hover:bg-white/5 focus:bg-white/5 focus:outline-none relative z-20 transition-all duration-200 opacity-0 group-hover:opacity-100"
+                aria-label="Expand sidebar"
+              >
+                <PanelLeft className="h-5 w-5 text-white/60" />
+              </button>
+            </div>
           ) : (
             <>
               <Link
@@ -197,17 +210,6 @@ export default function Sidebar({
                   );
                 })}
               </div>
-            </div>
-
-            {/* Expand Toggle Button */}
-            <div className="border-t border-white/10">
-              <button
-                onClick={toggleCollapse}
-                className="w-full flex items-center justify-center p-4 text-white/60 hover:bg-white/5 hover:text-white transition-all duration-200"
-                aria-label="Expand sidebar"
-              >
-                <PanelLeft className="h-6 w-6" />
-              </button>
             </div>
 
             {/* Bottom Panel */}
