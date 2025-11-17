@@ -398,14 +398,14 @@ export default async function ContainersPage() {
 
             {/* Empty State Section - Show when no containers */}
             {containers.length === 0 && (
-              <div className="flex flex-col gap-[24px] items-center py-[64px]">
+              <div className="flex flex-col gap-[24px] items-center justify-center py-[64px] w-full">
                 {/* Server Icon */}
-                <div className="bg-[#1b1b1b] p-[20px] flex gap-[25px] items-center">
+                <div className="bg-[#1b1b1b] p-[20px] flex items-center justify-center">
                   <Server className="h-10 w-10 text-[#e1e1e1]" />
                 </div>
 
                 {/* Text */}
-                <div className="flex flex-col gap-[8px] items-center text-center w-full">
+                <div className="flex flex-col gap-[8px] items-center justify-center text-center w-full">
                   <p
                     className="text-[#e1e1e1]"
                     style={{
