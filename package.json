@@ -61,6 +61,7 @@
     "@modelcontextprotocol/sdk": "^1.21.1",
     "@monaco-editor/react": "^4.7.0",
     "@neondatabase/serverless": "^1.0.2",
+    "@next/third-parties": "^16.0.3",
     "@privy-io/node": "^0.4.0",
     "@privy-io/react-auth": "^3.6.1",
     "@privy-io/server-auth": "^1.32.5",
