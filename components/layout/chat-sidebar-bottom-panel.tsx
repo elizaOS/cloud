@@ -100,7 +100,9 @@ export function ChatSidebarBottomPanel({ className }: ChatSidebarBottomPanelProp
     <div ref={dropdownRef} className={cn("relative", className)}>
       {/* Settings Section */}
       <div className="px-6 py-4">
-        <div className="flex items-center gap-2 px-4 py-4">
+        <div className="flex items-center gap-2 px-4 py-4 cursor-pointer" onClick={
+          () => { router.push("/dashboard/settings") }
+        }>
           <Settings2 className="h-4 w-4 shrink-0" style={{ color: "#a2a2a2" }} />
           <span
             style={{

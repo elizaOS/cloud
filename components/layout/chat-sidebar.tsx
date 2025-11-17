@@ -22,8 +22,6 @@ import {
 import { cn } from "@/lib/utils";
 import { CornerBrackets, BrandButton } from "@/components/brand";
 import { useChatStore } from "@/stores/chat-store";
-import { SidebarBottomPanel } from "./sidebar-bottom-panel";
-import { BuildModeBottomPanel } from "./build-mode-bottom-panel";
 import { ChatSidebarBottomPanel } from "./chat-sidebar-bottom-panel";
 
 interface ChatSidebarProps {
@@ -54,7 +52,6 @@ export function ChatSidebar({
   const router = useRouter();
   const pathname = usePathname();
   const [isMobile, setIsMobile] = useState(false);
-  const isBuildMode = pathname?.includes("/build");
   const {
     rooms,
     roomId,
@@ -433,7 +430,7 @@ export function ChatSidebar({
         </nav>
 
         {/* User Settings Panel */}
-        {isBuildMode ? <BuildModeBottomPanel /> : <ChatSidebarBottomPanel />}
+        <ChatSidebarBottomPanel />
       </aside>
     </>
   );
