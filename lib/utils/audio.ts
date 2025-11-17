@@ -83,7 +83,7 @@ export function validateAudioFile(
 export function createAudioContext(sampleRate?: number): AudioContext {
   const contextOptions = sampleRate ? { sampleRate } : undefined;
 
-  // @ts-expect-error - webkitAudioContext is not in types but exists in Safari
+  // Fallback to webkitAudioContext for Safari compatibility
   return new (window.AudioContext || window.webkitAudioContext)(contextOptions);
 }
 
