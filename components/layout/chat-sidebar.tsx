@@ -268,15 +268,24 @@ export function ChatSidebar({
                       width={24}
                       height={24}
                       className="w-full h-full object-cover"
+                      unoptimized
+                      onError={(e) => {
+                        const target = e.target as HTMLImageElement;
+                        target.style.display = "none";
+                        const parent = target.parentElement;
+                        if (parent && !parent.querySelector(".fallback-text")) {
+                          const fallback = document.createElement("div");
+                          fallback.className = "fallback-text w-full h-full flex items-center justify-center text-white text-xs font-medium bg-[#FF5800] leading-none";
+                          fallback.style.lineHeight = "1";
+                          fallback.textContent = selectedCharacter.name?.[0]?.toUpperCase() || "A";
+                          parent.appendChild(fallback);
+                        }
+                      }}
                     />
                   ) : (
-                    <Image
-                      src="/avatars/eliza-chibi.png"
-                      alt="Eliza"
-                      width={24}
-                      height={24}
-                      className="w-full h-full object-cover"
-                    />
+                    <div className="w-full h-full flex items-center justify-center text-white text-xs font-medium bg-[#FF5800] leading-none" style={{ lineHeight: "1" }}>
+                      {selectedCharacter?.name?.[0]?.toUpperCase() || "Z"}
+                    </div>
                   )}
                 </div>
               </div>

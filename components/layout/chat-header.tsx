@@ -99,7 +99,7 @@ export function ChatHeader({ onToggleSidebar }: ChatHeaderProps) {
               {selectedAgent ? (
                 <>
                   {/* Agent Avatar */}
-                  <div className="w-12 h-12 rounded-full overflow-hidden bg-neutral-800 shrink-0">
+                  <div className="w-12 h-12 rounded-full overflow-hidden bg-neutral-800 shrink-0 flex items-center justify-center">
                     {selectedAgent.avatarUrl ? (
                       <Image
                         src={selectedAgent.avatarUrl}
@@ -107,16 +107,29 @@ export function ChatHeader({ onToggleSidebar }: ChatHeaderProps) {
                         width={48}
                         height={48}
                         className="w-full h-full object-cover"
+                        unoptimized
+                        onError={(e) => {
+                          const target = e.target as HTMLImageElement;
+                          target.style.display = "none";
+                          const parent = target.parentElement;
+                          if (parent && !parent.querySelector(".fallback-text")) {
+                            const fallback = document.createElement("div");
+                            fallback.className = "fallback-text w-full h-full flex items-center justify-center text-white text-sm font-medium bg-[#FF5800] leading-none";
+                            fallback.style.lineHeight = "1";
+                            fallback.textContent = selectedAgent.name?.[0] || "A";
+                            parent.appendChild(fallback);
+                          }
+                        }}
                       />
                     ) : (
-                      <div className="w-full h-full flex items-center justify-center text-white text-sm font-medium">
-                        {selectedAgent.name?.[0] || "A"}
+                      <div className="w-full h-full flex items-center justify-center text-white text-sm font-medium bg-[#FF5800] leading-none" style={{ lineHeight: "1" }}>
+                        {selectedAgent.name?.[0]?.toUpperCase() || "A"}
                       </div>
                     )}
                   </div>
-                  <div className="flex flex-col items-start justify-center gap-[2px] h-16 flex-1">
+                  <div className="flex flex-col items-start justify-center gap-[2px] h-16 flex-1 min-w-0">
                     <p
-                      className="text-white"
+                      className="text-white truncate w-full"
                       style={{
                         fontFamily: "'Roboto Mono', monospace",
                         fontSize: "16px",
@@ -128,7 +141,7 @@ export function ChatHeader({ onToggleSidebar }: ChatHeaderProps) {
                       {selectedAgent.name}
                     </p>
                     <p
-                      className="text-[#a1a1a1]"
+                      className="text-[#a1a1a1] truncate w-full"
                       style={{
                         fontFamily: "'Roboto Mono', monospace",
                         fontSize: "14px",
@@ -137,7 +150,7 @@ export function ChatHeader({ onToggleSidebar }: ChatHeaderProps) {
                         fontWeight: 400,
                       }}
                     >
-                      {selectedAgent.username ? `@${selectedAgent.username}` : "Marketing Agent"}
+                      {selectedAgent.username ? `@${selectedAgent.username}` : "Agent"}
                     </p>
                   </div>
                   <ChevronDown className="h-4 w-4 text-[#a2a0a3] shrink-0" />
@@ -145,18 +158,31 @@ export function ChatHeader({ onToggleSidebar }: ChatHeaderProps) {
               ) : (
                 <>
                   {/* Default Eliza Avatar */}
-                  <div className="w-12 h-12 rounded-full overflow-hidden bg-neutral-800 shrink-0">
+                  <div className="w-12 h-12 rounded-full overflow-hidden bg-neutral-800 shrink-0 flex items-center justify-center">
                     <Image
                       src="/avatars/eliza-chibi.png"
                       alt="Eliza"
                       width={48}
                       height={48}
                       className="w-full h-full object-cover"
+                      unoptimized
+                      onError={(e) => {
+                        const target = e.target as HTMLImageElement;
+                        target.style.display = "none";
+                        const parent = target.parentElement;
+                        if (parent && !parent.querySelector(".fallback-text")) {
+                          const fallback = document.createElement("div");
+                          fallback.className = "fallback-text w-full h-full flex items-center justify-center text-white text-sm font-medium bg-[#FF5800] leading-none";
+                          fallback.style.lineHeight = "1";
+                          fallback.textContent = "Z";
+                          parent.appendChild(fallback);
+                        }
+                      }}
                     />
                   </div>
-                  <div className="flex flex-col items-start justify-center gap-[2px] h-16 flex-1">
+                  <div className="flex flex-col items-start justify-center gap-[2px] h-16 flex-1 min-w-0">
                     <p
-                      className="text-white"
+                      className="text-white truncate w-full"
                       style={{
                         fontFamily: "'Roboto Mono', monospace",
                         fontSize: "16px",
@@ -168,7 +194,7 @@ export function ChatHeader({ onToggleSidebar }: ChatHeaderProps) {
                       Zilo
                     </p>
                     <p
-                      className="text-[#a1a1a1]"
+                      className="text-[#a1a1a1] truncate w-full"
                       style={{
                         fontFamily: "'Roboto Mono', monospace",
                         fontSize: "14px",
@@ -230,7 +256,7 @@ export function ChatHeader({ onToggleSidebar }: ChatHeaderProps) {
                     >
                       <div className="flex items-center gap-2 flex-1 min-w-0">
                         {/* Character Avatar */}
-                        <div className="w-8 h-8 rounded-full overflow-hidden bg-neutral-800 shrink-0">
+                        <div className="w-8 h-8 rounded-full overflow-hidden bg-neutral-800 shrink-0 flex items-center justify-center">
                           {character.avatarUrl ? (
                             <Image
                               src={character.avatarUrl}
@@ -238,10 +264,23 @@ export function ChatHeader({ onToggleSidebar }: ChatHeaderProps) {
                               width={32}
                               height={32}
                               className="w-full h-full object-cover"
+                              unoptimized
+                              onError={(e) => {
+                                const target = e.target as HTMLImageElement;
+                                target.style.display = "none";
+                                const parent = target.parentElement;
+                                if (parent && !parent.querySelector(".fallback-text")) {
+                                  const fallback = document.createElement("div");
+                                  fallback.className = "fallback-text w-full h-full flex items-center justify-center text-white text-xs font-medium bg-[#FF5800] leading-none";
+                                  fallback.style.lineHeight = "1";
+                                  fallback.textContent = character.name?.[0]?.toUpperCase() || "A";
+                                  parent.appendChild(fallback);
+                                }
+                              }}
                             />
                           ) : (
-                            <div className="w-full h-full flex items-center justify-center text-white text-sm font-medium">
-                              {character.name?.[0] || "A"}
+                            <div className="w-full h-full flex items-center justify-center text-white text-xs font-medium bg-[#FF5800] leading-none" style={{ lineHeight: "1" }}>
+                              {character.name?.[0]?.toUpperCase() || "A"}
                             </div>
                           )}
                         </div>

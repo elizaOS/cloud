@@ -817,7 +817,7 @@ export function ElizaChatInterface() {
                 {isLoadingMessages && (
                   <div className="flex flex-col items-center justify-center h-full text-center py-12 space-y-6">
                     <ElizaAvatar
-                      avatarUrl={agentInfo?.avatarUrl}
+                      avatarUrl={selectedCharacter?.avatarUrl || agentInfo?.avatarUrl}
                       name={characterName}
                       className="h-16 w-16 mb-4"
                       fallbackClassName="bg-muted"
@@ -868,15 +868,15 @@ export function ElizaChatInterface() {
                   <>
                     {!roomId ? (
                       <EmptyChatState
-                        agentName={agentInfo?.name}
-                        agentAvatar={agentInfo?.avatarUrl}
+                        agentName={selectedCharacter?.name || agentInfo?.name}
+                        agentAvatar={selectedCharacter?.avatarUrl || agentInfo?.avatarUrl}
                         selectedCharacterId={selectedCharacterId}
                       />
                     ) : (
                       <div className="flex flex-col items-center justify-center h-full text-center py-12">
                         <ElizaAvatar
-                          avatarUrl={agentInfo?.avatarUrl}
-                          name={agentInfo?.name}
+                          avatarUrl={selectedCharacter?.avatarUrl || agentInfo?.avatarUrl}
+                          name={selectedCharacter?.name || agentInfo?.name}
                           className="h-16 w-16 mb-4"
                           fallbackClassName="bg-muted"
                           iconClassName="h-8 w-8 text-muted-foreground"
@@ -907,7 +907,7 @@ export function ElizaChatInterface() {
                             {/* Agent Name Row with Avatar */}
                             <div className="flex items-center gap-2">
                               <ElizaAvatar
-                                avatarUrl={agentInfo?.avatarUrl}
+                                avatarUrl={selectedCharacter?.avatarUrl || agentInfo?.avatarUrl}
                                 name={characterName}
                                 className="flex-shrink-0 w-4 h-4 rounded-full"
                                 iconClassName="h-3 w-3"
