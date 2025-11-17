@@ -356,6 +356,7 @@ export function SidebarBottomPanel({ className, isCollapsed = false }: SidebarBo
         >
           <User className="h-4 w-4 shrink-0" style={{ color: "#a2a2a2" }} />
           <span
+            className="truncate"
             style={{
               fontFamily: "Geist Mono, monospace",
               fontWeight: 400,
