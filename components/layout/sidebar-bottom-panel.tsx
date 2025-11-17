@@ -22,6 +22,7 @@ import {
   LogIn,
   Settings,
   User,
+  Settings2,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { CornerBrackets } from "@/components/brand";
@@ -329,9 +330,9 @@ export function SidebarBottomPanel({ className, isCollapsed = false }: SidebarBo
   return (
     <div ref={dropdownRef} className={cn("relative", className)}>
       {/* Settings Section */}
-      <div className="px-6 py-4">
+      <div className="px-6 py-4 cursor-pointer" onClick={() => router.push("/dashboard/settings")}>
         <div className="flex items-center gap-2 px-4 py-4">
-          <Settings className="h-4 w-4 shrink-0" style={{ color: "#a2a2a2" }} />
+          <Settings2 className="h-4 w-4 shrink-0" style={{ color: "#a2a2a2" }} />
           <span
             style={{
               fontFamily: "Geist Mono, monospace",

@@ -206,26 +206,7 @@ export function ContainersTable({ containers }: ContainersTableProps) {
   };
 
   if (containers.length === 0) {
-    return (
-      <div className="flex flex-col items-center justify-center py-20 px-4">
-        <div className="rounded-full bg-muted p-6 mb-6">
-          <Server className="h-12 w-12 text-muted-foreground" />
-        </div>
-        <h3 className="text-2xl font-semibold mb-2">No containers deployed</h3>
-        <p className="text-muted-foreground mb-6 text-center max-w-md">
-          Get started by deploying your first ElizaOS container using the CLI
-        </p>
-        <div className="bg-muted p-4 rounded-lg font-mono text-sm space-y-2 max-w-lg w-full">
-          <div className="text-muted-foreground"># Install ElizaOS CLI</div>
-          <div className="text-foreground">bun install -g @elizaos/cli</div>
-          <div className="text-muted-foreground mt-3">
-            # Deploy your project
-          </div>
-          <div className="text-foreground">cd your-elizaos-project</div>
-          <div className="text-foreground">elizaos deploy</div>
-        </div>
-      </div>
-    );
+    return null;
   }
 
   return (
