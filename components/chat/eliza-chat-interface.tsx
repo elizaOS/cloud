@@ -41,6 +41,8 @@ import {
   DropdownMenuContent,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import { usePrivy } from "@privy-io/react-auth";
+import { useUserProfile } from "@/hooks/use-user-profile";
 
 interface Message {
   id: string;
@@ -65,6 +67,10 @@ interface AgentInfo {
 }
 
 export function ElizaChatInterface() {
+  // Privy user data
+  const { user } = usePrivy();
+  const { profile } = useUserProfile();
+
   // Use chat store for room and character management
   const {
     roomId,
@@ -679,6 +685,38 @@ export function ElizaChatInterface() {
     return date.toLocaleDateString();
   };
 
+  const getCurrentUserName = () => {
+    if (user?.google?.name) {
+      return user.google.name;
+    }
+    if (user?.github?.username) {
+      return user.github.username;
+    }
+    if (user?.linkedAccounts) {
+      for (const account of user.linkedAccounts) {
+        if ("name" in account && typeof account.name === "string") {
+          return account.name;
+        }
+        if ("username" in account && typeof account.username === "string") {
+          return account.username;
+        }
+      }
+    }
+    if (user?.email?.address) {
+      return user.email.address.split("@")[0];
+    }
+    return "User";
+  };
+
+  const getCurrentUserInitials = () => {
+    const name = getCurrentUserName();
+    const parts = name.split(" ");
+    if (parts.length >= 2) {
+      return `${parts[0].charAt(0)}${parts[parts.length - 1].charAt(0)}`.toUpperCase();
+    }
+    return name.charAt(0).toUpperCase();
+  };
+
   const copyToClipboard = async (
     text: string,
     messageId: string,
@@ -1025,7 +1063,25 @@ export function ElizaChatInterface() {
                           <div className="flex flex-col gap-2 max-w-full">
                             {/* User Name Row with Avatar */}
                             <div className="flex items-center gap-2">
-                              <div className="w-4 h-4 rounded-full bg-neutral-800 flex-shrink-0" />
+                              {profile?.avatar ? (
+                                <img
+                                  src={profile.avatar}
+                                  alt={getCurrentUserName()}
+                                  className="w-4 h-4 rounded-full flex-shrink-0 object-cover"
+                                />
+                              ) : (
+                                <div className="w-4 h-4 rounded-full bg-[#FF5800] flex-shrink-0 flex items-center justify-center">
+                                  <span
+                                    className="text-white font-bold"
+                                    style={{
+                                      fontSize: "8px",
+                                      lineHeight: "1",
+                                    }}
+                                  >
+                                    {getCurrentUserInitials()}
+                                  </span>
+                                </div>
+                              )}
                               <p
                                 className="font-[family-name:var(--font-roboto-mono)]"
                                 style={{
@@ -1036,7 +1092,7 @@ export function ElizaChatInterface() {
                                   opacity: 0.8,
                                 }}
                               >
-                                {characterName}
+                                {getCurrentUserName()}
                               </p>
                             </div>
 
