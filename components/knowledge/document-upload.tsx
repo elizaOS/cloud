@@ -11,6 +11,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
 interface DocumentUploadProps {
   onUploadSuccess: () => void;
+  characterId: string | null;
 }
 
 // Helper function to get correct MIME type based on file extension (from plugin-knowledge)
@@ -51,7 +52,7 @@ const getCorrectMimeType = (file: File): string => {
   return mimeTypeMap[ext] || file.type || "application/octet-stream";
 };
 
-export function DocumentUpload({ onUploadSuccess }: DocumentUploadProps) {
+export function DocumentUpload({ onUploadSuccess, characterId }: DocumentUploadProps) {
   const [uploading, setUploading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
@@ -82,6 +83,11 @@ export function DocumentUpload({ onUploadSuccess }: DocumentUploadProps) {
 
     try {
       const formData = new FormData();
+
+      // Append characterId if provided
+      if (characterId) {
+        formData.append("characterId", characterId);
+      }
 
       // Append files with corrected MIME types (matching plugin pattern)
       for (const file of selectedFiles) {
@@ -164,6 +170,7 @@ export function DocumentUpload({ onUploadSuccess }: DocumentUploadProps) {
           content: textContent,
           contentType: "text/plain",
           filename: filename || "text-document.txt",
+          characterId: characterId || undefined,
         }),
       });
 

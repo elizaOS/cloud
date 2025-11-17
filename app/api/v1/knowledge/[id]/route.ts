@@ -1,9 +1,10 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireAuthOrApiKey } from "@/lib/auth";
-import { agentRuntime } from "@/lib/eliza/agent-runtime";
 import { getKnowledgeService } from "@/lib/eliza/knowledge-service";
 import type { UUID } from "@elizaos/core";
 import { withRateLimit, RateLimitPresets } from "@/lib/middleware/rate-limit";
+import { userContextService } from "@/lib/eliza/user-context";
+import { RuntimeFactory } from "@/lib/eliza/runtime-factory";
 
 export const maxDuration = 60;
 
@@ -15,8 +16,28 @@ async function handleDELETE(
   context?: { params: Promise<{ id: string }> },
 ) {
   try {
-    await requireAuthOrApiKey(req);
-    const runtime = await agentRuntime.getRuntime();
+    const authResult = await requireAuthOrApiKey(req);
+    const { user } = authResult;
+    
+    // Get characterId from query params
+    const searchParams = req.nextUrl.searchParams;
+    const characterId = searchParams.get("characterId") || undefined;
+    
+    // Build user context with characterId
+    const userContext = await userContextService.buildContext({
+      user,
+      apiKey: authResult.apiKey,
+      isAnonymous: false,
+    });
+    
+    if (characterId) {
+      userContext.characterId = characterId;
+    }
+    
+    // Create runtime with user-specific context
+    const runtimeFactory = RuntimeFactory.getInstance();
+    const runtime = await runtimeFactory.createRuntimeForUser(userContext);
+    
     const knowledgeService = await getKnowledgeService(runtime);
 
     if (!knowledgeService) {
