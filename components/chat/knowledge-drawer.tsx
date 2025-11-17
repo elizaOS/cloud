@@ -31,7 +31,11 @@ interface KnowledgeDocument {
   };
 }
 
-export function KnowledgeDrawer() {
+interface KnowledgeDrawerProps {
+  characterId?: string | null;
+}
+
+export function KnowledgeDrawer({ characterId }: KnowledgeDrawerProps) {
   const [documents, setDocuments] = useState<KnowledgeDocument[]>([]);
   const [loading, setLoading] = useState(false);
   const [open, setOpen] = useState(false);
@@ -39,7 +43,14 @@ export function KnowledgeDrawer() {
   const fetchDocuments = async () => {
     try {
       setLoading(true);
-      const response = await fetch("/api/v1/knowledge");
+      
+      // Include characterId in query params if provided
+      const url = new URL("/api/v1/knowledge", window.location.origin);
+      if (characterId) {
+        url.searchParams.set("characterId", characterId);
+      }
+      
+      const response = await fetch(url.toString());
 
       if (!response.ok) {
         console.error("Failed to fetch documents");
@@ -69,7 +80,13 @@ export function KnowledgeDrawer() {
 
   const handleDelete = async (documentId: string) => {
     try {
-      const response = await fetch(`/api/v1/knowledge/${documentId}`, {
+      // Include characterId in query params if provided
+      const url = new URL(`/api/v1/knowledge/${documentId}`, window.location.origin);
+      if (characterId) {
+        url.searchParams.set("characterId", characterId);
+      }
+      
+      const response = await fetch(url.toString(), {
         method: "DELETE",
       });
 
@@ -116,7 +133,10 @@ export function KnowledgeDrawer() {
             </TabsList>
 
             <TabsContent value="upload" className="space-y-4">
-              <DocumentUpload onUploadSuccess={handleUploadSuccess} />
+              <DocumentUpload 
+                onUploadSuccess={handleUploadSuccess}
+                characterId={characterId ?? null}
+              />
             </TabsContent>
 
             <TabsContent value="documents" className="space-y-4">
@@ -129,7 +149,7 @@ export function KnowledgeDrawer() {
             </TabsContent>
 
             <TabsContent value="query" className="space-y-4">
-              <KnowledgeQuery />
+              <KnowledgeQuery characterId={characterId ?? null} />
             </TabsContent>
           </Tabs>
         </div>

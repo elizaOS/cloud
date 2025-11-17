@@ -80,14 +80,16 @@ export const actionsProvider: Provider = {
       actionsData,
     };
 
+    
+    // Combine all text sections - now including actionsWithDescriptions
+    const text = [actionsWithDescriptions].filter(Boolean).join("\n\n");
+    
     const values = {
       // actionExamples,
       actionsWithDescriptions,
+      formattedActionsWithDescriptions: text,
     };
-
-    // Combine all text sections - now including actionsWithDescriptions
-    const text = [actionsWithDescriptions].filter(Boolean).join("\n\n");
-
+    
     return {
       data,
       values,
