@@ -32,6 +32,11 @@ export function ElizaAvatar({
   iconClassName,
   animate = false,
 }: ElizaAvatarProps) {
+  const getInitial = () => {
+    if (!name) return "E";
+    return name.charAt(0).toUpperCase();
+  };
+
   return (
     <Avatar className={cn(className)}>
       {avatarUrl ? (
@@ -43,17 +48,25 @@ export function ElizaAvatar({
       ) : null}
       <AvatarFallback
         className={cn(
-          "bg-gradient-to-br from-purple-500 to-blue-600",
+          "bg-[#FF5800] text-white font-bold flex items-center justify-center text-center",
           fallbackClassName,
         )}
+        style={{
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+        }}
       >
-        <Bot
-          className={cn(
-            "text-white",
-            iconClassName,
-            animate && "animate-pulse",
-          )}
-        />
+        <span
+          className={cn("text-xs leading-none", iconClassName, animate && "animate-pulse")}
+          style={{
+            display: "block",
+            textAlign: "center",
+            lineHeight: "1",
+          }}
+        >
+          {getInitial()}
+        </span>
       </AvatarFallback>
     </Avatar>
   );

@@ -1,6 +1,6 @@
 /**
  * Chat Sidebar Component
- * Special sidebar for the /chat page showing rooms/conversations
+ * Special sidebar for the /chat and /build pages showing rooms/conversations
  */
 
 "use client";
@@ -18,12 +18,14 @@ import {
   Edit3,
   FileText,
   Image as ImageIcon,
+  PanelLeft,
+  Eye,
+  Bot,
+  Workflow,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { CornerBrackets, BrandButton } from "@/components/brand";
 import { useChatStore } from "@/stores/chat-store";
-import { SidebarBottomPanel } from "./sidebar-bottom-panel";
-import { BuildModeBottomPanel } from "./build-mode-bottom-panel";
 import { ChatSidebarBottomPanel } from "./chat-sidebar-bottom-panel";
 
 interface ChatSidebarProps {
@@ -54,7 +56,13 @@ export function ChatSidebar({
   const router = useRouter();
   const pathname = usePathname();
   const [isMobile, setIsMobile] = useState(false);
-  const isBuildMode = pathname?.includes("/build");
+
+  const [isCollapsed, setIsCollapsed] = useState(() => {
+    if (typeof window === "undefined") return false;
+    const stored = localStorage.getItem("chat-sidebar-collapsed");
+    return stored === "true";
+  });
+
   const {
     rooms,
     roomId,
@@ -109,6 +117,16 @@ export function ChatSidebar({
     window.addEventListener("resize", checkScreenSize);
     return () => window.removeEventListener("resize", checkScreenSize);
   }, []);
+
+  useEffect(() => {
+    if (typeof window !== "undefined") {
+      localStorage.setItem("chat-sidebar-collapsed", String(isCollapsed));
+    }
+  }, [isCollapsed]);
+
+  const toggleCollapse = () => {
+    setIsCollapsed(!isCollapsed);
+  };
 
   // Load rooms on mount - Zustand functions are stable, so empty deps array is safe
   useEffect(() => {
@@ -197,234 +215,331 @@ export function ChatSidebar({
       {/* Sidebar Container */}
       <aside
         className={cn(
-          "flex h-full flex-col border-r border-white/10 bg-[#0A0A0A] transition-transform duration-300 ease-in-out",
+          "flex h-full flex-col border-r border-white/10 bg-[#0A0A0A] transition-all duration-300 ease-in-out",
           isMobile
             ? `fixed inset-y-0 left-0 z-50 w-64 ${isOpen ? "translate-x-0" : "-translate-x-full"}`
-            : "w-64",
+            : isCollapsed
+              ? "relative w-[88px]"
+              : "relative w-64",
           className
         )}
       >
         {/* Header with Logo */}
         <div className="relative flex h-16 items-center justify-between border-b border-white/10 px-4">
           {/* Corner brackets for logo area */}
-          <CornerBrackets size="sm" className="opacity-30" />
+          {!isCollapsed && <CornerBrackets size="sm" className="opacity-30" />}
 
-          <Link
-            href="/dashboard"
-            className="flex items-center gap-2 transition-opacity hover:opacity-80 relative z-10"
-          >
-            <Image
-              src="/eliza-font.svg"
-              alt="ELIZA"
-              width={80}
-              height={24}
-              className="h-5 w-auto"
-            />
-          </Link>
-
-          {/* Mobile Close Button */}
-          {isMobile && onToggle && (
-            <button
-              type="button"
-              onClick={onToggle}
-              className="rounded-none p-2 hover:bg-white/10 focus:bg-white/10 focus:outline-none relative z-10 transition-colors"
-              aria-label="Close navigation"
+          {!isMobile && !isCollapsed ? (
+            <>
+              <Link
+                href="/dashboard"
+                className="flex items-center gap-2 transition-opacity hover:opacity-80 relative z-10"
+              >
+                <Image
+                  src="/eliza-font.svg"
+                  alt="ELIZA"
+                  width={80}
+                  height={24}
+                  className="h-5 w-auto"
+                />
+              </Link>
+              {/* Desktop Collapse Toggle Button */}
+              <button
+                onClick={toggleCollapse}
+                className="rounded-none p-1.5 hover:bg-white/10 focus:bg-white/10 focus:outline-none relative z-10 transition-colors"
+                aria-label="Collapse sidebar"
+              >
+                <PanelLeft className="h-4 w-4 text-white/60" />
+              </button>
+            </>
+          ) : !isMobile && isCollapsed ? (
+            <Link
+              href="/dashboard"
+              className="flex items-center justify-center w-full transition-opacity hover:opacity-80 relative z-10"
             >
-              <X className="h-4 w-4 text-white" />
-            </button>
+              <Image
+                src="/eliza-font.svg"
+                alt="ELIZA"
+                width={64}
+                height={16}
+                className="h-4 w-auto"
+              />
+            </Link>
+          ) : (
+            <>
+              <Link
+                href="/dashboard"
+                className="flex items-center gap-2 transition-opacity hover:opacity-80 relative z-10"
+              >
+                <Image
+                  src="/eliza-font.svg"
+                  alt="ELIZA"
+                  width={80}
+                  height={24}
+                  className="h-5 w-auto"
+                />
+              </Link>
+              {/* Mobile Close Button */}
+              {onToggle && (
+                <button
+                  type="button"
+                  onClick={onToggle}
+                  className="rounded-none p-2 hover:bg-white/10 focus:bg-white/10 focus:outline-none relative z-10 transition-colors"
+                  aria-label="Close navigation"
+                >
+                  <X className="h-4 w-4 text-white" />
+                </button>
+              )}
+            </>
           )}
         </div>
 
-        {/* Back Button */}
-        <div className="border-b border-white/10 px-4 py-3">
-          <button
-            type="button"
-            onClick={() => router.back()}
-            className="flex items-center gap-2 text-white/70 hover:text-white transition-colors cursor-pointer"
-            style={{
-              fontFamily: "var(--font-roboto-mono)",
-              fontWeight: 400,
-              fontSize: "14px",
-              lineHeight: "18px",
-              letterSpacing: "-0.003em",
-            }}
-          >
-            <ArrowLeft className="h-4 w-4" />
-            <span>Back</span>
-          </button>
-        </div>
-
-        {/* Selected Character Profile with New Chat Icon */}
-        <div className="border-b border-white/10 px-6 py-4">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-2">
-            {/* Character Avatar */}
-            <div className="relative shrink-0">
-              <div className="w-6 h-6 rounded-full bg-neutral-800 flex items-center justify-center overflow-hidden">
-                {selectedCharacter?.avatarUrl ? (
-                  <Image
-                    src={selectedCharacter.avatarUrl}
-                    alt={selectedCharacter.name}
-                    width={24}
-                    height={24}
-                    className="w-full h-full object-cover"
-                  />
-                ) : (
-                  <Image
-                    src="/avatars/eliza-chibi.png"
-                    alt="Eliza"
-                    width={24}
-                    height={24}
-                    className="w-full h-full object-cover"
-                  />
-                )}
+        {!isMobile && isCollapsed ? (
+          <>
+            {/* Navigation Icons - Simple structure */}
+            <div className="flex-1 py-6">
+              <div className="flex flex-col items-center">
+                <button
+                  onClick={() => router.push("/dashboard")}
+                  title="Dashboard"
+                  className="p-4 w-full flex items-center justify-center transition-all duration-200 hover:bg-white/5"
+                >
+                  <Eye className="h-6 w-6" style={{ color: "#a2a2a2" }} />
+                </button>
+                <button
+                  onClick={() => router.push("/dashboard/my-agents")}
+                  title="My Agents"
+                  className="p-4 w-full flex items-center justify-center transition-all duration-200 hover:bg-white/5"
+                >
+                  <Bot className="h-6 w-6" style={{ color: "#a2a2a2" }} />
+                </button>
+                <button
+                  onClick={() => router.push("/dashboard/containers")}
+                  title="Infrastructure"
+                  className="p-4 w-full flex items-center justify-center transition-all duration-200 hover:bg-white/5"
+                >
+                  <Workflow className="h-6 w-6" style={{ color: "#a2a2a2" }} />
+                </button>
               </div>
             </div>
 
-            {/* Character Info */}
-            <div className="flex flex-col justify-center">
-              <p
-                className="truncate"
+            {/* Expand Toggle Button */}
+            <div className="border-t border-white/10">
+              <button
+                onClick={toggleCollapse}
+                className="w-full flex items-center justify-center p-4 text-white/60 hover:bg-white/5 hover:text-white transition-all duration-200"
+                aria-label="Expand sidebar"
+              >
+                <PanelLeft className="h-6 w-6" />
+              </button>
+            </div>
+
+            {/* Bottom Panel */}
+            <ChatSidebarBottomPanel isCollapsed={isCollapsed} />
+          </>
+        ) : (
+          <>
+            {/* Back Button */}
+            <div className="border-b border-white/10 px-4 py-3">
+              <button
+                type="button"
+                onClick={() => router.back()}
+                className="flex items-center gap-2 text-white/70 hover:text-white transition-colors cursor-pointer"
                 style={{
                   fontFamily: "var(--font-roboto-mono)",
-                  fontWeight: 500,
+                  fontWeight: 400,
                   fontSize: "14px",
-                  lineHeight: "normal",
-                  letterSpacing: "-0.042px",
-                  color: "#dfdfdf",
+                  lineHeight: "18px",
+                  letterSpacing: "-0.003em",
                 }}
               >
-                {selectedCharacter?.name || "Zilo"}
-              </p>
-              <p
-                className="truncate opacity-50"
-                style={{
-                  fontFamily: "var(--font-roboto-mono)",
-                  fontWeight: 500,
-                  fontSize: "10px",
-                  lineHeight: "normal",
-                  color: "#a1a1a1",
-                }}
-              >
-                {filteredRooms.length} Interaction{filteredRooms.length !== 1 ? "s" : ""}
-              </p>
-            </div>
+                <ArrowLeft className="h-4 w-4" />
+                <span>Back</span>
+              </button>
             </div>
 
-            {/* Edit Icon Button */}
-            <button
-              onClick={handleNewChat}
-              disabled={isCreatingRoom}
-              className="shrink-0 p-1 hover:bg-white/5 rounded-none transition-colors"
-              title="Edit agent"
-            >
-              {isCreatingRoom ? (
-                <Loader2 className="h-6 w-6 animate-spin" style={{ color: "#dfdfdf" }} />
-              ) : (
-                <Edit3 className="h-6 w-6" style={{ color: "#dfdfdf" }} />
-              )}
-            </button>
-          </div>
-        </div>
-
-        {/* Rooms/Conversations List */}
-        <nav className="flex-1 overflow-y-auto px-6 py-4">
-          {isLoadingRooms && filteredRooms.length === 0 ? (
-            <div className="flex items-center justify-center py-8">
-              <Loader2 className="h-5 w-5 animate-spin text-white/60" />
-            </div>
-          ) : (
-            <div className="space-y-1">
-              {filteredRooms.map((room) => {
-                const isDeleting = deletingRoomId === room.id;
-                const isLoading = loadingRoomId === room.id;
-                return (
-                  <div
-                    key={room.id}
-                    className={cn(
-                      "group relative w-full text-left rounded-none transition-colors",
-                      (isDeleting || isLoading) &&
-                        "opacity-50 pointer-events-none"
-                    )}
-                  >
-                    <button
-                      type="button"
-                      onClick={() => handleSelectRoom(room.id)}
-                      disabled={isDeleting || isLoading}
-                      className={cn(
-                        "w-full text-left px-2 py-2 rounded-lg",
-                        roomId === room.id ? "bg-neutral-900" : "hover:bg-neutral-900/50"
-                      )}
-                    >
-                      <div className="flex items-center gap-2">
-                        {isLoading ? (
-                          <Loader2 className="h-4 w-4 text-[#FF5800] shrink-0 animate-spin" />
-                        ) : (
-                          <ImageIcon className="h-4 w-4 shrink-0" style={{ color: "#adadad" }} />
-                        )}
-                        <p
-                          className="truncate"
-                          style={{
-                            fontFamily: "var(--font-roboto-mono)",
-                            fontWeight: 400,
-                            fontSize: "14px",
-                            lineHeight: "normal",
-                            letterSpacing: "-0.042px",
-                            color: "#a1a1a1",
+            {/* Selected Character Profile with New Chat Icon */}
+            <div className="border-b border-white/10 px-6 py-4">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  {/* Character Avatar */}
+                  <div className="relative shrink-0">
+                    <div className="w-6 h-6 rounded-full bg-neutral-800 flex items-center justify-center overflow-hidden">
+                      {selectedCharacter?.avatarUrl ? (
+                        <Image
+                          src={selectedCharacter.avatarUrl}
+                          alt={selectedCharacter.name}
+                          width={24}
+                          height={24}
+                          className="w-full h-full object-cover"
+                          unoptimized
+                          onError={(e) => {
+                            const target = e.target as HTMLImageElement;
+                            target.style.display = "none";
+                            const parent = target.parentElement;
+                            if (parent && !parent.querySelector(".fallback-text")) {
+                              const fallback = document.createElement("div");
+                              fallback.className = "fallback-text w-full h-full flex items-center justify-center text-white text-xs font-medium bg-[#FF5800] leading-none";
+                              fallback.style.lineHeight = "1";
+                              fallback.textContent = selectedCharacter.name?.[0]?.toUpperCase() || "A";
+                              parent.appendChild(fallback);
+                            }
                           }}
-                        >
-                          {room.title ||
-                            `Room ID: ${room.id.substring(0, 8)}`}
-                        </p>
-                      </div>
-                    </button>
-                    <button
-                      type="button"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        handleDeleteRoom(room.id);
-                      }}
-                      disabled={isDeleting}
-                      className={cn(
-                        "absolute top-2 right-2 p-1 rounded-none",
-                        "opacity-0 group-hover:opacity-100 transition-opacity",
-                        "hover:bg-red-500/10 hover:text-red-500"
-                      )}
-                      title="Delete conversation"
-                    >
-                      {isDeleting ? (
-                        <Loader2 className="h-3 w-3 animate-spin" />
+                        />
                       ) : (
-                        <Trash2 className="h-3 w-3" />
+                        <div className="w-full h-full flex items-center justify-center text-white text-xs font-medium bg-[#FF5800] leading-none" style={{ lineHeight: "1" }}>
+                          {selectedCharacter?.name?.[0]?.toUpperCase() || "Z"}
+                        </div>
                       )}
-                    </button>
+                    </div>
                   </div>
-                );
-              })}
-              {filteredRooms.length === 0 && !isLoadingRooms && (
-                <div
-                  className="px-3 py-8 text-center"
-                  style={{
-                    fontFamily: "var(--font-roboto-mono)",
-                    fontWeight: 400,
-                    letterSpacing: "-0.003em",
-                  }}
+
+                  {/* Character Info */}
+                  <div className="flex flex-col justify-center">
+                    <p
+                      className="truncate"
+                      style={{
+                        fontFamily: "var(--font-roboto-mono)",
+                        fontWeight: 500,
+                        fontSize: "14px",
+                        lineHeight: "normal",
+                        letterSpacing: "-0.042px",
+                        color: "#dfdfdf",
+                      }}
+                    >
+                      {selectedCharacter?.name || "Zilo"}
+                    </p>
+                    <p
+                      className="truncate opacity-50"
+                      style={{
+                        fontFamily: "var(--font-roboto-mono)",
+                        fontWeight: 500,
+                        fontSize: "10px",
+                        lineHeight: "normal",
+                        color: "#a1a1a1",
+                      }}
+                    >
+                      {filteredRooms.length} Interaction{filteredRooms.length !== 1 ? "s" : ""}
+                    </p>
+                  </div>
+                </div>
+
+                {/* Edit Icon Button */}
+                <button
+                  onClick={handleNewChat}
+                  disabled={isCreatingRoom}
+                  className="shrink-0 p-1 hover:bg-white/5 rounded-none transition-colors"
+                  title="Edit agent"
                 >
-                  <MessageSquare className="h-12 w-12 text-white/20 mx-auto mb-3" />
-                  <p className="text-sm font-medium text-white/70 mb-2">
-                    No conversations yet
-                  </p>
-                  <p className="text-xs text-white/50 leading-relaxed">
-                    Click &ldquo;New&rdquo; above or the button in chat to start
-                  </p>
+                  {isCreatingRoom ? (
+                    <Loader2 className="h-6 w-6 animate-spin" style={{ color: "#dfdfdf" }} />
+                  ) : (
+                    <Edit3 className="h-6 w-6" style={{ color: "#dfdfdf" }} />
+                  )}
+                </button>
+              </div>
+            </div>
+
+            {/* Rooms/Conversations List */}
+            <nav className="flex-1 overflow-y-auto px-6 py-4">
+              {isLoadingRooms && filteredRooms.length === 0 ? (
+                <div className="flex items-center justify-center py-8">
+                  <Loader2 className="h-5 w-5 animate-spin text-white/60" />
+                </div>
+              ) : (
+                <div className="space-y-1">
+                  {filteredRooms.map((room) => {
+                    const isDeleting = deletingRoomId === room.id;
+                    const isLoading = loadingRoomId === room.id;
+                    return (
+                      <div
+                        key={room.id}
+                        className={cn(
+                          "group relative w-full text-left rounded-none transition-colors",
+                          (isDeleting || isLoading) &&
+                          "opacity-50 pointer-events-none"
+                        )}
+                      >
+                        <button
+                          type="button"
+                          onClick={() => handleSelectRoom(room.id)}
+                          disabled={isDeleting || isLoading}
+                          className={cn(
+                            "w-full text-left px-2.5 py-2.5",
+                            roomId === room.id ? "bg-neutral-900" : "hover:bg-neutral-900/50"
+                          )}
+                        >
+                          <div className="flex items-center gap-2">
+                            {isLoading ? (
+                              <Loader2 className="h-4 w-4 text-[#FF5800] shrink-0 animate-spin" />
+                            ) : (
+                              <ImageIcon className="h-4 w-4 shrink-0" style={{ color: "#adadad" }} />
+                            )}
+                            <p
+                              className="truncate"
+                              style={{
+                                fontFamily: "var(--font-roboto-mono)",
+                                fontWeight: 400,
+                                fontSize: "14px",
+                                lineHeight: "normal",
+                                letterSpacing: "-0.042px",
+                                color: "#a1a1a1",
+                              }}
+                            >
+                              {room.title ||
+                                `Room ID: ${room.id.substring(0, 8)}`}
+                            </p>
+                          </div>
+                        </button>
+                        <button
+                          type="button"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleDeleteRoom(room.id);
+                          }}
+                          disabled={isDeleting}
+                          className={cn(
+                            "absolute top-2 right-2 p-1 rounded-none",
+                            "opacity-0 group-hover:opacity-100 transition-opacity",
+                            "hover:bg-red-500/10 hover:text-red-500"
+                          )}
+                          title="Delete conversation"
+                        >
+                          {isDeleting ? (
+                            <Loader2 className="h-3 w-3 animate-spin" />
+                          ) : (
+                            <Trash2 className="h-3 w-3" />
+                          )}
+                        </button>
+                      </div>
+                    );
+                  })}
+                  {filteredRooms.length === 0 && !isLoadingRooms && (
+                    <div
+                      className="px-3 py-8 text-center"
+                      style={{
+                        fontFamily: "var(--font-roboto-mono)",
+                        fontWeight: 400,
+                        letterSpacing: "-0.003em",
+                      }}
+                    >
+                      <MessageSquare className="h-12 w-12 text-white/20 mx-auto mb-3" />
+                      <p className="text-sm font-medium text-white/70 mb-2">
+                        No conversations yet
+                      </p>
+                      <p className="text-xs text-white/50 leading-relaxed">
+                        Click &ldquo;New&rdquo; above or the button in chat to start
+                      </p>
+                    </div>
+                  )}
                 </div>
               )}
-            </div>
-          )}
-        </nav>
+            </nav>
 
-        {/* User Settings Panel */}
-        {isBuildMode ? <BuildModeBottomPanel /> : <ChatSidebarBottomPanel />}
+            {/* User Settings Panel */}
+            <ChatSidebarBottomPanel isCollapsed={isCollapsed} />
+          </>
+        )}
       </aside>
     </>
   );

@@ -70,7 +70,7 @@ export default function Sidebar({
           isMobile
             ? `fixed inset-y-0 left-0 z-50 w-64 ${isOpen ? "translate-x-0" : "-translate-x-full"}`
             : isCollapsed
-              ? "relative w-20"
+              ? "relative w-[88px]"
               : "relative w-64",
           className,
         )}
@@ -112,9 +112,12 @@ export default function Sidebar({
               href="/dashboard"
               className="flex items-center justify-center w-full transition-opacity hover:opacity-80 relative z-10"
             >
-              <span
-                className="inline-block w-3 h-3 rounded-full flex-shrink-0"
-                style={{ backgroundColor: "#ffffff" }}
+              <Image
+                src="/eliza-font.svg"
+                alt="ELIZA"
+                width={64}
+                height={16}
+                className="h-4 w-auto"
               />
             </Link>
           ) : (
@@ -149,30 +152,69 @@ export default function Sidebar({
           )}
         </div>
 
-        {/* Navigation Content */}
-        <nav className="flex-1 overflow-y-auto px-4 py-6">
-          <div className="space-y-1">
-            {sidebarSections.map((section, index) => (
-              <SidebarNavigationSection key={index} section={section} isCollapsed={isCollapsed} />
-            ))}
-          </div>
-        </nav>
+        {!isMobile && isCollapsed ? (
+          <>
+            {/* Navigation Icons - Simple structure */}
+            <div className="flex-1 py-6">
+              <div className="flex flex-col items-center">
+                {sidebarSections[0].items.map((item) => {
+                  const Icon = item.icon;
+                  return (
+                    <Link
+                      key={item.id}
+                      href={item.href}
+                      title={item.label}
+                      className="p-4 w-full flex items-center justify-center transition-all duration-200 hover:bg-white/5"
+                    >
+                      <Icon className="h-6 w-6 text-[#a2a2a2]" />
+                    </Link>
+                  );
+                })}
+                {sidebarSections[2].items.map((item) => {
+                  const Icon = item.icon;
+                  return (
+                    <Link
+                      key={item.id}
+                      href={item.href}
+                      title={item.label}
+                      className="p-4 w-full flex items-center justify-center transition-all duration-200 hover:bg-white/5"
+                    >
+                      <Icon className="h-6 w-6 text-[#a2a2a2]" />
+                    </Link>
+                  );
+                })}
+              </div>
+            </div>
 
-        {/* Desktop Expand Toggle Button (when collapsed) */}
-        {!isMobile && isCollapsed && (
-          <div className="relative border-t border-white/10">
-            <button
-              onClick={toggleCollapse}
-              className="w-full flex items-center justify-center px-4 py-4 text-white/60 hover:bg-white/5 hover:text-white transition-all duration-200"
-              aria-label="Expand sidebar"
-            >
-              <PanelLeft className="h-6 w-6" />
-            </button>
-          </div>
+            {/* Expand Toggle Button */}
+            <div className="border-t border-white/10">
+              <button
+                onClick={toggleCollapse}
+                className="w-full flex items-center justify-center p-4 text-white/60 hover:bg-white/5 hover:text-white transition-all duration-200"
+                aria-label="Expand sidebar"
+              >
+                <PanelLeft className="h-6 w-6" />
+              </button>
+            </div>
+
+            {/* Bottom Panel */}
+            <SidebarBottomPanel isCollapsed={isCollapsed} />
+          </>
+        ) : (
+          <>
+            {/* Navigation Content */}
+            <nav className="flex-1 overflow-y-auto px-4 py-6">
+              <div className="space-y-1">
+                {sidebarSections.map((section, index) => (
+                  <SidebarNavigationSection key={index} section={section} isCollapsed={isCollapsed} />
+                ))}
+              </div>
+            </nav>
+
+            {/* Bottom Panel with User Info and Settings */}
+            <SidebarBottomPanel isCollapsed={isCollapsed} />
+          </>
         )}
-
-        {/* Bottom Panel with User Info and Settings */}
-        <SidebarBottomPanel isCollapsed={isCollapsed} />
       </aside>
     </>
   );

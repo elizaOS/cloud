@@ -22,6 +22,7 @@ import {
   LogIn,
   Settings,
   User,
+  Settings2,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { CornerBrackets } from "@/components/brand";
@@ -259,68 +260,237 @@ export function SidebarBottomPanel({ className, isCollapsed = false }: SidebarBo
   // Collapsed authenticated view
   if (isCollapsed) {
     return (
-      <div className={cn("relative border-t border-white/10", className)}>
-        <div className="relative z-10 px-4 py-4 border-b border-white/10 flex justify-center">
-          <Avatar className="h-10 w-10 ring-2 ring-white/30">
-            {profile?.avatar && (
-              <AvatarImage src={profile.avatar} alt={getUserName()} />
-            )}
-            <AvatarFallback className="bg-gradient-to-br from-purple-500 to-blue-600 text-white text-sm">
-              {getUserName().slice(0, 2).toUpperCase()}
-            </AvatarFallback>
-          </Avatar>
-        </div>
-
-        <div className="relative z-10 px-4 py-4 border-b border-white/10 flex justify-center">
-          {loadingCredits && creditBalance === null ? (
-            <Loader2 className="h-6 w-6 animate-spin text-white/40" />
-          ) : (
-            <div
-              className="h-3 w-3 rounded-full flex-shrink-0"
-              style={{ backgroundColor: "#ffffff" }}
-              title={`${creditBalance !== null ? Number(creditBalance).toFixed(2) : "0.00"} balance`}
-            />
-          )}
-        </div>
-
-        <div className="relative z-10 py-2">
-          {menuItems.map((item) => {
-            const Icon = item.icon;
-            const isActive =
-              pathname === item.href || pathname.startsWith(`${item.href}/`);
-
-            return (
+      <div className={cn("relative", className)}>
+        <div className="flex flex-col gap-[8px] p-[16px] rounded-[6px]">
+          {/* Settings Section */}
+          <div className="flex flex-col gap-[16px] p-[16px]">
+            <div className="flex gap-[20px] items-center justify-center rounded-[15px]">
               <button
-                key={item.id}
-                onClick={() => router.push(item.href)}
-                title={item.label}
-                className={cn(
-                  "w-full flex items-center justify-center px-4 py-3 transition-all duration-200 border-l-2 cursor-pointer",
-                  isActive
-                    ? "bg-white/10 text-white border-white"
-                    : "text-white/60 hover:bg-white/5 hover:text-white border-transparent",
-                )}
+                onClick={() => router.push("/dashboard/settings")}
+                title="Settings"
+                className="flex items-center justify-center gap-[12.052px] h-[24px] rounded-[4.571px] transition-all duration-200 hover:bg-white/5"
               >
-                <Icon
-                  className={cn(
-                    "h-6 w-6 transition-colors",
-                    isActive && "text-white",
-                  )}
-                />
+                <Settings2 className="h-[24px] w-[24px]" style={{ color: "#a2a2a2" }} />
               </button>
-            );
-          })}
+            </div>
+          </div>
+
+          {/* User Button */}
+          <div className="flex gap-[8px] h-[53px] items-center justify-center overflow-clip">
+            <button
+              onClick={() => setIsDropdownOpen(!isDropdownOpen)}
+              title={getUserName()}
+              className="border border-[#2e2e2e] flex items-center justify-center p-[16px] h-full w-full transition-opacity hover:opacity-80"
+            >
+              <User className="h-[24px] w-[24px]" style={{ color: "#a2a2a2" }} />
+            </button>
+          </div>
         </div>
 
-        <div className="relative z-10 border-t border-white/5">
-          <button
-            onClick={onSignOut}
-            title="Logout"
-            className="w-full flex items-center justify-center px-4 py-3 text-white/60 hover:bg-white/5 hover:text-red-400 transition-all duration-200 cursor-pointer"
+        {/* Dropdown Menu - positioned absolutely when collapsed */}
+        {isDropdownOpen && (
+          <div
+            ref={dropdownRef}
+            className="absolute left-[88px] backdrop-blur backdrop-filter bg-[#101010] border border-[#2e2e2e] z-50"
+            style={{ bottom: "16px", width: "207px" }}
           >
-            <LogOut className="h-6 w-6" />
-          </button>
-        </div>
+            {/* User Info Section */}
+            <div className="border-b border-[#2e2e2e] px-4 py-4">
+              <div className="flex flex-col gap-1">
+                <p
+                  className="truncate"
+                  style={{
+                    fontFamily: "Geist Mono, monospace",
+                    fontWeight: 400,
+                    fontSize: "16px",
+                    lineHeight: "normal",
+                    color: "#e1e1e1",
+                  }}
+                >
+                  {getUserName()}
+                </p>
+                {getWalletAddress() && (
+                  <p
+                    style={{
+                      fontFamily: "Geist Mono, monospace",
+                      fontWeight: 400,
+                      fontSize: "14px",
+                      lineHeight: "normal",
+                      color: "#a2a2a2",
+                    }}
+                  >
+                    {getWalletAddress()}
+                  </p>
+                )}
+              </div>
+            </div>
+
+            {/* Balance Section */}
+            <div className="px-4 py-3">
+              <div className="bg-[#1b1b1b] flex items-center gap-2 px-2 py-2">
+                <Coins className="h-4 w-4 shrink-0" style={{ color: "#a2a2a2" }} />
+                <div className="flex items-center gap-1">
+                  {loadingCredits && creditBalance === null ? (
+                    <span
+                      style={{
+                        fontFamily: "Geist Mono, monospace",
+                        fontWeight: 400,
+                        fontSize: "14px",
+                        lineHeight: "normal",
+                        color: "#a2a2a2",
+                      }}
+                    >
+                      Loading...
+                    </span>
+                  ) : (
+                    <>
+                      <span
+                        style={{
+                          fontFamily: "Geist Mono, monospace",
+                          fontWeight: 400,
+                          fontSize: "14px",
+                          lineHeight: "normal",
+                          color: "#e1e1e1",
+                        }}
+                      >
+                        {creditBalance !== null ? Number(creditBalance).toFixed(2) : "0.00"}
+                      </span>
+                      <span
+                        style={{
+                          fontFamily: "Geist Mono, monospace",
+                          fontWeight: 400,
+                          fontSize: "14px",
+                          lineHeight: "normal",
+                          color: "#a2a2a2",
+                        }}
+                      >
+                        {" balance"}
+                      </span>
+                    </>
+                  )}
+                </div>
+              </div>
+            </div>
+
+            {/* Menu Items Section */}
+            <div className="border-t border-[#2e2e2e] py-4 px-4">
+              <div className="flex flex-col gap-4">
+                <button
+                  onClick={() => {
+                    setIsDropdownOpen(false);
+                    router.push("/dashboard/account");
+                  }}
+                  className="flex items-center gap-2 w-full hover:opacity-80 transition-opacity"
+                >
+                  <Building2 className="h-4 w-4 shrink-0" style={{ color: "#a2a2a2" }} />
+                  <span
+                    style={{
+                      fontFamily: "Geist Mono, monospace",
+                      fontWeight: 500,
+                      fontSize: "14px",
+                      lineHeight: "normal",
+                      letterSpacing: "-0.056px",
+                      color: "#a2a2a2",
+                    }}
+                  >
+                    Account
+                  </span>
+                </button>
+
+                <button
+                  onClick={() => {
+                    setIsDropdownOpen(false);
+                    router.push("/dashboard/billing");
+                  }}
+                  className="flex items-center gap-2 w-full hover:opacity-80 transition-opacity"
+                >
+                  <CreditCard className="h-4 w-4 shrink-0" style={{ color: "#a2a2a2" }} />
+                  <span
+                    style={{
+                      fontFamily: "Geist Mono, monospace",
+                      fontWeight: 500,
+                      fontSize: "14px",
+                      lineHeight: "normal",
+                      letterSpacing: "-0.056px",
+                      color: "#a2a2a2",
+                    }}
+                  >
+                    Billing
+                  </span>
+                </button>
+
+                <button
+                  onClick={() => {
+                    setIsDropdownOpen(false);
+                    router.push("/dashboard/settings?tab=api-keys");
+                  }}
+                  className="flex items-center gap-2 w-full hover:opacity-80 transition-opacity"
+                >
+                  <Key className="h-4 w-4 shrink-0" style={{ color: "#a2a2a2" }} />
+                  <span
+                    style={{
+                      fontFamily: "Geist Mono, monospace",
+                      fontWeight: 500,
+                      fontSize: "14px",
+                      lineHeight: "normal",
+                      letterSpacing: "-0.056px",
+                      color: "#a2a2a2",
+                    }}
+                  >
+                    API Keys
+                  </span>
+                </button>
+
+                <button
+                  onClick={() => {
+                    setIsDropdownOpen(false);
+                    window.open("https://docs.eliza.com", "_blank");
+                  }}
+                  className="flex items-center gap-2 w-full hover:opacity-80 transition-opacity"
+                >
+                  <HelpCircle className="h-4 w-4 shrink-0" style={{ color: "#a2a2a2" }} />
+                  <span
+                    style={{
+                      fontFamily: "Geist Mono, monospace",
+                      fontWeight: 500,
+                      fontSize: "14px",
+                      lineHeight: "normal",
+                      letterSpacing: "-0.056px",
+                      color: "#a2a2a2",
+                    }}
+                  >
+                    Help
+                  </span>
+                </button>
+              </div>
+            </div>
+
+            {/* Logout Section */}
+            <div className="border-t border-[#2e2e2e] px-4 py-4">
+              <button
+                onClick={() => {
+                  setIsDropdownOpen(false);
+                  onSignOut();
+                }}
+                className="flex items-center gap-2 w-full hover:opacity-80 transition-opacity"
+              >
+                <LogOut className="h-4 w-4 shrink-0" style={{ color: "#a2a2a2" }} />
+                <span
+                  style={{
+                    fontFamily: "Geist Mono, monospace",
+                    fontWeight: 500,
+                    fontSize: "14px",
+                    lineHeight: "normal",
+                    letterSpacing: "-0.056px",
+                    color: "#a2a2a2",
+                  }}
+                >
+                  Logout
+                </span>
+              </button>
+            </div>
+          </div>
+        )}
       </div>
     );
   }
@@ -329,9 +499,9 @@ export function SidebarBottomPanel({ className, isCollapsed = false }: SidebarBo
   return (
     <div ref={dropdownRef} className={cn("relative", className)}>
       {/* Settings Section */}
-      <div className="px-6 py-4">
+      <div className="px-6 py-4 cursor-pointer" onClick={() => router.push("/dashboard/settings")}>
         <div className="flex items-center gap-2 px-4 py-4">
-          <Settings className="h-4 w-4 shrink-0" style={{ color: "#a2a2a2" }} />
+          <Settings2 className="h-4 w-4 shrink-0" style={{ color: "#a2a2a2" }} />
           <span
             style={{
               fontFamily: "Geist Mono, monospace",
@@ -355,6 +525,7 @@ export function SidebarBottomPanel({ className, isCollapsed = false }: SidebarBo
         >
           <User className="h-4 w-4 shrink-0" style={{ color: "#a2a2a2" }} />
           <span
+            className="truncate"
             style={{
               fontFamily: "Geist Mono, monospace",
               fontWeight: 400,
@@ -453,12 +624,12 @@ export function SidebarBottomPanel({ className, isCollapsed = false }: SidebarBo
           </div>
 
           {/* Menu Items Section */}
-          <div className="border-t border-[#2e2e2e] pt-4 px-4">
+          <div className="border-t border-[#2e2e2e] py-4 px-4">
             <div className="flex flex-col gap-4">
               <button
                 onClick={() => {
                   setIsDropdownOpen(false);
-                  router.push("/dashboard/settings");
+                  router.push("/dashboard/account");
                 }}
                 className="flex items-center gap-2 w-full hover:opacity-80 transition-opacity"
               >
@@ -480,7 +651,7 @@ export function SidebarBottomPanel({ className, isCollapsed = false }: SidebarBo
               <button
                 onClick={() => {
                   setIsDropdownOpen(false);
-                  router.push("/dashboard/settings?tab=usage");
+                  router.push("/dashboard/billing");
                 }}
                 className="flex items-center gap-2 w-full hover:opacity-80 transition-opacity"
               >

@@ -3,7 +3,7 @@
  */
 
 import { HomeIcon, ImageIcon, LayersIcon } from "@radix-ui/react-icons";
-import { Server, Video, UserCog, Bot, Code, Mic, Store, Sparkles, Image } from "lucide-react";
+import { Server, Video, UserCog, Bot, Code, Mic, Store, Sparkles, Image, Workflow, Eye } from "lucide-react";
 import type { ComponentType } from "react";
 
 export interface SidebarItem {
@@ -29,7 +29,7 @@ export const sidebarSections: SidebarSection[] = [
         id: "dashboard",
         label: "Dashboard",
         href: "/dashboard",
-        icon: HomeIcon,
+        icon: Eye,
       },
       {
         id: "agents",
@@ -79,7 +79,7 @@ export const sidebarSections: SidebarSection[] = [
         id: "infrastructure",
         label: "Infrastructure",
         href: "/dashboard/containers",
-        icon: Server,
+        icon: Workflow,
         freeAllowed: false,
       },
     ],
