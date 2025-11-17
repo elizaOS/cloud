@@ -170,6 +170,19 @@ export default function Sidebar({
                     </Link>
                   );
                 })}
+                {sidebarSections[1].items.slice(0, 1).map((item) => {
+                  const Icon = item.icon;
+                  return (
+                    <Link
+                      key={item.id}
+                      href={item.href}
+                      title="Studio"
+                      className="p-4 w-full flex items-center justify-center transition-all duration-200 hover:bg-white/5"
+                    >
+                      <Icon className="h-6 w-6 text-[#a2a2a2]" />
+                    </Link>
+                  );
+                })}
                 {sidebarSections[2].items.map((item) => {
                   const Icon = item.icon;
                   return (

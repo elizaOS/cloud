@@ -71,10 +71,14 @@ export function SidebarNavigationSection({
   return (
     <Collapsible open={isOpen} onOpenChange={setIsOpen}>
       <CollapsibleTrigger className="group w-full px-3 py-2.5 flex items-center gap-2 hover:opacity-80 transition-opacity">
-        <span
-          className="inline-block w-1.5 h-1.5 rounded-full flex-shrink-0"
-          style={{ backgroundColor: dotColor }}
-        />
+        {section.icon ? (
+          <section.icon className="h-4 w-4 text-white/60 flex-shrink-0" />
+        ) : (
+          <span
+            className="inline-block w-1.5 h-1.5 rounded-full flex-shrink-0"
+            style={{ backgroundColor: dotColor }}
+          />
+        )}
         <h3
           className="flex-1 text-xs font-semibold uppercase tracking-wider text-white/50 text-left"
           style={{

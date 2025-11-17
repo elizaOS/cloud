@@ -19,6 +19,7 @@ export interface SidebarItem {
 
 export interface SidebarSection {
   title?: string;
+  icon?: ComponentType<{ className?: string }>;
   items: SidebarItem[];
 }
 
@@ -42,6 +43,7 @@ export const sidebarSections: SidebarSection[] = [
   },
   {
     title: "Studio",
+    icon: Sparkles,
     items: [
       {
         id: "image",
