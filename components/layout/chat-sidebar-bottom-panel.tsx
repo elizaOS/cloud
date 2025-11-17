@@ -223,12 +223,12 @@ export function ChatSidebarBottomPanel({ className }: ChatSidebarBottomPanelProp
           </div>
 
           {/* Menu Items Section */}
-          <div className="border-t border-[#2e2e2e] pt-4 px-4">
+          <div className="border-t border-[#2e2e2e] py-4 px-4">
             <div className="flex flex-col gap-4">
               <button
                 onClick={() => {
                   setIsDropdownOpen(false);
-                  router.push("/dashboard/settings");
+                  router.push("/dashboard/account");
                 }}
                 className="flex items-center gap-2 w-full hover:opacity-80 transition-opacity"
               >
