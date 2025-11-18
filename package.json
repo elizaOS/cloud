@@ -30,7 +30,8 @@
     "cache:health": "tsx scripts/cache-health-check.ts",
     "mcp:inspector": "bunx @modelcontextprotocol/inspector@latest",
     "test:discord": "tsx scripts/test-discord-service.ts",
-    "test:auto-top-up-email": "tsx scripts/debug-auto-top-up-email.ts"
+    "test:auto-top-up-email": "tsx scripts/debug-auto-top-up-email.ts",
+    "test:security-headers": "bash scripts/test-security-headers.sh"
   },
   "dependencies": {
     "@ai-sdk/gateway": "^2.0.7",
