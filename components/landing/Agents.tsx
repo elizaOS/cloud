@@ -47,7 +47,7 @@ function AgentsShowcase() {
     <div className="relative mt-16 md:mt-24 lg:mt-32">
       {/* Corner brackets - hidden on mobile */}
       <div className="hidden md:block">
-        <CornerBrackets size="xl" variant="full-border" />
+        <CornerBrackets size="lg" variant="full-border" />
       </div>
 
       <div className="mx-auto max-w-7xl px-4 md:px-2 py-6 md:py-8 lg:py-12">
