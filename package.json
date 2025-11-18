@@ -53,11 +53,7 @@
     "@elizaos/plugin-elevenlabs": "^1.6.0",
     "@elizaos/plugin-elizacloud": "^1.5.20",
     "@elizaos/plugin-knowledge": "^1.5.15",
-<<<<<<< HEAD
     "@elizaos/plugin-memory": "^1.0.5",
-=======
-    "@elizaos/plugin-memory": "^1.0.4",
->>>>>>> 7a3d7d2 (refactor: clean up eliza assistant plugin with best practices)
     "@elizaos/plugin-sql": "^1.6.4",
     "@fal-ai/client": "^1.7.2",
     "@fal-ai/server-proxy": "^1.1.1",
