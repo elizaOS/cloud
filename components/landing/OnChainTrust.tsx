@@ -110,9 +110,9 @@ export default function OnChainTrust() {
         </div>
 
         {/* Two column layout */}
-        <div className="grid gap-8 lg:grid-cols-2">
+        <div className="grid gap-8 md:gap-0 lg:grid-cols-2">
           {/* Left: 3x3 Grid of Agent wallet cards with radial fade */}
-          <div className="relative">
+          <div className="relative border-[1px] border-r-0 border-white/10">
             {/* 3x3 Grid container with radial mask */}
             <div
               className="grid grid-cols-3 gap-2 relative"
@@ -189,9 +189,8 @@ export default function OnChainTrust() {
                 );
               })}
             </div>
-
             <p
-              className="mt-4 md:mt-6 font-normal text-sm md:text-base"
+              className="mt-4 md:mt-6 m-4 font-normal text-sm md:text-base"
               style={{
                 fontFamily: "var(--font-geist-mono)",
                 lineHeight: "1.5",
@@ -207,7 +206,7 @@ export default function OnChainTrust() {
           {/* Right: Network visualization */}
           <BrandCard
             corners={false}
-            className="flex min-h-[400px] items-center justify-center rounded-sm"
+            className="flex min-h-[400px] items-center justify-center rounded-none"
           >
             <div className="w-full text-center">
               <p
@@ -229,8 +228,8 @@ export default function OnChainTrust() {
         </div>
 
         {/* Bottom tagline */}
-        <div className="mt-12 md:mt-16 text-center px-4">
-          <p className="text-base sm:text-lg md:text-xl lg:text-2xl tracking-wider text-white">
+        <div className="border-[1px] border-t-0 border-white/10 text-center px-4">
+          <p className="py-4 lg:py-8 xl:py-12 text-base sm:text-lg md:text-xl lg:text-2xl tracking-wider text-white">
             IDENTITY. REPUTATION. PAYMENT.{" "}
             <span className="text-white/60">ALL NATIVE TO YOUR AGENT.</span>
           </p>

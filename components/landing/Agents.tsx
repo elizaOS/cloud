@@ -3,6 +3,7 @@
 import Image from "next/image";
 import { MessageSquare, MoreVertical, ChevronRight } from "lucide-react";
 import { SectionLabel, CornerBrackets, BrandCard } from "@/components/brand";
+import Link from "next/link";
 
 const Agents = () => {
   return (
@@ -57,10 +58,12 @@ function AgentsShowcase() {
         {/* Header */}
         <div className="mb-6 md:mb-8 flex items-center justify-between">
           <SectionLabel>From the Community</SectionLabel>
-          <button className="flex items-center gap-2 text-sm md:text-base text-white/70 hover:text-white transition-colors">
-            Explore All
-            <ChevronRight className="h-4 w-4" />
-          </button>
+          <Link href="/my-agents">
+            <button className="flex items-center gap-2 text-sm md:text-base text-white/70 hover:text-white transition-colors">
+              Create My Agent
+              <ChevronRight className="h-4 w-4" />
+            </button>
+          </Link>
         </div>
 
         {/* Agent cards grid */}
