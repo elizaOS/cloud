@@ -16,7 +16,7 @@ import {
 import { connectionCache } from "@/lib/cache/connection-cache";
 import type { UserContext } from "./user-context";
 import { logger } from "@/lib/utils/logger";
-import { creditsService, usageService, generationsService, anonymousSessionsService } from "@/lib/services";
+import { creditsService, anonymousSessionsService } from "@/lib/services";
 import { calculateCost, getProviderFromModel } from "@/lib/pricing";
 import { discordService } from "@/lib/services/discord";
 import { db } from "@/db/client";
@@ -135,6 +135,8 @@ export class MessageHandler {
     elizaLogger.success(
       `[MessageHandler] Message processed successfully for user ${this.userContext.userId}`
     );
+
+    console.log("FINAL USAGE ************\n", usage);
     
     return {
       message: responseMemory,
@@ -257,9 +259,11 @@ export class MessageHandler {
   }
   
   /**
-   * Track usage and deduct credits
+   * Deduct credits for message processing
+   * Note: Token usage tracking is now handled by MODEL_USED events in plugin-assistant
    */
   private async trackUsage(usage: MessageResult["usage"]): Promise<void> {
+    console.log("********* received USAGE ************\n", usage);
     if (!usage || !this.userContext.organizationId) return;
     
     try {
@@ -272,6 +276,7 @@ export class MessageHandler {
         usage.outputTokens
       );
       
+      // Deduct credits from organization balance
       const deductResult = await creditsService.deductCredits({
         organizationId: this.userContext.organizationId,
         amount: costResult.totalCost,
@@ -285,20 +290,8 @@ export class MessageHandler {
         },
       });
       
-      await usageService.trackUsage({
-        organization_id: this.userContext.organizationId,
-        type: "llm",
-        provider,
-        model,
-      });
-      
-      await generationsService.create({
-        organization_id: this.userContext.organizationId,
-        type: "chat",
-        model,
-        provider,
-        prompt: "Chat message", // We don't store the actual message for privacy
-      });
+      // Note: Usage records are created by MODEL_USED event listener in plugin-assistant
+      // No need to duplicate that here
       
       // Check if credits are running low
       if (deductResult.newBalance < 1.0) {
@@ -308,11 +301,11 @@ export class MessageHandler {
       }
       
       logger.info(
-        `[MessageHandler] Tracked usage - tokens: ${usage.inputTokens}/${usage.outputTokens}, cost: ${costResult.totalCost}`
+        `[MessageHandler] Deducted credits - tokens: ${usage.inputTokens}/${usage.outputTokens}, cost: ${costResult.totalCost}, balance: ${deductResult.newBalance}`
       );
     } catch (error) {
-      logger.error("[MessageHandler] Credit handling error:", error);
-      // Don't fail the message if credit tracking fails
+      logger.error("[MessageHandler] Credit deduction error:", error);
+      // Don't fail the message if credit deduction fails
     }
   }
   
