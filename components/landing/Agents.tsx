@@ -20,6 +20,7 @@ const communityAgents = [
     id: 1,
     name: "Ember",
     image: "/agents/agent-1.png",
+    video: "/agents/agent-1-video.mp4",
     traits: ["Curious", "Sharp", "In tune"],
     description: "Guides self-growth and burnout recovery",
     comments: 156,
@@ -28,6 +29,7 @@ const communityAgents = [
     id: 2,
     name: "Sol",
     image: "/agents/agent-2.png",
+    video: "/agents/agent-2-video.mp4",
     traits: ["Curious", "Sharp", "In tune"],
     description: "Knows the arts and everything pop culture",
     comments: 156,
@@ -36,6 +38,7 @@ const communityAgents = [
     id: 3,
     name: "Pixel",
     image: "/agents/agent-3.png",
+    video: "/agents/agent-3-video.mp4",
     traits: ["Curious", "Sharp", "In tune"],
     description: "Optimizes e-commerce and UX with intuition",
     comments: 156,
@@ -71,12 +74,19 @@ function AgentsShowcase() {
             >
               {/* Agent image */}
               <div className="relative aspect-[4/3] overflow-hidden">
-                <Image
-                  src={agent.image}
-                  alt={agent.name}
-                  fill
-                  className="object-cover object-top transition-transform duration-300 group-hover:scale-105"
-                />
+                <video
+                  src={agent.video}
+                  autoPlay
+                  loop
+                  muted
+                  playsInline
+                  className="object-cover object-top transition-transform duration-300 group-hover:scale-105 w-full h-full"
+                  webkit-playsinline="true"
+                  x5-playsinline="true"
+                  preload="auto"
+                  poster={agent.image}
+                ></video>
+
                 {/* Orange filter overlay - hidden by default, shows on hover */}
                 <div
                   className="absolute inset-0 opacity-0 transition-opacity duration-300 group-hover:opacity-100 z-10"
