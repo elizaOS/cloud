@@ -89,7 +89,6 @@ const TopHero = () => {
             <span className="inline-flex items-center justify-center gap-2 sm:gap-3 md:gap-4">
               <span
                 className="inline-block w-1.5 h-1.5 sm:w-2 sm:h-2 rounded-full flex-shrink-0"
-                style={{ backgroundColor: "#FF5800" }}
               />
               <span>
                 Build <span className="font-bold">AI agents</span> in seconds
