@@ -4,7 +4,7 @@
  */
 
 import { cn } from "@/lib/utils";
-import { ArrowUp } from "lucide-react";
+import { ArrowUpLeft } from "lucide-react";
 
 interface PromptCardProps {
   prompt: string;
@@ -24,7 +24,7 @@ export function PromptCard({ prompt, onClick, className }: PromptCardProps) {
       <p className="text-sm text-white/70 group-hover:text-white/90 pr-10 pb-8">
         {prompt}
       </p>
-      <ArrowUp className="absolute bottom-4 right-4 h-4 w-4 text-white/40 group-hover:text-white/70" />
+      <ArrowUpLeft className="absolute bottom-4 right-4 h-6 w-6 text-[#E1E1E1]" />
     </button>
   );
 }
