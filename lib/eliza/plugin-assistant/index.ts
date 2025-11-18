@@ -22,18 +22,10 @@ import { generateImageAction } from "./actions/image-generation";
 import { actionStateProvider } from "./providers/actionState";
 
 // Constants
-const DEFAULT_MODEL = "gpt-4o";
 const MAX_RESPONSE_RETRIES = 3;
 const EVALUATOR_TIMEOUT_MS = 30000;
-const CHARS_PER_TOKEN = 4;
 
 // Types
-interface TokenUsage {
-  inputTokens: number;
-  outputTokens: number;
-  model: string;
-}
-
 interface MessageReceivedHandlerParams {
   runtime: IAgentRuntime;
   message: Memory;
@@ -52,9 +44,6 @@ interface ParsedResponse {
   thought?: string;
   text?: string;
 }
-
-// Track usage per message for credit deduction
-const messageUsageMap = new Map<string, TokenUsage>();
 
 const systemPrompt = `
 # Character Identity
@@ -215,13 +204,6 @@ async function clearLatestResponseId(
 }
 
 /**
- * Estimate token count from text (rough approximation)
- */
-function estimateTokens(text: string): number {
-  return Math.ceil(text.length / CHARS_PER_TOKEN);
-}
-
-/**
  * Build cache key for response tracking
  */
 function buildResponseCacheKey(agentId: UUID, roomId: string): string {
@@ -325,21 +307,15 @@ async function executeActions(
 async function generateResponseWithRetry(
   runtime: IAgentRuntime,
   prompt: string,
-): Promise<{ text: string; thought: string; outputTokens: number }> {
+): Promise<{ text: string; thought: string }> {
   let retries = 0;
   let responseContent = "";
   let thought = "";
-  let totalOutputTokens = 0;
 
   while (retries < MAX_RESPONSE_RETRIES && !responseContent) {
     const response = await runtime.useModel(ModelType.TEXT_LARGE, { prompt });
     
     logger.debug("*** RAW LLM RESPONSE ***\n", response);
-    const responseOutputTokens = estimateTokens(response);
-    
-    if (retries === 0) {
-      totalOutputTokens = responseOutputTokens;
-    }
 
     const parsedResponse = parseKeyValueXml(response) as ParsedResponse | null;
 
@@ -353,7 +329,7 @@ async function generateResponseWithRetry(
     }
   }
 
-  return { text: responseContent, thought, outputTokens: totalOutputTokens };
+  return { text: responseContent, thought };
 }
 
 /**
@@ -414,14 +390,11 @@ const messageReceivedHandler = async ({
   const responseId = v4();
   const runId = asUUID(v4());
   const startTime = Date.now();
-  const messageKey = message.id || v4();
-  
-  let totalInputTokens = 0;
-  let totalOutputTokens = 0;
 
   logger.debug(
     `[ElizaAssistant] Generated response ID: ${responseId.substring(0, 8)}`,
   );
+  logger.debug(`[ElizaAssistant] Generated run ID: ${runId.substring(0, 8)}`);
   logger.debug(`[ElizaAssistant] MESSAGE RECEIVED:`, JSON.stringify(message));
 
   await setLatestResponseId(runtime, message.roomId, responseId);
@@ -472,8 +445,6 @@ const messageReceivedHandler = async ({
     });
 
     logger.debug("*** PLANNING PROMPT ***\n", planningPrompt);
-    const planningInputTokens = estimateTokens(planningPrompt);
-    totalInputTokens += planningInputTokens;
 
     const originalSystemPrompt = runtime.character.system;
 
@@ -495,7 +466,6 @@ const messageReceivedHandler = async ({
     runtime.character.system = originalSystemPrompt;
 
     logger.debug("*** PLANNING RESPONSE ***\n", planningResponse);
-    totalOutputTokens += estimateTokens(planningResponse);
 
     const plan = parseKeyValueXml(planningResponse) as ParsedPlan | null;
     const shouldRespondNow = canRespondImmediately(plan);
@@ -574,15 +544,12 @@ const messageReceivedHandler = async ({
       logger.debug("*** FINAL SYSTEM PROMPT ***\n", runtime.character.system);
       logger.debug("*** RESPONSE PROMPT ***\n", responsePrompt);
 
-      totalInputTokens += estimateTokens(responsePrompt);
-
       const responseResult = await generateResponseWithRetry(
         runtime,
         responsePrompt,
       );
       responseContent = responseResult.text;
       thought = responseResult.thought;
-      totalOutputTokens += responseResult.outputTokens;
     }
 
     // restore the system prompt to the original
@@ -638,22 +605,8 @@ const messageReceivedHandler = async ({
     logger.debug("[ElizaAssistant] Saving response to memory");
     await runtime.createMemory(responseMemory, "messages");
 
-    // Note: Response streaming is handled by the API route
-    // The streaming POST endpoint sends events directly to the client
-
-    // Store usage in map for retrieval by API endpoint
-    const tokenUsage: TokenUsage = {
-      inputTokens: totalInputTokens,
-      outputTokens: totalOutputTokens,
-      model: DEFAULT_MODEL,
-    };
-    messageUsageMap.set(messageKey, tokenUsage);
-
-    logger.info(
-      `[ElizaAssistant] Token usage - input: ${totalInputTokens}, output: ${totalOutputTokens}, model: ${DEFAULT_MODEL}`,
-    );
-
-    // Trigger callback if provided
+    // Trigger callback immediately with response (don't wait for evaluators)
+    // This ensures fast response to the client
     if (callback) {
       const callbackContent = {
         text: responseContent,
@@ -662,12 +615,18 @@ const messageReceivedHandler = async ({
       await callback(callbackContent);
     }
 
+    // Run evaluators asynchronously (for future context enrichment)
+    // Evaluators update long-term memory, session summaries, etc. for FUTURE conversations
     await runEvaluatorsWithTimeout(
       runtime,
       message,
       initialState,
       responseMemory,
       callback,
+    );
+
+    logger.info(
+      `[ElizaAssistant] Run ${runId.substring(0, 8)} completed successfully`,
     );
 
     const endTime = Date.now();
@@ -682,7 +641,6 @@ const messageReceivedHandler = async ({
       endTime,
       duration: endTime - startTime,
       source: "messageHandler",
-      metadata: tokenUsage,
     });
   } catch (error) {
     // Emit run ended event with error
@@ -738,15 +696,3 @@ export const assistantPlugin: Plugin = {
 };
 
 export default assistantPlugin;
-
-// Export helper to retrieve usage data
-export function getMessageUsage(
-  messageId: string,
-): { inputTokens: number; outputTokens: number; model: string } | undefined {
-  const usage = messageUsageMap.get(messageId);
-  if (usage) {
-    // Clean up after retrieval to prevent memory leaks
-    messageUsageMap.delete(messageId);
-  }
-  return usage;
-}
