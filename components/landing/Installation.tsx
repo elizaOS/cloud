@@ -97,7 +97,7 @@ export default function Installation() {
           </div>
           <div className="mt-4">
             <a
-              href="#"
+              href="https://docs.elizaos.ai/"
               className="border-b-[1px] border-[#FF5800] hover:border-b-white text-[#FF5800] hover:text-white transition-colors text-sm"
             >
               View Docs
