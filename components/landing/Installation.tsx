@@ -108,17 +108,17 @@ export default function Installation() {
         </div>
 
         {/* Bottom section with features and terminal */}
-        <div className="border-t border-white/10  border-[1px] border-[#252527]">
-          <div className="grid lg:grid-cols-2 ">
+        <div className="border-t border-white/10 border-[1px] border-[#252527]">
+          <div className="grid lg:grid-cols-2">
             {/* Left: Feature text */}
             <div
-              className="py-24 bg-black w-full h-full flex items-center justify-center gap-4 md:gap-6 bg-center bg-no-repeat bg-contain"
+              className="py-12  bg-black w-full h-full flex items-center justify-center gap-4 md:gap-6 bg-center bg-no-repeat bg-contain"
               style={{
                 backgroundImage: "url('/installation/object.png')",
               }}
             >
               <p
-                className="font-normal text-center max-w-md uppercase tracking-wide text-sm md:text-[16px] lg:text-[20px] xl:text-[22px]"
+                className="font-normal text-center max-w-xs lg:max-w-md uppercase tracking-wide text-sm md:text-[16px] lg:text-[20px] xl:text-[22px]"
                 style={{
                   fontFamily: "var(--font-geist-mono)",
                   lineHeight: "1.5",
@@ -131,27 +131,28 @@ export default function Installation() {
               </p>
             </div>
 
-            {/* Right: Terminal mockup */}
-            <div className="bg-black border border-white/20 rounded-sm overflow-hidden">
-              {/* Terminal header */}
-              <div className="bg-black/60 border-b border-white/10 px-3 md:px-4 py-2 md:py-3 flex items-center gap-2">
-                <div className="w-2.5 h-2.5 md:w-3 md:h-3 rounded-full bg-red-500" />
-                <div className="w-2.5 h-2.5 md:w-3 md:h-3 rounded-full bg-yellow-500" />
-                <div className="w-2.5 h-2.5 md:w-3 md:h-3 rounded-full bg-green-500" />
-              </div>
+            <div className="bg-[#161616BF] border border-[#252527]  rounded-none border-t-0 border-b-0 border-r-0 overflow-hidden">
+              <div className="h-full p-8">
+                <div className="border-[#252527] border-t-0 border-[1px]">
+                  <div className="border-[1px] border-l-0 border-r-0 px-3 md:px-4 py-2 md:py-3 flex items-center gap-2">
+                    <div className="w-2.5 h-2.5 md:w-3 md:h-3 rounded-full bg-[#A2A2A2]" />
+                    <div className="w-2.5 h-2.5 md:w-3 md:h-3 rounded-full bg-[#A2A2A2]" />
+                    <div className="w-2.5 h-2.5 md:w-3 md:h-3 rounded-full bg-[#A2A2A2]" />
+                  </div>
 
-              {/* Terminal content */}
-              <div className="p-4 md:p-6 space-y-1.5 md:space-y-2 text-xs md:text-sm">
-                <div className="flex items-center gap-2">
-                  <span className="text-yellow-500">$</span>
-                  <span className="text-white">elizaos deploy</span>
-                </div>
-                <div className="flex items-center gap-2">
-                  <span className="text-green-500">Deploying... ✓</span>
-                </div>
-                <div className="text-white/70">Running on Eliza Cloud</div>
-                <div className="text-blue-400 break-all">
-                  → https://your-agent.containers.elizacloud.ai
+                  <div className="p-4 md:p-6 space-y-1.5 md:space-y-2 text-xs md:text-sm">
+                    <div className="flex items-center gap-2">
+                      <span className="text-[#FF5800]">$</span>
+                      <span className="text-white">elizaos deploy</span>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <span className="text-green-500">Deploying...✓</span>
+                    </div>
+                    <div className="text-white">Running on Eliza Cloud</div>
+                    <div className="text-blue-400 break-all">
+                      → https://your-agent.containers.elizacloud.ai
+                    </div>
+                  </div>
                 </div>
               </div>
             </div>
