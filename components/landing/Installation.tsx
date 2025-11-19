@@ -95,20 +95,18 @@ export default function Installation() {
               )}
             </Button>
           </div>
-        </div>
-
-        {/* View Docs link */}
-        <div className="text-center mb-12 md:mb-16">
-          <a
-            href="#"
-            className="text-white/70 hover:text-white transition-colors text-sm"
-          >
-            View Docs →
-          </a>
+          <div className="mt-4">
+            <a
+              href="#"
+              className="border-b-[1px] border-[#FF5800] hover:border-b-white text-[#FF5800] hover:text-white transition-colors text-sm"
+            >
+              View Docs
+            </a>
+          </div>
         </div>
 
         {/* Bottom section with features and terminal */}
-        <div className="border-t border-white/10 border-[1px] border-[#252527]">
+        <div className="mt-12 border-t border-white/10 border-[1px] border-[#252527]">
           <div className="grid lg:grid-cols-2">
             {/* Left: Feature text */}
             <div
