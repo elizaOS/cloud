@@ -137,9 +137,9 @@ export default function LandingHeader() {
               >
                 Log in
               </Button>
-              <LockOnButton size="sm" onClick={handleGetStarted} disabled={!ready}>
-                Sign Up
-              </LockOnButton>
+              <Button className="bg-[#FF580040] text-[#FF5800]" onClick={handleGetStarted} disabled={!ready}>
+                Get Started
+              </Button>
             </>
           )}
         </div>
