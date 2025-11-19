@@ -108,17 +108,17 @@ export default function Installation() {
         </div>
 
         {/* Bottom section with features and terminal */}
-        <div className="border-t border-white/10 pt-12 md:pt-16">
-          <div className="grid lg:grid-cols-2 gap-8 md:gap-12 items-center max-w-6xl mx-auto px-4">
+        <div className="border-t border-white/10  border-[1px] border-[#252527]">
+          <div className="grid lg:grid-cols-2 ">
             {/* Left: Feature text */}
-            <div className="flex items-center gap-4 md:gap-6">
-              <span
-                className="hidden sm:inline-block w-2 h-2 rounded-full shrink-0"
-                style={{ backgroundColor: "#FF5800" }}
-                aria-hidden="true"
-              />
+            <div
+              className="py-24 bg-black w-full h-full flex items-center justify-center gap-4 md:gap-6 bg-center bg-no-repeat bg-contain"
+              style={{
+                backgroundImage: "url('/installation/object.png')",
+              }}
+            >
               <p
-                className="font-normal uppercase tracking-wide text-sm md:text-base"
+                className="font-normal text-center max-w-md uppercase tracking-wide text-sm md:text-[16px] lg:text-[20px] xl:text-[22px]"
                 style={{
                   fontFamily: "var(--font-geist-mono)",
                   lineHeight: "1.5",
@@ -126,14 +126,9 @@ export default function Installation() {
                   color: "#858585",
                 }}
               >
-                ELIZA CLOUD RUNS YOUR CONTAINERS ON HIGH-PERFORMANCE
+                ELIZA CLOUD RUNS YOUR CONTAINERS <br /> ON HIGH-PERFORMANCE
                 INFRASTRUCTURE WITH BUILT-IN LOGS AND METRICS.
               </p>
-              <span
-                className="hidden sm:inline-block w-2 h-2 rounded-full shrink-0"
-                style={{ backgroundColor: "#FF5800" }}
-                aria-hidden="true"
-              />
             </div>
 
             {/* Right: Terminal mockup */}
