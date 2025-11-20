@@ -64,21 +64,11 @@ const TopHero = () => {
       className="w-full py-12 md:py-20 lg:py-32 relative overflow-hidden"
       style={{ backgroundColor: "#0A0A0A" }}
     >
-      {/* Fullscreen background video */}
-      <video
-        src="/videos/hero-vid.webm"
-        autoPlay
-        loop
-        muted
-        playsInline
-        className="absolute inset-0 w-full h-full object-cover opacity-30"
-        style={{
-          maskImage:
-            "linear-gradient(to bottom, rgba(0,0,0,1) 40%, rgba(0,0,0,0) 100%)",
-          WebkitMaskImage:
-            "linear-gradient(to bottom, rgba(0,0,0,1) 40%, rgba(0,0,0,0) 100%)",
-        }}
-      />
+      {/* Background gradient + grid */}
+      <div className="hero-background">
+        <div className="hero-gradient" />
+        <div className="hero-grid" />
+      </div>
 
       <div className="container mx-auto px-4 md:px-6 relative z-10">
         <div className="mx-auto max-w-6xl text-center">
@@ -101,7 +91,7 @@ const TopHero = () => {
             className="mb-8 text-sm sm:text-base md:text-base lg:text-lg xl:text-xl text-muted-foreground mx-auto relative z-10 px-4"
             style={{ textShadow: "0 1px 8px rgba(0,0,0,0.4)" }}
           >
-            ElizaOS Cloud is your complete AI development platform.
+            Eliza is your complete AI development platform.
           </p>
 
           <BrandTabsResponsive
