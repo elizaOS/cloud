@@ -441,6 +441,43 @@
   .group:hover .corner-bracket-br {
     transform: scale(1.4);
   }
+
+  /* Hero background: gradient + grid */
+  .hero-background {
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+    z-index: 1;
+  }
+
+  .hero-gradient {
+    position: absolute;
+    inset: 0;
+    background:
+      radial-gradient(800px 400px at 50% -10%, rgba(255, 88, 0, 0.25), rgba(255, 88, 0, 0) 60%),
+      radial-gradient(600px 300px at 80% 10%, rgba(11, 53, 241, 0.18), rgba(11, 53, 241, 0) 60%),
+      linear-gradient(to bottom, rgba(10, 10, 10, 0) 0%, rgba(10, 10, 10, 0.4) 50%, rgba(10, 10, 10, 0.8) 100%);
+  }
+
+  .hero-grid {
+    position: absolute;
+    inset: 0;
+    background-image:
+      linear-gradient(rgba(255, 255, 255, 0.02) 1px, transparent 0),
+      linear-gradient(90deg, rgba(255, 255, 255, 0.02) 1px, transparent 0);
+    background-size: 50px 50px;
+    animation: gridMove 20s linear infinite;
+    transform: translate(18px, 18px);
+  }
+
+  @keyframes gridMove {
+    0% {
+      transform: translate(0, 0);
+    }
+    100% {
+      transform: translate(50px, 50px);
+    }
+  }
 }
 
 /* Custom Scrollbar Styling */
