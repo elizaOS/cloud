@@ -17,9 +17,38 @@ const nextConfig: NextConfig = {
       bodySizeLimit: "2gb",
     },
   },
+  
+  // Skip TypeScript type checking during build (run separately with check-types)
+  typescript: {
+    ignoreBuildErrors: true,
+  },
+  
+  // Disable output file tracing to avoid worker_threads NFT error in Turbopack
+  // This is a workaround for Turbopack bug with Node.js built-in modules
+  outputFileTracingRoot: undefined,
+  outputFileTracingIncludes: {},
+  outputFileTracingExcludes: {
+    "*": [
+      "node_modules/thread-stream/**/*",
+      "node_modules/pino/**/*",
+      "node_modules/sonic-boom/**/*",
+    ],
+  },
+  
   // Handle pdfjs-dist and other problematic packages in serverless
   // These packages are externalized to prevent SSR issues with browser-only APIs
-  serverExternalPackages: ["pdfjs-dist", "canvas", "pdf-parse"],
+  // CRITICAL: pino and thread-stream MUST be externalized because they use worker_threads
+  serverExternalPackages: [
+    "pdfjs-dist",
+    "canvas",
+    "pdf-parse",
+    "pino",
+    "thread-stream",
+    "pino-pretty",
+    "sonic-boom",
+    "@walletconnect/logger",
+    "@walletconnect/universal-provider",
+  ],
 
   // Production Security Headers
   async headers() {
