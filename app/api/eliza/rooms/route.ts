@@ -133,16 +133,13 @@ export async function POST(request: NextRequest) {
 
     const body = await request.json();
     const { entityId, characterId } = body;
-    logger.debug(
-      "[Eliza Rooms API] Creating room for entity:",
-      entityId,
-      "with character:",
-      characterId,
-      "userId:",
-      user.id,
+    logger.info(
+      "[Eliza Rooms API] Creating room - Request body:",
+      JSON.stringify({ entityId, characterId, userId: user.id }),
     );
 
     if (!entityId) {
+      logger.error("[Eliza Rooms API] entityId is required but not provided");
       return NextResponse.json(
         { error: "entityId is required" },
         { status: 400 },
@@ -273,24 +270,9 @@ export async function POST(request: NextRequest) {
         "messages",
       );
 
-      // Explicitly update room's lastTime and lastText for proper sorting
-      try {
-        await db.execute(
-          sql`UPDATE rooms 
-              SET "lastTime" = ${greetingTimestamp},
-                  "lastText" = ${greetingText}
-              WHERE id = ${roomId}::uuid`,
-        );
-        logger.info(
-          "[Eliza Rooms API] ✓ Room lastTime updated:",
-          greetingTimestamp,
-        );
-      } catch (updateErr) {
-        logger.error(
-          "[Eliza Rooms API] Failed to update room lastTime:",
-          updateErr,
-        );
-      }
+      // NOTE: lastTime and lastText columns don't exist in our rooms schema
+      // Room sorting can be handled by createdAt or message timestamps instead
+      // Removed the UPDATE query that was trying to set non-existent columns
 
       logger.info(
         "[Eliza Rooms API] ✓ Greeting message saved (character:",

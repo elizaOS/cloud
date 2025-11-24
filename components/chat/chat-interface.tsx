@@ -11,6 +11,7 @@ import { Progress } from "@/components/ui/progress";
 import { InfoIcon, Sparkles } from "lucide-react";
 import type { UserCharacter } from "@/db/schemas";
 import { ElizaChatInterface } from "./eliza-chat-interface";
+import { useChatStore } from "@/stores/chat-store";
 
 /**
  * Chat Interface Component
@@ -50,6 +51,7 @@ export function ChatInterface({
 }: ChatInterfaceProps) {
   const router = useRouter();
   const [messageCount, setMessageCount] = useState(session?.messageCount || 0);
+  const { setSelectedCharacterId } = useChatStore();
   const isAnonymous = !user && !!session;
   const messagesRemaining = session
     ? session.messagesLimit - messageCount
@@ -62,6 +64,11 @@ export function ChatInterface({
 
   // Hard paywall at 10 messages
   const shouldShowPaywall = isAnonymous && messagesRemaining <= 0;
+
+  // CRITICAL: Set the selected character ID so ElizaChatInterface knows which character to use
+  useEffect(() => {
+    setSelectedCharacterId(character.id);
+  }, [character.id, setSelectedCharacterId]);
 
   useEffect(() => {
     // Track affiliate source

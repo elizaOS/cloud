@@ -32,7 +32,11 @@
     "mcp:inspector": "bunx @modelcontextprotocol/inspector@latest",
     "test:discord": "tsx scripts/test-discord-service.ts",
     "test:auto-top-up-email": "tsx scripts/debug-auto-top-up-email.ts",
-    "create-affiliate-key": "tsx scripts/create-affiliate-key.ts"
+    "create-affiliate-key": "tsx scripts/create-affiliate-key.ts",
+    "fix:session-summaries": "tsx scripts/fix-session-summaries-indexes.ts",
+    "fix:drizzle-tracking": "tsx scripts/fix-drizzle-migration-tracking.ts",
+    "fix:db": "tsx scripts/fix-all-database-issues.ts",
+    "verify:db": "tsx scripts/verify-database-state.ts"
   },
   "dependencies": {
     "@ai-sdk/gateway": "^2.0.7",

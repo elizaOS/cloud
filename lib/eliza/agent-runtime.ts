@@ -248,28 +248,68 @@ class AgentRuntimeManager {
       } catch (initError) {
         const errorMsg =
           initError instanceof Error ? initError.message : String(initError);
+        const errorStack =
+          initError instanceof Error ? initError.stack : String(initError);
 
-        // If error is about agent/entity already existing, that's fine - continue
-        if (
+        // Log the full error for debugging
+        elizaLogger.error("#Eliza", "Runtime initialization error:", errorMsg);
+
+        // Check if this is a migration error about duplicate objects/indexes
+        const isMigrationError = 
+          errorMsg.includes("migration(s) failed") ||
+          errorMsg.includes("Failed query: CREATE INDEX") ||
+          errorMsg.includes("Failed query: CREATE TABLE") ||
+          errorMsg.includes("Failed to run plugin migrations");
+
+        const isDuplicateError =
           errorMsg.includes("Failed to create entity") ||
           errorMsg.includes("Failed to create agent") ||
           errorMsg.toLowerCase().includes("duplicate key") ||
-          errorMsg.toLowerCase().includes("unique constraint")
-        ) {
+          errorMsg.toLowerCase().includes("unique constraint") ||
+          errorMsg.toLowerCase().includes("duplicate") ||
+          errorMsg.includes("42P07") || // PostgreSQL duplicate object error code
+          errorMsg.toLowerCase().includes("already exists") ||
+          errorMsg.toLowerCase().includes("relation") && errorMsg.toLowerCase().includes("already exists");
+
+        // If error is about migrations or duplicate DB objects, that's fine - continue
+        if (isMigrationError || isDuplicateError) {
           elizaLogger.warn(
             "#Eliza",
-            "Agent/entity records already exist, continuing with existing data",
+            "Database migration/duplicate object error detected - continuing with existing data",
           );
+          elizaLogger.warn("#Eliza", "Error details:", errorMsg);
 
           // Verify adapter is functional
-          const isReady = await dbAdapter.isReady();
-          if (!isReady) {
-            throw new Error(
-              "Database adapter is not ready after initialization attempt",
+          try {
+            const isReady = await dbAdapter.isReady();
+            if (!isReady) {
+              elizaLogger.error(
+                "#Eliza",
+                "Database adapter is not ready after initialization attempt",
+              );
+              throw new Error(
+                "Database adapter is not ready after initialization attempt",
+              );
+            }
+            elizaLogger.success(
+              "#Eliza",
+              "Database adapter is functional, proceeding with existing schema",
             );
+          } catch (readyError) {
+            elizaLogger.error(
+              "#Eliza",
+              "Failed to verify database adapter:",
+              readyError,
+            );
+            throw readyError;
           }
         } else {
           // Other errors are serious, re-throw
+          elizaLogger.error(
+            "#Eliza",
+            "Unrecoverable initialization error:",
+            errorMsg,
+          );
           throw initError;
         }
       }
