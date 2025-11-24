@@ -31,7 +31,8 @@
     "cache:health": "tsx scripts/cache-health-check.ts",
     "mcp:inspector": "bunx @modelcontextprotocol/inspector@latest",
     "test:discord": "tsx scripts/test-discord-service.ts",
-    "test:auto-top-up-email": "tsx scripts/debug-auto-top-up-email.ts"
+    "test:auto-top-up-email": "tsx scripts/debug-auto-top-up-email.ts",
+    "create-affiliate-key": "tsx scripts/create-affiliate-key.ts"
   },
   "dependencies": {
     "@ai-sdk/gateway": "^2.0.7",
