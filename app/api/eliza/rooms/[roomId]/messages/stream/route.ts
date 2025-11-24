@@ -67,10 +67,35 @@ export async function POST(
     const body = await request.json();
     const { entityId, text, model } = body;
 
-    // Validation
-    if (!roomId || !entityId || !text?.trim()) {
+    // Comprehensive validation with specific error messages
+    const missingFields: string[] = [];
+    
+    if (!roomId || typeof roomId !== "string" || roomId.trim() === "") {
+      missingFields.push("roomId");
+    }
+    if (!entityId || typeof entityId !== "string" || entityId.trim() === "") {
+      missingFields.push("entityId");
+    }
+    if (!text || typeof text !== "string" || text.trim() === "") {
+      missingFields.push("text");
+    }
+
+    if (missingFields.length > 0) {
+      logger.error(
+        "[Stream] Missing required fields:",
+        missingFields,
+        "Received:",
+        { roomId, entityId: entityId || "(missing)", textLength: text?.length || 0 },
+      );
       return new Response(
-        JSON.stringify({ error: "Missing required fields" }),
+        JSON.stringify({
+          error: `Missing required fields: ${missingFields.join(", ")}`,
+          details: {
+            roomId: roomId || null,
+            entityId: entityId || null,
+            hasText: !!text,
+          },
+        }),
         { status: 400, headers: { "Content-Type": "application/json" } },
       );
     }

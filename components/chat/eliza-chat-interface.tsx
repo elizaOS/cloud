@@ -81,7 +81,16 @@ export function ElizaChatInterface() {
     availableCharacters,
     pendingMessage,
     setPendingMessage,
+    initializeEntityId,
   } = useChatStore();
+
+  // CRITICAL: Ensure entityId is initialized when component mounts
+  useEffect(() => {
+    if (!entityId || entityId.trim() === "") {
+      console.warn("[ElizaChat] entityId not initialized, initializing now...");
+      initializeEntityId();
+    }
+  }, [entityId, initializeEntityId]);
   const [messages, setMessages] = useState<Message[]>([]);
   const [agentInfo, setAgentInfo] = useState<AgentInfo | null>(null);
   const [inputText, setInputText] = useState("");
@@ -607,6 +616,24 @@ export function ElizaChatInterface() {
           "[Chat] Thinking indicator timeout - agent took too long to respond"
         );
       }, 30000);
+
+      // CRITICAL: Validate all required fields before sending
+      if (!currentRoomId || currentRoomId.trim() === "") {
+        throw new Error("Room ID is missing. Please try creating a new chat.");
+      }
+      if (!entityId || entityId.trim() === "") {
+        throw new Error("User ID is missing. Please refresh the page and try again.");
+      }
+      if (!messageText || messageText.trim() === "") {
+        throw new Error("Message text cannot be empty.");
+      }
+
+      console.log("[ElizaChat] Sending message with:", {
+        roomId: currentRoomId,
+        entityId,
+        textLength: messageText.length,
+        model: selectedModel || "default",
+      });
 
       // Stream the response using single endpoint
       await sendStreamingMessage({

@@ -46,13 +46,19 @@ interface ChatState {
 }
 
 // Initialize entity ID from localStorage
+// CRITICAL: Always returns a valid ID, never empty
 const getEntityId = (): string => {
-  if (typeof window === "undefined") return "";
+  if (typeof window === "undefined") {
+    // SSR fallback - return temporary ID
+    return `user-ssr-${Math.random().toString(36).substring(2, 9)}`;
+  }
 
   let id = window.localStorage.getItem("elizaEntityId");
-  if (!id) {
+  if (!id || id.trim() === "") {
+    // Generate new ID with timestamp and random component for uniqueness
     id = `user-${Date.now()}-${Math.random().toString(36).substring(2, 9)}`;
     window.localStorage.setItem("elizaEntityId", id);
+    console.log("[ChatStore] Generated new entityId:", id);
   }
   return id;
 };
@@ -62,7 +68,7 @@ export const useChatStore = create<ChatState>((set, get) => ({
   rooms: [],
   roomId: null,
   isLoadingRooms: false,
-  entityId: "",
+  entityId: getEntityId(), // CRITICAL: Initialize immediately, never empty
   availableCharacters: [],
   selectedCharacterId: null,
   pendingMessage: null,
@@ -102,11 +108,12 @@ export const useChatStore = create<ChatState>((set, get) => ({
       return loadRoomsPromise;
     }
 
-    // Ensure entityId is initialized
-    if (!entityId) {
+    // CRITICAL: Ensure entityId is ALWAYS valid before any API call
+    if (!entityId || entityId.trim() === "") {
       const newEntityId = getEntityId();
       set({ entityId: newEntityId });
       entityId = newEntityId;
+      console.log("[ChatStore] Initialized entityId in loadRooms:", entityId);
     }
 
     // Create new promise for this load operation
@@ -169,11 +176,19 @@ export const useChatStore = create<ChatState>((set, get) => ({
   createRoom: async (characterId?: string | null) => {
     let { entityId, loadRooms, setRoomId } = get();
 
-    // Ensure entityId is initialized
-    if (!entityId) {
+    // CRITICAL: Ensure entityId is ALWAYS valid before API call
+    if (!entityId || entityId.trim() === "") {
       const newEntityId = getEntityId();
       set({ entityId: newEntityId });
       entityId = newEntityId;
+      console.log("[ChatStore] Initialized entityId in createRoom:", entityId);
+    }
+
+    // Validation: Ensure we have all required fields
+    if (!entityId || entityId.trim() === "") {
+      const error = "Cannot create room: entityId is required but missing";
+      console.error("[ChatStore]", error);
+      throw new Error(error);
     }
 
     try {

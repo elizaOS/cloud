@@ -132,17 +132,29 @@ export async function POST(request: NextRequest) {
     }
 
     const body = await request.json();
-    const { entityId, characterId } = body;
+    const { entityId, characterId, userId: bodyUserId } = body;
     logger.info(
       "[Eliza Rooms API] Creating room - Request body:",
       JSON.stringify({ entityId, characterId, userId: user.id }),
     );
 
-    if (!entityId) {
-      logger.error("[Eliza Rooms API] entityId is required but not provided");
+    // Comprehensive validation with helpful error messages
+    if (!entityId || typeof entityId !== "string" || entityId.trim() === "") {
+      logger.error("[Eliza Rooms API] entityId is required but invalid:", entityId);
       return NextResponse.json(
-        { error: "entityId is required" },
+        {
+          error: "entityId is required and must be a non-empty string",
+          receivedEntityId: entityId,
+        },
         { status: 400 },
+      );
+    }
+
+    if (!user || !user.id) {
+      logger.error("[Eliza Rooms API] user.id is required but missing");
+      return NextResponse.json(
+        { error: "Authentication failed: user ID missing" },
+        { status: 401 },
       );
     }
 
@@ -209,37 +221,42 @@ export async function POST(request: NextRequest) {
     let greetingForDiscord: { text: string; characterName: string } | null =
       null;
 
-    // CRITICAL: Store character mapping FIRST (before greeting message)
-    if (characterId) {
-      try {
-        logger.debug(
-          "[Eliza Rooms API] Attempting to store character mapping:",
-          {
-            room_id: roomId,
-            character_id: characterId,
-            user_id: user.id,
-          },
-        );
-        await elizaRoomCharactersRepository.create({
+    // CRITICAL: ALWAYS store character mapping (required for proper room functionality)
+    // Use provided characterId or fall back to a "default" identifier
+    const finalCharacterId = characterId || "default";
+    
+    try {
+      logger.debug(
+        "[Eliza Rooms API] Storing character mapping:",
+        {
           room_id: roomId,
-          character_id: characterId,
+          character_id: finalCharacterId,
           user_id: user.id,
-        });
-        logger.info(
-          "[Eliza Rooms API] ✓ Character mapping stored:",
-          roomId,
-          "→",
-          characterId,
-        );
-      } catch (mappingError) {
-        logger.error(
-          "[Eliza Rooms API] ✗ Failed to create character mapping:",
-          mappingError,
-        );
-        // Continue anyway - room is created even if mapping fails
-      }
-    } else {
-      logger.debug("[Eliza Rooms API] No character specified, using default");
+        },
+      );
+      await elizaRoomCharactersRepository.create({
+        room_id: roomId,
+        character_id: finalCharacterId,
+        user_id: user.id,
+      });
+      logger.info(
+        "[Eliza Rooms API] ✓ Character mapping created:",
+        roomId,
+        "→",
+        finalCharacterId,
+      );
+    } catch (mappingError) {
+      logger.error(
+        "[Eliza Rooms API] ✗ Failed to create character mapping:",
+        mappingError,
+      );
+      // This is critical - if mapping creation fails, we should fail the room creation
+      // Otherwise the room will be unusable
+      throw new Error(
+        `Failed to create character mapping: ${
+          mappingError instanceof Error ? mappingError.message : "Unknown error"
+        }`,
+      );
     }
 
     // Send initial greeting message using the character's runtime
