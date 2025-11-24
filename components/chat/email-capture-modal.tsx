@@ -50,7 +50,6 @@ export function EmailCaptureModal({
       // Use Privy to create account with email
       await login({
         loginMethods: ["email"],
-        prefill: { email },
       });
 
       // Call parent's onSubmit to handle post-auth logic

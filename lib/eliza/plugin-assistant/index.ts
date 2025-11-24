@@ -18,6 +18,7 @@ import { actionsProvider } from "./providers/actions";
 import { characterProvider } from "./providers/character";
 import { generateImageAction } from "./actions/image-generation";
 import { actionStateProvider } from "./providers/actionState";
+import { recentMessagesProvider } from "./providers/recent-messages";
 
 // Track usage per message for credit deduction
 const messageUsageMap = new Map<
@@ -38,6 +39,9 @@ interface MessageReceivedHandlerParams {
  * Planning template - decides if we can respond immediately and generates response if possible
  */
 export const planningTemplate = `
+# Recent Conversation
+{{recentMessages}}
+
 <providers>
 {{providers}}
 </providers>
@@ -49,14 +53,23 @@ You are analyzing the user's message to determine the best approach.
 
 **Option 1 - Respond Immediately (1 LLM call):**
 ONLY use this if ALL of these are true:
-- Simple greeting, thanks, or social interaction
+- ONLY simple greetings like "hi", "hello", "hey" - NOT questions or requests
 - General knowledge question answerable from memory
 - NO actions needed (no image generation, no tools, no external operations)
 - NO providers needed (no document lookup, no data retrieval)
 - You can give a complete answer with existing context alone
 
+**IMPORTANT: These are NOT simple greetings and require Option 2:**
+- Questions (What, Why, How, When, Where, Who)
+- Requests (tell me, show me, explain, describe)
+- References to previous conversation ("you said", "earlier", "before")
+- Any message asking for information or explanation
+
 **Option 2 - Use Actions/Providers (2+ LLM calls):**
 Use this if ANY of these apply:
+- User asks a question (starts with or implies What/Why/How/When/Where/Who)
+- User makes a request ("tell me", "explain", "describe", "show me")
+- User references previous messages or asks about conversation history
 - User requests an action (generate image, search, calculate, etc.)
 - Need to check documents, knowledge base, or user data
 - Need specific providers for context
@@ -88,14 +101,31 @@ Respond using XML format:
  * Final response template - generates the actual response
  */
 export const messageHandlerTemplate = `
+# Recent Conversation
+{{recentMessages}}
+
 <providers>
 {{providers}}
 </providers>
 
 <instructions>
-Respond to the user's message thoroughly and helpfully.
-Be concise, clear, and friendly.
-Use the provided context and memories to personalize your response.
+READ the recent conversation history above CAREFULLY.
+
+Respond to the user's CURRENT message based on:
+1. The full conversation context - what has been said before
+2. The user's actual question or request - answer it directly
+3. Your character personality - maintain your style while being helpful
+
+If the user asks a question:
+- Reference the conversation history if relevant
+- Answer the question directly and thoroughly
+- Don't deflect with generic responses
+
+If the user references previous messages ("earlier", "you said", "before"):
+- Acknowledge what was discussed
+- Provide a clear, specific response
+
+Be concise, clear, and maintain your character's personality while actually addressing what the user is asking.
 </instructions>
 
 <keys>
@@ -105,7 +135,7 @@ Use the provided context and memories to personalize your response.
 <output>
 Respond using XML format like this:
 <response>
-  <thought>Your internal reasoning</thought>
+  <thought>Your internal reasoning about how to answer based on conversation history</thought>
   <text>Your response text here</text>
 </response>
 
@@ -209,39 +239,24 @@ const messageReceivedHandler = async ({
     }
 
     // Save the incoming message
-    logger.debug("[ElizaAssistant] Saving message to memory");
     await runtime.createMemory(message, "messages");
 
-    // Note: Message streaming is now handled by the API route
-    // No need to emit events here - the streaming POST endpoint handles it directly
-
-    // PHASE 1: Compose initial state with memory providers
-    logger.debug("[ElizaAssistant] Composing state with memory providers");
-    const initialState = await runtime.composeState(message, [
-      "SHORT_TERM_MEMORY",
-      "LONG_TERM_MEMORY",
-      "AVAILABLE_DOCUMENTS",
-    ]);
-
-    logger.debug("*** INITIAL STATE ***\n", JSON.stringify(initialState));
+    // PHASE 1: Compose initial state - Explicitly request recentMessages for conversation history
+    const initialState = await runtime.composeState(message, ["recentMessages"]);
 
     // PHASE 2: Planning - Determine which providers/actions to use
-    logger.info("[ElizaAssistant] Phase 1: Planning");
     const planningPrompt = composePromptFromState({
       state: initialState,
       template:
         runtime.character.templates?.planningTemplate || planningTemplate,
     });
 
-    logger.debug("*** PLANNING PROMPT ***\n", planningPrompt);
     const planningInputTokens = estimateTokens(planningPrompt);
     totalInputTokens += planningInputTokens;
 
     const planningResponse = await runtime.useModel(ModelType.TEXT_LARGE, {
       prompt: planningPrompt,
     });
-
-    logger.debug("*** PLANNING RESPONSE ***\n", planningResponse);
     const planningOutputTokens = estimateTokens(planningResponse);
     totalOutputTokens += planningOutputTokens;
 
@@ -250,18 +265,11 @@ const messageReceivedHandler = async ({
       plan?.canRespondNow?.toUpperCase() === "YES" ||
       plan?.canRespondNow === "true";
 
-    logger.info(
-      `[ElizaAssistant] Plan - canRespondNow: ${canRespondNow}, thought: ${plan?.thought}`,
-    );
-
     let responseContent = "";
     let thought = "";
 
     // Check if the planning call already generated a response (1 LLM call optimization)
     if (canRespondNow && plan?.text) {
-      logger.info(
-        "[ElizaAssistant] ⚡ Single-call optimization: Using response from planning phase",
-      );
       responseContent = plan.text;
       thought = plan.thought || "";
     } else {
@@ -270,12 +278,6 @@ const messageReceivedHandler = async ({
 
       // PHASE 3: Execute planned providers and actions
       if (!canRespondNow) {
-        logger.info(
-          "[ElizaAssistant] Phase 2: Executing providers and actions",
-        );
-        logger.debug(
-          `[ElizaAssistant] Providers: ${plan?.providers}, Actions: ${plan?.actions}`,
-        );
 
         // Execute providers if any were planned
         const plannedProviders = plan?.providers
@@ -286,10 +288,6 @@ const messageReceivedHandler = async ({
           : [];
 
         if (plannedProviders.length > 0) {
-          logger.debug(
-            "[ElizaAssistant] Executing providers:",
-            plannedProviders,
-          );
           const providerState = await runtime.composeState(message, [
             ...plannedProviders,
             "CHARACTER",
@@ -306,7 +304,6 @@ const messageReceivedHandler = async ({
           : [];
 
         if (plannedActions.length > 0) {
-          logger.debug("[ElizaAssistant] Executing actions:", plannedActions);
 
           // Create response memory with actions for processActions
           const actionResponse: Memory = {
@@ -336,25 +333,15 @@ const messageReceivedHandler = async ({
           ]);
           updatedState = { ...updatedState, ...actionState };
         }
-      } else {
-        logger.info(
-          "[ElizaAssistant] Short-circuit: Responding with existing context",
-        );
       }
 
       // PHASE 4: Generate final response using updated state
-      const responsePhase = canRespondNow ? "Phase 2" : "Phase 3";
-      logger.info(
-        `[ElizaAssistant] ${responsePhase}: Generating final response`,
-      );
       const responsePrompt = composePromptFromState({
         state: updatedState,
         template:
           runtime.character.templates?.messageHandlerTemplate ||
           messageHandlerTemplate,
       });
-
-      logger.debug("*** RESPONSE PROMPT ***\n", responsePrompt);
       const responseInputTokens = estimateTokens(responsePrompt);
       totalInputTokens += responseInputTokens;
 
@@ -579,6 +566,7 @@ export const assistantPlugin: Plugin = {
   description: "Core assistant plugin with message handling and context",
   events,
   providers: [
+    recentMessagesProvider, // CRITICAL: Must be first for conversation continuity
     providersProvider,
     actionsProvider,
     characterProvider,

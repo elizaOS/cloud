@@ -20,8 +20,8 @@ const CreateCharacterSchema = z.object({
     }).optional(),
     topics: z.array(z.string()).optional(),
     adjectives: z.array(z.string()).optional(),
-    settings: z.record(z.any()).optional(),
-    secrets: z.record(z.any()).optional(),
+    settings: z.record(z.string(), z.union([z.string(), z.number(), z.boolean(), z.record(z.string(), z.unknown())])).optional(),
+    secrets: z.record(z.string(), z.union([z.string(), z.number(), z.boolean()])).optional(),
     avatar_url: z.string().url().optional(),
   }),
   affiliateId: z.string(),
@@ -152,7 +152,7 @@ export async function POST(request: NextRequest) {
         { 
           success: false,
           error: "Invalid request body",
-          details: error instanceof z.ZodError ? error.errors : undefined
+          details: error instanceof z.ZodError ? error.issues : undefined
         },
         { status: 400 }
       );
@@ -242,14 +242,12 @@ export async function POST(request: NextRequest) {
       const elizaCharacter: ElizaCharacter = {
         name: character.name,
         bio: character.bio,
-        lore: character.lore,
         messageExamples: character.messageExamples,
         style: character.style,
         topics: character.topics,
         adjectives: character.adjectives,
         settings: character.settings,
         secrets: character.secrets,
-        avatar_url: character.avatar_url,
       };
       
       createdCharacter = await charactersService.create({
@@ -263,8 +261,8 @@ export async function POST(request: NextRequest) {
         adjectives: elizaCharacter.adjectives || [],
         knowledge: [],
         plugins: [],
-        settings: (elizaCharacter.settings || {}) as Record<string, unknown>,
-        secrets: (elizaCharacter.secrets || {}) as Record<string, string | boolean | number>,
+        settings: (elizaCharacter.settings || {}) as Record<string, string | number | boolean | Record<string, unknown>>,
+        secrets: (elizaCharacter.secrets || {}) as Record<string, string | number | boolean>,
         style: elizaCharacter.style || {},
         character_data: {
           ...elizaCharacter,

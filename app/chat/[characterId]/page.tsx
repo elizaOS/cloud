@@ -86,12 +86,13 @@ export default async function ChatPage({ params, searchParams }: ChatPageProps) 
         }}
         showSignupPrompt={shouldShowSignupPrompt}
         source={source}
+        sessionTokenFromUrl={sessionId} // Pass session token to set cookie
       />
     );
   }
 
   // Case C: Authenticated user
-  logger.info(`[Chat Page] Authenticated user ${user.id} accessing character ${characterId}`);
+  logger.info(`[Chat Page] Authenticated user ${user!.id} accessing character ${characterId}`);
 
   // Track analytics if from affiliate
   if (source) {
@@ -103,9 +104,9 @@ export default async function ChatPage({ params, searchParams }: ChatPageProps) 
     <ChatInterface
       character={character}
       user={{
-        id: user.id,
-        name: user.name || undefined,
-        email: user.email || undefined,
+        id: user!.id,
+        name: user!.name || undefined,
+        email: user!.email || undefined,
       }}
       source={source}
     />

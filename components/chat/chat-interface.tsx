@@ -40,6 +40,7 @@ interface ChatInterfaceProps {
   };
   showSignupPrompt?: boolean;
   source?: string;
+  sessionTokenFromUrl?: string; // Session token from URL query param (for affiliate users)
 }
 
 export function ChatInterface({
@@ -48,6 +49,7 @@ export function ChatInterface({
   user,
   showSignupPrompt = false,
   source,
+  sessionTokenFromUrl,
 }: ChatInterfaceProps) {
   const router = useRouter();
   const [messageCount, setMessageCount] = useState(session?.messageCount || 0);
@@ -69,6 +71,28 @@ export function ChatInterface({
   useEffect(() => {
     setSelectedCharacterId(character.id);
   }, [character.id, setSelectedCharacterId]);
+
+  // CRITICAL: Set anonymous session cookie if session token is in URL (for affiliate users)
+  useEffect(() => {
+    if (sessionTokenFromUrl && isAnonymous) {
+      console.log("[ChatInterface] Setting anonymous session cookie from URL");
+      fetch("/api/set-anonymous-session", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ sessionToken: sessionTokenFromUrl }),
+      })
+        .then((res) => {
+          if (res.ok) {
+            console.log("[ChatInterface] ✅ Anonymous session cookie set successfully");
+          } else {
+            console.error("[ChatInterface] ❌ Failed to set session cookie:", res.status);
+          }
+        })
+        .catch((err) => {
+          console.error("[ChatInterface] ❌ Error setting session cookie:", err);
+        });
+    }
+  }, [sessionTokenFromUrl, isAnonymous]);
 
   useEffect(() => {
     // Track affiliate source

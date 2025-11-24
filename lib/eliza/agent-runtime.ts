@@ -233,7 +233,7 @@ class AgentRuntimeManager {
       // Call runtime.initialize() to load plugins and set up everything
       // This may fail if agent/entity records already exist - handle gracefully
       try {
-        await runtime.initialize({ skipMigrations: true });
+        await runtime.initialize();
         elizaLogger.success("#Eliza", "Runtime initialized successfully");
 
         // Log available services
@@ -707,8 +707,8 @@ class AgentRuntimeManager {
         let responseAttachments: unknown[] | undefined;
         let agentResponse: Memory | undefined;
 
-        // Process message through event pipeline to generate response
-        try {
+          // Process message through event pipeline to generate response
+          try {
           await runtime.emitEvent(EventType.MESSAGE_RECEIVED, {
             runtime,
             message: userMessage,
@@ -721,10 +721,6 @@ class AgentRuntimeManager {
                 model: string;
               };
             }) => {
-              elizaLogger.debug(
-                "#Eliza",
-                "Message processed, generating response",
-              );
               if (result.text) {
                 responseText = result.text;
               }
