@@ -1,6 +1,6 @@
 "use client";
 
-import React from "react";
+import React, { useEffect } from "react";
 import {
   ReactFlow,
   Background,
@@ -14,6 +14,17 @@ import "@xyflow/react/dist/style.css";
 import { Bot, Github, FileText } from "lucide-react";
 import { SectionLabel, BrandCard } from "@/components/brand";
 import Image from "next/image";
+import { useReactFlow } from "@xyflow/react";
+
+function ResizeHandler() {
+  const { fitView } = useReactFlow();
+  useEffect(() => {
+    const handleResize = () => fitView({ padding: 0.2, duration: 300 });
+    window.addEventListener("resize", handleResize);
+    return () => window.removeEventListener("resize", handleResize);
+  }, [fitView]);
+  return null;
+}
 
 const CustomNode = ({ data, sourcePosition, targetPosition }: any) => {
   const glowColor = data.glowColor || "#316AFF";
@@ -350,7 +361,7 @@ const RouterSection = () => {
           strokeWidth: 1.5,
           filter: "drop-shadow(0 0 4px rgba(49, 106, 255, 0.6))",
         },
-      })),
+      }))
     ),
     // Lines going out from platforms to off-screen
     {
@@ -468,6 +479,7 @@ const RouterSection = () => {
               preventScrolling={false}
               style={{ background: "transparent" }}
             >
+              <ResizeHandler />
               <svg style={{ position: "absolute", width: 0, height: 0 }}>
                 <defs>
                   <linearGradient
