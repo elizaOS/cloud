@@ -1,10 +1,11 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireAuthOrApiKey } from "@/lib/auth";
-import { agentRuntime } from "@/lib/eliza/agent-runtime";
 import { getKnowledgeService } from "@/lib/eliza/knowledge-service";
 import type { UUID } from "@elizaos/core";
 import { stringToUuid } from "@elizaos/core";
 import { withRateLimit, RateLimitPresets } from "@/lib/middleware/rate-limit";
+import { userContextService } from "@/lib/eliza/user-context";
+import { RuntimeFactory } from "@/lib/eliza/runtime-factory";
 
 export const maxDuration = 60;
 
@@ -25,8 +26,28 @@ interface UploadResult {
  */
 async function handlePOST(req: NextRequest) {
   try {
-    const { user } = await requireAuthOrApiKey(req);
-    const runtime = await agentRuntime.getRuntime();
+    const authResult = await requireAuthOrApiKey(req);
+    const { user } = authResult;
+    
+    const formData = await req.formData();
+    const files = formData.getAll("files") as File[];
+    const characterId = formData.get("characterId") as string | null;
+    
+    // Build user context with characterId
+    const userContext = await userContextService.buildContext({
+      user,
+      apiKey: authResult.apiKey,
+      isAnonymous: false,
+    });
+    
+    if (characterId) {
+      userContext.characterId = characterId;
+    }
+    
+    // Create runtime with user-specific context (includes API key for embeddings)
+    const runtimeFactory = RuntimeFactory.getInstance();
+    const runtime = await runtimeFactory.createRuntimeForUser(userContext);
+    
     const knowledgeService = await getKnowledgeService(runtime);
 
     if (!knowledgeService) {
@@ -35,9 +56,6 @@ async function handlePOST(req: NextRequest) {
         { status: 503 },
       );
     }
-
-    const formData = await req.formData();
-    const files = formData.getAll("files") as File[];
 
     if (!files || files.length === 0) {
       return NextResponse.json(

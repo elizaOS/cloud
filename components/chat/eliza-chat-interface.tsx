@@ -1215,7 +1215,7 @@ export function ElizaChatInterface() {
                         <h4 className="font-medium mb-3 text-sm">
                           Knowledge Base
                         </h4>
-                        <KnowledgeDrawer />
+                        <KnowledgeDrawer characterId={selectedCharacterId} />
                       </div>
                     </div>
                   </DropdownMenuContent>

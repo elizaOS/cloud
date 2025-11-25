@@ -5,20 +5,13 @@ import {
   type ElizaRoomCharacter,
   type NewElizaRoomCharacter,
 } from "../schemas";
-import { cache } from "@/lib/cache/client";
-import { CacheKeys, CacheTTL } from "@/lib/cache/keys";
 
 export const elizaRoomCharactersRepository = {
   async findByRoomId(roomId: string): Promise<ElizaRoomCharacter | undefined> {
-    // Try cache first - room character mappings rarely change
-    const cacheKey = CacheKeys.eliza.roomCharacter(roomId);
-    const cached = await cache.get<ElizaRoomCharacter | null>(cacheKey);
-
-    if (cached !== undefined) {
-      return cached || undefined;
-    }
-
-    // Cache miss - fetch from DB
+    // DISABLED: Caching causes stale data in Vercel serverless (isolated container caches)
+    // ALWAYS fetch from DB - character mapping lookups are fast (~5ms)
+    console.log(`[RoomCharRepo] findByRoomId(${roomId.substring(0, 8)}...) - fetching from DB (cache disabled)`);
+    
     const result = await db
       .select()
       .from(elizaRoomCharactersTable)
@@ -26,9 +19,7 @@ export const elizaRoomCharactersRepository = {
       .limit(1);
 
     const character = result[0];
-
-    // Cache the result (including null/undefined for rooms without character mappings)
-    await cache.set(cacheKey, character || null, CacheTTL.eliza.roomCharacter);
+    console.log(`[RoomCharRepo] DB result - characterId:`, character?.character_id || 'none');
 
     return character;
   },
@@ -57,9 +48,6 @@ export const elizaRoomCharactersRepository = {
       .values(data)
       .returning();
 
-    // Invalidate cache when creating new character mapping
-    await cache.del(CacheKeys.eliza.roomCharacter(data.room_id));
-
     return result[0];
   },
 
@@ -76,9 +64,6 @@ export const elizaRoomCharactersRepository = {
       .where(eq(elizaRoomCharactersTable.room_id, roomId))
       .returning();
 
-    // Invalidate cache when updating character mapping
-    await cache.del(CacheKeys.eliza.roomCharacter(roomId));
-
     return result[0];
   },
 
@@ -86,8 +71,5 @@ export const elizaRoomCharactersRepository = {
     await db
       .delete(elizaRoomCharactersTable)
       .where(eq(elizaRoomCharactersTable.room_id, roomId));
-
-    // Invalidate cache when deleting character mapping
-    await cache.del(CacheKeys.eliza.roomCharacter(roomId));
   },
 };
