@@ -214,6 +214,7 @@ export const actionStateProvider: Provider = {
         actionResults: resultsText,
         completedActions: actionResults.filter((r: any) => r.success).length,
         failedActions: actionResults.filter((r: any) => !r.success).length,
+        fullActionState: allText,
       },
       text: allText || "No action state available",
     };
