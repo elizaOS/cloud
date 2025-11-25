@@ -3,24 +3,80 @@
 import { useState } from "react";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
-import { X, Plus } from "lucide-react";
+import {
+  X,
+  Plus,
+  HelpCircle,
+  User,
+  Sparkles,
+  Brain,
+  MessageSquare,
+  Mic,
+  Hash,
+  Fingerprint,
+  BookOpen,
+  Code2
+} from "lucide-react";
 import type { ElizaCharacter } from "@/lib/types";
 import { cn } from "@/lib/utils";
+import { AvatarUpload } from "./avatar-upload";
+import { MessageExamplesEditor } from "./message-examples-editor";
+import { VoiceSettingsEditor } from "./voice-settings-editor";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 
 interface CharacterFormCleanProps {
   character: ElizaCharacter;
   onChange: (character: ElizaCharacter) => void;
 }
 
-type TagType = "topics" | "adjectives" | "plugins" | "postExamples";
-type SubTab = "general" | "content" | "style" | "avatar";
+type TagType = "topics" | "adjectives" | "postExamples";
+type SubTab = "profile" | "personality" | "directives" | "training" | "voice";
+
+// Helper component for labels that show JSON key
+function FieldLabel({ 
+  label, 
+  jsonKey, 
+  tooltip 
+}: { 
+  label: string; 
+  jsonKey: string; 
+  tooltip?: string;
+}) {
+  return (
+    <div className="flex items-center gap-2 mb-2">
+      <span className="text-xs font-semibold text-white/60 uppercase tracking-wider">
+        {label}
+      </span>
+      <code className="text-[10px] px-1.5 py-0.5 rounded bg-white/5 text-[#FF5800]/80 font-mono">
+        {jsonKey}
+      </code>
+      {tooltip && (
+        <TooltipProvider>
+          <Tooltip>
+            <TooltipTrigger>
+              <HelpCircle className="h-3 w-3 text-white/30 hover:text-white/50 transition-colors" />
+            </TooltipTrigger>
+            <TooltipContent className="max-w-xs">
+              <p>{tooltip}</p>
+            </TooltipContent>
+          </Tooltip>
+        </TooltipProvider>
+      )}
+    </div>
+  );
+}
 
 export function CharacterFormClean({
   character,
   onChange,
 }: CharacterFormCleanProps) {
   const [newTag, setNewTag] = useState("");
-  const [activeSubTab, setActiveSubTab] = useState<SubTab>("general");
+  const [activeSubTab, setActiveSubTab] = useState<SubTab>("profile");
 
   const updateField = (field: keyof ElizaCharacter, value: unknown) => {
     onChange({ ...character, [field]: value });
@@ -47,255 +103,403 @@ export function CharacterFormClean({
       ? character.bio
       : character.bio?.join("\n\n") || "";
 
+  const TabButton = ({
+    id,
+    icon: Icon,
+    label,
+  }: {
+    id: SubTab;
+    icon: React.ElementType;
+    label: string;
+  }) => (
+    <button
+      onClick={() => setActiveSubTab(id)}
+      className={cn(
+        "flex items-center gap-2 px-4 py-3 text-sm font-medium transition-all border-b-2 whitespace-nowrap",
+        activeSubTab === id
+          ? "text-[#FF5800] border-[#FF5800]"
+          : "text-white/40 border-transparent hover:text-white hover:border-white/10"
+      )}
+    >
+      <Icon className="h-4 w-4" />
+      {label}
+    </button>
+  );
+
   return (
-    <div className="flex h-full flex-col">
+    <div className="flex h-full flex-col bg-black/20">
       {/* Sub Navigation */}
-      <div className="flex-shrink-0 border-b border-white/10 px-6">
-        <div className="flex gap-1">
-          <button
-            onClick={() => setActiveSubTab("general")}
-            className={cn(
-              "px-4 py-3 text-sm font-medium transition-colors",
-              activeSubTab === "general"
-                ? "text-white border-b-2 border-white"
-                : "text-white/60 hover:text-white",
-            )}
-          >
-            General
-          </button>
-          <button
-            onClick={() => setActiveSubTab("content")}
-            className={cn(
-              "px-4 py-3 text-sm font-medium transition-colors",
-              activeSubTab === "content"
-                ? "text-white border-b-2 border-white"
-                : "text-white/60 hover:text-white",
-            )}
-          >
-            Content
-          </button>
-          <button
-            onClick={() => setActiveSubTab("style")}
-            className={cn(
-              "px-4 py-3 text-sm font-medium transition-colors",
-              activeSubTab === "style"
-                ? "text-white border-b-2 border-white"
-                : "text-white/60 hover:text-white",
-            )}
-          >
-            Style
-          </button>
-          <button
-            onClick={() => setActiveSubTab("avatar")}
-            className={cn(
-              "px-4 py-3 text-sm font-medium transition-colors",
-              activeSubTab === "avatar"
-                ? "text-white border-b-2 border-white"
-                : "text-white/60 hover:text-white",
-            )}
-          >
-            Avatar
-          </button>
+      <div className="flex-shrink-0 border-b border-white/10 bg-black/40 px-6 overflow-x-auto no-scrollbar">
+        <div className="flex gap-2">
+          <TabButton id="profile" icon={User} label="Profile" />
+          <TabButton id="personality" icon={Fingerprint} label="Personality" />
+          <TabButton id="directives" icon={Brain} label="Directives" />
+          <TabButton id="training" icon={MessageSquare} label="Training" />
+          <TabButton id="voice" icon={Mic} label="Voice" />
         </div>
       </div>
 
       {/* Content Area */}
-      <div className="flex-1 overflow-y-auto p-6">
-        {/* General Tab */}
-        {activeSubTab === "general" && (
-          <div className="space-y-6 max-w-2xl">
-            <div className="space-y-2">
-              <label
-                htmlFor="name"
-                className="text-xs font-medium text-white/70 uppercase tracking-wide"
-              >
-                Name *
-              </label>
-              <Input
-                id="name"
-                value={character.name || ""}
-                onChange={(e) => updateField("name", e.target.value)}
-                placeholder="Character name"
-                className="rounded-none border-white/10 bg-black/40 text-white placeholder:text-white/40 focus:ring-1 focus:ring-[#FF5800] focus:border-[#FF5800]"
-              />
+      <div className="flex-1 overflow-y-auto p-6 md:p-8">
+        
+        {/* PROFILE TAB: name, username, bio, avatarUrl */}
+        {activeSubTab === "profile" && (
+          <div className="max-w-2xl mx-auto">
+            {/* Hero Card */}
+            <div className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-[#FF5800]/20 via-purple-500/10 to-blue-500/10 p-8 mb-8">
+              {/* Decorative Elements */}
+              <div className="absolute top-0 right-0 w-64 h-64 bg-[#FF5800]/10 rounded-full blur-3xl -translate-y-1/2 translate-x-1/2" />
+              <div className="absolute bottom-0 left-0 w-48 h-48 bg-purple-500/10 rounded-full blur-3xl translate-y-1/2 -translate-x-1/2" />
+              
+              <div className="relative flex flex-col items-center text-center">
+                {/* Avatar */}
+                <div className="mb-2">
+                  <AvatarUpload
+                    value={character.avatarUrl}
+                    onChange={(url) => updateField("avatarUrl", url)}
+                    name={character.name}
+                    size="lg"
+                  />
+                </div>
+                <code className="text-[10px] px-1.5 py-0.5 rounded bg-black/20 text-white/40 font-mono mb-4">
+                  avatarUrl
+                </code>
+
+                {/* Name Display */}
+                <h2 className="text-3xl font-bold text-white mb-1">
+                  {character.name || (
+                    <span className="text-white/30 italic">Your Agent</span>
+                  )}
+                </h2>
+                <p className="text-[#FF5800] font-medium">
+                  {character.username ? `@${character.username.replace('@', '')}` : (
+                    <span className="text-white/30">@username</span>
+                  )}
+                </p>
+              </div>
             </div>
 
-            <div className="space-y-2">
-              <label
-                htmlFor="username"
-                className="text-xs font-medium text-white/70 uppercase tracking-wide"
-              >
-                Username
-              </label>
-              <Input
-                id="username"
-                value={character.username || ""}
-                onChange={(e) => updateField("username", e.target.value)}
-                placeholder="@username"
-                className="rounded-none border-white/10 bg-black/40 text-white placeholder:text-white/40 focus:ring-1 focus:ring-[#FF5800] focus:border-[#FF5800]"
-              />
-            </div>
+            {/* Form Fields */}
+            <div className="space-y-6">
+              <div className="grid gap-4 md:grid-cols-2">
+                <div>
+                  <FieldLabel label="Name" jsonKey="name" />
+                  <Input
+                    value={character.name || ""}
+                    onChange={(e) => updateField("name", e.target.value)}
+                    placeholder="Luna, Max, Aria..."
+                    className="h-12 bg-white/5 border-white/10 rounded-xl text-white placeholder:text-white/30 focus:border-[#FF5800] focus:ring-[#FF5800]/20"
+                  />
+                </div>
+                <div>
+                  <FieldLabel label="Handle" jsonKey="username" />
+                  <div className="relative">
+                    <span className="absolute left-4 top-1/2 -translate-y-1/2 text-white/30">@</span>
+                    <Input
+                      value={character.username?.replace('@', '') || ""}
+                      onChange={(e) => updateField("username", e.target.value)}
+                      placeholder="luna_ai"
+                      className="h-12 pl-8 bg-white/5 border-white/10 rounded-xl text-white placeholder:text-white/30 focus:border-[#FF5800] focus:ring-[#FF5800]/20"
+                    />
+                  </div>
+                </div>
+              </div>
 
-            <div className="space-y-2">
-              <label
-                htmlFor="bio"
-                className="text-xs font-medium text-white/70 uppercase tracking-wide"
-              >
-                Bio *
-              </label>
-              <Textarea
-                id="bio"
-                value={bioText}
-                onChange={(e) => updateField("bio", e.target.value)}
-                placeholder="Describe the character's background and purpose..."
-                className="min-h-[120px] rounded-none border-white/10 bg-black/40 text-white placeholder:text-white/40 focus:ring-1 focus:ring-[#FF5800] focus:border-[#FF5800]"
-              />
-            </div>
-
-            <div className="space-y-2">
-              <label
-                htmlFor="system"
-                className="text-xs font-medium text-white/70 uppercase tracking-wide"
-              >
-                System Prompt
-              </label>
-              <Textarea
-                id="system"
-                value={character.system || ""}
-                onChange={(e) => updateField("system", e.target.value)}
-                placeholder="System-level instructions for the agent..."
-                className="min-h-[80px] rounded-none border-white/10 bg-black/40 text-white placeholder:text-white/40 focus:ring-1 focus:ring-[#FF5800] focus:border-[#FF5800]"
-              />
+              <div>
+                <FieldLabel 
+                  label="Backstory" 
+                  jsonKey="bio" 
+                  tooltip="Tell their origin story. Why do they act this way? What made them who they are?"
+                />
+                <Textarea
+                  value={bioText}
+                  onChange={(e) => updateField("bio", e.target.value)}
+                  placeholder="Born in Tokyo, raised on the internet. They've seen everything and are ready to share their wisdom..."
+                  className="min-h-[160px] bg-white/5 border-white/10 rounded-xl text-white placeholder:text-white/30 focus:border-[#FF5800] focus:ring-[#FF5800]/20 leading-relaxed resize-none"
+                />
+              </div>
             </div>
           </div>
         )}
 
-        {/* Content Tab */}
-        {activeSubTab === "content" && (
-          <div className="space-y-6 max-w-2xl">
-            <div className="space-y-2">
-              <label className="text-xs font-medium text-white/70 uppercase tracking-wide">
-                Topics
-              </label>
-              <div className="flex gap-2">
-                <Input
-                  value={newTag}
-                  onChange={(e) => setNewTag(e.target.value)}
-                  placeholder="Add a topic..."
-                  onKeyDown={(e) => {
-                    if (e.key === "Enter") {
-                      e.preventDefault();
-                      addTag("topics");
-                    }
-                  }}
-                  className="rounded-none border-white/10 bg-black/40 text-white placeholder:text-white/40 focus:ring-1 focus:ring-[#FF5800] focus:border-[#FF5800]"
-                />
-                <button
-                  type="button"
-                  onClick={() => addTag("topics")}
-                  className="rounded-none border border-white/10 bg-black/40 px-4 py-2 text-[#FF5800] hover:bg-white/5 transition-colors"
-                >
-                  <Plus className="h-4 w-4" />
-                </button>
-              </div>
-              <div className="flex flex-wrap gap-2">
-                {character.topics?.map((topic, index) => (
-                  <span
-                    key={index}
-                    className="inline-flex items-center gap-2 rounded-none bg-white/10 px-2 py-1 text-xs text-white"
-                  >
-                    {topic}
-                    <button
-                      onClick={() => removeTag("topics", index)}
-                      className="hover:text-rose-400 transition-colors"
-                    >
-                      <X className="h-3 w-3" />
-                    </button>
-                  </span>
-                ))}
-              </div>
+        {/* PERSONALITY TAB: adjectives, topics */}
+        {activeSubTab === "personality" && (
+          <div className="max-w-3xl mx-auto space-y-8">
+            <div className="bg-gradient-to-br from-purple-500/10 to-blue-500/10 border border-white/10 p-6 rounded-xl">
+              <h3 className="text-lg font-medium text-white mb-2 flex items-center gap-2">
+                <Sparkles className="h-5 w-5 text-purple-400" />
+                The Vibe
+              </h3>
+              <p className="text-sm text-white/60">
+                Define their personality traits and interests. This helps the AI improvise 
+                conversations that feel authentic to them.
+              </p>
             </div>
 
-            <div className="space-y-2">
-              <label className="text-xs font-medium text-white/70 uppercase tracking-wide">
-                Adjectives (Personality Traits)
-              </label>
-              <div className="flex gap-2">
-                <Input
-                  value={newTag}
-                  onChange={(e) => setNewTag(e.target.value)}
-                  placeholder="Add a trait..."
-                  onKeyDown={(e) => {
-                    if (e.key === "Enter") {
-                      e.preventDefault();
-                      addTag("adjectives");
-                    }
-                  }}
-                  className="rounded-none border-white/10 bg-black/40 text-white placeholder:text-white/40 focus:ring-1 focus:ring-[#FF5800] focus:border-[#FF5800]"
+            <div className="grid gap-8 md:grid-cols-2">
+              {/* Adjectives */}
+              <div className="space-y-4">
+                <FieldLabel 
+                  label="Traits" 
+                  jsonKey="adjectives" 
+                  tooltip="Personality descriptors like 'sarcastic', 'warm', 'INTJ'. One is randomly selected each response for variety."
                 />
-                <button
-                  type="button"
-                  onClick={() => addTag("adjectives")}
-                  className="rounded-none border border-white/10 bg-black/40 px-4 py-2 text-[#FF5800] hover:bg-white/5 transition-colors"
-                >
-                  <Plus className="h-4 w-4" />
-                </button>
-              </div>
-              <div className="flex flex-wrap gap-2">
-                {character.adjectives?.map((adj, index) => (
-                  <span
-                    key={index}
-                    className="inline-flex items-center gap-2 rounded-none bg-white/10 px-2 py-1 text-xs text-white"
+                <div className="flex gap-2">
+                  <Input
+                    value={newTag}
+                    onChange={(e) => setNewTag(e.target.value)}
+                    placeholder="e.g. Sarcastic, INTJ..."
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter") {
+                        e.preventDefault();
+                        addTag("adjectives");
+                      }
+                    }}
+                    className="h-11 bg-white/5 border-white/10 rounded-xl focus:border-[#FF5800]"
+                  />
+                  <button
+                    onClick={() => addTag("adjectives")}
+                    className="px-4 bg-white/10 hover:bg-white/20 text-white transition-colors rounded-xl"
                   >
-                    {adj}
-                    <button
-                      onClick={() => removeTag("adjectives", index)}
-                      className="hover:text-rose-400 transition-colors"
+                    <Plus className="h-4 w-4" />
+                  </button>
+                </div>
+                <div className="flex flex-wrap gap-2 min-h-[120px] content-start bg-black/20 p-4 border border-white/5 rounded-xl">
+                  {(!character.adjectives || character.adjectives.length === 0) && (
+                    <span className="text-sm text-white/20 italic">No traits added yet</span>
+                  )}
+                  {character.adjectives?.map((adj, index) => (
+                    <span
+                      key={index}
+                      className="inline-flex items-center gap-1.5 bg-[#FF5800]/10 text-[#FF5800] px-3 py-1.5 text-sm rounded-lg border border-[#FF5800]/20"
                     >
-                      <X className="h-3 w-3" />
-                    </button>
-                  </span>
-                ))}
+                      {adj}
+                      <button
+                        onClick={() => removeTag("adjectives", index)}
+                        className="hover:text-white transition-colors"
+                      >
+                        <X className="h-3 w-3" />
+                      </button>
+                    </span>
+                  ))}
+                </div>
+              </div>
+
+              {/* Topics */}
+              <div className="space-y-4">
+                <FieldLabel 
+                  label="Interests" 
+                  jsonKey="topics" 
+                  tooltip="What they love talking about. One is highlighted each response: '[Name] is interested in [topic]'."
+                />
+                <div className="flex gap-2">
+                  <Input
+                    value={newTag}
+                    onChange={(e) => setNewTag(e.target.value)}
+                    placeholder="e.g. Anime, Crypto..."
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter") {
+                        e.preventDefault();
+                        addTag("topics");
+                      }
+                    }}
+                    className="h-11 bg-white/5 border-white/10 rounded-xl focus:border-[#FF5800]"
+                  />
+                  <button
+                    onClick={() => addTag("topics")}
+                    className="px-4 bg-white/10 hover:bg-white/20 text-white transition-colors rounded-xl"
+                  >
+                    <Plus className="h-4 w-4" />
+                  </button>
+                </div>
+                <div className="flex flex-wrap gap-2 min-h-[120px] content-start bg-black/20 p-4 border border-white/5 rounded-xl">
+                  {(!character.topics || character.topics.length === 0) && (
+                    <span className="text-sm text-white/20 italic">No topics added yet</span>
+                  )}
+                  {character.topics?.map((topic, index) => (
+                    <span
+                      key={index}
+                      className="inline-flex items-center gap-1.5 bg-blue-500/10 text-blue-400 px-3 py-1.5 text-sm rounded-lg border border-blue-500/20"
+                    >
+                      {topic}
+                      <button
+                        onClick={() => removeTag("topics", index)}
+                        className="hover:text-white transition-colors"
+                      >
+                        <X className="h-3 w-3" />
+                      </button>
+                    </span>
+                  ))}
+                </div>
               </div>
             </div>
+          </div>
+        )}
 
-            <div className="space-y-2">
-              <label className="text-xs font-medium text-white/70 uppercase tracking-wide">
-                Post Examples
-              </label>
+        {/* DIRECTIVES TAB: system, style.all, style.chat */}
+        {activeSubTab === "directives" && (
+          <div className="max-w-3xl mx-auto space-y-8">
+            {/* System Prompt */}
+            <div className="space-y-4">
+              <div className="flex items-center gap-3 mb-4">
+                <div className="p-2 bg-[#FF5800]/10 rounded-xl">
+                  <Brain className="h-5 w-5 text-[#FF5800]" />
+                </div>
+                <div className="flex-1">
+                  <div className="flex items-center gap-2">
+                    <h3 className="text-base font-medium text-white">Core Instructions</h3>
+                    <code className="text-[10px] px-1.5 py-0.5 rounded bg-white/5 text-[#FF5800]/80 font-mono">
+                      system
+                    </code>
+                  </div>
+                  <p className="text-xs text-white/50">
+                    The main prompt that defines who they are. Add stakes like "It is CRITICAL..."
+                  </p>
+                </div>
+              </div>
+              
+              <Textarea
+                value={character.system || ""}
+                onChange={(e) => updateField("system", e.target.value)}
+                placeholder="You are [Name]. It is CRITICAL that you..."
+                className="min-h-[200px] bg-white/5 border-white/10 rounded-xl focus:border-[#FF5800] font-mono text-sm leading-relaxed p-4"
+              />
+            </div>
+
+            {/* Style Guidelines */}
+            <div className="space-y-6 pt-8 border-t border-white/10">
+              <div className="flex items-center gap-3">
+                <div className="p-2 bg-blue-500/10 rounded-xl">
+                  <BookOpen className="h-5 w-5 text-blue-400" />
+                </div>
+                <div className="flex-1">
+                  <div className="flex items-center gap-2">
+                    <h3 className="text-base font-medium text-white">Style Rules</h3>
+                    <code className="text-[10px] px-1.5 py-0.5 rounded bg-white/5 text-blue-400/80 font-mono">
+                      style
+                    </code>
+                  </div>
+                  <p className="text-xs text-white/50">
+                    Dos and Don'ts. Negative rules like "Avoid..." are auto-separated.
+                  </p>
+                </div>
+              </div>
+
+              <div className="grid md:grid-cols-2 gap-6">
+                <div>
+                  <FieldLabel label="General" jsonKey="style.all" />
+                  <Textarea
+                    value={
+                      Array.isArray(character.style?.all)
+                        ? character.style.all.join("\n")
+                        : typeof character.style?.all === "string"
+                        ? character.style.all
+                        : ""
+                    }
+                    onChange={(e) =>
+                      updateField("style", {
+                        ...character.style,
+                        all: e.target.value.split("\n").filter((s) => s.trim()),
+                      })
+                    }
+                    placeholder="Be direct&#10;No emojis&#10;Avoid flowery language"
+                    className="min-h-[150px] bg-white/5 border-white/10 rounded-xl focus:border-[#FF5800]"
+                  />
+                </div>
+                <div>
+                  <FieldLabel label="Chat Only" jsonKey="style.chat" />
+                  <Textarea
+                    value={
+                      Array.isArray(character.style?.chat)
+                        ? character.style.chat.join("\n")
+                        : typeof character.style?.chat === "string"
+                        ? character.style.chat
+                        : ""
+                    }
+                    onChange={(e) =>
+                      updateField("style", {
+                        ...character.style,
+                        chat: e.target.value.split("\n").filter((s) => s.trim()),
+                      })
+                    }
+                    placeholder="Ask follow-up questions&#10;Keep responses under 3 paragraphs"
+                    className="min-h-[150px] bg-white/5 border-white/10 rounded-xl focus:border-[#FF5800]"
+                  />
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* TRAINING TAB: messageExamples, postExamples */}
+        {activeSubTab === "training" && (
+          <div className="max-w-4xl mx-auto space-y-8">
+            <div className="bg-gradient-to-r from-[#FF5800]/10 to-transparent border-l-4 border-[#FF5800] p-6 rounded-r-xl">
+              <div className="flex items-center gap-2 mb-2">
+                <h3 className="text-lg font-medium text-white">Show, Don't Tell</h3>
+                <code className="text-[10px] px-1.5 py-0.5 rounded bg-black/20 text-[#FF5800]/80 font-mono">
+                  messageExamples
+                </code>
+              </div>
+              <p className="text-sm text-white/70 max-w-2xl">
+                The <strong>most effective</strong> way to define voice. Write example conversations 
+                exactly how you want them to go.
+              </p>
+            </div>
+
+            <MessageExamplesEditor
+              examples={character.messageExamples}
+              onChange={(examples) => updateField("messageExamples", examples)}
+              characterName={character.name}
+            />
+
+            <div className="space-y-4 pt-8 border-t border-white/10">
+              <div className="flex items-center gap-2 mb-2">
+                <Hash className="h-4 w-4 text-white/40" />
+                <h3 className="text-sm font-medium text-white">Social Posts</h3>
+                <code className="text-[10px] px-1.5 py-0.5 rounded bg-white/5 text-white/50 font-mono">
+                  postExamples
+                </code>
+              </div>
+              
               <div className="flex gap-2">
                 <Input
                   value={newTag}
                   onChange={(e) => setNewTag(e.target.value)}
-                  placeholder="Add an example post..."
+                  placeholder="Add an example tweet/post..."
                   onKeyDown={(e) => {
                     if (e.key === "Enter") {
                       e.preventDefault();
                       addTag("postExamples");
                     }
                   }}
-                  className="rounded-none border-white/10 bg-black/40 text-white placeholder:text-white/40 focus:ring-1 focus:ring-[#FF5800] focus:border-[#FF5800]"
+                  className="h-11 bg-white/5 border-white/10 rounded-xl focus:border-[#FF5800]"
                 />
                 <button
-                  type="button"
                   onClick={() => addTag("postExamples")}
-                  className="rounded-none border border-white/10 bg-black/40 px-4 py-2 text-[#FF5800] hover:bg-white/5 transition-colors"
+                  className="px-4 bg-[#FF5800] hover:bg-[#FF5800]/90 text-white transition-colors font-medium rounded-xl"
                 >
-                  <Plus className="h-4 w-4" />
+                  Add
                 </button>
               </div>
+              
               <div className="space-y-2">
+                {(!character.postExamples || character.postExamples.length === 0) && (
+                  <div className="text-center py-8 text-white/20 bg-white/5 border border-white/5 border-dashed rounded-xl">
+                    No post examples yet
+                  </div>
+                )}
                 {character.postExamples?.map((post, index) => (
                   <div
                     key={index}
-                    className="flex items-start gap-2 rounded-none bg-black/40 border border-white/10 p-2"
+                    className="flex items-start gap-3 bg-white/5 border border-white/10 p-3 rounded-xl group"
                   >
-                    <p className="flex-1 text-sm text-white">{post}</p>
+                    <p className="flex-1 text-sm text-white/80 font-mono">{post}</p>
                     <button
                       onClick={() => removeTag("postExamples", index)}
-                      className="hover:text-rose-400 transition-colors"
+                      className="text-white/20 hover:text-rose-400 transition-colors opacity-0 group-hover:opacity-100"
                     >
-                      <X className="h-4 w-4 text-white/70" />
+                      <X className="h-4 w-4" />
                     </button>
                   </div>
                 ))}
@@ -304,149 +508,14 @@ export function CharacterFormClean({
           </div>
         )}
 
-        {/* Style Tab */}
-        {activeSubTab === "style" && (
-          <div className="space-y-6 max-w-2xl">
-            <div className="space-y-2">
-              <label
-                htmlFor="style-all"
-                className="text-xs font-medium text-white/70 uppercase tracking-wide"
-              >
-                General Style Guidelines
-              </label>
-              <Textarea
-                id="style-all"
-                value={
-                  Array.isArray(character.style?.all)
-                    ? character.style.all.join("\n")
-                    : typeof character.style?.all === "string"
-                      ? character.style.all
-                      : ""
-                }
-                onChange={(e) =>
-                  updateField("style", {
-                    ...character.style,
-                    all: e.target.value.split("\n").filter((s) => s.trim()),
-                  })
-                }
-                placeholder="One guideline per line..."
-                className="min-h-[80px] rounded-none border-white/10 bg-black/40 text-white placeholder:text-white/40 focus:ring-1 focus:ring-[#FF5800] focus:border-[#FF5800]"
-              />
-            </div>
-
-            <div className="space-y-2">
-              <label
-                htmlFor="style-chat"
-                className="text-xs font-medium text-white/70 uppercase tracking-wide"
-              >
-                Chat Style Guidelines
-              </label>
-              <Textarea
-                id="style-chat"
-                value={
-                  Array.isArray(character.style?.chat)
-                    ? character.style.chat.join("\n")
-                    : typeof character.style?.chat === "string"
-                      ? character.style.chat
-                      : ""
-                }
-                onChange={(e) =>
-                  updateField("style", {
-                    ...character.style,
-                    chat: e.target.value.split("\n").filter((s) => s.trim()),
-                  })
-                }
-                placeholder="One guideline per line..."
-                className="min-h-[80px] rounded-none border-white/10 bg-black/40 text-white placeholder:text-white/40 focus:ring-1 focus:ring-[#FF5800] focus:border-[#FF5800]"
-              />
-            </div>
-
-            <div className="space-y-2">
-              <label
-                htmlFor="style-post"
-                className="text-xs font-medium text-white/70 uppercase tracking-wide"
-              >
-                Post Style Guidelines
-              </label>
-              <Textarea
-                id="style-post"
-                value={
-                  Array.isArray(character.style?.post)
-                    ? character.style.post.join("\n")
-                    : typeof character.style?.post === "string"
-                      ? character.style.post
-                      : ""
-                }
-                onChange={(e) =>
-                  updateField("style", {
-                    ...character.style,
-                    post: e.target.value.split("\n").filter((s) => s.trim()),
-                  })
-                }
-                placeholder="One guideline per line..."
-                className="min-h-[80px] rounded-none border-white/10 bg-black/40 text-white placeholder:text-white/40 focus:ring-1 focus:ring-[#FF5800] focus:border-[#FF5800]"
-              />
-            </div>
-          </div>
+        {/* VOICE TAB: settings.voice */}
+        {activeSubTab === "voice" && (
+          <VoiceSettingsEditor 
+            character={character} 
+            onChange={onChange} 
+          />
         )}
 
-        {/* Avatar Tab */}
-        {activeSubTab === "avatar" && (
-          <div className="space-y-6 max-w-2xl">
-            <div className="space-y-2">
-              <label className="text-xs font-medium text-white/70 uppercase tracking-wide">
-                Plugins
-              </label>
-              <div className="flex gap-2">
-                <Input
-                  value={newTag}
-                  onChange={(e) => setNewTag(e.target.value)}
-                  placeholder="Add a plugin..."
-                  onKeyDown={(e) => {
-                    if (e.key === "Enter") {
-                      e.preventDefault();
-                      addTag("plugins");
-                    }
-                  }}
-                  className="rounded-none border-white/10 bg-black/40 text-white placeholder:text-white/40 focus:ring-1 focus:ring-[#FF5800] focus:border-[#FF5800]"
-                />
-                <button
-                  type="button"
-                  onClick={() => addTag("plugins")}
-                  className="rounded-none border border-white/10 bg-black/40 px-4 py-2 text-[#FF5800] hover:bg-white/5 transition-colors"
-                >
-                  <Plus className="h-4 w-4" />
-                </button>
-              </div>
-              <div className="flex flex-wrap gap-2">
-                {character.plugins?.map((plugin, index) => (
-                  <span
-                    key={index}
-                    className="inline-flex items-center gap-2 rounded-none bg-white/10 border border-white/20 px-2 py-1 text-xs text-white"
-                  >
-                    {plugin}
-                    <button
-                      onClick={() => removeTag("plugins", index)}
-                      className="hover:text-rose-400 transition-colors"
-                    >
-                      <X className="h-3 w-3" />
-                    </button>
-                  </span>
-                ))}
-              </div>
-            </div>
-
-            <div className="rounded-none bg-black/40 border border-white/10 p-4">
-              <p className="text-sm text-white/60">
-                Additional settings like{" "}
-                <code className="text-[#FF5800]">knowledge</code>,{" "}
-                <code className="text-[#FF5800]">settings</code>, and{" "}
-                <code className="text-[#FF5800]">messageExamples</code> can be
-                configured in the JSON view.
-              </p>
-            </div>
-          </div>
-        )}
       </div>
     </div>
   );
