@@ -67,14 +67,14 @@ const nextConfig: NextConfig = {
             value: [
               // Default source - only allow same origin
               "default-src 'self'",
-              // Scripts - allow self, Cloudflare Turnstile, Vercel Analytics, and inline scripts for Next.js
-              "script-src 'self' 'unsafe-eval' 'unsafe-inline' https://challenges.cloudflare.com https://va.vercel-scripts.com",
-              // Styles - allow self and inline styles (required for many UI libraries)
-              "style-src 'self' 'unsafe-inline'",
+              // Scripts - allow self, Cloudflare Turnstile, Vercel Analytics, Monaco Editor CDN, and inline scripts for Next.js
+              "script-src 'self' 'unsafe-eval' 'unsafe-inline' https://challenges.cloudflare.com https://va.vercel-scripts.com https://cdn.jsdelivr.net",
+              // Styles - allow self, inline styles, and Monaco Editor CDN (required for many UI libraries)
+              "style-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net",
               // Images - allow self, data URIs, blob URIs, and Vercel storage
               "img-src 'self' data: blob: https://*.public.blob.vercel-storage.com",
-              // Fonts - allow self
-              "font-src 'self'",
+              // Fonts - allow self and Monaco Editor CDN
+              "font-src 'self' https://cdn.jsdelivr.net",
               // Objects - block all (e.g., Flash, Java applets)
               "object-src 'none'",
               // Base URI - restrict to self
@@ -107,6 +107,8 @@ const nextConfig: NextConfig = {
                 "https://api.coingecko.com",
                 "https://*.fal.ai",
                 "https://api.elevenlabs.io",
+                // Monaco Editor CDN (for source maps)
+                "https://cdn.jsdelivr.net",
                 // Vercel Analytics
                 "https://vitals.vercel-insights.com",
               ].join(" "),
