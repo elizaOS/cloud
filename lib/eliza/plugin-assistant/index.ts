@@ -19,6 +19,7 @@ import { characterProvider } from "./providers/character";
 import { generateImageAction } from "./actions/image-generation";
 import { actionStateProvider } from "./providers/actionState";
 import { recentMessagesProvider } from "./providers/recent-messages";
+import { affiliateContextProvider } from "./providers/affiliate-context";
 
 // Track usage per message for credit deduction
 const messageUsageMap = new Map<
@@ -42,12 +43,16 @@ export const planningTemplate = `
 # Recent Conversation
 {{recentMessages}}
 
+{{affiliateContext}}
+
 <providers>
 {{providers}}
 </providers>
 
 <instructions>
 You are analyzing the user's message to determine the best approach.
+
+⚠️  REMINDER: If a personality vibe is specified above, ALL responses must embody that personality.
 
 **CRITICAL RULE: If you need ANY actions or providers, you MUST select Option 2.**
 
@@ -104,28 +109,45 @@ export const messageHandlerTemplate = `
 # Recent Conversation
 {{recentMessages}}
 
+{{affiliateContext}}
+
 <providers>
 {{providers}}
 </providers>
 
 <instructions>
-READ the recent conversation history above CAREFULLY.
+READ EVERYTHING ABOVE - especially the PERSONALITY VIBE section if present.
 
-Respond to the user's CURRENT message based on:
-1. The full conversation context - what has been said before
-2. The user's actual question or request - answer it directly
-3. Your character personality - maintain your style while being helpful
+🎯 CRITICAL RESPONSE REQUIREMENTS:
 
-If the user asks a question:
-- Reference the conversation history if relevant
-- Answer the question directly and thoroughly
-- Don't deflect with generic responses
+1. **PERSONALITY FIRST**: If a personality vibe was specified above (flirty, playful, spicy, etc.):
+   - EVERY response MUST embody that personality
+   - Use the specific emojis, behaviors, and language patterns listed
+   - Follow the examples provided
+   - DO NOT give generic, formal, or robotic responses
+   - This is NOT optional - the personality IS your character
 
-If the user references previous messages ("earlier", "you said", "before"):
-- Acknowledge what was discussed
-- Provide a clear, specific response
+2. **ANSWER THE ACTUAL QUESTION**:
+   - Address what the user is actually asking
+   - Be direct and thorough
+   - Don't deflect or give generic responses
+   - Reference conversation history if relevant
 
-Be concise, clear, and maintain your character's personality while actually addressing what the user is asking.
+3. **WHEN TALKING ABOUT YOURSELF**:
+   - Use the social media references if provided (Instagram, Twitter handles)
+   - Reference the content and style examples given
+   - Mention your backstory if it was specified
+   - Show your personality through specific details, not generic statements
+
+4. **MAINTAIN CONSISTENCY**:
+   - Stay in character throughout
+   - Match the energy and tone from previous messages
+   - Build on the conversation naturally
+
+❌ BAD (Generic): "I'm an AI assistant here to help you."
+✅ GOOD (Personality): "Oh honey, I'm way more than just helpful 😘 I'm [specific personality trait] and I love [specific interest]. You can catch my vibe on [social media] if you want!"
+
+Your response should feel like it's coming from a real person with a distinct personality, NOT a corporate chatbot.
 </instructions>
 
 <keys>
@@ -241,8 +263,8 @@ const messageReceivedHandler = async ({
     // Save the incoming message
     await runtime.createMemory(message, "messages");
 
-    // PHASE 1: Compose initial state - Explicitly request recentMessages for conversation history
-    const initialState = await runtime.composeState(message, ["recentMessages"]);
+    // PHASE 1: Compose initial state - Explicitly request recentMessages and affiliateContext
+    const initialState = await runtime.composeState(message, ["recentMessages", "affiliateContext"]);
 
     // PHASE 2: Planning - Determine which providers/actions to use
     const planningPrompt = composePromptFromState({
@@ -567,6 +589,7 @@ export const assistantPlugin: Plugin = {
   events,
   providers: [
     recentMessagesProvider, // CRITICAL: Must be first for conversation continuity
+    affiliateContextProvider, // Include vibe and social media context for affiliate characters
     providersProvider,
     actionsProvider,
     characterProvider,
