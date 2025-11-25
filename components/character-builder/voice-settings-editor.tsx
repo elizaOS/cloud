@@ -23,9 +23,9 @@ export function VoiceSettingsEditor({
   onChange,
 }: VoiceSettingsEditorProps) {
   const settings = character.settings || {};
-  const voiceSettings = (settings.voice as Record<string, any>) || {};
+  const voiceSettings = (settings.voice as Record<string, string | number | boolean | undefined>) || {};
 
-  const updateVoiceSetting = (key: string, value: any) => {
+  const updateVoiceSetting = (key: string, value: string | number | boolean) => {
     onChange({
       ...character,
       settings: {
@@ -41,7 +41,7 @@ export function VoiceSettingsEditor({
   return (
     <div className="space-y-8 max-w-2xl mx-auto">
       {/* Header Card */}
-      <div className="bg-[#FF5800]/10 border border-[#FF5800]/20 p-6">
+      <div className="bg-[#FF5800]/10 border border-[#FF5800]/20 p-6 rounded-xl">
         <div className="flex items-start gap-4">
           <div className="p-3 bg-[#FF5800]/20 rounded-full">
             <Mic className="h-6 w-6 text-[#FF5800]" />
@@ -66,10 +66,10 @@ export function VoiceSettingsEditor({
               Voice Provider
             </Label>
             <Select
-              value={voiceSettings.model || "eleven_labs"}
+              value={(voiceSettings.model as string) || "eleven_labs"}
               onValueChange={(value) => updateVoiceSetting("model", value)}
             >
-              <SelectTrigger className="w-full bg-black/40 border-white/10 text-white rounded-none h-10">
+              <SelectTrigger className="w-full bg-black/40 border-white/10 text-white rounded-xl h-10">
                 <SelectValue placeholder="Select provider" />
               </SelectTrigger>
               <SelectContent>
@@ -85,10 +85,10 @@ export function VoiceSettingsEditor({
               Voice ID
             </Label>
             <Input
-              value={voiceSettings.voiceId || ""}
+              value={(voiceSettings.voiceId as string) || ""}
               onChange={(e) => updateVoiceSetting("voiceId", e.target.value)}
               placeholder="e.g. 21m00Tcm4TlvDq8ikWAM"
-              className="bg-black/40 border-white/10 text-white rounded-none h-10 focus:border-[#FF5800]"
+              className="bg-black/40 border-white/10 text-white rounded-xl h-10 focus:border-[#FF5800]"
             />
           </div>
         </div>
@@ -102,11 +102,11 @@ export function VoiceSettingsEditor({
                 Stability
               </Label>
               <span className="text-xs text-white/40">
-                {((voiceSettings.stability ?? 0.5) * 100).toFixed(0)}%
+                {(((voiceSettings.stability as number) ?? 0.5) * 100).toFixed(0)}%
               </span>
             </div>
             <Slider
-              value={[voiceSettings.stability ?? 0.5]}
+              value={[(voiceSettings.stability as number) ?? 0.5]}
               min={0}
               max={1}
               step={0.05}
@@ -125,11 +125,11 @@ export function VoiceSettingsEditor({
                 Similarity Boost
               </Label>
               <span className="text-xs text-white/40">
-                {((voiceSettings.similarityBoost ?? 0.75) * 100).toFixed(0)}%
+                {(((voiceSettings.similarityBoost as number) ?? 0.75) * 100).toFixed(0)}%
               </span>
             </div>
             <Slider
-              value={[voiceSettings.similarityBoost ?? 0.75]}
+              value={[(voiceSettings.similarityBoost as number) ?? 0.75]}
               min={0}
               max={1}
               step={0.05}

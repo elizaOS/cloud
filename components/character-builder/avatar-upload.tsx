@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useRef } from "react";
-import { Upload, X, Loader2, Camera, ImagePlus } from "lucide-react";
+import { X, Loader2, Camera, ImagePlus } from "lucide-react";
 import { uploadCharacterAvatar } from "@/app/actions/characters";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
