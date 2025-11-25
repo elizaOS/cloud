@@ -5,6 +5,7 @@ import { ArrowUpRight, Check } from "lucide-react";
 import { CornerBrackets, SectionLabel, BrandCard } from "@/components/brand";
 import MicropaymentNetwork from "./MicropaymentNetwork";
 import Image from "next/image";
+import { ReactFlowProvider } from "@xyflow/react";
 
 const agents = [
   {
@@ -223,7 +224,9 @@ export default function OnChainTrust() {
               </p>
 
               {/* Floating Network Animation */}
-              <MicropaymentNetwork />
+              <ReactFlowProvider>
+                <MicropaymentNetwork />
+              </ReactFlowProvider>
             </div>
           </BrandCard>
         </div>
