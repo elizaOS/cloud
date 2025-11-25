@@ -305,12 +305,19 @@ export async function POST(request: NextRequest) {
     
     // 10. BUILD REDIRECT URL
     const baseUrl = process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000";
-    const redirectUrl = new URL(`${baseUrl}/chat/${createdCharacter.id}`);
+    
+    // Use themed /crush-chat route for clone-your-crush characters
+    const isCrushCharacter = affiliateId === "clone-your-crush" || metadata?.source === "landing-page";
+    const chatRoute = isCrushCharacter ? "/crush-chat" : "/chat";
+    
+    const redirectUrl = new URL(`${baseUrl}${chatRoute}/${createdCharacter.id}`);
     redirectUrl.searchParams.set("source", affiliateId);
     redirectUrl.searchParams.set("session", sessionId);
     if (metadata?.vibe) {
       redirectUrl.searchParams.set("vibe", metadata.vibe);
     }
+    
+    logger.info(`[Affiliate API] Generated redirect URL for ${isCrushCharacter ? "crush" : "standard"} character: ${redirectUrl.toString()}`);
     
     // 11. RETURN SUCCESS RESPONSE
     const duration = Date.now() - startTime;
