@@ -52,7 +52,10 @@ const getCorrectMimeType = (file: File): string => {
   return mimeTypeMap[ext] || file.type || "application/octet-stream";
 };
 
-export function DocumentUpload({ onUploadSuccess, characterId }: DocumentUploadProps) {
+export function DocumentUpload({
+  onUploadSuccess,
+  characterId,
+}: DocumentUploadProps) {
   const [uploading, setUploading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);

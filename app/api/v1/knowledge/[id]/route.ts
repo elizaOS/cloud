@@ -18,26 +18,26 @@ async function handleDELETE(
   try {
     const authResult = await requireAuthOrApiKey(req);
     const { user } = authResult;
-    
+
     // Get characterId from query params
     const searchParams = req.nextUrl.searchParams;
     const characterId = searchParams.get("characterId") || undefined;
-    
+
     // Build user context with characterId
     const userContext = await userContextService.buildContext({
       user,
       apiKey: authResult.apiKey,
       isAnonymous: false,
     });
-    
+
     if (characterId) {
       userContext.characterId = characterId;
     }
-    
+
     // Create runtime with user-specific context
     const runtimeFactory = RuntimeFactory.getInstance();
     const runtime = await runtimeFactory.createRuntimeForUser(userContext);
-    
+
     const knowledgeService = await getKnowledgeService(runtime);
 
     if (!knowledgeService) {

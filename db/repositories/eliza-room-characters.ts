@@ -10,8 +10,10 @@ export const elizaRoomCharactersRepository = {
   async findByRoomId(roomId: string): Promise<ElizaRoomCharacter | undefined> {
     // DISABLED: Caching causes stale data in Vercel serverless (isolated container caches)
     // ALWAYS fetch from DB - character mapping lookups are fast (~5ms)
-    console.log(`[RoomCharRepo] findByRoomId(${roomId.substring(0, 8)}...) - fetching from DB (cache disabled)`);
-    
+    console.log(
+      `[RoomCharRepo] findByRoomId(${roomId.substring(0, 8)}...) - fetching from DB (cache disabled)`,
+    );
+
     const result = await db
       .select()
       .from(elizaRoomCharactersTable)
@@ -19,7 +21,10 @@ export const elizaRoomCharactersRepository = {
       .limit(1);
 
     const character = result[0];
-    console.log(`[RoomCharRepo] DB result - characterId:`, character?.character_id || 'none');
+    console.log(
+      `[RoomCharRepo] DB result - characterId:`,
+      character?.character_id || "none",
+    );
 
     return character;
   },

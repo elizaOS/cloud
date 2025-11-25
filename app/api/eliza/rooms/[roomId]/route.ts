@@ -42,7 +42,10 @@ export async function GET(
         await elizaRoomCharactersRepository.findByRoomId(roomId);
       if (roomCharacter) {
         characterId = roomCharacter.character_id;
-        logger.info("[Eliza Room API] 📖 Loading room with character:", characterId);
+        logger.info(
+          "[Eliza Room API] 📖 Loading room with character:",
+          characterId,
+        );
       } else {
         logger.info("[Eliza Room API] 📖 Loading room with default Eliza");
       }
@@ -61,7 +64,7 @@ export async function GET(
 
     logger.info(
       "[Eliza Room API] 🎭 Using runtime for character:",
-      runtime.character.name
+      runtime.character.name,
     );
 
     const rawMessages = await runtime.getMemories({

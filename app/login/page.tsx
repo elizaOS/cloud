@@ -37,7 +37,7 @@ function LoginPageContent() {
   const [showCodeInput, setShowCodeInput] = useState(false);
   const [loadingButton, setLoadingButton] = useState<string | null>(null);
   const [isSyncing, setIsSyncing] = useState(false);
-  
+
   // Check if this is a signup intent (from "Get Started" button)
   const isSignupIntent = searchParams.get("intent") === "signup";
 
@@ -281,8 +281,8 @@ function LoginPageContent() {
                 {isSignupIntent ? "Sign Up" : "Welcome back"}
               </h1>
               <p className="text-base text-white/60">
-                {isSignupIntent 
-                  ? "Create your elizaOS account" 
+                {isSignupIntent
+                  ? "Create your elizaOS account"
                   : "Sign in to your elizaOS account"}
               </p>
             </div>

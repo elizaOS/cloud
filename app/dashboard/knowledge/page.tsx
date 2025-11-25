@@ -6,7 +6,8 @@ import { generatePageMetadata } from "@/lib/seo";
 
 export const metadata: Metadata = generatePageMetadata({
   title: "Knowledge Management - elizaOS Cloud",
-  description: "Manage your RAG knowledge base. Upload documents and query them for enhanced AI responses.",
+  description:
+    "Manage your RAG knowledge base. Upload documents and query them for enhanced AI responses.",
   path: "/dashboard/knowledge",
   noIndex: true,
 });
@@ -17,7 +18,7 @@ export const dynamic = "force-dynamic";
 export default async function KnowledgePage() {
   // Check if user is authenticated
   const user = await getCurrentUser();
-  
+
   if (!user) {
     // Redirect to login if not authenticated
     return (

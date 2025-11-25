@@ -34,21 +34,23 @@ const globalAny = globalThis as GlobalWithEliza;
 
 export class RuntimeFactory {
   private static instance: RuntimeFactory;
-  
+
   // Single agent ID for all users (maintains database consistency)
-  private readonly AGENT_ID = stringToUuid("b850bc30-45f8-0041-a00a-83df46d8555d") as UUID;
-  
+  private readonly AGENT_ID = stringToUuid(
+    "b850bc30-45f8-0041-a00a-83df46d8555d",
+  ) as UUID;
+
   private constructor() {
     this.initializeLoggers();
   }
-  
+
   static getInstance(): RuntimeFactory {
     if (!this.instance) {
       this.instance = new RuntimeFactory();
     }
     return this.instance;
   }
-  
+
   /**
    * Create a configured runtime for a specific user context
    * All configuration happens here, no late injection needed
@@ -57,36 +59,40 @@ export class RuntimeFactory {
     elizaLogger.info(
       "[RuntimeFactory] Creating runtime for user",
       context.userId,
-      "anonymous:", context.isAnonymous,
-      "characterId:", context.characterId || "default"
+      "anonymous:",
+      context.isAnonymous,
+      "characterId:",
+      context.characterId || "default",
     );
-    
+
     // 1. Get or create database adapter (cached, safe to share)
     const dbAdapter = await this.getDbAdapter();
-    
+
     // 2. Load character if specified, otherwise default
     const { character, plugins } = context.characterId
       ? await characterLoader.loadCharacter(context.characterId)
       : await characterLoader.getDefaultCharacter();
-    
+
     elizaLogger.info(
       "[RuntimeFactory] Loaded character:",
       character.name,
       "| Bio:",
-      Array.isArray(character.bio) ? character.bio[0] : character.bio?.toString().substring(0, 100)
+      Array.isArray(character.bio)
+        ? character.bio[0]
+        : character.bio?.toString().substring(0, 100),
     );
-    
+
     // 3. Build complete settings upfront with user context
     const settings = this.buildSettings(character, context);
-    
+
     // 4. Filter out plugin-sql since we provide our own adapter
     const filteredPlugins = this.filterPlugins(plugins);
-    
+
     elizaLogger.info(
       "[RuntimeFactory] Creating AgentRuntime with plugins:",
-      filteredPlugins.map((p) => p.name).join(", ")
+      filteredPlugins.map((p) => p.name).join(", "),
     );
-    
+
     // 5. Create runtime with everything configured upfront
     const runtime = new AgentRuntime({
       character: {
@@ -98,48 +104,51 @@ export class RuntimeFactory {
       agentId: this.AGENT_ID,
       settings,
     });
-    
+
     // 6. Register database adapter
     runtime.registerDatabaseAdapter(dbAdapter);
-    
+
     // 7. Ensure runtime has logger
     this.ensureRuntimeLogger(runtime);
-    
+
     // 8. Initialize runtime
     await this.initializeRuntime(runtime, character);
-    
+
     elizaLogger.success(
       "[RuntimeFactory] Runtime created successfully for user",
       context.userId,
       "with character:",
-      character.name
+      character.name,
     );
-    
+
     return runtime;
   }
-  
+
   /**
    * Build complete settings object with user context
    * This is where all configuration merging happens
    */
-  private buildSettings(character: Character, context: UserContext): Record<string, any> {
+  private buildSettings(
+    character: Character,
+    context: UserContext,
+  ): Record<string, any> {
     const settings = {
       // Database configuration
       POSTGRES_URL: process.env.DATABASE_URL!,
       DATABASE_URL: process.env.DATABASE_URL!,
-      
+
       // User-specific ElizaCloud configuration (no more late injection!)
       ELIZAOS_CLOUD_API_KEY: context.apiKey,
       ELIZAOS_CLOUD_BASE_URL: getElizaCloudApiUrl(),
-      ELIZAOS_CLOUD_SMALL_MODEL: 
-        context.modelPreferences?.smallModel || 
+      ELIZAOS_CLOUD_SMALL_MODEL:
+        context.modelPreferences?.smallModel ||
         (character.settings?.ELIZAOS_CLOUD_SMALL_MODEL as string) ||
         getDefaultModels().small,
       ELIZAOS_CLOUD_LARGE_MODEL:
         context.modelPreferences?.largeModel ||
         (character.settings?.ELIZAOS_CLOUD_LARGE_MODEL as string) ||
         getDefaultModels().large,
-      
+
       // ElevenLabs settings from character or environment
       ELEVENLABS_API_KEY: process.env.ELEVENLABS_API_KEY!,
       ELEVENLABS_VOICE_ID:
@@ -178,7 +187,7 @@ export class RuntimeFactory {
         (character.settings?.ELEVENLABS_LANGUAGE_CODE as string) ||
         process.env.ELEVENLABS_LANGUAGE_CODE ||
         "en",
-      
+
       // ElevenLabs STT settings
       ELEVENLABS_STT_MODEL_ID:
         (character.settings?.ELEVENLABS_STT_MODEL_ID as string) ||
@@ -208,26 +217,27 @@ export class RuntimeFactory {
         (character.settings?.ELEVENLABS_STT_TAG_AUDIO_EVENTS as string) ||
         process.env.ELEVENLABS_STT_TAG_AUDIO_EVENTS ||
         "false",
-      
+
       // Merge any other custom settings from character
       ...character.settings,
-      
+
       // User metadata for tracking (useful for debugging and analytics)
       USER_ID: context.userId,
       ENTITY_ID: context.entityId,
       ORGANIZATION_ID: context.organizationId,
       IS_ANONYMOUS: context.isAnonymous,
     };
-    
+
     logger.debug(
       "[RuntimeFactory] Built settings for user",
       context.userId,
-      "with API key:", settings.ELIZAOS_CLOUD_API_KEY?.substring(0, 12) + "..."
+      "with API key:",
+      settings.ELIZAOS_CLOUD_API_KEY?.substring(0, 12) + "...",
     );
-    
+
     return settings;
   }
-  
+
   /**
    * Get or create database adapter (cached globally, safe to share)
    */
@@ -236,47 +246,51 @@ export class RuntimeFactory {
       elizaLogger.info("[RuntimeFactory] Reusing cached database adapter");
       return globalAny.__elizaDatabaseAdapter;
     }
-    
+
     if (!process.env.DATABASE_URL) {
       throw new Error("DATABASE_URL environment variable is required");
     }
-    
+
     elizaLogger.info("[RuntimeFactory] Creating new database adapter");
     const dbAdapter = createDatabaseAdapter(
       { postgresUrl: process.env.DATABASE_URL },
-      this.AGENT_ID
+      this.AGENT_ID,
     );
-    
+
     await dbAdapter.init();
     elizaLogger.info("[RuntimeFactory] Database adapter initialized");
-    
+
     // Cache globally for warm containers (connection pooling is safe)
     globalAny.__elizaDatabaseAdapter = dbAdapter;
     return dbAdapter;
   }
-  
+
   /**
    * Filter out plugin-sql since we provide our own adapter
    */
   private filterPlugins(plugins: Plugin[]): Plugin[] {
-    return plugins.filter(
-      (p) => p.name !== "@elizaos/plugin-sql"
-    ) as Plugin[];
+    return plugins.filter((p) => p.name !== "@elizaos/plugin-sql") as Plugin[];
   }
-  
+
   /**
    * Initialize runtime with error handling for existing records
    */
-  private async initializeRuntime(runtime: AgentRuntime, character: Character): Promise<void> {
+  private async initializeRuntime(
+    runtime: AgentRuntime,
+    character: Character,
+  ): Promise<void> {
     try {
       elizaLogger.info("[RuntimeFactory] Starting runtime initialization...");
-      
+
       try {
         await runtime.initialize({ skipMigrations: true });
-        elizaLogger.success("[RuntimeFactory] Runtime initialized successfully");
+        elizaLogger.success(
+          "[RuntimeFactory] Runtime initialized successfully",
+        );
       } catch (initError) {
-        const errorMsg = initError instanceof Error ? initError.message : String(initError);
-        
+        const errorMsg =
+          initError instanceof Error ? initError.message : String(initError);
+
         // Handle duplicate key errors gracefully (records already exist)
         if (
           errorMsg.includes("Failed to create entity") ||
@@ -285,30 +299,35 @@ export class RuntimeFactory {
           errorMsg.toLowerCase().includes("unique constraint")
         ) {
           elizaLogger.warn(
-            "[RuntimeFactory] Agent/entity records already exist, continuing"
+            "[RuntimeFactory] Agent/entity records already exist, continuing",
           );
         } else {
           throw initError;
         }
       }
-      
+
       // Verify agent exists
       const agentExists = await runtime.getAgent(this.AGENT_ID);
       if (!agentExists) {
         elizaLogger.info("[RuntimeFactory] Creating agent entity...");
         await this.ensureAgentExists(runtime, character);
       }
-      
     } catch (error) {
-      elizaLogger.error("[RuntimeFactory] Runtime initialization failed:", error instanceof Error ? error.message : String(error));
+      elizaLogger.error(
+        "[RuntimeFactory] Runtime initialization failed:",
+        error instanceof Error ? error.message : String(error),
+      );
       throw error;
     }
   }
-  
+
   /**
    * Ensure agent entity exists in database
    */
-  private async ensureAgentExists(runtime: AgentRuntime, character: Character): Promise<void> {
+  private async ensureAgentExists(
+    runtime: AgentRuntime,
+    character: Character,
+  ): Promise<void> {
     try {
       await runtime.ensureAgentExists({
         id: this.AGENT_ID,
@@ -325,7 +344,7 @@ export class RuntimeFactory {
         settings: character.settings || {},
         style: character.style || {},
       } as Agent);
-      
+
       // Also ensure entity exists
       await runtime.createEntity({
         id: this.AGENT_ID,
@@ -334,7 +353,10 @@ export class RuntimeFactory {
         metadata: { name: character.name || "Eliza" },
       });
     } catch (entityError) {
-      const msg = entityError instanceof Error ? entityError.message : String(entityError);
+      const msg =
+        entityError instanceof Error
+          ? entityError.message
+          : String(entityError);
       if (
         msg.toLowerCase().includes("duplicate key") ||
         msg.toLowerCase().includes("unique constraint")
@@ -345,7 +367,7 @@ export class RuntimeFactory {
       }
     }
   }
-  
+
   /**
    * Ensure runtime has a properly configured logger
    */
@@ -362,7 +384,7 @@ export class RuntimeFactory {
       } as Logger & { notice: typeof console.info };
     }
   }
-  
+
   /**
    * Initialize ElizaLogger and global logger
    */
@@ -389,7 +411,7 @@ export class RuntimeFactory {
           console.info.bind(console);
       }
     }
-    
+
     // Configure global logger if needed
     if (typeof globalThis !== "undefined" && !globalAny.logger) {
       globalAny.logger = {
