@@ -141,10 +141,13 @@ export async function POST(request: NextRequest) {
       "| userId:",
       user.id,
     );
-    
+
     // Validate characterId if provided
     if (characterId && typeof characterId !== "string") {
-      logger.error("[Eliza Rooms API] Invalid characterId type:", typeof characterId);
+      logger.error(
+        "[Eliza Rooms API] Invalid characterId type:",
+        typeof characterId,
+      );
       return NextResponse.json(
         { error: "characterId must be a string" },
         { status: 400 },
@@ -163,12 +166,12 @@ export async function POST(request: NextRequest) {
     const runtime = characterId
       ? await agentRuntime.getRuntimeForCharacter(characterId)
       : await agentRuntime.getRuntime();
-    
+
     logger.info(
       "[Eliza Rooms API] 🎭 Runtime created for character:",
-      runtime.character.name
+      runtime.character.name,
     );
-    
+
     const roomId = uuidv4();
 
     // Ensure room exists
@@ -234,14 +237,11 @@ export async function POST(request: NextRequest) {
     // CRITICAL: Store character mapping FIRST (before greeting message)
     if (characterId) {
       try {
-        logger.info(
-          "[Eliza Rooms API] 💾 Storing character mapping:",
-          {
-            room_id: roomId,
-            character_id: characterId,
-            user_id: user.id,
-          },
-        );
+        logger.info("[Eliza Rooms API] 💾 Storing character mapping:", {
+          room_id: roomId,
+          character_id: characterId,
+          user_id: user.id,
+        });
         await elizaRoomCharactersRepository.create({
           room_id: roomId,
           character_id: characterId,
@@ -261,7 +261,9 @@ export async function POST(request: NextRequest) {
         // Continue anyway - room is created even if mapping fails
       }
     } else {
-      logger.info("[Eliza Rooms API] ℹ️  No characterId provided, using default Eliza");
+      logger.info(
+        "[Eliza Rooms API] ℹ️  No characterId provided, using default Eliza",
+      );
     }
 
     // Send initial greeting message using the character's runtime
@@ -269,7 +271,7 @@ export async function POST(request: NextRequest) {
     try {
       logger.info(
         "[Eliza Rooms API] 👋 Generating initial greeting for character:",
-        runtime.character.name
+        runtime.character.name,
       );
 
       // Use the runtime we already created (already has correct character)

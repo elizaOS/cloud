@@ -43,11 +43,11 @@ class AgentRuntimeManager {
    */
   async getRuntimeForCharacter(characterId?: string): Promise<AgentRuntime> {
     const systemContext = userContextService.createSystemContext();
-    
+
     if (characterId) {
       systemContext.characterId = characterId;
     }
-    
+
     return runtimeFactory.createRuntimeForUser(systemContext);
   }
 
@@ -69,10 +69,11 @@ class AgentRuntimeManager {
       };
     },
   ): Promise<MessageResult> {
-    logger.info(
-      "[AgentRuntime] Processing message via new architecture",
-      { roomId, entityId, hasUserSettings: !!userSettings }
-    );
+    logger.info("[AgentRuntime] Processing message via new architecture", {
+      roomId,
+      entityId,
+      hasUserSettings: !!userSettings,
+    });
 
     // Build user context from settings (backward compatibility)
     let userContext: UserContext;

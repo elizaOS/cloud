@@ -43,7 +43,7 @@ export class CharacterLoader {
     plugins: Plugin[];
   }> {
     console.log(`[CharacterLoader] Loading character: ${characterId}`);
-    
+
     // Load character from database
     const dbCharacter = await charactersService.getById(characterId);
 
@@ -63,8 +63,10 @@ export class CharacterLoader {
     // Resolve plugins (includes core plugins + character-specific plugins)
     const plugins = await this.resolvePlugins(elizaCharacter.plugins || []);
 
-    console.log(`[CharacterLoader] Built character: ${character.name} with ${plugins.length} plugins:`, 
-      plugins.map(p => p.name).join(', '));
+    console.log(
+      `[CharacterLoader] Built character: ${character.name} with ${plugins.length} plugins:`,
+      plugins.map((p) => p.name).join(", "),
+    );
 
     return { character, plugins };
   }
@@ -209,13 +211,13 @@ export class CharacterLoader {
 
   /**
    * Resolve plugin names to plugin instances
-   * 
+   *
    * CORE PLUGINS (ALWAYS INCLUDED - REQUIRED FOR ALL AGENTS):
    * 1. elizaOSCloudPlugin - LLM provider (required for text generation)
    * 2. assistantPlugin - Message handling and context providers (required)
    * 3. memoryPlugin - Short/long term memory (required for conversation context)
    * 4. knowledgePlugin - Document processing and RAG (required for knowledge base)
-   * 
+   *
    * OPTIONAL PLUGINS (Character-specific, enabled via character.plugins array):
    * - @elizaos/plugin-elevenlabs - Voice (TTS/STT)
    * - Additional plugins as added to AVAILABLE_PLUGINS map
@@ -226,7 +228,7 @@ export class CharacterLoader {
     // ========================================
     // CORE PLUGINS - REQUIRED FOR ALL AGENTS
     // ========================================
-    
+
     // 1. ElizaOS Cloud - LLM Provider (REQUIRED)
     if (!plugins.some((p) => p === elizaOSCloudPlugin)) {
       plugins.push(elizaOSCloudPlugin);
@@ -251,7 +253,7 @@ export class CharacterLoader {
     // ========================================
     // CHARACTER-SPECIFIC PLUGINS (OPTIONAL)
     // ========================================
-    
+
     // Resolve plugins specified in character configuration
     for (const pluginName of pluginNames) {
       const plugin = AVAILABLE_PLUGINS[pluginName];
@@ -260,7 +262,9 @@ export class CharacterLoader {
         // Avoid duplicates
         if (!plugins.some((p) => p === plugin)) {
           plugins.push(plugin);
-          console.log(`[CharacterLoader] ✓ Added optional plugin: ${pluginName}`);
+          console.log(
+            `[CharacterLoader] ✓ Added optional plugin: ${pluginName}`,
+          );
         }
       } else {
         console.warn(`[CharacterLoader] ⚠ Unknown plugin: ${pluginName}`);

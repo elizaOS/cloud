@@ -525,6 +525,7 @@ npm run bootstrapper:build  # Build container bootstrapper
 ### Security Features Implemented
 
 ✅ **Content Security Policy (CSP)**: Comprehensive CSP configured in `next.config.ts` that:
+
 - Protects against XSS attacks
 - Allows Privy authentication iframe
 - Allows WalletConnect and wallet integrations
@@ -532,6 +533,7 @@ npm run bootstrapper:build  # Build container bootstrapper
 - Includes all required domains for Privy, Solana, and third-party services
 
 ✅ **Security Headers**: Multiple layers of protection:
+
 - `X-Frame-Options: DENY` (clickjacking protection)
 - `X-Content-Type-Options: nosniff` (MIME sniffing protection)
 - `Referrer-Policy` (referrer information control)
@@ -543,7 +545,9 @@ npm run bootstrapper:build  # Build container bootstrapper
 Before deploying to production, complete these critical steps:
 
 #### 1. Configure Privy Dashboard
+
 Visit https://dashboard.privy.io and configure:
+
 - ✅ Add production domain to **Allowed Domains**
 - ✅ Remove all test/development domains
 - ✅ Enable **HttpOnly cookies** for enhanced security
@@ -552,6 +556,7 @@ Visit https://dashboard.privy.io and configure:
 - ✅ Review OAuth providers and session duration
 
 #### 2. Set Environment Variables
+
 ```bash
 NEXT_PUBLIC_PRIVY_APP_ID=your_production_app_id
 NEXT_PUBLIC_PRIVY_CLIENT_ID=your_production_client_id
@@ -560,6 +565,7 @@ PRIVY_WEBHOOK_SECRET=strong_random_secret_here
 ```
 
 #### 3. Test Security Configuration
+
 ```bash
 # Build and run in production mode
 npm run build
@@ -594,6 +600,7 @@ npm run test:security-headers
 ```
 
 This will verify:
+
 - All security headers are present
 - CSP includes required Privy domains
 - Frame embedding protection is active
@@ -602,12 +609,15 @@ This will verify:
 ### Common Security Issues
 
 **Issue: "Domain not allowed"**
+
 - Solution: Add your domain to Privy Dashboard > Configuration > App settings > Allowed domains
 
 **Issue: Privy iframe not loading**
+
 - Solution: Check browser console for CSP violations. Verify `frame-src` includes `https://auth.privy.io`
 
 **Issue: CSP violations**
+
 - Solution: Review browser console, determine if legitimate, update `next.config.ts` if needed
 
 See [docs/CSP_TESTING_GUIDE.md](./docs/CSP_TESTING_GUIDE.md) for detailed troubleshooting.

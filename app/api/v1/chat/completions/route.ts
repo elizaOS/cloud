@@ -36,41 +36,67 @@ async function handlePOST(req: NextRequest) {
     const request: OpenAIChatRequest = await req.json();
 
     // Log detailed message breakdown
-    const systemMessages = request.messages.filter((msg: any) => msg.role === 'system');
-    const userMessages = request.messages.filter((msg: any) => msg.role === 'user');
-    const assistantMessages = request.messages.filter((msg: any) => msg.role === 'assistant');
-    const toolMessages = request.messages.filter((msg: any) => msg.role === 'tool');
-
-    logger.info(
-      "[Chat Completions API] 📝 PROMPT BREAKDOWN",
-      {
-        model: request.model,
-        totalMessages: request.messages.length,
-        messageTypes: {
-          system: systemMessages.length,
-          user: userMessages.length,
-          assistant: assistantMessages.length,
-          tool: toolMessages.length,
-        },
-        systemPrompts: systemMessages.map((msg: any) => ({
-          content: typeof msg.content === 'string' ? msg.content : JSON.stringify(msg.content),
-          length: typeof msg.content === 'string' ? msg.content.length : JSON.stringify(msg.content).length
-        })),
-        userPrompts: userMessages.map((msg: any) => ({
-          content: typeof msg.content === 'string' ? msg.content : JSON.stringify(msg.content),
-          length: typeof msg.content === 'string' ? msg.content.length : JSON.stringify(msg.content).length
-        })),
-        assistantResponses: assistantMessages.map((msg: any) => ({
-          content: typeof msg.content === 'string' ? msg.content : JSON.stringify(msg.content),
-          length: typeof msg.content === 'string' ? msg.content.length : JSON.stringify(msg.content).length,
-          toolCalls: msg.tool_calls || undefined
-        })),
-        toolResponses: toolMessages.map((msg: any) => ({
-          content: typeof msg.content === 'string' ? msg.content : JSON.stringify(msg.content),
-          toolCallId: msg.tool_call_id
-        }))
-      },
+    const systemMessages = request.messages.filter(
+      (msg: any) => msg.role === "system",
     );
+    const userMessages = request.messages.filter(
+      (msg: any) => msg.role === "user",
+    );
+    const assistantMessages = request.messages.filter(
+      (msg: any) => msg.role === "assistant",
+    );
+    const toolMessages = request.messages.filter(
+      (msg: any) => msg.role === "tool",
+    );
+
+    logger.info("[Chat Completions API] 📝 PROMPT BREAKDOWN", {
+      model: request.model,
+      totalMessages: request.messages.length,
+      messageTypes: {
+        system: systemMessages.length,
+        user: userMessages.length,
+        assistant: assistantMessages.length,
+        tool: toolMessages.length,
+      },
+      systemPrompts: systemMessages.map((msg: any) => ({
+        content:
+          typeof msg.content === "string"
+            ? msg.content
+            : JSON.stringify(msg.content),
+        length:
+          typeof msg.content === "string"
+            ? msg.content.length
+            : JSON.stringify(msg.content).length,
+      })),
+      userPrompts: userMessages.map((msg: any) => ({
+        content:
+          typeof msg.content === "string"
+            ? msg.content
+            : JSON.stringify(msg.content),
+        length:
+          typeof msg.content === "string"
+            ? msg.content.length
+            : JSON.stringify(msg.content).length,
+      })),
+      assistantResponses: assistantMessages.map((msg: any) => ({
+        content:
+          typeof msg.content === "string"
+            ? msg.content
+            : JSON.stringify(msg.content),
+        length:
+          typeof msg.content === "string"
+            ? msg.content.length
+            : JSON.stringify(msg.content).length,
+        toolCalls: msg.tool_calls || undefined,
+      })),
+      toolResponses: toolMessages.map((msg: any) => ({
+        content:
+          typeof msg.content === "string"
+            ? msg.content
+            : JSON.stringify(msg.content),
+        toolCallId: msg.tool_call_id,
+      })),
+    });
 
     // 3. Validate input
     if (!request.model || !request.messages) {

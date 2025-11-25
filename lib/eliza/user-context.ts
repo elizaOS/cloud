@@ -11,21 +11,21 @@ export interface UserContext {
   userId: string;
   entityId: string; // Always equals userId in your system
   organizationId: string;
-  
+
   // Runtime configuration
   apiKey: string;
   modelPreferences?: {
     smallModel?: string;
     largeModel?: string;
   };
-  
+
   // Character overrides
   characterId?: string;
-  
+
   // Session metadata
   isAnonymous: boolean;
   sessionToken?: string;
-  
+
   // User details
   name?: string;
   email?: string;
@@ -33,14 +33,14 @@ export interface UserContext {
 
 export class UserContextService {
   private static instance: UserContextService;
-  
+
   static getInstance(): UserContextService {
     if (!this.instance) {
       this.instance = new UserContextService();
     }
     return this.instance;
   }
-  
+
   /**
    * Build complete user context from authentication result
    * Single point for all user-related data retrieval
@@ -52,27 +52,34 @@ export class UserContextService {
     anonymousSession?: any;
   }): Promise<UserContext> {
     if (authResult.isAnonymous && authResult.anonymousSession) {
-      return this.buildAnonymousContext(authResult.user, authResult.anonymousSession);
+      return this.buildAnonymousContext(
+        authResult.user,
+        authResult.anonymousSession,
+      );
     }
-    
+
     // For authenticated users, entityId === userId (clear mapping)
     const entityId = authResult.user.id;
-    
+
     // Get API key once, here (no more fetching at route level)
     const apiKey = await this.getUserApiKey(
-      authResult.user.id, 
-      authResult.user.organization_id
+      authResult.user.id,
+      authResult.user.organization_id,
     );
-    
+
     if (!apiKey) {
-      logger.error(`[UserContext] No API key found for user ${authResult.user.id}`);
-      throw new Error("No API key found for your account. Please contact support or try logging out and back in.");
+      logger.error(
+        `[UserContext] No API key found for user ${authResult.user.id}`,
+      );
+      throw new Error(
+        "No API key found for your account. Please contact support or try logging out and back in.",
+      );
     }
-    
+
     logger.info(
-      `[UserContext] Built context for user ${authResult.user.id}: ${apiKey.substring(0, 12)}...`
+      `[UserContext] Built context for user ${authResult.user.id}: ${apiKey.substring(0, 12)}...`,
     );
-    
+
     return {
       userId: authResult.user.id,
       entityId: entityId, // Clear mapping: entityId === userId
@@ -84,50 +91,53 @@ export class UserContextService {
       email: authResult.user.email,
     };
   }
-  
+
   /**
    * Get user's ElizaOS Cloud API key from database
    * Centralized API key retrieval - no more scattered getUserElizaCloudApiKey calls
    */
-  private async getUserApiKey(userId: string, orgId: string): Promise<string | null> {
+  private async getUserApiKey(
+    userId: string,
+    orgId: string,
+  ): Promise<string | null> {
     // Validate inputs
     if (!userId || userId.trim() === "") {
       logger.error("[UserContext] Invalid userId provided");
       return null;
     }
-    
+
     if (!orgId || orgId.trim() === "") {
       logger.error(`[UserContext] Invalid organizationId for user ${userId}`);
       return null;
     }
-    
+
     try {
       const apiKeys = await apiKeysService.listByOrganization(orgId);
-      
+
       // Find user's first active API key
       const userKey = apiKeys.find(
-        (key) => key.user_id === userId && key.is_active
+        (key) => key.user_id === userId && key.is_active,
       );
-      
+
       if (!userKey) {
         logger.warn(`[UserContext] No API key found for user ${userId}`);
         return null;
       }
-      
+
       // Return the full key from the database
       logger.info(
-        `[UserContext] Retrieved key for user ${userId}: ${userKey.key_prefix}***`
+        `[UserContext] Retrieved key for user ${userId}: ${userKey.key_prefix}***`,
       );
       return userKey.key;
     } catch (error) {
       logger.error(
         `[UserContext] Error getting API key for user ${userId}:`,
-        error
+        error,
       );
       return null;
     }
   }
-  
+
   /**
    * Build context for anonymous users
    * Uses a shared runtime with limited capabilities
@@ -136,9 +146,11 @@ export class UserContextService {
     // Anonymous users get a shared runtime with limited access
     // For anonymous users, we still use the user object but mark as anonymous
     const entityId = session.id || user.id;
-    
-    logger.info(`[UserContext] Built anonymous context for session ${session.session_token}`);
-    
+
+    logger.info(
+      `[UserContext] Built anonymous context for session ${session.session_token}`,
+    );
+
     return {
       userId: user.id || "anonymous",
       entityId: entityId, // Use session ID or user ID as entity
@@ -150,7 +162,7 @@ export class UserContextService {
       email: user.email,
     };
   }
-  
+
   /**
    * Create context for system/internal operations
    * Used when the system needs to perform operations without a user
@@ -160,7 +172,10 @@ export class UserContextService {
       userId: "system",
       entityId: "system",
       organizationId: "system",
-      apiKey: process.env.SYSTEM_ELIZAOS_API_KEY || process.env.SHARED_ELIZAOS_API_KEY || "",
+      apiKey:
+        process.env.SYSTEM_ELIZAOS_API_KEY ||
+        process.env.SHARED_ELIZAOS_API_KEY ||
+        "",
       isAnonymous: false,
       name: "System",
     };

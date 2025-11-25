@@ -43,13 +43,13 @@ export function KnowledgeDrawer({ characterId }: KnowledgeDrawerProps) {
   const fetchDocuments = async () => {
     try {
       setLoading(true);
-      
+
       // Include characterId in query params if provided
       const url = new URL("/api/v1/knowledge", window.location.origin);
       if (characterId) {
         url.searchParams.set("characterId", characterId);
       }
-      
+
       const response = await fetch(url.toString());
 
       if (!response.ok) {
@@ -81,11 +81,14 @@ export function KnowledgeDrawer({ characterId }: KnowledgeDrawerProps) {
   const handleDelete = async (documentId: string) => {
     try {
       // Include characterId in query params if provided
-      const url = new URL(`/api/v1/knowledge/${documentId}`, window.location.origin);
+      const url = new URL(
+        `/api/v1/knowledge/${documentId}`,
+        window.location.origin,
+      );
       if (characterId) {
         url.searchParams.set("characterId", characterId);
       }
-      
+
       const response = await fetch(url.toString(), {
         method: "DELETE",
       });
@@ -133,7 +136,7 @@ export function KnowledgeDrawer({ characterId }: KnowledgeDrawerProps) {
             </TabsList>
 
             <TabsContent value="upload" className="space-y-4">
-              <DocumentUpload 
+              <DocumentUpload
                 onUploadSuccess={handleUploadSuccess}
                 characterId={characterId ?? null}
               />

@@ -37,7 +37,9 @@ interface KnowledgePageClientProps {
   initialCharacters: ElizaCharacter[];
 }
 
-export function KnowledgePageClient({ initialCharacters }: KnowledgePageClientProps) {
+export function KnowledgePageClient({
+  initialCharacters,
+}: KnowledgePageClientProps) {
   const [documents, setDocuments] = useState<KnowledgeDocument[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -45,7 +47,7 @@ export function KnowledgePageClient({ initialCharacters }: KnowledgePageClientPr
   const [activeTab, setActiveTab] = useState("documents");
   const [isMounted, setIsMounted] = useState(false);
   const [selectedCharacterId, setSelectedCharacterId] = useState<string | null>(
-    initialCharacters.length > 0 ? initialCharacters[0].id! : null
+    initialCharacters.length > 0 ? initialCharacters[0].id! : null,
   );
 
   const fetchDocuments = async () => {
@@ -101,7 +103,10 @@ export function KnowledgePageClient({ initialCharacters }: KnowledgePageClientPr
   const handleDelete = async (documentId: string) => {
     try {
       // Include characterId in query params
-      const url = new URL(`/api/v1/knowledge/${documentId}`, window.location.origin);
+      const url = new URL(
+        `/api/v1/knowledge/${documentId}`,
+        window.location.origin,
+      );
       if (selectedCharacterId) {
         url.searchParams.set("characterId", selectedCharacterId);
       }
@@ -204,8 +209,8 @@ export function KnowledgePageClient({ initialCharacters }: KnowledgePageClientPr
                 </SelectContent>
               </Select>
               <p className="text-xs text-muted-foreground mt-2">
-                Knowledge documents are agent-specific. Select which agent&apos;s
-                knowledge base to manage.
+                Knowledge documents are agent-specific. Select which
+                agent&apos;s knowledge base to manage.
               </p>
             </CardContent>
           </Card>
@@ -323,7 +328,7 @@ export function KnowledgePageClient({ initialCharacters }: KnowledgePageClientPr
               <CardTitle>Upload Documents</CardTitle>
             </CardHeader>
             <CardContent>
-              <DocumentUpload 
+              <DocumentUpload
                 onUploadSuccess={handleUploadSuccess}
                 characterId={selectedCharacterId}
               />

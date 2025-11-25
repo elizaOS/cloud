@@ -16,24 +16,24 @@ async function handleGET(req: NextRequest) {
   try {
     const authResult = await requireAuthOrApiKey(req);
     const { user } = authResult;
-    
+
     // Get query parameters
     const urlParams = req.nextUrl.searchParams;
     const characterId = urlParams.get("characterId") || undefined;
     const count = parseInt(urlParams.get("count") || "100");
     const offset = parseInt(urlParams.get("offset") || "0");
-    
+
     // Build user context with characterId
     const userContext = await userContextService.buildContext({
       user,
       apiKey: authResult.apiKey,
       isAnonymous: false,
     });
-    
+
     if (characterId) {
       userContext.characterId = characterId;
     }
-    
+
     // Create runtime with user-specific context (includes API key for embeddings)
     const runtimeFactory = RuntimeFactory.getInstance();
     const runtime = await runtimeFactory.createRuntimeForUser(userContext);
@@ -105,25 +105,25 @@ async function handlePOST(req: NextRequest) {
   try {
     const authResult = await requireAuthOrApiKey(req);
     const { user } = authResult;
-    
+
     const body = await req.json();
     const { content, contentType, filename, metadata, characterId } = body;
-    
+
     // Build user context with characterId
     const userContext = await userContextService.buildContext({
       user,
       apiKey: authResult.apiKey,
       isAnonymous: false,
     });
-    
+
     if (characterId) {
       userContext.characterId = characterId;
     }
-    
+
     // Create runtime with user-specific context (includes API key for embeddings)
     const runtimeFactory = RuntimeFactory.getInstance();
     const runtime = await runtimeFactory.createRuntimeForUser(userContext);
-    
+
     const knowledgeService = await getKnowledgeService(runtime);
 
     if (!knowledgeService) {

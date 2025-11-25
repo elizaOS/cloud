@@ -179,12 +179,12 @@ async function setLatestResponseId(
     logger.error("[setLatestResponseId] Invalid responseId:", responseId);
     throw new Error(`Invalid responseId: ${responseId}`);
   }
-  
+
   const key = buildResponseCacheKey(runtime.agentId, roomId);
   logger.debug(
     `[setLatestResponseId] Setting cache: ${key}, responseId: ${responseId.substring(0, 8)}`,
   );
-  
+
   try {
     await runtime.setCache(key, responseId);
   } catch (error) {
@@ -216,11 +216,11 @@ function buildResponseCacheKey(agentId: UUID, roomId: string): string {
  */
 function parsePlannedItems(items: string | string[] | undefined): string[] {
   if (!items) return [];
-  
-  const itemArray = Array.isArray(items) 
-    ? items 
+
+  const itemArray = Array.isArray(items)
+    ? items
     : items.split(",").map((item) => item.trim());
-  
+
   return itemArray.filter((item) => item && item !== "");
 }
 
@@ -237,7 +237,9 @@ function canRespondImmediately(plan: ParsedPlan | null): boolean {
 /**
  * Extract attachments from action results
  */
-function extractAttachments(actionResults: Array<{ data?: { attachments?: unknown[] } }>): unknown[] {
+function extractAttachments(
+  actionResults: Array<{ data?: { attachments?: unknown[] } }>,
+): unknown[] {
   return actionResults
     .flatMap((result) => result.data?.attachments ?? [])
     .filter(Boolean);
@@ -256,12 +258,15 @@ async function executeProviders(
     return currentState;
   }
 
-  logger.debug("[ElizaAssistant] Executing providers:", JSON.stringify(plannedProviders));
+  logger.debug(
+    "[ElizaAssistant] Executing providers:",
+    JSON.stringify(plannedProviders),
+  );
   const providerState = await runtime.composeState(message, [
     ...plannedProviders,
     "CHARACTER",
   ]);
-  
+
   return { ...currentState, ...providerState };
 }
 
@@ -280,7 +285,10 @@ async function executeActions(
     return currentState;
   }
 
-  logger.debug("[ElizaAssistant] Executing actions:", JSON.stringify(plannedActions));
+  logger.debug(
+    "[ElizaAssistant] Executing actions:",
+    JSON.stringify(plannedActions),
+  );
 
   const actionResponse: Memory = {
     id: createUniqueUuid(runtime, v4() as UUID),
@@ -294,7 +302,12 @@ async function executeActions(
     },
   };
 
-  await runtime.processActions(message, [actionResponse], currentState, callback);
+  await runtime.processActions(
+    message,
+    [actionResponse],
+    currentState,
+    callback,
+  );
 
   // Refresh state to get action results
   const actionState = await runtime.composeState(message, ["ACTION_STATE"]);
@@ -314,7 +327,7 @@ async function generateResponseWithRetry(
 
   while (retries < MAX_RESPONSE_RETRIES && !responseContent) {
     const response = await runtime.useModel(ModelType.TEXT_LARGE, { prompt });
-    
+
     logger.debug("*** RAW LLM RESPONSE ***\n", response);
 
     const parsedResponse = parseKeyValueXml(response) as ParsedResponse | null;
@@ -368,7 +381,9 @@ async function runEvaluatorsWithTimeout(
       ),
       new Promise<void>((_, reject) => {
         setTimeout(() => {
-          reject(new Error(`Evaluators timed out after ${EVALUATOR_TIMEOUT_MS}ms`));
+          reject(
+            new Error(`Evaluators timed out after ${EVALUATOR_TIMEOUT_MS}ms`),
+          );
         }, EVALUATOR_TIMEOUT_MS);
       }),
     ]);
@@ -422,7 +437,7 @@ const messageReceivedHandler = async ({
 
     // PHASE 1: Compose initial state with memory providers
     logger.info(
-      `[ElizaAssistant] Processing message for character: ${runtime.character.name} (ID: ${runtime.character.id})`
+      `[ElizaAssistant] Processing message for character: ${runtime.character.name} (ID: ${runtime.character.id})`,
     );
     logger.debug("[ElizaAssistant] Composing state with memory providers");
     const initialState = await runtime.composeState(message, [

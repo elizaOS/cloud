@@ -28,26 +28,26 @@ async function handlePOST(req: NextRequest) {
   try {
     const authResult = await requireAuthOrApiKey(req);
     const { user } = authResult;
-    
+
     const formData = await req.formData();
     const files = formData.getAll("files") as File[];
     const characterId = formData.get("characterId") as string | null;
-    
+
     // Build user context with characterId
     const userContext = await userContextService.buildContext({
       user,
       apiKey: authResult.apiKey,
       isAnonymous: false,
     });
-    
+
     if (characterId) {
       userContext.characterId = characterId;
     }
-    
+
     // Create runtime with user-specific context (includes API key for embeddings)
     const runtimeFactory = RuntimeFactory.getInstance();
     const runtime = await runtimeFactory.createRuntimeForUser(userContext);
-    
+
     const knowledgeService = await getKnowledgeService(runtime);
 
     if (!knowledgeService) {

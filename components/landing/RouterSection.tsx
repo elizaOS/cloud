@@ -361,7 +361,7 @@ const RouterSection = () => {
           strokeWidth: 1.5,
           filter: "drop-shadow(0 0 4px rgba(49, 106, 255, 0.6))",
         },
-      }))
+      })),
     ),
     // Lines going out from platforms to off-screen
     {

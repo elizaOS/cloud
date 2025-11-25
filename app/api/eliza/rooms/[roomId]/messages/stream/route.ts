@@ -69,12 +69,15 @@ export async function POST(
     }
 
     // Step 4: Get character assignment for room
-    const roomCharacter = await elizaRoomCharactersRepository.findByRoomId(roomId);
+    const roomCharacter =
+      await elizaRoomCharactersRepository.findByRoomId(roomId);
     const characterId = roomCharacter?.character_id || undefined;
-    
+
     logger.info(
       `[Stream] Room ${roomId} - Character lookup:`,
-      characterId ? `Using character ${characterId}` : "Using default character"
+      characterId
+        ? `Using character ${characterId}`
+        : "Using default character",
     );
 
     // Step 5: Apply model preferences if provided
@@ -169,7 +172,9 @@ export async function POST(
           // Check if we should send low credit warning
           if (result.usage && !userContext.isAnonymous) {
             // This is just for the warning event, actual credit deduction happened in MessageHandler
-            const remainingCredits = await checkUserCredits(userContext.organizationId);
+            const remainingCredits = await checkUserCredits(
+              userContext.organizationId,
+            );
             if (remainingCredits < 1.0) {
               sendEvent("warning", {
                 message: "Low credits - please top up to continue",
@@ -229,7 +234,7 @@ async function authenticateAndBuildContext(request: NextRequest) {
     if (!anonData) {
       throw new Error("Authentication required");
     }
-    
+
     return await userContextService.buildContext({
       user: anonData.user,
       anonymousSession: anonData.session,
