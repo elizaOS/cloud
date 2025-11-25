@@ -22,6 +22,8 @@ import { discordService } from "@/lib/services/discord";
 import { db } from "@/db/client";
 import { sql } from "drizzle-orm";
 import { generateRoomTitle } from "@/lib/ai/generate-room-title";
+import type { WorkflowConfig } from "./workflow-types";
+import { DEFAULT_WORKFLOW } from "./workflow-types";
 
 export interface MessageResult {
   message: Memory;
@@ -39,6 +41,7 @@ export interface MessageOptions {
   attachments?: unknown[];
   characterId?: string;
   model?: string;
+  workflow?: WorkflowConfig;
 }
 
 export class MessageHandler {
@@ -55,10 +58,13 @@ export class MessageHandler {
    * Returns the agent's response and usage information
    */
   async process(options: MessageOptions): Promise<MessageResult> {
-    const { roomId, entityId, text, attachments } = options;
-
+    const { roomId, entityId, text, attachments, workflow } = options;
+    
+    // Use provided workflow or default to CHAT mode
+    const workflowConfig = workflow || DEFAULT_WORKFLOW;
+    
     elizaLogger.info(
-      `[MessageHandler] Processing message for user ${this.userContext.userId} in room ${roomId}`,
+      `[MessageHandler] Processing message for user ${this.userContext.userId} in room ${roomId} (workflow: ${workflowConfig.mode})`
     );
 
     // 1. Ensure connection exists (with caching)
@@ -77,9 +83,11 @@ export class MessageHandler {
 
     try {
       // Process message through event pipeline
+      // The workflow config will be picked up by the plugin-assistant
       await this.runtime.emitEvent(EventType.MESSAGE_RECEIVED, {
         runtime: this.runtime,
         message: userMessage,
+        workflow: workflowConfig, // Pass workflow to event handlers
         callback: async (result: {
           text?: string;
           attachments?: unknown[];

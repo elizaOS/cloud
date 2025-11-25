@@ -7,6 +7,8 @@ import { elizaRoomCharactersRepository } from "@/db/repositories";
 import { userContextService } from "@/lib/eliza/user-context";
 import { runtimeFactory } from "@/lib/eliza/runtime-factory";
 import { createMessageHandler } from "@/lib/eliza/message-handler";
+import type { WorkflowConfig } from "@/lib/eliza/workflow-types";
+import { WorkflowMode, isValidWorkflowConfig } from "@/lib/eliza/workflow-types";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
@@ -34,13 +36,26 @@ export async function POST(
     // Step 2: Parse and validate request
     const { roomId } = await ctx.params;
     const body = await request.json();
-    const { entityId, text, model } = body;
+    const { entityId, text, model, workflow } = body;
 
     if (!roomId || !entityId || !text?.trim()) {
       return new Response(
         JSON.stringify({ error: "Missing required fields" }),
         { status: 400, headers: { "Content-Type": "application/json" } },
       );
+    }
+
+    // Validate workflow if provided
+    let workflowConfig: WorkflowConfig | undefined;
+    if (workflow) {
+      if (!isValidWorkflowConfig(workflow)) {
+        return new Response(
+          JSON.stringify({ error: "Invalid workflow configuration" }),
+          { status: 400, headers: { "Content-Type": "application/json" } },
+        );
+      }
+      workflowConfig = workflow;
+      logger.info(`[Stream] Using workflow mode: ${workflowConfig.mode}`);
     }
 
     if (model) {
@@ -139,6 +154,7 @@ export async function POST(
             entityId,
             text,
             model,
+            workflow: workflowConfig,
           });
 
           const responseText =
