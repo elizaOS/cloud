@@ -2,7 +2,7 @@
 
 import { useState, useCallback, useEffect, useMemo } from "react";
 import { BuildModeAssistant } from "@/components/chat/build-mode-assistant";
-import { AgentDnaEditor } from "@/components/chat/agent-dna-editor";
+import { CharacterEditor } from "@/components/chat/character-editor";
 import { toast } from "sonner";
 import { createCharacter, updateCharacter } from "@/app/actions/characters";
 import type { ElizaCharacter } from "@/lib/types";
@@ -134,7 +134,7 @@ export function CharacterBuildMode({
           )}
         >
           <FileCode2 className="h-4 w-4" />
-          <span>Agent DNA</span>
+          <span>Editor</span>
         </button>
       </div>
 
@@ -149,7 +149,7 @@ export function CharacterBuildMode({
           </div>
         ) : (
           <div className="flex h-full flex-col overflow-hidden">
-            <AgentDnaEditor
+            <CharacterEditor
               character={character}
               onChange={setCharacter}
               onSave={handleSave}
@@ -174,13 +174,13 @@ export function CharacterBuildMode({
           {/* Resizable Handle */}
           <ResizableHandle withHandle />
 
-          {/* Right Panel - Agent DNA Editor */}
+          {/* Right Panel - Character Editor */}
           <ResizablePanel defaultSize={50} minSize={30} maxSize={70}>
             <div
               className="flex h-full flex-col overflow-hidden border-l"
               style={{ borderColor: "#353535" }}
             >
-              <AgentDnaEditor
+              <CharacterEditor
                 character={character}
                 onChange={setCharacter}
                 onSave={handleSave}
