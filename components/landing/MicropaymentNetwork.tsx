@@ -9,6 +9,7 @@ import {
   useEdgesState,
   Position,
   Handle,
+  useReactFlow,
 } from "@xyflow/react";
 import "@xyflow/react/dist/style.css";
 import Image from "next/image";
@@ -99,6 +100,14 @@ const nodeTypes = {
 };
 
 export default function MicropaymentNetwork() {
+  const { fitView } = useReactFlow();
+
+  useEffect(() => {
+    const handle = () => fitView({ padding: 0.2, duration: 300 });
+    window.addEventListener("resize", handle);
+    return () => window.removeEventListener("resize", handle);
+  }, [fitView]);
+
   const initialNodes: Node[] = useMemo(
     () => [
       // Center agent
@@ -177,7 +186,7 @@ export default function MicropaymentNetwork() {
         type: "floating",
       },
     ],
-    [],
+    []
   );
 
   const initialEdges: Edge[] = useMemo(
@@ -225,7 +234,7 @@ export default function MicropaymentNetwork() {
         style: { stroke: "#FF580040", strokeWidth: 1.5 },
       },
     ],
-    [],
+    []
   );
 
   const [nodes, setNodes, onNodesChange] = useNodesState(initialNodes);
@@ -238,8 +247,8 @@ export default function MicropaymentNetwork() {
         acc[node.id] = { x: node.position.x, y: node.position.y };
         return acc;
       },
-      {} as Record<string, { x: number; y: number }>,
-    ),
+      {} as Record<string, { x: number; y: number }>
+    )
   );
 
   // Subtle hovering animation effect
@@ -261,7 +270,7 @@ export default function MicropaymentNetwork() {
               y: basePos.y + offset,
             },
           };
-        }),
+        })
       );
     }, 16); // ~60fps
 
