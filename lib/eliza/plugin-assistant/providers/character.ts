@@ -1,94 +1,183 @@
-import type { IAgentRuntime, Memory, Provider, State } from "@elizaos/core";
-import { addHeader, ChannelType } from "@elizaos/core";
+import type { IAgentRuntime, Memory, Provider, State } from '@elizaos/core';
+import { addHeader } from '@elizaos/core';
 
 /**
- * Character provider object.
- * @typedef {Object} Provider
- * @property {string} name - The name of the provider ("CHARACTER").
- * @property {string} description - Description of the character information.
- * @property {Function} get - Async function to get character information.
- */
-/**
- * Provides character information.
- * @param {IAgentRuntime} runtime - The agent runtime.
- * @param {Memory} message - The message memory.
- * @param {State} state - The state of the character.
- * @returns {Object} Object containing values, data, and text sections.
+ * Character Provider - Research-Based Implementation
+ *
+ * Implements advanced prompting techniques for high-fidelity character synthesis:
+ * - EmotionPrompt: Psychological stakes injection
+ * - Style Enforcement: Positive directives + negative constraints
+ * - Trait Variety: Random adjective/topic selection per response
+ * - Few-Shot Positioning: Strategic messageExamples injection
+ *
+ * Based on: "Architectures of Artificial Persona" research synthesis
  */
 export const characterProvider: Provider = {
-  name: "CHARACTER",
-  description: "Character information",
-  get: async (runtime: IAgentRuntime, message: Memory, state: State) => {
+  name: 'CHARACTER',
+  description: 'Core character identity, personality, and behavioral directives',
+  get: async (runtime: IAgentRuntime, _message: Memory, _state: State) => {
     const character = runtime.character;
 
-    // Character name
+    // ========================================
+    // CORE IDENTITY
+    // ========================================
     const agentName = character.name;
 
-    // Handle bio (string or random selection from array)
+    // System prompt - Core identity with EmotionPrompt stakes
+    // Research: EmotionPrompt increases performance by 8-115% by adding psychological stakes
+    const system = character.system ?? '';
+
+    // Bio - Prose description or structured facts
+    // Research: Narrative format provides causal logic ("why" character acts)
     const bioText = Array.isArray(character.bio)
       ? character.bio
           .sort(() => 0.5 - Math.random())
           .slice(0, 10)
-          .join(" ")
-      : character.bio || "";
+          .map((item) => `- ${item}`)
+          .join('\n')
+      : character.bio || '';
 
-    const bio = addHeader(`# About ${character.name}`, bioText);
+    const bio = bioText ? addHeader(`# About ${character.name}`, bioText) : '';
 
-    // System prompt
-    const system = character.system ?? "";
+    // ========================================
+    // PERSONALITY TRAITS (Variety Injection)
+    // ========================================
+    // Research: Random trait selection adds variety, can reference MBTI/Big Five
+    const adjectiveString =
+      character.adjectives && character.adjectives.length > 0
+        ? character.adjectives[Math.floor(Math.random() * character.adjectives.length)]
+        : '';
 
-    // Select random topic if available
+    const adjective = adjectiveString || '';
+    const adjectiveSentence = adjectiveString ? `${character.name} is ${adjectiveString}.` : '';
+
+    // ========================================
+    // TOPICS (Interest Areas)
+    // ========================================
+    // Research: Injects knowledge domains, adds contextual relevance
     const topicString =
       character.topics && character.topics.length > 0
         ? character.topics[Math.floor(Math.random() * character.topics.length)]
         : null;
 
-    const topic = topicString || "";
+    const topic = topicString || '';
+    const topicSentence = topicString
+      ? `${character.name} is currently interested in ${topicString}.`
+      : '';
 
-    // Format topics list
+    // Format remaining topics list
     const topics =
-      character.topics && character.topics.length > 0
+      character.topics && character.topics.length > 0 && topicString
         ? `${character.name} is also interested in ${character.topics
-            .filter((topic) => topic !== topicString)
+            .filter((t) => t !== topicString)
             .sort(() => 0.5 - Math.random())
             .slice(0, 5)
-            .map((topic, index, array) => {
-              if (index === array.length - 2) {
-                return `${topic} and `;
-              }
-              if (index === array.length - 1) {
-                return topic;
-              }
-              return `${topic}, `;
+            .map((t, index, array) => {
+              if (index === array.length - 2) return `${t} and `;
+              if (index === array.length - 1) return t;
+              return `${t}, `;
             })
-            .join("")}`
-        : "";
+            .join('')}.`
+        : '';
 
-    // Select random adjective if available
-    const adjectiveString =
-      character.adjectives && character.adjectives.length > 0
-        ? character.adjectives[
-            Math.floor(Math.random() * character.adjectives.length)
-          ]
-        : "";
+    // ========================================
+    // STYLE DIRECTIVES (Behavioral Enforcement)
+    // ========================================
+    // Research: Multi-layered style with positive directives + negative constraints
+    // Injected as "Message Directions" in system prompt
+    const styleDirectives = (() => {
+      const all = character?.style?.all || [];
+      const chat = character?.style?.chat || [];
 
-    const adjective = adjectiveString || "";
+      // Combine all directives
+      const combined = [...all, ...chat];
+
+      // Separate into sections for clarity
+      const positiveDirectives: string[] = [];
+      const negativeConstraints: string[] = [];
+
+      combined.forEach((directive) => {
+        // Check if it's a negative constraint
+        if (
+          directive.toLowerCase().includes('avoid') ||
+          directive.toLowerCase().includes("don't") ||
+          directive.toLowerCase().includes('never') ||
+          directive.toLowerCase().includes('not ')
+        ) {
+          negativeConstraints.push(directive);
+        } else {
+          positiveDirectives.push(directive);
+        }
+      });
+
+      // Format with sections if we have both types
+      if (positiveDirectives.length > 0 && negativeConstraints.length > 0) {
+        return [
+          '**Style Guidelines:**',
+          '',
+          ...positiveDirectives.map((d) => `- ${d}`),
+          '',
+          '**Constraints (Avoid):**',
+          '',
+          ...negativeConstraints.map((d) => `- ${d}`),
+        ].join('\n');
+      }
+
+      // Just list all if only one type
+      if (combined.length > 0) {
+        return combined.map((d) => `- ${d}`).join('\n');
+      }
+
+      return '';
+    })();
 
     const messageDirections =
-      (character?.style?.all?.length && character?.style?.all?.length > 0) ||
-      (character?.style?.chat?.length && character?.style?.chat?.length > 0)
-        ? addHeader(
-            `# Message Directions for ${character.name}`,
-            (() => {
-              const all = character?.style?.all || [];
-              const chat = character?.style?.chat || [];
-              return [...all, ...chat].join("\n");
-            })(),
-          )
-        : "";
+      styleDirectives.length > 0
+        ? addHeader(`# Message Directions for ${character.name}`, styleDirectives)
+        : '';
 
     const directions = messageDirections;
 
+    // ========================================
+    // MESSAGE EXAMPLES (Few-Shot Learning)
+    // ========================================
+    // Research: THE MOST EFFECTIVE technique for voice/style
+    // TODO: Implement contextual selection instead of random
+    // Current: Show 3 examples (balanced for context window)
+    const messageExamplesText = (() => {
+      if (!character.messageExamples || character.messageExamples.length === 0) {
+        return '';
+      }
+
+      // For now, select 3 random examples
+      // Future: Contextual matching based on user query
+      const selectedExamples = character.messageExamples
+        .sort(() => 0.5 - Math.random())
+        .slice(0, 3);
+
+      const formattedExamples = selectedExamples
+        .map((exchange) => {
+          return exchange
+            .map((msg) => {
+              // Replace placeholders
+              let text = `${msg.name}: ${msg.content.text}`;
+              text = text.replace(/\{\{user1?\}\}/g, 'User');
+              text = text.replace(/\{\{char\}\}/g, character.name);
+              return text;
+            })
+            .join('\n');
+        })
+        .join('\n\n---\n\n');
+
+      return addHeader(
+        `# Example Conversations`,
+        `${formattedExamples}\n\n*These examples show ${character.name}'s typical speaking style and response patterns.*`
+      );
+    })();
+
+    // ========================================
+    // RETURN VALUES
+    // ========================================
     const values = {
       agentName,
       bio,
@@ -96,37 +185,44 @@ export const characterProvider: Provider = {
       topic,
       topics,
       adjective,
+      adjectiveSentence,
+      topicSentence,
       messageDirections,
       directions,
+      messageExamples: messageExamplesText,
     };
 
     const data = {
-      bio,
+      bio: bioText,
       adjective,
       topic,
       topics,
       character,
-      directions,
+      directions: styleDirectives,
       system,
     };
 
-    const topicSentence = topicString
-      ? `${character.name} is currently interested in ${topicString}`
-      : "";
-    const adjectiveSentence = adjectiveString
-      ? `${character.name} is ${adjectiveString}`
-      : "";
-    // Combine all text sections
+    // ========================================
+    // COMPOSED TEXT (System Prompt Sections)
+    // ========================================
+    // Order matters for prompting effectiveness:
+    // 1. System (core identity + stakes)
+    // 2. Bio (causal backstory)
+    // 3. Traits (personality variety)
+    // 4. Topics (interest context)
+    // 5. Style Directions (behavioral rules)
+    // 6. Message Examples (few-shot, closer to generation)
     const text = [
+      system,
       bio,
       adjectiveSentence,
       topicSentence,
       topics,
       directions,
-      system,
+      messageExamplesText, // Research: Inject close to generation point for max effect
     ]
       .filter(Boolean)
-      .join("\n\n");
+      .join('\n\n');
 
     return {
       values,
