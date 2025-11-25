@@ -14,8 +14,9 @@ import { DocumentUpload } from "./document-upload";
 import { DocumentList } from "./document-list";
 import { KnowledgeQuery } from "./knowledge-query";
 import { Alert, AlertDescription } from "@/components/ui/alert";
-import { InfoIcon, Upload, Search, List } from "lucide-react";
+import { InfoIcon, Upload, Search, List, Bot } from "lucide-react";
 import { cn } from "@/lib/utils";
+import type { ElizaCharacter } from "@/lib/types";
 
 interface KnowledgeDocument {
   id: string;
@@ -32,20 +33,35 @@ interface KnowledgeDocument {
   };
 }
 
-export function KnowledgePageClient() {
+interface KnowledgePageClientProps {
+  initialCharacters: ElizaCharacter[];
+}
+
+export function KnowledgePageClient({
+  initialCharacters,
+}: KnowledgePageClientProps) {
   const [documents, setDocuments] = useState<KnowledgeDocument[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [serviceAvailable, setServiceAvailable] = useState(true);
   const [activeTab, setActiveTab] = useState("documents");
   const [isMounted, setIsMounted] = useState(false);
+  const [selectedCharacterId, setSelectedCharacterId] = useState<string | null>(
+    initialCharacters.length > 0 ? initialCharacters[0].id! : null,
+  );
 
   const fetchDocuments = async () => {
     try {
       setLoading(true);
       setError(null);
 
-      const response = await fetch("/api/v1/knowledge");
+      // Include characterId in query params
+      const url = new URL("/api/v1/knowledge", window.location.origin);
+      if (selectedCharacterId) {
+        url.searchParams.set("characterId", selectedCharacterId);
+      }
+
+      const response = await fetch(url.toString());
 
       if (response.status === 503) {
         const data = await response.json();
@@ -74,9 +90,11 @@ export function KnowledgePageClient() {
   };
 
   useEffect(() => {
-    fetchDocuments();
+    if (selectedCharacterId) {
+      fetchDocuments();
+    }
     setIsMounted(true);
-  }, []);
+  }, [selectedCharacterId]);
 
   const handleUploadSuccess = () => {
     fetchDocuments();
@@ -84,7 +102,16 @@ export function KnowledgePageClient() {
 
   const handleDelete = async (documentId: string) => {
     try {
-      const response = await fetch(`/api/v1/knowledge/${documentId}`, {
+      // Include characterId in query params
+      const url = new URL(
+        `/api/v1/knowledge/${documentId}`,
+        window.location.origin,
+      );
+      if (selectedCharacterId) {
+        url.searchParams.set("characterId", selectedCharacterId);
+      }
+
+      const response = await fetch(url.toString(), {
         method: "DELETE",
       });
 
@@ -145,12 +172,58 @@ export function KnowledgePageClient() {
 
   return (
     <div className="container mx-auto py-8 space-y-6">
-      <div>
-        <h1 className="text-3xl font-bold">Knowledge Management</h1>
-        <p className="text-muted-foreground mt-2">
-          Manage your RAG knowledge base. Upload documents and query them for
-          enhanced AI responses.
-        </p>
+      <div className="space-y-4">
+        <div>
+          <h1 className="text-3xl font-bold">Knowledge Management</h1>
+          <p className="text-muted-foreground mt-2">
+            Manage your RAG knowledge base. Upload documents and query them for
+            enhanced AI responses.
+          </p>
+        </div>
+
+        {/* Character Selector */}
+        {initialCharacters.length > 0 && (
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-sm font-medium flex items-center gap-2">
+                <Bot className="h-4 w-4" />
+                Select Agent
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <Select
+                value={selectedCharacterId || undefined}
+                onValueChange={setSelectedCharacterId}
+              >
+                <SelectTrigger className="w-full">
+                  <SelectValue placeholder="Select an agent..." />
+                </SelectTrigger>
+                <SelectContent>
+                  {initialCharacters.map((char) => (
+                    <SelectItem key={char.id} value={char.id!}>
+                      <div className="flex items-center gap-2">
+                        <span>{char.name}</span>
+                      </div>
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              <p className="text-xs text-muted-foreground mt-2">
+                Knowledge documents are agent-specific. Select which
+                agent&apos;s knowledge base to manage.
+              </p>
+            </CardContent>
+          </Card>
+        )}
+
+        {!selectedCharacterId && initialCharacters.length > 0 && (
+          <Alert>
+            <InfoIcon className="h-4 w-4" />
+            <AlertDescription>
+              Please select an agent to manage its knowledge base.
+            </AlertDescription>
+          </Alert>
+        )}
       </div>
 
       <Tabs
@@ -255,7 +328,10 @@ export function KnowledgePageClient() {
               <CardTitle>Upload Documents</CardTitle>
             </CardHeader>
             <CardContent>
-              <DocumentUpload onUploadSuccess={handleUploadSuccess} />
+              <DocumentUpload
+                onUploadSuccess={handleUploadSuccess}
+                characterId={selectedCharacterId}
+              />
             </CardContent>
           </Card>
         </TabsContent>
@@ -266,7 +342,7 @@ export function KnowledgePageClient() {
               <CardTitle>Query Knowledge Base</CardTitle>
             </CardHeader>
             <CardContent>
-              <KnowledgeQuery />
+              <KnowledgeQuery characterId={selectedCharacterId} />
             </CardContent>
           </Card>
         </TabsContent>

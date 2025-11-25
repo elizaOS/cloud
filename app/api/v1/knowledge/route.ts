@@ -1,10 +1,11 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireAuthOrApiKey } from "@/lib/auth";
-import { agentRuntime } from "@/lib/eliza/agent-runtime";
 import { getKnowledgeService } from "@/lib/eliza/knowledge-service";
 import type { UUID } from "@elizaos/core";
 import { stringToUuid } from "@elizaos/core";
 import { withRateLimit, RateLimitPresets } from "@/lib/middleware/rate-limit";
+import { userContextService } from "@/lib/eliza/user-context";
+import { RuntimeFactory } from "@/lib/eliza/runtime-factory";
 
 export const maxDuration = 60;
 
@@ -13,8 +14,29 @@ export const maxDuration = 60;
  */
 async function handleGET(req: NextRequest) {
   try {
-    const { user } = await requireAuthOrApiKey(req);
-    const runtime = await agentRuntime.getRuntime();
+    const authResult = await requireAuthOrApiKey(req);
+    const { user } = authResult;
+
+    // Get query parameters
+    const urlParams = req.nextUrl.searchParams;
+    const characterId = urlParams.get("characterId") || undefined;
+    const count = parseInt(urlParams.get("count") || "100");
+    const offset = parseInt(urlParams.get("offset") || "0");
+
+    // Build user context with characterId
+    const userContext = await userContextService.buildContext({
+      user,
+      apiKey: authResult.apiKey,
+      isAnonymous: false,
+    });
+
+    if (characterId) {
+      userContext.characterId = characterId;
+    }
+
+    // Create runtime with user-specific context (includes API key for embeddings)
+    const runtimeFactory = RuntimeFactory.getInstance();
+    const runtime = await runtimeFactory.createRuntimeForUser(userContext);
 
     console.log("[Knowledge API] Runtime initialized:", {
       agentId: runtime.agentId,
@@ -39,11 +61,6 @@ async function handleGET(req: NextRequest) {
     }
 
     console.log("[Knowledge API] Knowledge service loaded successfully");
-
-    // Get query parameters
-    const searchParams = req.nextUrl.searchParams;
-    const count = parseInt(searchParams.get("count") || "100");
-    const offset = parseInt(searchParams.get("offset") || "0");
 
     // Use runtime.agentId as roomId (matching plugin pattern)
     const roomId = runtime.agentId;
@@ -86,8 +103,27 @@ async function handleGET(req: NextRequest) {
  */
 async function handlePOST(req: NextRequest) {
   try {
-    const { user } = await requireAuthOrApiKey(req);
-    const runtime = await agentRuntime.getRuntime();
+    const authResult = await requireAuthOrApiKey(req);
+    const { user } = authResult;
+
+    const body = await req.json();
+    const { content, contentType, filename, metadata, characterId } = body;
+
+    // Build user context with characterId
+    const userContext = await userContextService.buildContext({
+      user,
+      apiKey: authResult.apiKey,
+      isAnonymous: false,
+    });
+
+    if (characterId) {
+      userContext.characterId = characterId;
+    }
+
+    // Create runtime with user-specific context (includes API key for embeddings)
+    const runtimeFactory = RuntimeFactory.getInstance();
+    const runtime = await runtimeFactory.createRuntimeForUser(userContext);
+
     const knowledgeService = await getKnowledgeService(runtime);
 
     if (!knowledgeService) {
@@ -96,9 +132,6 @@ async function handlePOST(req: NextRequest) {
         { status: 503 },
       );
     }
-
-    const body = await req.json();
-    const { content, contentType, filename, metadata } = body;
 
     if (!content) {
       return NextResponse.json(
