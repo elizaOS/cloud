@@ -133,14 +133,26 @@ export async function POST(request: NextRequest) {
 
     const body = await request.json();
     const { entityId, characterId } = body;
-    logger.debug(
-      "[Eliza Rooms API] Creating room for entity:",
+    logger.info(
+      "[Eliza Rooms API] ⚡ Creating room for entity:",
       entityId,
-      "with character:",
+      "| characterId from request:",
       characterId,
-      "userId:",
+      "| userId:",
       user.id,
     );
+
+    // Validate characterId if provided
+    if (characterId && typeof characterId !== "string") {
+      logger.error(
+        "[Eliza Rooms API] Invalid characterId type:",
+        typeof characterId,
+      );
+      return NextResponse.json(
+        { error: "characterId must be a string" },
+        { status: 400 },
+      );
+    }
 
     if (!entityId) {
       return NextResponse.json(
@@ -149,7 +161,17 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const runtime = await agentRuntime.getRuntime();
+    // IMPORTANT: Create character-specific runtime if characterId is provided
+    // Otherwise create default runtime
+    const runtime = characterId
+      ? await agentRuntime.getRuntimeForCharacter(characterId)
+      : await agentRuntime.getRuntime();
+
+    logger.info(
+      "[Eliza Rooms API] 🎭 Runtime created for character:",
+      runtime.character.name,
+    );
+
     const roomId = uuidv4();
 
     // Ensure room exists
@@ -215,55 +237,53 @@ export async function POST(request: NextRequest) {
     // CRITICAL: Store character mapping FIRST (before greeting message)
     if (characterId) {
       try {
-        logger.debug(
-          "[Eliza Rooms API] Attempting to store character mapping:",
-          {
-            room_id: roomId,
-            character_id: characterId,
-            user_id: user.id,
-          },
-        );
+        logger.info("[Eliza Rooms API] 💾 Storing character mapping:", {
+          room_id: roomId,
+          character_id: characterId,
+          user_id: user.id,
+        });
         await elizaRoomCharactersRepository.create({
           room_id: roomId,
           character_id: characterId,
           user_id: user.id,
         });
         logger.info(
-          "[Eliza Rooms API] ✓ Character mapping stored:",
+          "[Eliza Rooms API] ✅ Character mapping stored successfully:",
           roomId,
           "→",
           characterId,
         );
       } catch (mappingError) {
         logger.error(
-          "[Eliza Rooms API] ✗ Failed to create character mapping:",
+          "[Eliza Rooms API] ❌ Failed to create character mapping:",
           mappingError,
         );
         // Continue anyway - room is created even if mapping fails
       }
     } else {
-      logger.debug("[Eliza Rooms API] No character specified, using default");
+      logger.info(
+        "[Eliza Rooms API] ℹ️  No characterId provided, using default Eliza",
+      );
     }
 
     // Send initial greeting message using the character's runtime
     const greetingTimestamp = Date.now();
     try {
-      logger.debug("[Eliza Rooms API] Generating initial greeting...");
+      logger.info(
+        "[Eliza Rooms API] 👋 Generating initial greeting for character:",
+        runtime.character.name,
+      );
 
-      // Get character-specific runtime if characterId was provided
-      const greetingRuntime = characterId
-        ? await agentRuntime.getRuntimeForCharacter(characterId)
-        : runtime;
-
-      const characterName = greetingRuntime.character?.name || "Eliza";
+      // Use the runtime we already created (already has correct character)
+      const characterName = runtime.character?.name || "Eliza";
       const greetingText = `Hello! I'm ${characterName}, your friendly AI assistant. How can I help you today?`;
 
-      await greetingRuntime.createMemory(
+      await runtime.createMemory(
         {
           id: uuidv4() as UUID,
           roomId: roomId as UUID,
-          entityId: greetingRuntime.agentId,
-          agentId: greetingRuntime.agentId,
+          entityId: runtime.agentId,
+          agentId: runtime.agentId,
           content: {
             text: greetingText,
             type: "agent",

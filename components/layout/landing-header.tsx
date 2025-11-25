@@ -75,7 +75,11 @@ export default function LandingHeader() {
               >
                 Log in
               </Button>
-              <LockOnButton size="sm" onClick={handleGetStarted} disabled={!ready}>
+              <LockOnButton
+                size="sm"
+                onClick={handleGetStarted}
+                disabled={!ready}
+              >
                 Sign Up
               </LockOnButton>
             </>
