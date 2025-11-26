@@ -97,7 +97,7 @@
     "@solana-program/memo": "^0.8.0",
     "@solana-program/system": "^0.8.1",
     "@solana-program/token": "^0.6.0",
-    "@solana/kit": "^3.0.3",
+    "@solana/kit": "4.0.0",
     "@solana/web3.js": "^1.98.4",
     "@stripe/react-stripe-js": "^5.4.0",
     "@stripe/stripe-js": "^8.5.2",
@@ -184,6 +184,8 @@
     "why-is-node-running": "^3.2.2"
   },
   "resolutions": {
-    "@elizaos/core": "1.6.4"
+    "@elizaos/core": "1.6.4",
+    "@solana/kit": "4.0.0",
+    "@solana-program/compute-budget": "0.10.0"
   }
 }
