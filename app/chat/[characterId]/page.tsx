@@ -2,7 +2,7 @@ import { redirect, notFound } from "next/navigation";
 import { charactersService, anonymousSessionsService } from "@/lib/services";
 import { getCurrentUser } from "@/lib/auth";
 import { CharacterIntroPageWrapper } from "@/components/chat/character-intro-page-wrapper";
-import { ChatPageClient } from "./chat-page-client";
+import { ChatInterface } from "@/components/chat/chat-interface";
 import { logger } from "@/lib/utils/logger";
 import { resolveCharacterTheme } from "@/lib/config/affiliate-themes";
 
@@ -30,10 +30,10 @@ export default async function ChatPage({ params, searchParams }: ChatPageProps) 
     notFound();
   }
 
-  // 2. Theme resolution for affiliate branding
+  // 2. DYNAMIC THEME RESOLUTION
   const characterData = character.character_data as Record<string, unknown> | undefined;
   const theme = resolveCharacterTheme(source, characterData);
-  
+
   logger.debug(`[Chat Page] Resolved theme: ${theme.id} for character ${characterId}`);
 
   // 3. Check authentication status
@@ -43,15 +43,15 @@ export default async function ChatPage({ params, searchParams }: ChatPageProps) 
 
   // Case A: First-time visitor (no user, no session) OR explicitly requested intro
   if ((!user && !sessionId) || intro === "true") {
-    logger.info(`[Chat Page] Showing intro page for character ${characterId}`);
-    
+    logger.info(`[Chat Page] Showing intro page for character ${characterId} with theme ${theme.id}`);
+
     return (
       <CharacterIntroPageWrapper
         character={character}
         characterId={characterId}
         source={source}
         theme={theme}
-        existingSessionId={sessionId} // Pass existing session if available
+        existingSessionId={sessionId}
       />
     );
   }
@@ -71,43 +71,54 @@ export default async function ChatPage({ params, searchParams }: ChatPageProps) 
     }
 
     const messagesRemaining = anonSession.messages_limit - anonSession.message_count;
+    const shouldShowSignupPrompt = anonSession.message_count >= 5;
 
-    logger.info(`[Chat Page] Anonymous session: ${sessionId}`, {
+    logger.info(`[Chat Page] Anonymous session: ${sessionId} with theme ${theme.id}`, {
       messageCount: anonSession.message_count,
       messagesRemaining,
     });
 
     return (
-      <ChatPageClient
+      <ChatInterface
         character={character}
-        sessionToken={sessionId}
-        isAnonymous={true}
-        messageCount={anonSession.message_count}
-        messagesLimit={anonSession.messages_limit}
+        session={{
+          id: anonSession.id,
+          token: sessionId,
+          userId: anonSession.user_id,
+          messageCount: anonSession.message_count,
+          messagesLimit: anonSession.messages_limit,
+          messagesRemaining,
+        }}
+        showSignupPrompt={shouldShowSignupPrompt}
         source={source}
+        sessionTokenFromUrl={sessionId}
         theme={theme}
       />
     );
   }
 
   // Case C: Authenticated user
-  logger.info(`[Chat Page] Authenticated user ${user!.id} accessing character ${characterId}`);
+  logger.info(`[Chat Page] Authenticated user ${user!.id} accessing character ${characterId} with theme ${theme.id}`);
 
   return (
-    <ChatPageClient
+    <ChatInterface
       character={character}
-      isAnonymous={false}
+      user={{
+        id: user!.id,
+        name: user!.name || undefined,
+        email: user!.email || undefined,
+      }}
       source={source}
       theme={theme}
     />
   );
 }
 
-// Generate metadata for SEO
+// Generate metadata for SEO with theme-aware branding
 export async function generateMetadata({ params, searchParams }: ChatPageProps) {
   const { characterId } = await params;
   const { source } = await searchParams;
-  
+
   const character = await charactersService.getById(characterId);
 
   if (!character) {
@@ -133,5 +144,3 @@ export async function generateMetadata({ params, searchParams }: ChatPageProps) 
     },
   };
 }
-
-
