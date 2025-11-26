@@ -46,7 +46,7 @@ const TopHero = () => {
 
     // Store the message in Zustand for auto-sending in chat
     setPendingMessage(chatInput.trim());
-
+    
     // Redirect to Eliza chat (anonymous users will be created automatically)
     router.push("/dashboard/chat");
   };
@@ -150,6 +150,7 @@ const TopHero = () => {
                     "Build a customer support agent that answers questions from our knowledge base.",
                     "Design an AI assistant to help with email drafting and meeting scheduling.",
                   ]}
+                  onPromptClick={(prompt) => setChatInput(prompt)}
                 />
               </div>
             </BrandTabsContent>
@@ -188,6 +189,7 @@ const TopHero = () => {
                     "Create an artistic portrait with vibrant colors and abstract elements.",
                     "Design a modern logo for a tech startup with clean lines.",
                   ]}
+                  onPromptClick={(prompt) => setChatInput(prompt)}
                 />
               </div>
             </BrandTabsContent>
@@ -226,6 +228,7 @@ const TopHero = () => {
                     "Generate an animated explainer video for my SaaS platform.",
                     "Edit my raw footage into a professional social media reel.",
                   ]}
+                  onPromptClick={(prompt) => setChatInput(prompt)}
                 />
               </div>
             </BrandTabsContent>
