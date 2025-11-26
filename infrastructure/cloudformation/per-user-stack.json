@@ -82,7 +82,7 @@
       "Type": "String",
       "Description": "CPU Architecture (arm64 for Graviton/t4g, x86_64 for Intel-AMD/t3)",
       "Default": "arm64",
-      "AllowedValues": ["arm64", "x86_64"]
+      "AllowedValues": ["arm64", "amd64"]
     }
   },
   "Mappings": {
@@ -92,7 +92,7 @@
         "AMIParameter": "/aws/service/ecs/optimized-ami/amazon-linux-2/arm64/recommended/image_id",
         "CpuArchitecture": "ARM64"
       },
-      "x86_64": {
+      "amd64": {
         "InstanceType": "t3.small",
         "AMIParameter": "/aws/service/ecs/optimized-ami/amazon-linux-2/recommended/image_id",
         "CpuArchitecture": "X86_64"
