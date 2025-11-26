@@ -537,9 +537,6 @@ async function deployContainerAsync(
     `🚀 [deployContainerAsync] Starting deployment for container: ${containerId}`,
   );
 
-  const { TimeoutError, withTimeout } = await import(
-    "@/lib/errors/deployment-errors"
-  );
   const { cloudFormationService } = await import(
     "@/lib/services/cloudformation"
   );
@@ -622,7 +619,7 @@ async function deployContainerAsync(
     const isUpdate = container?.is_update === "true";
 
     const stackConfig = {
-      userId: containerId,
+      userId: organizationId, // Use organizationId (not containerId) for per-user stack naming
       projectName: config.project_name,
       userEmail: config.name, // Using container name as identifier
       containerImage: config.ecr_image_uri,
@@ -670,78 +667,39 @@ async function deployContainerAsync(
     }
 
     // Store the stack name in container metadata for future reference
+    // Use organizationId (not containerId) to match stack creation
     const stackName = cloudFormationService.getStackName(
-      containerId,
+      organizationId,
       config.project_name,
     );
     await updateContainerStatus(containerId, "deploying", {
       cloudformationStackName: stackName,
+      deploymentLog: `CloudFormation stack "${stackName}" creation initiated. Stack will be monitored by cron job.`,
     });
 
-    // Wait for stack creation/update to complete (with timeout)
-    // With Vercel Pro/Enterprise maxDuration of 800s (13.33 min), we can wait for full deployment
-    // UserData waits 5 min + CloudFormation overhead = typically 7-10 min total
-    // We set 12 min timeout to handle slower AWS regions and edge cases
-    // This fits comfortably within the 13 min Vercel limit
-    const STACK_TIMEOUT_MINUTES = 12;
     console.log(
-      `⏳ [deployContainerAsync] Waiting for stack ${isUpdate ? "update" : "creation"} (max ${STACK_TIMEOUT_MINUTES} minutes)...`,
+      `✅ [deployContainerAsync] Stack creation initiated: ${stackName}. Cron job will monitor completion.`,
     );
 
-    await withTimeout(
-      async () =>
-        cloudFormationService.waitForStackComplete(
-          containerId,
-          config.project_name,
-          STACK_TIMEOUT_MINUTES,
-        ),
-      STACK_TIMEOUT_MINUTES * 60 * 1000,
-      `CloudFormation stack ${isUpdate ? "update" : "creation"}`,
-    );
-
-    // Get stack outputs
-    const outputs = await cloudFormationService.getStackOutputs(
-      containerId,
-      config.project_name,
-    );
-
-    if (!outputs) {
-      throw new Error("Failed to get stack outputs");
-    }
-
-    // Update container with deployment info
-    await updateContainerStatus(containerId, "running", {
-      ecsServiceArn: outputs.serviceArn,
-      ecsTaskDefinitionArn: outputs.taskDefinitionArn,
-      ecsClusterArn: outputs.clusterArn,
-      loadBalancerUrl: outputs.containerUrl,
-      deploymentLog: `Deployed successfully! EC2: ${outputs.instancePublicIp}, URL: ${outputs.containerUrl}`,
-    });
-
-    console.log(`✅ Container ${containerId} deployed successfully:`, {
-      instance: outputs.instancePublicIp,
-      url: outputs.containerUrl,
-      cluster: outputs.clusterName,
-    });
+    // NOTE: We do NOT wait for stack completion here.
+    // The /api/v1/cron/deployment-monitor endpoint will periodically check
+    // all "deploying" containers and update their status when CloudFormation completes.
+    // This prevents Vercel serverless function timeout issues.
   } catch (error) {
-    console.error("Deployment failed:", error);
+    // This catch handles errors during initial stack creation only (not waiting for completion)
+    console.error("Deployment initiation failed:", error);
 
     const errorMessage =
       error instanceof Error ? error.message : "Unknown deployment error";
-    const isTimeout = error instanceof TimeoutError;
 
     // Update container status to failed
     await updateContainerStatus(containerId, "failed", {
-      errorMessage: isTimeout
-        ? "Deployment timed out after 12 minutes. This likely indicates an infrastructure issue. Check AWS CloudFormation console for detailed error logs. Common causes: insufficient AWS capacity, networking issues, or IAM permission problems."
-        : errorMessage,
-      deploymentLog: `Deployment failed: ${errorMessage}${isTimeout ? " (timeout)" : ""}`,
+      errorMessage: errorMessage,
+      deploymentLog: `Deployment initiation failed: ${errorMessage}`,
     });
 
-    // CRITICAL: Refund credits and cleanup failed container
-    // This MUST succeed to prevent charging users for failed deployments
+    // CRITICAL: Refund credits for failed deployment
     let refundSuccessful = false;
-    let rollbackSuccessful = false;
 
     // Attempt refund with retries
     for (let attempt = 1; attempt <= 3; attempt++) {
@@ -749,7 +707,7 @@ async function deployContainerAsync(
         await creditsService.addCredits({
           organizationId,
           amount: deploymentCost,
-          description: `Refund for failed container deployment: ${config.name}${isTimeout ? " (timeout)" : ""}`,
+          description: `Refund for failed container deployment: ${config.name}`,
           metadata: { type: "refund" },
         });
         console.log(
@@ -760,15 +718,11 @@ async function deployContainerAsync(
       } catch (refundError) {
         console.error(`❌ Refund attempt ${attempt}/3 failed:`, refundError);
         if (attempt === 3) {
-          // CRITICAL: Log to monitoring system for manual intervention
           console.error(
             `🚨 CRITICAL: Failed to refund ${deploymentCost} credits to org ${organizationId} for container ${containerId}. MANUAL INTERVENTION REQUIRED.`,
             { containerId, organizationId, deploymentCost, error: refundError },
           );
-          // Future: Integrate with monitoring system (e.g., Sentry, DataDog, PagerDuty)
-          // This error is already logged and will appear in application logs for manual review
         } else {
-          // Wait before retry with exponential backoff
           await new Promise((resolve) =>
             setTimeout(resolve, 1000 * Math.pow(2, attempt - 1)),
           );
@@ -776,69 +730,41 @@ async function deployContainerAsync(
       }
     }
 
-    // Attempt rollback (delete CloudFormation stack and release priority)
-    // KEEP the container record in "failed" status for visibility
-    for (let attempt = 1; attempt <= 3; attempt++) {
-      try {
-        // Delete CloudFormation stack first
-        try {
-          await cloudFormationService.deleteUserStack(
-            containerId,
-            config.project_name,
-          );
-          console.log(
-            `✅ CloudFormation stack deletion initiated for ${containerId}`,
-          );
-        } catch (cfError) {
-          console.warn(`⚠️  Failed to delete CloudFormation stack:`, cfError);
-          // Continue - stack may not exist yet
-        }
-
-        // Release ALB priority
-        try {
-          const { dbPriorityManager } = await import(
-            "@/lib/services/alb-priority-manager"
-          );
-          await dbPriorityManager.releasePriority(containerId);
-          console.log(`✅ Released ALB priority for ${containerId}`);
-        } catch (priorityError) {
-          console.warn(`⚠️  Failed to release ALB priority:`, priorityError);
-          // Continue - priority may not have been allocated yet
-        }
-
-        console.log(
-          `✅ Cleaned up infrastructure for failed container ${containerId} (kept record in 'failed' state)`,
-        );
-        rollbackSuccessful = true;
-        break;
-      } catch (rollbackError) {
-        console.error(
-          `❌ Rollback attempt ${attempt}/3 failed:`,
-          rollbackError,
-        );
-        if (attempt < 3) {
-          await new Promise((resolve) =>
-            setTimeout(resolve, 1000 * Math.pow(2, attempt - 1)),
-          );
-        }
-      }
+    // Attempt to cleanup CloudFormation stack (use organizationId for stack name)
+    try {
+      await cloudFormationService.deleteUserStack(
+        organizationId,
+        config.project_name,
+      );
+      console.log(
+        `✅ CloudFormation stack deletion initiated for org ${organizationId}, project ${config.project_name}`,
+      );
+    } catch (cfError) {
+      console.warn(`⚠️  Failed to delete CloudFormation stack:`, cfError);
+      // Stack may not exist yet
     }
 
-    // If refund failed, this is a critical issue that needs immediate attention
+    // Release ALB priority (use organizationId)
+    try {
+      const { dbPriorityManager } = await import(
+        "@/lib/services/alb-priority-manager"
+      );
+      await dbPriorityManager.releasePriority(organizationId);
+      console.log(`✅ Released ALB priority for org ${organizationId}`);
+    } catch (priorityError) {
+      console.warn(`⚠️  Failed to release ALB priority:`, priorityError);
+    }
+
     if (!refundSuccessful) {
-      // Update container with refund failure flag for manual processing
       await updateContainerStatus(containerId, "failed", {
         errorMessage: `${errorMessage} | REFUND FAILED - MANUAL INTERVENTION REQUIRED`,
-        deploymentLog: `${errorMessage}${isTimeout ? " (timeout)" : ""} | Refund failed - admin must manually credit ${deploymentCost} credits to org ${organizationId}`,
+        deploymentLog: `${errorMessage} | Refund failed - admin must manually credit ${deploymentCost} credits to org ${organizationId}`,
       });
     }
 
-    // Log final cleanup status for monitoring
-    console.log(`Deployment cleanup completed for container ${containerId}:`, {
+    console.log(`Deployment initiation cleanup completed for container ${containerId}:`, {
       status: "failed",
       refundSuccessful,
-      rollbackSuccessful,
-      containerPreserved: true,
       requiresManualIntervention: !refundSuccessful,
     });
   }

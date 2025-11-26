@@ -89,11 +89,13 @@
     "ArchitectureConfig": {
       "arm64": {
         "InstanceType": "t4g.small",
-        "AMIParameter": "/aws/service/ecs/optimized-ami/amazon-linux-2/arm64/recommended/image_id"
+        "AMIParameter": "/aws/service/ecs/optimized-ami/amazon-linux-2/arm64/recommended/image_id",
+        "CpuArchitecture": "ARM64"
       },
       "x86_64": {
         "InstanceType": "t3.small",
-        "AMIParameter": "/aws/service/ecs/optimized-ami/amazon-linux-2/recommended/image_id"
+        "AMIParameter": "/aws/service/ecs/optimized-ami/amazon-linux-2/recommended/image_id",
+        "CpuArchitecture": "X86_64"
       }
     }
   },
@@ -464,7 +466,13 @@
         "NetworkMode": "bridge",
         "RequiresCompatibilities": ["EC2"],
         "RuntimePlatform": {
-          "CpuArchitecture": "ARM64",
+          "CpuArchitecture": {
+            "Fn::FindInMap": [
+              "ArchitectureConfig",
+              { "Ref": "Architecture" },
+              "CpuArchitecture"
+            ]
+          },
           "OperatingSystemFamily": "LINUX"
         },
         "Cpu": { "Ref": "ContainerCpu" },
