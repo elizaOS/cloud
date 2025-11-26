@@ -1,11 +1,14 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useRef } from "react";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
-import { X, Plus } from "lucide-react";
+import { X, Plus, Upload, Loader2, ImageIcon } from "lucide-react";
 import type { ElizaCharacter } from "@/lib/types";
 import { cn } from "@/lib/utils";
+import { uploadCharacterAvatar } from "@/app/actions/characters";
+import { toast } from "sonner";
+import Image from "next/image";
 
 interface CharacterFormCleanProps {
   character: ElizaCharacter;
@@ -13,7 +16,7 @@ interface CharacterFormCleanProps {
 }
 
 type TagType = "topics" | "adjectives" | "plugins" | "postExamples";
-type SubTab = "general" | "content" | "style" | "avatar";
+type SubTab = "general" | "content" | "style" | "avatar" | "plugins";
 
 export function CharacterFormClean({
   character,
@@ -21,6 +24,77 @@ export function CharacterFormClean({
 }: CharacterFormCleanProps) {
   const [newTag, setNewTag] = useState("");
   const [activeSubTab, setActiveSubTab] = useState<SubTab>("general");
+  const [isUploadingAvatar, setIsUploadingAvatar] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
+  const handleAvatarUpload = async (file: File) => {
+    if (!file) {
+      toast.error("No file selected");
+      return;
+    }
+
+    console.log("[Avatar Upload] Starting upload:", {
+      name: file.name,
+      type: file.type,
+      size: file.size,
+    });
+
+    // Validate file size on client side
+    if (file.size > 5 * 1024 * 1024) {
+      toast.error("File too large. Maximum size is 5MB.");
+      return;
+    }
+
+    setIsUploadingAvatar(true);
+    try {
+      // Convert file to base64 for reliable server action transfer
+      const base64 = await new Promise<string>((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = () => resolve(reader.result as string);
+        reader.onerror = reject;
+        reader.readAsDataURL(file);
+      });
+
+      const result = await uploadCharacterAvatar({
+        base64Data: base64,
+        fileName: file.name,
+        fileType: file.type,
+        characterId: character.id || undefined,
+      });
+      console.log("[Avatar Upload] Result:", result);
+
+      if (result.success && result.avatarUrl) {
+        onChange({ ...character, avatarUrl: result.avatarUrl });
+        toast.success("Avatar uploaded successfully");
+      } else {
+        toast.error(result.error || "Failed to upload avatar");
+      }
+    } catch (error) {
+      console.error("Error uploading avatar:", error);
+      toast.error("Failed to upload avatar");
+    } finally {
+      setIsUploadingAvatar(false);
+    }
+  };
+
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      handleAvatarUpload(file);
+    }
+  };
+
+  const handleDrop = (e: React.DragEvent<HTMLDivElement>) => {
+    e.preventDefault();
+    const file = e.dataTransfer.files?.[0];
+    if (file && file.type.startsWith("image/")) {
+      handleAvatarUpload(file);
+    }
+  };
+
+  const handleDragOver = (e: React.DragEvent<HTMLDivElement>) => {
+    e.preventDefault();
+  };
 
   const updateField = (field: keyof ElizaCharacter, value: unknown) => {
     onChange({ ...character, [field]: value });
@@ -95,6 +169,17 @@ export function CharacterFormClean({
             )}
           >
             Avatar
+          </button>
+          <button
+            onClick={() => setActiveSubTab("plugins")}
+            className={cn(
+              "px-4 py-3 text-sm font-medium transition-colors",
+              activeSubTab === "plugins"
+                ? "text-white border-b-2 border-white"
+                : "text-white/60 hover:text-white",
+            )}
+          >
+            Plugins
           </button>
         </div>
       </div>
@@ -393,6 +478,88 @@ export function CharacterFormClean({
         {/* Avatar Tab */}
         {activeSubTab === "avatar" && (
           <div className="space-y-6 max-w-2xl">
+            <div className="space-y-4">
+              <label className="text-xs font-medium text-white/70 uppercase tracking-wide">
+                Agent Avatar
+              </label>
+              
+              {/* Current Avatar Preview */}
+              <div className="flex items-start gap-6">
+                <div className="relative w-24 h-24 rounded-lg overflow-hidden bg-white/5 border border-white/10 flex items-center justify-center">
+                  {character.avatarUrl ? (
+                    <Image
+                      src={character.avatarUrl}
+                      alt={character.name || "Agent avatar"}
+                      fill
+                      className="object-cover"
+                    />
+                  ) : (
+                    <ImageIcon className="h-8 w-8 text-white/30" />
+                  )}
+                </div>
+                
+                <div className="flex-1 space-y-3">
+                  <p className="text-sm text-white/60">
+                    Upload a profile image for your agent. This will be displayed in chat, dashboard, and all agent interactions.
+                  </p>
+                  
+                  {/* Upload Area */}
+                  <div
+                    onClick={() => fileInputRef.current?.click()}
+                    onDrop={handleDrop}
+                    onDragOver={handleDragOver}
+                    className={cn(
+                      "border-2 border-dashed border-white/20 rounded-lg p-6 text-center cursor-pointer transition-colors",
+                      "hover:border-[#FF5800]/50 hover:bg-white/5",
+                      isUploadingAvatar && "opacity-50 pointer-events-none"
+                    )}
+                  >
+                    <input
+                      ref={fileInputRef}
+                      type="file"
+                      accept="image/jpeg,image/jpg,image/png,image/webp,image/gif"
+                      onChange={handleFileChange}
+                      className="hidden"
+                    />
+                    {isUploadingAvatar ? (
+                      <div className="flex flex-col items-center gap-2">
+                        <Loader2 className="h-6 w-6 text-[#FF5800] animate-spin" />
+                        <span className="text-sm text-white/60">Uploading...</span>
+                      </div>
+                    ) : (
+                      <div className="flex flex-col items-center gap-2">
+                        <Upload className="h-6 w-6 text-white/40" />
+                        <span className="text-sm text-white/60">
+                          Click to upload or drag and drop
+                        </span>
+                        <span className="text-xs text-white/40">
+                          JPEG, PNG, WebP or GIF (max 5MB)
+                        </span>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              </div>
+
+              {/* Avatar URL Input */}
+              <div className="space-y-2">
+                <label className="text-xs font-medium text-white/70 uppercase tracking-wide">
+                  Or enter URL directly
+                </label>
+                <Input
+                  value={character.avatarUrl || ""}
+                  onChange={(e) => updateField("avatarUrl", e.target.value)}
+                  placeholder="https://example.com/avatar.png"
+                  className="rounded-none border-white/10 bg-black/40 text-white placeholder:text-white/40 focus:ring-1 focus:ring-[#FF5800] focus:border-[#FF5800]"
+                />
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Plugins Tab */}
+        {activeSubTab === "plugins" && (
+          <div className="space-y-6 max-w-2xl">
             <div className="space-y-2">
               <label className="text-xs font-medium text-white/70 uppercase tracking-wide">
                 Plugins
@@ -401,7 +568,7 @@ export function CharacterFormClean({
                 <Input
                   value={newTag}
                   onChange={(e) => setNewTag(e.target.value)}
-                  placeholder="Add a plugin..."
+                  placeholder="Add a plugin (e.g. @elizaos/plugin-elevenlabs)..."
                   onKeyDown={(e) => {
                     if (e.key === "Enter") {
                       e.preventDefault();

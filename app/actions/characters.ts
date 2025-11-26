@@ -4,6 +4,7 @@ import { requireAuthWithOrg } from "@/lib/auth";
 import { charactersService, discordService } from "@/lib/services";
 import type { ElizaCharacter, NewUserCharacter } from "@/lib/types";
 import { revalidatePath } from "next/cache";
+import { uploadToBlob } from "@/lib/blob";
 
 /**
  * Create a new character
@@ -148,4 +149,94 @@ export async function getCharacter(characterId: string) {
   }
 
   return charactersService.toElizaCharacter(character);
+}
+
+interface UploadAvatarParams {
+  base64Data: string;
+  fileName: string;
+  fileType: string;
+  characterId?: string;
+}
+
+/**
+ * Upload avatar for a character
+ */
+export async function uploadCharacterAvatar(params: UploadAvatarParams) {
+  try {
+    const user = await requireAuthWithOrg();
+    const { base64Data, fileName, fileType, characterId } = params;
+
+    // Validate base64 data
+    if (!base64Data || !base64Data.startsWith("data:")) {
+      return {
+        success: false,
+        error: "No file provided",
+      };
+    }
+
+    // Validate file type
+    const validTypes = ["image/jpeg", "image/jpg", "image/png", "image/webp", "image/gif"];
+    if (!validTypes.includes(fileType)) {
+      return {
+        success: false,
+        error: `Invalid file type: ${fileType}. Only JPEG, PNG, WebP, and GIF are allowed.`,
+      };
+    }
+
+    // Extract base64 content and convert to buffer
+    const base64Content = base64Data.split(",")[1];
+    if (!base64Content) {
+      return {
+        success: false,
+        error: "Invalid file data",
+      };
+    }
+    const buffer = Buffer.from(base64Content, "base64");
+
+    // Validate file size (5MB max)
+    if (buffer.length > 5 * 1024 * 1024) {
+      return {
+        success: false,
+        error: "File too large. Maximum size is 5MB.",
+      };
+    }
+
+    // Get file extension
+    const extension = fileType.split("/")[1] || "png";
+    const filename = `avatar-${characterId || "new"}-${Date.now()}.${extension}`;
+
+    // Upload to Vercel Blob
+    const blobResult = await uploadToBlob(buffer, {
+      filename,
+      contentType: fileType,
+      folder: "avatars",
+      userId: user.id,
+    });
+
+    // If characterId is provided, update the character's avatar_url
+    if (characterId) {
+      await charactersService.updateForUser(characterId, user.id, {
+        avatar_url: blobResult.url,
+      });
+      revalidatePath("/dashboard");
+      revalidatePath("/dashboard/chat");
+      revalidatePath("/dashboard/build");
+    }
+
+    return {
+      success: true,
+      avatarUrl: blobResult.url,
+      message: "Avatar uploaded successfully",
+    };
+  } catch (error) {
+    console.error("Error uploading character avatar:", error);
+
+    return {
+      success: false,
+      error:
+        error instanceof Error
+          ? error.message
+          : "Failed to upload avatar. Please try again.",
+    };
+  }
 }
