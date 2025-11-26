@@ -60,14 +60,9 @@ export function ElizaPageClient({
   // Sync URL params with store on mount
   useEffect(() => {
     if (initialRoomId) {
-      console.log("[Chat Page] Setting room ID from URL:", initialRoomId);
       setRoomId(initialRoomId);
     }
     if (initialCharacterId) {
-      console.log(
-        "[Chat Page] Setting character ID from URL:",
-        initialCharacterId,
-      );
       setSelectedCharacterId(initialCharacterId);
     }
   }, [initialRoomId, initialCharacterId, setRoomId, setSelectedCharacterId]);

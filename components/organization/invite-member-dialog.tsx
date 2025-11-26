@@ -84,13 +84,13 @@ export function InviteMemberDialog({
 
   return (
     <Dialog open={isOpen} onOpenChange={handleClose}>
-      <DialogContent className="sm:max-w-md">
+      <DialogContent className="bg-neutral-950 border border-brand-surface p-4 sm:p-6 max-w-[95vw] sm:max-w-md">
         <DialogHeader>
-          <DialogTitle className="flex items-center gap-2">
-            <Mail className="h-5 w-5" />
+          <DialogTitle className="flex items-center gap-2 text-white font-mono">
+            <Mail className="h-5 w-5 text-[#FF5800]" />
             Invite Team Member
           </DialogTitle>
-          <DialogDescription>
+          <DialogDescription className="text-white/60 font-mono text-xs md:text-sm">
             Send an invitation to join your organization. They&apos;ll receive
             an email with a link to accept.
           </DialogDescription>
@@ -98,14 +98,18 @@ export function InviteMemberDialog({
 
         <form onSubmit={handleSubmit} className="space-y-4">
           {error && (
-            <Alert variant="destructive">
-              <AlertCircle className="h-4 w-4" />
-              <AlertDescription>{error}</AlertDescription>
-            </Alert>
+            <div className="bg-[#EB4335]/10 border border-[#EB4335]/40 p-3 flex items-start gap-2">
+              <AlertCircle className="h-4 w-4 text-[#EB4335] flex-shrink-0 mt-0.5" />
+              <p className="text-xs md:text-sm font-mono text-[#EB4335]">
+                {error}
+              </p>
+            </div>
           )}
 
           <div className="space-y-2">
-            <Label htmlFor="email">Email Address</Label>
+            <Label htmlFor="email" className="text-white font-mono text-sm">
+              Email Address
+            </Label>
             <Input
               id="email"
               type="email"
@@ -115,15 +119,19 @@ export function InviteMemberDialog({
               disabled={isSubmitting}
               required
               autoFocus
+              className="bg-transparent border-[#303030] text-white"
             />
-            <p className="text-xs text-muted-foreground">
+            <p className="text-xs font-mono text-white/40">
               They&apos;ll need to sign up with this email address
             </p>
           </div>
 
           <div className="space-y-2">
-            <Label htmlFor="role" className="flex items-center gap-2">
-              <UserCog className="h-4 w-4" />
+            <Label
+              htmlFor="role"
+              className="flex items-center gap-2 text-white font-mono text-sm"
+            >
+              <UserCog className="h-4 w-4 text-[#FF5800]" />
               Role
             </Label>
             <Select
@@ -131,22 +139,29 @@ export function InviteMemberDialog({
               onValueChange={(value) => setRole(value as "member" | "admin")}
               disabled={isSubmitting}
             >
-              <SelectTrigger id="role">
+              <SelectTrigger
+                id="role"
+                className="bg-transparent border-[#303030] text-white"
+              >
                 <SelectValue />
               </SelectTrigger>
-              <SelectContent>
+              <SelectContent className="bg-[#1a1a1a] border-[#303030]">
                 <SelectItem value="member">
                   <div className="flex flex-col items-start">
-                    <span className="font-medium">Member</span>
-                    <span className="text-xs text-muted-foreground">
+                    <span className="font-mono font-medium text-white">
+                      Member
+                    </span>
+                    <span className="text-xs font-mono text-white/40">
                       Can use resources and view organization
                     </span>
                   </div>
                 </SelectItem>
                 <SelectItem value="admin">
                   <div className="flex flex-col items-start">
-                    <span className="font-medium">Admin</span>
-                    <span className="text-xs text-muted-foreground">
+                    <span className="font-mono font-medium text-white">
+                      Admin
+                    </span>
+                    <span className="text-xs font-mono text-white/40">
                       Can invite and manage members
                     </span>
                   </div>
@@ -155,28 +170,41 @@ export function InviteMemberDialog({
             </Select>
           </div>
 
-          <DialogFooter className="gap-2 sm:gap-0">
-            <Button
+          <DialogFooter className="gap-2 sm:gap-0 flex flex-col sm:flex-row">
+            <button
               type="button"
-              variant="outline"
               onClick={handleClose}
               disabled={isSubmitting}
+              className="px-4 py-2 border border-[#303030] text-white hover:bg-white/5 transition-colors disabled:opacity-50 order-2 sm:order-1"
             >
               Cancel
-            </Button>
-            <Button type="submit" disabled={isSubmitting}>
-              {isSubmitting ? (
-                <>
-                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                  Sending...
-                </>
-              ) : (
-                <>
-                  <Mail className="h-4 w-4 mr-2" />
-                  Send Invitation
-                </>
-              )}
-            </Button>
+            </button>
+            <button
+              type="submit"
+              disabled={isSubmitting}
+              className="relative bg-[#e1e1e1] px-4 py-2 overflow-hidden hover:bg-white transition-colors disabled:opacity-50 disabled:cursor-not-allowed order-1 sm:order-2"
+            >
+              <div
+                className="absolute inset-0 opacity-20 bg-repeat pointer-events-none"
+                style={{
+                  backgroundImage: `url(/assets/settings/pattern-6px-flip.png)`,
+                  backgroundSize: "2.915576934814453px 2.915576934814453px",
+                }}
+              />
+              <span className="relative z-10 text-black font-mono font-medium text-sm flex items-center justify-center gap-2">
+                {isSubmitting ? (
+                  <>
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                    Sending...
+                  </>
+                ) : (
+                  <>
+                    <Mail className="h-4 w-4" />
+                    Send Invitation
+                  </>
+                )}
+              </span>
+            </button>
           </DialogFooter>
         </form>
       </DialogContent>

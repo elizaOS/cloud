@@ -1,6 +1,6 @@
 "use client";
 
-import React from "react";
+import React, { useEffect } from "react";
 import {
   ReactFlow,
   Background,
@@ -14,6 +14,17 @@ import "@xyflow/react/dist/style.css";
 import { Bot, Github, FileText } from "lucide-react";
 import { SectionLabel, BrandCard } from "@/components/brand";
 import Image from "next/image";
+import { useReactFlow } from "@xyflow/react";
+
+function ResizeHandler() {
+  const { fitView } = useReactFlow();
+  useEffect(() => {
+    const handleResize = () => fitView({ padding: 0.2, duration: 300 });
+    window.addEventListener("resize", handleResize);
+    return () => window.removeEventListener("resize", handleResize);
+  }, [fitView]);
+  return null;
+}
 
 const CustomNode = ({ data, sourcePosition, targetPosition }: any) => {
   const glowColor = data.glowColor || "#316AFF";
@@ -392,41 +403,41 @@ const RouterSection = () => {
   ];
 
   return (
-    <section className="w-full py-20 md:py-32 bg-[#0A0A0A]">
+    <section className="w-full py-12 md:py-20 lg:py-32 bg-[#0A0A0A]">
       <div className="container mx-auto px-4 md:px-6">
-        <div className="mb-12">
-          <div className="mb-4">
+        <div className="mb-8 md:mb-12">
+          <div className="mb-3 md:mb-4">
             <SectionLabel>SMART, CONNECTED INTELLIGENCE</SectionLabel>
           </div>
-          <h2 
-            className="text-5xl font-medium mb-4 uppercase"
+          <h2
+            className="text-2xl sm:text-3xl md:text-4xl lg:text-5xl font-medium mb-3 md:mb-4 uppercase"
             style={{
               fontFamily: "var(--font-geist-sans)",
-              fontSize: "48px",
-              lineHeight: "62px",
-              color: "#FFFFFF"
+              lineHeight: "1.3",
+              color: "#FFFFFF",
             }}
           >
             RUN YOUR AGENTS ON ANY MODEL
             <br />— CLAUDE, GPT, HERMES, AND MORE
           </h2>
-          <p 
-            className="max-w-2xl font-normal"
+          <p
+            className="max-w-2xl font-normal text-sm md:text-base"
             style={{
               fontFamily: "var(--font-geist-mono)",
-              fontSize: "16px",
-              lineHeight: "21px",
+              lineHeight: "1.5",
               letterSpacing: "-0.003em",
-              color: "#858585"
+              color: "#858585",
             }}
           >
-            Eliza Cloud dynamically routes inference across 200+ LLMs and integrates the MCP Gateway for seamless access to any compatible tool or API — from Notion to GitHub.
+            Eliza Cloud dynamically routes inference across 200+ LLMs and
+            integrates the MCP Gateway for seamless access to any compatible
+            tool or API — from Notion to GitHub.
           </p>
         </div>
 
         <div className="relative mb-20">
           {/* Skew background image with fade */}
-          <div className="absolute inset-0 pointer-events-none">
+          <div className="absolute inset-0 pointer-events-none overflow-hidden">
             <div className="relative w-full h-full">
               <Image
                 src="/skew.png"
@@ -434,10 +445,14 @@ const RouterSection = () => {
                 fill
                 className="object-cover"
                 style={{
+                  transform: "skewY(-3deg) scale(1.1)",
+                  transformOrigin: "center",
                   maskImage:
-                    "linear-gradient(to right, rgba(0,0,0,0.18) 0%, rgba(0,0,0,0.08) 35%, transparent 60%)",
+                    "linear-gradient(to right, transparent 0%, rgba(0,0,0,0.12) 20%, rgba(0,0,0,0.2) 30%, rgba(0,0,0,0.15) 50%, rgba(0,0,0,0.08) 70%, transparent 85%), linear-gradient(to bottom, transparent 0%, rgba(0,0,0,0.5) 15%, rgba(0,0,0,1) 25%, rgba(0,0,0,1) 85%, rgba(0,0,0,0.5) 95%, transparent 100%)",
                   WebkitMaskImage:
-                    "linear-gradient(to right, rgba(0,0,0,0.18) 0%, rgba(0,0,0,0.08) 35%, transparent 60%)",
+                    "linear-gradient(to right, transparent 0%, rgba(0,0,0,0.12) 20%, rgba(0,0,0,0.2) 30%, rgba(0,0,0,0.15) 50%, rgba(0,0,0,0.08) 70%, transparent 85%), linear-gradient(to bottom, transparent 0%, rgba(0,0,0,0.5) 15%, rgba(0,0,0,1) 25%, rgba(0,0,0,1) 85%, rgba(0,0,0,0.5) 95%, transparent 100%)",
+                  maskComposite: "intersect",
+                  WebkitMaskComposite: "source-in",
                 }}
               />
             </div>
@@ -464,6 +479,7 @@ const RouterSection = () => {
               preventScrolling={false}
               style={{ background: "transparent" }}
             >
+              <ResizeHandler />
               <svg style={{ position: "absolute", width: 0, height: 0 }}>
                 <defs>
                   <linearGradient

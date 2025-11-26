@@ -9,6 +9,7 @@ import {
   useEdgesState,
   Position,
   Handle,
+  useReactFlow,
 } from "@xyflow/react";
 import "@xyflow/react/dist/style.css";
 import Image from "next/image";
@@ -99,6 +100,14 @@ const nodeTypes = {
 };
 
 export default function MicropaymentNetwork() {
+  const { fitView } = useReactFlow();
+
+  useEffect(() => {
+    const handle = () => fitView({ padding: 0.2, duration: 300 });
+    window.addEventListener("resize", handle);
+    return () => window.removeEventListener("resize", handle);
+  }, [fitView]);
+
   const initialNodes: Node[] = useMemo(
     () => [
       // Center agent

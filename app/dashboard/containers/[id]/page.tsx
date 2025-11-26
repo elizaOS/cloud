@@ -5,15 +5,8 @@ import { redirect } from "next/navigation";
 import { ContainerDeploymentHistory } from "@/components/containers/container-deployment-history";
 import { ContainerLogsViewer } from "@/components/containers/container-logs-viewer";
 import { ContainerMetrics } from "@/components/containers/container-metrics";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
+import { BrandCard, BrandButton, CornerBrackets } from "@/components/brand";
 import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
 import {
   ExternalLink,
   ArrowLeft,
@@ -21,9 +14,9 @@ import {
   Cpu,
   HardDrive,
   Clock,
+  AlertCircle,
 } from "lucide-react";
 import Link from "next/link";
-import { Progress } from "@/components/ui/progress";
 import { generateContainerMetadata } from "@/lib/seo";
 
 // Force dynamic rendering since we use server-side auth (cookies)
@@ -90,220 +83,321 @@ export default async function ContainerDetailsPage({ params }: PageProps) {
   };
 
   return (
-    <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-4">
-          <Link href="/dashboard/containers">
-            <Button variant="ghost" size="sm">
-              <ArrowLeft className="h-4 w-4 mr-2" />
-              Back to Containers
-            </Button>
-          </Link>
-          <div>
-            <h1 className="text-3xl font-bold">{container.name}</h1>
-            {container.description && (
-              <p className="text-muted-foreground">{container.description}</p>
-            )}
+    <div className="max-w-7xl mx-auto space-y-6">
+      {/* Back Navigation */}
+      <div className="flex items-center justify-between border-b border-white/10 pb-4">
+        <Link
+          href="/dashboard/containers"
+          className="group flex items-center gap-2 text-sm text-white/70 hover:text-white transition-all duration-200"
+          style={{ fontFamily: "var(--font-roboto-mono)" }}
+        >
+          <div className="flex items-center justify-center w-8 h-8 rounded-none border border-white/10 bg-black/40 group-hover:bg-white/5 group-hover:border-[#FF5800]/50 transition-all duration-200">
+            <ArrowLeft className="h-4 w-4" />
           </div>
-        </div>
+          <span className="font-medium">Back to Containers</span>
+        </Link>
+
         {container.load_balancer_url && (
-          <Button asChild>
+          <BrandButton asChild variant="primary" size="sm">
             <a
               href={container.load_balancer_url}
               target="_blank"
               rel="noopener noreferrer"
             >
-              <ExternalLink className="h-4 w-4 mr-2" />
+              <ExternalLink className="h-4 w-4" />
               Open Container
             </a>
-          </Button>
+          </BrandButton>
         )}
       </div>
 
-      {/* Container Status Card */}
-      <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-4">
-        <Card>
-          <CardContent className="pt-6">
-            <div className="flex items-center justify-between mb-3">
-              <div className="p-2 rounded-md bg-blue-500/10">
+      {/* Container Header */}
+      <BrandCard className="relative shadow-lg shadow-black/50" cornerSize="sm">
+        <div className="relative z-10">
+          <div className="flex items-center gap-4">
+            <div className="flex items-center justify-center w-14 h-14 rounded-none border border-[#FF5800]/30 bg-[#FF5800]/10">
+              <Server className="h-7 w-7 text-[#FF5800]" />
+            </div>
+            <div className="flex-1 min-w-0">
+              <div className="flex items-center gap-2 mb-1">
+                <span
+                  className="inline-block w-2 h-2 rounded-full"
+                  style={{ backgroundColor: "#FF5800" }}
+                />
+                <h1
+                  className="text-3xl font-normal tracking-tight text-white truncate"
+                  style={{ fontFamily: "var(--font-roboto-mono)" }}
+                >
+                  {container.name}
+                </h1>
+              </div>
+              {container.description && (
+                <p className="text-sm text-white/60 mt-1 line-clamp-2">
+                  {container.description}
+                </p>
+              )}
+            </div>
+          </div>
+        </div>
+      </BrandCard>
+
+      {/* Container Stats Grid */}
+      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+        <BrandCard
+          className="relative shadow-md shadow-black/30"
+          corners={false}
+        >
+          <div className="relative z-10">
+            <div className="flex items-center justify-between mb-4">
+              <div className="p-2 rounded-none bg-blue-500/10 border border-blue-500/20">
                 <Server className="h-5 w-5 text-blue-500" />
               </div>
               <Badge
-                className={`${getStatusColor(container.status)} text-white`}
+                className={`${getStatusColor(container.status)} text-white rounded-none`}
               >
                 {container.status}
               </Badge>
             </div>
             <div>
-              <p className="text-sm font-medium text-muted-foreground">
+              <p
+                className="text-sm font-medium text-white/60 uppercase tracking-wider"
+                style={{ fontFamily: "var(--font-roboto-mono)" }}
+              >
                 Status
               </p>
-              <p className="text-2xl font-bold mt-1 capitalize">
+              <p
+                className="text-2xl font-medium mt-1 capitalize text-white"
+                style={{ fontFamily: "var(--font-roboto-mono)" }}
+              >
                 {container.status}
               </p>
             </div>
-          </CardContent>
-        </Card>
+          </div>
+        </BrandCard>
 
-        <Card>
-          <CardContent className="pt-6">
-            <div className="flex items-center justify-between mb-3">
-              <div className="p-2 rounded-md bg-purple-500/10">
+        <BrandCard
+          className="relative shadow-md shadow-black/30"
+          corners={false}
+        >
+          <div className="relative z-10">
+            <div className="flex items-center justify-between mb-4">
+              <div className="p-2 rounded-none bg-purple-500/10 border border-purple-500/20">
                 <Cpu className="h-5 w-5 text-purple-500" />
               </div>
             </div>
             <div>
-              <p className="text-sm font-medium text-muted-foreground">CPU</p>
-              <p className="text-2xl font-bold mt-1">{container.cpu}</p>
-              <p className="text-xs text-muted-foreground mt-1">vCPU units</p>
+              <p
+                className="text-sm font-medium text-white/60 uppercase tracking-wider"
+                style={{ fontFamily: "var(--font-roboto-mono)" }}
+              >
+                CPU
+              </p>
+              <p
+                className="text-2xl font-medium mt-1 text-white"
+                style={{ fontFamily: "var(--font-roboto-mono)" }}
+              >
+                {container.cpu}
+              </p>
+              <p className="text-xs text-white/50 mt-1">vCPU units</p>
             </div>
-          </CardContent>
-        </Card>
+          </div>
+        </BrandCard>
 
-        <Card>
-          <CardContent className="pt-6">
-            <div className="flex items-center justify-between mb-3">
-              <div className="p-2 rounded-md bg-emerald-500/10">
+        <BrandCard
+          className="relative shadow-md shadow-black/30"
+          corners={false}
+        >
+          <div className="relative z-10">
+            <div className="flex items-center justify-between mb-4">
+              <div className="p-2 rounded-none bg-emerald-500/10 border border-emerald-500/20">
                 <HardDrive className="h-5 w-5 text-emerald-500" />
               </div>
             </div>
             <div>
-              <p className="text-sm font-medium text-muted-foreground">
+              <p
+                className="text-sm font-medium text-white/60 uppercase tracking-wider"
+                style={{ fontFamily: "var(--font-roboto-mono)" }}
+              >
                 Memory
               </p>
-              <p className="text-2xl font-bold mt-1">{container.memory} MB</p>
-              <p className="text-xs text-muted-foreground mt-1">
-                RAM allocated
+              <p
+                className="text-2xl font-medium mt-1 text-white"
+                style={{ fontFamily: "var(--font-roboto-mono)" }}
+              >
+                {container.memory} MB
               </p>
+              <p className="text-xs text-white/50 mt-1">RAM allocated</p>
             </div>
-          </CardContent>
-        </Card>
+          </div>
+        </BrandCard>
 
-        <Card>
-          <CardContent className="pt-6">
-            <div className="flex items-center justify-between mb-3">
-              <div className="p-2 rounded-md bg-amber-500/10">
+        <BrandCard
+          className="relative shadow-md shadow-black/30"
+          corners={false}
+        >
+          <div className="relative z-10">
+            <div className="flex items-center justify-between mb-4">
+              <div className="p-2 rounded-none bg-amber-500/10 border border-amber-500/20">
                 <Clock className="h-5 w-5 text-amber-500" />
               </div>
             </div>
             <div>
-              <p className="text-sm font-medium text-muted-foreground">
+              <p
+                className="text-sm font-medium text-white/60 uppercase tracking-wider"
+                style={{ fontFamily: "var(--font-roboto-mono)" }}
+              >
                 Last Deployed
               </p>
-              <p className="text-lg font-bold mt-1">
+              <p
+                className="text-lg font-medium mt-1 text-white"
+                style={{ fontFamily: "var(--font-roboto-mono)" }}
+              >
                 {container.last_deployed_at
                   ? new Date(container.last_deployed_at).toLocaleDateString()
                   : "Never"}
               </p>
               {container.last_deployed_at && (
-                <p className="text-xs text-muted-foreground mt-1">
+                <p className="text-xs text-white/50 mt-1">
                   {new Date(container.last_deployed_at).toLocaleTimeString()}
                 </p>
               )}
             </div>
-          </CardContent>
-        </Card>
+          </div>
+        </BrandCard>
       </div>
 
-      {/* Deployment Details Card */}
-      <Card>
-        <CardHeader>
-          <CardTitle>Deployment Configuration</CardTitle>
-          <CardDescription>
-            Current container configuration and endpoint details
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          <div className="space-y-4">
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-              <div className="flex items-center gap-3 p-3 rounded-lg border bg-muted/30">
-                <Server className="h-5 w-5 text-muted-foreground" />
-                <div>
-                  <p className="text-sm text-muted-foreground">Port</p>
-                  <p className="text-lg font-semibold">{container.port}</p>
-                </div>
+      {/* Deployment Configuration */}
+      <BrandCard className="relative shadow-lg shadow-black/50" cornerSize="md">
+        <div className="relative z-10 space-y-6">
+          {/* Header */}
+          <div className="flex items-center gap-2 pb-4 border-b border-white/10">
+            <span
+              className="inline-block w-2 h-2 rounded-full"
+              style={{ backgroundColor: "#FF5800" }}
+            />
+            <h2
+              className="text-xl font-normal text-white"
+              style={{ fontFamily: "var(--font-roboto-mono)" }}
+            >
+              Deployment Configuration
+            </h2>
+          </div>
+
+          {/* Configuration Grid */}
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div className="flex items-center gap-3 p-4 rounded-none border border-white/10 bg-black/20">
+              <Server className="h-5 w-5 text-white/60" />
+              <div>
+                <p
+                  className="text-sm text-white/60 uppercase tracking-wider"
+                  style={{ fontFamily: "var(--font-roboto-mono)" }}
+                >
+                  Port
+                </p>
+                <p
+                  className="text-lg font-medium text-white"
+                  style={{ fontFamily: "var(--font-roboto-mono)" }}
+                >
+                  {container.port}
+                </p>
               </div>
-              <div className="flex items-center gap-3 p-3 rounded-lg border bg-muted/30">
-                <Server className="h-5 w-5 text-muted-foreground" />
-                <div>
-                  <p className="text-sm text-muted-foreground">Instances</p>
-                  <p className="text-lg font-semibold">
-                    {container.desired_count}
+            </div>
+            <div className="flex items-center gap-3 p-4 rounded-none border border-white/10 bg-black/20">
+              <Server className="h-5 w-5 text-white/60" />
+              <div>
+                <p
+                  className="text-sm text-white/60 uppercase tracking-wider"
+                  style={{ fontFamily: "var(--font-roboto-mono)" }}
+                >
+                  Instances
+                </p>
+                <p
+                  className="text-lg font-medium text-white"
+                  style={{ fontFamily: "var(--font-roboto-mono)" }}
+                >
+                  {container.desired_count}
+                </p>
+              </div>
+            </div>
+            <div className="flex items-center gap-3 p-4 rounded-none border border-white/10 bg-black/20">
+              <Clock className="h-5 w-5 text-white/60" />
+              <div>
+                <p
+                  className="text-sm text-white/60 uppercase tracking-wider"
+                  style={{ fontFamily: "var(--font-roboto-mono)" }}
+                >
+                  Created
+                </p>
+                <p
+                  className="text-sm font-medium text-white"
+                  style={{ fontFamily: "var(--font-roboto-mono)" }}
+                >
+                  {new Date(container.created_at).toLocaleDateString()}
+                </p>
+              </div>
+            </div>
+          </div>
+
+          {/* Error Message */}
+          {container.error_message && (
+            <div className="p-4 bg-red-950/30 border border-red-500/30 rounded-none">
+              <div className="flex items-start gap-3">
+                <div className="p-1 bg-red-500/10 rounded-none border border-red-500/20">
+                  <AlertCircle className="h-5 w-5 text-red-500" />
+                </div>
+                <div className="flex-1">
+                  <p
+                    className="font-medium text-red-400 mb-1"
+                    style={{ fontFamily: "var(--font-roboto-mono)" }}
+                  >
+                    Deployment Error
                   </p>
-                </div>
-              </div>
-              <div className="flex items-center gap-3 p-3 rounded-lg border bg-muted/30">
-                <Clock className="h-5 w-5 text-muted-foreground" />
-                <div>
-                  <p className="text-sm text-muted-foreground">Created</p>
-                  <p className="text-sm font-medium">
-                    {new Date(container.created_at).toLocaleDateString()}
+                  <p className="text-sm text-red-400/80">
+                    {container.error_message}
                   </p>
                 </div>
               </div>
             </div>
+          )}
 
-            {container.error_message && (
-              <div className="p-4 bg-red-50 dark:bg-red-950/20 border border-red-200 dark:border-red-900 rounded-lg">
-                <div className="flex items-start gap-3">
-                  <div className="p-1 bg-red-500/10 rounded">
-                    <svg
-                      className="h-5 w-5 text-red-500"
-                      fill="none"
-                      viewBox="0 0 24 24"
-                      stroke="currentColor"
-                    >
-                      <path
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                        strokeWidth={2}
-                        d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
-                      />
-                    </svg>
-                  </div>
-                  <div className="flex-1">
-                    <p className="font-semibold text-red-600 dark:text-red-400 mb-1">
-                      Deployment Error
-                    </p>
-                    <p className="text-sm text-red-600 dark:text-red-400">
-                      {container.error_message}
-                    </p>
-                  </div>
-                </div>
+          {/* Service Details */}
+          {container.ecs_service_arn && (
+            <div className="space-y-3 pt-2">
+              <div className="flex items-start gap-3">
+                <p
+                  className="text-sm font-medium text-white/60 min-w-[140px] uppercase tracking-wider"
+                  style={{ fontFamily: "var(--font-roboto-mono)" }}
+                >
+                  ECS Service ARN
+                </p>
+                <code className="text-xs bg-black/60 border border-white/10 px-3 py-1.5 rounded-none font-mono flex-1 text-white/80">
+                  {container.ecs_service_arn}
+                </code>
               </div>
-            )}
-
-            {container.ecs_service_arn && (
-              <div className="space-y-3 pt-2">
+              {container.load_balancer_url && (
                 <div className="flex items-start gap-3">
-                  <p className="text-sm font-medium text-muted-foreground min-w-[120px]">
-                    ECS Service ARN:
+                  <p
+                    className="text-sm font-medium text-white/60 min-w-[140px] uppercase tracking-wider"
+                    style={{ fontFamily: "var(--font-roboto-mono)" }}
+                  >
+                    Load Balancer
                   </p>
-                  <code className="text-xs bg-muted px-3 py-1.5 rounded font-mono flex-1">
-                    {container.ecs_service_arn}
-                  </code>
+                  <a
+                    href={container.load_balancer_url}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="text-sm text-[#FF5800] hover:text-[#FF5800]/80 flex items-center gap-1 flex-1 transition-colors"
+                    style={{ fontFamily: "var(--font-roboto-mono)" }}
+                  >
+                    {container.load_balancer_url}
+                    <ExternalLink className="h-3 w-3" />
+                  </a>
                 </div>
-                {container.load_balancer_url && (
-                  <div className="flex items-start gap-3">
-                    <p className="text-sm font-medium text-muted-foreground min-w-[120px]">
-                      Load Balancer URL:
-                    </p>
-                    <a
-                      href={container.load_balancer_url}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="text-sm text-blue-600 hover:underline flex items-center gap-1 flex-1"
-                    >
-                      {container.load_balancer_url}
-                      <ExternalLink className="h-3 w-3" />
-                    </a>
-                  </div>
-                )}
-              </div>
-            )}
-          </div>
-        </CardContent>
-      </Card>
+              )}
+            </div>
+          )}
+        </div>
+      </BrandCard>
 
       {/* Container Metrics */}
       {container.status === "running" && container.ecs_service_arn && (

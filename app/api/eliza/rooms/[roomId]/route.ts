@@ -35,7 +35,38 @@ export async function GET(
       );
     }
 
-    const runtime = await agentRuntime.getRuntime();
+    // Look up character for this room FIRST
+    let characterId: string | undefined;
+    try {
+      const roomCharacter =
+        await elizaRoomCharactersRepository.findByRoomId(roomId);
+      if (roomCharacter) {
+        characterId = roomCharacter.character_id;
+        logger.info(
+          "[Eliza Room API] 📖 Loading room with character:",
+          characterId,
+        );
+      } else {
+        logger.info("[Eliza Room API] 📖 Loading room with default Eliza");
+      }
+    } catch (err) {
+      logger.warn(
+        "[Eliza Room API] Failed to get character for room:",
+        roomId,
+        err,
+      );
+    }
+
+    // Create character-specific runtime (or default if no character)
+    const runtime = characterId
+      ? await agentRuntime.getRuntimeForCharacter(characterId)
+      : await agentRuntime.getRuntime();
+
+    logger.info(
+      "[Eliza Room API] 🎭 Using runtime for character:",
+      runtime.character.name,
+    );
+
     const rawMessages = await runtime.getMemories({
       tableName: "messages",
       roomId: roomId as UUID,
@@ -63,57 +94,10 @@ export async function GET(
       })
       .sort((a, b) => a.createdAt - b.createdAt);
 
-    // Look up character for this room
-    let characterId: string | undefined;
-    try {
-      const roomCharacter =
-        await elizaRoomCharactersRepository.findByRoomId(roomId);
-      if (roomCharacter) {
-        characterId = roomCharacter.character_id;
-        logger.debug("[Eliza Room API] Room has character:", characterId);
-      }
-    } catch (err) {
-      logger.warn(
-        "[Eliza Room API] Failed to get character for room:",
-        roomId,
-        err,
-      );
-    }
-
-    // Get agent info including avatar
-    // If room has a specific character, use that character's avatar
-    let agent: Agent | null = null;
-    let avatarUrl: string | undefined;
-    let agentName: string | undefined;
-
-    if (characterId) {
-      // Load character-specific runtime to get character's avatar and name
-      try {
-        const characterRuntime =
-          await agentRuntime.getRuntimeForCharacter(characterId);
-        agent = await characterRuntime.getAgent(characterRuntime.agentId);
-        avatarUrl = agent?.settings?.avatarUrl as string | undefined;
-        agentName = agent?.name;
-        logger.debug("[Eliza Room API] Loaded character avatar:", {
-          name: agentName,
-          avatarUrl,
-        });
-      } catch (err) {
-        logger.warn(
-          "[Eliza Room API] Failed to load character runtime, using default:",
-          err,
-        );
-        // Fall back to default agent
-        agent = await runtime.getAgent(runtime.agentId);
-        avatarUrl = agent?.settings?.avatarUrl as string | undefined;
-        agentName = agent?.name;
-      }
-    } else {
-      // Use default agent
-      agent = await runtime.getAgent(runtime.agentId);
-      avatarUrl = agent?.settings?.avatarUrl as string | undefined;
-      agentName = agent?.name;
-    }
+    // Get agent info from the runtime we already created
+    const agent = await runtime.getAgent(runtime.agentId);
+    const avatarUrl = agent?.settings?.avatarUrl as string | undefined;
+    const agentName = agent?.name;
 
     return NextResponse.json(
       {

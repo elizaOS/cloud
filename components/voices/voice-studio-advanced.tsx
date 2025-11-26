@@ -15,6 +15,7 @@ import {
   AlertCircle,
   Library,
 } from "lucide-react";
+import { cn } from "@/lib/utils";
 import { VoiceCloneForm } from "./voice-clone-form";
 import { VoiceAudioPlayer } from "./voice-audio-player";
 import {
@@ -236,26 +237,28 @@ export function VoiceStudioAdvanced({
   return (
     <Tabs
       id="voice-studio-tabs"
-      defaultValue="voices"
-      className="w-full h-[calc(100vh-180px)] flex flex-col"
+      defaultValue="clone"
+      className="w-full lg:h-[calc(100vh-180px)] flex flex-col pb-6 md:pb-8"
     >
       {/* Tab Navigation */}
-      <TabsList className="w-full rounded-none border-b border-white/10 bg-transparent h-10 p-0 justify-start">
+      <TabsList className="w-full border-b border-white/10 bg-transparent h-10 p-0 justify-start">
         <TabsTrigger
           value="clone"
-          className="rounded-none data-[state=active]:bg-[#FF5800]/10 data-[state=active]:border-b-2 data-[state=active]:border-[#FF5800] px-4 h-full text-sm"
+          className="data-[state=active]:bg-[#FF5800]/10 data-[state=active]:border-b-2 data-[state=active]:border-[#FF5800] px-3 md:px-4 h-full text-xs md:text-sm"
         >
-          <Mic className="h-3.5 w-3.5 mr-2" />
-          Clone Voice
+          <Mic className="h-3.5 w-3.5 mr-1 md:mr-2" />
+          <span className="hidden sm:inline">Clone Voice</span>
+          <span className="sm:hidden">Clone</span>
         </TabsTrigger>
         <TabsTrigger
           value="voices"
-          className="rounded-none data-[state=active]:bg-[#FF5800]/10 data-[state=active]:border-b-2 data-[state=active]:border-[#FF5800] px-4 h-full text-sm"
+          className="data-[state=active]:bg-[#FF5800]/10 data-[state=active]:border-b-2 data-[state=active]:border-[#FF5800] px-3 md:px-4 h-full text-xs md:text-sm"
         >
-          <Library className="h-3.5 w-3.5 mr-2" />
-          Voice Library
+          <Library className="h-3.5 w-3.5 mr-1 md:mr-2" />
+          <span className="hidden sm:inline">Voice Library</span>
+          <span className="sm:hidden">Library</span>
           {voices.length > 0 && (
-            <span className="ml-2 px-1.5 py-0.5 text-xs rounded-full bg-white/10">
+            <span className="ml-2 px-1.5 py-0.5 text-xs bg-white/10">
               {voices.length}
             </span>
           )}
@@ -263,7 +266,10 @@ export function VoiceStudioAdvanced({
       </TabsList>
 
       {/* Clone Tab Content */}
-      <TabsContent value="clone" className="flex-1 overflow-hidden mt-3 h-full">
+      <TabsContent
+        value="clone"
+        className="flex-1 lg:overflow-hidden mt-3 lg:h-full"
+      >
         <VoiceCloneForm
           creditBalance={creditBalance}
           onSuccess={handleVoiceCreated}
@@ -272,55 +278,63 @@ export function VoiceStudioAdvanced({
       </TabsContent>
 
       {/* Voices Tab Content */}
-      <TabsContent value="voices" className="flex-1 overflow-hidden mt-3">
+      <TabsContent value="voices" className="flex-1 lg:overflow-hidden mt-3">
         <BrandCard className="relative flex flex-col h-full overflow-hidden">
           <CornerBrackets size="sm" className="opacity-50" />
 
           <div className="relative z-10 shrink-0">
-            <div className="flex items-center justify-between mb-4">
-              <div className="flex-1">
-                <SectionLabel>Voice Library</SectionLabel>
-                <p className="text-sm text-white/60 mt-2">
-                  {voices.length} voice{voices.length !== 1 ? "s" : ""}
-                  {voices.some((v) => {
-                    const mins = Math.max(
-                      0,
-                      (new Date().getTime() - new Date(v.createdAt).getTime()) /
-                        1000 /
-                        60,
-                    );
-                    return v.cloneType === "professional" && mins < 60;
-                  }) && " • Some may still be processing"}
-                </p>
-              </div>
-              <div className="flex items-center gap-2">
-                <span className="flex items-center gap-1 rounded-none border border-white/20 bg-white/10 px-2 py-1 text-xs text-white">
-                  <BarChart3 className="h-3 w-3" />
-                  {voices.reduce((sum, v) => sum + v.usageCount, 0)} uses
-                </span>
-                <span
-                  className={
-                    professionalVoicesRemaining === 0
-                      ? "rounded-none border border-amber-500/40 bg-amber-500/10 px-2 py-1 text-xs text-amber-300"
-                      : "rounded-none border border-white/20 bg-white/10 px-2 py-1 text-xs text-white"
-                  }
-                  title="Professional voice slots (ElevenLabs limitation)"
-                >
-                  Pro: {professionalVoiceCount}/1
-                </span>
-                <BrandButton
-                  variant="outline"
-                  size="sm"
+            <div className="flex flex-col gap-3 md:gap-4 mb-4">
+              <div className="flex items-start justify-between gap-2">
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center gap-2 mb-2">
+                    <div className="w-2 h-2 rounded-full bg-[#FF5800]" />
+                    <h3 className="text-base md:text-lg font-mono font-bold text-[#e1e1e1] uppercase">
+                      Voice Library
+                    </h3>
+                  </div>
+                  <p className="text-xs md:text-sm font-mono text-[#858585]">
+                    {voices.length} voice{voices.length !== 1 ? "s" : ""}
+                    {voices.some((v) => {
+                      const mins = Math.max(
+                        0,
+                        (new Date().getTime() -
+                          new Date(v.createdAt).getTime()) /
+                          1000 /
+                          60,
+                      );
+                      return v.cloneType === "professional" && mins < 60;
+                    }) && " • Some may still be processing"}
+                  </p>
+                </div>
+                <button
+                  type="button"
                   onClick={manualRefresh}
                   disabled={isRefreshing}
-                  className="h-8"
+                  className="px-3 py-2 border border-white/20 bg-transparent text-white hover:bg-white/5 transition-colors disabled:opacity-50 flex-shrink-0"
                 >
                   {isRefreshing ? (
                     <Loader2 className="h-3 w-3 animate-spin" />
                   ) : (
-                    "Refresh"
+                    <span className="text-xs font-mono">Refresh</span>
                   )}
-                </BrandButton>
+                </button>
+              </div>
+              <div className="flex items-center gap-2 flex-wrap">
+                <span className="flex items-center gap-1 border border-white/20 bg-white/10 px-2 py-1 text-xs font-mono text-white whitespace-nowrap">
+                  <BarChart3 className="h-3 w-3 flex-shrink-0" />
+                  {voices.reduce((sum, v) => sum + v.usageCount, 0)} uses
+                </span>
+                <span
+                  className={cn(
+                    "border px-2 py-1 text-xs font-mono whitespace-nowrap",
+                    professionalVoicesRemaining === 0
+                      ? "border-amber-500/40 bg-amber-500/10 text-amber-300"
+                      : "border-white/20 bg-white/10 text-white",
+                  )}
+                  title="Professional voice slots (ElevenLabs limitation)"
+                >
+                  Pro: {professionalVoiceCount}/1
+                </span>
               </div>
             </div>
           </div>

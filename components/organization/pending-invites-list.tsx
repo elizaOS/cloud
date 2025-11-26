@@ -55,10 +55,12 @@ export function PendingInvitesList({
 
   if (pendingInvites.length === 0) {
     return (
-      <Card className="p-6 text-center">
-        <Mail className="h-10 w-10 mx-auto text-muted-foreground mb-3" />
-        <p className="text-sm text-muted-foreground">No pending invitations</p>
-      </Card>
+      <div className="backdrop-blur-sm bg-[rgba(10,10,10,0.75)] border border-brand-surface p-6 text-center">
+        <Mail className="h-10 w-10 mx-auto text-white/40 mb-3" />
+        <p className="text-sm font-mono text-white/60">
+          No pending invitations
+        </p>
+      </div>
     );
   }
 
@@ -77,37 +79,41 @@ export function PendingInvitesList({
 
     if (invite.status === "pending" && now > expiresAt) {
       return (
-        <Badge variant="destructive" className="flex items-center gap-1">
+        <span className="px-2 py-0.5 border border-[#EB4335]/40 bg-[#EB4335]/20 text-[#EB4335] flex items-center gap-1 text-xs font-mono">
           <XCircle className="h-3 w-3" />
           Expired
-        </Badge>
+        </span>
       );
     }
 
     switch (invite.status) {
       case "pending":
         return (
-          <Badge variant="secondary" className="flex items-center gap-1">
+          <span className="px-2 py-0.5 border border-white/20 bg-white/10 text-white flex items-center gap-1 text-xs font-mono">
             <Clock className="h-3 w-3" />
             Pending
-          </Badge>
+          </span>
         );
       case "accepted":
         return (
-          <Badge variant="default" className="flex items-center gap-1">
+          <span className="px-2 py-0.5 border border-green-500/40 bg-green-500/20 text-green-400 flex items-center gap-1 text-xs font-mono">
             <CheckCircle2 className="h-3 w-3" />
             Accepted
-          </Badge>
+          </span>
         );
       case "revoked":
         return (
-          <Badge variant="outline" className="flex items-center gap-1">
+          <span className="px-2 py-0.5 border border-white/10 bg-white/5 text-white/40 flex items-center gap-1 text-xs font-mono">
             <XCircle className="h-3 w-3" />
             Revoked
-          </Badge>
+          </span>
         );
       default:
-        return <Badge variant="outline">{invite.status}</Badge>;
+        return (
+          <span className="px-2 py-0.5 border border-white/10 text-xs font-mono text-white/60">
+            {invite.status}
+          </span>
+        );
     }
   };
 
@@ -123,26 +129,31 @@ export function PendingInvitesList({
         const isExpiringSoon = expiresAt.getTime() - now < 24 * 60 * 60 * 1000;
 
         return (
-          <Card key={invite.id} className="p-4">
-            <div className="flex items-start justify-between gap-4">
-              <div className="flex-1 min-w-0 space-y-2">
+          <div
+            key={invite.id}
+            className="backdrop-blur-sm bg-[rgba(10,10,10,0.75)] border border-brand-surface p-3 md:p-4"
+          >
+            <div className="flex flex-col sm:flex-row items-start justify-between gap-3 sm:gap-4">
+              <div className="flex-1 min-w-0 w-full space-y-2">
                 {/* Email */}
                 <div className="flex items-center gap-2">
-                  <Mail className="h-4 w-4 text-muted-foreground flex-shrink-0" />
-                  <span className="font-medium truncate">{invite.email}</span>
+                  <Mail className="h-4 w-4 text-white/40 flex-shrink-0" />
+                  <span className="font-mono font-medium text-sm md:text-base text-white truncate">
+                    {invite.email}
+                  </span>
                 </div>
 
                 {/* Role */}
-                <div className="flex items-center gap-2">
-                  <Badge variant="outline" className="flex items-center gap-1">
+                <div className="flex items-center gap-2 flex-wrap">
+                  <span className="px-2 py-0.5 border border-white/20 text-xs font-mono text-white/60 flex items-center gap-1">
                     {getRoleIcon(invite.role)}
                     <span className="capitalize">{invite.role}</span>
-                  </Badge>
+                  </span>
                   {getStatusBadge(invite)}
                 </div>
 
                 {/* Metadata */}
-                <div className="flex flex-col sm:flex-row sm:items-center gap-1 sm:gap-4 text-xs text-muted-foreground">
+                <div className="flex flex-col sm:flex-row sm:items-center gap-1 sm:gap-4 text-xs font-mono text-white/40">
                   <span>Invited by {getInviterName(invite)}</span>
                   <span className="hidden sm:inline">•</span>
                   <span>
@@ -154,7 +165,7 @@ export function PendingInvitesList({
 
                 {/* Expiration Warning */}
                 {isExpiringSoon && (
-                  <div className="flex items-center gap-1.5 text-xs text-orange-600 dark:text-orange-400">
+                  <div className="flex items-center gap-1.5 text-xs font-mono text-[#FF5800]">
                     <Clock className="h-3.5 w-3.5" />
                     <span>
                       Expires{" "}
@@ -165,28 +176,37 @@ export function PendingInvitesList({
               </div>
 
               {/* Actions */}
-              <div className="flex items-center gap-2">
+              <div className="flex items-center gap-2 w-full sm:w-auto justify-end">
                 <AlertDialog>
                   <AlertDialogTrigger asChild>
-                    <Button variant="ghost" size="sm" className="h-9 px-3">
-                      <X className="h-4 w-4" />
-                    </Button>
+                    <button
+                      type="button"
+                      className="p-2 hover:bg-white/5 transition-colors border border-white/10"
+                    >
+                      <X className="h-4 w-4 text-[#EB4335]" />
+                    </button>
                   </AlertDialogTrigger>
-                  <AlertDialogContent>
+                  <AlertDialogContent className="bg-neutral-950 border border-brand-surface">
                     <AlertDialogHeader>
-                      <AlertDialogTitle>Revoke Invitation</AlertDialogTitle>
-                      <AlertDialogDescription>
+                      <AlertDialogTitle className="text-white font-mono">
+                        Revoke Invitation
+                      </AlertDialogTitle>
+                      <AlertDialogDescription className="text-white/60 font-mono text-sm">
                         Are you sure you want to revoke the invitation for{" "}
-                        <span className="font-medium">{invite.email}</span>?
-                        They will not be able to join using this invitation
+                        <span className="font-medium text-white">
+                          {invite.email}
+                        </span>
+                        ? They will not be able to join using this invitation
                         link.
                       </AlertDialogDescription>
                     </AlertDialogHeader>
                     <AlertDialogFooter>
-                      <AlertDialogCancel>Cancel</AlertDialogCancel>
+                      <AlertDialogCancel className="bg-transparent border-[#303030] text-white hover:bg-white/5">
+                        Cancel
+                      </AlertDialogCancel>
                       <AlertDialogAction
                         onClick={() => onRevoke(invite.id)}
-                        className="bg-destructive hover:bg-destructive/90"
+                        className="bg-[#EB4335] hover:bg-[#EB4335]/90 text-white"
                       >
                         Revoke
                       </AlertDialogAction>
@@ -195,14 +215,14 @@ export function PendingInvitesList({
                 </AlertDialog>
               </div>
             </div>
-          </Card>
+          </div>
         );
       })}
 
       {/* Show revoked/accepted invites */}
       {invites.filter((i) => i.status !== "pending").length > 0 && (
-        <details className="mt-6">
-          <summary className="cursor-pointer text-sm text-muted-foreground hover:text-foreground">
+        <details className="mt-4 md:mt-6">
+          <summary className="cursor-pointer text-xs md:text-sm font-mono text-white/60 hover:text-white transition-colors">
             Show past invitations (
             {invites.filter((i) => i.status !== "pending").length})
           </summary>
@@ -210,26 +230,26 @@ export function PendingInvitesList({
             {invites
               .filter((i) => i.status !== "pending")
               .map((invite) => (
-                <Card key={invite.id} className="p-4 opacity-60">
+                <div
+                  key={invite.id}
+                  className="backdrop-blur-sm bg-[rgba(10,10,10,0.75)] border border-brand-surface p-3 md:p-4 opacity-60"
+                >
                   <div className="flex items-start justify-between gap-4">
                     <div className="flex-1 min-w-0 space-y-2">
                       <div className="flex items-center gap-2">
-                        <Mail className="h-4 w-4 text-muted-foreground flex-shrink-0" />
-                        <span className="font-medium truncate">
+                        <Mail className="h-4 w-4 text-white/40 flex-shrink-0" />
+                        <span className="font-mono font-medium text-sm text-white truncate">
                           {invite.email}
                         </span>
                       </div>
-                      <div className="flex items-center gap-2">
-                        <Badge
-                          variant="outline"
-                          className="flex items-center gap-1"
-                        >
+                      <div className="flex items-center gap-2 flex-wrap">
+                        <span className="px-2 py-0.5 border border-white/20 text-xs font-mono text-white/60 flex items-center gap-1">
                           {getRoleIcon(invite.role)}
                           <span className="capitalize">{invite.role}</span>
-                        </Badge>
+                        </span>
                         {getStatusBadge(invite)}
                       </div>
-                      <div className="text-xs text-muted-foreground">
+                      <div className="text-xs font-mono text-white/40">
                         {invite.status === "accepted" && invite.accepted_at && (
                           <span>
                             Accepted{" "}
@@ -242,7 +262,7 @@ export function PendingInvitesList({
                       </div>
                     </div>
                   </div>
-                </Card>
+                </div>
               ))}
           </div>
         </details>

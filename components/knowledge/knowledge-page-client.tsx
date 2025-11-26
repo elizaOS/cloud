@@ -3,11 +3,20 @@
 import { useState, useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { DocumentUpload } from "./document-upload";
 import { DocumentList } from "./document-list";
 import { KnowledgeQuery } from "./knowledge-query";
 import { Alert, AlertDescription } from "@/components/ui/alert";
-import { InfoIcon } from "lucide-react";
+import { InfoIcon, Upload, Search, List, Bot } from "lucide-react";
+import { cn } from "@/lib/utils";
+import type { ElizaCharacter } from "@/lib/types";
 
 interface KnowledgeDocument {
   id: string;
@@ -24,18 +33,35 @@ interface KnowledgeDocument {
   };
 }
 
-export function KnowledgePageClient() {
+interface KnowledgePageClientProps {
+  initialCharacters: ElizaCharacter[];
+}
+
+export function KnowledgePageClient({
+  initialCharacters,
+}: KnowledgePageClientProps) {
   const [documents, setDocuments] = useState<KnowledgeDocument[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [serviceAvailable, setServiceAvailable] = useState(true);
+  const [activeTab, setActiveTab] = useState("documents");
+  const [isMounted, setIsMounted] = useState(false);
+  const [selectedCharacterId, setSelectedCharacterId] = useState<string | null>(
+    initialCharacters.length > 0 ? initialCharacters[0].id! : null,
+  );
 
   const fetchDocuments = async () => {
     try {
       setLoading(true);
       setError(null);
 
-      const response = await fetch("/api/v1/knowledge");
+      // Include characterId in query params
+      const url = new URL("/api/v1/knowledge", window.location.origin);
+      if (selectedCharacterId) {
+        url.searchParams.set("characterId", selectedCharacterId);
+      }
+
+      const response = await fetch(url.toString());
 
       if (response.status === 503) {
         const data = await response.json();
@@ -64,8 +90,11 @@ export function KnowledgePageClient() {
   };
 
   useEffect(() => {
-    fetchDocuments();
-  }, []);
+    if (selectedCharacterId) {
+      fetchDocuments();
+    }
+    setIsMounted(true);
+  }, [selectedCharacterId]);
 
   const handleUploadSuccess = () => {
     fetchDocuments();
@@ -73,7 +102,16 @@ export function KnowledgePageClient() {
 
   const handleDelete = async (documentId: string) => {
     try {
-      const response = await fetch(`/api/v1/knowledge/${documentId}`, {
+      // Include characterId in query params
+      const url = new URL(
+        `/api/v1/knowledge/${documentId}`,
+        window.location.origin,
+      );
+      if (selectedCharacterId) {
+        url.searchParams.set("characterId", selectedCharacterId);
+      }
+
+      const response = await fetch(url.toString(), {
         method: "DELETE",
       });
 
@@ -134,19 +172,132 @@ export function KnowledgePageClient() {
 
   return (
     <div className="container mx-auto py-8 space-y-6">
-      <div>
-        <h1 className="text-3xl font-bold">Knowledge Management</h1>
-        <p className="text-muted-foreground mt-2">
-          Manage your RAG knowledge base. Upload documents and query them for
-          enhanced AI responses.
-        </p>
+      <div className="space-y-4">
+        <div>
+          <h1 className="text-3xl font-bold">Knowledge Management</h1>
+          <p className="text-muted-foreground mt-2">
+            Manage your RAG knowledge base. Upload documents and query them for
+            enhanced AI responses.
+          </p>
+        </div>
+
+        {/* Character Selector */}
+        {initialCharacters.length > 0 && (
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-sm font-medium flex items-center gap-2">
+                <Bot className="h-4 w-4" />
+                Select Agent
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <Select
+                value={selectedCharacterId || undefined}
+                onValueChange={setSelectedCharacterId}
+              >
+                <SelectTrigger className="w-full">
+                  <SelectValue placeholder="Select an agent..." />
+                </SelectTrigger>
+                <SelectContent>
+                  {initialCharacters.map((char) => (
+                    <SelectItem key={char.id} value={char.id!}>
+                      <div className="flex items-center gap-2">
+                        <span>{char.name}</span>
+                      </div>
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              <p className="text-xs text-muted-foreground mt-2">
+                Knowledge documents are agent-specific. Select which
+                agent&apos;s knowledge base to manage.
+              </p>
+            </CardContent>
+          </Card>
+        )}
+
+        {!selectedCharacterId && initialCharacters.length > 0 && (
+          <Alert>
+            <InfoIcon className="h-4 w-4" />
+            <AlertDescription>
+              Please select an agent to manage its knowledge base.
+            </AlertDescription>
+          </Alert>
+        )}
       </div>
 
-      <Tabs id="knowledge-tabs" defaultValue="documents" className="w-full">
-        <TabsList className="grid w-full grid-cols-3">
-          <TabsTrigger value="documents">Documents</TabsTrigger>
-          <TabsTrigger value="upload">Upload</TabsTrigger>
-          <TabsTrigger value="query">Query</TabsTrigger>
+      <Tabs
+        id="knowledge-tabs"
+        value={activeTab}
+        onValueChange={setActiveTab}
+        className="w-full"
+      >
+        {/* Mobile Dropdown */}
+        {isMounted && (
+          <div className="block md:hidden mb-4">
+            <Select value={activeTab} onValueChange={setActiveTab}>
+              <SelectTrigger className="w-full">
+                <SelectValue>
+                  <div className="flex items-center gap-2">
+                    {activeTab === "documents" && (
+                      <>
+                        <List className="h-4 w-4" />
+                        <span>Documents</span>
+                      </>
+                    )}
+                    {activeTab === "upload" && (
+                      <>
+                        <Upload className="h-4 w-4" />
+                        <span>Upload</span>
+                      </>
+                    )}
+                    {activeTab === "query" && (
+                      <>
+                        <Search className="h-4 w-4" />
+                        <span>Query</span>
+                      </>
+                    )}
+                  </div>
+                </SelectValue>
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="documents">
+                  <div className="flex items-center gap-2">
+                    <List className="h-4 w-4" />
+                    Documents
+                  </div>
+                </SelectItem>
+                <SelectItem value="upload">
+                  <div className="flex items-center gap-2">
+                    <Upload className="h-4 w-4" />
+                    Upload
+                  </div>
+                </SelectItem>
+                <SelectItem value="query">
+                  <div className="flex items-center gap-2">
+                    <Search className="h-4 w-4" />
+                    Query
+                  </div>
+                </SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+        )}
+
+        {/* Desktop Tabs */}
+        <TabsList className="hidden md:grid w-full grid-cols-3">
+          <TabsTrigger value="documents">
+            <List className="h-4 w-4 mr-2" />
+            Documents
+          </TabsTrigger>
+          <TabsTrigger value="upload">
+            <Upload className="h-4 w-4 mr-2" />
+            Upload
+          </TabsTrigger>
+          <TabsTrigger value="query">
+            <Search className="h-4 w-4 mr-2" />
+            Query
+          </TabsTrigger>
         </TabsList>
 
         <TabsContent value="documents" className="space-y-4">
@@ -177,7 +328,10 @@ export function KnowledgePageClient() {
               <CardTitle>Upload Documents</CardTitle>
             </CardHeader>
             <CardContent>
-              <DocumentUpload onUploadSuccess={handleUploadSuccess} />
+              <DocumentUpload
+                onUploadSuccess={handleUploadSuccess}
+                characterId={selectedCharacterId}
+              />
             </CardContent>
           </Card>
         </TabsContent>
@@ -188,7 +342,7 @@ export function KnowledgePageClient() {
               <CardTitle>Query Knowledge Base</CardTitle>
             </CardHeader>
             <CardContent>
-              <KnowledgeQuery />
+              <KnowledgeQuery characterId={selectedCharacterId} />
             </CardContent>
           </Card>
         </TabsContent>

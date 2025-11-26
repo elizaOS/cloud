@@ -11,6 +11,7 @@ A comprehensive AI agent development platform built with Next.js 15, featuring m
 - [Prerequisites](#prerequisites)
 - [Quick Start](#quick-start)
 - [Development](#development)
+- [Production Security](#production-security) ⚠️ **Important for Production**
 - [Platform Features](#platform-features)
 - [Database Architecture](#database-architecture)
 - [API Reference](#api-reference)
@@ -516,6 +517,112 @@ npm run bootstrapper:build  # Build container bootstrapper
 - **`db/`**: Database schemas and migrations
 - **Server Components**: Default for all components
 - **Client Components**: Only when needed (`'use client'`)
+
+## 🔐 Production Security
+
+⚠️ **IMPORTANT**: Before deploying to production, you MUST complete the security configuration for Privy authentication.
+
+### Security Features Implemented
+
+✅ **Content Security Policy (CSP)**: Comprehensive CSP configured in `next.config.ts` that:
+
+- Protects against XSS attacks
+- Allows Privy authentication iframe
+- Allows WalletConnect and wallet integrations
+- Prevents clickjacking with frame-ancestors restrictions
+- Includes all required domains for Privy, Solana, and third-party services
+
+✅ **Security Headers**: Multiple layers of protection:
+
+- `X-Frame-Options: DENY` (clickjacking protection)
+- `X-Content-Type-Options: nosniff` (MIME sniffing protection)
+- `Referrer-Policy` (referrer information control)
+- `X-XSS-Protection` (browser XSS protection)
+- `Permissions-Policy` (browser feature restrictions)
+
+### Pre-Production Checklist
+
+Before deploying to production, complete these critical steps:
+
+#### 1. Configure Privy Dashboard
+
+Visit https://dashboard.privy.io and configure:
+
+- ✅ Add production domain to **Allowed Domains**
+- ✅ Remove all test/development domains
+- ✅ Enable **HttpOnly cookies** for enhanced security
+- ✅ Complete domain ownership verification
+- ✅ Configure MFA settings (disable SMS, enable authenticator apps)
+- ✅ Review OAuth providers and session duration
+
+#### 2. Set Environment Variables
+
+```bash
+NEXT_PUBLIC_PRIVY_APP_ID=your_production_app_id
+NEXT_PUBLIC_PRIVY_CLIENT_ID=your_production_client_id
+PRIVY_APP_SECRET=your_production_app_secret
+PRIVY_WEBHOOK_SECRET=strong_random_secret_here
+```
+
+#### 3. Test Security Configuration
+
+```bash
+# Build and run in production mode
+npm run build
+npm run start
+
+# Test security headers (in another terminal)
+npm run test:security-headers
+
+# Test all authentication flows
+# - Login with all methods
+# - Wallet connections
+# - Transactions
+# - Check browser console for CSP violations
+```
+
+### Documentation
+
+Complete security documentation is available:
+
+- **Quick Start**: [docs/PRIVY_PRODUCTION_QUICKSTART.md](./docs/PRIVY_PRODUCTION_QUICKSTART.md) - 5-minute setup guide
+- **Complete Guide**: [docs/PRIVY_PRODUCTION_SECURITY.md](./docs/PRIVY_PRODUCTION_SECURITY.md) - Comprehensive security documentation
+- **CSP Testing**: [docs/CSP_TESTING_GUIDE.md](./docs/CSP_TESTING_GUIDE.md) - Testing and debugging CSP
+- **Full Checklist**: [docs/PRODUCTION_CHECKLIST.md](./docs/PRODUCTION_CHECKLIST.md) - Complete deployment checklist
+- **Summary**: [SECURITY_UPDATES_SUMMARY.md](./SECURITY_UPDATES_SUMMARY.md) - What was implemented
+
+### Testing Your Security Setup
+
+Run the automated security headers test:
+
+```bash
+npm run test:security-headers
+```
+
+This will verify:
+
+- All security headers are present
+- CSP includes required Privy domains
+- Frame embedding protection is active
+- All security directives are configured
+
+### Common Security Issues
+
+**Issue: "Domain not allowed"**
+
+- Solution: Add your domain to Privy Dashboard > Configuration > App settings > Allowed domains
+
+**Issue: Privy iframe not loading**
+
+- Solution: Check browser console for CSP violations. Verify `frame-src` includes `https://auth.privy.io`
+
+**Issue: CSP violations**
+
+- Solution: Review browser console, determine if legitimate, update `next.config.ts` if needed
+
+See [docs/CSP_TESTING_GUIDE.md](./docs/CSP_TESTING_GUIDE.md) for detailed troubleshooting.
+
+---
 
 ## 🔧 Platform Features
 
