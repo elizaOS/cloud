@@ -103,6 +103,7 @@ export class CharactersService {
       id: character.id,
       name: character.name,
       username: character.username ?? undefined,
+      avatarUrl: character.avatar_url ?? undefined,
       system: character.system ?? undefined,
       bio: character.bio,
       messageExamples: character.message_examples as unknown[] as

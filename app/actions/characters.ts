@@ -33,6 +33,7 @@ export async function createCharacter(elizaCharacter: ElizaCharacter) {
     character_data: elizaCharacter as unknown as Record<string, unknown>,
     is_template: false,
     is_public: false,
+    avatar_url: elizaCharacter.avatarUrl ?? null,
   };
 
   const character = await charactersService.create(newCharacter);
@@ -85,6 +86,7 @@ export async function updateCharacter(
     secrets: elizaCharacter.secrets ?? {},
     style: elizaCharacter.style ?? {},
     character_data: elizaCharacter as unknown as Record<string, unknown>,
+    avatar_url: elizaCharacter.avatarUrl ?? null,
   };
 
   const character = await charactersService.updateForUser(

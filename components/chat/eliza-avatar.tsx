@@ -33,7 +33,7 @@ export function ElizaAvatar({
   animate = false,
 }: ElizaAvatarProps) {
   return (
-    <Avatar className={cn(className)}>
+    <Avatar className={cn("flex items-center justify-center", className)}>
       {avatarUrl ? (
         <AvatarImage
           src={avatarUrl}
@@ -43,13 +43,13 @@ export function ElizaAvatar({
       ) : null}
       <AvatarFallback
         className={cn(
-          "bg-gradient-to-br from-purple-500 to-blue-600",
+          "bg-gradient-to-br from-purple-500 to-blue-600 flex items-center justify-center",
           fallbackClassName,
         )}
       >
         <Bot
           className={cn(
-            "text-white",
+            "text-white flex-shrink-0",
             iconClassName,
             animate && "animate-pulse",
           )}

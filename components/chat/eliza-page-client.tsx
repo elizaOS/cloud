@@ -51,6 +51,7 @@ export function ElizaPageClient({
       id: char.id || "",
       name: char.name || "Unknown",
       username: char.username || undefined,
+      avatarUrl: char.avatarUrl || undefined,
     }));
 
     setAvailableCharacters(characters);

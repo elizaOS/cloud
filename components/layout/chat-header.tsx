@@ -16,6 +16,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { useChatStore } from "@/stores/chat-store";
+import { ElizaAvatar } from "@/components/chat/eliza-avatar";
 
 interface ChatHeaderProps {
   onToggleSidebar?: () => void;
@@ -97,29 +98,25 @@ export function ChatHeader({ onToggleSidebar }: ChatHeaderProps) {
               {selectedAgent ? (
                 <>
                   <div className="flex items-center gap-2">
-                    <span
-                      className="inline-block w-2 h-2 rounded-full"
-                      style={{ backgroundColor: "#FF5800" }}
+                    <ElizaAvatar
+                      avatarUrl={selectedAgent.avatarUrl}
+                      name={selectedAgent.name}
+                      className="h-6 w-6"
+                      iconClassName="h-3 w-3"
                     />
-                    <div className="flex flex-col items-start">
-                      <span className="text-sm font-medium text-white">
-                        {selectedAgent.name}
-                      </span>
-                      {selectedAgent.username && (
-                        <span className="text-xs text-white/60">
-                          @{selectedAgent.username}
-                        </span>
-                      )}
-                    </div>
+                    <span className="text-sm font-medium text-white">
+                      {selectedAgent.name}
+                    </span>
                   </div>
                   <ChevronDown className="h-4 w-4 text-white/60" />
                 </>
               ) : (
                 <>
                   <div className="flex items-center gap-2">
-                    <span
-                      className="inline-block w-2 h-2 rounded-full"
-                      style={{ backgroundColor: "#FF5800" }}
+                    <ElizaAvatar
+                      name="Eliza"
+                      className="h-6 w-6"
+                      iconClassName="h-3 w-3"
                     />
                     <span className="text-sm text-white">Default (Eliza)</span>
                   </div>
@@ -141,15 +138,14 @@ export function ChatHeader({ onToggleSidebar }: ChatHeaderProps) {
                 !selectedCharacterId && "bg-white/10",
               )}
             >
-              <span
-                className="inline-block w-2 h-2 rounded-full"
-                style={{ backgroundColor: "#FF5800" }}
+              <ElizaAvatar
+                name="Eliza"
+                className="h-6 w-6"
+                iconClassName="h-3 w-3"
               />
-              <div className="flex flex-col">
-                <span className="text-sm font-medium text-white">
-                  Default (Eliza)
-                </span>
-              </div>
+              <span className="text-sm font-medium text-white">
+                Default (Eliza)
+              </span>
             </DropdownMenuItem>
 
             {/* User's custom characters */}
@@ -166,20 +162,15 @@ export function ChatHeader({ onToggleSidebar }: ChatHeaderProps) {
                       selectedCharacterId === character.id && "bg-white/10",
                     )}
                   >
-                    <span
-                      className="inline-block w-2 h-2 rounded-full"
-                      style={{ backgroundColor: "#FF5800" }}
+                    <ElizaAvatar
+                      avatarUrl={character.avatarUrl}
+                      name={character.name}
+                      className="h-6 w-6"
+                      iconClassName="h-3 w-3"
                     />
-                    <div className="flex flex-col">
-                      <span className="text-sm font-medium text-white">
-                        {character.name}
-                      </span>
-                      {character.username && (
-                        <span className="text-xs text-white/60">
-                          @{character.username}
-                        </span>
-                      )}
-                    </div>
+                    <span className="text-sm font-medium text-white">
+                      {character.name}
+                    </span>
                   </DropdownMenuItem>
                 ))}
               </>

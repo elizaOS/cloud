@@ -841,7 +841,7 @@ export function ElizaChatInterface() {
                             <ElizaAvatar
                               avatarUrl={agentInfo?.avatarUrl}
                               name={characterName}
-                              className="flex-shrink-0 w-4 h-4"
+                              className="flex-shrink-0 w-5 h-5"
                               iconClassName="h-3 w-3"
                               animate={isThinking}
                             />

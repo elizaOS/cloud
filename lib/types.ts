@@ -68,6 +68,7 @@ export interface ElizaCharacter {
   id?: string;
   name: string;
   username?: string;
+  avatarUrl?: string;
   system?: string;
   templates?: {
     [key: string]: TemplateType;

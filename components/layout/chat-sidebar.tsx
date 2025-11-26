@@ -16,8 +16,8 @@ import {
   Loader2,
   Trash2,
   Edit3,
-  Bot,
 } from "lucide-react";
+import { ElizaAvatar } from "@/components/chat/eliza-avatar";
 import { cn } from "@/lib/utils";
 import { CornerBrackets } from "@/components/brand";
 import { useChatStore } from "@/stores/chat-store";
@@ -233,13 +233,12 @@ export function ChatSidebar({
           <div className="flex items-center gap-3">
             {/* Character Avatar */}
             <div className="relative flex-shrink-0">
-              <div className="w-10 h-10 rounded-full bg-[#FF5800]/10 flex items-center justify-center overflow-hidden">
-                {selectedCharacter ? (
-                  <Bot className="h-5 w-5 text-[#FF5800]" />
-                ) : (
-                  <Bot className="h-5 w-5 text-[#FF5800]" />
-                )}
-              </div>
+              <ElizaAvatar
+                avatarUrl={selectedCharacter?.avatarUrl}
+                name={selectedCharacter?.name || "Eliza"}
+                className="h-10 w-10"
+                iconClassName="h-5 w-5"
+              />
             </div>
 
             {/* Character Info */}
