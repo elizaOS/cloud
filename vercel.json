@@ -3,6 +3,14 @@
     {
       "path": "/api/cron/auto-top-up",
       "schedule": "*/15 * * * *"
+    },
+    {
+      "path": "/api/v1/cron/deployment-monitor",
+      "schedule": "* * * * *"
+    },
+    {
+      "path": "/api/v1/cron/health-check",
+      "schedule": "* * * * *"
     }
   ]
 }
