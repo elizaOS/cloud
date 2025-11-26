@@ -595,6 +595,7 @@ export function BillingTab({ user }: BillingTabProps) {
         open={showUpdatePaymentModal}
         onOpenChange={setShowUpdatePaymentModal}
         currentPaymentMethod={paymentMethod}
+        userEmail={user.email}
         onUpdate={handleUpdatePayment}
       />
     </div>

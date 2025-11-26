@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import {
   Dialog,
   DialogContent,
@@ -26,6 +26,7 @@ interface UpdatePaymentModalProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   currentPaymentMethod: string;
+  userEmail?: string | null;
   onUpdate: (paymentData: PaymentFormData) => void;
 }
 
@@ -107,13 +108,21 @@ export function UpdatePaymentModal({
   open,
   onOpenChange,
   currentPaymentMethod,
+  userEmail,
   onUpdate,
 }: UpdatePaymentModalProps) {
   const [selectedMethod, setSelectedMethod] = useState<
     "link" | "existing-card" | "new-card"
   >("link");
-  const [email, setEmail] = useState("bil****@elizaos.ai");
+  const [email, setEmail] = useState(userEmail || "");
   const [fullName, setFullName] = useState("");
+
+  // Sync email state when userEmail prop changes
+  useEffect(() => {
+    if (userEmail) {
+      setEmail(userEmail);
+    }
+  }, [userEmail]);
   const [country, setCountry] = useState("PT");
   const [addressLine1, setAddressLine1] = useState("");
   const [showLinkDropdown, setShowLinkDropdown] = useState(true);
