@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState, useCallback } from "react";
+import { BrandCard, BrandButton } from "@/components/brand";
 import {
   Card,
   CardContent,
@@ -96,7 +97,7 @@ export function ContainerMetrics({
 
   if (loading && !metrics) {
     return (
-      <Card>
+      <Card className="shadow-lg shadow-black/50">
         <CardHeader>
           <CardTitle>Container Metrics</CardTitle>
           <CardDescription>Loading performance data...</CardDescription>
@@ -114,7 +115,7 @@ export function ContainerMetrics({
 
   if (error) {
     return (
-      <Card>
+      <Card className="shadow-lg shadow-black/50">
         <CardHeader>
           <CardTitle>Container Metrics</CardTitle>
           <CardDescription className="text-red-500">{error}</CardDescription>
@@ -131,7 +132,7 @@ export function ContainerMetrics({
   if (!metrics) return null;
 
   return (
-    <Card>
+    <Card className="shadow-lg shadow-black/50">
       <CardHeader>
         <div className="flex items-center justify-between">
           <div>

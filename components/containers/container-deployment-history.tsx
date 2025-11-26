@@ -1,22 +1,8 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
+import { BrandCard } from "@/components/brand";
 import { Skeleton } from "@/components/ui/skeleton";
 import {
   CheckCircle2,
@@ -93,30 +79,49 @@ export function ContainerDeploymentHistory({
 
   if (loading) {
     return (
-      <Card>
-        <CardHeader>
-          <CardTitle>Deployment History</CardTitle>
-          <CardDescription>Loading deployment history...</CardDescription>
-        </CardHeader>
-        <CardContent>
-          <div className="space-y-2">
-            <Skeleton className="h-12 w-full" />
-            <Skeleton className="h-12 w-full" />
-            <Skeleton className="h-12 w-full" />
+      <BrandCard className="relative shadow-lg shadow-black/50" cornerSize="sm">
+        <div className="relative z-10 space-y-4">
+          <div className="flex items-center gap-2 pb-4 border-b border-white/10">
+            <span
+              className="inline-block w-2 h-2 rounded-full"
+              style={{ backgroundColor: "#FF5800" }}
+            />
+            <h2
+              className="text-xl font-normal text-white"
+              style={{ fontFamily: "var(--font-roboto-mono)" }}
+            >
+              Deployment History
+            </h2>
           </div>
-        </CardContent>
-      </Card>
+          <div className="space-y-2">
+            <Skeleton className="h-12 w-full rounded-none" />
+            <Skeleton className="h-12 w-full rounded-none" />
+            <Skeleton className="h-12 w-full rounded-none" />
+          </div>
+        </div>
+      </BrandCard>
     );
   }
 
   if (error) {
     return (
-      <Card>
-        <CardHeader>
-          <CardTitle>Deployment History</CardTitle>
-          <CardDescription className="text-red-500">{error}</CardDescription>
-        </CardHeader>
-      </Card>
+      <BrandCard className="relative shadow-lg shadow-black/50" cornerSize="sm">
+        <div className="relative z-10 space-y-4">
+          <div className="flex items-center gap-2 pb-4 border-b border-white/10">
+            <span
+              className="inline-block w-2 h-2 rounded-full"
+              style={{ backgroundColor: "#FF5800" }}
+            />
+            <h2
+              className="text-xl font-normal text-white"
+              style={{ fontFamily: "var(--font-roboto-mono)" }}
+            >
+              Deployment History
+            </h2>
+          </div>
+          <p className="text-red-400 text-sm">{error}</p>
+        </div>
+      </BrandCard>
     );
   }
 
@@ -135,172 +140,264 @@ export function ContainerDeploymentHistory({
         deployments.filter((d) => d.duration_ms).length
       : null;
 
-  const totalCost = deployments.reduce((sum, d) => sum + d.cost, 0);
+  const totalCost = deployments.reduce(
+    (sum, d) => sum + (Number(d.cost) || 0),
+    0,
+  );
 
   return (
-    <Card>
-      <CardHeader>
-        <div className="flex items-center justify-between">
+    <BrandCard className="relative shadow-lg shadow-black/50" cornerSize="sm">
+      <div className="relative z-10 space-y-6">
+        {/* Header */}
+        <div className="flex items-center justify-between pb-4 border-b border-white/10">
           <div>
-            <CardTitle>Deployment History</CardTitle>
-            <CardDescription>
+            <div className="flex items-center gap-2 mb-2">
+              <span
+                className="inline-block w-2 h-2 rounded-full"
+                style={{ backgroundColor: "#FF5800" }}
+              />
+              <h2
+                className="text-xl font-normal text-white"
+                style={{ fontFamily: "var(--font-roboto-mono)" }}
+              >
+                Deployment History
+              </h2>
+            </div>
+            <p className="text-sm text-white/60">
               Past deployments for {containerName}
-            </CardDescription>
+            </p>
           </div>
           {deployments.length > 0 && (
             <div className="flex items-center gap-4 text-sm">
               <div className="flex items-center gap-2">
                 <TrendingUp className="h-4 w-4 text-green-500" />
-                <span className="text-muted-foreground">Success Rate:</span>
-                <span className="font-semibold">{successRate.toFixed(0)}%</span>
+                <span
+                  className="text-white/60 uppercase tracking-wider"
+                  style={{ fontFamily: "var(--font-roboto-mono)" }}
+                >
+                  Success Rate:
+                </span>
+                <span
+                  className="font-medium text-white"
+                  style={{ fontFamily: "var(--font-roboto-mono)" }}
+                >
+                  {successRate.toFixed(0)}%
+                </span>
               </div>
             </div>
           )}
         </div>
-      </CardHeader>
-      <CardContent>
-        {deployments.length === 0 ? (
-          <div className="flex flex-col items-center justify-center py-12 text-center">
-            <div className="rounded-full bg-muted p-4 mb-4">
-              <Clock className="h-8 w-8 text-muted-foreground" />
+
+        <div>
+          {deployments.length === 0 ? (
+            <div className="flex flex-col items-center justify-center py-12 text-center">
+              <div className="rounded-none bg-black/60 border border-white/10 p-4 mb-4">
+                <Clock className="h-8 w-8 text-white/60" />
+              </div>
+              <p className="text-white/60">No deployment history available</p>
+              <p className="text-sm text-white/50 mt-2">
+                Deployment records will appear here after your first deployment
+              </p>
             </div>
-            <p className="text-muted-foreground">
-              No deployment history available
-            </p>
-            <p className="text-sm text-muted-foreground mt-2">
-              Deployment records will appear here after your first deployment
-            </p>
-          </div>
-        ) : (
-          <div className="space-y-4">
-            {/* Stats Overview */}
-            <div className="grid grid-cols-3 gap-4 pb-4 border-b">
-              <div className="text-center">
-                <p className="text-2xl font-bold text-green-500">
-                  {deployments.filter((d) => d.status === "success").length}
-                </p>
-                <p className="text-xs text-muted-foreground mt-1">Successful</p>
-              </div>
-              <div className="text-center">
-                <p className="text-2xl font-bold text-red-500">
-                  {deployments.filter((d) => d.status === "failed").length}
-                </p>
-                <p className="text-xs text-muted-foreground mt-1">Failed</p>
-              </div>
-              <div className="text-center">
-                <p className="text-2xl font-bold text-blue-500">
-                  ${totalCost.toFixed(2)}
-                </p>
-                <p className="text-xs text-muted-foreground mt-1">Total Cost</p>
-              </div>
-            </div>
-
-            {/* Timeline */}
-            <div className="space-y-3">
-              {deployments.map((deployment, index) => (
-                <div
-                  key={deployment.id}
-                  className="relative pl-8 pb-4 border-l-2 border-muted last:border-l-0 last:pb-0"
-                >
-                  {/* Timeline dot */}
-                  <div className="absolute left-[-9px] top-1">
-                    {deployment.status === "success" ? (
-                      <div className="p-1 bg-background rounded-full">
-                        <CheckCircle2 className="h-4 w-4 text-green-500" />
-                      </div>
-                    ) : (
-                      <div className="p-1 bg-background rounded-full">
-                        <XCircle className="h-4 w-4 text-red-500" />
-                      </div>
-                    )}
-                  </div>
-
-                  {/* Deployment card */}
-                  <div className="bg-muted/30 rounded-lg p-4 hover:bg-muted/50 transition-colors">
-                    <div className="flex items-start justify-between mb-3">
-                      <div className="flex items-center gap-3">
-                        <Badge
-                          variant={
-                            deployment.status === "success"
-                              ? "default"
-                              : "destructive"
-                          }
-                          className="font-semibold"
-                        >
-                          {deployment.status}
-                        </Badge>
-                        <span className="text-sm text-muted-foreground">
-                          {new Date(deployment.deployed_at).toLocaleString()}
-                        </span>
-                      </div>
-                      <div className="flex items-center gap-4 text-xs text-muted-foreground">
-                        {deployment.duration_ms && (
-                          <div className="flex items-center gap-1">
-                            <Clock className="h-3 w-3" />
-                            <span>
-                              {(deployment.duration_ms / 1000).toFixed(1)}s
-                            </span>
-                          </div>
-                        )}
-                        <span className="font-mono font-semibold">
-                          ${Number(deployment.cost).toFixed(2)}
-                        </span>
-                      </div>
-                    </div>
-
-                    <div className="grid grid-cols-2 md:grid-cols-4 gap-3 text-xs">
-                      <div className="flex items-center gap-2">
-                        <Network className="h-3 w-3 text-muted-foreground" />
-                        <span className="text-muted-foreground">
-                          Instances:
-                        </span>
-                        <span className="font-medium">
-                          {deployment.metadata.desired_count || 1}
-                        </span>
-                      </div>
-                      <div className="flex items-center gap-2">
-                        <Cpu className="h-3 w-3 text-muted-foreground" />
-                        <span className="text-muted-foreground">CPU:</span>
-                        <span className="font-medium">
-                          {deployment.metadata.cpu || 256}
-                        </span>
-                      </div>
-                      <div className="flex items-center gap-2">
-                        <HardDrive className="h-3 w-3 text-muted-foreground" />
-                        <span className="text-muted-foreground">Memory:</span>
-                        <span className="font-medium">
-                          {deployment.metadata.memory || 512}MB
-                        </span>
-                      </div>
-                      <div className="flex items-center gap-2">
-                        <Network className="h-3 w-3 text-muted-foreground" />
-                        <span className="text-muted-foreground">Port:</span>
-                        <span className="font-medium">
-                          {deployment.metadata.port || 3000}
-                        </span>
-                      </div>
-                    </div>
-
-                    {deployment.error && (
-                      <div className="mt-3 p-2 bg-red-50 dark:bg-red-950/20 rounded text-xs text-red-500">
-                        <strong>Error:</strong> {deployment.error}
-                      </div>
-                    )}
-
-                    {deployment.metadata.image_tag && (
-                      <div className="mt-2 text-xs text-muted-foreground">
-                        <span className="font-mono">
-                          Tag: {deployment.metadata.image_tag}
-                        </span>
-                      </div>
-                    )}
-                  </div>
+          ) : (
+            <div className="space-y-4">
+              {/* Stats Overview */}
+              <div className="grid grid-cols-3 gap-4 pb-4 border-b border-white/10">
+                <div className="text-center p-4 rounded-none border border-white/10 bg-black/20">
+                  <p
+                    className="text-2xl font-medium text-green-500"
+                    style={{ fontFamily: "var(--font-roboto-mono)" }}
+                  >
+                    {deployments.filter((d) => d.status === "success").length}
+                  </p>
+                  <p
+                    className="text-xs text-white/60 mt-1 uppercase tracking-wider"
+                    style={{ fontFamily: "var(--font-roboto-mono)" }}
+                  >
+                    Successful
+                  </p>
                 </div>
-              ))}
+                <div className="text-center p-4 rounded-none border border-white/10 bg-black/20">
+                  <p
+                    className="text-2xl font-medium text-red-500"
+                    style={{ fontFamily: "var(--font-roboto-mono)" }}
+                  >
+                    {deployments.filter((d) => d.status === "failed").length}
+                  </p>
+                  <p
+                    className="text-xs text-white/60 mt-1 uppercase tracking-wider"
+                    style={{ fontFamily: "var(--font-roboto-mono)" }}
+                  >
+                    Failed
+                  </p>
+                </div>
+                <div className="text-center p-4 rounded-none border border-white/10 bg-black/20">
+                  <p
+                    className="text-2xl font-medium text-[#FF5800]"
+                    style={{ fontFamily: "var(--font-roboto-mono)" }}
+                  >
+                    ${totalCost.toFixed(2)}
+                  </p>
+                  <p
+                    className="text-xs text-white/60 mt-1 uppercase tracking-wider"
+                    style={{ fontFamily: "var(--font-roboto-mono)" }}
+                  >
+                    Total Cost
+                  </p>
+                </div>
+              </div>
+
+              {/* Timeline */}
+              <div className="space-y-3">
+                {deployments.map((deployment, index) => (
+                  <div
+                    key={deployment.id}
+                    className="relative pl-8 pb-4 border-l-2 border-white/10 last:border-l-0 last:pb-0"
+                  >
+                    {/* Timeline dot */}
+                    <div className="absolute left-[-9px] top-1">
+                      {deployment.status === "success" ? (
+                        <div className="p-1 bg-[#0A0A0A] rounded-none border border-white/10">
+                          <CheckCircle2 className="h-4 w-4 text-green-500" />
+                        </div>
+                      ) : (
+                        <div className="p-1 bg-[#0A0A0A] rounded-none border border-white/10">
+                          <XCircle className="h-4 w-4 text-red-500" />
+                        </div>
+                      )}
+                    </div>
+
+                    {/* Deployment card */}
+                    <div className="bg-black/30 border border-white/10 rounded-none p-4 hover:bg-black/40 hover:border-white/20 hover:shadow-md hover:shadow-black/40 transition-all shadow-sm shadow-black/20">
+                      <div className="flex items-start justify-between mb-3">
+                        <div className="flex items-center gap-3">
+                          <Badge
+                            variant={
+                              deployment.status === "success"
+                                ? "default"
+                                : "destructive"
+                            }
+                            className="font-medium rounded-none"
+                            style={{ fontFamily: "var(--font-roboto-mono)" }}
+                          >
+                            {deployment.status}
+                          </Badge>
+                          <span
+                            className="text-sm text-white/60"
+                            style={{ fontFamily: "var(--font-roboto-mono)" }}
+                          >
+                            {new Date(deployment.deployed_at).toLocaleString()}
+                          </span>
+                        </div>
+                        <div className="flex items-center gap-4 text-xs text-white/60">
+                          {deployment.duration_ms && (
+                            <div className="flex items-center gap-1">
+                              <Clock className="h-3 w-3" />
+                              <span
+                                style={{
+                                  fontFamily: "var(--font-roboto-mono)",
+                                }}
+                              >
+                                {(deployment.duration_ms / 1000).toFixed(1)}s
+                              </span>
+                            </div>
+                          )}
+                          <span
+                            className="font-medium text-[#FF5800]"
+                            style={{ fontFamily: "var(--font-roboto-mono)" }}
+                          >
+                            ${Number(deployment.cost).toFixed(2)}
+                          </span>
+                        </div>
+                      </div>
+
+                      <div className="grid grid-cols-2 md:grid-cols-4 gap-3 text-xs">
+                        <div className="flex items-center gap-2">
+                          <Network className="h-3 w-3 text-white/60" />
+                          <span
+                            className="text-white/60"
+                            style={{ fontFamily: "var(--font-roboto-mono)" }}
+                          >
+                            Instances:
+                          </span>
+                          <span
+                            className="font-medium text-white"
+                            style={{ fontFamily: "var(--font-roboto-mono)" }}
+                          >
+                            {deployment.metadata.desired_count || 1}
+                          </span>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <Cpu className="h-3 w-3 text-white/60" />
+                          <span
+                            className="text-white/60"
+                            style={{ fontFamily: "var(--font-roboto-mono)" }}
+                          >
+                            CPU:
+                          </span>
+                          <span
+                            className="font-medium text-white"
+                            style={{ fontFamily: "var(--font-roboto-mono)" }}
+                          >
+                            {deployment.metadata.cpu || 256}
+                          </span>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <HardDrive className="h-3 w-3 text-white/60" />
+                          <span
+                            className="text-white/60"
+                            style={{ fontFamily: "var(--font-roboto-mono)" }}
+                          >
+                            Memory:
+                          </span>
+                          <span
+                            className="font-medium text-white"
+                            style={{ fontFamily: "var(--font-roboto-mono)" }}
+                          >
+                            {deployment.metadata.memory || 512}MB
+                          </span>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <Network className="h-3 w-3 text-white/60" />
+                          <span
+                            className="text-white/60"
+                            style={{ fontFamily: "var(--font-roboto-mono)" }}
+                          >
+                            Port:
+                          </span>
+                          <span
+                            className="font-medium text-white"
+                            style={{ fontFamily: "var(--font-roboto-mono)" }}
+                          >
+                            {deployment.metadata.port || 3000}
+                          </span>
+                        </div>
+                      </div>
+
+                      {deployment.error && (
+                        <div className="mt-3 p-2 bg-red-950/30 border border-red-500/30 rounded-none text-xs text-red-400">
+                          <strong>Error:</strong> {deployment.error}
+                        </div>
+                      )}
+
+                      {deployment.metadata.image_tag && (
+                        <div className="mt-2 text-xs text-white/60">
+                          <span
+                            className="font-mono"
+                            style={{ fontFamily: "var(--font-roboto-mono)" }}
+                          >
+                            Tag: {deployment.metadata.image_tag}
+                          </span>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                ))}
+              </div>
             </div>
-          </div>
-        )}
-      </CardContent>
-    </Card>
+          )}
+        </div>
+      </div>
+    </BrandCard>
   );
 }

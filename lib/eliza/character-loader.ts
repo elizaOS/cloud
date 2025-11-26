@@ -1,5 +1,6 @@
 import type { Character, Plugin } from "@elizaos/core";
 import { elizaOSCloudPlugin } from "@elizaos/plugin-elizacloud";
+import { memoryPlugin } from "@elizaos/plugin-memory";
 import { elevenLabsPlugin } from "@elizaos/plugin-elevenlabs";
 import { assistantPlugin } from "./plugin-assistant";
 import { charactersService } from "@/lib/services/characters";
@@ -8,13 +9,24 @@ import defaultAgent from "./agent";
 import { getElizaCloudApiUrl, getDefaultModels } from "./config";
 
 /**
+ * Lazy-load the knowledge plugin to avoid SSR issues with pdfjs-dist
+ * This prevents DOMMatrix errors when pages are server-rendered
+ */
+async function loadKnowledgePlugin() {
+  const { knowledgePluginCore } = await import("@elizaos/plugin-knowledge");
+  return knowledgePluginCore;
+}
+
+/**
  * Maps plugin names to their implementations
- * Add new plugins here as they are integrated
- * Note: Type assertions needed due to ElizaOS plugin type bundling differences
+ * Note: Core plugins (ElizaCloud, Assistant, Memory, Knowledge) are ALWAYS included
+ * Additional plugins can be enabled per-character
+ * Type assertions needed due to ElizaOS plugin type bundling differences
  */
 const AVAILABLE_PLUGINS: Record<string, Plugin> = {
   "@elizaos/plugin-elizacloud": elizaOSCloudPlugin as unknown as Plugin,
   "@elizaos/plugin-elevenlabs": elevenLabsPlugin as unknown as Plugin,
+  "@elizaos/plugin-memory": memoryPlugin as unknown as Plugin,
   "@eliza-cloud/plugin-assistant": assistantPlugin as unknown as Plugin,
 };
 
@@ -30,42 +42,31 @@ export class CharacterLoader {
     character: Character;
     plugins: Plugin[];
   }> {
+    console.log(`[CharacterLoader] Loading character: ${characterId}`);
+
     // Load character from database
     const dbCharacter = await charactersService.getById(characterId);
 
     if (!dbCharacter) {
+      console.error(`[CharacterLoader] Character not found: ${characterId}`);
       throw new Error(`Character not found: ${characterId}`);
     }
+
+    console.log(`[CharacterLoader] Found character in DB: ${dbCharacter.name}`);
 
     // Convert to ElizaOS format
     const elizaCharacter = charactersService.toElizaCharacter(dbCharacter);
 
-    console.log("[CharacterLoader] Loading character:", {
-      id: characterId,
-      name: elizaCharacter.name,
-      system: elizaCharacter.system,
-      bio: elizaCharacter.bio,
-      plugins: elizaCharacter.plugins,
-      hasStyle: !!elizaCharacter.style,
-      hasMessageExamples: !!(
-        elizaCharacter.messageExamples &&
-        elizaCharacter.messageExamples.length > 0
-      ),
-    });
-
     // Build full character with environment settings
     const character = this.buildCharacter(elizaCharacter);
 
-    // Resolve plugins
-    const plugins = this.resolvePlugins(elizaCharacter.plugins || []);
+    // Resolve plugins (includes core plugins + character-specific plugins)
+    const plugins = await this.resolvePlugins(elizaCharacter.plugins || []);
 
-    console.log("[CharacterLoader] Character loaded successfully:", {
-      name: character.name,
-      system: character.system,
-      bio: character.bio,
-      pluginCount: plugins.length,
-      pluginNames: plugins.map((p) => p.name),
-    });
+    console.log(
+      `[CharacterLoader] Built character: ${character.name} with ${plugins.length} plugins:`,
+      plugins.map((p) => p.name).join(", "),
+    );
 
     return { character, plugins };
   }
@@ -210,22 +211,50 @@ export class CharacterLoader {
 
   /**
    * Resolve plugin names to plugin instances
-   * Handles special cases like ElevenLabs and returns providers/actions
+   *
+   * CORE PLUGINS (ALWAYS INCLUDED - REQUIRED FOR ALL AGENTS):
+   * 1. elizaOSCloudPlugin - LLM provider (required for text generation)
+   * 2. assistantPlugin - Message handling and context providers (required)
+   * 3. memoryPlugin - Short/long term memory (required for conversation context)
+   * 4. knowledgePlugin - Document processing and RAG (required for knowledge base)
+   *
+   * OPTIONAL PLUGINS (Character-specific, enabled via character.plugins array):
+   * - @elizaos/plugin-elevenlabs - Voice (TTS/STT)
+   * - Additional plugins as added to AVAILABLE_PLUGINS map
    */
-  private resolvePlugins(pluginNames: string[]): Plugin[] {
+  private async resolvePlugins(pluginNames: string[]): Promise<Plugin[]> {
     const plugins: unknown[] = [];
 
-    // Always include ElizaCloud for LLM (required)
+    // ========================================
+    // CORE PLUGINS - REQUIRED FOR ALL AGENTS
+    // ========================================
+
+    // 1. ElizaOS Cloud - LLM Provider (REQUIRED)
     if (!plugins.some((p) => p === elizaOSCloudPlugin)) {
       plugins.push(elizaOSCloudPlugin);
     }
 
-    // Always include assistant plugin (provides context)
+    // 2. Assistant Plugin - Message handling (REQUIRED)
     if (!plugins.some((p) => p === assistantPlugin)) {
       plugins.push(assistantPlugin);
     }
 
-    // Resolve character-specified plugins
+    // 3. Memory Plugin - Short/long term memory (REQUIRED)
+    if (!plugins.some((p) => p === memoryPlugin)) {
+      plugins.push(memoryPlugin);
+    }
+
+    // 4. Knowledge Plugin - Document processing (REQUIRED, lazy-loaded)
+    const knowledgePlugin = await loadKnowledgePlugin();
+    if (!plugins.some((p) => p === knowledgePlugin)) {
+      plugins.push(knowledgePlugin);
+    }
+
+    // ========================================
+    // CHARACTER-SPECIFIC PLUGINS (OPTIONAL)
+    // ========================================
+
+    // Resolve plugins specified in character configuration
     for (const pluginName of pluginNames) {
       const plugin = AVAILABLE_PLUGINS[pluginName];
 
@@ -233,9 +262,12 @@ export class CharacterLoader {
         // Avoid duplicates
         if (!plugins.some((p) => p === plugin)) {
           plugins.push(plugin);
+          console.log(
+            `[CharacterLoader] ✓ Added optional plugin: ${pluginName}`,
+          );
         }
       } else {
-        console.warn(`[CharacterLoader] Unknown plugin: ${pluginName}`);
+        console.warn(`[CharacterLoader] ⚠ Unknown plugin: ${pluginName}`);
       }
     }
 

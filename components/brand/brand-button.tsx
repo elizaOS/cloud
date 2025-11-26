@@ -9,13 +9,13 @@ import { cva, type VariantProps } from "class-variance-authority";
 import { cn } from "@/lib/utils";
 
 const brandButtonVariants = cva(
-  "inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-none text-sm font-medium transition-all focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:size-4 [&_svg]:shrink-0",
+  "inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-none text-sm font-medium transition-all focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:size-4 [&_svg]:shrink-0 cursor-pointer",
   {
     variants: {
       variant: {
         // Primary orange button
         primary:
-          "bg-[#FF5800] text-white hover:brightness-110 active:brightness-125",
+          "bg-[#471E08] text-[#FF5800] hover:bg-[#5A2610] active:bg-[#6B2E18]",
         // Ghost button with subtle hover
         ghost: "bg-transparent text-white/70 hover:text-white hover:bg-white/5",
         // Outlined button with white border

@@ -23,13 +23,17 @@ export default function LandingHeader() {
     router.push("/login");
   };
 
+  const handleGetStarted = () => {
+    router.push("/login?intent=signup");
+  };
+
   const handleDashboard = () => {
     router.push("/dashboard");
   };
 
   return (
-    <header className="border-b border-white/10 bg-[#0A0A0A] sticky top-0 z-50 backdrop-blur-sm">
-      <div className="container mx-auto flex h-16 items-center justify-between px-4 md:px-6">
+    <header className="absolute top-0 z-50 w-full">
+      <div className="flex h-16 items-center justify-between w-full px-4">
         <Link href="/" className="flex items-center gap-3">
           <div className="flex items-center gap-2">
             <span
@@ -45,6 +49,7 @@ export default function LandingHeader() {
             />
           </div>
         </Link>
+
         <div className="flex items-center gap-3">
           {authenticated ? (
             <>
@@ -60,7 +65,7 @@ export default function LandingHeader() {
             </>
           ) : (
             <>
-              {/* Unauthenticated - show Login + Get Started */}
+              {/* Unauthenticated - show Login + Sign Up */}
               <Button
                 variant="ghost"
                 size="sm"
@@ -72,10 +77,10 @@ export default function LandingHeader() {
               </Button>
               <LockOnButton
                 size="sm"
-                onClick={handleLogin}
+                onClick={handleGetStarted}
                 disabled={!ready}
               >
-                Get Started
+                Sign Up
               </LockOnButton>
             </>
           )}

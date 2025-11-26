@@ -240,6 +240,57 @@ async function handlePOST(req: NextRequest) {
     // 3. Transform to OpenAI format
     const request = transformAISdkToOpenAI(aiSdkRequest);
 
+    // Log detailed message breakdown
+    const systemMessages = request.messages.filter(
+      (msg: any) => msg.role === "system",
+    );
+    const userMessages = request.messages.filter(
+      (msg: any) => msg.role === "user",
+    );
+    const assistantMessages = request.messages.filter(
+      (msg: any) => msg.role === "assistant",
+    );
+
+    logger.info("[Responses API] 📝 PROMPT BREAKDOWN", {
+      model: request.model,
+      totalMessages: request.messages.length,
+      messageTypes: {
+        system: systemMessages.length,
+        user: userMessages.length,
+        assistant: assistantMessages.length,
+      },
+      systemPrompts: systemMessages.map((msg: any) => ({
+        content:
+          typeof msg.content === "string"
+            ? msg.content
+            : JSON.stringify(msg.content),
+        length:
+          typeof msg.content === "string"
+            ? msg.content.length
+            : JSON.stringify(msg.content).length,
+      })),
+      userPrompts: userMessages.map((msg: any) => ({
+        content:
+          typeof msg.content === "string"
+            ? msg.content
+            : JSON.stringify(msg.content),
+        length:
+          typeof msg.content === "string"
+            ? msg.content.length
+            : JSON.stringify(msg.content).length,
+      })),
+      assistantResponses: assistantMessages.map((msg: any) => ({
+        content:
+          typeof msg.content === "string"
+            ? msg.content
+            : JSON.stringify(msg.content),
+        length:
+          typeof msg.content === "string"
+            ? msg.content.length
+            : JSON.stringify(msg.content).length,
+      })),
+    });
+
     logger.debug(
       "[Responses API] Transformed AI SDK request to OpenAI format",
       {
@@ -423,9 +474,18 @@ async function handlePOST(req: NextRequest) {
       estimatedCost,
     });
 
-    // 6. Forward to Vercel AI Gateway
+    // 6. Forward to Vercel AI Gateway with Groq as preferred provider
     const providerInstance = getProvider();
-    const providerResponse = await providerInstance.chatCompletions(request);
+    const requestWithProvider = {
+      ...request,
+      providerOptions: {
+        gateway: {
+          order: ["groq"], // Use Groq as preferred provider
+        },
+      },
+    };
+    const providerResponse =
+      await providerInstance.chatCompletions(requestWithProvider);
 
     // 7. Handle streaming vs non-streaming
     if (isStreaming) {

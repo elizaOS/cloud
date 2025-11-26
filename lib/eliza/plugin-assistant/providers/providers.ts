@@ -68,6 +68,7 @@ export const providersProvider: Provider = {
 
     const values = {
       providersWithDescriptions,
+      dynamicProviders: dynamicSection,
     };
 
     return {

@@ -344,7 +344,7 @@ export function BillingTab({ user }: BillingTabProps) {
   };
 
   return (
-    <div className="flex flex-col gap-6">
+    <div className="flex flex-col gap-4 md:gap-6 pb-6 md:pb-8">
       {/* Credit Balance Card */}
       <BrandCard className="relative">
         <CornerBrackets size="sm" className="opacity-50" />
@@ -359,10 +359,10 @@ export function BillingTab({ user }: BillingTabProps) {
           </div>
 
           {/* Content Grid */}
-          <div className="flex gap-6 w-full">
+          <div className="flex flex-col lg:flex-row gap-6 w-full">
             {/* Balance Display */}
-            <div className="w-[400px] space-y-6">
-              <div className="backdrop-blur-sm bg-[rgba(10,10,10,0.75)] border border-brand-surface py-6">
+            <div className="w-full lg:w-[400px] flex">
+              <div className="backdrop-blur-sm bg-[rgba(10,10,10,0.75)] border border-brand-surface flex-1 flex items-center justify-center py-6 lg:py-8">
                 <div className="flex flex-col items-center justify-center gap-1 px-4">
                   <p className="text-[40px] font-mono text-white tracking-tight">
                     ${balance.toFixed(2)}
@@ -375,23 +375,24 @@ export function BillingTab({ user }: BillingTabProps) {
             </div>
 
             {/* Right Section */}
-            <div className="flex-1 flex flex-col justify-between">
+            <div className="flex-1 flex flex-col gap-6 lg:justify-between">
               {/* Top Section - Payment Method & Buy Credits */}
-              <div className="flex items-start justify-between">
-                {/* Payment Method */}
-                <div className="flex flex-col gap-2">
-                  <p className="text-base font-mono text-[#e1e1e1]">
-                    Charged to
-                  </p>
+              <div className="flex flex-col gap-4">
+                {/* Label */}
+                <p className="text-base font-mono text-[#e1e1e1]">Charged to</p>
+
+                {/* Payment Method Display and Buy Credits Button */}
+                <div className="flex flex-col md:flex-row items-stretch gap-4">
+                  {/* Payment Method Box */}
                   <div
-                    className={`border ${paymentMethods.length === 0 ? "border-[#FF5800]" : "border-brand-surface"} flex items-center gap-4 px-2 py-2`}
+                    className={`border ${paymentMethods.length === 0 ? "border-white/20" : "border-brand-surface"} flex items-center justify-between gap-2 px-3 py-2.5 w-full md:flex-1 md:max-w-xs`}
                   >
-                    <div className="flex items-center gap-2">
+                    <div className="flex items-center gap-2 min-w-0 flex-1">
                       <CreditCard
-                        className={`h-4 w-4 ${paymentMethods.length === 0 ? "text-[#FF5800]" : "text-[#A2A2A2]"}`}
+                        className={`h-4 w-4 flex-shrink-0 ${paymentMethods.length === 0 ? "text-white/40" : "text-[#A2A2A2]"}`}
                       />
                       <p
-                        className={`text-base font-mono tracking-tight ${paymentMethods.length === 0 ? "text-[#FF5800]" : "text-[#e1e1e1]"}`}
+                        className={`text-sm md:text-base font-mono tracking-tight truncate ${paymentMethods.length === 0 ? "text-white/60" : "text-[#e1e1e1]"}`}
                       >
                         {paymentMethod}
                       </p>
@@ -399,88 +400,78 @@ export function BillingTab({ user }: BillingTabProps) {
                     <button
                       type="button"
                       onClick={handleEditPayment}
-                      className="relative bg-[#e1e1e1] px-2 py-1 overflow-hidden hover:bg-white transition-colors"
+                      className="text-sm font-mono text-white underline hover:text-white/80 transition-colors flex-shrink-0"
                     >
-                      <div
-                        className="absolute inset-0 opacity-20 bg-repeat pointer-events-none"
-                        style={{
-                          backgroundImage: `url(/assets/settings/pattern-6px-flip.png)`,
-                          backgroundSize:
-                            "2.915576934814453px 2.915576934814453px",
-                        }}
-                      />
-                      <span className="relative z-10 text-black font-mono font-medium text-sm">
-                        {paymentMethods.length === 0
-                          ? "Add Credit Card"
-                          : "Edit"}
-                      </span>
+                      {paymentMethods.length === 0 ? "Add Card" : "Edit"}
                     </button>
                   </div>
-                </div>
 
-                {/* Buy Credits Button */}
-                <button
-                  type="button"
-                  onClick={handleOpenBuyCredits}
-                  className="relative bg-[#e1e1e1] px-3 py-2 overflow-hidden hover:bg-white transition-colors"
-                >
-                  <div
-                    className="absolute inset-0 opacity-20 bg-repeat pointer-events-none"
-                    style={{
-                      backgroundImage: `url(/assets/settings/pattern-6px-flip.png)`,
-                      backgroundSize: "2.915576934814453px 2.915576934814453px",
-                    }}
-                  />
-                  <span className="relative z-10 text-black font-mono font-medium text-base">
-                    Buy credits
-                  </span>
-                </button>
+                  {/* Buy Credits Button */}
+                  <button
+                    type="button"
+                    onClick={handleOpenBuyCredits}
+                    className="relative bg-[#e1e1e1] px-4 py-2.5 overflow-hidden hover:bg-white transition-colors w-full md:w-auto flex-shrink-0"
+                  >
+                    <div
+                      className="absolute inset-0 opacity-20 bg-repeat pointer-events-none"
+                      style={{
+                        backgroundImage: `url(/assets/settings/pattern-6px-flip.png)`,
+                        backgroundSize:
+                          "2.915576934814453px 2.915576934814453px",
+                      }}
+                    />
+                    <span className="relative z-10 text-black font-mono font-medium text-base whitespace-nowrap">
+                      Buy credits
+                    </span>
+                  </button>
+                </div>
               </div>
 
               {/* Bottom Section - Auto Top-Up */}
-              <div className="flex items-start justify-between gap-6">
-                <div className="flex-1 flex flex-col gap-2">
-                  <p className="text-base font-mono text-[#e1e1e1]">
-                    Auto-top up
-                  </p>
-                  <p className="text-sm text-white/60">
-                    Automatically recharge your balance when it drops below
-                    threshold - no manual action needed
-                  </p>
-                </div>
+              <div className="flex flex-col gap-4">
+                <div className="flex items-start justify-between gap-4">
+                  <div className="flex-1 flex flex-col gap-2">
+                    <p className="text-base font-mono text-[#e1e1e1]">
+                      Auto-top up
+                    </p>
+                    <p className="text-sm text-white/60">
+                      Automatically recharge your balance when it drops below
+                      threshold - no manual action needed
+                    </p>
+                  </div>
 
-                <div className="flex flex-col items-end gap-2">
                   <Switch
                     checked={autoTopUp}
                     onCheckedChange={handleToggleAutoTopUp}
                     disabled={loadingAutoTopUp || paymentMethods.length === 0}
-                    className="data-[state=checked]:bg-[#FF5800]"
+                    className="data-[state=checked]:bg-[#FF5800] flex-shrink-0"
                   />
-                  <div className="flex items-center gap-3">
-                    <button
-                      type="button"
-                      onClick={handleSimulateUsage}
-                      disabled={simulatingUsage}
-                      className="text-base font-mono text-[#FF5800] underline hover:text-[#FF5800]/80 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-                    >
-                      {simulatingUsage ? "Simulating..." : "Simulate usage"}
-                    </button>
-                    <button
-                      type="button"
-                      onClick={handleTriggerAutoTopUp}
-                      disabled={!autoTopUp || triggeringAutoTopUp}
-                      className="text-base font-mono text-[#FF5800] underline hover:text-[#FF5800]/80 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-                    >
-                      {triggeringAutoTopUp ? "Testing..." : "Test now"}
-                    </button>
-                    <button
-                      type="button"
-                      onClick={handleEditAutoTopUp}
-                      className="text-base font-mono text-white underline hover:text-white/80 transition-colors"
-                    >
-                      Edit auto-top up
-                    </button>
-                  </div>
+                </div>
+
+                <div className="flex flex-col sm:flex-row items-start gap-4 flex-wrap">
+                  <button
+                    type="button"
+                    onClick={handleSimulateUsage}
+                    disabled={simulatingUsage}
+                    className="text-xs font-mono text-white/60 underline hover:text-white/80 transition-colors disabled:opacity-50 disabled:cursor-not-allowed whitespace-nowrap"
+                  >
+                    {simulatingUsage ? "Simulating..." : "Simulate usage"}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={handleTriggerAutoTopUp}
+                    disabled={!autoTopUp || triggeringAutoTopUp}
+                    className="text-xs font-mono text-white/60 underline hover:text-white/80 transition-colors disabled:opacity-50 disabled:cursor-not-allowed whitespace-nowrap"
+                  >
+                    {triggeringAutoTopUp ? "Testing..." : "Test now"}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={handleEditAutoTopUp}
+                    className="text-xs font-mono text-white/60 underline hover:text-white/80 transition-colors whitespace-nowrap"
+                  >
+                    Edit auto-top up
+                  </button>
                 </div>
               </div>
             </div>
@@ -508,72 +499,74 @@ export function BillingTab({ user }: BillingTabProps) {
           </div>
 
           {/* Table */}
-          <div className="space-y-0 w-full">
-            {/* Table Header */}
-            <div className="flex w-full">
-              <div className="backdrop-blur-sm bg-[rgba(10,10,10,0.75)] border border-brand-surface flex-[1.5] p-4">
-                <p className="text-sm font-mono font-bold text-white uppercase">
-                  Date & Time
-                </p>
-              </div>
-              <div className="backdrop-blur-sm bg-[rgba(10,10,10,0.75)] border-t border-r border-b border-brand-surface flex-1 p-4">
-                <p className="text-sm font-mono font-bold text-white uppercase">
-                  Total
-                </p>
-              </div>
-              <div className="backdrop-blur-sm bg-[rgba(10,10,10,0.75)] border-t border-r border-b border-brand-surface flex-1 p-4">
-                <p className="text-sm font-mono font-bold text-white uppercase">
-                  Status
-                </p>
-              </div>
-              <div className="backdrop-blur-sm bg-[rgba(10,10,10,0.75)] border-t border-r border-b border-brand-surface flex-1 p-4">
-                <p className="text-sm font-mono font-bold text-white uppercase">
-                  Actions
-                </p>
-              </div>
-            </div>
-
-            {/* Table Rows */}
-            {loadingInvoices ? (
-              <div className="flex items-center justify-center p-8 border-l border-r border-b border-brand-surface">
-                <Loader2 className="h-6 w-6 animate-spin text-[#FF5800]" />
-              </div>
-            ) : invoices.length === 0 ? (
-              <div className="flex items-center justify-center p-8 border-l border-r border-b border-brand-surface">
-                <p className="text-sm text-white/60 font-mono">
-                  No invoices yet
-                </p>
-              </div>
-            ) : (
-              invoices.map((invoice) => (
-                <div key={invoice.id} className="flex w-full">
-                  <div className="backdrop-blur-sm bg-[rgba(10,10,10,0.75)] border-l border-r border-b border-brand-surface flex-[1.5] p-4">
-                    <p className="text-sm font-mono text-white">
-                      {invoice.date}
-                    </p>
-                  </div>
-                  <div className="backdrop-blur-sm bg-[rgba(10,10,10,0.75)] border-r border-b border-brand-surface flex-1 p-4">
-                    <p className="text-sm font-mono text-white uppercase">
-                      {invoice.total}
-                    </p>
-                  </div>
-                  <div className="backdrop-blur-sm bg-[rgba(10,10,10,0.75)] border-r border-b border-brand-surface flex-1 p-4">
-                    <p className="text-sm font-mono text-white uppercase">
-                      {invoice.status}
-                    </p>
-                  </div>
-                  <div className="backdrop-blur-sm bg-[rgba(10,10,10,0.75)] border-r border-b border-brand-surface flex-1 p-4">
-                    <button
-                      type="button"
-                      onClick={() => handleViewInvoice(invoice)}
-                      className="text-sm font-mono text-white underline uppercase hover:text-white/80 transition-colors"
-                    >
-                      View
-                    </button>
-                  </div>
+          <div className="w-full overflow-x-auto">
+            <div className="min-w-[600px]">
+              {/* Table Header */}
+              <div className="flex w-full">
+                <div className="backdrop-blur-sm bg-[rgba(10,10,10,0.75)] border border-brand-surface flex-[1.5] p-3 md:p-4">
+                  <p className="text-xs md:text-sm font-mono font-bold text-white uppercase">
+                    Date & Time
+                  </p>
                 </div>
-              ))
-            )}
+                <div className="backdrop-blur-sm bg-[rgba(10,10,10,0.75)] border-t border-r border-b border-brand-surface flex-1 p-3 md:p-4">
+                  <p className="text-xs md:text-sm font-mono font-bold text-white uppercase">
+                    Total
+                  </p>
+                </div>
+                <div className="backdrop-blur-sm bg-[rgba(10,10,10,0.75)] border-t border-r border-b border-brand-surface flex-1 p-3 md:p-4">
+                  <p className="text-xs md:text-sm font-mono font-bold text-white uppercase">
+                    Status
+                  </p>
+                </div>
+                <div className="backdrop-blur-sm bg-[rgba(10,10,10,0.75)] border-t border-r border-b border-brand-surface flex-1 p-3 md:p-4">
+                  <p className="text-xs md:text-sm font-mono font-bold text-white uppercase">
+                    Actions
+                  </p>
+                </div>
+              </div>
+
+              {/* Table Rows */}
+              {loadingInvoices ? (
+                <div className="flex items-center justify-center p-8 border-l border-r border-b border-brand-surface">
+                  <Loader2 className="h-6 w-6 animate-spin text-[#FF5800]" />
+                </div>
+              ) : invoices.length === 0 ? (
+                <div className="flex items-center justify-center p-8 border-l border-r border-b border-brand-surface">
+                  <p className="text-xs md:text-sm text-white/60 font-mono">
+                    No invoices yet
+                  </p>
+                </div>
+              ) : (
+                invoices.map((invoice) => (
+                  <div key={invoice.id} className="flex w-full">
+                    <div className="backdrop-blur-sm bg-[rgba(10,10,10,0.75)] border-l border-r border-b border-brand-surface flex-[1.5] p-3 md:p-4">
+                      <p className="text-xs md:text-sm font-mono text-white">
+                        {invoice.date}
+                      </p>
+                    </div>
+                    <div className="backdrop-blur-sm bg-[rgba(10,10,10,0.75)] border-r border-b border-brand-surface flex-1 p-3 md:p-4">
+                      <p className="text-xs md:text-sm font-mono text-white uppercase">
+                        {invoice.total}
+                      </p>
+                    </div>
+                    <div className="backdrop-blur-sm bg-[rgba(10,10,10,0.75)] border-r border-b border-brand-surface flex-1 p-3 md:p-4">
+                      <p className="text-xs md:text-sm font-mono text-white uppercase">
+                        {invoice.status}
+                      </p>
+                    </div>
+                    <div className="backdrop-blur-sm bg-[rgba(10,10,10,0.75)] border-r border-b border-brand-surface flex-1 p-3 md:p-4">
+                      <button
+                        type="button"
+                        onClick={() => handleViewInvoice(invoice)}
+                        className="text-xs md:text-sm font-mono text-white underline uppercase hover:text-white/80 transition-colors"
+                      >
+                        View
+                      </button>
+                    </div>
+                  </div>
+                ))
+              )}
+            </div>
           </div>
         </div>
       </BrandCard>
@@ -602,6 +595,7 @@ export function BillingTab({ user }: BillingTabProps) {
         open={showUpdatePaymentModal}
         onOpenChange={setShowUpdatePaymentModal}
         currentPaymentMethod={paymentMethod}
+        userEmail={user.email}
         onUpdate={handleUpdatePayment}
       />
     </div>

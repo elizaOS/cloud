@@ -165,22 +165,42 @@ export class CloudFormationService {
     maxRetries: number = 3,
     delayMs: number = 1000,
   ): Promise<T> {
+    console.log(
+      `[CloudFormation withRetry] Starting operation with ${maxRetries} max retries`,
+    );
     for (let attempt = 1; attempt <= maxRetries; attempt++) {
       try {
-        return await operation();
+        console.log(
+          `[CloudFormation withRetry] Attempt ${attempt}/${maxRetries}`,
+        );
+        const result = await operation();
+        console.log(`[CloudFormation withRetry] Attempt ${attempt} succeeded`);
+        return result;
       } catch (error: unknown) {
         // Don't retry validation errors
         if (error instanceof Error && error.name === "ValidationError") {
+          console.error(
+            `[CloudFormation withRetry] ValidationError, not retrying:`,
+            error.message,
+          );
           throw error;
         }
 
+        const errorMessage =
+          error instanceof Error ? error.message : String(error);
+        console.error(
+          `[CloudFormation withRetry] Attempt ${attempt}/${maxRetries} failed:`,
+          errorMessage,
+        );
+
         if (attempt === maxRetries) {
+          console.error(
+            `[CloudFormation withRetry] All ${maxRetries} attempts failed, throwing error`,
+          );
           throw error;
         }
 
         const backoffDelay = delayMs * Math.pow(2, attempt - 1);
-        const errorMessage =
-          error instanceof Error ? error.message : String(error);
         console.warn(
           `CloudFormation operation failed (attempt ${attempt}/${maxRetries}), retrying in ${backoffDelay}ms...`,
           errorMessage,

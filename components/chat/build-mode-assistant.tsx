@@ -1,14 +1,17 @@
 "use client";
 
-import { useState, useRef, useEffect } from "react";
+import { useState, useRef, useEffect, useCallback } from "react";
 import { useChat } from "@ai-sdk/react";
 import { DefaultChatTransport } from "ai";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { Bot, User, Send, Loader2 } from "lucide-react";
+import { Bot, User, Send, Loader2, Copy, Check } from "lucide-react";
 import type { ElizaCharacter } from "@/lib/types";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
+import rehypeHighlight from "rehype-highlight";
+import "highlight.js/styles/github-dark.css";
 import { Button } from "@/components/ui/button";
+import { toast } from "sonner";
 
 interface BuildModeAssistantProps {
   character: ElizaCharacter;
@@ -23,6 +26,7 @@ export function BuildModeAssistant({
   const scrollAreaRef = useRef<HTMLDivElement>(null);
   const [inputText, setInputText] = useState("");
   const [currentTime] = useState(() => Date.now());
+  const [copiedMessageId, setCopiedMessageId] = useState<string | null>(null);
   const [quickPrompts] = useState<string[]>([
     "Add personality traits",
     "Improve the bio",
@@ -94,17 +98,40 @@ Tell me about your vision!`;
     messages.length,
   ]);
 
-  // Auto-scroll to bottom
-  useEffect(() => {
+  // Robust scroll to bottom function
+  const scrollToBottom = useCallback((smooth = false) => {
     if (scrollAreaRef.current) {
       const viewport = scrollAreaRef.current.querySelector(
         "[data-radix-scroll-area-viewport]",
       );
       if (viewport) {
-        viewport.scrollTop = viewport.scrollHeight;
+        // Use requestAnimationFrame to ensure DOM has updated
+        requestAnimationFrame(() => {
+          if (smooth) {
+            viewport.scrollTo({
+              top: viewport.scrollHeight,
+              behavior: "smooth",
+            });
+          } else {
+            viewport.scrollTop = viewport.scrollHeight;
+          }
+        });
       }
     }
-  }, [messages, status]);
+  }, []);
+
+  // Auto-scroll to bottom when messages change
+  useEffect(() => {
+    scrollToBottom();
+  }, [messages, status, scrollToBottom]);
+
+  // Additional scroll after a delay to handle late-loading content
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      scrollToBottom();
+    }, 100);
+    return () => clearTimeout(timer);
+  }, [messages, status, scrollToBottom]);
 
   // Extract and apply character updates in real-time
   useEffect(() => {
@@ -180,6 +207,19 @@ Tell me about your vision!`;
     return date.toLocaleDateString();
   };
 
+  const copyToClipboard = async (text: string, messageId: string) => {
+    try {
+      await navigator.clipboard.writeText(text);
+      setCopiedMessageId(messageId);
+      toast.success("Message copied to clipboard");
+      // Reset after 2 seconds
+      setTimeout(() => setCopiedMessageId(null), 2000);
+    } catch (error) {
+      console.error("Failed to copy:", error);
+      toast.error("Failed to copy message");
+    }
+  };
+
   return (
     <div className="flex h-full w-full min-h-0 flex-col bg-[#0A0A0A]">
       {/* Messages Area */}
@@ -216,7 +256,7 @@ Tell me about your vision!`;
                   style={{ animationDelay: `${index * 50}ms` }}
                 >
                   {message.role === "assistant" ? (
-                    <div className="flex flex-col gap-1 max-w-[70%]">
+                    <div className="flex flex-col gap-1 max-w-[70%] min-w-0">
                       {/* Agent Name Row with Avatar */}
                       <div className="flex items-center gap-2">
                         <div className="flex h-4 w-4 flex-shrink-0 items-center justify-center rounded-full bg-[#FF5800]">
@@ -236,13 +276,68 @@ Tell me about your vision!`;
                           className="py-2 rounded-none font-[family-name:var(--font-roboto-flex)] text-[16px] leading-[1.5]"
                           style={{ fontWeight: 500 }}
                         >
-                          <div className="prose prose-sm max-w-none dark:prose-invert text-white [&_pre]:bg-black/40 [&_pre]:p-3 [&_pre]:rounded-none [&_code]:text-[#FF5800]">
-                            <ReactMarkdown remarkPlugins={[remarkGfm]}>
+                          <style jsx>{`
+                            .json-syntax :global(pre) {
+                              background: rgba(0, 0, 0, 0.4) !important;
+                              padding: 12px !important;
+                              border-radius: 0 !important;
+                              overflow-x: auto !important;
+                              max-width: 100% !important;
+                            }
+                            .json-syntax :global(pre)::-webkit-scrollbar {
+                              height: 8px;
+                            }
+                            .json-syntax :global(pre)::-webkit-scrollbar-track {
+                              background: rgba(0, 0, 0, 0.2);
+                            }
+                            .json-syntax :global(pre)::-webkit-scrollbar-thumb {
+                              background: rgba(255, 88, 0, 0.4);
+                              border-radius: 0;
+                            }
+                            .json-syntax
+                              :global(pre)::-webkit-scrollbar-thumb:hover {
+                              background: rgba(255, 88, 0, 0.6);
+                            }
+                            .json-syntax :global(code) {
+                              font-family:
+                                "Monaco", "Menlo", "Ubuntu Mono", "Consolas",
+                                monospace !important;
+                              font-size: 13px !important;
+                              white-space: pre !important;
+                            }
+                            /* JSON property keys */
+                            .json-syntax :global(.token.property),
+                            .json-syntax :global(.token.key) {
+                              color: #fe9f6d !important;
+                            }
+                            /* JSON punctuation (brackets, braces, commas, colons) */
+                            .json-syntax :global(.token.punctuation) {
+                              color: #e434bb !important;
+                            }
+                            /* JSON string values */
+                            .json-syntax :global(.token.string) {
+                              color: #d4d4d4 !important;
+                            }
+                            /* JSON numbers */
+                            .json-syntax :global(.token.number) {
+                              color: #d4d4d4 !important;
+                            }
+                            /* JSON booleans and null */
+                            .json-syntax :global(.token.boolean),
+                            .json-syntax :global(.token.null) {
+                              color: #d4d4d4 !important;
+                            }
+                          `}</style>
+                          <div className="json-syntax prose prose-sm max-w-none dark:prose-invert text-white overflow-hidden">
+                            <ReactMarkdown
+                              remarkPlugins={[remarkGfm]}
+                              rehypePlugins={[rehypeHighlight]}
+                            >
                               {content}
                             </ReactMarkdown>
                           </div>
                         </div>
-                        {/* Time */}
+                        {/* Time and Actions */}
                         <div className="flex items-center gap-2">
                           <span
                             className="text-sm font-[family-name:var(--font-roboto-mono)]"
@@ -250,11 +345,24 @@ Tell me about your vision!`;
                           >
                             {formatTimestamp(currentTime)}
                           </span>
+                          <Button
+                            size="sm"
+                            variant="ghost"
+                            className="h-5 w-5 p-0 hover:bg-white/10"
+                            onClick={() => copyToClipboard(content, message.id)}
+                            title="Copy message"
+                          >
+                            {copiedMessageId === message.id ? (
+                              <Check className="h-3 w-3 text-green-500" />
+                            ) : (
+                              <Copy className="h-3 w-3 text-white/60" />
+                            )}
+                          </Button>
                         </div>
                       </div>
                     </div>
                   ) : (
-                    <div className="flex flex-col gap-1 max-w-[70%]">
+                    <div className="flex flex-col gap-1 max-w-[70%] min-w-0">
                       {/* User Message */}
                       <div
                         className="px-4 py-3 rounded-none font-[family-name:var(--font-roboto-flex)] text-[16px] leading-[1.5]"
@@ -267,7 +375,7 @@ Tell me about your vision!`;
                           {content}
                         </div>
                       </div>
-                      {/* Time */}
+                      {/* Time and Actions */}
                       <div className="flex items-center gap-2 justify-end px-1">
                         <span
                           className="text-sm font-[family-name:var(--font-roboto-mono)]"
@@ -275,6 +383,19 @@ Tell me about your vision!`;
                         >
                           {formatTimestamp(currentTime)}
                         </span>
+                        <Button
+                          size="sm"
+                          variant="ghost"
+                          className="h-5 w-5 p-0 hover:bg-white/10"
+                          onClick={() => copyToClipboard(content, message.id)}
+                          title="Copy message"
+                        >
+                          {copiedMessageId === message.id ? (
+                            <Check className="h-3 w-3 text-green-500" />
+                          ) : (
+                            <Copy className="h-3 w-3 text-white/60" />
+                          )}
+                        </Button>
                       </div>
                     </div>
                   )}
@@ -284,7 +405,7 @@ Tell me about your vision!`;
 
             {isLoading && (
               <div className="flex justify-start">
-                <div className="flex flex-col gap-1 max-w-[70%]">
+                <div className="flex flex-col gap-1 max-w-[70%] min-w-0">
                   <div className="flex items-center gap-2">
                     <div className="flex h-4 w-4 flex-shrink-0 items-center justify-center rounded-full bg-[#FF5800]">
                       <Bot className="h-3 w-3 animate-pulse text-white" />
@@ -360,12 +481,37 @@ Tell me about your vision!`;
       {/* Input Area - Matching main chat style */}
       <form
         onSubmit={handleSubmit}
-        className="border-t p-6 mb-6 mx-4"
+        className="border-t p-3 mb-4 mx-4"
         style={{ backgroundColor: "#1D1D1D" }}
       >
-        <div className="max-w-5xl mx-auto space-y-3">
+        <div className="max-w-5xl mx-auto space-y-2">
           {/* Text Input Box */}
-          <div className="relative rounded-none border-2 border-border shadow-sm bg-black/20">
+          <div className="relative rounded-none border-2 border-border shadow-sm bg-black/20 overflow-hidden">
+            {/* Robot Eye Visor Scanner - Animated line on top edge with randomness - Only show when waiting for agent */}
+            {isLoading && (
+              <div className="absolute top-0 left-0 right-0 h-[2px] overflow-hidden pointer-events-none z-10">
+                {/* Primary scanner */}
+                <div
+                  className="absolute h-full w-24 bg-gradient-to-r from-transparent via-[#FF5800] to-transparent"
+                  style={{
+                    animation:
+                      "visor-scan 4.8s cubic-bezier(0.4, 0, 0.6, 1) infinite",
+                    boxShadow: "0 0 15px 3px rgba(255, 88, 0, 0.7)",
+                    filter: "blur(0.5px)",
+                  }}
+                />
+                {/* Secondary scanner for organic feel */}
+                <div
+                  className="absolute h-full w-16 bg-gradient-to-r from-transparent via-[#FF5800]/60 to-transparent"
+                  style={{
+                    animation:
+                      "visor-scan-delayed 6.2s cubic-bezier(0.3, 0.1, 0.7, 0.9) infinite 1.5s",
+                    boxShadow: "0 0 10px 2px rgba(255, 88, 0, 0.5)",
+                    filter: "blur(1px)",
+                  }}
+                />
+              </div>
+            )}
             <input
               value={inputText}
               onChange={(e) => setInputText(e.currentTarget.value)}
@@ -377,7 +523,7 @@ Tell me about your vision!`;
               }}
               placeholder="Describe your character or ask for help..."
               disabled={isLoading}
-              className="w-full bg-transparent px-4 py-3.5 text-sm text-white placeholder:text-white/60 focus:outline-none disabled:opacity-50"
+              className="w-full bg-transparent px-3 py-2.5 text-sm text-white placeholder:text-white/60 focus:outline-none disabled:opacity-50"
             />
           </div>
 

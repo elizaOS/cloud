@@ -16,7 +16,11 @@ interface QueryResult {
   metadata?: Record<string, unknown>;
 }
 
-export function KnowledgeQuery() {
+interface KnowledgeQueryProps {
+  characterId: string | null;
+}
+
+export function KnowledgeQuery({ characterId }: KnowledgeQueryProps) {
   const [query, setQuery] = useState("");
   const [limit, setLimit] = useState(5);
   const [loading, setLoading] = useState(false);
@@ -45,6 +49,7 @@ export function KnowledgeQuery() {
         body: JSON.stringify({
           query: query.trim(),
           limit,
+          characterId: characterId || undefined,
         }),
       });
 

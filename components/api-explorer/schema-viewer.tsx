@@ -34,7 +34,7 @@ export function SchemaViewer({ spec }: SchemaViewerProps) {
 
   if (!spec) {
     return (
-      <Card className="border-border/60 bg-background/60">
+      <Card className="border-border/60 bg-background/60 rounded-none">
         <CardContent className="py-12 text-center">
           <DatabaseIcon className="mx-auto mb-4 h-12 w-12 text-muted-foreground/60" />
           <p className="text-sm text-muted-foreground">Loading schemas...</p>
@@ -63,7 +63,7 @@ export function SchemaViewer({ spec }: SchemaViewerProps) {
 
   const getTypeColor = (type: string) => {
     const base =
-      "rounded-full px-2.5 py-1 text-xs font-medium ring-1 ring-inset";
+      "rounded-none px-2.5 py-1 text-xs font-medium ring-1 ring-inset";
     switch (type) {
       case "string":
         return `${base} bg-emerald-500/10 text-emerald-600 ring-emerald-500/30 dark:text-emerald-300`;
@@ -114,7 +114,7 @@ export function SchemaViewer({ spec }: SchemaViewerProps) {
             <div className="mb-1 text-xs font-medium text-muted-foreground">
               Example:
             </div>
-            <code className="rounded bg-muted px-2 py-1 text-xs">
+            <code className="rounded-none bg-muted px-2 py-1 text-xs">
               {String(JSON.stringify(schema.example))}
             </code>
           </div>
@@ -162,7 +162,10 @@ export function SchemaViewer({ spec }: SchemaViewerProps) {
     const isExpanded = expandedSchemas.has(name);
 
     return (
-      <Card key={name} className="mb-4 border-border/60 bg-background/60">
+      <Card
+        key={name}
+        className="mb-4 border-border/60 bg-background/60 rounded-none"
+      >
         <Collapsible open={isExpanded} onOpenChange={() => toggleSchema(name)}>
           <CollapsibleTrigger className="w-full">
             <CardHeader className="cursor-pointer transition-colors hover:bg-muted/50">
@@ -183,7 +186,7 @@ export function SchemaViewer({ spec }: SchemaViewerProps) {
                 <Button
                   variant="ghost"
                   size="icon"
-                  className="rounded-full"
+                  className="rounded-none"
                   onClick={(e) => {
                     e.stopPropagation();
                     copySchema(name, schema);
@@ -238,7 +241,7 @@ export function SchemaViewer({ spec }: SchemaViewerProps) {
                       <div className="mb-2 text-sm font-medium text-foreground">
                         Example:
                       </div>
-                      <pre className="overflow-x-auto rounded bg-muted p-3 text-xs font-mono text-muted-foreground">
+                      <pre className="overflow-x-auto rounded-none bg-muted p-3 text-xs font-mono text-muted-foreground">
                         <code>
                           {String(JSON.stringify(schema.example, null, 2))}
                         </code>
@@ -281,7 +284,7 @@ export function SchemaViewer({ spec }: SchemaViewerProps) {
             Data structures and type definitions used by the API
           </p>
         </div>
-        <Badge variant="outline" className="rounded-full">
+        <Badge variant="outline" className="rounded-none">
           {schemaEntries.length} schemas
         </Badge>
       </div>
@@ -310,7 +313,7 @@ export function SchemaViewer({ spec }: SchemaViewerProps) {
           {schemaEntries.map(([name, schema]) => renderSchema(name, schema))}
         </div>
       ) : (
-        <div className="flex items-center justify-center rounded-xl border border-dashed border-border/60 bg-background/40 py-24">
+        <div className="flex items-center justify-center rounded-none border border-dashed border-border/60 bg-background/40 py-24">
           <Card className="border-none bg-transparent shadow-none">
             <CardContent className="py-12 text-center">
               <InfoIcon className="mx-auto mb-4 h-12 w-12 text-muted-foreground/60" />
