@@ -20,6 +20,8 @@ import { actionsProvider } from "./providers/actions";
 import { characterProvider } from "./providers/character";
 import { generateImageAction } from "./actions/image-generation";
 import { actionStateProvider } from "./providers/actionState";
+import { recentMessagesProvider } from "./providers/recent-messages";
+import { affiliateContextProvider } from "./providers/affiliate-context";
 
 // Constants
 const MAX_RESPONSE_RETRIES = 3;
@@ -112,6 +114,8 @@ export const planningTemplate = `
 {{dynamicProviders}}
 
 {{actionsWithDescriptions}}
+
+{{affiliateContext}}
 `;
 
 const finalMessageSystemPrompt = `
@@ -159,6 +163,8 @@ export const messageHandlerTemplate = `
 {{fullActionState}}
 
 {{knowledge}}
+
+{{affiliateContext}}
 `;
 
 // Helper functions for response ID tracking
@@ -705,6 +711,8 @@ export const assistantPlugin: Plugin = {
     actionsProvider,
     characterProvider,
     actionStateProvider,
+    recentMessagesProvider,
+    affiliateContextProvider,
   ],
   actions: [generateImageAction],
   services: [],
