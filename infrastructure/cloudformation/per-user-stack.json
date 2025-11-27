@@ -452,7 +452,7 @@
     "LogGroup": {
       "Type": "AWS::Logs::LogGroup",
       "Properties": {
-        "LogGroupName": { "Fn::Sub": "/ecs/elizaos-user-${UserId}" },
+        "LogGroupName": { "Fn::Sub": "/ecs/elizaos-${UserId}-${ProjectName}" },
         "RetentionInDays": 7
       }
     },
@@ -494,7 +494,7 @@
             "LogConfiguration": {
               "LogDriver": "awslogs",
               "Options": {
-                "awslogs-group": { "Fn::Sub": "/ecs/elizaos-user-${UserId}" },
+                "awslogs-group": { "Fn::Sub": "/ecs/elizaos-${UserId}-${ProjectName}" },
                 "awslogs-region": { "Ref": "AWS::Region" },
                 "awslogs-stream-prefix": "ecs"
               }
