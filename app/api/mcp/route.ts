@@ -75,22 +75,24 @@ function getAuthContext(): AuthResultWithOrg {
 const mcpHandler = createMcpHandler(
   (server) => {
     // Tool 1: Check Credits - View balance and recent transactions
-    server.tool(
+    server.registerTool(
       "check_credits",
-      "Check balance and recent transactions for your organization",
       {
-        includeTransactions: z
-          .boolean()
-          .optional()
-          .describe("Include recent transactions in the response"),
-        limit: z
-          .number()
-          .int()
-          .min(1)
-          .max(20)
-          .optional()
-          .default(5)
-          .describe("Number of recent transactions to include"),
+        description: "Check balance and recent transactions for your organization",
+        inputSchema: {
+          includeTransactions: z
+            .boolean()
+            .optional()
+            .describe("Include recent transactions in the response"),
+          limit: z
+            .number()
+            .int()
+            .min(1)
+            .max(20)
+            .optional()
+            .default(5)
+            .describe("Number of recent transactions to include"),
+        },
       },
       async ({ includeTransactions = false, limit = 5 }) => {
         try {
@@ -178,18 +180,20 @@ const mcpHandler = createMcpHandler(
     );
 
     // Tool 2: Get Recent Usage - View API usage statistics
-    server.tool(
+    server.registerTool(
       "get_recent_usage",
-      "Get recent API usage statistics including models used, costs, and tokens",
       {
-        limit: z
-          .number()
-          .int()
-          .min(1)
-          .max(50)
-          .optional()
-          .default(10)
-          .describe("Number of recent usage records to fetch"),
+        description: "Get recent API usage statistics including models used, costs, and tokens",
+        inputSchema: {
+          limit: z
+            .number()
+            .int()
+            .min(1)
+            .max(50)
+            .optional()
+            .default(10)
+            .describe("Number of recent usage records to fetch"),
+        },
       },
       async ({ limit = 10 }) => {
         try {
@@ -263,33 +267,35 @@ const mcpHandler = createMcpHandler(
     );
 
     // Tool 3: Generate Text - Generate text using AI models
-    server.tool(
+    server.registerTool(
       "generate_text",
-      "Generate text using AI models (GPT-4, Claude, Gemini). Deducts credits based on token usage.",
       {
-        prompt: z
-          .string()
-          .min(1)
-          .max(10000)
-          .describe("The text prompt to generate from"),
-        model: z
-          .enum([
-            "gpt-4o",
-            "gpt-4o-mini",
-            "claude-3-5-sonnet-20241022",
-            "gemini-2.0-flash-exp",
-          ])
-          .optional()
-          .default("gpt-4o")
-          .describe("The AI model to use for generation"),
-        maxLength: z
-          .number()
-          .int()
-          .min(1)
-          .max(4000)
-          .optional()
-          .default(1000)
-          .describe("Maximum length of generated text"),
+        description: "Generate text using AI models (GPT-4, Claude, Gemini). Deducts credits based on token usage.",
+        inputSchema: {
+          prompt: z
+            .string()
+            .min(1)
+            .max(10000)
+            .describe("The text prompt to generate from"),
+          model: z
+            .enum([
+              "gpt-4o",
+              "gpt-4o-mini",
+              "claude-3-5-sonnet-20241022",
+              "gemini-2.0-flash-exp",
+            ])
+            .optional()
+            .default("gpt-4o")
+            .describe("The AI model to use for generation"),
+          maxLength: z
+            .number()
+            .int()
+            .min(1)
+            .max(4000)
+            .optional()
+            .default(1000)
+            .describe("Maximum length of generated text"),
+        },
       },
       async ({ prompt, model = "gpt-4o", maxLength = 1000 }) => {
         let generationId: string | undefined;
@@ -551,20 +557,22 @@ const mcpHandler = createMcpHandler(
     );
 
     // Tool 4: Generate Image - Generate images using Gemini
-    server.tool(
+    server.registerTool(
       "generate_image",
-      "Generate images using Google Gemini 2.5. Deducts credits per image generated.",
       {
-        prompt: z
-          .string()
-          .min(1)
-          .max(5000)
-          .describe("Description of the image to generate"),
-        aspectRatio: z
-          .enum(["1:1", "16:9", "9:16", "4:3", "3:4"])
-          .optional()
-          .default("1:1")
-          .describe("Aspect ratio for the generated image"),
+        description: "Generate images using Google Gemini 2.5. Deducts credits per image generated.",
+        inputSchema: {
+          prompt: z
+            .string()
+            .min(1)
+            .max(5000)
+            .describe("Description of the image to generate"),
+          aspectRatio: z
+            .enum(["1:1", "16:9", "9:16", "4:3", "3:4"])
+            .optional()
+            .default("1:1")
+            .describe("Aspect ratio for the generated image"),
+        },
       },
       async ({ prompt, aspectRatio = "1:1" }) => {
         let generationId: string | undefined;
@@ -865,40 +873,42 @@ const mcpHandler = createMcpHandler(
       },
     );
 
-    server.tool(
+    server.registerTool(
       "save_memory",
-      "Save important information to long-term memory with semantic tagging. Deducts 1 credit per save.",
       {
-        content: z
-          .string()
-          .min(1)
-          .max(10000)
-          .describe("The memory content to save"),
-        type: z
-          .enum(["fact", "preference", "context", "document"])
-          .describe("Type of memory being saved"),
-        tags: z
-          .array(z.string())
-          .optional()
-          .describe("Optional tags for categorization"),
-        metadata: z
-          .record(z.unknown())
-          .optional()
-          .describe("Additional metadata"),
-        ttl: z
-          .number()
-          .int()
-          .positive()
-          .optional()
-          .describe("Optional TTL in seconds (Redis only)"),
-        persistent: z
-          .boolean()
-          .optional()
-          .default(true)
-          .describe("Store in PostgreSQL (default: true)"),
-        roomId: z
-          .string()
-          .describe("Room ID to associate memory with (required)"),
+        description: "Save important information to long-term memory with semantic tagging. Deducts 1 credit per save.",
+        inputSchema: {
+          content: z
+            .string()
+            .min(1)
+            .max(10000)
+            .describe("The memory content to save"),
+          type: z
+            .enum(["fact", "preference", "context", "document"])
+            .describe("Type of memory being saved"),
+          tags: z
+            .array(z.string())
+            .optional()
+            .describe("Optional tags for categorization"),
+          metadata: z
+            .record(z.unknown())
+            .optional()
+            .describe("Additional metadata"),
+          ttl: z
+            .number()
+            .int()
+            .positive()
+            .optional()
+            .describe("Optional TTL in seconds (Redis only)"),
+          persistent: z
+            .boolean()
+            .optional()
+            .default(true)
+            .describe("Store in PostgreSQL (default: true)"),
+          roomId: z
+            .string()
+            .describe("Room ID to associate memory with (required)"),
+        },
       },
       async ({
         content,
@@ -1140,30 +1150,32 @@ const mcpHandler = createMcpHandler(
       },
     );
 
-    server.tool(
+    server.registerTool(
       "retrieve_memories",
-      "Search and retrieve memories using semantic search or filters. Deducts 0.1 credit per memory retrieved (max 5 credits).",
       {
-        query: z.string().optional().describe("Semantic search query"),
-        roomId: z
-          .string()
-          .optional()
-          .describe("Filter to specific room/conversation"),
-        type: z.array(z.string()).optional().describe("Filter by memory type"),
-        tags: z.array(z.string()).optional().describe("Filter by tags"),
-        limit: z
-          .number()
-          .int()
-          .min(1)
-          .max(50)
-          .optional()
-          .default(10)
-          .describe("Maximum results to return"),
-        sortBy: z
-          .enum(["relevance", "recent", "importance"])
-          .optional()
-          .default("relevance")
-          .describe("Sort order"),
+        description: "Search and retrieve memories using semantic search or filters. Deducts 0.1 credit per memory retrieved (max 5 credits).",
+        inputSchema: {
+          query: z.string().optional().describe("Semantic search query"),
+          roomId: z
+            .string()
+            .optional()
+            .describe("Filter to specific room/conversation"),
+          type: z.array(z.string()).optional().describe("Filter by memory type"),
+          tags: z.array(z.string()).optional().describe("Filter by tags"),
+          limit: z
+            .number()
+            .int()
+            .min(1)
+            .max(50)
+            .optional()
+            .default(10)
+            .describe("Maximum results to return"),
+          sortBy: z
+            .enum(["relevance", "recent", "importance"])
+            .optional()
+            .default("relevance")
+            .describe("Sort order"),
+        },
       },
       async ({
         query,
@@ -1341,22 +1353,24 @@ const mcpHandler = createMcpHandler(
       },
     );
 
-    server.tool(
+    server.registerTool(
       "delete_memory",
-      "Remove a specific memory or bulk delete by filters. No credit cost.",
       {
-        memoryId: z
-          .string()
-          .optional()
-          .describe("Specific memory ID to delete"),
-        olderThan: z
-          .number()
-          .int()
-          .positive()
-          .optional()
-          .describe("Delete memories older than N days"),
-        type: z.array(z.string()).optional().describe("Delete by type"),
-        tags: z.array(z.string()).optional().describe("Delete by tags"),
+        description: "Remove a specific memory or bulk delete by filters. No credit cost.",
+        inputSchema: {
+          memoryId: z
+            .string()
+            .optional()
+            .describe("Specific memory ID to delete"),
+          olderThan: z
+            .number()
+            .int()
+            .positive()
+            .optional()
+            .describe("Delete memories older than N days"),
+          type: z.array(z.string()).optional().describe("Delete by type"),
+          tags: z.array(z.string()).optional().describe("Delete by tags"),
+        },
       },
       async ({ memoryId, olderThan, type, tags }) => {
         try {
@@ -1423,29 +1437,31 @@ const mcpHandler = createMcpHandler(
       },
     );
 
-    server.tool(
+    server.registerTool(
       "get_conversation_context",
-      "Retrieve enriched conversation context with memory integration. Deducts 1 credit per request.",
       {
-        roomId: z.string().describe("Room/conversation ID"),
-        depth: z
-          .number()
-          .int()
-          .min(1)
-          .max(100)
-          .optional()
-          .default(20)
-          .describe("Number of messages to include"),
-        includeMemories: z
-          .boolean()
-          .optional()
-          .default(true)
-          .describe("Include relevant saved memories"),
-        format: z
-          .enum(["chat", "json", "markdown"])
-          .optional()
-          .default("json")
-          .describe("Output format"),
+        description: "Retrieve enriched conversation context with memory integration. Deducts 1 credit per request.",
+        inputSchema: {
+          roomId: z.string().describe("Room/conversation ID"),
+          depth: z
+            .number()
+            .int()
+            .min(1)
+            .max(100)
+            .optional()
+            .default(20)
+            .describe("Number of messages to include"),
+          includeMemories: z
+            .boolean()
+            .optional()
+            .default(true)
+            .describe("Include relevant saved memories"),
+          format: z
+            .enum(["chat", "json", "markdown"])
+            .optional()
+            .default("json")
+            .describe("Output format"),
+        },
       },
       async ({ roomId, depth = 20 }) => {
         try {
@@ -1591,29 +1607,31 @@ const mcpHandler = createMcpHandler(
       },
     );
 
-    server.tool(
+    server.registerTool(
       "create_conversation",
-      "Create a new conversation context with initial settings. Deducts 1 credit.",
       {
-        title: z.string().min(1).describe("Conversation title"),
-        model: z
-          .string()
-          .optional()
-          .describe("Default model to use (default: gpt-4o)"),
-        systemPrompt: z
-          .string()
-          .optional()
-          .describe("System prompt for conversation"),
-        settings: z
-          .object({
-            temperature: z.number().optional(),
-            maxTokens: z.number().int().optional(),
-            topP: z.number().optional(),
-            frequencyPenalty: z.number().optional(),
-            presencePenalty: z.number().optional(),
-          })
-          .optional()
-          .describe("Model settings"),
+        description: "Create a new conversation context with initial settings. Deducts 1 credit.",
+        inputSchema: {
+          title: z.string().min(1).describe("Conversation title"),
+          model: z
+            .string()
+            .optional()
+            .describe("Default model to use (default: gpt-4o)"),
+          systemPrompt: z
+            .string()
+            .optional()
+            .describe("System prompt for conversation"),
+          settings: z
+            .object({
+              temperature: z.number().optional(),
+              maxTokens: z.number().int().optional(),
+              topP: z.number().optional(),
+              frequencyPenalty: z.number().optional(),
+              presencePenalty: z.number().optional(),
+            })
+            .optional()
+            .describe("Model settings"),
+        },
       },
       async ({ title, model, systemPrompt, settings }) => {
         const actualModel = model || "gpt-4o";
@@ -1754,25 +1772,27 @@ const mcpHandler = createMcpHandler(
       },
     );
 
-    server.tool(
+    server.registerTool(
       "search_conversations",
-      "Search through conversation history with filters. Deducts 2 credits per search.",
       {
-        query: z
-          .string()
-          .optional()
-          .describe("Search query (semantic or keyword)"),
-        model: z.array(z.string()).optional().describe("Filter by model used"),
-        dateFrom: z.string().optional().describe("ISO date string (from)"),
-        dateTo: z.string().optional().describe("ISO date string (to)"),
-        limit: z
-          .number()
-          .int()
-          .min(1)
-          .max(50)
-          .optional()
-          .default(10)
-          .describe("Maximum results"),
+        description: "Search through conversation history with filters. Deducts 2 credits per search.",
+        inputSchema: {
+          query: z
+            .string()
+            .optional()
+            .describe("Search query (semantic or keyword)"),
+          model: z.array(z.string()).optional().describe("Filter by model used"),
+          dateFrom: z.string().optional().describe("ISO date string (from)"),
+          dateTo: z.string().optional().describe("ISO date string (to)"),
+          limit: z
+            .number()
+            .int()
+            .min(1)
+            .max(50)
+            .optional()
+            .default(10)
+            .describe("Maximum results"),
+        },
       },
       async ({ query, limit = 10 }) => {
         try {
@@ -1911,29 +1931,31 @@ const mcpHandler = createMcpHandler(
       },
     );
 
-    server.tool(
+    server.registerTool(
       "summarize_conversation",
-      "Generate a summary of conversation history. Deducts 10-50 credits based on token usage.",
       {
-        roomId: z.string().describe("Room/conversation ID to summarize"),
-        lastN: z
-          .number()
-          .int()
-          .min(1)
-          .max(500)
-          .optional()
-          .default(50)
-          .describe("Summarize last N messages"),
-        style: z
-          .enum(["brief", "detailed", "bullet-points"])
-          .optional()
-          .default("brief")
-          .describe("Summary style"),
-        includeMetadata: z
-          .boolean()
-          .optional()
-          .default(false)
-          .describe("Include participant and topic metadata"),
+        description: "Generate a summary of conversation history. Deducts 10-50 credits based on token usage.",
+        inputSchema: {
+          roomId: z.string().describe("Room/conversation ID to summarize"),
+          lastN: z
+            .number()
+            .int()
+            .min(1)
+            .max(500)
+            .optional()
+            .default(50)
+            .describe("Summarize last N messages"),
+          style: z
+            .enum(["brief", "detailed", "bullet-points"])
+            .optional()
+            .default("brief")
+            .describe("Summary style"),
+          includeMetadata: z
+            .boolean()
+            .optional()
+            .default(false)
+            .describe("Include participant and topic metadata"),
+        },
       },
       async ({
         roomId,
@@ -2086,29 +2108,31 @@ const mcpHandler = createMcpHandler(
       },
     );
 
-    server.tool(
+    server.registerTool(
       "optimize_context_window",
-      "Intelligently select the most relevant context for token-limited requests. Deducts 5 credits.",
       {
-        roomId: z.string().describe("Room/conversation ID"),
-        maxTokens: z
-          .number()
-          .int()
-          .min(100)
-          .max(100000)
-          .describe("Token budget for context"),
-        query: z
-          .string()
-          .optional()
-          .describe("Current user query for relevance scoring"),
-        preserveRecent: z
-          .number()
-          .int()
-          .min(1)
-          .max(50)
-          .optional()
-          .default(5)
-          .describe("Always include N recent messages"),
+        description: "Intelligently select the most relevant context for token-limited requests. Deducts 5 credits.",
+        inputSchema: {
+          roomId: z.string().describe("Room/conversation ID"),
+          maxTokens: z
+            .number()
+            .int()
+            .min(100)
+            .max(100000)
+            .describe("Token budget for context"),
+          query: z
+            .string()
+            .optional()
+            .describe("Current user query for relevance scoring"),
+          preserveRecent: z
+            .number()
+            .int()
+            .min(1)
+            .max(50)
+            .optional()
+            .default(5)
+            .describe("Always include N recent messages"),
+        },
       },
       async ({ roomId, maxTokens, query, preserveRecent = 5 }) => {
         try {
@@ -2250,22 +2274,24 @@ const mcpHandler = createMcpHandler(
       },
     );
 
-    server.tool(
+    server.registerTool(
       "export_conversation",
-      "Export conversation history in various formats (json, markdown, txt). Deducts 5 credits.",
       {
-        conversationId: z.string().describe("Conversation ID to export"),
-        format: z.enum(["json", "markdown", "txt"]).describe("Export format"),
-        includeMemories: z
-          .boolean()
-          .optional()
-          .default(false)
-          .describe("Include related memories"),
-        includeMetadata: z
-          .boolean()
-          .optional()
-          .default(true)
-          .describe("Include conversation metadata"),
+        description: "Export conversation history in various formats (json, markdown, txt). Deducts 5 credits.",
+        inputSchema: {
+          conversationId: z.string().describe("Conversation ID to export"),
+          format: z.enum(["json", "markdown", "txt"]).describe("Export format"),
+          includeMemories: z
+            .boolean()
+            .optional()
+            .default(false)
+            .describe("Include related memories"),
+          includeMetadata: z
+            .boolean()
+            .optional()
+            .default(true)
+            .describe("Include conversation metadata"),
+        },
       },
       async ({ conversationId, format }) => {
         try {
@@ -2400,26 +2426,28 @@ const mcpHandler = createMcpHandler(
       },
     );
 
-    server.tool(
+    server.registerTool(
       "clone_conversation",
-      "Duplicate a conversation with optional modifications. Deducts 2 credits.",
       {
-        conversationId: z.string().describe("Source conversation ID"),
-        newTitle: z
-          .string()
-          .optional()
-          .describe("New title (defaults to 'Original (Copy)')"),
-        preserveMessages: z
-          .boolean()
-          .optional()
-          .default(true)
-          .describe("Copy all messages"),
-        preserveMemories: z
-          .boolean()
-          .optional()
-          .default(false)
-          .describe("Copy related memories"),
-        newModel: z.string().optional().describe("Change model (optional)"),
+        description: "Duplicate a conversation with optional modifications. Deducts 2 credits.",
+        inputSchema: {
+          conversationId: z.string().describe("Source conversation ID"),
+          newTitle: z
+            .string()
+            .optional()
+            .describe("New title (defaults to 'Original (Copy)')"),
+          preserveMessages: z
+            .boolean()
+            .optional()
+            .default(true)
+            .describe("Copy all messages"),
+          preserveMemories: z
+            .boolean()
+            .optional()
+            .default(false)
+            .describe("Copy related memories"),
+          newModel: z.string().optional().describe("Change model (optional)"),
+        },
       },
       async ({
         conversationId,
@@ -2566,24 +2594,26 @@ const mcpHandler = createMcpHandler(
       },
     );
 
-    server.tool(
+    server.registerTool(
       "analyze_memory_patterns",
-      "Analyze user/org memory patterns for insights (topics, sentiment, entities, timeline). Deducts 20 credits.",
       {
-        analysisType: z
-          .enum(["topics", "sentiment", "entities", "timeline"])
-          .describe("Type of analysis to perform"),
-        timeRange: z
-          .object({
-            from: z.string().describe("ISO date string"),
-            to: z.string().describe("ISO date string"),
-          })
-          .optional()
-          .describe("Time range for analysis"),
-        groupBy: z
-          .enum(["day", "week", "month"])
-          .optional()
-          .describe("Grouping for timeline analysis"),
+        description: "Analyze user/org memory patterns for insights (topics, sentiment, entities, timeline). Deducts 20 credits.",
+        inputSchema: {
+          analysisType: z
+            .enum(["topics", "sentiment", "entities", "timeline"])
+            .describe("Type of analysis to perform"),
+          timeRange: z
+            .object({
+              from: z.string().describe("ISO date string"),
+              to: z.string().describe("ISO date string"),
+            })
+            .optional()
+            .describe("Time range for analysis"),
+          groupBy: z
+            .enum(["day", "week", "month"])
+            .optional()
+            .describe("Grouping for timeline analysis"),
+        },
       },
       async ({ analysisType }) => {
         try {
@@ -2718,31 +2748,33 @@ const mcpHandler = createMcpHandler(
     );
 
     // Tool 16: Chat with Agent - Direct agent conversation
-    server.tool(
+    server.registerTool(
       "chat_with_agent",
-      "Send a message to your deployed ElizaOS agent and receive a response. Supports streaming via SSE. Charges $0.0001-$0.01 based on token usage.",
       {
-        message: z
-          .string()
-          .min(1)
-          .max(4000)
-          .describe("Message to send to the agent"),
-        roomId: z
-          .string()
-          .uuid()
-          .optional()
-          .describe(
-            "Existing conversation room ID (creates new if not provided)",
-          ),
-        entityId: z
-          .string()
-          .optional()
-          .describe("User identifier (defaults to authenticated user)"),
-        streaming: z
-          .boolean()
-          .optional()
-          .default(false)
-          .describe("Enable streaming response via SSE"),
+        description: "Send a message to your deployed ElizaOS agent and receive a response. Supports streaming via SSE. Charges $0.0001-$0.01 based on token usage.",
+        inputSchema: {
+          message: z
+            .string()
+            .min(1)
+            .max(4000)
+            .describe("Message to send to the agent"),
+          roomId: z
+            .string()
+            .uuid()
+            .optional()
+            .describe(
+              "Existing conversation room ID (creates new if not provided)",
+            ),
+          entityId: z
+            .string()
+            .optional()
+            .describe("User identifier (defaults to authenticated user)"),
+          streaming: z
+            .boolean()
+            .optional()
+            .default(false)
+            .describe("Enable streaming response via SSE"),
+        },
       },
       async ({ message, roomId, entityId, streaming = false }) => {
         try {
@@ -2886,18 +2918,20 @@ const mcpHandler = createMcpHandler(
     );
 
     // Tool 17: List Agents
-    server.tool(
+    server.registerTool(
       "list_agents",
-      "List all available agents, characters, and deployed ElizaOS instances. FREE tool.",
       {
-        filters: z
-          .object({
-            deployed: z.boolean().optional(),
-            template: z.boolean().optional(),
-            owned: z.boolean().optional(),
-          })
-          .optional(),
-        includeStats: z.boolean().optional().default(false),
+        description: "List all available agents, characters, and deployed ElizaOS instances. FREE tool.",
+        inputSchema: {
+          filters: z
+            .object({
+              deployed: z.boolean().optional(),
+              template: z.boolean().optional(),
+              owned: z.boolean().optional(),
+            })
+            .optional(),
+          includeStats: z.boolean().optional().default(false),
+        },
       },
       async ({ filters, includeStats = false }) => {
         try {
@@ -2951,11 +2985,13 @@ const mcpHandler = createMcpHandler(
     );
 
     // Tool 18: Subscribe Agent Events
-    server.tool(
+    server.registerTool(
       "subscribe_agent_events",
-      "Get SSE stream URL for real-time agent events. FREE tool.",
       {
-        roomId: z.string().uuid(),
+        description: "Get SSE stream URL for real-time agent events. FREE tool.",
+        inputSchema: {
+          roomId: z.string().uuid(),
+        },
       },
       async ({ roomId }) => {
         try {
@@ -3010,11 +3046,13 @@ const mcpHandler = createMcpHandler(
     );
 
     // Tool 19: Stream Credit Updates
-    server.tool(
+    server.registerTool(
       "stream_credit_updates",
-      "Get SSE stream URL for real-time credit updates. FREE tool.",
       {
-        includeTransactions: z.boolean().optional().default(false),
+        description: "Get SSE stream URL for real-time credit updates. FREE tool.",
+        inputSchema: {
+          includeTransactions: z.boolean().optional().default(false),
+        },
       },
       async ({ includeTransactions = false }) => {
         try {
@@ -3065,14 +3103,16 @@ const mcpHandler = createMcpHandler(
     );
 
     // Tool 20: List Containers
-    server.tool(
+    server.registerTool(
       "list_containers",
-      "List all deployed containers with status. FREE tool.",
       {
-        status: z
-          .enum(["running", "stopped", "failed", "deploying"])
-          .optional(),
-        includeMetrics: z.boolean().optional().default(false),
+        description: "List all deployed containers with status. FREE tool.",
+        inputSchema: {
+          status: z
+            .enum(["running", "stopped", "failed", "deploying"])
+            .optional(),
+          includeMetrics: z.boolean().optional().default(false),
+        },
       },
       async ({ status }) => {
         try {
