@@ -63,7 +63,7 @@ interface AgentInfo {
 }
 
 interface ElizaChatInterfaceProps {
-  onMessageSent?: () => void;
+  onMessageSent?: () => void | Promise<void>;
 }
 
 export function ElizaChatInterface({ onMessageSent }: ElizaChatInterfaceProps) {

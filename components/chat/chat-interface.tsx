@@ -59,21 +59,105 @@ export function ChatInterface({
   const router = useRouter();
   const { login } = usePrivy();
   const [messageCount, setMessageCount] = useState(session?.messageCount || 0);
+  const [isLoadingSessionData, setIsLoadingSessionData] = useState(false);
   const { setSelectedCharacterId, setAnonymousSessionToken, loadRooms, rooms, setRoomId, roomId } = useChatStore();
   const isAnonymous = !user && !!session;
   const [isInitializingRoom, setIsInitializingRoom] = useState(false);
   
+  // CRITICAL: Fetch the LATEST session data from server on mount and when token changes
+  // This ensures the message count is accurate after page reload, not stale from SSR props
+  useEffect(() => {
+    if (!sessionTokenFromUrl || user) {
+      // No anonymous session or user is authenticated - skip
+      return;
+    }
+
+    const fetchLatestSessionData = async () => {
+      setIsLoadingSessionData(true);
+      try {
+        console.log("[ChatInterface] 🔄 Fetching latest session data from server...");
+        const response = await fetch(`/api/anonymous-session?token=${sessionTokenFromUrl}`);
+        
+        if (response.ok) {
+          const data = await response.json();
+          if (data.success && data.session) {
+            const serverCount = data.session.message_count;
+            console.log("[ChatInterface] ✅ Server session data:", {
+              serverCount,
+              currentLocalCount: messageCount,
+              willUpdate: serverCount !== messageCount,
+            });
+            
+            // Only update if server has a different (higher) count
+            // This ensures we don't overwrite local increments that haven't synced yet
+            if (serverCount > messageCount) {
+              setMessageCount(serverCount);
+              console.log("[ChatInterface] 📊 Updated message count from server:", serverCount);
+            }
+          }
+        } else {
+          console.warn("[ChatInterface] ⚠️ Failed to fetch session data:", response.status);
+        }
+      } catch (error) {
+        console.error("[ChatInterface] ❌ Error fetching session data:", error);
+      } finally {
+        setIsLoadingSessionData(false);
+      }
+    };
+
+    // Fetch immediately on mount
+    fetchLatestSessionData();
+  }, [sessionTokenFromUrl, user]); // Only re-run if token changes or auth state changes
+  
   // Callback to increment message count when a message is sent successfully
   // This is called from ElizaChatInterface after a successful message
-  const onMessageSent = useCallback(() => {
-    if (isAnonymous) {
-      setMessageCount(prev => {
-        const newCount = prev + 1;
-        console.log("[ChatInterface] 📊 Message sent, incrementing count:", prev, "→", newCount);
-        return newCount;
-      });
+  // DIRECTLY calls the increment API to ensure the count is persisted to the database
+  const onMessageSent = useCallback(async () => {
+    if (isAnonymous && sessionTokenFromUrl) {
+      console.log("[ChatInterface] 📊 Message sent, incrementing count for token:", sessionTokenFromUrl.slice(0, 8) + "...");
+      
+      // DIRECTLY call the increment API to ensure the count is persisted
+      // This bypasses any potential issues in the server-side auth flow
+      try {
+        const incrementResponse = await fetch("/api/anonymous-session/increment", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ sessionToken: sessionTokenFromUrl }),
+        });
+        
+        if (incrementResponse.ok) {
+          const data = await incrementResponse.json();
+          console.log("[ChatInterface] ✅ Server increment successful:", {
+            previousCount: data.previousCount,
+            newCount: data.newCount,
+            messagesRemaining: data.messagesRemaining,
+          });
+          
+          // Update local state with the server's confirmed count
+          setMessageCount(data.newCount);
+        } else {
+          const errorData = await incrementResponse.json().catch(() => ({}));
+          console.error("[ChatInterface] ❌ Server increment failed:", incrementResponse.status, errorData);
+          
+          // Fall back to local increment if server fails
+          setMessageCount(prev => {
+            const newCount = prev + 1;
+            console.log("[ChatInterface] ⚠️ Falling back to local increment:", prev, "→", newCount);
+            return newCount;
+          });
+        }
+      } catch (error) {
+        console.error("[ChatInterface] ❌ Error calling increment API:", error);
+        
+        // Fall back to local increment if request fails
+        setMessageCount(prev => {
+          const newCount = prev + 1;
+          console.log("[ChatInterface] ⚠️ Falling back to local increment:", prev, "→", newCount);
+          return newCount;
+        });
+      }
     }
-  }, [isAnonymous]);
+  }, [isAnonymous, sessionTokenFromUrl]);
   const messagesRemaining = session
     ? session.messagesLimit - messageCount
     : Infinity;
