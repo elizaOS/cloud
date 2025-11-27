@@ -18,6 +18,7 @@ interface CharacterIntroPageProps {
   onSkip: () => void;
   source?: string;
   theme: AffiliateTheme;
+  isLoading?: boolean;
 }
 
 export function CharacterIntroPage({ 
@@ -26,9 +27,11 @@ export function CharacterIntroPage({
   onSkip,
   source,
   theme,
+  isLoading: parentLoading = false,
 }: CharacterIntroPageProps) {
   const [showEmailModal, setShowEmailModal] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
+  const isAnyLoading = isLoading || parentLoading;
 
   // Extract bio text
   const bioText = Array.isArray(character.bio) 

@@ -1,5 +1,6 @@
 "use client";
 
+import { useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { CharacterIntroPage } from "./character-intro-page";
 import type { UserCharacter } from "@/db/schemas";
@@ -22,28 +23,52 @@ export function CharacterIntroPageWrapper({
 }: CharacterIntroPageWrapperProps) {
   const router = useRouter();
   const searchParams = useSearchParams();
+  const [isCreatingSession, setIsCreatingSession] = useState(false);
 
   async function handleEmailSubmit(email: string) {
-    // Privy handles the auth in the modal
-    // After successful auth, redirect without intro parameter to show chat
     const params = new URLSearchParams();
     if (source) params.set("source", source);
 
     const queryString = params.toString();
     const newUrl = `/chat/${characterId}${queryString ? `?${queryString}` : ""}`;
 
-    // Navigate to chat interface (authenticated users don't need session param)
     router.push(newUrl);
   }
 
-  function handleSkip() {
-    // Use existing session from URL if available (from affiliate API)
-    // Otherwise use the one from props or create a new one
+  async function handleSkip() {
+    // Use existing session from URL or props if available
     const sessionFromUrl = searchParams.get("session");
-    const sessionId = sessionFromUrl || existingSessionId || crypto.randomUUID();
+    let sessionId = sessionFromUrl || existingSessionId;
 
-    // Remove intro=true parameter to show chat interface
-    // Always use /chat route - theming is dynamic based on source param
+    // If no existing session, CREATE one in the database
+    if (!sessionId) {
+      setIsCreatingSession(true);
+      try {
+        const response = await fetch("/api/affiliate/create-session", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ 
+            characterId,
+            source: source || "direct",
+          }),
+        });
+
+        if (response.ok) {
+          const data = await response.json();
+          sessionId = data.sessionToken;
+        } else {
+          // Fallback: generate UUID (won't have message tracking)
+          sessionId = crypto.randomUUID();
+        }
+      } catch (error) {
+        console.error("Failed to create session:", error);
+        sessionId = crypto.randomUUID();
+      } finally {
+        setIsCreatingSession(false);
+      }
+    }
+
+    // Navigate to chat with session
     router.push(`/chat/${characterId}?session=${sessionId}&source=${source || "direct"}`);
   }
 
@@ -54,6 +79,7 @@ export function CharacterIntroPageWrapper({
       onSkip={handleSkip}
       source={source}
       theme={theme}
+      isLoading={isCreatingSession}
     />
   );
 }
