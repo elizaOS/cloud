@@ -428,7 +428,7 @@ export function MCPsPageClient({ servers }: MCPsPageClientProps) {
                     style={{ fontFamily: "var(--font-roboto-mono)" }}
                     onClick={() =>
                       window.open(
-                        "https://docs.modelcontextprotocol.io",
+                        "https://modelcontextprotocol.io/introduction",
                         "_blank"
                       )
                     }
