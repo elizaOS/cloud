@@ -1,273 +1,596 @@
-import { createMcpHandler } from "mcp-handler";
+import { createPaidMcpHandler } from "x402-mcp";
 import { z } from "zod3";
 import type { NextRequest } from "next/server";
 import { NextResponse } from "next/server";
 
 export const maxDuration = 30;
 
-// Mock weather data for demo purposes
-// In production, you would integrate with a real weather API like OpenWeatherMap
-const mockWeatherData: Record<string, {
-  current: {
-    temp: number;
-    feels_like: number;
-    humidity: number;
-    wind_speed: number;
-    description: string;
-    icon: string;
-  };
-  forecast: Array<{
-    date: string;
-    high: number;
-    low: number;
-    description: string;
+// ============================================================================
+// Open-Meteo API Client (Free, no API key required)
+// https://open-meteo.com/
+// ============================================================================
+
+const GEOCODING_BASE = "https://geocoding-api.open-meteo.com/v1";
+const WEATHER_BASE = "https://api.open-meteo.com/v1";
+
+// Simple in-memory cache with TTL
+interface CacheEntry<T> {
+  data: T;
+  timestamp: number;
+}
+
+const cache = new Map<string, CacheEntry<unknown>>();
+const CACHE_TTL = 5 * 60 * 1000; // 5 minutes for weather data
+
+function getCached<T>(key: string): T | null {
+  const entry = cache.get(key) as CacheEntry<T> | undefined;
+  if (entry && Date.now() - entry.timestamp < CACHE_TTL) {
+    return entry.data;
+  }
+  cache.delete(key);
+  return null;
+}
+
+function setCache<T>(key: string, data: T): void {
+  cache.set(key, { data, timestamp: Date.now() });
+}
+
+// ============================================================================
+// API Types
+// ============================================================================
+
+interface GeocodingResult {
+  results?: Array<{
+    id: number;
+    name: string;
+    latitude: number;
+    longitude: number;
+    country: string;
+    country_code: string;
+    admin1?: string; // State/Province
+    timezone: string;
   }>;
-}> = {
-  "new york": {
-    current: { temp: 72, feels_like: 75, humidity: 65, wind_speed: 8, description: "Partly cloudy", icon: "⛅" },
-    forecast: [
-      { date: "Tomorrow", high: 75, low: 62, description: "Sunny" },
-      { date: "Day 3", high: 78, low: 65, description: "Clear" },
-      { date: "Day 4", high: 73, low: 60, description: "Cloudy" },
-      { date: "Day 5", high: 70, low: 58, description: "Rain" },
-    ],
-  },
-  "london": {
-    current: { temp: 59, feels_like: 57, humidity: 78, wind_speed: 12, description: "Overcast", icon: "☁️" },
-    forecast: [
-      { date: "Tomorrow", high: 61, low: 52, description: "Light rain" },
-      { date: "Day 3", high: 58, low: 50, description: "Rainy" },
-      { date: "Day 4", high: 62, low: 53, description: "Cloudy" },
-      { date: "Day 5", high: 65, low: 55, description: "Partly cloudy" },
-    ],
-  },
-  "tokyo": {
-    current: { temp: 82, feels_like: 88, humidity: 72, wind_speed: 5, description: "Humid", icon: "🌤️" },
-    forecast: [
-      { date: "Tomorrow", high: 84, low: 75, description: "Hot" },
-      { date: "Day 3", high: 86, low: 77, description: "Sunny" },
-      { date: "Day 4", high: 83, low: 74, description: "Thunderstorms" },
-      { date: "Day 5", high: 80, low: 72, description: "Cloudy" },
-    ],
-  },
-  "san francisco": {
-    current: { temp: 65, feels_like: 63, humidity: 70, wind_speed: 15, description: "Foggy", icon: "🌫️" },
-    forecast: [
-      { date: "Tomorrow", high: 68, low: 55, description: "Fog clearing" },
-      { date: "Day 3", high: 72, low: 58, description: "Sunny" },
-      { date: "Day 4", high: 70, low: 56, description: "Clear" },
-      { date: "Day 5", high: 67, low: 54, description: "Fog" },
-    ],
-  },
+}
+
+interface CurrentWeatherResponse {
+  latitude: number;
+  longitude: number;
+  timezone: string;
+  current: {
+    time: string;
+    temperature_2m: number;
+    relative_humidity_2m: number;
+    apparent_temperature: number;
+    precipitation: number;
+    weather_code: number;
+    wind_speed_10m: number;
+    wind_direction_10m: number;
+    wind_gusts_10m: number;
+    cloud_cover: number;
+    surface_pressure: number;
+    is_day: number;
+  };
+}
+
+interface ForecastResponse {
+  latitude: number;
+  longitude: number;
+  timezone: string;
+  daily: {
+    time: string[];
+    weather_code: number[];
+    temperature_2m_max: number[];
+    temperature_2m_min: number[];
+    precipitation_sum: number[];
+    precipitation_probability_max: number[];
+    wind_speed_10m_max: number[];
+    sunrise: string[];
+    sunset: string[];
+    uv_index_max: number[];
+  };
+}
+
+// ============================================================================
+// Weather Code Mapping (WMO codes)
+// ============================================================================
+
+const WEATHER_CODES: Record<number, { description: string; icon: string }> = {
+  0: { description: "Clear sky", icon: "☀️" },
+  1: { description: "Mainly clear", icon: "🌤️" },
+  2: { description: "Partly cloudy", icon: "⛅" },
+  3: { description: "Overcast", icon: "☁️" },
+  45: { description: "Foggy", icon: "🌫️" },
+  48: { description: "Depositing rime fog", icon: "🌫️" },
+  51: { description: "Light drizzle", icon: "🌧️" },
+  53: { description: "Moderate drizzle", icon: "🌧️" },
+  55: { description: "Dense drizzle", icon: "🌧️" },
+  56: { description: "Freezing drizzle", icon: "🌨️" },
+  57: { description: "Freezing drizzle", icon: "🌨️" },
+  61: { description: "Slight rain", icon: "🌧️" },
+  63: { description: "Moderate rain", icon: "🌧️" },
+  65: { description: "Heavy rain", icon: "🌧️" },
+  66: { description: "Freezing rain", icon: "🌨️" },
+  67: { description: "Heavy freezing rain", icon: "🌨️" },
+  71: { description: "Slight snow", icon: "🌨️" },
+  73: { description: "Moderate snow", icon: "🌨️" },
+  75: { description: "Heavy snow", icon: "❄️" },
+  77: { description: "Snow grains", icon: "🌨️" },
+  80: { description: "Slight rain showers", icon: "🌦️" },
+  81: { description: "Moderate rain showers", icon: "🌦️" },
+  82: { description: "Violent rain showers", icon: "⛈️" },
+  85: { description: "Slight snow showers", icon: "🌨️" },
+  86: { description: "Heavy snow showers", icon: "🌨️" },
+  95: { description: "Thunderstorm", icon: "⛈️" },
+  96: { description: "Thunderstorm with hail", icon: "⛈️" },
+  99: { description: "Thunderstorm with heavy hail", icon: "⛈️" },
 };
 
-// Default weather for unknown cities
-const defaultWeather = {
-  current: { temp: 70, feels_like: 70, humidity: 50, wind_speed: 10, description: "Clear", icon: "☀️" },
-  forecast: [
-    { date: "Tomorrow", high: 72, low: 60, description: "Sunny" },
-    { date: "Day 3", high: 74, low: 62, description: "Clear" },
-    { date: "Day 4", high: 71, low: 59, description: "Partly cloudy" },
-    { date: "Day 5", high: 69, low: 57, description: "Cloudy" },
-  ],
-};
+function getWeatherDescription(code: number): { description: string; icon: string } {
+  return WEATHER_CODES[code] || { description: "Unknown", icon: "❓" };
+}
 
-// Create MCP handler for Weather utilities
-const mcpHandler = createMcpHandler(
+// ============================================================================
+// API Functions
+// ============================================================================
+
+async function geocodeCity(city: string): Promise<GeocodingResult["results"]> {
+  const cacheKey = `geo:${city.toLowerCase()}`;
+  const cached = getCached<GeocodingResult["results"]>(cacheKey);
+  if (cached) return cached;
+
+  const url = `${GEOCODING_BASE}/search?name=${encodeURIComponent(city)}&count=5&language=en&format=json`;
+  const response = await fetch(url);
+  
+  if (!response.ok) {
+    throw new Error(`Geocoding failed: ${response.statusText}`);
+  }
+  
+  const data = await response.json() as GeocodingResult;
+  const results = data.results || [];
+  
+  setCache(cacheKey, results);
+  return results;
+}
+
+async function getCurrentWeather(
+  lat: number, 
+  lon: number, 
+  units: "celsius" | "fahrenheit"
+): Promise<CurrentWeatherResponse> {
+  const cacheKey = `current:${lat}:${lon}:${units}`;
+  const cached = getCached<CurrentWeatherResponse>(cacheKey);
+  if (cached) return cached;
+
+  const tempUnit = units === "fahrenheit" ? "fahrenheit" : "celsius";
+  const windUnit = units === "fahrenheit" ? "mph" : "kmh";
+  
+  const params = new URLSearchParams({
+    latitude: lat.toString(),
+    longitude: lon.toString(),
+    current: [
+      "temperature_2m",
+      "relative_humidity_2m",
+      "apparent_temperature",
+      "precipitation",
+      "weather_code",
+      "wind_speed_10m",
+      "wind_direction_10m",
+      "wind_gusts_10m",
+      "cloud_cover",
+      "surface_pressure",
+      "is_day",
+    ].join(","),
+    temperature_unit: tempUnit,
+    wind_speed_unit: windUnit,
+    timezone: "auto",
+  });
+
+  const url = `${WEATHER_BASE}/forecast?${params}`;
+  const response = await fetch(url);
+  
+  if (!response.ok) {
+    throw new Error(`Weather API failed: ${response.statusText}`);
+  }
+  
+  const data = await response.json() as CurrentWeatherResponse;
+  setCache(cacheKey, data);
+  return data;
+}
+
+async function getForecast(
+  lat: number, 
+  lon: number, 
+  days: number,
+  units: "celsius" | "fahrenheit"
+): Promise<ForecastResponse> {
+  const cacheKey = `forecast:${lat}:${lon}:${days}:${units}`;
+  const cached = getCached<ForecastResponse>(cacheKey);
+  if (cached) return cached;
+
+  const tempUnit = units === "fahrenheit" ? "fahrenheit" : "celsius";
+  const windUnit = units === "fahrenheit" ? "mph" : "kmh";
+  
+  const params = new URLSearchParams({
+    latitude: lat.toString(),
+    longitude: lon.toString(),
+    daily: [
+      "weather_code",
+      "temperature_2m_max",
+      "temperature_2m_min",
+      "precipitation_sum",
+      "precipitation_probability_max",
+      "wind_speed_10m_max",
+      "sunrise",
+      "sunset",
+      "uv_index_max",
+    ].join(","),
+    temperature_unit: tempUnit,
+    wind_speed_unit: windUnit,
+    timezone: "auto",
+    forecast_days: days.toString(),
+  });
+
+  const url = `${WEATHER_BASE}/forecast?${params}`;
+  const response = await fetch(url);
+  
+  if (!response.ok) {
+    throw new Error(`Forecast API failed: ${response.statusText}`);
+  }
+  
+  const data = await response.json() as ForecastResponse;
+  setCache(cacheKey, data);
+  return data;
+}
+
+// ============================================================================
+// Helper Functions
+// ============================================================================
+
+function getWindDirection(degrees: number): string {
+  const directions = ["N", "NNE", "NE", "ENE", "E", "ESE", "SE", "SSE", "S", "SSW", "SW", "WSW", "W", "WNW", "NW", "NNW"];
+  const index = Math.round(degrees / 22.5) % 16;
+  return directions[index];
+}
+
+function formatLocation(result: NonNullable<GeocodingResult["results"]>[0]): string {
+  const parts = [result.name];
+  if (result.admin1) parts.push(result.admin1);
+  parts.push(result.country);
+  return parts.join(", ");
+}
+
+// ============================================================================
+// x402 Paid MCP Handler
+// ============================================================================
+
+const RECIPIENT_WALLET = (process.env.X402_RECIPIENT_WALLET || process.env.CDP_WALLET_ADDRESS || "0x0000000000000000000000000000000000000000") as `0x${string}`;
+
+const handler = createPaidMcpHandler(
   (server) => {
-    // Tool 1: Get Current Weather
-    server.tool(
+    // ========================================================================
+    // Tool 1: Get Current Weather - $0.0001 per request
+    // ========================================================================
+    server.paidTool(
       "get_current_weather",
-      "Get the current weather conditions for a location. x402 payment: $0.001 per request.",
+      "Get real-time current weather conditions for any location worldwide. Data from Open-Meteo.",
+      { price: 0.0001 },
       {
         city: z
           .string()
-          .describe("City name (e.g., 'New York', 'London', 'Tokyo')"),
+          .describe("City name (e.g., 'New York', 'London', 'Tokyo', 'Paris')"),
         units: z
           .enum(["fahrenheit", "celsius"])
           .optional()
           .default("fahrenheit")
           .describe("Temperature units"),
       },
+      {},
       async ({ city, units = "fahrenheit" }) => {
         try {
-          const cityKey = city.toLowerCase();
-          const weather = mockWeatherData[cityKey] || defaultWeather;
-          
-          const convertTemp = (temp: number) => {
-            if (units === "celsius") {
-              return Math.round((temp - 32) * 5 / 9);
-            }
-            return temp;
-          };
+          // Geocode the city
+          const locations = await geocodeCity(city);
+          if (!locations || locations.length === 0) {
+            return {
+              content: [{
+                type: "text" as const,
+                text: JSON.stringify({
+                  error: `City '${city}' not found`,
+                  suggestion: "Try a more specific location or check spelling",
+                }, null, 2),
+              }],
+              isError: true,
+            };
+          }
 
-          const result = {
-            city: city,
-            units: units,
-            current: {
-              temperature: convertTemp(weather.current.temp),
-              feelsLike: convertTemp(weather.current.feels_like),
-              humidity: weather.current.humidity,
-              windSpeed: weather.current.wind_speed,
-              description: weather.current.description,
-              icon: weather.current.icon,
-            },
-            lastUpdated: new Date().toISOString(),
-            // Note: In production, this would show actual x402 payment status
-            x402: {
-              charged: true,
-              amount: "$0.001",
-              txHash: `demo_${Date.now().toString(16)}`,
-            },
-          };
+          const location = locations[0];
+          const weather = await getCurrentWeather(location.latitude, location.longitude, units);
+          const { description, icon } = getWeatherDescription(weather.current.weather_code);
 
           return {
-            content: [
-              {
-                type: "text" as const,
-                text: JSON.stringify(result, null, 2),
-              },
-            ],
+            content: [{
+              type: "text" as const,
+              text: JSON.stringify({
+                location: {
+                  name: formatLocation(location),
+                  coordinates: { lat: location.latitude, lon: location.longitude },
+                  timezone: location.timezone,
+                },
+                current: {
+                  temperature: Math.round(weather.current.temperature_2m),
+                  feelsLike: Math.round(weather.current.apparent_temperature),
+                  humidity: weather.current.relative_humidity_2m,
+                  precipitation: weather.current.precipitation,
+                  cloudCover: weather.current.cloud_cover,
+                  pressure: Math.round(weather.current.surface_pressure),
+                  condition: description,
+                  icon,
+                  isDay: weather.current.is_day === 1,
+                },
+                wind: {
+                  speed: Math.round(weather.current.wind_speed_10m),
+                  gusts: Math.round(weather.current.wind_gusts_10m),
+                  direction: getWindDirection(weather.current.wind_direction_10m),
+                  degrees: weather.current.wind_direction_10m,
+                },
+                units: {
+                  temperature: units === "fahrenheit" ? "°F" : "°C",
+                  wind: units === "fahrenheit" ? "mph" : "km/h",
+                  precipitation: "mm",
+                  pressure: "hPa",
+                },
+                source: "Open-Meteo",
+                timestamp: new Date().toISOString(),
+              }, null, 2),
+            }],
           };
         } catch (error) {
           return {
-            content: [
-              {
-                type: "text" as const,
-                text: JSON.stringify({
-                  error: error instanceof Error ? error.message : "Failed to get weather",
-                }, null, 2),
-              },
-            ],
+            content: [{
+              type: "text" as const,
+              text: JSON.stringify({
+                error: error instanceof Error ? error.message : "Failed to get weather",
+              }, null, 2),
+            }],
             isError: true,
           };
         }
       }
     );
 
-    // Tool 2: Get Weather Forecast
-    server.tool(
+    // ========================================================================
+    // Tool 2: Get Weather Forecast - $0.0002 per request
+    // ========================================================================
+    server.paidTool(
       "get_weather_forecast",
-      "Get a 5-day weather forecast for a location. x402 payment: $0.001 per request.",
+      "Get multi-day weather forecast including highs, lows, precipitation, and UV index. Data from Open-Meteo.",
+      { price: 0.0002 },
       {
-        city: z
-          .string()
-          .describe("City name"),
+        city: z.string().describe("City name"),
+        days: z
+          .number()
+          .int()
+          .min(1)
+          .max(16)
+          .optional()
+          .default(7)
+          .describe("Number of forecast days (1-16)"),
         units: z
           .enum(["fahrenheit", "celsius"])
           .optional()
           .default("fahrenheit")
           .describe("Temperature units"),
       },
-      async ({ city, units = "fahrenheit" }) => {
+      {},
+      async ({ city, days = 7, units = "fahrenheit" }) => {
         try {
-          const cityKey = city.toLowerCase();
-          const weather = mockWeatherData[cityKey] || defaultWeather;
-          
-          const convertTemp = (temp: number) => {
-            if (units === "celsius") {
-              return Math.round((temp - 32) * 5 / 9);
-            }
-            return temp;
-          };
+          const locations = await geocodeCity(city);
+          if (!locations || locations.length === 0) {
+            return {
+              content: [{
+                type: "text" as const,
+                text: JSON.stringify({ error: `City '${city}' not found` }, null, 2),
+              }],
+              isError: true,
+            };
+          }
 
-          const forecast = weather.forecast.map((day) => ({
-            date: day.date,
-            high: convertTemp(day.high),
-            low: convertTemp(day.low),
-            description: day.description,
+          const location = locations[0];
+          const forecast = await getForecast(location.latitude, location.longitude, days, units);
+
+          const dailyForecast = forecast.daily.time.map((date, i) => {
+            const { description, icon } = getWeatherDescription(forecast.daily.weather_code[i]);
+            return {
+              date,
+              dayName: new Date(date).toLocaleDateString("en-US", { weekday: "long" }),
+              high: Math.round(forecast.daily.temperature_2m_max[i]),
+              low: Math.round(forecast.daily.temperature_2m_min[i]),
+              condition: description,
+              icon,
+              precipitation: {
+                amount: forecast.daily.precipitation_sum[i],
+                probability: forecast.daily.precipitation_probability_max[i],
+              },
+              wind: Math.round(forecast.daily.wind_speed_10m_max[i]),
+              uvIndex: forecast.daily.uv_index_max[i],
+              sunrise: forecast.daily.sunrise[i].split("T")[1],
+              sunset: forecast.daily.sunset[i].split("T")[1],
+            };
+          });
+
+          return {
+            content: [{
+              type: "text" as const,
+              text: JSON.stringify({
+                location: {
+                  name: formatLocation(location),
+                  coordinates: { lat: location.latitude, lon: location.longitude },
+                  timezone: location.timezone,
+                },
+                forecast: dailyForecast,
+                units: {
+                  temperature: units === "fahrenheit" ? "°F" : "°C",
+                  wind: units === "fahrenheit" ? "mph" : "km/h",
+                  precipitation: "mm",
+                },
+                source: "Open-Meteo",
+                timestamp: new Date().toISOString(),
+              }, null, 2),
+            }],
+          };
+        } catch (error) {
+          return {
+            content: [{
+              type: "text" as const,
+              text: JSON.stringify({
+                error: error instanceof Error ? error.message : "Failed to get forecast",
+              }, null, 2),
+            }],
+            isError: true,
+          };
+        }
+      }
+    );
+
+    // ========================================================================
+    // Tool 3: Compare Weather - $0.0002 per request
+    // ========================================================================
+    server.paidTool(
+      "compare_weather",
+      "Compare current weather conditions between multiple cities side by side.",
+      { price: 0.0002 },
+      {
+        cities: z
+          .array(z.string())
+          .min(2)
+          .max(5)
+          .describe("List of cities to compare (2-5 cities)"),
+        units: z
+          .enum(["fahrenheit", "celsius"])
+          .optional()
+          .default("fahrenheit")
+          .describe("Temperature units"),
+      },
+      {},
+      async ({ cities, units = "fahrenheit" }) => {
+        try {
+          const results = await Promise.all(
+            cities.map(async (city) => {
+              try {
+                const locations = await geocodeCity(city);
+                if (!locations || locations.length === 0) {
+                  return { city, error: "Not found" };
+                }
+                const location = locations[0];
+                const weather = await getCurrentWeather(location.latitude, location.longitude, units);
+                const { description, icon } = getWeatherDescription(weather.current.weather_code);
+                
+                return {
+                  city: formatLocation(location),
+                  temperature: Math.round(weather.current.temperature_2m),
+                  feelsLike: Math.round(weather.current.apparent_temperature),
+                  humidity: weather.current.relative_humidity_2m,
+                  wind: Math.round(weather.current.wind_speed_10m),
+                  condition: description,
+                  icon,
+                };
+              } catch {
+                return { city, error: "Failed to fetch" };
+              }
+            })
+          );
+
+          // Sort by temperature
+          const validResults = results.filter(r => !('error' in r));
+          validResults.sort((a, b) => (b as { temperature: number }).temperature - (a as { temperature: number }).temperature);
+
+          return {
+            content: [{
+              type: "text" as const,
+              text: JSON.stringify({
+                comparison: results,
+                sortedByTemperature: validResults,
+                units: {
+                  temperature: units === "fahrenheit" ? "°F" : "°C",
+                  wind: units === "fahrenheit" ? "mph" : "km/h",
+                },
+                source: "Open-Meteo",
+                timestamp: new Date().toISOString(),
+              }, null, 2),
+            }],
+          };
+        } catch (error) {
+          return {
+            content: [{
+              type: "text" as const,
+              text: JSON.stringify({
+                error: error instanceof Error ? error.message : "Failed to compare weather",
+              }, null, 2),
+            }],
+            isError: true,
+          };
+        }
+      }
+    );
+
+    // ========================================================================
+    // Tool 4: Search Location - $0.0001 per request
+    // ========================================================================
+    server.paidTool(
+      "search_location",
+      "Search for a location to get coordinates and timezone information for weather queries.",
+      { price: 0.0001 },
+      {
+        query: z.string().describe("Location search query"),
+      },
+      {},
+      async ({ query }) => {
+        try {
+          const locations = await geocodeCity(query);
+          
+          if (!locations || locations.length === 0) {
+            return {
+              content: [{
+                type: "text" as const,
+                text: JSON.stringify({
+                  error: `No locations found for '${query}'`,
+                  suggestion: "Try a different spelling or more specific location",
+                }, null, 2),
+              }],
+              isError: true,
+            };
+          }
+
+          const results = locations.map(loc => ({
+            name: loc.name,
+            fullName: formatLocation(loc),
+            country: loc.country,
+            countryCode: loc.country_code,
+            state: loc.admin1 || null,
+            coordinates: { lat: loc.latitude, lon: loc.longitude },
+            timezone: loc.timezone,
           }));
 
           return {
-            content: [
-              {
-                type: "text" as const,
-                text: JSON.stringify({
-                  city,
-                  units,
-                  forecast,
-                  generatedAt: new Date().toISOString(),
-                  x402: {
-                    charged: true,
-                    amount: "$0.001",
-                  },
-                }, null, 2),
-              },
-            ],
+            content: [{
+              type: "text" as const,
+              text: JSON.stringify({
+                query,
+                results,
+                count: results.length,
+                tip: "Use the full location name for more accurate weather results",
+                source: "Open-Meteo Geocoding",
+                timestamp: new Date().toISOString(),
+              }, null, 2),
+            }],
           };
         } catch (error) {
           return {
-            content: [
-              {
-                type: "text" as const,
-                text: JSON.stringify({
-                  error: error instanceof Error ? error.message : "Failed to get forecast",
-                }, null, 2),
-              },
-            ],
-            isError: true,
-          };
-        }
-      }
-    );
-
-    // Tool 3: Get Weather Alerts
-    server.tool(
-      "get_weather_alerts",
-      "Check for active weather alerts in a region. x402 payment: $0.001 per request.",
-      {
-        city: z.string().describe("City name"),
-        severity: z
-          .enum(["all", "warning", "watch", "advisory"])
-          .optional()
-          .default("all")
-          .describe("Filter by alert severity"),
-      },
-      async ({ city, severity = "all" }) => {
-        try {
-          // Mock alerts - in production, integrate with NWS or similar
-          const mockAlerts = [
-            {
-              id: "alert-001",
-              severity: "advisory",
-              event: "Heat Advisory",
-              headline: "Heat Advisory in effect until 8 PM",
-              description: "High temperatures expected. Stay hydrated and limit outdoor activities.",
-              expires: new Date(Date.now() + 6 * 60 * 60 * 1000).toISOString(),
-            },
-          ];
-
-          const filteredAlerts = severity === "all" 
-            ? mockAlerts 
-            : mockAlerts.filter((a) => a.severity === severity);
-
-          return {
-            content: [
-              {
-                type: "text" as const,
-                text: JSON.stringify({
-                  city,
-                  activeAlerts: filteredAlerts.length,
-                  alerts: filteredAlerts,
-                  checkedAt: new Date().toISOString(),
-                  x402: {
-                    charged: true,
-                    amount: "$0.001",
-                  },
-                }, null, 2),
-              },
-            ],
-          };
-        } catch (error) {
-          return {
-            content: [
-              {
-                type: "text" as const,
-                text: JSON.stringify({
-                  error: error instanceof Error ? error.message : "Failed to get alerts",
-                }, null, 2),
-              },
-            ],
+            content: [{
+              type: "text" as const,
+              text: JSON.stringify({
+                error: error instanceof Error ? error.message : "Search failed",
+              }, null, 2),
+            }],
             isError: true,
           };
         }
@@ -275,40 +598,77 @@ const mcpHandler = createMcpHandler(
     );
   },
   {},
-  { basePath: "/api/mcp/demos" }
+  {
+    recipient: RECIPIENT_WALLET,
+    network: "base",
+    facilitator: {
+      url: "https://x402.org/facilitator",
+    },
+  }
 );
 
-// GET handler - return server info (no auth required)
+// ============================================================================
+// Route Handlers
+// ============================================================================
+
 export async function GET() {
   return NextResponse.json({
     name: "Weather MCP",
-    version: "1.0.0",
-    description: "Real-time weather data, forecasts, and alerts. Supports both credits and x402 micropayments.",
+    version: "2.0.0",
+    description: "Real-time weather data, forecasts, and location search powered by Open-Meteo API with x402 micropayments.",
     transport: ["http", "sse"],
     tools: [
-      { name: "get_current_weather", description: "Get current weather conditions", cost: "2 credits" },
-      { name: "get_weather_forecast", description: "Get 5-day forecast", cost: "3 credits" },
-      { name: "get_weather_alerts", description: "Check active weather alerts", cost: "1 credit" },
-    ],
-    pricing: { 
-      type: "credits",
-      description: "1-3 credits per request",
-      creditsPerRequest: "1-3",
-      alternativePayment: {
-        type: "x402",
-        pricePerRequest: "$0.001",
-        network: "base",
-        currency: "USDC",
+      { 
+        name: "get_current_weather", 
+        description: "Get current weather conditions for any city",
+        price: "$0.0001",
+        example: { city: "New York", units: "fahrenheit" }
       },
+      { 
+        name: "get_weather_forecast", 
+        description: "Get multi-day forecast (up to 16 days)",
+        price: "$0.0002",
+        example: { city: "London", days: 7 }
+      },
+      { 
+        name: "compare_weather", 
+        description: "Compare weather between multiple cities",
+        price: "$0.0002",
+        example: { cities: ["Tokyo", "New York", "London"] }
+      },
+      { 
+        name: "search_location", 
+        description: "Search for location coordinates and timezone",
+        price: "$0.0001",
+        example: { query: "San Francisco" }
+      },
+    ],
+    payment: {
+      protocol: "x402",
+      network: "base",
+      currency: "USDC",
+      recipient: RECIPIENT_WALLET,
+      priceRange: "$0.0001 - $0.0002 per request",
     },
-    x402Enabled: true,
+    dataSource: {
+      provider: "Open-Meteo",
+      type: "real-time",
+      cacheTime: "5 minutes",
+      coverage: "Global",
+    },
+    features: [
+      "Current conditions",
+      "16-day forecasts",
+      "Precipitation probability",
+      "UV index",
+      "Sunrise/sunset times",
+      "Wind speed and direction",
+      "Global location search",
+    ],
     status: "live",
   });
 }
 
-// POST handler - handle MCP protocol
-// In production, x402 payment verification would happen here
 export async function POST(req: NextRequest) {
-  return await mcpHandler(req as unknown as Request);
+  return await handler(req as unknown as Request);
 }
-
