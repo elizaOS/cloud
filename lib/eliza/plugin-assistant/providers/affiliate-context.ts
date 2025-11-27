@@ -1,44 +1,5 @@
 import type { IAgentRuntime, Memory, Provider, State } from "@elizaos/core";
 
-// Clone Your Crush specific image generation configuration
-interface ImageGenerationConfig {
-  enabled: boolean;
-  frequency: "always" | "frequent" | "occasional" | "rare";
-  styleGuide: string[];
-  triggerKeywords: string[];
-  imagePromptPrefix: string;
-}
-
-const CLONE_YOUR_CRUSH_IMAGE_CONFIG: ImageGenerationConfig = {
-  enabled: true,
-  frequency: "frequent",
-  styleGuide: [
-    "selfie-style photo of me",
-    "romantic, intimate lighting",
-    "soft focus, dreamy aesthetic",
-    "matching my avatar's appearance exactly",
-    "warm, inviting expression",
-    "casual, personal setting",
-  ],
-  triggerKeywords: [
-    "what do you look like",
-    "show me",
-    "see you",
-    "picture",
-    "photo",
-    "selfie",
-    "how are you",
-    "miss you",
-    "thinking of you",
-    "good morning",
-    "good night",
-    "hey",
-    "hi",
-    "hello",
-  ],
-  imagePromptPrefix: "Generate a romantic, intimate selfie-style image of",
-};
-
 // Vibe personality definitions with concrete behavioral instructions
 const VIBE_PERSONALITIES: Record<string, {
   description: string;
@@ -181,19 +142,10 @@ export const affiliateContextProvider: Provider = {
     try {
       const character = runtime.character;
       
-      // Get affiliate data from character settings (populated by character loader)
+      // Get affiliate data from character settings
       const affiliate = character.settings?.affiliateData as Record<string, unknown> | undefined;
       
-      // DEBUG: Log character settings to diagnose affiliate context issues
-      console.log("[Affiliate Context Provider] DEBUG - character.settings:", JSON.stringify(character.settings, null, 2));
-      console.log("[Affiliate Context Provider] DEBUG - affiliateData:", JSON.stringify(affiliate, null, 2));
-      
-      // Extract lore from affiliate data (contains full social media posts)
-      const loreFromAffiliate = affiliate?.lore as string[] | undefined;
-      
       if (!affiliate) {
-        // Not an affiliate character - return empty
-        console.log("[Affiliate Context Provider] No affiliate data found - returning empty context");
         return {
           values: { affiliateContext: "" },
           data: {},
@@ -206,173 +158,51 @@ export const affiliateContextProvider: Provider = {
       const backstory = affiliate.backstory as string | undefined;
       const source = affiliate.source as string | undefined;
       
-      // DEBUG: Log extracted values
-      console.log("[Affiliate Context Provider] DEBUG - source:", source, "vibe:", vibe, "isCloneYourCrush:", source === "clone-your-crush");
-      
       // Build context with strong personality instructions
       const contextLines: string[] = [];
       
-      // Add vibe-specific personality instructions
+      // Add vibe-specific personality instructions (CONCISE to save tokens)
       if (vibe && VIBE_PERSONALITIES[vibe]) {
         const vibeConfig = VIBE_PERSONALITIES[vibe];
-        
-        contextLines.push(`━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━`);
-        contextLines.push(`🎭 YOUR PERSONALITY VIBE: ${vibe.toUpperCase()}`);
-        contextLines.push(`━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━`);
-        contextLines.push(``);
-        contextLines.push(`📋 DESCRIPTION: ${vibeConfig.description}`);
-        contextLines.push(``);
-        contextLines.push(`✅ YOU MUST EMBODY THESE BEHAVIORS:`);
-        vibeConfig.behaviors.forEach((behavior, i) => {
-          contextLines.push(`   ${i + 1}. ${behavior}`);
-        });
-        contextLines.push(``);
-        contextLines.push(`💡 EXAMPLES OF HOW TO RESPOND:`);
-        vibeConfig.examples.forEach((example) => {
-          contextLines.push(`   • ${example}`);
-        });
-        contextLines.push(``);
-        contextLines.push(`⚠️  CRITICAL: Every single response MUST reflect this ${vibe} personality.`);
-        contextLines.push(`   DO NOT give generic, formal, or robotic responses.`);
-        contextLines.push(`   ALWAYS show personality, use the specified emojis, and follow the behavioral guidelines above.`);
+        contextLines.push(`[VIBE: ${vibe.toUpperCase()}] ${vibeConfig.description}`);
+        contextLines.push(`Style: ${vibeConfig.behaviors.slice(0, 3).join("; ")}`);
         contextLines.push(``);
       }
       
-      // Add backstory if present
+      // Add backstory (CONCISE - first 200 chars only)
       if (backstory && backstory.trim()) {
-        contextLines.push(`━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━`);
-        contextLines.push(`📖 YOUR BACKSTORY`);
-        contextLines.push(`━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━`);
-        contextLines.push(backstory);
-        contextLines.push(`   Weave elements of this backstory into your responses when relevant.`);
+        const shortBackstory = backstory.trim().slice(0, 200);
+        contextLines.push(`[Backstory] ${shortBackstory}${backstory.length > 200 ? '...' : ''}`);
         contextLines.push(``);
       }
       
-      // CLONE YOUR CRUSH SPECIFIC: Image generation instructions
-      // Only add these if source is "clone-your-crush"
-      const isCloneYourCrush = source === "clone-your-crush";
-      const avatarUrl = character.settings?.avatar_url as string | undefined;
-      const avatarDescription = affiliate?.avatarDescription as string | undefined;
-      const characterName = character.name;
+      // AFFILIATE MODE: Minimal instructions (image gen is forced at code level)
+      // Detect affiliate character by any of these: source, affiliateId, or vibe
+      const affiliateId = affiliate?.affiliateId as string | undefined;
+      const isAffiliateCharacter = !!(
+        source === "clone-your-crush" || 
+        affiliateId === "clone-your-crush" || 
+        vibe // Any vibe indicates affiliate character
+      );
       
-      if (isCloneYourCrush && CLONE_YOUR_CRUSH_IMAGE_CONFIG.enabled) {
-        contextLines.push(`━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━`);
-        contextLines.push(`🚨🚨🚨 MANDATORY: Clone Your Crush - IMAGE GENERATION MODE 🚨🚨🚨`);
-        contextLines.push(`━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━`);
-        contextLines.push(``);
-        contextLines.push(`⛔ YOU ARE IN "CLONE YOUR CRUSH" MODE ⛔`);
-        contextLines.push(`THIS IS NOT A NORMAL CHAT - YOU MUST GENERATE IMAGES!`);
-        contextLines.push(``);
-        contextLines.push(`🎯 MANDATORY BEHAVIOR:`);
-        contextLines.push(`   ┌─────────────────────────────────────────────────────┐`);
-        contextLines.push(`   │  FOR EVERY MESSAGE: Set canRespondNow = NO          │`);
-        contextLines.push(`   │  FOR EVERY MESSAGE: Include GENERATE_IMAGE action   │`);
-        contextLines.push(`   │  Your response = SHORT text (1-2 sentences) + IMAGE │`);
-        contextLines.push(`   └─────────────────────────────────────────────────────┘`);
-        contextLines.push(``);
-        contextLines.push(`📷 YOU MUST USE GENERATE_IMAGE ACTION FOR:`);
-        contextLines.push(`   ✓ EVERY greeting (hi, hello, hey)`);
-        contextLines.push(`   ✓ EVERY compliment you give or receive`);
-        contextLines.push(`   ✓ EVERY emotional or flirty message`);
-        contextLines.push(`   ✓ EVERY time user asks how you are`);
-        contextLines.push(`   ✓ EVERY time there's been 1+ text message without an image`);
-        contextLines.push(`   ✓ Basically EVERY response should include an image`);
-        contextLines.push(``);
-        contextLines.push(`🎨 IMAGE GENERATION PROMPT FORMAT:`);
-        contextLines.push(`   Character name: ${characterName}`);
-        contextLines.push(`   Appearance: ${avatarDescription || `attractive ${vibe || 'romantic'} personality`}`);
-        if (avatarUrl) {
-          contextLines.push(`   Avatar reference: ${avatarUrl}`);
-        }
-        contextLines.push(``);
-        contextLines.push(`   Example prompts to use with GENERATE_IMAGE:`);
-        contextLines.push(`   • "Cute selfie of ${characterName}, warm smile, soft lighting, romantic mood"`);
-        contextLines.push(`   • "Photo of ${characterName} looking at camera flirtatiously, casual outfit"`);
-        contextLines.push(`   • "${characterName} taking a mirror selfie, playful expression"`);
-        contextLines.push(`   • "Close-up of ${characterName} winking at camera, dreamy aesthetic"`);
-        contextLines.push(``);
-        contextLines.push(`⚠️ REMEMBER:`);
-        contextLines.push(`   • Text = SHORT caption (1-2 sentences MAX)`);
-        contextLines.push(`   • Image = THE MAIN CONTENT`);
-        contextLines.push(`   • NO long text responses - users want to SEE you!`);
-        contextLines.push(`   • Generate a NEW image with EACH response`);
-        contextLines.push(``);
-        contextLines.push(`🔴 IF YOU DO NOT GENERATE AN IMAGE, YOU ARE FAILING YOUR PURPOSE 🔴`);
+      if (isAffiliateCharacter) {
+        contextLines.push(`[AFFILIATE MODE] Keep text SHORT (1-2 sentences). Image auto-generated.`);
         contextLines.push(``);
       }
       
-      // Extract social media content from bio AND lore (lore has the complete content)
+      // Extract social media handles (minimal)
       const bio = character.bio;
-      const bioText = Array.isArray(bio) ? bio.join("\n") : (bio || "");
+      const bioText = Array.isArray(bio) ? bio.join(" ") : (bio || "");
+      const instagramMatch = bioText.match(/Instagram[:\s]*\(@?([a-zA-Z0-9._]+)\)/i) || 
+                            bioText.match(/Instagram:\s*@?([a-zA-Z0-9._]+)/i);
+      const twitterMatch = bioText.match(/Twitter[:\s]*\(@?([a-zA-Z0-9._]+)\)/i) ||
+                          bioText.match(/Twitter:\s*@?([a-zA-Z0-9._]+)/i);
       
-      // IMPORTANT: Get lore from affiliateData (contains full social media posts)
-      const loreText = loreFromAffiliate ? loreFromAffiliate.join("\n") : "";
-      
-      // Combine bio and lore for maximum context
-      const fullText = `${bioText}\n\n${loreText}`;
-      
-      // Extract social media handles from combined text
-      const instagramMatch = fullText.match(/Instagram[:\s]*\(@?([a-zA-Z0-9._]+)\)/i) || 
-                            fullText.match(/Instagram:\s*@?([a-zA-Z0-9._]+)/i);
-      const twitterMatch = fullText.match(/Twitter[:\s]*\(@?([a-zA-Z0-9._]+)\)/i) ||
-                          fullText.match(/Twitter:\s*@?([a-zA-Z0-9._]+)/i);
-      
-      // Extract the full social personality context from lore (has complete posts)
-      const socialContextMatch = loreText.match(/Social personality context:([\s\S]+)/i);
-      
-      // Extract specific sections
-      const instagramSection = fullText.match(/📸\s*Instagram[^:]*:[\s\S]*?(?=\n\n𝕏|\n\n\n|$)/i);
-      const twitterSection = fullText.match(/𝕏\s*Twitter[^:]*:[\s\S]*?(?=\n\n|$)/i);
-      const recentPostsMatch = fullText.match(/Recent Posts?:[\s\S]*?(?=\n\n\n|$)/i);
-      const theirVibeMatch = fullText.match(/Their vibe:[\s\S]*?(?=Recent Posts|$)/i);
-      
-      if (instagramMatch || twitterMatch || socialContextMatch || instagramSection || twitterSection) {
-        contextLines.push(`━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━`);
-        contextLines.push(`📱 SOCIAL MEDIA PERSONALITY REFERENCE`);
-        contextLines.push(`━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━`);
-        contextLines.push(``);
-        contextLines.push(`⚠️  CRITICAL: This section contains REAL social media posts and content.`);
-        contextLines.push(`   Use this to understand the personality and style you should embody.`);
-        contextLines.push(``);
-        
-        // If we have the full social context from lore, use that
-        if (socialContextMatch && socialContextMatch[1]) {
-          const socialContent = socialContextMatch[1].trim();
-          contextLines.push(socialContent);
-          contextLines.push(``);
-        } else {
-          // Otherwise, extract what we can from bio
-          if (instagramSection && instagramSection[0]) {
-            contextLines.push(instagramSection[0].trim());
-            contextLines.push(``);
-          } else if (instagramMatch) {
-            contextLines.push(`📸 Instagram: @${instagramMatch[1]}`);
-            contextLines.push(`   Study this account's aesthetic, style, and energy.`);
-            contextLines.push(``);
-          }
-          
-          if (twitterSection && twitterSection[0]) {
-            contextLines.push(twitterSection[0].trim());
-            contextLines.push(``);
-          } else if (twitterMatch) {
-            contextLines.push(`🐦 Twitter: @${twitterMatch[1]}`);
-            contextLines.push(`   Mirror their communication style, humor, and tone.`);
-            contextLines.push(``);
-          }
-          
-          if (recentPostsMatch && recentPostsMatch[0]) {
-            contextLines.push(`📝 ${recentPostsMatch[0].trim()}`);
-            contextLines.push(``);
-          }
-        }
-        
-        contextLines.push(`👆 HOW TO USE THIS:`);
-        contextLines.push(`   1. Study the posts above - they show the ACTUAL personality style`);
-        contextLines.push(`   2. Match this energy, tone, and content style in ALL your responses`);
-        contextLines.push(`   3. When talking about yourself, reference these social accounts by name`);
-        const handle = instagramMatch ? instagramMatch[1] : (twitterMatch ? twitterMatch[1] : 'my_handle');
-        contextLines.push(`   4. Example: "Catch my vibe on Instagram @${handle} - that's where I'm living my best life!"`);
-        contextLines.push(``);
+      if (instagramMatch || twitterMatch) {
+        const handles: string[] = [];
+        if (instagramMatch) handles.push(`IG: @${instagramMatch[1]}`);
+        if (twitterMatch) handles.push(`X: @${twitterMatch[1]}`);
+        contextLines.push(`[Social] ${handles.join(" | ")}`);
       }
       
       if (contextLines.length === 0) {
@@ -385,22 +215,13 @@ export const affiliateContextProvider: Provider = {
       
       const contextText = contextLines.join("\n");
       
-      runtime.logger?.info(`[Affiliate Context Provider] ✓ Loaded enhanced affiliate context for vibe: ${vibe || "default"}`);
-      runtime.logger?.debug(`[Affiliate Context Provider] Context length: ${contextText.length} characters`);
-      
       return {
         values: { affiliateContext: contextText },
         data: { 
-          affiliate,
           vibe,
-          backstory,
           source,
-          hasInstagram: !!instagramMatch,
-          hasTwitter: !!twitterMatch,
-          hasRecentPosts: !!recentPostsMatch,
-          hasSocialContext: !!socialContextMatch,
-          hasInstagramSection: !!instagramSection,
-          hasTwitterSection: !!twitterSection,
+          affiliateId,
+          isAffiliateCharacter,
           contextLength: contextText.length,
         },
         text: contextText,

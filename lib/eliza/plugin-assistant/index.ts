@@ -48,62 +48,22 @@ interface ParsedResponse {
 }
 
 const systemPrompt = `
-# Character Identity
+# Character
 {{bio}}
-
 {{system}}
-
-# Core Behavioral Rules
 {{messageDirections}}
 
-## Planning Phase Rules
-When analyzing user messages, follow this decision tree:
+# Planning Rules
+- canRespondNow=YES: Simple chat, no tools needed
+- canRespondNow=NO: Need actions/providers
 
-### SPECIAL RULE: Clone Your Crush / Romantic Mode
-{{affiliateContext}}
-
-⚠️ IF the affiliateContext above mentions "Clone Your Crush" or "IMAGE GENERATION INSTRUCTIONS":
-- You MUST use GENERATE_IMAGE action frequently (at least every 2-3 messages)
-- ALWAYS set canRespondNow to NO and include GENERATE_IMAGE in actions
-- Keep text SHORT (1-2 sentences max) when generating images
-- Generate images for: greetings, compliments, emotional moments, when asked anything personal
-- This is MANDATORY behavior - do NOT skip image generation
-
-### Option 1 - Immediate Response (1 LLM call)
-Use ONLY when ALL conditions are met:
-- Simple greeting, thanks, or social interaction (BUT NOT in Clone Your Crush mode)
-- General knowledge question answerable from character expertise
-- NO actions needed (no image generation, no tools, no external operations)
-- NO providers needed (no document lookup, no data retrieval)
-- Complete answer possible with existing context alone
-
-### Option 2 - Tool/Provider Usage (2+ LLM calls)
-Use when ANY of these apply:
-- User requests an action (generate image, search, calculate, etc.)
-- Need to check documents, knowledge base, or user data
-- Need specific providers for context
-- Any tool or external operation required
-- YOU ARE IN CLONE YOUR CRUSH MODE (check affiliateContext)
-
-CRITICAL: If listing actions or providers, MUST set canRespondNow to NO.
-
-# Response Generation Rules
-- Keep responses focused and relevant to the user's specific question
-- Don't repeat earlier replies unless explicitly asked
-- Cite specific sources when referencing documents
-- Include actionable advice with clear steps
-- Balance detail with clarity - avoid overwhelming beginners
-
-# Output Format Requirements
-## Planning Phase Output
-Always output ALL fields. Leave fields empty when not needed:
-
+# Output Format
 <plan>
-  <thought>Reasoning about approach</thought>
+  <thought>Brief reasoning</thought>
   <canRespondNow>YES or NO</canRespondNow>
-  <text>Response text if YES, empty if NO</text>
-  <providers>KNOWLEDGE if needed, empty otherwise</providers>
-  <actions>GENERATE_IMAGE if needed, empty otherwise</actions>
+  <text>Response if YES</text>
+  <providers>If needed</providers>
+  <actions>If needed</actions>
 </plan>
 `;
 
@@ -111,29 +71,10 @@ Always output ALL fields. Leave fields empty when not needed:
  * Planning template - decides if we can respond immediately and generates response if possible
  */
 export const planningTemplate = `
-# Current Context
 {{receivedMessageHeader}}
-
 {{recentMessages}}
-
-{{sessionSummaries}}
-
-{{longTermMemories}}
-
-{{availableDocuments}}
-
-{{dynamicProviders}}
-
-{{actionsWithDescriptions}}
-
-# ⚠️ CRITICAL: Check this section FIRST before deciding on actions
 {{affiliateContext}}
-
-# Planning Decision
-Based on the above context, especially the affiliateContext section:
-- If affiliateContext mentions "Clone Your Crush" or "IMAGE GENERATION INSTRUCTIONS", you MUST include GENERATE_IMAGE in your actions
-- Count recent messages - if there are 2+ text-only messages since last image, GENERATE an image now
-- For romantic/crush contexts: images > text. Always prefer sending images.
+{{actionsWithDescriptions}}
 `;
 
 const finalMessageSystemPrompt = `
@@ -169,27 +110,12 @@ Your response must ONLY include the <response></response> XML block.
  * Final response template - generates the actual response
  */
 export const messageHandlerTemplate = `
-# Current Context
 {{receivedMessageHeader}}
-
 {{recentMessages}}
-
-{{sessionSummaries}}
-
-{{longTermMemories}}
-
 {{fullActionState}}
-
-{{knowledge}}
-
-# ⚠️ PERSONALITY & BEHAVIOR CONTEXT (READ CAREFULLY)
 {{affiliateContext}}
 
-# Response Guidelines
-If the affiliateContext mentions "Clone Your Crush":
-- Your text response should be SHORT (1-2 sentences) - the image is the main content
-- Be flirty, playful, and match the personality vibe specified above
-- The image you generated IS the response - add just a brief, teasing caption
+Keep response SHORT (1-2 sentences) if image was generated.
 `;
 
 // Helper functions for response ID tracking
@@ -466,26 +392,20 @@ const messageReceivedHandler = async ({
     logger.debug("[ElizaAssistant] Saving message to memory");
     await runtime.createMemory(message, "messages");
 
-    // PHASE 1: Compose initial state with memory providers
-    logger.info(
-      `[ElizaAssistant] Processing message for character: ${runtime.character.name} (ID: ${runtime.character.id})`,
-    );
+    // PHASE 1: Check if this is an affiliate character BEFORE composing state
+    const earlyAffiliateData = runtime.character.settings?.affiliateData as Record<string, unknown> | undefined;
+    const isAffiliateChat = !!(earlyAffiliateData && Object.keys(earlyAffiliateData).length > 0);
     
-    // DEBUG: Log character settings to diagnose affiliate issues
-    console.log("[ElizaAssistant] DEBUG - runtime.character.settings:", JSON.stringify(runtime.character.settings, null, 2));
-    console.log("[ElizaAssistant] DEBUG - affiliateData:", JSON.stringify(runtime.character.settings?.affiliateData, null, 2));
+    logger.info(`[ElizaAssistant] Processing message for ${runtime.character.name}, isAffiliate: ${isAffiliateChat}`);
     
-    logger.debug("[ElizaAssistant] Composing state with memory providers");
-    const initialState = await runtime.composeState(message, [
-      "SHORT_TERM_MEMORY",
-      "LONG_TERM_MEMORY",
-      "AVAILABLE_DOCUMENTS",
-      "PROVIDERS",
-      "ACTIONS",
-      "CHARACTER",
-      "affiliateContext", // CRITICAL: Include affiliate context for Clone Your Crush image generation
-      "recentMessages",   // Include recent messages for context
-    ]);
+    // Use MINIMAL providers for affiliate chats to avoid token overflow
+    // Affiliate chats don't need conversation history - just generate image + short text
+    const providers = isAffiliateChat 
+      ? ["CHARACTER", "ACTIONS"]  // Minimal for affiliate - no history!
+      : ["SHORT_TERM_MEMORY", "ACTIONS", "CHARACTER", "affiliateContext"];
+    
+    logger.debug(`[ElizaAssistant] Composing state with providers: ${providers.join(", ")}`);
+    const initialState = await runtime.composeState(message, providers);
 
     console.log("*** INITIAL STATE ***\n", initialState);
 
@@ -520,88 +440,51 @@ const messageReceivedHandler = async ({
 
     logger.debug("*** PLANNING RESPONSE ***\n", planningResponse);
 
-    const plan = parseKeyValueXml(planningResponse) as ParsedPlan | null;
-    
-    // CLONE YOUR CRUSH: Check if we need to force image generation
-    const affiliateData = runtime.character.settings?.affiliateData as Record<string, unknown> | undefined;
-    const affiliateSource = affiliateData?.source as string | undefined;
-    const isCloneYourCrush = affiliateSource === "clone-your-crush";
-    
-    // Force image generation for Clone Your Crush - override LLM decision
+    let plan = parseKeyValueXml(planningResponse) as ParsedPlan | null;
     let shouldRespondNow = canRespondImmediately(plan);
-    if (isCloneYourCrush) {
-      logger.info("[ElizaAssistant] 🔴 CLONE YOUR CRUSH MODE DETECTED - Forcing image generation");
-      shouldRespondNow = false; // Force action execution path
-      
-      // Ensure GENERATE_IMAGE is in planned actions
-      if (!plan?.actions?.includes("GENERATE_IMAGE")) {
-        if (plan) {
-          plan.actions = plan.actions 
-            ? `${plan.actions},GENERATE_IMAGE` 
-            : "GENERATE_IMAGE";
-        }
-      }
-      logger.info(`[ElizaAssistant] Forced plan actions: ${plan?.actions}`);
+    
+    // SIMPLE: Force image generation for affiliate chats
+    if (isAffiliateChat) {
+      logger.info("[ElizaAssistant] 🔴 AFFILIATE - Forcing image generation");
+      shouldRespondNow = false;
+      plan = { thought: "Generating image", canRespondNow: "NO", actions: "GENERATE_IMAGE" };
     }
 
-    logger.info(
-      `[ElizaAssistant] Plan - canRespondNow: ${shouldRespondNow}, thought: ${plan?.thought}, isCloneYourCrush: ${isCloneYourCrush}`,
-    );
+    logger.info(`[ElizaAssistant] Plan - respond: ${shouldRespondNow}, affiliate: ${isAffiliateChat}`);
 
     let responseContent = "";
     let thought = "";
 
-    // Check if the planning call already generated a response (1 LLM call optimization)
-    if (shouldRespondNow && plan?.text) {
-      logger.info(
-        "[ElizaAssistant] ⚡ Single-call optimization: Using response from planning phase",
-      );
+    // AFFILIATE CHAT: Simple flow - just generate image, use plan text
+    if (isAffiliateChat) {
+      logger.info("[ElizaAssistant] Affiliate flow - executing image action only");
+      
+      // Execute GENERATE_IMAGE action
+      await executeActions(runtime, message, ["GENERATE_IMAGE"], plan, initialState, callback);
+      
+      // Use the text from planning phase or a default short response
+      responseContent = plan?.text || "Here you go 😘";
+      thought = "Generated image for affiliate chat";
+    }
+    // NORMAL CHAT: Full flow with providers and response generation
+    else if (shouldRespondNow && plan?.text) {
+      logger.info("[ElizaAssistant] ⚡ Single-call optimization");
       responseContent = plan.text;
       thought = plan.thought || "";
     } else {
-      // Need to gather more context and generate response (2+ LLM calls)
       let updatedState = { ...initialState };
 
-      // PHASE 3: Execute planned providers and actions
       if (!shouldRespondNow) {
-        logger.info(
-          "[ElizaAssistant] Phase 2: Executing providers and actions",
-        );
-        logger.debug(
-          `[ElizaAssistant] Providers: ${plan?.providers}, Actions: ${plan?.actions}`,
-        );
-
+        logger.info("[ElizaAssistant] Executing providers and actions");
         const plannedProviders = parsePlannedItems(plan?.providers);
         const plannedActions = parsePlannedItems(plan?.actions);
 
-        updatedState = await executeProviders(
-          runtime,
-          message,
-          plannedProviders,
-          updatedState,
-        );
-
-        updatedState = await executeActions(
-          runtime,
-          message,
-          plannedActions,
-          plan,
-          updatedState,
-          callback,
-        );
-      } else {
-        logger.info(
-          "[ElizaAssistant] Short-circuit: Responding with existing context",
-        );
+        updatedState = await executeProviders(runtime, message, plannedProviders, updatedState);
+        updatedState = await executeActions(runtime, message, plannedActions, plan, updatedState, callback);
       }
 
-      // PHASE 4: Generate final response using updated state
-      const responsePhase = shouldRespondNow ? "Phase 2" : "Phase 3";
-      logger.info(
-        `[ElizaAssistant] ${responsePhase}: Generating final response`,
-      );
-
-      // Compose system prompt for response generation
+      // Generate final response
+      logger.info("[ElizaAssistant] Generating final response");
       const finalSystemPrompt = composePromptFromState({
         state: updatedState,
         template: finalMessageSystemPrompt,
@@ -610,18 +493,10 @@ const messageReceivedHandler = async ({
 
       const responsePrompt = composePromptFromState({
         state: updatedState,
-        template:
-          runtime.character.templates?.messageHandlerTemplate ||
-          messageHandlerTemplate,
+        template: runtime.character.templates?.messageHandlerTemplate || messageHandlerTemplate,
       });
 
-      logger.debug("*** FINAL SYSTEM PROMPT ***\n", runtime.character.system);
-      logger.debug("*** RESPONSE PROMPT ***\n", responsePrompt);
-
-      const responseResult = await generateResponseWithRetry(
-        runtime,
-        responsePrompt,
-      );
+      const responseResult = await generateResponseWithRetry(runtime, responsePrompt);
       responseContent = responseResult.text;
       thought = responseResult.thought;
     }
