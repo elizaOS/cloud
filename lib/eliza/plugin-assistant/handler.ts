@@ -1,29 +1,12 @@
-/**
- * Chat Assistant Workflow
- * 
- * Advanced conversation mode with planning and action execution.
- * Uses a multi-phase approach: planning -> execution -> response.
- * 
- * Flow:
- * 1. Compose initial state with memory providers
- * 2. Planning phase - determine if actions/providers are needed
- * 3. Execute planned providers and actions (if needed)
- * 4. Generate final response with all context
- * 5. Return response with attachments
- * 6. Run evaluators in background
- */
-
 import {
   asUUID,
   composePromptFromState,
   createUniqueUuid,
   EventType,
-  type IAgentRuntime,
   logger,
   type Memory,
   ModelType,
   parseKeyValueXml,
-  type HandlerCallback,
   type UUID,
 } from "@elizaos/core";
 import { v4 } from "uuid";
@@ -32,34 +15,25 @@ import {
   chatAssistantPlanningTemplate,
   chatAssistantFinalSystemPrompt,
   chatAssistantResponseTemplate,
-} from "../prompts/chat-assistant-prompts";
+} from "./prompts/chat-assistant-prompts";
 import {
-  getLatestResponseId,
   setLatestResponseId,
   clearLatestResponseId,
   isResponseStillValid,
-} from "../utils/response-tracking";
+} from "../shared/utils/response-tracking";
 import {
   generateResponseWithRetry,
   runEvaluatorsWithTimeout,
   extractAttachments,
   executeProviders,
   executeActions,
-} from "../utils/helpers";
+} from "../shared/utils/helpers";
 import {
   parsePlannedItems,
   canRespondImmediately,
   type ParsedPlan,
-} from "../utils/parsers";
-
-/**
- * Workflow parameters
- */
-export interface ChatAssistantParams {
-  runtime: IAgentRuntime;
-  message: Memory;
-  callback: HandlerCallback;
-}
+} from "../shared/utils/parsers";
+import type { MessageReceivedHandlerParams } from "../shared/types";
 
 /**
  * Chat Assistant Workflow Handler
@@ -67,11 +41,11 @@ export interface ChatAssistantParams {
  * Planning-based approach with action execution capabilities.
  * Optimized for complex tasks requiring tools and context gathering.
  */
-export async function handleChatAssistantWorkflow({
+export async function handleMessage({
   runtime,
   message,
   callback,
-}: ChatAssistantParams): Promise<void> {
+}: MessageReceivedHandlerParams): Promise<void> {
   const responseId = v4();
   const runId = asUUID(v4());
   const startTime = Date.now();

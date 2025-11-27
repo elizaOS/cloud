@@ -7,8 +7,8 @@ import { elizaRoomCharactersRepository } from "@/db/repositories";
 import { userContextService } from "@/lib/eliza/user-context";
 import { runtimeFactory } from "@/lib/eliza/runtime-factory";
 import { createMessageHandler } from "@/lib/eliza/message-handler";
-import type { WorkflowConfig } from "@/lib/eliza/workflow-types";
-import { WorkflowMode, isValidWorkflowConfig } from "@/lib/eliza/workflow-types";
+import type { AgentModeConfig } from "@/lib/eliza/agent-mode-types";
+import { AgentMode, isValidAgentModeConfig } from "@/lib/eliza/agent-mode-types";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
@@ -30,13 +30,10 @@ export async function POST(
   const encoder = new TextEncoder();
 
   try {
-    // Step 1: Authentication & Context Building (single step, clean!)
-    const userContext = await authenticateAndBuildContext(request);
-
-    // Step 2: Parse and validate request
+    // Step 1: Parse and validate request
     const { roomId } = await ctx.params;
     const body = await request.json();
-    const { entityId, text, model, workflow } = body;
+    const { entityId, text, model, agentMode } = body;
 
     if (!roomId || !entityId || !text?.trim()) {
       return new Response(
@@ -45,22 +42,29 @@ export async function POST(
       );
     }
 
-    // Validate workflow if provided
-    let workflowConfig: WorkflowConfig | undefined;
-    if (workflow) {
-      if (!isValidWorkflowConfig(workflow)) {
+    // Validate agentMode if provided, default to CHAT
+    let agentModeConfig: AgentModeConfig | undefined;
+    if (agentMode) {
+      if (!isValidAgentModeConfig(agentMode)) {
         return new Response(
-          JSON.stringify({ error: "Invalid workflow configuration" }),
+          JSON.stringify({ error: "Invalid agent mode configuration" }),
           { status: 400, headers: { "Content-Type": "application/json" } },
         );
       }
-      workflowConfig = workflow;
-      logger.info(`[Stream] Using workflow mode: ${workflowConfig.mode}`);
+      agentModeConfig = agentMode;
+      logger.info(`[Stream] Using agent mode: ${agentModeConfig.mode}`);
+    } else {
+      // Default to CHAT mode
+      agentModeConfig = { mode: AgentMode.CHAT };
+      logger.info(`[Stream] No agent mode specified, defaulting to CHAT`);
     }
 
     if (model) {
       logger.debug("[Stream] User selected model:", model);
     }
+
+    // Step 2: Authentication & Context Building (single step, clean!)
+    const userContext = await authenticateAndBuildContext(request, agentModeConfig.mode);
 
     // Step 3: Rate limiting for anonymous users
     if (userContext.isAnonymous && userContext.sessionToken) {
@@ -87,12 +91,12 @@ export async function POST(
     const roomCharacter = await elizaRoomCharactersRepository.findByRoomId(roomId);
     let characterId = roomCharacter?.character_id || undefined;
     
-    // For BUILD workflow, use the targetCharacterId from workflow metadata
+    // For BUILD mode, use the targetCharacterId from agent mode metadata
     // This ensures we're editing the correct character, not the default
-    if (workflowConfig?.mode === WorkflowMode.BUILD && workflowConfig.metadata?.targetCharacterId) {
-      characterId = workflowConfig.metadata.targetCharacterId;
+    if (agentModeConfig.mode === AgentMode.BUILD && agentModeConfig.metadata?.targetCharacterId) {
+      characterId = agentModeConfig.metadata.targetCharacterId as string;
       logger.info(
-        `[Stream] BUILD mode - Using character from workflow metadata: ${characterId}`
+        `[Stream] BUILD mode - Using character from metadata: ${characterId}`
       );
       
       // Ensure room-character association exists for build mode
@@ -196,7 +200,7 @@ export async function POST(
             entityId,
             text,
             model,
-            workflow: workflowConfig,
+            agentModeConfig,
           });
 
           // Extract content - the full Content object is now stored in memory
@@ -295,13 +299,14 @@ export async function POST(
  * Helper function to authenticate and build user context
  * Centralizes authentication and context creation
  */
-async function authenticateAndBuildContext(request: NextRequest) {
+async function authenticateAndBuildContext(request: NextRequest, agentMode: AgentMode) {
   try {
     // Try authenticated user first
     const authResult = await requireAuthOrApiKey(request);
     return await userContextService.buildContext({
       ...authResult,
       isAnonymous: false,
+      agentMode,
     });
   } catch (error) {
     // Fall back to anonymous user
@@ -314,6 +319,7 @@ async function authenticateAndBuildContext(request: NextRequest) {
       user: anonData.user,
       anonymousSession: anonData.session,
       isAnonymous: true,
+      agentMode,
     });
   }
 }

@@ -16,7 +16,7 @@ import {
 } from "@elizaos/core";
 // @ts-expect-error - Type definitions missing in published package
 import { createDatabaseAdapter } from "@elizaos/plugin-sql/node";
-import { characterLoader } from "./character-loader";
+import { agentLoader } from "./agent-loader";
 import { getElizaCloudApiUrl, getDefaultModels } from "./config";
 import type { UserContext } from "./user-context";
 import { logger } from "@/lib/utils/logger";
@@ -58,6 +58,8 @@ export class RuntimeFactory {
       context.userId,
       "anonymous:",
       context.isAnonymous,
+      "agentMode:",
+      context.agentMode,
       "characterId:",
       context.characterId || "default",
     );
@@ -65,10 +67,10 @@ export class RuntimeFactory {
     // 1. Get or create database adapter (cached, safe to share)
     const dbAdapter = await this.getDbAdapter();
 
-    // 2. Load character if specified, otherwise default
-    const { character, plugins } = context.characterId
-      ? await characterLoader.loadCharacter(context.characterId)
-      : await characterLoader.getDefaultCharacter();
+    // 2. Load character with appropriate plugins for the AgentMode
+    const { character, plugins} = context.characterId
+      ? await agentLoader.loadCharacter(context.characterId, context.agentMode)
+      : await agentLoader.getDefaultCharacter(context.agentMode);
     
     // 3. Extract agentId from character (use character's ID or default)
     const agentId = (character.id ? stringToUuid(character.id) : this.DEFAULT_AGENT_ID) as UUID;
@@ -78,6 +80,7 @@ export class RuntimeFactory {
       character.name,
       "| ID:", agentId,
       "| Username:", character.username || "N/A",
+      "| AgentMode:", context.agentMode,
       "| Bio:",
       Array.isArray(character.bio)
         ? character.bio[0]
@@ -121,7 +124,8 @@ export class RuntimeFactory {
       context.userId,
       "with character:",
       character.name,
-      "| agentId:", agentId
+      "| agentId:", agentId,
+      "| mode:", context.agentMode
     );
 
     return runtime;
