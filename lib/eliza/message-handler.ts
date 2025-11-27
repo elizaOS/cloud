@@ -11,7 +11,9 @@ import {
   Memory,
   stringToUuid,
   elizaLogger,
+  createUniqueUuid,
   type UUID,
+  type Content,
 } from "@elizaos/core";
 import { connectionCache } from "@/lib/cache/connection-cache";
 import type { UserContext } from "./user-context";
@@ -25,13 +27,18 @@ import { generateRoomTitle } from "@/lib/ai/generate-room-title";
 import type { WorkflowConfig } from "./workflow-types";
 import { DEFAULT_WORKFLOW } from "./workflow-types";
 
+/**
+ * Usage information for token tracking and billing
+ */
+export interface UsageInfo {
+  inputTokens: number;
+  outputTokens: number;
+  model: string;
+}
+
 export interface MessageResult {
   message: Memory;
-  usage?: {
-    inputTokens: number;
-    outputTokens: number;
-    model: string;
-  };
+  usage?: UsageInfo;
 }
 
 export interface MessageOptions {
@@ -77,8 +84,7 @@ export class MessageHandler {
     });
 
     // 3. Process through runtime (API key already configured in runtime)
-    let responseText: string | undefined;
-    let responseAttachments: unknown[] | undefined;
+    let responseContent: Content | undefined;
     let usage: MessageResult["usage"];
 
     try {
@@ -88,6 +94,7 @@ export class MessageHandler {
         runtime: this.runtime,
         message: userMessage,
         workflow: workflowConfig, // Pass workflow to event handlers
+<<<<<<< HEAD
         callback: async (result: {
           text?: string;
           attachments?: unknown[];
@@ -103,17 +110,44 @@ export class MessageHandler {
 
           if (result.text) {
             responseText = result.text;
+=======
+        callback: async (content: Content) => {
+          elizaLogger.info("[MessageHandler] Callback invoked with content:", JSON.stringify(content).substring(0, 200));
+          
+          if (content.text) {
+            responseContent = content;
+            elizaLogger.info(`[MessageHandler] Captured response text (${content.text.length} chars): ${content.text.substring(0, 100)}...`);
+            
+            // Store the response memory when callback is invoked
+            // This ensures all workflow responses (including action responses) are persisted
+            const responseMemory: Memory = {
+              id: createUniqueUuid(this.runtime, (userMessage.id ?? uuidv4()) as UUID),
+              entityId: this.runtime.agentId,
+              roomId: roomId as UUID,
+              content: {
+                ...content,
+                source: content.source || "agent",
+                inReplyTo: userMessage.id,
+              },
+            };
+            
+            await this.runtime.createMemory(responseMemory, "messages");
+            elizaLogger.info(`[MessageHandler] Stored response memory: ${responseMemory.id}`);
+          } else {
+            elizaLogger.warn("[MessageHandler] Callback received but no text in content");
+>>>>>>> 7714665 (feat(build-mode): implement action-based character design workflow)
           }
-          if (result.attachments) {
-            responseAttachments = result.attachments;
-          }
-          if (result.usage) {
-            usage = result.usage;
+          
+          // Extract usage if passed via dynamic property (for billing)
+          if ('usage' in content && content.usage) {
+            usage = content.usage as UsageInfo;
           }
 
           return [];
         },
       });
+      
+      elizaLogger.info(`[MessageHandler] After emitEvent - responseText: ${responseContent?.text ? `"${responseContent.text.substring(0, 100)}..."` : "EMPTY/UNDEFINED"}`);
     } catch (error) {
       elizaLogger.error(
         "[MessageHandler] Error during message processing:",
@@ -122,6 +156,7 @@ export class MessageHandler {
 
       // Check if it's an API key error
       if (error instanceof Error && error.message.includes("API key")) {
+<<<<<<< HEAD
         responseText =
           "⚠️ Configuration error: ElizaCloud API key is missing or invalid. Please try logging out and back in.";
       } else {
@@ -135,6 +170,26 @@ export class MessageHandler {
       roomId,
       responseText || "I'm sorry, I couldn't generate a response.",
       responseAttachments,
+=======
+        responseContent = { 
+          text: "⚠️ Configuration error: ElizaCloud API key is missing or invalid. Please try logging out and back in.",
+          source: "agent",
+        };
+      } else {
+        responseContent = { 
+          text: "I apologize, but I encountered an error processing your message. Please try again.",
+          source: "agent",
+        };
+      }
+    }
+
+    elizaLogger.debug(`*** RESPONSE CONTENT ***\n${JSON.stringify(responseContent, null, 2)}`);
+
+    // 4. Create response memory object for return (using stored content)
+    const responseMemory = this.createResponseMemoryFromContent(
+      roomId,
+      responseContent || { text: "I'm sorry, I couldn't generate a response.", source: "agent" }
+>>>>>>> 7714665 (feat(build-mode): implement action-based character design workflow)
     );
 
     // 5. Track usage and credits (if not anonymous)
@@ -148,6 +203,7 @@ export class MessageHandler {
     }
 
     // 7. Fire-and-forget side effects (Discord, room title generation)
+<<<<<<< HEAD
     this.handleSideEffects(
       roomId,
       text,
@@ -155,12 +211,21 @@ export class MessageHandler {
       options.characterId,
     );
 
+=======
+    this.handleSideEffects(roomId, text, responseContent?.text || "", options.characterId);
+    
+>>>>>>> 7714665 (feat(build-mode): implement action-based character design workflow)
     elizaLogger.success(
       `[MessageHandler] Message processed successfully for user ${this.userContext.userId}`,
     );
 
+<<<<<<< HEAD
     console.log("FINAL USAGE ************\n", usage);
 
+=======
+    elizaLogger.debug(`FINAL USAGE: ${JSON.stringify(usage)}`);
+    
+>>>>>>> 7714665 (feat(build-mode): implement action-based character design workflow)
     return {
       message: responseMemory,
       usage,
@@ -242,6 +307,7 @@ export class MessageHandler {
       createdAt: Date.now(),
       content: {
         text: content.text || "",
+        source: "user",
         ...(content.attachments &&
         Array.isArray(content.attachments) &&
         content.attachments.length > 0
@@ -255,10 +321,12 @@ export class MessageHandler {
   }
 
   /**
-   * Create response memory object
+   * Create response memory object from Content
+   * Used for building the return value with full Content structure
    */
-  private createResponseMemory(
+  private createResponseMemoryFromContent(
     roomId: string,
+<<<<<<< HEAD
     text: string,
     attachments?: unknown[],
   ): Memory {
@@ -272,6 +340,13 @@ export class MessageHandler {
       content.attachments = attachments;
       elizaLogger.debug(
         `[MessageHandler] Including ${attachments.length} attachment(s) in response`,
+=======
+    content: Content
+  ): Memory {
+    if (content.attachments && content.attachments.length > 0) {
+      elizaLogger.debug(
+        `[MessageHandler] Including ${content.attachments.length} attachment(s) in response`
+>>>>>>> 7714665 (feat(build-mode): implement action-based character design workflow)
       );
     }
 
@@ -281,7 +356,10 @@ export class MessageHandler {
       entityId: this.runtime.agentId as UUID,
       agentId: this.runtime.agentId as UUID,
       createdAt: Date.now(),
-      content: content as Memory["content"],
+      content: {
+        ...content,
+        source: content.source || "agent",
+      },
     };
   }
 
@@ -290,7 +368,6 @@ export class MessageHandler {
    * Note: Token usage tracking is now handled by MODEL_USED events in plugin-assistant
    */
   private async trackUsage(usage: MessageResult["usage"]): Promise<void> {
-    console.log("********* received USAGE ************\n", usage);
     if (!usage || !this.userContext.organizationId) return;
 
     try {

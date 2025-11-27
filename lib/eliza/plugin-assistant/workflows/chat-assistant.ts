@@ -119,8 +119,6 @@ export async function handleChatAssistantWorkflow({
       "CHARACTER",
     ]);
 
-    console.log("*** CHAT ASSISTANT INITIAL STATE ***\n", initialState);
-
     // PHASE 2: Planning - Determine which providers/actions to use
     logger.info("[ChatAssistant] Phase 1: Planning");
     const planningPrompt = composePromptFromState({
@@ -140,9 +138,6 @@ export async function handleChatAssistantWorkflow({
     });
 
     runtime.character.system = composedSystemPrompt;
-
-    console.log("*** SYSTEM PROMPT ***\n", runtime.character.system);
-    console.log("*** PLANNING PROMPT ***\n", planningPrompt);
 
     const planningResponse = await runtime.useModel(ModelType.TEXT_LARGE, {
       prompt: planningPrompt,
@@ -256,7 +251,7 @@ export async function handleChatAssistantWorkflow({
       `[ChatAssistant] Action results: ${JSON.stringify(actionResults)}`,
     );
 
-    // Create response memory with attachments if any
+    // Build response content
     const content: Record<string, unknown> = {
       text: responseContent,
       thought,
@@ -271,6 +266,13 @@ export async function handleChatAssistantWorkflow({
       );
     }
 
+    // Trigger callback with response content
+    // Memory storage is handled by the MessageHandler callback
+    if (callback) {
+      await callback(content as Memory["content"]);
+    }
+
+    // Create memory reference for evaluators (without re-saving)
     const responseMemory: Memory = {
       id: createUniqueUuid(runtime, (message.id ?? v4()) as UUID),
       entityId: runtime.agentId,
@@ -278,20 +280,6 @@ export async function handleChatAssistantWorkflow({
       worldId: message.worldId,
       content: content as Memory["content"],
     };
-
-    // Save response
-    logger.debug("[ChatAssistant] Saving response to memory");
-    await runtime.createMemory(responseMemory, "messages");
-
-    // Trigger callback immediately with response (don't wait for evaluators)
-    // This ensures fast response to the client
-    if (callback) {
-      const callbackContent = {
-        text: responseContent,
-        ...(attachments.length > 0 && { attachments: attachments as never }),
-      };
-      await callback(callbackContent);
-    }
 
     // Run evaluators asynchronously (for future context enrichment)
     // Evaluators update long-term memory, session summaries, etc. for FUTURE conversations

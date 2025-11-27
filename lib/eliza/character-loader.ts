@@ -42,8 +42,6 @@ export class CharacterLoader {
     character: Character;
     plugins: Plugin[];
   }> {
-    console.log(`[CharacterLoader] Loading character: ${characterId}`);
-
     // Load character from database
     const dbCharacter = await charactersService.getById(characterId);
 
@@ -51,8 +49,6 @@ export class CharacterLoader {
       console.error(`[CharacterLoader] Character not found: ${characterId}`);
       throw new Error(`Character not found: ${characterId}`);
     }
-
-    console.log(`[CharacterLoader] Found character in DB: ${dbCharacter.name}`);
 
     // Convert to ElizaOS format
     const elizaCharacter = charactersService.toElizaCharacter(dbCharacter);
@@ -62,11 +58,6 @@ export class CharacterLoader {
 
     // Resolve plugins (includes core plugins + character-specific plugins)
     const plugins = await this.resolvePlugins(elizaCharacter.plugins || []);
-
-    console.log(
-      `[CharacterLoader] Built character: ${character.name} with ${plugins.length} plugins:`,
-      plugins.map((p) => p.name).join(", "),
-    );
 
     return { character, plugins };
   }
@@ -88,12 +79,12 @@ export class CharacterLoader {
 
   /**
    * Build Character object with proper settings merging
-   * IMPORTANT: Always uses the default agent ID for database consistency
+   * Uses the character's own ID from the database
    */
   private buildCharacter(elizaCharacter: ElizaCharacter): Character {
-    // CRITICAL: Use the same agent ID as default Eliza for database operations
-    // Different characters share the same agent ID to avoid database conflicts
-    const ELIZA_AGENT_ID = "b850bc30-45f8-0041-a00a-83df46d8555d";
+    // Use the character's database ID, or fallback to default Eliza ID
+    const characterId = elizaCharacter.id || "b850bc30-45f8-0041-a00a-83df46d8555d";
+    
     // Merge environment variables with character settings
     const settings = {
       // Database URLs (always from environment)
@@ -188,9 +179,9 @@ export class CharacterLoader {
     };
 
     // Build Character object
-    // Use consistent agent ID for database operations, character name for personality
+    // Use the character's own ID for proper database isolation
     const character: Character = {
-      id: ELIZA_AGENT_ID as `${string}-${string}-${string}-${string}-${string}`,
+      id: characterId as `${string}-${string}-${string}-${string}-${string}`,
       name: elizaCharacter.name,
       username: elizaCharacter.username,
       plugins: elizaCharacter.plugins || [],
@@ -262,9 +253,6 @@ export class CharacterLoader {
         // Avoid duplicates
         if (!plugins.some((p) => p === plugin)) {
           plugins.push(plugin);
-          console.log(
-            `[CharacterLoader] ✓ Added optional plugin: ${pluginName}`,
-          );
         }
       } else {
         console.warn(`[CharacterLoader] ⚠ Unknown plugin: ${pluginName}`);

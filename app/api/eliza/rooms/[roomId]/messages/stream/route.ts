@@ -84,10 +84,52 @@ export async function POST(
     }
 
     // Step 4: Get character assignment for room
-    const roomCharacter =
-      await elizaRoomCharactersRepository.findByRoomId(roomId);
-    const characterId = roomCharacter?.character_id || undefined;
-
+    const roomCharacter = await elizaRoomCharactersRepository.findByRoomId(roomId);
+    let characterId = roomCharacter?.character_id || undefined;
+    
+    // For BUILD workflow, use the targetCharacterId from workflow metadata
+    // This ensures we're editing the correct character, not the default
+    if (workflowConfig?.mode === WorkflowMode.BUILD && workflowConfig.metadata?.targetCharacterId) {
+      characterId = workflowConfig.metadata.targetCharacterId;
+      logger.info(
+        `[Stream] BUILD mode - Using character from workflow metadata: ${characterId}`
+      );
+      
+      // Ensure room-character association exists for build mode
+      // Each user-character combo should have its own build room
+      if (!roomCharacter && characterId) {
+        // Create new association
+        try {
+          await elizaRoomCharactersRepository.create({
+            room_id: roomId,
+            character_id: characterId,
+            user_id: userContext.userId,
+          });
+          logger.info(
+            `[Stream] BUILD mode - Created room-character association: room ${roomId} → character ${characterId}`
+          );
+        } catch (error) {
+          logger.error(
+            `[Stream] BUILD mode - Failed to create room-character association:`,
+            error
+          );
+        }
+      } else if (roomCharacter && roomCharacter.character_id !== characterId) {
+        // Update existing association if character changed
+        try {
+          await elizaRoomCharactersRepository.update(roomId, characterId);
+          logger.info(
+            `[Stream] BUILD mode - Updated room-character association: room ${roomId} → character ${characterId}`
+          );
+        } catch (error) {
+          logger.error(
+            `[Stream] BUILD mode - Failed to update room-character association:`,
+            error
+          );
+        }
+      }
+    }
+    
     logger.info(
       `[Stream] Room ${roomId} - Character lookup:`,
       characterId
@@ -157,28 +199,40 @@ export async function POST(
             workflow: workflowConfig,
           });
 
+          // Extract content - the full Content object is now stored in memory
+          const messageContent = result.message.content;
           const responseText =
-            typeof result.message.content === "string"
-              ? result.message.content
-              : result.message.content?.text || "";
+            typeof messageContent === "string"
+              ? messageContent
+              : messageContent?.text || "";
 
-          // Extract attachments if present
-          const attachments =
-            typeof result.message.content === "object" &&
-            result.message.content?.attachments
-              ? result.message.content.attachments
-              : undefined;
+          // Build response content, preserving all Content fields
+          const responseContentPayload: Record<string, unknown> = {
+            text: responseText,
+            source: messageContent?.source || "agent",
+          };
+
+          // Include attachments if present
+          if (typeof messageContent === "object" && messageContent?.attachments) {
+            responseContentPayload.attachments = messageContent.attachments;
+          }
+
+          // Include actions if present (needed for frontend to detect APPLY_CHARACTER_CHANGES)
+          if (typeof messageContent === "object" && messageContent?.actions) {
+            responseContentPayload.actions = messageContent.actions;
+          }
+
+          // Include thought if present
+          if (typeof messageContent === "object" && messageContent?.thought) {
+            responseContentPayload.thought = messageContent.thought;
+          }
 
           // Send agent response
           sendEvent("message", {
             id: result.message.id,
             entityId: result.message.entityId,
             agentId: result.message.agentId,
-            content: {
-              text: responseText,
-              source: "agent",
-              ...(attachments && { attachments }),
-            },
+            content: responseContentPayload,
             createdAt: result.message.createdAt || Date.now(),
             isAgent: true,
             type: "agent",

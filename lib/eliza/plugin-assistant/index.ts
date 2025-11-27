@@ -19,7 +19,12 @@ import {
 import { providersProvider } from "./providers/providers";
 import { actionsProvider } from "./providers/actions";
 import { characterProvider } from "./providers/character";
+import { characterGuideProvider } from "./providers/character-guide";
+import { currentCharacterProvider } from "./providers/current-character";
 import { generateImageAction } from "./actions/image-generation";
+import { proposeCharacterChangesAction } from "./actions/propose-character-changes";
+import { applyCharacterChangesAction } from "./actions/apply-character-changes";
+import { buildChatAction } from "./actions/build-chat";
 import { actionStateProvider } from "./providers/actionState";
 import {
   WorkflowMode,
@@ -134,9 +139,16 @@ export const assistantPlugin: Plugin = {
     providersProvider,
     actionsProvider,
     characterProvider,
+    characterGuideProvider,      // Build mode: Character design documentation
+    currentCharacterProvider,     // Build mode: Current character state
     actionStateProvider,
   ],
-  actions: [generateImageAction],
+  actions: [
+    generateImageAction,
+    proposeCharacterChangesAction,  // Build mode: Conversational proposal
+    applyCharacterChangesAction,    // Build mode: Extract & save changes
+    buildChatAction,                // Build mode: Natural conversation
+  ],
   services: [],
 };
 
