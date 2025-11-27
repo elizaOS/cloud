@@ -13,6 +13,7 @@ const publicPaths = [
   "/",
   "/marketplace",
   "/dashboard/chat", // FREE MODE: Allow anonymous access to Chat
+  "/chat", // Public chat routes for anonymous users
   "/api/eliza", // Allow anonymous access to Eliza API routes
   "/api/models",
   "/api/fal/proxy",
@@ -21,6 +22,8 @@ const publicPaths = [
   "/auth/error",
   "/auth/cli-login", // CLI login page
   "/api/auth/cli-session", // CLI session endpoints (public for polling)
+  "/api/set-anonymous-session", // Anonymous session cookie setting
+  "/api/affiliate", // Affiliate API endpoints (public for anonymous users)
   "/api/v1/generate-image",
   "/api/v1/generate-video",
   "/api/v1/chat",
