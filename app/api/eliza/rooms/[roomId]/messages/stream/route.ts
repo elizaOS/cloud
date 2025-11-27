@@ -147,6 +147,13 @@ export async function POST(
         smallModel: model,
         largeModel: model,
       };
+      logger.info(`[Stream] User selected model: ${model}`);
+    } else if (userContext.modelPreferences) {
+      logger.info(
+        `[Stream] Using stored model preferences: ${userContext.modelPreferences.smallModel} / ${userContext.modelPreferences.largeModel}`,
+      );
+    } else {
+      logger.info(`[Stream] No model preference set, using defaults`);
     }
 
     // Apply character if specified

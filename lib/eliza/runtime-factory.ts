@@ -139,12 +139,18 @@ export class RuntimeFactory {
     character: Character,
     context: UserContext,
   ): Record<string, any> {
+    // Merge character settings first, then override with runtime values
+    // This ensures user preferences (like model selection) take precedence
     const settings = {
-      // Database configuration
+      // Merge any custom settings from character first
+      ...character.settings,
+      
+      // Database configuration (always from environment, cannot be overridden)
       POSTGRES_URL: process.env.DATABASE_URL!,
       DATABASE_URL: process.env.DATABASE_URL!,
 
-      // User-specific ElizaCloud configuration (no more late injection!)
+      // User-specific ElizaCloud configuration (OVERRIDES character settings)
+      // This allows users to select different models via the UI dropdown
       ELIZAOS_CLOUD_API_KEY: context.apiKey,
       ELIZAOS_CLOUD_BASE_URL: getElizaCloudApiUrl(),
       ELIZAOS_CLOUD_SMALL_MODEL:
@@ -225,9 +231,6 @@ export class RuntimeFactory {
         process.env.ELEVENLABS_STT_TAG_AUDIO_EVENTS ||
         "false",
 
-      // Merge any other custom settings from character
-      ...character.settings,
-
       // User metadata for tracking (useful for debugging and analytics)
       USER_ID: context.userId,
       ENTITY_ID: context.entityId,
@@ -238,7 +241,11 @@ export class RuntimeFactory {
     logger.debug(
       "[RuntimeFactory] Built settings for user",
       context.userId,
-      "with API key:",
+      "with models:",
+      settings.ELIZAOS_CLOUD_SMALL_MODEL,
+      "/",
+      settings.ELIZAOS_CLOUD_LARGE_MODEL,
+      "| API key:",
       settings.ELIZAOS_CLOUD_API_KEY?.substring(0, 12) + "...",
     );
 
