@@ -393,8 +393,12 @@ const messageReceivedHandler = async ({
     await runtime.createMemory(message, "messages");
 
     // PHASE 1: Check if this is an affiliate character BEFORE composing state
-    const earlyAffiliateData = runtime.character.settings?.affiliateData as Record<string, unknown> | undefined;
+    const characterSettings = runtime.character.settings;
+    const earlyAffiliateData = characterSettings?.affiliateData as Record<string, unknown> | undefined;
     const isAffiliateChat = !!(earlyAffiliateData && Object.keys(earlyAffiliateData).length > 0);
+    
+    // Debug: Log what we found for affiliate detection
+    logger.info(`[ElizaAssistant] 🔍 Affiliate Detection: char=${runtime.character.name}, hasSettings=${!!characterSettings}, hasAffiliateData=${!!earlyAffiliateData}, affiliateKeys=${earlyAffiliateData ? Object.keys(earlyAffiliateData).join(',') : 'none'}, isAffiliateChat=${isAffiliateChat}`);
     
     logger.info(`[ElizaAssistant] Processing message for ${runtime.character.name}, isAffiliate: ${isAffiliateChat}`);
     
