@@ -12,6 +12,7 @@ interface CharacterIntroPageWrapperProps {
   source?: string;
   theme: AffiliateTheme;
   existingSessionId?: string;
+  isAuthenticated?: boolean;
 }
 
 export function CharacterIntroPageWrapper({
@@ -20,10 +21,19 @@ export function CharacterIntroPageWrapper({
   source,
   theme,
   existingSessionId,
+  isAuthenticated = false,
 }: CharacterIntroPageWrapperProps) {
   const router = useRouter();
   const searchParams = useSearchParams();
   const [isCreatingSession, setIsCreatingSession] = useState(false);
+
+  // For authenticated users, go directly to chat (no session needed)
+  async function handleAuthenticatedStart() {
+    const params = new URLSearchParams();
+    if (source) params.set("source", source);
+    const queryString = params.toString();
+    router.push(`/chat/${characterId}${queryString ? `?${queryString}` : ""}`);
+  }
 
   async function handleEmailSubmit(email: string) {
     const params = new URLSearchParams();
@@ -77,9 +87,11 @@ export function CharacterIntroPageWrapper({
       character={character}
       onEmailSubmit={handleEmailSubmit}
       onSkip={handleSkip}
+      onAuthenticatedStart={handleAuthenticatedStart}
       source={source}
       theme={theme}
       isLoading={isCreatingSession}
+      isAuthenticated={isAuthenticated}
     />
   );
 }

@@ -52,6 +52,7 @@ export default async function ChatPage({ params, searchParams }: ChatPageProps) 
         source={source}
         theme={theme}
         existingSessionId={sessionId}
+        isAuthenticated={!!user}
       />
     );
   }
