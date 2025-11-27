@@ -230,9 +230,22 @@ async function authenticateAndBuildContext(request: NextRequest) {
     });
   } catch (error) {
     // Fall back to anonymous user
-    const anonData = await getAnonymousUser();
+    logger.info("[Stream] Privy auth failed, trying anonymous user...");
+    
+    let anonData = await getAnonymousUser();
+    
     if (!anonData) {
-      throw new Error("Authentication required");
+      // No cookie found - create new anonymous session
+      logger.info("[Stream] No session cookie - creating new anonymous session");
+      const { getOrCreateAnonymousUser } = await import("@/lib/auth-anonymous");
+      const newAnonData = await getOrCreateAnonymousUser();
+      anonData = {
+        user: newAnonData.user,
+        session: newAnonData.session,
+      };
+      logger.info("[Stream] Created anonymous user:", anonData.user.id);
+    } else {
+      logger.info("[Stream] Anonymous user found:", anonData.user.id);
     }
 
     return await userContextService.buildContext({

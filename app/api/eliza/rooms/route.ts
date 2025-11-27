@@ -18,8 +18,13 @@ export async function GET(request: NextRequest) {
     try {
       await requireAuthOrApiKey(request);
     } catch (error) {
-      // Fallback to anonymous user
-      await getAnonymousUser();
+      // Fallback to anonymous user - try cookie first, then create if needed
+      const anonData = await getAnonymousUser();
+      if (!anonData) {
+        // Create new anonymous session if none exists
+        const { getOrCreateAnonymousUser } = await import("@/lib/auth-anonymous");
+        await getOrCreateAnonymousUser();
+      }
     }
 
     const { searchParams } = new URL(request.url);
@@ -122,13 +127,34 @@ export async function POST(request: NextRequest) {
     try {
       authResult = await requireAuthOrApiKey(request);
       user = authResult.user;
-    } catch (error) {
+      logger.info("[Eliza Rooms API] Authenticated via Privy:", user.id);
+    } catch (authError) {
       // Fallback to anonymous user
+      logger.info("[Eliza Rooms API] Privy auth failed, trying anonymous...", 
+        authError instanceof Error ? authError.message : "Unknown error");
+      
+      // First try to get existing anonymous user from cookie
       const anonData = await getAnonymousUser();
-      if (!anonData) {
-        throw new Error("Authentication required");
+      
+      if (anonData) {
+        user = anonData.user;
+        logger.info("[Eliza Rooms API] Anonymous auth successful via cookie:", user.id);
+      } else {
+        // No cookie found - create a new anonymous session
+        // This handles the case where the cookie wasn't set properly
+        logger.info("[Eliza Rooms API] No session cookie - creating new anonymous session");
+        
+        try {
+          const { getOrCreateAnonymousUser } = await import("@/lib/auth-anonymous");
+          const newAnonData = await getOrCreateAnonymousUser();
+          user = newAnonData.user;
+          logger.info("[Eliza Rooms API] Created new anonymous session:", user.id);
+        } catch (createError) {
+          logger.error("[Eliza Rooms API] Failed to create anonymous session:", 
+            createError instanceof Error ? createError.message : "Unknown error");
+          throw new Error("Authentication required - failed to create anonymous session");
+        }
       }
-      user = anonData.user;
     }
 
     const body = await request.json();

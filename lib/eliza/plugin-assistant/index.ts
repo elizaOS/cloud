@@ -443,11 +443,19 @@ const messageReceivedHandler = async ({
     let plan = parseKeyValueXml(planningResponse) as ParsedPlan | null;
     let shouldRespondNow = canRespondImmediately(plan);
     
-    // SIMPLE: Force image generation for affiliate chats
-    if (isAffiliateChat) {
-      logger.info("[ElizaAssistant] 🔴 AFFILIATE - Forcing image generation");
+    // For affiliate chats, ensure GENERATE_IMAGE action is included but keep the original plan text
+    if (isAffiliateChat && plan) {
+      logger.info("[ElizaAssistant] 🔴 AFFILIATE - Ensuring image generation");
       shouldRespondNow = false;
-      plan = { thought: "Generating image", canRespondNow: "NO", actions: "GENERATE_IMAGE" };
+      // Add GENERATE_IMAGE to actions if not already present, but preserve other plan data
+      const existingActions = plan.actions || "";
+      if (!existingActions.includes("GENERATE_IMAGE")) {
+        plan.actions = existingActions ? `${existingActions}, GENERATE_IMAGE` : "GENERATE_IMAGE";
+      }
+      plan.canRespondNow = "NO";
+    } else if (isAffiliateChat && !plan) {
+      plan = { thought: "Generating image for user", canRespondNow: "NO", actions: "GENERATE_IMAGE" };
+      shouldRespondNow = false;
     }
 
     logger.info(`[ElizaAssistant] Plan - respond: ${shouldRespondNow}, affiliate: ${isAffiliateChat}`);
@@ -455,19 +463,8 @@ const messageReceivedHandler = async ({
     let responseContent = "";
     let thought = "";
 
-    // AFFILIATE CHAT: Simple flow - just generate image, use plan text
-    if (isAffiliateChat) {
-      logger.info("[ElizaAssistant] Affiliate flow - executing image action only");
-      
-      // Execute GENERATE_IMAGE action
-      await executeActions(runtime, message, ["GENERATE_IMAGE"], plan, initialState, callback);
-      
-      // Use the text from planning phase or a default short response
-      responseContent = plan?.text || "Here you go 😘";
-      thought = "Generated image for affiliate chat";
-    }
-    // NORMAL CHAT: Full flow with providers and response generation
-    else if (shouldRespondNow && plan?.text) {
+    // Response generation
+    if (shouldRespondNow && plan?.text) {
       logger.info("[ElizaAssistant] ⚡ Single-call optimization");
       responseContent = plan.text;
       thought = plan.thought || "";

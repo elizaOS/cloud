@@ -124,26 +124,30 @@ export function ChatInterface({
   }, [character.id, setSelectedCharacterId]);
 
   // CRITICAL: Set anonymous session cookie if session token is in URL (for affiliate users)
+  // This ensures the cookie is set even if we're not sure about auth state yet
   useEffect(() => {
-    if (sessionTokenFromUrl && isAnonymous) {
-      console.log("[ChatInterface] Setting anonymous session cookie from URL");
+    // Only set cookie if we have a session token AND user is NOT authenticated
+    // (authenticated users don't need the anonymous session cookie)
+    if (sessionTokenFromUrl && !user) {
+      console.log("[ChatInterface] Setting anonymous session cookie from URL:", sessionTokenFromUrl.slice(0, 8) + "...");
       fetch("/api/set-anonymous-session", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ sessionToken: sessionTokenFromUrl }),
       })
-        .then((res) => {
+        .then(async (res) => {
           if (res.ok) {
             console.log("[ChatInterface] ✅ Anonymous session cookie set successfully");
           } else {
-            console.error("[ChatInterface] ❌ Failed to set session cookie:", res.status);
+            const errorData = await res.json().catch(() => ({}));
+            console.error("[ChatInterface] ❌ Failed to set session cookie:", res.status, errorData);
           }
         })
         .catch((err) => {
           console.error("[ChatInterface] ❌ Error setting session cookie:", err);
         });
     }
-  }, [sessionTokenFromUrl, isAnonymous]);
+  }, [sessionTokenFromUrl, user]);
 
   useEffect(() => {
     // Track affiliate source
@@ -270,16 +274,6 @@ export function ChatInterface({
               animationDuration: "4s",
             }} 
           />
-        </div>
-      )}
-
-      {/* DEBUG BANNER - Remove after testing */}
-      {process.env.NODE_ENV === 'development' && (
-        <div className="bg-yellow-500/20 border-b border-yellow-500/50 px-4 py-2 text-xs text-yellow-200">
-          <strong>🔍 DEBUG:</strong> {user ? `LOGGED IN as ${user.name || user.id}` : session ? `ANONYMOUS (Session: ${session.token.slice(0,8)}...)` : 'NO AUTH STATE'}
-          {user && <span className="ml-2">(Banner won't show - authenticated users have unlimited messages)</span>}
-          {!user && session && <span className="ml-2">({session.messagesRemaining} messages remaining)</span>}
-          {!user && !session && <span className="ml-2">(No session - something went wrong)</span>}
         </div>
       )}
 
