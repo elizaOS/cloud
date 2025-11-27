@@ -479,26 +479,27 @@ export async function GET() {
   return NextResponse.json({
     name: "Crypto Price MCP",
     version: "1.0.0",
-    description: "Real-time cryptocurrency prices, market data, and historical charts with x402 micropayments",
+    description: "Real-time cryptocurrency prices, market data, and historical charts. Supports both credits and x402 micropayments.",
     transport: ["http", "sse"],
     tools: [
-      { name: "get_crypto_price", description: "Get current price for a token" },
-      { name: "get_market_data", description: "Get market cap, volume, supply" },
-      { name: "get_price_history", description: "Get historical price data" },
-      { name: "get_token_info", description: "Get token details and chains" },
-      { name: "get_top_tokens", description: "Get top tokens by market cap" },
+      { name: "get_crypto_price", description: "Get current price for a token", cost: "1 credit" },
+      { name: "get_market_data", description: "Get market cap, volume, supply", cost: "2 credits" },
+      { name: "get_price_history", description: "Get historical price data", cost: "3 credits" },
+      { name: "get_token_info", description: "Get token details and chains", cost: "1 credit" },
+      { name: "get_top_tokens", description: "Get top tokens by market cap", cost: "2 credits" },
     ],
     pricing: { 
-      type: "x402", 
-      pricePerRequest: "$0.0005",
-      description: "Pay-per-request via x402 protocol",
+      type: "credits",
+      description: "1-3 credits per request",
+      creditsPerRequest: "1-3",
+      alternativePayment: {
+        type: "x402",
+        pricePerRequest: "$0.0005",
+        network: "base",
+        currency: "USDC",
+      },
     },
-    x402: {
-      enabled: true,
-      network: "base",
-      currency: "USDC",
-      payTo: "0x...", // Placeholder
-    },
+    x402Enabled: true,
     supportedTokens: Object.keys(mockCryptoData),
     status: "live",
   });

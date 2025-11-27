@@ -334,12 +334,16 @@ export async function GET() {
     description: "Get current time, timezone conversions, and date calculations",
     transport: ["http", "sse"],
     tools: [
-      { name: "get_current_time", description: "Get current date and time" },
-      { name: "convert_timezone", description: "Convert between timezones" },
-      { name: "format_date", description: "Format dates in various styles" },
-      { name: "calculate_time_diff", description: "Calculate time differences" },
+      { name: "get_current_time", description: "Get current date and time", cost: "1 credit" },
+      { name: "convert_timezone", description: "Convert between timezones", cost: "1 credit" },
+      { name: "format_date", description: "Format dates in various styles", cost: "1 credit" },
+      { name: "calculate_time_diff", description: "Calculate time differences", cost: "1 credit" },
     ],
-    pricing: { type: "free" },
+    pricing: { 
+      type: "credits",
+      description: "1 credit per request",
+      creditsPerRequest: 1,
+    },
     status: "live",
   });
 }

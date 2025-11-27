@@ -283,24 +283,25 @@ export async function GET() {
   return NextResponse.json({
     name: "Weather MCP",
     version: "1.0.0",
-    description: "Real-time weather data, forecasts, and alerts with x402 micropayments",
+    description: "Real-time weather data, forecasts, and alerts. Supports both credits and x402 micropayments.",
     transport: ["http", "sse"],
     tools: [
-      { name: "get_current_weather", description: "Get current weather conditions" },
-      { name: "get_weather_forecast", description: "Get 5-day forecast" },
-      { name: "get_weather_alerts", description: "Check active weather alerts" },
+      { name: "get_current_weather", description: "Get current weather conditions", cost: "2 credits" },
+      { name: "get_weather_forecast", description: "Get 5-day forecast", cost: "3 credits" },
+      { name: "get_weather_alerts", description: "Check active weather alerts", cost: "1 credit" },
     ],
     pricing: { 
-      type: "x402", 
-      pricePerRequest: "$0.001",
-      description: "Pay-per-request via x402 protocol",
+      type: "credits",
+      description: "1-3 credits per request",
+      creditsPerRequest: "1-3",
+      alternativePayment: {
+        type: "x402",
+        pricePerRequest: "$0.001",
+        network: "base",
+        currency: "USDC",
+      },
     },
-    x402: {
-      enabled: true,
-      network: "base",
-      currency: "USDC",
-      payTo: "0x...", // Placeholder - would be real address
-    },
+    x402Enabled: true,
     status: "live",
   });
 }
