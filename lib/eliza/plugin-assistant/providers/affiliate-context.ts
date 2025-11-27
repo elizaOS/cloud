@@ -184,11 +184,16 @@ export const affiliateContextProvider: Provider = {
       // Get affiliate data from character settings (populated by character loader)
       const affiliate = character.settings?.affiliateData as Record<string, unknown> | undefined;
       
+      // DEBUG: Log character settings to diagnose affiliate context issues
+      console.log("[Affiliate Context Provider] DEBUG - character.settings:", JSON.stringify(character.settings, null, 2));
+      console.log("[Affiliate Context Provider] DEBUG - affiliateData:", JSON.stringify(affiliate, null, 2));
+      
       // Extract lore from affiliate data (contains full social media posts)
       const loreFromAffiliate = affiliate?.lore as string[] | undefined;
       
       if (!affiliate) {
         // Not an affiliate character - return empty
+        console.log("[Affiliate Context Provider] No affiliate data found - returning empty context");
         return {
           values: { affiliateContext: "" },
           data: {},
@@ -200,6 +205,9 @@ export const affiliateContextProvider: Provider = {
       const vibe = (affiliate.vibe as string | undefined)?.toLowerCase();
       const backstory = affiliate.backstory as string | undefined;
       const source = affiliate.source as string | undefined;
+      
+      // DEBUG: Log extracted values
+      console.log("[Affiliate Context Provider] DEBUG - source:", source, "vibe:", vibe, "isCloneYourCrush:", source === "clone-your-crush");
       
       // Build context with strong personality instructions
       const contextLines: string[] = [];

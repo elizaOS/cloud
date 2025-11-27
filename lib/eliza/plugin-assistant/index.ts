@@ -470,6 +470,11 @@ const messageReceivedHandler = async ({
     logger.info(
       `[ElizaAssistant] Processing message for character: ${runtime.character.name} (ID: ${runtime.character.id})`,
     );
+    
+    // DEBUG: Log character settings to diagnose affiliate issues
+    console.log("[ElizaAssistant] DEBUG - runtime.character.settings:", JSON.stringify(runtime.character.settings, null, 2));
+    console.log("[ElizaAssistant] DEBUG - affiliateData:", JSON.stringify(runtime.character.settings?.affiliateData, null, 2));
+    
     logger.debug("[ElizaAssistant] Composing state with memory providers");
     const initialState = await runtime.composeState(message, [
       "SHORT_TERM_MEMORY",
@@ -478,6 +483,8 @@ const messageReceivedHandler = async ({
       "PROVIDERS",
       "ACTIONS",
       "CHARACTER",
+      "affiliateContext", // CRITICAL: Include affiliate context for Clone Your Crush image generation
+      "recentMessages",   // Include recent messages for context
     ]);
 
     console.log("*** INITIAL STATE ***\n", initialState);
@@ -514,10 +521,31 @@ const messageReceivedHandler = async ({
     logger.debug("*** PLANNING RESPONSE ***\n", planningResponse);
 
     const plan = parseKeyValueXml(planningResponse) as ParsedPlan | null;
-    const shouldRespondNow = canRespondImmediately(plan);
+    
+    // CLONE YOUR CRUSH: Check if we need to force image generation
+    const affiliateData = runtime.character.settings?.affiliateData as Record<string, unknown> | undefined;
+    const affiliateSource = affiliateData?.source as string | undefined;
+    const isCloneYourCrush = affiliateSource === "clone-your-crush";
+    
+    // Force image generation for Clone Your Crush - override LLM decision
+    let shouldRespondNow = canRespondImmediately(plan);
+    if (isCloneYourCrush) {
+      logger.info("[ElizaAssistant] 🔴 CLONE YOUR CRUSH MODE DETECTED - Forcing image generation");
+      shouldRespondNow = false; // Force action execution path
+      
+      // Ensure GENERATE_IMAGE is in planned actions
+      if (!plan?.actions?.includes("GENERATE_IMAGE")) {
+        if (plan) {
+          plan.actions = plan.actions 
+            ? `${plan.actions},GENERATE_IMAGE` 
+            : "GENERATE_IMAGE";
+        }
+      }
+      logger.info(`[ElizaAssistant] Forced plan actions: ${plan?.actions}`);
+    }
 
     logger.info(
-      `[ElizaAssistant] Plan - canRespondNow: ${shouldRespondNow}, thought: ${plan?.thought}`,
+      `[ElizaAssistant] Plan - canRespondNow: ${shouldRespondNow}, thought: ${plan?.thought}, isCloneYourCrush: ${isCloneYourCrush}`,
     );
 
     let responseContent = "";
