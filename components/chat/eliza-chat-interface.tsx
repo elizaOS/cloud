@@ -62,7 +62,11 @@ interface AgentInfo {
   avatarUrl?: string;
 }
 
-export function ElizaChatInterface() {
+interface ElizaChatInterfaceProps {
+  onMessageSent?: () => void;
+}
+
+export function ElizaChatInterface({ onMessageSent }: ElizaChatInterfaceProps) {
   // Use chat store for room and character management
   const {
     roomId,
@@ -625,6 +629,10 @@ export function ElizaChatInterface() {
         },
         onComplete: () => {
           loadRooms();
+          // Notify parent that a message was sent successfully (for anonymous message counting)
+          if (onMessageSent) {
+            onMessageSent();
+          }
         },
       });
     } catch (err) {

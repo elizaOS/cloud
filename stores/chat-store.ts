@@ -102,7 +102,7 @@ export const useChatStore = create<ChatState>((set, get) => ({
   // Load rooms from API
   loadRooms: async (force = false) => {
     const state = get();
-    let { entityId } = state;
+    let { entityId, anonymousSessionToken } = state;
 
     // Ensure entityId is initialized
     if (!entityId || entityId.trim() === "") {
@@ -117,13 +117,22 @@ export const useChatStore = create<ChatState>((set, get) => ({
       return state.loadRoomsPromise;
     }
 
-    console.log("[ChatStore] loadRooms - fetching rooms for entityId:", entityId);
+    console.log("[ChatStore] loadRooms - fetching rooms for entityId:", entityId, "sessionToken:", anonymousSessionToken?.slice(0, 8) + "...");
 
     const loadPromise = (async () => {
       set({ isLoadingRooms: true });
       try {
         const params = new URLSearchParams({ entityId });
-        const res = await fetch(`/api/eliza/rooms?${params.toString()}`);
+        // CRITICAL: Pass session token to preserve session identity
+        if (anonymousSessionToken) {
+          params.set("sessionToken", anonymousSessionToken);
+        }
+        const res = await fetch(`/api/eliza/rooms?${params.toString()}`, {
+          headers: {
+            // Also pass as header for redundancy
+            ...(anonymousSessionToken && { "X-Anonymous-Session": anonymousSessionToken }),
+          },
+        });
         if (res.ok) {
           const data = await res.json();
           console.log("[ChatStore] loadRooms - API response:", { 
@@ -159,7 +168,7 @@ export const useChatStore = create<ChatState>((set, get) => ({
 
   // Create new room
   createRoom: async (characterId?: string | null) => {
-    let { entityId, loadRooms, setRoomId } = get();
+    let { entityId, loadRooms, setRoomId, anonymousSessionToken } = get();
 
     // Ensure entityId is initialized
     if (!entityId) {
@@ -172,12 +181,18 @@ export const useChatStore = create<ChatState>((set, get) => ({
       const requestBody = {
         entityId,
         characterId: characterId || undefined,
+        // CRITICAL: Pass the session token to preserve anonymous session identity
+        sessionToken: anonymousSessionToken || undefined,
       };
       console.log("[ChatStore] Creating room with:", requestBody);
 
       const response = await fetch("/api/eliza/rooms", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: { 
+          "Content-Type": "application/json",
+          // Also pass as header for redundancy
+          ...(anonymousSessionToken && { "X-Anonymous-Session": anonymousSessionToken }),
+        },
         body: JSON.stringify(requestBody),
       });
 

@@ -41,7 +41,15 @@ export async function POST(
     }
 
     // Step 2: Authentication & Context Building (pass body for session token check)
+    logger.info("[Stream] 📊 Session token from body:", sessionToken ? sessionToken.slice(0, 8) + "..." : "N/A");
     const userContext = await authenticateAndBuildContext(request, { sessionToken });
+    
+    logger.info("[Stream] 📊 UserContext after auth:", {
+      isAnonymous: userContext.isAnonymous,
+      hasSessionToken: !!userContext.sessionToken,
+      sessionTokenPreview: userContext.sessionToken?.slice(0, 8) + "...",
+      userId: userContext.userId,
+    });
 
     if (model) {
       logger.debug("[Stream] User selected model:", model);
@@ -221,16 +229,24 @@ export async function POST(
  * Centralizes authentication and context creation
  */
 async function authenticateAndBuildContext(request: NextRequest, body?: { sessionToken?: string }) {
+  logger.info("[Stream Auth] Starting authentication, sessionToken in body:", body?.sessionToken?.slice(0, 8) + "...");
+  
   try {
     // Try authenticated user first
+    logger.info("[Stream Auth] Attempting Privy/API key authentication...");
     const authResult = await requireAuthOrApiKey(request);
+    logger.info("[Stream Auth] ✅ Privy/API auth SUCCEEDED - treating as authenticated user:", {
+      userId: authResult.user.id,
+      authMethod: authResult.authMethod,
+    });
     return await userContextService.buildContext({
       ...authResult,
       isAnonymous: false,
     });
   } catch (error) {
     // Fall back to anonymous user
-    logger.info("[Stream] Privy auth failed, trying anonymous user...");
+    logger.info("[Stream Auth] ❌ Privy auth failed, error:", error instanceof Error ? error.message : String(error));
+    logger.info("[Stream Auth] Falling back to anonymous user handling...");
     
     // CRITICAL: Check for session token in multiple places to avoid race condition
     // Priority: 1) Header, 2) Body, 3) Cookie
