@@ -15,6 +15,7 @@
  */
 
 import { requireAuthOrApiKey } from "@/lib/auth";
+import { getAnonymousUser, getOrCreateAnonymousUser } from "@/lib/auth-anonymous";
 import { getProvider } from "@/lib/providers";
 import {
   creditsService,
@@ -36,6 +37,7 @@ import type {
   OpenAIChatRequest,
   OpenAIChatResponse,
 } from "@/lib/providers/types";
+import type { UserWithOrganization } from "@/lib/types";
 
 export const maxDuration = 60;
 
@@ -231,8 +233,33 @@ async function handlePOST(req: NextRequest) {
   const startTime = Date.now();
 
   try {
-    // 1. Authenticate
-    const { user, apiKey } = await requireAuthOrApiKey(req);
+    // 1. Authenticate - Support both authenticated and anonymous users
+    let user: UserWithOrganization;
+    let apiKey;
+    let isAnonymous = false;
+
+    try {
+      const authResult = await requireAuthOrApiKey(req);
+      user = authResult.user;
+      apiKey = authResult.apiKey;
+    } catch (authError) {
+      // Fallback to anonymous user
+      logger.info("[Responses API] Privy auth failed, trying anonymous...");
+      
+      const anonData = await getAnonymousUser();
+      if (anonData) {
+        user = anonData.user;
+        isAnonymous = true;
+        logger.info("[Responses API] Anonymous user authenticated:", user.id);
+      } else {
+        // Create new anonymous session if none exists
+        logger.info("[Responses API] Creating new anonymous session...");
+        const newAnonData = await getOrCreateAnonymousUser();
+        user = newAnonData.user;
+        isAnonymous = true;
+        logger.info("[Responses API] Created anonymous user:", user.id);
+      }
+    }
 
     // 2. Parse AI SDK request
     const aiSdkRequest: AISdkRequest = await req.json();
@@ -406,73 +433,95 @@ async function handlePOST(req: NextRequest) {
     const normalizedModel = normalizeModelName(model);
     const isStreaming = request.stream ?? false;
 
-    // 5. Check credits BEFORE making API call
+    // 5. Check credits BEFORE making API call (skip for anonymous users)
     const estimatedCost = await estimateRequestCost(model, request.messages);
+    let org = null;
 
-    // Check if user has an organization
-    if (!user.organization_id) {
-      return Response.json(
-        {
-          error: {
-            message: "User is not associated with an organization",
-            type: "invalid_request_error",
-            code: "no_organization",
-          },
-        },
-        { status: 400 },
-      );
-    }
-
-    // Check if organization has sufficient credits
-    const org = await organizationsService.getById(user.organization_id);
-    if (!org) {
-      return Response.json(
-        {
-          error: {
-            message: "Organization not found",
-            type: "invalid_request_error",
-            code: "organization_not_found",
-          },
-        },
-        { status: 404 },
-      );
-    }
-
-    const creditCheck = {
-      sufficient: Number(org.credit_balance) >= estimatedCost,
-      required: estimatedCost,
-      balance: Number(org.credit_balance),
-    };
-
-    if (!creditCheck.sufficient) {
-      logger.warn("[Responses API] Insufficient credits", {
-        organizationId: user.organization_id,
-        required: creditCheck.required,
-        balance: creditCheck.balance,
+    // Anonymous users don't have organizations - they use message limits instead
+    if (isAnonymous) {
+      logger.info("[Responses API] Anonymous user - skipping credit check", {
+        userId: user.id,
+        estimatedCost,
       });
-
-      return Response.json(
-        {
-          error: {
-            message: `Insufficient balance. Required: $${Number(creditCheck.required).toFixed(2)}, Available: $${Number(creditCheck.balance).toFixed(2)}`,
-            type: "insufficient_quota",
-            code: "insufficient_balance",
+    } else {
+      // Check if user has an organization
+      if (!user.organization_id) {
+        return Response.json(
+          {
+            error: {
+              message: "User is not associated with an organization",
+              type: "invalid_request_error",
+              code: "no_organization",
+            },
           },
-        },
-        { status: 402 },
-      );
-    }
+          { status: 400 },
+        );
+      }
 
-    logger.info("[Responses API] Chat completion request (AI SDK format)", {
-      organizationId: user.organization_id,
-      userId: user.id,
-      model,
-      normalizedModel,
-      provider,
-      streaming: isStreaming,
-      messageCount: request.messages.length,
-      estimatedCost,
-    });
+      // Check if organization has sufficient credits
+      org = await organizationsService.getById(user.organization_id);
+      if (!org) {
+        return Response.json(
+          {
+            error: {
+              message: "Organization not found",
+              type: "invalid_request_error",
+              code: "organization_not_found",
+            },
+          },
+          { status: 404 },
+        );
+      }
+
+      const creditCheck = {
+        sufficient: Number(org.credit_balance) >= estimatedCost,
+        required: estimatedCost,
+        balance: Number(org.credit_balance),
+      };
+
+      if (!creditCheck.sufficient) {
+        logger.warn("[Responses API] Insufficient credits", {
+          organizationId: user.organization_id,
+          required: creditCheck.required,
+          balance: creditCheck.balance,
+        });
+
+        return Response.json(
+          {
+            error: {
+              message: `Insufficient balance. Required: $${Number(creditCheck.required).toFixed(2)}, Available: $${Number(creditCheck.balance).toFixed(2)}`,
+              type: "insufficient_quota",
+              code: "insufficient_balance",
+            },
+          },
+          { status: 402 },
+        );
+      }
+
+      logger.info("[Responses API] Chat completion request (AI SDK format)", {
+        organizationId: user.organization_id,
+        userId: user.id,
+        model,
+        normalizedModel,
+        provider,
+        streaming: isStreaming,
+        messageCount: request.messages.length,
+        estimatedCost,
+      });
+    } // End of non-anonymous credit check block
+
+    // Log for anonymous users
+    if (isAnonymous) {
+      logger.info("[Responses API] Anonymous chat completion request", {
+        userId: user.id,
+        model,
+        normalizedModel,
+        provider,
+        streaming: isStreaming,
+        messageCount: request.messages.length,
+        estimatedCost,
+      });
+    }
 
     // 6. Forward to Vercel AI Gateway with Groq as preferred provider
     const providerInstance = getProvider();
@@ -578,8 +627,8 @@ async function handleNonStreamingResponse(
   const usage = data.usage;
   const content = data.choices[0]?.message?.content || "";
 
-  // Deduct credits SYNCHRONOUSLY before returning response
-  if (usage) {
+  // Deduct credits SYNCHRONOUSLY before returning response (skip for anonymous users)
+  if (usage && user.organization_id) {
     const { inputCost, outputCost, totalCost } = await calculateCost(
       model,
       provider,
@@ -589,7 +638,7 @@ async function handleNonStreamingResponse(
 
     // CRITICAL: Deduct credits before returning response
     const deductResult = await creditsService.deductCredits({
-      organizationId: user.organization_id!,
+      organizationId: user.organization_id,
       amount: totalCost,
       description: `Responses API: ${model}`,
       metadata: { user_id: user.id },
@@ -621,7 +670,7 @@ async function handleNonStreamingResponse(
     (async () => {
       try {
         const usageRecord = await usageService.create({
-          organization_id: user.organization_id!,
+          organization_id: user.organization_id,
           user_id: user.id,
           api_key_id: apiKey?.id || null,
           type: "chat",
@@ -636,7 +685,7 @@ async function handleNonStreamingResponse(
 
         if (apiKey) {
           await generationsService.create({
-            organization_id: user.organization_id!,
+            organization_id: user.organization_id,
             user_id: user.id,
             api_key_id: apiKey.id,
             type: "chat",
@@ -845,69 +894,79 @@ function handleStreamingResponse(
           outputTokens,
         );
 
-        const deductResult = await creditsService.deductCredits({
-          organizationId: user.organization_id!,
-          amount: totalCost,
-          description: `Responses API: ${model}`,
-          metadata: { user_id: user.id },
-        });
+        // Only deduct credits and record usage for authenticated users with organizations
+        if (user.organization_id) {
+          const deductResult = await creditsService.deductCredits({
+            organizationId: user.organization_id,
+            amount: totalCost,
+            description: `Responses API: ${model}`,
+            metadata: { user_id: user.id },
+          });
 
-        if (!deductResult.success) {
-          logger.error(
-            "[Responses API] CRITICAL: Failed to deduct credits after streaming",
-            {
-              organizationId: user.organization_id!,
-              userId: user.id,
-              cost: String(totalCost),
-              balance: deductResult.newBalance,
-            },
-          );
-        }
+          if (!deductResult.success) {
+            logger.error(
+              "[Responses API] CRITICAL: Failed to deduct credits after streaming",
+              {
+                organizationId: user.organization_id,
+                userId: user.id,
+                cost: String(totalCost),
+                balance: deductResult.newBalance,
+              },
+            );
+          }
 
-        const usageRecord = await usageService.create({
-          organization_id: user.organization_id!,
-          user_id: user.id,
-          api_key_id: apiKey?.id || null,
-          type: "chat",
-          model,
-          provider: "vercel-gateway",
-          input_tokens: inputTokens,
-          output_tokens: outputTokens,
-          input_cost: String(inputCost),
-          output_cost: String(outputCost),
-          is_successful: true,
-        });
-
-        if (apiKey) {
-          await generationsService.create({
-            organization_id: user.organization_id!,
+          const usageRecord = await usageService.create({
+            organization_id: user.organization_id,
             user_id: user.id,
-            api_key_id: apiKey.id,
+            api_key_id: apiKey?.id || null,
             type: "chat",
             model,
             provider: "vercel-gateway",
-            prompt: JSON.stringify(messages),
-            status: "completed",
-            content: fullContent,
+            input_tokens: inputTokens,
+            output_tokens: outputTokens,
+            input_cost: String(inputCost),
+            output_cost: String(outputCost),
+            is_successful: true,
+          });
+
+          if (apiKey) {
+            await generationsService.create({
+              organization_id: user.organization_id,
+              user_id: user.id,
+              api_key_id: apiKey.id,
+              type: "chat",
+              model,
+              provider: "vercel-gateway",
+              prompt: JSON.stringify(messages),
+              status: "completed",
+              content: fullContent,
+              tokens: totalTokens,
+              cost: String(totalCost),
+              credits: String(totalCost),
+              usage_record_id: usageRecord.id,
+              completed_at: new Date(),
+              result: {
+                text: fullContent,
+                inputTokens,
+                outputTokens,
+                totalTokens,
+              },
+            });
+          }
+
+          logger.info("[Responses API] Streaming chat completed", {
+            durationMs: Date.now() - startTime,
             tokens: totalTokens,
             cost: String(totalCost),
-            credits: String(totalCost),
-            usage_record_id: usageRecord.id,
-            completed_at: new Date(),
-            result: {
-              text: fullContent,
-              inputTokens,
-              outputTokens,
-              totalTokens,
-            },
+          });
+        } else {
+          // Anonymous user - just log completion without billing
+          logger.info("[Responses API] Anonymous streaming chat completed", {
+            durationMs: Date.now() - startTime,
+            tokens: totalTokens,
+            userId: user.id,
           });
         }
-
-        logger.info("[Responses API] Streaming chat completed", {
-          durationMs: Date.now() - startTime,
-          tokens: totalTokens,
-          cost: String(totalCost),
-        });
       }
     } catch (error) {
       logger.error("[Responses API] Streaming error:", error);

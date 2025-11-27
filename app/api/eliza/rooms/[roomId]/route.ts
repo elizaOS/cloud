@@ -21,7 +21,12 @@ export async function GET(
       await requireAuthOrApiKey(request);
     } catch (error) {
       // Fallback to anonymous user
-      await getAnonymousUser();
+      const anonData = await getAnonymousUser();
+      if (!anonData) {
+        // Create new anonymous session if none exists
+        const { getOrCreateAnonymousUser } = await import("@/lib/auth-anonymous");
+        await getOrCreateAnonymousUser();
+      }
     }
 
     const { roomId } = await ctx.params;
