@@ -16,18 +16,22 @@ interface CharacterIntroPageProps {
   character: UserCharacter;
   onEmailSubmit: (email: string) => Promise<void>;
   onSkip: () => void;
+  onAuthenticatedStart?: () => void;
   source?: string;
   theme: AffiliateTheme;
   isLoading?: boolean;
+  isAuthenticated?: boolean;
 }
 
 export function CharacterIntroPage({ 
   character, 
   onEmailSubmit, 
   onSkip,
+  onAuthenticatedStart,
   source,
   theme,
   isLoading: parentLoading = false,
+  isAuthenticated = false,
 }: CharacterIntroPageProps) {
   const [showEmailModal, setShowEmailModal] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
@@ -44,6 +48,12 @@ export function CharacterIntroPage({
   const vibeLabel = affiliate?.vibe as string | undefined;
 
   const handleStartChat = () => {
+    // If user is authenticated, skip the modal and go directly to chat
+    if (isAuthenticated && onAuthenticatedStart) {
+      onAuthenticatedStart();
+      return;
+    }
+    // Show email modal for unauthenticated users
     setShowEmailModal(true);
   };
 

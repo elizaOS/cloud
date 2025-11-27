@@ -95,18 +95,28 @@ export function ChatInterface({
     gradient: `linear-gradient(135deg, ${rgbToColor(theme.colors.primary)}, ${rgbToColor(theme.colors.gradientTo)})`,
   } : null;
 
-  // Debug logging
+  // Debug logging - IMPORTANT: Check console to understand auth state
   useEffect(() => {
-    console.log("[ChatInterface] Theme debug:", {
+    console.log("[ChatInterface] 🔍 DEBUG - Auth & Theme State:", {
       themeId: theme.id,
       isRomanticTheme,
       hasSession: !!session,
+      sessionDetails: session ? {
+        messageCount: session.messageCount,
+        messagesLimit: session.messagesLimit,
+        messagesRemaining: session.messagesRemaining,
+      } : "NO SESSION PROP",
       hasUser: !!user,
+      userDetails: user ? { id: user.id, name: user.name } : "NO USER PROP",
       isAnonymous,
       messagesRemaining,
+      shouldShowBanner: isAnonymous && !shouldShowPaywall,
       source,
+      reason: user ? "USER IS LOGGED IN VIA PRIVY - No banner for authenticated users" 
+             : !session ? "SESSION PROP IS MISSING - Check page.tsx Case B logic"
+             : "ANONYMOUS USER WITH SESSION - Banner should show",
     });
-  }, [theme.id, isRomanticTheme, session, user, isAnonymous, messagesRemaining, source]);
+  }, [theme.id, isRomanticTheme, session, user, isAnonymous, messagesRemaining, source, shouldShowPaywall]);
 
   // CRITICAL: Set the selected character ID so ElizaChatInterface knows which character to use
   useEffect(() => {
@@ -260,6 +270,16 @@ export function ChatInterface({
               animationDuration: "4s",
             }} 
           />
+        </div>
+      )}
+
+      {/* DEBUG BANNER - Remove after testing */}
+      {process.env.NODE_ENV === 'development' && (
+        <div className="bg-yellow-500/20 border-b border-yellow-500/50 px-4 py-2 text-xs text-yellow-200">
+          <strong>🔍 DEBUG:</strong> {user ? `LOGGED IN as ${user.name || user.id}` : session ? `ANONYMOUS (Session: ${session.token.slice(0,8)}...)` : 'NO AUTH STATE'}
+          {user && <span className="ml-2">(Banner won't show - authenticated users have unlimited messages)</span>}
+          {!user && session && <span className="ml-2">({session.messagesRemaining} messages remaining)</span>}
+          {!user && !session && <span className="ml-2">(No session - something went wrong)</span>}
         </div>
       )}
 
