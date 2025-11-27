@@ -5,6 +5,7 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { X, Plus } from "lucide-react";
 import type { ElizaCharacter } from "@/lib/types";
+import { AvatarUpload } from "@/components/character-builder/avatar-upload";
 import {
   BrandTabs,
   BrandTabsList,
@@ -364,7 +365,22 @@ export function CharacterForm({ character, onChange }: CharacterFormProps) {
           </BrandTabsContent>
 
           {/* Advanced Tab */}
-          <BrandTabsContent value="advanced" className="space-y-4">
+          <BrandTabsContent value="advanced" className="space-y-6">
+            <div className="flex flex-col items-center justify-center space-y-4 py-6">
+              <label className="text-xs font-medium text-white/70 uppercase tracking-wide">
+                Avatar
+              </label>
+              <AvatarUpload
+                value={character.avatarUrl}
+                onChange={(url) => updateField("avatarUrl", url)}
+                name={character.name || "Character"}
+                size="lg"
+              />
+              <p className="text-xs text-white/40 text-center max-w-xs">
+                Upload a custom avatar for your character (max 5MB)
+              </p>
+            </div>
+            
             <div className="rounded-none bg-black/40 border border-white/10 p-4">
               <p className="text-sm text-white/60">
                 Additional settings like{" "}
