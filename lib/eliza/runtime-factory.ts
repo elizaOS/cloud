@@ -3,7 +3,6 @@
  * Handles all runtime initialization, plugin loading, and settings configuration
  */
 
-import { v4 as uuidv4 } from "uuid";
 import {
   AgentRuntime,
   stringToUuid,
@@ -34,12 +33,10 @@ const globalAny = globalThis as GlobalWithEliza;
 
 export class RuntimeFactory {
   private static instance: RuntimeFactory;
-
-  // Single agent ID for all users (maintains database consistency)
-  private readonly AGENT_ID = stringToUuid(
-    "b850bc30-45f8-0041-a00a-83df46d8555d",
-  ) as UUID;
-
+  
+  // Default agent ID for characters without an ID (backward compatibility)
+  private readonly DEFAULT_AGENT_ID = stringToUuid("b850bc30-45f8-0041-a00a-83df46d8555d") as UUID;
+  
   private constructor() {
     this.initializeLoggers();
   }
@@ -72,53 +69,59 @@ export class RuntimeFactory {
     const { character, plugins } = context.characterId
       ? await characterLoader.loadCharacter(context.characterId)
       : await characterLoader.getDefaultCharacter();
-
+    
+    // 3. Extract agentId from character (use character's ID or default)
+    const agentId = (character.id ? stringToUuid(character.id) : this.DEFAULT_AGENT_ID) as UUID;
+    
     elizaLogger.info(
       "[RuntimeFactory] Loaded character:",
       character.name,
+      "| ID:", agentId,
+      "| Username:", character.username || "N/A",
       "| Bio:",
       Array.isArray(character.bio)
         ? character.bio[0]
         : character.bio?.toString().substring(0, 100),
     );
-
-    // 3. Build complete settings upfront with user context
+    
+    // 4. Build complete settings upfront with user context
     const settings = this.buildSettings(character, context);
-
-    // 4. Filter out plugin-sql since we provide our own adapter
+    
+    // 5. Filter out plugin-sql since we provide our own adapter
     const filteredPlugins = this.filterPlugins(plugins);
 
     elizaLogger.info(
       "[RuntimeFactory] Creating AgentRuntime with plugins:",
       filteredPlugins.map((p) => p.name).join(", "),
     );
-
-    // 5. Create runtime with everything configured upfront
+    
+    // 6. Create runtime with everything configured upfront
     const runtime = new AgentRuntime({
       character: {
         ...character,
-        id: this.AGENT_ID, // Always use consistent agent ID for database consistency
+        id: agentId, // Use character's own ID
         settings, // All settings including API key are here
       },
       plugins: filteredPlugins,
-      agentId: this.AGENT_ID,
+      agentId: agentId, // Use character's own ID
       settings,
     });
-
-    // 6. Register database adapter
+    
+    // 7. Register database adapter
     runtime.registerDatabaseAdapter(dbAdapter);
-
-    // 7. Ensure runtime has logger
+    
+    // 8. Ensure runtime has logger
     this.ensureRuntimeLogger(runtime);
-
-    // 8. Initialize runtime
-    await this.initializeRuntime(runtime, character);
-
+    
+    // 9. Initialize runtime
+    await this.initializeRuntime(runtime, character, agentId);
+    
     elizaLogger.success(
       "[RuntimeFactory] Runtime created successfully for user",
       context.userId,
       "with character:",
       character.name,
+      "| agentId:", agentId
     );
 
     return runtime;
@@ -252,9 +255,10 @@ export class RuntimeFactory {
     }
 
     elizaLogger.info("[RuntimeFactory] Creating new database adapter");
+    // Use DEFAULT_AGENT_ID for the database adapter (shared across all characters)
     const dbAdapter = createDatabaseAdapter(
       { postgresUrl: process.env.DATABASE_URL },
-      this.AGENT_ID,
+      this.DEFAULT_AGENT_ID
     );
 
     await dbAdapter.init();
@@ -275,10 +279,7 @@ export class RuntimeFactory {
   /**
    * Initialize runtime with error handling for existing records
    */
-  private async initializeRuntime(
-    runtime: AgentRuntime,
-    character: Character,
-  ): Promise<void> {
+  private async initializeRuntime(runtime: AgentRuntime, character: Character, agentId: UUID): Promise<void> {
     try {
       elizaLogger.info("[RuntimeFactory] Starting runtime initialization...");
 
@@ -307,10 +308,10 @@ export class RuntimeFactory {
       }
 
       // Verify agent exists
-      const agentExists = await runtime.getAgent(this.AGENT_ID);
+      const agentExists = await runtime.getAgent(agentId);
       if (!agentExists) {
         elizaLogger.info("[RuntimeFactory] Creating agent entity...");
-        await this.ensureAgentExists(runtime, character);
+        await this.ensureAgentExists(runtime, character, agentId);
       }
     } catch (error) {
       elizaLogger.error(
@@ -324,13 +325,10 @@ export class RuntimeFactory {
   /**
    * Ensure agent entity exists in database
    */
-  private async ensureAgentExists(
-    runtime: AgentRuntime,
-    character: Character,
-  ): Promise<void> {
+  private async ensureAgentExists(runtime: AgentRuntime, character: Character, agentId: UUID): Promise<void> {
     try {
       await runtime.ensureAgentExists({
-        id: this.AGENT_ID,
+        id: agentId,
         name: character.name || "Eliza",
         username: character.username,
         system: character.system || "",
@@ -347,8 +345,8 @@ export class RuntimeFactory {
 
       // Also ensure entity exists
       await runtime.createEntity({
-        id: this.AGENT_ID,
-        agentId: this.AGENT_ID,
+        id: agentId,
+        agentId: agentId,
         names: [character.name || "Eliza"],
         metadata: { name: character.name || "Eliza" },
       });

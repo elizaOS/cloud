@@ -1,43 +1,29 @@
 /**
- * Build Mode Workflow
+ * Build Mode Workflow - Action-Based Architecture
  * 
- * Character self-upgrade assistance mode.
- * The agent becomes a collaborative assistant focused on helping
- * the user improve its own character configuration.
+ * Clean, action-based character design workflow.
  * 
- * This workflow is activated when the user enters "build mode" to modify
- * or upgrade the agent's character file.
+ * Architecture:
+ * 1. PLANNING PHASE: Analyze user intent, select ONE action
+ * 2. STATE UPDATE: Add reasoning trace to state
+ * 3. ACTION EXECUTION: Process selected action (handles own prompts & callbacks)
  * 
- * Key differences from CHAT/ASSISTANT modes:
- * - Different system prompts focused on character development
- * - Access to the current character file for reference
- * - Specialized tools for character validation and testing
- * - More technical, development-oriented responses
- * 
- * TODO: Implement this workflow with specialized prompts and tools
- * 
- * Suggested implementation approach:
- * 1. Load current character file from workflow.metadata.targetCharacterId
- * 2. Use specialized system prompt for character development assistance
- * 3. Provide character file context in the state
- * 4. Use specialized providers for:
- *    - Character schema validation
- *    - Best practices documentation
- *    - Example character files
- * 5. Add actions for:
- *    - Validating character JSON
- *    - Testing character changes
- *    - Generating character documentation
- * 6. Generate response focused on character improvement
+ * Three actions (plugins):
+ * - PROPOSE_CHARACTER_CHANGES: Conversational proposal
+ * - APPLY_CHARACTER_CHANGES: Extract & save changes
+ * - BUILD_CHAT: Natural conversation
  */
 
 import {
   asUUID,
+  composePromptFromState,
   createUniqueUuid,
   EventType,
   type IAgentRuntime,
   logger,
   type Memory,
+  ModelType,
+  parseKeyValueXml,
   type HandlerCallback,
   type UUID,
 } from "@elizaos/core";
@@ -48,10 +34,12 @@ import {
   clearLatestResponseId,
   isResponseStillValid,
 } from "../utils/response-tracking";
+import {
+  buildModeSystemPrompt,
+  buildModePlanningTemplate,
+} from "../prompts/build-mode-prompts";
+import { parsePlannedItems } from "../utils/parsers";
 
-/**
- * Workflow parameters
- */
 export interface BuildWorkflowParams {
   runtime: IAgentRuntime;
   message: Memory;
@@ -60,10 +48,29 @@ export interface BuildWorkflowParams {
 }
 
 /**
- * Build Mode Workflow Handler (Placeholder)
- * 
- * This is a placeholder implementation that returns a message
- * indicating build mode is coming soon.
+ * Parse planning response to extract thought and selected action
+ */
+function parsePlanningResponse(response: string): {
+  thought: string;
+  actions: string;
+} | null {
+  const parsed = parseKeyValueXml(response) as {
+    thought?: string;
+    actions?: string;
+  } | null;
+
+  if (!parsed || !parsed.actions) {
+    return null;
+  }
+
+  return {
+    thought: parsed.thought || "",
+    actions: parsed.actions || "",
+  };
+}
+
+/**
+ * Build Mode Workflow Handler
  */
 export async function handleBuildModeWorkflow({
   runtime,
@@ -75,13 +82,8 @@ export async function handleBuildModeWorkflow({
   const runId = asUUID(v4());
   const startTime = Date.now();
 
-  logger.info("[BuildMode] 🔧 BUILD MODE - Character upgrade workflow");
-  logger.debug(
-    `[BuildMode] Build mode metadata:`,
-    JSON.stringify(workflow.metadata),
-  );
-  logger.debug(`[BuildMode] Generated response ID: ${responseId.substring(0, 8)}`);
-  logger.debug(`[BuildMode] Generated run ID: ${runId.substring(0, 8)}`);
+  logger.info("[BuildMode] 🔧 BUILD MODE WORKFLOW - Starting");
+  logger.debug(`[BuildMode] Character: ${runtime.character.name} (ID: ${runtime.character.id})`);
 
   await setLatestResponseId(runtime, message.roomId, responseId);
 
@@ -97,70 +99,105 @@ export async function handleBuildModeWorkflow({
     source: "buildModeWorkflow",
   });
 
+  const originalSystemPrompt = runtime.character.system;
+
   try {
     if (message.entityId === runtime.agentId) {
       throw new Error("Message is from the agent itself");
     }
 
-    // Save the incoming message
-    logger.debug("[BuildMode] Saving message to memory");
+    // Save user message.
     await runtime.createMemory(message, "messages");
 
-    // TODO: Implement full build mode workflow
-    // For now, respond with a placeholder message
+    // ========================================
+    // PHASE 1: Compose State with Providers
+    // ========================================
+    logger.info("[BuildMode] Phase 1: Composing state");
+    
+    const state = await runtime.composeState(message, [
+      "SHORT_TERM_MEMORY",
+      "LONG_TERM_MEMORY",
+      "ACTIONS"
+    ]);
 
-    const responseContent = `🔧 **Build Mode Active**
+    // ========================================
+    // PHASE 2: PLANNING - Analyze & Select Action
+    // ========================================
 
-I'm ready to help you upgrade and improve my character configuration! 
+    // Set build mode system prompt
+    const composedSystemPrompt = composePromptFromState({
+      state,
+      template: buildModeSystemPrompt,
+    });
+    runtime.character.system = composedSystemPrompt;
 
-This is a specialized mode where I can assist you with:
-- Analyzing and improving my personality traits
-- Adding new knowledge and capabilities
-- Refining my communication style
-- Validating character file structure
-- Testing changes before deployment
+    const planningPrompt = composePromptFromState({
+      state,
+      template: buildModePlanningTemplate,
+    });
 
-What aspect of my character would you like to work on?
+    const planningResponse = await runtime.useModel(ModelType.TEXT_LARGE, {
+      prompt: planningPrompt,
+    });
 
-*Note: Full build mode implementation coming soon. Current character ID: ${workflow.metadata?.targetCharacterId || runtime.character.id}*`;
+    // Reset the system prompt to the original
+    runtime.character.system = originalSystemPrompt;
 
-    // Check if this is still the latest response ID for this room
-    if (!(await isResponseStillValid(runtime, message.roomId, responseId))) {
-      logger.info(
-        `[BuildMode] Response discarded - newer message being processed for agent: ${runtime.agentId}, room: ${message.roomId}`,
-      );
-      return;
+    const plan = parsePlanningResponse(planningResponse);
+    if (!plan) {
+      logger.warn("[BuildMode] Failed to parse plan, defaulting to BUILD_CHAT");
     }
 
-    // Clean up the response ID
-    await clearLatestResponseId(runtime, message.roomId);
+    // Parse the selected actions
+    const plannedActions = parsePlannedItems(plan?.actions);
+    const selectedAction = plannedActions[0] || "BUILD_CHAT";
+    
+    logger.info(`[BuildMode] Selected Action: ${selectedAction}`);
+    logger.debug(`[BuildMode] Thought: ${plan?.thought?.substring(0, 200) || ""}...`);
 
-    // Create response memory
-    const responseMemory: Memory = {
-      id: createUniqueUuid(runtime, (message.id ?? v4()) as UUID),
+    // ========================================
+    // PHASE 3: Update State with Reasoning Trace
+    // ========================================
+    // TODO: save agent plan to memory.
+
+    // ========================================
+    // PHASE 4: Execute Selected Action
+    // ========================================
+    logger.info(`[BuildMode] Phase 4: Executing action - ${selectedAction}`);
+
+    // Create action response memory for processing
+    const actionResponse: Memory = {
+      id: createUniqueUuid(runtime, v4() as UUID),
       entityId: runtime.agentId,
       roomId: message.roomId,
       worldId: message.worldId,
       content: {
-        text: responseContent,
-        thought: "Build mode placeholder response",
+        thought: plan?.thought,
+        actions: [selectedAction],
         source: "agent",
-        inReplyTo: message.id,
-      } as Memory["content"],
+      },
     };
 
-    // Save response
-    logger.debug("[BuildMode] Saving build mode response to memory");
-    await runtime.createMemory(responseMemory, "messages");
+    // Process the selected action - it will handle its own prompts and callback
+    await runtime.processActions(message, [actionResponse], state, callback);
 
-    // Trigger callback with response
-    if (callback) {
-      await callback({ text: responseContent });
+    // Restore original system prompt
+    runtime.character.system = originalSystemPrompt;
+
+    logger.info(`[BuildMode] Action execution completed`);
+
+    // ========================================
+    // PHASE 5: Cleanup
+    // ========================================
+    
+    // Check if this is still the latest response
+    if (!(await isResponseStillValid(runtime, message.roomId, responseId))) {
+      logger.info("[BuildMode] Response discarded - newer message being processed");
+      return;
     }
 
-    logger.info(`[BuildMode] Run ${runId.substring(0, 8)} completed successfully`);
+    await clearLatestResponseId(runtime, message.roomId);
 
-    const endTime = Date.now();
     await runtime.emitEvent(EventType.RUN_ENDED, {
       runtime,
       runId,
@@ -169,12 +206,19 @@ What aspect of my character would you like to work on?
       entityId: message.entityId,
       startTime,
       status: "completed",
-      endTime,
-      duration: endTime - startTime,
+      endTime: Date.now(),
+      duration: Date.now() - startTime,
       source: "buildModeWorkflow",
+      selectedAction,
     });
+
   } catch (error) {
-    // Emit run ended event with error
+    // Restore system prompt on error
+    runtime.character.system = originalSystemPrompt;
+
+    const errorMsg = error instanceof Error ? error.message : String(error);
+    logger.error("[BuildMode] Workflow error:", errorMsg);
+
     await runtime.emitEvent(EventType.RUN_ENDED, {
       runtime,
       runId,
@@ -185,7 +229,7 @@ What aspect of my character would you like to work on?
       status: "error",
       endTime: Date.now(),
       duration: Date.now() - startTime,
-      error: error instanceof Error ? error.message : String(error),
+      error: errorMsg,
       source: "buildModeWorkflow",
     });
     throw error;
