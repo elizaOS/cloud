@@ -3,14 +3,16 @@ import { NextResponse } from "next/server";
 // MCP definitions with their tools and schemas
 const mcpDefinitions = [
   {
-    id: "eliza-cloud",
+    id: "eliza-cloud-mcp",
     name: "ElizaOS Cloud MCP",
     description:
       "Core ElizaOS Cloud platform MCP with credit management, AI generation, memory, conversations, and agent interaction capabilities",
     version: "1.0.0",
     endpoint: "/api/mcp",
     category: "platform",
-    pricing: { type: "credits", base: "varies per tool" },
+    status: "live",
+    x402Enabled: false,
+    pricing: { type: "credits", description: "Pay-per-use with credits" },
     tools: [
       {
         name: "check_credits",
@@ -223,12 +225,66 @@ const mcpDefinitions = [
       },
     ],
   },
+  {
+    id: "time-mcp",
+    name: "Time & Date MCP",
+    description:
+      "Get current time, timezone conversions, and date calculations. Perfect for scheduling and time-aware applications.",
+    version: "1.0.0",
+    endpoint: "/api/mcp/demos/time",
+    category: "utilities",
+    status: "live",
+    x402Enabled: false,
+    pricing: { type: "free", description: "Free to use" },
+    tools: [
+      { name: "get_current_time", description: "Get current date and time", cost: "FREE" },
+      { name: "convert_timezone", description: "Convert between timezones", cost: "FREE" },
+      { name: "format_date", description: "Format dates in various styles", cost: "FREE" },
+      { name: "calculate_time_diff", description: "Calculate time differences", cost: "FREE" },
+    ],
+  },
+  {
+    id: "weather-mcp",
+    name: "Weather MCP",
+    description:
+      "Real-time weather data, forecasts, and alerts. Powered by open weather APIs with x402 micropayment support.",
+    version: "1.0.0",
+    endpoint: "/api/mcp/demos/weather",
+    category: "data",
+    status: "live",
+    x402Enabled: true,
+    pricing: { type: "x402", description: "$0.001 per request via x402", pricePerRequest: "0.001" },
+    tools: [
+      { name: "get_current_weather", description: "Get current weather conditions", cost: "$0.001" },
+      { name: "get_weather_forecast", description: "Get 5-day forecast", cost: "$0.001" },
+      { name: "get_weather_alerts", description: "Check active weather alerts", cost: "$0.001" },
+    ],
+  },
+  {
+    id: "crypto-mcp",
+    name: "Crypto Price MCP",
+    description:
+      "Real-time cryptocurrency prices, market data, and historical charts. Premium endpoints support x402 payments.",
+    version: "1.0.0",
+    endpoint: "/api/mcp/demos/crypto",
+    category: "finance",
+    status: "live",
+    x402Enabled: true,
+    pricing: { type: "x402", description: "$0.0005 per request via x402", pricePerRequest: "0.0005" },
+    tools: [
+      { name: "get_crypto_price", description: "Get current price for a token", cost: "$0.0005" },
+      { name: "get_market_data", description: "Get market cap, volume, supply", cost: "$0.0005" },
+      { name: "get_price_history", description: "Get historical price data", cost: "$0.0005" },
+      { name: "get_token_info", description: "Get token details and chains", cost: "$0.0005" },
+      { name: "get_top_tokens", description: "Get top tokens by market cap", cost: "$0.0005" },
+    ],
+  },
 ];
 
 export async function GET() {
   return NextResponse.json({
     mcps: mcpDefinitions,
     total: mcpDefinitions.length,
-    categories: ["platform"],
+    categories: ["platform", "utilities", "data", "finance"],
   });
 }
