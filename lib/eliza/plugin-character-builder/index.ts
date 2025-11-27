@@ -4,11 +4,13 @@ import {
   type MessagePayload,
   type Plugin,
 } from "@elizaos/core";
-import { providersProvider } from "./providers/providers";
 import { actionsProvider } from "./providers/actions";
-import { characterProvider } from "./providers/character";
+import { characterGuideProvider } from "./providers/character-guide";
+import { currentCharacterProvider } from "./providers/current-character";
 import { generateImageAction } from "./actions/image-generation";
-import { actionStateProvider } from "./providers/actionState";
+import { proposeCharacterChangesAction } from "./actions/propose-character-changes";
+import { applyCharacterChangesAction } from "./actions/apply-character-changes";
+import { buildChatAction } from "./actions/build-chat";
 import { handleMessage } from "./handler";
 import type { IAgentRuntime, Memory, HandlerCallback } from "@elizaos/core";
 
@@ -31,9 +33,13 @@ const messageReceivedHandler = async ({
   callback,
 }: MessageReceivedHandlerParams): Promise<void> => {
   logger.info(
-    `[AssistantPlugin] Handling message for agent: ${runtime.agentId}, room: ${message.roomId}`,
+    `[Builder] Handling message for agent: ${runtime.agentId}, room: ${message.roomId}`,
   );
-  logger.debug(`[AssistantPlugin] MESSAGE RECEIVED:`, JSON.stringify(message));
+  logger.debug(`[Builder] MESSAGE RECEIVED:`, JSON.stringify(message));
+
+  // ============================================================================
+  // WORKFLOW ROUTING - Route to appropriate message processing workflow
+  // ============================================================================
 
   try {
     await handleMessage({
@@ -43,7 +49,7 @@ const messageReceivedHandler = async ({
     });
   } catch (error) {
     const errorMessage = error instanceof Error ? error.message : String(error);
-    logger.error(`[AssistantPlugin] Error in workflow handler: ${errorMessage}`);
+    logger.error(`[CharacterBuilderPlugin] Error in message received handler: ${errorMessage}`);
     throw error;
   }
 };
@@ -74,20 +80,22 @@ const events = {
 /**
  * Assistant Plugin Export
  */
-export const assistantPlugin: Plugin = {
+export const characterBuilderPlugin: Plugin = {
   name: "eliza-assistant",
   description: "Core assistant plugin with message handling and workflow routing",
   events,
-  providers: [
-    providersProvider,
+    providers: [
     actionsProvider,
-    characterProvider,
-    actionStateProvider,
+    characterGuideProvider,
+    currentCharacterProvider,
   ],
   actions: [
     generateImageAction,
+    proposeCharacterChangesAction,
+    applyCharacterChangesAction,
+    buildChatAction,
   ],
   services: [],
 };
 
-export default assistantPlugin;
+export default characterBuilderPlugin;

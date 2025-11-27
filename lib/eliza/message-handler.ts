@@ -24,8 +24,8 @@ import { discordService } from "@/lib/services/discord";
 import { db } from "@/db/client";
 import { sql } from "drizzle-orm";
 import { generateRoomTitle } from "@/lib/ai/generate-room-title";
-import type { WorkflowConfig } from "./workflow-types";
-import { DEFAULT_WORKFLOW } from "./workflow-types";
+import type { AgentModeConfig } from "./agent-mode-types";
+import { DEFAULT_AGENT_MODE } from "./agent-mode-types";
 
 /**
  * Usage information for token tracking and billing
@@ -48,7 +48,7 @@ export interface MessageOptions {
   attachments?: unknown[];
   characterId?: string;
   model?: string;
-  workflow?: WorkflowConfig;
+  agentModeConfig?: AgentModeConfig;
 }
 
 export class MessageHandler {
@@ -65,13 +65,13 @@ export class MessageHandler {
    * Returns the agent's response and usage information
    */
   async process(options: MessageOptions): Promise<MessageResult> {
-    const { roomId, entityId, text, attachments, workflow } = options;
+    const { roomId, entityId, text, attachments, agentModeConfig } = options;
     
-    // Use provided workflow or default to CHAT mode
-    const workflowConfig = workflow || DEFAULT_WORKFLOW;
+    // Use provided agent mode config or default to CHAT mode
+    const modeConfig = agentModeConfig || DEFAULT_AGENT_MODE;
     
     elizaLogger.info(
-      `[MessageHandler] Processing message for user ${this.userContext.userId} in room ${roomId} (workflow: ${workflowConfig.mode})`
+      `[MessageHandler] Processing message for user ${this.userContext.userId} in room ${roomId} (mode: ${modeConfig.mode})`
     );
     
     // 1. Ensure connection exists (with caching)
@@ -86,11 +86,11 @@ export class MessageHandler {
     
     try {
       // Process message through event pipeline
-      // The workflow config will be picked up by the plugin-assistant
+      // The agent mode config will be picked up by the appropriate plugin
       await this.runtime.emitEvent(EventType.MESSAGE_RECEIVED, {
         runtime: this.runtime,
         message: userMessage,
-        workflow: workflowConfig, // Pass workflow to event handlers
+        agentModeConfig: modeConfig, // Pass agent mode config to event handlers
         callback: async (content: Content) => {
           elizaLogger.info("[MessageHandler] Callback invoked with content:", JSON.stringify(content).substring(0, 200));
           
@@ -99,7 +99,7 @@ export class MessageHandler {
             elizaLogger.info(`[MessageHandler] Captured response text (${content.text.length} chars): ${content.text.substring(0, 100)}...`);
             
             // Store the response memory when callback is invoked
-            // This ensures all workflow responses (including action responses) are persisted
+            // This ensures all agent responses (including action responses) are persisted
             const responseMemory: Memory = {
               id: createUniqueUuid(this.runtime, (userMessage.id ?? uuidv4()) as UUID),
               entityId: this.runtime.agentId,

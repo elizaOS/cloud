@@ -63,10 +63,8 @@ Your thought should be comprehensive - it will be passed to the action to help i
 // PLANNING TEMPLATE - Analyze and Select Action
 // ============================================
 export const buildModePlanningTemplate = `
-# Available Actions
 {{actionsWithDescriptions}}
 
-# Current Context
 {{receivedMessageHeader}}
 
 {{recentMessages}}

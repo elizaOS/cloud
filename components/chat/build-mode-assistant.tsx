@@ -10,7 +10,7 @@ import rehypeHighlight from "rehype-highlight";
 import "highlight.js/styles/github-dark.css";
 import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
-import { WorkflowMode } from "@/lib/eliza/workflow-types";
+import { AgentMode } from "@/lib/eliza/agent-mode-types";
 import {
   createConversationAction, 
   listUserConversationsAction 
@@ -103,7 +103,7 @@ export function BuildModeAssistant({
     };
     
     initializeBuilderRoom();
-  }, [character.id, character.name, userId]);
+  }, [character.id, userId]);
 
   // Load persisted messages when room is initialized
   useEffect(() => {
@@ -116,19 +116,26 @@ export function BuildModeAssistant({
         if (response.ok) {
           const data = await response.json();
           const loadedMessages = data.messages || [];
+
+          console.log("#### LOADED MESSAGES loadedMessages", loadedMessages);
           
           // Convert Eliza messages to our Message format
           // The API returns messages with isAgent boolean and content as an object with source field
           const convertedMessages: Message[] = loadedMessages
             .map((msg: {
               id: string;
-              content: { text?: string; source?: string };
+              content: { text?: string; source?: string; metadata?: { type?: string } };
               createdAt: number;
               isAgent: boolean;
             }) => {
               // Skip messages without text content
               const text = msg.content?.text;
               if (!text || typeof text !== "string") {
+                return null;
+              }
+
+              // Skip action result messages - these are internal and shouldn't be shown in UI
+              if (msg.content?.metadata?.type === "action_result") {
                 return null;
               }
 
@@ -208,16 +215,7 @@ Tell me about your vision!`;
 
       return () => clearTimeout(timer);
     }
-  }, [
-    builderRoomId,
-    character.id,
-    character.name,
-    character.bio,
-    character.adjectives,
-    character.topics,
-    isEditMode,
-    messages.length,
-  ]);
+  }, [builderRoomId, messages.length, isEditMode]);
 
   // Send message to ElizaOS stream endpoint with BUILD workflow
   const sendElizaMessage = async (text: string) => {
@@ -242,8 +240,8 @@ Tell me about your vision!`;
           roomId: builderRoomId,
           entityId: userId,
           text,
-          workflow: {
-            mode: WorkflowMode.BUILD,
+          agentMode: {
+            mode: AgentMode.BUILD,
             metadata: {
               targetCharacterId: character.id,
             },
@@ -297,6 +295,17 @@ Tell me about your vision!`;
                 
                 // Handle agent message
                 if (data.type === "agent" && data.content?.text) {
+                  // Skip action result messages - these are internal and shouldn't be shown in UI
+                  if (data.content?.metadata?.type === "action_result") {
+                    // Still check for apply action even if we don't display the message
+                    if (data.content?.actions && Array.isArray(data.content.actions)) {
+                      if (data.content.actions.includes('APPLY_CHARACTER_CHANGES')) {
+                        detectedApplyAction = true;
+                      }
+                    }
+                    continue; // Skip adding this to the UI
+                  }
+                  
                   assistantMessage = data.content.text;
                   assistantMessageId = data.id;
                   
