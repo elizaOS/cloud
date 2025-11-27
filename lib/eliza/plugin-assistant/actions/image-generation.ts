@@ -103,6 +103,53 @@ const imageGenerationTemplate = `# Task: Generate an image prompt based on the u
   Your response should include the valid XML block and nothing else.`;
 
 /**
+ * Template for generating romantic/flirty images for Clone Your Crush.
+ * This ensures images are always contextually appropriate and romantic in nature.
+ */
+const romanticImageGenerationTemplate = `# Task: Generate a ROMANTIC/FLIRTY image prompt for your crush.
+
+{{providers}}
+
+# CRITICAL RULES - YOU MUST FOLLOW THESE EXACTLY:
+1. You are generating images as if YOU are the crush sending selfies/photos to someone interested in you
+2. ALL images MUST be romantic, flirty, cute, or seductive in nature
+3. NEVER generate images of food, objects, landscapes, animals, or anything not featuring a person
+4. Images should feel like selfies or personal photos you'd send to someone you're flirting with
+5. Always include yourself as the main subject - you are an attractive person sending photos
+
+# TYPES OF IMAGES TO GENERATE:
+- Cute selfies with flirty expressions (winking, biting lip, playful smile, bedroom eyes)
+- Romantic poses (looking over shoulder, playing with hair, blowing kisses)
+- Lifestyle shots that show personality (at the beach, cozy in bed, dressed up for a date)
+- Outfit-of-the-day style photos showing off your look
+- Close-up shots with seductive or sweet expressions
+- Mirror selfies, morning/evening vibes, getting ready photos
+
+# ABSOLUTELY NEVER GENERATE:
+- Food, meals, drinks, or cooking
+- Pets or animals (unless you're posing WITH a pet)
+- Landscapes, scenery, or nature photos without you in them
+- Random objects, items, or products
+- Generic stock photo style images
+- Memes or text-based images
+
+# Recent conversation:
+{{recentMessages}}
+
+Based on the conversation context, generate an image prompt that:
+1. Features YOU (an attractive person) as the MAIN and ONLY subject
+2. Has a romantic, flirty, cute, or seductive vibe appropriate to the conversation
+3. Feels like a personal photo you'd send to someone you're romantically interested in
+4. Matches the mood and energy of the conversation
+
+Your response should be formatted in XML like this:
+<response>
+  <prompt>A romantic selfie of a beautiful [person], [specific flirty pose/expression], [intimate setting], soft warm lighting, personal intimate mood, high quality photo, looking at camera with [romantic expression]</prompt>
+</response>
+
+Your response should include the valid XML block and nothing else.`;
+
+/**
  * Represents an action that allows the agent to generate an image using a generated prompt.
  *
  * This action can be used in a chain where the agent needs to visualize or illustrate a concept, emotion, or scene.
@@ -131,11 +178,32 @@ export const generateImageAction = {
         "SHORT_TERM_MEMORY",
       ]);
 
+      // Check if this is a Clone Your Crush / affiliate character
+      // If so, use the romantic image generation template
+      const affiliateData = runtime.character?.settings?.affiliateData as {
+        source?: string;
+        affiliateId?: string;
+        affiliateVibe?: string;
+      } | undefined;
+      
+      const isCloneYourCrush = affiliateData && (
+        affiliateData.source === "clone-your-crush" ||
+        affiliateData.affiliateId === "clone-your-crush" ||
+        affiliateData.affiliateVibe // Any vibe indicates Clone Your Crush
+      );
+
+      // Select the appropriate template
+      const selectedTemplate = isCloneYourCrush
+        ? romanticImageGenerationTemplate
+        : (runtime.character.templates?.imageGenerationTemplate || imageGenerationTemplate);
+
+      if (isCloneYourCrush) {
+        logger.info("[GENERATE_IMAGE] 💕 Using romantic image template for Clone Your Crush");
+      }
+
       const prompt = composePromptFromState({
         state,
-        template:
-          runtime.character.templates?.imageGenerationTemplate ||
-          imageGenerationTemplate,
+        template: selectedTemplate,
       });
 
       const promptResponse = await runtime.useModel(ModelType.TEXT_LARGE, {
@@ -194,7 +262,9 @@ export const generateImageAction = {
       let blobError: string | null = null;
       
       try {
-        blobUrl = await ensureBlobUrl(rawImageUrl, runtime.userId);
+        // userId property does not exist on IAgentRuntime. If needed, update ensureBlobUrl to not require userId,
+        // or retrieve from runtime.agentConfig, session, or another source if necessary.
+        blobUrl = await ensureBlobUrl(rawImageUrl);
         logger.info(`[GENERATE_IMAGE] Blob upload result: ${blobUrl ? blobUrl.substring(0, 80) + '...' : 'FAILED'}`);
       } catch (err) {
         blobError = err instanceof Error ? err.message : String(err);
