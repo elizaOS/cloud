@@ -23,16 +23,17 @@ function isBase64DataUrl(url: string): boolean {
 }
 
 /**
- * Convert base64 data URL to blob storage URL
+ * Convert base64 data URL to blob storage URL with retry logic
  * This is CRITICAL for preventing token limit exhaustion
- * Returns null if upload fails - the image was already shown to user via callback
+ * Retries up to 3 times with exponential backoff to ensure images are persisted
  */
 async function ensureBlobUrl(
   imageUrl: string,
   userId?: string,
 ): Promise<string | null> {
   if (!isBase64DataUrl(imageUrl)) {
-    // Already a proper URL, return as-is
+    // Already a proper URL (e.g., from fal.ai CDN), return as-is
+    logger.info("[GENERATE_IMAGE] Image URL is already a valid HTTP URL, using directly");
     return imageUrl;
   }
 
@@ -40,27 +41,45 @@ async function ensureBlobUrl(
     "[GENERATE_IMAGE] Converting base64 to blob storage to prevent token bloat",
   );
 
-  try {
-    const timestamp = Date.now();
-    const result = await uploadBase64Image(imageUrl, {
-      filename: `generated-${timestamp}.png`,
-      folder: "images",
-      userId: userId || "system",
-    });
+  const maxRetries = 3;
+  let lastError: Error | null = null;
 
-    logger.info(
-      `[GENERATE_IMAGE] Successfully uploaded to blob: ${result.url}`,
-    );
-    return result.url;
-  } catch (error) {
-    logger.error(
-      "[GENERATE_IMAGE] Failed to upload base64 to blob storage:",
-      error instanceof Error ? error.message : String(error),
-    );
-    // Return null - the image was already shown to the user via the callback
-    // We don't store it in memory to avoid token bloat
-    return null;
+  for (let attempt = 1; attempt <= maxRetries; attempt++) {
+    try {
+      const timestamp = Date.now();
+      const result = await uploadBase64Image(imageUrl, {
+        filename: `generated-${timestamp}.png`,
+        folder: "images",
+        userId: userId || "system",
+      });
+
+      logger.info(
+        `[GENERATE_IMAGE] ✅ Successfully uploaded to blob (attempt ${attempt}): ${result.url}`,
+      );
+      return result.url;
+    } catch (error) {
+      lastError = error instanceof Error ? error : new Error(String(error));
+      logger.warn(
+        `[GENERATE_IMAGE] ⚠️ Blob upload attempt ${attempt}/${maxRetries} failed:`,
+        lastError.message,
+      );
+
+      if (attempt < maxRetries) {
+        // Exponential backoff: 500ms, 1000ms, 2000ms
+        const delay = 500 * Math.pow(2, attempt - 1);
+        logger.info(`[GENERATE_IMAGE] Retrying in ${delay}ms...`);
+        await new Promise((resolve) => setTimeout(resolve, delay));
+      }
+    }
   }
+
+  logger.error(
+    "[GENERATE_IMAGE] ❌ All blob upload attempts failed:",
+    lastError?.message,
+  );
+  // Return null - the image was already shown to the user via the callback
+  // We don't store it in memory to avoid token bloat
+  return null;
 }
 
 /**
@@ -169,15 +188,24 @@ export const generateImageAction = {
 
       // CRITICAL: Convert base64 to blob URL to prevent token bloat
       // Base64 images can be 100KB+ which exceeds token limits quickly
-      const blobUrl = await ensureBlobUrl(rawImageUrl);
+      logger.info(`[GENERATE_IMAGE] Attempting to upload to blob storage...`);
+      
+      let blobUrl: string | null = null;
+      let blobError: string | null = null;
+      
+      try {
+        blobUrl = await ensureBlobUrl(rawImageUrl, runtime.userId);
+        logger.info(`[GENERATE_IMAGE] Blob upload result: ${blobUrl ? blobUrl.substring(0, 80) + '...' : 'FAILED'}`);
+      } catch (err) {
+        blobError = err instanceof Error ? err.message : String(err);
+        logger.error(`[GENERATE_IMAGE] ❌ Blob upload threw error:`, blobError);
+      }
 
       // If blob upload failed, we still show the image to user but don't store URL in memory
       const imageUrl = blobUrl || "";
-      const hasValidStorageUrl = blobUrl !== null;
+      const hasValidStorageUrl = blobUrl !== null && blobUrl.startsWith('http');
 
-      logger.info(
-        `[GENERATE_IMAGE] Final image URL: ${imageUrl || "(not stored - shown to user only)"}`,
-      );
+      logger.info(`[GENERATE_IMAGE] Final state: hasValidStorageUrl=${hasValidStorageUrl}, imageUrl=${imageUrl ? imageUrl.substring(0, 80) + '...' : '(empty)'}`);
 
       // Determine file extension from URL or default to png
       const getFileExtension = (url: string): string => {
@@ -207,28 +235,37 @@ export const generateImageAction = {
       const fileName = `Generated_Image_${timestamp}.${extension}`;
       const attachmentId = v4();
 
-      // For the callback to frontend, use the original URL for immediate display
-      // The frontend can show the image while we store the blob reference
+      // Create attachment with BOTH URLs:
+      // - rawUrl: For immediate display in the frontend (may be base64)
+      // - url: For storage in memory (only valid HTTP URLs, or raw as fallback)
+      // The frontend callback will receive both, but only HTTP URLs get stored in memory
+      const persistentUrl = hasValidStorageUrl ? imageUrl : rawImageUrl;
+      
       const displayAttachments = [
         {
           id: attachmentId,
-          url: rawImageUrl, // Original URL for immediate display
+          url: persistentUrl, // Use blob URL if available, otherwise raw
+          rawUrl: rawImageUrl, // Keep raw for immediate display
           title: fileName,
           contentType: ContentType.IMAGE,
         },
       ];
 
+      logger.info(`[GENERATE_IMAGE] 📎 Preparing callback with ${displayAttachments.length} attachment(s)`);
+      logger.info(`[GENERATE_IMAGE] 📎 Attachment details: id=${attachmentId}, url=${persistentUrl.substring(0, 80)}..., startsWithHttp=${persistentUrl.startsWith('http')}`);
+
       const responseContent = {
-        attachments: displayAttachments, // Frontend gets original for display
+        attachments: displayAttachments,
         thought: `Generated an image based on: "${imagePrompt}"`,
         actions: ["GENERATE_IMAGE"],
         text: imagePrompt,
       };
 
+      logger.info(`[GENERATE_IMAGE] 📤 Invoking callback with responseContent...`);
       await callback(responseContent);
+      logger.info(`[GENERATE_IMAGE] ✅ Callback completed`);
 
-      // Create attachment data for storage ONLY if we have a valid blob URL
-      // If upload failed, we don't store attachments to prevent invalid URLs in memory
+      // Storage attachments for action result - only valid URLs
       const storageAttachments = hasValidStorageUrl
         ? [
             {
