@@ -114,7 +114,9 @@ export class CharactersService {
           affiliateData: {
             ...affiliateData,
             lore: loreData, // Include lore for full social media content
-          }
+          },
+          // Include avatar_url in settings for provider access
+          avatar_url: character.avatar_url ?? undefined,
         }
       : settings;
     
@@ -143,10 +145,8 @@ export class CharactersService {
         | (string | { path: string; shared?: boolean })[]
         | undefined,
       plugins: character.plugins as string[] | undefined,
-      settings: mergedSettings,
-      secrets: character.secrets as
-        | Record<string, string | boolean | number>
-        | undefined,
+      settings: mergedSettings as Record<string, string | number | boolean | Record<string, unknown>> | undefined,
+      secrets: character.secrets as Record<string, string | number | boolean> | undefined,
       style: character.style as
         | {
             all?: string[];
