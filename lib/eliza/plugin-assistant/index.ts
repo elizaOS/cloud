@@ -192,13 +192,59 @@ function canRespondImmediately(plan: ParsedPlan | null): boolean {
 }
 
 /**
+ * Check if a string is a base64 data URL (which would bloat token count)
+ */
+function isBase64DataUrl(url: string): boolean {
+  return typeof url === "string" && url.startsWith("data:");
+}
+
+/**
+ * Sanitize attachment to remove base64 data URLs
+ * This is CRITICAL for preventing token limit exhaustion
+ */
+function sanitizeAttachment(
+  attachment: Record<string, unknown>,
+): Record<string, unknown> | null {
+  if (!attachment) return null;
+
+  const url = attachment.url as string;
+
+  // If URL is base64, skip the attachment entirely
+  // The image was already shown to the user via the callback
+  // We don't want to store base64 in memory as it bloats tokens
+  if (url && isBase64DataUrl(url)) {
+    logger.warn(
+      "[ElizaAssistant] ⚠️ Base64 URL detected in attachment - skipping to prevent token bloat",
+    );
+    // Return null to skip this attachment - it was already displayed to user
+    return null;
+  }
+
+  // Also skip placeholder URLs that aren't valid
+  if (
+    url &&
+    (url.startsWith("[") || url === "" || !url.startsWith("http"))
+  ) {
+    logger.warn(
+      "[ElizaAssistant] ⚠️ Invalid URL detected in attachment - skipping",
+    );
+    return null;
+  }
+
+  return attachment;
+}
+
+/**
  * Extract attachments from action results
+ * IMPORTANT: Sanitizes attachments to prevent base64 data from bloating context
  */
 function extractAttachments(
   actionResults: Array<{ data?: { attachments?: unknown[] } }>,
 ): unknown[] {
   return actionResults
     .flatMap((result) => result.data?.attachments ?? [])
+    .filter(Boolean)
+    .map((att) => sanitizeAttachment(att as Record<string, unknown>))
     .filter(Boolean);
 }
 

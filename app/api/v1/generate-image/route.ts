@@ -376,13 +376,20 @@ async function handlePOST(req: NextRequest) {
     }
 
     // Prepare images for JSON response (convert BigInt to number)
-    const uploadedImages = uploadResults.map((result) => ({
-      image: result.imageBase64,
-      url: result.blobUrl !== result.imageBase64 ? result.blobUrl : undefined,
-      text: result.textResponse,
-      mimeType: result.mimeType,
-      fileSize: result.fileSize ? Number(result.fileSize) : undefined,
-    }));
+    // IMPORTANT: Do NOT include base64 data in response - it causes massive token bloat
+    // when stored in conversation context. Only return the blob URL.
+    const uploadedImages = uploadResults.map((result) => {
+      const hasBlobUrl = result.blobUrl !== result.imageBase64;
+      return {
+        // Only include base64 as fallback if blob upload failed
+        // This prevents token explosion in conversation context
+        ...(hasBlobUrl ? {} : { image: result.imageBase64 }),
+        url: hasBlobUrl ? result.blobUrl : undefined,
+        text: result.textResponse,
+        mimeType: result.mimeType,
+        fileSize: result.fileSize ? Number(result.fileSize) : undefined,
+      };
+    });
 
     // Update generation record for authenticated users
     if (generationId && usageRecordId) {
