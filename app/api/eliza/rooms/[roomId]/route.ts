@@ -88,6 +88,13 @@ export async function GET(
         } catch {
           parsedContent = msg.content;
         }
+        
+        // Debug: Log attachment info for agent messages
+        const content = parsedContent as { text?: string; attachments?: unknown[]; source?: string };
+        if (content?.source === "agent" && content?.attachments) {
+          logger.info(`[Eliza Room API] 📎 Message ${msg.id?.substring(0, 8)} has ${content.attachments.length} attachment(s)`);
+        }
+        
         return {
           id: msg.id,
           entityId: msg.entityId,

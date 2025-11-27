@@ -273,8 +273,13 @@ async function executeProviders(
   return { ...currentState, ...providerState };
 }
 
+// Track attachments collected during action execution
+// This is stored per-room to handle concurrent messages
+const actionAttachmentCache = new Map<string, unknown[]>();
+
 /**
  * Execute planned actions and update state
+ * Wraps the callback to capture attachments for later storage
  */
 async function executeActions(
   runtime: IAgentRuntime,
@@ -305,16 +310,64 @@ async function executeActions(
     },
   };
 
+  // Clear any previous attachments for this room
+  actionAttachmentCache.set(message.roomId as string, []);
+
+  // Wrap the callback to capture attachments as they come in
+  const wrappedCallback: HandlerCallback = async (content) => {
+    // Capture attachments from action callbacks
+    if (content.attachments && Array.isArray(content.attachments)) {
+      const existingAttachments = actionAttachmentCache.get(message.roomId as string) || [];
+      
+      // Only add attachments with valid HTTP URLs (not base64)
+      for (const att of content.attachments) {
+        const attachment = att as { url?: string; rawUrl?: string; id?: string; title?: string; contentType?: string };
+        const url = attachment.url;
+        
+        logger.info(`[ElizaAssistant] 📎 Processing attachment: id=${attachment.id}, url=${url?.substring(0, 50)}...`);
+        
+        if (url && typeof url === 'string' && url.startsWith('http')) {
+          // Create a clean attachment object for storage (remove rawUrl to save space)
+          const cleanAttachment = {
+            id: attachment.id,
+            url: url,
+            title: attachment.title,
+            contentType: attachment.contentType,
+          };
+          existingAttachments.push(cleanAttachment);
+          logger.info(`[ElizaAssistant] ✅ Captured valid attachment for storage: ${url.substring(0, 80)}...`);
+        } else {
+          logger.info(`[ElizaAssistant] ⏭️ Skipping non-HTTP attachment (likely base64)`);
+        }
+      }
+      
+      actionAttachmentCache.set(message.roomId as string, existingAttachments);
+      logger.info(`[ElizaAssistant] 📊 Total cached attachments for room: ${existingAttachments.length}`);
+    }
+    
+    // Pass through to the original callback for real-time display
+    return callback(content);
+  };
+
   await runtime.processActions(
     message,
     [actionResponse],
     currentState,
-    callback,
+    wrappedCallback,
   );
 
   // Refresh state to get action results
   const actionState = await runtime.composeState(message, ["ACTION_STATE"]);
   return { ...currentState, ...actionState };
+}
+
+/**
+ * Get cached attachments for a room and clear the cache
+ */
+function getAndClearCachedAttachments(roomId: string): unknown[] {
+  const attachments = actionAttachmentCache.get(roomId) || [];
+  actionAttachmentCache.delete(roomId);
+  return attachments;
 }
 
 /**
@@ -566,12 +619,41 @@ const messageReceivedHandler = async ({
     // Clean up the response ID
     await clearLatestResponseId(runtime, message.roomId);
 
-    // Extract attachments from action results
+    // Extract attachments from multiple sources:
+    // 1. Action results (stored by runtime)
+    // 2. Cached attachments (captured from action callbacks)
     const actionResults = await runtime.getActionResults(message.id as UUID);
-    const attachments = extractAttachments(actionResults);
+    const actionResultAttachments = extractAttachments(actionResults);
+    const cachedAttachments = getAndClearCachedAttachments(message.roomId as string);
+    
+    logger.info(`[ElizaAssistant] 📊 Raw attachment sources: actionResults=${actionResults?.length || 0}, extracted=${actionResultAttachments.length}, cached=${cachedAttachments.length}`);
+    
+    // Merge attachments, preferring cached ones (which have already been validated)
+    // Use a Map to dedupe by attachment ID
+    const attachmentMap = new Map<string, unknown>();
+    
+    // First add action result attachments
+    for (const att of actionResultAttachments) {
+      const attachment = att as { id?: string; url?: string };
+      if (attachment.id) {
+        attachmentMap.set(attachment.id, att);
+        logger.info(`[ElizaAssistant] 📎 Added action result attachment: ${attachment.id}, url=${attachment.url?.substring(0, 50)}...`);
+      }
+    }
+    
+    // Then add/override with cached attachments (these are validated HTTP URLs)
+    for (const att of cachedAttachments) {
+      const attachment = att as { id?: string; url?: string };
+      if (attachment.id) {
+        attachmentMap.set(attachment.id, att);
+        logger.info(`[ElizaAssistant] 📎 Added/overrode with cached attachment: ${attachment.id}, url=${attachment.url?.substring(0, 50)}...`);
+      }
+    }
+    
+    const attachments = Array.from(attachmentMap.values());
 
     logger.info(
-      `[ElizaAssistant] Action results: ${JSON.stringify(actionResults)}`,
+      `[ElizaAssistant] ✅ Final attachments count: ${attachments.length}`,
     );
 
     // Create response memory with attachments if any
@@ -584,9 +666,14 @@ const messageReceivedHandler = async ({
 
     if (attachments.length > 0) {
       content.attachments = attachments;
-      logger.info(
-        `[ElizaAssistant] Including ${attachments.length} attachment(s) in response`,
-      );
+      logger.info(`[ElizaAssistant] ✅ Including ${attachments.length} attachment(s) in response`);
+      // Log each attachment for debugging
+      for (const att of attachments) {
+        const a = att as { id?: string; url?: string; contentType?: string };
+        logger.info(`[ElizaAssistant] 📎 Attachment: id=${a.id}, url=${a.url?.substring(0, 80)}..., type=${a.contentType}`);
+      }
+    } else {
+      logger.info(`[ElizaAssistant] ⚠️ No attachments to include in response`);
     }
 
     const responseMemory: Memory = {
