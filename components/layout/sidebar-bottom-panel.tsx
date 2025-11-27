@@ -153,7 +153,7 @@ export function SidebarBottomPanel({ className }: SidebarBottomPanelProps) {
                 "w-full flex items-center justify-center gap-2 px-4 py-2.5",
                 "bg-[#FF5800] hover:bg-[#FF5800]/90",
                 "text-white font-medium rounded-none",
-                "transition-all duration-200 cursor-pointer",
+                "transition-all duration-200 cursor-pointer"
               )}
               style={{
                 fontFamily: "var(--font-roboto-mono)",
@@ -174,7 +174,7 @@ export function SidebarBottomPanel({ className }: SidebarBottomPanelProps) {
                 "w-full flex items-center justify-center gap-2 px-4 py-2.5",
                 "border border-white/20 hover:bg-white/5",
                 "text-white/80 hover:text-white rounded-none",
-                "transition-all duration-200 cursor-pointer",
+                "transition-all duration-200 cursor-pointer"
               )}
               style={{
                 fontFamily: "var(--font-roboto-mono)",
@@ -267,10 +267,7 @@ export function SidebarBottomPanel({ className }: SidebarBottomPanelProps) {
           </div>
         ) : (
           <div className="flex items-center gap-2">
-            <div
-              className="h-2 w-2 rounded-full flex-shrink-0"
-              style={{ backgroundColor: "#FF5800" }}
-            />
+            <span className="text-[#FF5800]">$</span>
             <span className="text-lg font-bold text-white">
               {creditBalance !== null
                 ? Number(creditBalance).toFixed(2)
@@ -296,7 +293,7 @@ export function SidebarBottomPanel({ className }: SidebarBottomPanelProps) {
                 "w-full flex items-center gap-3 px-4 py-2.5 transition-all duration-200 border-l-2 cursor-pointer",
                 isActive
                   ? "bg-white/10 text-white border-[#FF5800]"
-                  : "text-white/60 hover:bg-white/5 hover:text-white border-transparent",
+                  : "text-white/60 hover:bg-white/5 hover:text-white border-transparent"
               )}
               style={{
                 fontFamily: "var(--font-roboto-mono)",
@@ -309,7 +306,7 @@ export function SidebarBottomPanel({ className }: SidebarBottomPanelProps) {
               <Icon
                 className={cn(
                   "h-4 w-4 transition-colors",
-                  isActive && "text-[#FF5800]",
+                  isActive && "text-[#FF5800]"
                 )}
               />
               <span>{item.label}</span>
