@@ -13,6 +13,55 @@ import {
   logger,
 } from "@elizaos/core";
 import { v4 } from "uuid";
+import { uploadBase64Image } from "@/lib/blob";
+
+/**
+ * Check if a string is a base64 data URL
+ */
+function isBase64DataUrl(url: string): boolean {
+  return typeof url === "string" && url.startsWith("data:");
+}
+
+/**
+ * Convert base64 data URL to blob storage URL
+ * This is CRITICAL for preventing token limit exhaustion
+ * Returns null if upload fails - the image was already shown to user via callback
+ */
+async function ensureBlobUrl(
+  imageUrl: string,
+  userId?: string,
+): Promise<string | null> {
+  if (!isBase64DataUrl(imageUrl)) {
+    // Already a proper URL, return as-is
+    return imageUrl;
+  }
+
+  logger.info(
+    "[GENERATE_IMAGE] Converting base64 to blob storage to prevent token bloat",
+  );
+
+  try {
+    const timestamp = Date.now();
+    const result = await uploadBase64Image(imageUrl, {
+      filename: `generated-${timestamp}.png`,
+      folder: "images",
+      userId: userId || "system",
+    });
+
+    logger.info(
+      `[GENERATE_IMAGE] Successfully uploaded to blob: ${result.url}`,
+    );
+    return result.url;
+  } catch (error) {
+    logger.error(
+      "[GENERATE_IMAGE] Failed to upload base64 to blob storage:",
+      error instanceof Error ? error.message : String(error),
+    );
+    // Return null - the image was already shown to the user via the callback
+    // We don't store it in memory to avoid token bloat
+    return null;
+  }
+}
 
 /**
  * Template for generating an image for the character using a prompt.
@@ -112,9 +161,23 @@ export const generateImageAction = {
         };
       }
 
-      const imageUrl = imageResponse[0].url;
+      const rawImageUrl = imageResponse[0].url;
 
-      logger.info(`[GENERATE_IMAGE] Received image URL: ${imageUrl}`);
+      logger.info(
+        `[GENERATE_IMAGE] Received image URL (base64: ${isBase64DataUrl(rawImageUrl)}): ${rawImageUrl.substring(0, 100)}...`,
+      );
+
+      // CRITICAL: Convert base64 to blob URL to prevent token bloat
+      // Base64 images can be 100KB+ which exceeds token limits quickly
+      const blobUrl = await ensureBlobUrl(rawImageUrl);
+
+      // If blob upload failed, we still show the image to user but don't store URL in memory
+      const imageUrl = blobUrl || "";
+      const hasValidStorageUrl = blobUrl !== null;
+
+      logger.info(
+        `[GENERATE_IMAGE] Final image URL: ${imageUrl || "(not stored - shown to user only)"}`,
+      );
 
       // Determine file extension from URL or default to png
       const getFileExtension = (url: string): string => {
@@ -144,18 +207,19 @@ export const generateImageAction = {
       const fileName = `Generated_Image_${timestamp}.${extension}`;
       const attachmentId = v4();
 
-      // Create attachment data
-      const attachments = [
+      // For the callback to frontend, use the original URL for immediate display
+      // The frontend can show the image while we store the blob reference
+      const displayAttachments = [
         {
           id: attachmentId,
-          url: imageUrl,
+          url: rawImageUrl, // Original URL for immediate display
           title: fileName,
           contentType: ContentType.IMAGE,
         },
       ];
 
       const responseContent = {
-        attachments,
+        attachments: displayAttachments, // Frontend gets original for display
         thought: `Generated an image based on: "${imagePrompt}"`,
         actions: ["GENERATE_IMAGE"],
         text: imagePrompt,
@@ -163,19 +227,32 @@ export const generateImageAction = {
 
       await callback(responseContent);
 
+      // Create attachment data for storage ONLY if we have a valid blob URL
+      // If upload failed, we don't store attachments to prevent invalid URLs in memory
+      const storageAttachments = hasValidStorageUrl
+        ? [
+            {
+              id: attachmentId,
+              url: imageUrl, // This is a valid blob URL
+              title: fileName,
+              contentType: ContentType.IMAGE,
+            },
+          ]
+        : []; // Empty - image was shown to user but not stored in memory
+
       return {
         text: "Generated image",
         values: {
           success: true,
           imageGenerated: true,
-          imageUrl,
+          imageUrl: imageUrl || rawImageUrl, // Use raw as fallback for return value
           prompt: imagePrompt,
         },
         data: {
           actionName: "GENERATE_IMAGE",
-          imageUrl,
+          imageUrl: imageUrl || undefined, // Only include if valid
           prompt: imagePrompt,
-          attachments, // Store attachments in data so they can be retrieved from state
+          attachments: storageAttachments, // CRITICAL: Only valid URLs, never base64
         },
         success: true,
       };
