@@ -148,6 +148,8 @@ export async function handleBuildModeWorkflow({
       logger.warn("[BuildMode] Failed to parse plan, defaulting to BUILD_CHAT");
     }
 
+    console.log("#### AGENT PLAN RAW plan", plan);
+
     // Parse the selected actions
     const plannedActions = parsePlannedItems(plan?.actions);
     const selectedAction = plannedActions[0] || "BUILD_CHAT";
