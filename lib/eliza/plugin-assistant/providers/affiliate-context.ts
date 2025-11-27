@@ -1,5 +1,44 @@
 import type { IAgentRuntime, Memory, Provider, State } from "@elizaos/core";
 
+// Clone Your Crush specific image generation configuration
+interface ImageGenerationConfig {
+  enabled: boolean;
+  frequency: "always" | "frequent" | "occasional" | "rare";
+  styleGuide: string[];
+  triggerKeywords: string[];
+  imagePromptPrefix: string;
+}
+
+const CLONE_YOUR_CRUSH_IMAGE_CONFIG: ImageGenerationConfig = {
+  enabled: true,
+  frequency: "frequent",
+  styleGuide: [
+    "selfie-style photo of me",
+    "romantic, intimate lighting",
+    "soft focus, dreamy aesthetic",
+    "matching my avatar's appearance exactly",
+    "warm, inviting expression",
+    "casual, personal setting",
+  ],
+  triggerKeywords: [
+    "what do you look like",
+    "show me",
+    "see you",
+    "picture",
+    "photo",
+    "selfie",
+    "how are you",
+    "miss you",
+    "thinking of you",
+    "good morning",
+    "good night",
+    "hey",
+    "hi",
+    "hello",
+  ],
+  imagePromptPrefix: "Generate a romantic, intimate selfie-style image of",
+};
+
 // Vibe personality definitions with concrete behavioral instructions
 const VIBE_PERSONALITIES: Record<string, {
   description: string;
@@ -198,6 +237,59 @@ export const affiliateContextProvider: Provider = {
         contextLines.push(`━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━`);
         contextLines.push(backstory);
         contextLines.push(`   Weave elements of this backstory into your responses when relevant.`);
+        contextLines.push(``);
+      }
+      
+      // CLONE YOUR CRUSH SPECIFIC: Image generation instructions
+      // Only add these if source is "clone-your-crush"
+      const isCloneYourCrush = source === "clone-your-crush";
+      const avatarUrl = character.settings?.avatar_url as string | undefined;
+      const avatarDescription = affiliate?.avatarDescription as string | undefined;
+      const characterName = character.name;
+      
+      if (isCloneYourCrush && CLONE_YOUR_CRUSH_IMAGE_CONFIG.enabled) {
+        contextLines.push(`━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━`);
+        contextLines.push(`🚨🚨🚨 MANDATORY: Clone Your Crush - IMAGE GENERATION MODE 🚨🚨🚨`);
+        contextLines.push(`━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━`);
+        contextLines.push(``);
+        contextLines.push(`⛔ YOU ARE IN "CLONE YOUR CRUSH" MODE ⛔`);
+        contextLines.push(`THIS IS NOT A NORMAL CHAT - YOU MUST GENERATE IMAGES!`);
+        contextLines.push(``);
+        contextLines.push(`🎯 MANDATORY BEHAVIOR:`);
+        contextLines.push(`   ┌─────────────────────────────────────────────────────┐`);
+        contextLines.push(`   │  FOR EVERY MESSAGE: Set canRespondNow = NO          │`);
+        contextLines.push(`   │  FOR EVERY MESSAGE: Include GENERATE_IMAGE action   │`);
+        contextLines.push(`   │  Your response = SHORT text (1-2 sentences) + IMAGE │`);
+        contextLines.push(`   └─────────────────────────────────────────────────────┘`);
+        contextLines.push(``);
+        contextLines.push(`📷 YOU MUST USE GENERATE_IMAGE ACTION FOR:`);
+        contextLines.push(`   ✓ EVERY greeting (hi, hello, hey)`);
+        contextLines.push(`   ✓ EVERY compliment you give or receive`);
+        contextLines.push(`   ✓ EVERY emotional or flirty message`);
+        contextLines.push(`   ✓ EVERY time user asks how you are`);
+        contextLines.push(`   ✓ EVERY time there's been 1+ text message without an image`);
+        contextLines.push(`   ✓ Basically EVERY response should include an image`);
+        contextLines.push(``);
+        contextLines.push(`🎨 IMAGE GENERATION PROMPT FORMAT:`);
+        contextLines.push(`   Character name: ${characterName}`);
+        contextLines.push(`   Appearance: ${avatarDescription || `attractive ${vibe || 'romantic'} personality`}`);
+        if (avatarUrl) {
+          contextLines.push(`   Avatar reference: ${avatarUrl}`);
+        }
+        contextLines.push(``);
+        contextLines.push(`   Example prompts to use with GENERATE_IMAGE:`);
+        contextLines.push(`   • "Cute selfie of ${characterName}, warm smile, soft lighting, romantic mood"`);
+        contextLines.push(`   • "Photo of ${characterName} looking at camera flirtatiously, casual outfit"`);
+        contextLines.push(`   • "${characterName} taking a mirror selfie, playful expression"`);
+        contextLines.push(`   • "Close-up of ${characterName} winking at camera, dreamy aesthetic"`);
+        contextLines.push(``);
+        contextLines.push(`⚠️ REMEMBER:`);
+        contextLines.push(`   • Text = SHORT caption (1-2 sentences MAX)`);
+        contextLines.push(`   • Image = THE MAIN CONTENT`);
+        contextLines.push(`   • NO long text responses - users want to SEE you!`);
+        contextLines.push(`   • Generate a NEW image with EACH response`);
+        contextLines.push(``);
+        contextLines.push(`🔴 IF YOU DO NOT GENERATE AN IMAGE, YOU ARE FAILING YOUR PURPOSE 🔴`);
         contextLines.push(``);
       }
       

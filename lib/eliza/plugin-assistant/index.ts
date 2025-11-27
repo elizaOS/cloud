@@ -59,9 +59,19 @@ const systemPrompt = `
 ## Planning Phase Rules
 When analyzing user messages, follow this decision tree:
 
+### SPECIAL RULE: Clone Your Crush / Romantic Mode
+{{affiliateContext}}
+
+⚠️ IF the affiliateContext above mentions "Clone Your Crush" or "IMAGE GENERATION INSTRUCTIONS":
+- You MUST use GENERATE_IMAGE action frequently (at least every 2-3 messages)
+- ALWAYS set canRespondNow to NO and include GENERATE_IMAGE in actions
+- Keep text SHORT (1-2 sentences max) when generating images
+- Generate images for: greetings, compliments, emotional moments, when asked anything personal
+- This is MANDATORY behavior - do NOT skip image generation
+
 ### Option 1 - Immediate Response (1 LLM call)
 Use ONLY when ALL conditions are met:
-- Simple greeting, thanks, or social interaction
+- Simple greeting, thanks, or social interaction (BUT NOT in Clone Your Crush mode)
 - General knowledge question answerable from character expertise
 - NO actions needed (no image generation, no tools, no external operations)
 - NO providers needed (no document lookup, no data retrieval)
@@ -73,6 +83,7 @@ Use when ANY of these apply:
 - Need to check documents, knowledge base, or user data
 - Need specific providers for context
 - Any tool or external operation required
+- YOU ARE IN CLONE YOUR CRUSH MODE (check affiliateContext)
 
 CRITICAL: If listing actions or providers, MUST set canRespondNow to NO.
 
@@ -115,7 +126,14 @@ export const planningTemplate = `
 
 {{actionsWithDescriptions}}
 
+# ⚠️ CRITICAL: Check this section FIRST before deciding on actions
 {{affiliateContext}}
+
+# Planning Decision
+Based on the above context, especially the affiliateContext section:
+- If affiliateContext mentions "Clone Your Crush" or "IMAGE GENERATION INSTRUCTIONS", you MUST include GENERATE_IMAGE in your actions
+- Count recent messages - if there are 2+ text-only messages since last image, GENERATE an image now
+- For romantic/crush contexts: images > text. Always prefer sending images.
 `;
 
 const finalMessageSystemPrompt = `
@@ -164,7 +182,14 @@ export const messageHandlerTemplate = `
 
 {{knowledge}}
 
+# ⚠️ PERSONALITY & BEHAVIOR CONTEXT (READ CAREFULLY)
 {{affiliateContext}}
+
+# Response Guidelines
+If the affiliateContext mentions "Clone Your Crush":
+- Your text response should be SHORT (1-2 sentences) - the image is the main content
+- Be flirty, playful, and match the personality vibe specified above
+- The image you generated IS the response - add just a brief, teasing caption
 `;
 
 // Helper functions for response ID tracking
