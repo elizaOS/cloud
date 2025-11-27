@@ -170,7 +170,7 @@ const handler = createPaidMcpHandler(
             }).format(now);
             result.dayOfYear = Math.floor((now.getTime() - new Date(now.getFullYear(), 0, 0).getTime()) / 86400000);
             result.weekNumber = Math.ceil((result.dayOfYear as number) / 7);
-            result.isLeapYear = (now.getFullYear() % 4 === 0 && now.getFullYear() % 100 !== 0) || now.getFullYear() % 400 === 0;
+            result.isLeapYear = ((now.getFullYear() % 4 === 0 && now.getFullYear() % 100 !== 0) || now.getFullYear() % 400 === 0) ? 1 : 0;
           }
 
           return {
