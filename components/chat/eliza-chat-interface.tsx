@@ -73,6 +73,7 @@ export function ElizaChatInterface() {
     availableCharacters,
     pendingMessage,
     setPendingMessage,
+    anonymousSessionToken,
   } = useChatStore();
   const [messages, setMessages] = useState<Message[]>([]);
   const [agentInfo, setAgentInfo] = useState<AgentInfo | null>(null);
@@ -604,6 +605,7 @@ export function ElizaChatInterface() {
         entityId: entityId,
         text: messageText,
         model: selectedModel || undefined, // Pass selected model
+        sessionToken: anonymousSessionToken || undefined, // Pass session token for anonymous users
         onMessage: handleStreamMessage,
         onError: (errorMsg) => {
           setError(errorMsg);

@@ -28,13 +28,10 @@ export async function POST(
   const encoder = new TextEncoder();
 
   try {
-    // Step 1: Authentication & Context Building (single step, clean!)
-    const userContext = await authenticateAndBuildContext(request);
-
-    // Step 2: Parse and validate request
+    // Step 1: Parse request body FIRST (needed for session token check)
     const { roomId } = await ctx.params;
     const body = await request.json();
-    const { entityId, text, model } = body;
+    const { entityId, text, model, sessionToken } = body;
 
     if (!roomId || !entityId || !text?.trim()) {
       return new Response(
@@ -42,6 +39,9 @@ export async function POST(
         { status: 400, headers: { "Content-Type": "application/json" } },
       );
     }
+
+    // Step 2: Authentication & Context Building (pass body for session token check)
+    const userContext = await authenticateAndBuildContext(request, { sessionToken });
 
     if (model) {
       logger.debug("[Stream] User selected model:", model);
@@ -220,7 +220,7 @@ export async function POST(
  * Helper function to authenticate and build user context
  * Centralizes authentication and context creation
  */
-async function authenticateAndBuildContext(request: NextRequest) {
+async function authenticateAndBuildContext(request: NextRequest, body?: { sessionToken?: string }) {
   try {
     // Try authenticated user first
     const authResult = await requireAuthOrApiKey(request);
@@ -232,6 +232,33 @@ async function authenticateAndBuildContext(request: NextRequest) {
     // Fall back to anonymous user
     logger.info("[Stream] Privy auth failed, trying anonymous user...");
     
+    // CRITICAL: Check for session token in multiple places to avoid race condition
+    // Priority: 1) Header, 2) Body, 3) Cookie
+    const headerToken = request.headers.get("X-Anonymous-Session");
+    const bodyToken = body?.sessionToken;
+    const providedToken = headerToken || bodyToken;
+    
+    if (providedToken) {
+      logger.info("[Stream] Found session token in request:", providedToken.slice(0, 8) + "...");
+      // Look up the session by the provided token
+      const { anonymousSessionsService, usersService } = await import("@/lib/services");
+      const session = await anonymousSessionsService.getByToken(providedToken);
+      
+      if (session) {
+        const user = await usersService.getById(session.user_id);
+        if (user && user.is_anonymous) {
+          logger.info("[Stream] Anonymous user found via provided token:", user.id);
+          return await userContextService.buildContext({
+            user: { ...user, organization: null as never },
+            anonymousSession: session,
+            isAnonymous: true,
+          });
+        }
+      }
+      logger.warn("[Stream] Provided session token invalid, falling back to cookie");
+    }
+    
+    // Fall back to cookie
     let anonData = await getAnonymousUser();
     
     if (!anonData) {
@@ -245,7 +272,7 @@ async function authenticateAndBuildContext(request: NextRequest) {
       };
       logger.info("[Stream] Created anonymous user:", anonData.user.id);
     } else {
-      logger.info("[Stream] Anonymous user found:", anonData.user.id);
+      logger.info("[Stream] Anonymous user found via cookie:", anonData.user.id);
     }
 
     return await userContextService.buildContext({
