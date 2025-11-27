@@ -227,6 +227,11 @@ export async function POST(
             responseContentPayload.thought = messageContent.thought;
           }
 
+          // Include metadata if present (for PROPOSE_CHARACTER_CHANGES with updatedCharacter)
+          if (typeof messageContent === "object" && messageContent?.metadata) {
+            responseContentPayload.metadata = messageContent.metadata;
+          }
+
           // Send agent response
           sendEvent("message", {
             id: result.message.id,

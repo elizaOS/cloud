@@ -263,6 +263,7 @@ Tell me about your vision!`;
       if (reader) {
         let buffer = "";
         let detectedApplyAction = false;
+        let proposedCharacterUpdate: Partial<ElizaCharacter> | null = null;
         
         while (true) {
           const { done, value } = await reader.read();
@@ -305,6 +306,12 @@ Tell me about your vision!`;
                       detectedApplyAction = true;
                     }
                   }
+
+                  // Check if this message contains PROPOSE_CHARACTER_CHANGES with updatedCharacter
+                  if (data.content?.metadata?.action === 'PROPOSE_CHARACTER_CHANGES' && 
+                      data.content?.metadata?.updatedCharacter) {
+                    proposedCharacterUpdate = data.content.metadata.updatedCharacter;
+                  }
                 }
               } catch (e) {
                 console.warn("[BuildMode SSE] Failed to parse JSON:", eventData.substring(0, 100));
@@ -312,19 +319,31 @@ Tell me about your vision!`;
             }
             
             // Handle done event
-            if (eventType === "done" && assistantMessage) {
-              const newAssistantMessage: Message = {
-                id: assistantMessageId || `assistant-${Date.now()}`,
-                role: "assistant",
-                content: assistantMessage,
-                timestamp: Date.now(),
-              };
-              setMessages((prev) => [...prev, newAssistantMessage]);
-              
-              // If we detected an apply action, refresh the character data
-              if (detectedApplyAction && onCharacterRefresh) {
-                toast.success("Character updated! Refreshing data...");
-                await onCharacterRefresh();
+            if (eventType === "done") {
+              if (assistantMessage) {
+                const newAssistantMessage: Message = {
+                  id: assistantMessageId || `assistant-${Date.now()}`,
+                  role: "assistant",
+                  content: assistantMessage,
+                  timestamp: Date.now(),
+                };
+                setMessages((prev) => [...prev, newAssistantMessage]);
+                
+                // If we received a character update proposal, apply it immediately to the editor
+                if (proposedCharacterUpdate) {
+                  onCharacterUpdate(proposedCharacterUpdate);
+                  toast.success("Character preview updated! Review the changes in the editor.", {
+                    duration: 4000,
+                  });
+                }
+                
+                // If we detected an apply action, refresh the character data from DB
+                if (detectedApplyAction && onCharacterRefresh) {
+                  toast.success("Character saved! Refreshing data...", {
+                    duration: 3000,
+                  });
+                  await onCharacterRefresh();
+                }
               }
             }
           }
@@ -372,54 +391,6 @@ Tell me about your vision!`;
     }, 100);
     return () => clearTimeout(timer);
   }, [messages, scrollToBottom]);
-
-  // Extract and apply character updates in real-time
-  useEffect(() => {
-    const lastMessage = messages[messages.length - 1];
-
-    if (
-      lastMessage &&
-      lastMessage.role === "assistant" &&
-      lastMessage.id !== "welcome"
-    ) {
-      const content = lastMessage.content;
-
-      const jsonMatch = content.match(/```json\n([\s\S]*?)(\n```|$)/);
-      if (jsonMatch) {
-        const jsonText = jsonMatch[1].trim();
-
-        try {
-          const updates = JSON.parse(jsonText);
-          onCharacterUpdate(updates);
-        } catch {
-          try {
-            const fieldMatches = jsonText.matchAll(
-              /"(\w+)":\s*("(?:[^"\\]|\\.)*"|true|false|null|\d+(?:\.\d+)?|\[[^\]]*\])/g,
-            );
-            const partialUpdates: Record<string, unknown> = {};
-
-            for (const match of fieldMatches) {
-              const [, key, value] = match;
-              try {
-                const parsedValue = JSON.parse(value);
-                if (parsedValue !== null && parsedValue !== undefined) {
-                  partialUpdates[key] = parsedValue;
-                }
-              } catch {
-                // Skip invalid values
-              }
-            }
-
-            if (Object.keys(partialUpdates).length > 0) {
-              onCharacterUpdate(partialUpdates);
-            }
-          } catch {
-            // Silently ignore parsing errors during streaming
-          }
-        }
-      }
-    }
-  }, [messages, onCharacterUpdate]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();

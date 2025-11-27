@@ -3,7 +3,7 @@
  * Now delegates to RuntimeFactory and MessageHandler for cleaner architecture
  */
 
-import { AgentRuntime, type Memory, type UUID } from "@elizaos/core";
+import { AgentRuntime } from "@elizaos/core";
 import { runtimeFactory } from "./runtime-factory";
 import { createMessageHandler, type MessageResult } from "./message-handler";
 import { userContextService, type UserContext } from "./user-context";
