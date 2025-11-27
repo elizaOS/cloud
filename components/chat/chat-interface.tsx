@@ -57,8 +57,9 @@ export function ChatInterface({
 }: ChatInterfaceProps) {
   const router = useRouter();
   const [messageCount, setMessageCount] = useState(session?.messageCount || 0);
-  const { setSelectedCharacterId } = useChatStore();
+  const { setSelectedCharacterId, setAnonymousSessionToken, loadRooms, rooms, setRoomId, roomId } = useChatStore();
   const isAnonymous = !user && !!session;
+  const [isInitializingRoom, setIsInitializingRoom] = useState(false);
   const messagesRemaining = session
     ? session.messagesLimit - messageCount
     : Infinity;
@@ -122,6 +123,66 @@ export function ChatInterface({
   useEffect(() => {
     setSelectedCharacterId(character.id);
   }, [character.id, setSelectedCharacterId]);
+
+  // CRITICAL: Set anonymous session token in store so ElizaChatInterface can use it for API requests
+  // This prevents the race condition where the cookie might not be set yet
+  useEffect(() => {
+    if (sessionTokenFromUrl && !user) {
+      setAnonymousSessionToken(sessionTokenFromUrl);
+      console.log("[ChatInterface] Set anonymous session token in store:", sessionTokenFromUrl.slice(0, 8) + "...");
+    }
+  }, [sessionTokenFromUrl, user, setAnonymousSessionToken]);
+
+  // CRITICAL: Load existing rooms and auto-select the room for this character
+  // This ensures conversation persists across page reloads for affiliate users
+  useEffect(() => {
+    const initializeRoom = async () => {
+      if (isInitializingRoom) return;
+      
+      // Get current entityId from store
+      const currentEntityId = useChatStore.getState().entityId;
+      console.log("[ChatInterface] 🔍 Room init check:", {
+        roomId,
+        characterId: character.id,
+        entityId: currentEntityId,
+        isInitializingRoom
+      });
+      
+      // Only do this for users who don't have a room yet
+      if (!roomId && character.id) {
+        setIsInitializingRoom(true);
+        console.log("[ChatInterface] 🔄 Initializing room for character:", character.id, "entityId:", currentEntityId);
+        
+        try {
+          // Load rooms first
+          await loadRooms(true); // Force refresh
+          
+          // Small delay to allow store to update
+          await new Promise(resolve => setTimeout(resolve, 100));
+          
+          // Get the current rooms from store
+          const currentRooms = useChatStore.getState().rooms;
+          console.log("[ChatInterface] Loaded rooms:", currentRooms.length, "rooms:", currentRooms.map(r => ({ id: r.id, characterId: r.characterId })));
+          
+          // Find an existing room for this character
+          const existingRoom = currentRooms.find(room => room.characterId === character.id);
+          
+          if (existingRoom) {
+            console.log("[ChatInterface] ✅ Found existing room:", existingRoom.id);
+            setRoomId(existingRoom.id);
+          } else {
+            console.log("[ChatInterface] No existing room found for character:", character.id, "in rooms:", currentRooms.map(r => r.characterId));
+          }
+        } catch (error) {
+          console.error("[ChatInterface] Error initializing room:", error);
+        } finally {
+          setIsInitializingRoom(false);
+        }
+      }
+    };
+    
+    initializeRoom();
+  }, [character.id, roomId, loadRooms, setRoomId, isInitializingRoom]);
 
   // CRITICAL: Set anonymous session cookie if session token is in URL (for affiliate users)
   // This ensures the cookie is set even if we're not sure about auth state yet
