@@ -96,20 +96,17 @@ export class AgentLoader {
     const characterId = elizaCharacter.id || "b850bc30-45f8-0041-a00a-83df46d8555d";
     
     // Merge environment variables with character settings
+    // NOTE: Model selection (ELIZAOS_CLOUD_SMALL_MODEL, ELIZAOS_CLOUD_LARGE_MODEL) is 
+    // handled in RuntimeFactory.buildSettings() where we have access to userContext.modelPreferences
+    // This allows users to select models from the UI dropdown
     const settings = {
       // Database URLs (always from environment)
       POSTGRES_URL: process.env.DATABASE_URL!,
       DATABASE_URL: process.env.DATABASE_URL!,
 
-      // ElizaOS Cloud Configuration (replaces OpenAI)
+      // ElizaOS Cloud Configuration (base URL only - models set in RuntimeFactory)
       ELIZAOS_CLOUD_BASE_URL: getElizaCloudApiUrl(),
-      ELIZAOS_CLOUD_SMALL_MODEL:
-        (elizaCharacter.settings?.ELIZAOS_CLOUD_SMALL_MODEL as string) ||
-        getDefaultModels().small,
-      ELIZAOS_CLOUD_LARGE_MODEL:
-        (elizaCharacter.settings?.ELIZAOS_CLOUD_LARGE_MODEL as string) ||
-        getDefaultModels().large,
-      // Note: ELIZAOS_CLOUD_API_KEY will be set at runtime with user's auto-generated key
+      // Note: ELIZAOS_CLOUD_API_KEY and model settings will be set at runtime with user context
 
       // ElevenLabs settings (merge character settings with environment)
       ELEVENLABS_API_KEY: process.env.ELEVENLABS_API_KEY!,
