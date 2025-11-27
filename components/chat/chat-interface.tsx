@@ -1,7 +1,8 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useCallback } from "react";
 import { useRouter } from "next/navigation";
+import { usePrivy } from "@privy-io/react-auth";
 import { toast } from "sonner";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -56,10 +57,23 @@ export function ChatInterface({
   theme,
 }: ChatInterfaceProps) {
   const router = useRouter();
+  const { login } = usePrivy();
   const [messageCount, setMessageCount] = useState(session?.messageCount || 0);
   const { setSelectedCharacterId, setAnonymousSessionToken, loadRooms, rooms, setRoomId, roomId } = useChatStore();
   const isAnonymous = !user && !!session;
   const [isInitializingRoom, setIsInitializingRoom] = useState(false);
+  
+  // Callback to increment message count when a message is sent successfully
+  // This is called from ElizaChatInterface after a successful message
+  const onMessageSent = useCallback(() => {
+    if (isAnonymous) {
+      setMessageCount(prev => {
+        const newCount = prev + 1;
+        console.log("[ChatInterface] 📊 Message sent, incrementing count:", prev, "→", newCount);
+        return newCount;
+      });
+    }
+  }, [isAnonymous]);
   const messagesRemaining = session
     ? session.messagesLimit - messageCount
     : Infinity;
@@ -226,10 +240,18 @@ export function ChatInterface({
     );
   };
 
-  const handleSignup = () => {
-    toast.info("Opening signup modal...");
-    // Privy modal will open automatically when implemented
+  const handleSignup = async () => {
+    try {
+      // Open Privy login modal
+      await login();
+      toast.success("Welcome! Your chat is now unlimited.");
+      // Page will refresh after successful auth via Privy
+    } catch (error) {
+      console.error("[ChatInterface] Signup error:", error);
+      toast.error("Failed to open signup. Please try again.");
+    }
   };
+  
 
   // Paywall view with theme support
   if (shouldShowPaywall) {
@@ -425,7 +447,7 @@ export function ChatInterface({
 
       {/* Chat interface with theme styling */}
       <div className={`flex-1 overflow-hidden ${isRomanticTheme ? 'chat-theme-romantic' : ''}`}>
-        <ElizaChatInterface />
+        <ElizaChatInterface onMessageSent={onMessageSent} />
       </div>
 
       {/* Pink/Romantic Theme CSS for Clone Your Crush */}
