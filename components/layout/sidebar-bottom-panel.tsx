@@ -232,52 +232,6 @@ export function SidebarBottomPanel({ className }: SidebarBottomPanelProps) {
       {/* Corner brackets for the panel */}
       <CornerBrackets size="sm" className="opacity-30" />
 
-      {/* User Info Header - Clickable to expand/collapse */}
-      <div className="relative z-10 px-4 py-3 border-b border-white/10">
-        <div
-          className="flex flex-col gap-2"
-          style={{
-            fontFamily: "var(--font-roboto-mono)",
-            fontWeight: 400,
-            letterSpacing: "-0.003em",
-          }}
-        >
-          <div className="text-sm font-medium text-white truncate">
-            {getUserName()}
-          </div>
-          <div className="text-xs text-white/40 truncate">
-            {getUserIdentifier()}
-          </div>
-        </div>
-      </div>
-
-      {/* Balance Display - Always Visible */}
-      <div
-        className="relative z-10 px-4 py-3 border-b border-white/10"
-        style={{
-          fontFamily: "var(--font-roboto-mono)",
-          fontWeight: 400,
-          letterSpacing: "-0.003em",
-        }}
-      >
-        {loadingCredits && creditBalance === null ? (
-          <div className="flex items-center gap-2 text-white/40">
-            <Loader2 className="h-4 w-4 animate-spin" />
-            <span className="text-sm">Loading...</span>
-          </div>
-        ) : (
-          <div className="flex items-center gap-2">
-            <span className="text-[#FF5800]">$</span>
-            <span className="text-lg font-bold text-white">
-              {creditBalance !== null
-                ? Number(creditBalance).toFixed(2)
-                : "0.00"}
-            </span>
-            <span className="text-xs text-white/40 ml-1">balance</span>
-          </div>
-        )}
-      </div>
-
       {/* Menu Items - Always Visible */}
       <div className="relative z-10 py-2">
         {menuItems.map((item) => {
@@ -314,23 +268,31 @@ export function SidebarBottomPanel({ className }: SidebarBottomPanelProps) {
           );
         })}
       </div>
-
-      {/* Logout Button - Always Visible */}
-      <div className="relative z-10 border-t border-white/5">
-        <button
-          onClick={onSignOut}
-          className="w-full flex items-center gap-3 px-4 py-2.5 text-white/60 hover:bg-white/5 hover:text-red-400 transition-all duration-200 cursor-pointer"
-          style={{
-            fontFamily: "var(--font-roboto-mono)",
-            fontWeight: 400,
-            fontSize: "14px",
-            lineHeight: "18px",
-            letterSpacing: "-0.003em",
-          }}
-        >
-          <LogOut className="h-4 w-4" />
-          <span>Logout</span>
-        </button>
+      {/* Balance Display - Always Visible */}
+      <div
+        className="relative bg-[#FF5800]/90 place-items-center backdrop-blur-3xl z-10 py-4 border-b border-white/10"
+        style={{
+          fontFamily: "var(--font-roboto-mono)",
+          fontWeight: 400,
+          letterSpacing: "-0.003em",
+        }}
+      >
+        {loadingCredits && creditBalance === null ? (
+          <div className="flex items-center gap-2 text-white/40">
+            <Loader2 className="h-4 w-4 animate-spin" />
+            <span className="text-sm">Loading...</span>
+          </div>
+        ) : (
+          <div className="flex items-center gap-2">
+            <span className="text-white text-[25px]">$</span>
+            <span className="text-[25px] font-bold text-white">
+              {creditBalance !== null
+                ? Number(creditBalance).toFixed(2)
+                : "0.00"}
+            </span>
+            {/* <span className="text-xs text-black ml-1">balance</span> */}
+          </div>
+        )}
       </div>
     </div>
   );
