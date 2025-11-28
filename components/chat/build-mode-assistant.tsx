@@ -438,16 +438,16 @@ Tell me about your vision!`;
       {/* Messages Area */}
       <div className="flex-1 min-h-0 overflow-hidden">
         <ScrollArea className="h-full p-4" ref={scrollAreaRef}>
-          <div className="space-y-4 max-w-5xl mx-auto">
+          <div className="space-y-3 max-w-5xl mx-auto">
             {messages.length === 0 && (
-              <div className="flex flex-col items-center justify-center h-full text-center py-12">
-                <div className="flex h-16 w-16 flex-shrink-0 items-center justify-center rounded-full bg-[#FF5800] mb-4">
-                  <Bot className="h-8 w-8 text-white" />
+              <div className="flex flex-col items-center justify-center h-full text-center py-6">
+                <div className="flex h-12 w-12 flex-shrink-0 items-center justify-center rounded-full bg-[#FF5800] mb-3">
+                  <Bot className="h-6 w-6 text-white" />
                 </div>
-                <h3 className="text-lg font-semibold mb-2 text-white">
+                <h3 className="text-base font-semibold mb-1 text-white font-[family-name:var(--font-roboto-flex)]">
                   Start Building Your Character
                 </h3>
-                <p className="text-sm text-white/60 max-w-md">
+                <p className="text-sm text-white/60 max-w-md font-[family-name:var(--font-roboto-flex)]">
                   Describe your character and I&apos;ll help you create it
                 </p>
               </div>
@@ -487,28 +487,29 @@ Tell me about your vision!`;
                           style={{ fontWeight: 500 }}
                         >
                           <style jsx>{`
-                            .json-syntax :global(pre) {
+                            .build-mode-content :global(pre) {
                               background: rgba(0, 0, 0, 0.4) !important;
                               padding: 12px !important;
                               border-radius: 0 !important;
                               overflow-x: auto !important;
                               max-width: 100% !important;
+                              margin: 8px 0 !important;
                             }
-                            .json-syntax :global(pre)::-webkit-scrollbar {
+                            .build-mode-content :global(pre)::-webkit-scrollbar {
                               height: 8px;
                             }
-                            .json-syntax :global(pre)::-webkit-scrollbar-track {
+                            .build-mode-content :global(pre)::-webkit-scrollbar-track {
                               background: rgba(0, 0, 0, 0.2);
                             }
-                            .json-syntax :global(pre)::-webkit-scrollbar-thumb {
+                            .build-mode-content :global(pre)::-webkit-scrollbar-thumb {
                               background: rgba(255, 88, 0, 0.4);
                               border-radius: 0;
                             }
-                            .json-syntax
+                            .build-mode-content
                               :global(pre)::-webkit-scrollbar-thumb:hover {
                               background: rgba(255, 88, 0, 0.6);
                             }
-                            .json-syntax :global(code) {
+                            .build-mode-content :global(code) {
                               font-family:
                                 "Monaco", "Menlo", "Ubuntu Mono", "Consolas",
                                 monospace !important;
@@ -516,37 +517,67 @@ Tell me about your vision!`;
                               white-space: pre !important;
                             }
                             /* JSON property keys */
-                            .json-syntax :global(.token.property),
-                            .json-syntax :global(.token.key) {
+                            .build-mode-content :global(.token.property),
+                            .build-mode-content :global(.token.key) {
                               color: #fe9f6d !important;
                             }
                             /* JSON punctuation (brackets, braces, commas, colons) */
-                            .json-syntax :global(.token.punctuation) {
+                            .build-mode-content :global(.token.punctuation) {
                               color: #e434bb !important;
                             }
                             /* JSON string values */
-                            .json-syntax :global(.token.string) {
+                            .build-mode-content :global(.token.string) {
                               color: #d4d4d4 !important;
                             }
                             /* JSON numbers */
-                            .json-syntax :global(.token.number) {
+                            .build-mode-content :global(.token.number) {
                               color: #d4d4d4 !important;
                             }
                             /* JSON booleans and null */
-                            .json-syntax :global(.token.boolean),
-                            .json-syntax :global(.token.null) {
+                            .build-mode-content :global(.token.boolean),
+                            .build-mode-content :global(.token.null) {
                               color: #d4d4d4 !important;
                             }
+                            /* Remove prose margins for tighter spacing */
+                            .build-mode-content :global(p) {
+                              margin: 0 !important;
+                            }
+                            .build-mode-content :global(p + p) {
+                              margin-top: 8px !important;
+                            }
+                            .build-mode-content :global(ul),
+                            .build-mode-content :global(ol) {
+                              margin: 8px 0 !important;
+                              padding-left: 20px !important;
+                            }
+                            .build-mode-content :global(li) {
+                              margin: 2px 0 !important;
+                            }
+                            .build-mode-content :global(h1),
+                            .build-mode-content :global(h2),
+                            .build-mode-content :global(h3),
+                            .build-mode-content :global(h4) {
+                              margin: 12px 0 4px 0 !important;
+                              font-weight: 600 !important;
+                            }
+                            .build-mode-content :global(h1) {
+                              font-size: 18px !important;
+                            }
+                            .build-mode-content :global(h2) {
+                              font-size: 16px !important;
+                            }
+                            .build-mode-content :global(h3),
+                            .build-mode-content :global(h4) {
+                              font-size: 14px !important;
+                            }
                           `}</style>
-                          <div className="whitespace-pre-wrap text-white">
-                            <div className="json-syntax prose prose-sm max-w-none dark:prose-invert overflow-hidden">
-                              <ReactMarkdown
-                                remarkPlugins={[remarkGfm]}
-                                rehypePlugins={[rehypeHighlight]}
-                              >
-                                {content}
-                              </ReactMarkdown>
-                            </div>
+                          <div className="whitespace-pre-wrap text-white build-mode-content overflow-hidden">
+                            <ReactMarkdown
+                              remarkPlugins={[remarkGfm]}
+                              rehypePlugins={[rehypeHighlight]}
+                            >
+                              {content}
+                            </ReactMarkdown>
                           </div>
                         </div>
                         {/* Time and Actions */}
@@ -622,18 +653,18 @@ Tell me about your vision!`;
                     <div className="flex h-4 w-4 flex-shrink-0 items-center justify-center rounded-full bg-[#FF5800]">
                       <Bot className="h-3 w-3 animate-pulse text-white" />
                     </div>
-                    <div
+                    <span
                       className="font-[family-name:var(--font-roboto-flex)] text-sm font-medium"
                       style={{ color: "#A1A1AA" }}
                     >
                       {character.name || "Build Assistant"}
-                    </div>
+                    </span>
                   </div>
-                  <div className="flex items-center gap-3 py-2">
-                    <Loader2 className="h-4 w-4 animate-spin text-white/60" />
-                    <p className="text-sm text-white/60 font-[family-name:var(--font-roboto-flex)]">
+                  <div className="flex items-center gap-2 py-2">
+                    <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />
+                    <span className="text-sm text-muted-foreground font-[family-name:var(--font-roboto-flex)]">
                       is thinking...
-                    </p>
+                    </span>
                   </div>
                 </div>
               </div>

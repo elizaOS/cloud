@@ -72,7 +72,7 @@ const nextConfig: NextConfig = {
               // Styles - allow self, inline styles, and Monaco Editor CDN (required for many UI libraries)
               "style-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net",
               // Images - allow self, data URIs, blob URIs, and Vercel storage
-              "img-src 'self' data: blob: https://*.public.blob.vercel-storage.com",
+              "img-src 'self' data: blob: https://*.public.blob.vercel-storage.com https://raw.githubusercontent.com",
               // Fonts - allow self and Monaco Editor CDN
               "font-src 'self' https://cdn.jsdelivr.net",
               // Objects - block all (e.g., Flash, Java applets)
