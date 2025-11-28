@@ -5,7 +5,7 @@ import { stringToUuid, UUID, ChannelType } from "@elizaos/core";
 import { logger } from "@/lib/utils/logger";
 import { requireAuthOrApiKey } from "@/lib/auth";
 import { getAnonymousUser } from "@/lib/auth-anonymous";
-import { elizaRoomCharactersRepository } from "@/db/repositories";
+import { elizaRoomCharactersRepository, userCharactersRepository } from "@/db/repositories";
 import { connectionCache } from "@/lib/cache/connection-cache";
 import { discordService, anonymousSessionsService, usersService } from "@/lib/services";
 import { db } from "@/db/client";
@@ -28,18 +28,18 @@ export async function GET(request: NextRequest) {
       // CRITICAL: First try the provided session token (from URL/header)
       // This ensures we don't overwrite the session created by /api/affiliate/create-session
       if (providedSessionToken) {
-        logger.info("[Eliza Rooms API GET] Checking provided session token:", providedSessionToken.slice(0, 8) + "...");
+        logger.debug("[Eliza Rooms API GET] Checking provided session token:", providedSessionToken.slice(0, 8) + "...");
         const session = await anonymousSessionsService.getByToken(providedSessionToken);
         if (session) {
           const sessionUser = await usersService.getById(session.user_id);
           if (sessionUser && sessionUser.is_anonymous) {
-            logger.info("[Eliza Rooms API GET] Anonymous auth via provided token:", sessionUser.id);
+            logger.debug("[Eliza Rooms API GET] Anonymous auth via provided token:", sessionUser.id);
             // Token is valid, continue without creating new session
           } else {
-            logger.warn("[Eliza Rooms API GET] Session user not found or not anonymous");
+            logger.debug("[Eliza Rooms API GET] Session user not found or not anonymous");
           }
         } else {
-          logger.warn("[Eliza Rooms API GET] Session not found for token:", providedSessionToken.slice(0, 8) + "...");
+          logger.debug("[Eliza Rooms API GET] Session not found for token:", providedSessionToken.slice(0, 8) + "...");
         }
       }
       
@@ -49,7 +49,7 @@ export async function GET(request: NextRequest) {
       if (!anonData && !providedSessionToken) {
         // Only create new session if no token was provided at all
         // This is a fallback for legacy clients that don't pass tokens
-        logger.info("[Eliza Rooms API GET] No session cookie or token - creating new anonymous session");
+        logger.debug("[Eliza Rooms API GET] No session cookie or token - creating new anonymous session");
         const { getOrCreateAnonymousUser } = await import("@/lib/auth-anonymous");
         await getOrCreateAnonymousUser();
       }
@@ -84,11 +84,41 @@ export async function GET(request: NextRequest) {
       );
     }
 
+    // Collect unique character IDs to batch fetch their names
+    const uniqueCharacterIds = new Set<string>();
+    for (const charId of characterMappings.values()) {
+      if (charId) uniqueCharacterIds.add(charId);
+    }
+
+    // Batch fetch character names
+    const characterNames = new Map<string, string>();
+    if (uniqueCharacterIds.size > 0) {
+      try {
+        const characterPromises = Array.from(uniqueCharacterIds).map(async (charId) => {
+          const character = await userCharactersRepository.findById(charId);
+          if (character) {
+            characterNames.set(charId, character.name);
+          }
+        });
+        await Promise.all(characterPromises);
+        logger.debug(
+          "[Eliza Rooms API] Batch loaded character names:",
+          characterNames.size,
+        );
+      } catch (err) {
+        logger.error(
+          "[Eliza Rooms API] Failed to batch load character names:",
+          err,
+        );
+      }
+    }
+
     // Get room details with character mappings and titles
     const rooms = await Promise.all(
       roomIds.map(async (roomId) => {
         const room = await runtime.getRoom(roomId);
         const characterId = characterMappings.get(roomId);
+        const characterName = characterId ? characterNames.get(characterId) || null : null;
 
         // Fetch room title from database
         let title: string | null = null;
@@ -108,6 +138,7 @@ export async function GET(request: NextRequest) {
           id: roomId,
           ...room,
           characterId,
+          characterName,
           title,
         };
       }),
