@@ -270,15 +270,15 @@ export function SidebarBottomPanel({ className }: SidebarBottomPanelProps) {
         })}
       </div>
       {/* Balance Display - Always Visible */}
-      <div
-        className="relative hover:bg-[#FF5800]/40 hover:shadow-[0_0_20px_rgba(255,88,0,0.4)] active:bg-[#FF5800]/60 bg-[#FF5800]/70 place-items-center backdrop-blur-3xl z-10 py-4 border-b border-white/10 transition-all duration-300 ease-in-out  hover:backdrop-blur-2xl"
-        style={{
-          fontFamily: "var(--font-roboto-mono)",
-          fontWeight: 400,
-          letterSpacing: "-0.003em",
-        }}
-      >
-        <Link className="flex place-self-center" href="/dashboard/billing">
+      <Link className="w-full flex place-self-center" href="/dashboard/billing">
+        <div
+          className="w-full relative hover:bg-[#FF5800]/40 hover:shadow-[0_0_20px_rgba(255,88,0,0.4)] active:bg-[#FF5800]/60 bg-[#FF5800]/70 place-items-center backdrop-blur-3xl z-10 py-4 border-b border-white/10 transition-all duration-300 ease-in-out  hover:backdrop-blur-2xl"
+          style={{
+            fontFamily: "var(--font-roboto-mono)",
+            fontWeight: 400,
+            letterSpacing: "-0.003em",
+          }}
+        >
           {loadingCredits && creditBalance === null ? (
             <div className="flex items-center gap-2 text-white/40">
               <Loader2 className="h-4 w-4 animate-spin" />
@@ -294,8 +294,8 @@ export function SidebarBottomPanel({ className }: SidebarBottomPanelProps) {
               </span>
             </div>
           )}
-        </Link>
-      </div>
+        </div>
+      </Link>
     </div>
   );
 }
