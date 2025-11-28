@@ -131,9 +131,9 @@ export function ElizaChatInterface() {
   const [selectedModel, setSelectedModel] = useState<string | null>(() => {
     if (typeof window !== "undefined") {
       const saved = localStorage.getItem("eliza-selected-model");
-      return saved || "moonshotai/kimi-k2-0905"; // Default to kimi-k2-0905
+      return saved || "openai/gpt-oss-120b"; // Default to kimi-k2-0905
     }
-    return "moonshotai/kimi-k2-0905";
+    return "openai/gpt-oss-120b";
   });
 
   // Save selected model to localStorage
@@ -1100,7 +1100,7 @@ export function ElizaChatInterface() {
             <div className="flex items-center justify-between">
               {/* Model Selector - Bottom Left */}
               <Select
-                value={selectedModel || "moonshotai/kimi-k2-0905"}
+                value={selectedModel || "openai/gpt-oss-120b"}
                 onValueChange={(value) => {
                   setSelectedModel(value);
                   const modelName = value.split("/")[1] || value;

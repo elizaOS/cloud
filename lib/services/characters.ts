@@ -154,7 +154,7 @@ export class CharactersService {
             post?: string[];
           }
         | undefined,
-      avatar_url: character.avatar_url ?? undefined,
+      avatarUrl: character.avatar_url ?? undefined,
     };
   }
 }

@@ -3,10 +3,13 @@ import { elizaOSCloudPlugin } from "@elizaos/plugin-elizacloud";
 import { memoryPlugin } from "@elizaos/plugin-memory";
 import { elevenLabsPlugin } from "@elizaos/plugin-elevenlabs";
 import { assistantPlugin } from "./plugin-assistant";
+import { chatPlaygroundPlugin } from "./plugin-chat-playground";
+import { characterBuilderPlugin } from "./plugin-character-builder";
 import { charactersService } from "@/lib/services/characters";
 import type { ElizaCharacter } from "@/lib/types";
 import defaultAgent from "./agent";
 import { getElizaCloudApiUrl, getDefaultModels } from "./config";
+import { AgentMode, AGENT_MODE_PLUGINS } from "./agent-mode-types";
 
 /**
  * Lazy-load the knowledge plugin to avoid SSR issues with pdfjs-dist
@@ -19,7 +22,7 @@ async function loadKnowledgePlugin() {
 
 /**
  * Maps plugin names to their implementations
- * Note: Core plugins (ElizaCloud, Assistant, Memory, Knowledge) are ALWAYS included
+ * Core plugins are selected based on AgentMode
  * Additional plugins can be enabled per-character
  * Type assertions needed due to ElizaOS plugin type bundling differences
  */
@@ -28,31 +31,32 @@ const AVAILABLE_PLUGINS: Record<string, Plugin> = {
   "@elizaos/plugin-elevenlabs": elevenLabsPlugin as unknown as Plugin,
   "@elizaos/plugin-memory": memoryPlugin as unknown as Plugin,
   "@eliza-cloud/plugin-assistant": assistantPlugin as unknown as Plugin,
+  "@eliza-cloud/plugin-chat-playground": chatPlaygroundPlugin as unknown as Plugin,
+  "@eliza-cloud/plugin-character-builder": characterBuilderPlugin as unknown as Plugin,
 };
 
 /**
- * Character loader service for dynamic character loading
- * Handles plugin resolution, settings merging, and ElizaOS Character format conversion
+ * Agent loader service for dynamic agent configuration
+ * Handles plugin resolution based on AgentMode, settings merging, and ElizaOS Character format conversion
  */
-export class CharacterLoader {
+export class AgentLoader {
   /**
-   * Load character by ID from database and prepare for ElizaOS runtime
+   * Load character by ID and configure for specified AgentMode
    */
-  async loadCharacter(characterId: string): Promise<{
+  async loadCharacter(
+    characterId: string,
+    agentMode: AgentMode
+  ): Promise<{
     character: Character;
     plugins: Plugin[];
   }> {
-    console.log(`[CharacterLoader] Loading character: ${characterId}`);
-
     // Load character from database
     const dbCharacter = await charactersService.getById(characterId);
 
     if (!dbCharacter) {
-      console.error(`[CharacterLoader] Character not found: ${characterId}`);
+      console.error(`[AgentLoader] Character not found: ${characterId}`);
       throw new Error(`Character not found: ${characterId}`);
     }
-
-    console.log(`[CharacterLoader] Found character in DB: ${dbCharacter.name}`);
 
     // Convert to ElizaOS format
     const elizaCharacter = charactersService.toElizaCharacter(dbCharacter);
@@ -60,26 +64,23 @@ export class CharacterLoader {
     // Build full character with environment settings
     const character = this.buildCharacter(elizaCharacter);
 
-    // Resolve plugins (includes core plugins + character-specific plugins)
-    const plugins = await this.resolvePlugins(elizaCharacter.plugins || []);
-
-    console.log(
-      `[CharacterLoader] Built character: ${character.name} with ${plugins.length} plugins:`,
-      plugins.map((p) => p.name).join(", "),
-    );
+    // Resolve plugins based on AgentMode + character-specific plugins
+    const plugins = await this.resolvePlugins(agentMode, elizaCharacter.plugins || []);
 
     return { character, plugins };
   }
 
   /**
-   * Get the default character (from lib/eliza/agent.ts)
+   * Get the default character configured for specified AgentMode
    * Note: This method is async to support lazy-loaded plugins
    */
-  async getDefaultCharacter(): Promise<{
+  async getDefaultCharacter(agentMode: AgentMode): Promise<{
     character: Character;
     plugins: Plugin[];
   }> {
-    const plugins = await defaultAgent.getPlugins();
+    // Get plugins for the specified mode
+    const plugins = await this.resolvePlugins(agentMode, []);
+    
     return {
       character: defaultAgent.character,
       plugins: plugins as unknown as Plugin[],
@@ -88,27 +89,24 @@ export class CharacterLoader {
 
   /**
    * Build Character object with proper settings merging
-   * IMPORTANT: Always uses the default agent ID for database consistency
+   * Uses the character's own ID from the database
    */
   private buildCharacter(elizaCharacter: ElizaCharacter): Character {
-    // CRITICAL: Use the same agent ID as default Eliza for database operations
-    // Different characters share the same agent ID to avoid database conflicts
-    const ELIZA_AGENT_ID = "b850bc30-45f8-0041-a00a-83df46d8555d";
+    // Use the character's database ID, or fallback to default Eliza ID
+    const characterId = elizaCharacter.id || "b850bc30-45f8-0041-a00a-83df46d8555d";
+    
     // Merge environment variables with character settings
+    // NOTE: Model selection (ELIZAOS_CLOUD_SMALL_MODEL, ELIZAOS_CLOUD_LARGE_MODEL) is 
+    // handled in RuntimeFactory.buildSettings() where we have access to userContext.modelPreferences
+    // This allows users to select models from the UI dropdown
     const settings = {
       // Database URLs (always from environment)
       POSTGRES_URL: process.env.DATABASE_URL!,
       DATABASE_URL: process.env.DATABASE_URL!,
 
-      // ElizaOS Cloud Configuration (replaces OpenAI)
+      // ElizaOS Cloud Configuration (base URL only - models set in RuntimeFactory)
       ELIZAOS_CLOUD_BASE_URL: getElizaCloudApiUrl(),
-      ELIZAOS_CLOUD_SMALL_MODEL:
-        (elizaCharacter.settings?.ELIZAOS_CLOUD_SMALL_MODEL as string) ||
-        getDefaultModels().small,
-      ELIZAOS_CLOUD_LARGE_MODEL:
-        (elizaCharacter.settings?.ELIZAOS_CLOUD_LARGE_MODEL as string) ||
-        getDefaultModels().large,
-      // Note: ELIZAOS_CLOUD_API_KEY will be set at runtime with user's auto-generated key
+      // Note: ELIZAOS_CLOUD_API_KEY and model settings will be set at runtime with user context
 
       // ElevenLabs settings (merge character settings with environment)
       ELEVENLABS_API_KEY: process.env.ELEVENLABS_API_KEY!,
@@ -188,9 +186,9 @@ export class CharacterLoader {
     };
 
     // Build Character object
-    // Use consistent agent ID for database operations, character name for personality
+    // Use the character's own ID for proper database isolation
     const character: Character = {
-      id: ELIZA_AGENT_ID as `${string}-${string}-${string}-${string}-${string}`,
+      id: characterId as `${string}-${string}-${string}-${string}-${string}`,
       name: elizaCharacter.name,
       username: elizaCharacter.username,
       plugins: elizaCharacter.plugins || [],
@@ -210,66 +208,87 @@ export class CharacterLoader {
   }
 
   /**
-   * Resolve plugin names to plugin instances
+   * Resolve plugins based on AgentMode and character-specific plugins
    *
-   * CORE PLUGINS (ALWAYS INCLUDED - REQUIRED FOR ALL AGENTS):
-   * 1. elizaOSCloudPlugin - LLM provider (required for text generation)
-   * 2. assistantPlugin - Message handling and context providers (required)
-   * 3. memoryPlugin - Short/long term memory (required for conversation context)
-   * 4. knowledgePlugin - Document processing and RAG (required for knowledge base)
+   * AGENT MODE PLUGIN SETS:
+   * 
+   * CHAT mode:
+   * - @elizaos/plugin-elizacloud (LLM provider)
+   * - @eliza-cloud/plugin-chat-playground (simple chat handler)
+   * - @elizaos/plugin-memory (conversation memory)
    *
-   * OPTIONAL PLUGINS (Character-specific, enabled via character.plugins array):
-   * - @elizaos/plugin-elevenlabs - Voice (TTS/STT)
-   * - Additional plugins as added to AVAILABLE_PLUGINS map
+   * BUILD mode:
+   * - @elizaos/plugin-elizacloud (LLM provider)
+   * - @eliza-cloud/plugin-character-builder (character editing)
+   * - @elizaos/plugin-memory (conversation memory)
+   *
+   * ASSISTANT mode:
+   * - @elizaos/plugin-elizacloud (LLM provider)
+   * - @eliza-cloud/plugin-assistant (planning + actions)
+   * - @elizaos/plugin-memory (conversation memory)
+   * - @elizaos/plugin-knowledge (RAG + document processing)
+   *
+   * CHARACTER-SPECIFIC PLUGINS (added on top of mode plugins):
+   * - @elizaos/plugin-elevenlabs (if specified in character.plugins)
+   * - Any other plugins specified in character configuration
    */
-  private async resolvePlugins(pluginNames: string[]): Promise<Plugin[]> {
+  private async resolvePlugins(
+    agentMode: AgentMode,
+    characterPlugins: string[]
+  ): Promise<Plugin[]> {
     const plugins: unknown[] = [];
 
     // ========================================
-    // CORE PLUGINS - REQUIRED FOR ALL AGENTS
+    // CORE PLUGINS - BASED ON AGENT MODE
     // ========================================
 
-    // 1. ElizaOS Cloud - LLM Provider (REQUIRED)
-    if (!plugins.some((p) => p === elizaOSCloudPlugin)) {
-      plugins.push(elizaOSCloudPlugin);
-    }
+    const corePluginNames = AGENT_MODE_PLUGINS[agentMode];
+    
+    console.log(`[AgentLoader] Loading plugins for ${agentMode} mode:`, corePluginNames);
 
-    // 2. Assistant Plugin - Message handling (REQUIRED)
-    if (!plugins.some((p) => p === assistantPlugin)) {
-      plugins.push(assistantPlugin);
-    }
+    for (const pluginName of corePluginNames) {
+      // Special handling for knowledge plugin (lazy-loaded for SSR)
+      if (pluginName === "@elizaos/plugin-knowledge") {
+        const knowledgePlugin = await loadKnowledgePlugin();
+        if (!plugins.some((p) => p === knowledgePlugin)) {
+          plugins.push(knowledgePlugin);
+          console.log(`[AgentLoader] ✓ Loaded: ${pluginName} (lazy-loaded)`);
+        }
+        continue;
+      }
 
-    // 3. Memory Plugin - Short/long term memory (REQUIRED)
-    if (!plugins.some((p) => p === memoryPlugin)) {
-      plugins.push(memoryPlugin);
-    }
-
-    // 4. Knowledge Plugin - Document processing (REQUIRED, lazy-loaded)
-    const knowledgePlugin = await loadKnowledgePlugin();
-    if (!plugins.some((p) => p === knowledgePlugin)) {
-      plugins.push(knowledgePlugin);
+      // Load other plugins from available plugins map
+      const plugin = AVAILABLE_PLUGINS[pluginName];
+      if (plugin) {
+        if (!plugins.some((p) => p === plugin)) {
+          plugins.push(plugin);
+          console.log(`[AgentLoader] ✓ Loaded: ${pluginName}`);
+        }
+      } else {
+        console.warn(`[AgentLoader] ⚠ Core plugin not found: ${pluginName}`);
+      }
     }
 
     // ========================================
     // CHARACTER-SPECIFIC PLUGINS (OPTIONAL)
     // ========================================
 
-    // Resolve plugins specified in character configuration
-    for (const pluginName of pluginNames) {
+    // Resolve additional plugins specified in character configuration
+    for (const pluginName of characterPlugins) {
       const plugin = AVAILABLE_PLUGINS[pluginName];
 
       if (plugin) {
         // Avoid duplicates
         if (!plugins.some((p) => p === plugin)) {
           plugins.push(plugin);
-          console.log(
-            `[CharacterLoader] ✓ Added optional plugin: ${pluginName}`,
-          );
+          console.log(`[AgentLoader] ✓ Loaded character plugin: ${pluginName}`);
         }
       } else {
-        console.warn(`[CharacterLoader] ⚠ Unknown plugin: ${pluginName}`);
+        console.warn(`[AgentLoader] ⚠ Unknown character plugin: ${pluginName}`);
       }
     }
+
+    console.log(`[AgentLoader] Total plugins loaded: ${plugins.length}`);
 
     return plugins as Plugin[];
   }
@@ -296,4 +315,4 @@ export class CharacterLoader {
 }
 
 // Export singleton instance
-export const characterLoader = new CharacterLoader();
+export const agentLoader = new AgentLoader();

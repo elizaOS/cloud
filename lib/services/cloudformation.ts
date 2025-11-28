@@ -289,7 +289,8 @@ export class CloudFormationService {
           },
           {
             ParameterKey: "Architecture",
-            ParameterValue: config.architecture || "arm64",
+            // Translate x86_64 to amd64 for CloudFormation (underscores not allowed in mapping keys)
+            ParameterValue: config.architecture === "x86_64" ? "amd64" : (config.architecture || "arm64"),
           },
           { ParameterKey: "SharedVPCId", ParameterValue: sharedOutputs.vpcId },
           {
@@ -447,7 +448,8 @@ export class CloudFormationService {
           },
           {
             ParameterKey: "Architecture",
-            ParameterValue: config.architecture || "arm64",
+            // Translate x86_64 to amd64 for CloudFormation (underscores not allowed in mapping keys)
+            ParameterValue: config.architecture === "x86_64" ? "amd64" : (config.architecture || "arm64"),
           },
           { ParameterKey: "SharedVPCId", ParameterValue: sharedOutputs.vpcId },
           {
