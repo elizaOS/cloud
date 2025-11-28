@@ -1,131 +1,126 @@
 import { NextRequest, NextResponse } from "next/server";
 import { cookies } from "next/headers";
+import { requireAuth } from "@/lib/auth";
 import { convertAnonymousToReal } from "@/lib/auth-anonymous";
 import { anonymousSessionsService } from "@/lib/services";
-import { requireAuth } from "@/lib/auth";
 import { logger } from "@/lib/utils/logger";
+
+const ANON_SESSION_COOKIE = "eliza-anon-session";
 
 /**
  * POST /api/auth/migrate-anonymous
- *
- * Called by client after successful Privy authentication to migrate
- * anonymous user data to the newly authenticated account.
- *
- * This must be called from the client (not webhook) because it needs
- * access to the user's browser cookies to read the anonymous session token.
- *
- * Flow:
- * 1. User authenticates with Privy (gets Privy session)
- * 2. Client detects authentication success
- * 3. Client calls this endpoint with cookies
- * 4. Server reads anonymous session cookie
- * 5. Server migrates anonymous data to authenticated user
- * 6. Server clears anonymous cookie
+ * 
+ * Migrates anonymous user data to the authenticated user.
+ * Should be called from the frontend after successful Privy authentication.
+ * 
+ * This endpoint:
+ * 1. Gets the anonymous session from the cookie (or request body)
+ * 2. Verifies the authenticated user
+ * 3. Calls convertAnonymousToReal to migrate all data
+ * 
+ * Request body (optional):
+ * {
+ *   sessionToken?: string  // Anonymous session token if cookie not available
+ * }
  */
 export async function POST(request: NextRequest) {
   try {
-    // Get authenticated user from Privy session
-    const user = await requireAuth();
-    const privyUserId = user.privy_user_id;
-
-    if (!privyUserId) {
-      logger.warn("migrate-anonymous", "No Privy user ID found", {
-        userId: user.id,
-      });
+    // 1. Get the authenticated user
+    const authResult = await requireAuth();
+    const { user } = authResult;
+    
+    if (!user.privy_user_id) {
       return NextResponse.json(
-        { error: "No Privy user ID found" },
-        { status: 400 },
+        { error: "User does not have a Privy ID" },
+        { status: 400 }
       );
     }
 
-    // Check for anonymous session cookie
+    logger.info("[Migrate Anonymous] Starting migration for user:", user.id);
+
+    // 2. Get anonymous session token from cookie or request body
     const cookieStore = await cookies();
-    const anonSessionToken = cookieStore.get("eliza-anon-session")?.value;
+    let sessionToken = cookieStore.get(ANON_SESSION_COOKIE)?.value;
+    
+    // Also check request body for token (in case cookie is not available)
+    if (!sessionToken) {
+      try {
+        const body = await request.json().catch(() => ({}));
+        sessionToken = body.sessionToken;
+      } catch {
+        // No body or invalid JSON - that's okay
+      }
+    }
 
-    if (!anonSessionToken) {
-      // No anonymous session to migrate - this is fine
-      logger.info("migrate-anonymous", "No anonymous session found", {
-        privyUserId,
-        userId: user.id,
-      });
+    if (!sessionToken) {
+      logger.info("[Migrate Anonymous] No anonymous session found, nothing to migrate");
       return NextResponse.json({
         success: true,
-        migrated: false,
         message: "No anonymous session to migrate",
+        migrated: false,
       });
     }
 
-    // Get anonymous session
-    const anonSession =
-      await anonymousSessionsService.getByToken(anonSessionToken);
-
+    // 3. Get the anonymous session and user
+    const anonSession = await anonymousSessionsService.getByToken(sessionToken);
+    
     if (!anonSession) {
-      logger.warn("migrate-anonymous", "Invalid anonymous session token", {
-        privyUserId,
-      });
-      // Clear invalid cookie
-      cookieStore.delete("eliza-anon-session");
+      logger.info("[Migrate Anonymous] Anonymous session not found for token:", sessionToken.slice(0, 8) + "...");
       return NextResponse.json({
         success: true,
+        message: "Anonymous session not found or already migrated",
         migrated: false,
-        message: "Invalid anonymous session",
       });
     }
 
-    // Check if session was already converted
+    // Check if already converted
     if (anonSession.converted_at) {
-      logger.info("migrate-anonymous", "Session already converted", {
-        privyUserId,
-        sessionId: anonSession.id,
-        convertedAt: anonSession.converted_at,
-      });
-      cookieStore.delete("eliza-anon-session");
+      logger.info("[Migrate Anonymous] Session already converted:", anonSession.id);
+      
+      // Clean up the cookie
+      cookieStore.delete(ANON_SESSION_COOKIE);
+      
       return NextResponse.json({
         success: true,
-        migrated: false,
         message: "Session already migrated",
+        migrated: false,
       });
     }
 
-    // Perform migration
-    logger.info("migrate-anonymous", "Starting migration", {
-      privyUserId,
+    // 4. Perform the migration
+    logger.info("[Migrate Anonymous] Migrating anonymous user:", {
       anonymousUserId: anonSession.user_id,
+      toPrivyUserId: user.privy_user_id,
+      authenticatedUserId: user.id,
       messageCount: anonSession.message_count,
     });
 
-    await convertAnonymousToReal(anonSession.user_id, privyUserId);
+    await convertAnonymousToReal(anonSession.user_id, user.privy_user_id);
 
-    // Clear cookie after successful migration (also cleared in convertAnonymousToReal)
-    cookieStore.delete("eliza-anon-session");
+    logger.info("[Migrate Anonymous] Migration completed successfully");
 
-    logger.info("migrate-anonymous", "Migration completed successfully", {
-      privyUserId,
-      anonymousUserId: anonSession.user_id,
-      messagesTransferred: anonSession.message_count,
-    });
+    // 5. Clear the anonymous session cookie
+    cookieStore.delete(ANON_SESSION_COOKIE);
 
     return NextResponse.json({
       success: true,
-      migrated: true,
       message: "Anonymous data migrated successfully",
-      messagesTransferred: anonSession.message_count,
+      migrated: true,
+      details: {
+        messageCount: anonSession.message_count,
+      },
     });
   } catch (error) {
-    logger.error("migrate-anonymous", "Migration failed", {
-      error: error instanceof Error ? error.message : String(error),
-      stack: error instanceof Error ? error.stack : undefined,
-    });
-
-    // Don't fail the request - user can still use the app
-    // Just log the error for manual review
+    logger.error("[Migrate Anonymous] Error during migration:", error);
+    
+    // Don't expose internal errors
     return NextResponse.json(
-      {
+      { 
         success: false,
-        migrated: false,
-        error: error instanceof Error ? error.message : "Migration failed",
+        error: "Failed to migrate anonymous data",
+        message: error instanceof Error ? error.message : "Unknown error",
       },
-      { status: 500 },
+      { status: 500 }
     );
   }
 }

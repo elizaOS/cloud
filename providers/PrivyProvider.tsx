@@ -19,6 +19,7 @@ const loginMethods: ("wallet" | "email" | "google" | "discord" | "github")[] = [
 
 /**
  * Wrapper component to handle post-authentication logic
+ * Handles migration of anonymous user data after successful authentication
  */
 function PrivyAuthWrapper({ children }: { children: React.ReactNode }) {
   const { ready, authenticated, user } = usePrivy();
@@ -33,17 +34,36 @@ function PrivyAuthWrapper({ children }: { children: React.ReactNode }) {
       const hasAnonSession = document.cookie.includes("eliza-anon-session");
 
       if (hasAnonSession) {
+        console.log("[PrivyProvider] 🔄 Detected anonymous session, initiating migration...");
+        
         fetch("/api/auth/migrate-anonymous", {
           method: "POST",
           credentials: "include", // Important: include cookies
+          headers: {
+            "Content-Type": "application/json",
+          },
         })
           .then((res) => res.json())
           .then((data) => {
-            // Migration completed silently
+            if (data.success && data.migrated) {
+              console.log("[PrivyProvider] ✅ Anonymous session migrated successfully:", data);
+              
+              // If we're on a chat route, reload to pick up the migrated data
+              const currentPath = window.location.pathname;
+              if (currentPath.startsWith("/chat/")) {
+                console.log("[PrivyProvider] 🔃 Reloading chat page to show migrated data...");
+                // Small delay to ensure backend has processed the migration
+                setTimeout(() => {
+                  window.location.reload();
+                }, 500);
+              }
+            } else {
+              console.log("[PrivyProvider] ℹ️ Migration result:", data.message);
+            }
           })
           .catch((error) => {
             console.error(
-              "[PrivyProvider] Failed to migrate anonymous session:",
+              "[PrivyProvider] ❌ Failed to migrate anonymous session:",
               error,
             );
             // Don't block user - this is non-critical

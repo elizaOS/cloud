@@ -200,10 +200,14 @@ export async function POST(request: NextRequest) {
         name: character.name,
         email: `affiliate-${randomUUID()}@anonymous.elizacloud.ai`, // Placeholder email
         organization_id: affiliateOrg.id,
-        // Mark as affiliate user in metadata if possible
+        is_anonymous: true, // CRITICAL: Mark as anonymous so migration can find them
+        expires_at: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000), // 7 days
       });
       
-      logger.info("[Affiliate API] Created anonymous user", { userId: anonymousUser.id });
+      logger.info("[Affiliate API] Created anonymous user", { 
+        userId: anonymousUser.id,
+        isAnonymous: true,
+      });
     } catch (error) {
       logger.error("[Affiliate API] Failed to create anonymous user", error);
       return NextResponse.json(

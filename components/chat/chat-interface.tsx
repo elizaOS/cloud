@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, useCallback } from "react";
+import { useEffect, useState, useCallback, useRef } from "react";
 import { useRouter } from "next/navigation";
 import { usePrivy } from "@privy-io/react-auth";
 import { toast } from "sonner";
@@ -62,7 +62,10 @@ export function ChatInterface({
   const [isLoadingSessionData, setIsLoadingSessionData] = useState(false);
   const { setSelectedCharacterId, setAnonymousSessionToken, loadRooms, rooms, setRoomId, roomId } = useChatStore();
   const isAnonymous = !user && !!session;
-  const [isInitializingRoom, setIsInitializingRoom] = useState(false);
+  
+  // Use refs for initialization tracking to avoid re-renders and infinite loops
+  const roomInitializedRef = useRef(false);
+  const roomInitializingRef = useRef(false);
   
   // CRITICAL: Fetch the LATEST session data from server on mount and when token changes
   // This ensures the message count is accurate after page reload, not stale from SSR props
@@ -233,54 +236,62 @@ export function ChatInterface({
 
   // CRITICAL: Load existing rooms and auto-select the room for this character
   // This ensures conversation persists across page reloads for affiliate users
+  // Using refs to prevent infinite loops - the effect only runs ONCE per character
   useEffect(() => {
+    // Skip if already initialized for this character or currently initializing
+    if (roomInitializedRef.current || roomInitializingRef.current) {
+      return;
+    }
+    
+    // Skip if we already have a room selected
+    if (roomId) {
+      roomInitializedRef.current = true;
+      return;
+    }
+    
+    // Skip if no character ID
+    if (!character.id) {
+      return;
+    }
+    
     const initializeRoom = async () => {
-      if (isInitializingRoom) return;
+      roomInitializingRef.current = true;
       
-      // Get current entityId from store
       const currentEntityId = useChatStore.getState().entityId;
-      console.log("[ChatInterface] 🔍 Room init check:", {
-        roomId,
-        characterId: character.id,
-        entityId: currentEntityId,
-        isInitializingRoom
-      });
+      console.log("[ChatInterface] 🔄 Initializing room for character:", character.id, "entityId:", currentEntityId);
       
-      // Only do this for users who don't have a room yet
-      if (!roomId && character.id) {
-        setIsInitializingRoom(true);
-        console.log("[ChatInterface] 🔄 Initializing room for character:", character.id, "entityId:", currentEntityId);
+      try {
+        // Load rooms (this uses internal deduplication)
+        await loadRooms(true);
         
-        try {
-          // Load rooms first
-          await loadRooms(true); // Force refresh
-          
-          // Small delay to allow store to update
-          await new Promise(resolve => setTimeout(resolve, 100));
-          
-          // Get the current rooms from store
-          const currentRooms = useChatStore.getState().rooms;
-          console.log("[ChatInterface] Loaded rooms:", currentRooms.length, "rooms:", currentRooms.map(r => ({ id: r.id, characterId: r.characterId })));
-          
-          // Find an existing room for this character
-          const existingRoom = currentRooms.find(room => room.characterId === character.id);
-          
-          if (existingRoom) {
-            console.log("[ChatInterface] ✅ Found existing room:", existingRoom.id);
-            setRoomId(existingRoom.id);
-          } else {
-            console.log("[ChatInterface] No existing room found for character:", character.id, "in rooms:", currentRooms.map(r => r.characterId));
-          }
-        } catch (error) {
-          console.error("[ChatInterface] Error initializing room:", error);
-        } finally {
-          setIsInitializingRoom(false);
+        // Get the current rooms from store
+        const currentRooms = useChatStore.getState().rooms;
+        console.log("[ChatInterface] Loaded rooms:", currentRooms.length, "rooms:", currentRooms.map(r => ({ id: r.id, characterId: r.characterId })));
+        
+        // Find an existing room for this character
+        const existingRoom = currentRooms.find(room => room.characterId === character.id);
+        
+        if (existingRoom) {
+          console.log("[ChatInterface] ✅ Found existing room:", existingRoom.id);
+          setRoomId(existingRoom.id);
+        } else {
+          console.log("[ChatInterface] No existing room found for character:", character.id);
         }
+        
+        // Mark as initialized so we don't try again
+        roomInitializedRef.current = true;
+      } catch (error) {
+        console.error("[ChatInterface] Error initializing room:", error);
+        // Still mark as initialized to prevent retry loops
+        roomInitializedRef.current = true;
+      } finally {
+        roomInitializingRef.current = false;
       }
     };
     
     initializeRoom();
-  }, [character.id, roomId, loadRooms, setRoomId, isInitializingRoom]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [character.id]); // Only depend on character.id - other deps are stable or accessed via refs/getState
 
   // CRITICAL: Set anonymous session cookie if session token is in URL (for affiliate users)
   // This ensures the cookie is set even if we're not sure about auth state yet
