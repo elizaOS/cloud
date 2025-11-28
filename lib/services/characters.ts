@@ -137,6 +137,7 @@ export class CharactersService {
             post?: string[];
           }
         | undefined,
+      avatarUrl: character.avatar_url ?? undefined,
     };
   }
 }

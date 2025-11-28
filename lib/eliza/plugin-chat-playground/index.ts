@@ -4,11 +4,7 @@ import {
   type MessagePayload,
   type Plugin,
 } from "@elizaos/core";
-import { providersProvider } from "./providers/providers";
-import { actionsProvider } from "./providers/actions";
 import { characterProvider } from "./providers/character";
-import { generateImageAction } from "./actions/image-generation";
-import { actionStateProvider } from "./providers/actionState";
 import { handleMessage } from "./handler";
 import type { IAgentRuntime, Memory, HandlerCallback } from "@elizaos/core";
 
@@ -30,10 +26,12 @@ const messageReceivedHandler = async ({
   message,
   callback,
 }: MessageReceivedHandlerParams): Promise<void> => {
+  // Default to CHAT mode if no workflow specified
+
   logger.info(
-    `[AssistantPlugin] Handling message for agent: ${runtime.agentId}, room: ${message.roomId}`,
+    `[ChatPlayground] Handling message for agent: ${runtime.agentId}, room: ${message.roomId}`
   );
-  logger.debug(`[AssistantPlugin] MESSAGE RECEIVED:`, JSON.stringify(message));
+  logger.debug(`[ChatPlayground] MESSAGE RECEIVED:`, JSON.stringify(message));
 
   try {
     await handleMessage({
@@ -43,7 +41,9 @@ const messageReceivedHandler = async ({
     });
   } catch (error) {
     const errorMessage = error instanceof Error ? error.message : String(error);
-    logger.error(`[AssistantPlugin] Error in workflow handler: ${errorMessage}`);
+    logger.error(
+      `[ChatPlaygroundPlugin] Error in message received handler: ${errorMessage}`
+    );
     throw error;
   }
 };
@@ -66,7 +66,9 @@ const events = {
 
   [EventType.MESSAGE_SENT]: [
     async (payload: MessagePayload) => {
-      logger.debug(`[AssistantPlugin] Message sent: ${payload.message.content.text}`);
+      logger.debug(
+        `[ChatPlaygroundPlugin] Message sent: ${payload.message.content.text}`
+      );
     },
   ],
 };
@@ -74,20 +76,14 @@ const events = {
 /**
  * Assistant Plugin Export
  */
-export const assistantPlugin: Plugin = {
-  name: "eliza-assistant",
-  description: "Core assistant plugin with message handling and workflow routing",
+export const chatPlaygroundPlugin: Plugin = {
+  name: "eliza-chat-playground",
+  description:
+    "Chat playground plugin with message handling and workflow routing",
   events,
-  providers: [
-    providersProvider,
-    actionsProvider,
-    characterProvider,
-    actionStateProvider,
-  ],
-  actions: [
-    generateImageAction,
-  ],
+  providers: [characterProvider],
+  actions: [],
   services: [],
 };
 
-export default assistantPlugin;
+export default chatPlaygroundPlugin;
