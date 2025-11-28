@@ -36,8 +36,8 @@ export function getElizaCloudApiUrl(): string {
  */
 export function getDefaultModels() {
   return {
-    small: process.env.ELIZAOS_CLOUD_SMALL_MODEL || "moonshotai/kimi-k2-0905",
-    large: process.env.ELIZAOS_CLOUD_LARGE_MODEL || "moonshotai/kimi-k2-0905",
+    small: process.env.ELIZAOS_CLOUD_SMALL_MODEL || "openai/gpt-oss-120b",
+    large: process.env.ELIZAOS_CLOUD_LARGE_MODEL || "openai/gpt-oss-120b",
     embedding:
       process.env.ELIZAOS_CLOUD_EMBEDDING_MODEL || "text-embedding-3-small",
   };
@@ -48,16 +48,22 @@ export function getDefaultModels() {
  * These are the curated models we want to offer to users
  */
 export const ALLOWED_CHAT_MODELS = [
+  // OpenAI Models
+  "openai/gpt-oss-120b",
+  "openai/gpt-5",
+  "openai/gpt-5-mini",
   // Moonshot AI Models
-  "moonshotai/kimi-k2-thinking",
-  "moonshotai/kimi-k2",
   "moonshotai/kimi-k2-0905",
-  "moonshotai/kimi-k2-thinking-turbo",
   "moonshotai/kimi-k2-turbo",
   // Anthropic Claude Models
   "anthropic/claude-haiku-4.5",
   "anthropic/claude-sonnet-4.5",
-  "anthropic/claude-sonnet-4",
-  "anthropic/claude-3.7-sonnet",
   "anthropic/claude-opus-4.1",
+  // Google Gemini Models
+  "google/gemini-2.5-flash-lite",
+  "google/gemini-2.5-flash",
+  "google/gemini-3-pro-preview",
+  // DeepSeek Models
+  "deepseek/deepseek-v3.2-exp",
+  "deepseek/deepseek-r1",
 ] as const;
