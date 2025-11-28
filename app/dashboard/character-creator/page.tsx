@@ -19,7 +19,7 @@ interface PageProps {
 export default async function CharacterCreatorPage({
   searchParams,
 }: PageProps) {
-  await requireAuth();
+  const user = await requireAuth();
   const characters = await listCharacters();
   const params = await searchParams;
   const characterId = params.id;
@@ -29,6 +29,7 @@ export default async function CharacterCreatorPage({
       <CharacterCreatorClient
         initialCharacters={characters}
         initialCharacterId={characterId}
+        userId={user.id}
       />
     </div>
   );
