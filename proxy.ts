@@ -13,6 +13,7 @@ const publicPaths = [
   "/",
   "/marketplace",
   "/dashboard/chat", // FREE MODE: Allow anonymous access to Chat
+  "/dashboard/billing/success", // Allow access after Stripe checkout redirect (session verification happens via webhook)
   "/chat", // Public chat routes for anonymous users
   "/api/eliza", // Allow anonymous access to Eliza API routes
   "/api/models",

@@ -5,10 +5,16 @@ import { creditsService, organizationsService } from "@/lib/services";
 import { withRateLimit, RateLimitPresets } from "@/lib/middleware/rate-limit";
 
 async function handleCheckoutSession(req: NextRequest) {
+  console.log('[Stripe Checkout] 🚀 Route handler called!');
+  
   try {
+    console.log('[Stripe Checkout] Authenticating user...');
     const user = await requireAuthWithOrg();
+    console.log('[Stripe Checkout] ✅ User authenticated:', user.id);
 
-    const { creditPackId } = await req.json();
+    const body = await req.json();
+    console.log('[Stripe Checkout] Request body:', body);
+    const { creditPackId } = body;
 
     if (!creditPackId) {
       return NextResponse.json(
@@ -62,6 +68,26 @@ async function handleCheckoutSession(req: NextRequest) {
       });
     }
 
+    // Get the app URL - use request origin as most reliable fallback
+    // Handle empty string case explicitly (|| only handles falsy, but "" is falsy too)
+    const envAppUrl = process.env.NEXT_PUBLIC_APP_URL;
+    const requestOrigin = req.headers.get('origin') || req.headers.get('referer')?.split('/').slice(0, 3).join('/');
+    const appUrl = (envAppUrl && envAppUrl.trim()) || requestOrigin || 'http://localhost:3000';
+    
+    // Ensure we have an absolute URL (Stripe requires this)
+    const baseUrl = appUrl.startsWith('http') ? appUrl : `http://localhost:3000`;
+    const successUrl = `${baseUrl}/dashboard/billing/success?session_id={CHECKOUT_SESSION_ID}`;
+    const cancelUrl = `${baseUrl}/dashboard/billing?canceled=true`;
+
+    console.log('[Stripe Checkout] Creating session with URLs:', {
+      envAppUrl,
+      requestOrigin,
+      appUrl,
+      baseUrl,
+      successUrl,
+      cancelUrl,
+    });
+
     // Create Checkout Session
     const session = await stripe.checkout.sessions.create({
       customer: customerId,
@@ -73,14 +99,19 @@ async function handleCheckoutSession(req: NextRequest) {
         },
       ],
       mode: "payment",
-      success_url: `${process.env.NEXT_PUBLIC_APP_URL}/dashboard/billing/success?session_id={CHECKOUT_SESSION_ID}`,
-      cancel_url: `${process.env.NEXT_PUBLIC_APP_URL}/dashboard/billing?canceled=true`,
+      success_url: successUrl,
+      cancel_url: cancelUrl,
       metadata: {
         organization_id: user.organization_id!!,
         user_id: user.id,
         credit_pack_id: creditPackId,
         credits: creditPack.credits.toString(),
       },
+    });
+
+    console.log('[Stripe Checkout] Session created:', {
+      sessionId: session.id,
+      url: session.url,
     });
 
     return NextResponse.json({ sessionId: session.id, url: session.url });

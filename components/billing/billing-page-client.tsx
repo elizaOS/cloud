@@ -27,9 +27,11 @@ export function BillingPageClient({
   const [loading, setLoading] = useState<string | null>(null);
 
   const handlePurchase = async (creditPackId: string) => {
+    console.log('[BillingClient] 🛒 handlePurchase called with creditPackId:', creditPackId);
     try {
       setLoading(creditPackId);
 
+      console.log('[BillingClient] 📤 Sending request to /api/stripe/create-checkout-session');
       const response = await fetch("/api/stripe/create-checkout-session", {
         method: "POST",
         headers: {
@@ -38,16 +40,23 @@ export function BillingPageClient({
         body: JSON.stringify({ creditPackId }),
       });
 
+      console.log('[BillingClient] 📥 Response status:', response.status);
+
       if (!response.ok) {
-        throw new Error("Failed to create checkout session");
+        const errorData = await response.json().catch(() => ({}));
+        console.error('[BillingClient] ❌ Error response:', errorData);
+        throw new Error(errorData.error || "Failed to create checkout session");
       }
 
-      const { url } = await response.json();
+      const data = await response.json();
+      console.log('[BillingClient] ✅ Response data:', data);
+      const { url } = data;
 
       if (!url) {
         throw new Error("No checkout URL returned");
       }
 
+      console.log('[BillingClient] 🔗 Redirecting to:', url);
       window.location.href = url;
     } catch (error) {
       console.error("Purchase error:", error);
