@@ -116,8 +116,6 @@ export function BuildModeAssistant({
         if (response.ok) {
           const data = await response.json();
           const loadedMessages = data.messages || [];
-
-          console.log("#### LOADED MESSAGES loadedMessages", loadedMessages);
           
           // Convert Eliza messages to our Message format
           // The API returns messages with isAgent boolean and content as an object with source field
