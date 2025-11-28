@@ -62,10 +62,15 @@ export async function GET(
     const level = searchParams.get("level") || "all"; // Log level filter
 
     // Get logs from CloudWatch
-    const rawLogs = await getCloudWatchLogs(container.id, {
-      limit,
-      since: since ? new Date(since) : undefined,
-    });
+    // Log group uses organization_id + project_name to match CloudFormation naming
+    const rawLogs = await getCloudWatchLogs(
+      container.organization_id,
+      container.project_name,
+      {
+        limit,
+        since: since ? new Date(since) : undefined,
+      },
+    );
 
     // Parse and filter logs
     const parsedLogs = rawLogs
@@ -208,10 +213,11 @@ function normalizeLogLevel(levelStr: string): LogLevel {
 /**
  * Get logs from CloudWatch for a container
  * PRODUCTION FIX: Dynamically discovers log streams instead of hardcoding
- * Uses container ID (UUID) to match CloudFormation stack naming
+ * Uses organization ID + project name to match CloudFormation log group naming
  */
 async function getCloudWatchLogs(
-  containerId: string,
+  organizationId: string,
+  projectName: string,
   options: {
     limit?: number;
     since?: Date;
@@ -238,7 +244,12 @@ async function getCloudWatchLogs(
     },
   });
 
-  const logGroupName = `/ecs/elizaos-user-${containerId}`;
+  // Log group names - try new format first, then old format for backwards compatibility
+  const newLogGroupName = `/ecs/elizaos-${organizationId}-${projectName}`;
+  const oldLogGroupName = `/ecs/elizaos-user-${organizationId}`;
+  
+  // Try new format first
+  let logGroupName = newLogGroupName;
 
   try {
     // First, discover the latest log streams
@@ -303,15 +314,82 @@ async function getCloudWatchLogs(
       )
       .slice(0, options.limit || 100);
   } catch (error) {
-    console.error("Error fetching CloudWatch logs:", error);
-
-    // Check if log group doesn't exist
-    if (error instanceof Error && error.name === "ResourceNotFoundException") {
+    // If new log group format not found, try old format for backwards compatibility
+    if (
+      error instanceof Error &&
+      error.name === "ResourceNotFoundException" &&
+      logGroupName === newLogGroupName
+    ) {
       console.warn(
-        `Log group ${logGroupName} not found - container may not be deployed yet`,
+        `Log group ${newLogGroupName} not found, trying old format: ${oldLogGroupName}`,
       );
+      logGroupName = oldLogGroupName;
+
+      // Retry with old format
+      try {
+        const { DescribeLogStreamsCommand } = await import(
+          "@aws-sdk/client-cloudwatch-logs"
+        );
+
+        const streamsResponse = await client.send(
+          new DescribeLogStreamsCommand({
+            logGroupName: oldLogGroupName,
+            orderBy: "LastEventTime",
+            descending: true,
+            limit: 5,
+          }),
+        );
+
+        const logStreams = streamsResponse.logStreams || [];
+        if (logStreams.length === 0) {
+          console.warn(`No log streams found for ${oldLogGroupName}`);
+          return [];
+        }
+
+        const allLogs: Array<{ timestamp: string; message: string }> = [];
+
+        for (const stream of logStreams) {
+          if (!stream.logStreamName) continue;
+
+          try {
+            const command = new GetLogEventsCommand({
+              logGroupName: oldLogGroupName,
+              logStreamName: stream.logStreamName,
+              limit: Math.ceil((options.limit || 100) / logStreams.length),
+              startTime: options.since?.getTime(),
+              startFromHead: false,
+            });
+
+            const response = await client.send(command);
+            const events = response.events || [];
+
+            allLogs.push(
+              ...events.map((event: OutputLogEvent) => ({
+                timestamp: new Date(event.timestamp || 0).toISOString(),
+                message: event.message || "",
+              })),
+            );
+          } catch (streamError) {
+            console.warn(
+              `Failed to fetch logs from stream ${stream.logStreamName}:`,
+              streamError,
+            );
+          }
+        }
+
+        return allLogs
+          .sort(
+            (a, b) =>
+              new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime(),
+          )
+          .slice(0, options.limit || 100);
+      } catch (oldFormatError) {
+        console.warn(`Old log group format also not found: ${oldLogGroupName}`);
+        return [];
+      }
     }
 
+    console.error("Error fetching CloudWatch logs:", error);
     return [];
   }
 }
