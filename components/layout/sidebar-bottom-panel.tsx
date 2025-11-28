@@ -19,6 +19,7 @@ import {
 import { cn } from "@/lib/utils";
 import { CornerBrackets } from "@/components/brand";
 import { useChatStore } from "@/stores/chat-store";
+import Link from "next/link";
 
 interface SidebarBottomPanelProps {
   className?: string;
@@ -270,29 +271,30 @@ export function SidebarBottomPanel({ className }: SidebarBottomPanelProps) {
       </div>
       {/* Balance Display - Always Visible */}
       <div
-        className="relative bg-[#FF5800]/90 place-items-center backdrop-blur-3xl z-10 py-4 border-b border-white/10"
+        className="relative hover:bg-[#FF5800]/40 hover:shadow-[0_0_20px_rgba(255,88,0,0.4)] active:bg-[#FF5800]/60 bg-[#FF5800]/70 place-items-center backdrop-blur-3xl z-10 py-4 border-b border-white/10 transition-all duration-300 ease-in-out  hover:backdrop-blur-2xl"
         style={{
           fontFamily: "var(--font-roboto-mono)",
           fontWeight: 400,
           letterSpacing: "-0.003em",
         }}
       >
-        {loadingCredits && creditBalance === null ? (
-          <div className="flex items-center gap-2 text-white/40">
-            <Loader2 className="h-4 w-4 animate-spin" />
-            <span className="text-sm">Loading...</span>
-          </div>
-        ) : (
-          <div className="flex items-center gap-2">
-            <span className="text-white text-[25px]">$</span>
-            <span className="text-[25px] font-bold text-white">
-              {creditBalance !== null
-                ? Number(creditBalance).toFixed(2)
-                : "0.00"}
-            </span>
-            {/* <span className="text-xs text-black ml-1">balance</span> */}
-          </div>
-        )}
+        <Link className="flex place-self-center" href="/dashboard/billing">
+          {loadingCredits && creditBalance === null ? (
+            <div className="flex items-center gap-2 text-white/40">
+              <Loader2 className="h-4 w-4 animate-spin" />
+              <span className="text-sm">Loading...</span>
+            </div>
+          ) : (
+            <div className="flex items-center gap-2">
+              <span className="select-none text-white text-[25px]">$</span>
+              <span className="select-none text-[25px] font-bold text-white">
+                {creditBalance !== null
+                  ? Number(creditBalance).toFixed(2)
+                  : "0.00"}
+              </span>
+            </div>
+          )}
+        </Link>
       </div>
     </div>
   );
