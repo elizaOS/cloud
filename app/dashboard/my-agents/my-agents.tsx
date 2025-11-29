@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback } from "react";
+import { useCallback, useEffect, useRef } from "react";
 import { useRouter } from "next/navigation";
 import { MyAgentsView } from "@/components/marketplace";
 import { useSetPageHeader } from "@/components/layout/page-header-context";
@@ -9,12 +9,42 @@ import { toast } from "sonner";
 
 export function MyAgentsClient() {
   const router = useRouter();
+  const claimAttempted = useRef(false);
 
   useSetPageHeader({
     title: "My Agents",
     description:
       "Manage and interact with your personal AI agents. View, deploy, and chat with your characters.",
   });
+
+  // Claim any affiliate characters the user has interacted with
+  useEffect(() => {
+    if (claimAttempted.current) return;
+    claimAttempted.current = true;
+
+    fetch("/api/my-agents/claim-affiliate-characters", {
+      method: "POST",
+      credentials: "include",
+    })
+      .then((res) => res.json())
+      .then((data) => {
+        if (data.success && data.claimed?.length > 0) {
+          console.log("[My Agents] 🎯 Claimed affiliate characters:", data.claimed);
+          toast.success(
+            `${data.claimed.length} agent(s) added to your library!`,
+            {
+              description: data.claimed.map((c: { name: string }) => c.name).join(", "),
+            }
+          );
+          // Trigger a refresh of the character list
+          window.dispatchEvent(new CustomEvent("characters-updated"));
+        }
+      })
+      .catch((error) => {
+        console.error("[My Agents] Failed to claim affiliate characters:", error);
+        // Silent failure - this is a background optimization
+      });
+  }, []);
 
   const handleSelectCharacter = useCallback(
     async (character: ExtendedCharacter) => {

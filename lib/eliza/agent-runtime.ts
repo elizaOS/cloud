@@ -3,10 +3,11 @@
  * Now delegates to RuntimeFactory and MessageHandler for cleaner architecture
  */
 
-import { AgentRuntime, type Memory, type UUID } from "@elizaos/core";
+import { AgentRuntime } from "@elizaos/core";
 import { runtimeFactory } from "./runtime-factory";
 import { createMessageHandler, type MessageResult } from "./message-handler";
 import { userContextService, type UserContext } from "./user-context";
+import { AgentMode } from "./agent-mode-types";
 import { logger } from "@/lib/utils/logger";
 
 // Legacy compatibility layer
@@ -34,7 +35,7 @@ class AgentRuntimeManager {
 
   /**
    * Get default runtime (for backward compatibility)
-   * Creates a system context runtime - CACHED to avoid expensive re-initialization
+   * Creates a system context runtime with CHAT mode - CACHED to avoid expensive re-initialization
    */
   async getRuntime(): Promise<AgentRuntime> {
     // Return cached runtime if available
@@ -50,7 +51,7 @@ class AgentRuntimeManager {
     // Create new runtime and cache it
     logger.info("[AgentRuntime] Creating default runtime with system context (will be cached)");
     this.systemRuntimePromise = (async () => {
-      const systemContext = userContextService.createSystemContext();
+      const systemContext = userContextService.createSystemContext(AgentMode.CHAT);
       const runtime = await runtimeFactory.createRuntimeForUser(systemContext);
       this.cachedSystemRuntime = runtime;
       this.systemRuntimePromise = null;
@@ -62,9 +63,10 @@ class AgentRuntimeManager {
 
   /**
    * Get runtime for a specific character (for backward compatibility)
+   * Uses CHAT mode by default
    */
   async getRuntimeForCharacter(characterId?: string): Promise<AgentRuntime> {
-    const systemContext = userContextService.createSystemContext();
+    const systemContext = userContextService.createSystemContext(AgentMode.CHAT);
 
     if (characterId) {
       systemContext.characterId = characterId;
@@ -76,6 +78,7 @@ class AgentRuntimeManager {
   /**
    * Handle message - Main entry point for processing messages
    * This method maintains backward compatibility while using the new architecture
+   * Uses CHAT mode by default
    */
   public async handleMessage(
     roomId: string,
@@ -106,6 +109,7 @@ class AgentRuntimeManager {
         userId: userSettings.userId,
         entityId: userSettings.userId, // entityId === userId
         organizationId: "default", // This would need to be passed in real usage
+        agentMode: AgentMode.CHAT, // Default to CHAT mode
         apiKey: userSettings.apiKey,
         modelPreferences: userSettings.modelPreferences,
         characterId,
@@ -113,7 +117,7 @@ class AgentRuntimeManager {
       };
     } else {
       // Create system context as fallback
-      userContext = userContextService.createSystemContext();
+      userContext = userContextService.createSystemContext(AgentMode.CHAT);
       if (characterId) {
         userContext.characterId = characterId;
       }
