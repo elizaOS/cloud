@@ -21,6 +21,14 @@ async function loadKnowledgePlugin() {
 }
 
 /**
+ * Lazy-load the MCP plugin to avoid Turbopack bundling issues
+ */
+async function loadMcpPlugin() {
+  const mcpModule = await import("@elizaos/plugin-mcp");
+  return mcpModule.default;
+}
+
+/**
  * Maps plugin names to their implementations
  * Core plugins are selected based on AgentMode
  * Additional plugins can be enabled per-character
@@ -257,6 +265,16 @@ export class AgentLoader {
         continue;
       }
 
+      // Special handling for MCP plugin (lazy-loaded for Turbopack compatibility)
+      if (pluginName === "@elizaos/plugin-mcp") {
+        const mcpPlugin = await loadMcpPlugin();
+        if (!plugins.some((p) => p === mcpPlugin)) {
+          plugins.push(mcpPlugin);
+          console.log(`[AgentLoader] ✓ Loaded: ${pluginName} (lazy-loaded)`);
+        }
+        continue;
+      }
+
       // Load other plugins from available plugins map
       const plugin = AVAILABLE_PLUGINS[pluginName];
       if (plugin) {
@@ -275,6 +293,25 @@ export class AgentLoader {
 
     // Resolve additional plugins specified in character configuration
     for (const pluginName of characterPlugins) {
+      // Special handling for lazy-loaded plugins
+      if (pluginName === "@elizaos/plugin-knowledge") {
+        const knowledgePlugin = await loadKnowledgePlugin();
+        if (!plugins.some((p) => p === knowledgePlugin)) {
+          plugins.push(knowledgePlugin);
+          console.log(`[AgentLoader] ✓ Loaded character plugin: ${pluginName} (lazy-loaded)`);
+        }
+        continue;
+      }
+
+      if (pluginName === "@elizaos/plugin-mcp") {
+        const mcpPlugin = await loadMcpPlugin();
+        if (!plugins.some((p) => p === mcpPlugin)) {
+          plugins.push(mcpPlugin);
+          console.log(`[AgentLoader] ✓ Loaded character plugin: ${pluginName} (lazy-loaded)`);
+        }
+        continue;
+      }
+
       const plugin = AVAILABLE_PLUGINS[pluginName];
 
       if (plugin) {

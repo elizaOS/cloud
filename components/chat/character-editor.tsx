@@ -3,9 +3,10 @@
 import { useState } from "react";
 import { CharacterForm } from "@/components/character-builder";
 import { JsonEditor } from "@/components/character-creator/json-editor";
+import { PluginsTab } from "@/components/chat/plugins-tab";
 import type { ElizaCharacter } from "@/lib/types";
 import { Button } from "@/components/ui/button";
-import { Download, Save, Settings, Zap, BookOpen, Upload, Sparkles } from "lucide-react";
+import { Download, Save, Zap, BookOpen, Upload, Sparkles, Puzzle } from "lucide-react";
 import { cn } from "@/lib/utils";
 import {
   BrandTabsResponsive,
@@ -18,7 +19,7 @@ interface CharacterEditorProps {
   onSave: () => Promise<void>;
 }
 
-type MainTab = "character" | "model-calls" | "memories" | "uploads";
+type MainTab = "character" | "plugins" | "model-calls" | "memories" | "uploads";
 
 export function CharacterEditor({
   character,
@@ -34,6 +35,11 @@ export function CharacterEditor({
       value: "character",
       label: "Character",
       icon: <Sparkles className="h-4 w-4" />,
+    },
+    {
+      value: "plugins",
+      label: "Plugins",
+      icon: <Puzzle className="h-4 w-4" />,
     },
     {
       value: "model-calls",
@@ -160,6 +166,13 @@ export function CharacterEditor({
           <>
             {activeTab === "character" && (
               <CharacterForm character={character} onChange={onChange} />
+            )}
+            {activeTab === "plugins" && (
+              <PluginsTab 
+                character={character} 
+                onChange={(updates) => onChange({ ...character, ...updates })}
+                onSave={onSave}
+              />
             )}
             {activeTab === "model-calls" && (
               <div className="flex h-full items-center justify-center p-6">

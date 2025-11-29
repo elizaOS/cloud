@@ -54,6 +54,7 @@ const nextConfig: NextConfig = {
     "sonic-boom",
     "@walletconnect/logger",
     "@walletconnect/universal-provider",
+    "@elizaos/plugin-mcp",
   ],
 
   // Production Security Headers

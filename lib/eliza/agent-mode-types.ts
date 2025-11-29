@@ -80,6 +80,7 @@ export const AGENT_MODE_PLUGINS = {
     "@elizaos/plugin-elizacloud",
     "@eliza-cloud/plugin-chat-playground",
     "@elizaos/plugin-memory",
+    "@elizaos/plugin-mcp", // MCP plugin for tool access in chat
   ],
   [AgentMode.BUILD]: [
     "@elizaos/plugin-elizacloud",
@@ -91,5 +92,6 @@ export const AGENT_MODE_PLUGINS = {
     "@eliza-cloud/plugin-assistant",
     "@elizaos/plugin-memory",
     "@elizaos/plugin-knowledge",
+    "@elizaos/plugin-mcp", // MCP plugin for external tool access
   ],
 } as const;
