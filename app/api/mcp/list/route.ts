@@ -235,12 +235,32 @@ const mcpDefinitions = [
     category: "utilities",
     status: "live",
     x402Enabled: false,
-    pricing: { type: "credits", description: "1 credit per request", creditsPerRequest: 1 },
+    pricing: {
+      type: "credits",
+      description: "1 credit per request",
+      creditsPerRequest: 1,
+    },
     tools: [
-      { name: "get_current_time", description: "Get current date and time", cost: "1 credit" },
-      { name: "convert_timezone", description: "Convert between timezones", cost: "1 credit" },
-      { name: "format_date", description: "Format dates in various styles", cost: "1 credit" },
-      { name: "calculate_time_diff", description: "Calculate time differences", cost: "1 credit" },
+      {
+        name: "get_current_time",
+        description: "Get current date and time",
+        cost: "1 credit",
+      },
+      {
+        name: "convert_timezone",
+        description: "Convert between timezones",
+        cost: "1 credit",
+      },
+      {
+        name: "format_date",
+        description: "Format dates in various styles",
+        cost: "1 credit",
+      },
+      {
+        name: "calculate_time_diff",
+        description: "Calculate time differences",
+        cost: "1 credit",
+      },
     ],
   },
   {
@@ -253,11 +273,27 @@ const mcpDefinitions = [
     category: "data",
     status: "live",
     x402Enabled: true,
-    pricing: { type: "credits", description: "1-3 credits per request (or x402)", creditsPerRequest: "1-3" },
+    pricing: {
+      type: "credits",
+      description: "1-3 credits per request (or x402)",
+      creditsPerRequest: "1-3",
+    },
     tools: [
-      { name: "get_current_weather", description: "Get current weather conditions", cost: "2 credits" },
-      { name: "get_weather_forecast", description: "Get 5-day forecast", cost: "3 credits" },
-      { name: "get_weather_alerts", description: "Check active weather alerts", cost: "1 credit" },
+      {
+        name: "get_current_weather",
+        description: "Get current weather conditions",
+        cost: "2 credits",
+      },
+      {
+        name: "get_weather_forecast",
+        description: "Get 5-day forecast",
+        cost: "3 credits",
+      },
+      {
+        name: "get_weather_alerts",
+        description: "Check active weather alerts",
+        cost: "1 credit",
+      },
     ],
   },
   {
@@ -270,13 +306,37 @@ const mcpDefinitions = [
     category: "finance",
     status: "live",
     x402Enabled: true,
-    pricing: { type: "credits", description: "1-3 credits per request (or x402)", creditsPerRequest: "1-3" },
+    pricing: {
+      type: "credits",
+      description: "1-3 credits per request (or x402)",
+      creditsPerRequest: "1-3",
+    },
     tools: [
-      { name: "get_crypto_price", description: "Get current price for a token", cost: "1 credit" },
-      { name: "get_market_data", description: "Get market cap, volume, supply", cost: "2 credits" },
-      { name: "get_price_history", description: "Get historical price data", cost: "3 credits" },
-      { name: "get_token_info", description: "Get token details and chains", cost: "1 credit" },
-      { name: "get_top_tokens", description: "Get top tokens by market cap", cost: "2 credits" },
+      {
+        name: "get_crypto_price",
+        description: "Get current price for a token",
+        cost: "1 credit",
+      },
+      {
+        name: "get_market_data",
+        description: "Get market cap, volume, supply",
+        cost: "2 credits",
+      },
+      {
+        name: "get_price_history",
+        description: "Get historical price data",
+        cost: "3 credits",
+      },
+      {
+        name: "get_token_info",
+        description: "Get token details and chains",
+        cost: "1 credit",
+      },
+      {
+        name: "get_top_tokens",
+        description: "Get top tokens by market cap",
+        cost: "2 credits",
+      },
     ],
   },
 ];

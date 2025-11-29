@@ -24,7 +24,9 @@ async function fetchWithCache(url: string, cacheKey: string) {
   });
 
   if (!response.ok) {
-    throw new Error(`CoinGecko API error: ${response.status} ${response.statusText}`);
+    throw new Error(
+      `CoinGecko API error: ${response.status} ${response.statusText}`,
+    );
   }
 
   const data = await response.json();
@@ -88,13 +90,15 @@ const handler = createMcpHandler(
         coin: z
           .string()
           .describe(
-            "The cryptocurrency name or symbol (e.g., 'bitcoin', 'btc', 'ethereum', 'eth', 'solana', 'sol')"
+            "The cryptocurrency name or symbol (e.g., 'bitcoin', 'btc', 'ethereum', 'eth', 'solana', 'sol')",
           ),
         currency: z
           .string()
           .optional()
           .default("usd")
-          .describe("The fiat currency for price (e.g., 'usd', 'eur', 'gbp'). Defaults to USD."),
+          .describe(
+            "The fiat currency for price (e.g., 'usd', 'eur', 'gbp'). Defaults to USD.",
+          ),
       },
       async ({ coin, currency = "usd" }) => {
         try {
@@ -103,11 +107,10 @@ const handler = createMcpHandler(
 
           const data = (await fetchWithCache(
             `${COINGECKO_API}/simple/price?ids=${coinId}&vs_currencies=${currency}&include_24hr_change=true&include_market_cap=true&include_24hr_vol=true`,
-            cacheKey
+            cacheKey,
           )) as Record<
             string,
-            {
-              [currency: string]: number;
+            Record<string, number> & {
               usd_24h_change?: number;
               usd_market_cap?: number;
               usd_24h_vol?: number;
@@ -122,10 +125,11 @@ const handler = createMcpHandler(
                   text: JSON.stringify(
                     {
                       error: `Cryptocurrency "${coin}" not found. Try using the full name (e.g., "bitcoin") or check the spelling.`,
-                      suggestion: "Use list_trending to see popular cryptocurrencies.",
+                      suggestion:
+                        "Use list_trending to see popular cryptocurrencies.",
                     },
                     null,
-                    2
+                    2,
                   ),
                 },
               ],
@@ -135,9 +139,12 @@ const handler = createMcpHandler(
 
           const coinData = data[coinId];
           const price = coinData[currency];
-          const change24h = coinData[`${currency}_24h_change`] || coinData.usd_24h_change;
-          const marketCap = coinData[`${currency}_market_cap`] || coinData.usd_market_cap;
-          const volume24h = coinData[`${currency}_24h_vol`] || coinData.usd_24h_vol;
+          const change24h =
+            coinData[`${currency}_24h_change`] || coinData.usd_24h_change;
+          const marketCap =
+            coinData[`${currency}_market_cap`] || coinData.usd_market_cap;
+          const volume24h =
+            coinData[`${currency}_24h_vol`] || coinData.usd_24h_vol;
 
           const response = {
             coin: coinId,
@@ -145,10 +152,13 @@ const handler = createMcpHandler(
             price: {
               value: price,
               currency: currency.toUpperCase(),
-              formatted: `${currency.toUpperCase()} ${price?.toLocaleString(undefined, {
-                minimumFractionDigits: 2,
-                maximumFractionDigits: price < 1 ? 8 : 2,
-              })}`,
+              formatted: `${currency.toUpperCase()} ${price?.toLocaleString(
+                undefined,
+                {
+                  minimumFractionDigits: 2,
+                  maximumFractionDigits: price < 1 ? 8 : 2,
+                },
+              )}`,
             },
             change24h: change24h
               ? {
@@ -188,17 +198,20 @@ const handler = createMcpHandler(
                 type: "text" as const,
                 text: JSON.stringify(
                   {
-                    error: error instanceof Error ? error.message : "Failed to fetch price",
+                    error:
+                      error instanceof Error
+                        ? error.message
+                        : "Failed to fetch price",
                   },
                   null,
-                  2
+                  2,
                 ),
               },
             ],
             isError: true,
           };
         }
-      }
+      },
     );
 
     // Tool 2: Get Market Data - Get detailed market data for a coin
@@ -209,7 +222,9 @@ const handler = createMcpHandler(
       {
         coin: z
           .string()
-          .describe("The cryptocurrency name or symbol (e.g., 'bitcoin', 'eth', 'solana')"),
+          .describe(
+            "The cryptocurrency name or symbol (e.g., 'bitcoin', 'eth', 'solana')",
+          ),
       },
       async ({ coin }) => {
         try {
@@ -218,7 +233,7 @@ const handler = createMcpHandler(
 
           const data = (await fetchWithCache(
             `${COINGECKO_API}/coins/${coinId}?localization=false&tickers=false&community_data=false&developer_data=false`,
-            cacheKey
+            cacheKey,
           )) as {
             id: string;
             symbol: string;
@@ -313,17 +328,20 @@ const handler = createMcpHandler(
                 type: "text" as const,
                 text: JSON.stringify(
                   {
-                    error: error instanceof Error ? error.message : "Failed to fetch market data",
+                    error:
+                      error instanceof Error
+                        ? error.message
+                        : "Failed to fetch market data",
                   },
                   null,
-                  2
+                  2,
                 ),
               },
             ],
             isError: true,
           };
         }
-      }
+      },
     );
 
     // Tool 3: List Trending - Get trending cryptocurrencies
@@ -336,7 +354,10 @@ const handler = createMcpHandler(
         try {
           const cacheKey = "trending";
 
-          const data = (await fetchWithCache(`${COINGECKO_API}/search/trending`, cacheKey)) as {
+          const data = (await fetchWithCache(
+            `${COINGECKO_API}/search/trending`,
+            cacheKey,
+          )) as {
             coins?: Array<{
               item: {
                 id: string;
@@ -386,7 +407,7 @@ const handler = createMcpHandler(
                     note: "Ranked by search popularity in the last 24 hours",
                   },
                   null,
-                  2
+                  2,
                 ),
               },
             ],
@@ -399,17 +420,19 @@ const handler = createMcpHandler(
                 text: JSON.stringify(
                   {
                     error:
-                      error instanceof Error ? error.message : "Failed to fetch trending coins",
+                      error instanceof Error
+                        ? error.message
+                        : "Failed to fetch trending coins",
                   },
                   null,
-                  2
+                  2,
                 ),
               },
             ],
             isError: true,
           };
         }
-      }
+      },
     );
   },
   {
@@ -418,11 +441,11 @@ const handler = createMcpHandler(
     },
   },
   {
+    // Redis configuration for SSE transport resumability (uses Upstash Redis)
+    redisUrl: process.env.REDIS_URL,
     basePath: "/api/mcp/demos/crypto",
-    maxDuration: 30,
-    verboseLogs: true,
-  }
+    maxDuration: 300,
+  },
 );
 
-export { handler as GET, handler as POST };
-
+export { handler as GET, handler as POST, handler as DELETE };

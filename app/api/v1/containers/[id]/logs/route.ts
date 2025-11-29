@@ -247,15 +247,14 @@ async function getCloudWatchLogs(
   // Log group names - try new format first, then old format for backwards compatibility
   const newLogGroupName = `/ecs/elizaos-${organizationId}-${projectName}`;
   const oldLogGroupName = `/ecs/elizaos-user-${organizationId}`;
-  
+
   // Try new format first
   let logGroupName = newLogGroupName;
 
   try {
     // First, discover the latest log streams
-    const { DescribeLogStreamsCommand } = await import(
-      "@aws-sdk/client-cloudwatch-logs"
-    );
+    const { DescribeLogStreamsCommand } =
+      await import("@aws-sdk/client-cloudwatch-logs");
 
     const streamsResponse = await client.send(
       new DescribeLogStreamsCommand({
@@ -327,9 +326,8 @@ async function getCloudWatchLogs(
 
       // Retry with old format
       try {
-        const { DescribeLogStreamsCommand } = await import(
-          "@aws-sdk/client-cloudwatch-logs"
-        );
+        const { DescribeLogStreamsCommand } =
+          await import("@aws-sdk/client-cloudwatch-logs");
 
         const streamsResponse = await client.send(
           new DescribeLogStreamsCommand({

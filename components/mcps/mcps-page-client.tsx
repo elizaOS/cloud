@@ -64,8 +64,7 @@ export function MCPsPageClient({ servers }: MCPsPageClientProps) {
     filter === "all" ? servers : servers.filter((s) => s.category === filter);
 
   const copyEndpoint = async (endpoint: string, serverId: string) => {
-    const baseUrl =
-      typeof window !== "undefined" ? window.location.origin : "";
+    const baseUrl = typeof window !== "undefined" ? window.location.origin : "";
     const fullUrl = `${baseUrl}${endpoint}`;
 
     try {
@@ -100,7 +99,7 @@ export function MCPsPageClient({ servers }: MCPsPageClientProps) {
       }
     } catch (error) {
       setTestResult(
-        `Connection error: ${error instanceof Error ? error.message : "Unknown error"}`
+        `Connection error: ${error instanceof Error ? error.message : "Unknown error"}`,
       );
       toast.error("Failed to connect to server");
     } finally {
@@ -120,7 +119,7 @@ export function MCPsPageClient({ servers }: MCPsPageClientProps) {
               "px-4 py-2 text-sm border transition-all duration-200",
               filter === category
                 ? "bg-[#FF5800]/20 border-[#FF5800]/50 text-white"
-                : "bg-black/40 border-white/10 text-white/60 hover:border-white/30 hover:text-white"
+                : "bg-black/40 border-white/10 text-white/60 hover:border-white/30 hover:text-white",
             )}
             style={{ fontFamily: "var(--font-roboto-mono)" }}
           >
@@ -147,11 +146,11 @@ export function MCPsPageClient({ servers }: MCPsPageClientProps) {
                   className={cn(
                     "cursor-pointer transition-all duration-300 group",
                     selectedServer?.id === server.id &&
-                      "border-[#FF5800]/50 shadow-lg shadow-[#FF5800]/10"
+                      "border-[#FF5800]/50 shadow-lg shadow-[#FF5800]/10",
                   )}
                   onClick={() =>
                     setSelectedServer(
-                      selectedServer?.id === server.id ? null : server
+                      selectedServer?.id === server.id ? null : server,
                     )
                   }
                 >
@@ -207,7 +206,7 @@ export function MCPsPageClient({ servers }: MCPsPageClientProps) {
                               ? "bg-green-400"
                               : server.status === "coming_soon"
                                 ? "bg-yellow-400"
-                                : "bg-red-400"
+                                : "bg-red-400",
                           )}
                         />
                         <span
@@ -261,7 +260,7 @@ export function MCPsPageClient({ servers }: MCPsPageClientProps) {
                       <ChevronRight
                         className={cn(
                           "h-4 w-4 text-white/30 transition-transform group-hover:text-white/60",
-                          selectedServer?.id === server.id && "rotate-90"
+                          selectedServer?.id === server.id && "rotate-90",
                         )}
                       />
                     </div>
@@ -351,7 +350,7 @@ export function MCPsPageClient({ servers }: MCPsPageClientProps) {
                         onClick={() =>
                           copyEndpoint(
                             selectedServer.endpoint,
-                            selectedServer.id
+                            selectedServer.id,
                           )
                         }
                         className="p-3 bg-black/60 border border-white/10 hover:border-[#FF5800]/50 transition-colors"
@@ -389,7 +388,7 @@ export function MCPsPageClient({ servers }: MCPsPageClientProps) {
                             },
                           },
                           null,
-                          2
+                          2,
                         )}
                       </pre>
                     </div>
@@ -429,7 +428,7 @@ export function MCPsPageClient({ servers }: MCPsPageClientProps) {
                     onClick={() =>
                       window.open(
                         "https://modelcontextprotocol.io/introduction",
-                        "_blank"
+                        "_blank",
                       )
                     }
                   >
@@ -511,4 +510,3 @@ export function MCPsPageClient({ servers }: MCPsPageClientProps) {
     </div>
   );
 }
-

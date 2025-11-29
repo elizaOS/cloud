@@ -49,7 +49,9 @@ const messageReceivedHandler = async ({
     });
   } catch (error) {
     const errorMessage = error instanceof Error ? error.message : String(error);
-    logger.error(`[CharacterBuilderPlugin] Error in message received handler: ${errorMessage}`);
+    logger.error(
+      `[CharacterBuilderPlugin] Error in message received handler: ${errorMessage}`,
+    );
     throw error;
   }
 };
@@ -72,7 +74,9 @@ const events = {
 
   [EventType.MESSAGE_SENT]: [
     async (payload: MessagePayload) => {
-      logger.debug(`[AssistantPlugin] Message sent: ${payload.message.content.text}`);
+      logger.debug(
+        `[AssistantPlugin] Message sent: ${payload.message.content.text}`,
+      );
     },
   ],
 };
@@ -82,9 +86,10 @@ const events = {
  */
 export const characterBuilderPlugin: Plugin = {
   name: "eliza-assistant",
-  description: "Core assistant plugin with message handling and workflow routing",
+  description:
+    "Core assistant plugin with message handling and workflow routing",
   events,
-    providers: [
+  providers: [
     actionsProvider,
     characterGuideProvider,
     currentCharacterProvider,

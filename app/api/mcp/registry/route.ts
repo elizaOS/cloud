@@ -29,10 +29,13 @@ export interface McpRegistryEntry {
   documentation?: string;
   // Config to inject into character settings
   configTemplate: {
-    servers: Record<string, {
-      type: "http" | "sse" | "streamable-http";
-      url: string;
-    }>;
+    servers: Record<
+      string,
+      {
+        type: "http" | "sse" | "streamable-http";
+        url: string;
+      }
+    >;
   };
 }
 
@@ -44,10 +47,11 @@ const MCP_REGISTRY: McpRegistryEntry[] = [
   {
     id: "crypto-prices",
     name: "Crypto Prices",
-    description: "Real-time cryptocurrency price data from major exchanges. Get current prices, 24h changes, market cap, and volume for thousands of cryptocurrencies.",
+    description:
+      "Real-time cryptocurrency price data from major exchanges. Get current prices, 24h changes, market cap, and volume for thousands of cryptocurrencies.",
     category: "finance",
-    endpoint: "/api/mcp/demos/crypto/mcp",
-    type: "http",
+    endpoint: "/api/mcp/demos/crypto/sse",
+    type: "streamable-http",
     version: "1.0.0",
     status: "live",
     icon: "coins",
@@ -63,8 +67,8 @@ const MCP_REGISTRY: McpRegistryEntry[] = [
     configTemplate: {
       servers: {
         "crypto-prices": {
-          type: "http",
-          url: "${BASE_URL}/api/mcp/demos/crypto/mcp",
+          type: "streamable-http",
+          url: "${BASE_URL}/api/mcp/demos/crypto/sse",
         },
       },
     },
@@ -72,16 +76,23 @@ const MCP_REGISTRY: McpRegistryEntry[] = [
   {
     id: "time-server",
     name: "Time & Timezone",
-    description: "Get current time, convert between timezones, and perform date calculations. Perfect for scheduling and time-aware agents.",
+    description:
+      "Get current time, convert between timezones, and perform date calculations. Perfect for scheduling and time-aware agents.",
     category: "utilities",
-    endpoint: "/api/mcp/demos/time",
-    type: "http",
+    endpoint: "/api/mcp/demos/time/sse",
+    type: "streamable-http",
     version: "1.0.0",
     status: "live",
     icon: "clock",
     color: "#6366F1",
-    toolCount: 3,
-    features: ["get_time", "convert_timezone", "time_difference"],
+    toolCount: 5,
+    features: [
+      "get_current_time",
+      "convert_timezone",
+      "format_date",
+      "calculate_time_diff",
+      "list_timezones",
+    ],
     pricing: {
       type: "free",
       description: "Free to use",
@@ -91,8 +102,8 @@ const MCP_REGISTRY: McpRegistryEntry[] = [
     configTemplate: {
       servers: {
         "time-server": {
-          type: "http",
-          url: "${BASE_URL}/api/mcp/demos/time",
+          type: "streamable-http",
+          url: "${BASE_URL}/api/mcp/demos/time/sse",
         },
       },
     },
@@ -100,10 +111,11 @@ const MCP_REGISTRY: McpRegistryEntry[] = [
   {
     id: "weather",
     name: "Weather Data",
-    description: "Current weather conditions and forecasts for locations worldwide. Temperature, humidity, wind, and more.",
+    description:
+      "Current weather conditions and forecasts for locations worldwide. Temperature, humidity, wind, and more.",
     category: "utilities",
-    endpoint: "/api/mcp/demos/weather",
-    type: "http",
+    endpoint: "/api/mcp/demos/weather/mcp",
+    type: "streamable-http",
     version: "1.0.0",
     status: "coming_soon",
     icon: "cloud",
@@ -119,8 +131,8 @@ const MCP_REGISTRY: McpRegistryEntry[] = [
     configTemplate: {
       servers: {
         weather: {
-          type: "http",
-          url: "${BASE_URL}/api/mcp/demos/weather",
+          type: "streamable-http",
+          url: "${BASE_URL}/api/mcp/demos/weather/mcp",
         },
       },
     },
@@ -128,10 +140,11 @@ const MCP_REGISTRY: McpRegistryEntry[] = [
   {
     id: "eliza-platform",
     name: "ElizaOS Platform",
-    description: "Access ElizaOS platform features: credits, usage, generations, conversations, and agent management via MCP.",
+    description:
+      "Access ElizaOS platform features: credits, usage, generations, conversations, and agent management via MCP.",
     category: "platform",
-    endpoint: "/api/mcp",
-    type: "http",
+    endpoint: "/api/mcp/sse",
+    type: "streamable-http",
     version: "1.0.0",
     status: "live",
     icon: "puzzle",
@@ -154,8 +167,8 @@ const MCP_REGISTRY: McpRegistryEntry[] = [
     configTemplate: {
       servers: {
         "eliza-platform": {
-          type: "http",
-          url: "${BASE_URL}/api/mcp",
+          type: "streamable-http",
+          url: "${BASE_URL}/api/mcp/sse",
         },
       },
     },
@@ -163,10 +176,11 @@ const MCP_REGISTRY: McpRegistryEntry[] = [
   {
     id: "web-search",
     name: "Web Search",
-    description: "Search the web and retrieve information from websites. Powered by multiple search providers for comprehensive results.",
+    description:
+      "Search the web and retrieve information from websites. Powered by multiple search providers for comprehensive results.",
     category: "search",
-    endpoint: "/api/mcp/demos/search",
-    type: "http",
+    endpoint: "/api/mcp/demos/search/sse",
+    type: "streamable-http",
     version: "1.0.0",
     status: "coming_soon",
     icon: "puzzle",
@@ -182,8 +196,8 @@ const MCP_REGISTRY: McpRegistryEntry[] = [
     configTemplate: {
       servers: {
         "web-search": {
-          type: "http",
-          url: "${BASE_URL}/api/mcp/demos/search",
+          type: "streamable-http",
+          url: "${BASE_URL}/api/mcp/demos/search/sse",
         },
       },
     },
@@ -206,8 +220,9 @@ export async function GET(request: NextRequest) {
     }
 
     // Get base URL for config templates
-    const baseUrl = process.env.NEXT_PUBLIC_APP_URL || 
-      (request.headers.get("host") 
+    const baseUrl =
+      process.env.NEXT_PUBLIC_APP_URL ||
+      (request.headers.get("host")
         ? `${request.headers.get("x-forwarded-proto") || "https"}://${request.headers.get("host")}`
         : "http://localhost:3000");
 
@@ -222,25 +237,27 @@ export async function GET(request: NextRequest) {
               ...value,
               url: value.url.replace("${BASE_URL}", baseUrl),
             },
-          ])
+          ]),
         ),
       },
       // Include full endpoint URL
-      fullEndpoint: entry.endpoint.startsWith("http") 
-        ? entry.endpoint 
+      fullEndpoint: entry.endpoint.startsWith("http")
+        ? entry.endpoint
         : `${baseUrl}${entry.endpoint}`,
     }));
 
     // Filter by category if provided
     const category = request.nextUrl.searchParams.get("category");
     const status = request.nextUrl.searchParams.get("status");
-    
+
     let filteredRegistry = registry;
-    
+
     if (category && category !== "all") {
-      filteredRegistry = filteredRegistry.filter((e) => e.category === category);
+      filteredRegistry = filteredRegistry.filter(
+        (e) => e.category === category,
+      );
     }
-    
+
     if (status && status !== "all") {
       filteredRegistry = filteredRegistry.filter((e) => e.status === status);
     }
@@ -257,9 +274,11 @@ export async function GET(request: NextRequest) {
   } catch (error) {
     console.error("[MCP Registry] Error:", error);
     return NextResponse.json(
-      { error: error instanceof Error ? error.message : "Failed to fetch registry" },
-      { status: 500 }
+      {
+        error:
+          error instanceof Error ? error.message : "Failed to fetch registry",
+      },
+      { status: 500 },
     );
   }
 }
-

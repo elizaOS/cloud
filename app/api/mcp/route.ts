@@ -78,7 +78,8 @@ const mcpHandler = createMcpHandler(
     server.registerTool(
       "check_credits",
       {
-        description: "Check balance and recent transactions for your organization",
+        description:
+          "Check balance and recent transactions for your organization",
         inputSchema: {
           includeTransactions: z
             .boolean()
@@ -183,7 +184,8 @@ const mcpHandler = createMcpHandler(
     server.registerTool(
       "get_recent_usage",
       {
-        description: "Get recent API usage statistics including models used, costs, and tokens",
+        description:
+          "Get recent API usage statistics including models used, costs, and tokens",
         inputSchema: {
           limit: z
             .number()
@@ -270,7 +272,8 @@ const mcpHandler = createMcpHandler(
     server.registerTool(
       "generate_text",
       {
-        description: "Generate text using AI models (GPT-4, Claude, Gemini). Deducts credits based on token usage.",
+        description:
+          "Generate text using AI models (GPT-4, Claude, Gemini). Deducts credits based on token usage.",
         inputSchema: {
           prompt: z
             .string()
@@ -560,7 +563,8 @@ const mcpHandler = createMcpHandler(
     server.registerTool(
       "generate_image",
       {
-        description: "Generate images using Google Gemini 2.5. Deducts credits per image generated.",
+        description:
+          "Generate images using Google Gemini 2.5. Deducts credits per image generated.",
         inputSchema: {
           prompt: z
             .string()
@@ -876,7 +880,8 @@ const mcpHandler = createMcpHandler(
     server.registerTool(
       "save_memory",
       {
-        description: "Save important information to long-term memory with semantic tagging. Deducts 1 credit per save.",
+        description:
+          "Save important information to long-term memory with semantic tagging. Deducts 1 credit per save.",
         inputSchema: {
           content: z
             .string()
@@ -1153,14 +1158,18 @@ const mcpHandler = createMcpHandler(
     server.registerTool(
       "retrieve_memories",
       {
-        description: "Search and retrieve memories using semantic search or filters. Deducts 0.1 credit per memory retrieved (max 5 credits).",
+        description:
+          "Search and retrieve memories using semantic search or filters. Deducts 0.1 credit per memory retrieved (max 5 credits).",
         inputSchema: {
           query: z.string().optional().describe("Semantic search query"),
           roomId: z
             .string()
             .optional()
             .describe("Filter to specific room/conversation"),
-          type: z.array(z.string()).optional().describe("Filter by memory type"),
+          type: z
+            .array(z.string())
+            .optional()
+            .describe("Filter by memory type"),
           tags: z.array(z.string()).optional().describe("Filter by tags"),
           limit: z
             .number()
@@ -1356,7 +1365,8 @@ const mcpHandler = createMcpHandler(
     server.registerTool(
       "delete_memory",
       {
-        description: "Remove a specific memory or bulk delete by filters. No credit cost.",
+        description:
+          "Remove a specific memory or bulk delete by filters. No credit cost.",
         inputSchema: {
           memoryId: z
             .string()
@@ -1440,7 +1450,8 @@ const mcpHandler = createMcpHandler(
     server.registerTool(
       "get_conversation_context",
       {
-        description: "Retrieve enriched conversation context with memory integration. Deducts 1 credit per request.",
+        description:
+          "Retrieve enriched conversation context with memory integration. Deducts 1 credit per request.",
         inputSchema: {
           roomId: z.string().describe("Room/conversation ID"),
           depth: z
@@ -1610,7 +1621,8 @@ const mcpHandler = createMcpHandler(
     server.registerTool(
       "create_conversation",
       {
-        description: "Create a new conversation context with initial settings. Deducts 1 credit.",
+        description:
+          "Create a new conversation context with initial settings. Deducts 1 credit.",
         inputSchema: {
           title: z.string().min(1).describe("Conversation title"),
           model: z
@@ -1775,13 +1787,17 @@ const mcpHandler = createMcpHandler(
     server.registerTool(
       "search_conversations",
       {
-        description: "Search through conversation history with filters. Deducts 2 credits per search.",
+        description:
+          "Search through conversation history with filters. Deducts 2 credits per search.",
         inputSchema: {
           query: z
             .string()
             .optional()
             .describe("Search query (semantic or keyword)"),
-          model: z.array(z.string()).optional().describe("Filter by model used"),
+          model: z
+            .array(z.string())
+            .optional()
+            .describe("Filter by model used"),
           dateFrom: z.string().optional().describe("ISO date string (from)"),
           dateTo: z.string().optional().describe("ISO date string (to)"),
           limit: z
@@ -1934,7 +1950,8 @@ const mcpHandler = createMcpHandler(
     server.registerTool(
       "summarize_conversation",
       {
-        description: "Generate a summary of conversation history. Deducts 10-50 credits based on token usage.",
+        description:
+          "Generate a summary of conversation history. Deducts 10-50 credits based on token usage.",
         inputSchema: {
           roomId: z.string().describe("Room/conversation ID to summarize"),
           lastN: z
@@ -2111,7 +2128,8 @@ const mcpHandler = createMcpHandler(
     server.registerTool(
       "optimize_context_window",
       {
-        description: "Intelligently select the most relevant context for token-limited requests. Deducts 5 credits.",
+        description:
+          "Intelligently select the most relevant context for token-limited requests. Deducts 5 credits.",
         inputSchema: {
           roomId: z.string().describe("Room/conversation ID"),
           maxTokens: z
@@ -2277,7 +2295,8 @@ const mcpHandler = createMcpHandler(
     server.registerTool(
       "export_conversation",
       {
-        description: "Export conversation history in various formats (json, markdown, txt). Deducts 5 credits.",
+        description:
+          "Export conversation history in various formats (json, markdown, txt). Deducts 5 credits.",
         inputSchema: {
           conversationId: z.string().describe("Conversation ID to export"),
           format: z.enum(["json", "markdown", "txt"]).describe("Export format"),
@@ -2429,7 +2448,8 @@ const mcpHandler = createMcpHandler(
     server.registerTool(
       "clone_conversation",
       {
-        description: "Duplicate a conversation with optional modifications. Deducts 2 credits.",
+        description:
+          "Duplicate a conversation with optional modifications. Deducts 2 credits.",
         inputSchema: {
           conversationId: z.string().describe("Source conversation ID"),
           newTitle: z
@@ -2597,7 +2617,8 @@ const mcpHandler = createMcpHandler(
     server.registerTool(
       "analyze_memory_patterns",
       {
-        description: "Analyze user/org memory patterns for insights (topics, sentiment, entities, timeline). Deducts 20 credits.",
+        description:
+          "Analyze user/org memory patterns for insights (topics, sentiment, entities, timeline). Deducts 20 credits.",
         inputSchema: {
           analysisType: z
             .enum(["topics", "sentiment", "entities", "timeline"])
@@ -2751,7 +2772,8 @@ const mcpHandler = createMcpHandler(
     server.registerTool(
       "chat_with_agent",
       {
-        description: "Send a message to your deployed ElizaOS agent and receive a response. Supports streaming via SSE. Charges $0.0001-$0.01 based on token usage.",
+        description:
+          "Send a message to your deployed ElizaOS agent and receive a response. Supports streaming via SSE. Charges $0.0001-$0.01 based on token usage.",
         inputSchema: {
           message: z
             .string()
@@ -2921,7 +2943,8 @@ const mcpHandler = createMcpHandler(
     server.registerTool(
       "list_agents",
       {
-        description: "List all available agents, characters, and deployed ElizaOS instances. FREE tool.",
+        description:
+          "List all available agents, characters, and deployed ElizaOS instances. FREE tool.",
         inputSchema: {
           filters: z
             .object({
@@ -2988,7 +3011,8 @@ const mcpHandler = createMcpHandler(
     server.registerTool(
       "subscribe_agent_events",
       {
-        description: "Get SSE stream URL for real-time agent events. FREE tool.",
+        description:
+          "Get SSE stream URL for real-time agent events. FREE tool.",
         inputSchema: {
           roomId: z.string().uuid(),
         },
@@ -3049,7 +3073,8 @@ const mcpHandler = createMcpHandler(
     server.registerTool(
       "stream_credit_updates",
       {
-        description: "Get SSE stream URL for real-time credit updates. FREE tool.",
+        description:
+          "Get SSE stream URL for real-time credit updates. FREE tool.",
         inputSchema: {
           includeTransactions: z.boolean().optional().default(false),
         },

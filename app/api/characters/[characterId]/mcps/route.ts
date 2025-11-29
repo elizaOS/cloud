@@ -25,7 +25,7 @@ interface McpSettings {
  */
 export async function GET(
   request: NextRequest,
-  ctx: { params: Promise<{ characterId: string }> }
+  ctx: { params: Promise<{ characterId: string }> },
 ) {
   try {
     const { user } = await requireAuthOrApiKey(request);
@@ -37,16 +37,16 @@ export async function GET(
     if (!character) {
       return NextResponse.json(
         { error: "Character not found" },
-        { status: 404 }
+        { status: 404 },
       );
     }
 
     // Check ownership
-    if (character.user_id !== user.id && character.organization_id !== user.organization_id) {
-      return NextResponse.json(
-        { error: "Unauthorized" },
-        { status: 403 }
-      );
+    if (
+      character.user_id !== user.id &&
+      character.organization_id !== user.organization_id
+    ) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 403 });
     }
 
     // Extract MCP settings from character settings
@@ -54,12 +54,14 @@ export async function GET(
     const mcpSetting = settings.mcp;
 
     let mcpSettings: McpSettings = { servers: {} };
-    
+
     if (typeof mcpSetting === "string") {
       try {
         mcpSettings = JSON.parse(mcpSetting);
       } catch {
-        logger.warn(`[Characters/MCPs] Invalid MCP settings JSON for character ${characterId}`);
+        logger.warn(
+          `[Characters/MCPs] Invalid MCP settings JSON for character ${characterId}`,
+        );
       }
     } else if (typeof mcpSetting === "object" && mcpSetting !== null) {
       mcpSettings = mcpSetting as unknown as McpSettings;
@@ -79,8 +81,13 @@ export async function GET(
   } catch (error) {
     logger.error("[Characters/MCPs] Error getting MCP config:", error);
     return NextResponse.json(
-      { error: error instanceof Error ? error.message : "Failed to get MCP configuration" },
-      { status: 500 }
+      {
+        error:
+          error instanceof Error
+            ? error.message
+            : "Failed to get MCP configuration",
+      },
+      { status: 500 },
     );
   }
 }
@@ -91,7 +98,7 @@ export async function GET(
  */
 export async function PUT(
   request: NextRequest,
-  ctx: { params: Promise<{ characterId: string }> }
+  ctx: { params: Promise<{ characterId: string }> },
 ) {
   try {
     const { user } = await requireAuthOrApiKey(request);
@@ -107,7 +114,7 @@ export async function PUT(
     if (!mcpSettings || typeof mcpSettings !== "object") {
       return NextResponse.json(
         { error: "Invalid mcpSettings" },
-        { status: 400 }
+        { status: 400 },
       );
     }
 
@@ -117,16 +124,16 @@ export async function PUT(
     if (!character) {
       return NextResponse.json(
         { error: "Character not found" },
-        { status: 404 }
+        { status: 404 },
       );
     }
 
     // Check ownership
-    if (character.user_id !== user.id && character.organization_id !== user.organization_id) {
-      return NextResponse.json(
-        { error: "Unauthorized" },
-        { status: 403 }
-      );
+    if (
+      character.user_id !== user.id &&
+      character.organization_id !== user.organization_id
+    ) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 403 });
     }
 
     // Build new settings
@@ -157,7 +164,7 @@ export async function PUT(
     });
 
     logger.info(
-      `[Characters/MCPs] Updated MCP config for character ${characterId}: ${Object.keys(mcpSettings.servers || {}).length} servers`
+      `[Characters/MCPs] Updated MCP config for character ${characterId}: ${Object.keys(mcpSettings.servers || {}).length} servers`,
     );
 
     return NextResponse.json({
@@ -171,8 +178,13 @@ export async function PUT(
   } catch (error) {
     logger.error("[Characters/MCPs] Error updating MCP config:", error);
     return NextResponse.json(
-      { error: error instanceof Error ? error.message : "Failed to update MCP configuration" },
-      { status: 500 }
+      {
+        error:
+          error instanceof Error
+            ? error.message
+            : "Failed to update MCP configuration",
+      },
+      { status: 500 },
     );
   }
 }
@@ -183,7 +195,7 @@ export async function PUT(
  */
 export async function POST(
   request: NextRequest,
-  ctx: { params: Promise<{ characterId: string }> }
+  ctx: { params: Promise<{ characterId: string }> },
 ) {
   try {
     const { user } = await requireAuthOrApiKey(request);
@@ -199,14 +211,14 @@ export async function POST(
     if (!serverId || !serverConfig) {
       return NextResponse.json(
         { error: "Missing serverId or serverConfig" },
-        { status: 400 }
+        { status: 400 },
       );
     }
 
     if (!serverConfig.type || !serverConfig.url) {
       return NextResponse.json(
         { error: "Server config must have type and url" },
-        { status: 400 }
+        { status: 400 },
       );
     }
 
@@ -216,16 +228,16 @@ export async function POST(
     if (!character) {
       return NextResponse.json(
         { error: "Character not found" },
-        { status: 404 }
+        { status: 404 },
       );
     }
 
     // Check ownership
-    if (character.user_id !== user.id && character.organization_id !== user.organization_id) {
-      return NextResponse.json(
-        { error: "Unauthorized" },
-        { status: 403 }
-      );
+    if (
+      character.user_id !== user.id &&
+      character.organization_id !== user.organization_id
+    ) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 403 });
     }
 
     // Get current MCP settings
@@ -233,7 +245,7 @@ export async function POST(
     const mcpSetting = currentSettings.mcp;
 
     let mcpSettings: McpSettings = { servers: {} };
-    
+
     if (typeof mcpSetting === "string") {
       try {
         mcpSettings = JSON.parse(mcpSetting);
@@ -269,7 +281,7 @@ export async function POST(
     });
 
     logger.info(
-      `[Characters/MCPs] Added MCP server ${serverId} to character ${characterId}`
+      `[Characters/MCPs] Added MCP server ${serverId} to character ${characterId}`,
     );
 
     return NextResponse.json({
@@ -282,8 +294,11 @@ export async function POST(
   } catch (error) {
     logger.error("[Characters/MCPs] Error adding MCP server:", error);
     return NextResponse.json(
-      { error: error instanceof Error ? error.message : "Failed to add MCP server" },
-      { status: 500 }
+      {
+        error:
+          error instanceof Error ? error.message : "Failed to add MCP server",
+      },
+      { status: 500 },
     );
   }
 }
@@ -294,19 +309,19 @@ export async function POST(
  */
 export async function DELETE(
   request: NextRequest,
-  ctx: { params: Promise<{ characterId: string }> }
+  ctx: { params: Promise<{ characterId: string }> },
 ) {
   try {
     const { user } = await requireAuthOrApiKey(request);
     const { characterId } = await ctx.params;
-    
+
     // Get serverId from query params
     const serverId = request.nextUrl.searchParams.get("serverId");
 
     if (!serverId) {
       return NextResponse.json(
         { error: "Missing serverId query parameter" },
-        { status: 400 }
+        { status: 400 },
       );
     }
 
@@ -316,16 +331,16 @@ export async function DELETE(
     if (!character) {
       return NextResponse.json(
         { error: "Character not found" },
-        { status: 404 }
+        { status: 404 },
       );
     }
 
     // Check ownership
-    if (character.user_id !== user.id && character.organization_id !== user.organization_id) {
-      return NextResponse.json(
-        { error: "Unauthorized" },
-        { status: 403 }
-      );
+    if (
+      character.user_id !== user.id &&
+      character.organization_id !== user.organization_id
+    ) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 403 });
     }
 
     // Get current MCP settings
@@ -333,7 +348,7 @@ export async function DELETE(
     const mcpSetting = currentSettings.mcp;
 
     let mcpSettings: McpSettings = { servers: {} };
-    
+
     if (typeof mcpSetting === "string") {
       try {
         mcpSettings = JSON.parse(mcpSetting);
@@ -372,7 +387,7 @@ export async function DELETE(
     });
 
     logger.info(
-      `[Characters/MCPs] Removed MCP server ${serverId} from character ${characterId}`
+      `[Characters/MCPs] Removed MCP server ${serverId} from character ${characterId}`,
     );
 
     return NextResponse.json({
@@ -385,9 +400,13 @@ export async function DELETE(
   } catch (error) {
     logger.error("[Characters/MCPs] Error removing MCP server:", error);
     return NextResponse.json(
-      { error: error instanceof Error ? error.message : "Failed to remove MCP server" },
-      { status: 500 }
+      {
+        error:
+          error instanceof Error
+            ? error.message
+            : "Failed to remove MCP server",
+      },
+      { status: 500 },
     );
   }
 }
-

@@ -2,6 +2,8 @@ import type { Character, Plugin } from "@elizaos/core";
 import { elizaOSCloudPlugin } from "@elizaos/plugin-elizacloud";
 import { memoryPlugin } from "@elizaos/plugin-memory";
 import { elevenLabsPlugin } from "@elizaos/plugin-elevenlabs";
+// Now using local plugin-mcp v1.3.1 with async initialization fix
+import mcpPlugin from "@elizaos/plugin-mcp";
 import { assistantPlugin } from "./plugin-assistant";
 import { chatPlaygroundPlugin } from "./plugin-chat-playground";
 import { characterBuilderPlugin } from "./plugin-character-builder";
@@ -21,14 +23,6 @@ async function loadKnowledgePlugin() {
 }
 
 /**
- * Lazy-load the MCP plugin to avoid Turbopack bundling issues
- */
-async function loadMcpPlugin() {
-  const mcpModule = await import("@elizaos/plugin-mcp");
-  return mcpModule.default;
-}
-
-/**
  * Maps plugin names to their implementations
  * Core plugins are selected based on AgentMode
  * Additional plugins can be enabled per-character
@@ -38,9 +32,12 @@ const AVAILABLE_PLUGINS: Record<string, Plugin> = {
   "@elizaos/plugin-elizacloud": elizaOSCloudPlugin as unknown as Plugin,
   "@elizaos/plugin-elevenlabs": elevenLabsPlugin as unknown as Plugin,
   "@elizaos/plugin-memory": memoryPlugin as unknown as Plugin,
+  "@elizaos/plugin-mcp": mcpPlugin as unknown as Plugin,
   "@eliza-cloud/plugin-assistant": assistantPlugin as unknown as Plugin,
-  "@eliza-cloud/plugin-chat-playground": chatPlaygroundPlugin as unknown as Plugin,
-  "@eliza-cloud/plugin-character-builder": characterBuilderPlugin as unknown as Plugin,
+  "@eliza-cloud/plugin-chat-playground":
+    chatPlaygroundPlugin as unknown as Plugin,
+  "@eliza-cloud/plugin-character-builder":
+    characterBuilderPlugin as unknown as Plugin,
 };
 
 /**
@@ -53,7 +50,7 @@ export class AgentLoader {
    */
   async loadCharacter(
     characterId: string,
-    agentMode: AgentMode
+    agentMode: AgentMode,
   ): Promise<{
     character: Character;
     plugins: Plugin[];
@@ -73,7 +70,10 @@ export class AgentLoader {
     const character = this.buildCharacter(elizaCharacter);
 
     // Resolve plugins based on AgentMode + character-specific plugins
-    const plugins = await this.resolvePlugins(agentMode, elizaCharacter.plugins || []);
+    const plugins = await this.resolvePlugins(
+      agentMode,
+      elizaCharacter.plugins || [],
+    );
 
     return { character, plugins };
   }
@@ -88,7 +88,7 @@ export class AgentLoader {
   }> {
     // Get plugins for the specified mode
     const plugins = await this.resolvePlugins(agentMode, []);
-    
+
     return {
       character: defaultAgent.character,
       plugins: plugins as unknown as Plugin[],
@@ -101,10 +101,11 @@ export class AgentLoader {
    */
   private buildCharacter(elizaCharacter: ElizaCharacter): Character {
     // Use the character's database ID, or fallback to default Eliza ID
-    const characterId = elizaCharacter.id || "b850bc30-45f8-0041-a00a-83df46d8555d";
-    
+    const characterId =
+      elizaCharacter.id || "b850bc30-45f8-0041-a00a-83df46d8555d";
+
     // Merge environment variables with character settings
-    // NOTE: Model selection (ELIZAOS_CLOUD_SMALL_MODEL, ELIZAOS_CLOUD_LARGE_MODEL) is 
+    // NOTE: Model selection (ELIZAOS_CLOUD_SMALL_MODEL, ELIZAOS_CLOUD_LARGE_MODEL) is
     // handled in RuntimeFactory.buildSettings() where we have access to userContext.modelPreferences
     // This allows users to select models from the UI dropdown
     const settings = {
@@ -219,7 +220,7 @@ export class AgentLoader {
    * Resolve plugins based on AgentMode and character-specific plugins
    *
    * AGENT MODE PLUGIN SETS:
-   * 
+   *
    * CHAT mode:
    * - @elizaos/plugin-elizacloud (LLM provider)
    * - @eliza-cloud/plugin-chat-playground (simple chat handler)
@@ -242,7 +243,7 @@ export class AgentLoader {
    */
   private async resolvePlugins(
     agentMode: AgentMode,
-    characterPlugins: string[]
+    characterPlugins: string[],
   ): Promise<Plugin[]> {
     const plugins: unknown[] = [];
 
@@ -251,8 +252,11 @@ export class AgentLoader {
     // ========================================
 
     const corePluginNames = AGENT_MODE_PLUGINS[agentMode];
-    
-    console.log(`[AgentLoader] Loading plugins for ${agentMode} mode:`, corePluginNames);
+
+    console.log(
+      `[AgentLoader] Loading plugins for ${agentMode} mode:`,
+      corePluginNames,
+    );
 
     for (const pluginName of corePluginNames) {
       // Special handling for knowledge plugin (lazy-loaded for SSR)
@@ -260,16 +264,6 @@ export class AgentLoader {
         const knowledgePlugin = await loadKnowledgePlugin();
         if (!plugins.some((p) => p === knowledgePlugin)) {
           plugins.push(knowledgePlugin);
-          console.log(`[AgentLoader] ✓ Loaded: ${pluginName} (lazy-loaded)`);
-        }
-        continue;
-      }
-
-      // Special handling for MCP plugin (lazy-loaded for Turbopack compatibility)
-      if (pluginName === "@elizaos/plugin-mcp") {
-        const mcpPlugin = await loadMcpPlugin();
-        if (!plugins.some((p) => p === mcpPlugin)) {
-          plugins.push(mcpPlugin);
           console.log(`[AgentLoader] ✓ Loaded: ${pluginName} (lazy-loaded)`);
         }
         continue;
@@ -298,16 +292,9 @@ export class AgentLoader {
         const knowledgePlugin = await loadKnowledgePlugin();
         if (!plugins.some((p) => p === knowledgePlugin)) {
           plugins.push(knowledgePlugin);
-          console.log(`[AgentLoader] ✓ Loaded character plugin: ${pluginName} (lazy-loaded)`);
-        }
-        continue;
-      }
-
-      if (pluginName === "@elizaos/plugin-mcp") {
-        const mcpPlugin = await loadMcpPlugin();
-        if (!plugins.some((p) => p === mcpPlugin)) {
-          plugins.push(mcpPlugin);
-          console.log(`[AgentLoader] ✓ Loaded character plugin: ${pluginName} (lazy-loaded)`);
+          console.log(
+            `[AgentLoader] ✓ Loaded character plugin: ${pluginName} (lazy-loaded)`,
+          );
         }
         continue;
       }

@@ -40,11 +40,14 @@ export function CharacterIntroPageWrapper({
     // Use existing session from URL if available (from affiliate API)
     // Otherwise use the one from props or create a new one
     const sessionFromUrl = searchParams.get("session");
-    const sessionId = sessionFromUrl || existingSessionId || crypto.randomUUID();
+    const sessionId =
+      sessionFromUrl || existingSessionId || crypto.randomUUID();
 
     // Remove intro=true parameter to show chat interface
     // Always use /chat route - theming is dynamic based on source param
-    router.push(`/chat/${characterId}?session=${sessionId}&source=${source || "direct"}`);
+    router.push(
+      `/chat/${characterId}?session=${sessionId}&source=${source || "direct"}`,
+    );
   }
 
   return (

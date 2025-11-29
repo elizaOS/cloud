@@ -6,7 +6,16 @@ import { JsonEditor } from "@/components/character-creator/json-editor";
 import { PluginsTab } from "@/components/chat/plugins-tab";
 import type { ElizaCharacter } from "@/lib/types";
 import { Button } from "@/components/ui/button";
-import { Download, Save, Zap, BookOpen, Upload, Sparkles, Puzzle, BarChart3 } from "lucide-react";
+import {
+  Download,
+  Save,
+  Zap,
+  BookOpen,
+  Upload,
+  Sparkles,
+  Puzzle,
+  BarChart3,
+} from "lucide-react";
 import { cn } from "@/lib/utils";
 import {
   BrandTabsResponsive,
@@ -150,7 +159,7 @@ export function CharacterEditor({
       </div>
 
       {/* Content Area - Full Height */}
-      <div className="flex-1 overflow-hidden">
+      <div className="flex-1 overflow-y-auto overflow-x-hidden relative">
         {showJson ? (
           <JsonEditor
             character={character}
@@ -164,25 +173,28 @@ export function CharacterEditor({
               <CharacterForm character={character} onChange={onChange} />
             )}
             {activeTab === "plugins" && (
-              <PluginsTab 
-                character={character} 
+              <PluginsTab
+                character={character}
                 onChange={(updates) => onChange({ ...character, ...updates })}
                 onSave={onSave}
               />
             )}
             {activeTab === "stats" && (
               <div className="flex h-full flex-col">
-                <Tabs defaultValue="model-calls" className="flex flex-col h-full">
+                <Tabs
+                  defaultValue="model-calls"
+                  className="flex flex-col h-full"
+                >
                   <div className="flex-shrink-0 px-6 pt-4">
                     <TabsList className="bg-white/5 border border-white/10 rounded-lg p-1">
-                      <TabsTrigger 
+                      <TabsTrigger
                         value="model-calls"
                         className="data-[state=active]:bg-[#FF5800] data-[state=active]:text-white text-white/60 rounded-md px-4 py-1.5 text-sm"
                       >
                         <Zap className="h-3.5 w-3.5 mr-2" />
                         Model Calls
                       </TabsTrigger>
-                      <TabsTrigger 
+                      <TabsTrigger
                         value="memories"
                         className="data-[state=active]:bg-[#FF5800] data-[state=active]:text-white text-white/60 rounded-md px-4 py-1.5 text-sm"
                       >
@@ -239,4 +251,3 @@ export function CharacterEditor({
     </div>
   );
 }
-
