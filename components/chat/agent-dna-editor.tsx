@@ -11,6 +11,7 @@ import {
   BrandTabsResponsive,
   type TabItem,
 } from "@/components/brand/brand-tabs-responsive";
+import { usePathname } from "next/navigation";
 
 interface AgentDnaEditorProps {
   character: ElizaCharacter;
@@ -73,6 +74,8 @@ export function AgentDnaEditor({
     document.body.removeChild(a);
     URL.revokeObjectURL(url);
   };
+  const pathname = usePathname();
+  const mode = pathname.includes("/build") ? "build" : "chat";
 
   return (
     <div className="flex h-full flex-col bg-black/40">
@@ -81,7 +84,12 @@ export function AgentDnaEditor({
         <div className="flex items-center justify-between mb-2">
           <div className="flex items-center gap-2">
             <h2 className="text-xl font-bold text-white">Agent DNA</h2>
-            <Zap className="h-5 w-5 text-[#FF5800]" />
+            <Zap
+              className={cn([
+                mode === "chat" ? "text-[#FF5800]" : "text-[#E500FF]",
+                "h-5 w-5",
+              ])}
+            />
           </div>
           <div className="flex items-center gap-2">
             <Button
@@ -97,9 +105,19 @@ export function AgentDnaEditor({
               size="sm"
               onClick={handleSave}
               disabled={isSaving}
-              className="rounded-none bg-[#FF5800] text-white hover:bg-[#FF5800]/90"
+              className={cn([
+                mode === "chat"
+                  ? "text-white hover:bg-[#FF5800]/90 bg-[#FF5800]"
+                  : "hover:bg-[#E500FF] bg-[#E500FF] text-white",
+                "rounded-none",
+              ])}
             >
-              <Save className="mr-2 h-4 w-4" />
+              <Save
+                className={cn([
+                  mode === "chat" ? "text-[#FF5800]" : "text-white",
+                  "mr-2 h-4 w-4",
+                ])}
+              />
               {isSaving ? "Saving..." : "Save"}
             </Button>
           </div>
@@ -133,13 +151,13 @@ export function AgentDnaEditor({
               onClick={() => setShowJson(!showJson)}
               className={cn(
                 "relative inline-flex h-5 w-9 items-center rounded-full transition-colors",
-                showJson ? "bg-[#FF5800]" : "bg-white/20",
+                showJson ? "bg-[#FF5800]" : "bg-white/20"
               )}
             >
               <span
                 className={cn(
                   "inline-block h-3 w-3 transform rounded-full bg-white transition-transform",
-                  showJson ? "translate-x-5" : "translate-x-1",
+                  showJson ? "translate-x-5" : "translate-x-1"
                 )}
               />
             </button>
