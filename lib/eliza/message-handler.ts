@@ -43,7 +43,6 @@ export interface MessageResult {
 
 export interface MessageOptions {
   roomId: string;
-  entityId: string;
   text: string;
   attachments?: unknown[];
   characterId?: string;
@@ -65,7 +64,10 @@ export class MessageHandler {
    * Returns the agent's response and usage information
    */
   async process(options: MessageOptions): Promise<MessageResult> {
-    const { roomId, entityId, text, attachments, agentModeConfig } = options;
+    const { roomId, text, attachments, agentModeConfig } = options;
+    
+    // IMPORTANT: Always use the authenticated user's ID as entityId
+    const entityId = this.userContext.userId;
     
     // Use provided agent mode config or default to CHAT mode
     const modeConfig = agentModeConfig || DEFAULT_AGENT_MODE;

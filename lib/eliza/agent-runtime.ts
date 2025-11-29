@@ -57,10 +57,10 @@ class AgentRuntimeManager {
    * Handle message - Main entry point for processing messages
    * This method maintains backward compatibility while using the new architecture
    * Uses CHAT mode by default
+   * Note: entityId is now derived from userContext.userId inside MessageHandler
    */
   public async handleMessage(
     roomId: string,
-    entityId: string,
     content: { text?: string; attachments?: unknown[] },
     characterId?: string,
     userSettings?: {
@@ -74,7 +74,6 @@ class AgentRuntimeManager {
   ): Promise<MessageResult> {
     logger.info("[AgentRuntime] Processing message via new architecture", {
       roomId,
-      entityId,
       hasUserSettings: !!userSettings,
     });
 
@@ -107,10 +106,9 @@ class AgentRuntimeManager {
     // Create message handler
     const messageHandler = createMessageHandler(runtime, userContext);
 
-    // Process message
+    // Process message (entityId is derived from userContext.userId inside the handler)
     const result = await messageHandler.process({
       roomId,
-      entityId,
       text: content.text || "",
       attachments: content.attachments,
       characterId,

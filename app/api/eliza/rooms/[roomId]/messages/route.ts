@@ -18,7 +18,7 @@ import {
 } from "@/lib/pricing";
 import { logger } from "@/lib/utils/logger";
 import type { NextRequest } from "next/server";
-import { elizaRoomCharactersRepository } from "@/db/repositories";
+import { roomsRepository } from "@/db/repositories";
 import { db } from "@/db/client";
 import { sql } from "drizzle-orm";
 
@@ -60,20 +60,15 @@ export async function POST(
 
     const { roomId } = await ctx.params;
     const body = await request.json();
-    const { entityId, text, attachments } = body;
+    const { text, attachments } = body;
+    
+    // IMPORTANT: Use authenticated user's ID as entityId (not from request body)
+    const entityId = user.id;
 
     if (!roomId) {
       logger.error("[Eliza Messages API] Missing roomId");
       return NextResponse.json(
         { error: "roomId is required" },
-        { status: 400 },
-      );
-    }
-
-    if (!entityId) {
-      logger.error("[Eliza Messages API] Missing entityId");
-      return NextResponse.json(
-        { error: "entityId is required" },
         { status: 400 },
       );
     }
@@ -172,14 +167,14 @@ export async function POST(
       }
     }
 
-    // Look up character for this room
+    // Look up character for this room from metadata
     let characterId: string | undefined;
     let characterName: string | undefined;
     try {
-      const roomCharacter =
-        await elizaRoomCharactersRepository.findByRoomId(roomId);
-      if (roomCharacter) {
-        characterId = roomCharacter.character_id;
+      const room = await roomsRepository.findById(roomId);
+      if (room) {
+        characterId = room.metadata?.characterId as string | undefined;
+        if (characterId) {
         logger.info(
           "[Eliza Messages API] ✓ Using custom character:",
           characterId,
@@ -199,6 +194,7 @@ export async function POST(
         // Get default character name
         const runtime = await agentRuntime.getRuntime();
         characterName = runtime.character.name || "Agent";
+        }
       }
     } catch (lookupError) {
       logger.error(
@@ -212,7 +208,6 @@ export async function POST(
     // Handle the message and get usage information
     const result = await agentRuntime.handleMessage(
       roomId,
-      entityId,
       {
         text,
         attachments: attachments || [],

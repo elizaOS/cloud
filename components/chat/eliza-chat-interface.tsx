@@ -66,7 +66,6 @@ export function ElizaChatInterface() {
   // Use chat store for room and character management
   const {
     roomId,
-    entityId,
     loadRooms,
     createRoom: createRoomInStore,
     selectedCharacterId,
@@ -601,7 +600,6 @@ export function ElizaChatInterface() {
       // Stream the response using single endpoint
       await sendStreamingMessage({
         roomId: currentRoomId,
-        entityId: entityId,
         text: messageText,
         model: selectedModel || undefined, // Pass selected model
         onMessage: handleStreamMessage,

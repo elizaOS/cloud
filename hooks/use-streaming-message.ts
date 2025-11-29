@@ -17,7 +17,6 @@ export interface StreamingMessage {
 
 interface SendMessageOptions {
   roomId: string;
-  entityId: string;
   text: string;
   model?: string; // Optional model selection
   onMessage: (message: StreamingMessage) => void;
@@ -28,10 +27,11 @@ interface SendMessageOptions {
 /**
  * Send a message and stream the response via SSE
  * Single endpoint handles everything - no cross-container issues!
+ * 
+ * NOTE: entityId is now derived from authenticated user on the server
  */
 export async function sendStreamingMessage({
   roomId,
-  entityId,
   text,
   model,
   onMessage,
@@ -45,7 +45,6 @@ export async function sendStreamingMessage({
         "Content-Type": "application/json",
       },
       body: JSON.stringify({
-        entityId,
         text,
         ...(model && { model }), // Include model if provided
       }),

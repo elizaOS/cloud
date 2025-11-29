@@ -28,10 +28,9 @@ export function ElizaPageClient({
   } | null>(null);
   const [isLoadingSession, setIsLoadingSession] = useState(!isAuthenticated);
 
-  // Initialize store with characters and entity ID (must be at top level)
+  // Initialize store with characters (must be at top level)
   const {
     setAvailableCharacters,
-    initializeEntityId,
     setRoomId,
     setSelectedCharacterId,
   } = useChatStore();
@@ -54,8 +53,7 @@ export function ElizaPageClient({
     }));
 
     setAvailableCharacters(characters);
-    initializeEntityId();
-  }, [initialCharacters, setAvailableCharacters, initializeEntityId]);
+  }, [initialCharacters, setAvailableCharacters]);
 
   // Sync URL params with store on mount
   useEffect(() => {
