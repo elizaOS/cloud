@@ -87,28 +87,28 @@ export async function POST(
       }
     }
 
-    // Step 4: Get character assignment for room from metadata
+    // Step 4: Get character assignment for room from agentId (single source of truth)
     const room = await roomsRepository.findById(roomId);
-    let characterId = (room?.metadata?.characterId as string) || undefined;
+    let characterId: string | undefined = room?.agentId || undefined;
     
     // For BUILD mode, use the targetCharacterId from agent mode metadata
     // This ensures we're editing the correct character, not the default
     if (agentModeConfig.mode === AgentMode.BUILD && agentModeConfig.metadata?.targetCharacterId) {
-      characterId = agentModeConfig.metadata.targetCharacterId as string;
+      characterId = String(agentModeConfig.metadata.targetCharacterId);
       logger.info(
         `[Stream] BUILD mode - Using character from metadata: ${characterId}`
       );
       
-      // Store character ID in room metadata for build mode
-      if (characterId) {
+      // Update room agentId for build mode (proper column, not metadata)
+      if (characterId && room && room.agentId !== characterId) {
         try {
-          await roomsRepository.setCharacterId(roomId, characterId);
+          await roomsRepository.update(roomId, { agentId: characterId });
           logger.info(
-            `[Stream] BUILD mode - Stored character in room metadata: room ${roomId} → character ${characterId}`
+            `[Stream] BUILD mode - Updated room agentId: room ${roomId} → agent ${characterId}`
           );
         } catch (error) {
           logger.error(
-            `[Stream] BUILD mode - Failed to store character in room metadata:`,
+            `[Stream] BUILD mode - Failed to update room agentId:`,
             error
           );
         }
