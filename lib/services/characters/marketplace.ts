@@ -1,9 +1,25 @@
+/**
+ * Character Marketplace Service
+ * 
+ * Unified service for character marketplace operations.
+ * This service handles BOTH public marketplace AND user's personal character library.
+ * 
+ * Domain: Characters (user_characters table)
+ * - Public characters (templates, published characters)
+ * - User's personal characters
+ * - Character search, filtering, and statistics
+ * 
+ * Note: This does NOT deal with agents or deployments.
+ * For deployment status, use deploymentDiscoveryService.
+ */
+
 import {
   userCharactersRepository,
   type UserCharacter,
   type NewUserCharacter,
 } from "@/db/repositories";
-import { agentDiscoveryService, type AgentStats } from "./agent-discovery";
+import { characterDeploymentDiscoveryService } from "../deployments/discovery";
+import type { AgentStats } from "../deployments/discovery";
 import { marketplaceCache } from "@/lib/cache/marketplace-cache";
 import { logger } from "@/lib/utils/logger";
 import {
@@ -14,15 +30,18 @@ import type {
   SearchFilters,
   SortOptions,
   PaginationOptions,
-  MyAgentsSearchResult,
+  MarketplaceSearchResult,
   ExtendedCharacter,
   CloneCharacterOptions,
   CategoryInfo,
   TrackingResponse,
-} from "@/lib/types/my-agents";
-import { MY_AGENTS_CONFIG } from "@/lib/config/my-agents";
+} from "@/lib/types/marketplace";
+import { MARKETPLACE_CONFIG } from "@/lib/config/marketplace";
 
-export class MyAgentsService {
+export class CharacterMarketplaceService {
+  /**
+   * Search characters (both public and user's own characters)
+   */
   async searchCharacters(options: {
     userId: string;
     organizationId: string;
@@ -30,7 +49,7 @@ export class MyAgentsService {
     sortOptions: SortOptions;
     pagination: PaginationOptions;
     includeStats: boolean;
-  }): Promise<MyAgentsSearchResult> {
+  }): Promise<MarketplaceSearchResult> {
     const {
       userId,
       organizationId,
@@ -56,7 +75,7 @@ export class MyAgentsService {
     }
 
     logger.debug(
-      `[My Agents Service] Searching characters with filters:`,
+      `[Character Marketplace] Searching characters with filters:`,
       filters,
     );
 
@@ -75,7 +94,7 @@ export class MyAgentsService {
     ]);
 
     logger.debug(
-      `[My Agents Service] Found ${characters.length} characters (${total} total)`,
+      `[Character Marketplace] Found ${characters.length} characters (${total} total)`,
     );
 
     let enrichedCharacters = characters.map((char) =>
@@ -88,9 +107,14 @@ export class MyAgentsService {
       let statsMap: Map<string, AgentStats>;
       try {
         statsMap =
-          await agentDiscoveryService.getAgentStatisticsBatch(characterIds);
+          await characterDeploymentDiscoveryService.getCharacterStatisticsBatch(
+            characterIds,
+          );
       } catch (error) {
-        logger.warn(`[My Agents Service] Failed to batch fetch stats:`, error);
+        logger.warn(
+          `[Character Marketplace] Failed to batch fetch stats:`,
+          error,
+        );
         statsMap = new Map();
       }
 
@@ -113,7 +137,7 @@ export class MyAgentsService {
       });
     }
 
-    const result: MyAgentsSearchResult = {
+    const result: MarketplaceSearchResult = {
       characters: enrichedCharacters,
       pagination: {
         page: pagination.page,
@@ -134,6 +158,9 @@ export class MyAgentsService {
     return result;
   }
 
+  /**
+   * Get available categories with character counts
+   */
   async getCategories(
     organizationId: string,
     userId: string,
@@ -165,7 +192,7 @@ export class MyAgentsService {
           };
         } catch (error) {
           logger.error(
-            `[Marketplace Service] Error getting count for category ${category.id}:`,
+            `[Character Marketplace] Error getting count for category ${category.id}:`,
             error,
           );
           return {
@@ -186,6 +213,9 @@ export class MyAgentsService {
     return categoriesWithCounts;
   }
 
+  /**
+   * Get character by ID
+   */
   async getCharacterById(
     characterId: string,
     includeStats: boolean = false,
@@ -205,7 +235,9 @@ export class MyAgentsService {
     if (includeStats) {
       try {
         const stats =
-          await agentDiscoveryService.getAgentStatistics(characterId);
+          await characterDeploymentDiscoveryService.getCharacterStatistics(
+            characterId,
+          );
         extended = {
           ...extended,
           stats: {
@@ -218,7 +250,7 @@ export class MyAgentsService {
         };
       } catch (error) {
         logger.warn(
-          `[My Agents Service] Failed to get stats for ${characterId}:`,
+          `[Character Marketplace] Failed to get stats for ${characterId}:`,
           error,
         );
       }
@@ -229,6 +261,9 @@ export class MyAgentsService {
     return extended;
   }
 
+  /**
+   * Clone a character (create a copy for the user)
+   */
   async cloneCharacter(
     characterId: string,
     userId: string,
@@ -236,7 +271,7 @@ export class MyAgentsService {
     options?: CloneCharacterOptions,
   ): Promise<ExtendedCharacter> {
     logger.info(
-      `[My Agents Service] Cloning character ${characterId} for user ${userId}`,
+      `[Character Marketplace] Cloning character ${characterId} for user ${userId}`,
     );
 
     const sourceCharacter =
@@ -283,12 +318,15 @@ export class MyAgentsService {
     await this.invalidateUserCache(userId, organizationId);
 
     logger.info(
-      `[My Agents Service] Successfully cloned character: ${clonedCharacter.id}`,
+      `[Character Marketplace] Successfully cloned character: ${clonedCharacter.id}`,
     );
 
     return this.toExtendedCharacter(clonedCharacter);
   }
 
+  /**
+   * Track character view (for analytics)
+   */
   async trackView(characterId: string): Promise<TrackingResponse> {
     try {
       await userCharactersRepository.incrementViewCount(characterId);
@@ -299,7 +337,7 @@ export class MyAgentsService {
       await marketplaceCache.invalidateCharacter(characterId);
 
       logger.debug(
-        `[My Agents Service] Tracked view for character: ${characterId}`,
+        `[Character Marketplace] Tracked view for character: ${characterId}`,
       );
 
       return {
@@ -308,7 +346,7 @@ export class MyAgentsService {
       };
     } catch (error) {
       logger.error(
-        `[My Agents Service] Error tracking view for ${characterId}:`,
+        `[Character Marketplace] Error tracking view for ${characterId}:`,
         error,
       );
       return {
@@ -318,6 +356,9 @@ export class MyAgentsService {
     }
   }
 
+  /**
+   * Track character interaction (for analytics)
+   */
   async trackInteraction(characterId: string): Promise<TrackingResponse> {
     try {
       await userCharactersRepository.incrementInteractionCount(characterId);
@@ -330,7 +371,7 @@ export class MyAgentsService {
       await marketplaceCache.invalidateCharacter(characterId);
 
       logger.debug(
-        `[My Agents Service] Tracked interaction for character: ${characterId}`,
+        `[Character Marketplace] Tracked interaction for character: ${characterId}`,
       );
 
       return {
@@ -339,7 +380,7 @@ export class MyAgentsService {
       };
     } catch (error) {
       logger.error(
-        `[My Agents Service] Error tracking interaction for ${characterId}:`,
+        `[Character Marketplace] Error tracking interaction for ${characterId}:`,
         error,
       );
       return {
@@ -349,12 +390,15 @@ export class MyAgentsService {
     }
   }
 
+  /**
+   * Update popularity score based on views, interactions, and recency
+   */
   private async updatePopularityScore(characterId: string): Promise<void> {
     const character = await userCharactersRepository.findById(characterId);
     if (!character) return;
 
     const { viewWeight, interactionWeight, recencyWeight } =
-      MY_AGENTS_CONFIG.popularityScoring;
+      MARKETPLACE_CONFIG.popularityScoring;
 
     const viewScore = (character.view_count || 0) * viewWeight;
     const interactionScore =
@@ -372,10 +416,13 @@ export class MyAgentsService {
     );
 
     logger.debug(
-      `[My Agents Service] Updated popularity score for ${characterId}: ${popularityScore}`,
+      `[Character Marketplace] Updated popularity score for ${characterId}: ${popularityScore}`,
     );
   }
 
+  /**
+   * Calculate recency score (exponential decay)
+   */
   private calculateRecencyScore(updatedAt: Date): number {
     const daysSinceUpdate =
       (Date.now() - updatedAt.getTime()) / (1000 * 60 * 60 * 24);
@@ -383,6 +430,9 @@ export class MyAgentsService {
     return Math.max(0, 1000 * Math.exp(-daysSinceUpdate / 30));
   }
 
+  /**
+   * Get featured characters
+   */
   async getFeaturedCharacters(
     limit: number = 10,
     includeStats: boolean = false,
@@ -397,9 +447,10 @@ export class MyAgentsService {
       extendedCharacters = await Promise.all(
         extendedCharacters.map(async (char) => {
           try {
-            const stats = await agentDiscoveryService.getAgentStatistics(
-              char.id,
-            );
+            const stats =
+              await characterDeploymentDiscoveryService.getCharacterStatistics(
+                char.id,
+              );
             return {
               ...char,
               stats: {
@@ -420,6 +471,9 @@ export class MyAgentsService {
     return extendedCharacters;
   }
 
+  /**
+   * Get popular characters
+   */
   async getPopularCharacters(
     limit: number = 20,
     includeStats: boolean = false,
@@ -434,9 +488,10 @@ export class MyAgentsService {
       extendedCharacters = await Promise.all(
         extendedCharacters.map(async (char) => {
           try {
-            const stats = await agentDiscoveryService.getAgentStatistics(
-              char.id,
-            );
+            const stats =
+              await characterDeploymentDiscoveryService.getCharacterStatistics(
+                char.id,
+              );
             return {
               ...char,
               stats: {
@@ -457,12 +512,15 @@ export class MyAgentsService {
     return extendedCharacters;
   }
 
+  /**
+   * Search public characters (no authentication required)
+   */
   async searchCharactersPublic(options: {
     filters: Omit<SearchFilters, "myCharacters" | "deployed">;
     sortOptions: SortOptions;
     pagination: PaginationOptions;
     includeStats: boolean;
-  }): Promise<MyAgentsSearchResult> {
+  }): Promise<MarketplaceSearchResult> {
     const { filters, sortOptions, pagination, includeStats } = options;
 
     const organizationId = "public";
@@ -480,11 +538,11 @@ export class MyAgentsService {
       cacheKey,
     );
     if (cached) {
-      logger.debug("[Marketplace Service] Public cache hit");
+      logger.debug("[Character Marketplace] Public cache hit");
       return { ...cached, cached: true };
     }
 
-    logger.debug("[Marketplace Service] Public search:", filters);
+    logger.debug("[Character Marketplace] Public search:", filters);
 
     const offset = (pagination.page - 1) * pagination.limit;
 
@@ -499,7 +557,7 @@ export class MyAgentsService {
     ]);
 
     logger.debug(
-      `[Marketplace Service] Found ${characters.length} public characters (${total} total)`,
+      `[Character Marketplace] Found ${characters.length} public characters (${total} total)`,
     );
 
     let enrichedCharacters = characters.map((char) =>
@@ -510,9 +568,10 @@ export class MyAgentsService {
       enrichedCharacters = await Promise.all(
         enrichedCharacters.map(async (char) => {
           try {
-            const stats = await agentDiscoveryService.getAgentStatistics(
-              char.id,
-            );
+            const stats =
+              await characterDeploymentDiscoveryService.getCharacterStatistics(
+                char.id,
+              );
             return {
               ...char,
               stats: {
@@ -525,7 +584,7 @@ export class MyAgentsService {
             };
           } catch (error) {
             logger.warn(
-              `[Marketplace Service] Failed to get stats for ${char.id}:`,
+              `[Character Marketplace] Failed to get stats for ${char.id}:`,
               error,
             );
             return char;
@@ -534,7 +593,7 @@ export class MyAgentsService {
       );
     }
 
-    const result: MyAgentsSearchResult = {
+    const result: MarketplaceSearchResult = {
       characters: enrichedCharacters,
       pagination: {
         page: pagination.page,
@@ -560,6 +619,9 @@ export class MyAgentsService {
     return result;
   }
 
+  /**
+   * Get public categories
+   */
   async getCategoriesPublic(): Promise<CategoryInfo[]> {
     const organizationId = "public";
     const cached = await marketplaceCache.getCategories(organizationId);
@@ -587,7 +649,7 @@ export class MyAgentsService {
           };
         } catch (error) {
           logger.error(
-            `[Marketplace Service] Error getting count for category ${category.id}:`,
+            `[Character Marketplace] Error getting count for category ${category.id}:`,
             error,
           );
           return {
@@ -616,6 +678,9 @@ export class MyAgentsService {
     return nonEmptyCategories;
   }
 
+  /**
+   * Convert database character to ExtendedCharacter format
+   */
   private toExtendedCharacter(character: UserCharacter): ExtendedCharacter {
     return {
       id: character.id,
@@ -647,6 +712,9 @@ export class MyAgentsService {
     };
   }
 
+  /**
+   * Invalidate caches for a user
+   */
   private async invalidateUserCache(
     userId: string,
     organizationId: string,
@@ -654,11 +722,23 @@ export class MyAgentsService {
     await Promise.all([
       marketplaceCache.invalidateSearchResults(organizationId),
       marketplaceCache.invalidateCategories(organizationId),
-      agentDiscoveryService.invalidateAgentListCache(organizationId),
+      characterDeploymentDiscoveryService.invalidateCharacterListCache(
+        organizationId,
+      ),
     ]);
 
-    logger.debug(`[My Agents Service] Invalidated caches for user: ${userId}`);
+    logger.debug(
+      `[Character Marketplace] Invalidated caches for user: ${userId}`,
+    );
   }
 }
 
-export const myAgentsService = new MyAgentsService();
+// Export singleton instance
+export const characterMarketplaceService = new CharacterMarketplaceService();
+
+// Backward compatibility exports
+/** @deprecated Use characterMarketplaceService instead */
+export const marketplaceService = characterMarketplaceService;
+/** @deprecated Use characterMarketplaceService instead */
+export const myAgentsService = characterMarketplaceService;
+

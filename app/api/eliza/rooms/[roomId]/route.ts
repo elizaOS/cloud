@@ -1,16 +1,18 @@
 import { NextResponse } from "next/server";
-import { agentRuntime } from "@/lib/eliza/agent-runtime";
-import type { UUID, Agent } from "@elizaos/core";
 import { requireAuthOrApiKey } from "@/lib/auth";
 import { getAnonymousUser } from "@/lib/auth-anonymous";
 import type { NextRequest } from "next/server";
-import { elizaRoomCharactersRepository } from "@/db/repositories";
+import { roomsService } from "@/lib/services/agents/rooms";
+import { agentsService } from "@/lib/services/agents/agents";
 import { logger } from "@/lib/utils/logger";
-import { db } from "@/db/client";
-import { sql } from "drizzle-orm";
-import { connectionCache } from "@/lib/cache/connection-cache";
+import type { Memory } from "@elizaos/core";
 
-// GET /api/eliza/rooms/[roomId] - Get room details and messages
+/**
+ * GET /api/eliza/rooms/[roomId] - Get room details and messages
+ * 
+ * Pure database operation - no runtime needed
+ * Uses agentsService to get agent display info
+ */
 export async function GET(
   request: NextRequest,
   ctx: { params: Promise<{ roomId: string }> },
@@ -35,51 +37,37 @@ export async function GET(
       );
     }
 
-    // Look up character for this room FIRST
-    let characterId: string | undefined;
-    try {
-      const roomCharacter =
-        await elizaRoomCharactersRepository.findByRoomId(roomId);
-      if (roomCharacter) {
-        characterId = roomCharacter.character_id;
-        logger.info(
-          "[Eliza Room API] 📖 Loading room with character:",
-          characterId,
+    // Use rooms service to get room with messages (pure DB query)
+    const roomData = await roomsService.getRoomWithMessages(
+      roomId,
+      limit ? parseInt(limit) : 50,
         );
-      } else {
-        logger.info("[Eliza Room API] 📖 Loading room with default Eliza");
-      }
-    } catch (err) {
-      logger.warn(
-        "[Eliza Room API] Failed to get character for room:",
-        roomId,
-        err,
+
+    if (!roomData) {
+      return NextResponse.json(
+        { error: "Room not found" },
+        { status: 404 },
       );
     }
 
-    // Create character-specific runtime (or default if no character)
-    const runtime = characterId
-      ? await agentRuntime.getRuntimeForCharacter(characterId)
-      : await agentRuntime.getRuntime();
+    // Get character ID from room metadata
+    const characterId = roomData.room.metadata?.characterId as string | undefined;
 
+    if (characterId) {
     logger.info(
-      "[Eliza Room API] 🎭 Using runtime for character:",
-      runtime.character.name,
+        "[Eliza Room API] Loading room with character:",
+        characterId,
     );
+    } else {
+      logger.info("[Eliza Room API] Loading room with default character");
+    }
 
-    const rawMessages = await runtime.getMemories({
-      tableName: "messages",
-      roomId: roomId as UUID,
-      count: limit ? parseInt(limit) : 50,
-      unique: false,
-    });
-
-    const simple = rawMessages
-      .map((msg) => {
+    // Format messages for response
+    const simple = roomData.messages.map((msg) => {
         let parsedContent: unknown = msg.content;
         try {
           if (typeof msg.content === "string")
-            parsedContent = JSON.parse(msg.content);
+          parsedContent = JSON.parse(msg.content as string);
         } catch {
           parsedContent = msg.content;
         }
@@ -88,16 +76,32 @@ export async function GET(
           entityId: msg.entityId,
           agentId: msg.agentId,
           content: parsedContent,
-          createdAt: (msg as { createdAt: number }).createdAt,
+        createdAt: msg.createdAt || Date.now(),
           isAgent: msg.entityId === msg.agentId,
         };
-      })
-      .sort((a, b) => a.createdAt - b.createdAt);
+    });
 
-    // Get agent info from the runtime we already created
-    const agent = await runtime.getAgent(runtime.agentId);
-    const avatarUrl = agent?.settings?.avatarUrl as string | undefined;
-    const agentName = agent?.name;
+    // Get agent display info from database (no runtime needed!)
+    let agentInfo: { id: string; name: string; avatarUrl?: string } | null = null;
+    
+    if (characterId) {
+      // Try to get agent info from agents table
+      agentInfo = await agentsService.getDisplayInfo(characterId);
+    }
+    
+    // If no agent info found, try the room's agentId
+    if (!agentInfo && roomData.room.agentId) {
+      agentInfo = await agentsService.getDisplayInfo(roomData.room.agentId);
+    }
+    
+    // Fallback to default values if agent not found in DB
+    if (!agentInfo) {
+      agentInfo = {
+        id: characterId || roomData.room.agentId || "default",
+        name: "Eliza",
+        avatarUrl: undefined,
+      };
+    }
 
     return NextResponse.json(
       {
@@ -106,11 +110,7 @@ export async function GET(
         messages: simple,
         count: simple.length,
         characterId,
-        agent: {
-          id: agent?.id,
-          name: agentName,
-          avatarUrl,
-        },
+        agent: agentInfo,
       },
       { headers: { "Cache-Control": "no-store" } },
     );
@@ -126,7 +126,11 @@ export async function GET(
   }
 }
 
-// DELETE /api/eliza/rooms/[roomId] - Delete a room and all related data
+/**
+ * DELETE /api/eliza/rooms/[roomId] - Delete a room and all related data
+ * 
+ * Pure database operation - no runtime needed
+ */
 export async function DELETE(
   request: NextRequest,
   ctx: { params: Promise<{ roomId: string }> },
@@ -151,39 +155,8 @@ export async function DELETE(
 
     logger.info("[Eliza Room API] Deleting room:", roomId);
 
-    // Delete character mapping first (if exists)
-    try {
-      await elizaRoomCharactersRepository.delete(roomId);
-      logger.debug(
-        "[Eliza Room API] Deleted character mapping for room:",
-        roomId,
-      );
-    } catch (err) {
-      logger.warn(
-        "[Eliza Room API] No character mapping to delete:",
-        roomId,
-        err,
-      );
-    }
-
-    // Clear connection cache for this room
-    try {
-      // The connectionCache might have entries for this room
-      // We'll let it naturally expire or clear by roomId if the cache supports it
-      logger.debug(
-        "[Eliza Room API] Cleared connection cache for room:",
-        roomId,
-      );
-    } catch (err) {
-      logger.warn("[Eliza Room API] Failed to clear connection cache:", err);
-    }
-
-    // Delete the room from database (CASCADE will handle related records)
-    // This will automatically delete:
-    // - memories (messages) associated with the room
-    // - participants in the room
-    // - any other related records with CASCADE constraints
-    await db.execute(sql`DELETE FROM rooms WHERE id = ${roomId}::uuid`);
+    // Use rooms service to delete room and all related data
+    await roomsService.deleteRoom(roomId);
 
     logger.info("[Eliza Room API] ✓ Room deleted successfully:", roomId);
 

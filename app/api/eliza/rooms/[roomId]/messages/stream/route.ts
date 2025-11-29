@@ -3,7 +3,7 @@ import { organizationsService } from "@/lib/services";
 import { requireAuthOrApiKey } from "@/lib/auth";
 import { getAnonymousUser, checkAnonymousLimit } from "@/lib/auth-anonymous";
 import { logger } from "@/lib/utils/logger";
-import { elizaRoomCharactersRepository } from "@/db/repositories";
+import { roomsRepository } from "@/db/repositories";
 import { userContextService } from "@/lib/eliza/user-context";
 import { runtimeFactory } from "@/lib/eliza/runtime-factory";
 import { createMessageHandler } from "@/lib/eliza/message-handler";
@@ -33,9 +33,9 @@ export async function POST(
     // Step 1: Parse and validate request
     const { roomId } = await ctx.params;
     const body = await request.json();
-    const { entityId, text, model, agentMode } = body;
+    const { text, model, agentMode } = body;
 
-    if (!roomId || !entityId || !text?.trim()) {
+    if (!roomId || !text?.trim()) {
       return new Response(
         JSON.stringify({ error: "Missing required fields" }),
         { status: 400, headers: { "Content-Type": "application/json" } },
@@ -87,9 +87,9 @@ export async function POST(
       }
     }
 
-    // Step 4: Get character assignment for room
-    const roomCharacter = await elizaRoomCharactersRepository.findByRoomId(roomId);
-    let characterId = roomCharacter?.character_id || undefined;
+    // Step 4: Get character assignment for room from metadata
+    const room = await roomsRepository.findById(roomId);
+    let characterId = (room?.metadata?.characterId as string) || undefined;
     
     // For BUILD mode, use the targetCharacterId from agent mode metadata
     // This ensures we're editing the correct character, not the default
@@ -99,35 +99,16 @@ export async function POST(
         `[Stream] BUILD mode - Using character from metadata: ${characterId}`
       );
       
-      // Ensure room-character association exists for build mode
-      // Each user-character combo should have its own build room
-      if (!roomCharacter && characterId) {
-        // Create new association
+      // Store character ID in room metadata for build mode
+      if (characterId) {
         try {
-          await elizaRoomCharactersRepository.create({
-            room_id: roomId,
-            character_id: characterId,
-            user_id: userContext.userId,
-          });
+          await roomsRepository.setCharacterId(roomId, characterId);
           logger.info(
-            `[Stream] BUILD mode - Created room-character association: room ${roomId} → character ${characterId}`
+            `[Stream] BUILD mode - Stored character in room metadata: room ${roomId} → character ${characterId}`
           );
         } catch (error) {
           logger.error(
-            `[Stream] BUILD mode - Failed to create room-character association:`,
-            error
-          );
-        }
-      } else if (roomCharacter && roomCharacter.character_id !== characterId) {
-        // Update existing association if character changed
-        try {
-          await elizaRoomCharactersRepository.update(roomId, characterId);
-          logger.info(
-            `[Stream] BUILD mode - Updated room-character association: room ${roomId} → character ${characterId}`
-          );
-        } catch (error) {
-          logger.error(
-            `[Stream] BUILD mode - Failed to update room-character association:`,
+            `[Stream] BUILD mode - Failed to store character in room metadata:`,
             error
           );
         }
@@ -183,7 +164,7 @@ export async function POST(
           // Send user message event
           sendEvent("message", {
             id: `user-${Date.now()}`,
-            entityId,
+            entityId: userContext.userId,
             content: { text },
             createdAt: Date.now(),
             isAgent: false,
@@ -200,11 +181,10 @@ export async function POST(
             type: "thinking",
           });
 
-          // Process message and get response (much cleaner!)
+          // Process message and get response (using user's actual ID)
           logger.info("[Stream Messages] Processing message...");
           const result = await messageHandler.process({
             roomId,
-            entityId,
             text,
             model,
             agentModeConfig,

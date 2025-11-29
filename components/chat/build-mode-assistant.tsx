@@ -235,8 +235,6 @@ Tell me about your vision!`;
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          roomId: builderRoomId,
-          entityId: userId,
           text,
           agentMode: {
             mode: AgentMode.BUILD,
