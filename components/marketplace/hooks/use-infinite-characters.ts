@@ -146,6 +146,20 @@ export function useInfiniteCharacters({
     };
   }, []);
 
+  // Listen for external events that should trigger a refresh (e.g., affiliate character claims)
+  useEffect(() => {
+    const handleCharactersUpdated = () => {
+      logger.debug("[useInfiniteCharacters] Received characters-updated event, refreshing...");
+      setPage(1);
+      fetchCharacters(1, false);
+    };
+
+    window.addEventListener("characters-updated", handleCharactersUpdated);
+    return () => {
+      window.removeEventListener("characters-updated", handleCharactersUpdated);
+    };
+  }, [fetchCharacters]);
+
   const loadMore = useCallback(() => {
     if (!isLoadingMore && !isLoading && hasMore) {
       const nextPage = page + 1;

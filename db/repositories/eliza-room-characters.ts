@@ -1,4 +1,4 @@
-import { eq, inArray } from "drizzle-orm";
+import { eq, inArray, sql } from "drizzle-orm";
 import { db } from "../client";
 import {
   elizaRoomCharactersTable,
@@ -76,5 +76,46 @@ export const elizaRoomCharactersRepository = {
     await db
       .delete(elizaRoomCharactersTable)
       .where(eq(elizaRoomCharactersTable.room_id, roomId));
+  },
+
+  /**
+   * Find affiliate characters that a user has interacted with (via rooms) 
+   * but are still owned by anonymous/affiliate users.
+   * These are claimable by the user.
+   */
+  async findClaimableAffiliateCharacters(userId: string): Promise<Array<{
+    characterId: string;
+    characterName: string;
+    ownerId: string;
+    roomId: string;
+  }>> {
+    const results = await db.execute<{
+      character_id: string;
+      character_name: string;
+      owner_id: string;
+      room_id: string;
+    }>(sql`
+      SELECT DISTINCT 
+        rc.character_id,
+        c.name as character_name,
+        c.user_id as owner_id,
+        rc.room_id
+      FROM eliza_room_characters rc
+      JOIN user_characters c ON rc.character_id = c.id
+      JOIN users u ON c.user_id = u.id
+      WHERE rc.user_id = ${userId}
+        AND c.user_id != ${userId}
+        AND (
+          u.is_anonymous = true 
+          OR (u.email LIKE 'affiliate-%@anonymous.elizacloud.ai' AND u.privy_user_id IS NULL)
+        )
+    `);
+
+    return results.rows.map(r => ({
+      characterId: r.character_id,
+      characterName: r.character_name,
+      ownerId: r.owner_id,
+      roomId: r.room_id,
+    }));
   },
 };
