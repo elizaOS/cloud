@@ -380,7 +380,7 @@ export function CharacterForm({ character, onChange }: CharacterFormProps) {
                 Upload a custom avatar for your character (max 5MB)
               </p>
             </div>
-            
+
             <div className="rounded-none bg-black/40 border border-white/10 p-4">
               <p className="text-sm text-white/60">
                 Additional settings like{" "}

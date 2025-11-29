@@ -74,11 +74,7 @@ const demoMcpServers = [
     toolCount: 3,
     icon: "cloud",
     color: "#06B6D4",
-    features: [
-      "Current Weather",
-      "5-Day Forecast",
-      "Weather Alerts",
-    ],
+    features: ["Current Weather", "5-Day Forecast", "Weather Alerts"],
   },
   {
     id: "crypto-mcp",
@@ -288,4 +284,3 @@ export default async function MCPsPage() {
     </div>
   );
 }
-

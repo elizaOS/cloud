@@ -86,7 +86,7 @@ export function PluginsTab({ character, onChange }: PluginsTabProps) {
   const getCurrentMcpSettings = useCallback((): McpSettings => {
     const settings = character.settings || {};
     const mcpSetting = settings.mcp;
-    
+
     if (typeof mcpSetting === "string") {
       try {
         return JSON.parse(mcpSetting);
@@ -94,11 +94,11 @@ export function PluginsTab({ character, onChange }: PluginsTabProps) {
         return { servers: {} };
       }
     }
-    
+
     if (typeof mcpSetting === "object" && mcpSetting !== null) {
       return mcpSetting as unknown as McpSettings;
     }
-    
+
     return { servers: {} };
   }, [character.settings]);
 
@@ -115,7 +115,7 @@ export function PluginsTab({ character, onChange }: PluginsTabProps) {
     try {
       const response = await fetch("/api/mcp/registry");
       if (!response.ok) throw new Error("Failed to fetch registry");
-      
+
       const data = await response.json();
       setRegistry(data.registry || []);
       setCategories(data.categories || []);
@@ -135,9 +135,19 @@ export function PluginsTab({ character, onChange }: PluginsTabProps) {
   // Enable an MCP
   const enableMcp = (mcp: McpRegistryEntry) => {
     const currentSettings = getCurrentMcpSettings();
+
+    // Replace ${BASE_URL} placeholder with actual origin
+    const baseUrl = typeof window !== "undefined" ? window.location.origin : "";
+    const templatedServers = JSON.parse(
+      JSON.stringify(mcp.configTemplate.servers).replace(
+        /\$\{BASE_URL\}/g,
+        baseUrl,
+      ),
+    );
+
     const newServers = {
       ...currentSettings.servers,
-      ...mcp.configTemplate.servers,
+      ...templatedServers,
     };
 
     const newMcpSettings: McpSettings = {
@@ -203,7 +213,7 @@ export function PluginsTab({ character, onChange }: PluginsTabProps) {
       mcp.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
       mcp.description.toLowerCase().includes(searchQuery.toLowerCase()) ||
       mcp.features.some((f) =>
-        f.toLowerCase().includes(searchQuery.toLowerCase())
+        f.toLowerCase().includes(searchQuery.toLowerCase()),
       );
 
     const matchesCategory =
@@ -225,7 +235,7 @@ export function PluginsTab({ character, onChange }: PluginsTabProps) {
   }
 
   return (
-    <div className="flex h-full flex-col">
+    <div className="flex h-full flex-col relative">
       {/* Header */}
       <div className="flex-shrink-0 border-b border-white/10 px-6 py-4">
         <div className="flex items-center justify-between mb-4">
@@ -272,7 +282,7 @@ export function PluginsTab({ character, onChange }: PluginsTabProps) {
                 "px-3 py-1.5 text-xs border rounded-lg transition-colors",
                 categoryFilter === "all"
                   ? "bg-[#FF5800]/20 border-[#FF5800]/50 text-white"
-                  : "bg-black/40 border-white/10 text-white/60 hover:border-white/30"
+                  : "bg-black/40 border-white/10 text-white/60 hover:border-white/30",
               )}
             >
               All
@@ -285,7 +295,7 @@ export function PluginsTab({ character, onChange }: PluginsTabProps) {
                   "px-3 py-1.5 text-xs border rounded-lg transition-colors capitalize",
                   categoryFilter === cat
                     ? "bg-[#FF5800]/20 border-[#FF5800]/50 text-white"
-                    : "bg-black/40 border-white/10 text-white/60 hover:border-white/30"
+                    : "bg-black/40 border-white/10 text-white/60 hover:border-white/30",
                 )}
               >
                 {cat}
@@ -388,7 +398,7 @@ function McpCard({ mcp, isEnabled, onToggle, onSelect }: McpCardProps) {
       className={cn(
         "cursor-pointer transition-all duration-300 group relative",
         isEnabled && "border-green-500/30 bg-green-500/5",
-        isDisabled && "opacity-60 cursor-not-allowed"
+        isDisabled && "opacity-60 cursor-not-allowed",
       )}
       onClick={onSelect}
     >
@@ -445,7 +455,7 @@ function McpCard({ mcp, isEnabled, onToggle, onSelect }: McpCardProps) {
                   "p-1.5 rounded-lg transition-colors",
                   isEnabled
                     ? "bg-red-500/20 text-red-400 hover:bg-red-500/30"
-                    : "bg-green-500/20 text-green-400 hover:bg-green-500/30"
+                    : "bg-green-500/20 text-green-400 hover:bg-green-500/30",
                 )}
                 title={isEnabled ? "Disable MCP" : "Enable MCP"}
               >
@@ -487,7 +497,9 @@ function McpCard({ mcp, isEnabled, onToggle, onSelect }: McpCardProps) {
             {mcp.pricing.type === "x402" && (
               <Zap className="h-3.5 w-3.5 text-purple-400" />
             )}
-            <span className="text-xs text-white/50">{mcp.pricing.description}</span>
+            <span className="text-xs text-white/50">
+              {mcp.pricing.description}
+            </span>
           </div>
           {isEnabled && (
             <span className="flex items-center gap-1 text-xs text-green-400">
@@ -523,7 +535,7 @@ function McpDetailPanel({
       animate={{ opacity: 1, y: 0 }}
       exit={{ opacity: 0, y: 100 }}
       transition={{ type: "spring", damping: 25, stiffness: 300 }}
-      className="absolute inset-x-0 bottom-0 bg-[#0A0A0A] border-t border-white/10 shadow-2xl max-h-[60%] overflow-hidden flex flex-col"
+      className="absolute inset-x-0 bottom-0 z-50 bg-[#0A0A0A] border-t border-white/10 shadow-2xl max-h-[60%] overflow-hidden flex flex-col"
     >
       {/* Header */}
       <div className="flex items-start justify-between p-6 border-b border-white/10">
@@ -645,7 +657,7 @@ function McpDetailPanel({
             "px-6 rounded-lg",
             isEnabled
               ? "bg-red-500/20 text-red-400 hover:bg-red-500/30 border border-red-500/30"
-              : "bg-[#FF5800] text-white hover:bg-[#FF5800]/90"
+              : "bg-[#FF5800] text-white hover:bg-[#FF5800]/90",
           )}
         >
           {isEnabled ? (
@@ -664,4 +676,3 @@ function McpDetailPanel({
     </motion.div>
   );
 }
-
