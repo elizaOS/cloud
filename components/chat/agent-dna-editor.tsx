@@ -151,7 +151,7 @@ export function AgentDnaEditor({
               onClick={() => setShowJson(!showJson)}
               className={cn(
                 "relative inline-flex h-5 w-9 items-center rounded-full transition-colors",
-                showJson ? "bg-[#FF5800]" : "bg-white/20"
+                showJson ? "bg-[#E500FF]" : "bg-white/20"
               )}
             >
               <span
