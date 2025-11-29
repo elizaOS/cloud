@@ -4,6 +4,10 @@ import { BuildPageClient } from "@/components/chat/build-page-client";
 import { listCharacters } from "@/app/actions/characters";
 import { generatePageMetadata, ROUTE_METADATA } from "@/lib/seo";
 
+interface PageProps {
+  searchParams: Promise<{ characterId?: string }>;
+}
+
 // Force dynamic rendering since we use server-side auth (cookies)
 export const dynamic = "force-dynamic";
 
@@ -15,7 +19,7 @@ export async function generateMetadata(): Promise<Metadata> {
   });
 }
 
-export default async function BuildPage() {
+export default async function BuildPage({ searchParams }: PageProps) {
   // Check if user is authenticated
   const user = await getCurrentUser();
   const isAnonymous = !user;
@@ -23,10 +27,15 @@ export default async function BuildPage() {
   // Load available characters for authenticated users only
   const characters = isAnonymous ? [] : await listCharacters();
 
+  // Get URL params
+  const params = await searchParams;
+  const initialCharacterId = params.characterId;
+
   return (
     <BuildPageClient
       initialCharacters={characters}
       isAuthenticated={!isAnonymous}
+      initialCharacterId={initialCharacterId}
     />
   );
 }
