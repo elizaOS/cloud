@@ -231,6 +231,14 @@ export class RuntimeFactory {
         process.env.ELEVENLABS_STT_TAG_AUDIO_EVENTS ||
         "false",
 
+      // MCP Plugin Settings - Pass through MCP server configurations
+      // The MCP plugin reads this to connect to external MCP servers
+      ...(character.settings?.mcp
+        ? {
+            mcp: character.settings.mcp,
+          }
+        : {}),
+
       // User metadata for tracking (useful for debugging and analytics)
       USER_ID: context.userId,
       ENTITY_ID: context.entityId,
