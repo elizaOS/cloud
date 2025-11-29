@@ -50,8 +50,8 @@ export async function GET(
       );
     }
 
-    // Get character ID from room metadata
-    const characterId = roomData.room.metadata?.characterId as string | undefined;
+    // Get character ID from room agentId (single source of truth)
+    const characterId = roomData.room.agentId || undefined;
 
     if (characterId) {
     logger.info(

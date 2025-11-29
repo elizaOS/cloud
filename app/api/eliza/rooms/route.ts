@@ -109,12 +109,11 @@ export async function POST(request: NextRequest) {
     // Create room via service (pure DB operation)
     await roomsService.createRoom({
       id: roomId,
-      agentId: characterId || undefined, // Will be set properly when runtime initializes
+      agentId: characterId || undefined, // Single source of truth for character/agent ID
       entityId,
       source: "web",
       type: "DM",
       metadata: {
-        characterId: characterId || undefined,
         createdAt,
       },
     });

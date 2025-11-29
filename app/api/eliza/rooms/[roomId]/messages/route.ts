@@ -167,13 +167,13 @@ export async function POST(
       }
     }
 
-    // Look up character for this room from metadata
+    // Look up character for this room from agentId (single source of truth)
     let characterId: string | undefined;
     let characterName: string | undefined;
     try {
       const room = await roomsRepository.findById(roomId);
       if (room) {
-        characterId = room.metadata?.characterId as string | undefined;
+        characterId = room.agentId || undefined;
         if (characterId) {
         logger.info(
           "[Eliza Messages API] ✓ Using custom character:",

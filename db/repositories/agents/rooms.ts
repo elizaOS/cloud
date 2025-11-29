@@ -38,6 +38,7 @@ export interface CreateRoomInput {
 
 export interface UpdateRoomInput {
   name?: string;
+  agentId?: string;
   metadata?: Record<string, unknown>;
 }
 
@@ -182,40 +183,6 @@ export class RoomsRepository {
   }
 
   /**
-   * Get character ID for a room (from metadata)
-   */
-  async getCharacterId(roomId: string): Promise<string | null> {
-    const room = await this.findById(roomId);
-    return (room?.metadata?.characterId as string) || null;
-  }
-
-  /**
-   * Set character ID for a room (in metadata)
-   */
-  async setCharacterId(roomId: string, characterId: string): Promise<void> {
-    await this.updateMetadata(roomId, { characterId });
-  }
-
-  /**
-   * Get character IDs for multiple rooms
-   */
-  async getCharacterIds(roomIds: string[]): Promise<Map<string, string>> {
-    if (roomIds.length === 0) return new Map();
-
-    const rooms = await this.findByIds(roomIds);
-    const map = new Map<string, string>();
-    
-    for (const room of rooms) {
-      const characterId = room.metadata?.characterId as string | undefined;
-      if (characterId) {
-        map.set(room.id, characterId);
-      }
-    }
-
-    return map;
-  }
-
-  /**
    * Get all rooms for an entity (user) with last message preview
    * Uses Drizzle joins for type safety
    * 
@@ -237,12 +204,7 @@ export class RoomsRepository {
 
     // Step 2: Get rooms with their data
     const rooms = await db
-      .select({
-        id: roomTable.id,
-        name: roomTable.name,
-        characterId: roomTable.agentId,
-        createdAt: roomTable.createdAt,
-      })
+      .select()
       .from(roomTable)
       .where(inArray(roomTable.id, roomIds));
 
@@ -278,8 +240,8 @@ export class RoomsRepository {
       const lastMsg = lastMessageByRoom.get(room.id);
       return {
         id: room.id,
-        name: room.name,
-        characterId: room.characterId,
+        name: room.name || null,
+        characterId: room.agentId || null,
         createdAt: room.createdAt || new Date(),
         lastMessageTime: lastMsg?.createdAt || null,
         lastMessageText: lastMsg?.text || null,
@@ -298,4 +260,3 @@ export class RoomsRepository {
 }
 
 export const roomsRepository = new RoomsRepository();
-
