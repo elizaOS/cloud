@@ -9,6 +9,8 @@ import { actionsProvider } from "./providers/actions";
 import { characterProvider } from "./providers/character";
 import { generateImageAction } from "./actions/image-generation";
 import { actionStateProvider } from "./providers/actionState";
+import { recentMessagesProvider } from "./providers/recent-messages";
+import { affiliateContextProvider } from "./providers/affiliate-context";
 import { handleMessage } from "./handler";
 import type { IAgentRuntime, Memory, HandlerCallback } from "@elizaos/core";
 
@@ -83,6 +85,8 @@ export const assistantPlugin: Plugin = {
     actionsProvider,
     characterProvider,
     actionStateProvider,
+    recentMessagesProvider,
+    affiliateContextProvider,
   ],
   actions: [
     generateImageAction,
