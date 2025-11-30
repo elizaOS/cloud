@@ -15,6 +15,7 @@ import {
   Check,
 } from "lucide-react";
 import { ElizaAvatar } from "./eliza-avatar";
+import { EmptyChatState } from "./empty-chat-state";
 import { KnowledgeDrawer } from "./knowledge-drawer";
 import { useAudioRecorder } from "./hooks/use-audio-recorder";
 import { useAudioPlayer } from "./hooks/use-audio-player";
@@ -130,9 +131,9 @@ export function ElizaChatInterface() {
   const [selectedModel, setSelectedModel] = useState<string | null>(() => {
     if (typeof window !== "undefined") {
       const saved = localStorage.getItem("eliza-selected-model");
-      return saved || "moonshotai/kimi-k2-0905"; // Default to kimi-k2-0905
+      return saved || "openai/gpt-oss-120b"; // Default to kimi-k2-0905
     }
-    return "moonshotai/kimi-k2-0905";
+    return "openai/gpt-oss-120b";
   });
 
   // Save selected model to localStorage
@@ -805,22 +806,32 @@ export function ElizaChatInterface() {
               )}
 
               {!isLoadingMessages && messages.length === 0 && !error && (
-                <div className="flex flex-col items-center justify-center h-full text-center py-12">
-                  <ElizaAvatar
-                    avatarUrl={agentInfo?.avatarUrl}
-                    name={agentInfo?.name}
-                    className="h-16 w-16 mb-4"
-                    fallbackClassName="bg-muted"
-                    iconClassName="h-8 w-8 text-muted-foreground"
-                  />
-                  <h3 className="text-lg font-semibold mb-2">
-                    Start a conversation
-                  </h3>
-                  <p className="text-sm text-muted-foreground max-w-md">
-                    Ask me anything about AI, development, or how elizaOS can
-                    help you build intelligent agents.
-                  </p>
-                </div>
+                <>
+                  {!roomId ? (
+                    <EmptyChatState
+                      agentName={agentInfo?.name}
+                      agentAvatar={agentInfo?.avatarUrl}
+                      selectedCharacterId={selectedCharacterId}
+                    />
+                  ) : (
+                    <div className="flex flex-col items-center justify-center h-full text-center py-12">
+                      <ElizaAvatar
+                        avatarUrl={agentInfo?.avatarUrl}
+                        name={agentInfo?.name}
+                        className="h-16 w-16 mb-4"
+                        fallbackClassName="bg-muted"
+                        iconClassName="h-8 w-8 text-muted-foreground"
+                      />
+                      <h3 className="text-lg font-semibold mb-2">
+                        Start a conversation
+                      </h3>
+                      <p className="text-sm text-muted-foreground max-w-md">
+                        Ask me anything about AI, development, or how elizaOS can
+                        help you build intelligent agents.
+                      </p>
+                    </div>
+                  )}
+                </>
               )}
 
               {!isLoadingMessages &&
@@ -1089,7 +1100,7 @@ export function ElizaChatInterface() {
             <div className="flex items-center justify-between">
               {/* Model Selector - Bottom Left */}
               <Select
-                value={selectedModel || "moonshotai/kimi-k2-0905"}
+                value={selectedModel || "openai/gpt-oss-120b"}
                 onValueChange={(value) => {
                   setSelectedModel(value);
                   const modelName = value.split("/")[1] || value;

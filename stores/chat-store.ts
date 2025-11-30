@@ -17,6 +17,7 @@ export interface Character {
   id: string;
   name: string;
   username?: string;
+  avatarUrl?: string;
 }
 
 interface ChatState {
@@ -28,6 +29,7 @@ interface ChatState {
   availableCharacters: Character[];
   selectedCharacterId: string | null;
   pendingMessage: string | null; // Message from landing page to auto-send
+  loadRoomsPromise: Promise<void> | null; // Track ongoing loadRooms operation
 
   // Actions
   setRooms: (rooms: RoomItem[]) => void;
@@ -36,7 +38,7 @@ interface ChatState {
   setAvailableCharacters: (characters: Character[]) => void;
   setSelectedCharacterId: (characterId: string | null) => void;
   setPendingMessage: (message: string | null) => void;
-  loadRooms: () => Promise<void>;
+  loadRooms: (force?: boolean) => Promise<void>;
   createRoom: (characterId?: string | null) => Promise<string | null>;
   deleteRoom: (roomId: string) => Promise<void>;
   initializeEntityId: () => void;
@@ -44,13 +46,19 @@ interface ChatState {
 }
 
 // Initialize entity ID from localStorage
+// CRITICAL: Always returns a valid ID, never empty
 const getEntityId = (): string => {
-  if (typeof window === "undefined") return "";
+  if (typeof window === "undefined") {
+    // SSR fallback - return temporary ID
+    return `user-ssr-${Math.random().toString(36).substring(2, 9)}`;
+  }
 
   let id = window.localStorage.getItem("elizaEntityId");
-  if (!id) {
+  if (!id || id.trim() === "") {
+    // Generate new ID with timestamp and random component for uniqueness
     id = `user-${Date.now()}-${Math.random().toString(36).substring(2, 9)}`;
     window.localStorage.setItem("elizaEntityId", id);
+    console.log("[ChatStore] Generated new entityId:", id);
   }
   return id;
 };
@@ -60,10 +68,11 @@ export const useChatStore = create<ChatState>((set, get) => ({
   rooms: [],
   roomId: null,
   isLoadingRooms: false,
-  entityId: "",
+  entityId: getEntityId(), // CRITICAL: Initialize immediately, never empty
   availableCharacters: [],
   selectedCharacterId: null,
   pendingMessage: null,
+  loadRoomsPromise: null,
 
   // Setters
   setRooms: (rooms) => set({ rooms }),
@@ -87,41 +96,52 @@ export const useChatStore = create<ChatState>((set, get) => ({
   },
 
   // Load rooms from API
-  loadRooms: async () => {
-    let { entityId, setIsLoadingRooms, setRooms } = get();
+  loadRooms: async (force = false) => {
+    const state = get();
+    let { entityId } = state;
 
     // Ensure entityId is initialized
-    if (!entityId) {
+    if (!entityId || entityId.trim() === "") {
       const newEntityId = getEntityId();
       set({ entityId: newEntityId });
       entityId = newEntityId;
     }
 
-    setIsLoadingRooms(true);
-    try {
-      const params = new URLSearchParams({ entityId });
-      const res = await fetch(`/api/eliza/rooms?${params.toString()}`);
-      if (res.ok) {
-        const data = await res.json();
-        if (Array.isArray(data.rooms)) {
-          const roomItems: RoomItem[] = data.rooms
-            .slice(0, 20)
-            .map((r: any) => ({
-              id: r.id,
-              characterId: r.characterId,
-              lastText: r.lastText,
-              lastTime: r.lastTime,
-              title: r.title, // AI-generated title
-            }));
-
-          setRooms(roomItems);
-        }
-      }
-    } catch (error) {
-      console.error("Error loading rooms:", error);
-    } finally {
-      setIsLoadingRooms(false);
+    // Deduplicate concurrent loadRooms calls
+    if (!force && state.loadRoomsPromise) {
+      return state.loadRoomsPromise;
     }
+
+    const loadPromise = (async () => {
+      set({ isLoadingRooms: true });
+      try {
+        const params = new URLSearchParams({ entityId });
+        const res = await fetch(`/api/eliza/rooms?${params.toString()}`);
+        if (res.ok) {
+          const data = await res.json();
+          if (Array.isArray(data.rooms)) {
+            const roomItems: RoomItem[] = data.rooms
+              .slice(0, 20)
+              .map((r: Record<string, unknown>) => ({
+                id: r.id as string,
+                characterId: r.characterId as string | undefined,
+                lastText: r.lastText as string | undefined,
+                lastTime: r.lastTime as number | undefined,
+                title: r.title as string | undefined,
+              }));
+
+            set({ rooms: roomItems });
+          }
+        }
+      } catch (error) {
+        console.error("Error loading rooms:", error);
+      } finally {
+        set({ isLoadingRooms: false, loadRoomsPromise: null });
+      }
+    })();
+
+    set({ loadRoomsPromise: loadPromise });
+    return loadPromise;
   },
 
   // Create new room
@@ -229,10 +249,11 @@ export const useChatStore = create<ChatState>((set, get) => ({
       rooms: [],
       roomId: null,
       isLoadingRooms: false,
-      entityId: "",
+      entityId: getEntityId(), // Re-initialize with new ID
       availableCharacters: [],
       selectedCharacterId: null,
       pendingMessage: null,
+      loadRoomsPromise: null,
     });
   },
 }));

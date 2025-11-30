@@ -7,6 +7,8 @@ import { elizaRoomCharactersRepository } from "@/db/repositories";
 import { userContextService } from "@/lib/eliza/user-context";
 import { runtimeFactory } from "@/lib/eliza/runtime-factory";
 import { createMessageHandler } from "@/lib/eliza/message-handler";
+import type { AgentModeConfig } from "@/lib/eliza/agent-mode-types";
+import { AgentMode, isValidAgentModeConfig } from "@/lib/eliza/agent-mode-types";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
@@ -28,13 +30,10 @@ export async function POST(
   const encoder = new TextEncoder();
 
   try {
-    // Step 1: Authentication & Context Building (single step, clean!)
-    const userContext = await authenticateAndBuildContext(request);
-
-    // Step 2: Parse and validate request
+    // Step 1: Parse and validate request
     const { roomId } = await ctx.params;
     const body = await request.json();
-    const { entityId, text, model } = body;
+    const { entityId, text, model, agentMode } = body;
 
     if (!roomId || !entityId || !text?.trim()) {
       return new Response(
@@ -43,9 +42,29 @@ export async function POST(
       );
     }
 
+    // Validate agentMode if provided, default to CHAT
+    let agentModeConfig: AgentModeConfig | undefined;
+    if (agentMode) {
+      if (!isValidAgentModeConfig(agentMode)) {
+        return new Response(
+          JSON.stringify({ error: "Invalid agent mode configuration" }),
+          { status: 400, headers: { "Content-Type": "application/json" } },
+        );
+      }
+      agentModeConfig = agentMode;
+      logger.info(`[Stream] Using agent mode: ${agentModeConfig.mode}`);
+    } else {
+      // Default to CHAT mode
+      agentModeConfig = { mode: AgentMode.CHAT };
+      logger.info(`[Stream] No agent mode specified, defaulting to CHAT`);
+    }
+
     if (model) {
       logger.debug("[Stream] User selected model:", model);
     }
+
+    // Step 2: Authentication & Context Building (single step, clean!)
+    const userContext = await authenticateAndBuildContext(request, agentModeConfig.mode);
 
     // Step 3: Rate limiting for anonymous users
     if (userContext.isAnonymous && userContext.sessionToken) {
@@ -69,10 +88,52 @@ export async function POST(
     }
 
     // Step 4: Get character assignment for room
-    const roomCharacter =
-      await elizaRoomCharactersRepository.findByRoomId(roomId);
-    const characterId = roomCharacter?.character_id || undefined;
-
+    const roomCharacter = await elizaRoomCharactersRepository.findByRoomId(roomId);
+    let characterId = roomCharacter?.character_id || undefined;
+    
+    // For BUILD mode, use the targetCharacterId from agent mode metadata
+    // This ensures we're editing the correct character, not the default
+    if (agentModeConfig.mode === AgentMode.BUILD && agentModeConfig.metadata?.targetCharacterId) {
+      characterId = agentModeConfig.metadata.targetCharacterId as string;
+      logger.info(
+        `[Stream] BUILD mode - Using character from metadata: ${characterId}`
+      );
+      
+      // Ensure room-character association exists for build mode
+      // Each user-character combo should have its own build room
+      if (!roomCharacter && characterId) {
+        // Create new association
+        try {
+          await elizaRoomCharactersRepository.create({
+            room_id: roomId,
+            character_id: characterId,
+            user_id: userContext.userId,
+          });
+          logger.info(
+            `[Stream] BUILD mode - Created room-character association: room ${roomId} → character ${characterId}`
+          );
+        } catch (error) {
+          logger.error(
+            `[Stream] BUILD mode - Failed to create room-character association:`,
+            error
+          );
+        }
+      } else if (roomCharacter && roomCharacter.character_id !== characterId) {
+        // Update existing association if character changed
+        try {
+          await elizaRoomCharactersRepository.update(roomId, characterId);
+          logger.info(
+            `[Stream] BUILD mode - Updated room-character association: room ${roomId} → character ${characterId}`
+          );
+        } catch (error) {
+          logger.error(
+            `[Stream] BUILD mode - Failed to update room-character association:`,
+            error
+          );
+        }
+      }
+    }
+    
     logger.info(
       `[Stream] Room ${roomId} - Character lookup:`,
       characterId
@@ -86,6 +147,13 @@ export async function POST(
         smallModel: model,
         largeModel: model,
       };
+      logger.info(`[Stream] User selected model: ${model}`);
+    } else if (userContext.modelPreferences) {
+      logger.info(
+        `[Stream] Using stored model preferences: ${userContext.modelPreferences.smallModel} / ${userContext.modelPreferences.largeModel}`,
+      );
+    } else {
+      logger.info(`[Stream] No model preference set, using defaults`);
     }
 
     // Apply character if specified
@@ -139,30 +207,48 @@ export async function POST(
             entityId,
             text,
             model,
+            agentModeConfig,
           });
 
+          // Extract content - the full Content object is now stored in memory
+          const messageContent = result.message.content;
           const responseText =
-            typeof result.message.content === "string"
-              ? result.message.content
-              : result.message.content?.text || "";
+            typeof messageContent === "string"
+              ? messageContent
+              : messageContent?.text || "";
 
-          // Extract attachments if present
-          const attachments =
-            typeof result.message.content === "object" &&
-            result.message.content?.attachments
-              ? result.message.content.attachments
-              : undefined;
+          // Build response content, preserving all Content fields
+          const responseContentPayload: Record<string, unknown> = {
+            text: responseText,
+            source: messageContent?.source || "agent",
+          };
+
+          // Include attachments if present
+          if (typeof messageContent === "object" && messageContent?.attachments) {
+            responseContentPayload.attachments = messageContent.attachments;
+          }
+
+          // Include actions if present (needed for frontend to detect APPLY_CHARACTER_CHANGES)
+          if (typeof messageContent === "object" && messageContent?.actions) {
+            responseContentPayload.actions = messageContent.actions;
+          }
+
+          // Include thought if present
+          if (typeof messageContent === "object" && messageContent?.thought) {
+            responseContentPayload.thought = messageContent.thought;
+          }
+
+          // Include metadata if present (for PROPOSE_CHARACTER_CHANGES with updatedCharacter)
+          if (typeof messageContent === "object" && messageContent?.metadata) {
+            responseContentPayload.metadata = messageContent.metadata;
+          }
 
           // Send agent response
           sendEvent("message", {
             id: result.message.id,
             entityId: result.message.entityId,
             agentId: result.message.agentId,
-            content: {
-              text: responseText,
-              source: "agent",
-              ...(attachments && { attachments }),
-            },
+            content: responseContentPayload,
             createdAt: result.message.createdAt || Date.now(),
             isAgent: true,
             type: "agent",
@@ -220,13 +306,14 @@ export async function POST(
  * Helper function to authenticate and build user context
  * Centralizes authentication and context creation
  */
-async function authenticateAndBuildContext(request: NextRequest) {
+async function authenticateAndBuildContext(request: NextRequest, agentMode: AgentMode) {
   try {
     // Try authenticated user first
     const authResult = await requireAuthOrApiKey(request);
     return await userContextService.buildContext({
       ...authResult,
       isAnonymous: false,
+      agentMode,
     });
   } catch (error) {
     // Fall back to anonymous user
@@ -239,6 +326,7 @@ async function authenticateAndBuildContext(request: NextRequest) {
       user: anonData.user,
       anonymousSession: anonData.session,
       isAnonymous: true,
+      agentMode,
     });
   }
 }

@@ -2,9 +2,9 @@
 
 import { useState, useCallback, useEffect, useMemo } from "react";
 import { BuildModeAssistant } from "@/components/chat/build-mode-assistant";
-import { AgentDnaEditor } from "@/components/chat/agent-dna-editor";
+import { CharacterEditor } from "@/components/chat/character-editor";
 import { toast } from "sonner";
-import { createCharacter, updateCharacter } from "@/app/actions/characters";
+import { createCharacter, updateCharacter, getCharacter } from "@/app/actions/characters";
 import type { ElizaCharacter } from "@/lib/types";
 import { useChatStore } from "@/stores/chat-store";
 import {
@@ -15,7 +15,7 @@ import {
 import { MessageSquare, FileCode2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import Image from "next/image";
-
+import { usePrivy } from "@privy-io/react-auth";
 interface CharacterBuildModeProps {
   initialCharacters: ElizaCharacter[];
 }
@@ -38,6 +38,8 @@ export function CharacterBuildMode({
   initialCharacters,
 }: CharacterBuildModeProps) {
   const { selectedCharacterId, setSelectedCharacterId } = useChatStore();
+  const { user } = usePrivy();
+  const userId = user?.id || "";
 
   // Mobile view state: 'assistant' or 'editor'
   const [mobileView, setMobileView] = useState<"assistant" | "editor">(
@@ -109,6 +111,23 @@ export function CharacterBuildMode({
     }
   }, [character, selectedCharacterId, setSelectedCharacterId]);
 
+  const handleCharacterRefresh = useCallback(async () => {
+    if (!character.id) {
+      console.warn("[CharacterBuildMode] No character ID to refresh");
+      return;
+    }
+
+    try {
+      const refreshedCharacter = await getCharacter(character.id);
+      
+      // Update local state with fresh data from database
+      setCharacter(refreshedCharacter);
+    } catch (error) {
+      console.error("[CharacterBuildMode] Error refreshing character:", error);
+      toast.error("Failed to refresh character data");
+    }
+  }, [character.id]);
+
   return (
     <div className="flex h-full w-full min-h-0 overflow-hidden flex-col">
       <Image
@@ -142,7 +161,7 @@ export function CharacterBuildMode({
           )}
         >
           <FileCode2 className="h-4 w-4" />
-          <span>Agent DNA</span>
+          <span>Editor</span>
         </button>
       </div>
 
@@ -153,11 +172,13 @@ export function CharacterBuildMode({
             <BuildModeAssistant
               character={character}
               onCharacterUpdate={handleCharacterUpdate}
+              onCharacterRefresh={handleCharacterRefresh}
+              userId={userId}
             />
           </div>
         ) : (
           <div className="flex h-full flex-col overflow-hidden">
-            <AgentDnaEditor
+            <CharacterEditor
               character={character}
               onChange={setCharacter}
               onSave={handleSave}
@@ -175,6 +196,8 @@ export function CharacterBuildMode({
               <BuildModeAssistant
                 character={character}
                 onCharacterUpdate={handleCharacterUpdate}
+                onCharacterRefresh={handleCharacterRefresh}
+                userId={userId}
               />
             </div>
           </ResizablePanel>
@@ -182,13 +205,13 @@ export function CharacterBuildMode({
           {/* Resizable Handle */}
           <ResizableHandle withHandle />
 
-          {/* Right Panel - Agent DNA Editor */}
+          {/* Right Panel - Character Editor */}
           <ResizablePanel defaultSize={50} minSize={30} maxSize={70}>
             <div
               className="flex h-full flex-col overflow-hidden border-l"
               style={{ borderColor: "#353535" }}
             >
-              <AgentDnaEditor
+              <CharacterEditor
                 character={character}
                 onChange={setCharacter}
                 onSave={handleSave}

@@ -1,11 +1,11 @@
 "use client";
 
 import { useState } from "react";
-import { CharacterFormClean } from "@/components/chat/character-form-clean";
+import { CharacterForm } from "@/components/character-builder";
 import { JsonEditor } from "@/components/character-creator/json-editor";
 import type { ElizaCharacter } from "@/lib/types";
 import { Button } from "@/components/ui/button";
-import { Download, Save, Settings, Zap, BookOpen, Upload } from "lucide-react";
+import { Download, Save, Settings, Zap, BookOpen, Upload, Sparkles } from "lucide-react";
 import { cn } from "@/lib/utils";
 import {
   BrandTabsResponsive,
@@ -13,28 +13,28 @@ import {
 } from "@/components/brand/brand-tabs-responsive";
 import { usePathname } from "next/navigation";
 
-interface AgentDnaEditorProps {
+interface CharacterEditorProps {
   character: ElizaCharacter;
   onChange: (character: ElizaCharacter) => void;
   onSave: () => Promise<void>;
 }
 
-type MainTab = "settings" | "model-calls" | "memories" | "uploads";
+type MainTab = "character" | "model-calls" | "memories" | "uploads";
 
-export function AgentDnaEditor({
+export function CharacterEditor({
   character,
   onChange,
   onSave,
-}: AgentDnaEditorProps) {
-  const [activeTab, setActiveTab] = useState<MainTab>("settings");
+}: CharacterEditorProps) {
+  const [activeTab, setActiveTab] = useState<MainTab>("character");
   const [showJson, setShowJson] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
 
   const tabs: TabItem[] = [
     {
-      value: "settings",
-      label: "Settings",
-      icon: <Settings className="h-4 w-4" />,
+      value: "character",
+      label: "Character",
+      icon: <Sparkles className="h-4 w-4" />,
     },
     {
       value: "model-calls",
@@ -90,13 +90,15 @@ export function AgentDnaEditor({
                 "h-5 w-5",
               ])}
             />
+            <h2 className="text-xl font-bold text-white">Character Builder</h2>
+            <Sparkles className="h-5 w-5 text-[#FF5800]" />
           </div>
           <div className="flex items-center gap-2">
             <Button
               variant="outline"
               size="sm"
               onClick={handleExport}
-              className="rounded-none border-white/10 bg-transparent text-white hover:bg-white/5"
+              className="rounded-xl border-white/10 bg-transparent text-white hover:bg-white/5"
             >
               <Download className="mr-2 h-4 w-4" />
               Export
@@ -123,7 +125,7 @@ export function AgentDnaEditor({
           </div>
         </div>
         <p className="text-sm text-white/60">
-          Configure your AI agent&apos;s behaviour and capabilities.
+          Design your AI agent&apos;s personality, voice, and behavior.
         </p>
       </div>
 
@@ -133,7 +135,7 @@ export function AgentDnaEditor({
           {/* Tabs - Dropdown on mobile, tabs on desktop */}
           <div className="flex-1 min-w-0">
             <BrandTabsResponsive
-              id="agent-dna-tabs"
+              id="character-editor-tabs"
               tabs={tabs}
               value={activeTab}
               onValueChange={(value) => setActiveTab(value as MainTab)}
@@ -176,8 +178,8 @@ export function AgentDnaEditor({
           />
         ) : (
           <>
-            {activeTab === "settings" && (
-              <CharacterFormClean character={character} onChange={onChange} />
+            {activeTab === "character" && (
+              <CharacterForm character={character} onChange={onChange} />
             )}
             {activeTab === "model-calls" && (
               <div className="flex h-full items-center justify-center p-6">
@@ -224,3 +226,4 @@ export function AgentDnaEditor({
     </div>
   );
 }
+
