@@ -1,7 +1,46 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireAuthOrApiKey } from "@/lib/auth";
+import { z } from "zod";
 
 export const dynamic = "force-dynamic";
+
+// SECURITY FIX: Validate query parameters to prevent DoS attacks
+// Whitelist allowed values and enforce length limits
+const queryParamsSchema = z.object({
+  category: z
+    .enum([
+      "all",
+      "finance",
+      "utilities",
+      "platform",
+      "search",
+      "communication",
+      "productivity",
+      "data",
+      "ai",
+    ])
+    .optional()
+    .default("all")
+    .describe("Filter by MCP server category"),
+  status: z
+    .enum(["all", "live", "coming_soon", "maintenance"])
+    .optional()
+    .default("all")
+    .describe("Filter by server status"),
+  limit: z
+    .number()
+    .int()
+    .min(1)
+    .max(100)
+    .optional()
+    .default(100)
+    .describe("Maximum number of results to return"),
+  search: z
+    .string()
+    .max(100)
+    .optional()
+    .describe("Search term for filtering by name or description"),
+});
 
 /**
  * MCP Server Registry Entry
@@ -226,6 +265,36 @@ export async function GET(request: NextRequest) {
         ? `${request.headers.get("x-forwarded-proto") || "https"}://${request.headers.get("host")}`
         : "http://localhost:3000");
 
+    // SECURITY FIX: Validate and sanitize query parameters
+    // This prevents DoS attacks from extremely long strings or invalid values
+    const rawParams = {
+      category: request.nextUrl.searchParams.get("category") || "all",
+      status: request.nextUrl.searchParams.get("status") || "all",
+      limit: request.nextUrl.searchParams.get("limit")
+        ? parseInt(request.nextUrl.searchParams.get("limit")!, 10)
+        : 100,
+      search: request.nextUrl.searchParams.get("search") || undefined,
+    };
+
+    // Validate query parameters with Zod schema
+    const validationResult = queryParamsSchema.safeParse(rawParams);
+
+    if (!validationResult.success) {
+      return NextResponse.json(
+        {
+          error: "Invalid query parameters",
+          details: validationResult.error.issues.map((issue) => ({
+            field: issue.path.join("."),
+            message: issue.message,
+            received: issue.received,
+          })),
+        },
+        { status: 400 },
+      );
+    }
+
+    const { category, status, limit, search } = validationResult.data;
+
     // Process registry entries with base URL
     const registry = MCP_REGISTRY.map((entry) => ({
       ...entry,
@@ -246,29 +315,50 @@ export async function GET(request: NextRequest) {
         : `${baseUrl}${entry.endpoint}`,
     }));
 
-    // Filter by category if provided
-    const category = request.nextUrl.searchParams.get("category");
-    const status = request.nextUrl.searchParams.get("status");
-
     let filteredRegistry = registry;
 
+    // Apply category filter with validated input
     if (category && category !== "all") {
       filteredRegistry = filteredRegistry.filter(
         (e) => e.category === category,
       );
     }
 
+    // Apply status filter with validated input
     if (status && status !== "all") {
       filteredRegistry = filteredRegistry.filter((e) => e.status === status);
     }
 
-    // Get unique categories
+    // Apply search filter if provided (case-insensitive)
+    if (search && search.trim().length > 0) {
+      const searchLower = search.toLowerCase().trim();
+      filteredRegistry = filteredRegistry.filter(
+        (e) =>
+          e.name.toLowerCase().includes(searchLower) ||
+          e.description.toLowerCase().includes(searchLower) ||
+          e.features.some((f) => f.toLowerCase().includes(searchLower)),
+      );
+    }
+
+    // Apply limit with validated input
+    filteredRegistry = filteredRegistry.slice(0, limit);
+
+    // Get unique categories from the full registry (not filtered)
     const categories = [...new Set(MCP_REGISTRY.map((e) => e.category))];
+    const statuses = [...new Set(MCP_REGISTRY.map((e) => e.status))];
 
     return NextResponse.json({
       registry: filteredRegistry,
       categories,
+      statuses,
       total: filteredRegistry.length,
+      totalInRegistry: MCP_REGISTRY.length,
+      appliedFilters: {
+        category: category !== "all" ? category : null,
+        status: status !== "all" ? status : null,
+        search: search || null,
+        limit,
+      },
       isAuthenticated,
     });
   } catch (error) {
