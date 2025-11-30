@@ -71,6 +71,25 @@ export async function handleMessage({
     logger.debug("[ChatPlayground] Saving message to memory");
     await runtime.createMemory(message, "messages");
 
+    // RACE CONDITION FIX: Wait for MCP initialization BEFORE composing state
+    // This ensures the MCP provider data is fresh and not stale
+    const mcpService = runtime.getService("mcp") as
+      | {
+          waitForInitialization?: () => Promise<void>;
+          getProviderData?: () => unknown;
+        }
+      | undefined;
+
+    if (mcpService?.waitForInitialization) {
+      logger.debug(
+        "[ChatPlayground] Waiting for MCP service initialization before state composition...",
+      );
+      await mcpService.waitForInitialization();
+      logger.debug(
+        "[ChatPlayground] MCP service initialization complete, proceeding with state composition",
+      );
+    }
+
     // Compose state with providers including MCP for tool access
     logger.info(
       `[ChatPlayground] Processing message for character: ${runtime.character.name} (ID: ${runtime.character.id})`,
@@ -82,7 +101,7 @@ export async function handleMessage({
       "SHORT_TERM_MEMORY", // Recent conversation
       "LONG_TERM_MEMORY", // User facts and knowledge
       "CHARACTER",
-      "MCP", // MCP tools and resources
+      "MCP", // MCP tools and resources - now guaranteed to be fresh
     ]);
 
     // Check if MCP action should be triggered
@@ -247,20 +266,9 @@ async function checkAndRunMcpAction(
   callback?: HandlerCallback,
 ): Promise<boolean> {
   try {
-    // Try to get the MCP service and wait for its initialization
-    const mcpService = runtime.getService("mcp") as
-      | {
-          waitForInitialization?: () => Promise<void>;
-          getProviderData?: () => unknown;
-        }
-      | undefined;
-    if (mcpService?.waitForInitialization) {
-      logger.debug(
-        "[ChatPlayground] Waiting for MCP service initialization...",
-      );
-      await mcpService.waitForInitialization();
-      logger.debug("[ChatPlayground] MCP service initialization complete");
-    }
+    // RACE CONDITION FIX: Since we now wait for MCP initialization before
+    // composing state (see handleMessage), we can rely on state data being fresh
+    // and don't need to re-check the service directly
 
     // Check if MCP data is available in state
     const stateData = state.data as Record<string, unknown> | undefined;
@@ -269,22 +277,8 @@ async function checkAndRunMcpAction(
       | { data?: { mcp?: Record<string, unknown> } }
       | undefined;
 
-    // Also check directly from the service in case state wasn't composed after init
-    let hasMcpServers =
+    const hasMcpServers =
       mcpProvider?.data?.mcp && Object.keys(mcpProvider.data.mcp).length > 0;
-
-    if (!hasMcpServers && mcpService?.getProviderData) {
-      const serviceData = mcpService.getProviderData() as {
-        data?: { mcp?: Record<string, unknown> };
-      };
-      hasMcpServers =
-        serviceData?.data?.mcp && Object.keys(serviceData.data.mcp).length > 0;
-      if (hasMcpServers) {
-        logger.info(
-          "[ChatPlayground] MCP servers found via service (state was stale)",
-        );
-      }
-    }
 
     if (!hasMcpServers) {
       logger.debug(
