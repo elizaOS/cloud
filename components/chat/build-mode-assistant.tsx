@@ -12,6 +12,8 @@ import rehypeHighlight from "rehype-highlight";
 import "highlight.js/styles/github-dark.css";
 import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
+import { cn } from "@/lib/utils";
+import { usePathname } from "next/navigation";
 
 interface BuildModeAssistantProps {
   character: ElizaCharacter;
@@ -102,7 +104,7 @@ Tell me about your vision!`;
   const scrollToBottom = useCallback((smooth = false) => {
     if (scrollAreaRef.current) {
       const viewport = scrollAreaRef.current.querySelector(
-        "[data-radix-scroll-area-viewport]",
+        "[data-radix-scroll-area-viewport]"
       );
       if (viewport) {
         // Use requestAnimationFrame to ensure DOM has updated
@@ -157,7 +159,7 @@ Tell me about your vision!`;
         } catch {
           try {
             const fieldMatches = jsonText.matchAll(
-              /"(\w+)":\s*("(?:[^"\\]|\\.)*"|true|false|null|\d+(?:\.\d+)?|\[[^\]]*\])/g,
+              /"(\w+)":\s*("(?:[^"\\]|\\.)*"|true|false|null|\d+(?:\.\d+)?|\[[^\]]*\])/g
             );
             const partialUpdates: Record<string, unknown> = {};
 
@@ -219,6 +221,9 @@ Tell me about your vision!`;
       toast.error("Failed to copy message");
     }
   };
+
+  const pathname = usePathname();
+  const mode = pathname.includes("/build") ? "build" : "chat";
 
   return (
     <div className="flex h-full w-full min-h-0 flex-col bg-[#0A0A0A]">
@@ -492,7 +497,9 @@ Tell me about your vision!`;
               <div className="absolute top-0 left-0 right-0 h-[2px] overflow-hidden pointer-events-none z-10">
                 {/* Primary scanner */}
                 <div
-                  className="absolute h-full w-24 bg-gradient-to-r from-transparent via-[#FF5800] to-transparent"
+                  className={cn([
+                    `absolute h-full w-24 bg-gradient-to-r from-transparent ${mode === "build" ? "via-[#E500FF]" : "via-[#FF5800]"} to-transparent`,
+                  ])}
                   style={{
                     animation:
                       "visor-scan 4.8s cubic-bezier(0.4, 0, 0.6, 1) infinite",
@@ -502,7 +509,7 @@ Tell me about your vision!`;
                 />
                 {/* Secondary scanner for organic feel */}
                 <div
-                  className="absolute h-full w-16 bg-gradient-to-r from-transparent via-[#FF5800]/60 to-transparent"
+                  className={`absolute h-full w-16 bg-gradient-to-r from-transparent ${mode === "build" ? "via-[#E500FF]" : "via-[#FF5800]/60"} to-transparent`}
                   style={{
                     animation:
                       "visor-scan-delayed 6.2s cubic-bezier(0.3, 0.1, 0.7, 0.9) infinite 1.5s",
