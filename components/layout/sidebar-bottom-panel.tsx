@@ -5,7 +5,7 @@
 
 "use client";
 
-import { usePrivy, useLogout } from "@privy-io/react-auth";
+import { usePrivy } from "@privy-io/react-auth";
 import { useRouter, usePathname } from "next/navigation";
 import { useCreditsStream } from "@/hooks/use-credits-stream";
 import {
@@ -27,98 +27,11 @@ interface SidebarBottomPanelProps {
 
 export function SidebarBottomPanel({ className }: SidebarBottomPanelProps) {
   const { ready, authenticated, user } = usePrivy();
-  const { logout } = useLogout();
   const router = useRouter();
   const pathname = usePathname();
   const { creditBalance, isLoading: loadingCredits } = useCreditsStream();
   const { clearChatData } = useChatStore();
-
-  // Get user details
-  const getUserWallet = () => {
-    if (user?.linkedAccounts) {
-      for (const account of user.linkedAccounts) {
-        if (
-          account.type === "wallet" &&
-          "address" in account &&
-          typeof account.address === "string"
-        ) {
-          return account.address;
-        }
-      }
-    }
-    return null;
-  };
-
-  const getUserEmail = () => {
-    if (user?.email?.address) {
-      return user.email.address;
-    }
-    if (user?.linkedAccounts) {
-      for (const account of user.linkedAccounts) {
-        if ("address" in account && account.type === "email") {
-          return account.address;
-        }
-        if ("email" in account && typeof account.email === "string") {
-          return account.email;
-        }
-      }
-    }
-    return null;
-  };
-
-  const getUserName = () => {
-    if (user?.google?.name) {
-      return user.google.name;
-    }
-    if (user?.github?.username) {
-      return user.github.username;
-    }
-    if (user?.linkedAccounts) {
-      for (const account of user.linkedAccounts) {
-        if ("name" in account && typeof account.name === "string") {
-          return account.name;
-        }
-        if ("username" in account && typeof account.username === "string") {
-          return account.username;
-        }
-      }
-    }
-    const email = getUserEmail();
-    if (email) {
-      return email.split("@")[0];
-    }
-    const wallet = getUserWallet();
-    if (wallet) {
-      return `${wallet.substring(0, 6)}...${wallet.substring(wallet.length - 4)}`;
-    }
-    return "User";
-  };
-
-  const getUserIdentifier = () => {
-    const wallet = getUserWallet();
-    if (wallet) {
-      return `${wallet.substring(0, 8)}...${wallet.substring(wallet.length - 6)}`;
-    }
-    const email = getUserEmail();
-    if (email) {
-      return email;
-    }
-    return "No identifier";
-  };
-
-  // Handle sign out
-  const onSignOut = async () => {
-    try {
-      // Clear chat data (rooms, entityId, localStorage)
-      clearChatData();
-
-      await logout();
-      router.push("/");
-    } catch (error) {
-      console.error("Logout error:", error);
-      router.push("/");
-    }
-  };
+  const mode = pathname.includes("/build") ? "build" : "chat";
 
   // If not authenticated, show sign up/login CTA
   if (!ready || !authenticated || !user) {
@@ -272,7 +185,12 @@ export function SidebarBottomPanel({ className }: SidebarBottomPanelProps) {
       {/* Balance Display - Always Visible */}
       <Link className="w-full flex place-self-center" href="/dashboard/billing">
         <div
-          className="w-full relative hover:bg-[#FF5800]/40 hover:shadow-[0_0_20px_rgba(255,88,0,0.4)] active:bg-[#FF5800]/60 bg-[#FF5800]/70 place-items-center backdrop-blur-3xl z-10 py-4 border-b border-white/10 transition-all duration-300 ease-in-out  hover:backdrop-blur-2xl"
+          className={cn([
+            mode === "chat"
+              ? "hover:bg-[#FF5800]/40 active:bg-[#FF5800]/60 bg-[#FF5800]/70"
+              : "hover:bg-[#E500FF]/40 active:bg-[#E500FF]/60 bg-[#E500FF]/70",
+            `w-full relative hover:shadow-[0_0_20px_rgba(255,88,0,0.4)]  place-items-center backdrop-blur-3xl z-10 py-4 border-b border-white/10 transition-all duration-300 ease-in-out  hover:backdrop-blur-2xl`,
+          ])}
           style={{
             fontFamily: "var(--font-roboto-mono)",
             fontWeight: 400,
@@ -286,7 +204,9 @@ export function SidebarBottomPanel({ className }: SidebarBottomPanelProps) {
             </div>
           ) : (
             <div className="flex items-center gap-2">
-              <span className="select-none text-white text-[25px]">$</span>
+              <span className="select-none font-bold text-white text-[25px]">
+                $
+              </span>
               <span className="select-none text-[25px] font-bold text-white">
                 {creditBalance !== null
                   ? Number(creditBalance).toFixed(2)
