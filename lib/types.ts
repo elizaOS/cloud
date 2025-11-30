@@ -88,6 +88,7 @@ export interface ElizaCharacter {
   adjectives?: string[];
   knowledge?: (string | { path: string; shared?: boolean })[];
   plugins?: string[];
+  avatarUrl?: string;
   settings?: Record<
     string,
     string | boolean | number | Record<string, unknown>
@@ -98,4 +99,5 @@ export interface ElizaCharacter {
     chat?: string[];
     post?: string[];
   };
+  avatar_url?: string;
 }
