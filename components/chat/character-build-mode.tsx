@@ -125,7 +125,7 @@ export function CharacterBuildMode({
           className={cn(
             "flex-1 flex items-center justify-center gap-2 px-4 py-3 text-sm font-medium transition-colors",
             mobileView === "assistant"
-              ? "bg-[#FF5800] text-white"
+              ? "bg-[#E500FF] text-white"
               : "text-white/60 hover:text-white hover:bg-white/5"
           )}
         >
@@ -137,7 +137,7 @@ export function CharacterBuildMode({
           className={cn(
             "flex-1 flex items-center justify-center gap-2 px-4 py-3 text-sm font-medium transition-colors border-l border-[#353535]",
             mobileView === "editor"
-              ? "bg-[#FF5800] text-white"
+              ? "bg-[#E500FF] text-white"
               : "text-white/60 hover:text-white hover:bg-white/5"
           )}
         >
