@@ -18,10 +18,23 @@ export class UserCharactersRepository {
   }
 
   async listByUser(userId: string): Promise<UserCharacter[]> {
-    return await db.query.userCharacters.findMany({
-      where: eq(userCharacters.user_id, userId),
-      orderBy: desc(userCharacters.created_at),
-    });
+    // Include characters that user owns OR has interacted with via chat rooms
+    // This allows affiliate-created characters to appear in the character selector
+    const interactedCharacterIds = db
+      .selectDistinct({ character_id: elizaRoomCharactersTable.character_id })
+      .from(elizaRoomCharactersTable)
+      .where(eq(elizaRoomCharactersTable.user_id, userId));
+
+    return await db
+      .selectDistinct()
+      .from(userCharacters)
+      .where(
+        or(
+          eq(userCharacters.user_id, userId),
+          inArray(userCharacters.id, interactedCharacterIds)
+        )
+      )
+      .orderBy(desc(userCharacters.created_at));
   }
 
   async listByOrganization(organizationId: string): Promise<UserCharacter[]> {
