@@ -5,8 +5,7 @@ import { useState } from "react";
 import { Slot } from "@radix-ui/react-slot";
 import { cn } from "@/lib/utils";
 
-export interface LockOnButtonProps
-  extends React.ButtonHTMLAttributes<HTMLButtonElement> {
+export interface LockOnButtonProps extends React.ButtonHTMLAttributes<HTMLButtonElement> {
   children?: React.ReactNode;
   icon?: React.ReactNode;
   size?: "sm" | "md" | "lg" | "icon";

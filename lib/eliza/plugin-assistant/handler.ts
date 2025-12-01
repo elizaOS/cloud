@@ -37,7 +37,7 @@ import type { MessageReceivedHandlerParams } from "../shared/types";
 
 /**
  * Chat Assistant Workflow Handler
- * 
+ *
  * Planning-based approach with action execution capabilities.
  * Optimized for complex tasks requiring tools and context gathering.
  */
@@ -176,7 +176,9 @@ export async function handleMessage({
 
       // PHASE 4: Generate final response using updated state
       const responsePhase = shouldRespondNow ? "Phase 2" : "Phase 3";
-      logger.info(`[ChatAssistant] ${responsePhase}: Generating final response`);
+      logger.info(
+        `[ChatAssistant] ${responsePhase}: Generating final response`,
+      );
 
       // Compose system prompt for response generation
       const finalSystemPrompt = composePromptFromState({

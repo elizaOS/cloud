@@ -14,11 +14,11 @@ import { MESSAGE_EXAMPLES_FORMAT_INSTRUCTIONS } from "../providers/character-gui
 
 /**
  * PROPOSE_CHARACTER_CHANGES Action
- * 
+ *
  * Generates and returns a fully updated character JSON based on user requests.
  * Provides conversational explanation of changes (what/why/how) plus complete character JSON.
  * References best practices and research.
- * 
+ *
  * Uses reasoning trace from planning phase to inform recommendations.
  */
 
@@ -99,7 +99,11 @@ export const proposeCharacterChangesAction = {
   name: "PROPOSE_CHARACTER_CHANGES",
   description:
     "User needs guidance on what to update in their character OR requests direct modifications. Use when user requests changes: 'make it more funny', 'add traits', 'improve the bio', 'update the system prompt to be more engaging', etc. Provides conversational explanation with best practices AND returns the fully updated character JSON. Does NOT save changes - only generates the updated character.",
-  validate: async (_runtime: IAgentRuntime, _message: Memory, state?: State) => {
+  validate: async (
+    _runtime: IAgentRuntime,
+    _message: Memory,
+    state?: State,
+  ) => {
     return true;
   },
   handler: async (
@@ -110,7 +114,9 @@ export const proposeCharacterChangesAction = {
     callback: HandlerCallback,
   ): Promise<void> => {
     try {
-      logger.info("[PROPOSE_CHARACTER_CHANGES] 🎨 Generating conversational proposal");
+      logger.info(
+        "[PROPOSE_CHARACTER_CHANGES] 🎨 Generating conversational proposal",
+      );
 
       state = await runtime.composeState(message, [
         "SHORT_TERM_MEMORY",
@@ -139,17 +145,22 @@ export const proposeCharacterChangesAction = {
       const response = await runtime.useModel(ModelType.TEXT_LARGE, { prompt });
 
       logger.debug("*** RAW LLM RESPONSE ***\n", response);
-  
+
       const parsedResponse = parseKeyValueXml(response);
 
       // Restore original system prompt
       runtime.character.system = originalSystemPrompt;
 
-      console.log("parsedResponse character we wanna see", parsedResponse?.character);
+      console.log(
+        "parsedResponse character we wanna see",
+        parsedResponse?.character,
+      );
 
       if (!parsedResponse?.text || !parsedResponse?.character) {
-        logger.warn("[PROPOSE_CHARACTER_CHANGES] Failed to parse response - missing required fields in parsed XML");
-        await callback({ 
+        logger.warn(
+          "[PROPOSE_CHARACTER_CHANGES] Failed to parse response - missing required fields in parsed XML",
+        );
+        await callback({
           text: `Failed to parse LLM response: Missing 'text' or 'character' field in XML output. Raw response may be malformed.`,
           error: true,
         });
@@ -161,16 +172,22 @@ export const proposeCharacterChangesAction = {
       try {
         updatedCharacter = JSON.parse(parsedResponse.character);
       } catch (parseError) {
-        const errorMsg = parseError instanceof Error ? parseError.message : String(parseError);
-        logger.error("[PROPOSE_CHARACTER_CHANGES] Failed to parse character JSON:", errorMsg);
-        await callback({ 
+        const errorMsg =
+          parseError instanceof Error ? parseError.message : String(parseError);
+        logger.error(
+          "[PROPOSE_CHARACTER_CHANGES] Failed to parse character JSON:",
+          errorMsg,
+        );
+        await callback({
           text: `Failed to parse character JSON: ${errorMsg}`,
           error: true,
         });
         return;
       }
 
-      logger.info("[PROPOSE_CHARACTER_CHANGES] ✅ Proposal generated successfully with full character JSON");
+      logger.info(
+        "[PROPOSE_CHARACTER_CHANGES] ✅ Proposal generated successfully with full character JSON",
+      );
 
       // Callback to frontend with the conversational proposal AND the full character JSON
       await callback({
@@ -188,9 +205,9 @@ export const proposeCharacterChangesAction = {
           message: err.message,
           stack: err.stack,
         },
-        "[PROPOSE_CHARACTER_CHANGES] Exception during proposal"
+        "[PROPOSE_CHARACTER_CHANGES] Exception during proposal",
       );
-      await callback({ 
+      await callback({
         text: `Exception during proposal generation: ${err.message}`,
         error: true,
       });
@@ -244,4 +261,3 @@ export const proposeCharacterChangesAction = {
     ],
   ] as ActionExample[][],
 } as Action;
-

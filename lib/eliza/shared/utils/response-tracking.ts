@@ -1,6 +1,6 @@
 /**
  * Response Tracking Utilities
- * 
+ *
  * Manages response ID tracking to prevent race conditions when multiple
  * messages are being processed simultaneously.
  */
@@ -75,4 +75,3 @@ export async function isResponseStillValid(
   const currentResponseId = await getLatestResponseId(runtime, roomId);
   return currentResponseId === responseId;
 }
-

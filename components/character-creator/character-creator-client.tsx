@@ -141,7 +141,7 @@ export function CharacterCreatorClient({
   // Initialize a blank character in database for BUILD mode
   const initializeBlankCharacter = useCallback(async () => {
     if (isInitializingCharacter) return;
-    
+
     setIsInitializingCharacter(true);
     try {
       // Create a minimal character record with a temporary name
@@ -160,7 +160,7 @@ export function CharacterCreatorClient({
       };
 
       const saved = await createCharacter(tempCharacter);
-      
+
       if (saved.id) {
         setCharacter(saved);
         setSelectedId(saved.id);
@@ -180,7 +180,7 @@ export function CharacterCreatorClient({
   // Refresh character data from database
   const handleCharacterRefresh = useCallback(async () => {
     if (!selectedId) return;
-    
+
     try {
       // Fetch updated character from server
       const response = await fetch(`/api/my-agents/${selectedId}`);
@@ -287,8 +287,9 @@ export function CharacterCreatorClient({
                   Start Building Your Character
                 </h2>
                 <p className="text-white/60 mb-8 max-w-md">
-                  Chat with our AI assistant to design your character step by step.
-                  The assistant will help you define personality, knowledge, and capabilities.
+                  Chat with our AI assistant to design your character step by
+                  step. The assistant will help you define personality,
+                  knowledge, and capabilities.
                 </p>
                 <BrandButton
                   variant="primary"
@@ -296,7 +297,9 @@ export function CharacterCreatorClient({
                   disabled={isInitializingCharacter}
                   className="px-8"
                 >
-                  {isInitializingCharacter ? "Initializing..." : "Start Chat Builder"}
+                  {isInitializingCharacter
+                    ? "Initializing..."
+                    : "Start Chat Builder"}
                 </BrandButton>
                 <div className="mt-6 text-sm text-white/40">
                   Or use the traditional editor →

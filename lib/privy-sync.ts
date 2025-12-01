@@ -213,9 +213,8 @@ export async function syncUserFromPrivy(
           is_active: true,
         });
 
-        const { organizationInvitesRepository } = await import(
-          "@/db/repositories"
-        );
+        const { organizationInvitesRepository } =
+          await import("@/db/repositories");
         await organizationInvitesRepository.markAsAccepted(
           pendingInvite.id,
           newUser.id,

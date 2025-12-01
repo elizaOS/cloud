@@ -1,8 +1,8 @@
-import type { IAgentRuntime, Memory, Provider, State } from '@elizaos/core';
+import type { IAgentRuntime, Memory, Provider, State } from "@elizaos/core";
 
 /**
  * Character Guide Provider (Lightweight)
- * 
+ *
  * Concise field reference for character design.
  * Shows: JSON field → template variable → actual prompt output
  */
@@ -98,7 +98,7 @@ Alex is also interested in startup culture and tech trends.
 
 /**
  * MESSAGE EXAMPLES FORMAT
- * 
+ *
  * MUST be injected AFTER composePromptFromState to preserve {{user1}} placeholder.
  * composePromptFromState wipes ALL {{placeholder}} patterns.
  */
@@ -141,8 +141,9 @@ Alex: Analysis paralysis. Pick reversible and iterate.
 `;
 
 export const characterGuideProvider: Provider = {
-  name: 'CHARACTER_GUIDE',
-  description: 'Lightweight character field reference with JSON to prompt mapping',
+  name: "CHARACTER_GUIDE",
+  description:
+    "Lightweight character field reference with JSON to prompt mapping",
   get: async (_runtime: IAgentRuntime, _message: Memory, _state: State) => {
     return {
       values: {

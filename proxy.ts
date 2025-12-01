@@ -32,6 +32,8 @@ const publicPaths = [
   "/api/privy/webhook", // Privy webhook endpoint
   "/api/cron", // Cron endpoints (protected by CRON_SECRET)
   "/api/v1/cron", // V1 Cron endpoints (protected by CRON_SECRET)
+  "/api/mcp/demos", // Public demo MCP servers (GET returns server info)
+  "/api/mcp/list", // Public MCP server list
 ];
 
 // Paths that should be checked for authentication

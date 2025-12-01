@@ -29,7 +29,7 @@ const messageReceivedHandler = async ({
   // Default to CHAT mode if no workflow specified
 
   logger.info(
-    `[ChatPlayground] Handling message for agent: ${runtime.agentId}, room: ${message.roomId}`
+    `[ChatPlayground] Handling message for agent: ${runtime.agentId}, room: ${message.roomId}`,
   );
   logger.debug(`[ChatPlayground] MESSAGE RECEIVED:`, JSON.stringify(message));
 
@@ -42,7 +42,7 @@ const messageReceivedHandler = async ({
   } catch (error) {
     const errorMessage = error instanceof Error ? error.message : String(error);
     logger.error(
-      `[ChatPlaygroundPlugin] Error in message received handler: ${errorMessage}`
+      `[ChatPlaygroundPlugin] Error in message received handler: ${errorMessage}`,
     );
     throw error;
   }
@@ -67,7 +67,7 @@ const events = {
   [EventType.MESSAGE_SENT]: [
     async (payload: MessagePayload) => {
       logger.debug(
-        `[ChatPlaygroundPlugin] Message sent: ${payload.message.content.text}`
+        `[ChatPlaygroundPlugin] Message sent: ${payload.message.content.text}`,
       );
     },
   ],

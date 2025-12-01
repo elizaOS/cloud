@@ -277,9 +277,8 @@ async function getCloudWatchLogs(
   const logGroupName = `/ecs/elizaos-user-${containerName}`;
 
   try {
-    const { DescribeLogStreamsCommand } = await import(
-      "@aws-sdk/client-cloudwatch-logs"
-    );
+    const { DescribeLogStreamsCommand } =
+      await import("@aws-sdk/client-cloudwatch-logs");
 
     const streamsResponse = await client.send(
       new DescribeLogStreamsCommand({
