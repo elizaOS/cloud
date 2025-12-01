@@ -99,4 +99,5 @@ export interface ElizaCharacter {
     chat?: string[];
     post?: string[];
   };
+  avatar_url?: string;
 }

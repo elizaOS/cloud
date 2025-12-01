@@ -13,7 +13,7 @@ export async function uploadCharacterAvatar(formData: FormData) {
   try {
     const user = await requireAuthWithOrg();
     const file = formData.get("file") as File;
-    
+
     if (!file) {
       return { success: false, error: "No file provided" };
     }
@@ -31,9 +31,9 @@ export async function uploadCharacterAvatar(formData: FormData) {
     return { success: true, url };
   } catch (error) {
     console.error("Error uploading character avatar:", error);
-    return { 
-      success: false, 
-      error: error instanceof Error ? error.message : "Failed to upload avatar" 
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : "Failed to upload avatar",
     };
   }
 }

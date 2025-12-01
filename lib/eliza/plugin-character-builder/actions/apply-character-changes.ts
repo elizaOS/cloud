@@ -218,7 +218,7 @@ const confirmTemplate = `
  */
 function mapChangesToDbFormat(
   changes: Record<string, unknown>,
-  currentCharacter: Record<string, unknown>
+  currentCharacter: Record<string, unknown>,
 ): Record<string, unknown> {
   const dbUpdates: Record<string, unknown> = {};
 
@@ -254,11 +254,11 @@ function mapChangesToDbFormat(
     if (normalized) {
       dbUpdates.message_examples = normalized;
       logger.info(
-        `[mapChangesToDbFormat] Normalized ${normalized.length} message example conversations`
+        `[mapChangesToDbFormat] Normalized ${normalized.length} message example conversations`,
       );
     } else {
       logger.warn(
-        `[mapChangesToDbFormat] Failed to normalize messageExamples, keeping original: ${JSON.stringify(changes.messageExamples)}`
+        `[mapChangesToDbFormat] Failed to normalize messageExamples, keeping original: ${JSON.stringify(changes.messageExamples)}`,
       );
       dbUpdates.message_examples = changes.messageExamples;
     }
@@ -301,7 +301,7 @@ function mapChangesToDbFormat(
       `[mapChangesToDbFormat] Style update:\n` +
         `  Current: ${JSON.stringify(currentStyle, null, 2)}\n` +
         `  Changes: ${JSON.stringify({ "style.all": changes["style.all"], "style.chat": changes["style.chat"] }, null, 2)}\n` +
-        `  Result: ${JSON.stringify(styleUpdate, null, 2)}`
+        `  Result: ${JSON.stringify(styleUpdate, null, 2)}`,
     );
   }
 
@@ -317,7 +317,7 @@ export const applyCharacterChangesAction = {
   validate: async (
     _runtime: IAgentRuntime,
     _message: Memory,
-    state?: State
+    state?: State,
   ) => {
     return true;
   },
@@ -326,7 +326,7 @@ export const applyCharacterChangesAction = {
     message: Memory,
     state: State,
     _options: Record<string, unknown>,
-    callback: HandlerCallback
+    callback: HandlerCallback,
   ): Promise<void> => {
     try {
       logger.info("[APPLY_CHARACTER_CHANGES] 💾 Extracting and saving changes");
@@ -371,7 +371,7 @@ export const applyCharacterChangesAction = {
 
       if (!extraction?.changes) {
         logger.error(
-          "[APPLY_CHARACTER_CHANGES] Failed to extract changes from LLM response"
+          "[APPLY_CHARACTER_CHANGES] Failed to extract changes from LLM response",
         );
         await callback({
           text: "Failed to extract changes: No changes field in LLM extraction response. The model may not have understood what to extract.",
@@ -389,7 +389,7 @@ export const applyCharacterChangesAction = {
           parseError instanceof Error ? parseError.message : String(parseError);
         logger.error(
           "[APPLY_CHARACTER_CHANGES] Failed to parse changes JSON:",
-          errorMsg
+          errorMsg,
         );
         await callback({
           text: `Failed to parse extracted changes as JSON: ${errorMsg}`,
@@ -399,10 +399,10 @@ export const applyCharacterChangesAction = {
       }
 
       logger.info(
-        `[APPLY_CHARACTER_CHANGES] Extracted changes for fields: ${extraction.fieldsChanged}`
+        `[APPLY_CHARACTER_CHANGES] Extracted changes for fields: ${extraction.fieldsChanged}`,
       );
       logger.debug(
-        `[APPLY_CHARACTER_CHANGES] Changes: ${JSON.stringify(changesObj, null, 2)}`
+        `[APPLY_CHARACTER_CHANGES] Changes: ${JSON.stringify(changesObj, null, 2)}`,
       );
 
       // Get user context from runtime settings
@@ -411,7 +411,7 @@ export const applyCharacterChangesAction = {
 
       if (!userId) {
         logger.error(
-          "[APPLY_CHARACTER_CHANGES] No USER_ID in runtime settings"
+          "[APPLY_CHARACTER_CHANGES] No USER_ID in runtime settings",
         );
         await callback({
           text: "Failed to save: No USER_ID found in runtime settings. User context is missing.",
@@ -454,30 +454,30 @@ export const applyCharacterChangesAction = {
       }
 
       logger.info(
-        `[APPLY_CHARACTER_CHANGES] Saving changes to database for character ${runtime.character.id}`
+        `[APPLY_CHARACTER_CHANGES] Saving changes to database for character ${runtime.character.id}`,
       );
 
       try {
         // Map ElizaOS format to database format, passing current character for style merging
         const dbUpdates = mapChangesToDbFormat(
           changesObj,
-          runtime.character as unknown as Record<string, unknown>
+          runtime.character as unknown as Record<string, unknown>,
         );
 
         logger.debug(
-          `[APPLY_CHARACTER_CHANGES] DB updates: ${JSON.stringify(dbUpdates, null, 2)}`
+          `[APPLY_CHARACTER_CHANGES] DB updates: ${JSON.stringify(dbUpdates, null, 2)}`,
         );
 
         // Use charactersService to update with ownership verification
         const savedCharacter = await charactersService.updateForUser(
           runtime.character.id as string,
           userId,
-          dbUpdates
+          dbUpdates,
         );
 
         if (!savedCharacter) {
           logger.error(
-            `[APPLY_CHARACTER_CHANGES] Failed to save: character not found or access denied for user ${userId}`
+            `[APPLY_CHARACTER_CHANGES] Failed to save: character not found or access denied for user ${userId}`,
           );
           await callback({
             text: `Failed to save: Character not found or access denied for user ${userId}. You may not have permission to update this character.`,
@@ -493,10 +493,10 @@ export const applyCharacterChangesAction = {
         const fieldsUpdated =
           extraction.fieldsChanged?.split(",").map((f) => f.trim()) || [];
         logger.info(
-          `[APPLY_CHARACTER_CHANGES] ✅ Successfully updated fields in database: ${fieldsUpdated.join(", ")}`
+          `[APPLY_CHARACTER_CHANGES] ✅ Successfully updated fields in database: ${fieldsUpdated.join(", ")}`,
         );
         logger.debug(
-          `[APPLY_CHARACTER_CHANGES] Saved character ID: ${savedCharacter.id}`
+          `[APPLY_CHARACTER_CHANGES] Saved character ID: ${savedCharacter.id}`,
         );
 
         // Save original for confirmation generation
@@ -531,7 +531,7 @@ export const applyCharacterChangesAction = {
               updatedCharacterJson: JSON.stringify(
                 updatedCharacterForConfirm,
                 null,
-                2
+                2,
               ),
             },
           },
@@ -552,7 +552,7 @@ export const applyCharacterChangesAction = {
               updatedCharacterJson: JSON.stringify(
                 updatedCharacterForConfirm,
                 null,
-                2
+                2,
               ),
             },
           },
@@ -565,7 +565,7 @@ export const applyCharacterChangesAction = {
 
         logger.debug(
           "*** RAW LLM RESPONSE (CONFIRMATION) ***\n",
-          confirmResponse
+          confirmResponse,
         );
 
         // Restore original system prompt
@@ -593,7 +593,7 @@ export const applyCharacterChangesAction = {
             message: err.message,
             stack: err.stack,
           },
-          "[APPLY_CHARACTER_CHANGES] Database save error"
+          "[APPLY_CHARACTER_CHANGES] Database save error",
         );
         await callback({
           text: `Database error while saving changes: ${err.message}`,
@@ -607,7 +607,7 @@ export const applyCharacterChangesAction = {
           message: err.message,
           stack: err.stack,
         },
-        "[APPLY_CHARACTER_CHANGES] Exception during save"
+        "[APPLY_CHARACTER_CHANGES] Exception during save",
       );
       await callback({
         text: `Exception during character save: ${err.message}`,

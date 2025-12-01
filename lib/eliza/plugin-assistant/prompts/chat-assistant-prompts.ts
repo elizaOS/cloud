@@ -1,6 +1,6 @@
 /**
  * Chat Assistant Prompts
- * 
+ *
  * Advanced conversation mode with planning phase and action execution.
  * Uses a two-phase approach: planning -> execution -> response.
  */
@@ -120,4 +120,3 @@ export const chatAssistantResponseTemplate = `
 
 {{knowledge}}
 `;
-
