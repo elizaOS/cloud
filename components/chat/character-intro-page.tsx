@@ -73,16 +73,18 @@ export function CharacterIntroPage({
 
   // Get CSS variables for theming
   const themeStyles = getThemeCSSVariables(theme);
-  
-  // Determine if this is a romantic/crush theme
+
+  // Determine theme type
   const isRomanticTheme = theme.variants.introCard === 'romantic';
+  const isEdadTheme = theme.id === 'e-dad';
+  const isCustomTheme = isRomanticTheme || isEdadTheme;
   const showAnimatedBackground = theme.features.animatedBackground;
 
   return (
-    <div 
+    <div
       style={themeStyles}
       className={`min-h-screen themed-intro ${
-        isRomanticTheme 
+        isCustomTheme
           ? 'bg-black bg-[radial-gradient(ellipse_at_top,rgba(var(--theme-primary),0.15),transparent_50%),radial-gradient(ellipse_at_bottom,rgba(var(--theme-accent),0.1),transparent_50%)]'
           : 'bg-gradient-to-b from-background to-muted/20'
       }`}
@@ -107,10 +109,10 @@ export function CharacterIntroPage({
           {/* Header */}
           <div className="text-center mb-8">
             {theme.features.showSourceBadge && source && (
-              <Badge 
-                variant="secondary" 
+              <Badge
+                variant="secondary"
                 className={`mb-4 ${
-                  isRomanticTheme 
+                  isCustomTheme
                     ? 'bg-[rgba(var(--theme-primary),0.1)] text-[rgb(var(--theme-primary-light))] border-[rgba(var(--theme-primary),0.2)] hover:bg-[rgba(var(--theme-primary),0.2)]'
                     : ''
                 }`}
@@ -120,20 +122,20 @@ export function CharacterIntroPage({
               </Badge>
             )}
             <h1 className={`text-4xl font-bold mb-2 ${
-              isRomanticTheme 
+              isCustomTheme
                 ? 'bg-gradient-to-r from-[rgb(var(--theme-primary-light))] via-[rgb(var(--theme-primary-light))] to-[rgb(var(--theme-accent))] bg-clip-text text-transparent'
                 : ''
             }`}>
-              {theme.branding.title === "Clone Your Crush" ? "Meet Your Crush" : "Meet Your AI Companion"}
+              {theme.branding.title === "Clone Your Crush" ? "Meet Your Crush" : theme.branding.title === "Edad" ? "Meet Your AI Dad" : "Meet Your AI Companion"}
             </h1>
-            <p className={isRomanticTheme ? 'text-white/60' : 'text-muted-foreground'}>
+            <p className={isCustomTheme ? 'text-white/60' : 'text-muted-foreground'}>
               {theme.branding.tagline}
             </p>
           </div>
 
           {/* Character Card */}
           <Card className={`mb-8 overflow-hidden ${
-            isRomanticTheme 
+            isCustomTheme
               ? 'border-2 border-white/10 bg-white/[0.02] backdrop-blur-xl'
               : 'border-2'
           }`}>
@@ -157,7 +159,7 @@ export function CharacterIntroPage({
                     }`}>
                       <AvatarImage src={character.avatar_url || undefined} />
                       <AvatarFallback className={`text-4xl ${
-                        isRomanticTheme
+                        isCustomTheme
                           ? 'bg-gradient-to-br from-[rgba(var(--theme-primary),0.2)] to-[rgba(var(--theme-accent),0.2)] text-white'
                           : 'bg-gradient-to-br from-primary/20 to-primary/10'
                       }`}>
@@ -169,14 +171,14 @@ export function CharacterIntroPage({
 
                 {/* Name and Vibe */}
                 <div>
-                  <h2 className={`text-3xl font-bold mb-2 ${isRomanticTheme ? 'text-white' : ''}`}>
+                  <h2 className={`text-3xl font-bold mb-2 ${isCustomTheme ? 'text-white' : ''}`}>
                     {character.name}
                   </h2>
                   {theme.features.showVibeLabel && vibeLabel && (
-                    <Badge 
-                      variant="outline" 
+                    <Badge
+                      variant="outline"
                       className={`text-lg px-3 py-1 ${
-                        isRomanticTheme 
+                        isCustomTheme
                           ? 'bg-[rgba(var(--theme-primary),0.1)] border-[rgba(var(--theme-primary),0.3)] text-[rgb(var(--theme-primary-light))]'
                           : ''
                       }`}
@@ -189,7 +191,7 @@ export function CharacterIntroPage({
 
                 {/* Bio */}
                 <p className={`text-lg max-w-xl leading-relaxed ${
-                  isRomanticTheme ? 'text-white/70' : 'text-muted-foreground'
+                  isCustomTheme ? 'text-white/70' : 'text-muted-foreground'
                 }`}>
                   {bioText}
                 </p>
@@ -204,7 +206,7 @@ export function CharacterIntroPage({
                   <Button
                     size="lg"
                     className={`w-full text-lg h-14 ${
-                      isRomanticTheme
+                      isCustomTheme
                         ? 'bg-gradient-to-r from-[rgb(var(--theme-primary))] to-[rgb(var(--theme-gradient-to))] hover:from-[rgb(var(--theme-primary-light))] hover:to-[rgb(var(--theme-primary))] text-white border-0 shadow-lg shadow-[rgba(var(--theme-primary),0.3)]'
                         : 'bg-gradient-to-r from-primary to-primary/80 hover:from-primary/90 hover:to-primary/70'
                     }`}
@@ -214,7 +216,7 @@ export function CharacterIntroPage({
                     Start Chatting (Free)
                   </Button>
                   
-                  <p className={`text-sm ${isRomanticTheme ? 'text-white/50' : 'text-muted-foreground'}`}>
+                  <p className={`text-sm ${isCustomTheme ? 'text-white/50' : 'text-muted-foreground'}`}>
                     No credit card required • 10 free messages
                   </p>
                 </motion.div>
@@ -235,22 +237,22 @@ export function CharacterIntroPage({
               { icon: Lock, title: "Private", desc: "Your conversations stay between you and your AI" },
             ].map(({ icon: Icon, title, desc }) => (
               <Card key={title} className={
-                isRomanticTheme 
+                isCustomTheme
                   ? 'border-white/10 bg-white/[0.02] backdrop-blur-xl'
                   : ''
               }>
                 <CardContent className="p-6 text-center">
                   <div className={`inline-flex items-center justify-center w-12 h-12 rounded-full mb-4 ${
-                    isRomanticTheme
+                    isCustomTheme
                       ? 'bg-[rgba(var(--theme-primary),0.1)]'
                       : 'bg-primary/10'
                   }`}>
                     <Icon className={`w-6 h-6 ${
-                      isRomanticTheme ? 'text-[rgb(var(--theme-primary-light))]' : 'text-primary'
+                      isCustomTheme ? 'text-[rgb(var(--theme-primary-light))]' : 'text-primary'
                     }`} />
                   </div>
-                  <h3 className={`font-semibold mb-2 ${isRomanticTheme ? 'text-white' : ''}`}>{title}</h3>
-                  <p className={`text-sm ${isRomanticTheme ? 'text-white/60' : 'text-muted-foreground'}`}>
+                  <h3 className={`font-semibold mb-2 ${isCustomTheme ? 'text-white' : ''}`}>{title}</h3>
+                  <p className={`text-sm ${isCustomTheme ? 'text-white/60' : 'text-muted-foreground'}`}>
                     {desc}
                   </p>
                 </CardContent>
@@ -265,9 +267,9 @@ export function CharacterIntroPage({
             transition={{ delay: 0.8, duration: 0.4 }}
             className="text-center space-y-4"
           >
-            <h3 className={`text-xl font-semibold ${isRomanticTheme ? 'text-white' : ''}`}>How It Works</h3>
+            <h3 className={`text-xl font-semibold ${isCustomTheme ? 'text-white' : ''}`}>How It Works</h3>
             <div className={`flex flex-col md:flex-row items-center justify-center gap-6 text-sm ${
-              isRomanticTheme ? 'text-white/60' : 'text-muted-foreground'
+              isCustomTheme ? 'text-white/60' : 'text-muted-foreground'
             }`}>
               {[
                 "Enter your email (optional)",
@@ -276,7 +278,7 @@ export function CharacterIntroPage({
               ].map((text) => (
                 <div key={text} className="flex items-center gap-2">
                   <CheckCircle className={`w-5 h-5 ${
-                    isRomanticTheme ? 'text-[rgb(var(--theme-primary-light))]' : 'text-primary'
+                    isCustomTheme ? 'text-[rgb(var(--theme-primary-light))]' : 'text-primary'
                   }`} />
                   <span>{text}</span>
                 </div>

@@ -152,6 +152,7 @@ export function ChatInterface({
 
   // Theme-specific styling flags
   const isRomanticTheme = theme.variants.introCard === 'romantic';
+  const isEdadTheme = theme.id === 'e-dad';
   const showAnimatedBackground = theme.features.animatedBackground;
 
   // Get CSS variables for theming
@@ -161,7 +162,7 @@ export function ChatInterface({
   const rgbToColor = (rgb: string) => `rgb(${rgb.replace(/ /g, ', ')})`;
   const rgbToColorAlpha = (rgb: string, alpha: number) => `rgba(${rgb.replace(/ /g, ', ')}, ${alpha})`;
 
-  // Pre-computed theme colors for inline styles
+  // Pre-computed theme colors for inline styles (romantic theme - pink)
   const themeColors = isRomanticTheme ? {
     primary: rgbToColor(theme.colors.primary),
     primaryLight: rgbToColor(theme.colors.primaryLight),
@@ -173,6 +174,23 @@ export function ChatInterface({
     accentAlpha10: rgbToColorAlpha(theme.colors.accent, 0.1),
     gradient: `linear-gradient(135deg, ${rgbToColor(theme.colors.primary)}, ${rgbToColor(theme.colors.gradientTo)})`,
   } : null;
+
+  // Pre-computed theme colors for edad theme (warm amber/gold)
+  const edadColors = isEdadTheme ? {
+    primary: rgbToColor(theme.colors.primary),
+    primaryLight: rgbToColor(theme.colors.primaryLight),
+    accent: rgbToColor(theme.colors.accent),
+    primaryAlpha15: rgbToColorAlpha(theme.colors.primary, 0.15),
+    primaryAlpha10: rgbToColorAlpha(theme.colors.primary, 0.1),
+    primaryAlpha20: rgbToColorAlpha(theme.colors.primary, 0.2),
+    primaryAlpha30: rgbToColorAlpha(theme.colors.primary, 0.3),
+    accentAlpha10: rgbToColorAlpha(theme.colors.accent, 0.1),
+    gradient: `linear-gradient(135deg, ${rgbToColor(theme.colors.primary)}, ${rgbToColor(theme.colors.gradientTo)})`,
+  } : null;
+
+  // Unified active theme colors (for romantic or edad themes)
+  const isCustomTheme = isRomanticTheme || isEdadTheme;
+  const activeColors = themeColors || edadColors;
 
   // Debug logging - IMPORTANT: Check console to understand auth state
   useEffect(() => {
@@ -425,51 +443,51 @@ export function ChatInterface({
   }
 
   return (
-    <div 
+    <div
       style={themeStyles}
-      className={`h-screen flex flex-col themed-chat ${isRomanticTheme ? 'romantic-theme bg-black' : ''}`}
+      className={`h-screen flex flex-col themed-chat ${isRomanticTheme ? 'romantic-theme bg-black' : ''} ${isEdadTheme ? 'edad-theme bg-black' : ''}`}
     >
-      {/* Animated background for romantic theme */}
-      {showAnimatedBackground && themeColors && (
+      {/* Animated background for romantic/edad themes */}
+      {showAnimatedBackground && (themeColors || edadColors) && (
         <div className="fixed inset-0 -z-10">
-          <div 
-            className="absolute inset-0 animate-pulse" 
-            style={{ 
+          <div
+            className="absolute inset-0 animate-pulse"
+            style={{
               background: `radial-gradient(ellipse at center, ${rgbToColorAlpha(theme.colors.primary, 0.08)}, transparent 70%)`,
               animationDuration: "4s",
-            }} 
+            }}
           />
         </div>
       )}
 
       {/* Free messages banner (anonymous only) */}
       {isAnonymous && !shouldShowPaywall && (
-        <div 
-          className={`border-b backdrop-blur-sm ${isRomanticTheme ? 'border-white/10' : 'bg-muted/30'}`}
-          style={isRomanticTheme ? { background: 'rgba(255, 255, 255, 0.02)' } : {}}
+        <div
+          className={`border-b backdrop-blur-sm ${isCustomTheme ? 'border-white/10' : 'bg-muted/30'}`}
+          style={isCustomTheme ? { background: 'rgba(255, 255, 255, 0.02)' } : {}}
         >
           <div className="container mx-auto px-4 py-3">
             <div className="flex items-center justify-between flex-wrap gap-2">
               <div className="flex items-center gap-3">
-                <Badge 
-                  variant="secondary" 
-                  style={isRomanticTheme && themeColors ? {
-                    background: themeColors.primaryAlpha10,
-                    color: themeColors.primaryLight,
-                    borderColor: themeColors.primaryAlpha20,
+                <Badge
+                  variant="secondary"
+                  style={isCustomTheme && activeColors ? {
+                    background: activeColors.primaryAlpha10,
+                    color: activeColors.primaryLight,
+                    borderColor: activeColors.primaryAlpha20,
                   } : {}}
                 >
                   {messagesRemaining} messages left
                 </Badge>
-                <div 
-                  className={`w-32 h-2 rounded-full overflow-hidden ${isRomanticTheme ? '' : 'bg-muted'}`}
-                  style={isRomanticTheme ? { background: 'rgba(255, 255, 255, 0.1)' } : {}}
+                <div
+                  className={`w-32 h-2 rounded-full overflow-hidden ${isCustomTheme ? '' : 'bg-muted'}`}
+                  style={isCustomTheme ? { background: 'rgba(255, 255, 255, 0.1)' } : {}}
                 >
-                  <div 
-                    className={`h-full transition-all duration-300 ${isRomanticTheme ? '' : 'bg-primary'}`}
-                    style={{ 
+                  <div
+                    className={`h-full transition-all duration-300 ${isCustomTheme ? '' : 'bg-primary'}`}
+                    style={{
                       width: `${progress}%`,
-                      ...(isRomanticTheme && themeColors ? { background: themeColors.gradient } : {}),
+                      ...(isCustomTheme && activeColors ? { background: activeColors.gradient } : {}),
                     }}
                   />
                 </div>
@@ -477,12 +495,12 @@ export function ChatInterface({
               <Button
                 size="sm"
                 variant="outline"
-                onClick={isRomanticTheme ? handleSignup : handleUpgrade}
-                style={isRomanticTheme && themeColors ? {
-                  borderColor: themeColors.primaryAlpha30,
-                  color: themeColors.primaryLight,
+                onClick={isCustomTheme ? handleSignup : handleUpgrade}
+                style={isCustomTheme && activeColors ? {
+                  borderColor: activeColors.primaryAlpha30,
+                  color: activeColors.primaryLight,
                 } : {}}
-                className={isRomanticTheme ? 'hover:bg-pink-600/10' : ''}
+                className={isRomanticTheme ? 'hover:bg-pink-600/10' : isEdadTheme ? 'hover:bg-amber-500/10' : ''}
               >
                 <Sparkles className="w-4 h-4 mr-2" />
                 Unlock Unlimited
@@ -494,29 +512,29 @@ export function ChatInterface({
 
       {/* Soft signup prompt (5-9 messages) */}
       {shouldShowSoftPrompt && (
-        <div 
+        <div
           className="border-b backdrop-blur-sm"
-          style={isRomanticTheme && themeColors ? {
-            borderColor: themeColors.primaryAlpha20,
-            background: `linear-gradient(to right, ${themeColors.primaryAlpha10}, ${themeColors.accentAlpha10})`,
+          style={isCustomTheme && activeColors ? {
+            borderColor: activeColors.primaryAlpha20,
+            background: `linear-gradient(to right, ${activeColors.primaryAlpha10}, ${activeColors.accentAlpha10})`,
           } : {}}
         >
           <div className="container mx-auto px-4 py-3">
-            <Alert 
-              className={isRomanticTheme ? 'bg-transparent' : 'border-primary/50 bg-primary/5'}
-              style={isRomanticTheme && themeColors ? { borderColor: themeColors.primaryAlpha30 } : {}}
+            <Alert
+              className={isCustomTheme ? 'bg-transparent' : 'border-primary/50 bg-primary/5'}
+              style={isCustomTheme && activeColors ? { borderColor: activeColors.primaryAlpha30 } : {}}
             >
-              <Sparkles 
+              <Sparkles
                 className="h-4 w-4"
-                style={isRomanticTheme && themeColors ? { color: themeColors.primaryLight } : {}}
+                style={isCustomTheme && activeColors ? { color: activeColors.primaryLight } : {}}
               />
-              <AlertDescription className={isRomanticTheme ? 'text-white/80' : ''}>
+              <AlertDescription className={isCustomTheme ? 'text-white/80' : ''}>
                 Enjoying the conversation? Sign up for free to get unlimited messages and save your chat history.
                 <Button
                   size="sm"
                   variant="link"
-                  onClick={isRomanticTheme ? handleSignup : handleUpgrade}
-                  style={isRomanticTheme && themeColors ? { color: themeColors.primaryLight } : {}}
+                  onClick={isCustomTheme ? handleSignup : handleUpgrade}
+                  style={isCustomTheme && activeColors ? { color: activeColors.primaryLight } : {}}
                   className="ml-2"
                 >
                   Sign up free →
@@ -528,7 +546,7 @@ export function ChatInterface({
       )}
 
       {/* Chat interface with theme styling */}
-      <div className={`flex-1 overflow-hidden ${isRomanticTheme ? 'chat-theme-romantic' : ''}`}>
+      <div className={`flex-1 overflow-hidden ${isRomanticTheme ? 'chat-theme-romantic' : ''} ${isEdadTheme ? 'chat-theme-edad' : ''}`}>
         <ElizaChatInterface onMessageSent={onMessageSent} />
       </div>
 
@@ -609,9 +627,88 @@ export function ChatInterface({
           color: rgb(244, 114, 182) !important;
           border-color: rgba(219, 39, 119, 0.3) !important;
         }
-        
+
         .romantic-theme button[type="button"]:hover {
           background: rgba(219, 39, 119, 0.1) !important;
+        }
+
+        /* ============================================= */
+        /* Edad Theme CSS - Warm Amber/Gold for AI Dad */
+        /* ============================================= */
+
+        /* Edad theme - warm amber gradients and styling */
+        .edad-theme {
+          background:
+            radial-gradient(ellipse at top, rgba(245, 158, 11, 0.15), transparent 50%),
+            radial-gradient(ellipse at bottom, rgba(217, 119, 6, 0.1), transparent 50%),
+            black !important;
+        }
+
+        /* Animated pulse background for edad */
+        .edad-theme::before {
+          content: "";
+          position: fixed;
+          inset: 0;
+          z-index: -1;
+          background: radial-gradient(ellipse at center, rgba(245, 158, 11, 0.08), transparent 70%);
+          animation: pulse 4s ease-in-out infinite;
+        }
+
+        /* Chat bubble styling for edad theme */
+        .edad-theme .chat-theme-edad [data-role="assistant"] {
+          background: rgba(255, 255, 255, 0.05) !important;
+          border: 1px solid rgba(245, 158, 11, 0.2) !important;
+          border-radius: 18px 18px 18px 4px !important;
+          backdrop-filter: blur(10px);
+        }
+
+        .edad-theme .chat-theme-edad [data-role="user"] {
+          background: linear-gradient(135deg, rgba(245, 158, 11, 0.9), rgba(251, 191, 36, 0.9)) !important;
+          border: 1px solid rgba(255, 255, 255, 0.2) !important;
+          border-radius: 18px 18px 4px 18px !important;
+        }
+
+        /* Send button amber styling */
+        .edad-theme button[type="submit"] {
+          background: linear-gradient(135deg, rgb(245, 158, 11), rgb(251, 191, 36)) !important;
+          border: none !important;
+          box-shadow: 0 4px 12px rgba(245, 158, 11, 0.4) !important;
+        }
+
+        .edad-theme button[type="submit"]:hover:not(:disabled) {
+          background: linear-gradient(135deg, rgb(251, 191, 36), rgb(245, 158, 11)) !important;
+          transform: translateY(-1px);
+        }
+
+        /* Input styling for edad */
+        .edad-theme form {
+          border: 1px solid rgba(245, 158, 11, 0.25) !important;
+          border-radius: 16px !important;
+          background: rgba(255, 255, 255, 0.03) !important;
+        }
+
+        .edad-theme form:focus-within {
+          border-color: rgba(245, 158, 11, 0.5) !important;
+          box-shadow: 0 0 20px rgba(245, 158, 11, 0.15) !important;
+        }
+
+        /* Scrollbar for edad */
+        .edad-theme ::-webkit-scrollbar-thumb {
+          background: rgba(245, 158, 11, 0.3) !important;
+        }
+
+        .edad-theme ::-webkit-scrollbar-thumb:hover {
+          background: rgba(245, 158, 11, 0.5) !important;
+        }
+
+        /* Voice button for edad */
+        .edad-theme button[type="button"] {
+          color: rgb(251, 191, 36) !important;
+          border-color: rgba(245, 158, 11, 0.3) !important;
+        }
+
+        .edad-theme button[type="button"]:hover {
+          background: rgba(245, 158, 11, 0.1) !important;
         }
       `}</style>
     </div>
