@@ -1,8 +1,7 @@
 import { createMcpHandler } from "mcp-handler";
-// IMPORTANT: Must use zod v3.x (aliased as zod3) for MCP SDK compatibility
-import { z } from "zod3";
+import { z } from "zod";
 
-export const maxDuration = 30;
+export const maxDuration = 300;
 
 // CoinGecko API base URL (free tier)
 const COINGECKO_API = "https://api.coingecko.com/api/v3";
@@ -441,7 +440,6 @@ const handler = createMcpHandler(
     },
   },
   {
-    // Redis configuration for SSE transport resumability (uses Upstash Redis)
     redisUrl: process.env.REDIS_URL,
     basePath: "/api/mcp/demos/crypto",
     maxDuration: 300,

@@ -1,5 +1,5 @@
 import { createPaidMcpHandler } from "x402-mcp";
-import { z } from "zod3";
+import { z } from "zod";
 
 export const maxDuration = 30;
 

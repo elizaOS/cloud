@@ -50,7 +50,7 @@ export class AgentLoader {
    */
   async loadCharacter(
     characterId: string,
-    agentMode: AgentMode,
+    agentMode: AgentMode
   ): Promise<{
     character: Character;
     plugins: Plugin[];
@@ -72,7 +72,7 @@ export class AgentLoader {
     // Resolve plugins based on AgentMode + character-specific plugins
     const plugins = await this.resolvePlugins(
       agentMode,
-      elizaCharacter.plugins || [],
+      elizaCharacter.plugins || []
     );
 
     return { character, plugins };
@@ -108,7 +108,7 @@ export class AgentLoader {
     // NOTE: Model selection (ELIZAOS_CLOUD_SMALL_MODEL, ELIZAOS_CLOUD_LARGE_MODEL) is
     // handled in RuntimeFactory.buildSettings() where we have access to userContext.modelPreferences
     // This allows users to select models from the UI dropdown
-    const settings = {
+    const settings: Record<string, any> = {
       // Database URLs (always from environment)
       POSTGRES_URL: process.env.DATABASE_URL!,
       DATABASE_URL: process.env.DATABASE_URL!,
@@ -243,7 +243,7 @@ export class AgentLoader {
    */
   private async resolvePlugins(
     agentMode: AgentMode,
-    characterPlugins: string[],
+    characterPlugins: string[]
   ): Promise<Plugin[]> {
     const plugins: unknown[] = [];
 
@@ -255,7 +255,7 @@ export class AgentLoader {
 
     console.log(
       `[AgentLoader] Loading plugins for ${agentMode} mode:`,
-      corePluginNames,
+      corePluginNames
     );
 
     for (const pluginName of corePluginNames) {
@@ -293,7 +293,7 @@ export class AgentLoader {
         if (!plugins.some((p) => p === knowledgePlugin)) {
           plugins.push(knowledgePlugin);
           console.log(
-            `[AgentLoader] ✓ Loaded character plugin: ${pluginName} (lazy-loaded)`,
+            `[AgentLoader] ✓ Loaded character plugin: ${pluginName} (lazy-loaded)`
           );
         }
         continue;
