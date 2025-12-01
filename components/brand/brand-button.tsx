@@ -42,7 +42,8 @@ const brandButtonVariants = cva(
 );
 
 export interface BrandButtonProps
-  extends React.ButtonHTMLAttributes<HTMLButtonElement>,
+  extends
+    React.ButtonHTMLAttributes<HTMLButtonElement>,
     VariantProps<typeof brandButtonVariants> {
   asChild?: boolean;
 }

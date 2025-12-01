@@ -19,7 +19,7 @@ import {
   Bot,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { CornerBrackets } from "@/components/brand";
+import { CornerBrackets, BrandButton } from "@/components/brand";
 import { useChatStore } from "@/stores/chat-store";
 import { SidebarBottomPanel } from "./sidebar-bottom-panel";
 
@@ -270,19 +270,26 @@ export function ChatSidebar({
               </div>
             </div>
 
-            {/* New Chat Icon Button */}
-            <button
+            {/* New Chat Button - Enhanced with Label */}
+            <BrandButton
               onClick={handleNewChat}
               disabled={isCreatingRoom}
-              className="flex-shrink-0 p-2 rounded-none hover:bg-white/10 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-              title="New chat"
+              size="sm"
+              className="flex-shrink-0 gap-1.5 px-3 h-8"
+              title="Start new conversation"
             >
               {isCreatingRoom ? (
-                <Loader2 className="h-4 w-4 text-white/80 animate-spin" />
+                <>
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                  <span className="text-xs hidden sm:inline">Creating...</span>
+                </>
               ) : (
-                <Edit3 className="h-4 w-4 text-white/80" />
+                <>
+                  <Edit3 className="h-4 w-4" />
+                  <span className="text-xs">New</span>
+                </>
               )}
-            </button>
+            </BrandButton>
           </div>
         </div>
 
@@ -406,9 +413,12 @@ export function ChatSidebar({
                     letterSpacing: "-0.003em",
                   }}
                 >
-                  <p className="text-xs text-white/60">No conversations yet</p>
+                  <MessageSquare className="h-12 w-12 text-white/20 mx-auto mb-3" />
+                  <p className="text-xs text-white/60 mb-2">
+                    No conversations yet
+                  </p>
                   <p className="text-xs text-white/40 mt-2">
-                    Click the edit icon to start
+                    Click "New" above or the button in chat to start
                   </p>
                 </div>
               )}

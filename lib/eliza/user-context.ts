@@ -149,7 +149,11 @@ export class UserContextService {
    * Build context for anonymous users
    * Uses a shared runtime with limited capabilities
    */
-  private buildAnonymousContext(user: any, session: any, agentMode: AgentMode): UserContext {
+  private buildAnonymousContext(
+    user: any,
+    session: any,
+    agentMode: AgentMode,
+  ): UserContext {
     // Anonymous users get a shared runtime with limited access
     // For anonymous users, we still use the user object but mark as anonymous
     const entityId = session.id || user.id;

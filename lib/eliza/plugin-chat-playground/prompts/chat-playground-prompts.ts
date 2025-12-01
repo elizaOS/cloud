@@ -1,6 +1,6 @@
 /**
  * Chat Playground Prompts
- * 
+ *
  * Simple, single-shot conversation mode without planning or actions.
  * Designed for fast, natural responses in playground environments.
  */

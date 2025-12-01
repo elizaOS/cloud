@@ -425,9 +425,8 @@ export default function ApiExplorerPage() {
                     size="sm"
                     onClick={async () => {
                       if (openApiSpec) {
-                        const { generateOpenAPIYAML } = await import(
-                          "@/lib/swagger/openapi-generator"
-                        );
+                        const { generateOpenAPIYAML } =
+                          await import("@/lib/swagger/openapi-generator");
                         const yaml = generateOpenAPIYAML();
                         navigator.clipboard.writeText(yaml);
                         toast({

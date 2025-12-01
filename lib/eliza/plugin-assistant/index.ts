@@ -9,6 +9,8 @@ import { actionsProvider } from "./providers/actions";
 import { characterProvider } from "./providers/character";
 import { generateImageAction } from "./actions/image-generation";
 import { actionStateProvider } from "./providers/actionState";
+import { recentMessagesProvider } from "./providers/recent-messages";
+import { affiliateContextProvider } from "./providers/affiliate-context";
 import { handleMessage } from "./handler";
 import type { IAgentRuntime, Memory, HandlerCallback } from "@elizaos/core";
 
@@ -43,7 +45,9 @@ const messageReceivedHandler = async ({
     });
   } catch (error) {
     const errorMessage = error instanceof Error ? error.message : String(error);
-    logger.error(`[AssistantPlugin] Error in workflow handler: ${errorMessage}`);
+    logger.error(
+      `[AssistantPlugin] Error in workflow handler: ${errorMessage}`,
+    );
     throw error;
   }
 };
@@ -66,7 +70,9 @@ const events = {
 
   [EventType.MESSAGE_SENT]: [
     async (payload: MessagePayload) => {
-      logger.debug(`[AssistantPlugin] Message sent: ${payload.message.content.text}`);
+      logger.debug(
+        `[AssistantPlugin] Message sent: ${payload.message.content.text}`,
+      );
     },
   ],
 };
@@ -76,17 +82,18 @@ const events = {
  */
 export const assistantPlugin: Plugin = {
   name: "eliza-assistant",
-  description: "Core assistant plugin with message handling and workflow routing",
+  description:
+    "Core assistant plugin with message handling and workflow routing",
   events,
   providers: [
     providersProvider,
     actionsProvider,
     characterProvider,
     actionStateProvider,
+    recentMessagesProvider,
+    affiliateContextProvider,
   ],
-  actions: [
-    generateImageAction,
-  ],
+  actions: [generateImageAction],
   services: [],
 };
 
