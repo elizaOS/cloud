@@ -21,7 +21,7 @@ export function LandingPage() {
       <TopHero />
 
       {/* Agents Section */}
-      <Agents />
+      {/* <Agents /> */}
 
       {/* Router Section */}
       <RouterSection />
