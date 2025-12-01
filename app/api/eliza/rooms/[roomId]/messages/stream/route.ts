@@ -8,7 +8,10 @@ import { userContextService } from "@/lib/eliza/user-context";
 import { runtimeFactory } from "@/lib/eliza/runtime-factory";
 import { createMessageHandler } from "@/lib/eliza/message-handler";
 import type { AgentModeConfig } from "@/lib/eliza/agent-mode-types";
-import { AgentMode, isValidAgentModeConfig } from "@/lib/eliza/agent-mode-types";
+import {
+  AgentMode,
+  isValidAgentModeConfig,
+} from "@/lib/eliza/agent-mode-types";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
@@ -64,7 +67,10 @@ export async function POST(
     }
 
     // Step 2: Authentication & Context Building (single step, clean!)
-    const userContext = await authenticateAndBuildContext(request, agentModeConfig.mode);
+    const userContext = await authenticateAndBuildContext(
+      request,
+      agentModeConfig.mode,
+    );
 
     // Step 3: Rate limiting for anonymous users
     if (userContext.isAnonymous && userContext.sessionToken) {
@@ -96,7 +102,7 @@ export async function POST(
     if (agentModeConfig.mode === AgentMode.BUILD && agentModeConfig.metadata?.targetCharacterId) {
       characterId = String(agentModeConfig.metadata.targetCharacterId);
       logger.info(
-        `[Stream] BUILD mode - Using character from metadata: ${characterId}`
+        `[Stream] BUILD mode - Using character from metadata: ${characterId}`,
       );
       
       // Update room agentId for build mode (proper column, not metadata)
@@ -114,7 +120,7 @@ export async function POST(
         }
       }
     }
-    
+
     logger.info(
       `[Stream] Room ${roomId} - Character lookup:`,
       characterId
@@ -204,7 +210,10 @@ export async function POST(
           };
 
           // Include attachments if present
-          if (typeof messageContent === "object" && messageContent?.attachments) {
+          if (
+            typeof messageContent === "object" &&
+            messageContent?.attachments
+          ) {
             responseContentPayload.attachments = messageContent.attachments;
           }
 
@@ -286,7 +295,10 @@ export async function POST(
  * Helper function to authenticate and build user context
  * Centralizes authentication and context creation
  */
-async function authenticateAndBuildContext(request: NextRequest, agentMode: AgentMode) {
+async function authenticateAndBuildContext(
+  request: NextRequest,
+  agentMode: AgentMode,
+) {
   try {
     // Try authenticated user first
     const authResult = await requireAuthOrApiKey(request);

@@ -53,12 +53,12 @@ export interface MessageOptions {
 export class MessageHandler {
   constructor(
     private runtime: AgentRuntime,
-    private userContext: UserContext
+    private userContext: UserContext,
   ) {
     // Runtime already has all settings including API key
     // No need for additional context injection
   }
-  
+
   /**
    * Process a message through the ElizaOS runtime
    * Returns the agent's response and usage information
@@ -71,21 +71,24 @@ export class MessageHandler {
     
     // Use provided agent mode config or default to CHAT mode
     const modeConfig = agentModeConfig || DEFAULT_AGENT_MODE;
-    
+
     elizaLogger.info(
-      `[MessageHandler] Processing message for user ${this.userContext.userId} in room ${roomId} (mode: ${modeConfig.mode})`
+      `[MessageHandler] Processing message for user ${this.userContext.userId} in room ${roomId} (mode: ${modeConfig.mode})`,
     );
-    
+
     // 1. Ensure connection exists (with caching)
     await this.ensureConnection(roomId, entityId);
-    
+
     // 2. Create user message
-    const userMessage = this.createMessage(roomId, entityId, { text, attachments });
-    
+    const userMessage = this.createMessage(roomId, entityId, {
+      text,
+      attachments,
+    });
+
     // 3. Process through runtime (API key already configured in runtime)
     let responseContent: Content | undefined;
     let usage: MessageResult["usage"];
-    
+
     try {
       // Process message through event pipeline
       // The agent mode config will be picked up by the appropriate plugin
@@ -94,16 +97,24 @@ export class MessageHandler {
         message: userMessage,
         agentModeConfig: modeConfig, // Pass agent mode config to event handlers
         callback: async (content: Content) => {
-          elizaLogger.info("[MessageHandler] Callback invoked with content:", JSON.stringify(content).substring(0, 200));
-          
+          elizaLogger.info(
+            "[MessageHandler] Callback invoked with content:",
+            JSON.stringify(content).substring(0, 200),
+          );
+
           if (content.text) {
             responseContent = content;
-            elizaLogger.info(`[MessageHandler] Captured response text (${content.text.length} chars): ${content.text.substring(0, 100)}...`);
-            
+            elizaLogger.info(
+              `[MessageHandler] Captured response text (${content.text.length} chars): ${content.text.substring(0, 100)}...`,
+            );
+
             // Store the response memory when callback is invoked
             // This ensures all agent responses (including action responses) are persisted
             const responseMemory: Memory = {
-              id: createUniqueUuid(this.runtime, (userMessage.id ?? uuidv4()) as UUID),
+              id: createUniqueUuid(
+                this.runtime,
+                (userMessage.id ?? uuidv4()) as UUID,
+              ),
               entityId: this.runtime.agentId,
               roomId: roomId as UUID,
               content: {
@@ -112,88 +123,110 @@ export class MessageHandler {
                 inReplyTo: userMessage.id,
               },
             };
-            
+
             await this.runtime.createMemory(responseMemory, "messages");
-            elizaLogger.info(`[MessageHandler] Stored response memory: ${responseMemory.id}`);
+            elizaLogger.info(
+              `[MessageHandler] Stored response memory: ${responseMemory.id}`,
+            );
           } else {
-            elizaLogger.warn("[MessageHandler] Callback received but no text in content");
+            elizaLogger.warn(
+              "[MessageHandler] Callback received but no text in content",
+            );
           }
-          
+
           // Extract usage if passed via dynamic property (for billing)
-          if ('usage' in content && content.usage) {
+          if ("usage" in content && content.usage) {
             usage = content.usage as UsageInfo;
           }
-          
+
           return [];
         },
       });
-      
-      elizaLogger.info(`[MessageHandler] After emitEvent - responseText: ${responseContent?.text ? `"${responseContent.text.substring(0, 100)}..."` : "EMPTY/UNDEFINED"}`);
+
+      elizaLogger.info(
+        `[MessageHandler] After emitEvent - responseText: ${responseContent?.text ? `"${responseContent.text.substring(0, 100)}..."` : "EMPTY/UNDEFINED"}`,
+      );
     } catch (error) {
-      elizaLogger.error("[MessageHandler] Error during message processing:", error instanceof Error ? error.message : String(error));
-      
+      elizaLogger.error(
+        "[MessageHandler] Error during message processing:",
+        error instanceof Error ? error.message : String(error),
+      );
+
       // Check if it's an API key error
       if (error instanceof Error && error.message.includes("API key")) {
-        responseContent = { 
+        responseContent = {
           text: "⚠️ Configuration error: ElizaCloud API key is missing or invalid. Please try logging out and back in.",
           source: "agent",
         };
       } else {
-        responseContent = { 
+        responseContent = {
           text: "I apologize, but I encountered an error processing your message. Please try again.",
           source: "agent",
         };
       }
     }
 
-    elizaLogger.debug(`*** RESPONSE CONTENT ***\n${JSON.stringify(responseContent, null, 2)}`);
+    elizaLogger.debug(
+      `*** RESPONSE CONTENT ***\n${JSON.stringify(responseContent, null, 2)}`,
+    );
 
     // 4. Create response memory object for return (using stored content)
     const responseMemory = this.createResponseMemoryFromContent(
       roomId,
-      responseContent || { text: "I'm sorry, I couldn't generate a response.", source: "agent" }
+      responseContent || {
+        text: "I'm sorry, I couldn't generate a response.",
+        source: "agent",
+      },
     );
-    
+
     // 5. Track usage and credits (if not anonymous)
     if (!this.userContext.isAnonymous && usage) {
       await this.trackUsage(usage);
     }
-    
+
     // 6. Handle anonymous session tracking
     if (this.userContext.isAnonymous && this.userContext.sessionToken) {
       await this.incrementAnonymousMessageCount();
     }
-    
+
     // 7. Fire-and-forget side effects (Discord, room title generation)
-    this.handleSideEffects(roomId, text, responseContent?.text || "", options.characterId);
-    
+    this.handleSideEffects(
+      roomId,
+      text,
+      responseContent?.text || "",
+      options.characterId,
+    );
+
     elizaLogger.success(
-      `[MessageHandler] Message processed successfully for user ${this.userContext.userId}`
+      `[MessageHandler] Message processed successfully for user ${this.userContext.userId}`,
     );
 
     elizaLogger.debug(`FINAL USAGE: ${JSON.stringify(usage)}`);
-    
+
     return {
       message: responseMemory,
       usage,
     };
   }
-  
+
   /**
    * Ensure connection exists between user and room
    * Uses connection cache to avoid redundant database calls
    */
-  private async ensureConnection(roomId: string, entityId: string): Promise<void> {
+  private async ensureConnection(
+    roomId: string,
+    entityId: string,
+  ): Promise<void> {
     const cached = await connectionCache.isEstablished(roomId, entityId);
-    
+
     if (!cached) {
       elizaLogger.debug(
-        `[MessageHandler] Establishing connection for room ${roomId}, entity ${entityId}`
+        `[MessageHandler] Establishing connection for room ${roomId}, entity ${entityId}`,
       );
-      
+
       const entityUuid = stringToUuid(entityId) as UUID;
       const worldId = stringToUuid("eliza-world") as UUID;
-      
+
       // Use ensureConnections (plural) for more robust entity/room creation
       await this.runtime.ensureConnections(
         [
@@ -225,24 +258,24 @@ export class MessageHandler {
           serverId: "eliza-server",
         },
       );
-      
+
       await connectionCache.markEstablished(roomId, entityId);
       elizaLogger.debug("[MessageHandler] Connection established and cached");
     } else {
       elizaLogger.debug("[MessageHandler] Using cached connection");
     }
   }
-  
+
   /**
    * Create a message memory object
    */
   private createMessage(
     roomId: string,
     entityId: string,
-    content: { text?: string; attachments?: unknown[] }
+    content: { text?: string; attachments?: unknown[] },
   ): Memory {
     const entityUuid = stringToUuid(entityId) as UUID;
-    
+
     return {
       id: uuidv4() as UUID,
       roomId: roomId as UUID,
@@ -256,27 +289,28 @@ export class MessageHandler {
         Array.isArray(content.attachments) &&
         content.attachments.length > 0
           ? {
-              attachments: content.attachments as unknown as import("@elizaos/core").Media[],
+              attachments:
+                content.attachments as unknown as import("@elizaos/core").Media[],
             }
           : {}),
       },
     };
   }
-  
+
   /**
    * Create response memory object from Content
    * Used for building the return value with full Content structure
    */
   private createResponseMemoryFromContent(
     roomId: string,
-    content: Content
+    content: Content,
   ): Memory {
     if (content.attachments && content.attachments.length > 0) {
       elizaLogger.debug(
-        `[MessageHandler] Including ${content.attachments.length} attachment(s) in response`
+        `[MessageHandler] Including ${content.attachments.length} attachment(s) in response`,
       );
     }
-    
+
     return {
       id: uuidv4() as UUID,
       roomId: roomId as UUID,
@@ -289,14 +323,14 @@ export class MessageHandler {
       },
     };
   }
-  
+
   /**
    * Deduct credits for message processing
    * Note: Token usage tracking is now handled by MODEL_USED events in plugin-assistant
    */
   private async trackUsage(usage: MessageResult["usage"]): Promise<void> {
     if (!usage || !this.userContext.organizationId) return;
-    
+
     try {
       const model = usage.model || "gpt-4o";
       const provider = getProviderFromModel(model);
@@ -304,9 +338,9 @@ export class MessageHandler {
         model,
         provider,
         usage.inputTokens,
-        usage.outputTokens
+        usage.outputTokens,
       );
-      
+
       // Deduct credits from organization balance
       const deductResult = await creditsService.deductCredits({
         organizationId: this.userContext.organizationId,
@@ -320,47 +354,52 @@ export class MessageHandler {
           userId: this.userContext.userId,
         },
       });
-      
+
       // Note: Usage records are created by MODEL_USED event listener in plugin-assistant
       // No need to duplicate that here
-      
+
       // Check if credits are running low
       if (deductResult.newBalance < 1.0) {
         logger.warn(
-          `[MessageHandler] Low credits for org ${this.userContext.organizationId}: ${deductResult.newBalance}`
+          `[MessageHandler] Low credits for org ${this.userContext.organizationId}: ${deductResult.newBalance}`,
         );
       }
-      
+
       logger.info(
-        `[MessageHandler] Deducted credits - tokens: ${usage.inputTokens}/${usage.outputTokens}, cost: ${costResult.totalCost}, balance: ${deductResult.newBalance}`
+        `[MessageHandler] Deducted credits - tokens: ${usage.inputTokens}/${usage.outputTokens}, cost: ${costResult.totalCost}, balance: ${deductResult.newBalance}`,
       );
     } catch (error) {
       logger.error("[MessageHandler] Credit deduction error:", error);
       // Don't fail the message if credit deduction fails
     }
   }
-  
+
   /**
    * Increment anonymous message count
    */
   private async incrementAnonymousMessageCount(): Promise<void> {
     if (!this.userContext.sessionToken) return;
-    
+
     try {
       // Find session by token and increment count
       const sessions = await db.execute<{ id: string }>(
-        sql`SELECT id FROM anonymous_sessions WHERE session_token = ${this.userContext.sessionToken} LIMIT 1`
+        sql`SELECT id FROM anonymous_sessions WHERE session_token = ${this.userContext.sessionToken} LIMIT 1`,
       );
-      
+
       if (sessions.rows.length > 0) {
-        await anonymousSessionsService.incrementMessageCount(sessions.rows[0].id);
+        await anonymousSessionsService.incrementMessageCount(
+          sessions.rows[0].id,
+        );
       }
     } catch (error) {
-      logger.error("[MessageHandler] Failed to increment anonymous message count:", error);
+      logger.error(
+        "[MessageHandler] Failed to increment anonymous message count:",
+        error,
+      );
       // Don't fail the message if tracking fails
     }
   }
-  
+
   /**
    * Handle side effects (fire-and-forget)
    * Includes Discord integration and room title generation
@@ -369,19 +408,24 @@ export class MessageHandler {
     roomId: string,
     userText: string,
     agentResponse: string,
-    characterId?: string
+    characterId?: string,
   ): void {
     // Send to Discord thread (if configured)
-    this.sendToDiscordThread(roomId, userText, agentResponse, characterId).catch((err) => {
+    this.sendToDiscordThread(
+      roomId,
+      userText,
+      agentResponse,
+      characterId,
+    ).catch((err) => {
       logger.error("[MessageHandler] Failed to send to Discord:", err);
     });
-    
+
     // Generate room title (if needed)
     this.generateRoomTitleIfNeeded(roomId, userText).catch((err) => {
       logger.error("[MessageHandler] Failed to generate room title:", err);
     });
   }
-  
+
   /**
    * Send messages to Discord thread if configured
    */
@@ -389,77 +433,90 @@ export class MessageHandler {
     roomId: string,
     userText: string,
     agentResponse: string,
-    characterId?: string
+    characterId?: string,
   ): Promise<void> {
     try {
       // Get Discord thread ID from room metadata
       const roomData = await db.execute<{ metadata: any }>(
-        sql`SELECT metadata FROM rooms WHERE id = ${roomId}::uuid LIMIT 1`
+        sql`SELECT metadata FROM rooms WHERE id = ${roomId}::uuid LIMIT 1`,
       );
-      
+
       const threadId = roomData.rows[0]?.metadata?.discordThreadId;
-      
+
       if (threadId) {
         // Get character name
         let characterName = "Agent";
         if (characterId) {
           const character = await db.execute<{ name: string }>(
-            sql`SELECT name FROM characters WHERE id = ${characterId}::uuid LIMIT 1`
+            sql`SELECT name FROM characters WHERE id = ${characterId}::uuid LIMIT 1`,
           );
           characterName = character.rows[0]?.name || "Agent";
         }
-        
+
         // Send user message
         await discordService.sendToThread(
           threadId,
-          `**${this.userContext.name || this.userContext.email || this.userContext.entityId}:** ${userText}`
+          `**${this.userContext.name || this.userContext.email || this.userContext.entityId}:** ${userText}`,
         );
-        
+
         // Send agent response
         await discordService.sendToThread(
           threadId,
-          `**🤖 ${characterName}:** ${agentResponse}`
+          `**🤖 ${characterName}:** ${agentResponse}`,
         );
-        
+
         logger.info(
-          `[MessageHandler] Sent messages to Discord thread ${threadId}`
+          `[MessageHandler] Sent messages to Discord thread ${threadId}`,
         );
       }
     } catch (err) {
       // Silently fail - this is a nice-to-have feature
-      logger.debug("[MessageHandler] Discord integration not configured or failed:", err);
+      logger.debug(
+        "[MessageHandler] Discord integration not configured or failed:",
+        err,
+      );
     }
   }
-  
+
   /**
    * Generate room title from first message if needed
    */
-  private async generateRoomTitleIfNeeded(roomId: string, userText: string): Promise<void> {
+  private async generateRoomTitleIfNeeded(
+    roomId: string,
+    userText: string,
+  ): Promise<void> {
     try {
       // Check if room already has a title
       const roomCheck = await db.execute<{ name: string | null }>(
-        sql`SELECT name FROM rooms WHERE id = ${roomId}::uuid LIMIT 1`
+        sql`SELECT name FROM rooms WHERE id = ${roomId}::uuid LIMIT 1`,
       );
-      
+
       const currentRoomName = roomCheck.rows[0]?.name;
-      
+
       // Only generate title if room doesn't have one yet
       if (!currentRoomName) {
-        logger.debug("[MessageHandler] Room has no title, generating from first message...");
-        
+        logger.debug(
+          "[MessageHandler] Room has no title, generating from first message...",
+        );
+
         // Generate title from the user's message
         const title = await generateRoomTitle(userText);
-        
+
         // Update room with the generated title
         await db.execute(
-          sql`UPDATE rooms SET name = ${title} WHERE id = ${roomId}::uuid`
+          sql`UPDATE rooms SET name = ${title} WHERE id = ${roomId}::uuid`,
         );
-        
-        logger.info(`[MessageHandler] Generated and saved room title: ${title}`);
+
+        logger.info(
+          `[MessageHandler] Generated and saved room title: ${title}`,
+        );
       }
     } catch (err) {
       // Non-critical error, don't interrupt the message flow
-      logger.debug("[MessageHandler] Room title generation not available:", err);
+      logger.debug(
+        "[MessageHandler] Room title generation not available:",
+        err,
+      );
     }
   }
 }
@@ -467,7 +524,7 @@ export class MessageHandler {
 // Export convenience function for creating a message handler
 export function createMessageHandler(
   runtime: AgentRuntime,
-  userContext: UserContext
+  userContext: UserContext,
 ): MessageHandler {
   return new MessageHandler(runtime, userContext);
 }

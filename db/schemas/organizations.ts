@@ -1,5 +1,6 @@
 import {
   boolean,
+  check,
   index,
   integer,
   jsonb,
@@ -9,6 +10,7 @@ import {
   timestamp,
   uuid,
 } from "drizzle-orm/pg-core";
+import { sql } from "drizzle-orm";
 import type { InferSelectModel, InferInsertModel } from "drizzle-orm";
 
 export const organizations = pgTable(
@@ -66,6 +68,12 @@ export const organizations = pgTable(
     ),
     auto_top_up_enabled_idx: index("organizations_auto_top_up_enabled_idx").on(
       table.auto_top_up_enabled,
+    ),
+    // CHECK constraint to prevent negative credit balances at database level
+    // This provides a second line of defense against race conditions
+    credit_balance_non_negative: check(
+      "credit_balance_non_negative",
+      sql`${table.credit_balance} >= 0`,
     ),
   }),
 );

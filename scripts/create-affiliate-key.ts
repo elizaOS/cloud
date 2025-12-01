@@ -52,12 +52,12 @@ async function main() {
     log("  --rate-limit <number>     Requests per hour (default: 100)");
     log("  --description <text>      API key description");
     log(
-      "  --org-id <uuid>          Organization ID (default: finds first org)"
+      "  --org-id <uuid>          Organization ID (default: finds first org)",
     );
     log("  --user-id <uuid>         User ID (default: finds first admin user)");
     log("\nExample:");
     log(
-      '  bun run scripts/create-affiliate-key.ts "clone-your-crush" --rate-limit 200\n'
+      '  bun run scripts/create-affiliate-key.ts "clone-your-crush" --rate-limit 200\n',
     );
     process.exit(0);
   }
@@ -98,13 +98,13 @@ async function main() {
     if (!orgId) {
       log("\n📋 Finding organization...", colors.cyan);
       const orgsResult = await db.execute(
-        sql`SELECT id, name FROM organizations ORDER BY created_at ASC LIMIT 1`
+        sql`SELECT id, name FROM organizations ORDER BY created_at ASC LIMIT 1`,
       );
 
       if (orgsResult.rows.length === 0) {
         log(
           "❌ No organizations found. Please create an organization first.",
-          colors.red
+          colors.red,
         );
         process.exit(1);
       }
@@ -117,7 +117,7 @@ async function main() {
     if (!userId) {
       log("\n👤 Finding user...", colors.cyan);
       const usersResult = await db.execute(
-        sql`SELECT id, name, email FROM users WHERE organization_id = ${orgId} ORDER BY created_at ASC LIMIT 1`
+        sql`SELECT id, name, email FROM users WHERE organization_id = ${orgId} ORDER BY created_at ASC LIMIT 1`,
       );
 
       if (usersResult.rows.length === 0) {
@@ -153,16 +153,16 @@ async function main() {
     log(`\n${colors.bright}Affiliate Name:${colors.reset}  ${affiliateName}`);
     log(`${colors.bright}API Key ID:${colors.reset}      ${apiKey.id}`);
     log(
-      `${colors.bright}Key Prefix:${colors.reset}      ${apiKey.key_prefix}...`
+      `${colors.bright}Key Prefix:${colors.reset}      ${apiKey.key_prefix}...`,
     );
     log(
-      `${colors.bright}Rate Limit:${colors.reset}      ${rateLimit} requests/hour`
+      `${colors.bright}Rate Limit:${colors.reset}      ${rateLimit} requests/hour`,
     );
     log(
-      `${colors.bright}Permissions:${colors.reset}     ${apiKey.permissions.join(", ")}`
+      `${colors.bright}Permissions:${colors.reset}     ${apiKey.permissions.join(", ")}`,
     );
     log(
-      `${colors.bright}Status:${colors.reset}          ${apiKey.is_active ? "✅ Active" : "❌ Inactive"}`
+      `${colors.bright}Status:${colors.reset}          ${apiKey.is_active ? "✅ Active" : "❌ Inactive"}`,
     );
 
     log(`\n${colors.yellow}${"=".repeat(50)}`, colors.yellow);
@@ -190,12 +190,12 @@ curl -X POST ${process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000"}/api/a
     },
     "affiliateId": "${affiliateName}"
   }'
-    `.trim()
+    `.trim(),
     );
 
     log(
       `\n✅ Done! Share this key with the ${affiliateName} team.\n`,
-      colors.green
+      colors.green,
     );
   } catch (error) {
     log("\n❌ Error creating affiliate API key:", colors.red);
@@ -205,4 +205,3 @@ curl -X POST ${process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000"}/api/a
 }
 
 main();
-
