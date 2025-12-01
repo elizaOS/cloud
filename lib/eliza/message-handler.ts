@@ -122,6 +122,9 @@ export class MessageHandler {
                 source: content.source || "agent",
                 inReplyTo: userMessage.id,
               },
+              metadata: {
+                type: "agent_response_message",
+              },
             };
 
             await this.runtime.createMemory(responseMemory, "messages");
@@ -293,6 +296,9 @@ export class MessageHandler {
                 content.attachments as unknown as import("@elizaos/core").Media[],
             }
           : {}),
+      },
+      metadata: {
+        type: "user_message",
       },
     };
   }

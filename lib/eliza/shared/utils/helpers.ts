@@ -24,6 +24,27 @@ export const MAX_RESPONSE_RETRIES = 3;
 export const EVALUATOR_TIMEOUT_MS = 30000;
 
 /**
+ * Clean up prompt by removing excessive empty lines
+ * Reduces multiple consecutive empty lines to a single empty line
+ * Removes leading and trailing empty lines
+ */
+export function cleanPrompt(prompt: string): string {
+  return (
+    prompt
+      // Replace 3+ consecutive newlines with 2 newlines (1 empty line)
+      .replace(/\n{3,}/g, "\n\n")
+      // Remove leading empty lines
+      .replace(/^\n+/, "")
+      // Remove trailing empty lines
+      .replace(/\n+$/, "\n")
+      // Trim any trailing whitespace on lines
+      .split("\n")
+      .map((line) => line.trimEnd())
+      .join("\n")
+  );
+}
+
+/**
  * Extract attachments from action results
  */
 export function extractAttachments(
@@ -68,7 +89,6 @@ export async function executeActions(
   plannedActions: string[],
   plan: ParsedPlan | null,
   currentState: State,
-  callback: HandlerCallback,
 ): Promise<State> {
   if (plannedActions.length === 0) {
     return currentState;
@@ -91,15 +111,15 @@ export async function executeActions(
     },
   };
 
+  // Do not send the callback, we wanna check the action results.
   await runtime.processActions(
     message,
     [actionResponse],
     currentState,
-    callback,
   );
 
   // Refresh state to get action results
-  const actionState = await runtime.composeState(message, ["ACTION_STATE"]);
+  const actionState = await runtime.composeState(message, ["CURRENT_RUN_CONTEXT"]);
   return { ...currentState, ...actionState };
 }
 
