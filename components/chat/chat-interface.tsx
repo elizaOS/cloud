@@ -72,7 +72,7 @@ export function ChatInterface({
   const shouldShowPaywall = isAnonymous && messagesRemaining <= 0;
 
   // Theme-specific styling flags
-  const isRomanticTheme = theme.variants.introCard === 'romantic';
+  const isRomanticTheme = theme.variants.introCard === "romantic";
   const showAnimatedBackground = theme.features.animatedBackground;
 
   // Get CSS variables for theming
@@ -94,13 +94,21 @@ export function ChatInterface({
       })
         .then((res) => {
           if (res.ok) {
-            console.log("[ChatInterface] ✅ Anonymous session cookie set successfully");
+            console.log(
+              "[ChatInterface] ✅ Anonymous session cookie set successfully",
+            );
           } else {
-            console.error("[ChatInterface] ❌ Failed to set session cookie:", res.status);
+            console.error(
+              "[ChatInterface] ❌ Failed to set session cookie:",
+              res.status,
+            );
           }
         })
         .catch((err) => {
-          console.error("[ChatInterface] ❌ Error setting session cookie:", err);
+          console.error(
+            "[ChatInterface] ❌ Error setting session cookie:",
+            err,
+          );
         });
     }
   }, [sessionTokenFromUrl, isAnonymous]);
@@ -109,7 +117,7 @@ export function ChatInterface({
     // Track affiliate source
     if (source) {
       console.log(
-        `[Analytics] User from ${source} started chatting with ${character.name}`
+        `[Analytics] User from ${source} started chatting with ${character.name}`,
       );
     }
   }, [source, character.name]);
@@ -117,7 +125,7 @@ export function ChatInterface({
   const handleUpgrade = () => {
     toast.info("Redirecting to signup...");
     router.push(
-      `/login?redirect=/chat/${character.id}&session=${session?.token}`
+      `/login?redirect=/chat/${character.id}&session=${session?.token}`,
     );
   };
 
@@ -129,47 +137,67 @@ export function ChatInterface({
   // Paywall view with theme support
   if (shouldShowPaywall) {
     return (
-      <div 
+      <div
         style={themeStyles}
         className={`min-h-screen flex items-center justify-center p-4 themed-chat ${
           isRomanticTheme
-            ? 'bg-black bg-[radial-gradient(ellipse_at_top,rgba(var(--theme-primary),0.15),transparent_50%),radial-gradient(ellipse_at_bottom,rgba(var(--theme-accent),0.1),transparent_50%)]'
-            : 'bg-gradient-to-b from-background to-muted/20'
+            ? "bg-black bg-[radial-gradient(ellipse_at_top,rgba(var(--theme-primary),0.15),transparent_50%),radial-gradient(ellipse_at_bottom,rgba(var(--theme-accent),0.1),transparent_50%)]"
+            : "bg-gradient-to-b from-background to-muted/20"
         }`}
       >
-        <Card className={`max-w-md w-full p-8 text-center space-y-6 ${
-          isRomanticTheme 
-            ? 'bg-white/[0.05] border-[rgba(var(--theme-primary),0.3)] backdrop-blur-sm'
-            : ''
-        }`}>
+        <Card
+          className={`max-w-md w-full p-8 text-center space-y-6 ${
+            isRomanticTheme
+              ? "bg-white/[0.05] border-[rgba(var(--theme-primary),0.3)] backdrop-blur-sm"
+              : ""
+          }`}
+        >
           <div className="flex justify-center">
-            <div className={`rounded-full p-4 ${
-              isRomanticTheme
-                ? 'bg-[rgba(var(--theme-primary),0.2)]'
-                : 'bg-primary/10'
-            }`}>
-              <InfoIcon className={`w-8 h-8 ${
-                isRomanticTheme ? 'text-[rgb(var(--theme-primary-light))]' : 'text-primary'
-              }`} />
+            <div
+              className={`rounded-full p-4 ${
+                isRomanticTheme
+                  ? "bg-[rgba(var(--theme-primary),0.2)]"
+                  : "bg-primary/10"
+              }`}
+            >
+              <InfoIcon
+                className={`w-8 h-8 ${
+                  isRomanticTheme
+                    ? "text-[rgb(var(--theme-primary-light))]"
+                    : "text-primary"
+                }`}
+              />
             </div>
           </div>
 
           <div className="space-y-2">
-            <h2 className={`text-2xl font-bold ${isRomanticTheme ? 'text-white' : ''}`}>
+            <h2
+              className={`text-2xl font-bold ${isRomanticTheme ? "text-white" : ""}`}
+            >
               You've reached your free message limit
             </h2>
-            <p className={isRomanticTheme ? 'text-white/70' : 'text-muted-foreground'}>
+            <p
+              className={
+                isRomanticTheme ? "text-white/70" : "text-muted-foreground"
+              }
+            >
               Sign up for free to continue chatting with {character.name}
             </p>
           </div>
 
-          <div className={`rounded-lg p-4 space-y-2 ${
-            isRomanticTheme ? 'bg-white/[0.05]' : 'bg-muted/50'
-          }`}>
-            <p className={`font-medium ${isRomanticTheme ? 'text-white' : ''}`}>What you get:</p>
-            <ul className={`text-sm text-left space-y-1 ${
-              isRomanticTheme ? 'text-white/70' : 'text-muted-foreground'
-            }`}>
+          <div
+            className={`rounded-lg p-4 space-y-2 ${
+              isRomanticTheme ? "bg-white/[0.05]" : "bg-muted/50"
+            }`}
+          >
+            <p className={`font-medium ${isRomanticTheme ? "text-white" : ""}`}>
+              What you get:
+            </p>
+            <ul
+              className={`text-sm text-left space-y-1 ${
+                isRomanticTheme ? "text-white/70" : "text-muted-foreground"
+              }`}
+            >
               <li>✅ Unlimited messages</li>
               <li>✅ Save your chat history</li>
               <li>✅ Access from any device</li>
@@ -177,12 +205,12 @@ export function ChatInterface({
             </ul>
           </div>
 
-          <Button 
-            size="lg" 
+          <Button
+            size="lg"
             className={`w-full ${
               isRomanticTheme
-                ? 'bg-gradient-to-r from-[rgb(var(--theme-primary))] to-[rgb(var(--theme-gradient-to))] hover:from-[rgb(var(--theme-primary-light))] hover:to-[rgb(var(--theme-primary))] text-white shadow-lg shadow-[rgba(var(--theme-primary),0.3)]'
-                : ''
+                ? "bg-gradient-to-r from-[rgb(var(--theme-primary))] to-[rgb(var(--theme-gradient-to))] hover:from-[rgb(var(--theme-primary-light))] hover:to-[rgb(var(--theme-primary))] text-white shadow-lg shadow-[rgba(var(--theme-primary),0.3)]"
+                : ""
             }`}
             onClick={handleUpgrade}
           >
@@ -190,7 +218,9 @@ export function ChatInterface({
             Sign Up Free
           </Button>
 
-          <p className={`text-xs ${isRomanticTheme ? 'text-white/50' : 'text-muted-foreground'}`}>
+          <p
+            className={`text-xs ${isRomanticTheme ? "text-white/50" : "text-muted-foreground"}`}
+          >
             No credit card required
           </p>
         </Card>
@@ -210,52 +240,54 @@ export function ChatInterface({
   }
 
   return (
-    <div 
+    <div
       style={themeStyles}
       className={`h-screen flex flex-col themed-chat ${
         isRomanticTheme
-          ? 'bg-black bg-[radial-gradient(ellipse_at_top,rgba(var(--theme-primary),0.15),transparent_50%),radial-gradient(ellipse_at_bottom,rgba(var(--theme-accent),0.1),transparent_50%)]'
-          : ''
+          ? "bg-black bg-[radial-gradient(ellipse_at_top,rgba(var(--theme-primary),0.15),transparent_50%),radial-gradient(ellipse_at_bottom,rgba(var(--theme-accent),0.1),transparent_50%)]"
+          : ""
       }`}
     >
       {/* Animated background for romantic theme */}
       {showAnimatedBackground && (
         <div className="fixed inset-0 -z-10">
-          <div 
-            className="absolute inset-0 bg-[radial-gradient(ellipse_at_center,rgba(var(--theme-primary),0.08),transparent_70%)] animate-pulse" 
-            style={{ animationDuration: "4s" }} 
+          <div
+            className="absolute inset-0 bg-[radial-gradient(ellipse_at_center,rgba(var(--theme-primary),0.08),transparent_70%)] animate-pulse"
+            style={{ animationDuration: "4s" }}
           />
         </div>
       )}
 
       {/* Free messages banner (anonymous only) */}
       {isAnonymous && !shouldShowPaywall && (
-        <div className={`border-b backdrop-blur-sm ${
-          isRomanticTheme 
-            ? 'border-white/10 bg-white/[0.02]'
-            : 'bg-muted/30'
-        }`}>
+        <div
+          className={`border-b backdrop-blur-sm ${
+            isRomanticTheme ? "border-white/10 bg-white/[0.02]" : "bg-muted/30"
+          }`}
+        >
           <div className="container mx-auto px-4 py-3">
             <div className="flex items-center justify-between flex-wrap gap-2">
               <div className="flex items-center gap-3">
-                <Badge 
-                  variant="secondary" 
+                <Badge
+                  variant="secondary"
                   className={
                     isRomanticTheme
-                      ? 'bg-[rgba(var(--theme-primary),0.1)] text-[rgb(var(--theme-primary-light))] border-[rgba(var(--theme-primary),0.2)]'
-                      : ''
+                      ? "bg-[rgba(var(--theme-primary),0.1)] text-[rgb(var(--theme-primary-light))] border-[rgba(var(--theme-primary),0.2)]"
+                      : ""
                   }
                 >
                   {messagesRemaining} messages left
                 </Badge>
-                <div className={`w-32 h-2 rounded-full overflow-hidden ${
-                  isRomanticTheme ? 'bg-white/10' : 'bg-muted'
-                }`}>
-                  <div 
+                <div
+                  className={`w-32 h-2 rounded-full overflow-hidden ${
+                    isRomanticTheme ? "bg-white/10" : "bg-muted"
+                  }`}
+                >
+                  <div
                     className={`h-full transition-all duration-300 ${
                       isRomanticTheme
-                        ? 'bg-gradient-to-r from-[rgb(var(--theme-primary))] to-[rgb(var(--theme-gradient-to))]'
-                        : 'bg-primary'
+                        ? "bg-gradient-to-r from-[rgb(var(--theme-primary))] to-[rgb(var(--theme-gradient-to))]"
+                        : "bg-primary"
                     }`}
                     style={{ width: `${progress}%` }}
                   />
@@ -267,8 +299,8 @@ export function ChatInterface({
                 onClick={isRomanticTheme ? handleSignup : handleUpgrade}
                 className={
                   isRomanticTheme
-                    ? 'border-[rgba(var(--theme-primary),0.3)] text-[rgb(var(--theme-primary-light))] hover:bg-[rgba(var(--theme-primary),0.1)] hover:text-[rgb(var(--theme-primary-light))]'
-                    : ''
+                    ? "border-[rgba(var(--theme-primary),0.3)] text-[rgb(var(--theme-primary-light))] hover:bg-[rgba(var(--theme-primary),0.1)] hover:text-[rgb(var(--theme-primary-light))]"
+                    : ""
                 }
               >
                 <Sparkles className="w-4 h-4 mr-2" />
@@ -281,30 +313,41 @@ export function ChatInterface({
 
       {/* Soft signup prompt (5-9 messages) */}
       {shouldShowSoftPrompt && (
-        <div className={`border-b backdrop-blur-sm ${
-          isRomanticTheme
-            ? 'border-[rgba(var(--theme-primary),0.2)] bg-gradient-to-r from-[rgba(var(--theme-primary),0.1)] to-[rgba(var(--theme-accent),0.1)]'
-            : ''
-        }`}>
+        <div
+          className={`border-b backdrop-blur-sm ${
+            isRomanticTheme
+              ? "border-[rgba(var(--theme-primary),0.2)] bg-gradient-to-r from-[rgba(var(--theme-primary),0.1)] to-[rgba(var(--theme-accent),0.1)]"
+              : ""
+          }`}
+        >
           <div className="container mx-auto px-4 py-3">
-            <Alert className={
-              isRomanticTheme
-                ? 'border-[rgba(var(--theme-primary),0.3)] bg-transparent'
-                : 'border-primary/50 bg-primary/5'
-            }>
-              <Sparkles className={`h-4 w-4 ${
-                isRomanticTheme ? 'text-[rgb(var(--theme-primary-light))]' : ''
-              }`} />
-              <AlertDescription className={isRomanticTheme ? 'text-white/80' : ''}>
-                Enjoying the conversation? Sign up for free to get unlimited messages and save your chat history.
+            <Alert
+              className={
+                isRomanticTheme
+                  ? "border-[rgba(var(--theme-primary),0.3)] bg-transparent"
+                  : "border-primary/50 bg-primary/5"
+              }
+            >
+              <Sparkles
+                className={`h-4 w-4 ${
+                  isRomanticTheme
+                    ? "text-[rgb(var(--theme-primary-light))]"
+                    : ""
+                }`}
+              />
+              <AlertDescription
+                className={isRomanticTheme ? "text-white/80" : ""}
+              >
+                Enjoying the conversation? Sign up for free to get unlimited
+                messages and save your chat history.
                 <Button
                   size="sm"
                   variant="link"
                   onClick={isRomanticTheme ? handleSignup : handleUpgrade}
                   className={`ml-2 ${
-                    isRomanticTheme 
-                      ? 'text-[rgb(var(--theme-primary-light))] hover:text-[rgb(var(--theme-primary-light))]'
-                      : ''
+                    isRomanticTheme
+                      ? "text-[rgb(var(--theme-primary-light))] hover:text-[rgb(var(--theme-primary-light))]"
+                      : ""
                   }`}
                 >
                   Sign up free →
@@ -316,7 +359,9 @@ export function ChatInterface({
       )}
 
       {/* Chat interface with theme styling */}
-      <div className={`flex-1 overflow-hidden ${isRomanticTheme ? 'chat-theme-romantic' : ''}`}>
+      <div
+        className={`flex-1 overflow-hidden ${isRomanticTheme ? "chat-theme-romantic" : ""}`}
+      >
         <ElizaChatInterface />
       </div>
 
@@ -331,7 +376,8 @@ export function ChatInterface({
         }
 
         /* Romantic theme chat styles */
-        ${isRomanticTheme ? `
+        ${isRomanticTheme
+          ? `
           .chat-theme-romantic {
             background: transparent;
           }
@@ -344,20 +390,20 @@ export function ChatInterface({
           /* Agent message bubble */
           .chat-theme-romantic .flex.justify-start .flex-col.gap-1 > div.py-1.rounded-none {
             background: rgba(255, 255, 255, 0.05) !important;
-            border: 1px solid rgba(${theme.colors.primary.replace(/ /g, ', ')}, 0.15) !important;
+            border: 1px solid rgba(${theme.colors.primary.replace(/ /g, ", ")}, 0.15) !important;
             border-radius: 18px 18px 18px 4px !important;
             padding: 14px 18px !important;
             backdrop-filter: blur(16px);
             box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15), 
-                        inset 0 1px 0 rgba(${theme.colors.primary.replace(/ /g, ', ')}, 0.08),
-                        0 0 0 1px rgba(${theme.colors.primary.replace(/ /g, ', ')}, 0.05) !important;
+                        inset 0 1px 0 rgba(${theme.colors.primary.replace(/ /g, ", ")}, 0.08),
+                        0 0 0 1px rgba(${theme.colors.primary.replace(/ /g, ", ")}, 0.05) !important;
             transition: all 0.2s ease;
           }
           
           /* Agent message hover */
           .chat-theme-romantic .flex.justify-start .flex-col.gap-1 > div.py-1.rounded-none:hover {
             background: rgba(255, 255, 255, 0.07) !important;
-            border-color: rgba(${theme.colors.primary.replace(/ /g, ', ')}, 0.25) !important;
+            border-color: rgba(${theme.colors.primary.replace(/ /g, ", ")}, 0.25) !important;
           }
           
           /* User message container */
@@ -368,11 +414,11 @@ export function ChatInterface({
           
           /* User message bubble */
           .chat-theme-romantic .flex-col.gap-2.max-w-full > div.rounded-none {
-            background: linear-gradient(135deg, rgba(${theme.colors.primary.replace(/ /g, ', ')}, 0.95), rgba(${theme.colors.primaryLight.replace(/ /g, ', ')}, 0.95)) !important;
+            background: linear-gradient(135deg, rgba(${theme.colors.primary.replace(/ /g, ", ")}, 0.95), rgba(${theme.colors.primaryLight.replace(/ /g, ", ")}, 0.95)) !important;
             border: 1px solid rgba(255, 255, 255, 0.2) !important;
             border-radius: 18px 18px 4px 18px !important;
             padding: 14px 18px !important;
-            box-shadow: 0 4px 16px rgba(${theme.colors.primary.replace(/ /g, ', ')}, 0.4),
+            box-shadow: 0 4px 16px rgba(${theme.colors.primary.replace(/ /g, ", ")}, 0.4),
                         inset 0 1px 0 rgba(255, 255, 255, 0.2) !important;
             transition: all 0.2s ease;
           }
@@ -386,26 +432,26 @@ export function ChatInterface({
           
           /* User avatar */
           .chat-theme-romantic .bg-\\[\\#FF5800\\] {
-            background: linear-gradient(135deg, rgb(${theme.colors.primary.replace(/ /g, ', ')}), rgb(${theme.colors.primaryLight.replace(/ /g, ', ')})) !important;
+            background: linear-gradient(135deg, rgb(${theme.colors.primary.replace(/ /g, ", ")}), rgb(${theme.colors.primaryLight.replace(/ /g, ", ")})) !important;
             border: 2px solid rgba(255, 255, 255, 0.2) !important;
-            box-shadow: 0 4px 12px rgba(${theme.colors.primary.replace(/ /g, ', ')}, 0.4);
+            box-shadow: 0 4px 12px rgba(${theme.colors.primary.replace(/ /g, ", ")}, 0.4);
           }
           
           /* Input form container */
           .chat-theme-romantic form[style*="backgroundColor"] {
             background: rgba(255, 255, 255, 0.04) !important;
-            border: 1px solid rgba(${theme.colors.primary.replace(/ /g, ', ')}, 0.2) !important;
+            border: 1px solid rgba(${theme.colors.primary.replace(/ /g, ", ")}, 0.2) !important;
             border-radius: 20px !important;
             backdrop-filter: blur(16px);
             box-shadow: 0 2px 12px rgba(0, 0, 0, 0.15),
-                        inset 0 1px 0 rgba(${theme.colors.primary.replace(/ /g, ', ')}, 0.08) !important;
+                        inset 0 1px 0 rgba(${theme.colors.primary.replace(/ /g, ", ")}, 0.08) !important;
             padding: 16px !important;
             margin-bottom: 20px !important;
           }
           
           /* Input form on focus */
           .chat-theme-romantic form[style*="backgroundColor"]:focus-within {
-            border-color: rgba(${theme.colors.primary.replace(/ /g, ', ')}, 0.4) !important;
+            border-color: rgba(${theme.colors.primary.replace(/ /g, ", ")}, 0.4) !important;
           }
           
           /* Input textarea */
@@ -420,10 +466,10 @@ export function ChatInterface({
           
           /* Send button */
           .chat-theme-romantic button[type="submit"]:not(.h-5):not(.w-5) {
-            background: linear-gradient(135deg, rgb(${theme.colors.primary.replace(/ /g, ', ')}), rgb(${theme.colors.primaryLight.replace(/ /g, ', ')})) !important;
+            background: linear-gradient(135deg, rgb(${theme.colors.primary.replace(/ /g, ", ")}), rgb(${theme.colors.primaryLight.replace(/ /g, ", ")})) !important;
             border: 1px solid rgba(255, 255, 255, 0.1) !important;
             border-radius: 12px !important;
-            box-shadow: 0 4px 12px rgba(${theme.colors.primary.replace(/ /g, ', ')}, 0.35),
+            box-shadow: 0 4px 12px rgba(${theme.colors.primary.replace(/ /g, ", ")}, 0.35),
                         inset 0 1px 0 rgba(255, 255, 255, 0.2) !important;
             transition: all 0.2s ease;
             min-width: 120px !important;
@@ -432,7 +478,7 @@ export function ChatInterface({
           }
           
           .chat-theme-romantic button[type="submit"]:not(.h-5):not(.w-5):hover:not(:disabled) {
-            background: linear-gradient(135deg, rgb(${theme.colors.primaryLight.replace(/ /g, ', ')}), rgb(${theme.colors.primary.replace(/ /g, ', ')})) !important;
+            background: linear-gradient(135deg, rgb(${theme.colors.primaryLight.replace(/ /g, ", ")}), rgb(${theme.colors.primary.replace(/ /g, ", ")})) !important;
             transform: translateY(-2px);
           }
           
@@ -443,27 +489,27 @@ export function ChatInterface({
           
           /* Voice/Mic button */
           .chat-theme-romantic button[type="button"]:not(.h-5):not(.w-5):not([class*="dropdown"]) {
-            color: rgb(${theme.colors.primary.replace(/ /g, ', ')}) !important;
-            border: 1px solid rgba(${theme.colors.primary.replace(/ /g, ', ')}, 0.3) !important;
+            color: rgb(${theme.colors.primary.replace(/ /g, ", ")}) !important;
+            border: 1px solid rgba(${theme.colors.primary.replace(/ /g, ", ")}, 0.3) !important;
             border-radius: 12px !important;
-            background: rgba(${theme.colors.primary.replace(/ /g, ', ')}, 0.05) !important;
+            background: rgba(${theme.colors.primary.replace(/ /g, ", ")}, 0.05) !important;
           }
           
           .chat-theme-romantic button[type="button"]:not(.h-5):not(.w-5):not([class*="dropdown"]):hover:not(:disabled) {
-            background: rgba(${theme.colors.primary.replace(/ /g, ', ')}, 0.15) !important;
-            border-color: rgba(${theme.colors.primary.replace(/ /g, ', ')}, 0.5) !important;
+            background: rgba(${theme.colors.primary.replace(/ /g, ", ")}, 0.15) !important;
+            border-color: rgba(${theme.colors.primary.replace(/ /g, ", ")}, 0.5) !important;
           }
           
           /* Thinking indicator */
           .chat-theme-romantic .flex.items-center.gap-3.py-2 {
             background: rgba(255, 255, 255, 0.04) !important;
-            border: 1px solid rgba(${theme.colors.primary.replace(/ /g, ', ')}, 0.15) !important;
+            border: 1px solid rgba(${theme.colors.primary.replace(/ /g, ", ")}, 0.15) !important;
             border-radius: 18px 18px 18px 4px !important;
             padding: 14px 18px !important;
           }
           
           .chat-theme-romantic .animate-spin {
-            color: rgb(${theme.colors.primary.replace(/ /g, ', ')}) !important;
+            color: rgb(${theme.colors.primary.replace(/ /g, ", ")}) !important;
           }
           
           /* Scrollbar */
@@ -474,24 +520,25 @@ export function ChatInterface({
             background: rgba(0, 0, 0, 0.2);
           }
           .chat-theme-romantic ::-webkit-scrollbar-thumb {
-            background: rgba(${theme.colors.primary.replace(/ /g, ', ')}, 0.3);
+            background: rgba(${theme.colors.primary.replace(/ /g, ", ")}, 0.3);
             border-radius: 4px;
           }
           .chat-theme-romantic ::-webkit-scrollbar-thumb:hover {
-            background: rgba(${theme.colors.primary.replace(/ /g, ', ')}, 0.5);
+            background: rgba(${theme.colors.primary.replace(/ /g, ", ")}, 0.5);
           }
           
           /* Character name label */
           .chat-theme-romantic p[style*="color: rgb(161, 161, 170)"] {
-            color: rgba(${theme.colors.primary.replace(/ /g, ', ')}, 0.8) !important;
+            color: rgba(${theme.colors.primary.replace(/ /g, ", ")}, 0.8) !important;
             font-weight: 500 !important;
           }
           
           /* Switch toggles */
           .chat-theme-romantic [role="switch"][data-state="checked"] {
-            background: linear-gradient(135deg, rgb(${theme.colors.primary.replace(/ /g, ', ')}), rgb(${theme.colors.primaryLight.replace(/ /g, ', ')})) !important;
+            background: linear-gradient(135deg, rgb(${theme.colors.primary.replace(/ /g, ", ")}), rgb(${theme.colors.primaryLight.replace(/ /g, ", ")})) !important;
           }
-        ` : ''}
+        `
+          : ""}
       `}</style>
     </div>
   );

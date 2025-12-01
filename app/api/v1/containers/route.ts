@@ -574,9 +574,8 @@ async function initiateCloudFormationStack(
     `🚀 [initiateCloudFormationStack] Starting for container: ${containerId}`,
   );
 
-  const { cloudFormationService } = await import(
-    "@/lib/services/cloudformation"
-  );
+  const { cloudFormationService } =
+    await import("@/lib/services/cloudformation");
 
   // Update status to building
   await updateContainerStatus(containerId, "building", {
@@ -584,10 +583,12 @@ async function initiateCloudFormationStack(
   });
 
   // Check if shared infrastructure is deployed
-  console.log(`🔍 [initiateCloudFormationStack] Checking shared infrastructure...`);
+  console.log(
+    `🔍 [initiateCloudFormationStack] Checking shared infrastructure...`,
+  );
   const sharedInfraExists =
     await cloudFormationService.isSharedInfrastructureDeployed();
-  
+
   if (!sharedInfraExists) {
     throw new Error(
       "Shared infrastructure not deployed. Contact support or deploy infrastructure first.",
@@ -633,12 +634,15 @@ async function initiateCloudFormationStack(
     environmentVars: environmentVars,
   };
 
-  console.log(`☁️ [initiateCloudFormationStack] Calling CloudFormation API...`, {
-    userId: stackConfig.userId,
-    projectName: stackConfig.projectName,
-    architecture: stackConfig.architecture,
-    isUpdate,
-  });
+  console.log(
+    `☁️ [initiateCloudFormationStack] Calling CloudFormation API...`,
+    {
+      userId: stackConfig.userId,
+      projectName: stackConfig.projectName,
+      architecture: stackConfig.architecture,
+      isUpdate,
+    },
+  );
 
   // Create or update CloudFormation stack
   // This API call is FAST (milliseconds) - it just initiates the stack

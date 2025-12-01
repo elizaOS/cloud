@@ -12,8 +12,8 @@ import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
 import { AgentMode } from "@/lib/eliza/agent-mode-types";
 import {
-  createConversationAction, 
-  listUserConversationsAction 
+  createConversationAction,
+  listUserConversationsAction,
 } from "@/app/actions/conversations";
 
 interface BuildModeAssistantProps {
@@ -43,7 +43,7 @@ export function BuildModeAssistant({
   const [messages, setMessages] = useState<Message[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [builderRoomId, setBuilderRoomId] = useState<string>("");
-  
+
   const [quickPrompts] = useState<string[]>([
     "Add personality traits",
     "Improve the bio",
@@ -66,31 +66,33 @@ export function BuildModeAssistant({
       try {
         // The title used to identify builder rooms - MUST include character ID for uniqueness
         const builderTitle = `[BUILD] ${character.name || "New Character"} (${character.id})`;
-        
+
         // Try to find existing builder room by matching the character ID in title
         const { success, conversations } = await listUserConversationsAction();
-        
+
         if (success && conversations) {
           // Look for existing build room for THIS specific character
           // Match either the full title or just the pattern with character ID
           const existingRoom = conversations.find(
-            (conv) => 
-              conv.title === builderTitle || 
-              conv.title.includes(`[BUILD]`) && conv.title.includes(`(${character.id})`)
+            (conv) =>
+              conv.title === builderTitle ||
+              (conv.title.includes(`[BUILD]`) &&
+                conv.title.includes(`(${character.id})`)),
           );
-          
+
           if (existingRoom) {
             setBuilderRoomId(existingRoom.id);
             return;
           }
         }
-        
+
         // Create new builder room for this specific character
-        const { success: createSuccess, conversation } = await createConversationAction({
-          title: builderTitle,
-          model: "gpt-4o", // Default model for builder
-        });
-        
+        const { success: createSuccess, conversation } =
+          await createConversationAction({
+            title: builderTitle,
+            model: "gpt-4o", // Default model for builder
+          });
+
         if (createSuccess && conversation) {
           setBuilderRoomId(conversation.id);
         } else {
@@ -101,7 +103,7 @@ export function BuildModeAssistant({
         toast.error("Failed to initialize build mode");
       }
     };
-    
+
     initializeBuilderRoom();
   }, [character.id, userId]);
 
@@ -112,45 +114,56 @@ export function BuildModeAssistant({
 
       try {
         const response = await fetch(`/api/eliza/rooms/${builderRoomId}`);
-        
+
         if (response.ok) {
           const data = await response.json();
           const loadedMessages = data.messages || [];
-          
+
           // Convert Eliza messages to our Message format
           // The API returns messages with isAgent boolean and content as an object with source field
           const convertedMessages: Message[] = loadedMessages
-            .map((msg: {
-              id: string;
-              content: { text?: string; source?: string; metadata?: { type?: string } };
-              createdAt: number;
-              isAgent: boolean;
-            }) => {
-              // Skip messages without text content
-              const text = msg.content?.text;
-              if (!text || typeof text !== "string") {
-                return null;
-              }
+            .map(
+              (msg: {
+                id: string;
+                content: {
+                  text?: string;
+                  source?: string;
+                  metadata?: { type?: string };
+                };
+                createdAt: number;
+                isAgent: boolean;
+              }) => {
+                // Skip messages without text content
+                const text = msg.content?.text;
+                if (!text || typeof text !== "string") {
+                  return null;
+                }
 
-              // Skip action result messages - these are internal and shouldn't be shown in UI
-              if (msg.content?.metadata?.type === "action_result") {
-                return null;
-              }
+                // Skip action result messages - these are internal and shouldn't be shown in UI
+                if (msg.content?.metadata?.type === "action_result") {
+                  return null;
+                }
 
-              // Determine role: prioritize 'source' field, fallback to isAgent
-              // source can be: 'user', 'agent', 'action'
-              const source = msg.content?.source;
-              const isAgentMessage = source === 'agent' || source === 'action' || (source === undefined && msg.isAgent);
+                // Determine role: prioritize 'source' field, fallback to isAgent
+                // source can be: 'user', 'agent', 'action'
+                const source = msg.content?.source;
+                const isAgentMessage =
+                  source === "agent" ||
+                  source === "action" ||
+                  (source === undefined && msg.isAgent);
 
-              return {
-                id: msg.id,
-                role: isAgentMessage ? ("assistant" as const) : ("user" as const),
-                content: text,
-                timestamp: msg.createdAt,
-              };
-            })
+                return {
+                  id: msg.id,
+                  role: isAgentMessage
+                    ? ("assistant" as const)
+                    : ("user" as const),
+                  content: text,
+                  timestamp: msg.createdAt,
+                };
+              },
+            )
             .filter((msg: Message | null): msg is Message => msg !== null);
-          
+
           if (convertedMessages.length > 0) {
             setMessages(convertedMessages);
           }
@@ -178,7 +191,11 @@ export function BuildModeAssistant({
     // 1. We have a builderRoomId (room is initialized)
     // 2. We have no messages
     // 3. We haven't loaded messages yet (avoids race condition where welcome shows before load completes)
-    if (builderRoomId && messages.length === 0 && !hasLoadedMessagesRef.current) {
+    if (
+      builderRoomId &&
+      messages.length === 0 &&
+      !hasLoadedMessagesRef.current
+    ) {
       // Small delay to let message loading complete first
       const timer = setTimeout(() => {
         // Double-check messages are still empty after delay
@@ -258,13 +275,13 @@ Tell me about your vision!`;
         let buffer = "";
         let detectedApplyAction = false;
         let proposedCharacterUpdate: Partial<ElizaCharacter> | null = null;
-        
+
         while (true) {
           const { done, value } = await reader.read();
           if (done) break;
 
           buffer += decoder.decode(value, { stream: true });
-          
+
           // Split by double newline (SSE event separator)
           const events = buffer.split("\n\n");
           // Keep the last incomplete event in the buffer
@@ -272,11 +289,11 @@ Tell me about your vision!`;
 
           for (const eventBlock of events) {
             if (!eventBlock.trim()) continue;
-            
+
             const lines = eventBlock.split("\n");
             let eventType = "";
             let eventData = "";
-            
+
             for (const line of lines) {
               if (line.startsWith("event: ")) {
                 eventType = line.slice(7).trim();
@@ -284,45 +301,62 @@ Tell me about your vision!`;
                 eventData = line.slice(6);
               }
             }
-            
+
             if (eventData) {
               try {
                 const data = JSON.parse(eventData);
-                
+
                 // Handle agent message
                 if (data.type === "agent" && data.content?.text) {
                   // Skip action result messages - these are internal and shouldn't be shown in UI
                   if (data.content?.metadata?.type === "action_result") {
                     // Still check for apply action even if we don't display the message
-                    if (data.content?.actions && Array.isArray(data.content.actions)) {
-                      if (data.content.actions.includes('APPLY_CHARACTER_CHANGES')) {
+                    if (
+                      data.content?.actions &&
+                      Array.isArray(data.content.actions)
+                    ) {
+                      if (
+                        data.content.actions.includes("APPLY_CHARACTER_CHANGES")
+                      ) {
                         detectedApplyAction = true;
                       }
                     }
                     continue; // Skip adding this to the UI
                   }
-                  
+
                   assistantMessage = data.content.text;
                   assistantMessageId = data.id;
-                  
+
                   // Check if this message contains the APPLY_CHARACTER_CHANGES action
-                  if (data.content?.actions && Array.isArray(data.content.actions)) {
-                    if (data.content.actions.includes('APPLY_CHARACTER_CHANGES')) {
+                  if (
+                    data.content?.actions &&
+                    Array.isArray(data.content.actions)
+                  ) {
+                    if (
+                      data.content.actions.includes("APPLY_CHARACTER_CHANGES")
+                    ) {
                       detectedApplyAction = true;
                     }
                   }
 
                   // Check if this message contains PROPOSE_CHARACTER_CHANGES with updatedCharacter
-                  if (data.content?.metadata?.action === 'PROPOSE_CHARACTER_CHANGES' && 
-                      data.content?.metadata?.updatedCharacter) {
-                    proposedCharacterUpdate = data.content.metadata.updatedCharacter;
+                  if (
+                    data.content?.metadata?.action ===
+                      "PROPOSE_CHARACTER_CHANGES" &&
+                    data.content?.metadata?.updatedCharacter
+                  ) {
+                    proposedCharacterUpdate =
+                      data.content.metadata.updatedCharacter;
                   }
                 }
               } catch (e) {
-                console.warn("[BuildMode SSE] Failed to parse JSON:", eventData.substring(0, 100));
+                console.warn(
+                  "[BuildMode SSE] Failed to parse JSON:",
+                  eventData.substring(0, 100),
+                );
               }
             }
-            
+
             // Handle done event
             if (eventType === "done") {
               if (assistantMessage) {
@@ -333,15 +367,18 @@ Tell me about your vision!`;
                   timestamp: Date.now(),
                 };
                 setMessages((prev) => [...prev, newAssistantMessage]);
-                
+
                 // If we received a character update proposal, apply it immediately to the editor
                 if (proposedCharacterUpdate) {
                   onCharacterUpdate(proposedCharacterUpdate);
-                  toast.success("Character preview updated! Review the changes in the editor.", {
-                    duration: 4000,
-                  });
+                  toast.success(
+                    "Character preview updated! Review the changes in the editor.",
+                    {
+                      duration: 4000,
+                    },
+                  );
                 }
-                
+
                 // If we detected an apply action, refresh the character data from DB
                 if (detectedApplyAction && onCharacterRefresh) {
                   toast.success("Character saved! Refreshing data...", {
@@ -493,13 +530,16 @@ Tell me about your vision!`;
                               max-width: 100% !important;
                               margin: 8px 0 !important;
                             }
-                            .build-mode-content :global(pre)::-webkit-scrollbar {
+                            .build-mode-content
+                              :global(pre)::-webkit-scrollbar {
                               height: 8px;
                             }
-                            .build-mode-content :global(pre)::-webkit-scrollbar-track {
+                            .build-mode-content
+                              :global(pre)::-webkit-scrollbar-track {
                               background: rgba(0, 0, 0, 0.2);
                             }
-                            .build-mode-content :global(pre)::-webkit-scrollbar-thumb {
+                            .build-mode-content
+                              :global(pre)::-webkit-scrollbar-thumb {
                               background: rgba(255, 88, 0, 0.4);
                               border-radius: 0;
                             }

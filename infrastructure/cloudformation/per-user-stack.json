@@ -494,7 +494,9 @@
             "LogConfiguration": {
               "LogDriver": "awslogs",
               "Options": {
-                "awslogs-group": { "Fn::Sub": "/ecs/elizaos-${UserId}-${ProjectName}" },
+                "awslogs-group": {
+                  "Fn::Sub": "/ecs/elizaos-${UserId}-${ProjectName}"
+                },
                 "awslogs-region": { "Ref": "AWS::Region" },
                 "awslogs-stream-prefix": "ecs"
               }
