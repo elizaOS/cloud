@@ -8,7 +8,10 @@ import { userContextService } from "@/lib/eliza/user-context";
 import { runtimeFactory } from "@/lib/eliza/runtime-factory";
 import { createMessageHandler } from "@/lib/eliza/message-handler";
 import type { AgentModeConfig } from "@/lib/eliza/agent-mode-types";
-import { AgentMode, isValidAgentModeConfig } from "@/lib/eliza/agent-mode-types";
+import {
+  AgentMode,
+  isValidAgentModeConfig,
+} from "@/lib/eliza/agent-mode-types";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
@@ -64,7 +67,10 @@ export async function POST(
     }
 
     // Step 2: Authentication & Context Building (single step, clean!)
-    const userContext = await authenticateAndBuildContext(request, agentModeConfig.mode);
+    const userContext = await authenticateAndBuildContext(
+      request,
+      agentModeConfig.mode,
+    );
 
     // Step 3: Rate limiting for anonymous users
     if (userContext.isAnonymous && userContext.sessionToken) {
@@ -88,17 +94,21 @@ export async function POST(
     }
 
     // Step 4: Get character assignment for room
-    const roomCharacter = await elizaRoomCharactersRepository.findByRoomId(roomId);
+    const roomCharacter =
+      await elizaRoomCharactersRepository.findByRoomId(roomId);
     let characterId = roomCharacter?.character_id || undefined;
-    
+
     // For BUILD mode, use the targetCharacterId from agent mode metadata
     // This ensures we're editing the correct character, not the default
-    if (agentModeConfig.mode === AgentMode.BUILD && agentModeConfig.metadata?.targetCharacterId) {
+    if (
+      agentModeConfig.mode === AgentMode.BUILD &&
+      agentModeConfig.metadata?.targetCharacterId
+    ) {
       characterId = agentModeConfig.metadata.targetCharacterId as string;
       logger.info(
-        `[Stream] BUILD mode - Using character from metadata: ${characterId}`
+        `[Stream] BUILD mode - Using character from metadata: ${characterId}`,
       );
-      
+
       // Ensure room-character association exists for build mode
       // Each user-character combo should have its own build room
       if (!roomCharacter && characterId) {
@@ -110,12 +120,12 @@ export async function POST(
             user_id: userContext.userId,
           });
           logger.info(
-            `[Stream] BUILD mode - Created room-character association: room ${roomId} → character ${characterId}`
+            `[Stream] BUILD mode - Created room-character association: room ${roomId} → character ${characterId}`,
           );
         } catch (error) {
           logger.error(
             `[Stream] BUILD mode - Failed to create room-character association:`,
-            error
+            error,
           );
         }
       } else if (roomCharacter && roomCharacter.character_id !== characterId) {
@@ -123,17 +133,17 @@ export async function POST(
         try {
           await elizaRoomCharactersRepository.update(roomId, characterId);
           logger.info(
-            `[Stream] BUILD mode - Updated room-character association: room ${roomId} → character ${characterId}`
+            `[Stream] BUILD mode - Updated room-character association: room ${roomId} → character ${characterId}`,
           );
         } catch (error) {
           logger.error(
             `[Stream] BUILD mode - Failed to update room-character association:`,
-            error
+            error,
           );
         }
       }
     }
-    
+
     logger.info(
       `[Stream] Room ${roomId} - Character lookup:`,
       characterId
@@ -224,7 +234,10 @@ export async function POST(
           };
 
           // Include attachments if present
-          if (typeof messageContent === "object" && messageContent?.attachments) {
+          if (
+            typeof messageContent === "object" &&
+            messageContent?.attachments
+          ) {
             responseContentPayload.attachments = messageContent.attachments;
           }
 
@@ -306,7 +319,10 @@ export async function POST(
  * Helper function to authenticate and build user context
  * Centralizes authentication and context creation
  */
-async function authenticateAndBuildContext(request: NextRequest, agentMode: AgentMode) {
+async function authenticateAndBuildContext(
+  request: NextRequest,
+  agentMode: AgentMode,
+) {
   try {
     // Try authenticated user first
     const authResult = await requireAuthOrApiKey(request);

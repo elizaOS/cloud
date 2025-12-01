@@ -91,7 +91,7 @@ export const buildChatAction = {
   validate: async (
     _runtime: IAgentRuntime,
     _message: Memory,
-    state?: State
+    state?: State,
   ) => {
     if (!state) {
       return false;
@@ -105,7 +105,7 @@ export const buildChatAction = {
     message: Memory,
     state: State,
     _options: Record<string, unknown>,
-    callback: HandlerCallback
+    callback: HandlerCallback,
   ): Promise<void> => {
     try {
       logger.info("[BUILD_CHAT] 💬 Generating conversational response");
@@ -141,7 +141,7 @@ export const buildChatAction = {
 
       if (!parsed?.text) {
         logger.warn(
-          "[BUILD_CHAT] Failed to parse response - no text field in parsed XML"
+          "[BUILD_CHAT] Failed to parse response - no text field in parsed XML",
         );
         await callback({
           text: `Failed to parse LLM response: No 'text' field found in XML output. Raw response may be malformed.`,
@@ -167,7 +167,7 @@ export const buildChatAction = {
           message: err.message,
           stack: err.stack,
         },
-        "[BUILD_CHAT] Exception during chat response"
+        "[BUILD_CHAT] Exception during chat response",
       );
       await callback({
         text: `Exception during chat response: ${err.message}`,

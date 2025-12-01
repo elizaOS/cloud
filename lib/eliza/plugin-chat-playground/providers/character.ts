@@ -1,5 +1,5 @@
-import type { IAgentRuntime, Memory, Provider, State } from '@elizaos/core';
-import { addHeader } from '@elizaos/core';
+import type { IAgentRuntime, Memory, Provider, State } from "@elizaos/core";
+import { addHeader } from "@elizaos/core";
 
 /**
  * Character Provider - Research-Based Implementation
@@ -13,8 +13,9 @@ import { addHeader } from '@elizaos/core';
  * Based on: "Architectures of Artificial Persona" research synthesis
  */
 export const characterProvider: Provider = {
-  name: 'CHARACTER',
-  description: 'Core character identity, personality, and behavioral directives',
+  name: "CHARACTER",
+  description:
+    "Core character identity, personality, and behavioral directives",
   get: async (runtime: IAgentRuntime, _message: Memory, _state: State) => {
     const character = runtime.character;
 
@@ -25,7 +26,7 @@ export const characterProvider: Provider = {
 
     // System prompt - Core identity with EmotionPrompt stakes
     // Research: EmotionPrompt increases performance by 8-115% by adding psychological stakes
-    const system = character.system ?? '';
+    const system = character.system ?? "";
 
     // Bio - Prose description or structured facts
     // Research: Narrative format provides causal logic ("why" character acts)
@@ -34,10 +35,10 @@ export const characterProvider: Provider = {
           .sort(() => 0.5 - Math.random())
           .slice(0, 10)
           .map((item) => `- ${item}`)
-          .join('\n')
-      : character.bio || '';
+          .join("\n")
+      : character.bio || "";
 
-    const bio = bioText ? addHeader(`# About ${character.name}`, bioText) : '';
+    const bio = bioText ? addHeader(`# About ${character.name}`, bioText) : "";
 
     // ========================================
     // PERSONALITY TRAITS (Variety Injection)
@@ -45,11 +46,15 @@ export const characterProvider: Provider = {
     // Research: Random trait selection adds variety, can reference MBTI/Big Five
     const adjectiveString =
       character.adjectives && character.adjectives.length > 0
-        ? character.adjectives[Math.floor(Math.random() * character.adjectives.length)]
-        : '';
+        ? character.adjectives[
+            Math.floor(Math.random() * character.adjectives.length)
+          ]
+        : "";
 
-    const adjective = adjectiveString || '';
-    const adjectiveSentence = adjectiveString ? `${character.name} is ${adjectiveString}.` : '';
+    const adjective = adjectiveString || "";
+    const adjectiveSentence = adjectiveString
+      ? `${character.name} is ${adjectiveString}.`
+      : "";
 
     // ========================================
     // TOPICS (Interest Areas)
@@ -60,10 +65,10 @@ export const characterProvider: Provider = {
         ? character.topics[Math.floor(Math.random() * character.topics.length)]
         : null;
 
-    const topic = topicString || '';
+    const topic = topicString || "";
     const topicSentence = topicString
       ? `${character.name} is currently interested in ${topicString}.`
-      : '';
+      : "";
 
     // Format remaining topics list
     const topics =
@@ -77,8 +82,8 @@ export const characterProvider: Provider = {
               if (index === array.length - 1) return t;
               return `${t}, `;
             })
-            .join('')}.`
-        : '';
+            .join("")}.`
+        : "";
 
     // ========================================
     // STYLE DIRECTIVES (Behavioral Enforcement)
@@ -99,10 +104,10 @@ export const characterProvider: Provider = {
       combined.forEach((directive) => {
         // Check if it's a negative constraint
         if (
-          directive.toLowerCase().includes('avoid') ||
+          directive.toLowerCase().includes("avoid") ||
           directive.toLowerCase().includes("don't") ||
-          directive.toLowerCase().includes('never') ||
-          directive.toLowerCase().includes('not ')
+          directive.toLowerCase().includes("never") ||
+          directive.toLowerCase().includes("not ")
         ) {
           negativeConstraints.push(directive);
         } else {
@@ -113,28 +118,31 @@ export const characterProvider: Provider = {
       // Format with sections if we have both types
       if (positiveDirectives.length > 0 && negativeConstraints.length > 0) {
         return [
-          '**Style Guidelines:**',
-          '',
+          "**Style Guidelines:**",
+          "",
           ...positiveDirectives.map((d) => `- ${d}`),
-          '',
-          '**Constraints (Avoid):**',
-          '',
+          "",
+          "**Constraints (Avoid):**",
+          "",
           ...negativeConstraints.map((d) => `- ${d}`),
-        ].join('\n');
+        ].join("\n");
       }
 
       // Just list all if only one type
       if (combined.length > 0) {
-        return combined.map((d) => `- ${d}`).join('\n');
+        return combined.map((d) => `- ${d}`).join("\n");
       }
 
-      return '';
+      return "";
     })();
 
     const messageDirections =
       styleDirectives.length > 0
-        ? addHeader(`# Message Directions for ${character.name}`, styleDirectives)
-        : '';
+        ? addHeader(
+            `# Message Directions for ${character.name}`,
+            styleDirectives,
+          )
+        : "";
 
     const directions = messageDirections;
 
@@ -145,8 +153,11 @@ export const characterProvider: Provider = {
     // TODO: Implement contextual selection instead of random
     // Current: Show 3 examples (balanced for context window)
     const messageExamplesText = (() => {
-      if (!character.messageExamples || character.messageExamples.length === 0) {
-        return '';
+      if (
+        !character.messageExamples ||
+        character.messageExamples.length === 0
+      ) {
+        return "";
       }
 
       // For now, select 3 random examples
@@ -163,22 +174,22 @@ export const characterProvider: Provider = {
               if (!msg.content?.text) {
                 return null;
               }
-              
+
               // Replace placeholders
               let text = `${msg.name}: ${msg.content.text}`;
-              text = text.replace(/\{\{user1?\}\}/g, 'User');
+              text = text.replace(/\{\{user1?\}\}/g, "User");
               text = text.replace(/\{\{char\}\}/g, character.name);
               return text;
             })
             .filter((text): text is string => text !== null)
-            .join('\n');
+            .join("\n");
         })
         .filter((exchange) => exchange.length > 0)
-        .join('\n\n---\n\n');
+        .join("\n\n---\n\n");
 
       return addHeader(
         `# Example Conversations`,
-        `${formattedExamples}\n\n*These examples show ${character.name}'s typical speaking style and response patterns.*`
+        `${formattedExamples}\n\n*These examples show ${character.name}'s typical speaking style and response patterns.*`,
       );
     })();
 
@@ -229,7 +240,7 @@ export const characterProvider: Provider = {
       messageExamplesText, // Research: Inject close to generation point for max effect
     ]
       .filter(Boolean)
-      .join('\n\n');
+      .join("\n\n");
 
     return {
       values,
