@@ -30,24 +30,45 @@ function PrivyAuthWrapper({ children }: { children: React.ReactNode }) {
     if (ready && authenticated && user && !migrationAttempted.current) {
       migrationAttempted.current = true;
 
-      // Check if there's an anonymous session to migrate
-      const hasAnonSession = document.cookie.includes("eliza-anon-session");
+      // Check for anonymous session token in localStorage
+      // (httpOnly cookies can't be read via document.cookie, so we use localStorage as backup)
+      let sessionToken: string | null = null;
+      try {
+        sessionToken = localStorage.getItem("eliza-anon-session-token");
+      } catch (e) {
+        console.warn("[PrivyProvider] Failed to read localStorage:", e);
+      }
 
-      if (hasAnonSession) {
-        console.log("[PrivyProvider] 🔄 Detected anonymous session, initiating migration...");
-        
+      // Also check document.cookie as fallback (in case cookie was set without httpOnly in dev)
+      const hasAnonCookie = document.cookie.includes("eliza-anon-session");
+
+      if (sessionToken || hasAnonCookie) {
+        console.log("[PrivyProvider] 🔄 Detected anonymous session, initiating migration...", {
+          hasLocalStorageToken: !!sessionToken,
+          hasCookie: hasAnonCookie,
+        });
+
         fetch("/api/auth/migrate-anonymous", {
           method: "POST",
           credentials: "include", // Important: include cookies
           headers: {
             "Content-Type": "application/json",
           },
+          // Pass session token in body as backup (in case cookie isn't available)
+          body: JSON.stringify({ sessionToken: sessionToken || undefined }),
         })
           .then((res) => res.json())
           .then((data) => {
             if (data.success && data.migrated) {
               console.log("[PrivyProvider] ✅ Anonymous session migrated successfully:", data);
-              
+
+              // Clean up localStorage
+              try {
+                localStorage.removeItem("eliza-anon-session-token");
+              } catch (e) {
+                // Ignore cleanup errors
+              }
+
               // If we're on a chat route, reload to pick up the migrated data
               const currentPath = window.location.pathname;
               if (currentPath.startsWith("/chat/")) {
