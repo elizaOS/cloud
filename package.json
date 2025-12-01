@@ -3,6 +3,7 @@
   "version": "0.1.0",
   "private": true,
   "scripts": {
+    "postinstall": "find node_modules -path '*/thread-stream/test' -type d -exec rm -rf {} + 2>/dev/null || true; find node_modules -path '*/thread-stream/bench.js' -delete 2>/dev/null || true; find node_modules -path '*/thread-stream/LICENSE' -delete 2>/dev/null || true; find node_modules -path '*/thread-stream/README.md' -delete 2>/dev/null || true",
     "dev": "next dev --turbopack",
     "build": "next build --turbopack",
     "start": "next start",
