@@ -58,11 +58,6 @@ Always output ALL fields. Leave fields empty when not needed:
  * Planning template - decides if we can respond immediately and generates response if possible
  */
 export const chatAssistantPlanningTemplate = `
-# Current Context
-{{receivedMessageHeader}}
-
-{{recentMessages}}
-
 {{sessionSummaries}}
 
 {{longTermMemories}}
@@ -72,6 +67,12 @@ export const chatAssistantPlanningTemplate = `
 {{dynamicProviders}}
 
 {{actionsWithDescriptions}}
+
+{{mcpText}}
+
+{{conversationLog}}
+
+{{receivedMessageHeader}}
 `;
 
 export const chatAssistantFinalSystemPrompt = `
@@ -108,15 +109,15 @@ Your response must ONLY include the <response></response> XML block.
  */
 export const chatAssistantResponseTemplate = `
 # Current Context
-{{receivedMessageHeader}}
-
-{{recentMessages}}
-
 {{sessionSummaries}}
 
 {{longTermMemories}}
 
-{{fullActionState}}
+{{currentRunActionResults}}
 
 {{knowledge}}
+
+{{conversationLog}}
+
+{{receivedMessageHeader}}
 `;

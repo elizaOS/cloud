@@ -48,6 +48,9 @@ const nextConfig: NextConfig = {
     "canvas",
     "pdf-parse",
     "@elizaos/plugin-mcp",
+    "@modelcontextprotocol/sdk",
+    "mcp-handler",
+    "express",
   ],
 
   // Production Security Headers
