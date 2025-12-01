@@ -272,11 +272,21 @@ export function ChatInterface({
 
   // CRITICAL: Set anonymous session cookie if session token is in URL (for affiliate users)
   // This ensures the cookie is set even if we're not sure about auth state yet
+  // Also store in localStorage so PrivyProvider can access it (httpOnly cookies aren't readable via JS)
   useEffect(() => {
     // Only set cookie if we have a session token AND user is NOT authenticated
     // (authenticated users don't need the anonymous session cookie)
     if (sessionTokenFromUrl && !user) {
       console.log("[ChatInterface] Setting anonymous session cookie from URL:", sessionTokenFromUrl.slice(0, 8) + "...");
+
+      // Store in localStorage as backup (httpOnly cookies can't be read by JS)
+      try {
+        localStorage.setItem("eliza-anon-session-token", sessionTokenFromUrl);
+        console.log("[ChatInterface] ✅ Session token stored in localStorage");
+      } catch (e) {
+        console.warn("[ChatInterface] Failed to store session in localStorage:", e);
+      }
+
       fetch("/api/set-anonymous-session", {
         method: "POST",
         headers: { "Content-Type": "application/json" },

@@ -1,10 +1,11 @@
-import { eq, desc, and, or, ilike, sql, SQL } from "drizzle-orm";
+import { eq, desc, and, or, ilike, sql, SQL, inArray } from "drizzle-orm";
 import { db } from "../client";
 import {
   userCharacters,
   type UserCharacter,
   type NewUserCharacter,
 } from "../schemas/user-characters";
+import { elizaRoomCharactersTable } from "../schemas/eliza-room-characters";
 import type { SearchFilters, SortOptions } from "@/lib/types/my-agents";
 
 export type { UserCharacter, NewUserCharacter };
@@ -112,8 +113,20 @@ export class UserCharactersRepository {
       conditions.push(eq(userCharacters.featured, filters.featured));
     }
 
-    // Always filter by userId to ensure users only see their own agents
-    conditions.push(eq(userCharacters.user_id, userId));
+    // Include characters that user owns OR has interacted with via chat rooms
+    // This allows affiliate-created characters (clone-your-crush) to appear in my-agents
+    // when the user has chatted with them, even if they don't "own" the character
+    const interactedCharacterIds = db
+      .selectDistinct({ character_id: elizaRoomCharactersTable.character_id })
+      .from(elizaRoomCharactersTable)
+      .where(eq(elizaRoomCharactersTable.user_id, userId));
+
+    conditions.push(
+      or(
+        eq(userCharacters.user_id, userId),
+        inArray(userCharacters.id, interactedCharacterIds)
+      )!
+    );
 
     const { sortBy, order } = sortOptions;
     const direction = order === "asc" ? "asc" : "desc";
@@ -193,8 +206,18 @@ export class UserCharactersRepository {
       conditions.push(eq(userCharacters.featured, filters.featured));
     }
 
-    // Always filter by userId to ensure users only see their own agents
-    conditions.push(eq(userCharacters.user_id, userId));
+    // Include characters that user owns OR has interacted with via chat rooms
+    const interactedCharacterIds = db
+      .selectDistinct({ character_id: elizaRoomCharactersTable.character_id })
+      .from(elizaRoomCharactersTable)
+      .where(eq(elizaRoomCharactersTable.user_id, userId));
+
+    conditions.push(
+      or(
+        eq(userCharacters.user_id, userId),
+        inArray(userCharacters.id, interactedCharacterIds)
+      )!
+    );
 
     const result = await db
       .select({ count: sql<number>`count(*)` })
