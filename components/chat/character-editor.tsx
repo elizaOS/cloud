@@ -83,22 +83,20 @@ export function CharacterEditor({
       <div className="flex-shrink-0 border-b border-white/10 px-6 py-4">
         <div className="flex items-center justify-between mb-2">
           <div className="flex items-center gap-2">
-            <h2 className="text-xl font-bold text-white">Agent DNA</h2>
+            <h2 className="text-xl font-bold text-white">Character Builder</h2>
             <Zap
               className={cn([
                 mode === "chat" ? "text-[#FF5800]" : "text-[#E500FF]",
                 "h-5 w-5",
               ])}
             />
-            <h2 className="text-xl font-bold text-white">Character Builder</h2>
-            <Sparkles className="h-5 w-5 text-[#FF5800]" />
           </div>
           <div className="flex items-center gap-2">
             <Button
               variant="outline"
               size="sm"
               onClick={handleExport}
-              className="rounded-xl border-white/10 bg-transparent text-white hover:bg-white/5"
+              className="rounded-none border-white/10 bg-transparent text-white hover:bg-white/5"
             >
               <Download className="mr-2 h-4 w-4" />
               Export
