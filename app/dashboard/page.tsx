@@ -32,16 +32,6 @@ export default async function DashboardPage() {
     <DashboardPageWrapper userName={data.user.name.split(" ")[0] || "User"}>
       <main className="mx-auto w-full max-w-[1400px] px-4 pb-12 pt-8 lg:px-8">
         <div className="space-y-12">
-          {/* Page Header */}
-          <div className="space-y-2">
-            <h1 className="text-4xl font-bold text-white tracking-tight">
-              Dashboard
-            </h1>
-            <p className="text-white/60 text-lg">
-              Quickly see how things are going
-            </p>
-          </div>
-
           {/* Overview Section */}
           <section className="space-y-4">
             <div>
