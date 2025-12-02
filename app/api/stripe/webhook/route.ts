@@ -48,14 +48,15 @@ export async function POST(req: NextRequest) {
         if (session.payment_status === "paid") {
           const organizationId = session.metadata?.organization_id;
           const userId = session.metadata?.user_id;
-          const credits = Number.parseInt(session.metadata?.credits || "0", 10);
+          const creditsStr = session.metadata?.credits || "0";
+          const credits = Number.parseFloat(creditsStr);
           const paymentIntentId = session.payment_intent as string;
+          const purchaseType = session.metadata?.type || "checkout";
 
           if (!organizationId || !credits || credits <= 0) {
             console.warn(
               `[Stripe Webhook] Permanent failure - Invalid metadata in checkout session ${session.id}: organizationId=${organizationId}, credits=${credits}`,
             );
-            // Return 200 to prevent retries for permanent failures (bad data)
             return NextResponse.json(
               {
                 received: true,
@@ -70,7 +71,6 @@ export async function POST(req: NextRequest) {
             console.warn(
               `[Stripe Webhook] Permanent failure - No payment intent ID in checkout session ${session.id}`,
             );
-            // Return 200 to prevent retries for permanent failures
             return NextResponse.json(
               {
                 received: true,
@@ -81,7 +81,6 @@ export async function POST(req: NextRequest) {
             );
           }
 
-          // Check for duplicate transaction
           const existingTransaction =
             await creditsService.getTransactionByStripePaymentIntent(
               paymentIntentId,
@@ -97,15 +96,15 @@ export async function POST(req: NextRequest) {
             );
           }
 
-          // Add credits
           await creditsService.addCredits({
             organizationId,
             amount: credits,
-            description: `Balance top-up - $${Number(credits).toFixed(2)}`,
+            description: `Balance top-up - $${credits.toFixed(2)}`,
             metadata: {
               user_id: userId,
               payment_intent_id: paymentIntentId,
               session_id: session.id,
+              type: purchaseType,
             },
             stripePaymentIntentId: paymentIntentId,
           });
@@ -113,6 +112,52 @@ export async function POST(req: NextRequest) {
           console.log(
             `✓ Added ${credits} credits to organization ${organizationId} (payment intent: ${paymentIntentId})`,
           );
+
+          try {
+            const existingInvoice = await invoicesService.getByStripeInvoiceId(
+              `cs_${session.id}`,
+            );
+
+            if (!existingInvoice) {
+              const amountTotal = session.amount_total
+                ? (session.amount_total / 100).toString()
+                : credits.toString();
+
+              await invoicesService.create({
+                organization_id: organizationId,
+                stripe_invoice_id: `cs_${session.id}`,
+                stripe_customer_id: session.customer as string,
+                stripe_payment_intent_id: paymentIntentId,
+                amount_due: amountTotal,
+                amount_paid: amountTotal,
+                currency: session.currency || "usd",
+                status: "paid",
+                invoice_type: purchaseType,
+                invoice_number: undefined,
+                invoice_pdf: undefined,
+                hosted_invoice_url: undefined,
+                credits_added: credits.toString(),
+                metadata: {
+                  type: purchaseType,
+                  session_id: session.id,
+                },
+                paid_at: new Date(),
+              });
+
+              console.log(
+                `✓ Created invoice record for checkout session ${session.id}`,
+              );
+            } else {
+              console.log(
+                `⚠️ Invoice already exists for checkout session ${session.id}, skipping creation`,
+              );
+            }
+          } catch (invoiceError) {
+            console.error(
+              `[Stripe Webhook] Non-critical error creating invoice record:`,
+              invoiceError,
+            );
+          }
         }
         break;
       }
