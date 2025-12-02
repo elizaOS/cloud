@@ -23,9 +23,6 @@ const nextConfig: NextConfig = {
     ignoreBuildErrors: true,
   },
 
-  // Disable output file tracing to avoid worker_threads NFT error in Turbopack
-  // This is a workaround for Turbopack bug with Node.js built-in modules
-  outputFileTracingRoot: undefined,
   // CRITICAL: Include CloudFormation templates in the serverless function bundle
   // Without this, the template files won't be available when the function runs on Vercel
   outputFileTracingIncludes: {
