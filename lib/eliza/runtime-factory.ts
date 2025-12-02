@@ -192,6 +192,35 @@ export class RuntimeFactory {
   }
 
   /**
+   * Transform MCP settings by expanding pathname URLs to full URLs
+   * Pathnames (starting with /) get the baseUrl prepended
+   * Full URLs are left unchanged
+   */
+  private transformMcpSettings(mcpSettings: any): any {
+    if (!mcpSettings?.servers) {
+      return mcpSettings;
+    }
+
+    const baseUrl = process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000";
+    
+    const transformedServers: Record<string, any> = {};
+    
+    for (const [serverId, serverConfig] of Object.entries(mcpSettings.servers)) {
+      const config = serverConfig as any;
+      transformedServers[serverId] = {
+        ...config,
+        // If URL starts with /, prepend baseUrl; otherwise use as-is
+        url: config.url?.startsWith("/") ? `${baseUrl}${config.url}` : config.url,
+      };
+    }
+
+    return {
+      ...mcpSettings,
+      servers: transformedServers,
+    };
+  }
+
+  /**
    * Build complete settings object with user context
    * This is where all configuration merging happens
    */
@@ -292,10 +321,10 @@ export class RuntimeFactory {
         "false",
 
       // MCP Plugin Settings - Pass through MCP server configurations
-      // The MCP plugin reads this to connect to external MCP servers
+      // Transform pathnames to full URLs for the current environment
       ...(character.settings?.mcp
         ? {
-            mcp: character.settings.mcp,
+            mcp: this.transformMcpSettings(character.settings.mcp),
           }
         : {}),
 
