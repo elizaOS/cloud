@@ -18,6 +18,9 @@ const nextConfig: NextConfig = {
     },
   },
 
+  // Empty turbopack config to silence warnings (we handle externals via webpack)
+  turbopack: {},
+
   // Skip TypeScript type checking during build (run separately with check-types)
   typescript: {
     ignoreBuildErrors: true,
@@ -48,7 +51,19 @@ const nextConfig: NextConfig = {
     "canvas",
     "pdf-parse",
     "@elizaos/plugin-mcp",
+    "worker_threads",
   ],
+
+  webpack: (config, { isServer }) => {
+    // Fix for worker_threads not being handled by Turbopack
+    if (isServer) {
+      config.externals = config.externals || [];
+      if (Array.isArray(config.externals)) {
+        config.externals.push("worker_threads");
+      }
+    }
+    return config;
+  },
 
   // Production Security Headers
   async headers() {
