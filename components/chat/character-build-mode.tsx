@@ -133,6 +133,7 @@ export function CharacterBuildMode({
       <Image
         className="z-20 pointer-events-none absolute top-0 right-0 left-0"
         fill
+        sizes="100vw"
         src="/elipse.svg"
         alt="background-elipse-builder-mode"
       />
