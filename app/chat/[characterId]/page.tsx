@@ -101,6 +101,38 @@ export default async function ChatPage({ params, searchParams }: ChatPageProps) 
   // Case C: Authenticated user
   logger.info(`[Chat Page] Authenticated user ${user!.id} accessing character ${characterId} with theme ${theme.id}`);
 
+  // CRITICAL: If authenticated user has a session token in URL, migrate the anonymous session data
+  // This handles the case where user was already authenticated when redirected from affiliate
+  if (sessionId && user!.privy_user_id) {
+    logger.info(`[Chat Page] Authenticated user with session token - triggering server-side migration`, {
+      sessionId,
+      userId: user!.id,
+      privyUserId: user!.privy_user_id,
+    });
+
+    try {
+      const anonSession = await anonymousSessionsService.getByToken(sessionId);
+
+      if (anonSession && !anonSession.converted_at) {
+        logger.info(`[Chat Page] Found unconverted anonymous session, migrating...`, {
+          sessionId: anonSession.id,
+          anonymousUserId: anonSession.user_id,
+        });
+
+        const { convertAnonymousToReal } = await import("@/lib/auth-anonymous");
+        await convertAnonymousToReal(anonSession.user_id, user!.privy_user_id);
+
+        logger.info(`[Chat Page] Migration completed successfully`);
+      } else if (anonSession?.converted_at) {
+        logger.info(`[Chat Page] Session already converted`, { sessionId });
+      } else {
+        logger.warn(`[Chat Page] Session not found for token`, { sessionId: sessionId.slice(0, 8) + "..." });
+      }
+    } catch (error) {
+      logger.error(`[Chat Page] Migration failed:`, error);
+    }
+  }
+
   return (
     <ChatInterface
       character={character}
