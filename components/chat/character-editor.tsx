@@ -6,7 +6,6 @@ import { JsonEditor } from "@/components/character-creator/json-editor";
 import { PluginsTab } from "@/components/chat/plugins-tab";
 import type { ElizaCharacter } from "@/lib/types";
 import { Button } from "@/components/ui/button";
-import { Download, Save, Zap, BookOpen, Upload, Sparkles } from "lucide-react";
 import {
   Download,
   Save,
