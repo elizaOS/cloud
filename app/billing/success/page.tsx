@@ -10,7 +10,6 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { CheckCircle, XCircle, ArrowRight } from "lucide-react";
-import { CreditBalanceDisplay } from "@/components/billing/success-client";
 import { stripe } from "@/lib/stripe";
 import { creditsService, invoicesService } from "@/lib/services";
 
@@ -197,8 +196,8 @@ export default async function BillingSuccessPage({
   // Show error state if verification failed
   if (verificationResult && !verificationResult.success) {
     return (
-      <div className="flex items-center justify-center min-h-[80vh]">
-        <Card className="max-w-md w-full">
+      <div className="flex items-center justify-center min-h-screen bg-background">
+        <Card className="max-w-md w-full mx-4">
           <CardHeader className="text-center">
             <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-red-500/10">
               <XCircle className="h-10 w-10 text-red-500" />
@@ -240,8 +239,8 @@ export default async function BillingSuccessPage({
   }
 
   return (
-    <div className="flex items-center justify-center min-h-[80vh]">
-      <Card className="max-w-md w-full">
+    <div className="flex items-center justify-center min-h-screen bg-background">
+      <Card className="max-w-md w-full mx-4">
         <CardHeader className="text-center">
           <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-green-500/10">
             <CheckCircle className="h-10 w-10 text-green-500" />
@@ -255,8 +254,6 @@ export default async function BillingSuccessPage({
         </CardHeader>
 
         <CardContent className="text-center space-y-4">
-          <CreditBalanceDisplay />
-
           <p className="text-sm text-muted-foreground">
             You can now use your credits for text generation, image creation,
             and video rendering.
