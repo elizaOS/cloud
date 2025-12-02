@@ -66,9 +66,7 @@ export function ContainersSection({
       {containers.length === 0 ? (
         <ContainersEmptyState />
       ) : (
-        <BrandCard corners={false} className="p-0 overflow-hidden">
-          <ContainersTable containers={containers} />
-        </BrandCard>
+        <ContainersTable containers={containers} />
       )}
     </div>
   );
@@ -145,9 +143,7 @@ export function ContainersSectionSkeleton() {
       </div>
 
       {/* Table Skeleton */}
-      <BrandCard corners={false} className="p-0 overflow-hidden">
-        <ContainersSkeleton />
-      </BrandCard>
+      <ContainersSkeleton />
     </div>
   );
 }
