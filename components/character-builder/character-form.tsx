@@ -5,6 +5,7 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { X, Plus } from "lucide-react";
 import type { ElizaCharacter } from "@/lib/types";
+import { AvatarUpload } from "@/components/character-builder/avatar-upload";
 import {
   BrandTabs,
   BrandTabsList,
@@ -20,7 +21,7 @@ interface CharacterFormProps {
   onChange: (character: ElizaCharacter) => void;
 }
 
-type TagType = "topics" | "adjectives" | "plugins" | "postExamples";
+type TagType = "topics" | "adjectives" | "postExamples";
 
 export function CharacterForm({ character, onChange }: CharacterFormProps) {
   const [newTag, setNewTag] = useState("");
@@ -364,56 +365,28 @@ export function CharacterForm({ character, onChange }: CharacterFormProps) {
           </BrandTabsContent>
 
           {/* Advanced Tab */}
-          <BrandTabsContent value="advanced" className="space-y-4">
-            <div className="space-y-2">
+          <BrandTabsContent value="advanced" className="space-y-6">
+            <div className="flex flex-col items-center justify-center space-y-4 py-6">
               <label className="text-xs font-medium text-white/70 uppercase tracking-wide">
-                Plugins
+                Avatar
               </label>
-              <div className="flex gap-2">
-                <Input
-                  value={newTag}
-                  onChange={(e) => setNewTag(e.target.value)}
-                  placeholder="Add a plugin..."
-                  onKeyDown={(e) => {
-                    if (e.key === "Enter") {
-                      e.preventDefault();
-                      addTag("plugins");
-                    }
-                  }}
-                  className="rounded-none border-white/10 bg-black/40 text-white placeholder:text-white/40 focus:ring-1 focus:ring-[#FF5800] focus:border-[#FF5800]"
-                />
-                <BrandButton
-                  type="button"
-                  variant="icon-primary"
-                  size="icon"
-                  onClick={() => addTag("plugins")}
-                >
-                  <Plus className="h-4 w-4" style={{ color: "#FF5800" }} />
-                </BrandButton>
-              </div>
-              <div className="flex flex-wrap gap-2">
-                {character.plugins?.map((plugin, index) => (
-                  <span
-                    key={index}
-                    className="inline-flex items-center gap-2 rounded-none bg-white/10 border border-white/20 px-2 py-1 text-xs text-white"
-                  >
-                    {plugin}
-                    <button
-                      onClick={() => removeTag("plugins", index)}
-                      className="hover:text-rose-400 transition-colors"
-                    >
-                      <X className="h-3 w-3" />
-                    </button>
-                  </span>
-                ))}
-              </div>
+              <AvatarUpload
+                value={character.avatarUrl}
+                onChange={(url) => updateField("avatarUrl", url)}
+                name={character.name || "Character"}
+                size="lg"
+              />
+              <p className="text-xs text-white/40 text-center max-w-xs">
+                Upload a custom avatar for your character (max 5MB)
+              </p>
             </div>
 
             <div className="rounded-none bg-black/40 border border-white/10 p-4">
               <p className="text-sm text-white/60">
                 Additional settings like{" "}
                 <code className="text-[#FF5800]">knowledge</code>,{" "}
-                <code className="text-[#FF5800]">settings</code>, and{" "}
+                <code className="text-[#FF5800]">settings</code>,{" "}
+                <code className="text-[#FF5800]">plugins</code>, and{" "}
                 <code className="text-[#FF5800]">messageExamples</code> can be
                 configured directly in the JSON editor.
               </p>
