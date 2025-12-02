@@ -100,26 +100,31 @@ export class CharactersService {
    */
   toElizaCharacter(character: UserCharacter): ElizaCharacter {
     // Extract affiliate data from character_data if present
-    const characterData = character.character_data as Record<string, unknown> | undefined;
-    const affiliateData = characterData?.affiliate as Record<string, unknown> | undefined;
-    
+    const characterData = character.character_data as
+      | Record<string, unknown>
+      | undefined;
+    const affiliateData = characterData?.affiliate as
+      | Record<string, unknown>
+      | undefined;
+
     // Also extract lore data which contains full social media posts
     const loreData = characterData?.lore as string[] | undefined;
-    
+
     // Merge affiliate data AND lore into settings so it's available in the runtime
-    const settings = character.settings as Record<string, string | boolean | number | Record<string, unknown>> | undefined;
-    const mergedSettings = affiliateData || loreData
-      ? { 
-          ...settings, 
-          affiliateData: {
-            ...affiliateData,
-            lore: loreData, // Include lore for full social media content
-          },
-          // Include avatar_url in settings for provider access
-          avatar_url: character.avatar_url ?? undefined,
-        }
-      : settings;
-    
+    const settings = character.settings as
+      | Record<string, string | boolean | number | Record<string, unknown>>
+      | undefined;
+    const mergedSettings =
+      affiliateData || loreData
+        ? {
+            ...settings,
+            affiliateData: {
+              ...affiliateData,
+              lore: loreData, // Include lore for full social media content
+            },
+            avatar_url: character.avatar_url ?? undefined,
+          }
+        : settings;
     return {
       id: character.id,
       name: character.name,
@@ -154,7 +159,7 @@ export class CharactersService {
             post?: string[];
           }
         | undefined,
-      avatar_url: character.avatar_url ?? undefined,
+      avatarUrl: character.avatar_url ?? undefined,
     };
   }
 }

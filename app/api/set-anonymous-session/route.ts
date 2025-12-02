@@ -9,7 +9,7 @@ const ANON_SESSION_COOKIE = "eliza-anon-session";
 
 /**
  * POST /api/set-anonymous-session
- * 
+ *
  * Sets the anonymous session cookie when a user arrives with a session token.
  * This is a PUBLIC endpoint - no authentication required.
  */
@@ -35,7 +35,7 @@ export async function POST(request: NextRequest) {
       logger.warn("[Set Session] Missing or invalid session token in request");
       return NextResponse.json(
         { error: "Session token is required" },
-        { status: 400 }
+        { status: 400 },
       );
     }
 
@@ -132,7 +132,6 @@ export async function POST(request: NextRequest) {
       userId: user.id,
       sessionId: session.id,
     });
-
   } catch (error) {
     logger.error("[Set Session] Unexpected error:", error);
     return NextResponse.json(
@@ -145,4 +144,3 @@ export async function POST(request: NextRequest) {
     );
   }
 }
-

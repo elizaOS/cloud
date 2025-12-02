@@ -26,7 +26,13 @@ const nextConfig: NextConfig = {
   // Disable output file tracing to avoid worker_threads NFT error in Turbopack
   // This is a workaround for Turbopack bug with Node.js built-in modules
   outputFileTracingRoot: undefined,
-  outputFileTracingIncludes: {},
+  // CRITICAL: Include CloudFormation templates in the serverless function bundle
+  // Without this, the template files won't be available when the function runs on Vercel
+  outputFileTracingIncludes: {
+    "/api/v1/containers": ["./infrastructure/cloudformation/**/*"],
+    "/api/v1/containers/[id]": ["./infrastructure/cloudformation/**/*"],
+    "/api/v1/cron/deployment-monitor": ["./infrastructure/cloudformation/**/*"],
+  },
   outputFileTracingExcludes: {
     "*": [
       "node_modules/thread-stream/**/*",
@@ -37,17 +43,11 @@ const nextConfig: NextConfig = {
 
   // Handle pdfjs-dist and other problematic packages in serverless
   // These packages are externalized to prevent SSR issues with browser-only APIs
-  // CRITICAL: pino and thread-stream MUST be externalized because they use worker_threads
   serverExternalPackages: [
     "pdfjs-dist",
     "canvas",
     "pdf-parse",
-    "pino",
-    "thread-stream",
-    "pino-pretty",
-    "sonic-boom",
-    "@walletconnect/logger",
-    "@walletconnect/universal-provider",
+    "@elizaos/plugin-mcp",
   ],
 
   // Production Security Headers
@@ -61,14 +61,14 @@ const nextConfig: NextConfig = {
             value: [
               // Default source - only allow same origin
               "default-src 'self'",
-              // Scripts - allow self, Cloudflare Turnstile, Vercel Analytics, and inline scripts for Next.js
-              "script-src 'self' 'unsafe-eval' 'unsafe-inline' https://challenges.cloudflare.com https://va.vercel-scripts.com",
-              // Styles - allow self and inline styles (required for many UI libraries)
-              "style-src 'self' 'unsafe-inline'",
+              // Scripts - allow self, Cloudflare Turnstile, Vercel Analytics, Monaco Editor CDN, and inline scripts for Next.js
+              "script-src 'self' 'unsafe-eval' 'unsafe-inline' https://challenges.cloudflare.com https://va.vercel-scripts.com https://cdn.jsdelivr.net",
+              // Styles - allow self, inline styles, and Monaco Editor CDN (required for many UI libraries)
+              "style-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net",
               // Images - allow self, data URIs, blob URIs, and Vercel storage
-              "img-src 'self' data: blob: https://*.public.blob.vercel-storage.com",
-              // Fonts - allow self
-              "font-src 'self'",
+              "img-src 'self' data: blob: https://*.public.blob.vercel-storage.com https://raw.githubusercontent.com",
+              // Fonts - allow self and Monaco Editor CDN
+              "font-src 'self' https://cdn.jsdelivr.net",
               // Objects - block all (e.g., Flash, Java applets)
               "object-src 'none'",
               // Base URI - restrict to self
@@ -101,6 +101,8 @@ const nextConfig: NextConfig = {
                 "https://api.coingecko.com",
                 "https://*.fal.ai",
                 "https://api.elevenlabs.io",
+                // Monaco Editor CDN (for source maps)
+                "https://cdn.jsdelivr.net",
                 // Vercel Analytics
                 "https://vitals.vercel-insights.com",
               ].join(" "),

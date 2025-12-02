@@ -97,9 +97,10 @@ export function MonacoJsonEditor({
         onChange={handleEditorChange}
         onMount={handleEditorDidMount}
         options={{
-          fontSize: 13,
-          fontFamily: '"Monaco", "Menlo", "Ubuntu Mono", "Consolas", monospace',
-          lineHeight: 21,
+          fontSize: 14,
+          fontFamily:
+            '"SF Mono", "Monaco", "Menlo", "Ubuntu Mono", "Consolas", "Courier New", monospace',
+          lineHeight: 20,
           tabSize: 2,
           insertSpaces: true,
           autoIndent: "full",
@@ -114,6 +115,7 @@ export function MonacoJsonEditor({
           cursorBlinking: "smooth",
           cursorSmoothCaretAnimation: "on",
           renderLineHighlight: "all",
+          renderWhitespace: "selection",
           bracketPairColorization: {
             enabled: true,
           },
@@ -134,6 +136,15 @@ export function MonacoJsonEditor({
           padding: {
             top: 16,
             bottom: 16,
+          },
+          glyphMargin: false,
+          lineNumbers: "on",
+          lineNumbersMinChars: 3,
+          lineDecorationsWidth: 0,
+          scrollbar: {
+            useShadows: false,
+            verticalScrollbarSize: 10,
+            horizontalScrollbarSize: 10,
           },
         }}
       />

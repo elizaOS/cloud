@@ -11,11 +11,13 @@ import { getOrCreateAnonymousUserAction } from "@/app/actions/anonymous";
 interface BuildPageClientProps {
   initialCharacters: ElizaCharacter[];
   isAuthenticated: boolean;
+  initialCharacterId?: string;
 }
 
 export function BuildPageClient({
   initialCharacters,
   isAuthenticated,
+  initialCharacterId,
 }: BuildPageClientProps) {
   const [anonymousSession, setAnonymousSession] = useState<{
     messageCount: number;
@@ -25,7 +27,8 @@ export function BuildPageClient({
   const [isLoadingSession, setIsLoadingSession] = useState(!isAuthenticated);
 
   // Initialize store with characters and entity ID
-  const { setAvailableCharacters, initializeEntityId } = useChatStore();
+  const { setAvailableCharacters, initializeEntityId, setSelectedCharacterId } =
+    useChatStore();
 
   useSetPageHeader({
     title: "Build",
@@ -44,7 +47,18 @@ export function BuildPageClient({
 
     setAvailableCharacters(characters);
     initializeEntityId();
-  }, [initialCharacters, setAvailableCharacters, initializeEntityId]);
+
+    // Set selected character from URL if provided
+    if (initialCharacterId) {
+      setSelectedCharacterId(initialCharacterId);
+    }
+  }, [
+    initialCharacters,
+    initialCharacterId,
+    setAvailableCharacters,
+    initializeEntityId,
+    setSelectedCharacterId,
+  ]);
 
   // Initialize anonymous session for unauthenticated users
   useEffect(() => {

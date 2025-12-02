@@ -171,7 +171,7 @@ export function ChatInterface({
   const shouldShowPaywall = isAnonymous && messagesRemaining <= 0;
 
   // Theme-specific styling flags
-  const isRomanticTheme = theme.variants.introCard === 'romantic';
+  const isRomanticTheme = theme.variants.introCard === "romantic";
   const showAnimatedBackground = theme.features.animatedBackground;
 
   // Get CSS variables for theming
@@ -296,14 +296,19 @@ export function ChatInterface({
       })
         .then(async (res) => {
           if (res.ok) {
-            console.log("[ChatInterface] ✅ Anonymous session cookie set successfully");
+            console.log(
+              "[ChatInterface] ✅ Anonymous session cookie set successfully",
+            );
           } else {
             const errorData = await res.json().catch(() => ({}));
             console.error("[ChatInterface] ❌ Failed to set session cookie:", res.status, errorData);
           }
         })
         .catch((err) => {
-          console.error("[ChatInterface] ❌ Error setting session cookie:", err);
+          console.error(
+            "[ChatInterface] ❌ Error setting session cookie:",
+            err,
+          );
         });
     }
   }, [sessionTokenFromUrl, user]);
@@ -312,7 +317,7 @@ export function ChatInterface({
     // Track affiliate source
     if (source) {
       console.log(
-        `[Analytics] User from ${source} started chatting with ${character.name}`
+        `[Analytics] User from ${source} started chatting with ${character.name}`,
       );
     }
   }, [source, character.name]);
@@ -320,7 +325,7 @@ export function ChatInterface({
   const handleUpgrade = () => {
     toast.info("Redirecting to signup...");
     router.push(
-      `/login?redirect=/chat/${character.id}&session=${session?.token}`
+      `/login?redirect=/chat/${character.id}&session=${session?.token}`,
     );
   };
 
@@ -371,10 +376,16 @@ export function ChatInterface({
           </div>
 
           <div className="space-y-2">
-            <h2 className={`text-2xl font-bold ${isRomanticTheme ? 'text-white' : ''}`}>
+            <h2
+              className={`text-2xl font-bold ${isRomanticTheme ? "text-white" : ""}`}
+            >
               You've reached your free message limit
             </h2>
-            <p className={isRomanticTheme ? 'text-white/70' : 'text-muted-foreground'}>
+            <p
+              className={
+                isRomanticTheme ? "text-white/70" : "text-muted-foreground"
+              }
+            >
               Sign up for free to continue chatting with {character.name}
             </p>
           </div>
@@ -407,7 +418,9 @@ export function ChatInterface({
             Sign Up Free
           </Button>
 
-          <p className={`text-xs ${isRomanticTheme ? 'text-white/50' : 'text-muted-foreground'}`}>
+          <p
+            className={`text-xs ${isRomanticTheme ? "text-white/50" : "text-muted-foreground"}`}
+          >
             No credit card required
           </p>
         </Card>
@@ -427,7 +440,7 @@ export function ChatInterface({
   }
 
   return (
-    <div 
+    <div
       style={themeStyles}
       className={`h-screen flex flex-col themed-chat ${isRomanticTheme ? 'romantic-theme bg-black' : ''}`}
     >

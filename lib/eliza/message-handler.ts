@@ -11,7 +11,9 @@ import {
   Memory,
   stringToUuid,
   elizaLogger,
+  createUniqueUuid,
   type UUID,
+  type Content,
 } from "@elizaos/core";
 import { connectionCache } from "@/lib/cache/connection-cache";
 import type { UserContext } from "./user-context";
@@ -22,14 +24,21 @@ import { discordService } from "@/lib/services/discord";
 import { db } from "@/db/client";
 import { sql } from "drizzle-orm";
 import { generateRoomTitle } from "@/lib/ai/generate-room-title";
+import type { AgentModeConfig } from "./agent-mode-types";
+import { DEFAULT_AGENT_MODE } from "./agent-mode-types";
+
+/**
+ * Usage information for token tracking and billing
+ */
+export interface UsageInfo {
+  inputTokens: number;
+  outputTokens: number;
+  model: string;
+}
 
 export interface MessageResult {
   message: Memory;
-  usage?: {
-    inputTokens: number;
-    outputTokens: number;
-    model: string;
-  };
+  usage?: UsageInfo;
 }
 
 export interface MessageOptions {
@@ -39,6 +48,7 @@ export interface MessageOptions {
   attachments?: unknown[];
   characterId?: string;
   model?: string;
+  agentModeConfig?: AgentModeConfig;
 }
 
 export class MessageHandler {
@@ -55,10 +65,13 @@ export class MessageHandler {
    * Returns the agent's response and usage information
    */
   async process(options: MessageOptions): Promise<MessageResult> {
-    const { roomId, entityId, text, attachments } = options;
+    const { roomId, entityId, text, attachments, agentModeConfig } = options;
+
+    // Use provided agent mode config or default to CHAT mode
+    const modeConfig = agentModeConfig || DEFAULT_AGENT_MODE;
 
     elizaLogger.info(
-      `[MessageHandler] Processing message for user ${this.userContext.userId} in room ${roomId}`,
+      `[MessageHandler] Processing message for user ${this.userContext.userId} in room ${roomId} (mode: ${modeConfig.mode})`,
     );
 
     // 1. Ensure connection exists (with caching)
@@ -71,41 +84,66 @@ export class MessageHandler {
     });
 
     // 3. Process through runtime (API key already configured in runtime)
-    let responseText: string | undefined;
-    let responseAttachments: unknown[] | undefined;
+    let responseContent: Content | undefined;
     let usage: MessageResult["usage"];
 
     try {
       // Process message through event pipeline
+      // The agent mode config will be picked up by the appropriate plugin
       await this.runtime.emitEvent(EventType.MESSAGE_RECEIVED, {
         runtime: this.runtime,
         message: userMessage,
-        callback: async (result: {
-          text?: string;
-          attachments?: unknown[];
-          usage?: {
-            inputTokens: number;
-            outputTokens: number;
-            model: string;
-          };
-        }) => {
-          elizaLogger.debug(
-            "[MessageHandler] Message processed, received response",
+        agentModeConfig: modeConfig, // Pass agent mode config to event handlers
+        callback: async (content: Content) => {
+          elizaLogger.info(
+            "[MessageHandler] Callback invoked with content:",
+            JSON.stringify(content).substring(0, 200),
           );
 
-          if (result.text) {
-            responseText = result.text;
+          if (content.text) {
+            responseContent = content;
+            elizaLogger.info(
+              `[MessageHandler] Captured response text (${content.text.length} chars): ${content.text.substring(0, 100)}...`,
+            );
+
+            // Store the response memory when callback is invoked
+            // This ensures all agent responses (including action responses) are persisted
+            const responseMemory: Memory = {
+              id: createUniqueUuid(
+                this.runtime,
+                (userMessage.id ?? uuidv4()) as UUID,
+              ),
+              entityId: this.runtime.agentId,
+              roomId: roomId as UUID,
+              content: {
+                ...content,
+                source: content.source || "agent",
+                inReplyTo: userMessage.id,
+              },
+            };
+
+            await this.runtime.createMemory(responseMemory, "messages");
+            elizaLogger.info(
+              `[MessageHandler] Stored response memory: ${responseMemory.id}`,
+            );
+          } else {
+            elizaLogger.warn(
+              "[MessageHandler] Callback received but no text in content",
+            );
           }
-          if (result.attachments) {
-            responseAttachments = result.attachments;
-          }
-          if (result.usage) {
-            usage = result.usage;
+
+          // Extract usage if passed via dynamic property (for billing)
+          if ("usage" in content && content.usage) {
+            usage = content.usage as UsageInfo;
           }
 
           return [];
         },
       });
+
+      elizaLogger.info(
+        `[MessageHandler] After emitEvent - responseText: ${responseContent?.text ? `"${responseContent.text.substring(0, 100)}..."` : "EMPTY/UNDEFINED"}`,
+      );
     } catch (error) {
       elizaLogger.error(
         "[MessageHandler] Error during message processing:",
@@ -114,19 +152,29 @@ export class MessageHandler {
 
       // Check if it's an API key error
       if (error instanceof Error && error.message.includes("API key")) {
-        responseText =
-          "⚠️ Configuration error: ElizaCloud API key is missing or invalid. Please try logging out and back in.";
+        responseContent = {
+          text: "⚠️ Configuration error: ElizaCloud API key is missing or invalid. Please try logging out and back in.",
+          source: "agent",
+        };
       } else {
-        responseText =
-          "I apologize, but I encountered an error processing your message. Please try again.";
+        responseContent = {
+          text: "I apologize, but I encountered an error processing your message. Please try again.",
+          source: "agent",
+        };
       }
     }
 
-    // 4. Create response memory object
-    const responseMemory = this.createResponseMemory(
+    elizaLogger.debug(
+      `*** RESPONSE CONTENT ***\n${JSON.stringify(responseContent, null, 2)}`,
+    );
+
+    // 4. Create response memory object for return (using stored content)
+    const responseMemory = this.createResponseMemoryFromContent(
       roomId,
-      responseText || "I'm sorry, I couldn't generate a response.",
-      responseAttachments,
+      responseContent || {
+        text: "I'm sorry, I couldn't generate a response.",
+        source: "agent",
+      },
     );
 
     // 5. Track usage and credits (if not anonymous)
@@ -155,7 +203,7 @@ export class MessageHandler {
     this.handleSideEffects(
       roomId,
       text,
-      responseText || "",
+      responseContent?.text || "",
       options.characterId,
     );
 
@@ -163,7 +211,7 @@ export class MessageHandler {
       `[MessageHandler] Message processed successfully for user ${this.userContext.userId}`,
     );
 
-    console.log("FINAL USAGE ************\n", usage);
+    elizaLogger.debug(`FINAL USAGE: ${JSON.stringify(usage)}`);
 
     return {
       message: responseMemory,
@@ -246,6 +294,7 @@ export class MessageHandler {
       createdAt: Date.now(),
       content: {
         text: content.text || "",
+        source: "user",
         ...(content.attachments &&
         Array.isArray(content.attachments) &&
         content.attachments.length > 0
@@ -259,23 +308,16 @@ export class MessageHandler {
   }
 
   /**
-   * Create response memory object
+   * Create response memory object from Content
+   * Used for building the return value with full Content structure
    */
-  private createResponseMemory(
+  private createResponseMemoryFromContent(
     roomId: string,
-    text: string,
-    attachments?: unknown[],
+    content: Content,
   ): Memory {
-    const content: Record<string, unknown> = {
-      text,
-      type: "agent",
-      source: "agent",
-    };
-
-    if (attachments && attachments.length > 0) {
-      content.attachments = attachments;
+    if (content.attachments && content.attachments.length > 0) {
       elizaLogger.debug(
-        `[MessageHandler] Including ${attachments.length} attachment(s) in response`,
+        `[MessageHandler] Including ${content.attachments.length} attachment(s) in response`,
       );
     }
 
@@ -285,7 +327,10 @@ export class MessageHandler {
       entityId: this.runtime.agentId as UUID,
       agentId: this.runtime.agentId as UUID,
       createdAt: Date.now(),
-      content: content as Memory["content"],
+      content: {
+        ...content,
+        source: content.source || "agent",
+      },
     };
   }
 
@@ -294,7 +339,6 @@ export class MessageHandler {
    * Note: Token usage tracking is now handled by MODEL_USED events in plugin-assistant
    */
   private async trackUsage(usage: MessageResult["usage"]): Promise<void> {
-    console.log("********* received USAGE ************\n", usage);
     if (!usage || !this.userContext.organizationId) return;
 
     try {

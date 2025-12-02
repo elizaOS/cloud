@@ -5,12 +5,16 @@
 
 import { apiKeysService } from "@/lib/services";
 import { logger } from "@/lib/utils/logger";
+import type { AgentMode } from "./agent-mode-types";
 
 export interface UserContext {
   // Core identity
   userId: string;
   entityId: string; // Always equals userId in your system
   organizationId: string;
+
+  // Agent configuration
+  agentMode: AgentMode;
 
   // Runtime configuration
   apiKey: string;
@@ -50,11 +54,13 @@ export class UserContextService {
     apiKey?: any;
     isAnonymous?: boolean;
     anonymousSession?: any;
+    agentMode: AgentMode;
   }): Promise<UserContext> {
     if (authResult.isAnonymous && authResult.anonymousSession) {
       return this.buildAnonymousContext(
         authResult.user,
         authResult.anonymousSession,
+        authResult.agentMode,
       );
     }
 
@@ -77,13 +83,14 @@ export class UserContextService {
     }
 
     logger.info(
-      `[UserContext] Built context for user ${authResult.user.id}: ${apiKey.substring(0, 12)}...`,
+      `[UserContext] Built context for user ${authResult.user.id} (mode: ${authResult.agentMode}): ${apiKey.substring(0, 12)}...`,
     );
 
     return {
       userId: authResult.user.id,
       entityId: entityId, // Clear mapping: entityId === userId
       organizationId: authResult.user.organization_id,
+      agentMode: authResult.agentMode,
       apiKey,
       isAnonymous: false,
       modelPreferences: authResult.user.model_preferences,
@@ -142,19 +149,24 @@ export class UserContextService {
    * Build context for anonymous users
    * Uses a shared runtime with limited capabilities
    */
-  private buildAnonymousContext(user: any, session: any): UserContext {
+  private buildAnonymousContext(
+    user: any,
+    session: any,
+    agentMode: AgentMode,
+  ): UserContext {
     // Anonymous users get a shared runtime with limited access
     // For anonymous users, we still use the user object but mark as anonymous
     const entityId = session.id || user.id;
 
     logger.info(
-      `[UserContext] Built anonymous context for session ${session.session_token}`,
+      `[UserContext] Built anonymous context for session ${session.session_token} (mode: ${agentMode})`,
     );
 
     return {
       userId: user.id || "anonymous",
       entityId: entityId, // Use session ID or user ID as entity
       organizationId: user.organization_id || "public",
+      agentMode,
       apiKey: process.env.SHARED_ELIZAOS_API_KEY || "", // Shared key for anonymous or empty
       isAnonymous: true,
       sessionToken: session.session_token,
@@ -167,11 +179,12 @@ export class UserContextService {
    * Create context for system/internal operations
    * Used when the system needs to perform operations without a user
    */
-  createSystemContext(): UserContext {
+  createSystemContext(agentMode: AgentMode): UserContext {
     return {
       userId: "system",
       entityId: "system",
       organizationId: "system",
+      agentMode,
       apiKey:
         process.env.SYSTEM_ELIZAOS_API_KEY ||
         process.env.SHARED_ELIZAOS_API_KEY ||

@@ -419,46 +419,83 @@ async function handleCreateContainer(request: NextRequest) {
       });
     }
 
-    // Deploy container ASYNCHRONOUSLY - return immediately to prevent API timeout
-    // CloudFormation deployments take 8-12 minutes, which exceeds API gateway timeouts
-    // Client will poll GET /api/v1/containers/:id for status updates
-
+    // Create CloudFormation stack SYNCHRONOUSLY
+    // The CreateStack API call itself is fast (milliseconds) - it just initiates the stack
+    // Only the wait for completion takes 8-12 minutes, which the cron job handles
     console.log(
-      `🚀 [handleCreateContainer] Starting background deployment for container: ${container.id}`,
+      `🚀 [handleCreateContainer] Creating CloudFormation stack for container: ${container.id}`,
     );
 
-    // Start deployment in background (no await)
-    deployContainerAsync(
-      container.id,
-      validatedData,
-      deploymentCost,
-      user.organization_id!,
-    ).catch((error) => {
-      console.error(
-        "❌ [handleCreateContainer] Background deployment failed:",
-        error,
+    try {
+      const stackName = await initiateCloudFormationStack(
+        container.id,
+        validatedData,
+        user.organization_id!,
       );
-      // Error handling is already done inside deployContainerAsync
-      // Container status will be set to "failed" with error message
-    });
 
-    // Return immediately with container info and polling instructions
-    return NextResponse.json(
-      {
-        success: true,
-        data: container,
-        message:
-          "Container deployment started. Poll GET /api/v1/containers/:id to check status. CloudFormation deployment typically takes 8-12 minutes.",
-        creditsDeducted: deploymentCost,
-        creditsRemaining: newBalance,
-        polling: {
-          endpoint: `/api/v1/containers/${container.id}`,
-          intervalMs: 10000, // Suggest polling every 10 seconds
-          expectedDurationMs: 600000, // 10 minutes
+      console.log(
+        `✅ [handleCreateContainer] CloudFormation stack initiated: ${stackName}`,
+      );
+
+      // Return immediately with container info and polling instructions
+      return NextResponse.json(
+        {
+          success: true,
+          data: container,
+          message:
+            "Container deployment started. Poll GET /api/v1/containers/:id to check status. CloudFormation deployment typically takes 8-12 minutes.",
+          creditsDeducted: deploymentCost,
+          creditsRemaining: newBalance,
+          stackName,
+          polling: {
+            endpoint: `/api/v1/containers/${container.id}`,
+            intervalMs: 10000, // Suggest polling every 10 seconds
+            expectedDurationMs: 600000, // 10 minutes
+          },
         },
-      },
-      { status: 202 }, // 202 Accepted - request accepted, processing asynchronously
-    );
+        { status: 202 }, // 202 Accepted - request accepted, processing asynchronously
+      );
+    } catch (stackError) {
+      console.error(
+        `❌ [handleCreateContainer] CloudFormation stack creation failed:`,
+        stackError,
+      );
+
+      // Update container status to failed
+      await updateContainerStatus(container.id, "failed", {
+        errorMessage:
+          stackError instanceof Error
+            ? stackError.message
+            : "CloudFormation stack creation failed",
+      });
+
+      // Refund credits
+      try {
+        await creditsService.addCredits({
+          organizationId: user.organization_id!,
+          amount: deploymentCost,
+          description: `Refund for failed container deployment: ${validatedData.name}`,
+          metadata: { type: "refund" },
+        });
+        console.log(
+          `✅ Refunded ${deploymentCost} credits for failed deployment`,
+        );
+      } catch (refundError) {
+        console.error(`❌ Failed to refund credits:`, refundError);
+      }
+
+      return NextResponse.json(
+        {
+          success: false,
+          error:
+            stackError instanceof Error
+              ? stackError.message
+              : "CloudFormation stack creation failed",
+          containerId: container.id,
+        },
+        { status: 500 },
+      );
+    }
   } catch (error) {
     console.error("Error creating container:", error);
 
@@ -524,322 +561,117 @@ export const POST = withRateLimit(
 );
 
 /**
- * Background deployment function - Provisions per-user CloudFormation stack
- * In production, this should be handled by a job queue
+ * Initiates CloudFormation stack creation SYNCHRONOUSLY
+ * This is fast (just the API call) - the actual stack creation takes 8-12 minutes
+ * and is monitored by the deployment-monitor cron job
  */
-async function deployContainerAsync(
+async function initiateCloudFormationStack(
   containerId: string,
   config: z.infer<typeof createContainerSchema>,
-  deploymentCost: number,
   organizationId: string,
-): Promise<void> {
+): Promise<string> {
   console.log(
-    `🚀 [deployContainerAsync] Starting deployment for container: ${containerId}`,
+    `🚀 [initiateCloudFormationStack] Starting for container: ${containerId}`,
   );
 
-  const { TimeoutError, withTimeout } = await import(
-    "@/lib/errors/deployment-errors"
+  const { cloudFormationService } =
+    await import("@/lib/services/cloudformation");
+
+  // Update status to building
+  await updateContainerStatus(containerId, "building", {
+    deploymentLog: "Provisioning dedicated EC2 instance and ECS cluster...",
+  });
+
+  // Check if shared infrastructure is deployed
+  console.log(
+    `🔍 [initiateCloudFormationStack] Checking shared infrastructure...`,
   );
-  const { cloudFormationService } = await import(
-    "@/lib/services/cloudformation"
-  );
+  const sharedInfraExists =
+    await cloudFormationService.isSharedInfrastructureDeployed();
 
-  try {
-    // Update status to building
-    console.log(`📝 [deployContainerAsync] Updating status to 'building'`);
-    try {
-      await updateContainerStatus(containerId, "building", {
-        deploymentLog: "Provisioning dedicated EC2 instance and ECS cluster...",
-      });
-      console.log(`✅ [deployContainerAsync] Status updated to 'building'`);
-    } catch (dbError) {
-      console.error(`❌ [deployContainerAsync] DB update failed:`, dbError);
-      throw dbError;
-    }
-
-    // Check if shared infrastructure is deployed
-    console.log(`🔍 [deployContainerAsync] Checking shared infrastructure...`);
-    let sharedInfraExists: boolean;
-    try {
-      sharedInfraExists =
-        await cloudFormationService.isSharedInfrastructureDeployed();
-      console.log(
-        `📊 [deployContainerAsync] Shared infrastructure exists: ${sharedInfraExists}`,
-      );
-    } catch (cfError) {
-      const errorMsg =
-        cfError instanceof Error ? cfError.message : String(cfError);
-      console.error(
-        `❌ [deployContainerAsync] CloudFormation check failed:`,
-        errorMsg,
-        cfError,
-      );
-      throw cfError;
-    }
-
-    if (!sharedInfraExists) {
-      throw new Error(
-        "Shared infrastructure not deployed. Contact support or deploy infrastructure first.",
-      );
-    }
-
-    // Create CloudFormation stack for this user
-    const architecture = config.architecture || "arm64";
-    const instanceType = architecture === "arm64" ? "t4g.small" : "t3.small";
-
-    console.log(`📝 [deployContainerAsync] Updating status to 'deploying'`);
-    await updateContainerStatus(containerId, "deploying", {
-      deploymentLog: `Creating CloudFormation stack (1x ${instanceType} ${architecture === "arm64" ? "ARM" : "x86_64"} instance)...`,
-    });
-
-    console.log(`☁️ [deployContainerAsync] Creating CloudFormation stack...`, {
-      userId: containerId,
-      containerName: config.name,
-      ecrImageUri: config.ecr_image_uri,
-      port: config.port,
-      cpu: config.cpu,
-      memory: config.memory,
-    });
-
-    // Prepare environment variables for the container
-    // Include platform-level vars (OPENAI_API_KEY) + user-provided vars
-    const environmentVars: Record<string, string> = {
-      // Platform-level environment variables
-      ...(process.env.OPENAI_API_KEY && {
-        OPENAI_API_KEY: process.env.OPENAI_API_KEY,
-      }),
-
-      // User-provided environment variables from container config
-      ...(config.environment_vars || {}),
-    };
-
-    console.log(
-      `🔐 [deployContainerAsync] Injecting ${Object.keys(environmentVars).length} environment variables (including OPENAI_API_KEY and DATABASE_URL)`,
+  if (!sharedInfraExists) {
+    throw new Error(
+      "Shared infrastructure not deployed. Contact support or deploy infrastructure first.",
     );
-
-    // Get container to check if this is an update
-    const container = await getContainer(containerId, organizationId);
-    const isUpdate = container?.is_update === "true";
-
-    const stackConfig = {
-      userId: containerId,
-      projectName: config.project_name,
-      userEmail: config.name, // Using container name as identifier
-      containerImage: config.ecr_image_uri,
-      containerPort: config.port,
-      containerCpu: config.cpu,
-      containerMemory: config.memory,
-      architecture: architecture, // Pass architecture for instance type selection
-      keyName: process.env.EC2_KEY_NAME,
-      environmentVars: environmentVars,
-    };
-
-    // Use update or create based on whether project exists
-    let stackId: string;
-    try {
-      if (isUpdate) {
-        console.log(
-          `🔄 [deployContainerAsync] Updating existing CloudFormation stack for project "${config.project_name}"...`,
-        );
-        stackId = await cloudFormationService.updateUserStack(stackConfig);
-      } else {
-        console.log(
-          `🆕 [deployContainerAsync] Creating new CloudFormation stack for project "${config.project_name}"...`,
-        );
-        console.log(`[DEBUG] About to call createUserStack with config:`, {
-          userId: stackConfig.userId,
-          projectName: stackConfig.projectName,
-          architecture: stackConfig.architecture,
-        });
-        stackId = await cloudFormationService.createUserStack(stackConfig);
-        console.log(`[DEBUG] createUserStack returned stackId: ${stackId}`);
-      }
-
-      console.log(
-        `✅ [deployContainerAsync] CloudFormation stack ${isUpdate ? "update" : "creation"} initiated: ${stackId}`,
-      );
-    } catch (stackError) {
-      const errorMsg =
-        stackError instanceof Error ? stackError.message : String(stackError);
-      console.error(
-        `❌ [deployContainerAsync] CloudFormation stack ${isUpdate ? "update" : "creation"} failed:`,
-        errorMsg,
-      );
-      console.error(`[DEBUG] Full stack error:`, stackError);
-      throw stackError;
-    }
-
-    // Store the stack name in container metadata for future reference
-    const stackName = cloudFormationService.getStackName(
-      containerId,
-      config.project_name,
-    );
-    await updateContainerStatus(containerId, "deploying", {
-      cloudformationStackName: stackName,
-    });
-
-    // Wait for stack creation/update to complete (with timeout)
-    // With Vercel Pro/Enterprise maxDuration of 800s (13.33 min), we can wait for full deployment
-    // UserData waits 5 min + CloudFormation overhead = typically 7-10 min total
-    // We set 12 min timeout to handle slower AWS regions and edge cases
-    // This fits comfortably within the 13 min Vercel limit
-    const STACK_TIMEOUT_MINUTES = 12;
-    console.log(
-      `⏳ [deployContainerAsync] Waiting for stack ${isUpdate ? "update" : "creation"} (max ${STACK_TIMEOUT_MINUTES} minutes)...`,
-    );
-
-    await withTimeout(
-      async () =>
-        cloudFormationService.waitForStackComplete(
-          containerId,
-          config.project_name,
-          STACK_TIMEOUT_MINUTES,
-        ),
-      STACK_TIMEOUT_MINUTES * 60 * 1000,
-      `CloudFormation stack ${isUpdate ? "update" : "creation"}`,
-    );
-
-    // Get stack outputs
-    const outputs = await cloudFormationService.getStackOutputs(
-      containerId,
-      config.project_name,
-    );
-
-    if (!outputs) {
-      throw new Error("Failed to get stack outputs");
-    }
-
-    // Update container with deployment info
-    await updateContainerStatus(containerId, "running", {
-      ecsServiceArn: outputs.serviceArn,
-      ecsTaskDefinitionArn: outputs.taskDefinitionArn,
-      ecsClusterArn: outputs.clusterArn,
-      loadBalancerUrl: outputs.containerUrl,
-      deploymentLog: `Deployed successfully! EC2: ${outputs.instancePublicIp}, URL: ${outputs.containerUrl}`,
-    });
-
-    console.log(`✅ Container ${containerId} deployed successfully:`, {
-      instance: outputs.instancePublicIp,
-      url: outputs.containerUrl,
-      cluster: outputs.clusterName,
-    });
-  } catch (error) {
-    console.error("Deployment failed:", error);
-
-    const errorMessage =
-      error instanceof Error ? error.message : "Unknown deployment error";
-    const isTimeout = error instanceof TimeoutError;
-
-    // Update container status to failed
-    await updateContainerStatus(containerId, "failed", {
-      errorMessage: isTimeout
-        ? "Deployment timed out after 12 minutes. This likely indicates an infrastructure issue. Check AWS CloudFormation console for detailed error logs. Common causes: insufficient AWS capacity, networking issues, or IAM permission problems."
-        : errorMessage,
-      deploymentLog: `Deployment failed: ${errorMessage}${isTimeout ? " (timeout)" : ""}`,
-    });
-
-    // CRITICAL: Refund credits and cleanup failed container
-    // This MUST succeed to prevent charging users for failed deployments
-    let refundSuccessful = false;
-    let rollbackSuccessful = false;
-
-    // Attempt refund with retries
-    for (let attempt = 1; attempt <= 3; attempt++) {
-      try {
-        await creditsService.addCredits({
-          organizationId,
-          amount: deploymentCost,
-          description: `Refund for failed container deployment: ${config.name}${isTimeout ? " (timeout)" : ""}`,
-          metadata: { type: "refund" },
-        });
-        console.log(
-          `✅ Refunded ${deploymentCost} credits for failed deployment of container ${containerId}`,
-        );
-        refundSuccessful = true;
-        break;
-      } catch (refundError) {
-        console.error(`❌ Refund attempt ${attempt}/3 failed:`, refundError);
-        if (attempt === 3) {
-          // CRITICAL: Log to monitoring system for manual intervention
-          console.error(
-            `🚨 CRITICAL: Failed to refund ${deploymentCost} credits to org ${organizationId} for container ${containerId}. MANUAL INTERVENTION REQUIRED.`,
-            { containerId, organizationId, deploymentCost, error: refundError },
-          );
-          // Future: Integrate with monitoring system (e.g., Sentry, DataDog, PagerDuty)
-          // This error is already logged and will appear in application logs for manual review
-        } else {
-          // Wait before retry with exponential backoff
-          await new Promise((resolve) =>
-            setTimeout(resolve, 1000 * Math.pow(2, attempt - 1)),
-          );
-        }
-      }
-    }
-
-    // Attempt rollback (delete CloudFormation stack and release priority)
-    // KEEP the container record in "failed" status for visibility
-    for (let attempt = 1; attempt <= 3; attempt++) {
-      try {
-        // Delete CloudFormation stack first
-        try {
-          await cloudFormationService.deleteUserStack(
-            containerId,
-            config.project_name,
-          );
-          console.log(
-            `✅ CloudFormation stack deletion initiated for ${containerId}`,
-          );
-        } catch (cfError) {
-          console.warn(`⚠️  Failed to delete CloudFormation stack:`, cfError);
-          // Continue - stack may not exist yet
-        }
-
-        // Release ALB priority
-        try {
-          const { dbPriorityManager } = await import(
-            "@/lib/services/alb-priority-manager"
-          );
-          await dbPriorityManager.releasePriority(containerId);
-          console.log(`✅ Released ALB priority for ${containerId}`);
-        } catch (priorityError) {
-          console.warn(`⚠️  Failed to release ALB priority:`, priorityError);
-          // Continue - priority may not have been allocated yet
-        }
-
-        console.log(
-          `✅ Cleaned up infrastructure for failed container ${containerId} (kept record in 'failed' state)`,
-        );
-        rollbackSuccessful = true;
-        break;
-      } catch (rollbackError) {
-        console.error(
-          `❌ Rollback attempt ${attempt}/3 failed:`,
-          rollbackError,
-        );
-        if (attempt < 3) {
-          await new Promise((resolve) =>
-            setTimeout(resolve, 1000 * Math.pow(2, attempt - 1)),
-          );
-        }
-      }
-    }
-
-    // If refund failed, this is a critical issue that needs immediate attention
-    if (!refundSuccessful) {
-      // Update container with refund failure flag for manual processing
-      await updateContainerStatus(containerId, "failed", {
-        errorMessage: `${errorMessage} | REFUND FAILED - MANUAL INTERVENTION REQUIRED`,
-        deploymentLog: `${errorMessage}${isTimeout ? " (timeout)" : ""} | Refund failed - admin must manually credit ${deploymentCost} credits to org ${organizationId}`,
-      });
-    }
-
-    // Log final cleanup status for monitoring
-    console.log(`Deployment cleanup completed for container ${containerId}:`, {
-      status: "failed",
-      refundSuccessful,
-      rollbackSuccessful,
-      containerPreserved: true,
-      requiresManualIntervention: !refundSuccessful,
-    });
   }
+  console.log(`✅ [initiateCloudFormationStack] Shared infrastructure exists`);
+
+  // Determine architecture and instance type
+  const architecture = config.architecture || "arm64";
+  const instanceType = architecture === "arm64" ? "t4g.small" : "t3.small";
+
+  // Update status to deploying
+  await updateContainerStatus(containerId, "deploying", {
+    deploymentLog: `Creating CloudFormation stack (1x ${instanceType} ${architecture === "arm64" ? "ARM" : "x86_64"} instance)...`,
+  });
+
+  // Prepare environment variables
+  const environmentVars: Record<string, string> = {
+    ...(process.env.OPENAI_API_KEY && {
+      OPENAI_API_KEY: process.env.OPENAI_API_KEY,
+    }),
+    ...(config.environment_vars || {}),
+  };
+
+  console.log(
+    `🔐 [initiateCloudFormationStack] Injecting ${Object.keys(environmentVars).length} environment variables`,
+  );
+
+  // Get container to check if this is an update
+  const container = await getContainer(containerId, organizationId);
+  const isUpdate = container?.is_update === "true";
+
+  const stackConfig = {
+    userId: organizationId,
+    projectName: config.project_name,
+    userEmail: config.name,
+    containerImage: config.ecr_image_uri,
+    containerPort: config.port,
+    containerCpu: config.cpu,
+    containerMemory: config.memory,
+    architecture: architecture,
+    keyName: process.env.EC2_KEY_NAME,
+    environmentVars: environmentVars,
+  };
+
+  console.log(
+    `☁️ [initiateCloudFormationStack] Calling CloudFormation API...`,
+    {
+      userId: stackConfig.userId,
+      projectName: stackConfig.projectName,
+      architecture: stackConfig.architecture,
+      isUpdate,
+    },
+  );
+
+  // Create or update CloudFormation stack
+  // This API call is FAST (milliseconds) - it just initiates the stack
+  let stackId: string;
+  if (isUpdate) {
+    stackId = await cloudFormationService.updateUserStack(stackConfig);
+  } else {
+    stackId = await cloudFormationService.createUserStack(stackConfig);
+  }
+
+  console.log(
+    `✅ [initiateCloudFormationStack] CloudFormation API call successful: ${stackId}`,
+  );
+
+  // Get the stack name for storage
+  const stackName = cloudFormationService.getStackName(
+    organizationId,
+    config.project_name,
+  );
+
+  // Update container with stack name
+  await updateContainerStatus(containerId, "deploying", {
+    cloudformationStackName: stackName,
+    deploymentLog: `CloudFormation stack "${stackName}" creation initiated. Monitoring for completion...`,
+  });
+
+  console.log(
+    `✅ [initiateCloudFormationStack] Stack ${stackName} initiated. Cron job will monitor completion.`,
+  );
+
+  return stackName;
 }

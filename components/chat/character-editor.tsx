@@ -1,49 +1,60 @@
 "use client";
 
 import { useState } from "react";
-import { CharacterFormClean } from "@/components/chat/character-form-clean";
+import { CharacterForm } from "@/components/character-builder";
 import { JsonEditor } from "@/components/character-creator/json-editor";
+import { PluginsTab } from "@/components/chat/plugins-tab";
 import type { ElizaCharacter } from "@/lib/types";
 import { Button } from "@/components/ui/button";
-import { Download, Save, Settings, Zap, BookOpen, Upload } from "lucide-react";
+import {
+  Download,
+  Save,
+  Zap,
+  BookOpen,
+  Upload,
+  Sparkles,
+  Puzzle,
+  BarChart3,
+} from "lucide-react";
 import { cn } from "@/lib/utils";
 import {
   BrandTabsResponsive,
   type TabItem,
 } from "@/components/brand/brand-tabs-responsive";
+import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 
-interface AgentDnaEditorProps {
+interface CharacterEditorProps {
   character: ElizaCharacter;
   onChange: (character: ElizaCharacter) => void;
   onSave: () => Promise<void>;
 }
 
-type MainTab = "settings" | "model-calls" | "memories" | "uploads";
+type MainTab = "character" | "plugins" | "stats" | "uploads";
 
-export function AgentDnaEditor({
+export function CharacterEditor({
   character,
   onChange,
   onSave,
-}: AgentDnaEditorProps) {
-  const [activeTab, setActiveTab] = useState<MainTab>("settings");
+}: CharacterEditorProps) {
+  const [activeTab, setActiveTab] = useState<MainTab>("character");
   const [showJson, setShowJson] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
 
   const tabs: TabItem[] = [
     {
-      value: "settings",
-      label: "Settings",
-      icon: <Settings className="h-4 w-4" />,
+      value: "character",
+      label: "Character",
+      icon: <Sparkles className="h-4 w-4" />,
     },
     {
-      value: "model-calls",
-      label: "Model Calls",
-      icon: <Zap className="h-4 w-4" />,
+      value: "plugins",
+      label: "Plugins",
+      icon: <Puzzle className="h-4 w-4" />,
     },
     {
-      value: "memories",
-      label: "Memories",
-      icon: <BookOpen className="h-4 w-4" />,
+      value: "stats",
+      label: "Stats",
+      icon: <BarChart3 className="h-4 w-4" />,
     },
     {
       value: "uploads",
@@ -80,15 +91,15 @@ export function AgentDnaEditor({
       <div className="flex-shrink-0 border-b border-white/10 px-6 py-4">
         <div className="flex items-center justify-between mb-2">
           <div className="flex items-center gap-2">
-            <h2 className="text-xl font-bold text-white">Agent DNA</h2>
-            <Zap className="h-5 w-5 text-[#FF5800]" />
+            <h2 className="text-xl font-bold text-white">Character Builder</h2>
+            <Sparkles className="h-5 w-5 text-[#FF5800]" />
           </div>
           <div className="flex items-center gap-2">
             <Button
               variant="outline"
               size="sm"
               onClick={handleExport}
-              className="rounded-none border-white/10 bg-transparent text-white hover:bg-white/5"
+              className="rounded-xl border-white/10 bg-transparent text-white hover:bg-white/5"
             >
               <Download className="mr-2 h-4 w-4" />
               Export
@@ -97,7 +108,7 @@ export function AgentDnaEditor({
               size="sm"
               onClick={handleSave}
               disabled={isSaving}
-              className="rounded-none bg-[#FF5800] text-white hover:bg-[#FF5800]/90"
+              className="rounded-xl bg-[#FF5800] text-white hover:bg-[#FF5800]/90"
             >
               <Save className="mr-2 h-4 w-4" />
               {isSaving ? "Saving..." : "Save"}
@@ -105,7 +116,7 @@ export function AgentDnaEditor({
           </div>
         </div>
         <p className="text-sm text-white/60">
-          Configure your AI agent&apos;s behaviour and capabilities.
+          Design your AI agent&apos;s personality, voice, and behavior.
         </p>
       </div>
 
@@ -115,7 +126,7 @@ export function AgentDnaEditor({
           {/* Tabs - Dropdown on mobile, tabs on desktop */}
           <div className="flex-1 min-w-0">
             <BrandTabsResponsive
-              id="agent-dna-tabs"
+              id="character-editor-tabs"
               tabs={tabs}
               value={activeTab}
               onValueChange={(value) => setActiveTab(value as MainTab)}
@@ -148,7 +159,7 @@ export function AgentDnaEditor({
       </div>
 
       {/* Content Area - Full Height */}
-      <div className="flex-1 overflow-hidden">
+      <div className="flex-1 overflow-y-auto overflow-x-hidden relative">
         {showJson ? (
           <JsonEditor
             character={character}
@@ -158,33 +169,67 @@ export function AgentDnaEditor({
           />
         ) : (
           <>
-            {activeTab === "settings" && (
-              <CharacterFormClean character={character} onChange={onChange} />
+            {activeTab === "character" && (
+              <CharacterForm character={character} onChange={onChange} />
             )}
-            {activeTab === "model-calls" && (
-              <div className="flex h-full items-center justify-center p-6">
-                <div className="text-center">
-                  <Zap className="h-12 w-12 text-white/40 mx-auto mb-4" />
-                  <h3 className="text-lg font-semibold text-white mb-2">
-                    Model Calls
-                  </h3>
-                  <p className="text-sm text-white/60">
-                    Configure model settings and API calls
-                  </p>
-                </div>
-              </div>
+            {activeTab === "plugins" && (
+              <PluginsTab
+                character={character}
+                onChange={(updates) => onChange({ ...character, ...updates })}
+                onSave={onSave}
+              />
             )}
-            {activeTab === "memories" && (
-              <div className="flex h-full items-center justify-center p-6">
-                <div className="text-center">
-                  <BookOpen className="h-12 w-12 text-white/40 mx-auto mb-4" />
-                  <h3 className="text-lg font-semibold text-white mb-2">
-                    Memories
-                  </h3>
-                  <p className="text-sm text-white/60">
-                    View and manage agent memories
-                  </p>
-                </div>
+            {activeTab === "stats" && (
+              <div className="flex h-full flex-col">
+                <Tabs
+                  defaultValue="model-calls"
+                  className="flex flex-col h-full"
+                >
+                  <div className="flex-shrink-0 px-6 pt-4">
+                    <TabsList className="bg-white/5 border border-white/10 rounded-lg p-1">
+                      <TabsTrigger
+                        value="model-calls"
+                        className="data-[state=active]:bg-[#FF5800] data-[state=active]:text-white text-white/60 rounded-md px-4 py-1.5 text-sm"
+                      >
+                        <Zap className="h-3.5 w-3.5 mr-2" />
+                        Model Calls
+                      </TabsTrigger>
+                      <TabsTrigger
+                        value="memories"
+                        className="data-[state=active]:bg-[#FF5800] data-[state=active]:text-white text-white/60 rounded-md px-4 py-1.5 text-sm"
+                      >
+                        <BookOpen className="h-3.5 w-3.5 mr-2" />
+                        Memories
+                      </TabsTrigger>
+                    </TabsList>
+                  </div>
+                  <TabsContent value="model-calls" className="flex-1 m-0">
+                    <div className="flex h-full items-center justify-center p-6">
+                      <div className="text-center">
+                        <Zap className="h-12 w-12 text-white/40 mx-auto mb-4" />
+                        <h3 className="text-lg font-semibold text-white mb-2">
+                          Model Calls
+                        </h3>
+                        <p className="text-sm text-white/60">
+                          Configure model settings and API calls
+                        </p>
+                      </div>
+                    </div>
+                  </TabsContent>
+                  <TabsContent value="memories" className="flex-1 m-0">
+                    <div className="flex h-full items-center justify-center p-6">
+                      <div className="text-center">
+                        <BookOpen className="h-12 w-12 text-white/40 mx-auto mb-4" />
+                        <h3 className="text-lg font-semibold text-white mb-2">
+                          Memories
+                        </h3>
+                        <p className="text-sm text-white/60">
+                          View and manage agent memories
+                        </p>
+                      </div>
+                    </div>
+                  </TabsContent>
+                </Tabs>
               </div>
             )}
             {activeTab === "uploads" && (
