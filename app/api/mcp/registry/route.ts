@@ -295,7 +295,8 @@ export async function GET(request: NextRequest) {
 
     const { category, status, limit, search } = validationResult.data;
 
-    // Process registry entries with base URL
+    // Process registry entries - keep pathnames, don't inject baseUrl
+    // This allows configs to work across dev/prod/localhost environments
     const registry = MCP_REGISTRY.map((entry) => ({
       ...entry,
       configTemplate: {
@@ -304,12 +305,13 @@ export async function GET(request: NextRequest) {
             key,
             {
               ...value,
-              url: value.url.replace("${BASE_URL}", baseUrl),
+              // Remove ${BASE_URL} placeholder - store as pathname only
+              url: value.url.replace("${BASE_URL}", ""),
             },
           ]),
         ),
       },
-      // Include full endpoint URL
+      // Include full endpoint URL for display/testing purposes only
       fullEndpoint: entry.endpoint.startsWith("http")
         ? entry.endpoint
         : `${baseUrl}${entry.endpoint}`,

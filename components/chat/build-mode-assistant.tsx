@@ -10,11 +10,14 @@ import rehypeHighlight from "rehype-highlight";
 import "highlight.js/styles/github-dark.css";
 import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
+import { cn } from "@/lib/utils";
+import { usePathname } from "next/navigation";
 import { AgentMode } from "@/lib/eliza/agent-mode-types";
 import {
   createConversationAction,
   listUserConversationsAction,
 } from "@/app/actions/conversations";
+import { ElizaAvatar } from "./eliza-avatar";
 
 interface BuildModeAssistantProps {
   character: ElizaCharacter;
@@ -408,7 +411,7 @@ Tell me about your vision!`;
   const scrollToBottom = useCallback((smooth = false) => {
     if (scrollAreaRef.current) {
       const viewport = scrollAreaRef.current.querySelector(
-        "[data-radix-scroll-area-viewport]",
+        "[data-radix-scroll-area-viewport]"
       );
       if (viewport) {
         // Use requestAnimationFrame to ensure DOM has updated
@@ -437,6 +440,57 @@ Tell me about your vision!`;
       scrollToBottom();
     }, 100);
     return () => clearTimeout(timer);
+  }, [messages, scrollToBottom, onCharacterUpdate]);
+
+  // Extract and apply character updates in real-time
+  useEffect(() => {
+    const lastMessage = messages[messages.length - 1];
+
+    if (
+      lastMessage &&
+      lastMessage.role === "assistant" &&
+      lastMessage.id !== "welcome"
+    ) {
+      const content = lastMessage.parts
+        .filter((part) => part.type === "text")
+        .map((part) => (part as { text: string }).text)
+        .join("");
+
+      const jsonMatch = content.match(/```json\n([\s\S]*?)(\n```|$)/);
+      if (jsonMatch) {
+        const jsonText = jsonMatch[1].trim();
+
+        try {
+          const updates = JSON.parse(jsonText);
+          onCharacterUpdate(updates);
+        } catch {
+          try {
+            const fieldMatches = jsonText.matchAll(
+              /"(\w+)":\s*("(?:[^"\\]|\\.)*"|true|false|null|\d+(?:\.\d+)?|\[[^\]]*\])/g
+            );
+            const partialUpdates: Record<string, unknown> = {};
+
+            for (const match of fieldMatches) {
+              const [, key, value] = match;
+              try {
+                const parsedValue = JSON.parse(value);
+                if (parsedValue !== null && parsedValue !== undefined) {
+                  partialUpdates[key] = parsedValue;
+                }
+              } catch {
+                // Skip invalid values
+              }
+            }
+
+            if (Object.keys(partialUpdates).length > 0) {
+              onCharacterUpdate(partialUpdates);
+            }
+          } catch {
+            // Silently ignore parsing errors during streaming
+          }
+        }
+      }
+    }
   }, [messages, scrollToBottom]);
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -473,6 +527,9 @@ Tell me about your vision!`;
     }
   };
 
+  const pathname = usePathname();
+  const mode = pathname.includes("/build") ? "build" : "chat";
+
   return (
     <div className="flex h-full w-full min-h-0 flex-col bg-[#0A0A0A]">
       {/* Messages Area */}
@@ -481,9 +538,13 @@ Tell me about your vision!`;
           <div className="space-y-3 max-w-5xl mx-auto">
             {messages.length === 0 && (
               <div className="flex flex-col items-center justify-center h-full text-center py-6">
-                <div className="flex h-12 w-12 flex-shrink-0 items-center justify-center rounded-full bg-[#FF5800] mb-3">
-                  <Bot className="h-6 w-6 text-white" />
-                </div>
+                <ElizaAvatar
+                  avatarUrl={character.avatarUrl || character.avatar_url}
+                  name={character.name || "Build Assistant"}
+                  className="w-12 h-12 mb-3"
+                  iconClassName="h-6 w-6"
+                  fallbackClassName="bg-[#FF5800]"
+                />
                 <h3 className="text-base font-semibold mb-1 text-white font-[family-name:var(--font-roboto-flex)]">
                   Start Building Your Character
                 </h3>
@@ -509,9 +570,13 @@ Tell me about your vision!`;
                     <div className="flex flex-col gap-1 max-w-[70%]">
                       {/* Agent Name Row with Avatar */}
                       <div className="flex items-center gap-2">
-                        <div className="flex h-4 w-4 flex-shrink-0 items-center justify-center rounded-full bg-[#FF5800]">
-                          <Bot className="h-3 w-3 text-white" />
-                        </div>
+                        <ElizaAvatar
+                          avatarUrl={character.avatarUrl || character.avatar_url}
+                          name={character.name || "Build Assistant"}
+                          className="flex-shrink-0 w-4 h-4"
+                          iconClassName="h-3 w-3"
+                          fallbackClassName="bg-[#FF5800]"
+                        />
                         <div
                           className="font-[family-name:var(--font-roboto-flex)] text-sm font-medium"
                           style={{ color: "#A1A1AA" }}
@@ -693,9 +758,14 @@ Tell me about your vision!`;
               <div className="flex justify-start animate-in fade-in slide-in-from-bottom-4 duration-500">
                 <div className="flex flex-col gap-1 max-w-[70%]">
                   <div className="flex items-center gap-2">
-                    <div className="flex h-4 w-4 flex-shrink-0 items-center justify-center rounded-full bg-[#FF5800]">
-                      <Bot className="h-3 w-3 animate-pulse text-white" />
-                    </div>
+                    <ElizaAvatar
+                      avatarUrl={character.avatarUrl || character.avatar_url}
+                      name={character.name || "Build Assistant"}
+                      className="flex-shrink-0 w-4 h-4"
+                      iconClassName="h-3 w-3"
+                      fallbackClassName="bg-[#FF5800]"
+                      animate={true}
+                    />
                     <span
                       className="font-[family-name:var(--font-roboto-flex)] text-sm font-medium"
                       style={{ color: "#A1A1AA" }}
@@ -778,7 +848,9 @@ Tell me about your vision!`;
               <div className="absolute top-0 left-0 right-0 h-[2px] overflow-hidden pointer-events-none z-10">
                 {/* Primary scanner */}
                 <div
-                  className="absolute h-full w-24 bg-gradient-to-r from-transparent via-[#FF5800] to-transparent"
+                  className={cn([
+                    `absolute h-full w-24 bg-gradient-to-r from-transparent ${mode === "build" ? "via-[#E500FF]" : "via-[#FF5800]"} to-transparent`,
+                  ])}
                   style={{
                     animation:
                       "visor-scan 4.8s cubic-bezier(0.4, 0, 0.6, 1) infinite",
@@ -788,7 +860,7 @@ Tell me about your vision!`;
                 />
                 {/* Secondary scanner for organic feel */}
                 <div
-                  className="absolute h-full w-16 bg-gradient-to-r from-transparent via-[#FF5800]/60 to-transparent"
+                  className={`absolute h-full w-16 bg-gradient-to-r from-transparent ${mode === "build" ? "via-[#E500FF]" : "via-[#FF5800]/60"} to-transparent`}
                   style={{
                     animation:
                       "visor-scan-delayed 6.2s cubic-bezier(0.3, 0.1, 0.7, 0.9) infinite 1.5s",
