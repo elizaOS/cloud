@@ -1,3 +1,44 @@
+/* ============================================================
+ * COMMENTED OUT: UpdatePaymentModal
+ *
+ * This modal has been disabled as the payment method setup functionality
+ * has been temporarily removed from the billing flow.
+ *
+ * The billing flow now uses Stripe Checkout which handles payment method
+ * collection directly on the Stripe-hosted checkout page, eliminating
+ * the need for users to pre-configure payment methods.
+ *
+ * To restore this modal:
+ * 1. Uncomment the code below
+ * 2. Update billing-tab.tsx to include payment method state and handlers
+ * 3. Re-enable the StripeElementsProvider in app/dashboard/settings/page.tsx
+ * 4. Ensure stripe-card-element.tsx component is available
+ * ============================================================ */
+
+"use client";
+
+export interface PaymentFormData {
+  paymentMethod: "link" | "existing-card" | "new-card";
+  email?: string;
+  fullName: string;
+  country: string;
+  addressLine1: string;
+}
+
+export interface UpdatePaymentModalProps {
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  currentPaymentMethod: string;
+  userEmail?: string | null;
+  onUpdate: (paymentData: PaymentFormData) => void;
+}
+
+export function UpdatePaymentModal(_props: UpdatePaymentModalProps) {
+  return null;
+}
+
+/* ORIGINAL IMPLEMENTATION:
+
 "use client";
 
 import { useState, useEffect } from "react";
@@ -233,18 +274,14 @@ export function UpdatePaymentModal({
         <CornerBrackets size="md" className="opacity-50" />
 
         <div className="relative z-10 flex flex-col gap-6 md:gap-10 items-center">
-          {/* Title */}
           <DialogHeader>
             <DialogTitle className="text-xl sm:text-2xl font-mono font-bold text-[#e1e1e1] text-center tracking-tight">
               Update payment method
             </DialogTitle>
           </DialogHeader>
 
-          {/* Content */}
           <div className="flex flex-col gap-4 md:gap-6 w-full">
-            {/* Payment Method Selection */}
             <div className="flex flex-col gap-2">
-              {/* Link Payment Method */}
               {showLinkDropdown && (
                 <div className="backdrop-blur-sm bg-[rgba(29,29,29,0.3)] border border-[rgba(255,255,255,0.15)] p-4 sm:p-6 relative">
                   <CornerBrackets size="sm" className="opacity-50" />
@@ -278,7 +315,6 @@ export function UpdatePaymentModal({
                 </div>
               )}
 
-              {/* Existing Card Option */}
               <button
                 type="button"
                 onClick={() => setSelectedMethod("existing-card")}
@@ -296,7 +332,6 @@ export function UpdatePaymentModal({
                 </p>
               </button>
 
-              {/* Pay Another Way Option */}
               <button
                 type="button"
                 onClick={() => setSelectedMethod("new-card")}
@@ -312,9 +347,7 @@ export function UpdatePaymentModal({
               </button>
             </div>
 
-            {/* Billing Information */}
             <div className="flex flex-col gap-4 md:gap-6">
-              {/* Full Name */}
               <div className="flex flex-col gap-2">
                 <Label className="text-sm sm:text-base font-mono font-medium text-[#e1e1e1]">
                   Full name
@@ -328,7 +361,6 @@ export function UpdatePaymentModal({
                 />
               </div>
 
-              {/* Country or Region */}
               <div className="flex flex-col gap-2">
                 <Label className="text-sm sm:text-base font-mono font-medium text-[#e1e1e1]">
                   Country or region
@@ -351,7 +383,6 @@ export function UpdatePaymentModal({
                 </Select>
               </div>
 
-              {/* Address Line 1 */}
               <div className="flex flex-col gap-2">
                 <Label className="text-sm sm:text-base font-mono font-medium text-[#e1e1e1]">
                   Address line 1
@@ -365,7 +396,6 @@ export function UpdatePaymentModal({
                 />
               </div>
 
-              {/* Card Element - Only show when new-card is selected */}
               {selectedMethod === "new-card" && (
                 <>
                   <StripeCardElement
@@ -383,7 +413,6 @@ export function UpdatePaymentModal({
               )}
             </div>
 
-            {/* Action Buttons */}
             <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-4 w-full justify-end">
               <button
                 type="button"
@@ -418,3 +447,5 @@ export function UpdatePaymentModal({
     </Dialog>
   );
 }
+
+*/

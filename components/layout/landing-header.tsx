@@ -19,16 +19,8 @@ export default function LandingHeader() {
 
   // No auto-redirect - let users stay on landing page even when logged in
 
-  const handleLogin = () => {
-    router.push("/login");
-  };
-
   const handleGetStarted = () => {
     router.push("/login?intent=signup");
-  };
-
-  const handleDashboard = () => {
-    router.push("/dashboard");
   };
 
   return (
@@ -36,10 +28,6 @@ export default function LandingHeader() {
       <div className="flex h-16 items-center justify-between w-full px-4">
         <Link href="/" className="flex items-center gap-3">
           <div className="flex items-center gap-2">
-            <span
-              className="inline-block w-2 h-2 rounded-full"
-              style={{ backgroundColor: "#FF5800" }}
-            />
             <Image
               src="/eliza-font.svg"
               alt="ELIZA"
@@ -56,10 +44,10 @@ export default function LandingHeader() {
               {/* Authenticated user - show Dashboard + UserMenu */}
               <Button
                 size="sm"
-                onClick={handleDashboard}
+                // onClick={handleDashboard}
                 className="bg-[#FF5800] hover:bg-[#FF5800]/90 text-white"
               >
-                Dashboard
+                <Link href="/dashboard">Dashboard</Link>
               </Button>
               <UserMenu />
             </>
@@ -69,11 +57,10 @@ export default function LandingHeader() {
               <Button
                 variant="ghost"
                 size="sm"
-                onClick={handleLogin}
                 disabled={!ready}
                 className="text-white/70 hover:text-white hover:bg-white/5"
               >
-                Log in
+                <Link href="/login">Log in</Link>
               </Button>
               <LockOnButton
                 size="sm"
