@@ -26,9 +26,8 @@ const ANON_SESSION_COOKIE = "eliza-anon-session";
 export async function POST(request: NextRequest) {
   try {
     // 1. Get the authenticated user
-    const authResult = await requireAuth();
-    const { user } = authResult;
-    
+    const user = await requireAuth();
+
     if (!user.privy_user_id) {
       return NextResponse.json(
         { error: "User does not have a Privy ID" },

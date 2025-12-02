@@ -190,7 +190,6 @@ export function ChatInterface({
   } : null;
 
   // Unified active theme colors (for romantic or edad themes)
-  const isCustomTheme = isRomanticTheme || isEdadTheme;
   const activeColors = themeColors || edadColors;
 
   // Debug logging - IMPORTANT: Check console to understand auth state

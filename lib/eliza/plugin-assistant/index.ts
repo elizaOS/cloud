@@ -1,9 +1,19 @@
 import {
+  composePromptFromState,
+  createUniqueUuid,
   EventType,
   logger,
+  ModelType,
+  parseKeyValueXml,
+  type IAgentRuntime,
+  type Memory,
   type MessagePayload,
   type Plugin,
+  type State,
+  type UUID,
+  type HandlerCallback,
 } from "@elizaos/core";
+import { v4 } from "uuid";
 import { providersProvider } from "./providers/providers";
 import { actionsProvider } from "./providers/actions";
 import { characterProvider } from "./providers/character";
@@ -11,8 +21,9 @@ import { generateImageAction } from "./actions/image-generation";
 import { actionStateProvider } from "./providers/actionState";
 import { recentMessagesProvider } from "./providers/recent-messages";
 import { affiliateContextProvider } from "./providers/affiliate-context";
-import { handleMessage } from "./handler";
-import type { IAgentRuntime, Memory, HandlerCallback } from "@elizaos/core";
+
+const MAX_RESPONSE_RETRIES = 3;
+const EVALUATOR_TIMEOUT_MS = 30000;
 
 /**
  * Message handler parameters
@@ -447,10 +458,15 @@ const messageReceivedHandler = async ({
   message,
   callback,
 }: MessageReceivedHandlerParams): Promise<void> => {
+  const responseId = v4();
+
   logger.info(
     `[AssistantPlugin] Handling message for agent: ${runtime.agentId}, room: ${message.roomId}`,
   );
   logger.debug(`[AssistantPlugin] MESSAGE RECEIVED:`, JSON.stringify(message));
+
+  // Set the latest response ID for this room
+  await setLatestResponseId(runtime, message.roomId, responseId);
 
   try {
     if (message.entityId === runtime.agentId) {
@@ -673,7 +689,7 @@ const messageReceivedHandler = async ({
     await runEvaluatorsWithTimeout(
       runtime,
       message,
-      currentState,
+      initialState,
       responseMemory,
       callback,
     );
