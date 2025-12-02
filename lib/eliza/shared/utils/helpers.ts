@@ -1,6 +1,6 @@
 /**
  * Helper Utilities
- * 
+ *
  * Common helper functions used across workflows.
  */
 
@@ -82,6 +82,7 @@ export async function executeActions(
   const actionResponse: Memory = {
     id: createUniqueUuid(runtime, v4() as UUID),
     entityId: runtime.agentId,
+    agentId: runtime.agentId,
     roomId: message.roomId,
     worldId: message.worldId,
     content: {
@@ -91,7 +92,12 @@ export async function executeActions(
     },
   };
 
-  await runtime.processActions(message, [actionResponse], currentState, callback);
+  await runtime.processActions(
+    message,
+    [actionResponse],
+    currentState,
+    callback,
+  );
 
   // Refresh state to get action results
   const actionState = await runtime.composeState(message, ["ACTION_STATE"]);
@@ -165,13 +171,19 @@ export async function runEvaluatorsWithTimeout(
       ),
       new Promise<void>((_, reject) => {
         setTimeout(() => {
-          reject(new Error(`Evaluators timed out after ${EVALUATOR_TIMEOUT_MS}ms`));
+          reject(
+            new Error(`Evaluators timed out after ${EVALUATOR_TIMEOUT_MS}ms`),
+          );
         }, EVALUATOR_TIMEOUT_MS);
       }),
     ]);
-    logger.debug("[runEvaluatorsWithTimeout] Evaluators completed successfully");
+    logger.debug(
+      "[runEvaluatorsWithTimeout] Evaluators completed successfully",
+    );
   } catch (error) {
     const errorMessage = error instanceof Error ? error.message : String(error);
-    logger.error(`[runEvaluatorsWithTimeout] Error in evaluators: ${errorMessage}`);
+    logger.error(
+      `[runEvaluatorsWithTimeout] Error in evaluators: ${errorMessage}`,
+    );
   }
 }
