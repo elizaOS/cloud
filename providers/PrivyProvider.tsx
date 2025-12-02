@@ -69,10 +69,15 @@ function PrivyAuthWrapper({ children }: { children: React.ReactNode }) {
                 // Ignore cleanup errors
               }
 
-              // If we're on a chat route, reload to pick up the migrated data
+              // Dispatch custom event to notify chat store to clear anonymous session
+              // This ensures the chat store stops sending the stale session token
+              window.dispatchEvent(new CustomEvent("anonymous-session-migrated"));
+              console.log("[PrivyProvider] 📢 Dispatched anonymous-session-migrated event");
+
+              // If we're on a chat or dashboard route, reload to pick up the migrated data
               const currentPath = window.location.pathname;
-              if (currentPath.startsWith("/chat/")) {
-                console.log("[PrivyProvider] 🔃 Reloading chat page to show migrated data...");
+              if (currentPath.startsWith("/chat/") || currentPath.includes("/my-agents") || currentPath.includes("/dashboard")) {
+                console.log("[PrivyProvider] 🔃 Reloading page to show migrated data...", currentPath);
                 // Small delay to ensure backend has processed the migration
                 setTimeout(() => {
                   window.location.reload();
@@ -80,6 +85,14 @@ function PrivyAuthWrapper({ children }: { children: React.ReactNode }) {
               }
             } else {
               console.log("[PrivyProvider] ℹ️ Migration result:", data.message);
+
+              // Even if not migrated (no session to migrate), still clear any stale tokens
+              try {
+                localStorage.removeItem("eliza-anon-session-token");
+              } catch (e) {
+                // Ignore cleanup errors
+              }
+              window.dispatchEvent(new CustomEvent("anonymous-session-migrated"));
             }
           })
           .catch((error) => {
