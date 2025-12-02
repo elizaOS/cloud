@@ -21,6 +21,7 @@ import {
   BrandTabsResponsive,
   type TabItem,
 } from "@/components/brand/brand-tabs-responsive";
+import { usePathname } from "next/navigation";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 
 interface CharacterEditorProps {
@@ -84,6 +85,8 @@ export function CharacterEditor({
     document.body.removeChild(a);
     URL.revokeObjectURL(url);
   };
+  const pathname = usePathname();
+  const mode = pathname.includes("/build") ? "build" : "chat";
 
   return (
     <div className="flex h-full flex-col bg-black/40">
@@ -92,14 +95,19 @@ export function CharacterEditor({
         <div className="flex items-center justify-between mb-2">
           <div className="flex items-center gap-2">
             <h2 className="text-xl font-bold text-white">Character Builder</h2>
-            <Sparkles className="h-5 w-5 text-[#FF5800]" />
+            <Zap
+              className={cn([
+                mode === "chat" ? "text-[#FF5800]" : "text-[#E500FF]",
+                "h-5 w-5",
+              ])}
+            />
           </div>
           <div className="flex items-center gap-2">
             <Button
               variant="outline"
               size="sm"
               onClick={handleExport}
-              className="rounded-xl border-white/10 bg-transparent text-white hover:bg-white/5"
+              className="rounded-none border-white/10 bg-transparent text-white hover:bg-white/5"
             >
               <Download className="mr-2 h-4 w-4" />
               Export
@@ -108,9 +116,19 @@ export function CharacterEditor({
               size="sm"
               onClick={handleSave}
               disabled={isSaving}
-              className="rounded-xl bg-[#FF5800] text-white hover:bg-[#FF5800]/90"
+              className={cn([
+                mode === "chat"
+                  ? "text-white hover:bg-[#FF5800]/90 bg-[#FF5800]"
+                  : "hover:bg-[#E500FF] bg-[#E500FF] text-white",
+                "rounded-none",
+              ])}
             >
-              <Save className="mr-2 h-4 w-4" />
+              <Save
+                className={cn([
+                  mode === "chat" ? "text-[#FF5800]" : "text-white",
+                  "mr-2 h-4 w-4",
+                ])}
+              />
               {isSaving ? "Saving..." : "Save"}
             </Button>
           </div>
@@ -144,13 +162,13 @@ export function CharacterEditor({
               onClick={() => setShowJson(!showJson)}
               className={cn(
                 "relative inline-flex h-5 w-9 items-center rounded-full transition-colors",
-                showJson ? "bg-[#FF5800]" : "bg-white/20",
+                showJson ? "bg-[#E500FF]" : "bg-white/20"
               )}
             >
               <span
                 className={cn(
                   "inline-block h-3 w-3 transform rounded-full bg-white transition-transform",
-                  showJson ? "translate-x-5" : "translate-x-1",
+                  showJson ? "translate-x-5" : "translate-x-1"
                 )}
               />
             </button>
