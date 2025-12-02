@@ -32,7 +32,7 @@ import {
   userCharacters,
   elizaRoomCharactersTable,
 } from "@/db/schemas";
-import { eq, and, sql } from "drizzle-orm";
+import { eq, and, sql, like, isNull } from "drizzle-orm";
 import { logger } from "@/lib/utils/logger";
 import type { UserWithOrganization, User, Organization } from "@/lib/types";
 
@@ -263,8 +263,8 @@ export async function convertAnonymousToReal(
         .where(
           and(
             eq(users.id, anonymousUserId),
-            sql`${users.email} LIKE 'affiliate-%@anonymous.elizacloud.ai'`,
-            sql`${users.privy_user_id} IS NULL`
+            like(users.email, 'affiliate-%@anonymous.elizacloud.ai'),
+            isNull(users.privy_user_id)
           )
         )
         .limit(1);

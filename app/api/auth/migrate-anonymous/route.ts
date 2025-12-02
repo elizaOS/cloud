@@ -1,12 +1,20 @@
 import type { NextRequest } from "next/server";
 import { NextResponse } from "next/server";
 import { cookies } from "next/headers";
+import { createHash } from "node:crypto";
 import { requireAuth } from "@/lib/auth";
 import { convertAnonymousToReal } from "@/lib/auth-anonymous";
 import { anonymousSessionsService } from "@/lib/services";
 import { logger } from "@/lib/utils/logger";
 
 const ANON_SESSION_COOKIE = "eliza-anon-session";
+
+/**
+ * Hash a token for safe logging (prevents token exposure in logs)
+ */
+function hashTokenForLogging(token: string): string {
+  return createHash("sha256").update(token).digest("hex").slice(0, 8);
+}
 
 /**
  * POST /api/auth/migrate-anonymous
@@ -69,7 +77,7 @@ export async function POST(request: NextRequest) {
 
     if (!anonSession) {
       logger.info(
-        `[Migrate Anonymous] Anonymous session not found for token: ${sessionToken.slice(0, 8)}...`
+        `[Migrate Anonymous] Anonymous session not found for token hash: ${hashTokenForLogging(sessionToken)}`
       );
       return NextResponse.json({
         success: true,
