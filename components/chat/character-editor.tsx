@@ -5,7 +5,7 @@ import { CharacterForm } from "@/components/character-builder";
 import { JsonEditor } from "@/components/character-creator/json-editor";
 import type { ElizaCharacter } from "@/lib/types";
 import { Button } from "@/components/ui/button";
-import { Download, Save, Settings, Zap, BookOpen, Upload, Sparkles } from "lucide-react";
+import { Download, Save, Zap, BookOpen, Upload, Sparkles } from "lucide-react";
 import { cn } from "@/lib/utils";
 import {
   BrandTabsResponsive,
