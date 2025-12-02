@@ -1,23 +1,92 @@
-import { NextRequest, NextResponse } from "next/server";
+import type { NextRequest } from "next/server";
+import { NextResponse } from "next/server";
 import { anonymousSessionsService } from "@/lib/services";
 import { logger } from "@/lib/utils/logger";
 import { db } from "@/db/client";
-import { sql } from "drizzle-orm";
+import { anonymousSessions } from "@/db/schemas";
+import { eq } from "drizzle-orm";
+import { createHash } from "node:crypto";
+
+// Simple in-memory rate limiter for this endpoint
+const rateLimitMap = new Map<string, { count: number; resetAt: number }>();
+const RATE_LIMIT_WINDOW_MS = 60 * 1000; // 1 minute
+const RATE_LIMIT_MAX_REQUESTS = 20; // 20 requests per minute per IP
+
+/**
+ * Hash a token for safe logging (prevents partial token exposure)
+ */
+function hashTokenForLogging(token: string): string {
+  return createHash("sha256").update(token).digest("hex").slice(0, 8);
+}
+
+/**
+ * Check rate limit for an IP address
+ */
+function checkRateLimit(ip: string): { allowed: boolean; remaining: number } {
+  const now = Date.now();
+  const entry = rateLimitMap.get(ip);
+
+  if (!entry || now > entry.resetAt) {
+    rateLimitMap.set(ip, { count: 1, resetAt: now + RATE_LIMIT_WINDOW_MS });
+    return { allowed: true, remaining: RATE_LIMIT_MAX_REQUESTS - 1 };
+  }
+
+  if (entry.count >= RATE_LIMIT_MAX_REQUESTS) {
+    return { allowed: false, remaining: 0 };
+  }
+
+  entry.count++;
+  return { allowed: true, remaining: RATE_LIMIT_MAX_REQUESTS - entry.count };
+}
+
+/**
+ * Validate session token format
+ */
+function isValidTokenFormat(token: string): boolean {
+  // Session tokens should be at least 16 characters (nanoid or UUID)
+  return typeof token === "string" && token.length >= 16 && token.length <= 64;
+}
 
 /**
  * POST /api/anonymous-session/increment
- * 
+ *
  * Directly increment the message count for an anonymous session.
  * This is called by the frontend after a message is successfully sent.
- * 
+ *
  * This provides a reliable fallback mechanism for message counting,
  * bypassing any potential issues in the complex auth flow.
+ *
+ * Security:
+ * - Rate limited per IP address
+ * - Input validation for token format
+ * - Uses query builder (not raw SQL) to prevent injection
+ * - Tokens are hashed for logging
  */
 export async function POST(request: NextRequest) {
   try {
+    // Rate limiting
+    const forwardedFor = request.headers.get("x-forwarded-for");
+    const clientIp = forwardedFor?.split(",")[0]?.trim() || "unknown";
+
+    const rateLimit = checkRateLimit(clientIp);
+    if (!rateLimit.allowed) {
+      logger.warn("[Increment API] Rate limit exceeded for IP");
+      return NextResponse.json(
+        { error: "Too many requests. Please try again later." },
+        {
+          status: 429,
+          headers: {
+            "Retry-After": "60",
+            "X-RateLimit-Remaining": "0",
+          },
+        }
+      );
+    }
+
     const body = await request.json();
     const { sessionToken } = body;
 
+    // Input validation
     if (!sessionToken || typeof sessionToken !== "string") {
       logger.warn("[Increment API] Missing or invalid session token");
       return NextResponse.json(
@@ -26,48 +95,71 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    logger.info("[Increment API] 📊 Incrementing message count for token:", sessionToken.slice(0, 8) + "...");
+    if (!isValidTokenFormat(sessionToken)) {
+      logger.warn("[Increment API] Invalid session token format");
+      return NextResponse.json(
+        { error: "Invalid session token format" },
+        { status: 400 }
+      );
+    }
 
-    // Look up the session by token (without is_active/expires_at filters for robustness)
-    const sessions = await db.execute<{ id: string; message_count: number }>(
-      sql`SELECT id, message_count FROM anonymous_sessions WHERE session_token = ${sessionToken} LIMIT 1`
+    const tokenHash = hashTokenForLogging(sessionToken);
+    logger.info(
+      `[Increment API] Incrementing message count for token: ${tokenHash}`
     );
 
-    if (sessions.rows.length === 0) {
-      logger.warn("[Increment API] ⚠️ Session not found for token:", sessionToken.slice(0, 8) + "...");
+    // Use query builder instead of raw SQL to prevent injection
+    const [session] = await db
+      .select({
+        id: anonymousSessions.id,
+        message_count: anonymousSessions.message_count,
+      })
+      .from(anonymousSessions)
+      .where(eq(anonymousSessions.session_token, sessionToken))
+      .limit(1);
+
+    if (!session) {
+      logger.warn(`[Increment API] Session not found for token: ${tokenHash}`);
       return NextResponse.json(
         { error: "Session not found", code: "SESSION_NOT_FOUND" },
         { status: 404 }
       );
     }
 
-    const session = sessions.rows[0];
     const previousCount = session.message_count;
 
-    // Increment the message count
-    const updatedSession = await anonymousSessionsService.incrementMessageCount(session.id);
+    // Increment the message count (uses atomic update)
+    const updatedSession = await anonymousSessionsService.incrementMessageCount(
+      session.id
+    );
 
-    logger.info("[Increment API] ✅ Message count incremented:", {
+    logger.info("[Increment API] Message count incremented:", {
       sessionId: session.id,
       previousCount,
       newCount: updatedSession.message_count,
     });
 
-    return NextResponse.json({
-      success: true,
-      previousCount,
-      newCount: updatedSession.message_count,
-      messagesRemaining: updatedSession.messages_limit - updatedSession.message_count,
-    });
-  } catch (error) {
-    logger.error("[Increment API] ❌ Error incrementing message count:", error);
     return NextResponse.json(
-      { 
+      {
+        success: true,
+        previousCount,
+        newCount: updatedSession.message_count,
+        messagesRemaining:
+          updatedSession.messages_limit - updatedSession.message_count,
+      },
+      {
+        headers: {
+          "X-RateLimit-Remaining": String(rateLimit.remaining),
+        },
+      }
+    );
+  } catch (error) {
+    logger.error("[Increment API] Error incrementing message count:", error);
+    return NextResponse.json(
+      {
         error: "Failed to increment message count",
-        details: error instanceof Error ? error.message : "Unknown error"
       },
       { status: 500 }
     );
   }
 }
-
