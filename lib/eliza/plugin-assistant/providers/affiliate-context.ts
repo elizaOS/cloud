@@ -349,8 +349,6 @@ export const affiliateContextProvider: Provider = {
           affiliate,
           vibe,
           source,
-          affiliateId,
-          isAffiliateCharacter,
           contextLength: contextText.length,
         },
         text: contextText,
