@@ -7,19 +7,9 @@
 
 import { usePrivy } from "@privy-io/react-auth";
 import { useRouter, usePathname } from "next/navigation";
-import { useCreditsStream } from "@/hooks/use-credits-stream";
-import {
-  CreditCard,
-  LogOut,
-  Loader2,
-  Settings,
-  UserPlus,
-  LogIn,
-} from "lucide-react";
+import { UserPlus, LogIn } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { CornerBrackets } from "@/components/brand";
-import { useChatStore } from "@/stores/chat-store";
-import Link from "next/link";
 
 interface SidebarBottomPanelProps {
   className?: string;
@@ -28,10 +18,6 @@ interface SidebarBottomPanelProps {
 export function SidebarBottomPanel({ className }: SidebarBottomPanelProps) {
   const { ready, authenticated, user } = usePrivy();
   const router = useRouter();
-  const pathname = usePathname();
-  const { creditBalance, isLoading: loadingCredits } = useCreditsStream();
-  const { clearChatData } = useChatStore();
-  const mode = pathname.includes("/build") ? "build" : "chat";
 
   // If not authenticated, show sign up/login CTA
   if (!ready || !authenticated || !user) {
@@ -131,91 +117,4 @@ export function SidebarBottomPanel({ className }: SidebarBottomPanelProps) {
       </div>
     );
   }
-
-  const menuItems = [
-    {
-      id: "settings",
-      label: "Settings",
-      icon: Settings,
-      href: "/dashboard/settings",
-    },
-  ];
-
-  return (
-    <div className={cn("relative border-t border-white/10", className)}>
-      {/* Corner brackets for the panel */}
-      <CornerBrackets size="sm" className="opacity-30" />
-
-      {/* Menu Items - Always Visible */}
-      <div className="relative z-10 py-2">
-        {menuItems.map((item) => {
-          const Icon = item.icon;
-          const isActive =
-            pathname === item.href || pathname.startsWith(`${item.href}/`);
-
-          return (
-            <button
-              key={item.id}
-              onClick={() => router.push(item.href)}
-              className={cn(
-                "w-full flex items-center gap-3 px-4 py-2.5 transition-all duration-200 border-l-2 cursor-pointer",
-                isActive
-                  ? "bg-white/10 text-white border-[#FF5800]"
-                  : "text-white/60 hover:bg-white/5 hover:text-white border-transparent"
-              )}
-              style={{
-                fontFamily: "var(--font-roboto-mono)",
-                fontWeight: 400,
-                fontSize: "14px",
-                lineHeight: "18px",
-                letterSpacing: "-0.003em",
-              }}
-            >
-              <Icon
-                className={cn(
-                  "h-4 w-4 transition-colors",
-                  isActive && "text-[#FF5800]"
-                )}
-              />
-              <span>{item.label}</span>
-            </button>
-          );
-        })}
-      </div>
-      {/* Balance Display - Always Visible */}
-      <Link className="w-full flex place-self-center" href="/dashboard/billing">
-        <div
-          className={cn([
-            mode === "chat"
-              ? "hover:bg-[#FF5800]/40 active:bg-[#FF5800]/60 bg-[#FF5800]/70"
-              : "hover:bg-[#E500FF]/40 active:bg-[#E500FF]/60 bg-[#E500FF]/70",
-            `w-full relative hover:shadow-[0_0_20px_rgba(255,88,0,0.4)]  place-items-center backdrop-blur-3xl z-10 py-4 border-b border-white/10 transition-all duration-300 ease-in-out  hover:backdrop-blur-2xl`,
-          ])}
-          style={{
-            fontFamily: "var(--font-roboto-mono)",
-            fontWeight: 400,
-            letterSpacing: "-0.003em",
-          }}
-        >
-          {loadingCredits && creditBalance === null ? (
-            <div className="flex items-center gap-2 text-white/40">
-              <Loader2 className="h-4 w-4 animate-spin" />
-              <span className="text-sm">Loading...</span>
-            </div>
-          ) : (
-            <div className="flex items-center gap-2">
-              <span className="select-none font-bold text-white text-[25px]">
-                $
-              </span>
-              <span className="select-none text-[25px] font-bold text-white">
-                {creditBalance !== null
-                  ? Number(creditBalance).toFixed(2)
-                  : "0.00"}
-              </span>
-            </div>
-          )}
-        </div>
-      </Link>
-    </div>
-  );
 }
