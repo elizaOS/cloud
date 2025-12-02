@@ -80,13 +80,13 @@ export function VoiceStudioAdvanced({
   const router = useRouter();
   const [voices, setVoices] = useState<Voice[]>(initialVoices);
   const [selectedVoice, setSelectedVoice] = useState<Voice | null>(
-    voices[0] || null,
+    voices[0] || null
   );
   const [previewVoice, setPreviewVoice] = useState<Voice | null>(null);
   const [previewAudioUrl, setPreviewAudioUrl] = useState<string | null>(null);
   const [isLoadingPreview, setIsLoadingPreview] = useState(false);
   const [deleteDialogVoice, setDeleteDialogVoice] = useState<Voice | null>(
-    null,
+    null
   );
   const [isDeleting, setIsDeleting] = useState(false);
   const [isRefreshing, setIsRefreshing] = useState(false);
@@ -116,13 +116,13 @@ export function VoiceStudioAdvanced({
     if (newVoice.cloneType === "professional") {
       toast.success(
         `Voice "${newVoice.name}" is being processed. This may take 30-60 minutes. Refresh the page to check status.`,
-        { duration: 8000 },
+        { duration: 8000 }
       );
       // Add with processing status
       setVoices([{ ...newVoice, status: "processing" }, ...voices]);
     } else {
       toast.success(
-        `Voice "${newVoice.name}" created successfully and ready to use!`,
+        `Voice "${newVoice.name}" created successfully and ready to use!`
       );
       setVoices([newVoice, ...voices]);
       setSelectedVoice(newVoice);
@@ -133,7 +133,7 @@ export function VoiceStudioAdvanced({
     // Check if professional voice is still processing based on time
     const minutesElapsed = Math.max(
       0,
-      (new Date().getTime() - new Date(voice.createdAt).getTime()) / 1000 / 60,
+      (new Date().getTime() - new Date(voice.createdAt).getTime()) / 1000 / 60
     );
     const isProcessing =
       voice.cloneType === "professional" && minutesElapsed < 30;
@@ -141,7 +141,7 @@ export function VoiceStudioAdvanced({
     if (isProcessing) {
       toast.error(
         "Voice is still being processed. Professional voice clones typically take 30-60 minutes. Please check back later.",
-        { duration: 6000 },
+        { duration: 6000 }
       );
       return;
     }
@@ -183,7 +183,7 @@ export function VoiceStudioAdvanced({
         toast.error(
           error instanceof Error
             ? error.message
-            : "Failed to load voice preview",
+            : "Failed to load voice preview"
         );
       }
       console.error("Preview error:", error);
@@ -210,7 +210,7 @@ export function VoiceStudioAdvanced({
       setDeleteDialogVoice(null);
     } catch (error) {
       toast.error(
-        error instanceof Error ? error.message : "Failed to delete voice",
+        error instanceof Error ? error.message : "Failed to delete voice"
       );
     } finally {
       setIsDeleting(false);
@@ -230,7 +230,7 @@ export function VoiceStudioAdvanced({
 
   // Count professional voices
   const professionalVoiceCount = voices.filter(
-    (v) => v.cloneType === "professional",
+    (v) => v.cloneType === "professional"
   ).length;
   const professionalVoicesRemaining = Math.max(0, 1 - professionalVoiceCount);
 
@@ -241,10 +241,10 @@ export function VoiceStudioAdvanced({
       className="w-full lg:h-[calc(100vh-180px)] flex flex-col pb-6 md:pb-8"
     >
       {/* Tab Navigation */}
-      <TabsList className="w-full border-b border-white/10 bg-transparent h-10 p-0 justify-start">
+      <TabsList className="rounded-none w-full border-b border-white/10 bg-transparent h-10 p-0 justify-start">
         <TabsTrigger
           value="clone"
-          className="data-[state=active]:bg-[#FF5800]/10 data-[state=active]:border-b-2 data-[state=active]:border-[#FF5800] px-3 md:px-4 h-full text-xs md:text-sm"
+          className="rounded-none data-[state=active]:bg-[#FF5800]/10 data-[state=active]:border-b-2 data-[state=active]:border-[#FF5800] px-3 md:px-4 h-full text-xs md:text-sm"
         >
           <Mic className="h-3.5 w-3.5 mr-1 md:mr-2" />
           <span className="hidden sm:inline">Clone Voice</span>
@@ -252,7 +252,7 @@ export function VoiceStudioAdvanced({
         </TabsTrigger>
         <TabsTrigger
           value="voices"
-          className="data-[state=active]:bg-[#FF5800]/10 data-[state=active]:border-b-2 data-[state=active]:border-[#FF5800] px-3 md:px-4 h-full text-xs md:text-sm"
+          className="rounded-none data-[state=active]:bg-[#FF5800]/10 data-[state=active]:border-b-2 data-[state=active]:border-[#FF5800] px-3 md:px-4 h-full text-xs md:text-sm"
         >
           <Library className="h-3.5 w-3.5 mr-1 md:mr-2" />
           <span className="hidden sm:inline">Voice Library</span>
@@ -300,7 +300,7 @@ export function VoiceStudioAdvanced({
                         (new Date().getTime() -
                           new Date(v.createdAt).getTime()) /
                           1000 /
-                          60,
+                          60
                       );
                       return v.cloneType === "professional" && mins < 60;
                     }) && " • Some may still be processing"}
@@ -329,7 +329,7 @@ export function VoiceStudioAdvanced({
                     "border px-2 py-1 text-xs font-mono whitespace-nowrap",
                     professionalVoicesRemaining === 0
                       ? "border-amber-500/40 bg-amber-500/10 text-amber-300"
-                      : "border-white/20 bg-white/10 text-white",
+                      : "border-white/20 bg-white/10 text-white"
                   )}
                   title="Professional voice slots (ElevenLabs limitation)"
                 >
@@ -429,7 +429,7 @@ export function VoiceStudioAdvanced({
                                 (now.getTime() -
                                   new Date(voice.createdAt).getTime()) /
                                   1000 /
-                                  60,
+                                  60
                               );
                               const isProcessing =
                                 voice.cloneType === "professional" && mins < 60;
@@ -468,7 +468,7 @@ export function VoiceStudioAdvanced({
                                 (now.getTime() -
                                   new Date(voice.createdAt).getTime()) /
                                   1000 /
-                                  60,
+                                  60
                               );
                               const isProcessing =
                                 voice.cloneType === "professional" && mins < 60;
@@ -574,7 +574,7 @@ export function VoiceStudioAdvanced({
                             </span>
                             <span className="font-medium text-white">
                               {formatDuration(
-                                selectedVoice.totalAudioDurationSeconds ?? null,
+                                selectedVoice.totalAudioDurationSeconds ?? null
                               )}
                             </span>
                           </div>
@@ -595,7 +595,7 @@ export function VoiceStudioAdvanced({
                                 new Date(selectedVoice.createdAt),
                                 {
                                   addSuffix: true,
-                                },
+                                }
                               )}
                             </span>
                           </div>
@@ -607,7 +607,7 @@ export function VoiceStudioAdvanced({
                                   new Date(selectedVoice.lastUsedAt),
                                   {
                                     addSuffix: true,
-                                  },
+                                  }
                                 )}
                               </span>
                             </div>
