@@ -4,7 +4,11 @@ import { useState, useCallback, useEffect, useMemo } from "react";
 import { BuildModeAssistant } from "@/components/chat/build-mode-assistant";
 import { CharacterEditor } from "@/components/chat/character-editor";
 import { toast } from "sonner";
-import { createCharacter, updateCharacter, getCharacter } from "@/app/actions/characters";
+import {
+  createCharacter,
+  updateCharacter,
+  getCharacter,
+} from "@/app/actions/characters";
 import type { ElizaCharacter } from "@/lib/types";
 import { useChatStore } from "@/stores/chat-store";
 import {
@@ -119,7 +123,7 @@ export function CharacterBuildMode({
 
     try {
       const refreshedCharacter = await getCharacter(character.id);
-      
+
       // Update local state with fresh data from database
       setCharacter(refreshedCharacter);
     } catch (error) {

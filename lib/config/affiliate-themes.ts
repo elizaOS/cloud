@@ -1,10 +1,10 @@
 /**
  * Affiliate Theme Configuration System
- * 
+ *
  * This module provides a scalable theming system for affiliate-created characters.
  * Instead of creating separate routes for each affiliate (not scalable), we use
  * a single /chat route with dynamic theming based on affiliate ID.
- * 
+ *
  * Usage:
  *   const theme = getAffiliateTheme(affiliateId);
  *   <ChatInterface theme={theme} ... />
@@ -52,13 +52,13 @@ export interface ThemeBranding {
  */
 export interface ThemeVariants {
   /** Intro card style */
-  introCard: 'romantic' | 'professional' | 'minimal' | 'gaming' | 'playful';
+  introCard: "romantic" | "professional" | "minimal" | "gaming" | "playful";
   /** Chat bubble border radius style */
-  chatBubbles: 'rounded' | 'sharp' | 'soft';
+  chatBubbles: "rounded" | "sharp" | "soft";
   /** Avatar decoration style */
-  avatarStyle: 'glow' | 'border' | 'shadow' | 'ring';
+  avatarStyle: "glow" | "border" | "shadow" | "ring";
   /** Background style */
-  backgroundStyle: 'gradient' | 'solid' | 'animated' | 'particles';
+  backgroundStyle: "gradient" | "solid" | "animated" | "particles";
 }
 
 /**
@@ -112,18 +112,18 @@ export const AFFILIATE_THEMES: Record<string, AffiliateTheme> = {
       tagline: "Your personalized AI companion",
     },
     colors: {
-      primary: "219 39 119",        // pink-600
-      primaryLight: "244 114 182",  // pink-400
-      accent: "147 51 234",         // purple-600
-      background: "0 0 0",          // black
-      gradientFrom: "219 39 119",   // pink-600
-      gradientTo: "147 51 234",     // purple-600
+      primary: "219 39 119", // pink-600
+      primaryLight: "244 114 182", // pink-400
+      accent: "147 51 234", // purple-600
+      background: "0 0 0", // black
+      gradientFrom: "219 39 119", // pink-600
+      gradientTo: "147 51 234", // purple-600
     },
     variants: {
-      introCard: 'romantic',
-      chatBubbles: 'rounded',
-      avatarStyle: 'glow',
-      backgroundStyle: 'animated',
+      introCard: "romantic",
+      chatBubbles: "rounded",
+      avatarStyle: "glow",
+      backgroundStyle: "animated",
     },
     features: {
       showVibeLabel: true,
@@ -170,7 +170,7 @@ export const AFFILIATE_THEMES: Record<string, AffiliateTheme> = {
    * Default ElizaOS Cloud Theme
    * Professional indigo/purple aesthetic
    */
-  "default": {
+  default: {
     id: "default",
     name: "ElizaOS Cloud",
     branding: {
@@ -178,18 +178,18 @@ export const AFFILIATE_THEMES: Record<string, AffiliateTheme> = {
       tagline: "AI-powered conversations",
     },
     colors: {
-      primary: "99 102 241",        // indigo-500
-      primaryLight: "129 140 248",  // indigo-400
-      accent: "16 185 129",         // emerald-500
-      background: "9 9 11",         // zinc-950
-      gradientFrom: "99 102 241",   // indigo-500
-      gradientTo: "139 92 246",     // violet-500
+      primary: "99 102 241", // indigo-500
+      primaryLight: "129 140 248", // indigo-400
+      accent: "16 185 129", // emerald-500
+      background: "9 9 11", // zinc-950
+      gradientFrom: "99 102 241", // indigo-500
+      gradientTo: "139 92 246", // violet-500
     },
     variants: {
-      introCard: 'professional',
-      chatBubbles: 'rounded',
-      avatarStyle: 'border',
-      backgroundStyle: 'gradient',
+      introCard: "professional",
+      chatBubbles: "rounded",
+      avatarStyle: "border",
+      backgroundStyle: "gradient",
     },
     features: {
       showVibeLabel: true,
@@ -273,15 +273,17 @@ export const AFFILIATE_THEMES: Record<string, AffiliateTheme> = {
 /**
  * Get the theme configuration for an affiliate.
  * Falls back to default theme if affiliate ID is not found.
- * 
+ *
  * @param affiliateId - The affiliate identifier (e.g., "clone-your-crush")
  * @returns The theme configuration
  */
-export function getAffiliateTheme(affiliateId: string | undefined | null): AffiliateTheme {
+export function getAffiliateTheme(
+  affiliateId: string | undefined | null,
+): AffiliateTheme {
   if (!affiliateId) {
     return AFFILIATE_THEMES["default"];
   }
-  
+
   return AFFILIATE_THEMES[affiliateId] || AFFILIATE_THEMES["default"];
 }
 
@@ -302,63 +304,66 @@ export function hasAffiliateTheme(affiliateId: string): boolean {
 /**
  * Generate CSS custom properties object from theme colors.
  * Use this to apply theme colors as inline styles on container elements.
- * 
+ *
  * @param theme - The affiliate theme
  * @returns CSS properties object
  */
-export function getThemeCSSVariables(theme: AffiliateTheme): React.CSSProperties {
+export function getThemeCSSVariables(
+  theme: AffiliateTheme,
+): React.CSSProperties {
   return {
-    '--theme-primary': theme.colors.primary,
-    '--theme-primary-light': theme.colors.primaryLight,
-    '--theme-accent': theme.colors.accent,
-    '--theme-background': theme.colors.background,
-    '--theme-gradient-from': theme.colors.gradientFrom,
-    '--theme-gradient-to': theme.colors.gradientTo,
+    "--theme-primary": theme.colors.primary,
+    "--theme-primary-light": theme.colors.primaryLight,
+    "--theme-accent": theme.colors.accent,
+    "--theme-background": theme.colors.background,
+    "--theme-gradient-from": theme.colors.gradientFrom,
+    "--theme-gradient-to": theme.colors.gradientTo,
   } as React.CSSProperties;
 }
 
 /**
  * Get the affiliate ID from character metadata.
  * Checks character_data.affiliate.affiliateId
- * 
+ *
  * @param characterData - The character_data field from a character
  * @returns The affiliate ID or undefined
  */
 export function getAffiliateIdFromCharacter(
-  characterData: Record<string, unknown> | undefined | null
+  characterData: Record<string, unknown> | undefined | null,
 ): string | undefined {
   if (!characterData) return undefined;
-  
-  const affiliate = characterData.affiliate as Record<string, unknown> | undefined;
+
+  const affiliate = characterData.affiliate as
+    | Record<string, unknown>
+    | undefined;
   if (!affiliate) return undefined;
-  
+
   return affiliate.affiliateId as string | undefined;
 }
 
 /**
  * Resolve the theme for a character based on URL params and character metadata.
  * Priority: URL source param > character metadata > default
- * 
+ *
  * @param source - The source URL parameter
  * @param characterData - The character's character_data field
  * @returns The resolved affiliate theme
  */
 export function resolveCharacterTheme(
   source: string | undefined | null,
-  characterData: Record<string, unknown> | undefined | null
+  characterData: Record<string, unknown> | undefined | null,
 ): AffiliateTheme {
   // Priority 1: URL source parameter
   if (source && hasAffiliateTheme(source)) {
     return getAffiliateTheme(source);
   }
-  
+
   // Priority 2: Character metadata
   const affiliateId = getAffiliateIdFromCharacter(characterData);
   if (affiliateId && hasAffiliateTheme(affiliateId)) {
     return getAffiliateTheme(affiliateId);
   }
-  
+
   // Priority 3: Default theme
   return AFFILIATE_THEMES["default"];
 }
-

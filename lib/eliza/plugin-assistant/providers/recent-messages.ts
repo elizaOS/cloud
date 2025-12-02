@@ -2,21 +2,26 @@ import type { IAgentRuntime, Memory, Provider, State } from "@elizaos/core";
 
 /**
  * RECENT_MESSAGES Provider
- * 
+ *
  * Retrieves and formats recent conversation messages for context.
  * This provider is CRITICAL for conversation continuity - without it,
  * the agent treats every message as a new conversation.
  */
 export const recentMessagesProvider: Provider = {
-  name: "recentMessages",  // Changed from RECENT_MESSAGES to match template variable
+  name: "recentMessages", // Changed from RECENT_MESSAGES to match template variable
   description: "Recent conversation history",
-  
+
   get: async (runtime: IAgentRuntime, message: Memory, state?: State) => {
-    runtime.logger?.info("[RECENT_MESSAGES Provider] ✅ Provider called! Loading conversation history...");
-    
+    runtime.logger?.info(
+      "[RECENT_MESSAGES Provider] ✅ Provider called! Loading conversation history...",
+    );
+
     try {
-      runtime.logger?.debug("[RECENT_MESSAGES Provider] Fetching memories for room:", message.roomId);
-      
+      runtime.logger?.debug(
+        "[RECENT_MESSAGES Provider] Fetching memories for room:",
+        message.roomId,
+      );
+
       // Retrieve recent messages from the database
       const recentMessages = await runtime.getMemories({
         tableName: "messages",
@@ -25,10 +30,14 @@ export const recentMessagesProvider: Provider = {
         unique: false,
       });
 
-      runtime.logger?.info(`[RECENT_MESSAGES Provider] Retrieved ${recentMessages?.length || 0} messages from database`);
+      runtime.logger?.info(
+        `[RECENT_MESSAGES Provider] Retrieved ${recentMessages?.length || 0} messages from database`,
+      );
 
       if (!recentMessages || recentMessages.length === 0) {
-        runtime.logger?.warn("[RECENT_MESSAGES Provider] No previous messages found");
+        runtime.logger?.warn(
+          "[RECENT_MESSAGES Provider] No previous messages found",
+        );
         const emptyText = "No previous messages in this conversation.";
         return {
           values: { recentMessages: emptyText },
@@ -39,21 +48,24 @@ export const recentMessagesProvider: Provider = {
 
       // Sort by creation time (oldest first for chronological order)
       const sortedMessages = [...recentMessages].sort(
-        (a, b) => (a.createdAt || 0) - (b.createdAt || 0)
+        (a, b) => (a.createdAt || 0) - (b.createdAt || 0),
       );
 
       // Format messages for the prompt
       const formattedMessages = sortedMessages
         .map((mem) => {
           const isAgent = mem.entityId === runtime.agentId;
-          const sender = isAgent ? runtime.character?.name || "Assistant" : "User";
-          
+          const sender = isAgent
+            ? runtime.character?.name || "Assistant"
+            : "User";
+
           // Extract text content
           let text = "";
           if (typeof mem.content === "string") {
             text = mem.content;
           } else if (mem.content && typeof mem.content === "object") {
-            text = (mem.content as Record<string, unknown>).text as string || "";
+            text =
+              ((mem.content as Record<string, unknown>).text as string) || "";
           }
 
           // Skip empty messages or system messages
@@ -62,10 +74,10 @@ export const recentMessagesProvider: Provider = {
           }
 
           // Format timestamp
-          const timestamp = mem.createdAt 
-            ? new Date(mem.createdAt).toLocaleTimeString([], { 
-                hour: '2-digit', 
-                minute: '2-digit' 
+          const timestamp = mem.createdAt
+            ? new Date(mem.createdAt).toLocaleTimeString([], {
+                hour: "2-digit",
+                minute: "2-digit",
               })
             : "";
 
@@ -75,7 +87,9 @@ export const recentMessagesProvider: Provider = {
         .join("\n");
 
       if (!formattedMessages) {
-        runtime.logger?.warn("[RECENT_MESSAGES Provider] No formatted messages after processing");
+        runtime.logger?.warn(
+          "[RECENT_MESSAGES Provider] No formatted messages after processing",
+        );
         const emptyText = "No previous messages in this conversation.";
         return {
           values: { recentMessages: emptyText },
@@ -85,21 +99,28 @@ export const recentMessagesProvider: Provider = {
       }
 
       const result = `Previous conversation:\n${formattedMessages}\n`;
-      runtime.logger?.info(`[RECENT_MESSAGES Provider] Returning ${sortedMessages.length} formatted messages`);
-      runtime.logger?.debug("[RECENT_MESSAGES Provider] Preview:", result.substring(0, 200) + "...");
-      
+      runtime.logger?.info(
+        `[RECENT_MESSAGES Provider] Returning ${sortedMessages.length} formatted messages`,
+      );
+      runtime.logger?.debug(
+        "[RECENT_MESSAGES Provider] Preview:",
+        result.substring(0, 200) + "...",
+      );
+
       return {
         values: { recentMessages: result },
-        data: { 
+        data: {
           messages: sortedMessages,
-          count: sortedMessages.length 
+          count: sortedMessages.length,
         },
         text: result,
       };
-
     } catch (error) {
       const errMsg = error instanceof Error ? error.message : String(error);
-      runtime.logger?.error("[RECENT_MESSAGES Provider] Failed to retrieve recent messages:", errMsg);
+      runtime.logger?.error(
+        "[RECENT_MESSAGES Provider] Failed to retrieve recent messages:",
+        errMsg,
+      );
       const errorText = "Error loading conversation history.";
       return {
         values: { recentMessages: errorText },
@@ -109,4 +130,3 @@ export const recentMessagesProvider: Provider = {
     }
   },
 };
-

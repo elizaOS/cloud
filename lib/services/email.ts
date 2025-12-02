@@ -123,9 +123,8 @@ class EmailService {
   }
 
   async sendWelcomeEmail(data: WelcomeEmailData): Promise<boolean> {
-    const { renderWelcomeTemplate } = await import(
-      "@/lib/email/utils/template-renderer"
-    );
+    const { renderWelcomeTemplate } =
+      await import("@/lib/email/utils/template-renderer");
     const { html, text } = renderWelcomeTemplate(data);
 
     return this.send({
@@ -137,9 +136,8 @@ class EmailService {
   }
 
   async sendLowCreditsEmail(data: LowCreditsEmailData): Promise<boolean> {
-    const { renderLowCreditsTemplate } = await import(
-      "@/lib/email/utils/template-renderer"
-    );
+    const { renderLowCreditsTemplate } =
+      await import("@/lib/email/utils/template-renderer");
     const { html, text } = renderLowCreditsTemplate(data);
 
     return this.send({
@@ -151,9 +149,8 @@ class EmailService {
   }
 
   async sendInviteEmail(data: InviteEmailData): Promise<boolean> {
-    const { renderInviteTemplate } = await import(
-      "@/lib/email/utils/template-renderer"
-    );
+    const { renderInviteTemplate } =
+      await import("@/lib/email/utils/template-renderer");
     const { html, text } = renderInviteTemplate(data);
 
     return this.send({
@@ -167,9 +164,8 @@ class EmailService {
   async sendAutoTopUpSuccessEmail(
     data: AutoTopUpSuccessEmailData,
   ): Promise<boolean> {
-    const { renderAutoTopUpSuccessTemplate } = await import(
-      "@/lib/email/utils/template-renderer"
-    );
+    const { renderAutoTopUpSuccessTemplate } =
+      await import("@/lib/email/utils/template-renderer");
     const { html, text } = renderAutoTopUpSuccessTemplate(data);
 
     return this.send({
@@ -183,9 +179,8 @@ class EmailService {
   async sendAutoTopUpDisabledEmail(
     data: AutoTopUpDisabledEmailData,
   ): Promise<boolean> {
-    const { renderAutoTopUpDisabledTemplate } = await import(
-      "@/lib/email/utils/template-renderer"
-    );
+    const { renderAutoTopUpDisabledTemplate } =
+      await import("@/lib/email/utils/template-renderer");
     const { html, text } = renderAutoTopUpDisabledTemplate(data);
 
     return this.send({
@@ -199,9 +194,8 @@ class EmailService {
   async sendPurchaseConfirmationEmail(
     data: PurchaseConfirmationEmailData,
   ): Promise<boolean> {
-    const { renderPurchaseConfirmationTemplate } = await import(
-      "@/lib/email/utils/template-renderer"
-    );
+    const { renderPurchaseConfirmationTemplate } =
+      await import("@/lib/email/utils/template-renderer");
     const { html, text } = renderPurchaseConfirmationTemplate(data);
 
     return this.send({

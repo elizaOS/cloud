@@ -33,178 +33,176 @@ export async function GET(request: NextRequest) {
     switch (type) {
       case "character":
         return new ImageResponse(
-          (
+          <div
+            style={{
+              height: "100%",
+              width: "100%",
+              display: "flex",
+              flexDirection: "column",
+              alignItems: "center",
+              justifyContent: "center",
+              background: BRAND_BG,
+              fontFamily: "system-ui, sans-serif",
+              position: "relative",
+            }}
+          >
+            {/* Corner Brackets */}
             <div
               style={{
-                height: "100%",
-                width: "100%",
+                position: "absolute",
+                left: 40,
+                top: 40,
+                width: 48,
+                height: 48,
+                borderTop: `3px solid ${BRAND_BORDER}`,
+                borderLeft: `3px solid ${BRAND_BORDER}`,
+              }}
+            />
+            <div
+              style={{
+                position: "absolute",
+                right: 40,
+                top: 40,
+                width: 48,
+                height: 48,
+                borderTop: `3px solid ${BRAND_BORDER}`,
+                borderRight: `3px solid ${BRAND_BORDER}`,
+              }}
+            />
+            <div
+              style={{
+                position: "absolute",
+                left: 40,
+                bottom: 40,
+                width: 48,
+                height: 48,
+                borderBottom: `3px solid ${BRAND_BORDER}`,
+                borderLeft: `3px solid ${BRAND_BORDER}`,
+              }}
+            />
+            <div
+              style={{
+                position: "absolute",
+                right: 40,
+                bottom: 40,
+                width: 48,
+                height: 48,
+                borderBottom: `3px solid ${BRAND_BORDER}`,
+                borderRight: `3px solid ${BRAND_BORDER}`,
+              }}
+            />
+
+            <div
+              style={{
                 display: "flex",
                 flexDirection: "column",
                 alignItems: "center",
                 justifyContent: "center",
-                background: BRAND_BG,
-                fontFamily: "system-ui, sans-serif",
+                background: BRAND_SURFACE,
+                border: `1px solid rgba(255, 255, 255, 0.1)`,
+                padding: "60px 80px",
+                maxWidth: "900px",
                 position: "relative",
               }}
             >
-              {/* Corner Brackets */}
+              {/* Mini Corner Brackets on card */}
               <div
                 style={{
                   position: "absolute",
-                  left: 40,
-                  top: 40,
-                  width: 48,
-                  height: 48,
-                  borderTop: `3px solid ${BRAND_BORDER}`,
-                  borderLeft: `3px solid ${BRAND_BORDER}`,
+                  left: 0,
+                  top: 0,
+                  width: 24,
+                  height: 24,
+                  borderTop: `2px solid ${BRAND_ORANGE}`,
+                  borderLeft: `2px solid ${BRAND_ORANGE}`,
                 }}
               />
               <div
                 style={{
                   position: "absolute",
-                  right: 40,
-                  top: 40,
-                  width: 48,
-                  height: 48,
-                  borderTop: `3px solid ${BRAND_BORDER}`,
-                  borderRight: `3px solid ${BRAND_BORDER}`,
+                  right: 0,
+                  top: 0,
+                  width: 24,
+                  height: 24,
+                  borderTop: `2px solid ${BRAND_ORANGE}`,
+                  borderRight: `2px solid ${BRAND_ORANGE}`,
                 }}
               />
               <div
                 style={{
                   position: "absolute",
-                  left: 40,
-                  bottom: 40,
-                  width: 48,
-                  height: 48,
-                  borderBottom: `3px solid ${BRAND_BORDER}`,
-                  borderLeft: `3px solid ${BRAND_BORDER}`,
+                  left: 0,
+                  bottom: 0,
+                  width: 24,
+                  height: 24,
+                  borderBottom: `2px solid ${BRAND_ORANGE}`,
+                  borderLeft: `2px solid ${BRAND_ORANGE}`,
                 }}
               />
               <div
                 style={{
                   position: "absolute",
-                  right: 40,
-                  bottom: 40,
-                  width: 48,
-                  height: 48,
-                  borderBottom: `3px solid ${BRAND_BORDER}`,
-                  borderRight: `3px solid ${BRAND_BORDER}`,
+                  right: 0,
+                  bottom: 0,
+                  width: 24,
+                  height: 24,
+                  borderBottom: `2px solid ${BRAND_ORANGE}`,
+                  borderRight: `2px solid ${BRAND_ORANGE}`,
                 }}
               />
 
               <div
                 style={{
                   display: "flex",
-                  flexDirection: "column",
-                  alignItems: "center",
-                  justifyContent: "center",
-                  background: BRAND_SURFACE,
-                  border: `1px solid rgba(255, 255, 255, 0.1)`,
-                  padding: "60px 80px",
-                  maxWidth: "900px",
-                  position: "relative",
+                  fontSize: 64,
+                  fontWeight: 700,
+                  color: "white",
+                  marginBottom: 24,
+                  textAlign: "center",
+                  lineHeight: 1.2,
+                  fontFamily: MONO_FONT,
                 }}
               >
-                {/* Mini Corner Brackets on card */}
+                {name || title}
+              </div>
+              <div
+                style={{
+                  display: "flex",
+                  fontSize: 24,
+                  color: "rgba(255, 255, 255, 0.7)",
+                  textAlign: "center",
+                  marginBottom: 32,
+                  lineHeight: 1.5,
+                  maxWidth: "700px",
+                  fontFamily: MONO_FONT,
+                }}
+              >
+                {description.slice(0, 120)}
+                {description.length > 120 ? "..." : ""}
+              </div>
+              <div
+                style={{
+                  display: "flex",
+                  alignItems: "center",
+                  gap: 8,
+                  fontSize: 18,
+                  color: BRAND_ORANGE,
+                  fontWeight: 600,
+                  fontFamily: MONO_FONT,
+                }}
+              >
                 <div
                   style={{
-                    position: "absolute",
-                    left: 0,
-                    top: 0,
-                    width: 24,
-                    height: 24,
-                    borderTop: `2px solid ${BRAND_ORANGE}`,
-                    borderLeft: `2px solid ${BRAND_ORANGE}`,
+                    width: 6,
+                    height: 6,
+                    background: BRAND_ORANGE,
+                    borderRadius: "50%",
                   }}
                 />
-                <div
-                  style={{
-                    position: "absolute",
-                    right: 0,
-                    top: 0,
-                    width: 24,
-                    height: 24,
-                    borderTop: `2px solid ${BRAND_ORANGE}`,
-                    borderRight: `2px solid ${BRAND_ORANGE}`,
-                  }}
-                />
-                <div
-                  style={{
-                    position: "absolute",
-                    left: 0,
-                    bottom: 0,
-                    width: 24,
-                    height: 24,
-                    borderBottom: `2px solid ${BRAND_ORANGE}`,
-                    borderLeft: `2px solid ${BRAND_ORANGE}`,
-                  }}
-                />
-                <div
-                  style={{
-                    position: "absolute",
-                    right: 0,
-                    bottom: 0,
-                    width: 24,
-                    height: 24,
-                    borderBottom: `2px solid ${BRAND_ORANGE}`,
-                    borderRight: `2px solid ${BRAND_ORANGE}`,
-                  }}
-                />
-
-                <div
-                  style={{
-                    display: "flex",
-                    fontSize: 64,
-                    fontWeight: 700,
-                    color: "white",
-                    marginBottom: 24,
-                    textAlign: "center",
-                    lineHeight: 1.2,
-                    fontFamily: MONO_FONT,
-                  }}
-                >
-                  {name || title}
-                </div>
-                <div
-                  style={{
-                    display: "flex",
-                    fontSize: 24,
-                    color: "rgba(255, 255, 255, 0.7)",
-                    textAlign: "center",
-                    marginBottom: 32,
-                    lineHeight: 1.5,
-                    maxWidth: "700px",
-                    fontFamily: MONO_FONT,
-                  }}
-                >
-                  {description.slice(0, 120)}
-                  {description.length > 120 ? "..." : ""}
-                </div>
-                <div
-                  style={{
-                    display: "flex",
-                    alignItems: "center",
-                    gap: 8,
-                    fontSize: 18,
-                    color: BRAND_ORANGE,
-                    fontWeight: 600,
-                    fontFamily: MONO_FONT,
-                  }}
-                >
-                  <div
-                    style={{
-                      width: 6,
-                      height: 6,
-                      background: BRAND_ORANGE,
-                      borderRadius: "50%",
-                    }}
-                  />
-                  elizaOS AI Character
-                </div>
+                elizaOS AI Character
               </div>
             </div>
-          ),
+          </div>,
           {
             width: 1200,
             height: 630,
@@ -213,184 +211,182 @@ export async function GET(request: NextRequest) {
 
       case "chat":
         return new ImageResponse(
-          (
+          <div
+            style={{
+              height: "100%",
+              width: "100%",
+              display: "flex",
+              flexDirection: "column",
+              alignItems: "center",
+              justifyContent: "center",
+              background: BRAND_BG,
+              fontFamily: "system-ui, sans-serif",
+              position: "relative",
+            }}
+          >
+            {/* Corner Brackets */}
             <div
               style={{
-                height: "100%",
-                width: "100%",
+                position: "absolute",
+                left: 40,
+                top: 40,
+                width: 48,
+                height: 48,
+                borderTop: `3px solid ${BRAND_BORDER}`,
+                borderLeft: `3px solid ${BRAND_BORDER}`,
+              }}
+            />
+            <div
+              style={{
+                position: "absolute",
+                right: 40,
+                top: 40,
+                width: 48,
+                height: 48,
+                borderTop: `3px solid ${BRAND_BORDER}`,
+                borderRight: `3px solid ${BRAND_BORDER}`,
+              }}
+            />
+            <div
+              style={{
+                position: "absolute",
+                left: 40,
+                bottom: 40,
+                width: 48,
+                height: 48,
+                borderBottom: `3px solid ${BRAND_BORDER}`,
+                borderLeft: `3px solid ${BRAND_BORDER}`,
+              }}
+            />
+            <div
+              style={{
+                position: "absolute",
+                right: 40,
+                bottom: 40,
+                width: 48,
+                height: 48,
+                borderBottom: `3px solid ${BRAND_BORDER}`,
+                borderRight: `3px solid ${BRAND_BORDER}`,
+              }}
+            />
+
+            <div
+              style={{
                 display: "flex",
                 flexDirection: "column",
-                alignItems: "center",
+                alignItems: "flex-start",
                 justifyContent: "center",
-                background: BRAND_BG,
-                fontFamily: "system-ui, sans-serif",
+                background: BRAND_SURFACE,
+                border: `1px solid rgba(255, 255, 255, 0.1)`,
+                padding: "60px 80px",
+                maxWidth: "900px",
                 position: "relative",
               }}
             >
-              {/* Corner Brackets */}
+              {/* Mini Corner Brackets on card */}
               <div
                 style={{
                   position: "absolute",
-                  left: 40,
-                  top: 40,
-                  width: 48,
-                  height: 48,
-                  borderTop: `3px solid ${BRAND_BORDER}`,
-                  borderLeft: `3px solid ${BRAND_BORDER}`,
+                  left: 0,
+                  top: 0,
+                  width: 24,
+                  height: 24,
+                  borderTop: `2px solid ${BRAND_ORANGE}`,
+                  borderLeft: `2px solid ${BRAND_ORANGE}`,
                 }}
               />
               <div
                 style={{
                   position: "absolute",
-                  right: 40,
-                  top: 40,
-                  width: 48,
-                  height: 48,
-                  borderTop: `3px solid ${BRAND_BORDER}`,
-                  borderRight: `3px solid ${BRAND_BORDER}`,
+                  right: 0,
+                  top: 0,
+                  width: 24,
+                  height: 24,
+                  borderTop: `2px solid ${BRAND_ORANGE}`,
+                  borderRight: `2px solid ${BRAND_ORANGE}`,
                 }}
               />
               <div
                 style={{
                   position: "absolute",
-                  left: 40,
-                  bottom: 40,
-                  width: 48,
-                  height: 48,
-                  borderBottom: `3px solid ${BRAND_BORDER}`,
-                  borderLeft: `3px solid ${BRAND_BORDER}`,
+                  left: 0,
+                  bottom: 0,
+                  width: 24,
+                  height: 24,
+                  borderBottom: `2px solid ${BRAND_ORANGE}`,
+                  borderLeft: `2px solid ${BRAND_ORANGE}`,
                 }}
               />
               <div
                 style={{
                   position: "absolute",
-                  right: 40,
-                  bottom: 40,
-                  width: 48,
-                  height: 48,
-                  borderBottom: `3px solid ${BRAND_BORDER}`,
-                  borderRight: `3px solid ${BRAND_BORDER}`,
+                  right: 0,
+                  bottom: 0,
+                  width: 24,
+                  height: 24,
+                  borderBottom: `2px solid ${BRAND_ORANGE}`,
+                  borderRight: `2px solid ${BRAND_ORANGE}`,
                 }}
               />
 
               <div
                 style={{
                   display: "flex",
-                  flexDirection: "column",
-                  alignItems: "flex-start",
-                  justifyContent: "center",
-                  background: BRAND_SURFACE,
-                  border: `1px solid rgba(255, 255, 255, 0.1)`,
-                  padding: "60px 80px",
-                  maxWidth: "900px",
-                  position: "relative",
+                  fontSize: 36,
+                  fontWeight: 600,
+                  color: BRAND_ORANGE,
+                  marginBottom: 24,
+                  fontFamily: MONO_FONT,
                 }}
               >
-                {/* Mini Corner Brackets on card */}
+                💬 Chat Conversation
+              </div>
+              <div
+                style={{
+                  display: "flex",
+                  fontSize: 58,
+                  fontWeight: 700,
+                  color: "white",
+                  marginBottom: 24,
+                  lineHeight: 1.2,
+                  fontFamily: MONO_FONT,
+                }}
+              >
+                {characterName || name || "AI Agent"}
+              </div>
+              <div
+                style={{
+                  display: "flex",
+                  fontSize: 24,
+                  color: "rgba(255, 255, 255, 0.6)",
+                  marginBottom: 32,
+                  fontFamily: MONO_FONT,
+                }}
+              >
+                Join the conversation on elizaOS
+              </div>
+              <div
+                style={{
+                  display: "flex",
+                  alignItems: "center",
+                  gap: 8,
+                  fontSize: 18,
+                  color: "rgba(255, 255, 255, 0.5)",
+                  fontFamily: MONO_FONT,
+                }}
+              >
                 <div
                   style={{
-                    position: "absolute",
-                    left: 0,
-                    top: 0,
-                    width: 24,
-                    height: 24,
-                    borderTop: `2px solid ${BRAND_ORANGE}`,
-                    borderLeft: `2px solid ${BRAND_ORANGE}`,
+                    width: 6,
+                    height: 6,
+                    background: BRAND_ORANGE,
+                    borderRadius: "50%",
                   }}
                 />
-                <div
-                  style={{
-                    position: "absolute",
-                    right: 0,
-                    top: 0,
-                    width: 24,
-                    height: 24,
-                    borderTop: `2px solid ${BRAND_ORANGE}`,
-                    borderRight: `2px solid ${BRAND_ORANGE}`,
-                  }}
-                />
-                <div
-                  style={{
-                    position: "absolute",
-                    left: 0,
-                    bottom: 0,
-                    width: 24,
-                    height: 24,
-                    borderBottom: `2px solid ${BRAND_ORANGE}`,
-                    borderLeft: `2px solid ${BRAND_ORANGE}`,
-                  }}
-                />
-                <div
-                  style={{
-                    position: "absolute",
-                    right: 0,
-                    bottom: 0,
-                    width: 24,
-                    height: 24,
-                    borderBottom: `2px solid ${BRAND_ORANGE}`,
-                    borderRight: `2px solid ${BRAND_ORANGE}`,
-                  }}
-                />
-
-                <div
-                  style={{
-                    display: "flex",
-                    fontSize: 36,
-                    fontWeight: 600,
-                    color: BRAND_ORANGE,
-                    marginBottom: 24,
-                    fontFamily: MONO_FONT,
-                  }}
-                >
-                  💬 Chat Conversation
-                </div>
-                <div
-                  style={{
-                    display: "flex",
-                    fontSize: 58,
-                    fontWeight: 700,
-                    color: "white",
-                    marginBottom: 24,
-                    lineHeight: 1.2,
-                    fontFamily: MONO_FONT,
-                  }}
-                >
-                  {characterName || name || "AI Agent"}
-                </div>
-                <div
-                  style={{
-                    display: "flex",
-                    fontSize: 24,
-                    color: "rgba(255, 255, 255, 0.6)",
-                    marginBottom: 32,
-                    fontFamily: MONO_FONT,
-                  }}
-                >
-                  Join the conversation on elizaOS
-                </div>
-                <div
-                  style={{
-                    display: "flex",
-                    alignItems: "center",
-                    gap: 8,
-                    fontSize: 18,
-                    color: "rgba(255, 255, 255, 0.5)",
-                    fontFamily: MONO_FONT,
-                  }}
-                >
-                  <div
-                    style={{
-                      width: 6,
-                      height: 6,
-                      background: BRAND_ORANGE,
-                      borderRadius: "50%",
-                    }}
-                  />
-                  Powered by elizaOS
-                </div>
+                Powered by elizaOS
               </div>
             </div>
-          ),
+          </div>,
           {
             width: 1200,
             height: 630,
@@ -399,186 +395,184 @@ export async function GET(request: NextRequest) {
 
       case "container":
         return new ImageResponse(
-          (
+          <div
+            style={{
+              height: "100%",
+              width: "100%",
+              display: "flex",
+              flexDirection: "column",
+              alignItems: "center",
+              justifyContent: "center",
+              background: BRAND_BG,
+              fontFamily: "system-ui, sans-serif",
+              position: "relative",
+            }}
+          >
+            {/* Corner Brackets */}
             <div
               style={{
-                height: "100%",
-                width: "100%",
+                position: "absolute",
+                left: 40,
+                top: 40,
+                width: 48,
+                height: 48,
+                borderTop: `3px solid ${BRAND_BORDER}`,
+                borderLeft: `3px solid ${BRAND_BORDER}`,
+              }}
+            />
+            <div
+              style={{
+                position: "absolute",
+                right: 40,
+                top: 40,
+                width: 48,
+                height: 48,
+                borderTop: `3px solid ${BRAND_BORDER}`,
+                borderRight: `3px solid ${BRAND_BORDER}`,
+              }}
+            />
+            <div
+              style={{
+                position: "absolute",
+                left: 40,
+                bottom: 40,
+                width: 48,
+                height: 48,
+                borderBottom: `3px solid ${BRAND_BORDER}`,
+                borderLeft: `3px solid ${BRAND_BORDER}`,
+              }}
+            />
+            <div
+              style={{
+                position: "absolute",
+                right: 40,
+                bottom: 40,
+                width: 48,
+                height: 48,
+                borderBottom: `3px solid ${BRAND_BORDER}`,
+                borderRight: `3px solid ${BRAND_BORDER}`,
+              }}
+            />
+
+            <div
+              style={{
                 display: "flex",
                 flexDirection: "column",
-                alignItems: "center",
+                alignItems: "flex-start",
                 justifyContent: "center",
-                background: BRAND_BG,
-                fontFamily: "system-ui, sans-serif",
+                background: BRAND_SURFACE,
+                border: `1px solid rgba(255, 255, 255, 0.1)`,
+                padding: "60px 80px",
+                maxWidth: "900px",
                 position: "relative",
               }}
             >
-              {/* Corner Brackets */}
+              {/* Mini Corner Brackets on card */}
               <div
                 style={{
                   position: "absolute",
-                  left: 40,
-                  top: 40,
-                  width: 48,
-                  height: 48,
-                  borderTop: `3px solid ${BRAND_BORDER}`,
-                  borderLeft: `3px solid ${BRAND_BORDER}`,
+                  left: 0,
+                  top: 0,
+                  width: 24,
+                  height: 24,
+                  borderTop: `2px solid ${BRAND_ORANGE}`,
+                  borderLeft: `2px solid ${BRAND_ORANGE}`,
                 }}
               />
               <div
                 style={{
                   position: "absolute",
-                  right: 40,
-                  top: 40,
-                  width: 48,
-                  height: 48,
-                  borderTop: `3px solid ${BRAND_BORDER}`,
-                  borderRight: `3px solid ${BRAND_BORDER}`,
+                  right: 0,
+                  top: 0,
+                  width: 24,
+                  height: 24,
+                  borderTop: `2px solid ${BRAND_ORANGE}`,
+                  borderRight: `2px solid ${BRAND_ORANGE}`,
                 }}
               />
               <div
                 style={{
                   position: "absolute",
-                  left: 40,
-                  bottom: 40,
-                  width: 48,
-                  height: 48,
-                  borderBottom: `3px solid ${BRAND_BORDER}`,
-                  borderLeft: `3px solid ${BRAND_BORDER}`,
+                  left: 0,
+                  bottom: 0,
+                  width: 24,
+                  height: 24,
+                  borderBottom: `2px solid ${BRAND_ORANGE}`,
+                  borderLeft: `2px solid ${BRAND_ORANGE}`,
                 }}
               />
               <div
                 style={{
                   position: "absolute",
-                  right: 40,
-                  bottom: 40,
-                  width: 48,
-                  height: 48,
-                  borderBottom: `3px solid ${BRAND_BORDER}`,
-                  borderRight: `3px solid ${BRAND_BORDER}`,
+                  right: 0,
+                  bottom: 0,
+                  width: 24,
+                  height: 24,
+                  borderBottom: `2px solid ${BRAND_ORANGE}`,
+                  borderRight: `2px solid ${BRAND_ORANGE}`,
                 }}
               />
 
               <div
                 style={{
                   display: "flex",
-                  flexDirection: "column",
-                  alignItems: "flex-start",
-                  justifyContent: "center",
-                  background: BRAND_SURFACE,
-                  border: `1px solid rgba(255, 255, 255, 0.1)`,
-                  padding: "60px 80px",
-                  maxWidth: "900px",
-                  position: "relative",
+                  fontSize: 36,
+                  fontWeight: 600,
+                  color: BRAND_ORANGE,
+                  marginBottom: 24,
+                  fontFamily: MONO_FONT,
                 }}
               >
-                {/* Mini Corner Brackets on card */}
-                <div
-                  style={{
-                    position: "absolute",
-                    left: 0,
-                    top: 0,
-                    width: 24,
-                    height: 24,
-                    borderTop: `2px solid ${BRAND_ORANGE}`,
-                    borderLeft: `2px solid ${BRAND_ORANGE}`,
-                  }}
-                />
-                <div
-                  style={{
-                    position: "absolute",
-                    right: 0,
-                    top: 0,
-                    width: 24,
-                    height: 24,
-                    borderTop: `2px solid ${BRAND_ORANGE}`,
-                    borderRight: `2px solid ${BRAND_ORANGE}`,
-                  }}
-                />
-                <div
-                  style={{
-                    position: "absolute",
-                    left: 0,
-                    bottom: 0,
-                    width: 24,
-                    height: 24,
-                    borderBottom: `2px solid ${BRAND_ORANGE}`,
-                    borderLeft: `2px solid ${BRAND_ORANGE}`,
-                  }}
-                />
-                <div
-                  style={{
-                    position: "absolute",
-                    right: 0,
-                    bottom: 0,
-                    width: 24,
-                    height: 24,
-                    borderBottom: `2px solid ${BRAND_ORANGE}`,
-                    borderRight: `2px solid ${BRAND_ORANGE}`,
-                  }}
-                />
-
+                🐳 Container Deployment
+              </div>
+              <div
+                style={{
+                  display: "flex",
+                  fontSize: 58,
+                  fontWeight: 700,
+                  color: "white",
+                  marginBottom: 24,
+                  lineHeight: 1.2,
+                  fontFamily: MONO_FONT,
+                }}
+              >
+                {name || title}
+              </div>
+              {characterName && (
                 <div
                   style={{
                     display: "flex",
-                    fontSize: 36,
-                    fontWeight: 600,
-                    color: BRAND_ORANGE,
-                    marginBottom: 24,
+                    fontSize: 28,
+                    color: "rgba(255, 255, 255, 0.7)",
+                    marginBottom: 32,
                     fontFamily: MONO_FONT,
                   }}
                 >
-                  🐳 Container Deployment
+                  Running: {characterName}
                 </div>
+              )}
+              <div
+                style={{
+                  display: "flex",
+                  alignItems: "center",
+                  gap: 8,
+                  fontSize: 18,
+                  color: "rgba(255, 255, 255, 0.5)",
+                  fontFamily: MONO_FONT,
+                }}
+              >
                 <div
                   style={{
-                    display: "flex",
-                    fontSize: 58,
-                    fontWeight: 700,
-                    color: "white",
-                    marginBottom: 24,
-                    lineHeight: 1.2,
-                    fontFamily: MONO_FONT,
+                    width: 6,
+                    height: 6,
+                    background: BRAND_ORANGE,
+                    borderRadius: "50%",
                   }}
-                >
-                  {name || title}
-                </div>
-                {characterName && (
-                  <div
-                    style={{
-                      display: "flex",
-                      fontSize: 28,
-                      color: "rgba(255, 255, 255, 0.7)",
-                      marginBottom: 32,
-                      fontFamily: MONO_FONT,
-                    }}
-                  >
-                    Running: {characterName}
-                  </div>
-                )}
-                <div
-                  style={{
-                    display: "flex",
-                    alignItems: "center",
-                    gap: 8,
-                    fontSize: 18,
-                    color: "rgba(255, 255, 255, 0.5)",
-                    fontFamily: MONO_FONT,
-                  }}
-                >
-                  <div
-                    style={{
-                      width: 6,
-                      height: 6,
-                      background: BRAND_ORANGE,
-                      borderRadius: "50%",
-                    }}
-                  />
-                  Deployed on elizaOS
-                </div>
+                />
+                Deployed on elizaOS
               </div>
             </div>
-          ),
+          </div>,
           {
             width: 1200,
             height: 630,
@@ -587,162 +581,160 @@ export async function GET(request: NextRequest) {
 
       case "marketplace":
         return new ImageResponse(
-          (
+          <div
+            style={{
+              height: "100%",
+              width: "100%",
+              display: "flex",
+              flexDirection: "column",
+              alignItems: "center",
+              justifyContent: "center",
+              background: BRAND_BG,
+              fontFamily: "system-ui, sans-serif",
+              position: "relative",
+            }}
+          >
+            {/* Corner Brackets */}
             <div
               style={{
-                height: "100%",
-                width: "100%",
+                position: "absolute",
+                left: 40,
+                top: 40,
+                width: 48,
+                height: 48,
+                borderTop: `3px solid ${BRAND_BORDER}`,
+                borderLeft: `3px solid ${BRAND_BORDER}`,
+              }}
+            />
+            <div
+              style={{
+                position: "absolute",
+                right: 40,
+                top: 40,
+                width: 48,
+                height: 48,
+                borderTop: `3px solid ${BRAND_BORDER}`,
+                borderRight: `3px solid ${BRAND_BORDER}`,
+              }}
+            />
+            <div
+              style={{
+                position: "absolute",
+                left: 40,
+                bottom: 40,
+                width: 48,
+                height: 48,
+                borderBottom: `3px solid ${BRAND_BORDER}`,
+                borderLeft: `3px solid ${BRAND_BORDER}`,
+              }}
+            />
+            <div
+              style={{
+                position: "absolute",
+                right: 40,
+                bottom: 40,
+                width: 48,
+                height: 48,
+                borderBottom: `3px solid ${BRAND_BORDER}`,
+                borderRight: `3px solid ${BRAND_BORDER}`,
+              }}
+            />
+
+            <div
+              style={{
                 display: "flex",
                 flexDirection: "column",
                 alignItems: "center",
                 justifyContent: "center",
-                background: BRAND_BG,
-                fontFamily: "system-ui, sans-serif",
+                background: BRAND_SURFACE,
+                border: `1px solid rgba(255, 255, 255, 0.1)`,
+                padding: "60px 80px",
+                maxWidth: "900px",
                 position: "relative",
               }}
             >
-              {/* Corner Brackets */}
+              {/* Mini Corner Brackets on card */}
               <div
                 style={{
                   position: "absolute",
-                  left: 40,
-                  top: 40,
-                  width: 48,
-                  height: 48,
-                  borderTop: `3px solid ${BRAND_BORDER}`,
-                  borderLeft: `3px solid ${BRAND_BORDER}`,
+                  left: 0,
+                  top: 0,
+                  width: 24,
+                  height: 24,
+                  borderTop: `2px solid ${BRAND_ORANGE}`,
+                  borderLeft: `2px solid ${BRAND_ORANGE}`,
                 }}
               />
               <div
                 style={{
                   position: "absolute",
-                  right: 40,
-                  top: 40,
-                  width: 48,
-                  height: 48,
-                  borderTop: `3px solid ${BRAND_BORDER}`,
-                  borderRight: `3px solid ${BRAND_BORDER}`,
+                  right: 0,
+                  top: 0,
+                  width: 24,
+                  height: 24,
+                  borderTop: `2px solid ${BRAND_ORANGE}`,
+                  borderRight: `2px solid ${BRAND_ORANGE}`,
                 }}
               />
               <div
                 style={{
                   position: "absolute",
-                  left: 40,
-                  bottom: 40,
-                  width: 48,
-                  height: 48,
-                  borderBottom: `3px solid ${BRAND_BORDER}`,
-                  borderLeft: `3px solid ${BRAND_BORDER}`,
+                  left: 0,
+                  bottom: 0,
+                  width: 24,
+                  height: 24,
+                  borderBottom: `2px solid ${BRAND_ORANGE}`,
+                  borderLeft: `2px solid ${BRAND_ORANGE}`,
                 }}
               />
               <div
                 style={{
                   position: "absolute",
-                  right: 40,
-                  bottom: 40,
-                  width: 48,
-                  height: 48,
-                  borderBottom: `3px solid ${BRAND_BORDER}`,
-                  borderRight: `3px solid ${BRAND_BORDER}`,
+                  right: 0,
+                  bottom: 0,
+                  width: 24,
+                  height: 24,
+                  borderBottom: `2px solid ${BRAND_ORANGE}`,
+                  borderRight: `2px solid ${BRAND_ORANGE}`,
                 }}
               />
 
               <div
                 style={{
                   display: "flex",
-                  flexDirection: "column",
-                  alignItems: "center",
-                  justifyContent: "center",
-                  background: BRAND_SURFACE,
-                  border: `1px solid rgba(255, 255, 255, 0.1)`,
-                  padding: "60px 80px",
-                  maxWidth: "900px",
-                  position: "relative",
+                  fontSize: 72,
+                  marginBottom: 32,
                 }}
               >
-                {/* Mini Corner Brackets on card */}
-                <div
-                  style={{
-                    position: "absolute",
-                    left: 0,
-                    top: 0,
-                    width: 24,
-                    height: 24,
-                    borderTop: `2px solid ${BRAND_ORANGE}`,
-                    borderLeft: `2px solid ${BRAND_ORANGE}`,
-                  }}
-                />
-                <div
-                  style={{
-                    position: "absolute",
-                    right: 0,
-                    top: 0,
-                    width: 24,
-                    height: 24,
-                    borderTop: `2px solid ${BRAND_ORANGE}`,
-                    borderRight: `2px solid ${BRAND_ORANGE}`,
-                  }}
-                />
-                <div
-                  style={{
-                    position: "absolute",
-                    left: 0,
-                    bottom: 0,
-                    width: 24,
-                    height: 24,
-                    borderBottom: `2px solid ${BRAND_ORANGE}`,
-                    borderLeft: `2px solid ${BRAND_ORANGE}`,
-                  }}
-                />
-                <div
-                  style={{
-                    position: "absolute",
-                    right: 0,
-                    bottom: 0,
-                    width: 24,
-                    height: 24,
-                    borderBottom: `2px solid ${BRAND_ORANGE}`,
-                    borderRight: `2px solid ${BRAND_ORANGE}`,
-                  }}
-                />
-
-                <div
-                  style={{
-                    display: "flex",
-                    fontSize: 72,
-                    marginBottom: 32,
-                  }}
-                >
-                  🤖
-                </div>
-                <div
-                  style={{
-                    display: "flex",
-                    fontSize: 52,
-                    fontWeight: 700,
-                    color: "white",
-                    marginBottom: 24,
-                    textAlign: "center",
-                    fontFamily: MONO_FONT,
-                  }}
-                >
-                  AI Agent Marketplace
-                </div>
-                <div
-                  style={{
-                    display: "flex",
-                    fontSize: 24,
-                    color: "rgba(255, 255, 255, 0.7)",
-                    textAlign: "center",
-                    maxWidth: "700px",
-                    fontFamily: MONO_FONT,
-                  }}
-                >
-                  Discover intelligent AI characters and agents
-                </div>
+                🤖
+              </div>
+              <div
+                style={{
+                  display: "flex",
+                  fontSize: 52,
+                  fontWeight: 700,
+                  color: "white",
+                  marginBottom: 24,
+                  textAlign: "center",
+                  fontFamily: MONO_FONT,
+                }}
+              >
+                AI Agent Marketplace
+              </div>
+              <div
+                style={{
+                  display: "flex",
+                  fontSize: 24,
+                  color: "rgba(255, 255, 255, 0.7)",
+                  textAlign: "center",
+                  maxWidth: "700px",
+                  fontFamily: MONO_FONT,
+                }}
+              >
+                Discover intelligent AI characters and agents
               </div>
             </div>
-          ),
+          </div>,
           {
             width: 1200,
             height: 630,
@@ -751,182 +743,180 @@ export async function GET(request: NextRequest) {
 
       default:
         return new ImageResponse(
-          (
+          <div
+            style={{
+              height: "100%",
+              width: "100%",
+              display: "flex",
+              flexDirection: "column",
+              alignItems: "center",
+              justifyContent: "center",
+              background: BRAND_BG,
+              fontFamily: "system-ui, sans-serif",
+              position: "relative",
+            }}
+          >
+            {/* Outer Corner Brackets */}
             <div
               style={{
-                height: "100%",
-                width: "100%",
+                position: "absolute",
+                left: 40,
+                top: 40,
+                width: 48,
+                height: 48,
+                borderTop: `3px solid ${BRAND_BORDER}`,
+                borderLeft: `3px solid ${BRAND_BORDER}`,
+              }}
+            />
+            <div
+              style={{
+                position: "absolute",
+                right: 40,
+                top: 40,
+                width: 48,
+                height: 48,
+                borderTop: `3px solid ${BRAND_BORDER}`,
+                borderRight: `3px solid ${BRAND_BORDER}`,
+              }}
+            />
+            <div
+              style={{
+                position: "absolute",
+                left: 40,
+                bottom: 40,
+                width: 48,
+                height: 48,
+                borderBottom: `3px solid ${BRAND_BORDER}`,
+                borderLeft: `3px solid ${BRAND_BORDER}`,
+              }}
+            />
+            <div
+              style={{
+                position: "absolute",
+                right: 40,
+                bottom: 40,
+                width: 48,
+                height: 48,
+                borderBottom: `3px solid ${BRAND_BORDER}`,
+                borderRight: `3px solid ${BRAND_BORDER}`,
+              }}
+            />
+
+            <div
+              style={{
                 display: "flex",
                 flexDirection: "column",
                 alignItems: "center",
                 justifyContent: "center",
-                background: BRAND_BG,
-                fontFamily: "system-ui, sans-serif",
+                background: BRAND_SURFACE,
+                border: `1px solid rgba(255, 255, 255, 0.1)`,
+                padding: "60px 80px",
+                maxWidth: "900px",
                 position: "relative",
               }}
             >
-              {/* Outer Corner Brackets */}
+              {/* Inner Orange Corner Brackets */}
               <div
                 style={{
                   position: "absolute",
-                  left: 40,
-                  top: 40,
-                  width: 48,
-                  height: 48,
-                  borderTop: `3px solid ${BRAND_BORDER}`,
-                  borderLeft: `3px solid ${BRAND_BORDER}`,
+                  left: 0,
+                  top: 0,
+                  width: 24,
+                  height: 24,
+                  borderTop: `2px solid ${BRAND_ORANGE}`,
+                  borderLeft: `2px solid ${BRAND_ORANGE}`,
                 }}
               />
               <div
                 style={{
                   position: "absolute",
-                  right: 40,
-                  top: 40,
-                  width: 48,
-                  height: 48,
-                  borderTop: `3px solid ${BRAND_BORDER}`,
-                  borderRight: `3px solid ${BRAND_BORDER}`,
+                  right: 0,
+                  top: 0,
+                  width: 24,
+                  height: 24,
+                  borderTop: `2px solid ${BRAND_ORANGE}`,
+                  borderRight: `2px solid ${BRAND_ORANGE}`,
                 }}
               />
               <div
                 style={{
                   position: "absolute",
-                  left: 40,
-                  bottom: 40,
-                  width: 48,
-                  height: 48,
-                  borderBottom: `3px solid ${BRAND_BORDER}`,
-                  borderLeft: `3px solid ${BRAND_BORDER}`,
+                  left: 0,
+                  bottom: 0,
+                  width: 24,
+                  height: 24,
+                  borderBottom: `2px solid ${BRAND_ORANGE}`,
+                  borderLeft: `2px solid ${BRAND_ORANGE}`,
                 }}
               />
               <div
                 style={{
                   position: "absolute",
-                  right: 40,
-                  bottom: 40,
-                  width: 48,
-                  height: 48,
-                  borderBottom: `3px solid ${BRAND_BORDER}`,
-                  borderRight: `3px solid ${BRAND_BORDER}`,
+                  right: 0,
+                  bottom: 0,
+                  width: 24,
+                  height: 24,
+                  borderBottom: `2px solid ${BRAND_ORANGE}`,
+                  borderRight: `2px solid ${BRAND_ORANGE}`,
                 }}
               />
+
+              {/* Orange dot indicator */}
+              <div
+                style={{
+                  display: "flex",
+                  alignItems: "center",
+                  gap: 8,
+                  fontSize: 14,
+                  color: "rgba(255, 255, 255, 0.5)",
+                  marginBottom: 32,
+                  textTransform: "uppercase",
+                  letterSpacing: "0.15em",
+                  fontFamily: MONO_FONT,
+                }}
+              >
+                <div
+                  style={{
+                    width: 8,
+                    height: 8,
+                    background: BRAND_ORANGE,
+                    borderRadius: "50%",
+                  }}
+                />
+                elizaOS
+              </div>
 
               <div
                 style={{
                   display: "flex",
-                  flexDirection: "column",
-                  alignItems: "center",
-                  justifyContent: "center",
-                  background: BRAND_SURFACE,
-                  border: `1px solid rgba(255, 255, 255, 0.1)`,
-                  padding: "60px 80px",
-                  maxWidth: "900px",
-                  position: "relative",
+                  fontSize: 52,
+                  fontWeight: 700,
+                  color: "white",
+                  marginBottom: 20,
+                  textAlign: "center",
+                  lineHeight: 1.2,
+                  fontFamily: MONO_FONT,
                 }}
               >
-                {/* Inner Orange Corner Brackets */}
-                <div
-                  style={{
-                    position: "absolute",
-                    left: 0,
-                    top: 0,
-                    width: 24,
-                    height: 24,
-                    borderTop: `2px solid ${BRAND_ORANGE}`,
-                    borderLeft: `2px solid ${BRAND_ORANGE}`,
-                  }}
-                />
-                <div
-                  style={{
-                    position: "absolute",
-                    right: 0,
-                    top: 0,
-                    width: 24,
-                    height: 24,
-                    borderTop: `2px solid ${BRAND_ORANGE}`,
-                    borderRight: `2px solid ${BRAND_ORANGE}`,
-                  }}
-                />
-                <div
-                  style={{
-                    position: "absolute",
-                    left: 0,
-                    bottom: 0,
-                    width: 24,
-                    height: 24,
-                    borderBottom: `2px solid ${BRAND_ORANGE}`,
-                    borderLeft: `2px solid ${BRAND_ORANGE}`,
-                  }}
-                />
-                <div
-                  style={{
-                    position: "absolute",
-                    right: 0,
-                    bottom: 0,
-                    width: 24,
-                    height: 24,
-                    borderBottom: `2px solid ${BRAND_ORANGE}`,
-                    borderRight: `2px solid ${BRAND_ORANGE}`,
-                  }}
-                />
-
-                {/* Orange dot indicator */}
-                <div
-                  style={{
-                    display: "flex",
-                    alignItems: "center",
-                    gap: 8,
-                    fontSize: 14,
-                    color: "rgba(255, 255, 255, 0.5)",
-                    marginBottom: 32,
-                    textTransform: "uppercase",
-                    letterSpacing: "0.15em",
-                    fontFamily: MONO_FONT,
-                  }}
-                >
-                  <div
-                    style={{
-                      width: 8,
-                      height: 8,
-                      background: BRAND_ORANGE,
-                      borderRadius: "50%",
-                    }}
-                  />
-                  elizaOS
-                </div>
-
-                <div
-                  style={{
-                    display: "flex",
-                    fontSize: 52,
-                    fontWeight: 700,
-                    color: "white",
-                    marginBottom: 20,
-                    textAlign: "center",
-                    lineHeight: 1.2,
-                    fontFamily: MONO_FONT,
-                  }}
-                >
-                  {title}
-                </div>
-                <div
-                  style={{
-                    display: "flex",
-                    fontSize: 24,
-                    color: "rgba(255, 255, 255, 0.7)",
-                    textAlign: "center",
-                    maxWidth: "700px",
-                    lineHeight: 1.5,
-                    fontFamily: MONO_FONT,
-                    fontWeight: 400,
-                  }}
-                >
-                  {description.slice(0, 100)}
-                  {description.length > 100 ? "..." : ""}
-                </div>
+                {title}
+              </div>
+              <div
+                style={{
+                  display: "flex",
+                  fontSize: 24,
+                  color: "rgba(255, 255, 255, 0.7)",
+                  textAlign: "center",
+                  maxWidth: "700px",
+                  lineHeight: 1.5,
+                  fontFamily: MONO_FONT,
+                  fontWeight: 400,
+                }}
+              >
+                {description.slice(0, 100)}
+                {description.length > 100 ? "..." : ""}
               </div>
             </div>
-          ),
+          </div>,
           {
             width: 1200,
             height: 630,
@@ -937,111 +927,109 @@ export async function GET(request: NextRequest) {
     console.error("Error generating OG image:", error);
 
     return new ImageResponse(
-      (
+      <div
+        style={{
+          height: "100%",
+          width: "100%",
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+          background: BRAND_BG,
+          fontFamily: "system-ui, sans-serif",
+          position: "relative",
+        }}
+      >
+        {/* Corner Brackets */}
         <div
           style={{
-            height: "100%",
-            width: "100%",
+            position: "absolute",
+            left: 40,
+            top: 40,
+            width: 48,
+            height: 48,
+            borderTop: `3px solid ${BRAND_BORDER}`,
+            borderLeft: `3px solid ${BRAND_BORDER}`,
+          }}
+        />
+        <div
+          style={{
+            position: "absolute",
+            right: 40,
+            top: 40,
+            width: 48,
+            height: 48,
+            borderTop: `3px solid ${BRAND_BORDER}`,
+            borderRight: `3px solid ${BRAND_BORDER}`,
+          }}
+        />
+        <div
+          style={{
+            position: "absolute",
+            left: 40,
+            bottom: 40,
+            width: 48,
+            height: 48,
+            borderBottom: `3px solid ${BRAND_BORDER}`,
+            borderLeft: `3px solid ${BRAND_BORDER}`,
+          }}
+        />
+        <div
+          style={{
+            position: "absolute",
+            right: 40,
+            bottom: 40,
+            width: 48,
+            height: 48,
+            borderBottom: `3px solid ${BRAND_BORDER}`,
+            borderRight: `3px solid ${BRAND_BORDER}`,
+          }}
+        />
+
+        <div
+          style={{
             display: "flex",
+            flexDirection: "column",
             alignItems: "center",
-            justifyContent: "center",
-            background: BRAND_BG,
-            fontFamily: "system-ui, sans-serif",
-            position: "relative",
+            gap: 20,
           }}
         >
-          {/* Corner Brackets */}
-          <div
-            style={{
-              position: "absolute",
-              left: 40,
-              top: 40,
-              width: 48,
-              height: 48,
-              borderTop: `3px solid ${BRAND_BORDER}`,
-              borderLeft: `3px solid ${BRAND_BORDER}`,
-            }}
-          />
-          <div
-            style={{
-              position: "absolute",
-              right: 40,
-              top: 40,
-              width: 48,
-              height: 48,
-              borderTop: `3px solid ${BRAND_BORDER}`,
-              borderRight: `3px solid ${BRAND_BORDER}`,
-            }}
-          />
-          <div
-            style={{
-              position: "absolute",
-              left: 40,
-              bottom: 40,
-              width: 48,
-              height: 48,
-              borderBottom: `3px solid ${BRAND_BORDER}`,
-              borderLeft: `3px solid ${BRAND_BORDER}`,
-            }}
-          />
-          <div
-            style={{
-              position: "absolute",
-              right: 40,
-              bottom: 40,
-              width: 48,
-              height: 48,
-              borderBottom: `3px solid ${BRAND_BORDER}`,
-              borderRight: `3px solid ${BRAND_BORDER}`,
-            }}
-          />
-
           <div
             style={{
               display: "flex",
-              flexDirection: "column",
               alignItems: "center",
-              gap: 20,
+              gap: 12,
             }}
           >
             <div
               style={{
-                display: "flex",
-                alignItems: "center",
-                gap: 12,
+                width: 12,
+                height: 12,
+                background: BRAND_ORANGE,
+                borderRadius: "50%",
               }}
-            >
-              <div
-                style={{
-                  width: 12,
-                  height: 12,
-                  background: BRAND_ORANGE,
-                  borderRadius: "50%",
-                }}
-              />
-              <div
-                style={{
-                  display: "flex",
-                  fontSize: 64,
-                  fontWeight: 700,
-                  color: "white",
-                  fontFamily: MONO_FONT,
-                }}
-              >
-                elizaOS
-              </div>
-            </div>
+            />
             <div
               style={{
                 display: "flex",
-                width: 100,
-                height: 3,
-                background: BRAND_ORANGE,
+                fontSize: 64,
+                fontWeight: 700,
+                color: "white",
+                fontFamily: MONO_FONT,
               }}
-            />
+            >
+              elizaOS
+            </div>
           </div>
+          <div
+            style={{
+              display: "flex",
+              width: 100,
+              height: 3,
+              background: BRAND_ORANGE,
+            }}
+          />
         </div>
-      ),
+      </div>,
       {
         width: 1200,
         height: 630,

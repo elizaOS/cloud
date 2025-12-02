@@ -5,7 +5,13 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Card, CardContent } from "@/components/ui/card";
-import { Sparkles, MessageCircle, Lock, CheckCircle, Heart } from "lucide-react";
+import {
+  Sparkles,
+  MessageCircle,
+  Lock,
+  CheckCircle,
+  Heart,
+} from "lucide-react";
 import type { UserCharacter } from "@/db/schemas";
 import { EmailCaptureModal } from "./email-capture-modal";
 import { motion } from "motion/react";
@@ -23,9 +29,9 @@ interface CharacterIntroPageProps {
   isAuthenticated?: boolean;
 }
 
-export function CharacterIntroPage({ 
-  character, 
-  onEmailSubmit, 
+export function CharacterIntroPage({
+  character,
+  onEmailSubmit,
   onSkip,
   onAuthenticatedStart,
   source,
@@ -38,13 +44,17 @@ export function CharacterIntroPage({
   const isAnyLoading = isLoading || parentLoading;
 
   // Extract bio text
-  const bioText = Array.isArray(character.bio) 
-    ? character.bio.join(" ") 
+  const bioText = Array.isArray(character.bio)
+    ? character.bio.join(" ")
     : character.bio;
 
   // Get vibe from character metadata
-  const characterData = character.character_data as Record<string, unknown> | undefined;
-  const affiliate = characterData?.affiliate as Record<string, unknown> | undefined;
+  const characterData = character.character_data as
+    | Record<string, unknown>
+    | undefined;
+  const affiliate = characterData?.affiliate as
+    | Record<string, unknown>
+    | undefined;
   const vibeLabel = affiliate?.vibe as string | undefined;
 
   const handleStartChat = () => {
@@ -92,9 +102,9 @@ export function CharacterIntroPage({
       {/* Animated background for romantic theme */}
       {showAnimatedBackground && (
         <div className="fixed inset-0 -z-10">
-          <div 
-            className="absolute inset-0 bg-[radial-gradient(ellipse_at_center,rgba(var(--theme-primary),0.08),transparent_70%)] animate-pulse" 
-            style={{ animationDuration: "4s" }} 
+          <div
+            className="absolute inset-0 bg-[radial-gradient(ellipse_at_center,rgba(var(--theme-primary),0.08),transparent_70%)] animate-pulse"
+            style={{ animationDuration: "4s" }}
           />
         </div>
       )}
@@ -149,14 +159,16 @@ export function CharacterIntroPage({
                 >
                   <div className="relative">
                     {/* Glow effect for romantic theme */}
-                    {theme.variants.avatarStyle === 'glow' && (
+                    {theme.variants.avatarStyle === "glow" && (
                       <div className="absolute inset-0 rounded-full bg-gradient-to-r from-[rgb(var(--theme-primary))] to-[rgb(var(--theme-accent))] opacity-20 blur-xl" />
                     )}
-                    <Avatar className={`h-32 w-32 relative ${
-                      theme.variants.avatarStyle === 'glow'
-                        ? 'border-4 border-[rgba(var(--theme-primary),0.3)]'
-                        : 'border-4 border-primary/20'
-                    }`}>
+                    <Avatar
+                      className={`h-32 w-32 relative ${
+                        theme.variants.avatarStyle === "glow"
+                          ? "border-4 border-[rgba(var(--theme-primary),0.3)]"
+                          : "border-4 border-primary/20"
+                      }`}
+                    >
                       <AvatarImage src={character.avatar_url || undefined} />
                       <AvatarFallback className={`text-4xl ${
                         isCustomTheme
@@ -232,9 +244,21 @@ export function CharacterIntroPage({
             className="grid md:grid-cols-3 gap-4 mb-8"
           >
             {[
-              { icon: Sparkles, title: "Personalized", desc: "AI that matches your chosen personality" },
-              { icon: MessageCircle, title: "Natural Chat", desc: "Conversations that feel real and engaging" },
-              { icon: Lock, title: "Private", desc: "Your conversations stay between you and your AI" },
+              {
+                icon: Sparkles,
+                title: "Personalized",
+                desc: "AI that matches your chosen personality",
+              },
+              {
+                icon: MessageCircle,
+                title: "Natural Chat",
+                desc: "Conversations that feel real and engaging",
+              },
+              {
+                icon: Lock,
+                title: "Private",
+                desc: "Your conversations stay between you and your AI",
+              },
             ].map(({ icon: Icon, title, desc }) => (
               <Card key={title} className={
                 isCustomTheme

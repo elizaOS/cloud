@@ -836,8 +836,8 @@ export function ElizaChatInterface({ onMessageSent }: ElizaChatInterfaceProps) {
                         Start a conversation
                       </h3>
                       <p className="text-sm text-muted-foreground max-w-md">
-                        Ask me anything about AI, development, or how elizaOS can
-                        help you build intelligent agents.
+                        Ask me anything about AI, development, or how elizaOS
+                        can help you build intelligent agents.
                       </p>
                     </div>
                   )}

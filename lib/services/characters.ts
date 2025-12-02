@@ -100,12 +100,16 @@ export class CharactersService {
    */
   toElizaCharacter(character: UserCharacter): ElizaCharacter {
     // Extract affiliate data from character_data if present
-    const characterData = character.character_data as Record<string, unknown> | undefined;
-    const affiliateData = characterData?.affiliate as Record<string, unknown> | undefined;
-    
+    const characterData = character.character_data as
+      | Record<string, unknown>
+      | undefined;
+    const affiliateData = characterData?.affiliate as
+      | Record<string, unknown>
+      | undefined;
+
     // Also extract lore data which contains full social media posts
     const loreData = characterData?.lore as string[] | undefined;
-    
+
     // Merge affiliate data AND lore into settings so it's available in the runtime
     const settings = character.settings as Record<string, string | boolean | number | Record<string, unknown>> | undefined;
     const mergedSettings = {

@@ -1,11 +1,14 @@
 import type { IAgentRuntime, Memory, Provider, State } from "@elizaos/core";
 
 // Vibe personality definitions with concrete behavioral instructions
-const VIBE_PERSONALITIES: Record<string, {
-  description: string;
-  behaviors: string[];
-  examples: string[];
-}> = {
+const VIBE_PERSONALITIES: Record<
+  string,
+  {
+    description: string;
+    behaviors: string[];
+    examples: string[];
+  }
+> = {
   flirty: {
     description: "Playful, charming, and suggestive with a teasing edge",
     behaviors: [
@@ -124,10 +127,10 @@ const VIBE_PERSONALITIES: Record<string, {
 
 /**
  * AFFILIATE_CONTEXT Provider (Enhanced)
- * 
- * Extracts affiliate metadata (vibe, backstory, Instagram, Twitter) 
+ *
+ * Extracts affiliate metadata (vibe, backstory, Instagram, Twitter)
  * from character settings and provides concrete, actionable personality instructions.
- * 
+ *
  * This provider now includes:
  * - Specific behavioral guidelines for each vibe
  * - Concrete examples of how to embody the personality
@@ -136,8 +139,9 @@ const VIBE_PERSONALITIES: Record<string, {
  */
 export const affiliateContextProvider: Provider = {
   name: "affiliateContext",
-  description: "Affiliate character vibe and social media context with behavioral instructions",
-  
+  description:
+    "Affiliate character vibe and social media context with behavioral instructions",
+
   get: async (runtime: IAgentRuntime, message: Memory, state?: State) => {
     try {
       const character = runtime.character;
@@ -152,7 +156,7 @@ export const affiliateContextProvider: Provider = {
           text: "",
         };
       }
-      
+
       // Extract affiliate metadata
       const vibe = (affiliate.vibe as string | undefined)?.toLowerCase();
       const backstory = affiliate.backstory as string | undefined;
@@ -226,7 +230,7 @@ export const affiliateContextProvider: Provider = {
       if (imageUrls.length > 0) {
         contextLines.push(`[Reference Photos] ${imageUrls.length} photo(s) available`);
       }
-      
+
       if (contextLines.length === 0) {
         return {
           values: { affiliateContext: "" },
@@ -234,12 +238,13 @@ export const affiliateContextProvider: Provider = {
           text: "",
         };
       }
-      
+
       const contextText = contextLines.join("\n");
       
       return {
         values: { affiliateContext: contextText },
         data: {
+          affiliate,
           vibe,
           source,
           affiliateId,
@@ -253,10 +258,12 @@ export const affiliateContextProvider: Provider = {
         },
         text: contextText,
       };
-      
     } catch (error) {
       const errMsg = error instanceof Error ? error.message : String(error);
-      runtime.logger?.error("[Affiliate Context Provider] Failed to load affiliate context:", errMsg);
+      runtime.logger?.error(
+        "[Affiliate Context Provider] Failed to load affiliate context:",
+        errMsg,
+      );
       return {
         values: { affiliateContext: "" },
         data: { error: errMsg },
@@ -265,4 +272,3 @@ export const affiliateContextProvider: Provider = {
     }
   },
 };
-
