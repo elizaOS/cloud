@@ -70,7 +70,7 @@ export function ChatHeader({ onToggleSidebar }: ChatHeaderProps) {
   };
 
   return (
-    <header className="flex h-16 items-center justify-between border-b border-white/10 bg-transparant backdrop-blur-3xl px-4 md:px-6">
+    <header className="flex h-16 items-center justify-between border-b border-white/10 bg-transparent backdrop-blur-3xl px-4 md:px-6">
       <div className="flex items-center gap-4">
         {/* Mobile Menu Button */}
         <BrandButton

@@ -399,7 +399,7 @@ Tell me about your vision!`;
       scrollToBottom();
     }, 100);
     return () => clearTimeout(timer);
-  }, [messages, status, scrollToBottom]);
+  }, [messages, scrollToBottom, onCharacterUpdate]);
 
   // Extract and apply character updates in real-time
   useEffect(() => {
