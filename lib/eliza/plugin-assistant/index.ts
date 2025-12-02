@@ -1,20 +1,9 @@
 import {
-  asUUID,
-  composePromptFromState,
-  createUniqueUuid,
   EventType,
-  type IAgentRuntime,
   logger,
-  type Memory,
   type MessagePayload,
-  ModelType,
   type Plugin,
-  type UUID,
-  parseKeyValueXml,
-  type State,
-  type HandlerCallback,
 } from "@elizaos/core";
-import { v4 } from "uuid";
 import { providersProvider } from "./providers/providers";
 import { actionsProvider } from "./providers/actions";
 import { characterProvider } from "./providers/character";
@@ -22,12 +11,12 @@ import { generateImageAction } from "./actions/image-generation";
 import { actionStateProvider } from "./providers/actionState";
 import { recentMessagesProvider } from "./providers/recent-messages";
 import { affiliateContextProvider } from "./providers/affiliate-context";
+import { handleMessage } from "./handler";
+import type { IAgentRuntime, Memory, HandlerCallback } from "@elizaos/core";
 
-// Constants
-const MAX_RESPONSE_RETRIES = 3;
-const EVALUATOR_TIMEOUT_MS = 30000;
-
-// Types
+/**
+ * Message handler parameters
+ */
 interface MessageReceivedHandlerParams {
   runtime: IAgentRuntime;
   message: Memory;
@@ -458,29 +447,10 @@ const messageReceivedHandler = async ({
   message,
   callback,
 }: MessageReceivedHandlerParams): Promise<void> => {
-  const responseId = v4();
-  const runId = asUUID(v4());
-  const startTime = Date.now();
-
-  logger.debug(
-    `[ElizaAssistant] Generated response ID: ${responseId.substring(0, 8)}`,
+  logger.info(
+    `[AssistantPlugin] Handling message for agent: ${runtime.agentId}, room: ${message.roomId}`,
   );
-  logger.debug(`[ElizaAssistant] Generated run ID: ${runId.substring(0, 8)}`);
-  logger.debug(`[ElizaAssistant] MESSAGE RECEIVED:`, JSON.stringify(message));
-
-  await setLatestResponseId(runtime, message.roomId, responseId);
-
-  // Emit run started event
-  await runtime.emitEvent(EventType.RUN_STARTED, {
-    runtime,
-    runId,
-    messageId: message.id,
-    roomId: message.roomId,
-    entityId: message.entityId,
-    startTime,
-    status: "started",
-    source: "messageHandler",
-  });
+  logger.debug(`[AssistantPlugin] MESSAGE RECEIVED:`, JSON.stringify(message));
 
   try {
     if (message.entityId === runtime.agentId) {
@@ -703,47 +673,22 @@ const messageReceivedHandler = async ({
     await runEvaluatorsWithTimeout(
       runtime,
       message,
-      initialState,
+      currentState,
       responseMemory,
       callback,
     );
-
-    logger.info(
-      `[ElizaAssistant] Run ${runId.substring(0, 8)} completed successfully`,
-    );
-
-    const endTime = Date.now();
-    await runtime.emitEvent(EventType.RUN_ENDED, {
-      runtime,
-      runId,
-      messageId: message.id,
-      roomId: message.roomId,
-      entityId: message.entityId,
-      startTime,
-      status: "completed",
-      endTime,
-      duration: endTime - startTime,
-      source: "messageHandler",
-    });
   } catch (error) {
-    // Emit run ended event with error
-    await runtime.emitEvent(EventType.RUN_ENDED, {
-      runtime,
-      runId,
-      messageId: message.id,
-      roomId: message.roomId,
-      entityId: message.entityId,
-      startTime,
-      status: "error",
-      endTime: Date.now(),
-      duration: Date.now() - startTime,
-      error: error instanceof Error ? error.message : String(error),
-      source: "messageHandler",
-    });
+    const errorMessage = error instanceof Error ? error.message : String(error);
+    logger.error(
+      `[AssistantPlugin] Error in workflow handler: ${errorMessage}`,
+    );
     throw error;
   }
 };
 
+/**
+ * Event handlers
+ */
 const events = {
   [EventType.MESSAGE_RECEIVED]: [
     async (payload: MessagePayload) => {
@@ -759,14 +704,20 @@ const events = {
 
   [EventType.MESSAGE_SENT]: [
     async (payload: MessagePayload) => {
-      logger.debug(`Message sent: ${payload.message.content.text}`);
+      logger.debug(
+        `[AssistantPlugin] Message sent: ${payload.message.content.text}`,
+      );
     },
   ],
 };
 
+/**
+ * Assistant Plugin Export
+ */
 export const assistantPlugin: Plugin = {
   name: "eliza-assistant",
-  description: "Core assistant plugin with message handling and context",
+  description:
+    "Core assistant plugin with message handling and workflow routing",
   events,
   providers: [
     providersProvider,

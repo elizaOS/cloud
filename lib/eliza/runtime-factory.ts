@@ -3,7 +3,6 @@
  * Handles all runtime initialization, plugin loading, and settings configuration
  */
 
-import { v4 as uuidv4 } from "uuid";
 import {
   AgentRuntime,
   stringToUuid,
@@ -17,7 +16,7 @@ import {
 } from "@elizaos/core";
 // @ts-expect-error - Type definitions missing in published package
 import { createDatabaseAdapter } from "@elizaos/plugin-sql/node";
-import { characterLoader } from "./character-loader";
+import { agentLoader } from "./agent-loader";
 import { getElizaCloudApiUrl, getDefaultModels } from "./config";
 import type { UserContext } from "./user-context";
 import { logger } from "@/lib/utils/logger";
@@ -35,8 +34,8 @@ const globalAny = globalThis as GlobalWithEliza;
 export class RuntimeFactory {
   private static instance: RuntimeFactory;
 
-  // Single agent ID for all users (maintains database consistency)
-  private readonly AGENT_ID = stringToUuid(
+  // Default agent ID for characters without an ID (backward compatibility)
+  private readonly DEFAULT_AGENT_ID = stringToUuid(
     "b850bc30-45f8-0041-a00a-83df46d8555d",
   ) as UUID;
 
@@ -61,6 +60,8 @@ export class RuntimeFactory {
       context.userId,
       "anonymous:",
       context.isAnonymous,
+      "agentMode:",
+      context.agentMode,
       "characterId:",
       context.characterId || "default",
     );
@@ -68,24 +69,35 @@ export class RuntimeFactory {
     // 1. Get or create database adapter (cached, safe to share)
     const dbAdapter = await this.getDbAdapter();
 
-    // 2. Load character if specified, otherwise default
+    // 2. Load character with appropriate plugins for the AgentMode
     const { character, plugins } = context.characterId
-      ? await characterLoader.loadCharacter(context.characterId)
-      : await characterLoader.getDefaultCharacter();
+      ? await agentLoader.loadCharacter(context.characterId, context.agentMode)
+      : await agentLoader.getDefaultCharacter(context.agentMode);
+
+    // 3. Extract agentId from character (use character's ID or default)
+    const agentId = (
+      character.id ? stringToUuid(character.id) : this.DEFAULT_AGENT_ID
+    ) as UUID;
 
     elizaLogger.info(
       "[RuntimeFactory] Loaded character:",
       character.name,
+      "| ID:",
+      agentId,
+      "| Username:",
+      character.username || "N/A",
+      "| AgentMode:",
+      context.agentMode,
       "| Bio:",
       Array.isArray(character.bio)
         ? character.bio[0]
         : character.bio?.toString().substring(0, 100),
     );
 
-    // 3. Build complete settings upfront with user context
+    // 4. Build complete settings upfront with user context
     const settings = this.buildSettings(character, context);
 
-    // 4. Filter out plugin-sql since we provide our own adapter
+    // 5. Filter out plugin-sql since we provide our own adapter
     const filteredPlugins = this.filterPlugins(plugins);
 
     elizaLogger.info(
@@ -93,32 +105,87 @@ export class RuntimeFactory {
       filteredPlugins.map((p) => p.name).join(", "),
     );
 
-    // 5. Create runtime with everything configured upfront
+    // Debug: Log MCP settings being passed to runtime
+    if (settings.mcp) {
+      elizaLogger.info(
+        "[RuntimeFactory] MCP settings found:",
+        JSON.stringify(settings.mcp, null, 2),
+      );
+    } else {
+      elizaLogger.warn(
+        "[RuntimeFactory] NO MCP settings found in runtime settings!",
+      );
+    }
+
+    // 6. Create runtime with everything configured upfront
     const runtime = new AgentRuntime({
       character: {
         ...character,
-        id: this.AGENT_ID, // Always use consistent agent ID for database consistency
+        id: agentId, // Use character's own ID
         settings, // All settings including API key are here
       },
       plugins: filteredPlugins,
-      agentId: this.AGENT_ID,
+      agentId: agentId, // Use character's own ID
       settings,
     });
 
-    // 6. Register database adapter
+    // 7. Register database adapter
     runtime.registerDatabaseAdapter(dbAdapter);
 
-    // 7. Ensure runtime has logger
+    // 8. Ensure runtime has logger
     this.ensureRuntimeLogger(runtime);
 
-    // 8. Initialize runtime
-    await this.initializeRuntime(runtime, character);
+    // 9. Initialize runtime
+    await this.initializeRuntime(runtime, character, agentId);
+
+    // Debug: Check if MCP service was registered and wait for it to connect
+    const mcpService = runtime.getService("mcp");
+    if (mcpService) {
+      elizaLogger.success(
+        "[RuntimeFactory] MCP service successfully registered and available",
+      );
+
+      // Wait for MCP initialization to complete
+      if (typeof (mcpService as any).waitForInitialization === "function") {
+        elizaLogger.info(
+          "[RuntimeFactory] Waiting for MCP service to finish connecting...",
+        );
+        await (mcpService as any).waitForInitialization();
+        elizaLogger.info(
+          "[RuntimeFactory] MCP service initialization complete",
+        );
+      }
+
+      // Check if servers are connected
+      const servers = (mcpService as any).getServers?.();
+      if (servers) {
+        elizaLogger.info(
+          `[RuntimeFactory] MCP servers status: ${JSON.stringify(servers.map((s: any) => ({ name: s.name, status: s.status, toolCount: s.tools?.length || 0 })))}`,
+        );
+      }
+      // Check provider data
+      const providerData = (mcpService as any).getProviderData?.();
+      const serverKeys = providerData?.data?.mcp
+        ? Object.keys(providerData.data.mcp)
+        : [];
+      elizaLogger.info(
+        `[RuntimeFactory] MCP provider has ${serverKeys.length} server(s): ${JSON.stringify(serverKeys)}`,
+      );
+    } else {
+      elizaLogger.error(
+        "[RuntimeFactory] MCP service NOT found after initialization!",
+      );
+    }
 
     elizaLogger.success(
       "[RuntimeFactory] Runtime created successfully for user",
       context.userId,
       "with character:",
       character.name,
+      "| agentId:",
+      agentId,
+      "| mode:",
+      context.agentMode,
     );
 
     return runtime;
@@ -132,12 +199,18 @@ export class RuntimeFactory {
     character: Character,
     context: UserContext,
   ): Record<string, any> {
+    // Merge character settings first, then override with runtime values
+    // This ensures user preferences (like model selection) take precedence
     const settings = {
-      // Database configuration
+      // Merge any custom settings from character first
+      ...character.settings,
+
+      // Database configuration (always from environment, cannot be overridden)
       POSTGRES_URL: process.env.DATABASE_URL!,
       DATABASE_URL: process.env.DATABASE_URL!,
 
-      // User-specific ElizaCloud configuration (no more late injection!)
+      // User-specific ElizaCloud configuration (OVERRIDES character settings)
+      // This allows users to select different models via the UI dropdown
       ELIZAOS_CLOUD_API_KEY: context.apiKey,
       ELIZAOS_CLOUD_BASE_URL: getElizaCloudApiUrl(),
       ELIZAOS_CLOUD_SMALL_MODEL:
@@ -218,8 +291,13 @@ export class RuntimeFactory {
         process.env.ELEVENLABS_STT_TAG_AUDIO_EVENTS ||
         "false",
 
-      // Merge any other custom settings from character
-      ...character.settings,
+      // MCP Plugin Settings - Pass through MCP server configurations
+      // The MCP plugin reads this to connect to external MCP servers
+      ...(character.settings?.mcp
+        ? {
+            mcp: character.settings.mcp,
+          }
+        : {}),
 
       // User metadata for tracking (useful for debugging and analytics)
       USER_ID: context.userId,
@@ -231,7 +309,11 @@ export class RuntimeFactory {
     logger.debug(
       "[RuntimeFactory] Built settings for user",
       context.userId,
-      "with API key:",
+      "with models:",
+      settings.ELIZAOS_CLOUD_SMALL_MODEL,
+      "/",
+      settings.ELIZAOS_CLOUD_LARGE_MODEL,
+      "| API key:",
       settings.ELIZAOS_CLOUD_API_KEY?.substring(0, 12) + "...",
     );
 
@@ -252,9 +334,10 @@ export class RuntimeFactory {
     }
 
     elizaLogger.info("[RuntimeFactory] Creating new database adapter");
+    // Use DEFAULT_AGENT_ID for the database adapter (shared across all characters)
     const dbAdapter = createDatabaseAdapter(
       { postgresUrl: process.env.DATABASE_URL },
-      this.AGENT_ID,
+      this.DEFAULT_AGENT_ID,
     );
 
     await dbAdapter.init();
@@ -278,6 +361,7 @@ export class RuntimeFactory {
   private async initializeRuntime(
     runtime: AgentRuntime,
     character: Character,
+    agentId: UUID,
   ): Promise<void> {
     try {
       elizaLogger.info("[RuntimeFactory] Starting runtime initialization...");
@@ -307,10 +391,10 @@ export class RuntimeFactory {
       }
 
       // Verify agent exists
-      const agentExists = await runtime.getAgent(this.AGENT_ID);
+      const agentExists = await runtime.getAgent(agentId);
       if (!agentExists) {
         elizaLogger.info("[RuntimeFactory] Creating agent entity...");
-        await this.ensureAgentExists(runtime, character);
+        await this.ensureAgentExists(runtime, character, agentId);
       }
     } catch (error) {
       elizaLogger.error(
@@ -327,10 +411,11 @@ export class RuntimeFactory {
   private async ensureAgentExists(
     runtime: AgentRuntime,
     character: Character,
+    agentId: UUID,
   ): Promise<void> {
     try {
       await runtime.ensureAgentExists({
-        id: this.AGENT_ID,
+        id: agentId,
         name: character.name || "Eliza",
         username: character.username,
         system: character.system || "",
@@ -347,8 +432,8 @@ export class RuntimeFactory {
 
       // Also ensure entity exists
       await runtime.createEntity({
-        id: this.AGENT_ID,
-        agentId: this.AGENT_ID,
+        id: agentId,
+        agentId: agentId,
         names: [character.name || "Eliza"],
         metadata: { name: character.name || "Eliza" },
       });

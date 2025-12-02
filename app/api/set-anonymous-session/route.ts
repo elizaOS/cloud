@@ -9,8 +9,10 @@ const ANON_SESSION_COOKIE = "eliza-anon-session";
 
 /**
  * POST /api/set-anonymous-session
- * 
- * Sets the anonymous session cookie when a user arrives with a session token.
+ *
+ * Sets the anonymous session cookie when a user arrives with a session token from the affiliate API.
+ * This is necessary because the affiliate API creates the session server-side,
+ * but the cookie needs to be set in the user's browser.
  * This is a PUBLIC endpoint - no authentication required.
  */
 export async function POST(request: NextRequest) {
@@ -35,7 +37,7 @@ export async function POST(request: NextRequest) {
       logger.warn("[Set Session] Missing or invalid session token in request");
       return NextResponse.json(
         { error: "Session token is required" },
-        { status: 400 }
+        { status: 400 },
       );
     }
 
@@ -45,10 +47,13 @@ export async function POST(request: NextRequest) {
     const session = await anonymousSessionsService.getByToken(sessionToken);
 
     if (!session) {
-      logger.warn("[Set Session] Session not found for token:", sessionToken.substring(0, 8) + "...");
+      logger.warn(
+        "[Set Session] Session not found for token:",
+        sessionToken.substring(0, 8) + "...",
+      );
       return NextResponse.json(
         { error: "Invalid session token", code: "SESSION_NOT_FOUND" },
-        { status: 404 }
+        { status: 404 },
       );
     }
 
@@ -63,7 +68,7 @@ export async function POST(request: NextRequest) {
       logger.warn("[Set Session] Session expired:", session.id);
       return NextResponse.json(
         { error: "Session has expired", code: "SESSION_EXPIRED" },
-        { status: 410 }
+        { status: 410 },
       );
     }
 
@@ -132,17 +137,15 @@ export async function POST(request: NextRequest) {
       userId: user.id,
       sessionId: session.id,
     });
-
   } catch (error) {
     logger.error("[Set Session] Unexpected error:", error);
     return NextResponse.json(
-      { 
-        error: "Internal server error", 
+      {
+        error: "Internal server error",
         code: "INTERNAL_ERROR",
-        details: error instanceof Error ? error.message : "Unknown error"
+        details: error instanceof Error ? error.message : "Unknown error",
       },
-      { status: 500 }
+      { status: 500 },
     );
   }
 }
-

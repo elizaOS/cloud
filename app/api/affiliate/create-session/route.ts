@@ -18,19 +18,19 @@ const CreateSessionSchema = z.object({
 
 /**
  * Create Anonymous Session
- * 
+ *
  * POST /api/affiliate/create-session
- * 
+ *
  * Creates an anonymous session for users who want to try the chat
  * without signing up first. This creates a REAL anonymous user in the
  * database so that getAnonymousUser() can find them later.
- * 
+ *
  * Request Body:
  * {
  *   characterId: string (UUID),
  *   source?: string (affiliate source)
  * }
- * 
+ *
  * Response:
  * {
  *   success: true,
@@ -44,14 +44,17 @@ export async function POST(request: NextRequest) {
     const validationResult = CreateSessionSchema.safeParse(body);
 
     if (!validationResult.success) {
-      logger.warn("[Create Session] Invalid request body:", validationResult.error.format());
+      logger.warn(
+        "[Create Session] Invalid request body:",
+        validationResult.error.format(),
+      );
       return NextResponse.json(
         {
           success: false,
           error: "Invalid request body",
           details: validationResult.error.format(),
         },
-        { status: 400 }
+        { status: 400 },
       );
     }
 
@@ -105,12 +108,15 @@ export async function POST(request: NextRequest) {
       expires: expiresAt,
     });
 
-    logger.info(`[Create Session] Created anonymous session for character ${characterId}`, {
-      sessionToken,
-      userId: newUser.id,
-      source,
-      ipAddress,
-    });
+    logger.info(
+      `[Create Session] Created anonymous session for character ${characterId}`,
+      {
+        sessionToken,
+        userId: newUser.id,
+        source,
+        ipAddress,
+      },
+    );
 
     return NextResponse.json({
       success: true,
@@ -124,9 +130,7 @@ export async function POST(request: NextRequest) {
         success: false,
         error: "Failed to create session",
       },
-      { status: 500 }
+      { status: 500 },
     );
   }
 }
-
-

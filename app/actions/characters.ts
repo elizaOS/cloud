@@ -2,8 +2,41 @@
 
 import { requireAuthWithOrg } from "@/lib/auth";
 import { charactersService, discordService } from "@/lib/services";
+import { uploadToBlob } from "@/lib/blob";
 import type { ElizaCharacter, NewUserCharacter } from "@/lib/types";
 import { revalidatePath } from "next/cache";
+
+/**
+ * Upload a character avatar
+ */
+export async function uploadCharacterAvatar(formData: FormData) {
+  try {
+    const user = await requireAuthWithOrg();
+    const file = formData.get("file") as File;
+
+    if (!file) {
+      return { success: false, error: "No file provided" };
+    }
+
+    const arrayBuffer = await file.arrayBuffer();
+    const buffer = Buffer.from(arrayBuffer);
+
+    const { url } = await uploadToBlob(buffer, {
+      filename: file.name,
+      contentType: file.type,
+      folder: "character-avatars",
+      userId: user.id,
+    });
+
+    return { success: true, url };
+  } catch (error) {
+    console.error("Error uploading character avatar:", error);
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : "Failed to upload avatar",
+    };
+  }
+}
 
 /**
  * Create a new character
@@ -31,6 +64,7 @@ export async function createCharacter(elizaCharacter: ElizaCharacter) {
     secrets: elizaCharacter.secrets ?? {},
     style: elizaCharacter.style ?? {},
     character_data: elizaCharacter as unknown as Record<string, unknown>,
+    avatar_url: elizaCharacter.avatarUrl ?? null,
     is_template: false,
     is_public: false,
   };
@@ -85,6 +119,7 @@ export async function updateCharacter(
     secrets: elizaCharacter.secrets ?? {},
     style: elizaCharacter.style ?? {},
     character_data: elizaCharacter as unknown as Record<string, unknown>,
+    avatar_url: elizaCharacter.avatarUrl ?? null,
   };
 
   const character = await charactersService.updateForUser(
