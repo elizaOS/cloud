@@ -4,6 +4,7 @@ import { anonymousSessionsService, usersService } from "@/lib/services";
 import { logger } from "@/lib/utils/logger";
 import { db } from "@/db/client";
 import { users } from "@/db/schemas";
+import { sql } from "drizzle-orm";
 
 const ANON_SESSION_COOKIE = "eliza-anon-session";
 
@@ -93,11 +94,11 @@ export async function POST(request: NextRequest) {
           .returning();
 
         // Update the session to point to the real user
-        await db.execute`
-          UPDATE anonymous_sessions 
-          SET user_id = ${newUser.id} 
+        await db.execute(sql`
+          UPDATE anonymous_sessions
+          SET user_id = ${newUser.id}
           WHERE id = ${session.id}
-        `;
+        `);
 
         user = newUser;
         logger.info("[Set Session] Created anonymous user:", newUser.id);
