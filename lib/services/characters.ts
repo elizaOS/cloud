@@ -108,17 +108,19 @@ export class CharactersService {
     
     // Merge affiliate data AND lore into settings so it's available in the runtime
     const settings = character.settings as Record<string, string | boolean | number | Record<string, unknown>> | undefined;
-    const mergedSettings = affiliateData || loreData
-      ? { 
-          ...settings, 
-          affiliateData: {
-            ...affiliateData,
-            lore: loreData, // Include lore for full social media content
-          },
-          // Include avatar_url in settings for provider access
-          avatar_url: character.avatar_url ?? undefined,
-        }
-      : settings;
+    const mergedSettings = {
+      ...settings,
+      // Include avatarUrl in settings for provider/runtime access (camelCase for ElizaOS compatibility)
+      avatarUrl: character.avatar_url ?? undefined,
+      ...(affiliateData || loreData
+        ? {
+            affiliateData: {
+              ...affiliateData,
+              lore: loreData, // Include lore for full social media content
+            },
+          }
+        : {}),
+    };
     
     return {
       id: character.id,

@@ -157,6 +157,10 @@ export const affiliateContextProvider: Provider = {
       const vibe = (affiliate.vibe as string | undefined)?.toLowerCase();
       const backstory = affiliate.backstory as string | undefined;
       const source = affiliate.source as string | undefined;
+      const instagram = affiliate.instagram as string | undefined;
+      const twitter = affiliate.twitter as string | undefined;
+      const socialContent = affiliate.socialContent as string | undefined;
+      const imageUrls = (affiliate.imageUrls as string[] | undefined) || [];
       
       // Build context with strong personality instructions
       const contextLines: string[] = [];
@@ -190,19 +194,37 @@ export const affiliateContextProvider: Provider = {
         contextLines.push(``);
       }
       
-      // Extract social media handles (minimal)
-      const bio = character.bio;
-      const bioText = Array.isArray(bio) ? bio.join(" ") : (bio || "");
-      const instagramMatch = bioText.match(/Instagram[:\s]*\(@?([a-zA-Z0-9._]+)\)/i) || 
-                            bioText.match(/Instagram:\s*@?([a-zA-Z0-9._]+)/i);
-      const twitterMatch = bioText.match(/Twitter[:\s]*\(@?([a-zA-Z0-9._]+)\)/i) ||
-                          bioText.match(/Twitter:\s*@?([a-zA-Z0-9._]+)/i);
-      
-      if (instagramMatch || twitterMatch) {
+      // Extract social media handles - prefer metadata, fallback to bio parsing
+      let instagramHandle = instagram;
+      let twitterHandle = twitter;
+
+      if (!instagramHandle || !twitterHandle) {
+        const bio = character.bio;
+        const bioText = Array.isArray(bio) ? bio.join(" ") : (bio || "");
+
+        if (!instagramHandle) {
+          const instagramMatch = bioText.match(/Instagram[:\s]*\(@?([a-zA-Z0-9._]+)\)/i) ||
+                                bioText.match(/Instagram:\s*@?([a-zA-Z0-9._]+)/i);
+          if (instagramMatch) instagramHandle = instagramMatch[1];
+        }
+
+        if (!twitterHandle) {
+          const twitterMatch = bioText.match(/Twitter[:\s]*\(@?([a-zA-Z0-9._]+)\)/i) ||
+                              bioText.match(/Twitter:\s*@?([a-zA-Z0-9._]+)/i);
+          if (twitterMatch) twitterHandle = twitterMatch[1];
+        }
+      }
+
+      if (instagramHandle || twitterHandle) {
         const handles: string[] = [];
-        if (instagramMatch) handles.push(`IG: @${instagramMatch[1]}`);
-        if (twitterMatch) handles.push(`X: @${twitterMatch[1]}`);
+        if (instagramHandle) handles.push(`IG: @${instagramHandle}`);
+        if (twitterHandle) handles.push(`X: @${twitterHandle}`);
         contextLines.push(`[Social] ${handles.join(" | ")}`);
+      }
+
+      // Add reference photos info if available (for image generation context)
+      if (imageUrls.length > 0) {
+        contextLines.push(`[Reference Photos] ${imageUrls.length} photo(s) available`);
       }
       
       if (contextLines.length === 0) {
@@ -217,11 +239,16 @@ export const affiliateContextProvider: Provider = {
       
       return {
         values: { affiliateContext: contextText },
-        data: { 
+        data: {
           vibe,
           source,
           affiliateId,
           isAffiliateCharacter,
+          instagram: instagramHandle,
+          twitter: twitterHandle,
+          socialContent,
+          imageUrls,
+          hasImages: imageUrls.length > 0,
           contextLength: contextText.length,
         },
         text: contextText,
