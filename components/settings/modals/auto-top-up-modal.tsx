@@ -1,3 +1,35 @@
+/* ============================================================
+ * COMMENTED OUT: AutoTopUpModal
+ *
+ * This modal has been disabled as the auto top-up functionality
+ * has been temporarily removed from the billing flow.
+ *
+ * The billing flow now uses Stripe Checkout for one-time payments
+ * without requiring a saved payment method or auto top-up settings.
+ *
+ * To restore this modal:
+ * 1. Uncomment the code below
+ * 2. Update billing-tab.tsx to include auto top-up state and handlers
+ * 3. Re-enable the related API endpoints if needed
+ * ============================================================ */
+
+"use client";
+
+export interface AutoTopUpModalProps {
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  currentAutoTopUp: boolean;
+  currentAmount: number;
+  currentThreshold: number;
+  onUpdate: (enabled: boolean, amount: number, threshold: number) => void;
+}
+
+export function AutoTopUpModal(_props: AutoTopUpModalProps) {
+  return null;
+}
+
+/* ORIGINAL IMPLEMENTATION:
+
 "use client";
 
 import { useState, useEffect } from "react";
@@ -68,16 +100,13 @@ export function AutoTopUpModal({
         <CornerBrackets size="md" className="opacity-50" />
 
         <div className="relative z-10 flex flex-col gap-6 md:gap-10 items-center">
-          {/* Title */}
           <DialogHeader>
             <DialogTitle className="text-xl sm:text-2xl font-mono font-bold text-[#e1e1e1] text-center tracking-tight">
               Set auto-top up
             </DialogTitle>
           </DialogHeader>
 
-          {/* Content */}
           <div className="flex flex-col gap-4 md:gap-6 w-full items-end">
-            {/* Auto-top up Toggle */}
             <div className="flex items-start gap-4 w-full">
               <div className="flex-1 flex flex-col gap-2">
                 <p className="text-sm sm:text-base font-mono text-[#e1e1e1]">
@@ -97,7 +126,6 @@ export function AutoTopUpModal({
               </div>
             </div>
 
-            {/* Amount to top up */}
             <div className="flex flex-col gap-2 w-full">
               <Label className="text-sm sm:text-base font-mono font-medium text-[#e1e1e1]">
                 Amount to top up
@@ -114,7 +142,6 @@ export function AutoTopUpModal({
               />
             </div>
 
-            {/* Balance Threshold */}
             <div className="flex flex-col gap-2 w-full">
               <Label className="text-sm sm:text-base font-mono font-medium text-[#e1e1e1]">
                 Balance threshold
@@ -134,7 +161,6 @@ export function AutoTopUpModal({
               </p>
             </div>
 
-            {/* Action Buttons */}
             <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-4 w-full justify-end">
               <button
                 type="button"
@@ -163,3 +189,5 @@ export function AutoTopUpModal({
     </Dialog>
   );
 }
+
+*/
