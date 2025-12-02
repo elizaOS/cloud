@@ -98,7 +98,8 @@ export function MonacoJsonEditor({
         onMount={handleEditorDidMount}
         options={{
           fontSize: 14,
-          fontFamily: '"SF Mono", "Monaco", "Menlo", "Ubuntu Mono", "Consolas", "Courier New", monospace',
+          fontFamily:
+            '"SF Mono", "Monaco", "Menlo", "Ubuntu Mono", "Consolas", "Courier New", monospace',
           lineHeight: 20,
           tabSize: 2,
           insertSpaces: true,

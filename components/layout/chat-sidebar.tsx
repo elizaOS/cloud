@@ -414,7 +414,9 @@ export function ChatSidebar({
                   }}
                 >
                   <MessageSquare className="h-12 w-12 text-white/20 mx-auto mb-3" />
-                  <p className="text-xs text-white/60 mb-2">No conversations yet</p>
+                  <p className="text-xs text-white/60 mb-2">
+                    No conversations yet
+                  </p>
                   <p className="text-xs text-white/40 mt-2">
                     Click "New" above or the button in chat to start
                   </p>

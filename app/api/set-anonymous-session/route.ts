@@ -12,6 +12,8 @@ const ANON_SESSION_COOKIE = "eliza-anon-session";
  * 
  * Sets the anonymous session cookie when a user arrives with a session token.
  * This is a PUBLIC endpoint - no authentication required.
+ * This is necessary because the affiliate API creates the session server-side,
+ * but the cookie needs to be set in the user's browser.
  */
 export async function POST(request: NextRequest) {
   logger.info("[Set Session] Received request to set anonymous session cookie");
@@ -35,7 +37,7 @@ export async function POST(request: NextRequest) {
       logger.warn("[Set Session] Missing or invalid session token in request");
       return NextResponse.json(
         { error: "Session token is required" },
-        { status: 400 }
+        { status: 400 },
       );
     }
 
@@ -132,7 +134,6 @@ export async function POST(request: NextRequest) {
       userId: user.id,
       sessionId: session.id,
     });
-
   } catch (error) {
     logger.error("[Set Session] Unexpected error:", error);
     return NextResponse.json(
@@ -145,4 +146,3 @@ export async function POST(request: NextRequest) {
     );
   }
 }
-

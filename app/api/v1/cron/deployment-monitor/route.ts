@@ -12,13 +12,13 @@ export const maxDuration = 60; // 1 minute max
 
 /**
  * Deployment Monitor Cron Handler
- * 
+ *
  * Monitors containers in "building" or "deploying" status and updates
  * their status based on CloudFormation stack progress.
- * 
+ *
  * This replaces the long-running wait in deployContainerAsync, making
  * the deployment flow compatible with Vercel serverless function limits.
- * 
+ *
  * Schedule: Every minute
  */
 async function handleDeploymentMonitor(request: NextRequest) {
@@ -82,7 +82,7 @@ async function handleDeploymentMonitor(request: NextRequest) {
     for (const container of deployingContainers) {
       try {
         const stackName = container.cloudformation_stack_name;
-        
+
         if (!stackName) {
           // Stack not yet created, skip this container
           logger.debug(
@@ -100,7 +100,7 @@ async function handleDeploymentMonitor(request: NextRequest) {
 
         // Get stack status directly by name
         const stackStatus = await getStackStatusByName(stackName);
-        
+
         if (!stackStatus) {
           logger.warn(
             `[Deployment Monitor] Stack ${stackName} not found for container ${container.id}`,
@@ -119,7 +119,10 @@ async function handleDeploymentMonitor(request: NextRequest) {
           `[Deployment Monitor] Container ${container.id}: Stack ${stackName} is ${stackStatus.status}`,
         );
 
-        if (stackStatus.status === "CREATE_COMPLETE" || stackStatus.status === "UPDATE_COMPLETE") {
+        if (
+          stackStatus.status === "CREATE_COMPLETE" ||
+          stackStatus.status === "UPDATE_COMPLETE"
+        ) {
           // Stack completed successfully!
           const outputs = await cloudFormationService.getStackOutputs(
             container.organization_id,
@@ -148,7 +151,8 @@ async function handleDeploymentMonitor(request: NextRequest) {
           } else {
             // Stack complete but no outputs - unusual
             await updateContainerStatus(container.id, "running", {
-              deploymentLog: "Stack completed but outputs not available. Container may still be starting.",
+              deploymentLog:
+                "Stack completed but outputs not available. Container may still be starting.",
             });
             results.push({
               containerId: container.id,
@@ -166,8 +170,9 @@ async function handleDeploymentMonitor(request: NextRequest) {
           stackStatus.status === "UPDATE_ROLLBACK_COMPLETE"
         ) {
           // Stack failed
-          const failureReason = stackStatus.statusReason || "Stack creation failed";
-          
+          const failureReason =
+            stackStatus.statusReason || "Stack creation failed";
+
           await updateContainerStatus(container.id, "failed", {
             errorMessage: failureReason,
             deploymentLog: `CloudFormation stack failed: ${failureReason}`,
@@ -177,14 +182,14 @@ async function handleDeploymentMonitor(request: NextRequest) {
           try {
             // Calculate deployment cost (should match what was charged)
             const deploymentCost = 15; // Default cost - ideally retrieve from container metadata
-            
+
             await creditsService.addCredits({
               organizationId: container.organization_id,
               amount: deploymentCost,
               description: `Refund for failed deployment: ${container.name}`,
               metadata: { type: "refund", reason: failureReason },
             });
-            
+
             logger.info(
               `[Deployment Monitor] ✅ Refunded ${deploymentCost} credits for failed container ${container.id}`,
             );
@@ -240,7 +245,10 @@ async function handleDeploymentMonitor(request: NextRequest) {
           stackName: container.cloudformation_stack_name,
           previousStatus: container.status,
           newStatus: null,
-          error: containerError instanceof Error ? containerError.message : "Unknown error",
+          error:
+            containerError instanceof Error
+              ? containerError.message
+              : "Unknown error",
         });
       }
     }
@@ -269,7 +277,8 @@ async function handleDeploymentMonitor(request: NextRequest) {
     return NextResponse.json(
       {
         success: false,
-        error: error instanceof Error ? error.message : "Deployment monitor failed",
+        error:
+          error instanceof Error ? error.message : "Deployment monitor failed",
       },
       { status: 500 },
     );
@@ -283,10 +292,9 @@ async function getStackStatusByName(
   stackName: string,
 ): Promise<{ status: string; statusReason?: string } | null> {
   try {
-    const { DescribeStacksCommand, CloudFormationClient } = await import(
-      "@aws-sdk/client-cloudformation"
-    );
-    
+    const { DescribeStacksCommand, CloudFormationClient } =
+      await import("@aws-sdk/client-cloudformation");
+
     const client = new CloudFormationClient({
       region: process.env.AWS_REGION || "us-east-1",
     });
@@ -308,10 +316,7 @@ async function getStackStatusByName(
     };
   } catch (error) {
     // Stack doesn't exist
-    if (
-      error instanceof Error &&
-      error.message.includes("does not exist")
-    ) {
+    if (error instanceof Error && error.message.includes("does not exist")) {
       return null;
     }
     throw error;
@@ -333,4 +338,3 @@ export async function GET(request: NextRequest) {
 export async function POST(request: NextRequest) {
   return handleDeploymentMonitor(request);
 }
-

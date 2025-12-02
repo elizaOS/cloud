@@ -66,7 +66,9 @@ class AgentRuntimeManager {
    * Uses CHAT mode by default
    */
   async getRuntimeForCharacter(characterId?: string): Promise<AgentRuntime> {
-    const systemContext = userContextService.createSystemContext(AgentMode.CHAT);
+    const systemContext = userContextService.createSystemContext(
+      AgentMode.CHAT,
+    );
 
     if (characterId) {
       systemContext.characterId = characterId;

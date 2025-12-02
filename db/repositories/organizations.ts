@@ -137,9 +137,8 @@ export class OrganizationsRepository {
         })
         .where(eq(organizations.id, organizationId));
 
-      const { creditTransactions } = await import(
-        "../schemas/credit-transactions"
-      );
+      const { creditTransactions } =
+        await import("../schemas/credit-transactions");
 
       const [creditTx] = await tx
         .insert(creditTransactions)
