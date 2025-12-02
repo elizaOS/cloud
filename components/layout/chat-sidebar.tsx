@@ -22,6 +22,7 @@ import { cn } from "@/lib/utils";
 import { CornerBrackets, BrandButton } from "@/components/brand";
 import { useChatStore } from "@/stores/chat-store";
 import { SidebarBottomPanel } from "./sidebar-bottom-panel";
+import { ElizaAvatar } from "@/components/chat/eliza-avatar";
 
 interface ChatSidebarProps {
   className?: string;
@@ -233,13 +234,13 @@ export function ChatSidebar({
           <div className="flex items-center gap-3">
             {/* Character Avatar */}
             <div className="relative flex-shrink-0">
-              <div className="w-10 h-10 rounded-full bg-[#FF5800]/10 flex items-center justify-center overflow-hidden">
-                {selectedCharacter ? (
-                  <Bot className="h-5 w-5 text-[#FF5800]" />
-                ) : (
-                  <Bot className="h-5 w-5 text-[#FF5800]" />
-                )}
-              </div>
+              <ElizaAvatar
+                avatarUrl={selectedCharacter?.avatarUrl}
+                name={selectedCharacter?.name || "Eliza"}
+                className="w-10 h-10"
+                iconClassName="h-5 w-5"
+                fallbackClassName="bg-[#FF5800]/10"
+              />
             </div>
 
             {/* Character Info */}
