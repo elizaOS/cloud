@@ -17,7 +17,16 @@ export const metadata: Metadata = {
   description: "Your credit purchase was successful",
 };
 
-export default function BillingSuccessPage() {
+interface BillingSuccessPageProps {
+  searchParams: Promise<{ from?: string; session_id?: string }>;
+}
+
+export default async function BillingSuccessPage({
+  searchParams,
+}: BillingSuccessPageProps) {
+  const params = await searchParams;
+  const fromSettings = params.from === "settings";
+
   return (
     <div className="flex items-center justify-center min-h-[80vh]">
       <Card className="max-w-md w-full">
@@ -41,15 +50,33 @@ export default function BillingSuccessPage() {
         </CardContent>
 
         <CardFooter className="flex flex-col gap-2">
-          <Button asChild variant="outline" className="w-full">
-            <Link href="/dashboard/billing">View Billing</Link>
-          </Button>
-          <Button asChild className="w-full">
-            <Link href="/dashboard">
-              Go to Dashboard
-              <ArrowRight className="ml-2 h-4 w-4" />
-            </Link>
-          </Button>
+          {fromSettings ? (
+            <>
+              <Button asChild variant="outline" className="w-full">
+                <Link href="/dashboard/settings?tab=billing">
+                  Back to Billing Settings
+                </Link>
+              </Button>
+              <Button asChild className="w-full">
+                <Link href="/dashboard">
+                  Go to Dashboard
+                  <ArrowRight className="ml-2 h-4 w-4" />
+                </Link>
+              </Button>
+            </>
+          ) : (
+            <>
+              <Button asChild variant="outline" className="w-full">
+                <Link href="/dashboard/billing">View Billing</Link>
+              </Button>
+              <Button asChild className="w-full">
+                <Link href="/dashboard">
+                  Go to Dashboard
+                  <ArrowRight className="ml-2 h-4 w-4" />
+                </Link>
+              </Button>
+            </>
+          )}
         </CardFooter>
       </Card>
     </div>
