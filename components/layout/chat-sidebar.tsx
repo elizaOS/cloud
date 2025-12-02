@@ -185,10 +185,6 @@ export function ChatSidebar({
             href="/dashboard"
             className="flex items-center gap-2 transition-opacity hover:opacity-80 relative z-10"
           >
-            <span
-              className="inline-block w-2 h-2 rounded-full flex-shrink-0"
-              style={{ backgroundColor: "#FF5800" }}
-            />
             <Image
               src="/eliza-font.svg"
               alt="ELIZA"
