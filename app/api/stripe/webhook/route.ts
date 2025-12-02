@@ -3,6 +3,30 @@ import { stripe } from "@/lib/stripe";
 import { creditsService, invoicesService } from "@/lib/services";
 import { headers } from "next/headers";
 import type Stripe from "stripe";
+import { logger } from "@/lib/utils/logger";
+
+// Maximum allowed credit amount for validation
+const MAX_CREDITS = 10000;
+
+/**
+ * Type guard to check if a value is an expanded Stripe.Invoice
+ */
+function isInvoiceExpanded(invoice: unknown): invoice is Stripe.Invoice {
+  return typeof invoice === "object" && invoice !== null && "id" in invoice;
+}
+
+/**
+ * Safely parse and validate a credit amount from string
+ * Returns null if the amount is invalid, not finite, or outside safe bounds
+ */
+function parseAndValidateCredits(creditsStr: string): number | null {
+  const credits = Number.parseFloat(creditsStr);
+  if (!Number.isFinite(credits) || credits <= 0 || credits > MAX_CREDITS) {
+    return null;
+  }
+  // Round to 2 decimal places for currency safety
+  return Math.round(credits * 100) / 100;
+}
 
 export async function POST(req: NextRequest) {
   const body = await req.text();
@@ -12,16 +36,16 @@ export async function POST(req: NextRequest) {
   if (!signature) {
     return NextResponse.json(
       { error: "No signature provided" },
-      { status: 400 },
+      { status: 400 }
     );
   }
 
   const webhookSecret = process.env.STRIPE_WEBHOOK_SECRET;
   if (!webhookSecret) {
-    console.error("STRIPE_WEBHOOK_SECRET is not set");
+    logger.error("[Stripe Webhook] STRIPE_WEBHOOK_SECRET is not set");
     return NextResponse.json(
       { error: "Webhook configuration error" },
-      { status: 500 },
+      { status: 500 }
     );
   }
 
@@ -30,14 +54,14 @@ export async function POST(req: NextRequest) {
   try {
     event = stripe.webhooks.constructEvent(body, signature, webhookSecret);
   } catch (err) {
-    console.error("Webhook signature verification failed:", err);
+    logger.error("[Stripe Webhook] Signature verification failed");
     return NextResponse.json(
       { error: "Webhook signature verification failed" },
-      { status: 400 },
+      { status: 400 }
     );
   }
 
-  console.log(`[Stripe Webhook] Received event: ${event.type} (${event.id})`);
+  logger.info(`[Stripe Webhook] Received event: ${event.type} (${event.id})`);
 
   // Handle the event
   try {
@@ -49,13 +73,14 @@ export async function POST(req: NextRequest) {
           const organizationId = session.metadata?.organization_id;
           const userId = session.metadata?.user_id;
           const creditsStr = session.metadata?.credits || "0";
-          const credits = Number.parseFloat(creditsStr);
+          const credits = parseAndValidateCredits(creditsStr);
           const paymentIntentId = session.payment_intent as string;
           const purchaseType = session.metadata?.type || "checkout";
 
-          if (!organizationId || !credits || credits <= 0) {
-            console.warn(
-              `[Stripe Webhook] Permanent failure - Invalid metadata in checkout session ${session.id}: organizationId=${organizationId}, credits=${credits}`,
+          if (!organizationId || !credits) {
+            logger.warn(
+              `[Stripe Webhook] Permanent failure - Invalid metadata in checkout session ${session.id}`,
+              { hasOrgId: !!organizationId, hasValidCredits: !!credits }
             );
             return NextResponse.json(
               {
@@ -63,13 +88,13 @@ export async function POST(req: NextRequest) {
                 error: "Invalid metadata",
                 skipped: true,
               },
-              { status: 200 },
+              { status: 200 }
             );
           }
 
           if (!paymentIntentId) {
-            console.warn(
-              `[Stripe Webhook] Permanent failure - No payment intent ID in checkout session ${session.id}`,
+            logger.warn(
+              `[Stripe Webhook] Permanent failure - No payment intent ID in checkout session ${session.id}`
             );
             return NextResponse.json(
               {
@@ -77,22 +102,22 @@ export async function POST(req: NextRequest) {
                 error: "No payment intent ID",
                 skipped: true,
               },
-              { status: 200 },
+              { status: 200 }
             );
           }
 
           const existingTransaction =
             await creditsService.getTransactionByStripePaymentIntent(
-              paymentIntentId,
+              paymentIntentId
             );
 
           if (existingTransaction) {
-            console.log(
-              `⚠️ Duplicate webhook event detected. Payment intent ${paymentIntentId} already processed (transaction ${existingTransaction.id})`,
+            logger.debug(
+              `[Stripe Webhook] Duplicate event - Payment intent ${paymentIntentId} already processed`
             );
             return NextResponse.json(
               { received: true, duplicate: true },
-              { status: 200 },
+              { status: 200 }
             );
           }
 
@@ -109,13 +134,13 @@ export async function POST(req: NextRequest) {
             stripePaymentIntentId: paymentIntentId,
           });
 
-          console.log(
-            `✓ Added ${credits} credits to organization ${organizationId} (payment intent: ${paymentIntentId})`,
+          logger.info(
+            `[Stripe Webhook] Credits added: ${credits} to org ${organizationId}`
           );
 
           try {
             const existingInvoice = await invoicesService.getByStripeInvoiceId(
-              `cs_${session.id}`,
+              `cs_${session.id}`
             );
 
             if (!existingInvoice) {
@@ -144,18 +169,18 @@ export async function POST(req: NextRequest) {
                 paid_at: new Date(),
               });
 
-              console.log(
-                `✓ Created invoice record for checkout session ${session.id}`,
+              logger.debug(
+                `[Stripe Webhook] Invoice created for checkout session ${session.id}`
               );
             } else {
-              console.log(
-                `⚠️ Invoice already exists for checkout session ${session.id}, skipping creation`,
+              logger.debug(
+                `[Stripe Webhook] Invoice already exists for checkout session ${session.id}`
               );
             }
           } catch (invoiceError) {
-            console.error(
-              `[Stripe Webhook] Non-critical error creating invoice record:`,
-              invoiceError,
+            logger.error(
+              "[Stripe Webhook] Non-critical error creating invoice record",
+              invoiceError
             );
           }
         }
@@ -164,33 +189,29 @@ export async function POST(req: NextRequest) {
 
       case "payment_intent.succeeded": {
         const paymentIntent = event.data.object;
-        console.log(
-          `[Stripe Webhook] Payment intent succeeded: ${paymentIntent.id}`,
-        );
-        console.log(
-          `[Stripe Webhook] Payment intent metadata:`,
-          JSON.stringify(paymentIntent.metadata, null, 2),
+        logger.debug(
+          `[Stripe Webhook] Payment intent succeeded: ${paymentIntent.id}`
         );
 
         // Only process if this is a one-time purchase or auto-top-up
         // Credit pack purchases are handled by checkout.session.completed
         const purchaseType = paymentIntent.metadata?.type;
-        console.log(`[Stripe Webhook] Purchase type: ${purchaseType}`);
 
         if (!purchaseType || purchaseType === "credit_pack") {
-          console.log(
-            `[Stripe Webhook] Skipping payment intent ${paymentIntent.id} - type: ${purchaseType || "unknown"}`,
+          logger.debug(
+            `[Stripe Webhook] Skipping payment intent ${paymentIntent.id} - type: ${purchaseType || "unknown"}`
           );
           break;
         }
 
         const organizationId = paymentIntent.metadata?.organization_id;
         const creditsStr = paymentIntent.metadata?.credits;
-        const credits = creditsStr ? Number.parseFloat(creditsStr) : 0;
+        const credits = creditsStr ? parseAndValidateCredits(creditsStr) : null;
 
-        if (!organizationId || !credits || credits <= 0) {
-          console.warn(
-            `[Stripe Webhook] Permanent failure - Invalid metadata in payment intent ${paymentIntent.id}: organizationId=${organizationId}, credits=${credits}`,
+        if (!organizationId || !credits) {
+          logger.warn(
+            `[Stripe Webhook] Permanent failure - Invalid metadata in payment intent ${paymentIntent.id}`,
+            { hasOrgId: !!organizationId, hasValidCredits: !!credits }
           );
           // Return 200 to prevent retries for permanent failures (bad data)
           return NextResponse.json(
@@ -199,23 +220,23 @@ export async function POST(req: NextRequest) {
               error: "Invalid metadata",
               skipped: true,
             },
-            { status: 200 },
+            { status: 200 }
           );
         }
 
         // Check for duplicate transaction
         const existingTransaction =
           await creditsService.getTransactionByStripePaymentIntent(
-            paymentIntent.id,
+            paymentIntent.id
           );
 
         if (existingTransaction) {
-          console.log(
-            `⚠️ Duplicate webhook event detected. Payment intent ${paymentIntent.id} already processed (transaction ${existingTransaction.id})`,
+          logger.debug(
+            `[Stripe Webhook] Duplicate event - Payment intent ${paymentIntent.id} already processed`
           );
           return NextResponse.json(
             { received: true, duplicate: true },
-            { status: 200 },
+            { status: 200 }
           );
         }
 
@@ -237,25 +258,23 @@ export async function POST(req: NextRequest) {
           stripePaymentIntentId: paymentIntent.id,
         });
 
-        console.log(
-          `✓ Added ${credits} credits to organization ${organizationId} (${purchaseType}, payment intent: ${paymentIntent.id})`,
+        logger.info(
+          `[Stripe Webhook] Credits added: ${credits} to org ${organizationId} (${purchaseType})`
         );
 
         try {
-          // Type-safe handling of invoice property
+          // Type-safe handling of invoice property using type guard
           // PaymentIntent.invoice can be string | Stripe.Invoice | null when expanded
-          // Check if the property exists first
           const invoiceIdOrObject = (
             paymentIntent as Stripe.PaymentIntent & {
               invoice?: string | Stripe.Invoice | null;
             }
           ).invoice;
           if (invoiceIdOrObject) {
-            // Extract the invoice ID - it's either the string itself or the ID from the object
-            const invoiceId =
-              typeof invoiceIdOrObject === "string"
-                ? invoiceIdOrObject
-                : invoiceIdOrObject.id;
+            // Extract the invoice ID using type guard for expanded invoice
+            const invoiceId = isInvoiceExpanded(invoiceIdOrObject)
+              ? invoiceIdOrObject.id
+              : invoiceIdOrObject;
 
             const existingInvoice =
               await invoicesService.getByStripeInvoiceId(invoiceId);
@@ -286,14 +305,14 @@ export async function POST(req: NextRequest) {
                   : undefined,
               });
 
-              console.log(
-                `✓ Created invoice record for payment intent ${paymentIntent.id}`,
+              logger.debug(
+                `[Stripe Webhook] Invoice created for payment intent ${paymentIntent.id}`
               );
             }
           } else {
             // Check if invoice already exists (might have been created synchronously)
             const existingInvoice = await invoicesService.getByStripeInvoiceId(
-              `pi_${paymentIntent.id}`,
+              `pi_${paymentIntent.id}`
             );
 
             if (!existingInvoice) {
@@ -317,21 +336,21 @@ export async function POST(req: NextRequest) {
                 paid_at: new Date(),
               });
 
-              console.log(
-                `✓ Created invoice record for direct payment ${paymentIntent.id}`,
+              logger.debug(
+                `[Stripe Webhook] Invoice created for direct payment ${paymentIntent.id}`
               );
             } else {
-              console.log(
-                `⚠️ Invoice already exists for payment ${paymentIntent.id}, skipping creation`,
+              logger.debug(
+                `[Stripe Webhook] Invoice already exists for payment ${paymentIntent.id}`
               );
             }
           }
         } catch (invoiceError) {
           // Invoice creation failure is not critical - log but don't fail the webhook
           // The credits were already added successfully
-          console.error(
-            `[Stripe Webhook] Non-critical error creating invoice record:`,
-            invoiceError,
+          logger.error(
+            "[Stripe Webhook] Non-critical error creating invoice record",
+            invoiceError
           );
         }
 
@@ -340,34 +359,32 @@ export async function POST(req: NextRequest) {
 
       case "payment_intent.payment_failed": {
         const paymentIntent = event.data.object;
-        console.error(
-          `[Stripe Webhook] Payment intent failed: ${paymentIntent.id}`,
+        logger.warn(
+          `[Stripe Webhook] Payment intent failed: ${paymentIntent.id}`
         );
         // Payment failures are expected events, acknowledge receipt
         break;
       }
 
       default:
-        console.log(`[Stripe Webhook] Unhandled event type: ${event.type}`);
+        logger.debug(`[Stripe Webhook] Unhandled event type: ${event.type}`);
     }
 
     return NextResponse.json({ received: true }, { status: 200 });
   } catch (error) {
-    console.error(
-      `[Stripe Webhook] Error processing event ${event.type} (${event.id}):`,
-      error,
-    );
-
     const errorMessage =
       error instanceof Error ? error.message : "Unknown error";
-    const errorStack = error instanceof Error ? error.stack : undefined;
 
-    console.error("[Stripe Webhook] Error details:", {
-      event_id: event.id,
-      event_type: event.type,
-      error_message: errorMessage,
-      error_stack: errorStack,
-    });
+    logger.error(
+      `[Stripe Webhook] Error processing event ${event.type} (${event.id}):`,
+      errorMessage
+    );
+
+    // Only log stack traces in development to prevent information disclosure
+    if (process.env.NODE_ENV !== "production") {
+      const errorStack = error instanceof Error ? error.stack : undefined;
+      logger.debug("[Stripe Webhook] Error stack:", errorStack);
+    }
 
     // Determine if error is permanent or transient
     const isPermanentError =
@@ -379,8 +396,8 @@ export async function POST(req: NextRequest) {
 
     if (isPermanentError) {
       // Return 200 for permanent errors to prevent retries
-      console.warn(
-        `[Stripe Webhook] Permanent error detected, returning 200 to prevent retries`,
+      logger.warn(
+        "[Stripe Webhook] Permanent error detected, returning 200 to prevent retries"
       );
       return NextResponse.json(
         {
@@ -390,14 +407,14 @@ export async function POST(req: NextRequest) {
           event_id: event.id,
           event_type: event.type,
         },
-        { status: 200 },
+        { status: 200 }
       );
     }
 
     // Return 500 for transient errors to trigger Stripe retry logic
     // (database issues, network issues, temporary service unavailability)
-    console.warn(
-      `[Stripe Webhook] Transient error detected, returning 500 to trigger retry`,
+    logger.warn(
+      "[Stripe Webhook] Transient error detected, returning 500 to trigger retry"
     );
     return NextResponse.json(
       {
@@ -406,7 +423,7 @@ export async function POST(req: NextRequest) {
         event_id: event.id,
         event_type: event.type,
       },
-      { status: 500 },
+      { status: 500 }
     );
   }
 }
