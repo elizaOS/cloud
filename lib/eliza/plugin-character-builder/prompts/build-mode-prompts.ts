@@ -1,10 +1,10 @@
 /**
  * Build Mode Prompts
- * 
+ *
  * PLANNING PHASE ONLY
- * 
+ *
  * Action-based character design workflow with planning and branching.
- * 
+ *
  * Flow:
  * 1. PLANNING PHASE: Analyze user intent and select ONE action
  * 2. ACTION EXECUTION: Selected action handles its own prompts and callbacks
@@ -12,7 +12,7 @@
  *    - PROPOSE_CHARACTER_CHANGES: Conversational proposal (no JSON)
  *    - APPLY_CHARACTER_CHANGES: Extract & save changes
  *    - BUILD_CHAT: Natural conversation in build context
- * 
+ *
  * All responses use XML format for consistent parsing.
  */
 

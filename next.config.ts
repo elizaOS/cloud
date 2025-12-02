@@ -9,6 +9,12 @@ const nextConfig: NextConfig = {
         port: "",
         pathname: "/**",
       },
+      {
+        protocol: "https",
+        hostname: "raw.githubusercontent.com",
+        port: "",
+        pathname: "/**",
+      },
     ],
   },
   // Increase body size limit for container image uploads (max 2GB)
@@ -43,17 +49,11 @@ const nextConfig: NextConfig = {
 
   // Handle pdfjs-dist and other problematic packages in serverless
   // These packages are externalized to prevent SSR issues with browser-only APIs
-  // CRITICAL: pino and thread-stream MUST be externalized because they use worker_threads
   serverExternalPackages: [
     "pdfjs-dist",
     "canvas",
     "pdf-parse",
-    "pino",
-    "thread-stream",
-    "pino-pretty",
-    "sonic-boom",
-    "@walletconnect/logger",
-    "@walletconnect/universal-provider",
+    "@elizaos/plugin-mcp",
   ],
 
   // Production Security Headers

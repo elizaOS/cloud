@@ -24,7 +24,7 @@ export default function LandingHeader() {
   };
 
   return (
-    <header className="absolute top-0 z-50 w-full">
+    <header className="fixed top-0 left-0 z-[100] w-full pointer-events-auto">
       <div className="flex h-16 items-center justify-between w-full px-4">
         <Link href="/" className="flex items-center gap-3">
           <div className="flex items-center gap-2">
