@@ -2,7 +2,6 @@
 
 import { useState, useCallback } from "react";
 import { MyAgentsHeader } from "./marketplace-header";
-import { CategoryTabs } from "./category-tabs";
 import { FilterBar } from "./filter-bar";
 import { CharacterGrid } from "./character-grid";
 import { CharacterDetailsModal } from "./character-details-modal";
@@ -31,7 +30,6 @@ export function MyAgentsView({
 
   const {
     activeCategory,
-    setActiveCategory,
     sortBy,
     setSortBy,
     filters,
@@ -53,6 +51,7 @@ export function MyAgentsView({
     refetch,
   } = useInfiniteCharacters({
     filters: {
+      myCharacters: true,
       ...filters,
       category: activeCategory || undefined,
       search: debouncedSearchQuery || undefined,
@@ -126,10 +125,10 @@ export function MyAgentsView({
         onToggleCollapse={onToggleCollapse}
       />
 
-      <CategoryTabs
+      {/* <CategoryTabs
         activeCategory={activeCategory}
         onCategoryChange={setActiveCategory}
-      />
+      /> */}
 
       <FilterBar
         sortBy={sortBy}
