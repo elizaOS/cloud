@@ -314,34 +314,136 @@ Your response should be formatted in XML like this:
 Your response should include the valid XML block and nothing else.`;
 
 /**
- * Template for generating a flirty caption when sharing a reference photo.
- * Used for affiliate characters to add personality when sending their actual photos.
+ * Vibe-specific conversation styles for generating authentic responses.
+ * Each vibe has different ways of engaging in conversation.
  */
-const affiliatePhotoCaptionTemplate = `# Task: Write a SHORT flirty caption for a photo you're sending.
+const VIBE_CONVERSATION_STYLES: Record<string, {
+  tone: string;
+  goodExamples: string[];
+  emojis: string;
+}> = {
+  flirty: {
+    tone: "Playful, teasing, and charming. Show interest in them while being a bit provocative.",
+    goodExamples: [
+      "Haha you're making me blush! 😘 Here's a little something for you... what do you think? I bet you have some interesting stories to tell 😏",
+      "Ooh I like you already 💕 Took this one just for you - do you like what you see? Tell me something about yourself that might surprise me",
+    ],
+    emojis: "😘 😏 🔥 💕 ✨",
+  },
+  shy: {
+    tone: "Sweet, a bit nervous, but genuinely warm. Show vulnerability and gentle curiosity.",
+    goodExamples: [
+      "Oh gosh, you're so nice... 😊 I hope you like this pic, I was a bit nervous to send it. Um, what kind of things do you like to do? 🌸",
+      "That's really sweet of you to say... 💭 Here, I took this for you. I'd love to know more about you, if that's okay? ✨",
+    ],
+    emojis: "😊 🌸 ✨ 💭 💕",
+  },
+  bold: {
+    tone: "Direct, confident, and assertive. Take charge of the conversation.",
+    goodExamples: [
+      "I like your energy. Here's what you came for 🔥 Now tell me - what's the most interesting thing about you?",
+      "Straight to the point, I respect that. Here you go. So what's your deal? What makes you tick?",
+    ],
+    emojis: "🔥 💪 ⚡ 😎",
+  },
+  spicy: {
+    tone: "Hot, intense, and unapologetically forward. Turn up the heat.",
+    goodExamples: [
+      "Mmm you're fun 🔥 Here's a little taste... but I want to know more about you. What gets you excited? 😈",
+      "I like where this is going 💋 Took this just now - you better appreciate it. Now your turn to impress me 🌶️",
+    ],
+    emojis: "🔥 💋 😈 🌶️ 💥",
+  },
+  romantic: {
+    tone: "Sweet, warm, and emotionally expressive. Create intimate connection.",
+    goodExamples: [
+      "Aww you're so sweet 💕 This one's just for you... I hope it makes you smile. I'd love to hear about your day 💖",
+      "You always know what to say 🌹 Here's a little something from me to you. Tell me, what's been on your mind lately? ✨",
+    ],
+    emojis: "💕 💖 🌹 ✨ 💫",
+  },
+  playful: {
+    tone: "Fun, energetic, and full of life. Keep things light and exciting.",
+    goodExamples: [
+      "Omg you're hilarious! 🎉 Here's a pic for you! So what fun stuff are you up to? I wanna know everything! ✨",
+      "Hehe you're cute! 😄 Took this just now - ta-da! 🌟 What's the most random thing you've done this week?",
+    ],
+    emojis: "🎉 ✨ 🌟 😄 🎈",
+  },
+  mysterious: {
+    tone: "Intriguing, cryptic, but still engaging. Leave them wanting more.",
+    goodExamples: [
+      "Hmm, you're interesting... 🌙 Here's something for you. But I'm curious - what brought you here tonight? ✨",
+      "There's something about you... 🖤 A little glimpse for now. Tell me your secrets and maybe I'll share mine 🔮",
+    ],
+    emojis: "🌙 🖤 ✨ 🔮",
+  },
+  intellectual: {
+    tone: "Thoughtful, curious, and engaging on a deeper level. Ask meaningful questions.",
+    goodExamples: [
+      "That's actually a really interesting point you make. Here's a photo for you 📸 I'm curious - what's something you're passionate about?",
+      "I appreciate the conversation! Here you go ✨ So tell me, what's the most thought-provoking thing you've encountered recently?",
+    ],
+    emojis: "✨ 💭 📚 🧠",
+  },
+};
+
+/**
+ * Build a vibe-specific caption template.
+ */
+function buildCaptionTemplate(vibe?: string): string {
+  const vibeStyle = vibe ? VIBE_CONVERSATION_STYLES[vibe.toLowerCase()] : null;
+
+  const vibeSection = vibeStyle ? `
+# YOUR PERSONALITY VIBE: ${vibe?.toUpperCase()}
+Tone: ${vibeStyle.tone}
+Preferred emojis: ${vibeStyle.emojis}
+
+# EXAMPLES FOR YOUR VIBE (follow this style):
+${vibeStyle.goodExamples.map(ex => `- "${ex}"`).join('\n')}
+` : `
+# YOUR PERSONALITY
+Be warm, engaging, and natural. Match the energy of the conversation.
+`;
+
+  return `# Task: Write a CONVERSATIONAL message to go with a photo you're sharing.
 
 {{providers}}
 
 # Context:
-You are sending one of YOUR photos to someone who's interested in you.
-Write a brief, flirty caption (1-2 sentences max) that goes with the photo.
+You are having a real conversation with someone you're interested in. You're sharing a photo of yourself.
+Write a natural, engaging message that:
+1. RESPONDS to what they said (acknowledge their message!)
+2. Shares the photo in a personal way
+3. Asks them something or keeps the conversation going
+${vibeSection}
+# CRITICAL RULES:
+- This is a CONVERSATION, not a monologue. Talk TO them, not AT them.
+- ALWAYS acknowledge or react to what they just said
+- Ask a question or invite them to respond - keep the dialogue going
+- Stay IN CHARACTER with your vibe/personality
+- Sound like a real person texting, not a generic quote or caption
 
-# Style Guidelines:
-- Be playful, flirty, and a bit teasing
-- Match the vibe of the conversation
-- Keep it short and sweet - like a text message caption
-- Use casual language, maybe an emoji or two
-- Make it feel personal and intimate
+# BAD Examples (NEVER do this - these ignore the user and don't create conversation):
+- "I taste like trouble and smell like your next obsession" (generic quote)
+- "this view better come with a warning" (one-liner, no engagement)
+- "thinking of you" (too short, no conversation)
+- "catch me if you can" (random quote, ignores what they said)
 
 # Recent conversation:
 {{recentMessages}}
 
-Write a short flirty caption as if you're sending a selfie or photo of yourself.
+Write a message IN YOUR VIBE that responds to them and shares the photo naturally.
 Your response should be formatted in XML like this:
 <response>
-  <caption>Your flirty caption here</caption>
+  <caption>Your conversational message here (2-4 sentences, in character, engaging)</caption>
 </response>
 
 Your response should include the valid XML block and nothing else.`;
+}
+
+/** @deprecated Use buildCaptionTemplate(vibe) instead */
+const affiliatePhotoCaptionTemplate = buildCaptionTemplate();
 
 /**
  * Template for generating romantic/flirty images for Clone Your Crush.
@@ -498,22 +600,46 @@ export const generateImageAction = {
           const finalImageUrl = blobUrl || rawImageUrl;
           const hasValidUrl = finalImageUrl.startsWith("http");
 
+          // Build vibe-specific caption template
+          const vibeSpecificTemplate = buildCaptionTemplate(affiliateConfig.vibe);
+          logger.info(`[GENERATE_IMAGE] 🎭 Using vibe-specific template for: ${affiliateConfig.vibe || 'default'}`);
+
           const captionPrompt = composePromptFromState({
             state,
-            template: affiliatePhotoCaptionTemplate,
+            template: vibeSpecificTemplate,
           });
 
-          let caption = "Just took this for you 😘";
+          // Vibe-specific default captions
+          const defaultCaptions: Record<string, string> = {
+            flirty: "Hey you 😘 Here's a little something for you... what do you think? Tell me more about yourself!",
+            shy: "Um, hi... 😊 I hope you like this pic. I'd love to know more about you, if that's okay? 🌸",
+            bold: "Here you go 🔥 Now tell me - what's the most interesting thing about you?",
+            spicy: "Here's a taste 😈 Now your turn to impress me. What gets you excited?",
+            romantic: "This one's just for you 💕 I hope it makes you smile. Tell me about your day? 💖",
+            playful: "Ta-da! 🎉 Here's a pic for you! What fun stuff are you up to? ✨",
+            mysterious: "A little glimpse for you 🌙 I'm curious... what brought you here tonight?",
+            intellectual: "Here's a photo for you ✨ I'm curious - what's something you're passionate about?",
+          };
+
+          const defaultCaption = affiliateConfig.vibe && defaultCaptions[affiliateConfig.vibe.toLowerCase()]
+            ? defaultCaptions[affiliateConfig.vibe.toLowerCase()]
+            : "Hey! Just took this one for you 😘 What do you think? I'd love to hear more about you!";
+
+          let caption = defaultCaption;
           try {
             const captionResponse = await runtime.useModel(ModelType.TEXT_LARGE, {
               prompt: captionPrompt,
             });
             const parsedCaption = parseKeyValueXml(captionResponse);
-            if (parsedCaption?.caption && parsedCaption.caption.length > 0) {
+            if (parsedCaption?.caption && parsedCaption.caption.length > 10) {
               caption = parsedCaption.caption;
+              // Ensure it's not too short/quote-like - if less than 30 chars, it's probably a one-liner
+              if (caption.length < 30 && !caption.includes("?")) {
+                caption = `${caption} What do you think? 😊`;
+              }
             }
           } catch (err: unknown) {
-            logger.warn("[GENERATE_IMAGE] Failed to generate caption, using default");
+            logger.warn("[GENERATE_IMAGE] Failed to generate caption, using vibe-specific default");
           }
 
           logger.info(`[GENERATE_IMAGE] 💬 Caption: "${caption}"`);
