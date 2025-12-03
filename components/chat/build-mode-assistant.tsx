@@ -446,10 +446,7 @@ Tell me about your vision!`;
       lastMessage.role === "assistant" &&
       lastMessage.id !== "welcome"
     ) {
-      const content = lastMessage.parts
-        .filter((part) => part.type === "text")
-        .map((part) => (part as { text: string }).text)
-        .join("");
+      const content = lastMessage.content;
 
       const jsonMatch = content.match(/```json\n([\s\S]*?)(\n```|$)/);
       if (jsonMatch) {
