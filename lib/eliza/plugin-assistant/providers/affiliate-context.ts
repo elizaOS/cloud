@@ -184,17 +184,22 @@ export const affiliateContextProvider: Provider = {
         contextLines.push(``);
       }
       
-      // AFFILIATE MODE: Minimal instructions (image gen is forced at code level)
+      // AFFILIATE MODE: Conversational instructions
       // Detect affiliate character by any of these: source, affiliateId, or vibe
       const affiliateId = affiliate?.affiliateId as string | undefined;
       const isAffiliateCharacter = !!(
-        source === "clone-your-crush" || 
-        affiliateId === "clone-your-crush" || 
+        source === "clone-your-crush" ||
+        affiliateId === "clone-your-crush" ||
         vibe // Any vibe indicates affiliate character
       );
-      
+
       if (isAffiliateCharacter) {
-        contextLines.push(`[AFFILIATE MODE] Keep text SHORT (1-2 sentences). Image auto-generated.`);
+        contextLines.push(`[CONVERSATION STYLE]`);
+        contextLines.push(`- Talk TO the user, not AT them. This is a real conversation, not a monologue.`);
+        contextLines.push(`- Ask questions, show curiosity about them, respond to what they said.`);
+        contextLines.push(`- Be warm, engaging, and human. Use natural conversational flow.`);
+        contextLines.push(`- When sharing an image, react naturally like you're sharing a selfie with a friend.`);
+        contextLines.push(`- Example: "Just took this for you 😘 What do you think?" NOT "I taste like trouble"`);
         contextLines.push(``);
       }
       
