@@ -97,11 +97,9 @@ export function CharacterCard({
             <h3 className="font-semibold text-lg truncate group-hover:text-primary transition-colors">
               {character.name}
             </h3>
-            {character.username && (
-              <p className="text-sm text-muted-foreground">
-                @{character.username}
-              </p>
-            )}
+            <p className="text-sm text-muted-foreground min-h-[20px]">
+              {character.username ? `@${character.username}` : ""}
+            </p>
             {character.category && (
               <Badge variant="outline" className="mt-1">
                 <span className="mr-1">
@@ -158,7 +156,7 @@ export function CharacterCard({
           )}
 
           {/* Actions */}
-          <div className="flex gap-2 pt-2">
+          <div className="h-full flex gap-2 pt-2">
             <Button
               className="flex-1"
               size="sm"
