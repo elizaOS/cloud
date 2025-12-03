@@ -28,6 +28,8 @@ import {
   executeProviders,
   executeActions,
   getAndClearCachedAttachments,
+  hasActionSentResponse,
+  clearActionResponseFlag,
 } from "../shared/utils/helpers";
 import {
   parsePlannedItems,
@@ -220,6 +222,57 @@ export async function handleMessage({
           updatedState,
           callback,
         );
+
+        // Check if an action already sent a complete response
+        // If so, skip generating another response to avoid duplicates
+        const actionAlreadyResponded = hasActionSentResponse(message.roomId as string);
+        if (actionAlreadyResponded) {
+          logger.info(
+            "[ChatAssistant] ⏭️ Action already sent response - skipping final response generation",
+          );
+          clearActionResponseFlag(message.roomId as string);
+
+          // Get cached attachments for the response memory (even though we're not generating new text)
+          const actionResultAttachments = extractAttachments(
+            await runtime.getActionResults(message.id as UUID),
+          );
+          const cachedAttachments = getAndClearCachedAttachments(message.roomId as string);
+
+          // Merge attachments
+          const attachmentMap = new Map<string, unknown>();
+          for (const att of actionResultAttachments) {
+            const attachment = att as { id?: string };
+            if (attachment.id) attachmentMap.set(attachment.id, att);
+          }
+          for (const att of cachedAttachments) {
+            const attachment = att as { id?: string };
+            if (attachment.id) attachmentMap.set(attachment.id, att);
+          }
+
+          // Clean up response ID
+          await clearLatestResponseId(runtime, message.roomId);
+          runtime.character.system = originalSystemPrompt;
+
+          logger.info(
+            `[ChatAssistant] Run ${runId.substring(0, 8)} completed (action-handled response)`,
+          );
+
+          const endTime = Date.now();
+          await runtime.emitEvent(EventType.RUN_ENDED, {
+            runtime,
+            runId,
+            messageId: message.id,
+            roomId: message.roomId,
+            entityId: message.entityId,
+            startTime,
+            status: "completed",
+            endTime,
+            duration: endTime - startTime,
+            source: "chatAssistantWorkflow",
+          });
+
+          return; // Exit early - action already handled the response
+        }
       } else {
         logger.info(
           "[ChatAssistant] Short-circuit: Responding with existing context",
