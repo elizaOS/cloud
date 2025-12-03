@@ -35,6 +35,7 @@ export interface AffiliateData {
   referenceImages?: AffiliateImageReference[];
   topPosts?: AffiliateSocialPost[];
   createdAt: string;
+  appearanceDescription?: string;
 }
 
 export interface AffiliateMetadata {

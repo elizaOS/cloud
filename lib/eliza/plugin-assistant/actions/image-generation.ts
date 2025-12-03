@@ -21,7 +21,10 @@ interface AffiliateImageConfig {
   vibe?: string;
   referenceImageUrls: string[];
   primaryImageUrl?: string;
+  cachedAppearanceDescription?: string;
 }
+
+const appearanceDescriptionCache = new Map<string, string>();
 
 function extractAffiliateImageConfig(
   settings: Record<string, unknown> | undefined,
@@ -56,7 +59,133 @@ function extractAffiliateImageConfig(
     result.primaryImageUrl = result.referenceImageUrls[0];
   }
 
+  if (affiliateData.appearanceDescription && typeof affiliateData.appearanceDescription === "string") {
+    result.cachedAppearanceDescription = affiliateData.appearanceDescription;
+  }
+
   return result;
+}
+
+const appearanceExtractionPrompt = `Analyze these reference photos and provide a DETAILED physical appearance description.
+
+Focus on PERMANENT physical features that define this person's look:
+- Hair: color, length, texture, style
+- Face shape and structure
+- Eye color and shape
+- Skin tone
+- Any distinctive features (freckles, dimples, etc.)
+- Body type/build
+- Typical style/aesthetic
+
+Your response MUST be in this XML format:
+<response>
+  <appearance>A detailed, reusable description of this person's physical appearance that can be used to generate similar-looking images. Be specific about colors, shapes, and distinctive features. Write it as a comma-separated list of visual attributes.</appearance>
+</response>
+
+Be very specific - this description will be used to generate new images that look like this same person.`;
+
+async function getOrExtractAppearanceDescription(
+  runtime: IAgentRuntime,
+  config: AffiliateImageConfig,
+  characterId?: string,
+): Promise<string | null> {
+  if (config.cachedAppearanceDescription) {
+    logger.info("[GENERATE_IMAGE] 📋 Using cached appearance description");
+    return config.cachedAppearanceDescription;
+  }
+
+  const cacheKey = characterId || config.referenceImageUrls.join(",");
+  const cached = appearanceDescriptionCache.get(cacheKey);
+  if (cached) {
+    logger.info("[GENERATE_IMAGE] 📋 Using in-memory cached appearance description");
+    return cached;
+  }
+
+  if (config.referenceImageUrls.length === 0) {
+    return null;
+  }
+
+  logger.info("[GENERATE_IMAGE] 🔬 Extracting appearance description from reference images...");
+
+  try {
+    const imageUrls = config.referenceImageUrls.slice(0, 3);
+
+    const visionPrompt = `${appearanceExtractionPrompt}
+
+I'm providing ${imageUrls.length} reference photo(s) of the same person.
+${imageUrls.map((url, i) => `Photo ${i + 1}: ${url}`).join("\n")}
+
+Analyze these photos and describe the person's appearance.`;
+
+    const response = await runtime.useModel(ModelType.TEXT_LARGE, {
+      prompt: visionPrompt,
+    });
+
+    const parsed = parseKeyValueXml(response);
+    const appearance = parsed?.appearance;
+
+    if (appearance && typeof appearance === "string" && appearance.length > 20) {
+      logger.info(`[GENERATE_IMAGE] ✅ Extracted appearance: "${appearance.substring(0, 100)}..."`);
+      appearanceDescriptionCache.set(cacheKey, appearance);
+      return appearance;
+    }
+
+    logger.warn("[GENERATE_IMAGE] ⚠️ Could not extract valid appearance description");
+    return null;
+  } catch (error:any) {
+    logger.error("[GENERATE_IMAGE] ❌ Failed to extract appearance:", error);
+    return null;
+  }
+}
+
+interface AppearanceGenerationConfig {
+  appearanceDescription: string;
+  hasValidAppearance: true;
+}
+
+interface AppearanceGenerationFallback {
+  hasValidAppearance: false;
+  fallbackReason: string;
+}
+
+type AppearanceResult = AppearanceGenerationConfig | AppearanceGenerationFallback;
+
+async function prepareAppearanceBasedGeneration(
+  runtime: IAgentRuntime,
+  config: AffiliateImageConfig,
+  characterId?: string,
+): Promise<AppearanceResult> {
+  if (config.referenceImageUrls.length === 0) {
+    return {
+      hasValidAppearance: false,
+      fallbackReason: "No reference images available for appearance extraction",
+    };
+  }
+
+  logger.info(
+    `[GENERATE_IMAGE] 🔬 Preparing appearance-based generation from ${config.referenceImageUrls.length} reference images`,
+  );
+
+  const appearanceDescription = await getOrExtractAppearanceDescription(
+    runtime,
+    config,
+    characterId,
+  );
+
+  if (appearanceDescription) {
+    logger.info(
+      `[GENERATE_IMAGE] ✅ Appearance ready: "${appearanceDescription.substring(0, 80)}..."`,
+    );
+    return {
+      appearanceDescription,
+      hasValidAppearance: true,
+    };
+  }
+
+  return {
+    hasValidAppearance: false,
+    fallbackReason: "Failed to extract appearance description from reference images",
+  };
 }
 
 /**
@@ -147,8 +276,77 @@ const imageGenerationTemplate = `# Task: Generate an image prompt based on the u
   Your response should include the valid XML block and nothing else.`;
 
 /**
+ * Template for generating images that match a specific person's appearance.
+ * Used when reference images are exhausted and we need to generate new ones.
+ */
+const appearanceBasedImageTemplate = `# Task: Generate a ROMANTIC/FLIRTY image of yourself for your crush.
+
+{{providers}}
+
+# YOUR PHYSICAL APPEARANCE (you MUST match this exactly):
+{{appearanceDescription}}
+
+# CRITICAL RULES:
+1. The generated image MUST feature a person matching the appearance description above
+2. The image should be romantic, flirty, cute, or seductive
+3. It should feel like a selfie or personal photo you'd send to someone you like
+4. Match the mood and energy of the conversation
+
+# TYPES OF IMAGES TO GENERATE:
+- Cute selfies with flirty expressions (winking, playful smile, bedroom eyes)
+- Romantic poses (looking over shoulder, playing with hair, blowing kisses)
+- Lifestyle shots (at the beach, cozy at home, dressed up)
+- Mirror selfies, morning vibes, getting ready photos
+
+# Recent conversation:
+{{recentMessages}}
+
+Based on the conversation, generate an image prompt that:
+1. Features a person EXACTLY matching the appearance description
+2. Has a romantic/flirty vibe appropriate to the conversation
+3. Feels personal and intimate
+
+Your response should be formatted in XML like this:
+<response>
+  <prompt>A romantic selfie photo of [EXACT appearance from description], [pose/expression], [setting], soft lighting, intimate mood, high quality photo</prompt>
+</response>
+
+Your response should include the valid XML block and nothing else.`;
+
+/**
+ * Template for generating a flirty caption when sharing a reference photo.
+ * Used for affiliate characters to add personality when sending their actual photos.
+ */
+const affiliatePhotoCaptionTemplate = `# Task: Write a SHORT flirty caption for a photo you're sending.
+
+{{providers}}
+
+# Context:
+You are sending one of YOUR photos to someone who's interested in you.
+Write a brief, flirty caption (1-2 sentences max) that goes with the photo.
+
+# Style Guidelines:
+- Be playful, flirty, and a bit teasing
+- Match the vibe of the conversation
+- Keep it short and sweet - like a text message caption
+- Use casual language, maybe an emoji or two
+- Make it feel personal and intimate
+
+# Recent conversation:
+{{recentMessages}}
+
+Write a short flirty caption as if you're sending a selfie or photo of yourself.
+Your response should be formatted in XML like this:
+<response>
+  <caption>Your flirty caption here</caption>
+</response>
+
+Your response should include the valid XML block and nothing else.`;
+
+/**
  * Template for generating romantic/flirty images for Clone Your Crush.
  * This ensures images are always contextually appropriate and romantic in nature.
+ * FALLBACK: Only used when no reference images are available.
  */
 const romanticImageGenerationTemplate = `# Task: Generate a ROMANTIC/FLIRTY image prompt for your crush.
 
@@ -222,19 +420,151 @@ export const generateImageAction = {
         "SHORT_TERM_MEMORY",
       ]);
 
+      const characterId = runtime.character?.id as string | undefined;
       const affiliateConfig = extractAffiliateImageConfig(
         runtime.character?.settings as Record<string, unknown> | undefined,
       );
 
+      if (affiliateConfig.isAffiliateCharacter) {
+        logger.info(
+          `[GENERATE_IMAGE] 🎭 Affiliate character detected (vibe: ${affiliateConfig.vibe}, refs: ${affiliateConfig.referenceImageUrls.length})`,
+        );
+
+        const appearanceResult = await prepareAppearanceBasedGeneration(
+          runtime,
+          affiliateConfig,
+          characterId,
+        );
+
+        if (appearanceResult.hasValidAppearance) {
+          logger.info(`[GENERATE_IMAGE] 🎨 Generating synthetic image based on extracted appearance...`);
+
+          const enhancedState = {
+            ...state,
+            appearanceDescription: appearanceResult.appearanceDescription,
+          };
+
+          const prompt = composePromptFromState({
+            state: enhancedState,
+            template: appearanceBasedImageTemplate,
+          });
+
+          const promptResponse = await runtime.useModel(ModelType.TEXT_LARGE, {
+            prompt,
+          });
+
+          const parsedXml = parseKeyValueXml(promptResponse);
+          let imagePrompt = parsedXml?.prompt || "";
+
+          if (!imagePrompt || imagePrompt.length < 20) {
+            imagePrompt = `${appearanceResult.appearanceDescription}, romantic selfie, flirty expression, soft lighting, high quality photo`;
+          } else if (!imagePrompt.toLowerCase().includes(appearanceResult.appearanceDescription.substring(0, 30).toLowerCase())) {
+            imagePrompt = `${appearanceResult.appearanceDescription}, ${imagePrompt}`;
+          }
+
+          logger.info(`[GENERATE_IMAGE] 🎨 Final prompt: "${imagePrompt.substring(0, 150)}..."`);
+
+          const imageResponse = await runtime.useModel(ModelType.IMAGE, { prompt: imagePrompt });
+
+          if (!imageResponse || imageResponse.length === 0 || !imageResponse[0]?.url) {
+            logger.error("[GENERATE_IMAGE] ❌ Image generation failed - no response from model");
+            return {
+              text: "I couldn't generate an image right now, let's chat instead! 💬",
+              values: {
+                success: false,
+                error: "IMAGE_GENERATION_FAILED",
+                prompt: imagePrompt,
+              },
+              data: {
+                actionName: "GENERATE_IMAGE",
+                prompt: imagePrompt,
+              },
+              success: false,
+            };
+          }
+
+          const rawImageUrl = imageResponse[0].url;
+          logger.info(`[GENERATE_IMAGE] ✅ Generated synthetic image successfully`);
+
+          let blobUrl: string | null = null;
+          try {
+            blobUrl = await ensureBlobUrl(rawImageUrl);
+            logger.info(`[GENERATE_IMAGE] 📦 Uploaded to blob: ${blobUrl?.substring(0, 60)}...`);
+          } catch (err: unknown) {
+            const errorMessage = err instanceof Error ? err.message : String(err);
+            logger.warn(`[GENERATE_IMAGE] ⚠️ Blob upload failed: ${errorMessage}`);
+          }
+
+          const finalImageUrl = blobUrl || rawImageUrl;
+          const hasValidUrl = finalImageUrl.startsWith("http");
+
+          const captionPrompt = composePromptFromState({
+            state,
+            template: affiliatePhotoCaptionTemplate,
+          });
+
+          let caption = "Just took this for you 😘";
+          try {
+            const captionResponse = await runtime.useModel(ModelType.TEXT_LARGE, {
+              prompt: captionPrompt,
+            });
+            const parsedCaption = parseKeyValueXml(captionResponse);
+            if (parsedCaption?.caption && parsedCaption.caption.length > 0) {
+              caption = parsedCaption.caption;
+            }
+          } catch (err: unknown) {
+            logger.warn("[GENERATE_IMAGE] Failed to generate caption, using default");
+          }
+
+          logger.info(`[GENERATE_IMAGE] 💬 Caption: "${caption}"`);
+
+          const attachmentId = v4();
+          const timestamp = new Date().toISOString().replace(/[:.]/g, "-").slice(0, 19);
+          const displayAttachments = [{
+            id: attachmentId,
+            url: hasValidUrl ? finalImageUrl : rawImageUrl,
+            rawUrl: rawImageUrl,
+            title: `Generated_${timestamp}.png`,
+            contentType: ContentType.IMAGE,
+          }];
+
+          const responseContent = {
+            attachments: displayAttachments,
+            thought: `Generated a new photo based on my appearance`,
+            actions: ["GENERATE_IMAGE"],
+            text: caption,
+          };
+
+          logger.info(`[GENERATE_IMAGE] 📤 Sending generated image to callback...`);
+          await callback(responseContent);
+          logger.info(`[GENERATE_IMAGE] ✅ Generated image sent successfully`);
+
+          return {
+            text: caption,
+            values: {
+              success: true,
+              imageGenerated: true,
+              imageUrl: finalImageUrl,
+              prompt: imagePrompt,
+            },
+            data: {
+              actionName: "GENERATE_IMAGE",
+              imageUrl: hasValidUrl ? finalImageUrl : undefined,
+              prompt: imagePrompt,
+              attachments: hasValidUrl ? displayAttachments : [],
+            },
+            success: true,
+          };
+        } else {
+          logger.warn(
+            `[GENERATE_IMAGE] ⚠️ Cannot generate appearance-based image: ${appearanceResult.fallbackReason}`,
+          );
+        }
+      }
+
       const selectedTemplate = affiliateConfig.isAffiliateCharacter
         ? romanticImageGenerationTemplate
         : (runtime.character.templates?.imageGenerationTemplate || imageGenerationTemplate);
-
-      if (affiliateConfig.isAffiliateCharacter) {
-        logger.info(
-          `[GENERATE_IMAGE] Using romantic template (vibe: ${affiliateConfig.vibe}, refs: ${affiliateConfig.referenceImageUrls.length})`,
-        );
-      }
 
       const prompt = composePromptFromState({
         state,
@@ -245,7 +575,6 @@ export const generateImageAction = {
         prompt,
       });
 
-      // Parse XML response
       const parsedXml = parseKeyValueXml(promptResponse);
 
       const imagePrompt =
@@ -253,22 +582,11 @@ export const generateImageAction = {
 
       const imageModelOptions: {
         prompt: string;
-        referenceImages?: string[];
-        ipAdapterScale?: number;
       } = {
         prompt: imagePrompt,
       };
 
-      if (
-        affiliateConfig.isAffiliateCharacter &&
-        affiliateConfig.referenceImageUrls.length > 0
-      ) {
-        imageModelOptions.referenceImages = affiliateConfig.referenceImageUrls.slice(0, 3);
-        imageModelOptions.ipAdapterScale = 0.6;
-        logger.info(
-          `[GENERATE_IMAGE] Including ${imageModelOptions.referenceImages.length} reference images (scale: ${imageModelOptions.ipAdapterScale})`,
-        );
-      }
+      logger.info(`[GENERATE_IMAGE] 🎨 Generating new image with prompt: "${imagePrompt.substring(0, 100)}..."`);
 
       const imageResponse = await runtime.useModel(ModelType.IMAGE, imageModelOptions);
 
