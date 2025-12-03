@@ -21,9 +21,9 @@ import {
   LogOut,
   Loader2,
   Coins,
-  Settings,
   UserCircle,
   SettingsIcon,
+  Key,
 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useCreditsStream } from "@/hooks/use-credits-stream";
@@ -238,7 +238,7 @@ export default function UserMenu() {
           <span>Billing</span>
         </DropdownMenuItem>
         <DropdownMenuItem onClick={() => router.push("/dashboard/api-keys")}>
-          <Settings className="mr-2 h-4 w-4" />
+          <Key className="mr-2 h-4 w-4" />
           <span>API Keys</span>
         </DropdownMenuItem>
         <DropdownMenuSeparator />
