@@ -14,6 +14,50 @@ import {
 } from "@elizaos/core";
 import { v4 } from "uuid";
 import { uploadBase64Image } from "@/lib/blob";
+import type { AffiliateData } from "@/lib/types/affiliate";
+
+interface AffiliateImageConfig {
+  isAffiliateCharacter: boolean;
+  vibe?: string;
+  referenceImageUrls: string[];
+  primaryImageUrl?: string;
+}
+
+function extractAffiliateImageConfig(
+  settings: Record<string, unknown> | undefined,
+): AffiliateImageConfig {
+  const result: AffiliateImageConfig = {
+    isAffiliateCharacter: false,
+    referenceImageUrls: [],
+  };
+
+  const affiliateData = settings?.affiliateData as Partial<AffiliateData> | undefined;
+  if (!affiliateData) return result;
+
+  const source = affiliateData.source;
+  const affiliateId = affiliateData.affiliateId;
+  const vibe = affiliateData.vibe;
+
+  result.isAffiliateCharacter = !!(
+    source === "clone-your-crush" ||
+    affiliateId === "clone-your-crush" ||
+    vibe
+  );
+  result.vibe = typeof vibe === "string" ? vibe : undefined;
+
+  const imageUrls = affiliateData.imageUrls;
+  if (Array.isArray(imageUrls)) {
+    result.referenceImageUrls = imageUrls.filter(
+      (url): url is string =>
+        typeof url === "string" &&
+        url.startsWith("http") &&
+        !url.startsWith("data:"),
+    );
+    result.primaryImageUrl = result.referenceImageUrls[0];
+  }
+
+  return result;
+}
 
 /**
  * Check if a string is a base64 data URL
@@ -178,27 +222,18 @@ export const generateImageAction = {
         "SHORT_TERM_MEMORY",
       ]);
 
-      // Check if this is a Clone Your Crush / affiliate character
-      // If so, use the romantic image generation template
-      const affiliateData = runtime.character?.settings?.affiliateData as {
-        source?: string;
-        affiliateId?: string;
-        affiliateVibe?: string;
-      } | undefined;
-      
-      const isCloneYourCrush = affiliateData && (
-        affiliateData.source === "clone-your-crush" ||
-        affiliateData.affiliateId === "clone-your-crush" ||
-        affiliateData.affiliateVibe // Any vibe indicates Clone Your Crush
+      const affiliateConfig = extractAffiliateImageConfig(
+        runtime.character?.settings as Record<string, unknown> | undefined,
       );
 
-      // Select the appropriate template
-      const selectedTemplate = isCloneYourCrush
+      const selectedTemplate = affiliateConfig.isAffiliateCharacter
         ? romanticImageGenerationTemplate
         : (runtime.character.templates?.imageGenerationTemplate || imageGenerationTemplate);
 
-      if (isCloneYourCrush) {
-        logger.info("[GENERATE_IMAGE] 💕 Using romantic image template for Clone Your Crush");
+      if (affiliateConfig.isAffiliateCharacter) {
+        logger.info(
+          `[GENERATE_IMAGE] Using romantic template (vibe: ${affiliateConfig.vibe}, refs: ${affiliateConfig.referenceImageUrls.length})`,
+        );
       }
 
       const prompt = composePromptFromState({
@@ -216,9 +251,26 @@ export const generateImageAction = {
       const imagePrompt =
         parsedXml?.prompt || "Unable to generate descriptive prompt for image";
 
-      const imageResponse = await runtime.useModel(ModelType.IMAGE, {
+      const imageModelOptions: {
+        prompt: string;
+        referenceImages?: string[];
+        ipAdapterScale?: number;
+      } = {
         prompt: imagePrompt,
-      });
+      };
+
+      if (
+        affiliateConfig.isAffiliateCharacter &&
+        affiliateConfig.referenceImageUrls.length > 0
+      ) {
+        imageModelOptions.referenceImages = affiliateConfig.referenceImageUrls.slice(0, 3);
+        imageModelOptions.ipAdapterScale = 0.6;
+        logger.info(
+          `[GENERATE_IMAGE] Including ${imageModelOptions.referenceImages.length} reference images (scale: ${imageModelOptions.ipAdapterScale})`,
+        );
+      }
+
+      const imageResponse = await runtime.useModel(ModelType.IMAGE, imageModelOptions);
 
       if (
         !imageResponse ||

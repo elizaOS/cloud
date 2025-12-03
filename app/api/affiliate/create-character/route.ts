@@ -8,8 +8,9 @@ import {
   anonymousSessionsService,
   organizationsService,
 } from "@/lib/services";
+import { processAffiliateImages } from "@/lib/services/affiliate-images";
 import type { ElizaCharacter } from "@/lib/types";
-import type { Organization } from "@/db/schemas/organizations";
+import type { AffiliateMetadata } from "@/lib/types/affiliate";
 import { logger } from "@/lib/utils/logger";
 
 // Custom validator for URL or base64 data URL
@@ -71,6 +72,16 @@ const CreateCharacterSchema = z.object({
       twitter: z.string().optional(),
       socialContent: z.string().optional(),
       imageUrls: z.array(urlOrBase64).optional(),
+      imageBase64s: z.array(z.string()).optional(),
+      images: z
+        .array(
+          z.object({
+            type: z.enum(["url", "base64"]),
+            data: z.string(),
+          })
+        )
+        .optional(),
+      avatarBase64: z.string().optional(),
     })
     .optional(),
 });
@@ -310,20 +321,60 @@ export async function POST(request: NextRequest) {
       // Continue anyway - session is optional for initial character creation
     }
 
-    // 8. CREATE CHARACTER
+    // 8. PROCESS AFFILIATE IMAGES - Convert base64/external URLs to Vercel Blob
+    // This is CRITICAL to prevent Next.js Image hostname errors and token bloat
+    const tempCharacterId = randomUUID();
+    let processedImages = {
+      avatarUrl: null as string | null,
+      referenceImageUrls: [] as string[],
+      failedUploads: 0,
+    };
+
+    if (metadata) {
+      try {
+        const affiliateMetadata: AffiliateMetadata = {
+          source: metadata.source,
+          vibe: metadata.vibe,
+          backstory: metadata.backstory,
+          instagram: metadata.instagram,
+          twitter: metadata.twitter,
+          socialContent: metadata.socialContent,
+          imageUrls: metadata.imageUrls,
+          imageBase64s: metadata.imageBase64s,
+          images: metadata.images,
+          avatarBase64: metadata.avatarBase64,
+        };
+
+        processedImages = await processAffiliateImages(
+          affiliateMetadata,
+          tempCharacterId
+        );
+
+        logger.info("[Affiliate API] Processed affiliate images", {
+          avatarUrl: processedImages.avatarUrl
+            ? processedImages.avatarUrl.substring(0, 60) + "..."
+            : null,
+          referenceCount: processedImages.referenceImageUrls.length,
+          failedCount: processedImages.failedUploads,
+        });
+      } catch (error) {
+        logger.error(
+          "[Affiliate API] Failed to process affiliate images",
+          error
+        );
+      }
+    }
+
+    // 9. CREATE CHARACTER
     let createdCharacter;
     try {
-      // Resolve avatar URL: PRIORITIZE user-uploaded images from metadata.imageUrls[0]
-      // For affiliate characters (clone-your-crush), the user's uploaded photo should be the avatar
-      // Only fall back to character.avatar_url if no user images were uploaded
-      const userUploadedAvatar = metadata?.imageUrls?.[0];
       const resolvedAvatarUrl =
-        userUploadedAvatar || character.avatar_url || null;
+        processedImages.avatarUrl || character.avatar_url || null;
 
       if (resolvedAvatarUrl) {
         logger.info("[Affiliate API] Avatar URL resolved", {
-          source: userUploadedAvatar
-            ? "metadata.imageUrls[0] (user upload)"
+          source: processedImages.avatarUrl
+            ? "processedImages.avatarUrl (blob storage)"
             : "character.avatar_url (fallback)",
           url: resolvedAvatarUrl.substring(0, 80) + "...",
         });
@@ -379,7 +430,9 @@ export async function POST(request: NextRequest) {
             instagram: metadata?.instagram,
             twitter: metadata?.twitter,
             socialContent: metadata?.socialContent,
-            imageUrls: metadata?.imageUrls || [],
+            imageUrls: processedImages.referenceImageUrls.length > 0
+              ? processedImages.referenceImageUrls
+              : metadata?.imageUrls || [],
             createdAt: new Date().toISOString(),
           },
         } as Record<string, unknown>,
@@ -404,7 +457,7 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // 9. INCREMENT API KEY USAGE
+    // 10. INCREMENT API KEY USAGE
     try {
       await apiKeysService.incrementUsage(apiKey.id);
     } catch (error) {
@@ -412,7 +465,7 @@ export async function POST(request: NextRequest) {
       // Non-critical, continue
     }
 
-    // 10. BUILD REDIRECT URL
+    // 11. BUILD REDIRECT URL
     // Always use /chat route - theming is now dynamic based on source param
     const baseUrl = process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000";
 
@@ -427,7 +480,7 @@ export async function POST(request: NextRequest) {
       `[Affiliate API] Generated redirect URL for affiliate ${affiliateId}: ${redirectUrl.toString()}`
     );
 
-    // 11. RETURN SUCCESS RESPONSE
+    // 12. RETURN SUCCESS RESPONSE
     const duration = Date.now() - startTime;
     logger.info(`[Affiliate API] ✅ Request completed in ${duration}ms`, {
       characterId: createdCharacter.id,

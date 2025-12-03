@@ -63,6 +63,8 @@ export const chatAssistantPlanningTemplate = `
 
 {{recentMessages}}
 
+{{affiliateContext}}
+
 {{sessionSummaries}}
 
 {{longTermMemories}}
@@ -112,6 +114,8 @@ export const chatAssistantResponseTemplate = `
 
 {{recentMessages}}
 
+{{affiliateContext}}
+
 {{sessionSummaries}}
 
 {{longTermMemories}}
@@ -119,4 +123,6 @@ export const chatAssistantResponseTemplate = `
 {{fullActionState}}
 
 {{knowledge}}
+
+Keep response SHORT (1-2 sentences) if image was generated.
 `;
