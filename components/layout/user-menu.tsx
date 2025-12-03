@@ -17,7 +17,14 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
-import { LogOut, Loader2, Coins, Settings, UserCircle } from "lucide-react";
+import {
+  LogOut,
+  Loader2,
+  Coins,
+  Settings,
+  UserCircle,
+  SettingsIcon,
+} from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useCreditsStream } from "@/hooks/use-credits-stream";
 import { useChatStore } from "@/stores/chat-store";
@@ -203,16 +210,17 @@ export default function UserMenu() {
           ) : (
             <Badge
               variant="secondary"
-              className="gap-1.5 px-3 py-1.5 w-full justify-center"
+              className="gap-1.5 px-3 py-1.5 w-full justify-center cursor-pointer hover:bg-white/10"
+              onClick={() => router.push("/dashboard/settings")}
             >
-              <Coins className="h-3.5 w-3.5" />
-              <span className="font-semibold">
+              <Coins className="h-3.5 w-3.5 select-none" />
+              <span className="font-semibold select-none">
                 $
                 {creditBalance !== null
                   ? Number(creditBalance).toFixed(2)
                   : "0.00"}
               </span>
-              <span className="text-xs opacity-80">balance</span>
+              <span className="text-xs opacity-80 select-none">balance</span>
             </Badge>
           )}
         </div>
@@ -220,6 +228,10 @@ export default function UserMenu() {
         <DropdownMenuItem onClick={() => router.push("/dashboard/account")}>
           <UserCircle className="mr-2 h-4 w-4" />
           <span>Account</span>
+        </DropdownMenuItem>
+        <DropdownMenuItem onClick={() => router.push("/dashboard/settings")}>
+          <SettingsIcon className="mr-2 h-4 w-4" />
+          <span>Settings</span>
         </DropdownMenuItem>
         <DropdownMenuItem onClick={() => router.push("/dashboard/billing")}>
           <Coins className="mr-2 h-4 w-4" />
@@ -230,7 +242,15 @@ export default function UserMenu() {
           <span>API Keys</span>
         </DropdownMenuItem>
         <DropdownMenuSeparator />
-        <DropdownMenuItem onClick={onSignOut}>
+        <DropdownMenuItem
+          className="
+    bg-red-500/40
+    data-[highlighted]:bg-red-500/60
+    data-[highlighted]:text-white
+
+  "
+          onClick={onSignOut}
+        >
           <LogOut className="mr-2 h-4 w-4" />
           <span>Sign out</span>
         </DropdownMenuItem>
