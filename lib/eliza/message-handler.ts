@@ -231,17 +231,30 @@ export class MessageHandler {
       const entityUuid = stringToUuid(entityId) as UUID;
       const worldId = stringToUuid("eliza-world") as UUID;
 
+      // Get the proper display name for the user
+      const userName =
+        this.userContext.name ||
+        this.userContext.email ||
+        this.userContext.userId ||
+        "User";
+
+      elizaLogger.debug(
+        `[MessageHandler] Setting up entity with userName: ${userName}, userId: ${this.userContext.userId}`,
+      );
+
       // Use ensureConnections (plural) for more robust entity/room creation
       await this.runtime.ensureConnections(
         [
           {
             id: entityUuid,
-            names: [entityId],
+            agentId: this.runtime.agentId, // Required field - user entity belongs to this agent's world
+            names: [userName], // Use actual user name, not ID
             metadata: {
-              name: entityId,
+              name: userName, // Use actual user name
+              email: this.userContext.email,
               web: {
-                userName: entityId,
-                userId: this.userContext.userId,
+                userName: userName, // Use actual user name
+                userId: this.userContext.userId, // Keep userId for reference
                 organizationId: this.userContext.organizationId,
               },
             },
@@ -264,7 +277,9 @@ export class MessageHandler {
       );
 
       await connectionCache.markEstablished(roomId, entityId);
-      elizaLogger.debug("[MessageHandler] Connection established and cached");
+      elizaLogger.debug(
+        `[MessageHandler] Connection established and cached for user: ${userName}`,
+      );
     } else {
       elizaLogger.debug("[MessageHandler] Using cached connection");
     }
