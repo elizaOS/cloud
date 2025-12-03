@@ -18,8 +18,8 @@ import {
 } from "@/components/ui/resizable";
 import { MessageSquare, FileCode2 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import Image from "next/image";
 import { usePrivy } from "@privy-io/react-auth";
-
 interface CharacterBuildModeProps {
   initialCharacters: ElizaCharacter[];
 }
@@ -47,7 +47,7 @@ export function CharacterBuildMode({
 
   // Mobile view state: 'assistant' or 'editor'
   const [mobileView, setMobileView] = useState<"assistant" | "editor">(
-    "assistant",
+    "assistant"
   );
 
   // Derive character from selectedCharacterId - avoid setState in effect
@@ -72,7 +72,7 @@ export function CharacterBuildMode({
     (updates: Partial<ElizaCharacter>) => {
       setCharacter((prev) => ({ ...prev, ...updates }));
     },
-    [],
+    []
   );
 
   const handleSave = useCallback(async () => {
@@ -110,7 +110,7 @@ export function CharacterBuildMode({
       toast.error(
         error instanceof Error
           ? error.message
-          : "Failed to save character. Please try again.",
+          : "Failed to save character. Please try again."
       );
     }
   }, [character, selectedCharacterId, setSelectedCharacterId]);
@@ -134,6 +134,14 @@ export function CharacterBuildMode({
 
   return (
     <div className="flex h-full w-full min-h-0 overflow-hidden flex-col">
+      <Image
+        className="z-20 pointer-events-none absolute top-0 right-0 left-0"
+        fill
+        sizes="100vw"
+        src="/elipse.svg"
+        alt="background-elipse-builder-mode"
+      />
+
       {/* Mobile Toggle Bar */}
       <div className="lg:hidden flex border-b border-[#353535] bg-[#0A0A0A] shrink-0">
         <button
@@ -141,8 +149,8 @@ export function CharacterBuildMode({
           className={cn(
             "flex-1 flex items-center justify-center gap-2 px-4 py-3 text-sm font-medium transition-colors",
             mobileView === "assistant"
-              ? "bg-[#FF5800] text-white"
-              : "text-white/60 hover:text-white hover:bg-white/5",
+              ? "bg-[#E500FF] text-white"
+              : "text-white/60 hover:text-white hover:bg-white/5"
           )}
         >
           <MessageSquare className="h-4 w-4" />
@@ -153,8 +161,8 @@ export function CharacterBuildMode({
           className={cn(
             "flex-1 flex items-center justify-center gap-2 px-4 py-3 text-sm font-medium transition-colors border-l border-[#353535]",
             mobileView === "editor"
-              ? "bg-[#FF5800] text-white"
-              : "text-white/60 hover:text-white hover:bg-white/5",
+              ? "bg-[#E500FF] text-white"
+              : "text-white/60 hover:text-white hover:bg-white/5"
           )}
         >
           <FileCode2 className="h-4 w-4" />
@@ -185,7 +193,7 @@ export function CharacterBuildMode({
       </div>
 
       {/* Desktop Resizable Split Pane Layout */}
-      <div className="hidden lg:flex h-full w-full min-h-0 overflow-hidden flex-1">
+      <div className="z-0 hidden lg:flex h-full w-full min-h-0 overflow-hidden flex-1">
         <ResizablePanelGroup direction="horizontal" className="flex-1">
           {/* Left Panel - AI Assistant Chat */}
           <ResizablePanel defaultSize={50} minSize={30} maxSize={70}>

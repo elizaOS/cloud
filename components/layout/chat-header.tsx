@@ -71,7 +71,7 @@ export function ChatHeader({ onToggleSidebar }: ChatHeaderProps) {
   };
 
   return (
-    <header className="flex h-16 items-center justify-between border-b border-white/10 bg-black/40 px-4 md:px-6">
+    <header className="flex h-16 items-center justify-between border-b border-white/10 bg-transparent backdrop-blur-3xl px-4 md:px-6">
       <div className="flex items-center gap-4">
         {/* Mobile Menu Button */}
         <BrandButton
@@ -227,7 +227,7 @@ export function ChatHeader({ onToggleSidebar }: ChatHeaderProps) {
             className={cn(
               "flex items-center gap-2 px-3 py-1.5 rounded-none transition-colors border-0",
               mode === "build"
-                ? "bg-[#471E08] text-[#FF5800]"
+                ? "bg-[#220725] text-[#E500FF]"
                 : "bg-[#1F1F1F] text-[#ADADAD] hover:text-white",
             )}
             style={{
