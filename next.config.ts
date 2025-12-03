@@ -15,6 +15,18 @@ const nextConfig: NextConfig = {
         port: "",
         pathname: "/**",
       },
+      {
+        protocol: "https",
+        hostname: "*.fbcdn.net",
+        port: "",
+        pathname: "/**",
+      },
+      {
+        protocol: "https",
+        hostname: "*.cdninstagram.com",
+        port: "",
+        pathname: "/**",
+      },
     ],
   },
   // Increase body size limit for container image uploads (max 2GB)
@@ -86,8 +98,8 @@ const nextConfig: NextConfig = {
               "script-src 'self' 'unsafe-eval' 'unsafe-inline' https://challenges.cloudflare.com https://va.vercel-scripts.com https://cdn.jsdelivr.net",
               // Styles - allow self, inline styles, and Monaco Editor CDN (required for many UI libraries)
               "style-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net",
-              // Images - allow self, data URIs, blob URIs, and Vercel storage
-              "img-src 'self' data: blob: https://*.public.blob.vercel-storage.com https://raw.githubusercontent.com",
+              // Images - allow self, data URIs, blob URIs, Vercel storage, and Instagram CDN
+              "img-src 'self' data: blob: https://*.public.blob.vercel-storage.com https://raw.githubusercontent.com https://*.fbcdn.net https://*.cdninstagram.com",
               // Fonts - allow self and Monaco Editor CDN
               "font-src 'self' https://cdn.jsdelivr.net",
               // Objects - block all (e.g., Flash, Java applets)

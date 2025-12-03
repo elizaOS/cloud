@@ -110,6 +110,23 @@ export class CharactersService {
     // Also extract lore data which contains full social media posts
     const loreData = characterData?.lore as string[] | undefined;
 
+    // Debug: Log what we found in character_data
+    console.log(
+      `[CharactersService] 🔍 toElizaCharacter for "${character.name}": hasCharacterData=${!!characterData}, hasAffiliate=${!!affiliateData}, hasLore=${!!loreData}`,
+    );
+    if (characterData) {
+      console.log(
+        `[CharactersService] character_data keys:`,
+        Object.keys(characterData),
+      );
+    }
+    if (affiliateData) {
+      console.log(
+        `[CharactersService] affiliate keys:`,
+        Object.keys(affiliateData),
+      );
+    }
+
     // Merge affiliate data AND lore into settings so it's available in the runtime
     const settings = character.settings as Record<string, string | boolean | number | Record<string, unknown>> | undefined;
     const mergedSettings = {
@@ -125,6 +142,12 @@ export class CharactersService {
           }
         : {}),
     };
+
+    // Debug: Log the merged settings affiliateData
+    console.log(
+      `[CharactersService] mergedSettings.affiliateData:`,
+      mergedSettings.affiliateData ? "present" : "absent",
+    );
     
     return {
       id: character.id,

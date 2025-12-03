@@ -1,5 +1,5 @@
 import type { NextRequest } from "next/server";
-import { organizationsService } from "@/lib/services";
+import { organizationsService, charactersService } from "@/lib/services";
 import { requireAuthOrApiKey } from "@/lib/auth";
 import { getAnonymousUser, checkAnonymousLimit } from "@/lib/auth-anonymous";
 import { logger } from "@/lib/utils/logger";
@@ -108,6 +108,33 @@ export async function POST(
     const roomCharacter =
       await elizaRoomCharactersRepository.findByRoomId(roomId);
     let characterId = roomCharacter?.character_id || undefined;
+
+    // Step 4.5: Check if this is an affiliate character and switch to ASSISTANT mode
+    // Affiliate characters need ASSISTANT mode for image generation capability
+    if (characterId && agentModeConfig.mode === AgentMode.CHAT) {
+      try {
+        const character = await charactersService.getById(characterId);
+        if (character) {
+          const characterData = character.character_data as
+            | Record<string, unknown>
+            | undefined;
+          const affiliateData = characterData?.affiliate as
+            | Record<string, unknown>
+            | undefined;
+
+          if (affiliateData && Object.keys(affiliateData).length > 0) {
+            logger.info(
+              `[Stream] 🎭 Detected affiliate character - switching to ASSISTANT mode for image generation`
+            );
+            agentModeConfig = { mode: AgentMode.ASSISTANT };
+            // CRITICAL: Also update userContext so runtime loads correct plugins
+            userContext.agentMode = AgentMode.ASSISTANT;
+          }
+        }
+      } catch (error) {
+        logger.error("[Stream] Failed to check affiliate status:", error);
+      }
+    }
 
     // For BUILD mode, use the targetCharacterId from agent mode metadata
     // This ensures we're editing the correct character, not the default
