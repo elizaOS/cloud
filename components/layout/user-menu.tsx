@@ -24,6 +24,7 @@ import {
   UserCircle,
   SettingsIcon,
   Key,
+  User,
 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useCreditsStream } from "@/hooks/use-credits-stream";
@@ -169,16 +170,6 @@ export default function UserMenu() {
     return "No identifier";
   };
 
-  // Get user initials for avatar
-  const getUserInitials = () => {
-    const name = getUserName();
-    const parts = name.split(" ");
-    if (parts.length >= 2) {
-      return `${parts[0].charAt(0)}${parts[parts.length - 1].charAt(0)}`.toUpperCase();
-    }
-    return name.charAt(0).toUpperCase();
-  };
-
   // Signed in state
   return (
     <DropdownMenu>
@@ -186,7 +177,7 @@ export default function UserMenu() {
         <Button variant="ghost" className="relative h-10 w-10 rounded-full">
           <Avatar className="h-10 w-10">
             <AvatarFallback className="bg-primary text-primary-foreground">
-              {getUserInitials()}
+              <User className="select-none" />
             </AvatarFallback>
           </Avatar>
         </Button>
