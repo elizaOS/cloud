@@ -79,32 +79,87 @@ export async function GET(
       unique: false,
     });
 
-    const simple = rawMessages
-      .map((msg) => {
-        let parsedContent: unknown = msg.content;
-        try {
-          if (typeof msg.content === "string")
-            parsedContent = JSON.parse(msg.content);
-        } catch {
-          parsedContent = msg.content;
+    const mapped = rawMessages.map((msg) => {
+      let parsedContent: unknown = msg.content;
+      try {
+        if (typeof msg.content === "string")
+          parsedContent = JSON.parse(msg.content);
+      } catch {
+        parsedContent = msg.content;
+      }
+
+      const content = parsedContent as { text?: string; attachments?: unknown[]; source?: string };
+
+      // Debug: Log attachment info for agent messages
+      if (content?.source === "agent" && content?.attachments) {
+        logger.info(`[Eliza Room API] 📎 Message ${msg.id?.substring(0, 8)} has ${content.attachments.length} attachment(s)`);
+      }
+
+      // CRITICAL: Determine isAgent based on content.source field (most reliable)
+      // Fallback to entityId comparison for backward compatibility
+      // source="agent" → agent message, source="user" → user message
+      const isAgentBySource = content?.source === "agent";
+      const isAgentByEntityId = msg.entityId === msg.agentId;
+      const isAgent = content?.source ? isAgentBySource : isAgentByEntityId;
+
+      return {
+        id: msg.id,
+        entityId: msg.entityId,
+        agentId: msg.agentId,
+        content: parsedContent,
+        createdAt: (msg as { createdAt: number }).createdAt,
+        isAgent,
+      };
+    });
+
+    // Deduplicate messages: Remove duplicate agent responses that might have been
+    // stored twice (once by action callback, once by handler). Keep the one with
+    // attachments or the first one if both/neither have attachments.
+    const seenTexts = new Map<string, { index: number; hasAttachments: boolean; isAgent: boolean }>();
+    const indicesToRemove = new Set<number>();
+
+    mapped.forEach((msg, index) => {
+      const content = msg.content as { text?: string; attachments?: unknown[] };
+      const text = content?.text?.trim();
+      if (!text) return;
+
+      // Create a key based on text and approximate timestamp (within 5 seconds)
+      const timeWindow = Math.floor(msg.createdAt / 5000);
+      const key = `${text}:${timeWindow}`;
+
+      const existing = seenTexts.get(key);
+      if (existing) {
+        const currentHasAttachments = Array.isArray(content?.attachments) && content.attachments.length > 0;
+
+        // If this is a duplicate, decide which to keep:
+        // 1. Prefer the one with attachments
+        // 2. Prefer the agent message over user message (if same text)
+        // 3. Keep the first one otherwise
+        if (currentHasAttachments && !existing.hasAttachments) {
+          // Current has attachments, existing doesn't - remove existing
+          indicesToRemove.add(existing.index);
+          seenTexts.set(key, { index, hasAttachments: currentHasAttachments, isAgent: msg.isAgent });
+        } else if (msg.isAgent && !existing.isAgent) {
+          // Current is agent, existing is user (duplicate) - remove existing
+          indicesToRemove.add(existing.index);
+          seenTexts.set(key, { index, hasAttachments: currentHasAttachments, isAgent: msg.isAgent });
+        } else {
+          // Remove current (keep existing)
+          indicesToRemove.add(index);
         }
-        
-        // Debug: Log attachment info for agent messages
-        const content = parsedContent as { text?: string; attachments?: unknown[]; source?: string };
-        if (content?.source === "agent" && content?.attachments) {
-          logger.info(`[Eliza Room API] 📎 Message ${msg.id?.substring(0, 8)} has ${content.attachments.length} attachment(s)`);
-        }
-        
-        return {
-          id: msg.id,
-          entityId: msg.entityId,
-          agentId: msg.agentId,
-          content: parsedContent,
-          createdAt: (msg as { createdAt: number }).createdAt,
-          isAgent: msg.entityId === msg.agentId,
-        };
-      })
+      } else {
+        const hasAttachments = Array.isArray(content?.attachments) && content.attachments.length > 0;
+        seenTexts.set(key, { index, hasAttachments, isAgent: msg.isAgent });
+      }
+    });
+
+    const simple = mapped
+      .filter((_, index) => !indicesToRemove.has(index))
       .sort((a, b) => a.createdAt - b.createdAt);
+
+    if (indicesToRemove.size > 0) {
+      logger.info(`[Eliza Room API] 🧹 Removed ${indicesToRemove.size} duplicate message(s)`);
+    }
 
     // Get agent info from the runtime we already created
     const agent = await runtime.getAgent(runtime.agentId);

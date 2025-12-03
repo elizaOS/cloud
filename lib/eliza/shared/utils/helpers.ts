@@ -26,6 +26,24 @@ export const EVALUATOR_TIMEOUT_MS = 30000;
 // Track attachments collected during action execution per-room
 const actionAttachmentCache = new Map<string, unknown[]>();
 
+// Track whether an action already sent a complete response (text + optional attachments)
+// This prevents handler from generating duplicate responses
+const actionResponseSentCache = new Map<string, boolean>();
+
+/**
+ * Check if an action has already sent a response for this room
+ */
+export function hasActionSentResponse(roomId: string): boolean {
+  return actionResponseSentCache.get(roomId) === true;
+}
+
+/**
+ * Clear the action response flag for a room
+ */
+export function clearActionResponseFlag(roomId: string): void {
+  actionResponseSentCache.delete(roomId);
+}
+
 /**
  * Check if a URL is a base64 data URL (which would bloat token count)
  */
@@ -141,11 +159,20 @@ export async function executeActions(
     },
   };
 
-  // Clear any previous attachments for this room
+  // Clear any previous attachments and response flag for this room
   actionAttachmentCache.set(message.roomId as string, []);
+  actionResponseSentCache.set(message.roomId as string, false);
 
-  // Wrap the callback to capture attachments as they come in
+  // Wrap the callback to capture attachments and track responses
   const wrappedCallback: HandlerCallback = async (content) => {
+    // Track if action sent a meaningful response (has text)
+    if (content.text && typeof content.text === "string" && content.text.length > 0) {
+      actionResponseSentCache.set(message.roomId as string, true);
+      logger.info(
+        `[executeActions] ✅ Action sent response with text (${content.text.length} chars) - flagging as complete`,
+      );
+    }
+
     // Capture attachments from action callbacks
     if (content.attachments && Array.isArray(content.attachments)) {
       const existingAttachments =
