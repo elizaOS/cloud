@@ -8,10 +8,10 @@ import Installation from "@/components/landing/Installation";
 import Footer from "@/components/landing/Footer";
 import { usePrivy } from "@privy-io/react-auth";
 import { useRouter } from "next/navigation";
+import { Loader2 } from "lucide-react";
 
 export function LandingPage() {
   // Header will show Dashboard link + user menu instead of login button
-
   const { ready, authenticated } = usePrivy();
   const router = useRouter();
 
@@ -19,9 +19,14 @@ export function LandingPage() {
 
   if (authenticated) {
     router.replace("/dashboard");
-    return null;
-  }
 
+    return (
+      <div className="flex min-h-screen items-center justify-center flex-col gap-2">
+        <Loader2 className="h-6 w-6 animate-spin" />
+        <span>Redirecting to dashboard...</span>
+      </div>
+    );
+  }
   return (
     <div className="flex min-h-screen flex-col">
       {/* Header */}
