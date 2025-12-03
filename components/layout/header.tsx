@@ -4,7 +4,7 @@
 
 "use client";
 
-import { Menu, LogIn } from "lucide-react";
+import { Menu, LogIn, Settings } from "lucide-react";
 import { usePrivy } from "@privy-io/react-auth";
 import { BrandButton } from "@/components/brand";
 import UserMenu from "./user-menu";
@@ -69,7 +69,9 @@ export default function Header({
             <span className="md:hidden">Sign Up</span>
           </BrandButton>
         ) : (
-          <UserMenu />
+          <div className="flex flex-row items-center space-x-8">
+            <UserMenu />
+          </div>
         )}
       </div>
     </header>

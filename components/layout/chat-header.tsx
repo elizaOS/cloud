@@ -16,6 +16,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { useChatStore } from "@/stores/chat-store";
+import { ElizaAvatar } from "@/components/chat/eliza-avatar";
 
 interface ChatHeaderProps {
   onToggleSidebar?: () => void;
@@ -70,7 +71,7 @@ export function ChatHeader({ onToggleSidebar }: ChatHeaderProps) {
   };
 
   return (
-    <header className="flex h-16 items-center justify-between border-b border-white/10 bg-black/40 px-4 md:px-6">
+    <header className="flex h-16 items-center justify-between border-b border-white/10 bg-transparent backdrop-blur-3xl px-4 md:px-6">
       <div className="flex items-center gap-4">
         {/* Mobile Menu Button */}
         <BrandButton
@@ -97,9 +98,12 @@ export function ChatHeader({ onToggleSidebar }: ChatHeaderProps) {
               {selectedAgent ? (
                 <>
                   <div className="flex items-center gap-2">
-                    <span
-                      className="inline-block w-2 h-2 rounded-full"
-                      style={{ backgroundColor: "#FF5800" }}
+                    <ElizaAvatar
+                      avatarUrl={selectedAgent.avatarUrl}
+                      name={selectedAgent.name}
+                      className="w-6 h-6"
+                      iconClassName="h-3 w-3"
+                      fallbackClassName="bg-[#FF5800]"
                     />
                     <div className="flex flex-col items-start">
                       <span className="text-sm font-medium text-white">
@@ -117,9 +121,12 @@ export function ChatHeader({ onToggleSidebar }: ChatHeaderProps) {
               ) : (
                 <>
                   <div className="flex items-center gap-2">
-                    <span
-                      className="inline-block w-2 h-2 rounded-full"
-                      style={{ backgroundColor: "#FF5800" }}
+                    <ElizaAvatar
+                      avatarUrl="https://raw.githubusercontent.com/elizaOS/eliza-avatars/refs/heads/master/Eliza/portrait.png"
+                      name="Eliza"
+                      className="w-6 h-6"
+                      iconClassName="h-3 w-3"
+                      fallbackClassName="bg-[#FF5800]"
                     />
                     <span className="text-sm text-white">Default (Eliza)</span>
                   </div>
@@ -141,9 +148,12 @@ export function ChatHeader({ onToggleSidebar }: ChatHeaderProps) {
                 !selectedCharacterId && "bg-white/10",
               )}
             >
-              <span
-                className="inline-block w-2 h-2 rounded-full"
-                style={{ backgroundColor: "#FF5800" }}
+              <ElizaAvatar
+                avatarUrl="https://raw.githubusercontent.com/elizaOS/eliza-avatars/refs/heads/master/Eliza/portrait.png"
+                name="Eliza"
+                className="w-6 h-6"
+                iconClassName="h-3 w-3"
+                fallbackClassName="bg-[#FF5800]"
               />
               <div className="flex flex-col">
                 <span className="text-sm font-medium text-white">
@@ -166,9 +176,12 @@ export function ChatHeader({ onToggleSidebar }: ChatHeaderProps) {
                       selectedCharacterId === character.id && "bg-white/10",
                     )}
                   >
-                    <span
-                      className="inline-block w-2 h-2 rounded-full"
-                      style={{ backgroundColor: "#FF5800" }}
+                    <ElizaAvatar
+                      avatarUrl={character.avatarUrl}
+                      name={character.name}
+                      className="w-6 h-6"
+                      iconClassName="h-3 w-3"
+                      fallbackClassName="bg-[#FF5800]"
                     />
                     <div className="flex flex-col">
                       <span className="text-sm font-medium text-white">
@@ -214,7 +227,7 @@ export function ChatHeader({ onToggleSidebar }: ChatHeaderProps) {
             className={cn(
               "flex items-center gap-2 px-3 py-1.5 rounded-none transition-colors border-0",
               mode === "build"
-                ? "bg-[#471E08] text-[#FF5800]"
+                ? "bg-[#220725] text-[#E500FF]"
                 : "bg-[#1F1F1F] text-[#ADADAD] hover:text-white",
             )}
             style={{
