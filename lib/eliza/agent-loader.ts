@@ -203,6 +203,9 @@ export class AgentLoader {
         process.env.ELEVENLABS_STT_TAG_AUDIO_EVENTS ||
         "false",
 
+      // Avatar URL from character
+      avatarUrl: elizaCharacter.avatarUrl || elizaCharacter.avatar_url,
+
       // Merge any other custom settings from character
       ...elizaCharacter.settings,
     };

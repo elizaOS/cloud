@@ -11,7 +11,22 @@ export const dynamic = "force-dynamic";
 
 const McpServerConfigSchema = z.object({
   type: z.enum(["http", "sse", "streamable-http"]),
-  url: z.string().url().max(2048), // Limit URL length
+  // Accept either full URLs or pathnames (starting with /)
+  // Pathnames will be expanded to full URLs at runtime
+  url: z.string().max(2048).refine(
+    (val) => {
+      // Accept pathnames starting with /
+      if (val.startsWith("/")) return true;
+      // Accept full URLs
+      try {
+        new URL(val);
+        return true;
+      } catch {
+        return false;
+      }
+    },
+    { message: "Must be a valid URL or pathname starting with /" }
+  ),
   timeout: z.number().int().min(0).max(300000).optional(), // Max 5 minutes
 });
 
@@ -79,6 +94,42 @@ function safeJsonParse(jsonString: string, maxDepth: number = 10, maxSize: numbe
 
   checkDepth(parsed);
   return parsed;
+}
+
+/**
+ * Transform MCP settings by expanding pathname URLs to full URLs
+ * Used when returning settings to the client for display/testing
+ */
+function transformMcpUrlsForDisplay(
+  mcpSettings: McpSettings,
+  request: NextRequest
+): McpSettings {
+  if (!mcpSettings?.servers) {
+    return mcpSettings;
+  }
+
+  const baseUrl =
+    process.env.NEXT_PUBLIC_APP_URL ||
+    (request.headers.get("host")
+      ? `${request.headers.get("x-forwarded-proto") || "https"}://${request.headers.get("host")}`
+      : "http://localhost:3000");
+
+  const transformedServers: Record<string, McpServerConfig> = {};
+
+  for (const [serverId, serverConfig] of Object.entries(mcpSettings.servers)) {
+    transformedServers[serverId] = {
+      ...serverConfig,
+      // If URL starts with /, prepend baseUrl for display; otherwise use as-is
+      url: serverConfig.url.startsWith("/")
+        ? `${baseUrl}${serverConfig.url}`
+        : serverConfig.url,
+    };
+  }
+
+  return {
+    ...mcpSettings,
+    servers: transformedServers,
+  };
 }
 
 /**
@@ -160,9 +211,12 @@ export async function GET(
     const plugins = character.plugins || [];
     const pluginMcpEnabled = plugins.includes("@elizaos/plugin-mcp");
 
+    // Transform pathnames to full URLs for display/testing in the UI
+    const mcpSettingsForDisplay = transformMcpUrlsForDisplay(mcpSettings, request);
+
     return NextResponse.json({
       characterId,
-      mcpSettings,
+      mcpSettings: mcpSettingsForDisplay,
       pluginMcpEnabled,
       enabledServers: Object.keys(mcpSettings.servers || {}),
       serverCount: Object.keys(mcpSettings.servers || {}).length,
@@ -261,6 +315,17 @@ export async function PUT(
       settings: newSettings,
       plugins: newPlugins,
     });
+
+    // CRITICAL FIX: Invalidate any cached character data
+    // This ensures the next runtime creation will use fresh MCP settings
+    try {
+      const { invalidateCharacterCache } = await import("@/lib/cache/character-cache");
+      await invalidateCharacterCache(characterId);
+      logger.info(`[Characters/MCPs] Invalidated cache for character ${characterId}`);
+    } catch (cacheError) {
+      // Don't fail the update if cache invalidation fails
+      logger.warn(`[Characters/MCPs] Failed to invalidate cache:`, cacheError);
+    }
 
     logger.info(
       `[Characters/MCPs] Updated MCP config for character ${characterId}: ${Object.keys(mcpSettings.servers || {}).length} servers`,
@@ -383,6 +448,15 @@ export async function POST(
       plugins: newPlugins,
     });
 
+    // CRITICAL FIX: Invalidate any cached character data
+    try {
+      const { invalidateCharacterCache } = await import("@/lib/cache/character-cache");
+      await invalidateCharacterCache(characterId);
+      logger.info(`[Characters/MCPs] Invalidated cache for character ${characterId}`);
+    } catch (cacheError) {
+      logger.warn(`[Characters/MCPs] Failed to invalidate cache:`, cacheError);
+    }
+
     logger.info(
       `[Characters/MCPs] Added MCP server ${serverId} to character ${characterId}`,
     );
@@ -488,6 +562,15 @@ export async function DELETE(
       settings: newSettings,
       plugins: newPlugins,
     });
+
+    // CRITICAL FIX: Invalidate any cached character data
+    try {
+      const { invalidateCharacterCache } = await import("@/lib/cache/character-cache");
+      await invalidateCharacterCache(characterId);
+      logger.info(`[Characters/MCPs] Invalidated cache for character ${characterId}`);
+    } catch (cacheError) {
+      logger.warn(`[Characters/MCPs] Failed to invalidate cache:`, cacheError);
+    }
 
     logger.info(
       `[Characters/MCPs] Removed MCP server ${serverId} from character ${characterId}`,

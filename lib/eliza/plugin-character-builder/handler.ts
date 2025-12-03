@@ -148,6 +148,7 @@ export async function handleMessage({
     const actionResponse: Memory = {
       id: createUniqueUuid(runtime, v4() as UUID),
       entityId: runtime.agentId,
+      agentId: runtime.agentId,
       roomId: message.roomId,
       worldId: message.worldId,
       content: {

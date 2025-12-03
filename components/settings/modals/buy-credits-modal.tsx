@@ -1,3 +1,37 @@
+/* ============================================================
+ * COMMENTED OUT: BuyCreditsModal
+ *
+ * This modal has been disabled as the "Buy Credits" functionality
+ * now redirects to Stripe Checkout instead of using an in-app modal.
+ *
+ * The new flow:
+ * 1. User enters amount in billing-tab.tsx
+ * 2. Clicks "Buy Credits" button
+ * 3. Redirects to Stripe Checkout page
+ * 4. After payment, redirects back to settings with success/cancel status
+ *
+ * To restore this modal:
+ * 1. Uncomment the code below
+ * 2. Update billing-tab.tsx to use showBuyCreditsModal state
+ * 3. Re-enable the StripeElementsProvider in app/dashboard/settings/page.tsx
+ * ============================================================ */
+
+"use client";
+
+export interface BuyCreditsModalProps {
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  currentBalance: number;
+  paymentMethod: string;
+  onBuyCredits: (amount: number) => void;
+}
+
+export function BuyCreditsModal(_props: BuyCreditsModalProps) {
+  return null;
+}
+
+/* ORIGINAL IMPLEMENTATION:
+
 "use client";
 
 import { useState } from "react";
@@ -51,16 +85,13 @@ export function BuyCreditsModal({
         <CornerBrackets size="md" className="opacity-50" />
 
         <div className="relative z-10 flex flex-col gap-6 md:gap-10 items-center">
-          {/* Title */}
           <DialogHeader>
             <DialogTitle className="text-xl sm:text-2xl font-mono font-bold text-[#e1e1e1] text-center tracking-tight">
               Buy credits
             </DialogTitle>
           </DialogHeader>
 
-          {/* Content */}
           <div className="flex flex-col gap-4 md:gap-6 w-full">
-            {/* Current Balance Display */}
             <div className="w-full">
               <div className="backdrop-blur-sm bg-[rgba(10,10,10,0.75)] border border-brand-surface py-4 md:py-6">
                 <div className="flex flex-col items-center justify-center gap-1 px-4">
@@ -74,7 +105,6 @@ export function BuyCreditsModal({
               </div>
             </div>
 
-            {/* Payment Method */}
             <div className="flex flex-col gap-2">
               <Label className="text-sm sm:text-base font-mono text-[#e1e1e1]">
                 Charged to
@@ -95,10 +125,8 @@ export function BuyCreditsModal({
               </div>
             </div>
 
-            {/* Divider */}
             <div className="h-px bg-brand-surface w-full" />
 
-            {/* Amount Input */}
             <div className="flex flex-col gap-2">
               <Label className="text-sm sm:text-base font-mono font-medium text-[#e1e1e1]">
                 Amount
@@ -114,7 +142,6 @@ export function BuyCreditsModal({
               />
             </div>
 
-            {/* Summary */}
             <div className="flex flex-col gap-2">
               <div className="flex items-center justify-between">
                 <p className="text-xs sm:text-sm font-mono font-medium text-[#e1e1e1]">
@@ -134,7 +161,6 @@ export function BuyCreditsModal({
               </div>
             </div>
 
-            {/* Action Buttons */}
             <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-end gap-4 w-full">
               <button
                 type="button"
@@ -164,3 +190,5 @@ export function BuyCreditsModal({
     </Dialog>
   );
 }
+
+*/

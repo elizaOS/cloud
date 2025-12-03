@@ -51,14 +51,6 @@ interface GeneratedImage {
   settings: ImageGenerationSettings;
 }
 
-const PRESET_PROMPTS = [
-  "A majestic lion in a fantasy landscape with aurora borealis",
-  "Cyberpunk cityscape at night with neon lights and flying cars",
-  "A serene Japanese garden with cherry blossoms and koi pond",
-  "Abstract geometric art with vibrant colors and patterns",
-  "A futuristic space station orbiting a distant planet",
-];
-
 const SIZE_PRESETS = [
   { label: "Square", width: 1024, height: 1024 },
   { label: "Portrait", width: 768, height: 1024 },
@@ -79,7 +71,7 @@ export function ImageGeneratorAdvanced() {
   const [currentImageIndex, setCurrentImageIndex] = useState<number>(0);
   const [numImages, setNumImages] = useState<number>(1);
   const [carouselApi, setCarouselApi] = useState<CarouselApi | undefined>(
-    undefined,
+    undefined
   );
   const [imageHistory, setImageHistory] = useState<GeneratedImage[]>([]);
   const [isLoading, setIsLoading] = useState(false);
@@ -230,31 +222,13 @@ export function ImageGeneratorAdvanced() {
                 onChange={(e) => setPrompt(e.currentTarget.value)}
                 placeholder="Describe your vision in detail..."
                 rows={5}
-                className="w-full border border-white/10 bg-black/40 px-3 md:px-4 py-2 md:py-3 text-xs md:text-sm leading-relaxed text-white placeholder:text-white/40 focus:outline-none focus:ring-1 focus:ring-[#FF5800] focus:border-[#FF5800] resize-none"
+                className="w-full border border-white/10 bg-black/40 px-3 md:px-4 py-2 md:py-3 text-xs md:text-sm leading-relaxed text-white placeholder:text-white/40 focus:outline-none border-[0.1px] focus:ring-1 focus:ring-[#FF5800] focus:border-[#FF5800] resize-none"
               />
               {prompt && (
                 <p className="text-xs font-mono text-white/50 text-right">
                   {prompt.length} characters
                 </p>
               )}
-            </div>
-
-            {/* Preset Prompts */}
-            <div className="space-y-2">
-              <label className="text-xs font-mono text-white/50 uppercase tracking-wide">
-                Quick Presets
-              </label>
-              <div className="flex flex-wrap gap-2">
-                {PRESET_PROMPTS.slice(0, 3).map((preset, index) => (
-                  <span
-                    key={index}
-                    className="cursor-pointer border border-white/20 bg-white/10 px-2 py-1 text-xs font-mono text-white/70 hover:bg-[#FF580020] hover:border-[#FF5800]/40 hover:text-[#FF5800] transition-colors"
-                    onClick={() => selectPresetPrompt(preset)}
-                  >
-                    {preset.slice(0, 20)}...
-                  </span>
-                ))}
-              </div>
             </div>
 
             <div className="border-t border-white/10" />
@@ -556,7 +530,7 @@ export function ImageGeneratorAdvanced() {
                           type="button"
                           onClick={() =>
                             handleDownload(
-                              currentImages[currentImageIndex] ?? currentImage,
+                              currentImages[currentImageIndex] ?? currentImage
                             )
                           }
                           className="px-3 py-2 border border-white/20 bg-transparent text-white hover:bg-white/5 transition-colors flex items-center justify-center gap-1 md:gap-2"
@@ -772,7 +746,7 @@ export function ImageGeneratorAdvanced() {
                         className="px-3 py-2 border border-white/20 bg-black/60 text-white hover:bg-white/5 transition-colors ml-auto flex items-center gap-2"
                         onClick={() =>
                           handleDownload(
-                            currentImages[currentImageIndex] ?? currentImage,
+                            currentImages[currentImageIndex] ?? currentImage
                           )
                         }
                       >

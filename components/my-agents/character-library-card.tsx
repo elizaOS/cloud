@@ -24,6 +24,7 @@ import {
 import { toast } from "sonner";
 import type { ElizaCharacter } from "@/lib/types";
 import type { ViewMode } from "./my-agents-client";
+import { ElizaAvatar } from "@/components/chat/eliza-avatar";
 
 interface CharacterLibraryCardProps {
   character: ElizaCharacter;
@@ -105,9 +106,13 @@ export function CharacterLibraryCard({
         <CornerBrackets size="sm" className="opacity-30" />
         <div className="relative z-10 flex items-center gap-4">
           {/* Avatar */}
-          <div className="flex-shrink-0 w-12 h-12 rounded-full bg-[#FF5800]/20 flex items-center justify-center">
-            <Bot className="h-6 w-6 text-[#FF5800]" />
-          </div>
+          <ElizaAvatar
+            avatarUrl={character.avatarUrl || character.avatar_url}
+            name={character.name}
+            className="flex-shrink-0 w-12 h-12"
+            iconClassName="h-6 w-6"
+            fallbackClassName="bg-[#FF5800]/20"
+          />
 
           {/* Info */}
           <div className="flex-1 min-w-0">
@@ -183,9 +188,13 @@ export function CharacterLibraryCard({
       <div className="relative z-10 flex flex-col h-full">
         {/* Header with avatar and menu */}
         <div className="flex items-start justify-between mb-4">
-          <div className="w-16 h-16 rounded-full bg-[#FF5800]/20 flex items-center justify-center">
-            <Bot className="h-8 w-8 text-[#FF5800]" />
-          </div>
+          <ElizaAvatar
+            avatarUrl={character.avatarUrl || character.avatar_url}
+            name={character.name}
+            className="w-16 h-16"
+            iconClassName="h-8 w-8"
+            fallbackClassName="bg-[#FF5800]/20"
+          />
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
               <Button

@@ -19,6 +19,7 @@ import {
   CornerBrackets,
   SectionLabel,
 } from "@/components/brand";
+import { ElizaAvatar } from "@/components/chat/eliza-avatar";
 
 interface AiAssistantProps {
   character: ElizaCharacter;
@@ -280,9 +281,13 @@ Tell me about your vision, and I'll help you craft a detailed character definiti
                   }`}
                 >
                   {message.role === "assistant" && (
-                    <div className="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-full bg-[#FF5800]">
-                      <Bot className="h-4 w-4 text-white" />
-                    </div>
+                    <ElizaAvatar
+                      avatarUrl={character.avatarUrl || character.avatar_url}
+                      name={character.name}
+                      className="w-8 h-8"
+                      iconClassName="h-4 w-4"
+                      fallbackClassName="bg-[#FF5800]"
+                    />
                   )}
                   <div className="flex flex-col gap-2 max-w-[80%]">
                     <div
@@ -335,9 +340,14 @@ Tell me about your vision, and I'll help you craft a detailed character definiti
             })}
             {isLoading && (
               <div className="flex gap-3">
-                <div className="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-full bg-[#FF5800]">
-                  <Bot className="h-4 w-4 animate-pulse text-white" />
-                </div>
+                <ElizaAvatar
+                  avatarUrl={character.avatarUrl || character.avatar_url}
+                  name={character.name}
+                  className="w-8 h-8"
+                  iconClassName="h-4 w-4"
+                  fallbackClassName="bg-[#FF5800]"
+                  animate={true}
+                />
                 <div className="rounded-none bg-black/40 border border-white/10 px-4 py-2">
                   <div className="flex gap-1">
                     <div className="h-2 w-2 animate-bounce rounded-full bg-[#FF5800] [animation-delay:-0.3s]"></div>
