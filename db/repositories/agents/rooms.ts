@@ -184,78 +184,54 @@ export class RoomsRepository {
 
   /**
    * Get all rooms for an entity (user) with last message preview
-   * Uses Drizzle joins for type safety
+   * Uses a single optimized query with joins
    * 
    * @param entityId - The user's ID (from auth)
    * @returns Rooms with preview data, sorted by most recent activity
    */
   async findRoomsWithPreviewForEntity(entityId: string): Promise<RoomWithPreview[]> {
-    // Step 1: Get all room IDs for this entity via participants
-    const participantRooms = await db
-      .select({ roomId: participantTable.roomId })
-      .from(participantTable)
-      .where(eq(participantTable.entityId, entityId));
-
-    if (participantRooms.length === 0) {
-      return [];
-    }
-
-    const roomIds = participantRooms.map(p => p.roomId);
-
-    // Step 2: Get rooms with their data
-    const rooms = await db
-      .select()
-      .from(roomTable)
-      .where(inArray(roomTable.id, roomIds));
-
-    // Step 3: Get last message for each room (single query, dedupe in memory)
-    const lastMessages = await db
+    // Use a subquery to get the latest message per room
+    const latestMessagesSubquery = db
       .select({
         roomId: memoryTable.roomId,
         createdAt: memoryTable.createdAt,
-        content: memoryTable.content,
+        text: sql<string | null>`${memoryTable.content}->>'text'`.as('text'),
+        // Use row_number to pick the latest message per room
+        rn: sql<number>`row_number() over (partition by ${memoryTable.roomId} order by ${memoryTable.createdAt} desc)`.as('rn'),
       })
       .from(memoryTable)
-      .where(
+      .where(eq(memoryTable.type, "messages"))
+      .as('latest_messages');
+
+    // Main query: join participants -> rooms -> latest messages
+    const results = await db
+      .select({
+        id: roomTable.id,
+        name: roomTable.name,
+        characterId: roomTable.agentId,
+        createdAt: roomTable.createdAt,
+        lastMessageTime: latestMessagesSubquery.createdAt,
+        lastMessageText: latestMessagesSubquery.text,
+      })
+      .from(participantTable)
+      .innerJoin(roomTable, eq(participantTable.roomId, roomTable.id))
+      .leftJoin(
+        latestMessagesSubquery,
         and(
-          inArray(memoryTable.roomId, roomIds),
-          eq(memoryTable.type, "messages"),
-        ),
+          eq(latestMessagesSubquery.roomId, roomTable.id),
+          eq(latestMessagesSubquery.rn, 1)
+        )
       )
-      .orderBy(desc(memoryTable.createdAt));
-
-    // Dedupe to get only the last message per room
-    const lastMessageByRoom = new Map<string, { createdAt: Date | null; text: string | null }>();
-    for (const msg of lastMessages) {
-      if (!lastMessageByRoom.has(msg.roomId)) {
-        lastMessageByRoom.set(msg.roomId, {
-          createdAt: msg.createdAt,
-          text: (msg.content?.text as string) || null,
-        });
-      }
-    }
-
-    // Step 4: Combine and sort by most recent activity
-    const result: RoomWithPreview[] = rooms.map(room => {
-      const lastMsg = lastMessageByRoom.get(room.id);
-      return {
-        id: room.id,
-        name: room.name || null,
-        characterId: room.agentId || null,
-        createdAt: room.createdAt || new Date(),
-        lastMessageTime: lastMsg?.createdAt || null,
-        lastMessageText: lastMsg?.text || null,
-      };
-    });
+      .where(eq(participantTable.entityId, entityId));
 
     // Sort by last message time, falling back to room creation time
-    result.sort((a, b) => {
+    results.sort((a, b) => {
       const timeA = a.lastMessageTime?.getTime() || a.createdAt.getTime();
       const timeB = b.lastMessageTime?.getTime() || b.createdAt.getTime();
       return timeB - timeA;
     });
 
-    return result;
+    return results;
   }
 }
 
