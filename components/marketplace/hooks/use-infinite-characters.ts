@@ -65,7 +65,6 @@ export function useInfiniteCharacters({
 
         const response = await fetch(
           `/api/my-agents/characters?${params.toString()}`,
-          { signal: abortControllerRef.current.signal },
         );
 
         if (!response.ok) {
