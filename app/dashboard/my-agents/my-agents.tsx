@@ -22,9 +22,21 @@ export function MyAgentsClient() {
     if (claimAttempted.current) return;
     claimAttempted.current = true;
 
+    // Get session token from localStorage (set during anonymous chat)
+    let sessionToken: string | null = null;
+    try {
+      sessionToken = localStorage.getItem("eliza-anon-session-token");
+    } catch (e) {
+      console.warn("[My Agents] Failed to read localStorage:", e);
+    }
+
     fetch("/api/my-agents/claim-affiliate-characters", {
       method: "POST",
       credentials: "include",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({ sessionToken: sessionToken || undefined }),
     })
       .then((res) => res.json())
       .then((data) => {
@@ -38,6 +50,16 @@ export function MyAgentsClient() {
           );
           // Trigger a refresh of the character list
           window.dispatchEvent(new CustomEvent("characters-updated"));
+
+          // Clean up localStorage after successful claim
+          if (sessionToken) {
+            try {
+              localStorage.removeItem("eliza-anon-session-token");
+              console.log("[My Agents] Cleaned up session token from localStorage");
+            } catch (e) {
+              // Ignore cleanup errors
+            }
+          }
         }
       })
       .catch((error) => {
