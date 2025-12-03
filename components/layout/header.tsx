@@ -9,8 +9,6 @@ import { usePrivy } from "@privy-io/react-auth";
 import { BrandButton } from "@/components/brand";
 import UserMenu from "./user-menu";
 import { usePageHeader } from "./page-header-context";
-import { SettingsIcon } from "lucide-react";
-import Link from "next/link";
 
 interface HeaderProps {
   onToggleSidebar: () => void;
@@ -72,10 +70,6 @@ export default function Header({
           </BrandButton>
         ) : (
           <div className="flex flex-row items-center space-x-8">
-            <Link href="/dashboard/settings">
-            <SettingsIcon className="text-white/40 size-6 transition-colors duration-200 hover:text-orange-500" />
-            </Link>
-
             <UserMenu />
           </div>
         )}
