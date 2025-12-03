@@ -43,39 +43,6 @@ export const sidebarSections: SidebarSection[] = [
     ],
   },
   {
-    title: "Generation Studio",
-    items: [
-      {
-        id: "image-generation",
-        label: "Images",
-        href: "/dashboard/image",
-        icon: ImageIcon,
-        freeAllowed: false, // Requires signup
-      },
-      {
-        id: "video-generation",
-        label: "Videos",
-        href: "/dashboard/video",
-        icon: Video,
-        freeAllowed: false, // Requires signup
-      },
-      {
-        id: "voices",
-        label: "Voices",
-        href: "/dashboard/voices",
-        icon: Mic,
-        freeAllowed: false, // Requires signup
-      },
-      {
-        id: "gallery",
-        label: "Gallery",
-        href: "/dashboard/gallery",
-        icon: LayersIcon,
-        freeAllowed: false, // Requires signup
-      },
-    ],
-  },
-  {
     title: "Agents",
     items: [
       {
@@ -104,6 +71,39 @@ export const sidebarSections: SidebarSection[] = [
         label: "API Explorer",
         href: "/dashboard/api-explorer",
         icon: Code,
+        freeAllowed: false, // Requires signup
+      },
+    ],
+  },
+  {
+    title: "Generation Studio",
+    items: [
+      {
+        id: "image-generation",
+        label: "Images",
+        href: "/dashboard/image",
+        icon: ImageIcon,
+        freeAllowed: false, // Requires signup
+      },
+      {
+        id: "video-generation",
+        label: "Videos",
+        href: "/dashboard/video",
+        icon: Video,
+        freeAllowed: false, // Requires signup
+      },
+      {
+        id: "voices",
+        label: "Voices",
+        href: "/dashboard/voices",
+        icon: Mic,
+        freeAllowed: false, // Requires signup
+      },
+      {
+        id: "gallery",
+        label: "Gallery",
+        href: "/dashboard/gallery",
+        icon: LayersIcon,
         freeAllowed: false, // Requires signup
       },
     ],
