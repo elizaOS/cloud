@@ -5,10 +5,20 @@ import {
   generationsService,
   charactersService,
   listContainers,
+  apiKeysService,
 } from "@/lib/services";
+import { elizaRoomCharactersRepository } from "@/db/repositories";
+import { agentDiscoveryService } from "@/lib/services/agent-discovery";
 import { cache as cacheClient } from "@/lib/cache/client";
 import { CacheKeys, CacheStaleTTL } from "@/lib/cache/keys";
 import { cache } from "react";
+
+export interface AgentStats {
+  roomCount: number;
+  messageCount: number;
+  deploymentStatus: "deployed" | "stopped" | "draft";
+  lastActiveAt: Date | null;
+}
 
 export interface DashboardData {
   user: {
@@ -20,6 +30,11 @@ export interface DashboardData {
     imageGenerations: number;
     videoGenerations: number;
   };
+  onboarding: {
+    hasAgents: boolean;
+    hasApiKey: boolean;
+    hasChatHistory: boolean;
+  };
   agents: Array<{
     id: string;
     name: string;
@@ -27,6 +42,7 @@ export interface DashboardData {
     avatarUrl: string | null;
     category: string | null;
     isPublic: boolean;
+    stats?: AgentStats;
   }>;
   containers: Array<{
     id: string;
@@ -52,10 +68,12 @@ async function fetchDashboardDataInternal(
   const organizationId = user.organization_id!;
 
   // Fetch only the data needed for the new dashboard
-  const [generationStats, userCharacters, containers] = await Promise.all([
+  const [generationStats, userCharacters, containers, apiKeys, chatRoomCount] = await Promise.all([
     generationsService.getStats(organizationId),
     charactersService.listByUser(user.id),
     listContainers(organizationId),
+    apiKeysService.listByOrganization(organizationId),
+    elizaRoomCharactersRepository.countByUserId(user.id),
   ]);
 
   const totalGenerations = generationStats.totalGenerations;
@@ -68,6 +86,26 @@ async function fetchDashboardDataInternal(
   // TODO: Implement proper 24h API call tracking
   const apiCalls24h = generationStats.totalGenerations;
 
+  // Fetch agent stats in batch
+  const characterIds = userCharacters.map((c) => c.id);
+  const agentStatsMap = new Map<string, AgentStats>();
+  
+  if (characterIds.length > 0) {
+    try {
+      const statsMap = await agentDiscoveryService.getAgentStatisticsBatch(characterIds);
+      statsMap.forEach((stats, id) => {
+        agentStatsMap.set(id, {
+          roomCount: stats.roomCount,
+          messageCount: stats.messageCount,
+          deploymentStatus: stats.status,
+          lastActiveAt: stats.lastActiveAt,
+        });
+      });
+    } catch (error) {
+      console.warn("[Dashboard] Failed to fetch agent stats:", error);
+    }
+  }
+
   return {
     user: {
       name: user.name || "User",
@@ -78,6 +116,13 @@ async function fetchDashboardDataInternal(
       imageGenerations,
       videoGenerations,
     },
+    onboarding: {
+      hasAgents: userCharacters.length > 0,
+      hasApiKey: apiKeys.some(
+        (key) => key.name !== "Default API Key" || (key.usage_count ?? 0) > 0
+      ),
+      hasChatHistory: chatRoomCount > 0,
+    },
     agents: userCharacters.map((c) => ({
       id: c.id,
       name: c.name,
@@ -85,6 +130,7 @@ async function fetchDashboardDataInternal(
       avatarUrl: c.avatar_url || null,
       category: c.category || null,
       isPublic: c.is_public,
+      stats: agentStatsMap.get(c.id),
     })),
     containers: containers.map((c) => ({
       id: c.id,

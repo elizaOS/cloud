@@ -51,7 +51,6 @@ export function MyAgentsView({
     refetch,
   } = useInfiniteCharacters({
     filters: {
-      myCharacters: true,
       ...filters,
       category: activeCategory || undefined,
       search: debouncedSearchQuery || undefined,

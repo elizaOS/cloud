@@ -45,52 +45,50 @@ export function EmptyChatState({
   };
 
   return (
-    <div className="flex flex-col items-center justify-center h-full text-center py-16 px-4">
+    <div className="flex flex-col items-center justify-center h-full text-center py-12 px-4">
       {/* Agent Avatar with animation */}
       <ElizaAvatar
         avatarUrl={agentAvatar}
         name={agentName}
-        className="h-20 w-20 mb-6 shadow-lg shadow-[#FF5800]/20"
+        className="h-16 w-16 mb-4 shadow-lg shadow-[#FF5800]/20"
         animate={true}
-        iconClassName="h-10 w-10"
+        iconClassName="h-8 w-8"
       />
 
       {/* Heading */}
-      <h2 className="text-2xl font-semibold text-white mb-3">
-        Start a new conversation
+      <h2 className="text-lg font-medium text-white mb-1">
+        New conversation
       </h2>
 
       {/* Description */}
-      <p className="text-sm text-white/60 max-w-md mb-8 leading-relaxed">
-        Create a new chat room to start talking with {agentName || "Eliza"}.
-        Your conversations are persistent and you can return to them anytime.
+      <p className="text-xs text-white/50 max-w-xs mb-6">
+        Chat with {agentName || "Eliza"}
       </p>
 
       {/* Primary CTA Button */}
       <BrandButton
         onClick={handleCreateChat}
         disabled={isCreating}
-        size="lg"
-        className="gap-2 min-w-[160px]"
+        size="sm"
+        className="gap-1.5 h-9 text-sm"
       >
         {isCreating ? (
           <>
-            <Loader2 className="h-5 w-5 animate-spin" />
+            <Loader2 className="h-4 w-4 animate-spin" />
             Creating...
           </>
         ) : (
           <>
-            <MessageSquare className="h-5 w-5" />
-            New Chat
+            <MessageSquare className="h-4 w-4" />
+            Start Chat
           </>
         )}
       </BrandButton>
 
       {/* Helper text */}
-      <div className="mt-8 flex items-center gap-2 text-xs text-white/40">
-        <Sparkles className="h-4 w-4" />
-        <span>Or browse previous conversations in the sidebar</span>
-      </div>
+      <p className="mt-6 text-[10px] text-white/30">
+        Previous chats in sidebar
+      </p>
     </div>
   );
 }
