@@ -1,8 +1,9 @@
 "use client";
 
-import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
+import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Bot } from "lucide-react";
 import { cn } from "@/lib/utils";
+import Image from "next/image";
 
 interface ElizaAvatarProps {
   avatarUrl?: string;
@@ -35,10 +36,15 @@ export function ElizaAvatar({
   return (
     <Avatar className={cn(className)}>
       {avatarUrl ? (
-        <AvatarImage
+        <Image
           src={avatarUrl}
           alt={name}
-          className={animate ? "animate-pulse" : ""}
+          fill
+          className={cn(
+            "object-cover",
+            animate ? "animate-pulse" : "",
+          )}
+          sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
         />
       ) : null}
       <AvatarFallback

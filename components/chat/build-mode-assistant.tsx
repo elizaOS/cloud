@@ -15,6 +15,7 @@ import {
   createConversationAction,
   listUserConversationsAction,
 } from "@/app/actions/conversations";
+import { ElizaAvatar } from "./eliza-avatar";
 
 interface BuildModeAssistantProps {
   character: ElizaCharacter;
@@ -481,9 +482,13 @@ Tell me about your vision!`;
           <div className="space-y-3 max-w-5xl mx-auto">
             {messages.length === 0 && (
               <div className="flex flex-col items-center justify-center h-full text-center py-6">
-                <div className="flex h-12 w-12 flex-shrink-0 items-center justify-center rounded-full bg-[#FF5800] mb-3">
-                  <Bot className="h-6 w-6 text-white" />
-                </div>
+                <ElizaAvatar
+                  avatarUrl={character.avatarUrl || character.avatar_url}
+                  name={character.name || "Build Assistant"}
+                  className="w-12 h-12 mb-3"
+                  iconClassName="h-6 w-6"
+                  fallbackClassName="bg-[#FF5800]"
+                />
                 <h3 className="text-base font-semibold mb-1 text-white font-[family-name:var(--font-roboto-flex)]">
                   Start Building Your Character
                 </h3>
@@ -509,9 +514,13 @@ Tell me about your vision!`;
                     <div className="flex flex-col gap-1 max-w-[70%]">
                       {/* Agent Name Row with Avatar */}
                       <div className="flex items-center gap-2">
-                        <div className="flex h-4 w-4 flex-shrink-0 items-center justify-center rounded-full bg-[#FF5800]">
-                          <Bot className="h-3 w-3 text-white" />
-                        </div>
+                        <ElizaAvatar
+                          avatarUrl={character.avatarUrl || character.avatar_url}
+                          name={character.name || "Build Assistant"}
+                          className="flex-shrink-0 w-4 h-4"
+                          iconClassName="h-3 w-3"
+                          fallbackClassName="bg-[#FF5800]"
+                        />
                         <div
                           className="font-[family-name:var(--font-roboto-flex)] text-sm font-medium"
                           style={{ color: "#A1A1AA" }}
@@ -693,9 +702,14 @@ Tell me about your vision!`;
               <div className="flex justify-start animate-in fade-in slide-in-from-bottom-4 duration-500">
                 <div className="flex flex-col gap-1 max-w-[70%]">
                   <div className="flex items-center gap-2">
-                    <div className="flex h-4 w-4 flex-shrink-0 items-center justify-center rounded-full bg-[#FF5800]">
-                      <Bot className="h-3 w-3 animate-pulse text-white" />
-                    </div>
+                    <ElizaAvatar
+                      avatarUrl={character.avatarUrl || character.avatar_url}
+                      name={character.name || "Build Assistant"}
+                      className="flex-shrink-0 w-4 h-4"
+                      iconClassName="h-3 w-3"
+                      fallbackClassName="bg-[#FF5800]"
+                      animate={true}
+                    />
                     <span
                       className="font-[family-name:var(--font-roboto-flex)] text-sm font-medium"
                       style={{ color: "#A1A1AA" }}

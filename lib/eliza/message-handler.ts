@@ -114,6 +114,7 @@ export class MessageHandler {
                 (userMessage.id ?? uuidv4()) as UUID,
               ),
               entityId: this.runtime.agentId,
+              agentId: this.runtime.agentId,
               roomId: roomId as UUID,
               content: {
                 ...content,
