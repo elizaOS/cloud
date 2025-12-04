@@ -54,7 +54,7 @@ export async function sendMessageWithSideEffects(
     },
   });
 
-  const responseText = result.result?.responseContent?.text || "";
+  const responseText = result.processing?.responseContent?.text || "";
   const userText = content.text || "";
 
   elizaLogger.info(
