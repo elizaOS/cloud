@@ -27,6 +27,7 @@ import {
   extractAttachments,
   executeProviders,
   executeActions,
+  cleanPrompt,
 } from "../shared/utils/helpers";
 import {
   parsePlannedItems,
@@ -34,6 +35,7 @@ import {
   type ParsedPlan,
 } from "../shared/utils/parsers";
 import type { MessageReceivedHandlerParams } from "../shared/types";
+import { State } from "@aws-sdk/client-cloudwatch-logs";
 
 /**
  * Chat Assistant Workflow Handler
@@ -83,24 +85,27 @@ export async function handleMessage({
     logger.info(
       `[ChatAssistant] Processing message for character: ${runtime.character.name} (ID: ${runtime.character.id})`,
     );
-    logger.debug("[ChatAssistant] Composing state with memory providers");
+
     const initialState = await runtime.composeState(message, [
-      "SHORT_TERM_MEMORY",
+      "SUMMARIZED_CONTEXT",
+      "RECENT_MESSAGES",
       "LONG_TERM_MEMORY",
       "AVAILABLE_DOCUMENTS",
       "PROVIDERS",
+      "MCP",
       "ACTIONS",
       "CHARACTER",
     ]);
 
     // PHASE 2: Planning - Determine which providers/actions to use
     logger.info("[ChatAssistant] Phase 1: Planning");
-    const planningPrompt = composePromptFromState({
+    const planningPromptRaw = composePromptFromState({
       state: initialState,
       template:
         runtime.character.templates?.planningTemplate ||
         chatAssistantPlanningTemplate,
     });
+    const planningPrompt = cleanPrompt(planningPromptRaw);
 
     logger.debug("*** PLANNING PROMPT ***\n", planningPrompt);
 
@@ -141,6 +146,15 @@ export async function handleMessage({
       thought = plan.thought || "";
     } else {
       // Need to gather more context and generate response (2+ LLM calls)
+      const initialState = await runtime.composeState(message, [
+        "SUMMARIZED_CONTEXT",
+        "RECENT_MESSAGES",
+        "LONG_TERM_MEMORY",
+        "PROVIDERS",
+        "MCP",
+        "ACTIONS",
+        "CHARACTER",
+      ]);
       let updatedState = { ...initialState };
 
       // PHASE 3: Execute planned providers and actions
@@ -160,13 +174,15 @@ export async function handleMessage({
           updatedState,
         );
 
+        // We need to send the empty callback to actions, we wanna check the action results.
+        // Not callback from the actions.
+        // Then do llm call to summarize the action results in phase 4.
         updatedState = await executeActions(
           runtime,
           message,
           plannedActions,
           plan,
           updatedState,
-          callback,
         );
       } else {
         logger.info(
@@ -180,19 +196,25 @@ export async function handleMessage({
         `[ChatAssistant] ${responsePhase}: Generating final response`,
       );
 
+      updatedState = await runtime.composeState(message, [
+        "CURRENT_RUN_CONTEXT",
+      ]);
+
       // Compose system prompt for response generation
-      const finalSystemPrompt = composePromptFromState({
+      const finalSystemPromptRaw = composePromptFromState({
         state: updatedState,
         template: chatAssistantFinalSystemPrompt,
       });
+      const finalSystemPrompt = cleanPrompt(finalSystemPromptRaw);
       runtime.character.system = finalSystemPrompt;
 
-      const responsePrompt = composePromptFromState({
+      const responsePromptRaw = composePromptFromState({
         state: updatedState,
         template:
           runtime.character.templates?.messageHandlerTemplate ||
           chatAssistantResponseTemplate,
       });
+      const responsePrompt = cleanPrompt(responsePromptRaw);
 
       logger.debug("*** FINAL SYSTEM PROMPT ***\n", runtime.character.system);
       logger.debug("*** RESPONSE PROMPT ***\n", responsePrompt);

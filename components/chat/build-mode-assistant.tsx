@@ -251,24 +251,19 @@ Tell me about your vision!`;
     setMessages((prev) => [...prev, userMessage]);
 
     try {
-      const response = await fetch(
-        `/api/eliza/rooms/${builderRoomId}/messages/stream`,
-        {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            roomId: builderRoomId,
-            entityId: userId,
-            text,
-            agentMode: {
-              mode: AgentMode.BUILD,
-              metadata: {
-                targetCharacterId: character.id,
-              },
+      const response = await fetch(`/api/eliza/rooms/${builderRoomId}/messages/stream`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          text,
+          agentMode: {
+            mode: AgentMode.BUILD,
+            metadata: {
+              targetCharacterId: character.id,
             },
-          }),
-        },
-      );
+          },
+        }),
+      });
 
       if (!response.ok) {
         throw new Error(`HTTP error! status: ${response.status}`);
@@ -451,10 +446,7 @@ Tell me about your vision!`;
       lastMessage.role === "assistant" &&
       lastMessage.id !== "welcome"
     ) {
-      const content = lastMessage.parts
-        .filter((part) => part.type === "text")
-        .map((part) => (part as { text: string }).text)
-        .join("");
+      const content = lastMessage.content;
 
       const jsonMatch = content.match(/```json\n([\s\S]*?)(\n```|$)/);
       if (jsonMatch) {

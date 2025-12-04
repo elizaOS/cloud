@@ -91,7 +91,8 @@ export async function handleMessage({
     logger.info("[BuildMode] Phase 1: Composing state");
 
     const state = await runtime.composeState(message, [
-      "SHORT_TERM_MEMORY",
+      "SUMMARIZED_CONTEXT",
+      "RECENT_MESSAGES",
       "LONG_TERM_MEMORY",
       "ACTIONS",
     ]);

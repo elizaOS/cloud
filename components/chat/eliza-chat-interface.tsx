@@ -71,7 +71,6 @@ export function ElizaChatInterface({ onMessageSent }: ElizaChatInterfaceProps) {
   // Use chat store for room and character management
   const {
     roomId,
-    entityId,
     loadRooms,
     createRoom: createRoomInStore,
     selectedCharacterId,
@@ -596,7 +595,6 @@ export function ElizaChatInterface({ onMessageSent }: ElizaChatInterfaceProps) {
       // Stream the response using single endpoint
       await sendStreamingMessage({
         roomId: currentRoomId,
-        entityId: entityId,
         text: messageText,
         model: selectedModelId, // Pass selected model from tier
         sessionToken: anonymousSessionToken || undefined, // Pass session token for anonymous users
