@@ -13,6 +13,10 @@ import { logger } from "@/lib/utils/logger";
 // Legacy compatibility layer
 class AgentRuntimeManager {
   private static instance: AgentRuntimeManager;
+  
+  // Cache for the default system runtime to avoid expensive re-initialization
+  private cachedSystemRuntime: AgentRuntime | null = null;
+  private systemRuntimePromise: Promise<AgentRuntime> | null = null;
 
   private constructor() {
     logger.info("[AgentRuntime] Initialized simplified runtime manager");
@@ -31,14 +35,34 @@ class AgentRuntimeManager {
 
   /**
    * Get default runtime (for backward compatibility)
-   * Creates a system context runtime with CHAT mode
+   * Creates a system context runtime with CHAT mode - CACHED to avoid expensive re-initialization
    */
   async getRuntime(): Promise<AgentRuntime> {
-    logger.info("[AgentRuntime] Creating default runtime with system context");
-    const systemContext = userContextService.createSystemContext(
-      AgentMode.CHAT,
+    // Return cached runtime if available
+    if (this.cachedSystemRuntime) {
+      return this.cachedSystemRuntime;
+    }
+
+    // If already creating, wait for that promise
+    if (this.systemRuntimePromise) {
+      return this.systemRuntimePromise;
+    }
+
+    // Create new runtime and cache it
+    logger.info(
+      "[AgentRuntime] Creating default runtime with system context (will be cached)",
     );
-    return runtimeFactory.createRuntimeForUser(systemContext);
+    this.systemRuntimePromise = (async () => {
+      const systemContext = userContextService.createSystemContext(
+        AgentMode.CHAT,
+      );
+      const runtime = await runtimeFactory.createRuntimeForUser(systemContext);
+      this.cachedSystemRuntime = runtime;
+      this.systemRuntimePromise = null;
+      return runtime;
+    })();
+
+    return this.systemRuntimePromise;
   }
 
   /**

@@ -19,9 +19,10 @@ const loginMethods: ("wallet" | "email" | "google" | "discord" | "github")[] = [
 
 /**
  * Wrapper component to handle post-authentication logic
+ * Handles migration of anonymous user data after successful authentication
  */
 function PrivyAuthWrapper({ children }: { children: React.ReactNode }) {
-  const { ready, authenticated, user } = usePrivy();
+  const { ready, authenticated, user, getAccessToken } = usePrivy();
   const migrationAttempted = useRef(false);
 
   useEffect(() => {
@@ -29,28 +30,101 @@ function PrivyAuthWrapper({ children }: { children: React.ReactNode }) {
     if (ready && authenticated && user && !migrationAttempted.current) {
       migrationAttempted.current = true;
 
-      // Check if there's an anonymous session to migrate
-      const hasAnonSession = document.cookie.includes("eliza-anon-session");
+      // Check for anonymous session token in localStorage
+      // (httpOnly cookies can't be read via document.cookie, so we use localStorage as backup)
+      let sessionToken: string | null = null;
+      try {
+        sessionToken = localStorage.getItem("eliza-anon-session-token");
+      } catch (e) {
+        console.warn("[PrivyProvider] Failed to read localStorage:", e);
+      }
 
-      if (hasAnonSession) {
-        fetch("/api/auth/migrate-anonymous", {
-          method: "POST",
-          credentials: "include", // Important: include cookies
-        })
-          .then((res) => res.json())
-          .then((data) => {
-            // Migration completed silently
-          })
-          .catch((error) => {
-            console.error(
-              "[PrivyProvider] Failed to migrate anonymous session:",
-              error,
-            );
-            // Don't block user - this is non-critical
-          });
+      // Also check document.cookie as fallback (in case cookie was set without httpOnly in dev)
+      const hasAnonCookie = document.cookie.includes("eliza-anon-session");
+
+      // Also check URL for session token (in case localStorage was cleared)
+      const urlParams = new URLSearchParams(window.location.search);
+      const urlSessionToken = urlParams.get("session");
+      if (urlSessionToken && !sessionToken) {
+        sessionToken = urlSessionToken;
+        console.log("[PrivyProvider] 🔑 Found session token in URL:", urlSessionToken.slice(0, 8) + "...");
+      }
+
+      if (sessionToken || hasAnonCookie) {
+        console.log("[PrivyProvider] 🔄 Detected anonymous session, initiating migration...", {
+          hasLocalStorageToken: !!sessionToken,
+          hasCookie: hasAnonCookie,
+          hasUrlToken: !!urlSessionToken,
+        });
+
+        // Helper function to attempt migration with retry
+        const attemptMigration = async (retryCount = 0): Promise<void> => {
+          const maxRetries = 3;
+          const retryDelay = 1000; // 1 second
+
+          try {
+            // Get fresh access token to ensure auth is ready
+            const accessToken = await getAccessToken();
+
+            const response = await fetch("/api/auth/migrate-anonymous", {
+              method: "POST",
+              credentials: "include",
+              headers: {
+                "Content-Type": "application/json",
+                ...(accessToken && { "Authorization": `Bearer ${accessToken}` }),
+              },
+              body: JSON.stringify({ sessionToken: sessionToken || undefined }),
+            });
+
+            const data = await response.json();
+
+            if (data.success && data.migrated) {
+              console.log("[PrivyProvider] ✅ Anonymous session migrated successfully:", data);
+              cleanupAndNotify();
+              reloadIfNeeded();
+            } else if (data.error && retryCount < maxRetries) {
+              console.log(`[PrivyProvider] ⚠️ Migration failed, retrying (${retryCount + 1}/${maxRetries})...`);
+              setTimeout(() => attemptMigration(retryCount + 1), retryDelay);
+            } else {
+              console.log("[PrivyProvider] ℹ️ Migration result:", data.message);
+              cleanupAndNotify();
+            }
+          } catch (error) {
+            if (retryCount < maxRetries) {
+              console.log(`[PrivyProvider] ⚠️ Migration error, retrying (${retryCount + 1}/${maxRetries})...`, error);
+              setTimeout(() => attemptMigration(retryCount + 1), retryDelay);
+            } else {
+              console.error("[PrivyProvider] ❌ Failed to migrate anonymous session after retries:", error);
+              cleanupAndNotify();
+            }
+          }
+        };
+
+        const cleanupAndNotify = () => {
+          try {
+            localStorage.removeItem("eliza-anon-session-token");
+          } catch (e) {
+            // Ignore cleanup errors
+          }
+          window.dispatchEvent(new CustomEvent("anonymous-session-migrated"));
+          console.log("[PrivyProvider] 📢 Dispatched anonymous-session-migrated event");
+        };
+
+        const reloadIfNeeded = () => {
+          const currentPath = window.location.pathname;
+          if (currentPath.startsWith("/chat/") || currentPath.includes("/my-agents") || currentPath.includes("/dashboard")) {
+            console.log("[PrivyProvider] 🔃 Reloading page to show migrated data...", currentPath);
+            setTimeout(() => {
+              window.location.reload();
+            }, 500);
+          }
+        };
+
+        // Small delay to ensure Privy auth cookies are set
+        setTimeout(() => attemptMigration(), 500);
       }
     }
-  }, [ready, authenticated, user]);
+  }, [ready, authenticated, user, getAccessToken]);
 
   return <>{children}</>;
 }
