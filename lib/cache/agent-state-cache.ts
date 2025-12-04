@@ -43,6 +43,7 @@ export interface UserSession {
 export interface AgentStats {
   agentId: string;
   messageCount: number;
+  roomCount: number;
   lastActiveAt: Date | null;
   uptime: number;
   status: "deployed" | "stopped" | "draft";
@@ -299,6 +300,17 @@ export class AgentStateCache {
         AgentStats & { lastActiveAt: string | null }
       >(key);
       if (!cached) return null;
+
+      // Check if cached data has the roomCount field (v2 schema)
+      // If not, treat as cache miss so we refetch fresh data
+      if (typeof cached.roomCount !== "number") {
+        logger.debug(
+          `[Agent State Cache] Stale cache data for ${agentId} (missing roomCount), treating as miss`
+        );
+        // Invalidate the stale cache entry
+        await cacheClient.del(key);
+        return null;
+      }
 
       const stats: AgentStats = {
         ...cached,

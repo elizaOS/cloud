@@ -208,82 +208,51 @@ export function ChatSidebar({
         </div>
 
         {/* Back Button */}
-        <div className="border-b border-white/10 px-4 py-3">
+        <div className="border-b border-white/10 px-4 py-2">
           <Link
             href="/dashboard"
-            className="flex items-center gap-2 text-white/70 hover:text-white transition-colors"
-            style={{
-              fontFamily: "var(--font-roboto-mono)",
-              fontWeight: 400,
-              fontSize: "14px",
-              lineHeight: "18px",
-              letterSpacing: "-0.003em",
-            }}
+            className="flex items-center gap-1.5 text-xs text-white/50 hover:text-white/80 transition-colors"
           >
-            <ArrowLeft className="h-4 w-4" />
+            <ArrowLeft className="h-3 w-3" />
             <span>Back</span>
           </Link>
         </div>
 
         {/* Selected Character Profile with New Chat Icon */}
-        <div className="border-b border-white/10 px-4 py-4">
-          <div className="flex items-center gap-3">
+        <div className="border-b border-white/10 px-4 py-3">
+          <div className="flex items-center gap-2.5">
             {/* Character Avatar */}
-            <div className="relative flex-shrink-0">
-              <ElizaAvatar
-                avatarUrl={selectedCharacter?.avatarUrl}
-                name={selectedCharacter?.name || "Eliza"}
-                className="w-10 h-10"
-                iconClassName="h-5 w-5"
-                fallbackClassName="bg-[#FF5800]/10"
-              />
-            </div>
+            <ElizaAvatar
+              avatarUrl={selectedCharacter?.avatarUrl}
+              name={selectedCharacter?.name || "Eliza"}
+              className="w-8 h-8 flex-shrink-0"
+              iconClassName="h-4 w-4"
+              fallbackClassName="bg-[#FF5800]/10"
+            />
 
             {/* Character Info */}
             <div className="flex-1 min-w-0">
-              <div
-                className="text-sm font-medium text-white truncate"
-                style={{
-                  fontFamily: "var(--font-roboto-mono)",
-                  fontWeight: 400,
-                  fontSize: "14px",
-                  lineHeight: "18px",
-                  letterSpacing: "-0.003em",
-                }}
-              >
+              <div className="text-sm font-medium text-white truncate">
                 {selectedCharacter?.name || "Eliza"}
               </div>
-              <div
-                className="text-xs text-white/60 truncate"
-                style={{
-                  fontFamily: "var(--font-roboto-mono)",
-                  fontWeight: 400,
-                  letterSpacing: "-0.003em",
-                }}
-              >
-                {selectedCharacter
-                  ? `${filteredRooms.length} interaction${filteredRooms.length !== 1 ? "s" : ""}`
-                  : `${filteredRooms.length} interaction${filteredRooms.length !== 1 ? "s" : ""}`}
+              <div className="text-[10px] text-white/40 truncate">
+                {filteredRooms.length} chat{filteredRooms.length !== 1 ? "s" : ""}
               </div>
             </div>
 
-            {/* New Chat Button - Enhanced with Label */}
+            {/* New Chat Button */}
             <BrandButton
               onClick={handleNewChat}
               disabled={isCreatingRoom}
               size="sm"
-              className="flex-shrink-0 gap-1.5 px-3 h-8"
-              title="Start new conversation"
+              className="flex-shrink-0 h-7 px-2 text-xs"
             >
               {isCreatingRoom ? (
-                <>
-                  <Loader2 className="h-4 w-4 animate-spin" />
-                  <span className="text-xs hidden sm:inline">Creating...</span>
-                </>
+                <Loader2 className="h-3.5 w-3.5 animate-spin" />
               ) : (
                 <>
-                  <Edit3 className="h-4 w-4" />
-                  <span className="text-xs">New</span>
+                  <Edit3 className="h-3.5 w-3.5" />
+                  <span className="ml-1">New</span>
                 </>
               )}
             </BrandButton>
@@ -291,13 +260,13 @@ export function ChatSidebar({
         </div>
 
         {/* Rooms/Conversations List */}
-        <nav className="flex-1 overflow-y-auto px-2 py-4">
+        <nav className="flex-1 overflow-y-auto px-2 py-3">
           {isLoadingRooms && filteredRooms.length === 0 ? (
-            <div className="flex items-center justify-center py-8">
-              <Loader2 className="h-5 w-5 animate-spin text-white/60" />
+            <div className="flex items-center justify-center py-6">
+              <Loader2 className="h-4 w-4 animate-spin text-white/40" />
             </div>
           ) : (
-            <div className="space-y-1">
+            <div className="space-y-0.5">
               {filteredRooms.map((room) => {
                 const isDeleting = deletingRoomId === room.id;
                 const isLoading = loadingRoomId === room.id;
@@ -305,7 +274,7 @@ export function ChatSidebar({
                   <div
                     key={room.id}
                     className={cn(
-                      "group relative w-full text-left px-3 py-3 rounded-none transition-colors",
+                      "group relative w-full text-left px-2.5 py-2 rounded-sm transition-colors",
                       "hover:bg-white/5",
                       roomId === room.id &&
                         "bg-white/10 border-l-2 border-[#FF5800]",
@@ -318,61 +287,25 @@ export function ChatSidebar({
                       disabled={isDeleting || isLoading}
                       className="w-full text-left"
                     >
-                      <div className="flex items-start gap-3">
+                      <div className="flex items-start gap-2">
                         {isLoading ? (
-                          <Loader2 className="h-4 w-4 text-[#FF5800] mt-0.5 shrink-0 animate-spin" />
+                          <Loader2 className="h-3.5 w-3.5 text-[#FF5800] mt-0.5 shrink-0 animate-spin" />
                         ) : (
-                          <MessageSquare className="h-4 w-4 text-white/60 mt-0.5 shrink-0" />
+                          <MessageSquare className="h-3.5 w-3.5 text-white/40 mt-0.5 shrink-0" />
                         )}
                         <div className="flex-1 min-w-0">
-                          <div className="flex items-center justify-between gap-2 mb-1">
-                            <span
-                              className="text-sm font-medium text-white truncate"
-                              style={{
-                                fontFamily: "var(--font-roboto-mono)",
-                                fontWeight: 400,
-                                fontSize: "14px",
-                                lineHeight: "18px",
-                                letterSpacing: "-0.003em",
-                              }}
-                            >
-                              {room.title ||
-                                `Room ID: ${room.id.substring(0, 8)}`}
+                          <div className="flex items-center justify-between gap-1.5 mb-0.5">
+                            <span className="text-xs font-medium text-white/90 truncate">
+                              {room.title || `Chat ${room.id.substring(0, 6)}`}
                             </span>
                             {room.lastTime && !isLoading && (
-                              <span
-                                className="text-xs text-white/40 shrink-0"
-                                style={{
-                                  fontFamily: "var(--font-roboto-mono)",
-                                  fontWeight: 400,
-                                  letterSpacing: "-0.003em",
-                                }}
-                              >
+                              <span className="text-[10px] text-white/30 shrink-0">
                                 {formatTimestamp(room.lastTime)}
-                              </span>
-                            )}
-                            {isLoading && (
-                              <span
-                                className="text-xs text-[#FF5800] shrink-0"
-                                style={{
-                                  fontFamily: "var(--font-roboto-mono)",
-                                  fontWeight: 400,
-                                  letterSpacing: "-0.003em",
-                                }}
-                              >
-                                Loading...
                               </span>
                             )}
                           </div>
                           {room.lastText && (
-                            <p
-                              className="text-xs text-white/60 truncate"
-                              style={{
-                                fontFamily: "var(--font-roboto-mono)",
-                                fontWeight: 400,
-                                letterSpacing: "-0.003em",
-                              }}
-                            >
+                            <p className="text-[10px] text-white/40 truncate">
                               {room.lastText}
                             </p>
                           )}
@@ -386,36 +319,25 @@ export function ChatSidebar({
                       }}
                       disabled={isDeleting}
                       className={cn(
-                        "absolute top-3 right-3 p-1 rounded-none",
+                        "absolute top-2 right-2 p-1 rounded-sm",
                         "opacity-0 group-hover:opacity-100 transition-opacity",
-                        "hover:bg-red-500/10 hover:text-red-500",
+                        "hover:bg-red-500/10 hover:text-red-400",
                       )}
-                      title="Delete conversation"
                     >
                       {isDeleting ? (
-                        <Loader2 className="h-3 w-3 animate-spin" />
+                        <Loader2 className="h-2.5 w-2.5 animate-spin" />
                       ) : (
-                        <Trash2 className="h-3 w-3" />
+                        <Trash2 className="h-2.5 w-2.5" />
                       )}
                     </button>
                   </div>
                 );
               })}
               {filteredRooms.length === 0 && !isLoadingRooms && (
-                <div
-                  className="px-3 py-8 text-center"
-                  style={{
-                    fontFamily: "var(--font-roboto-mono)",
-                    fontWeight: 400,
-                    letterSpacing: "-0.003em",
-                  }}
-                >
-                  <MessageSquare className="h-12 w-12 text-white/20 mx-auto mb-3" />
-                  <p className="text-xs text-white/60 mb-2">
-                    No conversations yet
-                  </p>
-                  <p className="text-xs text-white/40 mt-2">
-                    Click "New" above or the button in chat to start
+                <div className="px-3 py-6 text-center">
+                  <MessageSquare className="h-8 w-8 text-white/15 mx-auto mb-2" />
+                  <p className="text-[10px] text-white/40">
+                    No chats yet
                   </p>
                 </div>
               )}

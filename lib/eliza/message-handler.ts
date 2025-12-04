@@ -184,8 +184,20 @@ export class MessageHandler {
     }
 
     // 6. Handle anonymous session tracking
+    logger.info("[MessageHandler] 📊 Checking anonymous session tracking:", {
+      isAnonymous: this.userContext.isAnonymous,
+      hasSessionToken: !!this.userContext.sessionToken,
+      sessionTokenPreview: this.userContext.sessionToken?.slice(0, 8) + "...",
+      userId: this.userContext.userId,
+    });
     if (this.userContext.isAnonymous && this.userContext.sessionToken) {
       await this.incrementAnonymousMessageCount();
+    } else {
+      logger.info("[MessageHandler] ℹ️ Skipping message count increment:", {
+        reason: !this.userContext.isAnonymous ? "Not anonymous user" : "No session token",
+        isAnonymous: this.userContext.isAnonymous,
+        hasSessionToken: !!this.userContext.sessionToken,
+      });
     }
 
     // 7. Fire-and-forget side effects (Discord, room title generation)
@@ -377,7 +389,16 @@ export class MessageHandler {
    * Increment anonymous message count
    */
   private async incrementAnonymousMessageCount(): Promise<void> {
-    if (!this.userContext.sessionToken) return;
+    logger.info("[MessageHandler] 📊 incrementAnonymousMessageCount called:", {
+      hasSessionToken: !!this.userContext.sessionToken,
+      sessionTokenPreview: this.userContext.sessionToken?.slice(0, 8) + "...",
+      isAnonymous: this.userContext.isAnonymous,
+    });
+    
+    if (!this.userContext.sessionToken) {
+      logger.warn("[MessageHandler] ⚠️ No session token, skipping message count increment");
+      return;
+    }
 
     try {
       // Find session by token and increment count
@@ -385,14 +406,26 @@ export class MessageHandler {
         sql`SELECT id FROM anonymous_sessions WHERE session_token = ${this.userContext.sessionToken} LIMIT 1`,
       );
 
+      logger.info("[MessageHandler] 📊 Session lookup result:", {
+        found: sessions.rows.length > 0,
+        sessionId: sessions.rows[0]?.id,
+        tokenUsed: this.userContext.sessionToken?.slice(0, 8) + "...",
+      });
+
       if (sessions.rows.length > 0) {
-        await anonymousSessionsService.incrementMessageCount(
+        const updatedSession = await anonymousSessionsService.incrementMessageCount(
           sessions.rows[0].id,
         );
+        logger.info("[MessageHandler] ✅ Message count incremented:", {
+          sessionId: sessions.rows[0].id,
+          newCount: updatedSession?.message_count,
+        });
+      } else {
+        logger.warn("[MessageHandler] ⚠️ No session found for token:", this.userContext.sessionToken?.slice(0, 8) + "...");
       }
     } catch (error) {
       logger.error(
-        "[MessageHandler] Failed to increment anonymous message count:",
+        "[MessageHandler] ❌ Failed to increment anonymous message count:",
         error,
       );
       // Don't fail the message if tracking fails
