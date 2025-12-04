@@ -19,7 +19,8 @@ import { EmptyChatState } from "./empty-chat-state";
 import { KnowledgeDrawer } from "./knowledge-drawer";
 import { useAudioRecorder } from "./hooks/use-audio-recorder";
 import { useAudioPlayer } from "./hooks/use-audio-player";
-import { useAvailableModels } from "./hooks/use-available-models";
+import { useModelTier } from "./hooks/use-model-tier";
+import { Zap, Sparkles, Crown } from "lucide-react";
 import { sendStreamingMessage } from "@/hooks/use-streaming-message";
 import type { StreamingMessage } from "@/hooks/use-streaming-message";
 import { toast } from "sonner";
@@ -129,24 +130,13 @@ export function ElizaChatInterface({ onMessageSent }: ElizaChatInterfaceProps) {
   const recorder = useAudioRecorder();
   const player = useAudioPlayer();
 
-  // Load available models
-  const { models, isLoading: isLoadingModels } = useAvailableModels();
+  const { selectedTier, selectedModelId, tiers, setTier, isLoading: isLoadingModels } = useModelTier();
 
-  // Selected model state (persisted in localStorage)
-  const [selectedModel, setSelectedModel] = useState<string | null>(() => {
-    if (typeof window !== "undefined") {
-      const saved = localStorage.getItem("eliza-selected-model");
-      return saved || "openai/gpt-oss-120b"; // Default to kimi-k2-0905
-    }
-    return "openai/gpt-oss-120b";
-  });
-
-  // Save selected model to localStorage
-  useEffect(() => {
-    if (selectedModel && typeof window !== "undefined") {
-      localStorage.setItem("eliza-selected-model", selectedModel);
-    }
-  }, [selectedModel]);
+  const tierIcons = {
+    fast: <Zap className="h-3.5 w-3.5" />,
+    pro: <Sparkles className="h-3.5 w-3.5" />,
+    ultra: <Crown className="h-3.5 w-3.5" />,
+  };
 
   const loadMessages = useCallback(async (targetRoomId: string) => {
     setIsLoadingMessages(true);
@@ -608,7 +598,7 @@ export function ElizaChatInterface({ onMessageSent }: ElizaChatInterfaceProps) {
         roomId: currentRoomId,
         entityId: entityId,
         text: messageText,
-        model: selectedModel || undefined, // Pass selected model
+        model: selectedModelId, // Pass selected model from tier
         sessionToken: anonymousSessionToken || undefined, // Pass session token for anonymous users
         onMessage: handleStreamMessage,
         onError: (errorMsg) => {
@@ -1118,27 +1108,36 @@ export function ElizaChatInterface({ onMessageSent }: ElizaChatInterfaceProps) {
 
             {/* Bottom Row: Model Selector (left) and Action Buttons (right) */}
             <div className="flex items-center justify-between">
-              {/* Model Selector - Bottom Left */}
+              {/* Model Tier Selector - Bottom Left */}
               <Select
-                value={selectedModel || "openai/gpt-oss-120b"}
+                value={selectedTier}
                 onValueChange={(value) => {
-                  setSelectedModel(value);
-                  const modelName = value.split("/")[1] || value;
-                  toast.success(`Model: ${modelName}`);
+                  setTier(value as "fast" | "pro" | "ultra");
+                  const tier = tiers.find(t => t.id === value);
+                  if (tier) {
+                    toast.success(`Model: ${tier.name}`);
+                  }
                 }}
                 disabled={isLoadingModels}
               >
-                <SelectTrigger className="w-[140px] h-10 border-muted rounded-none">
+                <SelectTrigger className="w-[130px] h-10 border-muted rounded-none">
                   <SelectValue placeholder="Select model">
-                    {selectedModel
-                      ? selectedModel.split("/")[1] || selectedModel
-                      : "Select model"}
+                    <span className="flex items-center gap-2">
+                      {tierIcons[selectedTier]}
+                      {tiers.find(t => t.id === selectedTier)?.name || "Pro"}
+                    </span>
                   </SelectValue>
                 </SelectTrigger>
                 <SelectContent className="rounded-none">
-                  {models.map((model) => (
-                    <SelectItem key={model.id} value={model.id}>
-                      {model.id.split("/")[1] || model.id}
+                  {tiers.map((tier) => (
+                    <SelectItem key={tier.id} value={tier.id}>
+                      <div className="flex items-center gap-2">
+                        {tierIcons[tier.id]}
+                        <div className="flex flex-col">
+                          <span className="font-medium">{tier.name}</span>
+                          <span className="text-xs text-muted-foreground">{tier.description}</span>
+                        </div>
+                      </div>
                     </SelectItem>
                   ))}
                 </SelectContent>
