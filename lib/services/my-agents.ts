@@ -40,87 +40,106 @@ export class MyAgentsService {
       includeStats,
     } = options;
 
-    const cacheKey = marketplaceCache.createFilterHash({
-      ...filters,
-      ...sortOptions,
-      ...pagination,
-      includeStats,
+    // Skip caching for user-specific queries to ensure fresh data
+    const { deployed, ...dbFilters } = filters;
+
+    logger.debug("[My Agents Service] Searching characters:", {
+      userId,
+      filters: dbFilters,
+      deployed,
     });
-
-    const cached = await marketplaceCache.getSearchResult(
-      organizationId,
-      cacheKey,
-    );
-    if (cached) {
-      return { ...cached, cached: true };
-    }
-
-    logger.debug(
-      `[My Agents Service] Searching characters with filters:`,
-      filters,
-    );
 
     const offset = (pagination.page - 1) * pagination.limit;
 
+    // Fetch characters from database (without deployed filter - handled separately)
     const [characters, total] = await Promise.all([
       userCharactersRepository.search(
-        filters,
+        dbFilters,
         userId,
         organizationId,
         sortOptions,
-        pagination.limit,
-        offset,
+        // Fetch more if we need to filter by deployed status
+        deployed !== undefined ? pagination.limit * 3 : pagination.limit,
+        deployed !== undefined ? 0 : offset
       ),
-      userCharactersRepository.count(filters, userId, organizationId),
+      userCharactersRepository.count(dbFilters, userId, organizationId),
     ]);
 
     logger.debug(
-      `[My Agents Service] Found ${characters.length} characters (${total} total)`,
+      `[My Agents Service] Found ${characters.length} characters (${total} total)`
     );
 
+    // Convert to extended characters
     let enrichedCharacters = characters.map((char) =>
-      this.toExtendedCharacter(char),
+      this.toExtendedCharacter(char)
     );
 
-    if (includeStats) {
-      // Batch fetch stats to avoid N+1 queries
-      const characterIds = enrichedCharacters.map((char) => char.id);
-      let statsMap: Map<string, AgentStats>;
-      try {
-        statsMap =
-          await agentDiscoveryService.getAgentStatisticsBatch(characterIds);
-      } catch (error) {
-        logger.warn(`[My Agents Service] Failed to batch fetch stats:`, error);
-        statsMap = new Map();
-      }
+    // Always fetch stats to determine deployment status
+    const characterIds = enrichedCharacters.map((char) => char.id);
+    let statsMap: Map<string, AgentStats> = new Map();
 
-      enrichedCharacters = enrichedCharacters.map((char) => {
-        const stats = statsMap.get(char.id);
-        if (stats) {
-          return {
-            ...char,
-            stats: {
-              messageCount: stats.messageCount,
-              roomCount: 0,
-              lastActiveAt: stats.lastActiveAt,
-              deploymentStatus: stats.status,
-              uptime: stats.uptime,
-            },
-          };
-        } else {
-          return char;
-        }
+    try {
+      statsMap =
+        await agentDiscoveryService.getAgentStatisticsBatch(characterIds);
+    } catch (error) {
+      logger.warn("[My Agents Service] Failed to batch fetch stats:", error);
+    }
+
+    // Enrich with stats
+    enrichedCharacters = enrichedCharacters.map((char) => {
+      const stats = statsMap.get(char.id);
+      if (stats) {
+        return {
+          ...char,
+          stats: {
+            messageCount: stats.messageCount,
+            roomCount: stats.roomCount,
+            lastActiveAt: stats.lastActiveAt,
+            deploymentStatus: stats.status,
+            uptime: stats.uptime,
+          },
+        };
+      }
+      return {
+        ...char,
+        stats: {
+          messageCount: 0,
+          roomCount: 0,
+          lastActiveAt: null,
+          deploymentStatus: "draft" as const,
+          uptime: 0,
+        },
+      };
+    });
+
+    // Filter by deployment status if requested
+    if (deployed !== undefined) {
+      enrichedCharacters = enrichedCharacters.filter((char) => {
+        const isDeployed = char.stats?.deploymentStatus === "deployed";
+        return deployed ? isDeployed : !isDeployed;
       });
     }
 
+    // Apply pagination after filtering (if we fetched extra for deployed filter)
+    let paginatedCharacters = enrichedCharacters;
+    let adjustedTotal = total;
+
+    if (deployed !== undefined) {
+      adjustedTotal = enrichedCharacters.length;
+      paginatedCharacters = enrichedCharacters.slice(
+        offset,
+        offset + pagination.limit
+      );
+    }
+
     const result: MyAgentsSearchResult = {
-      characters: enrichedCharacters,
+      characters: paginatedCharacters,
       pagination: {
         page: pagination.page,
         limit: pagination.limit,
-        total,
-        totalPages: Math.ceil(total / pagination.limit),
-        hasMore: offset + characters.length < total,
+        total: adjustedTotal,
+        totalPages: Math.ceil(adjustedTotal / pagination.limit),
+        hasMore: offset + paginatedCharacters.length < adjustedTotal,
       },
       filters: {
         appliedFilters: filters,
@@ -129,14 +148,12 @@ export class MyAgentsService {
       cached: false,
     };
 
-    await marketplaceCache.setSearchResult(organizationId, cacheKey, result);
-
     return result;
   }
 
   async getCategories(
     organizationId: string,
-    userId: string,
+    userId: string
   ): Promise<CategoryInfo[]> {
     const cached = await marketplaceCache.getCategories(organizationId);
     if (cached) {
@@ -151,7 +168,7 @@ export class MyAgentsService {
           const count = await userCharactersRepository.count(
             { category: category.id },
             userId,
-            organizationId,
+            organizationId
           );
 
           return {
@@ -165,8 +182,8 @@ export class MyAgentsService {
           };
         } catch (error) {
           logger.error(
-            `[Marketplace Service] Error getting count for category ${category.id}:`,
-            error,
+            `[My Agents Service] Error getting count for category ${category.id}:`,
+            error
           );
           return {
             id: category.id,
@@ -178,7 +195,7 @@ export class MyAgentsService {
             featured: false,
           };
         }
-      }),
+      })
     );
 
     await marketplaceCache.setCategories(organizationId, categoriesWithCounts);
@@ -188,7 +205,7 @@ export class MyAgentsService {
 
   async getCharacterById(
     characterId: string,
-    includeStats: boolean = false,
+    includeStats: boolean = false
   ): Promise<ExtendedCharacter | null> {
     const cached = await marketplaceCache.getCharacter(characterId);
     if (cached && (!includeStats || cached.stats)) {
@@ -210,7 +227,7 @@ export class MyAgentsService {
           ...extended,
           stats: {
             messageCount: stats.messageCount,
-            roomCount: 0,
+            roomCount: stats.roomCount,
             lastActiveAt: stats.lastActiveAt,
             deploymentStatus: stats.status,
             uptime: stats.uptime,
@@ -219,7 +236,7 @@ export class MyAgentsService {
       } catch (error) {
         logger.warn(
           `[My Agents Service] Failed to get stats for ${characterId}:`,
-          error,
+          error
         );
       }
     }
@@ -233,10 +250,10 @@ export class MyAgentsService {
     characterId: string,
     userId: string,
     organizationId: string,
-    options?: CloneCharacterOptions,
+    options?: CloneCharacterOptions
   ): Promise<ExtendedCharacter> {
     logger.info(
-      `[My Agents Service] Cloning character ${characterId} for user ${userId}`,
+      `[My Agents Service] Cloning character ${characterId} for user ${userId}`
     );
 
     const sourceCharacter =
@@ -283,7 +300,7 @@ export class MyAgentsService {
     await this.invalidateUserCache(userId, organizationId);
 
     logger.info(
-      `[My Agents Service] Successfully cloned character: ${clonedCharacter.id}`,
+      `[My Agents Service] Successfully cloned character: ${clonedCharacter.id}`
     );
 
     return this.toExtendedCharacter(clonedCharacter);
@@ -299,7 +316,7 @@ export class MyAgentsService {
       await marketplaceCache.invalidateCharacter(characterId);
 
       logger.debug(
-        `[My Agents Service] Tracked view for character: ${characterId}`,
+        `[My Agents Service] Tracked view for character: ${characterId}`
       );
 
       return {
@@ -309,7 +326,7 @@ export class MyAgentsService {
     } catch (error) {
       logger.error(
         `[My Agents Service] Error tracking view for ${characterId}:`,
-        error,
+        error
       );
       return {
         success: false,
@@ -330,7 +347,7 @@ export class MyAgentsService {
       await marketplaceCache.invalidateCharacter(characterId);
 
       logger.debug(
-        `[My Agents Service] Tracked interaction for character: ${characterId}`,
+        `[My Agents Service] Tracked interaction for character: ${characterId}`
       );
 
       return {
@@ -340,7 +357,7 @@ export class MyAgentsService {
     } catch (error) {
       logger.error(
         `[My Agents Service] Error tracking interaction for ${characterId}:`,
-        error,
+        error
       );
       return {
         success: false,
@@ -363,16 +380,16 @@ export class MyAgentsService {
       this.calculateRecencyScore(character.updated_at) * recencyWeight;
 
     const popularityScore = Math.round(
-      viewScore + interactionScore + recencyScore,
+      viewScore + interactionScore + recencyScore
     );
 
     await userCharactersRepository.updatePopularityScore(
       characterId,
-      popularityScore,
+      popularityScore
     );
 
     logger.debug(
-      `[My Agents Service] Updated popularity score for ${characterId}: ${popularityScore}`,
+      `[My Agents Service] Updated popularity score for ${characterId}: ${popularityScore}`
     );
   }
 
@@ -385,36 +402,35 @@ export class MyAgentsService {
 
   async getFeaturedCharacters(
     limit: number = 10,
-    includeStats: boolean = false,
+    includeStats: boolean = false
   ): Promise<ExtendedCharacter[]> {
     const featured = await userCharactersRepository.getFeatured(limit);
 
     let extendedCharacters = featured.map((char) =>
-      this.toExtendedCharacter(char),
+      this.toExtendedCharacter(char)
     );
 
     if (includeStats) {
-      extendedCharacters = await Promise.all(
-        extendedCharacters.map(async (char) => {
-          try {
-            const stats = await agentDiscoveryService.getAgentStatistics(
-              char.id,
-            );
-            return {
-              ...char,
-              stats: {
-                messageCount: stats.messageCount,
-                roomCount: 0,
-                lastActiveAt: stats.lastActiveAt,
-                deploymentStatus: stats.status,
-                uptime: stats.uptime,
-              },
-            };
-          } catch (error) {
-            return char;
-          }
-        }),
-      );
+      const ids = extendedCharacters.map((c) => c.id);
+      const statsMap =
+        await agentDiscoveryService.getAgentStatisticsBatch(ids);
+
+      extendedCharacters = extendedCharacters.map((char) => {
+        const stats = statsMap.get(char.id);
+        if (stats) {
+          return {
+            ...char,
+            stats: {
+              messageCount: stats.messageCount,
+              roomCount: stats.roomCount,
+              lastActiveAt: stats.lastActiveAt,
+              deploymentStatus: stats.status,
+              uptime: stats.uptime,
+            },
+          };
+        }
+        return char;
+      });
     }
 
     return extendedCharacters;
@@ -422,36 +438,35 @@ export class MyAgentsService {
 
   async getPopularCharacters(
     limit: number = 20,
-    includeStats: boolean = false,
+    includeStats: boolean = false
   ): Promise<ExtendedCharacter[]> {
     const popular = await userCharactersRepository.getPopular(limit);
 
     let extendedCharacters = popular.map((char) =>
-      this.toExtendedCharacter(char),
+      this.toExtendedCharacter(char)
     );
 
     if (includeStats) {
-      extendedCharacters = await Promise.all(
-        extendedCharacters.map(async (char) => {
-          try {
-            const stats = await agentDiscoveryService.getAgentStatistics(
-              char.id,
-            );
-            return {
-              ...char,
-              stats: {
-                messageCount: stats.messageCount,
-                roomCount: 0,
-                lastActiveAt: stats.lastActiveAt,
-                deploymentStatus: stats.status,
-                uptime: stats.uptime,
-              },
-            };
-          } catch (error) {
-            return char;
-          }
-        }),
-      );
+      const ids = extendedCharacters.map((c) => c.id);
+      const statsMap =
+        await agentDiscoveryService.getAgentStatisticsBatch(ids);
+
+      extendedCharacters = extendedCharacters.map((char) => {
+        const stats = statsMap.get(char.id);
+        if (stats) {
+          return {
+            ...char,
+            stats: {
+              messageCount: stats.messageCount,
+              roomCount: stats.roomCount,
+              lastActiveAt: stats.lastActiveAt,
+              deploymentStatus: stats.status,
+              uptime: stats.uptime,
+            },
+          };
+        }
+        return char;
+      });
     }
 
     return extendedCharacters;
@@ -477,14 +492,14 @@ export class MyAgentsService {
 
     const cached = await marketplaceCache.getSearchResult(
       organizationId,
-      cacheKey,
+      cacheKey
     );
     if (cached) {
-      logger.debug("[Marketplace Service] Public cache hit");
+      logger.debug("[My Agents Service] Public cache hit");
       return { ...cached, cached: true };
     }
 
-    logger.debug("[Marketplace Service] Public search:", filters);
+    logger.debug("[My Agents Service] Public search:", filters);
 
     const offset = (pagination.page - 1) * pagination.limit;
 
@@ -493,45 +508,40 @@ export class MyAgentsService {
         filters,
         sortOptions,
         pagination.limit,
-        offset,
+        offset
       ),
       userCharactersRepository.countPublic(filters),
     ]);
 
     logger.debug(
-      `[Marketplace Service] Found ${characters.length} public characters (${total} total)`,
+      `[My Agents Service] Found ${characters.length} public characters (${total} total)`
     );
 
     let enrichedCharacters = characters.map((char) =>
-      this.toExtendedCharacter(char),
+      this.toExtendedCharacter(char)
     );
 
     if (includeStats) {
-      enrichedCharacters = await Promise.all(
-        enrichedCharacters.map(async (char) => {
-          try {
-            const stats = await agentDiscoveryService.getAgentStatistics(
-              char.id,
-            );
-            return {
-              ...char,
-              stats: {
-                messageCount: stats.messageCount,
-                roomCount: 0,
-                lastActiveAt: stats.lastActiveAt,
-                deploymentStatus: stats.status,
-                uptime: stats.uptime,
-              },
-            };
-          } catch (error) {
-            logger.warn(
-              `[Marketplace Service] Failed to get stats for ${char.id}:`,
-              error,
-            );
-            return char;
-          }
-        }),
-      );
+      const ids = enrichedCharacters.map((c) => c.id);
+      const statsMap =
+        await agentDiscoveryService.getAgentStatisticsBatch(ids);
+
+      enrichedCharacters = enrichedCharacters.map((char) => {
+        const stats = statsMap.get(char.id);
+        if (stats) {
+          return {
+            ...char,
+            stats: {
+              messageCount: stats.messageCount,
+              roomCount: stats.roomCount,
+              lastActiveAt: stats.lastActiveAt,
+              deploymentStatus: stats.status,
+              uptime: stats.uptime,
+            },
+          };
+        }
+        return char;
+      });
     }
 
     const result: MyAgentsSearchResult = {
@@ -554,7 +564,7 @@ export class MyAgentsService {
       organizationId,
       cacheKey,
       result,
-      30 * 60,
+      30 * 60
     );
 
     return result;
@@ -587,8 +597,8 @@ export class MyAgentsService {
           };
         } catch (error) {
           logger.error(
-            `[Marketplace Service] Error getting count for category ${category.id}:`,
-            error,
+            `[My Agents Service] Error getting count for category ${category.id}:`,
+            error
           );
           return {
             id: category.id,
@@ -600,17 +610,17 @@ export class MyAgentsService {
             featured: false,
           };
         }
-      }),
+      })
     );
 
     const nonEmptyCategories = categoriesWithCounts.filter(
-      (cat) => cat.characterCount > 0,
+      (cat) => cat.characterCount > 0
     );
 
     await marketplaceCache.setCategories(
       organizationId,
       nonEmptyCategories,
-      60 * 60,
+      60 * 60
     );
 
     return nonEmptyCategories;
@@ -649,7 +659,7 @@ export class MyAgentsService {
 
   private async invalidateUserCache(
     userId: string,
-    organizationId: string,
+    organizationId: string
   ): Promise<void> {
     await Promise.all([
       marketplaceCache.invalidateSearchResults(organizationId),
