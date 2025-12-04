@@ -7,7 +7,20 @@ import { anonymousSessions } from "@/db/schemas";
 import { eq } from "drizzle-orm";
 import { createHash } from "node:crypto";
 
-// Simple in-memory rate limiter for this endpoint
+/**
+ * Simple in-memory rate limiter for this endpoint
+ *
+ * ⚠️  NOTE: This is a "soft" rate limit for UX purposes only.
+ * In production with multiple serverless instances, each instance maintains its own map,
+ * so the effective limit is multiplied by the number of instances.
+ *
+ * This is acceptable for this endpoint because:
+ * 1. It only controls message count increments (not a security-critical operation)
+ * 2. Actual abuse prevention is handled by the database-level message limits
+ * 3. This provides basic DoS protection and prevents accidental client bugs
+ *
+ * For stricter rate limiting, use the Redis-backed rate limiter in lib/middleware/rate-limit.ts
+ */
 const rateLimitMap = new Map<string, { count: number; resetAt: number }>();
 const RATE_LIMIT_WINDOW_MS = 60 * 1000; // 1 minute
 const RATE_LIMIT_MAX_REQUESTS = 20; // 20 requests per minute per IP
@@ -41,10 +54,25 @@ function checkRateLimit(ip: string): { allowed: boolean; remaining: number } {
 
 /**
  * Validate session token format
+ *
+ * Accepts:
+ * - UUID format: 8-4-4-4-12 hex characters (e.g., "550e8400-e29b-41d4-a716-446655440000")
+ * - nanoid format: 20-64 alphanumeric characters with _ and - (e.g., "V1StGXR8_Z5jdHi6B-myT")
  */
 function isValidTokenFormat(token: string): boolean {
-  // Session tokens should be at least 16 characters (nanoid or UUID)
-  return typeof token === "string" && token.length >= 16 && token.length <= 64;
+  if (typeof token !== "string" || token.length < 16 || token.length > 64) {
+    return false;
+  }
+
+  // UUID format (standard 8-4-4-4-12 pattern)
+  const uuidPattern =
+    /^[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}$/i;
+
+  // nanoid format (alphanumeric + _ and -, 20-64 chars)
+  // nanoid(32) produces URL-safe characters: A-Za-z0-9_-
+  const nanoidPattern = /^[A-Za-z0-9_-]{20,64}$/;
+
+  return uuidPattern.test(token) || nanoidPattern.test(token);
 }
 
 /**
@@ -64,9 +92,13 @@ function isValidTokenFormat(token: string): boolean {
  */
 export async function POST(request: NextRequest) {
   try {
-    // Rate limiting
+    // Rate limiting - use trusted headers for IP detection
+    // Priority: x-real-ip (Vercel) > x-forwarded-for (first IP) > fallback
+    // Note: x-forwarded-for can be spoofed by clients, but x-real-ip is set by the proxy
+    const realIp = request.headers.get("x-real-ip");
     const forwardedFor = request.headers.get("x-forwarded-for");
-    const clientIp = forwardedFor?.split(",")[0]?.trim() || "unknown";
+    const clientIp =
+      realIp?.trim() || forwardedFor?.split(",")[0]?.trim() || "unknown";
 
     const rateLimit = checkRateLimit(clientIp);
     if (!rateLimit.allowed) {

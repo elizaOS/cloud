@@ -1,4 +1,4 @@
-import { eq, inArray, sql } from "drizzle-orm";
+import { eq, inArray, sql, count } from "drizzle-orm";
 import { db } from "../client";
 import {
   elizaRoomCharactersTable,
@@ -7,11 +7,57 @@ import {
 } from "../schemas";
 
 export const elizaRoomCharactersRepository = {
+  /**
+   * Count rooms for a specific character
+   */
+  async countByCharacterId(characterId: string): Promise<number> {
+    const result = await db
+      .select({ count: count() })
+      .from(elizaRoomCharactersTable)
+      .where(eq(elizaRoomCharactersTable.character_id, characterId));
+
+    return result[0]?.count ?? 0;
+  },
+
+  /**
+   * Count rooms for multiple characters in one query
+   */
+  async countByCharacterIds(
+    characterIds: string[]
+  ): Promise<Map<string, number>> {
+    if (characterIds.length === 0) {
+      return new Map();
+    }
+
+    const results = await db
+      .select({
+        character_id: elizaRoomCharactersTable.character_id,
+        count: count(),
+      })
+      .from(elizaRoomCharactersTable)
+      .where(inArray(elizaRoomCharactersTable.character_id, characterIds))
+      .groupBy(elizaRoomCharactersTable.character_id);
+
+    const countMap = new Map<string, number>();
+    for (const result of results) {
+      countMap.set(result.character_id, result.count);
+    }
+
+    // Fill in 0 for characters with no rooms
+    for (const id of characterIds) {
+      if (!countMap.has(id)) {
+        countMap.set(id, 0);
+      }
+    }
+
+    return countMap;
+  },
+
   async findByRoomId(roomId: string): Promise<ElizaRoomCharacter | undefined> {
     // DISABLED: Caching causes stale data in Vercel serverless (isolated container caches)
     // ALWAYS fetch from DB - character mapping lookups are fast (~5ms)
     console.log(
-      `[RoomCharRepo] findByRoomId(${roomId.substring(0, 8)}...) - fetching from DB (cache disabled)`,
+      `[RoomCharRepo] findByRoomId(${roomId.substring(0, 8)}...) - fetching from DB (cache disabled)`
     );
 
     const result = await db
@@ -23,7 +69,7 @@ export const elizaRoomCharactersRepository = {
     const character = result[0];
     console.log(
       `[RoomCharRepo] DB result - characterId:`,
-      character?.character_id || "none",
+      character?.character_id || "none"
     );
 
     return character;
@@ -58,7 +104,7 @@ export const elizaRoomCharactersRepository = {
 
   async update(
     roomId: string,
-    characterId: string,
+    characterId: string
   ): Promise<ElizaRoomCharacter | undefined> {
     const result = await db
       .update(elizaRoomCharactersTable)
@@ -79,16 +125,18 @@ export const elizaRoomCharactersRepository = {
   },
 
   /**
-   * Find affiliate characters that a user has interacted with (via rooms) 
+   * Find affiliate characters that a user has interacted with (via rooms)
    * but are still owned by anonymous/affiliate users.
    * These are claimable by the user.
    */
-  async findClaimableAffiliateCharacters(userId: string): Promise<Array<{
-    characterId: string;
-    characterName: string;
-    ownerId: string;
-    roomId: string;
-  }>> {
+  async findClaimableAffiliateCharacters(userId: string): Promise<
+    Array<{
+      characterId: string;
+      characterName: string;
+      ownerId: string;
+      roomId: string;
+    }>
+  > {
     const results = await db.execute<{
       character_id: string;
       character_name: string;
@@ -111,7 +159,7 @@ export const elizaRoomCharactersRepository = {
         )
     `);
 
-    return results.rows.map(r => ({
+    return results.rows.map((r) => ({
       characterId: r.character_id,
       characterName: r.character_name,
       ownerId: r.owner_id,
