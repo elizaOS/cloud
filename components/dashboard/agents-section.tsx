@@ -12,8 +12,13 @@ import {
   BrandButton,
   LockOnButton,
 } from "@/components/brand";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 import { cn } from "@/lib/utils";
-import { Bot, MessageSquare, Plus, Sparkles } from "lucide-react";
+import { Bot, Plus, Sparkles, HelpCircle } from "lucide-react";
 import Image from "next/image";
 import Link from "next/link";
 import { Badge } from "@/components/ui/badge";
@@ -42,12 +47,28 @@ export function AgentsSection({ agents, className }: AgentsSectionProps) {
       {/* Section Header */}
       <div className="flex items-center justify-between">
         <div>
-          <h2 className="text-2xl font-bold text-white flex items-center gap-2">
-            Agents
+          <div className="flex items-center gap-2">
+            <h2 className="text-2xl font-bold text-white">Agents</h2>
             <span className="text-lg text-white/40">({agents.length})</span>
-          </h2>
-          <p className="text-white/60 mt-1">
-            Manage and interact with your AI agents
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <button
+                  type="button"
+                  className="text-white/30 hover:text-white/60 transition-colors"
+                >
+                  <HelpCircle className="h-4 w-4" />
+                </button>
+              </TooltipTrigger>
+              <TooltipContent
+                side="right"
+                className="max-w-[220px] bg-zinc-900 text-white/90 border border-white/10"
+              >
+                AI characters with unique personalities. Chat with them, deploy them, or integrate via API.
+              </TooltipContent>
+            </Tooltip>
+          </div>
+          <p className="text-white/50 mt-1 text-sm">
+            Your AI characters — chat, customize, and deploy
           </p>
         </div>
         <LockOnButton

@@ -1,15 +1,28 @@
 "use client";
 
 import * as React from "react";
-import { BrandCard, BrandButton, CornerBrackets } from "@/components/brand";
+import { BrandCard, BrandButton } from "@/components/brand";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 import { cn } from "@/lib/utils";
-import { Bot, Plug, MessageSquare, Check, ArrowRight } from "lucide-react";
+import {
+  Bot,
+  Plug,
+  MessageSquare,
+  Check,
+  ArrowRight,
+  HelpCircle,
+} from "lucide-react";
 import Link from "next/link";
 
 interface OnboardingStep {
   id: string;
   title: string;
   description: string;
+  tooltip: string;
   icon: React.ReactNode;
   href: string;
   buttonText: string;
@@ -34,6 +47,7 @@ export function GettingStarted({
       id: "create-agent",
       title: "Create your first agent",
       description: "Build an AI agent with a unique personality",
+      tooltip: "Agents are AI characters you can customize with unique personalities, knowledge, and capabilities.",
       icon: <Bot className="h-6 w-6" />,
       href: "/dashboard/character-creator",
       buttonText: "Create Agent",
@@ -43,6 +57,7 @@ export function GettingStarted({
       id: "connect-model",
       title: "Connect a model",
       description: "Add your API key to power your agent",
+      tooltip: "API keys let your agents access AI models. Create or use your default key to get started.",
       icon: <Plug className="h-6 w-6" />,
       href: "/dashboard/api-keys",
       buttonText: "Add API Key",
@@ -52,6 +67,7 @@ export function GettingStarted({
       id: "test-agent",
       title: "Test your agent",
       description: "Start a conversation with your agent",
+      tooltip: "Chat with your agent to test its personality and responses before deploying.",
       icon: <MessageSquare className="h-6 w-6" />,
       href: "/dashboard/chat",
       buttonText: "Start Chat",
@@ -71,7 +87,10 @@ export function GettingStarted({
       <div className="flex items-center justify-between">
         <div>
           <h2 className="text-2xl font-bold text-white">Getting Started</h2>
-          <p className="text-white/60 mt-1">
+          <p className="text-white/50 mt-1 text-sm">
+            Build, test, and deploy AI agents — all in one place.
+          </p>
+          <p className="text-white/40 text-xs mt-2">
             {completedCount}/{steps.length} completed
           </p>
         </div>
@@ -122,14 +141,32 @@ function StepCard({
         </div>
 
         <div>
-          <h3
-            className={cn(
-              "font-semibold mb-1",
-              step.completed ? "text-white/60" : "text-white"
-            )}
-          >
-            {step.title}
-          </h3>
+          <div className="flex items-center gap-1.5 mb-1">
+            <h3
+              className={cn(
+                "font-semibold",
+                step.completed ? "text-white/60" : "text-white"
+              )}
+            >
+              {step.title}
+            </h3>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <button
+                  type="button"
+                  className="text-white/30 hover:text-white/60 transition-colors"
+                >
+                  <HelpCircle className="h-3.5 w-3.5" />
+                </button>
+              </TooltipTrigger>
+              <TooltipContent
+                side="top"
+                className="max-w-[200px] bg-zinc-900 text-white/90 border border-white/10"
+              >
+                {step.tooltip}
+              </TooltipContent>
+            </Tooltip>
+          </div>
           <p className="text-sm text-white/50">{step.description}</p>
         </div>
 

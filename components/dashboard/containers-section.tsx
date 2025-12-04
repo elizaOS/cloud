@@ -7,8 +7,13 @@
 
 import * as React from "react";
 import { BrandCard, BrandButton } from "@/components/brand";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 import { cn } from "@/lib/utils";
-import { Terminal, Server, Plus } from "lucide-react";
+import { Terminal, Server, HelpCircle } from "lucide-react";
 import Link from "next/link";
 import { ContainersTable } from "@/components/containers/containers-table";
 import { ContainersSkeleton } from "@/components/containers/containers-skeleton";
@@ -45,14 +50,30 @@ export function ContainersSection({
       {/* Section Header */}
       <div className="flex items-center justify-between">
         <div>
-          <h2 className="text-2xl font-bold text-white flex items-center gap-2">
-            Containers
+          <div className="flex items-center gap-2">
+            <h2 className="text-2xl font-bold text-white">Containers</h2>
             <span className="text-lg text-white/40">({containers.length})</span>
-          </h2>
-          <p className="text-white/60 mt-1">
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <button
+                  type="button"
+                  className="text-white/30 hover:text-white/60 transition-colors"
+                >
+                  <HelpCircle className="h-4 w-4" />
+                </button>
+              </TooltipTrigger>
+              <TooltipContent
+                side="right"
+                className="max-w-[220px] bg-zinc-900 text-white/90 border border-white/10"
+              >
+                Cloud-hosted ElizaOS instances. Deploy agents to run 24/7 with their own API endpoints.
+              </TooltipContent>
+            </Tooltip>
+          </div>
+          <p className="text-white/50 mt-1 text-sm">
             {runningContainers.length > 0
-              ? `${runningContainers.length} running container${runningContainers.length !== 1 ? "s" : ""}`
-              : "Deploy ElizaOS containers"}
+              ? `${runningContainers.length} running — deploy agents to the cloud`
+              : "Deploy agents to run 24/7 in the cloud"}
           </p>
         </div>
         {containers.length > 0 && (
