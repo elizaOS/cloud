@@ -43,10 +43,10 @@ export function CharacterCard({
   const isDeployed = character.stats?.deploymentStatus === "deployed";
 
   return (
-    <Card className="group overflow-hidden transition-all duration-300 hover:shadow-lg hover:-translate-y-1">
-      <CardContent className="p-0">
+    <Card className="group overflow-hidden transition-all duration-300 hover:shadow-lg hover:-translate-y-1 p-0 gap-0 h-full">
+      <CardContent className="p-0 h-full flex flex-col">
         {/* Character Avatar/Header */}
-        <div className="relative h-48 bg-gradient-to-br from-primary/20 to-secondary/20 flex items-center justify-center">
+        <div className="relative h-48 flex-shrink-0 bg-gradient-to-br from-primary/20 to-secondary/20 flex items-center justify-center rounded-t-xl overflow-hidden">
           {character.avatarUrl ? (
             <Image
               src={character.avatarUrl}
@@ -91,7 +91,7 @@ export function CharacterCard({
         </div>
 
         {/* Character Info */}
-        <div className="p-4 space-y-3">
+        <div className="p-4 flex flex-col flex-1">
           {/* Name & Category */}
           <div>
             <h3 className="font-semibold text-lg truncate group-hover:text-primary transition-colors">
@@ -113,12 +113,12 @@ export function CharacterCard({
           </div>
 
           {/* Bio */}
-          <p className="text-sm text-muted-foreground line-clamp-2 min-h-[2.5rem]">
+          <p className="text-sm text-muted-foreground line-clamp-2 min-h-[2.5rem] mt-3">
             {bioText}
           </p>
 
           {/* Features */}
-          <div className="flex flex-wrap gap-2 min-h-[28px]">
+          <div className="flex flex-wrap gap-2 min-h-[28px] mt-3">
             {hasVoice && (
               <Badge variant="secondary" className="text-xs">
                 <Volume2 className="h-3 w-3 mr-1" />
@@ -139,7 +139,7 @@ export function CharacterCard({
 
           {/* Stats */}
           {character.stats && (
-            <div className="flex items-center gap-4 text-xs text-muted-foreground pt-2 border-t">
+            <div className="flex items-center gap-4 text-xs text-muted-foreground pt-3 mt-3 border-t">
               <span className="flex items-center gap-1">
                 <MessageSquare className="h-3 w-3" />
                 {character.stats.messageCount > 1000
@@ -157,8 +157,8 @@ export function CharacterCard({
             </div>
           )}
 
-          {/* Actions */}
-          <div className="flex gap-2 pt-2">
+          {/* Actions - Always at bottom */}
+          <div className="flex gap-2 pt-3 mt-auto">
             <Button
               className="flex-1"
               size="sm"
