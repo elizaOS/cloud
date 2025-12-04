@@ -3,7 +3,7 @@ import { organizationsService } from "@/lib/services";
 import { requireAuthOrApiKey } from "@/lib/auth";
 import { getAnonymousUser, checkAnonymousLimit } from "@/lib/auth-anonymous";
 import { logger } from "@/lib/utils/logger";
-import { elizaRoomCharactersRepository } from "@/db/repositories";
+import { roomsRepository } from "@/db/repositories";
 import { userContextService } from "@/lib/eliza/user-context";
 import { runtimeFactory } from "@/lib/eliza/runtime-factory";
 import { createMessageHandler } from "@/lib/eliza/message-handler";
@@ -25,6 +25,8 @@ export const maxDuration = 60;
  * - Streams back thinking indicator and agent response via SSE
  * - All processing happens in same container (no cross-container issues!)
  * - Simple, fast, and works perfectly on serverless
+ * 
+ * Security: entityId is derived from authenticated user, not client-supplied
  */
 export async function POST(
   request: NextRequest,
@@ -33,12 +35,12 @@ export async function POST(
   const encoder = new TextEncoder();
 
   try {
-    // Step 1: Parse request body FIRST (needed for session token check)
+    // Step 1: Parse request body
     const { roomId } = await ctx.params;
     const body = await request.json();
-    const { entityId, text, model, sessionToken, agentMode } = body;
+    const { text, model, agentMode, sessionToken } = body;
 
-    if (!roomId || !entityId || !text?.trim()) {
+    if (!roomId || !text?.trim()) {
       return new Response(
         JSON.stringify({ error: "Missing required fields" }),
         { status: 400, headers: { "Content-Type": "application/json" } },
@@ -66,7 +68,7 @@ export async function POST(
       logger.debug("[Stream] User selected model:", model);
     }
 
-    // Step 2: Authentication & Context Building (pass body for session token check)
+    // Step 2: Authentication & Context Building
     logger.info(
       "[Stream] 📊 Session token from body:",
       sessionToken ? sessionToken.slice(0, 8) + "..." : "N/A",
@@ -105,10 +107,9 @@ export async function POST(
       }
     }
 
-    // Step 4: Get character assignment for room
-    const roomCharacter =
-      await elizaRoomCharactersRepository.findByRoomId(roomId);
-    let characterId = roomCharacter?.character_id || undefined;
+    // Step 4: Get character assignment for room from agentId (single source of truth)
+    const room = await roomsRepository.findById(roomId);
+    let characterId: string | undefined = room?.agentId || undefined;
 
     // For BUILD mode, use the targetCharacterId from agent mode metadata
     // This ensures we're editing the correct character, not the default
@@ -116,40 +117,21 @@ export async function POST(
       agentModeConfig.mode === AgentMode.BUILD &&
       agentModeConfig.metadata?.targetCharacterId
     ) {
-      characterId = agentModeConfig.metadata.targetCharacterId as string;
+      characterId = String(agentModeConfig.metadata.targetCharacterId);
       logger.info(
         `[Stream] BUILD mode - Using character from metadata: ${characterId}`,
       );
 
-      // Ensure room-character association exists for build mode
-      // Each user-character combo should have its own build room
-      if (!roomCharacter && characterId) {
-        // Create new association
+      // Update room agentId for build mode (proper column, not metadata)
+      if (characterId && room && room.agentId !== characterId) {
         try {
-          await elizaRoomCharactersRepository.create({
-            room_id: roomId,
-            character_id: characterId,
-            user_id: userContext.userId,
-          });
+          await roomsRepository.update(roomId, { agentId: characterId });
           logger.info(
-            `[Stream] BUILD mode - Created room-character association: room ${roomId} → character ${characterId}`,
+            `[Stream] BUILD mode - Updated room agentId: room ${roomId} → agent ${characterId}`,
           );
         } catch (error) {
           logger.error(
-            `[Stream] BUILD mode - Failed to create room-character association:`,
-            error,
-          );
-        }
-      } else if (roomCharacter && roomCharacter.character_id !== characterId) {
-        // Update existing association if character changed
-        try {
-          await elizaRoomCharactersRepository.update(roomId, characterId);
-          logger.info(
-            `[Stream] BUILD mode - Updated room-character association: room ${roomId} → character ${characterId}`,
-          );
-        } catch (error) {
-          logger.error(
-            `[Stream] BUILD mode - Failed to update room-character association:`,
+            `[Stream] BUILD mode - Failed to update room agentId:`,
             error,
           );
         }
@@ -205,7 +187,7 @@ export async function POST(
           // Send user message event
           sendEvent("message", {
             id: `user-${Date.now()}`,
-            entityId,
+            entityId: userContext.userId,
             content: { text },
             createdAt: Date.now(),
             isAgent: false,
@@ -222,11 +204,10 @@ export async function POST(
             type: "thinking",
           });
 
-          // Process message and get response (much cleaner!)
+          // Process message and get response (using user's actual ID)
           logger.info("[Stream Messages] Processing message...");
           const result = await messageHandler.process({
             roomId,
-            entityId,
             text,
             model,
             agentModeConfig,
@@ -358,15 +339,20 @@ async function authenticateAndBuildContext(
   try {
     logger.info("[Stream Auth] Attempting Privy/API key authentication...");
     const authResult = await requireAuthOrApiKey(request);
-    logger.info("[Stream Auth] ✅ Privy/API auth SUCCEEDED - treating as authenticated user:", {
-      userId: authResult.user.id,
-      authMethod: authResult.authMethod,
-      isAnonymous: authResult.user.is_anonymous,
-    });
+    logger.info(
+      "[Stream Auth] ✅ Privy/API auth SUCCEEDED - treating as authenticated user:",
+      {
+        userId: authResult.user.id,
+        authMethod: authResult.authMethod,
+        isAnonymous: authResult.user.is_anonymous,
+      },
+    );
 
     // Double-check the user is not anonymous (migration should have set this to false)
     if (authResult.user.is_anonymous) {
-      logger.warn("[Stream Auth] ⚠️ User is authenticated but still marked as anonymous - this may indicate incomplete migration");
+      logger.warn(
+        "[Stream Auth] ⚠️ User is authenticated but still marked as anonymous - this may indicate incomplete migration",
+      );
     }
 
     return await userContextService.buildContext({
@@ -375,19 +361,28 @@ async function authenticateAndBuildContext(
       agentMode,
     });
   } catch (error) {
-    logger.info("[Stream Auth] ❌ Privy auth failed, falling back to anonymous:", error instanceof Error ? error.message : String(error));
+    logger.info(
+      "[Stream Auth] ❌ Privy auth failed, falling back to anonymous:",
+      error instanceof Error ? error.message : String(error),
+    );
   }
 
   // Privy auth failed - handle as anonymous user
   logger.info("[Stream Auth] Processing as anonymous user...");
 
-  const { anonymousSessionsService, usersService } = await import("@/lib/services");
+  const { anonymousSessionsService, usersService } = await import(
+    "@/lib/services"
+  );
 
   // Try provided session token first
   if (anonymousSessionToken) {
-    logger.info("[Stream] 🔑 Session token provided in request:", anonymousSessionToken.slice(0, 8) + "...");
+    logger.info(
+      "[Stream] 🔑 Session token provided in request:",
+      anonymousSessionToken.slice(0, 8) + "...",
+    );
 
-    const session = await anonymousSessionsService.getByToken(anonymousSessionToken);
+    const session =
+      await anonymousSessionsService.getByToken(anonymousSessionToken);
 
     logger.info("[Stream] 🔍 Session lookup result:", {
       found: !!session,
@@ -400,11 +395,14 @@ async function authenticateAndBuildContext(
     if (session) {
       // Check if session has been converted (user authenticated after this session was created)
       if (session.converted_at || !session.is_active) {
-        logger.info("[Stream] ⚠️ Session has been converted/deactivated - user should be authenticated", {
-          sessionId: session.id,
-          convertedAt: session.converted_at,
-          isActive: session.is_active,
-        });
+        logger.info(
+          "[Stream] ⚠️ Session has been converted/deactivated - user should be authenticated",
+          {
+            sessionId: session.id,
+            convertedAt: session.converted_at,
+            isActive: session.is_active,
+          },
+        );
         // This session was migrated - the user should authenticate via Privy
         // Don't use this session, fall through to create new anonymous or fail
       } else {
@@ -428,11 +426,17 @@ async function authenticateAndBuildContext(
             agentMode,
           });
         } else {
-          logger.warn("[Stream] ⚠️ User not found or not anonymous for session:", session.id);
+          logger.warn(
+            "[Stream] ⚠️ User not found or not anonymous for session:",
+            session.id,
+          );
         }
       }
     } else {
-      logger.warn("[Stream] ⚠️ Session not found for provided token:", anonymousSessionToken.slice(0, 8) + "...");
+      logger.warn(
+        "[Stream] ⚠️ Session not found for provided token:",
+        anonymousSessionToken.slice(0, 8) + "...",
+      );
     }
 
     logger.warn(

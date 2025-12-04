@@ -18,9 +18,8 @@ import { providersProvider } from "./providers/providers";
 import { actionsProvider } from "./providers/actions";
 import { characterProvider } from "./providers/character";
 import { generateImageAction } from "./actions/image-generation";
-import { actionStateProvider } from "./providers/actionState";
-import { recentMessagesProvider } from "./providers/recent-messages";
 import { affiliateContextProvider } from "./providers/affiliate-context";
+import { currentRunContextProvider } from "./providers/current-run-context";
 
 const MAX_RESPONSE_RETRIES = 3;
 const EVALUATOR_TIMEOUT_MS = 30000;
@@ -739,9 +738,8 @@ export const assistantPlugin: Plugin = {
     providersProvider,
     actionsProvider,
     characterProvider,
-    actionStateProvider,
-    recentMessagesProvider,
     affiliateContextProvider,
+    currentRunContextProvider,
   ],
   actions: [generateImageAction],
   services: [],

@@ -20,12 +20,11 @@ import { v4 } from "uuid";
  * @type {string}
  */
 const imageGenerationTemplate = `# Task: Generate an image prompt based on the user's request.
-  {{providers}}
+
   # Instructions:
   Based on the user's message in the conversation, write a clear, concise, and visually descriptive prompt for image generation. Focus only on what the user wants to see, extract the key visual elements from the request, and formulate a detailed prompt suitable for image generation.
 
-  # Recent conversation:
-  {{recentMessages}}
+  {{receivedMessageHeader}}
   
   Your response should be formatted in XML like this:
   <response>
@@ -60,7 +59,8 @@ export const generateImageAction = {
 
       state = await runtime.composeState(message, [
         ...(allProviders ?? []),
-        "SHORT_TERM_MEMORY",
+        "SUMMARIZED_CONTEXT",
+        "RECENT_MESSAGES",
       ]);
 
       const prompt = composePromptFromState({

@@ -1,6 +1,9 @@
 /**
  * Chat Store - Zustand
  * Manages chat state including rooms, characters, and selections
+ * 
+ * NOTE: entityId is now derived from authenticated user on the server, not stored locally.
+ * This is a security improvement - clients cannot spoof their identity.
  */
 
 import { create } from "zustand";
@@ -26,7 +29,6 @@ interface ChatState {
   rooms: RoomItem[];
   roomId: string | null;
   isLoadingRooms: boolean;
-  entityId: string;
   availableCharacters: Character[];
   selectedCharacterId: string | null;
   pendingMessage: string | null; // Message from landing page to auto-send
@@ -44,34 +46,14 @@ interface ChatState {
   loadRooms: (force?: boolean) => Promise<void>;
   createRoom: (characterId?: string | null) => Promise<string | null>;
   deleteRoom: (roomId: string) => Promise<void>;
-  initializeEntityId: () => void;
   clearChatData: () => void;
 }
-
-// Initialize entity ID from localStorage
-// CRITICAL: Always returns a valid ID, never empty
-const getEntityId = (): string => {
-  if (typeof window === "undefined") {
-    // SSR fallback - return temporary ID
-    return `user-ssr-${Math.random().toString(36).substring(2, 9)}`;
-  }
-
-  let id = window.localStorage.getItem("elizaEntityId");
-  if (!id || id.trim() === "") {
-    // Generate new ID with timestamp and random component for uniqueness
-    id = `user-${Date.now()}-${Math.random().toString(36).substring(2, 9)}`;
-    window.localStorage.setItem("elizaEntityId", id);
-    console.log("[ChatStore] Generated new entityId:", id);
-  }
-  return id;
-};
 
 export const useChatStore = create<ChatState>((set, get) => ({
   // Initial state
   rooms: [],
   roomId: null,
   isLoadingRooms: false,
-  entityId: getEntityId(), // CRITICAL: Initialize immediately, never empty
   availableCharacters: [],
   selectedCharacterId: null,
   pendingMessage: null,
@@ -94,23 +76,11 @@ export const useChatStore = create<ChatState>((set, get) => ({
   setPendingMessage: (message) => set({ pendingMessage: message }),
   setAnonymousSessionToken: (token) => set({ anonymousSessionToken: token }),
 
-  // Initialize entity ID
-  initializeEntityId: () => {
-    const entityId = getEntityId();
-    set({ entityId });
-  },
-
   // Load rooms from API
+  // entityId is now derived from authenticated user on the server
   loadRooms: async (force = false) => {
     const state = get();
-    let { entityId, anonymousSessionToken } = state;
-
-    // Ensure entityId is initialized
-    if (!entityId || entityId.trim() === "") {
-      const newEntityId = getEntityId();
-      set({ entityId: newEntityId });
-      entityId = newEntityId;
-    }
+    const { anonymousSessionToken } = state;
 
     // Deduplicate concurrent loadRooms calls
     if (!force && state.loadRoomsPromise) {
@@ -118,28 +88,27 @@ export const useChatStore = create<ChatState>((set, get) => ({
       return state.loadRoomsPromise;
     }
 
-    console.log("[ChatStore] loadRooms - fetching rooms for entityId:", entityId, "sessionToken:", anonymousSessionToken?.slice(0, 8) + "...");
+    console.log("[ChatStore] loadRooms - fetching rooms");
 
     const loadPromise = (async () => {
       set({ isLoadingRooms: true });
       try {
-        const params = new URLSearchParams({ entityId });
-        // CRITICAL: Pass session token to preserve session identity
+        // Server derives entityId from authenticated user
+        const headers: Record<string, string> = {};
+        
+        // Pass anonymous session token if available (for affiliate flows)
         if (anonymousSessionToken) {
-          params.set("sessionToken", anonymousSessionToken);
+          headers["X-Anonymous-Session"] = anonymousSessionToken;
         }
-        const res = await fetch(`/api/eliza/rooms?${params.toString()}`, {
-          headers: {
-            // Also pass as header for redundancy
-            ...(anonymousSessionToken && { "X-Anonymous-Session": anonymousSessionToken }),
-          },
-        });
+        
+        const res = await fetch(`/api/eliza/rooms`, { headers });
+        
         if (res.ok) {
           const data = await res.json();
           console.log("[ChatStore] loadRooms - API response:", { 
             roomCount: data.rooms?.length || 0, 
-            rooms: data.rooms?.map((r: Record<string, unknown>) => ({ id: r.id, characterId: r.characterId })) 
           });
+          
           if (Array.isArray(data.rooms)) {
             const roomItems: RoomItem[] = data.rooms
               .slice(0, 20)
@@ -153,11 +122,17 @@ export const useChatStore = create<ChatState>((set, get) => ({
               }));
 
             const currentState = get();
-            const existingCharacterIds = new Set(currentState.availableCharacters.map(c => c.id));
+            const existingCharacterIds = new Set(
+              currentState.availableCharacters.map((c) => c.id)
+            );
 
             const charactersFromRooms: Character[] = [];
             for (const room of roomItems) {
-              if (room.characterId && room.characterName && !existingCharacterIds.has(room.characterId)) {
+              if (
+                room.characterId &&
+                room.characterName &&
+                !existingCharacterIds.has(room.characterId)
+              ) {
                 charactersFromRooms.push({
                   id: room.characterId,
                   name: room.characterName,
@@ -166,12 +141,22 @@ export const useChatStore = create<ChatState>((set, get) => ({
               }
             }
 
-            const mergedCharacters = [...currentState.availableCharacters, ...charactersFromRooms];
+            const mergedCharacters = [
+              ...currentState.availableCharacters,
+              ...charactersFromRooms,
+            ];
 
             let newSelectedCharacterId = currentState.selectedCharacterId;
-            if (!newSelectedCharacterId && charactersFromRooms.length === 1 && currentState.availableCharacters.length === 0) {
+            if (
+              !newSelectedCharacterId &&
+              charactersFromRooms.length === 1 &&
+              currentState.availableCharacters.length === 0
+            ) {
               newSelectedCharacterId = charactersFromRooms[0].id;
-              console.log("[ChatStore] Auto-selecting character:", newSelectedCharacterId);
+              console.log(
+                "[ChatStore] Auto-selecting character:",
+                newSelectedCharacterId
+              );
             }
 
             set({
@@ -181,7 +166,11 @@ export const useChatStore = create<ChatState>((set, get) => ({
             });
           }
         } else {
-          console.error("[ChatStore] loadRooms - API error:", res.status, await res.text());
+          console.error(
+            "[ChatStore] loadRooms - API error:",
+            res.status,
+            await res.text()
+          );
         }
       } catch (error) {
         console.error("[ChatStore] Error loading rooms:", error);
@@ -195,32 +184,37 @@ export const useChatStore = create<ChatState>((set, get) => ({
   },
 
   // Create new room
+  // entityId is derived from authenticated user on the server
   createRoom: async (characterId?: string | null) => {
-    let { entityId, loadRooms, setRoomId, anonymousSessionToken } = get();
-
-    // Ensure entityId is initialized
-    if (!entityId) {
-      const newEntityId = getEntityId();
-      set({ entityId: newEntityId });
-      entityId = newEntityId;
-    }
+    const { loadRooms, setRoomId, anonymousSessionToken } = get();
 
     try {
-      const requestBody = {
-        entityId,
+      const requestBody: Record<string, string | undefined> = {
         characterId: characterId || undefined,
-        // CRITICAL: Pass the session token to preserve anonymous session identity
-        sessionToken: anonymousSessionToken || undefined,
       };
-      console.log("[ChatStore] Creating room with:", requestBody);
+      
+      // Pass the session token for anonymous users
+      if (anonymousSessionToken) {
+        requestBody.sessionToken = anonymousSessionToken;
+      }
+      
+      console.log("[ChatStore] Creating room with:", { 
+        characterId: requestBody.characterId,
+        hasSessionToken: !!requestBody.sessionToken,
+      });
+
+      const headers: Record<string, string> = {
+        "Content-Type": "application/json",
+      };
+      
+      // Also pass as header for redundancy
+      if (anonymousSessionToken) {
+        headers["X-Anonymous-Session"] = anonymousSessionToken;
+      }
 
       const response = await fetch("/api/eliza/rooms", {
         method: "POST",
-        headers: { 
-          "Content-Type": "application/json",
-          // Also pass as header for redundancy
-          ...(anonymousSessionToken && { "X-Anonymous-Session": anonymousSessionToken }),
-        },
+        headers,
         body: JSON.stringify(requestBody),
       });
 
@@ -296,7 +290,6 @@ export const useChatStore = create<ChatState>((set, get) => ({
   clearChatData: () => {
     // Clear localStorage items
     if (typeof window !== "undefined") {
-      window.localStorage.removeItem("elizaEntityId");
       window.localStorage.removeItem("elizaRoomId");
       window.localStorage.removeItem("eliza-anon-session-token");
     }
@@ -306,7 +299,6 @@ export const useChatStore = create<ChatState>((set, get) => ({
       rooms: [],
       roomId: null,
       isLoadingRooms: false,
-      entityId: getEntityId(), // Re-initialize with new ID
       availableCharacters: [],
       selectedCharacterId: null,
       pendingMessage: null,
