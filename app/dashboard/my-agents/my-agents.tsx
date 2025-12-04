@@ -14,7 +14,7 @@ export function MyAgentsClient() {
   useSetPageHeader({
     title: "My Agents",
     description:
-      "Manage and interact with your personal AI agents. View, deploy, and chat with your characters.",
+      "Manage and interact with your personal AI agents.",
   });
 
   // Claim any affiliate characters the user has interacted with
