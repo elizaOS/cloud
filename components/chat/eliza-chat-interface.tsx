@@ -1085,7 +1085,8 @@ export function ElizaChatInterface({ onMessageSent }: ElizaChatInterfaceProps) {
                   />
                 </div>
               )}
-              <input
+              <textarea
+                rows={1}
                 value={inputText}
                 onChange={(e) => setInputText(e.currentTarget.value)}
                 onKeyDown={(e) => {
@@ -1093,6 +1094,11 @@ export function ElizaChatInterface({ onMessageSent }: ElizaChatInterfaceProps) {
                     e.preventDefault();
                     sendMessage();
                   }
+                }}
+                onInput={(e) => {
+                  const target = e.target as HTMLTextAreaElement;
+                  target.style.height = "36px";
+                  target.style.height = Math.min(target.scrollHeight, 128) + "px";
                 }}
                 placeholder={
                   recorder.isRecording
@@ -1102,7 +1108,11 @@ export function ElizaChatInterface({ onMessageSent }: ElizaChatInterfaceProps) {
                       : "Ask me anything about AI, development, or how elizaOS can help you..."
                 }
                 disabled={isLoading || recorder.isRecording}
-                className="w-full bg-transparent px-3 py-2.5 text-sm text-white placeholder:text-white/60 focus:outline-none disabled:opacity-50"
+                className="w-full bg-transparent px-3 py-2.5 text-sm text-white placeholder:text-white/60 focus:outline-none disabled:opacity-50 resize-none leading-relaxed"
+                style={{
+                  minHeight: "36px",
+                  maxHeight: "128px",
+                }}
               />
             </div>
 
