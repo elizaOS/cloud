@@ -10,9 +10,23 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { CheckCircle, XCircle, ArrowRight } from "lucide-react";
-import { CreditBalanceDisplay } from "@/components/billing/success-client";
 import { stripe } from "@/lib/stripe";
 import { creditsService, invoicesService } from "@/lib/services";
+import { logger } from "@/lib/utils/logger";
+
+// Maximum allowed credit amount for validation
+const MAX_CREDITS = 10000;
+
+/**
+ * Safely parse and validate a credit amount from string
+ */
+function parseAndValidateCredits(creditsStr: string): number | null {
+  const credits = Number.parseFloat(creditsStr);
+  if (!Number.isFinite(credits) || credits <= 0 || credits > MAX_CREDITS) {
+    return null;
+  }
+  return Math.round(credits * 100) / 100;
+}
 
 export const metadata: Metadata = {
   title: "Purchase Successful",
@@ -35,13 +49,13 @@ async function verifyAndProcessSession(sessionId: string): Promise<{
   alreadyProcessed?: boolean;
 }> {
   try {
-    console.log(`[BillingSuccess] Verifying session: ${sessionId}`);
+    logger.debug(`[BillingSuccess] Verifying session: ${sessionId}`);
 
     // Fetch the session from Stripe
     const session = await stripe.checkout.sessions.retrieve(sessionId);
 
     if (session.payment_status !== "paid") {
-      console.warn(
+      logger.warn(
         `[BillingSuccess] Session ${sessionId} not paid: ${session.payment_status}`
       );
       return {
@@ -53,14 +67,15 @@ async function verifyAndProcessSession(sessionId: string): Promise<{
     const organizationId = session.metadata?.organization_id;
     const userId = session.metadata?.user_id;
     const creditsStr = session.metadata?.credits || "0";
-    const credits = Number.parseFloat(creditsStr);
+    const credits = parseAndValidateCredits(creditsStr);
     const purchaseType = session.metadata?.type || "checkout";
     const paymentIntentId = session.payment_intent as string;
 
-    if (!organizationId || credits <= 0) {
-      console.warn(
-        `[BillingSuccess] Invalid metadata: org=${organizationId}, credits=${credits}`
-      );
+    if (!organizationId || !credits) {
+      logger.warn("[BillingSuccess] Invalid metadata", {
+        hasOrgId: !!organizationId,
+        hasValidCredits: !!credits,
+      });
       return {
         success: false,
         error: "Invalid session metadata",
@@ -68,7 +83,7 @@ async function verifyAndProcessSession(sessionId: string): Promise<{
     }
 
     if (!paymentIntentId) {
-      console.warn("[BillingSuccess] No payment intent ID in session");
+      logger.warn("[BillingSuccess] No payment intent ID in session");
       return {
         success: false,
         error: "No payment intent found",
@@ -80,9 +95,7 @@ async function verifyAndProcessSession(sessionId: string): Promise<{
       await creditsService.getTransactionByStripePaymentIntent(paymentIntentId);
 
     if (existingTransaction) {
-      console.log(
-        `[BillingSuccess] Session already processed via webhook (transaction: ${existingTransaction.id})`
-      );
+      logger.debug("[BillingSuccess] Session already processed via webhook");
       return {
         success: true,
         credits,
@@ -91,7 +104,7 @@ async function verifyAndProcessSession(sessionId: string): Promise<{
     }
 
     // Add credits (with built-in idempotency)
-    console.log(
+    logger.debug(
       `[BillingSuccess] Adding ${credits} credits to org ${organizationId}`
     );
 
@@ -109,8 +122,8 @@ async function verifyAndProcessSession(sessionId: string): Promise<{
       stripePaymentIntentId: paymentIntentId,
     });
 
-    console.log(
-      `[BillingSuccess] ✓ Credits added for session ${sessionId} (fallback)`
+    logger.info(
+      `[BillingSuccess] Credits added for session ${sessionId} (fallback)`
     );
 
     // Create invoice record
@@ -146,14 +159,14 @@ async function verifyAndProcessSession(sessionId: string): Promise<{
           paid_at: new Date(),
         });
 
-        console.log(
-          `[BillingSuccess] ✓ Invoice created for session ${sessionId}`
+        logger.debug(
+          `[BillingSuccess] Invoice created for session ${sessionId}`
         );
       }
     } catch (invoiceError) {
       // Non-critical - credits were added successfully
-      console.error(
-        "[BillingSuccess] Invoice creation error (non-critical):",
+      logger.error(
+        "[BillingSuccess] Invoice creation error (non-critical)",
         invoiceError
       );
     }
@@ -164,7 +177,7 @@ async function verifyAndProcessSession(sessionId: string): Promise<{
       alreadyProcessed: false,
     };
   } catch (error) {
-    console.error("[BillingSuccess] Error processing session:", error);
+    logger.error("[BillingSuccess] Error processing session:", error);
     return {
       success: false,
       error: error instanceof Error ? error.message : "Unknown error",
@@ -197,8 +210,8 @@ export default async function BillingSuccessPage({
   // Show error state if verification failed
   if (verificationResult && !verificationResult.success) {
     return (
-      <div className="flex items-center justify-center min-h-[80vh]">
-        <Card className="max-w-md w-full">
+      <div className="flex items-center justify-center min-h-screen bg-background">
+        <Card className="max-w-md w-full mx-4">
           <CardHeader className="text-center">
             <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-red-500/10">
               <XCircle className="h-10 w-10 text-red-500" />
@@ -240,8 +253,8 @@ export default async function BillingSuccessPage({
   }
 
   return (
-    <div className="flex items-center justify-center min-h-[80vh]">
-      <Card className="max-w-md w-full">
+    <div className="flex items-center justify-center min-h-screen bg-background">
+      <Card className="max-w-md w-full mx-4">
         <CardHeader className="text-center">
           <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-green-500/10">
             <CheckCircle className="h-10 w-10 text-green-500" />
@@ -255,8 +268,6 @@ export default async function BillingSuccessPage({
         </CardHeader>
 
         <CardContent className="text-center space-y-4">
-          <CreditBalanceDisplay />
-
           <p className="text-sm text-muted-foreground">
             You can now use your credits for text generation, image creation,
             and video rendering.

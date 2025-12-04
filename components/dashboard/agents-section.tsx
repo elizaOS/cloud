@@ -18,10 +18,18 @@ import {
   TooltipTrigger,
 } from "@/components/ui/tooltip";
 import { cn } from "@/lib/utils";
-import { Bot, Plus, Sparkles, HelpCircle, MessageSquare, Pencil, BarChart3 } from "lucide-react";
+import { Bot, Plus, Sparkles, HelpCircle, MessageSquare, Clock, Rocket } from "lucide-react";
 import Image from "next/image";
 import Link from "next/link";
 import { Badge } from "@/components/ui/badge";
+import { formatDistanceToNow } from "date-fns";
+
+interface AgentStats {
+  roomCount: number;
+  messageCount: number;
+  deploymentStatus: "deployed" | "stopped" | "draft";
+  lastActiveAt: Date | null;
+}
 
 interface Agent {
   id: string;
@@ -30,6 +38,7 @@ interface Agent {
   avatarUrl: string | null;
   category: string | null;
   isPublic: boolean;
+  stats?: AgentStats;
 }
 
 interface AgentsSectionProps {
@@ -84,7 +93,7 @@ export function AgentsSection({ agents, className }: AgentsSectionProps) {
         <AgentsEmptyState />
       ) : (
         <>
-          <div className="grid gap-4 md:grid-cols-2">
+          <div className="grid gap-4 md:grid-cols-2 auto-rows-fr">
             {displayAgents.map((agent) => (
               <AgentCard key={agent.id} agent={agent} />
             ))}
@@ -109,98 +118,85 @@ export function AgentsSection({ agents, className }: AgentsSectionProps) {
 // Individual Agent Card
 function AgentCard({ agent }: { agent: Agent }) {
   const bioText = Array.isArray(agent.bio) ? agent.bio[0] : agent.bio;
-  const truncatedBio =
-    bioText.length > 80 ? `${bioText.substring(0, 80)}...` : bioText;
+  const isDeployed = agent.stats?.deploymentStatus === "deployed";
+  const isStopped = agent.stats?.deploymentStatus === "stopped";
 
   return (
-    <BrandCard
-      corners={true}
-      cornerSize="sm"
-      className="group transition-all duration-300 hover:border-[#FF5800]/50"
-    >
-      <div className="flex items-start gap-4">
-        {/* Avatar */}
-        <div className="relative h-14 w-14 flex-shrink-0 rounded-sm overflow-hidden bg-gradient-to-br from-[#FF5800]/20 to-orange-600/20 border border-white/10 flex items-center justify-center">
-          {agent.avatarUrl ? (
-            <Image
-              src={agent.avatarUrl}
-              alt={agent.name}
-              fill
-              className="object-cover"
-            />
-          ) : (
-            <Bot className="h-7 w-7 text-white/40" />
-          )}
-        </div>
-
-        {/* Content */}
-        <div className="flex-1 min-w-0">
-          <div className="flex items-center gap-2 mb-1">
-            <h3 className="font-semibold text-white truncate">
-              {agent.name}
-            </h3>
-            {agent.category && (
-              <Badge variant="outline" className="text-xs flex-shrink-0">
-                {agent.category}
-              </Badge>
+    <Link href={`/dashboard/chat?characterId=${agent.id}`} className="block h-full">
+      <div className="group relative h-full overflow-hidden rounded-lg border border-white/10 bg-gradient-to-r from-white/[0.04] to-transparent transition-all duration-300 hover:border-[#FF5800]/50 hover:shadow-lg hover:shadow-[#FF5800]/10 p-4">
+        <div className="flex items-start gap-4 h-full">
+          {/* Avatar - Left side icon */}
+          <div className="relative h-16 w-16 flex-shrink-0 rounded-lg overflow-hidden bg-gradient-to-br from-[#FF5800]/20 to-orange-700/10 border border-white/10">
+            {agent.avatarUrl ? (
+              <Image
+                src={agent.avatarUrl}
+                alt={agent.name}
+                fill
+                className="object-cover transition-transform duration-300 group-hover:scale-110"
+              />
+            ) : (
+              <div className="h-full w-full flex items-center justify-center">
+                <Bot className="h-8 w-8 text-white/40" />
+              </div>
+            )}
+            {/* Status indicator dot */}
+            {isDeployed && (
+              <div className="absolute -top-1 -right-1 h-3 w-3 rounded-full bg-green-500 border-2 border-black" />
             )}
           </div>
-          <p className="text-xs text-white/50 line-clamp-1 mb-3">{truncatedBio}</p>
 
-          {/* Quick Actions */}
-          <div className="flex items-center gap-1.5">
-            <Link href={`/dashboard/chat?characterId=${agent.id}`}>
-              <Tooltip>
-                <TooltipTrigger asChild>
-                  <button
-                    type="button"
-                    className="inline-flex items-center gap-1 px-2 py-1 text-[10px] font-medium bg-[#FF5800]/15 border border-[#FF5800]/30 text-[#FF5800] hover:bg-[#FF5800]/25 transition-colors rounded-sm"
-                  >
-                    <MessageSquare className="h-2.5 w-2.5" />
-                    Test
-                  </button>
-                </TooltipTrigger>
-                <TooltipContent side="bottom" className="text-xs bg-zinc-900 text-white/80 border border-white/10">
-                  Chat
-                </TooltipContent>
-              </Tooltip>
-            </Link>
-            <Link href={`/dashboard/character-creator?id=${agent.id}`}>
-              <Tooltip>
-                <TooltipTrigger asChild>
-                  <button
-                    type="button"
-                    className="inline-flex items-center gap-1 px-2 py-1 text-[10px] font-medium bg-white/5 border border-white/10 text-white/60 hover:bg-white/10 hover:text-white/80 transition-colors rounded-sm"
-                  >
-                    <Pencil className="h-2.5 w-2.5" />
-                    Edit
-                  </button>
-                </TooltipTrigger>
-                <TooltipContent side="bottom" className="text-xs bg-zinc-900 text-white/80 border border-white/10">
-                  Edit
-                </TooltipContent>
-              </Tooltip>
-            </Link>
-            <Link href="/dashboard/analytics">
-              <Tooltip>
-                <TooltipTrigger asChild>
-                  <button
-                    type="button"
-                    className="inline-flex items-center gap-1 px-2 py-1 text-[10px] font-medium bg-white/5 border border-white/10 text-white/60 hover:bg-white/10 hover:text-white/80 transition-colors rounded-sm"
-                  >
-                    <BarChart3 className="h-2.5 w-2.5" />
-                    Stats
-                  </button>
-                </TooltipTrigger>
-                <TooltipContent side="bottom" className="text-xs bg-zinc-900 text-white/80 border border-white/10">
-                  Analytics
-                </TooltipContent>
-              </Tooltip>
-            </Link>
+          {/* Content - Right side */}
+          <div className="flex-1 min-w-0 flex flex-col">
+            {/* Name & Status */}
+            <div className="flex items-center gap-2 mb-1">
+              <h3 className="font-semibold text-white truncate group-hover:text-[#FF5800] transition-colors">
+                {agent.name}
+              </h3>
+              {isDeployed && (
+                <Badge className="bg-green-600/80 text-[10px] px-1.5 py-0 h-4">
+                  <Rocket className="h-2.5 w-2.5 mr-0.5" />
+                  Live
+                </Badge>
+              )}
+              {isStopped && (
+                <Badge variant="secondary" className="text-[10px] px-1.5 py-0 h-4 bg-yellow-600/30 text-yellow-400/80">
+                  Stopped
+                </Badge>
+              )}
+            </div>
+            
+            {/* Bio - Fixed 1 line to make room for stats */}
+            <p className="text-xs text-white/50 line-clamp-1 leading-relaxed">
+              {bioText}
+            </p>
+            
+            {/* Stats row - Always at bottom */}
+            <div className="flex items-center gap-3 mt-auto pt-2 text-[11px] text-white/40">
+              <span className="flex items-center gap-1">
+                <MessageSquare className="h-3 w-3" />
+                {agent.stats?.roomCount ?? 0} chats
+              </span>
+              {agent.stats?.lastActiveAt && (
+                <span className="flex items-center gap-1">
+                  <Clock className="h-3 w-3" />
+                  {formatDistanceToNow(new Date(agent.stats.lastActiveAt), { addSuffix: true })}
+                </span>
+              )}
+              {agent.category && (
+                <span className="flex items-center gap-1 ml-auto text-white/30">
+                  {agent.category}
+                </span>
+              )}
+            </div>
           </div>
         </div>
+
+        {/* Corner accent */}
+        <div className="absolute top-0 right-0 w-6 h-6 overflow-hidden">
+          <div className="absolute -top-3 -right-3 w-6 h-6 bg-gradient-to-bl from-[#FF5800]/20 to-transparent rotate-45" />
+        </div>
       </div>
-    </BrandCard>
+    </Link>
   );
 }
 
@@ -263,27 +259,33 @@ export function AgentsSectionSkeleton() {
       </div>
 
       {/* Agents Grid Skeleton */}
-      <div className="grid gap-4 md:grid-cols-2">
+      <div className="grid gap-4 md:grid-cols-2 auto-rows-fr">
         {[...Array(4)].map((_, index) => (
-          <BrandCard key={index} corners={true} cornerSize="sm">
-            <div className="flex items-center gap-4">
+          <div 
+            key={index} 
+            className="rounded-lg border border-white/10 bg-gradient-to-r from-white/[0.04] to-transparent p-4 h-[120px]"
+          >
+            <div className="flex items-start gap-4">
               {/* Avatar skeleton */}
-              <div className="h-16 w-16 flex-shrink-0 rounded-sm bg-white/10 animate-pulse" />
-
+              <div className="h-16 w-16 flex-shrink-0 rounded-lg bg-white/10 animate-pulse" />
+              
               {/* Content skeleton */}
-              <div className="flex-1 min-w-0">
-                <div className="flex items-center gap-2 mb-2">
+              <div className="flex-1 min-w-0 space-y-2">
+                <div className="flex items-center gap-2">
                   <div className="h-5 w-24 bg-white/10 animate-pulse rounded" />
                   <div className="h-4 w-16 bg-white/10 animate-pulse rounded" />
                 </div>
-                {/* Bio skeleton */}
                 <div className="space-y-1.5">
                   <div className="h-3 w-full bg-white/10 animate-pulse rounded" />
                   <div className="h-3 w-3/4 bg-white/10 animate-pulse rounded" />
                 </div>
+                <div className="flex items-center gap-2 pt-1">
+                  <div className="h-3 w-3 bg-white/10 animate-pulse rounded" />
+                  <div className="h-2 w-16 bg-white/10 animate-pulse rounded" />
+                </div>
               </div>
             </div>
-          </BrandCard>
+          </div>
         ))}
       </div>
     </div>

@@ -5,118 +5,42 @@
 
 "use client";
 
-import { usePrivy, useLogout } from "@privy-io/react-auth";
+import { usePrivy } from "@privy-io/react-auth";
 import { useRouter, usePathname } from "next/navigation";
-import { useCreditsStream } from "@/hooks/use-credits-stream";
-import {
-  CreditCard,
-  LogOut,
-  Loader2,
-  Settings,
-  UserPlus,
-  LogIn,
-} from "lucide-react";
+import { UserPlus, LogIn, Settings, LogOut, Loader2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { CornerBrackets } from "@/components/brand";
-import { useChatStore } from "@/stores/chat-store";
+import { useCreditBalance } from "@/hooks/use-credit-balance";
 
 interface SidebarBottomPanelProps {
   className?: string;
 }
 
 export function SidebarBottomPanel({ className }: SidebarBottomPanelProps) {
-  const { ready, authenticated, user } = usePrivy();
-  const { logout } = useLogout();
+  const { ready, authenticated, user, logout } = usePrivy();
   const router = useRouter();
   const pathname = usePathname();
-  const { creditBalance, isLoading: loadingCredits } = useCreditsStream();
-  const { clearChatData } = useChatStore();
+  const { creditBalance, loading: loadingCredits } = useCreditBalance();
 
-  // Get user details
-  const getUserWallet = () => {
-    if (user?.linkedAccounts) {
-      for (const account of user.linkedAccounts) {
-        if (
-          account.type === "wallet" &&
-          "address" in account &&
-          typeof account.address === "string"
-        ) {
-          return account.address;
-        }
-      }
-    }
-    return null;
-  };
-
-  const getUserEmail = () => {
-    if (user?.email?.address) {
-      return user.email.address;
-    }
-    if (user?.linkedAccounts) {
-      for (const account of user.linkedAccounts) {
-        if ("address" in account && account.type === "email") {
-          return account.address;
-        }
-        if ("email" in account && typeof account.email === "string") {
-          return account.email;
-        }
-      }
-    }
-    return null;
-  };
-
+  // Get user display info
   const getUserName = () => {
-    if (user?.google?.name) {
-      return user.google.name;
-    }
-    if (user?.github?.username) {
-      return user.github.username;
-    }
-    if (user?.linkedAccounts) {
-      for (const account of user.linkedAccounts) {
-        if ("name" in account && typeof account.name === "string") {
-          return account.name;
-        }
-        if ("username" in account && typeof account.username === "string") {
-          return account.username;
-        }
-      }
-    }
-    const email = getUserEmail();
-    if (email) {
-      return email.split("@")[0];
-    }
-    const wallet = getUserWallet();
-    if (wallet) {
-      return `${wallet.substring(0, 6)}...${wallet.substring(wallet.length - 4)}`;
-    }
+    if (user?.google?.name) return user.google.name;
+    if (user?.email?.address) return user.email.address.split("@")[0];
+    if (user?.wallet?.address)
+      return `${user.wallet.address.slice(0, 6)}...${user.wallet.address.slice(-4)}`;
     return "User";
   };
 
   const getUserIdentifier = () => {
-    const wallet = getUserWallet();
-    if (wallet) {
-      return `${wallet.substring(0, 8)}...${wallet.substring(wallet.length - 6)}`;
-    }
-    const email = getUserEmail();
-    if (email) {
-      return email;
-    }
-    return "No identifier";
+    if (user?.email?.address) return user.email.address;
+    if (user?.wallet?.address)
+      return `${user.wallet.address.slice(0, 6)}...${user.wallet.address.slice(-4)}`;
+    return "";
   };
 
-  // Handle sign out
   const onSignOut = async () => {
-    try {
-      // Clear chat data (rooms, entityId, localStorage)
-      clearChatData();
-
-      await logout();
-      router.push("/");
-    } catch (error) {
-      console.error("Logout error:", error);
-      router.push("/");
-    }
+    await logout();
+    router.push("/");
   };
 
   // If not authenticated, show sign up/login CTA
