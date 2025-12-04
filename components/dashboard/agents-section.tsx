@@ -43,39 +43,39 @@ export function AgentsSection({ agents, className }: AgentsSectionProps) {
   const hasMore = agents.length > 4;
 
   return (
-    <div className={cn("space-y-6", className)}>
+    <div className={cn("space-y-4", className)}>
       {/* Section Header */}
       <div className="flex items-center justify-between">
         <div>
           <div className="flex items-center gap-2">
-            <h2 className="text-2xl font-bold text-white">Agents</h2>
-            <span className="text-lg text-white/40">({agents.length})</span>
+            <h2 className="text-xl font-semibold text-white">Agents</h2>
+            <span className="text-sm text-white/30">({agents.length})</span>
             <Tooltip>
               <TooltipTrigger asChild>
                 <button
                   type="button"
-                  className="text-white/30 hover:text-white/60 transition-colors"
+                  className="text-white/20 hover:text-white/50 transition-colors"
                 >
-                  <HelpCircle className="h-4 w-4" />
+                  <HelpCircle className="h-3.5 w-3.5" />
                 </button>
               </TooltipTrigger>
               <TooltipContent
                 side="right"
-                className="max-w-[220px] bg-zinc-900 text-white/90 border border-white/10"
+                className="max-w-[180px] text-xs bg-zinc-900 text-white/80 border border-white/10"
               >
-                AI characters with unique personalities. Chat with them, deploy them, or integrate via API.
+                Your AI characters. Chat, deploy, or integrate via API.
               </TooltipContent>
             </Tooltip>
           </div>
-          <p className="text-white/50 mt-1 text-sm">
-            {agents.length > 0 ? "Test, edit, or view analytics for your agents" : "Create AI characters to chat, customize, and deploy"}
+          <p className="text-white/40 mt-0.5 text-xs">
+            {agents.length > 0 ? "Manage your agents" : "Create your first agent"}
           </p>
         </div>
         <LockOnButton
           onClick={() => (window.location.href = "/dashboard/my-agents")}
           icon={<Plus className="h-4 w-4" />}
         >
-          New Agent
+          New
         </LockOnButton>
       </div>
 
@@ -92,11 +92,10 @@ export function AgentsSection({ agents, className }: AgentsSectionProps) {
 
           {/* View All Link */}
           {hasMore && (
-            <div className="flex justify-center pt-2">
-              <BrandButton variant="ghost" asChild>
+            <div className="flex justify-center">
+              <BrandButton variant="ghost" asChild size="sm" className="text-xs h-8">
                 <Link href="/dashboard/my-agents">
-                  View all {agents.length} agents
-                  <Sparkles className="ml-2 h-4 w-4" />
+                  View all ({agents.length})
                 </Link>
               </BrandButton>
             </div>
@@ -149,20 +148,20 @@ function AgentCard({ agent }: { agent: Agent }) {
           <p className="text-xs text-white/50 line-clamp-1 mb-3">{truncatedBio}</p>
 
           {/* Quick Actions */}
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-1.5">
             <Link href={`/dashboard/chat?characterId=${agent.id}`}>
               <Tooltip>
                 <TooltipTrigger asChild>
                   <button
                     type="button"
-                    className="inline-flex items-center gap-1.5 px-2.5 py-1.5 text-xs font-medium bg-[#FF5800]/20 border border-[#FF5800]/40 text-[#FF5800] hover:bg-[#FF5800]/30 transition-colors"
+                    className="inline-flex items-center gap-1 px-2 py-1 text-[10px] font-medium bg-[#FF5800]/15 border border-[#FF5800]/30 text-[#FF5800] hover:bg-[#FF5800]/25 transition-colors rounded-sm"
                   >
-                    <MessageSquare className="h-3 w-3" />
+                    <MessageSquare className="h-2.5 w-2.5" />
                     Test
                   </button>
                 </TooltipTrigger>
-                <TooltipContent side="bottom" className="bg-zinc-900 text-white/90 border border-white/10">
-                  Chat with this agent
+                <TooltipContent side="bottom" className="text-xs bg-zinc-900 text-white/80 border border-white/10">
+                  Chat
                 </TooltipContent>
               </Tooltip>
             </Link>
@@ -171,14 +170,14 @@ function AgentCard({ agent }: { agent: Agent }) {
                 <TooltipTrigger asChild>
                   <button
                     type="button"
-                    className="inline-flex items-center gap-1.5 px-2.5 py-1.5 text-xs font-medium bg-white/5 border border-white/10 text-white/70 hover:bg-white/10 hover:text-white transition-colors"
+                    className="inline-flex items-center gap-1 px-2 py-1 text-[10px] font-medium bg-white/5 border border-white/10 text-white/60 hover:bg-white/10 hover:text-white/80 transition-colors rounded-sm"
                   >
-                    <Pencil className="h-3 w-3" />
+                    <Pencil className="h-2.5 w-2.5" />
                     Edit
                   </button>
                 </TooltipTrigger>
-                <TooltipContent side="bottom" className="bg-zinc-900 text-white/90 border border-white/10">
-                  Edit agent settings
+                <TooltipContent side="bottom" className="text-xs bg-zinc-900 text-white/80 border border-white/10">
+                  Edit
                 </TooltipContent>
               </Tooltip>
             </Link>
@@ -187,14 +186,14 @@ function AgentCard({ agent }: { agent: Agent }) {
                 <TooltipTrigger asChild>
                   <button
                     type="button"
-                    className="inline-flex items-center gap-1.5 px-2.5 py-1.5 text-xs font-medium bg-white/5 border border-white/10 text-white/70 hover:bg-white/10 hover:text-white transition-colors"
+                    className="inline-flex items-center gap-1 px-2 py-1 text-[10px] font-medium bg-white/5 border border-white/10 text-white/60 hover:bg-white/10 hover:text-white/80 transition-colors rounded-sm"
                   >
-                    <BarChart3 className="h-3 w-3" />
+                    <BarChart3 className="h-2.5 w-2.5" />
                     Stats
                   </button>
                 </TooltipTrigger>
-                <TooltipContent side="bottom" className="bg-zinc-900 text-white/90 border border-white/10">
-                  View usage analytics
+                <TooltipContent side="bottom" className="text-xs bg-zinc-900 text-white/80 border border-white/10">
+                  Analytics
                 </TooltipContent>
               </Tooltip>
             </Link>
@@ -209,37 +208,40 @@ function AgentCard({ agent }: { agent: Agent }) {
 function AgentsEmptyState() {
   return (
     <BrandCard className="relative border-dashed">
-      <CornerBrackets size="md" className="opacity-50" />
-      <div className="relative z-10 text-center py-12 space-y-4">
+      <CornerBrackets size="md" className="opacity-30" />
+      <div className="relative z-10 text-center py-8 space-y-3">
         <div className="flex justify-center">
-          <div className="p-6 rounded-full bg-[#FF5800]/10 border border-[#FF5800]/20">
-            <Bot className="h-12 w-12 text-[#FF5800]" />
+          <div className="p-4 rounded-lg bg-[#FF5800]/10 border border-[#FF5800]/20">
+            <Bot className="h-8 w-8 text-[#FF5800]" />
           </div>
         </div>
         <div>
-          <h3 className="text-xl font-bold text-white mb-2">
-            No agents created yet
+          <h3 className="text-base font-medium text-white mb-1">
+            No agents yet
           </h3>
-          <p className="text-white/60 max-w-md mx-auto">
-            Create your first AI agent to get started. Choose from templates in
-            the marketplace or build your own custom character.
+          <p className="text-xs text-white/50 max-w-xs mx-auto">
+            Create an agent or browse the marketplace
           </p>
         </div>
-        <div className="flex gap-3 justify-center pt-4">
+        <div className="flex gap-2 justify-center pt-2">
           <BrandButton
             onClick={() =>
               (window.location.href = "/dashboard/character-creator")
             }
+            size="sm"
+            className="h-8 text-xs"
           >
-            <Plus className="h-4 w-4" />
-            Create Agent
+            <Plus className="h-3.5 w-3.5" />
+            Create
           </BrandButton>
           <BrandButton
             onClick={() => (window.location.href = "/marketplace")}
             variant="outline"
+            size="sm"
+            className="h-8 text-xs"
           >
-            <Sparkles className="h-4 w-4" />
-            Browse Marketplace
+            <Sparkles className="h-3.5 w-3.5" />
+            Marketplace
           </BrandButton>
         </div>
       </div>
