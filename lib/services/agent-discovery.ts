@@ -231,6 +231,9 @@ export class AgentDiscoveryService {
       try {
         roomCount =
           await elizaRoomCharactersRepository.countByCharacterId(agentId);
+        logger.debug(
+          `[Agent Discovery] Room count for ${agentId}: ${roomCount}`
+        );
       } catch (error) {
         logger.warn(
           `[Agent Discovery] Error fetching room count for ${agentId}:`,
@@ -334,6 +337,10 @@ export class AgentDiscoveryService {
         elizaRoomCharactersRepository.countByCharacterIds(uncachedIds),
         containersService.listByCharacterIds(uncachedIds),
       ]);
+
+      logger.debug(
+        `[Agent Discovery] Batch room counts: ${JSON.stringify(Object.fromEntries(roomCounts))}`
+      );
 
       const containerMap = new Map(
         containers.map((c) => [c.character_id!, c])
