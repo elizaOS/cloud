@@ -12,6 +12,22 @@ import type { ElizaCharacter } from "@/lib/types";
 import type { Organization } from "@/db/schemas/organizations";
 import { logger } from "@/lib/utils/logger";
 
+// Custom validator for URL or base64 data URL
+const urlOrBase64 = z.string().refine(
+  (val) => {
+    // Accept base64 data URLs
+    if (val.startsWith("data:image/")) return true;
+    // Accept valid HTTP(S) URLs
+    try {
+      const url = new URL(val);
+      return url.protocol === "http:" || url.protocol === "https:";
+    } catch {
+      return false;
+    }
+  },
+  { message: "Must be a valid URL or base64 data URL" }
+);
+
 // Schema validation for incoming character data
 const CreateCharacterSchema = z.object({
   character: z.object({
@@ -42,7 +58,7 @@ const CreateCharacterSchema = z.object({
     secrets: z
       .record(z.string(), z.union([z.string(), z.number(), z.boolean()]))
       .optional(),
-    avatar_url: z.string().url().optional(),
+    avatar_url: urlOrBase64.optional(),
   }),
   affiliateId: z.string(),
   sessionId: z.string().uuid().optional(),
@@ -51,6 +67,10 @@ const CreateCharacterSchema = z.object({
       source: z.string().optional(),
       vibe: z.string().optional(),
       backstory: z.string().optional(),
+      instagram: z.string().optional(),
+      twitter: z.string().optional(),
+      socialContent: z.string().optional(),
+      imageUrls: z.array(urlOrBase64).optional(),
     })
     .optional(),
 });
@@ -94,7 +114,7 @@ function checkRateLimit(
  *   character: ElizaCharacter object,
  *   affiliateId: string (e.g., "clone-your-crush"),
  *   sessionId?: string (optional, for session continuity),
- *   metadata?: { source, vibe, backstory }
+ *   metadata?: { source, vibe, backstory, instagram, twitter, socialContent, imageUrls }
  * }
  *
  * Response:
@@ -201,6 +221,8 @@ export async function POST(request: NextRequest) {
       {
         characterName: character.name,
         hasSessionId: !!providedSessionId,
+        hasImageUrls: !!(metadata?.imageUrls && metadata.imageUrls.length > 0),
+        imageCount: metadata?.imageUrls?.length || 0,
       },
     );
 
@@ -246,11 +268,13 @@ export async function POST(request: NextRequest) {
         name: character.name,
         email: `affiliate-${randomUUID()}@anonymous.elizacloud.ai`, // Placeholder email
         organization_id: affiliateOrg.id,
-        // Mark as affiliate user in metadata if possible
+        is_anonymous: true, // CRITICAL: Mark as anonymous so migration can find them
+        expires_at: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000), // 7 days
       });
 
       logger.info("[Affiliate API] Created anonymous user", {
         userId: anonymousUser.id,
+        isAnonymous: true,
       });
     } catch (error) {
       logger.error("[Affiliate API] Failed to create anonymous user", error);
@@ -289,6 +313,21 @@ export async function POST(request: NextRequest) {
     // 8. CREATE CHARACTER
     let createdCharacter;
     try {
+      // Resolve avatar URL: PRIORITIZE user-uploaded images from metadata.imageUrls[0]
+      // For affiliate characters (clone-your-crush), the user's uploaded photo should be the avatar
+      // Only fall back to character.avatar_url if no user images were uploaded
+      const userUploadedAvatar = metadata?.imageUrls?.[0];
+      const resolvedAvatarUrl = userUploadedAvatar || character.avatar_url || null;
+
+      if (resolvedAvatarUrl) {
+        logger.info("[Affiliate API] Avatar URL resolved", {
+          source: userUploadedAvatar ? "metadata.imageUrls[0] (user upload)" : "character.avatar_url (fallback)",
+          url: resolvedAvatarUrl.substring(0, 80) + "...",
+        });
+      } else {
+        logger.warn("[Affiliate API] No avatar URL available for character");
+      }
+
       // Convert affiliate character format to ElizaOS character format
       const elizaCharacter: ElizaCharacter = {
         name: character.name,
@@ -299,7 +338,7 @@ export async function POST(request: NextRequest) {
         adjectives: character.adjectives,
         settings: character.settings,
         secrets: character.secrets,
-        avatar_url: character.avatar_url, // Include avatar_url
+        avatar_url: resolvedAvatarUrl ?? undefined, // Use resolved avatar URL
       };
 
       createdCharacter = await charactersService.create({
@@ -334,12 +373,16 @@ export async function POST(request: NextRequest) {
             source: metadata?.source,
             vibe: metadata?.vibe,
             backstory: metadata?.backstory,
+            instagram: metadata?.instagram,
+            twitter: metadata?.twitter,
+            socialContent: metadata?.socialContent,
+            imageUrls: metadata?.imageUrls || [],
             createdAt: new Date().toISOString(),
           },
         } as Record<string, unknown>,
         is_template: false,
         is_public: false,
-        avatar_url: character.avatar_url || null,
+        avatar_url: resolvedAvatarUrl,
       });
 
       logger.info("[Affiliate API] Character created successfully", {

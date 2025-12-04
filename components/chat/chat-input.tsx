@@ -33,17 +33,23 @@ export function ChatInput({
   placeholder = "Type your message...",
   className,
 }: ChatInputProps) {
-  const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+  const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
     if (e.key === "Enter" && !e.shiftKey) {
       e.preventDefault();
       onSubmit(e as any);
     }
   };
 
+  const handleInput = (e: React.FormEvent<HTMLTextAreaElement>) => {
+    const target = e.target as HTMLTextAreaElement;
+    target.style.height = "24px";
+    target.style.height = Math.min(target.scrollHeight, 128) + "px";
+  };
+
   return (
     <form onSubmit={onSubmit} className={cn("p-4", className)}>
       <HUDContainer
-        className="relative flex items-center gap-3 p-4"
+        className="relative flex items-end gap-3 p-4"
         cornerSize="sm"
       >
         {/* Robot Eye Visor Scanner - Animated line on top edge with randomness - Only show when waiting for agent */}
@@ -92,19 +98,25 @@ export function ChatInput({
         )}
 
         {/* Text Input */}
-        <input
+        <textarea
+          rows={1}
           value={value}
           onChange={(e) => onChange(e.target.value)}
           onKeyDown={handleKeyDown}
+          onInput={handleInput}
           placeholder={
             isRecording ? "Recording... Click stop when done" : placeholder
           }
           disabled={isLoading || disabled || isRecording}
           className={cn(
-            "flex-1 bg-transparent border-0 text-white placeholder:text-white/40",
-            "focus:outline-none focus:ring-0 text-sm",
-            "disabled:opacity-50",
+            "flex-1 bg-transparent border-0 text-white placeholder:text-white/40 resize-none",
+            "focus:outline-none focus:ring-0 text-sm leading-relaxed py-1",
+            "disabled:opacity-50 max-h-32",
           )}
+          style={{
+            minHeight: "24px",
+            maxHeight: "128px",
+          }}
         />
 
         {/* Send Button */}

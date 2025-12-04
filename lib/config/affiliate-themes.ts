@@ -134,6 +134,39 @@ export const AFFILIATE_THEMES: Record<string, AffiliateTheme> = {
   },
 
   /**
+   * Edad (AI Dad) Theme
+   * Warm amber/gold aesthetic for supportive father figure experience
+   */
+  "e-dad": {
+    id: "e-dad",
+    name: "Edad - AI Dad",
+    branding: {
+      title: "Edad",
+      tagline: "The father figure you deserve",
+    },
+    colors: {
+      primary: "245 158 11",          // amber-500
+      primaryLight: "251 191 36",     // amber-400
+      accent: "217 119 6",            // amber-600
+      background: "0 0 0",            // black
+      gradientFrom: "245 158 11",     // amber-500
+      gradientTo: "217 119 6",        // amber-600
+    },
+    variants: {
+      introCard: 'playful',
+      chatBubbles: 'rounded',
+      avatarStyle: 'glow',
+      backgroundStyle: 'animated',
+    },
+    features: {
+      showVibeLabel: true,
+      showSourceBadge: true,
+      animatedBackground: true,
+      floatingDecorations: false,
+    },
+  },
+
+  /**
    * Default ElizaOS Cloud Theme
    * Professional indigo/purple aesthetic
    */

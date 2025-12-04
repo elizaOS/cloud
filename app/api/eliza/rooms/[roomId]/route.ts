@@ -21,7 +21,12 @@ export async function GET(
       await requireAuthOrApiKey(request);
     } catch (error) {
       // Fallback to anonymous user
-      await getAnonymousUser();
+      const anonData = await getAnonymousUser();
+      if (!anonData) {
+        // Create new anonymous session if none exists
+        const { getOrCreateAnonymousUser } = await import("@/lib/auth-anonymous");
+        await getOrCreateAnonymousUser();
+      }
     }
 
     const { roomId } = await ctx.params;
@@ -83,6 +88,13 @@ export async function GET(
         } catch {
           parsedContent = msg.content;
         }
+        
+        // Debug: Log attachment info for agent messages
+        const content = parsedContent as { text?: string; attachments?: unknown[]; source?: string };
+        if (content?.source === "agent" && content?.attachments) {
+          logger.info(`[Eliza Room API] 📎 Message ${msg.id?.substring(0, 8)} has ${content.attachments.length} attachment(s)`);
+        }
+        
         return {
           id: msg.id,
           entityId: msg.entityId,

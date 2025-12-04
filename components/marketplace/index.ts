@@ -1,6 +1,6 @@
 export { MyAgentsView } from "./character-marketplace";
 export { MyAgentsView as CharacterMarketplace } from "./character-marketplace"; // Backwards compatibility
-export { CharacterCard } from "./character-card";
+export { CharacterCard, CharacterCardSkeleton } from "./character-card";
 export { CharacterGrid } from "./character-grid";
 export { CategoryTabs } from "./category-tabs";
 export { FilterBar } from "./filter-bar";

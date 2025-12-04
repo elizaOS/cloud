@@ -5,24 +5,55 @@ import { stringToUuid, UUID, ChannelType } from "@elizaos/core";
 import { logger } from "@/lib/utils/logger";
 import { requireAuthOrApiKey } from "@/lib/auth";
 import { getAnonymousUser } from "@/lib/auth-anonymous";
-import { elizaRoomCharactersRepository } from "@/db/repositories";
+import { elizaRoomCharactersRepository, userCharactersRepository } from "@/db/repositories";
 import { connectionCache } from "@/lib/cache/connection-cache";
-import { discordService } from "@/lib/services";
+import { discordService, anonymousSessionsService, usersService } from "@/lib/services";
 import { db } from "@/db/client";
 import { sql } from "drizzle-orm";
 
 // GET /api/eliza/rooms - Get user's rooms
 export async function GET(request: NextRequest) {
   try {
+    const { searchParams } = new URL(request.url);
+    
+    // Check for session token in header or query param
+    const headerSessionToken = request.headers.get("X-Anonymous-Session");
+    const querySessionToken = searchParams.get("sessionToken");
+    const providedSessionToken = headerSessionToken || querySessionToken;
+    
     // Support both authenticated and anonymous users
     try {
       await requireAuthOrApiKey(request);
     } catch (error) {
-      // Fallback to anonymous user
-      await getAnonymousUser();
+      // CRITICAL: First try the provided session token (from URL/header)
+      // This ensures we don't overwrite the session created by /api/affiliate/create-session
+      if (providedSessionToken) {
+        logger.debug("[Eliza Rooms API GET] Checking provided session token:", providedSessionToken.slice(0, 8) + "...");
+        const session = await anonymousSessionsService.getByToken(providedSessionToken);
+        if (session) {
+          const sessionUser = await usersService.getById(session.user_id);
+          if (sessionUser && sessionUser.is_anonymous) {
+            logger.debug("[Eliza Rooms API GET] Anonymous auth via provided token:", sessionUser.id);
+            // Token is valid, continue without creating new session
+          } else {
+            logger.debug("[Eliza Rooms API GET] Session user not found or not anonymous");
+          }
+        } else {
+          logger.debug("[Eliza Rooms API GET] Session not found for token:", providedSessionToken.slice(0, 8) + "...");
+        }
+      }
+      
+      // Fallback to anonymous user - try cookie only, DON'T create new session
+      // If there's no valid session, just continue - rooms will be empty
+      const anonData = await getAnonymousUser();
+      if (!anonData && !providedSessionToken) {
+        // Only create new session if no token was provided at all
+        // This is a fallback for legacy clients that don't pass tokens
+        logger.debug("[Eliza Rooms API GET] No session cookie or token - creating new anonymous session");
+        const { getOrCreateAnonymousUser } = await import("@/lib/auth-anonymous");
+        await getOrCreateAnonymousUser();
+      }
     }
-
-    const { searchParams } = new URL(request.url);
     const entityId = searchParams.get("entityId");
 
     if (!entityId) {
@@ -53,11 +84,41 @@ export async function GET(request: NextRequest) {
       );
     }
 
+    // Collect unique character IDs to batch fetch their names
+    const uniqueCharacterIds = new Set<string>();
+    for (const charId of characterMappings.values()) {
+      if (charId) uniqueCharacterIds.add(charId);
+    }
+
+    // Batch fetch character names
+    const characterNames = new Map<string, string>();
+    if (uniqueCharacterIds.size > 0) {
+      try {
+        const characterPromises = Array.from(uniqueCharacterIds).map(async (charId) => {
+          const character = await userCharactersRepository.findById(charId);
+          if (character) {
+            characterNames.set(charId, character.name);
+          }
+        });
+        await Promise.all(characterPromises);
+        logger.debug(
+          "[Eliza Rooms API] Batch loaded character names:",
+          characterNames.size,
+        );
+      } catch (err) {
+        logger.error(
+          "[Eliza Rooms API] Failed to batch load character names:",
+          err,
+        );
+      }
+    }
+
     // Get room details with character mappings and titles
     const rooms = await Promise.all(
       roomIds.map(async (roomId) => {
         const room = await runtime.getRoom(roomId);
         const characterId = characterMappings.get(roomId);
+        const characterName = characterId ? characterNames.get(characterId) || null : null;
 
         // Fetch room title from database
         let title: string | null = null;
@@ -77,6 +138,7 @@ export async function GET(request: NextRequest) {
           id: roomId,
           ...room,
           characterId,
+          characterName,
           title,
         };
       }),
@@ -117,22 +179,64 @@ export async function GET(request: NextRequest) {
 // POST /api/eliza/rooms - Create new room
 export async function POST(request: NextRequest) {
   try {
+    const body = await request.json();
+    const { entityId, characterId, sessionToken: bodySessionToken } = body;
+    
+    // Also check header for session token
+    const headerSessionToken = request.headers.get("X-Anonymous-Session");
+    const providedSessionToken = headerSessionToken || bodySessionToken;
+    
     // Support both authenticated and anonymous users
     let user, authResult;
     try {
       authResult = await requireAuthOrApiKey(request);
       user = authResult.user;
-    } catch (error) {
+      logger.info("[Eliza Rooms API] Authenticated via Privy:", user.id);
+    } catch (authError) {
       // Fallback to anonymous user
-      const anonData = await getAnonymousUser();
-      if (!anonData) {
-        throw new Error("Authentication required");
+      logger.info("[Eliza Rooms API] Privy auth failed, trying anonymous...", 
+        authError instanceof Error ? authError.message : "Unknown error");
+      
+      // CRITICAL: First try the provided session token (from URL/body)
+      // This ensures we don't overwrite the session created by /api/affiliate/create-session
+      if (providedSessionToken) {
+        logger.info("[Eliza Rooms API] Checking provided session token:", providedSessionToken.slice(0, 8) + "...");
+        const session = await anonymousSessionsService.getByToken(providedSessionToken);
+        if (session) {
+          const sessionUser = await usersService.getById(session.user_id);
+          if (sessionUser && sessionUser.is_anonymous) {
+            user = sessionUser;
+            logger.info("[Eliza Rooms API] Anonymous auth via provided token:", user.id);
+          }
+        }
       }
-      user = anonData.user;
+      
+      // If provided token didn't work, try the cookie
+      if (!user) {
+        const anonData = await getAnonymousUser();
+        
+        if (anonData) {
+          user = anonData.user;
+          logger.info("[Eliza Rooms API] Anonymous auth successful via cookie:", user.id);
+        } else {
+          // No cookie found - create a new anonymous session
+          // This handles the case where the cookie wasn't set properly
+          logger.info("[Eliza Rooms API] No session cookie - creating new anonymous session");
+          
+          try {
+            const { getOrCreateAnonymousUser } = await import("@/lib/auth-anonymous");
+            const newAnonData = await getOrCreateAnonymousUser();
+            user = newAnonData.user;
+            logger.info("[Eliza Rooms API] Created new anonymous session:", user.id);
+          } catch (createError) {
+            logger.error("[Eliza Rooms API] Failed to create anonymous session:", 
+              createError instanceof Error ? createError.message : "Unknown error");
+            throw new Error("Authentication required - failed to create anonymous session");
+          }
+        }
+      }
     }
-
-    const body = await request.json();
-    const { entityId, characterId } = body;
+    
     logger.info(
       "[Eliza Rooms API] ⚡ Creating room for entity:",
       entityId,
