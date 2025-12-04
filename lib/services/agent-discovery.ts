@@ -7,7 +7,6 @@ import {
 import { logger } from "@/lib/utils/logger";
 import { createHash } from "node:crypto";
 import type { UserCharacter } from "@/db/repositories";
-import type { Memory } from "@elizaos/core";
 import { db } from "@/db/client";
 import { elizaRoomCharactersRepository } from "@/db/repositories/eliza-room-characters";
 

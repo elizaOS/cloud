@@ -1,5 +1,4 @@
 import { NextRequest, NextResponse } from "next/server";
-import { agentRuntime } from "@/lib/eliza/agent-runtime";
 import { v4 as uuidv4 } from "uuid";
 import { stringToUuid, UUID, ChannelType } from "@elizaos/core";
 import { logger } from "@/lib/utils/logger";
@@ -10,6 +9,7 @@ import { connectionCache } from "@/lib/cache/connection-cache";
 import { discordService } from "@/lib/services";
 import { db } from "@/db/client";
 import { sql } from "drizzle-orm";
+import { runtimeFactory } from "@/lib/eliza/runtime-factory";
 
 // GET /api/eliza/rooms - Get user's rooms
 export async function GET(request: NextRequest) {
@@ -32,7 +32,9 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    const runtime = await agentRuntime.getRuntime();
+    // Create system runtime for read operation (no user-specific billing needed)
+    const runtime = await runtimeFactory.getSystemRuntime();
+
     const roomIds = await runtime.getRoomsForParticipants([
       stringToUuid(entityId) as UUID,
     ]);
@@ -161,11 +163,8 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // IMPORTANT: Create character-specific runtime if characterId is provided
-    // Otherwise create default runtime
-    const runtime = characterId
-      ? await agentRuntime.getRuntimeForCharacter(characterId)
-      : await agentRuntime.getRuntime();
+    // Create system runtime (character is set if provided)
+    const runtime = await runtimeFactory.getSystemRuntime(characterId);
 
     logger.info(
       "[Eliza Rooms API] 🎭 Runtime created for character:",

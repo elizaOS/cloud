@@ -1,26 +1,16 @@
 import { NextResponse } from "next/server";
-import { agentRuntime } from "@/lib/eliza/agent-runtime";
-import type { UUID } from "@elizaos/core";
+import { stringToUuid, type UUID } from "@elizaos/core";
 import { requireAuthOrApiKey } from "@/lib/auth";
 import { getAnonymousUser, checkAnonymousLimit } from "@/lib/auth-anonymous";
-import {
-  creditsService,
-  usageService,
-  generationsService,
-  organizationsService,
-  discordService,
-  anonymousSessionsService,
-} from "@/lib/services";
-import {
-  calculateCost,
-  getProviderFromModel,
-  estimateTokens,
-} from "@/lib/pricing";
+import { organizationsService } from "@/lib/services";
+import { calculateCost, getProviderFromModel, estimateTokens } from "@/lib/pricing";
 import { logger } from "@/lib/utils/logger";
 import type { NextRequest } from "next/server";
 import { elizaRoomCharactersRepository } from "@/db/repositories";
-import { db } from "@/db/client";
-import { sql } from "drizzle-orm";
+import { runtimeFactory } from "@/lib/eliza/runtime-factory";
+import { userContextService } from "@/lib/eliza/user-context";
+import { AgentMode } from "@/lib/eliza/agent-mode-types";
+import { sendMessageWithSideEffects } from "@/lib/eliza/send-message";
 
 export const maxDuration = 60;
 
@@ -174,7 +164,6 @@ export async function POST(
 
     // Look up character for this room
     let characterId: string | undefined;
-    let characterName: string | undefined;
     try {
       const roomCharacter =
         await elizaRoomCharactersRepository.findByRoomId(roomId);
@@ -186,19 +175,12 @@ export async function POST(
           "for room:",
           roomId,
         );
-
-        // Get character name
-        const runtime = await agentRuntime.getRuntimeForCharacter(characterId);
-        characterName = runtime.character.name || "Agent";
       } else {
         logger.info(
           "[Eliza Messages API] ⓘ No character mapping found for room:",
           roomId,
           "- using default character",
         );
-        // Get default character name
-        const runtime = await agentRuntime.getRuntime();
-        characterName = runtime.character.name || "Agent";
       }
     } catch (lookupError) {
       logger.error(
@@ -206,211 +188,59 @@ export async function POST(
         lookupError,
       );
       // Continue with default character
-      characterName = "Agent";
     }
 
-    // Handle the message and get usage information
-    const result = await agentRuntime.handleMessage(
-      roomId,
-      entityId,
+    // Build user context for runtime creation using centralized service
+    const userContext = await userContextService.buildContext({
+      user,
+      apiKey,
+      isAnonymous,
+      anonymousSession,
+      agentMode: AgentMode.CHAT,
+    });
+    // Add character override if found
+    if (characterId) {
+      userContext.characterId = characterId;
+    }
+
+    // Create runtime and send message using unified API
+    // Note: Billing is handled by the gateway (plugin-elizacloud routes through /api/v1/chat/completions)
+    const runtime = await runtimeFactory.createRuntimeForUser(userContext);
+    const elizaOS = runtimeFactory.getElizaOS();
+
+    const result = await sendMessageWithSideEffects(
+      elizaOS,
+      runtime,
+      roomId as UUID,
+      stringToUuid(entityId) as UUID,
       {
         text,
         attachments: attachments || [],
+        source: "api",
       },
+      userContext,
       characterId,
     );
 
-    const { message, usage } = result;
+    // Note: Using 'result' until core is updated with 'processing' rename
+    const responseContent = (result as any).processing?.responseContent || (result as any).result?.responseContent;
 
     logger.debug(`[Eliza Messages API] Message sent`, {
       roomId,
       entityId,
-      messageId: message.id,
-      usage,
+      messageId: result.messageId,
+      hasResponse: !!responseContent,
     });
-
-    // Send messages to Discord thread (fire-and-forget)
-    (async () => {
-      try {
-        // Get Discord thread ID from room metadata
-        const roomData = await db.execute<{ metadata: any }>(
-          sql`SELECT metadata FROM rooms WHERE id = ${roomId}::uuid LIMIT 1`,
-        );
-
-        const threadId = roomData.rows[0]?.metadata?.discordThreadId;
-
-        if (threadId) {
-          // Send user message
-          await discordService.sendToThread(
-            threadId,
-            `**${user.name || user.email || entityId}:** ${text}`,
-          );
-
-          // Send agent response
-          const responseText =
-            typeof message.content === "string"
-              ? message.content
-              : message.content?.text || JSON.stringify(message.content);
-
-          await discordService.sendToThread(
-            threadId,
-            `**🤖 ${characterName}:** ${responseText}`,
-          );
-
-          logger.info(
-            `[Eliza Messages API] Sent messages to Discord thread ${threadId}`,
-          );
-        }
-      } catch (err) {
-        logger.error(
-          "[Eliza Messages API] Failed to send to Discord thread:",
-          err,
-        );
-      }
-    })();
-
-    // Always deduct credits for Eliza messages
-    // If we don't have usage data, estimate based on text length
-    const effectiveUsage = usage || {
-      inputTokens: Math.ceil(text.length / 4),
-      outputTokens: 100, // Rough estimate for response
-      model: "gpt-4o",
-    };
-
-    logger.debug(
-      `[Eliza Messages API] Effective usage for billing:`,
-      effectiveUsage,
-    );
-
-    try {
-      const model = effectiveUsage.model || "gpt-4o";
-      const provider = getProviderFromModel(model);
-
-      // Calculate costs
-      const { inputCost, outputCost, totalCost } = await calculateCost(
-        model,
-        provider,
-        effectiveUsage.inputTokens || 0,
-        effectiveUsage.outputTokens || 0,
-      );
-
-      // Deduct credits
-      const deductionResult = await creditsService.deductCredits({
-        organizationId: user.organization_id!,
-        amount: totalCost,
-        description: `Eliza chat completion: ${model}`,
-        metadata: { user_id: user.id },
-      });
-
-      if (!deductionResult.success) {
-        // CRITICAL: This should rarely happen since we checked credits before processing
-        // But it can happen if credits were spent elsewhere between check and now
-        logger.error(
-          "[Eliza Messages API] CRITICAL: Failed to deduct credits after message processing - race condition detected",
-          {
-            organizationId: user.organization_id!,
-            cost: String(totalCost),
-            balance: deductionResult.newBalance,
-            messageId: message.id,
-          },
-        );
-        // Message has already been processed, so we return it but flag the billing issue
-        // This should trigger an alert for manual review
-      }
-
-      // Create usage record
-      const usageRecord = await usageService.create({
-        organization_id: user.organization_id!!,
-        user_id: user.id,
-        api_key_id: apiKey?.id || null,
-        type: "eliza",
-        model,
-        provider,
-        input_tokens: effectiveUsage.inputTokens || 0,
-        output_tokens: effectiveUsage.outputTokens || 0,
-        input_cost: String(inputCost),
-        output_cost: String(outputCost),
-        is_successful: true,
-      });
-
-      // Create generation record if using API key
-      if (apiKey) {
-        await generationsService.create({
-          organization_id: user.organization_id!!,
-          user_id: user.id,
-          api_key_id: apiKey.id,
-          type: "eliza",
-          model,
-          provider,
-          prompt: text,
-          status: "completed",
-          tokens:
-            (effectiveUsage.inputTokens || 0) +
-            (effectiveUsage.outputTokens || 0),
-          cost: String(totalCost),
-          credits: String(totalCost),
-          usage_record_id: usageRecord.id,
-          completed_at: new Date(),
-        });
-      }
-
-      logger.debug(
-        `[Eliza Messages API] Cost charged: $${totalCost.toFixed(4)} (Input: $${inputCost.toFixed(4)}, Output: $${outputCost.toFixed(4)}), New balance: $${deductionResult.newBalance.toFixed(2)}`,
-      );
-    } catch (error) {
-      logger.error(
-        "[Eliza Messages API] Error deducting credits or tracking usage:",
-        error,
-      );
-
-      // Still create an unsuccessful usage record for tracking
-      try {
-        await usageService.create({
-          organization_id: user.organization_id!!,
-          user_id: user.id,
-          api_key_id: apiKey?.id || null,
-          type: "eliza",
-          model: effectiveUsage.model || "gpt-4o",
-          provider: getProviderFromModel(effectiveUsage.model || "gpt-4o"),
-          input_tokens: effectiveUsage.inputTokens || 0,
-          output_tokens: effectiveUsage.outputTokens || 0,
-          input_cost: String(0),
-          output_cost: String(0),
-          is_successful: false,
-          error_message:
-            error instanceof Error ? error.message : "Unknown error",
-        });
-      } catch (usageError) {
-        logger.error(
-          "[Eliza Messages API] Error creating usage record:",
-          usageError,
-        );
-      }
-    }
-
-    // Increment message count AFTER successful message creation (for anonymous users)
-    if (isAnonymous && anonymousSession) {
-      await anonymousSessionsService.incrementMessageCount(anonymousSession.id);
-
-      logger.info(
-        "eliza-messages-api",
-        "Incremented anonymous message count after success",
-        {
-          sessionId: anonymousSession.id,
-          newCount: anonymousSession.message_count + 1,
-        },
-      );
-    }
 
     // Return the created message
     return NextResponse.json({
       success: true,
       message: {
-        id: message.id,
-        entityId: message.entityId || "",
-        agentId: message.agentId,
-        content: message.content,
-        createdAt: message.createdAt,
+        id: result.messageId,
+        entityId: result.userMessage.entityId || "",
+        agentId: runtime.agentId,
+        content: responseContent || { text: "", source: "agent" },
+        createdAt: result.userMessage.createdAt,
         roomId,
       },
       // Include polling hint for the client
@@ -463,7 +293,8 @@ export async function GET(
       );
     }
 
-    const runtime = await agentRuntime.getRuntime();
+    const runtime = await runtimeFactory.getSystemRuntime();
+
     const messages = await runtime.getMemories({
       tableName: "messages",
       roomId: roomId as UUID,

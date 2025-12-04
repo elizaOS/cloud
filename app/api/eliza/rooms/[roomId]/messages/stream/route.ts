@@ -1,4 +1,5 @@
 import { NextRequest } from "next/server";
+import { stringToUuid, type UUID } from "@elizaos/core";
 import { organizationsService } from "@/lib/services";
 import { requireAuthOrApiKey } from "@/lib/auth";
 import { getAnonymousUser, checkAnonymousLimit } from "@/lib/auth-anonymous";
@@ -6,7 +7,7 @@ import { logger } from "@/lib/utils/logger";
 import { elizaRoomCharactersRepository } from "@/db/repositories";
 import { userContextService } from "@/lib/eliza/user-context";
 import { runtimeFactory } from "@/lib/eliza/runtime-factory";
-import { createMessageHandler } from "@/lib/eliza/message-handler";
+import { sendMessageWithSideEffects } from "@/lib/eliza/send-message";
 import type { AgentModeConfig } from "@/lib/eliza/agent-mode-types";
 import {
   AgentMode,
@@ -23,8 +24,7 @@ export const maxDuration = 60;
  * Single-endpoint streaming architecture:
  * - Receives message via POST
  * - Streams back thinking indicator and agent response via SSE
- * - All processing happens in same container (no cross-container issues!)
- * - Simple, fast, and works perfectly on serverless
+ * - Uses core ElizaOS.sendMessage() for iso behavior (server/serverless)
  */
 export async function POST(
   request: NextRequest,
@@ -66,7 +66,7 @@ export async function POST(
       logger.debug("[Stream] User selected model:", model);
     }
 
-    // Step 2: Authentication & Context Building (single step, clean!)
+    // Step 2: Authentication & Context Building
     const userContext = await authenticateAndBuildContext(
       request,
       agentModeConfig.mode,
@@ -99,7 +99,6 @@ export async function POST(
     let characterId = roomCharacter?.character_id || undefined;
 
     // For BUILD mode, use the targetCharacterId from agent mode metadata
-    // This ensures we're editing the correct character, not the default
     if (
       agentModeConfig.mode === AgentMode.BUILD &&
       agentModeConfig.metadata?.targetCharacterId
@@ -110,9 +109,7 @@ export async function POST(
       );
 
       // Ensure room-character association exists for build mode
-      // Each user-character combo should have its own build room
       if (!roomCharacter && characterId) {
-        // Create new association
         try {
           await elizaRoomCharactersRepository.create({
             room_id: roomId,
@@ -129,7 +126,6 @@ export async function POST(
           );
         }
       } else if (roomCharacter && roomCharacter.character_id !== characterId) {
-        // Update existing association if character changed
         try {
           await elizaRoomCharactersRepository.update(roomId, characterId);
           logger.info(
@@ -172,13 +168,11 @@ export async function POST(
       logger.info(`[Stream] Set characterId in userContext: ${characterId}`);
     }
 
-    // Step 6: Create runtime with user context (clean, no key fetching here!)
-    const runtime = await runtimeFactory.createRuntimeForUser(userContext);
+    // Step 6: Create runtime and get ElizaOS instance
+    const elizaOS = runtimeFactory.getElizaOS();
+    const agentRuntime = await runtimeFactory.createRuntimeForUser(userContext);
 
-    // Step 7: Create message handler
-    const messageHandler = createMessageHandler(runtime, userContext);
-
-    // Step 8: Create streaming response
+    // Step 7: Create streaming response
     const stream = new ReadableStream({
       async start(controller) {
         const sendEvent = (event: string, data: unknown) => {
@@ -210,67 +204,61 @@ export async function POST(
             type: "thinking",
           });
 
-          // Process message and get response (much cleaner!)
-          logger.info("[Stream Messages] Processing message...");
-          const result = await messageHandler.process({
-            roomId,
-            entityId,
-            text,
-            model,
-            agentModeConfig,
-          });
+          // Process message using core ElizaOS.sendMessage() with side effects
+          logger.info("[Stream] Processing message via sendMessageWithSideEffects...");
+          const result = await sendMessageWithSideEffects(
+            elizaOS,
+            agentRuntime,
+            roomId as UUID,
+            stringToUuid(entityId) as UUID,
+            { text, source: "cloud" },
+            userContext,
+            characterId,
+          );
 
-          // Extract content - the full Content object is now stored in memory
-          const messageContent = result.message.content;
-          const responseText =
-            typeof messageContent === "string"
-              ? messageContent
-              : messageContent?.text || "";
+          // Extract response from result
+          const responseContent = result.processing?.responseContent;
+          const responseText = responseContent?.text || "";
 
-          // Build response content, preserving all Content fields
+          // Build response content payload
           const responseContentPayload: Record<string, unknown> = {
             text: responseText,
-            source: messageContent?.source || "agent",
+            source: responseContent?.source || "agent",
           };
 
           // Include attachments if present
-          if (
-            typeof messageContent === "object" &&
-            messageContent?.attachments
-          ) {
-            responseContentPayload.attachments = messageContent.attachments;
+          if (responseContent?.attachments) {
+            responseContentPayload.attachments = responseContent.attachments;
           }
 
-          // Include actions if present (needed for frontend to detect APPLY_CHARACTER_CHANGES)
-          if (typeof messageContent === "object" && messageContent?.actions) {
-            responseContentPayload.actions = messageContent.actions;
+          // Include actions if present
+          if (responseContent?.actions) {
+            responseContentPayload.actions = responseContent.actions;
           }
 
           // Include thought if present
-          if (typeof messageContent === "object" && messageContent?.thought) {
-            responseContentPayload.thought = messageContent.thought;
+          if (responseContent?.thought) {
+            responseContentPayload.thought = responseContent.thought;
           }
 
-          // Include metadata if present (for PROPOSE_CHARACTER_CHANGES with updatedCharacter)
-          if (typeof messageContent === "object" && messageContent?.metadata) {
-            responseContentPayload.metadata = messageContent.metadata;
+          // Include metadata if present
+          if (responseContent?.metadata) {
+            responseContentPayload.metadata = responseContent.metadata;
           }
 
           // Send agent response
           sendEvent("message", {
-            id: result.message.id,
-            entityId: result.message.entityId,
-            agentId: result.message.agentId,
+            id: result.messageId,
+            entityId: agentRuntime.agentId,
+            agentId: agentRuntime.agentId,
             content: responseContentPayload,
-            createdAt: result.message.createdAt || Date.now(),
+            createdAt: Date.now(),
             isAgent: true,
             type: "agent",
           });
 
-          // Credits and side effects are handled by MessageHandler
-          // Check if we should send low credit warning
-          if (result.usage && !userContext.isAnonymous) {
-            // This is just for the warning event, actual credit deduction happened in MessageHandler
+          // Check low credits warning (billing handled by gateway)
+          if (!userContext.isAnonymous) {
             const remainingCredits = await checkUserCredits(
               userContext.organizationId,
             );
@@ -286,7 +274,7 @@ export async function POST(
 
           controller.close();
         } catch (error) {
-          logger.error("[Stream Messages] Error:", error);
+          logger.error("[Stream] Error:", error);
           sendEvent("error", {
             message:
               error instanceof Error ? error.message : "Processing failed",
@@ -305,7 +293,7 @@ export async function POST(
       },
     });
   } catch (error) {
-    logger.error("[Stream Messages] Request error:", error);
+    logger.error("[Stream] Request error:", error);
     return new Response(
       JSON.stringify({
         error: error instanceof Error ? error.message : "Request failed",
@@ -317,7 +305,6 @@ export async function POST(
 
 /**
  * Helper function to authenticate and build user context
- * Centralizes authentication and context creation
  */
 async function authenticateAndBuildContext(
   request: NextRequest,
