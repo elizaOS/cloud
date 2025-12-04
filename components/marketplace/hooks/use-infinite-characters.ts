@@ -1,12 +1,12 @@
-import { useState, useEffect, useCallback, useRef } from "react";
+"use client";
+
+import { useState, useEffect, useCallback, useRef, useMemo } from "react";
 import type {
   ExtendedCharacter,
   SearchFilters,
   SortBy,
   MyAgentsSearchResult,
 } from "@/lib/types/my-agents";
-import { logger } from "@/lib/utils/logger";
-import { MY_AGENTS_CONFIG } from "@/lib/config/my-agents";
 
 interface UseInfiniteCharactersOptions {
   filters: SearchFilters;
@@ -14,130 +14,158 @@ interface UseInfiniteCharactersOptions {
   includeStats?: boolean;
 }
 
+interface FetchState {
+  characters: ExtendedCharacter[];
+  isLoading: boolean;
+  isLoadingMore: boolean;
+  hasMore: boolean;
+  total: number;
+  error: string | null;
+}
+
+const LIMIT = 20;
+const MAX_CACHED = 200;
+
 export function useInfiniteCharacters({
   filters,
   sortBy,
   includeStats = false,
 }: UseInfiniteCharactersOptions) {
-  const [characters, setCharacters] = useState<ExtendedCharacter[]>([]);
+  const [state, setState] = useState<FetchState>({
+    characters: [],
+    isLoading: true,
+    isLoadingMore: false,
+    hasMore: true,
+    total: 0,
+    error: null,
+  });
   const [page, setPage] = useState(1);
-  const [isLoading, setIsLoading] = useState(false);
-  const [isLoadingMore, setIsLoadingMore] = useState(false);
-  const [hasMore, setHasMore] = useState(true);
-  const [total, setTotal] = useState(0);
-  const [error, setError] = useState<string | null>(null);
 
   const abortControllerRef = useRef<AbortController | null>(null);
-  const prevFiltersRef = useRef<string>("");
 
-  const fetchCharacters = useCallback(
-    async (pageNum: number, append: boolean = false) => {
+  // Memoize the filter key to avoid unnecessary re-fetches
+  const filterKey = useMemo(() => {
+    return JSON.stringify({
+      search: filters.search || "",
+      category: filters.category || "",
+      hasVoice: !!filters.hasVoice,
+      deployed: !!filters.deployed,
+      sortBy,
+      includeStats,
+    });
+  }, [
+    filters.search,
+    filters.category,
+    filters.hasVoice,
+    filters.deployed,
+    sortBy,
+    includeStats,
+  ]);
+
+  const buildQueryParams = useCallback(
+    (pageNum: number) => {
+      const params = new URLSearchParams({
+        page: pageNum.toString(),
+        limit: LIMIT.toString(),
+        sortBy,
+        order: "desc",
+        includeStats: includeStats.toString(),
+      });
+
+      if (filters.search) params.set("search", filters.search);
+      if (filters.category) params.set("category", filters.category);
+      if (filters.hasVoice) params.set("hasVoice", "true");
+      if (filters.deployed) params.set("deployed", "true");
+
+      return params.toString();
+    },
+    [filters.search, filters.category, filters.hasVoice, filters.deployed, sortBy, includeStats]
+  );
+
+  const fetchPage = useCallback(
+    async (pageNum: number, append: boolean) => {
+      // Cancel any pending request
       if (abortControllerRef.current) {
         abortControllerRef.current.abort();
       }
-
       abortControllerRef.current = new AbortController();
 
-      if (append) {
-        setIsLoadingMore(true);
-      } else {
-        setIsLoading(true);
-        setError(null);
-      }
+      setState((prev) => ({
+        ...prev,
+        isLoading: !append,
+        isLoadingMore: append,
+        error: append ? prev.error : null,
+      }));
 
       try {
-        const params = new URLSearchParams({
-          page: pageNum.toString(),
-          limit: "20",
-          sortBy,
-          order: "desc",
-          includeStats: includeStats.toString(),
+        const queryString = buildQueryParams(pageNum);
+        const response = await fetch(`/api/my-agents/characters?${queryString}`, {
+          signal: abortControllerRef.current.signal,
         });
 
-        if (filters.search) params.set("search", filters.search);
-        if (filters.category) params.set("category", filters.category);
-        if (filters.hasVoice) params.set("hasVoice", "true");
-        if (filters.deployed) params.set("deployed", "true");
-        if (filters.template) params.set("template", "true");
-        if (filters.myCharacters) params.set("myCharacters", "true");
-        if (filters.public) params.set("public", "true");
-        if (filters.featured) params.set("featured", "true");
-
-        const response = await fetch(
-          `/api/my-agents/characters?${params.toString()}`,
-          { signal: abortControllerRef.current.signal },
-        );
-
         if (!response.ok) {
-          throw new Error("Failed to fetch characters");
+          const errorData = await response.json().catch(() => ({}));
+          throw new Error(errorData.error || "Failed to fetch characters");
         }
 
-        const data: { success: boolean; data: MyAgentsSearchResult } =
-          await response.json();
+        const json = await response.json();
 
-        if (data.success) {
-          const result = data.data;
+        if (!json.success) {
+          throw new Error(json.error || "API returned unsuccessful response");
+        }
 
+        const result: MyAgentsSearchResult = json.data;
+
+        setState((prev) => {
+          let newCharacters: ExtendedCharacter[];
           if (append) {
-            setCharacters((prev) => {
-              const newCharacters = [...prev, ...result.characters];
-              const maxCached =
-                MY_AGENTS_CONFIG.infiniteScroll.maxCachedCharacters;
-              // Enforce max cache size to prevent memory issues
-              if (newCharacters.length > maxCached) {
-                logger.debug(
-                  `[useInfiniteCharacters] Max cache size reached (${newCharacters.length}). Consider resetting to page 1.`,
-                );
-                // Keep only the most recent maxCached characters
-                return newCharacters.slice(-maxCached);
-              }
-              return newCharacters;
-            });
+            newCharacters = [...prev.characters, ...result.characters];
+            // Enforce max cache size
+            if (newCharacters.length > MAX_CACHED) {
+              newCharacters = newCharacters.slice(-MAX_CACHED);
+            }
           } else {
-            setCharacters(result.characters);
+            newCharacters = result.characters;
           }
 
-          setHasMore(result.pagination.hasMore);
-          setTotal(result.pagination.total);
-          setError(null);
-        } else {
-          throw new Error("API returned unsuccessful response");
-        }
+          return {
+            characters: newCharacters,
+            isLoading: false,
+            isLoadingMore: false,
+            hasMore: result.pagination.hasMore,
+            total: result.pagination.total,
+            error: null,
+          };
+        });
       } catch (err) {
+        // Ignore abort errors
         if (err instanceof Error && err.name === "AbortError") {
           return;
         }
 
         const errorMessage =
           err instanceof Error ? err.message : "Failed to fetch characters";
-        logger.error("[useInfiniteCharacters] Error fetching:", err);
-        setError(errorMessage);
 
-        if (!append) {
-          setCharacters([]);
-        }
-      } finally {
-        setIsLoading(false);
-        setIsLoadingMore(false);
+        setState((prev) => ({
+          ...prev,
+          isLoading: false,
+          isLoadingMore: false,
+          error: errorMessage,
+          // Clear characters only on initial load error
+          characters: append ? prev.characters : [],
+        }));
       }
     },
-    [filters, sortBy, includeStats],
+    [buildQueryParams]
   );
 
+  // Initial fetch and filter change handling
   useEffect(() => {
-    const filtersString = JSON.stringify({
-      ...filters,
-      sortBy,
-      includeStats,
-    });
+    setPage(1);
+    fetchPage(1, false);
+  }, [filterKey]); // eslint-disable-line react-hooks/exhaustive-deps
 
-    if (filtersString !== prevFiltersRef.current) {
-      prevFiltersRef.current = filtersString;
-      setPage(1);
-      fetchCharacters(1, false);
-    }
-  }, [filters, sortBy, includeStats, fetchCharacters]);
-
+  // Cleanup on unmount
   useEffect(() => {
     return () => {
       if (abortControllerRef.current) {
@@ -147,26 +175,26 @@ export function useInfiniteCharacters({
   }, []);
 
   const loadMore = useCallback(() => {
-    if (!isLoadingMore && !isLoading && hasMore) {
-      const nextPage = page + 1;
-      setPage(nextPage);
-      fetchCharacters(nextPage, true);
+    if (state.isLoadingMore || state.isLoading || !state.hasMore) {
+      return;
     }
-  }, [page, isLoadingMore, isLoading, hasMore, fetchCharacters]);
+    const nextPage = page + 1;
+    setPage(nextPage);
+    fetchPage(nextPage, true);
+  }, [page, state.isLoadingMore, state.isLoading, state.hasMore, fetchPage]);
 
   const refetch = useCallback(() => {
     setPage(1);
-    setError(null);
-    fetchCharacters(1, false);
-  }, [fetchCharacters]);
+    fetchPage(1, false);
+  }, [fetchPage]);
 
   return {
-    characters,
-    isLoading,
-    isLoadingMore,
-    hasMore,
-    total,
-    error,
+    characters: state.characters,
+    isLoading: state.isLoading,
+    isLoadingMore: state.isLoadingMore,
+    hasMore: state.hasMore,
+    total: state.total,
+    error: state.error,
     loadMore,
     refetch,
   };

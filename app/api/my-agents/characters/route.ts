@@ -11,37 +11,42 @@ export async function GET(request: NextRequest) {
     const user = await requireAuthWithOrg();
     const { searchParams } = new URL(request.url);
 
+    // Parse search filters
     const search = searchParams.get("search") || undefined;
     const category = searchParams.get("category") as CategoryId | undefined;
-    const hasVoice = searchParams.has("hasVoice")
-      ? searchParams.get("hasVoice") === "true"
-      : undefined;
-    const deployed = searchParams.has("deployed")
-      ? searchParams.get("deployed") === "true"
-      : undefined;
+    
+    // Boolean filters - only set if explicitly "true"
+    const hasVoice = searchParams.get("hasVoice") === "true" ? true : undefined;
+    const deployed = searchParams.get("deployed") === "true" ? true : undefined;
 
-    const sortBy = (searchParams.get("sortBy") || "popularity") as SortBy;
+    // Sort options
+    const sortBy = (searchParams.get("sortBy") || "newest") as SortBy;
     const order = (searchParams.get("order") || "desc") as SortOrder;
 
-    const page = Math.max(1, parseInt(searchParams.get("page") || "1"));
+    // Pagination
+    const page = Math.max(1, parseInt(searchParams.get("page") || "1", 10));
     const limit = Math.min(
       50,
-      Math.max(1, parseInt(searchParams.get("limit") || "20")),
+      Math.max(1, parseInt(searchParams.get("limit") || "20", 10))
     );
 
     const includeStats = searchParams.get("includeStats") === "true";
 
-    logger.info("[My Agents API] Search request:", {
+    logger.debug("[My Agents API] Search request:", {
       userId: user.id,
+      organizationId: user.organization_id,
       search,
       category,
+      hasVoice,
+      deployed,
+      sortBy,
       page,
       limit,
     });
 
     const result = await myAgentsService.searchCharacters({
       userId: user.id,
-      organizationId: user.organization_id!!,
+      organizationId: user.organization_id!,
       filters: {
         search,
         category,
@@ -66,6 +71,10 @@ export async function GET(request: NextRequest) {
   } catch (error) {
     logger.error("[My Agents API] Error searching characters:", error);
 
+    const status = error instanceof Error && error.message.includes("auth")
+      ? 401
+      : 500;
+
     return NextResponse.json(
       {
         success: false,
@@ -74,7 +83,7 @@ export async function GET(request: NextRequest) {
             ? error.message
             : "Failed to search characters",
       },
-      { status: 500 },
+      { status }
     );
   }
 }
