@@ -67,7 +67,7 @@ export function CharacterCreatorClient({
   });
 
   const [selectedId, setSelectedId] = useState<string | null>(
-    initialCharacterId || null,
+    initialCharacterId || null
   );
   const [showAssistant, setShowAssistant] = useState(true);
   const [useBuildMode, setUseBuildMode] = useState(false);
@@ -77,7 +77,7 @@ export function CharacterCreatorClient({
     (updates: Partial<ElizaCharacter>) => {
       setCharacter((prev) => ({ ...prev, ...updates }));
     },
-    [],
+    []
   );
 
   const handleSave = useCallback(async () => {
@@ -114,7 +114,7 @@ export function CharacterCreatorClient({
       toast.error(
         error instanceof Error
           ? error.message
-          : "Failed to save character. Please try again.",
+          : "Failed to save character. Please try again."
       );
     }
   }, [character, selectedId]);
@@ -128,7 +128,7 @@ export function CharacterCreatorClient({
         toast.success("Character loaded");
       }
     },
-    [initialCharacters],
+    [initialCharacters]
   );
 
   const handleNewCharacter = useCallback(() => {
@@ -263,7 +263,7 @@ export function CharacterCreatorClient({
       handleNewCharacter,
       handleLoadCharacter,
       router,
-    ],
+    ]
   );
 
   return (
@@ -283,19 +283,15 @@ export function CharacterCreatorClient({
             <BrandCard className="relative flex h-full flex-col">
               <CornerBrackets size="sm" className="opacity-50" />
               <div className="relative z-10 flex-1 flex flex-col items-center justify-center p-8 text-center">
-                <h2 className="text-2xl font-bold text-white mb-4">
-                  Start Building Your Character
+                <h2 className="text-2xl font-bold text-white mb-8">
+                  Start Building Your Agent
                 </h2>
-                <p className="text-white/60 mb-8 max-w-md">
-                  Chat with our AI assistant to design your character step by
-                  step. The assistant will help you define personality,
-                  knowledge, and capabilities.
-                </p>
+
                 <BrandButton
                   variant="primary"
                   onClick={initializeBlankCharacter}
                   disabled={isInitializingCharacter}
-                  className="px-8"
+                  className="px-8 mt-2"
                 >
                   {isInitializingCharacter
                     ? "Initializing..."
