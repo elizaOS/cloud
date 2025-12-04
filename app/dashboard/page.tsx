@@ -56,10 +56,7 @@ export default async function DashboardPage() {
           </section>
 
           {hasActivity && (
-            <section className="space-y-4">
-              <div>
-                <h2 className="text-2xl font-bold text-white">Overview</h2>
-              </div>
+            <section>
               <Suspense fallback={<OverviewMetricsSkeleton />}>
                 <OverviewMetrics
                   totalGenerations={data.stats.totalGenerations}
