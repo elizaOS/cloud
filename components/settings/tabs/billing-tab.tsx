@@ -37,7 +37,7 @@ export function BillingTab({ user }: BillingTabProps) {
   const [isProcessingCheckout, setIsProcessingCheckout] = useState(false);
 
   const [balance, setBalance] = useState(
-    Number(user.organization?.credit_balance || 0),
+    Number(user.organization?.credit_balance || 0)
   );
 
   useEffect(() => {
@@ -119,7 +119,7 @@ export function BillingTab({ user }: BillingTabProps) {
       toast.error(
         error instanceof Error
           ? error.message
-          : "Failed to initiate checkout. Please try again.",
+          : "Failed to initiate checkout. Please try again."
       );
       setIsProcessingCheckout(false);
     }
@@ -142,7 +142,7 @@ export function BillingTab({ user }: BillingTabProps) {
         <div className="relative z-10 space-y-6">
           {/* Header */}
           <div className="flex items-center gap-2">
-            <div className="w-2 h-2 rounded-full bg-[#FF5800]" />
+            <div className="w-2 h-2 rounded-full bg-[#E500FF]" />
             <h3 className="text-base font-mono text-[#e1e1e1] uppercase">
               Credit Balance
             </h3>
@@ -206,7 +206,8 @@ export function BillingTab({ user }: BillingTabProps) {
                       className="absolute inset-0 opacity-20 bg-repeat pointer-events-none"
                       style={{
                         backgroundImage: `url(/assets/settings/pattern-6px-flip.png)`,
-                        backgroundSize: "2.915576934814453px 2.915576934814453px",
+                        backgroundSize:
+                          "2.915576934814453px 2.915576934814453px",
                       }}
                     />
                     {isProcessingCheckout ? (
@@ -258,7 +259,7 @@ export function BillingTab({ user }: BillingTabProps) {
           {/* Header */}
           <div className="flex flex-col gap-2">
             <div className="flex items-center gap-2">
-              <div className="w-2 h-2 rounded-full bg-[#FF5800]" />
+              <div className="w-2 h-2 rounded-full bg-[#E500FF]" />
               <h3 className="text-base font-mono text-[#e1e1e1] uppercase">
                 Invoices
               </h3>
