@@ -40,6 +40,7 @@ import {
   DropdownMenuContent,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import { usePrivy } from "@privy-io/react-auth";
 
 interface Message {
   id: string;
@@ -80,6 +81,10 @@ export function ElizaChatInterface({ onMessageSent }: ElizaChatInterfaceProps) {
     setPendingMessage,
     anonymousSessionToken,
   } = useChatStore();
+  
+  // Check authentication status for features that require it
+  const { authenticated } = usePrivy();
+  
   const [messages, setMessages] = useState<Message[]>([]);
   const [agentInfo, setAgentInfo] = useState<AgentInfo | null>(null);
   const [inputText, setInputText] = useState("");
@@ -310,8 +315,14 @@ export function ElizaChatInterface({ onMessageSent }: ElizaChatInterfaceProps) {
     [autoPlayTTS, player, selectedVoiceId, customVoices],
   );
 
-  // Load custom voices on mount
+  // Load custom voices on mount (only for authenticated users)
   useEffect(() => {
+    // Only fetch custom voices for authenticated users
+    // This API requires authentication and will return 401 for anonymous users
+    if (!authenticated) {
+      return;
+    }
+
     const fetchCustomVoices = async () => {
       try {
         const response = await fetch("/api/elevenlabs/voices/user");
@@ -321,13 +332,14 @@ export function ElizaChatInterface({ onMessageSent }: ElizaChatInterfaceProps) {
             setCustomVoices(data.voices);
           }
         }
+        // Silently ignore 401 errors - user may not have voice features
       } catch (error) {
         console.error("Failed to load custom voices:", error);
       }
     };
 
     fetchCustomVoices();
-  }, []);
+  }, [authenticated]);
 
   const handleVoiceInput = useCallback(() => {
     if (recorder.isRecording) {

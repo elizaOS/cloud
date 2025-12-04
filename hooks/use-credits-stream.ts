@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState, useCallback, useRef } from "react";
+import { usePrivy } from "@privy-io/react-auth";
 
 interface UseCreditsStreamResult {
   creditBalance: number | null;
@@ -12,8 +13,10 @@ interface UseCreditsStreamResult {
 }
 
 const POLL_INTERVAL = 10000;
+const MAX_AUTH_ERRORS = 3; // Stop polling after 3 consecutive auth errors
 
 export function useCreditsStream(): UseCreditsStreamResult {
+  const { authenticated, ready } = usePrivy();
   const [creditBalance, setCreditBalance] = useState<number | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -23,9 +26,39 @@ export function useCreditsStream(): UseCreditsStreamResult {
   const pollIntervalRef = useRef<NodeJS.Timeout | null>(null);
   const isMountedRef = useRef(true);
   const broadcastChannelRef = useRef<BroadcastChannel | null>(null);
+  const authErrorCountRef = useRef(0);
+  const isPollingPausedRef = useRef(false);
+
+  // Stop polling when too many auth errors occur
+  const stopPolling = useCallback(() => {
+    if (pollIntervalRef.current) {
+      clearInterval(pollIntervalRef.current);
+      pollIntervalRef.current = null;
+    }
+    isPollingPausedRef.current = true;
+  }, []);
+
+  // Resume polling (e.g., when user re-authenticates)
+  const resumePolling = useCallback(() => {
+    authErrorCountRef.current = 0;
+    isPollingPausedRef.current = false;
+  }, []);
 
   const fetchBalance = useCallback(async () => {
     if (!isMountedRef.current) return;
+    
+    // Don't fetch if not authenticated or polling is paused
+    if (!authenticated || isPollingPausedRef.current) {
+      if (isMountedRef.current) {
+        setIsLoading(false);
+        // Clear balance for unauthenticated users
+        if (!authenticated) {
+          setCreditBalance(null);
+          setError(null);
+        }
+      }
+      return;
+    }
 
     try {
       const response = await fetch("/api/credits/balance", {
@@ -37,8 +70,34 @@ export function useCreditsStream(): UseCreditsStreamResult {
       });
 
       if (!response.ok) {
+        // Handle 401 Unauthorized specifically
+        if (response.status === 401) {
+          authErrorCountRef.current++;
+          
+          // Log only on first error to avoid console spam
+          if (authErrorCountRef.current === 1) {
+            console.warn("[useCreditsStream] Unauthorized - user may need to re-authenticate");
+          }
+          
+          // Stop polling after too many auth errors
+          if (authErrorCountRef.current >= MAX_AUTH_ERRORS) {
+            console.warn("[useCreditsStream] Too many auth errors, pausing polling");
+            stopPolling();
+          }
+          
+          if (isMountedRef.current) {
+            setError("Unauthorized");
+            setIsConnected(false);
+            setCreditBalance(null);
+          }
+          return;
+        }
+        
         throw new Error(`Failed to fetch balance: ${response.statusText}`);
       }
+
+      // Reset auth error count on success
+      authErrorCountRef.current = 0;
 
       const data = await response.json();
       const balance = Number(data.balance);
@@ -68,8 +127,9 @@ export function useCreditsStream(): UseCreditsStreamResult {
         setIsLoading(false);
       }
     }
-  }, []);
+  }, [authenticated, stopPolling]);
 
+  // Setup BroadcastChannel for cross-tab sync
   useEffect(() => {
     if (typeof window !== "undefined" && "BroadcastChannel" in window) {
       broadcastChannelRef.current = new BroadcastChannel("credits-sync");
@@ -87,14 +147,29 @@ export function useCreditsStream(): UseCreditsStreamResult {
     }
   }, []);
 
+  // Reset and resume polling when authentication state changes
+  useEffect(() => {
+    if (ready && authenticated) {
+      resumePolling();
+    }
+  }, [ready, authenticated, resumePolling]);
+
+  // Main polling effect
   useEffect(() => {
     isMountedRef.current = true;
 
-    fetchBalance();
-
-    pollIntervalRef.current = setInterval(() => {
+    // Only start polling if authenticated and ready
+    if (ready && authenticated && !isPollingPausedRef.current) {
       fetchBalance();
-    }, POLL_INTERVAL);
+
+      pollIntervalRef.current = setInterval(() => {
+        fetchBalance();
+      }, POLL_INTERVAL);
+    } else if (ready && !authenticated) {
+      // User is not authenticated, set loading to false
+      setIsLoading(false);
+      setCreditBalance(null);
+    }
 
     return () => {
       isMountedRef.current = false;
@@ -103,7 +178,7 @@ export function useCreditsStream(): UseCreditsStreamResult {
         pollIntervalRef.current = null;
       }
     };
-  }, [fetchBalance]);
+  }, [ready, authenticated, fetchBalance]);
 
   return {
     creditBalance,
