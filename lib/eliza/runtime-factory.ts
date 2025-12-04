@@ -1,24 +1,24 @@
 /**
  * Runtime Factory - Creates configured ElizaOS runtimes for users
- * Handles all runtime initialization, plugin loading, and settings configuration
+ * Uses ElizaOS.addAgents() for unified runtime creation (serverless pattern)
  */
 
 import {
-  AgentRuntime,
+  ElizaOS,
   stringToUuid,
   elizaLogger,
   type UUID,
-  type Agent,
   type Character,
-  type Plugin,
   type IDatabaseAdapter,
+  type IAgentRuntime,
   type Logger,
 } from "@elizaos/core";
 // @ts-expect-error - Type definitions missing in published package
 import { createDatabaseAdapter } from "@elizaos/plugin-sql/node";
 import { agentLoader } from "./agent-loader";
 import { getElizaCloudApiUrl, getDefaultModels } from "./config";
-import type { UserContext } from "./user-context";
+import { userContextService, type UserContext } from "./user-context";
+import { AgentMode } from "./agent-mode-types";
 import { logger } from "@/lib/utils/logger";
 
 // Initialize DOM polyfills first (before any imports that might need them)
@@ -26,6 +26,7 @@ import "@/lib/polyfills/dom-polyfills";
 
 interface GlobalWithEliza {
   __elizaDatabaseAdapter?: IDatabaseAdapter; // Keep DB adapter cached (connections are safe to share)
+  __elizaOS?: ElizaOS; // Keep ElizaOS instance cached
   logger?: Logger;
 }
 
@@ -51,10 +52,20 @@ export class RuntimeFactory {
   }
 
   /**
-   * Create a configured runtime for a specific user context
-   * All configuration happens here, no late injection needed
+   * Get or create ElizaOS instance (cached globally for warm containers)
    */
-  async createRuntimeForUser(context: UserContext): Promise<AgentRuntime> {
+  getElizaOS(): ElizaOS {
+    if (!globalAny.__elizaOS) {
+      globalAny.__elizaOS = new ElizaOS();
+    }
+    return globalAny.__elizaOS;
+  }
+
+  /**
+   * Create a configured runtime for a specific user context
+   * Uses ElizaOS.addAgents() with ephemeral mode for serverless
+   */
+  async createRuntimeForUser(context: UserContext): Promise<IAgentRuntime> {
     elizaLogger.info(
       "[RuntimeFactory] Creating runtime for user",
       context.userId,
@@ -97,12 +108,9 @@ export class RuntimeFactory {
     // 4. Build complete settings upfront with user context
     const settings = this.buildSettings(character, context);
 
-    // 5. Filter out plugin-sql since we provide our own adapter
-    const filteredPlugins = this.filterPlugins(plugins);
-
     elizaLogger.info(
-      "[RuntimeFactory] Creating AgentRuntime with plugins:",
-      filteredPlugins.map((p) => p.name).join(", "),
+      "[RuntimeFactory] Creating runtime via ElizaOS.addAgents() with plugins:",
+      plugins.map((p) => p.name).join(", "),
     );
 
     // Debug: Log MCP settings being passed to runtime
@@ -117,26 +125,32 @@ export class RuntimeFactory {
       );
     }
 
-    // 6. Create runtime with everything configured upfront
-    const runtime = new AgentRuntime({
-      character: {
-        ...character,
-        id: agentId, // Use character's own ID
-        settings, // All settings including API key are here
+    // 5. Use ElizaOS.addAgents() with serverless options
+    // Note: plugin-sql is auto-filtered when databaseAdapter is provided
+    const elizaOS = this.getElizaOS();
+    const [runtime] = await elizaOS.addAgents(
+      [
+        {
+          character: {
+            ...character,
+            id: agentId,
+            settings,
+          },
+          plugins,
+          settings,
+          databaseAdapter: dbAdapter,
+        },
+      ],
+      {
+        ephemeral: true, // Don't store in registry (serverless)
+        skipMigrations: true, // Warm container, migrations already done
+        autoStart: true, // Initialize automatically
+        returnRuntimes: true, // Return runtime instead of UUID
       },
-      plugins: filteredPlugins,
-      agentId: agentId, // Use character's own ID
-      settings,
-    });
+    );
 
-    // 7. Register database adapter
-    runtime.registerDatabaseAdapter(dbAdapter);
-
-    // 8. Ensure runtime has logger
+    // 7. Ensure runtime has logger
     this.ensureRuntimeLogger(runtime);
-
-    // 9. Initialize runtime
-    await this.initializeRuntime(runtime, character, agentId);
 
     // Debug: Check if MCP service was registered and wait for it to connect
     const mcpService = runtime.getService("mcp");
@@ -189,6 +203,20 @@ export class RuntimeFactory {
     );
 
     return runtime;
+  }
+
+  /**
+   * Get a system runtime for operations that don't need user-specific billing
+   * Uses system credentials via createSystemContext()
+   * Suitable for: GET operations, internal queries, admin tasks
+   * For message sending (with billing), use createRuntimeForUser() with user context
+   */
+  async getSystemRuntime(characterId?: string): Promise<IAgentRuntime> {
+    const systemContext = userContextService.createSystemContext(AgentMode.CHAT);
+    if (characterId) {
+      systemContext.characterId = characterId;
+    }
+    return this.createRuntimeForUser(systemContext);
   }
 
   /**
@@ -378,114 +406,9 @@ export class RuntimeFactory {
   }
 
   /**
-   * Filter out plugin-sql since we provide our own adapter
-   */
-  private filterPlugins(plugins: Plugin[]): Plugin[] {
-    return plugins.filter((p) => p.name !== "@elizaos/plugin-sql") as Plugin[];
-  }
-
-  /**
-   * Initialize runtime with error handling for existing records
-   */
-  private async initializeRuntime(
-    runtime: AgentRuntime,
-    character: Character,
-    agentId: UUID,
-  ): Promise<void> {
-    try {
-      elizaLogger.info("[RuntimeFactory] Starting runtime initialization...");
-
-      try {
-        await runtime.initialize({ skipMigrations: true });
-        elizaLogger.success(
-          "[RuntimeFactory] Runtime initialized successfully",
-        );
-      } catch (initError) {
-        const errorMsg =
-          initError instanceof Error ? initError.message : String(initError);
-
-        // Handle duplicate key errors gracefully (records already exist)
-        if (
-          errorMsg.includes("Failed to create entity") ||
-          errorMsg.includes("Failed to create agent") ||
-          errorMsg.toLowerCase().includes("duplicate key") ||
-          errorMsg.toLowerCase().includes("unique constraint")
-        ) {
-          elizaLogger.warn(
-            "[RuntimeFactory] Agent/entity records already exist, continuing",
-          );
-        } else {
-          throw initError;
-        }
-      }
-
-      // Verify agent exists
-      const agentExists = await runtime.getAgent(agentId);
-      if (!agentExists) {
-        elizaLogger.info("[RuntimeFactory] Creating agent entity...");
-        await this.ensureAgentExists(runtime, character, agentId);
-      }
-    } catch (error) {
-      elizaLogger.error(
-        "[RuntimeFactory] Runtime initialization failed:",
-        error instanceof Error ? error.message : String(error),
-      );
-      throw error;
-    }
-  }
-
-  /**
-   * Ensure agent entity exists in database
-   */
-  private async ensureAgentExists(
-    runtime: AgentRuntime,
-    character: Character,
-    agentId: UUID,
-  ): Promise<void> {
-    try {
-      await runtime.ensureAgentExists({
-        id: agentId,
-        name: character.name || "Eliza",
-        username: character.username,
-        system: character.system || "",
-        bio: character.bio || [],
-        messageExamples: character.messageExamples || [],
-        postExamples: character.postExamples || [],
-        topics: character.topics || [],
-        adjectives: character.adjectives || [],
-        knowledge: character.knowledge || [],
-        plugins: character.plugins || [],
-        settings: character.settings || {},
-        style: character.style || {},
-      } as Agent);
-
-      // Also ensure entity exists
-      await runtime.createEntity({
-        id: agentId,
-        agentId: agentId,
-        names: [character.name || "Eliza"],
-        metadata: { name: character.name || "Eliza" },
-      });
-    } catch (entityError) {
-      const msg =
-        entityError instanceof Error
-          ? entityError.message
-          : String(entityError);
-      if (
-        msg.toLowerCase().includes("duplicate key") ||
-        msg.toLowerCase().includes("unique constraint")
-      ) {
-        elizaLogger.warn("[RuntimeFactory] Agent entity already exists");
-      } else {
-        throw entityError;
-      }
-    }
-  }
-
-  /**
    * Ensure runtime has a properly configured logger
    */
-  private ensureRuntimeLogger(runtime: AgentRuntime): void {
+  private ensureRuntimeLogger(runtime: IAgentRuntime): void {
     if (!runtime.logger || !runtime.logger.log) {
       runtime.logger = {
         log: console.log.bind(console),

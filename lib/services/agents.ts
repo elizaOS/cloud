@@ -1,4 +1,3 @@
-import { agentRuntime } from "@/lib/eliza/agent-runtime";
 import {
   agentStateCache,
   type RoomContext,
@@ -6,6 +5,7 @@ import {
 import { distributedLocks } from "@/lib/cache/distributed-locks";
 import { agentEventEmitter } from "@/lib/events/agent-events";
 import { logger } from "@/lib/utils/logger";
+import { runtimeFactory } from "@/lib/eliza/runtime-factory";
 import type { Memory, UUID } from "@elizaos/core";
 import { v4 as uuidv4 } from "uuid";
 import { ChannelType, stringToUuid } from "@elizaos/core";
@@ -57,9 +57,9 @@ export class AgentService {
    * @param organizationId - Organization ID
    * @returns Room ID
    */
-  async getOrCreateRoom(entityId: string, agentId: string): Promise<string> {
+  async getOrCreateRoom(entityId: string, _agentId?: string): Promise<string> {
     try {
-      const runtime = await agentRuntime.getRuntime();
+      const runtime = await runtimeFactory.getSystemRuntime();
       const entityUUID = stringToUuid(entityId) as UUID;
 
       // Check if user already has rooms with this agent
@@ -85,24 +85,17 @@ export class AgentService {
         agentId: runtime.agentId,
       });
 
-      // Ensure entity exists
-      const adapter = runtime.adapter as unknown as {
-        ensureEntityExists: (entity: {
-          id: UUID;
-          agentId: UUID;
-          names: string[];
-        }) => Promise<boolean>;
-        addParticipant: (entityId: UUID, roomId: UUID) => Promise<boolean>;
-      };
-
-      await adapter.ensureEntityExists({
-        id: entityUUID,
-        agentId: runtime.agentId,
-        names: [entityId],
+      // Ensure entity exists and add as participant
+      // ensureConnection handles: createEntity (if needed) + ensureParticipantInRoom
+      await runtime.ensureConnection({
+        entityId: entityUUID,
+        roomId: roomId as UUID,
+        worldId: stringToUuid("eliza-world") as UUID,
+        source: "chat",
+        type: ChannelType.DM,
+        channelId: roomId,
+        userName: entityId,
       });
-
-      // Add entity as participant
-      await adapter.addParticipant(entityUUID, roomId as UUID);
 
       logger.info(
         `[Agent Service] Created new room ${roomId} for entity ${entityId}`,
@@ -141,27 +134,41 @@ export class AgentService {
     }
 
     try {
-      const runtime = await agentRuntime.getRuntime();
-
-      // Get room context (check cache first) - for future use if needed
-      // const _context = await this.getRoomContext(roomId);
+      const runtime = await runtimeFactory.getSystemRuntime();
+      const elizaOS = runtimeFactory.getElizaOS();
 
       // Process message with agent using full ElizaOS event pipeline
       await agentEventEmitter.emitResponseStarted(roomId, runtime.agentId);
 
-      // Use agentRuntime.handleMessage() for real ElizaOS processing
-      // This handles user message creation, saving, and agent response generation
-      const { message: agentMessage, usage: messageUsage } =
-        await agentRuntime.handleMessage(roomId, entityId, {
+      // Use core elizaOS.sendMessage() for unified message processing
+      const result = await elizaOS.sendMessage(runtime, {
+        entityId: stringToUuid(entityId) as UUID,
+        roomId: roomId as UUID,
+        content: {
           text: message,
-          attachments: attachments || [],
-        });
+          source: "api",
+          attachments: attachments as unknown as import("@elizaos/core").Media[] || [],
+        },
+      });
+
+      // Extract response from processing result
+      const responseContent = result.processing?.responseContent;
+      const agentMessage: Memory = {
+        id: result.messageId,
+        entityId: runtime.agentId,
+        agentId: runtime.agentId,
+        roomId: roomId as UUID,
+        content: responseContent || { text: "", source: "agent" },
+        createdAt: Date.now(),
+      };
 
       // Emit response complete event
+      // Note: Token usage/billing is handled by the gateway (plugin-elizacloud routes through /api/v1/chat/completions)
+      // We provide rough estimates here for event tracking/analytics only
       await agentEventEmitter.emitResponseComplete(
         roomId,
         agentMessage,
-        messageUsage || {
+        {
           inputTokens: Math.ceil(message.length / 4),
           outputTokens: Math.ceil(
             ((agentMessage.content.text as string) || "").length / 4,
@@ -215,27 +222,18 @@ export class AgentService {
       `[Agent Service] Cache miss for room ${roomId}, fetching from DB`,
     );
 
-    // Fetch from database
-    const runtime = await agentRuntime.getRuntime();
+    const runtime = await runtimeFactory.getSystemRuntime();
     const roomUUID = roomId as UUID;
 
-    // Get recent messages (last 20)
-    const adapter = runtime.adapter as unknown as {
-      getMemoriesByRoomIds: (params: {
-        tableName: string;
-        roomIds: UUID[];
-        limit: number;
-      }) => Promise<Memory[]>;
-      getParticipantsForRoom: (roomId: UUID) => Promise<UUID[]>;
-    };
-
-    const messages = await adapter.getMemoriesByRoomIds({
+    // Get recent messages using runtime's public API
+    const messages = await runtime.getMemories({
+      roomId: roomUUID,
+      count: 20,
       tableName: "messages",
-      roomIds: [roomUUID],
-      limit: 20,
     });
 
-    const participants = await adapter.getParticipantsForRoom(roomUUID);
+    // Get participants for room
+    const participants = await runtime.getParticipantsForRoom(roomUUID);
 
     const context: RoomContext = {
       roomId,
@@ -249,36 +247,6 @@ export class AgentService {
     await agentStateCache.setRoomContext(roomId, context);
 
     return context;
-  }
-
-  /**
-   * Update room context in cache after new message
-   * @param roomId - Room ID
-   * @param newMessage - New message to add
-   */
-  private async updateRoomContext(
-    roomId: string,
-    newMessage: Memory,
-  ): Promise<void> {
-    try {
-      const context = await this.getRoomContext(roomId);
-
-      // Add new message to context (keep last 20)
-      context.messages.push(newMessage);
-      if (context.messages.length > 20) {
-        context.messages = context.messages.slice(-20);
-      }
-
-      context.lastActivity = new Date();
-
-      await agentStateCache.setRoomContext(roomId, context);
-    } catch (error) {
-      logger.error(
-        `[Agent Service] Error updating room context for ${roomId}:`,
-        error,
-      );
-      // Non-fatal error, continue
-    }
   }
 }
 

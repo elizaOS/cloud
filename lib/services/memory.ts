@@ -1,5 +1,5 @@
 import { v4 as uuidv4 } from "uuid";
-import { agentRuntime } from "@/lib/eliza/agent-runtime";
+import { runtimeFactory } from "@/lib/eliza/runtime-factory";
 import {
   memoryCache,
   type MemoryRoomContext,
@@ -10,6 +10,7 @@ import { logger } from "@/lib/utils/logger";
 import { streamText } from "ai";
 import { gateway } from "@ai-sdk/gateway";
 import type { Memory, UUID } from "@elizaos/core";
+import { ChannelType, stringToUuid } from "@elizaos/core";
 import { createHash } from "crypto";
 import { conversationsService } from "@/lib/services/conversations";
 import type { ConversationMessage } from "@/db/repositories";
@@ -139,40 +140,37 @@ export class MemoryService {
 
   async saveMemory(input: SaveMemoryInput): Promise<SaveMemoryResult> {
     try {
-      const runtime = await agentRuntime.getRuntime();
+      const runtime = await runtimeFactory.getSystemRuntime();
 
       // Ensure the room exists in the database
       const roomId = input.roomId as UUID;
-      const adapter = runtime.adapter as unknown as {
-        getRoomsByIds: (roomIds: UUID[]) => Promise<unknown[]>;
-        createRooms: (rooms: { id: UUID }[]) => Promise<UUID[]>;
-        ensureEntityExists: (entity: {
-          id: UUID;
-          agentId: UUID;
-          names?: string[];
-        }) => Promise<boolean>;
-        addParticipant: (entityId: UUID, roomId: UUID) => Promise<boolean>;
-      };
-
-      const existingRooms = await adapter.getRoomsByIds([roomId]);
-      if (!existingRooms || existingRooms.length === 0) {
-        await adapter.createRooms([{ id: roomId }]);
-        logger.debug(`[Memory Service] Created room: ${roomId}`);
-      }
-
-      // Ensure the entity (user) exists in the database
       const entityId = input.entityId as UUID;
-      await adapter.ensureEntityExists({
-        id: entityId,
-        agentId: runtime.agentId,
-        names: [entityId], // Use ID as name if we don't have a proper name
-      });
-      logger.debug(`[Memory Service] Ensured entity exists: ${entityId}`);
 
-      // Ensure the entity is a participant in the room
-      await adapter.addParticipant(entityId, roomId);
+      // Ensure room exists
+      await runtime.ensureRoomExists({
+        id: roomId,
+        source: "memory",
+        type: ChannelType.DM,
+        channelId: input.roomId,
+        serverId: stringToUuid("eliza-server") as UUID,
+        worldId: stringToUuid("eliza-world") as UUID,
+        agentId: runtime.agentId,
+      });
+      logger.debug(`[Memory Service] Ensured room exists: ${roomId}`);
+
+      // Ensure entity exists and is participant in room
+      // ensureConnection handles: createEntity (if needed) + ensureParticipantInRoom
+      await runtime.ensureConnection({
+        entityId,
+        roomId,
+        worldId: stringToUuid("eliza-world") as UUID,
+        source: "memory",
+        type: ChannelType.DM,
+        channelId: input.roomId,
+        userName: input.entityId,
+      });
       logger.debug(
-        `[Memory Service] Ensured participant in room: ${entityId} -> ${roomId}`,
+        `[Memory Service] Ensured entity and participant: ${entityId} -> ${roomId}`,
       );
 
       const memory: Memory = {
@@ -203,7 +201,7 @@ export class MemoryService {
               contentLength: JSON.stringify(memory.content).length,
             },
           );
-          await runtime.adapter.createMemory(memory, "memories", true);
+          await runtime.createMemory(memory, "memories", true);
           logger.info(
             `[Memory Service] Saved memory to PostgreSQL: ${memory.id}`,
           );
@@ -279,7 +277,7 @@ export class MemoryService {
         ),
       );
 
-      const runtime = await agentRuntime.getRuntime();
+      const runtime = await runtimeFactory.getSystemRuntime();
       logger.info(
         `[Memory Service] Runtime initialized, agentId: ${runtime.agentId}`,
       );
@@ -325,7 +323,7 @@ export class MemoryService {
           logger.info(
             `[Memory Service] Calling searchMemories with roomId: ${input.roomId}`,
           );
-          memories = await runtime.adapter.searchMemories({
+          memories = await runtime.searchMemories({
             embedding,
             tableName: "memories",
             count: input.limit || 10,
@@ -467,11 +465,11 @@ export class MemoryService {
 
   async deleteMemory(input: DeleteMemoryInput): Promise<DeleteMemoryResult> {
     try {
-      const runtime = await agentRuntime.getRuntime();
+      const runtime = await runtimeFactory.getSystemRuntime();
       let deletedCount = 0;
 
       if (input.memoryId) {
-        await runtime.adapter.deleteMemory(input.memoryId as UUID);
+        await runtime.deleteMemory(input.memoryId as UUID);
         await memoryCache.invalidateMemory(input.memoryId);
         deletedCount = 1;
       }
@@ -502,19 +500,19 @@ export class MemoryService {
         return cached;
       }
 
-      const runtime = await agentRuntime.getRuntime();
+      const runtime = await runtimeFactory.getSystemRuntime();
 
-      const memories = await runtime.adapter.getMemoriesByRoomIds({
+      const memories = await runtime.getMemoriesByRoomIds({
         tableName: "messages",
         roomIds: [roomId as UUID],
         limit: depth,
       });
 
-      const participants = await runtime.adapter.getParticipantsForRoom(
+      const participants = await runtime.getParticipantsForRoom(
         roomId as UUID,
       );
 
-      const rooms = await runtime.adapter.getRoomsByIds([roomId as UUID]);
+      const rooms = await runtime.getRoomsByIds([roomId as UUID]);
       const room = rooms && rooms.length > 0 ? rooms[0] : null;
 
       const context: MemoryRoomContext = {
@@ -592,7 +590,7 @@ export class MemoryService {
         id: uuidv4() as UUID,
         roomId: input.roomId as UUID,
         entityId: context.participants[0] || ("system" as UUID),
-        agentId: (await agentRuntime.getRuntime()).agentId,
+        agentId: (await runtimeFactory.getSystemRuntime()).agentId,
         createdAt: Date.now(),
         content: summary as unknown as Record<string, unknown>,
       };

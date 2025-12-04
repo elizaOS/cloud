@@ -1,6 +1,5 @@
 import { NextResponse } from "next/server";
-import { agentRuntime } from "@/lib/eliza/agent-runtime";
-import type { UUID, Agent } from "@elizaos/core";
+import type { UUID } from "@elizaos/core";
 import { requireAuthOrApiKey } from "@/lib/auth";
 import { getAnonymousUser } from "@/lib/auth-anonymous";
 import type { NextRequest } from "next/server";
@@ -8,7 +7,7 @@ import { elizaRoomCharactersRepository } from "@/db/repositories";
 import { logger } from "@/lib/utils/logger";
 import { db } from "@/db/client";
 import { sql } from "drizzle-orm";
-import { connectionCache } from "@/lib/cache/connection-cache";
+import { runtimeFactory } from "@/lib/eliza/runtime-factory";
 
 // GET /api/eliza/rooms/[roomId] - Get room details and messages
 export async function GET(
@@ -57,10 +56,8 @@ export async function GET(
       );
     }
 
-    // Create character-specific runtime (or default if no character)
-    const runtime = characterId
-      ? await agentRuntime.getRuntimeForCharacter(characterId)
-      : await agentRuntime.getRuntime();
+    // Create system runtime (character is set if found)
+    const runtime = await runtimeFactory.getSystemRuntime(characterId);
 
     logger.info(
       "[Eliza Room API] 🎭 Using runtime for character:",
