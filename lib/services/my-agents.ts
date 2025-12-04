@@ -93,7 +93,7 @@ export class MyAgentsService {
           ...char,
           stats: {
             messageCount: stats.messageCount,
-            roomCount: 0,
+            roomCount: stats.roomCount,
             lastActiveAt: stats.lastActiveAt,
             deploymentStatus: stats.status,
             uptime: stats.uptime,
