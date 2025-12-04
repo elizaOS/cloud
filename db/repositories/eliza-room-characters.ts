@@ -57,7 +57,7 @@ export const elizaRoomCharactersRepository = {
     // DISABLED: Caching causes stale data in Vercel serverless (isolated container caches)
     // ALWAYS fetch from DB - character mapping lookups are fast (~5ms)
     console.log(
-      `[RoomCharRepo] findByRoomId(${roomId.substring(0, 8)}...) - fetching from DB (cache disabled)`,
+      `[RoomCharRepo] findByRoomId(${roomId.substring(0, 8)}...) - fetching from DB (cache disabled)`
     );
 
     const result = await db
@@ -69,7 +69,7 @@ export const elizaRoomCharactersRepository = {
     const character = result[0];
     console.log(
       `[RoomCharRepo] DB result - characterId:`,
-      character?.character_id || "none",
+      character?.character_id || "none"
     );
 
     return character;
@@ -104,7 +104,7 @@ export const elizaRoomCharactersRepository = {
 
   async update(
     roomId: string,
-    characterId: string,
+    characterId: string
   ): Promise<ElizaRoomCharacter | undefined> {
     const result = await db
       .update(elizaRoomCharactersTable)
@@ -125,16 +125,18 @@ export const elizaRoomCharactersRepository = {
   },
 
   /**
-   * Find affiliate characters that a user has interacted with (via rooms) 
+   * Find affiliate characters that a user has interacted with (via rooms)
    * but are still owned by anonymous/affiliate users.
    * These are claimable by the user.
    */
-  async findClaimableAffiliateCharacters(userId: string): Promise<Array<{
-    characterId: string;
-    characterName: string;
-    ownerId: string;
-    roomId: string;
-  }>> {
+  async findClaimableAffiliateCharacters(userId: string): Promise<
+    Array<{
+      characterId: string;
+      characterName: string;
+      ownerId: string;
+      roomId: string;
+    }>
+  > {
     const results = await db.execute<{
       character_id: string;
       character_name: string;
@@ -157,7 +159,7 @@ export const elizaRoomCharactersRepository = {
         )
     `);
 
-    return results.rows.map(r => ({
+    return results.rows.map((r) => ({
       characterId: r.character_id,
       characterName: r.character_name,
       ownerId: r.owner_id,
