@@ -42,16 +42,27 @@ export async function POST(
       apiKey = authResult.apiKey;
     } catch (error) {
       // Fallback to anonymous user
-      const anonData = await getAnonymousUser();
+      logger.info("[Messages API] Privy auth failed, trying anonymous...");
+      
+      let anonData = await getAnonymousUser();
+      
       if (!anonData) {
-        throw new Error("Authentication required");
+        // Create new anonymous session if none exists
+        logger.info("[Messages API] No session cookie - creating new anonymous session");
+        const { getOrCreateAnonymousUser } = await import("@/lib/auth-anonymous");
+        const newAnonData = await getOrCreateAnonymousUser();
+        anonData = {
+          user: newAnonData.user,
+          session: newAnonData.session,
+        };
+        logger.info("[Messages API] Created anonymous user:", anonData.user.id);
       }
 
       user = anonData.user;
       anonymousSession = anonData.session;
       isAnonymous = true;
 
-      logger.info("eliza-messages-api", "Anonymous user request", {
+      logger.info("[Messages API] Anonymous user authenticated:", {
         userId: user.id,
         sessionId: anonymousSession?.id,
         messageCount: anonymousSession?.message_count,

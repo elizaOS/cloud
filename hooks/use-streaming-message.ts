@@ -20,6 +20,7 @@ interface SendMessageOptions {
   entityId: string;
   text: string;
   model?: string; // Optional model selection
+  sessionToken?: string; // Anonymous session token (from URL)
   onMessage: (message: StreamingMessage) => void;
   onError?: (error: string) => void;
   onComplete?: () => void;
@@ -34,6 +35,7 @@ export async function sendStreamingMessage({
   entityId,
   text,
   model,
+  sessionToken,
   onMessage,
   onError,
   onComplete,
@@ -43,11 +45,16 @@ export async function sendStreamingMessage({
       method: "POST",
       headers: {
         "Content-Type": "application/json",
+        // Include session token as header for anonymous users
+        // This ensures session tracking works even if the cookie race condition occurs
+        ...(sessionToken && { "X-Anonymous-Session": sessionToken }),
       },
       body: JSON.stringify({
         entityId,
         text,
         ...(model && { model }), // Include model if provided
+        // Also include in body as backup
+        ...(sessionToken && { sessionToken }),
       }),
     });
 
