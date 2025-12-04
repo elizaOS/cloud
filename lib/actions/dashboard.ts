@@ -9,7 +9,7 @@ import {
 } from "@/lib/services";
 import { elizaRoomCharactersRepository } from "@/db/repositories";
 import { agentDiscoveryService } from "@/lib/services/agent-discovery";
-import { cacheClient } from "@/lib/cache/client";
+import { cache as cacheClient } from "@/lib/cache/client";
 import { CacheKeys, CacheStaleTTL } from "@/lib/cache/keys";
 import { cache } from "react";
 

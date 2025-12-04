@@ -10,7 +10,7 @@ import { useRouter, usePathname } from "next/navigation";
 import { UserPlus, LogIn, Settings, LogOut, Loader2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { CornerBrackets } from "@/components/brand";
-import { useCreditBalance } from "@/hooks/use-credit-balance";
+import { useCreditsStream } from "@/hooks/use-credits-stream";
 
 interface SidebarBottomPanelProps {
   className?: string;
@@ -20,7 +20,7 @@ export function SidebarBottomPanel({ className }: SidebarBottomPanelProps) {
   const { ready, authenticated, user, logout } = usePrivy();
   const router = useRouter();
   const pathname = usePathname();
-  const { creditBalance, loading: loadingCredits } = useCreditBalance();
+  const { creditBalance, isLoading: loadingCredits } = useCreditsStream();
 
   // Get user display info
   const getUserName = () => {
