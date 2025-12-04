@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { stringToUuid, type UUID } from "@elizaos/core";
+import { stringToUuid, type UUID, type SendMessageResult } from "@elizaos/core";
 import { requireAuthOrApiKey } from "@/lib/auth";
 import { getAnonymousUser, checkAnonymousLimit } from "@/lib/auth-anonymous";
 import { organizationsService } from "@/lib/services";
@@ -222,8 +222,7 @@ export async function POST(
       characterId,
     );
 
-    // Note: Using 'result' until core is updated with 'processing' rename
-    const responseContent = (result as any).processing?.responseContent || (result as any).result?.responseContent;
+    const responseContent = result.processing?.responseContent;
 
     logger.debug(`[Eliza Messages API] Message sent`, {
       roomId,
