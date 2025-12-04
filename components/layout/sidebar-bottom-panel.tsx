@@ -129,87 +129,36 @@ export function SidebarBottomPanel({ className }: SidebarBottomPanelProps) {
     // Anonymous user CTA panel
     return (
       <div className={cn("relative border-t border-white/10", className)}>
-        {/* Corner brackets for the panel */}
-        <CornerBrackets size="sm" className="opacity-30" />
+        <CornerBrackets size="sm" className="opacity-20" />
 
-        {/* Anonymous User CTA */}
-        <div className="relative z-10 px-4 py-4">
-          <div
-            className="flex flex-col gap-3"
-            style={{
-              fontFamily: "var(--font-roboto-mono)",
-              fontWeight: 400,
-              letterSpacing: "-0.003em",
-            }}
-          >
-            <div className="text-sm text-white/60 mb-1">
-              Sign up for full access
-            </div>
+        <div className="relative z-10 px-3 py-3">
+          <div className="flex flex-col gap-2">
+            <p className="text-[10px] text-white/40 mb-1">Sign up for full access</p>
 
-            {/* Sign Up Button */}
             <button
               onClick={() => router.push("/login")}
-              className={cn(
-                "w-full flex items-center justify-center gap-2 px-4 py-2.5",
-                "bg-[#FF5800] hover:bg-[#FF5800]/90",
-                "text-white font-medium rounded-none",
-                "transition-all duration-200 cursor-pointer",
-              )}
-              style={{
-                fontFamily: "var(--font-roboto-mono)",
-                fontWeight: 500,
-                fontSize: "14px",
-                lineHeight: "18px",
-                letterSpacing: "-0.003em",
-              }}
+              className="w-full flex items-center justify-center gap-1.5 px-3 py-2 bg-[#FF5800] hover:bg-[#FF5800]/90 text-white text-xs font-medium rounded-sm transition-colors"
             >
-              <UserPlus className="h-4 w-4" />
+              <UserPlus className="h-3.5 w-3.5" />
               <span>Sign Up</span>
             </button>
 
-            {/* Login Button */}
             <button
               onClick={() => router.push("/login")}
-              className={cn(
-                "w-full flex items-center justify-center gap-2 px-4 py-2.5",
-                "border border-white/20 hover:bg-white/5",
-                "text-white/80 hover:text-white rounded-none",
-                "transition-all duration-200 cursor-pointer",
-              )}
-              style={{
-                fontFamily: "var(--font-roboto-mono)",
-                fontWeight: 400,
-                fontSize: "14px",
-                lineHeight: "18px",
-                letterSpacing: "-0.003em",
-              }}
+              className="w-full flex items-center justify-center gap-1.5 px-3 py-2 border border-white/15 hover:bg-white/5 text-white/70 hover:text-white text-xs rounded-sm transition-colors"
             >
-              <LogIn className="h-4 w-4" />
+              <LogIn className="h-3.5 w-3.5" />
               <span>Log In</span>
             </button>
 
-            {/* Benefits list */}
-            <div className="mt-2 space-y-1.5 text-xs text-white/40">
-              <div className="flex items-center gap-2">
-                <div
-                  className="h-1 w-1 rounded-full flex-shrink-0"
-                  style={{ backgroundColor: "#FF5800" }}
-                />
-                <span>Unlimited conversations</span>
+            <div className="mt-1 space-y-1 text-[10px] text-white/30">
+              <div className="flex items-center gap-1.5">
+                <div className="h-1 w-1 rounded-full bg-[#FF5800]/60" />
+                <span>Unlimited chats</span>
               </div>
-              <div className="flex items-center gap-2">
-                <div
-                  className="h-1 w-1 rounded-full flex-shrink-0"
-                  style={{ backgroundColor: "#FF5800" }}
-                />
-                <span>Create custom agents</span>
-              </div>
-              <div className="flex items-center gap-2">
-                <div
-                  className="h-1 w-1 rounded-full flex-shrink-0"
-                  style={{ backgroundColor: "#FF5800" }}
-                />
-                <span>Access premium features</span>
+              <div className="flex items-center gap-1.5">
+                <div className="h-1 w-1 rounded-full bg-[#FF5800]/60" />
+                <span>Custom agents</span>
               </div>
             </div>
           </div>
@@ -229,60 +178,37 @@ export function SidebarBottomPanel({ className }: SidebarBottomPanelProps) {
 
   return (
     <div className={cn("relative border-t border-white/10", className)}>
-      {/* Corner brackets for the panel */}
-      <CornerBrackets size="sm" className="opacity-30" />
+      <CornerBrackets size="sm" className="opacity-20" />
 
-      {/* User Info Header - Clickable to expand/collapse */}
-      <div className="relative z-10 px-4 py-3 border-b border-white/10">
-        <div
-          className="flex flex-col gap-2"
-          style={{
-            fontFamily: "var(--font-roboto-mono)",
-            fontWeight: 400,
-            letterSpacing: "-0.003em",
-          }}
-        >
-          <div className="text-sm font-medium text-white truncate">
-            {getUserName()}
-          </div>
-          <div className="text-xs text-white/40 truncate">
-            {getUserIdentifier()}
-          </div>
+      {/* User Info */}
+      <div className="relative z-10 px-3 py-2.5 border-b border-white/10">
+        <div className="text-xs font-medium text-white truncate">
+          {getUserName()}
+        </div>
+        <div className="text-[10px] text-white/30 truncate">
+          {getUserIdentifier()}
         </div>
       </div>
 
-      {/* Balance Display - Always Visible */}
-      <div
-        className="relative z-10 px-4 py-3 border-b border-white/10"
-        style={{
-          fontFamily: "var(--font-roboto-mono)",
-          fontWeight: 400,
-          letterSpacing: "-0.003em",
-        }}
-      >
+      {/* Balance */}
+      <div className="relative z-10 px-3 py-2 border-b border-white/10">
         {loadingCredits && creditBalance === null ? (
-          <div className="flex items-center gap-2 text-white/40">
-            <Loader2 className="h-4 w-4 animate-spin" />
-            <span className="text-sm">Loading...</span>
-          </div>
+          <Loader2 className="h-3.5 w-3.5 animate-spin text-white/30" />
         ) : (
-          <div className="flex items-center gap-2">
-            <div
-              className="h-2 w-2 rounded-full flex-shrink-0"
-              style={{ backgroundColor: "#FF5800" }}
-            />
-            <span className="text-lg font-bold text-white">
+          <div className="flex items-center gap-1.5">
+            <div className="h-1.5 w-1.5 rounded-full bg-[#FF5800]" />
+            <span className="text-sm font-semibold text-white">
               {creditBalance !== null
                 ? Number(creditBalance).toFixed(2)
                 : "0.00"}
             </span>
-            <span className="text-xs text-white/40 ml-1">balance</span>
+            <span className="text-[10px] text-white/30">credits</span>
           </div>
         )}
       </div>
 
-      {/* Menu Items - Always Visible */}
-      <div className="relative z-10 py-2">
+      {/* Menu Items */}
+      <div className="relative z-10 py-1">
         {menuItems.map((item) => {
           const Icon = item.icon;
           const isActive =
@@ -293,45 +219,26 @@ export function SidebarBottomPanel({ className }: SidebarBottomPanelProps) {
               key={item.id}
               onClick={() => router.push(item.href)}
               className={cn(
-                "w-full flex items-center gap-3 px-4 py-2.5 transition-all duration-200 border-l-2 cursor-pointer",
+                "w-full flex items-center gap-2 px-3 py-2 transition-colors text-xs border-l-2",
                 isActive
                   ? "bg-white/10 text-white border-[#FF5800]"
-                  : "text-white/60 hover:bg-white/5 hover:text-white border-transparent",
+                  : "text-white/50 hover:bg-white/5 hover:text-white/80 border-transparent",
               )}
-              style={{
-                fontFamily: "var(--font-roboto-mono)",
-                fontWeight: 400,
-                fontSize: "14px",
-                lineHeight: "18px",
-                letterSpacing: "-0.003em",
-              }}
             >
-              <Icon
-                className={cn(
-                  "h-4 w-4 transition-colors",
-                  isActive && "text-[#FF5800]",
-                )}
-              />
+              <Icon className={cn("h-3.5 w-3.5", isActive && "text-[#FF5800]")} />
               <span>{item.label}</span>
             </button>
           );
         })}
       </div>
 
-      {/* Logout Button - Always Visible */}
+      {/* Logout */}
       <div className="relative z-10 border-t border-white/5">
         <button
           onClick={onSignOut}
-          className="w-full flex items-center gap-3 px-4 py-2.5 text-white/60 hover:bg-white/5 hover:text-red-400 transition-all duration-200 cursor-pointer"
-          style={{
-            fontFamily: "var(--font-roboto-mono)",
-            fontWeight: 400,
-            fontSize: "14px",
-            lineHeight: "18px",
-            letterSpacing: "-0.003em",
-          }}
+          className="w-full flex items-center gap-2 px-3 py-2 text-xs text-white/40 hover:bg-white/5 hover:text-red-400 transition-colors"
         >
-          <LogOut className="h-4 w-4" />
+          <LogOut className="h-3.5 w-3.5" />
           <span>Logout</span>
         </button>
       </div>
