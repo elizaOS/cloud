@@ -86,7 +86,7 @@ export function FilterBar({
       {/* Filter Chips */}
       <div className="flex gap-2 flex-wrap">
         <Badge
-          variant={filters.hasVoice ? "default" : "outline"}
+          variant={!!filters.hasVoice ? "default" : "outline"}
           className="cursor-pointer transition-colors"
           onClick={() => onToggleFilter("hasVoice")}
         >
@@ -95,7 +95,7 @@ export function FilterBar({
         </Badge>
 
         <Badge
-          variant={filters.deployed ? "default" : "outline"}
+          variant={!!filters.deployed ? "default" : "outline"}
           className="cursor-pointer transition-colors"
           onClick={() => onToggleFilter("deployed")}
         >

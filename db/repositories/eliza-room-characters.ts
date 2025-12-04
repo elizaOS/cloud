@@ -1,4 +1,4 @@
-import { eq, inArray, count } from "drizzle-orm";
+import { eq, inArray, sql, count } from "drizzle-orm";
 import { db } from "../client";
 import {
   elizaRoomCharactersTable,
@@ -7,6 +7,9 @@ import {
 } from "../schemas";
 
 export const elizaRoomCharactersRepository = {
+  /**
+   * Count rooms for a specific user
+   */
   async countByUserId(userId: string): Promise<number> {
     const result = await db
       .select({ count: count() })
@@ -14,6 +17,52 @@ export const elizaRoomCharactersRepository = {
       .where(eq(elizaRoomCharactersTable.user_id, userId));
 
     return result[0]?.count ?? 0;
+  },
+
+  /**
+   * Count rooms for a specific character
+   */
+  async countByCharacterId(characterId: string): Promise<number> {
+    const result = await db
+      .select({ count: count() })
+      .from(elizaRoomCharactersTable)
+      .where(eq(elizaRoomCharactersTable.character_id, characterId));
+
+    return result[0]?.count ?? 0;
+  },
+
+  /**
+   * Count rooms for multiple characters in one query
+   */
+  async countByCharacterIds(
+    characterIds: string[]
+  ): Promise<Map<string, number>> {
+    if (characterIds.length === 0) {
+      return new Map();
+    }
+
+    const results = await db
+      .select({
+        character_id: elizaRoomCharactersTable.character_id,
+        count: count(),
+      })
+      .from(elizaRoomCharactersTable)
+      .where(inArray(elizaRoomCharactersTable.character_id, characterIds))
+      .groupBy(elizaRoomCharactersTable.character_id);
+
+    const countMap = new Map<string, number>();
+    for (const result of results) {
+      countMap.set(result.character_id, result.count);
+    }
+
+    // Fill in 0 for characters with no rooms
+    for (const id of characterIds) {
+      if (!countMap.has(id)) {
+        countMap.set(id, 0);
+      }
+    }
+
+    return countMap;
   },
 
   async findByRoomId(roomId: string): Promise<ElizaRoomCharacter | undefined> {
@@ -31,7 +80,7 @@ export const elizaRoomCharactersRepository = {
 
     const character = result[0];
     console.log(
-      `[RoomCharRepo] DB result - characterId:`,
+      "[RoomCharRepo] DB result - characterId:",
       character?.character_id || "none",
     );
 
