@@ -743,12 +743,12 @@ export function ElizaChatInterface({ onMessageSent }: ElizaChatInterfaceProps) {
 
   return (
     <div className="flex h-full w-full min-h-0 justify-center">
-      {/* Main Chat Area - Centered with max width */}
-      <div className="flex flex-col flex-1 min-h-0 max-w-5xl w-full px-6">
+      {/* Main Chat Area - Centered with max width for readability */}
+      <div className="flex flex-col flex-1 min-h-0 max-w-3xl w-full px-4 sm:px-6 lg:px-8">
         {/* Messages Area - No Header */}
         <div className="flex-1 min-h-0 overflow-hidden">
-          <ScrollArea className="h-full p-4" ref={scrollAreaRef}>
-            <div className="space-y-4">
+          <ScrollArea className="h-full py-6 px-2" ref={scrollAreaRef}>
+            <div className="space-y-6">
               {error && (
                 <div className="rounded-lg border border-destructive bg-destructive/10 p-3">
                   <p className="text-sm text-destructive">{error}</p>
@@ -846,40 +846,34 @@ export function ElizaChatInterface({ onMessageSent }: ElizaChatInterfaceProps) {
                       style={{ animationDelay: `${index * 50}ms` }}
                     >
                       {message.isAgent ? (
-                        <div className="flex flex-col gap-1 max-w-[70%]">
+                        <div className="flex flex-col gap-1.5 max-w-[85%] sm:max-w-[75%] group/message">
                           {/* Agent Name Row with Avatar */}
-                          <div className="flex items-center gap-2">
+                          <div className="flex items-center gap-2 pl-1">
                             <ElizaAvatar
                               avatarUrl={agentInfo?.avatarUrl}
                               name={characterName}
-                              className="flex-shrink-0 w-4 h-4"
+                              className="flex-shrink-0 w-5 h-5"
                               iconClassName="h-3 w-3"
                               animate={isThinking}
                             />
-                            <div
-                              className="font-[family-name:var(--font-roboto-flex)] text-sm font-medium"
-                              style={{ color: "#A1A1AA" }}
-                            >
+                            <span className="text-xs font-medium text-white/50">
                               {characterName}
-                            </div>
+                            </span>
                           </div>
 
-                          <div className="flex flex-col gap-1">
+                          <div className="flex flex-col gap-1.5">
                             {isThinking ? (
-                              <div className="flex items-center gap-3 py-2">
-                                <Loader2 className="h-4 w-4 animate-spin" />
-                                <p className="text-sm text-muted-foreground font-[family-name:var(--font-roboto-flex)]">
-                                  is thinking...
-                                </p>
+                              <div className="flex items-center gap-2 py-3 px-4 bg-white/[0.03] border border-white/[0.06] rounded-lg">
+                                <Loader2 className="h-4 w-4 animate-spin text-white/40" />
+                                <span className="text-sm text-white/40">
+                                  thinking...
+                                </span>
                               </div>
                             ) : (
                               <>
                                 {/* Message Text */}
-                                <div
-                                  className="py-2 rounded-none font-[family-name:var(--font-roboto-flex)] text-[16px] leading-[1.5]"
-                                  style={{ fontWeight: 500 }}
-                                >
-                                  <div className="whitespace-pre-wrap text-white">
+                                <div className="py-3 px-4 bg-white/[0.03] border border-white/[0.06] rounded-lg transition-colors hover:bg-white/[0.05] hover:border-white/[0.08]">
+                                  <div className="whitespace-pre-wrap text-[15px] leading-relaxed text-white/90">
                                     {message.content.text}
                                   </div>
                                 </div>
@@ -924,17 +918,14 @@ export function ElizaChatInterface({ onMessageSent }: ElizaChatInterfaceProps) {
                                   )}
 
                                 {/* Time and Actions */}
-                                <div className="flex items-center gap-2">
-                                  <span
-                                    className="text-sm font-[family-name:var(--font-roboto-mono)]"
-                                    style={{ color: "#A1A1AA" }}
-                                  >
+                                <div className="flex items-center gap-2 pl-1 opacity-0 group-hover/message:opacity-100 transition-opacity">
+                                  <span className="text-xs text-white/40">
                                     {formatTimestamp(message.createdAt)}
                                   </span>
                                   <Button
                                     size="sm"
                                     variant="ghost"
-                                    className="h-5 w-5 p-0 hover:bg-white/10"
+                                    className="h-6 w-6 p-0 hover:bg-white/10 rounded transition-colors"
                                     onClick={() =>
                                       copyToClipboard(
                                         message.content.text,
@@ -945,16 +936,16 @@ export function ElizaChatInterface({ onMessageSent }: ElizaChatInterfaceProps) {
                                     title="Copy message"
                                   >
                                     {copiedMessageId === message.id ? (
-                                      <Check className="h-3 w-3 text-green-500" />
+                                      <Check className="h-3.5 w-3.5 text-green-500" />
                                     ) : (
-                                      <Copy className="h-3 w-3 text-white/60" />
+                                      <Copy className="h-3.5 w-3.5 text-white/50 hover:text-white/80" />
                                     )}
                                   </Button>
                                   {messageAudioUrls.current.has(message.id) && (
                                     <Button
                                       size="sm"
                                       variant="ghost"
-                                      className="h-5 w-5 p-0 hover:bg-white/10"
+                                      className="h-6 w-6 p-0 hover:bg-white/10 rounded transition-colors"
                                       onClick={() => {
                                         const url =
                                           messageAudioUrls.current.get(
@@ -976,9 +967,9 @@ export function ElizaChatInterface({ onMessageSent }: ElizaChatInterfaceProps) {
                                     >
                                       {currentPlayingId === message.id &&
                                       player.isPlaying ? (
-                                        <Square className="h-3 w-3 text-white/60" />
+                                        <Square className="h-3.5 w-3.5 text-white/50" />
                                       ) : (
-                                        <Volume2 className="h-3 w-3 text-white/60" />
+                                        <Volume2 className="h-3.5 w-3.5 text-white/50 hover:text-white/80" />
                                       )}
                                     </Button>
                                   )}
@@ -988,31 +979,22 @@ export function ElizaChatInterface({ onMessageSent }: ElizaChatInterfaceProps) {
                           </div>
                         </div>
                       ) : (
-                        <div className="flex flex-col gap-1 max-w-[70%]">
+                        <div className="flex flex-col gap-1.5 max-w-[85%] sm:max-w-[75%] group/message">
                           {/* User Message */}
-                          <div
-                            className="px-4 py-3 rounded-none font-[family-name:var(--font-roboto-flex)] text-[16px] leading-[1.5]"
-                            style={{
-                              backgroundColor: "#3A3A3A",
-                              fontWeight: 500,
-                            }}
-                          >
-                            <div className="whitespace-pre-wrap text-white">
+                          <div className="py-3 px-4 bg-[#FF5800]/10 border border-[#FF5800]/20 rounded-lg transition-colors hover:bg-[#FF5800]/15 hover:border-[#FF5800]/30">
+                            <div className="whitespace-pre-wrap text-[15px] leading-relaxed text-white/95">
                               {message.content.text}
                             </div>
                           </div>
                           {/* Time and Actions */}
-                          <div className="flex items-center gap-2 justify-end px-1">
-                            <span
-                              className="text-sm font-[family-name:var(--font-roboto-mono)]"
-                              style={{ color: "#A1A1AA" }}
-                            >
+                          <div className="flex items-center gap-2 justify-end pr-1 opacity-0 group-hover/message:opacity-100 transition-opacity">
+                            <span className="text-xs text-white/40">
                               {formatTimestamp(message.createdAt)}
                             </span>
                             <Button
                               size="sm"
                               variant="ghost"
-                              className="h-5 w-5 p-0 hover:bg-white/10"
+                              className="h-6 w-6 p-0 hover:bg-white/10 rounded transition-colors"
                               onClick={() =>
                                 copyToClipboard(
                                   message.content.text,
@@ -1023,9 +1005,9 @@ export function ElizaChatInterface({ onMessageSent }: ElizaChatInterfaceProps) {
                               title="Copy message"
                             >
                               {copiedMessageId === message.id ? (
-                                <Check className="h-3 w-3 text-green-500" />
+                                <Check className="h-3.5 w-3.5 text-green-500" />
                               ) : (
-                                <Copy className="h-3 w-3 text-white/60" />
+                                <Copy className="h-3.5 w-3.5 text-white/50 hover:text-white/80" />
                               )}
                             </Button>
                           </div>
@@ -1044,12 +1026,11 @@ export function ElizaChatInterface({ onMessageSent }: ElizaChatInterfaceProps) {
             e.preventDefault();
             sendMessage();
           }}
-          className="border-t p-3 mb-4"
-          style={{ backgroundColor: "#1D1D1D" }}
+          className="border-t border-white/[0.06] p-4"
         >
-          <div className="space-y-2">
+          <div className="space-y-3">
             {/* Text Input Box - Prominent standalone */}
-            <div className="relative rounded-none border-2 border-border shadow-sm bg-black/20 overflow-hidden">
+            <div className="relative rounded-lg border border-white/[0.08] bg-white/[0.02] overflow-hidden transition-colors focus-within:border-white/[0.15] focus-within:bg-white/[0.03]">
               {/* Robot Eye Visor Scanner - Animated line on top edge with randomness - Only show when waiting for agent */}
               {isLoading && (
                 <div className="absolute top-0 left-0 right-0 h-[2px] overflow-hidden pointer-events-none z-10">
@@ -1087,21 +1068,21 @@ export function ElizaChatInterface({ onMessageSent }: ElizaChatInterfaceProps) {
                 }}
                 onInput={(e) => {
                   const target = e.target as HTMLTextAreaElement;
-                  target.style.height = "36px";
-                  target.style.height = Math.min(target.scrollHeight, 128) + "px";
+                  target.style.height = "44px";
+                  target.style.height = Math.min(target.scrollHeight, 140) + "px";
                 }}
                 placeholder={
                   recorder.isRecording
                     ? "Recording... Click stop when done"
                     : roomId
-                      ? "Type your message here..."
-                      : "Ask me anything about AI, development, or how elizaOS can help you..."
+                      ? "Type your message..."
+                      : "Ask me anything..."
                 }
                 disabled={isLoading || recorder.isRecording}
-                className="w-full bg-transparent px-3 py-2.5 text-sm text-white placeholder:text-white/60 focus:outline-none disabled:opacity-50 resize-none leading-relaxed"
+                className="w-full bg-transparent px-4 py-3 text-[15px] text-white placeholder:text-white/40 focus:outline-none disabled:opacity-50 resize-none leading-relaxed"
                 style={{
-                  minHeight: "36px",
-                  maxHeight: "128px",
+                  minHeight: "44px",
+                  maxHeight: "140px",
                 }}
               />
             </div>
@@ -1120,7 +1101,7 @@ export function ElizaChatInterface({ onMessageSent }: ElizaChatInterfaceProps) {
                 }}
                 disabled={isLoadingModels}
               >
-                <SelectTrigger className="w-[130px] h-10 border-muted rounded-none">
+                <SelectTrigger className="w-[120px] h-9 border-white/[0.08] bg-white/[0.02] rounded-lg text-sm hover:bg-white/[0.05] transition-colors">
                   <SelectValue placeholder="Select model">
                     <span className="flex items-center gap-2">
                       {tierIcons[selectedTier]}
@@ -1128,7 +1109,7 @@ export function ElizaChatInterface({ onMessageSent }: ElizaChatInterfaceProps) {
                     </span>
                   </SelectValue>
                 </SelectTrigger>
-                <SelectContent className="rounded-none">
+                <SelectContent className="rounded-lg border-white/[0.08]">
                   {tiers.map((tier) => (
                     <SelectItem key={tier.id} value={tier.id}>
                       <div className="flex items-center gap-2">
@@ -1144,20 +1125,20 @@ export function ElizaChatInterface({ onMessageSent }: ElizaChatInterfaceProps) {
               </Select>
 
               {/* Action Buttons - Bottom Right */}
-              <div className="flex items-center gap-2">
+              <div className="flex items-center gap-1.5">
                 <DropdownMenu>
                   <DropdownMenuTrigger asChild>
                     <Button
                       type="button"
-                      variant="outline"
+                      variant="ghost"
                       size="icon"
-                      className="h-10 w-10 rounded-none"
+                      className="h-9 w-9 rounded-lg border border-white/[0.08] bg-white/[0.02] hover:bg-white/[0.06] transition-colors"
                     >
-                      <Plus className="h-4 w-4" />
+                      <Plus className="h-4 w-4 text-white/60" />
                     </Button>
                   </DropdownMenuTrigger>
                   <DropdownMenuContent
-                    className="w-80 rounded-none"
+                    className="w-80 rounded-lg border-white/[0.08]"
                     align="end"
                     side="top"
                   >
@@ -1253,16 +1234,16 @@ export function ElizaChatInterface({ onMessageSent }: ElizaChatInterfaceProps) {
 
                 <Button
                   type="button"
-                  variant="outline"
+                  variant="ghost"
                   size="icon"
                   disabled={isLoading || !roomId}
                   onClick={handleVoiceInput}
-                  className="h-10 w-10 rounded-none"
+                  className="h-9 w-9 rounded-lg border border-white/[0.08] bg-white/[0.02] hover:bg-white/[0.06] disabled:opacity-40 transition-colors"
                 >
                   {recorder.isRecording ? (
-                    <Square className="h-4 w-4" />
+                    <Square className="h-4 w-4 text-red-400" />
                   ) : (
-                    <Mic className="h-4 w-4" />
+                    <Mic className="h-4 w-4 text-white/60" />
                   )}
                 </Button>
 
@@ -1275,16 +1256,12 @@ export function ElizaChatInterface({ onMessageSent }: ElizaChatInterfaceProps) {
                     recorder.isRecording
                   }
                   size="icon"
-                  className="h-10 w-10 rounded-none border-none"
-                  style={{ backgroundColor: "rgba(255, 88, 0, 0.25)" }}
+                  className="h-9 w-9 rounded-lg bg-[#FF5800]/20 border border-[#FF5800]/30 hover:bg-[#FF5800]/30 disabled:opacity-40 transition-colors"
                 >
                   {isLoading ? (
-                    <Loader2
-                      className="h-4 w-4 animate-spin"
-                      style={{ color: "#FF5800" }}
-                    />
+                    <Loader2 className="h-4 w-4 animate-spin text-[#FF5800]" />
                   ) : (
-                    <Send className="h-4 w-4" style={{ color: "#FF5800" }} />
+                    <Send className="h-4 w-4 text-[#FF5800]" />
                   )}
                 </Button>
               </div>
