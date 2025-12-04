@@ -4,6 +4,7 @@ import Image from "next/image";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { Skeleton } from "@/components/ui/skeleton";
 import {
   Bot,
   MessageSquare,
@@ -278,6 +279,86 @@ export function CharacterCard({
             >
               <Info className="h-4 w-4" />
             </Button>
+          </div>
+        </div>
+      </CardContent>
+    </Card>
+  );
+}
+
+// Skeleton loading component
+interface CharacterCardSkeletonProps {
+  view?: "grid" | "list";
+}
+
+export function CharacterCardSkeleton({ view = "grid" }: CharacterCardSkeletonProps) {
+  // List view skeleton
+  if (view === "list") {
+    return (
+      <Card className="overflow-hidden p-0 gap-0">
+        <CardContent className="p-3 flex items-center gap-4">
+          {/* Avatar skeleton */}
+          <Skeleton className="h-12 w-12 flex-shrink-0 rounded-lg" />
+
+          {/* Info skeleton */}
+          <div className="flex-1 min-w-0 space-y-2">
+            <Skeleton className="h-4 w-32" />
+            <Skeleton className="h-3 w-48" />
+          </div>
+
+          {/* Stats skeleton */}
+          <div className="hidden sm:flex items-center gap-3 flex-shrink-0">
+            <Skeleton className="h-4 w-12" />
+          </div>
+
+          {/* Actions skeleton */}
+          <div className="flex items-center gap-1 flex-shrink-0">
+            <Skeleton className="h-8 w-16 rounded-md" />
+            <Skeleton className="h-8 w-8 rounded-md" />
+            <Skeleton className="h-8 w-8 rounded-md" />
+          </div>
+        </CardContent>
+      </Card>
+    );
+  }
+
+  // Grid view skeleton
+  return (
+    <Card className="overflow-hidden p-0 gap-0 h-full">
+      <CardContent className="p-0 h-full flex flex-col">
+        {/* Image skeleton */}
+        <Skeleton className="h-48 w-full rounded-t-xl rounded-b-none" />
+
+        {/* Content skeleton */}
+        <div className="p-4 flex flex-col flex-1 space-y-3">
+          {/* Title */}
+          <div className="space-y-2">
+            <Skeleton className="h-5 w-3/4" />
+            <Skeleton className="h-4 w-1/2" />
+          </div>
+
+          {/* Bio */}
+          <div className="space-y-1.5 mt-3">
+            <Skeleton className="h-3 w-full" />
+            <Skeleton className="h-3 w-4/5" />
+          </div>
+
+          {/* Tags */}
+          <div className="flex gap-2 mt-3">
+            <Skeleton className="h-5 w-16 rounded-full" />
+            <Skeleton className="h-5 w-20 rounded-full" />
+          </div>
+
+          {/* Stats */}
+          <div className="flex items-center gap-4 pt-3 mt-3 border-t">
+            <Skeleton className="h-4 w-16" />
+          </div>
+
+          {/* Actions */}
+          <div className="flex gap-2 pt-3 mt-auto">
+            <Skeleton className="h-9 flex-1 rounded-md" />
+            <Skeleton className="h-9 w-9 rounded-md" />
+            <Skeleton className="h-9 w-9 rounded-md" />
           </div>
         </div>
       </CardContent>

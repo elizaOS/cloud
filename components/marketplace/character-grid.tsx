@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useRef } from "react";
-import { CharacterCard } from "./character-card";
+import { CharacterCard, CharacterCardSkeleton } from "./character-card";
 import { EmptyStates } from "./empty-states";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Loader2 } from "lucide-react";
@@ -45,7 +45,7 @@ export function CharacterGrid({
           onLoadMore();
         }
       },
-      { threshold: 0.1 },
+      { threshold: 0.1 }
     );
 
     const trigger = loadMoreTriggerRef.current;
@@ -60,8 +60,27 @@ export function CharacterGrid({
     };
   }, [isLoading, isLoadingMore, hasMore, onLoadMore]);
 
+  // Show skeleton loading state
   if (isLoading) {
-    return <EmptyStates type="loading" />;
+    return (
+      <div className="flex-1 min-h-0 overflow-hidden">
+        <ScrollArea className="h-full">
+          <div className="p-6">
+            <div
+              className={
+                view === "grid"
+                  ? "grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5 gap-4"
+                  : "flex flex-col gap-2"
+              }
+            >
+              {Array.from({ length: 8 }).map((_, i) => (
+                <CharacterCardSkeleton key={i} view={view} />
+              ))}
+            </div>
+          </div>
+        </ScrollArea>
+      </div>
+    );
   }
 
   if (error) {
