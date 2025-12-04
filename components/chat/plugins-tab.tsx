@@ -136,18 +136,11 @@ export function PluginsTab({ character, onChange }: PluginsTabProps) {
   const enableMcp = (mcp: McpRegistryEntry) => {
     const currentSettings = getCurrentMcpSettings();
 
-    // Replace ${BASE_URL} placeholder with actual origin
-    const baseUrl = typeof window !== "undefined" ? window.location.origin : "";
-    const templatedServers = JSON.parse(
-      JSON.stringify(mcp.configTemplate.servers).replace(
-        /\$\{BASE_URL\}/g,
-        baseUrl,
-      ),
-    );
-
+    // Store pathnames directly - don't inject baseUrl at config time
+    // The runtime will append the correct baseUrl when the agent runs
     const newServers = {
       ...currentSettings.servers,
-      ...templatedServers,
+      ...mcp.configTemplate.servers,
     };
 
     const newMcpSettings: McpSettings = {
