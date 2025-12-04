@@ -18,7 +18,7 @@ import {
   TooltipTrigger,
 } from "@/components/ui/tooltip";
 import { cn } from "@/lib/utils";
-import { Bot, Plus, Sparkles, HelpCircle, MessageSquare, Clock, Rocket } from "lucide-react";
+import { Bot, Plus, HelpCircle, MessageSquare, Clock, Rocket } from "lucide-react";
 import Image from "next/image";
 import Link from "next/link";
 import { Badge } from "@/components/ui/badge";
@@ -123,10 +123,10 @@ function AgentCard({ agent }: { agent: Agent }) {
 
   return (
     <Link href={`/dashboard/chat?characterId=${agent.id}`} className="block h-full">
-      <div className="group relative h-full overflow-hidden rounded-lg border border-white/10 bg-gradient-to-r from-white/[0.04] to-transparent transition-all duration-300 hover:border-[#FF5800]/50 hover:shadow-lg hover:shadow-[#FF5800]/10 p-4">
+      <div className="group relative h-full overflow-hidden rounded-lg border border-zinc-700/50 bg-zinc-900/90 transition-all duration-300 hover:border-[#FF5800]/50 hover:shadow-lg hover:shadow-[#FF5800]/10 p-4">
         <div className="flex items-start gap-4 h-full">
           {/* Avatar - Left side icon */}
-          <div className="relative h-16 w-16 flex-shrink-0 rounded-lg overflow-hidden bg-gradient-to-br from-[#FF5800]/20 to-orange-700/10 border border-white/10">
+          <div className="relative h-16 w-16 flex-shrink-0 rounded-lg overflow-hidden bg-gradient-to-br from-[#FF5800]/20 to-zinc-800 border border-zinc-700/50">
             {agent.avatarUrl ? (
               <Image
                 src={agent.avatarUrl}
@@ -216,7 +216,7 @@ function AgentsEmptyState() {
             No agents yet
           </h3>
           <p className="text-xs text-white/50 max-w-xs mx-auto">
-            Create an agent or browse the marketplace
+            Create your first AI agent to get started
           </p>
         </div>
         <div className="flex gap-2 justify-center pt-2">
@@ -228,16 +228,7 @@ function AgentsEmptyState() {
             className="h-8 text-xs"
           >
             <Plus className="h-3.5 w-3.5" />
-            Create
-          </BrandButton>
-          <BrandButton
-            onClick={() => (window.location.href = "/marketplace")}
-            variant="outline"
-            size="sm"
-            className="h-8 text-xs"
-          >
-            <Sparkles className="h-3.5 w-3.5" />
-            Marketplace
+            Create Agent
           </BrandButton>
         </div>
       </div>
@@ -252,10 +243,10 @@ export function AgentsSectionSkeleton() {
       {/* Section Header Skeleton */}
       <div className="flex items-center justify-between">
         <div>
-          <div className="h-8 w-48 bg-white/10 animate-pulse rounded" />
-          <div className="h-4 w-64 bg-white/10 animate-pulse rounded mt-2" />
+          <div className="h-8 w-48 bg-zinc-800 animate-pulse rounded" />
+          <div className="h-4 w-64 bg-zinc-800 animate-pulse rounded mt-2" />
         </div>
-        <div className="h-10 w-32 bg-white/10 animate-pulse rounded" />
+        <div className="h-10 w-32 bg-zinc-800 animate-pulse rounded" />
       </div>
 
       {/* Agents Grid Skeleton */}
@@ -263,25 +254,25 @@ export function AgentsSectionSkeleton() {
         {[...Array(4)].map((_, index) => (
           <div 
             key={index} 
-            className="rounded-lg border border-white/10 bg-gradient-to-r from-white/[0.04] to-transparent p-4 h-[120px]"
+            className="rounded-lg border border-zinc-700/50 bg-zinc-900/90 p-4 h-[120px]"
           >
             <div className="flex items-start gap-4">
               {/* Avatar skeleton */}
-              <div className="h-16 w-16 flex-shrink-0 rounded-lg bg-white/10 animate-pulse" />
+              <div className="h-16 w-16 flex-shrink-0 rounded-lg bg-zinc-800 animate-pulse" />
               
               {/* Content skeleton */}
               <div className="flex-1 min-w-0 space-y-2">
                 <div className="flex items-center gap-2">
-                  <div className="h-5 w-24 bg-white/10 animate-pulse rounded" />
-                  <div className="h-4 w-16 bg-white/10 animate-pulse rounded" />
+                  <div className="h-5 w-24 bg-zinc-800 animate-pulse rounded" />
+                  <div className="h-4 w-16 bg-zinc-800 animate-pulse rounded" />
                 </div>
                 <div className="space-y-1.5">
-                  <div className="h-3 w-full bg-white/10 animate-pulse rounded" />
-                  <div className="h-3 w-3/4 bg-white/10 animate-pulse rounded" />
+                  <div className="h-3 w-full bg-zinc-800 animate-pulse rounded" />
+                  <div className="h-3 w-3/4 bg-zinc-800 animate-pulse rounded" />
                 </div>
                 <div className="flex items-center gap-2 pt-1">
-                  <div className="h-3 w-3 bg-white/10 animate-pulse rounded" />
-                  <div className="h-2 w-16 bg-white/10 animate-pulse rounded" />
+                  <div className="h-3 w-3 bg-zinc-800 animate-pulse rounded" />
+                  <div className="h-2 w-16 bg-zinc-800 animate-pulse rounded" />
                 </div>
               </div>
             </div>

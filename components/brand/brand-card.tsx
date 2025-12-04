@@ -32,8 +32,8 @@ export function BrandCard({
   return (
     <Component
       className={cn(
-        "relative bg-black/40 border border-white/10 p-4 md:p-6",
-        hover && "group hover:border-white/30 transition-all duration-300",
+        "relative bg-zinc-900/90 border border-zinc-700/50 p-4 md:p-6",
+        hover && "group hover:border-zinc-500/50 transition-all duration-300",
         className,
       )}
       {...props}

@@ -114,9 +114,9 @@ function ContainersEmptyState() {
 
         {/* CLI Instructions */}
         <div className="max-w-md mx-auto">
-          <div className="bg-black/40 border border-white/10 p-3 rounded-lg font-mono text-xs text-left space-y-1.5">
-            <div className="text-white/40">$ bun install -g @elizaos/cli</div>
-            <div className="text-white/70">$ elizaos deploy</div>
+          <div className="bg-zinc-800/90 border border-zinc-700/50 p-3 rounded-lg font-mono text-xs text-left space-y-1.5">
+            <div className="text-zinc-400">$ bun install -g @elizaos/cli</div>
+            <div className="text-zinc-200">$ elizaos deploy</div>
           </div>
         </div>
 
@@ -140,10 +140,10 @@ export function ContainersSectionSkeleton() {
       {/* Section Header Skeleton */}
       <div className="flex items-center justify-between">
         <div>
-          <div className="h-8 w-48 bg-white/10 animate-pulse rounded" />
-          <div className="h-4 w-64 bg-white/10 animate-pulse rounded mt-2" />
+          <div className="h-8 w-48 bg-zinc-800 animate-pulse rounded" />
+          <div className="h-4 w-64 bg-zinc-800 animate-pulse rounded mt-2" />
         </div>
-        <div className="h-10 w-24 bg-white/10 animate-pulse rounded" />
+        <div className="h-10 w-24 bg-zinc-800 animate-pulse rounded" />
       </div>
 
       {/* Table Skeleton */}

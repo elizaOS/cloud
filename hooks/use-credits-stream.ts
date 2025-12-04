@@ -13,10 +13,10 @@ interface UseCreditsStreamResult {
 }
 
 const POLL_INTERVAL = 10000;
-const MAX_AUTH_ERRORS = 3; // Stop polling after 3 consecutive auth errors
+const MAX_AUTH_ERRORS = 2; // Try to refresh token after 2 consecutive auth errors
 
 export function useCreditsStream(): UseCreditsStreamResult {
-  const { authenticated, ready } = usePrivy();
+  const { authenticated, ready, getAccessToken } = usePrivy();
   const [creditBalance, setCreditBalance] = useState<number | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -27,35 +27,40 @@ export function useCreditsStream(): UseCreditsStreamResult {
   const isMountedRef = useRef(true);
   const broadcastChannelRef = useRef<BroadcastChannel | null>(null);
   const authErrorCountRef = useRef(0);
-  const isPollingPausedRef = useRef(false);
+  const isRefreshingTokenRef = useRef(false);
 
-  // Stop polling when too many auth errors occur
-  const stopPolling = useCallback(() => {
-    if (pollIntervalRef.current) {
-      clearInterval(pollIntervalRef.current);
-      pollIntervalRef.current = null;
+  // Attempt to refresh the Privy token
+  const refreshToken = useCallback(async (): Promise<boolean> => {
+    if (isRefreshingTokenRef.current) return false;
+    
+    isRefreshingTokenRef.current = true;
+    try {
+      // getAccessToken() will automatically refresh the token if expired
+      const token = await getAccessToken();
+      isRefreshingTokenRef.current = false;
+      
+      if (token) {
+        console.log("[useCreditsStream] Token refreshed successfully");
+        authErrorCountRef.current = 0;
+        return true;
+      }
+      return false;
+    } catch (err) {
+      console.warn("[useCreditsStream] Failed to refresh token:", err);
+      isRefreshingTokenRef.current = false;
+      return false;
     }
-    isPollingPausedRef.current = true;
-  }, []);
+  }, [getAccessToken]);
 
-  // Resume polling (e.g., when user re-authenticates)
-  const resumePolling = useCallback(() => {
-    authErrorCountRef.current = 0;
-    isPollingPausedRef.current = false;
-  }, []);
-
-  const fetchBalance = useCallback(async () => {
+  const fetchBalance = useCallback(async (isRetry = false) => {
     if (!isMountedRef.current) return;
     
-    // Don't fetch if not authenticated or polling is paused
-    if (!authenticated || isPollingPausedRef.current) {
+    // Don't fetch if not authenticated
+    if (!authenticated) {
       if (isMountedRef.current) {
         setIsLoading(false);
-        // Clear balance for unauthenticated users
-        if (!authenticated) {
-          setCreditBalance(null);
-          setError(null);
-        }
+        setCreditBalance(null);
+        setError(null);
       }
       return;
     }
@@ -74,21 +79,23 @@ export function useCreditsStream(): UseCreditsStreamResult {
         if (response.status === 401) {
           authErrorCountRef.current++;
           
-          // Log only on first error to avoid console spam
-          if (authErrorCountRef.current === 1) {
-            console.warn("[useCreditsStream] Unauthorized - user may need to re-authenticate");
+          // On first 401, try to refresh the token silently
+          if (authErrorCountRef.current === 1 && !isRetry) {
+            console.log("[useCreditsStream] Got 401, attempting token refresh...");
+            const refreshed = await refreshToken();
+            if (refreshed) {
+              // Retry the fetch with the new token
+              return fetchBalance(true);
+            }
           }
           
-          // Stop polling after too many auth errors
+          // After max errors or failed refresh, just wait for next poll
           if (authErrorCountRef.current >= MAX_AUTH_ERRORS) {
-            console.warn("[useCreditsStream] Too many auth errors, pausing polling");
-            stopPolling();
-          }
-          
-          if (isMountedRef.current) {
-            setError("Unauthorized");
-            setIsConnected(false);
-            setCreditBalance(null);
+            // Don't spam logs, just silently wait
+            if (isMountedRef.current) {
+              setError("Session expired");
+              setIsConnected(false);
+            }
           }
           return;
         }
@@ -127,7 +134,7 @@ export function useCreditsStream(): UseCreditsStreamResult {
         setIsLoading(false);
       }
     }
-  }, [authenticated, stopPolling]);
+  }, [authenticated, refreshToken]);
 
   // Setup BroadcastChannel for cross-tab sync
   useEffect(() => {
@@ -147,19 +154,20 @@ export function useCreditsStream(): UseCreditsStreamResult {
     }
   }, []);
 
-  // Reset and resume polling when authentication state changes
+  // Reset error count when authentication state changes
   useEffect(() => {
     if (ready && authenticated) {
-      resumePolling();
+      authErrorCountRef.current = 0;
+      setError(null);
     }
-  }, [ready, authenticated, resumePolling]);
+  }, [ready, authenticated]);
 
   // Main polling effect
   useEffect(() => {
     isMountedRef.current = true;
 
     // Only start polling if authenticated and ready
-    if (ready && authenticated && !isPollingPausedRef.current) {
+    if (ready && authenticated) {
       fetchBalance();
 
       pollIntervalRef.current = setInterval(() => {
@@ -186,6 +194,6 @@ export function useCreditsStream(): UseCreditsStreamResult {
     isLoading,
     error,
     lastUpdate,
-    refreshBalance: fetchBalance,
+    refreshBalance: () => fetchBalance(),
   };
 }
