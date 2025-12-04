@@ -31,20 +31,20 @@ export const dynamic = "force-dynamic";
 export default async function DashboardPage() {
   const data = await getDashboardData();
 
-  const hasAgents = data.agents.length > 0;
+  const { hasAgents, hasApiKey, hasChatHistory } = data.onboarding;
   const hasActivity = data.stats.totalGenerations > 0;
-  const showOnboarding = !hasAgents;
+  const allOnboardingComplete = hasAgents && hasApiKey && hasChatHistory;
 
   return (
     <DashboardPageWrapper userName={data.user.name.split(" ")[0] || "User"}>
       <main className="mx-auto w-full max-w-[1400px] px-4 pb-12 pt-8 lg:px-8">
         <div className="space-y-12">
-          {showOnboarding && (
+          {!allOnboardingComplete && (
             <Suspense fallback={<GettingStartedSkeleton />}>
               <GettingStarted
                 hasAgents={hasAgents}
-                hasApiKey={hasActivity}
-                hasChatHistory={hasActivity}
+                hasApiKey={hasApiKey}
+                hasChatHistory={hasChatHistory}
               />
             </Suspense>
           )}

@@ -1,4 +1,4 @@
-import { eq, inArray } from "drizzle-orm";
+import { eq, inArray, count } from "drizzle-orm";
 import { db } from "../client";
 import {
   elizaRoomCharactersTable,
@@ -7,6 +7,15 @@ import {
 } from "../schemas";
 
 export const elizaRoomCharactersRepository = {
+  async countByUserId(userId: string): Promise<number> {
+    const result = await db
+      .select({ count: count() })
+      .from(elizaRoomCharactersTable)
+      .where(eq(elizaRoomCharactersTable.user_id, userId));
+
+    return result[0]?.count ?? 0;
+  },
+
   async findByRoomId(roomId: string): Promise<ElizaRoomCharacter | undefined> {
     // DISABLED: Caching causes stale data in Vercel serverless (isolated container caches)
     // ALWAYS fetch from DB - character mapping lookups are fast (~5ms)
