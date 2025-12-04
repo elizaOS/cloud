@@ -45,32 +45,32 @@ export function GettingStarted({
   const steps: OnboardingStep[] = [
     {
       id: "create-agent",
-      title: "Create your first agent",
-      description: "Build an AI agent with a unique personality",
-      tooltip: "Agents are AI characters you can customize with unique personalities, knowledge, and capabilities.",
-      icon: <Bot className="h-6 w-6" />,
+      title: "Create agent",
+      description: "Build your first AI character",
+      tooltip: "Customize personality, knowledge, and capabilities.",
+      icon: <Bot className="h-5 w-5" />,
       href: "/dashboard/character-creator",
-      buttonText: "Create Agent",
+      buttonText: "Create",
       completed: hasAgents,
     },
     {
       id: "connect-model",
-      title: "Connect a model",
-      description: "Add your API key to power your agent",
-      tooltip: "API keys let your agents access AI models. Create or use your default key to get started.",
-      icon: <Plug className="h-6 w-6" />,
+      title: "Add API key",
+      description: "Connect to AI models",
+      tooltip: "Required to power your agents.",
+      icon: <Plug className="h-5 w-5" />,
       href: "/dashboard/api-keys",
-      buttonText: "Add API Key",
+      buttonText: "Add Key",
       completed: hasApiKey,
     },
     {
       id: "test-agent",
-      title: "Test your agent",
-      description: "Start a conversation with your agent",
-      tooltip: "Chat with your agent to test its personality and responses before deploying.",
-      icon: <MessageSquare className="h-6 w-6" />,
+      title: "Test agent",
+      description: "Chat with your creation",
+      tooltip: "Verify responses before deploying.",
+      icon: <MessageSquare className="h-5 w-5" />,
       href: "/dashboard/chat",
-      buttonText: "Start Chat",
+      buttonText: "Chat",
       completed: hasChatHistory,
     },
   ];
@@ -83,15 +83,17 @@ export function GettingStarted({
   }
 
   return (
-    <section className={cn("space-y-6", className)}>
+    <section className={cn("space-y-4", className)}>
       <div className="flex items-center justify-between">
         <div>
-          <h2 className="text-2xl font-bold text-white">Getting Started</h2>
-          <p className="text-white/50 mt-1 text-sm">
-            Build, test, and deploy AI agents — all in one place.
-          </p>
-          <p className="text-white/40 text-xs mt-2">
-            {completedCount}/{steps.length} completed
+          <div className="flex items-center gap-3">
+            <h2 className="text-xl font-semibold text-white">Get Started</h2>
+            <span className="text-xs text-white/40 bg-white/5 px-2 py-0.5 rounded">
+              {completedCount}/{steps.length}
+            </span>
+          </div>
+          <p className="text-white/40 mt-0.5 text-xs">
+            Build and deploy AI agents
           </p>
         </div>
       </div>
@@ -117,35 +119,35 @@ function StepCard({
       corners={true}
       cornerSize="sm"
       className={cn(
-        "relative transition-all duration-300",
+        "relative transition-all duration-200",
         step.completed
-          ? "border-green-500/30 bg-green-500/5"
-          : "hover:border-[#FF5800]/50"
+          ? "border-green-500/20 bg-green-500/5"
+          : "hover:border-[#FF5800]/40"
       )}
     >
-      <div className="space-y-4">
+      <div className="space-y-3">
         <div className="flex items-start justify-between">
           <div
             className={cn(
-              "inline-flex p-3 rounded-sm border",
+              "inline-flex p-2 rounded-sm border",
               step.completed
-                ? "bg-green-500/20 border-green-500/40 text-green-400"
-                : "bg-[#FF5800]/10 border-[#FF5800]/30 text-[#FF5800]"
+                ? "bg-green-500/20 border-green-500/30 text-green-400"
+                : "bg-[#FF5800]/10 border-[#FF5800]/20 text-[#FF5800]"
             )}
           >
-            {step.completed ? <Check className="h-6 w-6" /> : step.icon}
+            {step.completed ? <Check className="h-5 w-5" /> : step.icon}
           </div>
-          <span className="text-xs text-white/40 font-mono">
+          <span className="text-[10px] text-white/30 font-mono">
             {stepNumber.toString().padStart(2, "0")}
           </span>
         </div>
 
         <div>
-          <div className="flex items-center gap-1.5 mb-1">
+          <div className="flex items-center gap-1.5 mb-0.5">
             <h3
               className={cn(
-                "font-semibold",
-                step.completed ? "text-white/60" : "text-white"
+                "text-sm font-medium",
+                step.completed ? "text-white/50" : "text-white"
               )}
             >
               {step.title}
@@ -154,35 +156,35 @@ function StepCard({
               <TooltipTrigger asChild>
                 <button
                   type="button"
-                  className="text-white/30 hover:text-white/60 transition-colors"
+                  className="text-white/20 hover:text-white/50 transition-colors"
                 >
-                  <HelpCircle className="h-3.5 w-3.5" />
+                  <HelpCircle className="h-3 w-3" />
                 </button>
               </TooltipTrigger>
               <TooltipContent
                 side="top"
-                className="max-w-[200px] bg-zinc-900 text-white/90 border border-white/10"
+                className="max-w-[180px] text-xs bg-zinc-900 text-white/80 border border-white/10"
               >
                 {step.tooltip}
               </TooltipContent>
             </Tooltip>
           </div>
-          <p className="text-sm text-white/50">{step.description}</p>
+          <p className="text-xs text-white/40">{step.description}</p>
         </div>
 
         {!step.completed && (
-          <BrandButton asChild size="sm" className="w-full">
+          <BrandButton asChild size="sm" className="w-full h-8 text-xs">
             <Link href={step.href}>
               {step.buttonText}
-              <ArrowRight className="ml-2 h-4 w-4" />
+              <ArrowRight className="ml-1.5 h-3 w-3" />
             </Link>
           </BrandButton>
         )}
 
         {step.completed && (
-          <div className="flex items-center gap-2 text-sm text-green-400">
-            <Check className="h-4 w-4" />
-            <span>Completed</span>
+          <div className="flex items-center gap-1.5 text-xs text-green-400/80">
+            <Check className="h-3.5 w-3.5" />
+            <span>Done</span>
           </div>
         )}
       </div>
