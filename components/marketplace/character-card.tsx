@@ -23,6 +23,7 @@ import { formatDistanceToNow } from "date-fns";
 
 interface CharacterCardProps {
   character: ExtendedCharacter;
+  view?: "grid" | "list";
   onStartChat: (character: ExtendedCharacter) => void;
   onClone: (character: ExtendedCharacter) => void;
   onViewDetails: (character: ExtendedCharacter) => void;
@@ -30,6 +31,7 @@ interface CharacterCardProps {
 
 export function CharacterCard({
   character,
+  view = "grid",
   onStartChat,
   onClone,
   onViewDetails,
@@ -39,9 +41,101 @@ export function CharacterCard({
     : character.bio;
 
   const hasVoice = character.plugins?.includes("@elizaos/plugin-elevenlabs");
-
   const isDeployed = character.stats?.deploymentStatus === "deployed";
 
+  // List view - compact horizontal layout
+  if (view === "list") {
+    return (
+      <Card className="group overflow-hidden transition-all duration-200 hover:shadow-md hover:bg-accent/50 p-0 gap-0">
+        <CardContent className="p-3 flex items-center gap-4">
+          {/* Avatar - Small icon */}
+          <div className="relative h-12 w-12 flex-shrink-0 rounded-lg overflow-hidden bg-gradient-to-br from-primary/20 to-secondary/20 flex items-center justify-center">
+            {character.avatarUrl ? (
+              <Image
+                src={character.avatarUrl}
+                alt={character.name}
+                fill
+                className="object-cover"
+              />
+            ) : (
+              <Bot className="h-6 w-6 text-muted-foreground" />
+            )}
+          </div>
+
+          {/* Info */}
+          <div className="flex-1 min-w-0">
+            <div className="flex items-center gap-2">
+              <h3 className="font-medium truncate group-hover:text-primary transition-colors">
+                {character.name}
+              </h3>
+              {character.isTemplate && (
+                <Badge variant="secondary" className="text-[10px] px-1.5 py-0">
+                  Template
+                </Badge>
+              )}
+              {isDeployed && (
+                <Badge
+                  variant="default"
+                  className="bg-green-600/90 text-[10px] px-1.5 py-0"
+                >
+                  <Rocket className="h-2.5 w-2.5 mr-0.5" />
+                  Live
+                </Badge>
+              )}
+            </div>
+            <p className="text-xs text-muted-foreground truncate mt-0.5">
+              {bioText}
+            </p>
+          </div>
+
+          {/* Stats */}
+          <div className="hidden sm:flex items-center gap-3 text-xs text-muted-foreground flex-shrink-0">
+            <span className="flex items-center gap-1">
+              <MessageSquare className="h-3 w-3" />
+              {character.stats?.roomCount ?? 0}
+            </span>
+            {hasVoice && (
+              <span className="flex items-center gap-1">
+                <Volume2 className="h-3 w-3" />
+              </span>
+            )}
+          </div>
+
+          {/* Actions */}
+          <div className="flex items-center gap-1 flex-shrink-0">
+            <Button
+              size="sm"
+              className="h-8"
+              onClick={() => onStartChat(character)}
+            >
+              <MessageSquare className="h-3.5 w-3.5 mr-1.5" />
+              Chat
+            </Button>
+            <Button
+              variant="ghost"
+              size="sm"
+              className="h-8 w-8 p-0"
+              onClick={() => onClone(character)}
+              title="Clone"
+            >
+              <Copy className="h-3.5 w-3.5" />
+            </Button>
+            <Button
+              variant="ghost"
+              size="sm"
+              className="h-8 w-8 p-0"
+              onClick={() => onViewDetails(character)}
+              title="Details"
+            >
+              <Info className="h-3.5 w-3.5" />
+            </Button>
+          </div>
+        </CardContent>
+      </Card>
+    );
+  }
+
+  // Grid view - card layout
   return (
     <Card className="group overflow-hidden transition-all duration-300 hover:shadow-lg hover:-translate-y-1 p-0 gap-0 h-full">
       <CardContent className="p-0 h-full flex flex-col">
@@ -142,9 +236,10 @@ export function CharacterCard({
             <div className="flex items-center gap-4 text-xs text-muted-foreground pt-3 mt-3 border-t">
               <span className="flex items-center gap-1">
                 <MessageSquare className="h-3 w-3" />
-                {character.stats.messageCount > 1000
-                  ? `${(character.stats.messageCount / 1000).toFixed(1)}k`
-                  : character.stats.messageCount}
+                {(character.stats.roomCount ?? 0) > 1000
+                  ? `${((character.stats.roomCount ?? 0) / 1000).toFixed(1)}k`
+                  : character.stats.roomCount ?? 0}{" "}
+                chats
               </span>
               {character.stats.lastActiveAt && (
                 <span className="flex items-center gap-1">

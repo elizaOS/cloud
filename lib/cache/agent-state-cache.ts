@@ -43,6 +43,7 @@ export interface UserSession {
 export interface AgentStats {
   agentId: string;
   messageCount: number;
+  roomCount: number;
   lastActiveAt: Date | null;
   uptime: number;
   status: "deployed" | "stopped" | "draft";
