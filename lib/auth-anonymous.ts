@@ -68,14 +68,20 @@ function hashTokenForLogging(token: string): string {
 
 /**
  * Get client IP address from headers
+ *
+ * Priority: x-real-ip (trusted, set by Vercel/proxy) > x-forwarded-for (first IP)
+ * Note: x-forwarded-for can be spoofed by clients, x-real-ip is more trusted
  */
 async function getClientIp(): Promise<string | undefined> {
   const headersList = await headers();
-  return (
-    headersList.get("x-forwarded-for")?.split(",")[0] ||
-    headersList.get("x-real-ip") ||
-    undefined
-  );
+  // Prefer x-real-ip as it's set by the trusted proxy (Vercel)
+  const realIp = headersList.get("x-real-ip")?.trim();
+  if (realIp) {
+    return realIp;
+  }
+  // Fallback to x-forwarded-for (first IP in the chain)
+  const forwardedFor = headersList.get("x-forwarded-for")?.split(",")[0]?.trim();
+  return forwardedFor || undefined;
 }
 
 /**
