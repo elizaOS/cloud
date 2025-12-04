@@ -97,9 +97,10 @@ export function SidebarChatRooms() {
     }
   };
 
-  const getCharacterName = (characterId?: string) => {
-    if (!characterId) return "Default (Eliza)";
-    const character = availableCharacters.find((c) => c.id === characterId);
+  const getCharacterName = (room: typeof rooms[0]) => {
+    if (room.characterName) return room.characterName;
+    if (!room.characterId) return "Default (Eliza)";
+    const character = availableCharacters.find((c) => c.id === room.characterId);
     return character?.name || "Unknown";
   };
 
@@ -154,7 +155,7 @@ export function SidebarChatRooms() {
                   <div className="flex items-center gap-1 mb-1">
                     <MessageSquare className="h-3 w-3 text-white/40 flex-shrink-0" />
                     <p className="text-xs text-white/60 truncate">
-                      {getCharacterName(room.characterId)}
+                      {getCharacterName(room)}
                     </p>
                   </div>
                   {room.lastText && (

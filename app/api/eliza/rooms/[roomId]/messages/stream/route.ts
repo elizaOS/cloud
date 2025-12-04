@@ -33,10 +33,10 @@ export async function POST(
   const encoder = new TextEncoder();
 
   try {
-    // Step 1: Parse and validate request
+    // Step 1: Parse request body FIRST (needed for session token check)
     const { roomId } = await ctx.params;
     const body = await request.json();
-    const { entityId, text, model, agentMode } = body;
+    const { entityId, text, model, sessionToken, agentMode } = body;
 
     if (!roomId || !entityId || !text?.trim()) {
       return new Response(
@@ -66,11 +66,23 @@ export async function POST(
       logger.debug("[Stream] User selected model:", model);
     }
 
-    // Step 2: Authentication & Context Building (single step, clean!)
+    // Step 2: Authentication & Context Building (pass body for session token check)
+    logger.info(
+      "[Stream] 📊 Session token from body:",
+      sessionToken ? sessionToken.slice(0, 8) + "..." : "N/A",
+    );
     const userContext = await authenticateAndBuildContext(
       request,
       agentModeConfig.mode,
+      { sessionToken },
     );
+
+    logger.info("[Stream] 📊 UserContext after auth:", {
+      isAnonymous: userContext.isAnonymous,
+      hasSessionToken: !!userContext.sessionToken,
+      sessionTokenPreview: userContext.sessionToken?.slice(0, 8) + "...",
+      userId: userContext.userId,
+    });
 
     // Step 3: Rate limiting for anonymous users
     if (userContext.isAnonymous && userContext.sessionToken) {
@@ -318,33 +330,144 @@ export async function POST(
 /**
  * Helper function to authenticate and build user context
  * Centralizes authentication and context creation
+ *
+ * IMPORTANT: Auth priority (ALWAYS try Privy first):
+ * 1. Try Privy/API key auth - if succeeds, return authenticated context
+ * 2. If Privy fails, try anonymous session from token/cookie
+ * 3. If no session, create new anonymous session
+ *
+ * This ensures authenticated users are NEVER treated as anonymous,
+ * even if they have a stale session token in their request.
  */
 async function authenticateAndBuildContext(
   request: NextRequest,
   agentMode: AgentMode,
+  body?: { sessionToken?: string },
 ) {
+  const headerToken = request.headers.get("X-Anonymous-Session");
+  const bodyToken = body?.sessionToken;
+  const anonymousSessionToken = headerToken || bodyToken;
+
+  logger.info("[Stream Auth] Starting authentication", {
+    hasSessionToken: !!anonymousSessionToken,
+    tokenPreview: anonymousSessionToken?.slice(0, 8) + "...",
+  });
+
+  // CRITICAL: ALWAYS try Privy auth FIRST, regardless of session token
+  // This ensures authenticated users are never treated as anonymous
   try {
-    // Try authenticated user first
+    logger.info("[Stream Auth] Attempting Privy/API key authentication...");
     const authResult = await requireAuthOrApiKey(request);
+    logger.info("[Stream Auth] ✅ Privy/API auth SUCCEEDED - treating as authenticated user:", {
+      userId: authResult.user.id,
+      authMethod: authResult.authMethod,
+      isAnonymous: authResult.user.is_anonymous,
+    });
+
+    // Double-check the user is not anonymous (migration should have set this to false)
+    if (authResult.user.is_anonymous) {
+      logger.warn("[Stream Auth] ⚠️ User is authenticated but still marked as anonymous - this may indicate incomplete migration");
+    }
+
     return await userContextService.buildContext({
       ...authResult,
       isAnonymous: false,
       agentMode,
     });
   } catch (error) {
-    // Fall back to anonymous user
-    const anonData = await getAnonymousUser();
-    if (!anonData) {
-      throw new Error("Authentication required");
+    logger.info("[Stream Auth] ❌ Privy auth failed, falling back to anonymous:", error instanceof Error ? error.message : String(error));
+  }
+
+  // Privy auth failed - handle as anonymous user
+  logger.info("[Stream Auth] Processing as anonymous user...");
+
+  const { anonymousSessionsService, usersService } = await import("@/lib/services");
+
+  // Try provided session token first
+  if (anonymousSessionToken) {
+    logger.info("[Stream] 🔑 Session token provided in request:", anonymousSessionToken.slice(0, 8) + "...");
+
+    const session = await anonymousSessionsService.getByToken(anonymousSessionToken);
+
+    logger.info("[Stream] 🔍 Session lookup result:", {
+      found: !!session,
+      sessionId: session?.id,
+      messageCount: session?.message_count,
+      isActive: session?.is_active,
+      convertedAt: session?.converted_at,
+    });
+
+    if (session) {
+      // Check if session has been converted (user authenticated after this session was created)
+      if (session.converted_at || !session.is_active) {
+        logger.info("[Stream] ⚠️ Session has been converted/deactivated - user should be authenticated", {
+          sessionId: session.id,
+          convertedAt: session.converted_at,
+          isActive: session.is_active,
+        });
+        // This session was migrated - the user should authenticate via Privy
+        // Don't use this session, fall through to create new anonymous or fail
+      } else {
+        const user = await usersService.getById(session.user_id);
+        logger.info("[Stream] 👤 User lookup result:", {
+          found: !!user,
+          userId: user?.id,
+          isAnonymous: user?.is_anonymous,
+        });
+
+        if (user && user.is_anonymous) {
+          logger.info("[Stream] ✅ Using session from provided token:", {
+            sessionId: session.id,
+            userId: user.id,
+            messageCount: session.message_count,
+          });
+          return await userContextService.buildContext({
+            user: { ...user, organization: null as never },
+            anonymousSession: session,
+            isAnonymous: true,
+            agentMode,
+          });
+        } else {
+          logger.warn("[Stream] ⚠️ User not found or not anonymous for session:", session.id);
+        }
+      }
+    } else {
+      logger.warn("[Stream] ⚠️ Session not found for provided token:", anonymousSessionToken.slice(0, 8) + "...");
     }
 
-    return await userContextService.buildContext({
-      user: anonData.user,
-      anonymousSession: anonData.session,
-      isAnonymous: true,
-      agentMode,
+    logger.warn(
+      "[Stream] ⚠️ Provided session token invalid or converted, falling back to cookie",
+    );
+  }
+
+  // Fall back to cookie
+  let anonData = await getAnonymousUser();
+
+  if (!anonData) {
+    logger.info("[Stream] No session cookie - creating new anonymous session");
+    const { getOrCreateAnonymousUser } = await import("@/lib/auth-anonymous");
+    const newAnonData = await getOrCreateAnonymousUser();
+    anonData = {
+      user: newAnonData.user,
+      session: newAnonData.session,
+    };
+    logger.info("[Stream] Created anonymous user:", {
+      userId: anonData.user.id,
+      sessionToken: anonData.session!.session_token.slice(0, 8) + "...",
+    });
+  } else {
+    logger.info("[Stream] Anonymous user found via cookie:", {
+      userId: anonData.user.id,
+      messageCount: anonData.session!.message_count,
     });
   }
+
+  return await userContextService.buildContext({
+    user: anonData.user,
+    anonymousSession: anonData.session!,
+    isAnonymous: true,
+    agentMode,
+  });
 }
 
 /**

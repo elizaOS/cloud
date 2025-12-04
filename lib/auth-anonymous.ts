@@ -22,8 +22,10 @@ import {
   conversations,
   anonymousSessions,
   organizations,
+  userCharacters,
+  elizaRoomCharactersTable,
 } from "@/db/schemas";
-import { eq, and } from "drizzle-orm";
+import { eq, and, sql } from "drizzle-orm";
 import { logger } from "@/lib/utils/logger";
 import type { UserWithOrganization } from "@/lib/types";
 
@@ -144,7 +146,17 @@ export async function getOrCreateAnonymousUser(): Promise<{
     messages_limit: ANON_MESSAGE_LIMIT,
   });
 
-  logger.info("auth-anonymous", "Created new anonymous session", {
+  // Set the cookie so subsequent requests are authenticated
+  // This is valid because getOrCreateAnonymousUser is called from Route Handlers
+  cookieStore.set(ANON_SESSION_COOKIE, newSessionToken, {
+    httpOnly: true,
+    secure: process.env.NODE_ENV === "production",
+    sameSite: "lax",
+    path: "/",
+    expires: expiresAt,
+  });
+
+  logger.info("auth-anonymous", "Created new anonymous session and set cookie", {
     userId: newUser.id,
     sessionId: newSession.id,
     expiresAt,
@@ -181,12 +193,35 @@ export async function convertAnonymousToReal(
   });
 
   await db.transaction(async (tx) => {
-    // 1. Get the anonymous user
-    const [anonUser] = await tx
+    // 1. Get the anonymous user - try with is_anonymous flag first
+    let [anonUser] = await tx
       .select()
       .from(users)
       .where(and(eq(users.id, anonymousUserId), eq(users.is_anonymous, true)))
       .limit(1);
+
+    // Fallback: Also check for affiliate users that might not have is_anonymous flag set correctly
+    // These have placeholder emails like "affiliate-xxx@anonymous.elizacloud.ai"
+    if (!anonUser) {
+      [anonUser] = await tx
+        .select()
+        .from(users)
+        .where(
+          and(
+            eq(users.id, anonymousUserId),
+            sql`${users.email} LIKE 'affiliate-%@anonymous.elizacloud.ai'`,
+            sql`${users.privy_user_id} IS NULL`
+          )
+        )
+        .limit(1);
+      
+      if (anonUser) {
+        logger.info("auth-anonymous", "Found affiliate user without is_anonymous flag", {
+          userId: anonUser.id,
+          email: anonUser.email,
+        });
+      }
+    }
 
     if (!anonUser) {
       throw new Error("Anonymous user not found");
@@ -198,6 +233,9 @@ export async function convertAnonymousToReal(
       .from(users)
       .where(eq(users.privy_user_id, privyUserId))
       .limit(1);
+
+    let targetUserId: string;
+    let targetOrgId: string | null;
 
     if (!realUser) {
       // Real user doesn't exist yet - create organization and convert in-place
@@ -235,6 +273,9 @@ export async function convertAnonymousToReal(
         })
         .where(eq(users.id, anonymousUserId));
 
+      targetUserId = anonymousUserId;
+      targetOrgId = organization.id;
+
       logger.info(
         "auth-anonymous",
         "Converted anonymous user to real user (in-place)",
@@ -244,8 +285,29 @@ export async function convertAnonymousToReal(
           organizationId: organization.id,
         },
       );
+
+      // Update user_characters to point to the new organization (user_id stays the same)
+      const charResult = await tx
+        .update(userCharacters)
+        .set({
+          organization_id: organization.id,
+          updated_at: new Date(),
+        })
+        .where(eq(userCharacters.user_id, anonymousUserId))
+        .returning({ id: userCharacters.id, name: userCharacters.name });
+
+      if (charResult.length > 0) {
+        logger.info("auth-anonymous", "Updated characters with new organization", {
+          userId: anonymousUserId,
+          organizationId: organization.id,
+          characterCount: charResult.length,
+          characters: charResult.map(c => ({ id: c.id, name: c.name })),
+        });
+      }
     } else {
       // Real user exists - transfer data from anonymous to real user
+      targetUserId = realUser.id;
+      targetOrgId = realUser.organization_id;
 
       // Transfer conversations
       const conversationResult = await tx
@@ -267,6 +329,58 @@ export async function convertAnonymousToReal(
           conversationCount: conversationResult.length,
         },
       );
+
+      // Transfer user_characters ownership
+      const charResult = await tx
+        .update(userCharacters)
+        .set({
+          user_id: realUser.id,
+          organization_id: realUser.organization_id,
+          updated_at: new Date(),
+        })
+        .where(eq(userCharacters.user_id, anonymousUserId))
+        .returning({ id: userCharacters.id, name: userCharacters.name });
+
+      if (charResult.length > 0) {
+        logger.info("auth-anonymous", "Transferred characters to real user", {
+          anonymousUserId,
+          realUserId: realUser.id,
+          characterCount: charResult.length,
+          characters: charResult.map(c => ({ id: c.id, name: c.name })),
+        });
+      }
+
+      // Transfer eliza_room_characters mappings
+      const roomCharResult = await tx
+        .update(elizaRoomCharactersTable)
+        .set({
+          user_id: realUser.id,
+          updated_at: new Date(),
+        })
+        .where(eq(elizaRoomCharactersTable.user_id, anonymousUserId))
+        .returning({ room_id: elizaRoomCharactersTable.room_id });
+
+      if (roomCharResult.length > 0) {
+        logger.info("auth-anonymous", "Transferred room-character mappings to real user", {
+          anonymousUserId,
+          realUserId: realUser.id,
+          mappingCount: roomCharResult.length,
+        });
+      }
+
+      // Transfer participants (update entityId to point to real user)
+      // Note: entityId in participants is typically a stringToUuid of the entityId string
+      // We need to update any participants that reference the anonymous user's entity
+      await tx.execute(sql`
+        UPDATE participants 
+        SET "entityId" = ${realUser.id}::uuid
+        WHERE "entityId" = ${anonymousUserId}::uuid
+      `);
+
+      logger.info("auth-anonymous", "Updated participant entityIds", {
+        anonymousUserId,
+        realUserId: realUser.id,
+      });
 
       // Delete anonymous user (cascade will clean up sessions)
       await tx.delete(users).where(eq(users.id, anonymousUserId));
@@ -302,9 +416,14 @@ export async function convertAnonymousToReal(
     }
   });
 
-  // 4. Clear anonymous cookie
-  const cookieStore = await cookies();
-  cookieStore.delete(ANON_SESSION_COOKIE);
+  // 4. Clear anonymous cookie (only works when called from a request context)
+  try {
+    const cookieStore = await cookies();
+    cookieStore.delete(ANON_SESSION_COOKIE);
+  } catch {
+    // Cookie deletion may fail if not in request context (e.g., webhook)
+    logger.debug("auth-anonymous", "Could not delete cookie (likely not in request context)");
+  }
 
   logger.info("auth-anonymous", "Successfully converted anonymous user", {
     anonymousUserId,
@@ -368,21 +487,42 @@ export async function getAnonymousUser(): Promise<{
   const cookieStore = await cookies();
   const sessionToken = cookieStore.get(ANON_SESSION_COOKIE)?.value;
 
+  logger.debug("[getAnonymousUser] Checking for anonymous session cookie:", {
+    hasCookie: !!sessionToken,
+    cookieName: ANON_SESSION_COOKIE,
+    tokenPreview: sessionToken ? sessionToken.slice(0, 8) + "..." : "N/A",
+  });
+
   if (!sessionToken) {
+    logger.debug("[getAnonymousUser] No session cookie found");
     return null;
   }
 
   const session = await anonymousSessionsService.getByToken(sessionToken);
 
   if (!session) {
+    logger.debug("[getAnonymousUser] Session not found in DB for token:", sessionToken.slice(0, 8));
     return null;
   }
+
+  logger.debug("[getAnonymousUser] Session found:", {
+    sessionId: session.id,
+    userId: session.user_id,
+  });
 
   const user = await usersService.getById(session.user_id);
 
-  if (!user || !user.is_anonymous) {
+  if (!user) {
+    logger.debug("[getAnonymousUser] User not found for ID:", session.user_id);
     return null;
   }
+
+  if (!user.is_anonymous) {
+    logger.debug("[getAnonymousUser] User is not anonymous:", user.id);
+    return null;
+  }
+
+  logger.debug("[getAnonymousUser] Anonymous user found:", user.id);
 
   return {
     user: {

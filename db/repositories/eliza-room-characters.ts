@@ -8,6 +8,18 @@ import {
 
 export const elizaRoomCharactersRepository = {
   /**
+   * Count rooms for a specific user
+   */
+  async countByUserId(userId: string): Promise<number> {
+    const result = await db
+      .select({ count: count() })
+      .from(elizaRoomCharactersTable)
+      .where(eq(elizaRoomCharactersTable.user_id, userId));
+
+    return result[0]?.count ?? 0;
+  },
+
+  /**
    * Count rooms for a specific character
    */
   async countByCharacterId(characterId: string): Promise<number> {
@@ -57,7 +69,7 @@ export const elizaRoomCharactersRepository = {
     // DISABLED: Caching causes stale data in Vercel serverless (isolated container caches)
     // ALWAYS fetch from DB - character mapping lookups are fast (~5ms)
     console.log(
-      `[RoomCharRepo] findByRoomId(${roomId.substring(0, 8)}...) - fetching from DB (cache disabled)`,
+      `[RoomCharRepo] findByRoomId(${roomId.substring(0, 8)}...) - fetching from DB (cache disabled)`
     );
 
     const result = await db
@@ -68,8 +80,8 @@ export const elizaRoomCharactersRepository = {
 
     const character = result[0];
     console.log(
-      `[RoomCharRepo] DB result - characterId:`,
-      character?.character_id || "none",
+      "[RoomCharRepo] DB result - characterId:",
+      character?.character_id || "none"
     );
 
     return character;
@@ -104,7 +116,7 @@ export const elizaRoomCharactersRepository = {
 
   async update(
     roomId: string,
-    characterId: string,
+    characterId: string
   ): Promise<ElizaRoomCharacter | undefined> {
     const result = await db
       .update(elizaRoomCharactersTable)
