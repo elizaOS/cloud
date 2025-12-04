@@ -6,9 +6,17 @@ import {
   charactersService,
   listContainers,
 } from "@/lib/services";
+import { agentDiscoveryService } from "@/lib/services/agent-discovery";
 import { cache as cacheClient } from "@/lib/cache/client";
 import { CacheKeys, CacheStaleTTL } from "@/lib/cache/keys";
 import { cache } from "react";
+
+export interface AgentStats {
+  roomCount: number;
+  messageCount: number;
+  deploymentStatus: "deployed" | "stopped" | "draft";
+  lastActiveAt: Date | null;
+}
 
 export interface DashboardData {
   user: {
@@ -27,6 +35,7 @@ export interface DashboardData {
     avatarUrl: string | null;
     category: string | null;
     isPublic: boolean;
+    stats?: AgentStats;
   }>;
   containers: Array<{
     id: string;
@@ -68,6 +77,26 @@ async function fetchDashboardDataInternal(
   // TODO: Implement proper 24h API call tracking
   const apiCalls24h = generationStats.totalGenerations;
 
+  // Fetch agent stats in batch
+  const characterIds = userCharacters.map((c) => c.id);
+  let agentStatsMap = new Map<string, AgentStats>();
+  
+  if (characterIds.length > 0) {
+    try {
+      const statsMap = await agentDiscoveryService.getAgentStatisticsBatch(characterIds);
+      statsMap.forEach((stats, id) => {
+        agentStatsMap.set(id, {
+          roomCount: stats.roomCount,
+          messageCount: stats.messageCount,
+          deploymentStatus: stats.status,
+          lastActiveAt: stats.lastActiveAt,
+        });
+      });
+    } catch (error) {
+      console.warn("[Dashboard] Failed to fetch agent stats:", error);
+    }
+  }
+
   return {
     user: {
       name: user.name || "User",
@@ -85,6 +114,7 @@ async function fetchDashboardDataInternal(
       avatarUrl: c.avatar_url || null,
       category: c.category || null,
       isPublic: c.is_public,
+      stats: agentStatsMap.get(c.id),
     })),
     containers: containers.map((c) => ({
       id: c.id,

@@ -13,10 +13,18 @@ import {
   LockOnButton,
 } from "@/components/brand";
 import { cn } from "@/lib/utils";
-import { Bot, MessageSquare, Plus, Sparkles } from "lucide-react";
+import { Bot, MessageSquare, Plus, Sparkles, Rocket, Clock, Users } from "lucide-react";
 import Image from "next/image";
 import Link from "next/link";
 import { Badge } from "@/components/ui/badge";
+import { formatDistanceToNow } from "date-fns";
+
+interface AgentStats {
+  roomCount: number;
+  messageCount: number;
+  deploymentStatus: "deployed" | "stopped" | "draft";
+  lastActiveAt: Date | null;
+}
 
 interface Agent {
   id: string;
@@ -25,6 +33,7 @@ interface Agent {
   avatarUrl: string | null;
   category: string | null;
   isPublic: boolean;
+  stats?: AgentStats;
 }
 
 interface AgentsSectionProps {
@@ -63,7 +72,7 @@ export function AgentsSection({ agents, className }: AgentsSectionProps) {
         <AgentsEmptyState />
       ) : (
         <>
-          <div className="grid gap-4 md:grid-cols-2">
+          <div className="grid gap-4 md:grid-cols-2 auto-rows-fr">
             {displayAgents.map((agent) => (
               <AgentCard key={agent.id} agent={agent} />
             ))}
@@ -89,49 +98,84 @@ export function AgentsSection({ agents, className }: AgentsSectionProps) {
 // Individual Agent Card
 function AgentCard({ agent }: { agent: Agent }) {
   const bioText = Array.isArray(agent.bio) ? agent.bio[0] : agent.bio;
-  const truncatedBio =
-    bioText.length > 100 ? `${bioText.substring(0, 100)}...` : bioText;
+  const isDeployed = agent.stats?.deploymentStatus === "deployed";
+  const isStopped = agent.stats?.deploymentStatus === "stopped";
 
   return (
-    <Link href={`/dashboard/chat?characterId=${agent.id}`}>
-      <BrandCard
-        corners={true}
-        cornerSize="sm"
-        hover
-        className="group transition-all duration-300 hover:border-[#FF5800]/50"
-      >
-        <div className="flex items-center gap-4">
-          {/* Avatar */}
-          <div className="relative h-16 w-16 flex-shrink-0 rounded-sm overflow-hidden bg-gradient-to-br from-[#FF5800]/20 to-orange-600/20 border border-white/10 flex items-center justify-center">
+    <Link href={`/dashboard/chat?characterId=${agent.id}`} className="block h-full">
+      <div className="group relative h-full overflow-hidden rounded-lg border border-white/10 bg-gradient-to-r from-white/[0.04] to-transparent transition-all duration-300 hover:border-[#FF5800]/50 hover:shadow-lg hover:shadow-[#FF5800]/10 p-4">
+        <div className="flex items-start gap-4 h-full">
+          {/* Avatar - Left side icon */}
+          <div className="relative h-16 w-16 flex-shrink-0 rounded-lg overflow-hidden bg-gradient-to-br from-[#FF5800]/20 to-orange-700/10 border border-white/10">
             {agent.avatarUrl ? (
               <Image
                 src={agent.avatarUrl}
                 alt={agent.name}
                 fill
-                className="object-cover"
+                className="object-cover transition-transform duration-300 group-hover:scale-110"
               />
             ) : (
-              <Bot className="h-8 w-8 text-white/40" />
+              <div className="h-full w-full flex items-center justify-center">
+                <Bot className="h-8 w-8 text-white/40" />
+              </div>
+            )}
+            {/* Status indicator dot */}
+            {isDeployed && (
+              <div className="absolute -top-1 -right-1 h-3 w-3 rounded-full bg-green-500 border-2 border-black" />
             )}
           </div>
 
-          {/* Content */}
-          <div className="flex-1 min-w-0">
+          {/* Content - Right side */}
+          <div className="flex-1 min-w-0 flex flex-col">
+            {/* Name & Status */}
             <div className="flex items-center gap-2 mb-1">
               <h3 className="font-semibold text-white truncate group-hover:text-[#FF5800] transition-colors">
                 {agent.name}
               </h3>
-              {agent.category && (
-                <Badge variant="outline" className="text-xs flex-shrink-0">
-                  {agent.category}
+              {isDeployed && (
+                <Badge className="bg-green-600/80 text-[10px] px-1.5 py-0 h-4">
+                  <Rocket className="h-2.5 w-2.5 mr-0.5" />
+                  Live
+                </Badge>
+              )}
+              {isStopped && (
+                <Badge variant="secondary" className="text-[10px] px-1.5 py-0 h-4 bg-yellow-600/30 text-yellow-400/80">
+                  Stopped
                 </Badge>
               )}
             </div>
-            {/* Bio */}
-            <p className="text-sm text-white/60 line-clamp-2">{truncatedBio}</p>
+            
+            {/* Bio - Fixed 1 line to make room for stats */}
+            <p className="text-xs text-white/50 line-clamp-1 leading-relaxed">
+              {bioText}
+            </p>
+            
+            {/* Stats row - Always at bottom */}
+            <div className="flex items-center gap-3 mt-auto pt-2 text-[11px] text-white/40">
+              <span className="flex items-center gap-1">
+                <MessageSquare className="h-3 w-3" />
+                {agent.stats?.roomCount ?? 0} chats
+              </span>
+              {agent.stats?.lastActiveAt && (
+                <span className="flex items-center gap-1">
+                  <Clock className="h-3 w-3" />
+                  {formatDistanceToNow(new Date(agent.stats.lastActiveAt), { addSuffix: true })}
+                </span>
+              )}
+              {agent.category && (
+                <span className="flex items-center gap-1 ml-auto text-white/30">
+                  {agent.category}
+                </span>
+              )}
+            </div>
           </div>
         </div>
-      </BrandCard>
+
+        {/* Corner accent */}
+        <div className="absolute top-0 right-0 w-6 h-6 overflow-hidden">
+          <div className="absolute -top-3 -right-3 w-6 h-6 bg-gradient-to-bl from-[#FF5800]/20 to-transparent rotate-45" />
+        </div>
+      </div>
     </Link>
   );
 }
@@ -192,27 +236,33 @@ export function AgentsSectionSkeleton() {
       </div>
 
       {/* Agents Grid Skeleton */}
-      <div className="grid gap-4 md:grid-cols-2">
+      <div className="grid gap-4 md:grid-cols-2 auto-rows-fr">
         {[...Array(4)].map((_, index) => (
-          <BrandCard key={index} corners={true} cornerSize="sm">
-            <div className="flex items-center gap-4">
+          <div 
+            key={index} 
+            className="rounded-lg border border-white/10 bg-gradient-to-r from-white/[0.04] to-transparent p-4 h-[120px]"
+          >
+            <div className="flex items-start gap-4">
               {/* Avatar skeleton */}
-              <div className="h-16 w-16 flex-shrink-0 rounded-sm bg-white/10 animate-pulse" />
-
+              <div className="h-16 w-16 flex-shrink-0 rounded-lg bg-white/10 animate-pulse" />
+              
               {/* Content skeleton */}
-              <div className="flex-1 min-w-0">
-                <div className="flex items-center gap-2 mb-2">
+              <div className="flex-1 min-w-0 space-y-2">
+                <div className="flex items-center gap-2">
                   <div className="h-5 w-24 bg-white/10 animate-pulse rounded" />
                   <div className="h-4 w-16 bg-white/10 animate-pulse rounded" />
                 </div>
-                {/* Bio skeleton */}
                 <div className="space-y-1.5">
                   <div className="h-3 w-full bg-white/10 animate-pulse rounded" />
                   <div className="h-3 w-3/4 bg-white/10 animate-pulse rounded" />
                 </div>
+                <div className="flex items-center gap-2 pt-1">
+                  <div className="h-3 w-3 bg-white/10 animate-pulse rounded" />
+                  <div className="h-2 w-16 bg-white/10 animate-pulse rounded" />
+                </div>
               </div>
             </div>
-          </BrandCard>
+          </div>
         ))}
       </div>
     </div>
