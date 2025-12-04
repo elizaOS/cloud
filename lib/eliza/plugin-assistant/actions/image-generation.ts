@@ -66,23 +66,82 @@ function extractAffiliateImageConfig(
   return result;
 }
 
-const appearanceExtractionPrompt = `Analyze these reference photos and provide a DETAILED physical appearance description.
+const appearanceExtractionPrompt = `You are analyzing a photo to extract EXTREMELY DETAILED physical appearance characteristics.
 
-Focus on PERMANENT physical features that define this person's look:
-- Hair: color, length, texture, style
-- Face shape and structure
-- Eye color and shape
-- Skin tone
-- Any distinctive features (freckles, dimples, etc.)
-- Body type/build
-- Typical style/aesthetic
+Your task is to describe this person's appearance with MAXIMUM PRECISION so that an AI image generator can recreate their exact look.
+
+###########################################
+# CRITICAL - GENDER IDENTIFICATION FIRST #
+###########################################
+
+FIRST AND MOST IMPORTANT: Identify the GENDER of the person in this photo.
+- Is this a WOMAN/FEMALE or a MAN/MALE?
+- This MUST be the FIRST word in your description
+- Getting gender wrong is an UNACCEPTABLE error
+
+Analyze and describe IN EXTREME DETAIL:
+
+0. GENDER (MANDATORY FIRST):
+   - State clearly: "woman" or "man" (this MUST be the first word)
+   - Approximate age range (young woman in her 20s, man in his 30s, etc.)
+
+1. FACE STRUCTURE (be very specific):
+   - Face shape (oval, round, square, heart, oblong, diamond)
+   - Jawline (sharp, soft, angular, rounded)
+   - Cheekbones (high, low, prominent, subtle)
+   - Chin shape (pointed, rounded, square, cleft)
+   - Forehead (high, low, wide, narrow)
+
+2. EYES (critical for likeness):
+   - Eye color (exact shade: e.g., "light blue-green", "dark brown", "hazel with gold flecks")
+   - Eye shape (almond, round, hooded, downturned, upturned, monolid)
+   - Eye size (large, medium, small relative to face)
+   - Eyelid type (single, double, hooded)
+   - Distance between eyes (close-set, wide-set, average)
+
+3. EYEBROWS (very distinctive feature):
+   - Shape (arched, straight, rounded, angular)
+   - Thickness (thick, thin, medium, bushy)
+   - Color (match hair or different?)
+   - Any distinctive characteristics (e.g., "bold thick straight brows")
+
+4. NOSE:
+   - Shape (straight, Roman, button, upturned, aquiline)
+   - Size (small, medium, large, wide, narrow)
+   - Bridge (high, low, bumped)
+   - Tip shape (rounded, pointed, bulbous)
+
+5. LIPS & MOUTH:
+   - Lip shape (full, thin, cupid's bow, heart-shaped)
+   - Lip size (full upper/lower, thin upper/lower)
+   - Mouth width (wide, narrow, average)
+
+6. HAIR (essential for recognition):
+   - Color (be VERY specific: "platinum blonde", "dark chestnut brown", "black with blue undertones")
+   - Length (pixie, chin-length, shoulder, mid-back, long)
+   - Texture (straight, wavy, curly, coily)
+   - Style visible in photo
+   - Thickness (fine, medium, thick)
+   - Hairline shape
+
+7. SKIN:
+   - Skin tone (very fair, fair, light, medium, olive, tan, brown, dark brown, deep)
+   - Undertone (warm, cool, neutral)
+   - Any distinctive marks (freckles, beauty marks, dimples)
+   - Texture (smooth, textured)
+
+8. OVERALL DISTINCTIVE FEATURES:
+   - What makes this person instantly recognizable?
+   - Any unique characteristics?
+   - Ethnic appearance cues
 
 Your response MUST be in this XML format:
 <response>
-  <appearance>A detailed, reusable description of this person's physical appearance that can be used to generate similar-looking images. Be specific about colors, shapes, and distinctive features. Write it as a comma-separated list of visual attributes.</appearance>
+  <gender>woman OR man (just one word)</gender>
+  <appearance>MUST START WITH GENDER: "young woman, ..." or "young man, ..." then followed by all physical features. Example for a woman: "young woman, platinum blonde straight shoulder-length hair, bold thick straight dark eyebrows, piercing blue-green eyes, almond-shaped eyes, high cheekbones, defined jawline, fair skin with light freckles, full lips, small straight nose, heart-shaped face" - Example for a man: "young man, short dark brown wavy hair, brown eyes, strong jawline, light stubble, medium skin tone, athletic build"</appearance>
 </response>
 
-Be very specific - this description will be used to generate new images that look like this same person.`;
+CRITICAL: The <gender> field and the first word of <appearance> MUST match. If you see a woman, write "woman". If you see a man, write "man". NEVER get this wrong.`;
 
 async function getOrExtractAppearanceDescription(
   runtime: IAgentRuntime,
@@ -105,34 +164,123 @@ async function getOrExtractAppearanceDescription(
     return null;
   }
 
-  logger.info("[GENERATE_IMAGE] 🔬 Extracting appearance description from reference images...");
+  logger.info(`[GENERATE_IMAGE] 🔬 Extracting appearance using VISION MODEL from ${config.referenceImageUrls.length} reference images...`);
 
   try {
-    const imageUrls = config.referenceImageUrls.slice(0, 3);
+    const imageUrls = config.referenceImageUrls.slice(0, 4);
+    const appearanceDescriptions: string[] = [];
+    const detectedGenders: string[] = [];
 
-    const visionPrompt = `${appearanceExtractionPrompt}
+    for (let i = 0; i < imageUrls.length; i++) {
+      const imageUrl = imageUrls[i];
+      logger.info(`[GENERATE_IMAGE] 🔍 Analyzing reference image ${i + 1}/${imageUrls.length} with vision model...`);
 
-I'm providing ${imageUrls.length} reference photo(s) of the same person.
-${imageUrls.map((url, i) => `Photo ${i + 1}: ${url}`).join("\n")}
+      try {
+        const visionResult = await runtime.useModel(ModelType.IMAGE_DESCRIPTION, {
+          imageUrl: imageUrl,
+          prompt: appearanceExtractionPrompt,
+        });
 
-Analyze these photos and describe the person's appearance.`;
+        if (visionResult) {
+          let descriptionText = "";
+          if (typeof visionResult === "string") {
+            descriptionText = visionResult;
+          } else if (typeof visionResult === "object" && "description" in visionResult) {
+            descriptionText = (visionResult as { description: string }).description;
+          }
 
-    const response = await runtime.useModel(ModelType.TEXT_LARGE, {
-      prompt: visionPrompt,
-    });
+          if (descriptionText) {
+            const parsed = parseKeyValueXml(descriptionText);
+            let appearance = parsed?.appearance || descriptionText;
+            const gender = parsed?.gender?.toLowerCase()?.trim();
 
-    const parsed = parseKeyValueXml(response);
-    const appearance = parsed?.appearance;
+            if (gender === "woman" || gender === "man") {
+              detectedGenders.push(gender);
+              logger.info(`[GENERATE_IMAGE] 👤 Image ${i + 1} detected gender: ${gender}`);
+            }
 
-    if (appearance && typeof appearance === "string" && appearance.length > 20) {
-      logger.info(`[GENERATE_IMAGE] ✅ Extracted appearance: "${appearance.substring(0, 100)}..."`);
-      appearanceDescriptionCache.set(cacheKey, appearance);
-      return appearance;
+            if (appearance && typeof appearance === "string" && appearance.length > 20) {
+              if (!appearance.toLowerCase().startsWith("woman") && !appearance.toLowerCase().startsWith("man") &&
+                  !appearance.toLowerCase().startsWith("young woman") && !appearance.toLowerCase().startsWith("young man")) {
+                if (gender) {
+                  appearance = `${gender}, ${appearance}`;
+                }
+              }
+              logger.info(`[GENERATE_IMAGE] ✅ Image ${i + 1} appearance: "${appearance.substring(0, 80)}..."`);
+              appearanceDescriptions.push(appearance);
+            }
+          }
+        }
+      } catch (imgError: any) {
+        logger.warn(`[GENERATE_IMAGE] ⚠️ Failed to analyze image ${i + 1}: ${imgError.message}`);
+      }
     }
 
-    logger.warn("[GENERATE_IMAGE] ⚠️ Could not extract valid appearance description");
-    return null;
-  } catch (error:any) {
+    const dominantGender = detectedGenders.length > 0
+      ? (detectedGenders.filter(g => g === "woman").length >= detectedGenders.filter(g => g === "man").length ? "woman" : "man")
+      : null;
+
+    if (dominantGender) {
+      logger.info(`[GENERATE_IMAGE] 👤 Dominant gender detected: ${dominantGender} (from ${detectedGenders.length} images)`);
+    }
+
+    if (appearanceDescriptions.length === 0) {
+      logger.warn("[GENERATE_IMAGE] ⚠️ Could not extract appearance from any reference images");
+      return null;
+    }
+
+    let finalAppearance: string;
+    if (appearanceDescriptions.length === 1) {
+      finalAppearance = appearanceDescriptions[0];
+    } else {
+      logger.info("[GENERATE_IMAGE] 🧩 Combining appearance descriptions from multiple images...");
+      const genderInstruction = dominantGender
+        ? `CRITICAL: This is a ${dominantGender.toUpperCase()}. Your description MUST start with "${dominantGender}".`
+        : "";
+
+      const combinePrompt = `I have ${appearanceDescriptions.length} appearance descriptions of the SAME PERSON from different photos. Combine them into ONE comprehensive, detailed appearance description that captures ALL distinctive features.
+
+${genderInstruction}
+
+Descriptions:
+${appearanceDescriptions.map((d, i) => `Photo ${i + 1}: ${d}`).join("\n\n")}
+
+Create a SINGLE, COMPREHENSIVE appearance description that:
+1. MUST start with the gender ("woman" or "man") - this is CRITICAL
+2. Includes ALL physical features mentioned across all descriptions
+3. Prioritizes the most distinctive/recognizable features first
+4. Resolves any minor inconsistencies by using the most detailed description
+5. Is formatted as a dense, comma-separated list of visual attributes
+
+Your response MUST be in this XML format:
+<response>
+  <appearance>woman, ... OR man, ... (MUST start with gender)</appearance>
+</response>`;
+
+      const combineResponse = await runtime.useModel(ModelType.TEXT_LARGE, {
+        prompt: combinePrompt,
+      });
+
+      const combineParsed = parseKeyValueXml(combineResponse);
+      finalAppearance = combineParsed?.appearance || appearanceDescriptions.join(", ");
+    }
+
+    if (dominantGender && !finalAppearance.toLowerCase().startsWith(dominantGender)) {
+      const startsWithOtherGender = (dominantGender === "woman" && finalAppearance.toLowerCase().startsWith("man")) ||
+                                     (dominantGender === "man" && finalAppearance.toLowerCase().startsWith("woman"));
+      if (startsWithOtherGender) {
+        finalAppearance = finalAppearance.replace(/^(wo)?man,?\s*/i, `${dominantGender}, `);
+        logger.info(`[GENERATE_IMAGE] 🔄 Corrected gender mismatch to: ${dominantGender}`);
+      } else if (!finalAppearance.toLowerCase().startsWith("young " + dominantGender)) {
+        finalAppearance = `${dominantGender}, ${finalAppearance}`;
+        logger.info(`[GENERATE_IMAGE] ➕ Prepended gender: ${dominantGender}`);
+      }
+    }
+
+    logger.info(`[GENERATE_IMAGE] ✅ Final combined appearance: "${finalAppearance.substring(0, 120)}..."`);
+    appearanceDescriptionCache.set(cacheKey, finalAppearance);
+    return finalAppearance;
+  } catch (error: any) {
     logger.error("[GENERATE_IMAGE] ❌ Failed to extract appearance:", error);
     return null;
   }
@@ -279,39 +427,45 @@ const imageGenerationTemplate = `# Task: Generate an image prompt based on the u
  * Template for generating images that match a specific person's appearance.
  * Used when reference images are exhausted and we need to generate new ones.
  */
-const appearanceBasedImageTemplate = `# Task: Generate a ROMANTIC/FLIRTY image of yourself for your crush.
+const appearanceBasedImageTemplate = `# Task: Generate an image that EXACTLY matches the person's appearance.
 
 {{providers}}
 
-# YOUR PHYSICAL APPEARANCE (you MUST match this exactly):
+###########################################
+# CRITICAL - GENDER AND APPEARANCE MATCH #
+###########################################
+
+The person you are generating MUST match this EXACT description:
 {{appearanceDescription}}
 
-# CRITICAL RULES:
-1. The generated image MUST feature a person matching the appearance description above
-2. The image should be romantic, flirty, cute, or seductive
-3. It should feel like a selfie or personal photo you'd send to someone you like
-4. Match the mood and energy of the conversation
+## ABSOLUTE REQUIREMENTS (NEVER VIOLATE):
+1. GENDER: If the description says "woman" - generate a WOMAN. If it says "man" - generate a MAN. NEVER swap genders.
+2. HAIR: EXACT color, length, and style as described
+3. EYES: EXACT color and shape as described
+4. FACE: Match the described facial structure, jawline, cheekbones
+5. SKIN: EXACT skin tone as described
+6. DISTINCTIVE FEATURES: Include all mentioned features (eyebrows, freckles, etc.)
 
-# TYPES OF IMAGES TO GENERATE:
-- Cute selfies with flirty expressions (winking, playful smile, bedroom eyes)
-- Romantic poses (looking over shoulder, playing with hair, blowing kisses)
-- Lifestyle shots (at the beach, cozy at home, dressed up)
-- Mirror selfies, morning vibes, getting ready photos
+## Image Style:
+- Romantic/flirty selfie or personal photo
+- Soft, flattering lighting
+- High quality, photorealistic
+- Appropriate pose (cute, flirty, confident)
 
 # Recent conversation:
 {{recentMessages}}
 
-Based on the conversation, generate an image prompt that:
-1. Features a person EXACTLY matching the appearance description
-2. Has a romantic/flirty vibe appropriate to the conversation
-3. Feels personal and intimate
+# OUTPUT FORMAT:
+Your prompt MUST start with the gender and key features from the appearance description.
 
-Your response should be formatted in XML like this:
+Example for a woman: "photorealistic portrait of a young woman, platinum blonde straight hair, blue-green eyes, bold dark eyebrows, fair skin, high cheekbones, romantic selfie pose, soft lighting, 8k"
+
+Example for a man: "photorealistic portrait of a young man, short dark brown hair, brown eyes, strong jawline, light stubble, confident smile, natural lighting, 8k"
+
+Your response:
 <response>
-  <prompt>A romantic selfie photo of [EXACT appearance from description], [pose/expression], [setting], soft lighting, intimate mood, high quality photo</prompt>
-</response>
-
-Your response should include the valid XML block and nothing else.`;
+  <prompt>photorealistic portrait of a [woman/man - from description], [key features from description], romantic selfie pose, soft natural lighting, looking at camera, photorealistic, 8k, detailed face</prompt>
+</response>`;
 
 /**
  * Vibe-specific conversation styles for generating authentic responses.
@@ -577,13 +731,52 @@ export const generateImageAction = {
           const parsedXml = parseKeyValueXml(promptResponse);
           let imagePrompt = parsedXml?.prompt || "";
 
-          if (!imagePrompt || imagePrompt.length < 20) {
-            imagePrompt = `${appearanceResult.appearanceDescription}, romantic selfie, flirty expression, soft lighting, high quality photo`;
-          } else if (!imagePrompt.toLowerCase().includes(appearanceResult.appearanceDescription.substring(0, 30).toLowerCase())) {
-            imagePrompt = `${appearanceResult.appearanceDescription}, ${imagePrompt}`;
+          const appearance = appearanceResult.appearanceDescription;
+
+          const isWoman = appearance.toLowerCase().startsWith("woman") ||
+                          appearance.toLowerCase().startsWith("young woman") ||
+                          appearance.toLowerCase().includes("woman,");
+          const isMan = appearance.toLowerCase().startsWith("man") ||
+                        appearance.toLowerCase().startsWith("young man") ||
+                        appearance.toLowerCase().includes("man,");
+          const detectedGender = isWoman ? "woman" : (isMan ? "man" : null);
+
+          if (detectedGender) {
+            logger.info(`[GENERATE_IMAGE] 👤 Gender from appearance: ${detectedGender}`);
           }
 
-          logger.info(`[GENERATE_IMAGE] 🎨 Final prompt: "${imagePrompt.substring(0, 150)}..."`);
+          if (!imagePrompt || imagePrompt.length < 20) {
+            imagePrompt = `photorealistic portrait photo of a ${appearance}, romantic selfie pose, looking at camera, soft natural lighting, intimate mood, high quality 8k, detailed facial features`;
+          } else {
+            const hasAppearance = appearance.substring(0, 40).toLowerCase().split(",").some(
+              part => imagePrompt.toLowerCase().includes(part.trim().toLowerCase())
+            );
+            if (!hasAppearance) {
+              imagePrompt = `photorealistic portrait photo of a ${appearance}, ${imagePrompt}`;
+            } else {
+              imagePrompt = `photorealistic portrait photo of a ${imagePrompt}`;
+            }
+          }
+
+          if (detectedGender) {
+            const wrongGender = detectedGender === "woman" ? "man" : "woman";
+            const wrongGenderRegex = new RegExp(`\\b${wrongGender}\\b`, 'gi');
+            if (wrongGenderRegex.test(imagePrompt) && !imagePrompt.toLowerCase().includes(detectedGender)) {
+              imagePrompt = imagePrompt.replace(wrongGenderRegex, detectedGender);
+              logger.info(`[GENERATE_IMAGE] 🔄 Fixed wrong gender in prompt: ${wrongGender} -> ${detectedGender}`);
+            }
+
+            if (!imagePrompt.toLowerCase().includes(detectedGender)) {
+              imagePrompt = `${detectedGender}, ${imagePrompt}`;
+              logger.info(`[GENERATE_IMAGE] ➕ Prepended gender to prompt: ${detectedGender}`);
+            }
+          }
+
+          if (!imagePrompt.toLowerCase().includes("photorealistic")) {
+            imagePrompt = `photorealistic ${imagePrompt}`;
+          }
+
+          logger.info(`[GENERATE_IMAGE] 🎨 Final appearance-matched prompt (${imagePrompt.length} chars): "${imagePrompt.substring(0, 200)}..."`);
 
           const imageResponse = await runtime.useModel(ModelType.IMAGE, { prompt: imagePrompt });
 
@@ -701,8 +894,9 @@ export const generateImageAction = {
             success: true,
           };
         } else {
+          const fallbackResult = appearanceResult as AppearanceGenerationFallback;
           logger.warn(
-            `[GENERATE_IMAGE] ⚠️ Cannot generate appearance-based image: ${appearanceResult.fallbackReason}`,
+            `[GENERATE_IMAGE] ⚠️ Cannot generate appearance-based image: ${fallbackResult.fallbackReason}`,
           );
         }
       }
