@@ -546,10 +546,10 @@ Tell me about your vision!`;
                   fallbackClassName="bg-[#FF5800]"
                 />
                 <h3 className="text-base font-semibold mb-1 text-white font-[family-name:var(--font-roboto-flex)]">
-                  Start Building Your Character
+                  What would you like to create?
                 </h3>
                 <p className="text-sm text-white/60 max-w-md font-[family-name:var(--font-roboto-flex)]">
-                  Describe your character and I&apos;ll help you create it
+                  Describe your character idea and I'll help bring it to life
                 </p>
               </div>
             )}
