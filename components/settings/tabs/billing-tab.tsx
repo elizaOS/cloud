@@ -142,7 +142,7 @@ export function BillingTab({ user }: BillingTabProps) {
         <div className="relative z-10 space-y-6">
           {/* Header */}
           <div className="flex items-center gap-2">
-            <div className="w-2 h-2 rounded-full bg-[#E500FF]" />
+            <div className="w-2 h-2 rounded-full bg-[#FF5800]" />
             <h3 className="text-base font-mono text-[#e1e1e1] uppercase">
               Credit Balance
             </h3>
