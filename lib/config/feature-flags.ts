@@ -15,39 +15,45 @@ export interface FeatureFlagConfig {
 
 type FeatureFlagsMap = Record<FeatureFlag, FeatureFlagConfig>;
 
-const parseEnvFlag = (envVar: string | undefined, defaultValue: boolean): boolean => {
+const parseEnvFlag = (
+  envVar: string | undefined,
+  defaultValue: boolean
+): boolean => {
   if (envVar === undefined) return defaultValue;
   return envVar === "true" || envVar === "1";
 };
 
 export const FEATURE_FLAGS: FeatureFlagsMap = {
   mcp: {
-    enabled: parseEnvFlag(process.env.NEXT_PUBLIC_FEATURE_MCP, false),
+    enabled: parseEnvFlag(process.env.NEXT_PUBLIC_FEATURE_MCP, true),
     name: "MCP Integration",
     description: "Model Context Protocol integration and management",
   },
   characterBuilder: {
-    enabled: parseEnvFlag(process.env.NEXT_PUBLIC_FEATURE_CHARACTER_BUILDER, false),
+    enabled: parseEnvFlag(
+      process.env.NEXT_PUBLIC_FEATURE_CHARACTER_BUILDER,
+      true
+    ),
     name: "Character Builder",
     description: "Visual character creation and editing tool",
   },
   containers: {
-    enabled: parseEnvFlag(process.env.NEXT_PUBLIC_FEATURE_CONTAINERS, false),
+    enabled: parseEnvFlag(process.env.NEXT_PUBLIC_FEATURE_CONTAINERS, true),
     name: "Serverless Containers",
     description: "Container management and serverless deployment",
   },
   gallery: {
-    enabled: parseEnvFlag(process.env.NEXT_PUBLIC_FEATURE_GALLERY, false),
+    enabled: parseEnvFlag(process.env.NEXT_PUBLIC_FEATURE_GALLERY, true),
     name: "Agent Gallery",
     description: "Public gallery of community agents",
   },
   memories: {
-    enabled: parseEnvFlag(process.env.NEXT_PUBLIC_FEATURE_MEMORIES, false),
+    enabled: parseEnvFlag(process.env.NEXT_PUBLIC_FEATURE_MEMORIES, true),
     name: "Memories & Knowledge",
     description: "Agent memories and knowledge base management",
   },
   voiceCloning: {
-    enabled: parseEnvFlag(process.env.NEXT_PUBLIC_FEATURE_VOICE_CLONING, false),
+    enabled: parseEnvFlag(process.env.NEXT_PUBLIC_FEATURE_VOICE_CLONING, true),
     name: "Voice Cloning",
     description: "Custom voice synthesis and cloning",
   },
@@ -74,7 +80,10 @@ export function getDisabledFeatures(): FeatureFlag[] {
   );
 }
 
-export const FEATURE_ROUTE_MAP: Record<FeatureFlag, { frontend: string[]; api: string[] }> = {
+export const FEATURE_ROUTE_MAP: Record<
+  FeatureFlag,
+  { frontend: string[]; api: string[] }
+> = {
   mcp: {
     frontend: ["/dashboard/mcps"],
     api: ["/api/mcp", "/api/v1/mcp"],
