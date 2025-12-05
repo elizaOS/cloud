@@ -156,11 +156,11 @@ export function ChatInterface({
     : Infinity;
   const progress = session ? (messageCount / session.messagesLimit) * 100 : 0;
 
-  // Show signup prompt after 5 messages
+  // Show signup prompt after 2 messages (encouraging earlier)
   const shouldShowSoftPrompt =
-    isAnonymous && messageCount >= 5 && messageCount < 10;
+    isAnonymous && messageCount >= 2 && messagesRemaining > 0;
 
-  // Hard paywall at 10 messages
+  // Hard paywall when no messages remaining (5 messages for free users)
   const shouldShowPaywall = isAnonymous && messagesRemaining <= 0;
 
   // Get CSS variables for theming
@@ -351,18 +351,18 @@ export function ChatInterface({
 
           <div className="space-y-2">
             <h2 className="text-2xl font-bold">
-              You&apos;ve reached your free message limit
+              Log in to save {character.name}
             </h2>
             <p className="text-muted-foreground">
-              Sign up for free to continue chatting with {character.name}
+              Create a free account to keep chatting and save your character
             </p>
           </div>
 
           <div className="rounded-lg p-4 space-y-2 bg-muted/50">
-            <p className="font-medium">What you get:</p>
+            <p className="font-medium">What you get for free:</p>
             <ul className="text-sm text-left space-y-1 text-muted-foreground">
-              <li>✅ Unlimited messages</li>
-              <li>✅ Save your chat history</li>
+              <li>✅ Save your character forever</li>
+              <li>✅ Continue chatting with $1.00 free credits</li>
               <li>✅ Access from any device</li>
               <li>✅ Create more characters</li>
             </ul>
@@ -370,11 +370,11 @@ export function ChatInterface({
 
           <Button size="lg" className="w-full" onClick={handleUpgrade}>
             <Sparkles className="w-4 h-4 mr-2" />
-            Sign Up Free
+            Log In Free
           </Button>
 
           <p className="text-xs text-muted-foreground">
-            No credit card required
+            No credit card required • Takes 30 seconds
           </p>
         </Card>
 
@@ -451,7 +451,10 @@ export function ChatInterface({
 
       {/* Chat interface */}
       <div className="flex-1 overflow-hidden">
-        <ElizaChatInterface onMessageSent={onMessageSent} />
+        <ElizaChatInterface 
+          onMessageSent={onMessageSent} 
+          character={character}
+        />
       </div>
 
       {/* Theme CSS Variables */}

@@ -13,6 +13,12 @@ import type { ElizaCharacter } from "@/lib/types";
 import type { AffiliateMetadata } from "@/lib/types/affiliate";
 import { logger } from "@/lib/utils/logger";
 
+// Get message limit from env or default to 5 (matching auth-anonymous.ts)
+const ANON_MESSAGE_LIMIT = Number.parseInt(
+  process.env.ANON_MESSAGE_LIMIT || "5",
+  10
+);
+
 // Custom validator for URL or base64 data URL
 const urlOrBase64 = z.string().refine(
   (val) => {
@@ -307,7 +313,7 @@ export async function POST(request: NextRequest) {
         session_token: sessionId,
         user_id: anonymousUser.id,
         expires_at: expiresAt,
-        messages_limit: 10, // Free tier: 10 messages before soft signup
+        messages_limit: ANON_MESSAGE_LIMIT, // Free tier: 5 messages before soft signup
         ip_address:
           request.headers.get("x-forwarded-for") ||
           request.headers.get("x-real-ip") ||

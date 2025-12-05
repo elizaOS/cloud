@@ -12,7 +12,7 @@ const ANON_SESSION_COOKIE = "eliza-anon-session";
 
 // Get message limit from env or default
 const ANON_MESSAGE_LIMIT = Number.parseInt(
-  process.env.ANON_MESSAGE_LIMIT || "10",
+  process.env.ANON_MESSAGE_LIMIT || "5",
   10
 );
 

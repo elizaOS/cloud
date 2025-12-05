@@ -192,11 +192,11 @@ export const affiliateContextProvider: Provider = {
       }
 
       // AFFILIATE MODE: Conversational instructions
-      // Detect affiliate character by any of these: source, affiliateId, or vibe
+      // Detect affiliate character by presence of: source, affiliateId, or vibe
       const affiliateId = affiliate?.affiliateId as string | undefined;
       const isAffiliateCharacter = !!(
-        source === "clone-your-crush" ||
-        affiliateId === "clone-your-crush" ||
+        source || // Any source indicates affiliate character
+        affiliateId || // Any affiliateId indicates affiliate character
         vibe // Any vibe indicates affiliate character
       );
 

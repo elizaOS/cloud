@@ -91,6 +91,7 @@ export class RoomsRepository {
 
   /**
    * Create a new room
+   * Note: source and type are required in the database (notNull, no defaults)
    */
   async create(input: CreateRoomInput): Promise<Room> {
     const [room] = await db
@@ -98,8 +99,8 @@ export class RoomsRepository {
       .values({
         id: input.id,
         agentId: input.agentId,
-        source: input.source,
-        type: input.type,
+        source: input.source || "web",
+        type: input.type || "DIRECT",
         name: input.name,
         serverId: input.serverId,
         channelId: input.channelId,

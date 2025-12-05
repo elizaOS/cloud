@@ -137,16 +137,7 @@ function CliLoginContent() {
               Sign in to connect your ElizaOS CLI to the cloud
             </CardDescription>
           </CardHeader>
-          <CardContent className="space-y-4">
-            <div className="rounded-lg bg-muted p-4 text-sm">
-              <p className="font-medium mb-2">What happens next:</p>
-              <ol className="list-decimal list-inside space-y-1 text-muted-foreground">
-                <li>Sign in with your account</li>
-                <li>An API key will be generated</li>
-                <li>The key will be sent to your CLI</li>
-                <li>You can close this window</li>
-              </ol>
-            </div>
+          <CardContent>
             <Button
               onClick={async () => {
                 setIsLoggingIn(true);

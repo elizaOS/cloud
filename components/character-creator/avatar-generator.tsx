@@ -2,14 +2,14 @@
 
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
-import { Loader2, Sparkles, RefreshCw, ImageIcon } from "lucide-react";
+import { Loader2, Sparkles, RefreshCw, Check } from "lucide-react";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 import {
   generateDefaultAvatarUrl,
   getAvailableAvatarStyles,
-  isDiceBearAvatar,
-  type AvatarStyle,
+  isBuiltInAvatar,
+  ensureAvatarUrl,
 } from "@/lib/utils/default-avatar";
 import Image from "next/image";
 
@@ -29,16 +29,16 @@ export function AvatarGenerator({
   className,
 }: AvatarGeneratorProps) {
   const [isGeneratingAI, setIsGeneratingAI] = useState(false);
-  const availableStyles = getAvailableAvatarStyles();
+  const availableAvatars = getAvailableAvatarStyles();
 
-  const handleGenerateDiceBear = (style: AvatarStyle) => {
-    onAvatarChange(generateDefaultAvatarUrl(characterName, { style }));
-    toast.success(`Avatar style: ${style}`);
+  const handleSelectAvatar = (avatarUrl: string) => {
+    onAvatarChange(avatarUrl);
+    toast.success("Avatar selected");
   };
 
-  const handleRegenerateDiceBear = () => {
-    onAvatarChange(generateDefaultAvatarUrl(`${characterName}-${Date.now()}`));
-    toast.success("Avatar regenerated");
+  const handleRandomize = () => {
+    onAvatarChange(generateDefaultAvatarUrl(characterName || `char-${Date.now()}`));
+    toast.success("Random avatar selected");
   };
 
   const handleGenerateAIAvatar = async () => {
@@ -82,76 +82,92 @@ export function AvatarGenerator({
     }
   };
 
+  const resolvedCurrentAvatar = ensureAvatarUrl(currentAvatarUrl);
+
   return (
     <div className={cn("flex flex-col gap-4", className)}>
+      {/* Current Avatar Preview */}
       <div className="flex items-center gap-4">
-        <div className="relative w-20 h-20 rounded-none border border-white/10 bg-black/40 overflow-hidden">
-          {currentAvatarUrl ? (
-            <Image
-              src={currentAvatarUrl}
-              alt={characterName || "Avatar"}
-              fill
-              className="object-cover"
-              sizes="80px"
-              unoptimized={isDiceBearAvatar(currentAvatarUrl)}
-            />
-          ) : (
-            <div className="flex items-center justify-center h-full text-white/40">
-              <ImageIcon className="h-8 w-8" />
-            </div>
-          )}
+        <div className="relative w-20 h-20 rounded-lg border border-white/10 bg-black/40 overflow-hidden">
+          <Image
+            src={resolvedCurrentAvatar}
+            alt={characterName || "Avatar"}
+            fill
+            className="object-cover"
+            sizes="80px"
+            unoptimized={!isBuiltInAvatar(currentAvatarUrl)}
+          />
         </div>
 
         <div className="flex flex-col gap-2">
-          <p className="text-sm text-white/60">
-            {currentAvatarUrl ? "Current avatar" : "No avatar set"}
-          </p>
-          <div className="flex flex-wrap gap-1">
-            {availableStyles.map((style) => (
-              <Button
-                key={style.id}
-                variant="outline"
-                size="sm"
-                onClick={() => handleGenerateDiceBear(style.id)}
-                className="h-7 px-2 text-xs rounded-none border-white/10 bg-black/40 text-white/60 hover:bg-white/10 hover:text-white"
-                title={style.description}
-              >
-                {style.name}
-              </Button>
-            ))}
+          <p className="text-sm text-white/60">Current avatar</p>
+          <div className="flex gap-2">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={handleRandomize}
+              className="rounded-none border-white/10 bg-black/40 text-white/80 hover:bg-white/10 hover:text-white"
+            >
+              <RefreshCw className="h-4 w-4 mr-2" />
+              Random
+            </Button>
+
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={handleGenerateAIAvatar}
+              disabled={isGeneratingAI || !characterName}
+              className="rounded-none border-[#FF5800]/30 bg-[#FF5800]/10 text-[#FF5800] hover:bg-[#FF5800]/20"
+            >
+              {isGeneratingAI ? (
+                <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+              ) : (
+                <Sparkles className="h-4 w-4 mr-2" />
+              )}
+              {isGeneratingAI ? "Generating..." : "AI Avatar ($0.01)"}
+            </Button>
           </div>
         </div>
       </div>
 
-      <div className="flex flex-wrap gap-2">
-        <Button
-          variant="outline"
-          size="sm"
-          onClick={handleRegenerateDiceBear}
-          className="rounded-none border-white/10 bg-black/40 text-white/80 hover:bg-white/10 hover:text-white"
-        >
-          <RefreshCw className="h-4 w-4 mr-2" />
-          Randomize
-        </Button>
-
-        <Button
-          variant="outline"
-          size="sm"
-          onClick={handleGenerateAIAvatar}
-          disabled={isGeneratingAI || !characterName}
-          className="rounded-none border-[#FF5800]/30 bg-[#FF5800]/10 text-[#FF5800] hover:bg-[#FF5800]/20"
-        >
-          {isGeneratingAI ? (
-            <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-          ) : (
-            <Sparkles className="h-4 w-4 mr-2" />
-          )}
-          {isGeneratingAI ? "Generating..." : "AI Avatar ($0.01)"}
-        </Button>
+      {/* Avatar Selection Grid */}
+      <div className="space-y-2">
+        <p className="text-sm text-white/60">Or choose from built-in avatars:</p>
+        <div className="grid grid-cols-5 gap-2">
+          {availableAvatars.map((avatar) => {
+            const isSelected = currentAvatarUrl === avatar.url;
+            return (
+              <button
+                key={avatar.id}
+                onClick={() => handleSelectAvatar(avatar.url)}
+                className={cn(
+                  "relative w-full aspect-square rounded-lg overflow-hidden border-2 transition-all",
+                  isSelected
+                    ? "border-[#FF5800] ring-2 ring-[#FF5800]/30"
+                    : "border-white/10 hover:border-white/30"
+                )}
+                title={avatar.name}
+              >
+                <Image
+                  src={avatar.url}
+                  alt={avatar.name}
+                  fill
+                  className="object-cover"
+                  sizes="64px"
+                />
+                {isSelected && (
+                  <div className="absolute inset-0 bg-[#FF5800]/20 flex items-center justify-center">
+                    <Check className="h-6 w-6 text-[#FF5800]" />
+                  </div>
+                )}
+              </button>
+            );
+          })}
+        </div>
       </div>
 
       <p className="text-xs text-white/40">
-        Quick styles are free. AI avatars cost $0.01 for a unique image.
+        Built-in avatars are free. AI avatars cost $0.01 for a unique image.
       </p>
     </div>
   );

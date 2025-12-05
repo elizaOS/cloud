@@ -18,10 +18,6 @@ export function AppAnalytics({ appId }: AppAnalyticsProps) {
   const [analytics, setAnalytics] = useState<any[]>([]);
   const [totalStats, setTotalStats] = useState<any>(null);
 
-  useEffect(() => {
-    fetchAnalytics();
-  }, [appId, period]);
-
   const fetchAnalytics = async () => {
     setIsLoading(true);
     try {
@@ -40,6 +36,11 @@ export function AppAnalytics({ appId }: AppAnalyticsProps) {
       setIsLoading(false);
     }
   };
+
+  useEffect(() => {
+    fetchAnalytics();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [appId, period]);
 
   if (isLoading) {
     return (

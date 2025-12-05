@@ -126,7 +126,7 @@ export function CreateAppDialog({ open, onOpenChange }: CreateAppDialogProps) {
           <DialogTitle>Create New App</DialogTitle>
           <DialogDescription>
             Create an app to integrate Eliza Cloud services into your website or application.
-            You'll receive an API key for authentication.
+            You&apos;ll receive an API key for authentication.
           </DialogDescription>
         </DialogHeader>
 

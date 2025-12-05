@@ -15,6 +15,7 @@ import {
   Users,
 } from "lucide-react";
 import Link from "next/link";
+import Image from "next/image";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
 // Force dynamic rendering since we use server-side auth (cookies)
@@ -85,9 +86,11 @@ export default async function AppDetailsPage({ params, searchParams }: PageProps
           <div>
             <div className="flex items-center gap-3 mb-2">
               {app.logo_url ? (
-                <img
+                <Image
                   src={app.logo_url}
                   alt={app.name}
+                  width={48}
+                  height={48}
                   className="w-12 h-12 rounded-lg object-cover"
                 />
               ) : (

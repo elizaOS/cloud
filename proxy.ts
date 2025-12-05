@@ -22,6 +22,8 @@ const publicPaths = [
   "/auth/error",
   "/auth/cli-login", // CLI login page
   "/api/auth/cli-session", // CLI session endpoints (public for polling)
+  "/api/auth/miniapp-session", // Miniapp session endpoints (public for pass-through auth flow)
+  "/auth/miniapp-login", // Miniapp login page
   "/api/set-anonymous-session", // Anonymous session cookie setting
   "/api/anonymous-session", // Anonymous session data API (for polling message count)
   "/api/affiliate", // Affiliate API endpoints (public for anonymous users)

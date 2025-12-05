@@ -1,49 +1,139 @@
 /**
- * Default Avatar Generation using DiceBear API
+ * Default Avatar Selection from Built-in Avatars
+ * 
+ * Uses a curated set of character avatars instead of external services.
+ * All avatars are stored locally in /public/avatars/
  */
 
-export type AvatarStyle =
-  | "bottts"
-  | "avataaars"
-  | "pixel-art"
-  | "shapes"
-  | "initials"
-  | "lorelei"
-  | "micah"
-  | "fun-emoji";
-
-interface DefaultAvatarOptions {
-  style?: AvatarStyle;
-  backgroundColor?: string;
-}
+/**
+ * Available character avatars for random selection when creating new characters.
+ * These are fun, personality-driven avatars that give new characters visual identity.
+ */
+export const CHARACTER_AVATARS = [
+  "/avatars/codementor.png",
+  "/avatars/comedybot.png", 
+  "/avatars/creativespark.png",
+  "/avatars/gamemaster.png",
+  "/avatars/historyscholar.png",
+  "/avatars/mysticoracle.png",
+] as const;
 
 /**
- * Generate a default avatar URL using DiceBear.
+ * The default fallback avatar used when a character has no avatar set.
+ * This is the Eliza mascot avatar.
+ */
+export const DEFAULT_AVATAR = "/avatars/eliza.png";
+
+/**
+ * All available avatars including special ones (for UI selection purposes)
+ */
+export const ALL_AVATARS = [
+  ...CHARACTER_AVATARS,
+  "/avatars/eliza.png",
+  "/avatars/amara.png",
+  "/avatars/luna.png",
+  "/avatars/prof_ada.png",
+  "/avatars/voiceai.png",
+  "/avatars/wellnesscoach.png",
+  "/avatars/edad.png",
+] as const;
+
+export type AvatarStyle = "random" | "eliza";
+
+/**
+ * Generate a default avatar URL for a new character.
+ * Randomly selects from the curated CHARACTER_AVATARS list.
+ * 
+ * @param name - The character name (used for deterministic selection if needed)
+ * @param options - Optional configuration
+ * @returns A local avatar URL from /public/avatars/
  */
 export function generateDefaultAvatarUrl(
-  name: string,
-  options: DefaultAvatarOptions = {}
+  name?: string,
+  _options: { style?: AvatarStyle } = {}
 ): string {
-  const { style = "bottts", backgroundColor = "0a0a0a" } = options;
-  const seed = encodeURIComponent(name?.trim() || `char-${Date.now()}`);
-  return `https://api.dicebear.com/7.x/${style}/svg?seed=${seed}&backgroundColor=${backgroundColor}`;
+  // Use the name to create a deterministic but seemingly random selection
+  // This ensures the same name always gets the same avatar
+  if (name) {
+    const hash = simpleHash(name);
+    const index = hash % CHARACTER_AVATARS.length;
+    return CHARACTER_AVATARS[index];
+  }
+  
+  // Truly random selection if no name provided
+  const randomIndex = Math.floor(Math.random() * CHARACTER_AVATARS.length);
+  return CHARACTER_AVATARS[randomIndex];
 }
 
 /**
- * Get available avatar styles for the UI
+ * Simple hash function for deterministic avatar selection
  */
-export function getAvailableAvatarStyles(): Array<{ id: AvatarStyle; name: string; description: string }> {
+function simpleHash(str: string): number {
+  let hash = 0;
+  for (let i = 0; i < str.length; i++) {
+    const char = str.charCodeAt(i);
+    hash = ((hash << 5) - hash) + char;
+    hash = hash & hash; // Convert to 32-bit integer
+  }
+  return Math.abs(hash);
+}
+
+/**
+ * Get a fallback avatar URL for characters without an avatar.
+ * Returns the Eliza mascot avatar.
+ */
+export function getFallbackAvatarUrl(): string {
+  return DEFAULT_AVATAR;
+}
+
+/**
+ * Check if a URL is one of our built-in avatars.
+ * Used to determine if Next.js Image optimization should be applied.
+ */
+export function isBuiltInAvatar(url: string | null | undefined): boolean {
+  if (!url) return false;
+  return url.startsWith("/avatars/") || ALL_AVATARS.some(avatar => url.includes(avatar));
+}
+
+/**
+ * @deprecated Use isBuiltInAvatar instead
+ * Kept for backward compatibility
+ */
+export function isDiceBearAvatar(url: string | null | undefined): boolean {
+  if (!url) return false;
+  // Check for old DiceBear URLs (for migration purposes)
+  if (url.includes("api.dicebear.com")) return true;
+  // Also check for built-in avatars
+  return isBuiltInAvatar(url);
+}
+
+/**
+ * Get available avatar options for UI selection
+ */
+export function getAvailableAvatarStyles(): Array<{ id: string; name: string; url: string }> {
   return [
-    { id: "bottts", name: "Robot", description: "Friendly robot avatars" },
-    { id: "avataaars", name: "Human", description: "Cartoon human avatars" },
-    { id: "pixel-art", name: "Pixel Art", description: "Retro pixel art style" },
-    { id: "shapes", name: "Abstract", description: "Geometric shapes" },
+    { id: "codementor", name: "Code Mentor", url: "/avatars/codementor.png" },
+    { id: "comedybot", name: "Comedy Bot", url: "/avatars/comedybot.png" },
+    { id: "creativespark", name: "Creative Spark", url: "/avatars/creativespark.png" },
+    { id: "gamemaster", name: "Game Master", url: "/avatars/gamemaster.png" },
+    { id: "historyscholar", name: "History Scholar", url: "/avatars/historyscholar.png" },
+    { id: "mysticoracle", name: "Mystic Oracle", url: "/avatars/mysticoracle.png" },
+    { id: "eliza", name: "Eliza", url: "/avatars/eliza.png" },
+    { id: "amara", name: "Amara", url: "/avatars/amara.png" },
+    { id: "luna", name: "Luna", url: "/avatars/luna.png" },
+    { id: "prof_ada", name: "Prof Ada", url: "/avatars/prof_ada.png" },
   ];
 }
 
 /**
- * Check if a URL is a DiceBear avatar
+ * Ensure a character has an avatar URL, using the fallback if needed.
+ * 
+ * @param avatarUrl - The character's current avatar URL (may be null/undefined/empty)
+ * @returns A valid avatar URL (either the original or the fallback)
  */
-export function isDiceBearAvatar(url: string): boolean {
-  return url.includes("api.dicebear.com");
+export function ensureAvatarUrl(avatarUrl: string | null | undefined): string {
+  if (avatarUrl && avatarUrl.trim() !== "") {
+    return avatarUrl;
+  }
+  return DEFAULT_AVATAR;
 }

@@ -254,6 +254,30 @@ export class MessageHandler {
         `[MessageHandler] Setting up entity with userName: ${userName}, userId: ${this.userContext.userId}`,
       );
 
+      // IMPORTANT: Ensure the agent exists as an entity before ensureConnections
+      // The ElizaOS SDK adds both user AND agent as participants in DM rooms,
+      // and the participants table requires entityId to exist in the entity table.
+      try {
+        await this.runtime.ensureEntityExists({
+          id: this.runtime.agentId,
+          agentId: this.runtime.agentId,
+          names: [this.runtime.character?.name || "Agent"],
+          metadata: {
+            name: this.runtime.character?.name || "Agent",
+            type: "agent",
+          },
+        });
+        elizaLogger.debug(
+          `[MessageHandler] Ensured agent entity exists: ${this.runtime.agentId}`,
+        );
+      } catch (agentEntityError) {
+        // Ignore duplicate key errors - entity already exists
+        const msg = agentEntityError instanceof Error ? agentEntityError.message : String(agentEntityError);
+        if (!msg.toLowerCase().includes("duplicate") && !msg.toLowerCase().includes("unique constraint")) {
+          elizaLogger.error("[MessageHandler] Failed to ensure agent entity:", msg);
+        }
+      }
+
       // Use ensureConnections (plural) for more robust entity/room creation
       await this.runtime.ensureConnections(
         [
@@ -534,7 +558,8 @@ export class MessageHandler {
   }
 
   /**
-   * Generate room title from first message if needed
+   * Generate room title after 2 rounds of conversation (4+ messages)
+   * This ensures we have enough context to generate a meaningful title
    */
   private async generateRoomTitleIfNeeded(
     roomId: string,
@@ -550,21 +575,57 @@ export class MessageHandler {
 
       // Only generate title if room doesn't have one yet
       if (!currentRoomName) {
-        logger.debug(
-          "[MessageHandler] Room has no title, generating from first message...",
+        // Count messages in this room to check if we have 2 rounds (4+ messages)
+        const messageCount = await db.execute<{ count: string }>(
+          sql`SELECT COUNT(*)::text as count FROM memories WHERE "roomId" = ${roomId}::uuid AND type = 'messages'`,
         );
 
-        // Generate title from the user's message
-        const title = await generateRoomTitle(userText);
+        const count = parseInt(messageCount.rows[0]?.count || "0", 10);
 
-        // Update room with the generated title
-        await db.execute(
-          sql`UPDATE rooms SET name = ${title} WHERE id = ${roomId}::uuid`,
-        );
+        // Only generate title after 2 rounds of back and forth (4+ messages)
+        // This gives us user1, agent1, user2, agent2 - enough context
+        if (count >= 4) {
+          logger.debug(
+            `[MessageHandler] Room has ${count} messages and no title, generating...`,
+          );
 
-        logger.info(
-          `[MessageHandler] Generated and saved room title: ${title}`,
-        );
+          // Get first few messages for context
+          const recentMessages = await db.execute<{ content: string }>(
+            sql`SELECT content FROM memories 
+                WHERE "roomId" = ${roomId}::uuid AND type = 'messages' 
+                ORDER BY "createdAt" ASC LIMIT 4`,
+          );
+
+          // Combine user messages for better context
+          const context = recentMessages.rows
+            .map((m) => {
+              const content = m.content;
+              if (typeof content === "string") return content;
+              if (typeof content === "object" && content !== null) {
+                const parsed = content as { text?: string };
+                return parsed.text || "";
+              }
+              return "";
+            })
+            .filter(Boolean)
+            .join(" | ");
+
+          // Generate title from the conversation context
+          const title = await generateRoomTitle(context || userText);
+
+          // Update room with the generated title
+          await db.execute(
+            sql`UPDATE rooms SET name = ${title} WHERE id = ${roomId}::uuid`,
+          );
+
+          logger.info(
+            `[MessageHandler] Generated and saved room title: ${title}`,
+          );
+        } else {
+          logger.debug(
+            `[MessageHandler] Room has ${count} messages, waiting for 4+ to generate title`,
+          );
+        }
       }
     } catch (err) {
       // Non-critical error, don't interrupt the message flow

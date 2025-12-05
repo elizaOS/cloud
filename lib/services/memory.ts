@@ -144,7 +144,7 @@ export class MemoryService {
     const roomId = input.roomId as UUID;
     const adapter = runtime.adapter as unknown as {
       getRoomsByIds: (roomIds: UUID[]) => Promise<unknown[]>;
-      createRooms: (rooms: { id: UUID }[]) => Promise<UUID[]>;
+      createRooms: (rooms: { id: UUID; source: string; type: string }[]) => Promise<UUID[]>;
       ensureEntityExists: (entity: {
         id: UUID;
         agentId: UUID;
@@ -155,7 +155,8 @@ export class MemoryService {
 
     const existingRooms = await adapter.getRoomsByIds([roomId]);
     if (!existingRooms || existingRooms.length === 0) {
-      await adapter.createRooms([{ id: roomId }]);
+      // source and type are required fields in the rooms table (notNull, no default)
+      await adapter.createRooms([{ id: roomId, source: "api", type: "DIRECT" }]);
       logger.debug(`[Memory Service] Created room: ${roomId}`);
     }
 
