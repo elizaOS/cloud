@@ -6,9 +6,9 @@ import {
   charactersService,
   listContainers,
   apiKeysService,
+  agentDiscoveryService,
+  roomsService,
 } from "@/lib/services";
-import { elizaRoomCharactersRepository } from "@/db/repositories";
-import { agentDiscoveryService } from "@/lib/services/agent-discovery";
 import { cache as cacheClient } from "@/lib/cache/client";
 import { CacheKeys, CacheStaleTTL } from "@/lib/cache/keys";
 import { cache } from "react";
@@ -68,13 +68,15 @@ async function fetchDashboardDataInternal(
   const organizationId = user.organization_id!;
 
   // Fetch only the data needed for the new dashboard
-  const [generationStats, userCharacters, containers, apiKeys, chatRoomCount] = await Promise.all([
+  const [generationStats, userCharacters, containers, apiKeys, userRooms] = await Promise.all([
     generationsService.getStats(organizationId),
     charactersService.listByUser(user.id),
     listContainers(organizationId),
     apiKeysService.listByOrganization(organizationId),
-    elizaRoomCharactersRepository.countByUserId(user.id),
+    roomsService.getRoomsForEntity(user.id),
   ]);
+  
+  const chatRoomCount = userRooms.length;
 
   const totalGenerations = generationStats.totalGenerations;
   const imageGenerations =
@@ -92,7 +94,7 @@ async function fetchDashboardDataInternal(
   
   if (characterIds.length > 0) {
     try {
-      const statsMap = await agentDiscoveryService.getAgentStatisticsBatch(characterIds);
+      const statsMap = await agentDiscoveryService.getCharacterStatisticsBatch(characterIds);
       statsMap.forEach((stats, id) => {
         agentStatsMap.set(id, {
           roomCount: stats.roomCount,

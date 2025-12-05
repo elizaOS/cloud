@@ -25,6 +25,7 @@ import {
 import type { ExtendedCharacter } from "@/lib/types/my-agents";
 import { getCategoryIcon } from "@/lib/constants/character-categories";
 import { formatDistanceToNow } from "date-fns";
+import { isDiceBearAvatar } from "@/lib/utils/default-avatar";
 
 interface CharacterDetailsModalProps {
   character: ExtendedCharacter | null;
@@ -62,6 +63,7 @@ export function CharacterDetailsModal({
                   alt={character.name}
                   fill
                   className="rounded-full object-cover"
+                  unoptimized={isDiceBearAvatar(character.avatarUrl)}
                 />
               ) : (
                 <Bot className="h-6 w-6" />

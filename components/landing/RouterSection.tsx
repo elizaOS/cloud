@@ -429,9 +429,7 @@ const RouterSection = () => {
               color: "#858585",
             }}
           >
-            Eliza Cloud dynamically routes inference across 200+ LLMs and
-            integrates the MCP Gateway for seamless access to any compatible
-            tool or API — from Notion to GitHub.
+            200+ LLMs. MCP Gateway for any tool or API.
           </p>
         </div>
 

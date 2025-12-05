@@ -43,13 +43,7 @@ export async function setLatestResponseId(
     `[setLatestResponseId] Setting cache: ${key}, responseId: ${responseId.substring(0, 8)}`,
   );
 
-  try {
-    await runtime.setCache(key, responseId);
-  } catch (error) {
-    const errorMessage = error instanceof Error ? error.message : String(error);
-    logger.error(`[setLatestResponseId] Error setting cache: ${errorMessage}`);
-    throw error;
-  }
+  await runtime.setCache(key, responseId);
 }
 
 /**

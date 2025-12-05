@@ -263,7 +263,7 @@ export function generateOpenAPISpec(baseUrl?: string): OpenAPISpec {
   const spec: OpenAPISpec = {
     openapi: "3.0.3",
     info: {
-      title: "Eliza Cloud V2 API",
+      title: "Eliza Cloud API",
       description:
         "AI agent development platform with multi-model text generation, image creation, and enterprise features",
       version: "1.0.0",

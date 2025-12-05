@@ -1,11 +1,19 @@
-import type { IAgentRuntime, Memory, HandlerCallback } from "@elizaos/core";
+/**
+ * Shared Types for Eliza Plugin System
+ */
+
+import type {
+  IAgentRuntime,
+  Memory,
+  HandlerCallback,
+} from "@elizaos/core";
 
 /**
- * Message handler parameters
- * Shared interface for all plugin message handlers
+ * Parameters for message received handler
  */
 export interface MessageReceivedHandlerParams {
   runtime: IAgentRuntime;
   message: Memory;
   callback: HandlerCallback;
 }
+

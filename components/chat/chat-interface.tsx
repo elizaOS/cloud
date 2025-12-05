@@ -14,6 +14,7 @@ import { ElizaChatInterface } from "./eliza-chat-interface";
 import { useChatStore } from "@/stores/chat-store";
 import type { AffiliateTheme } from "@/lib/config/affiliate-themes";
 import { getThemeCSSVariables } from "@/lib/config/affiliate-themes";
+import { useRenderTracker } from "@/lib/debug/render-tracker";
 
 /**
  * Unified Chat Interface Component with Dynamic Theming
@@ -56,6 +57,9 @@ export function ChatInterface({
   sessionTokenFromUrl,
   theme,
 }: ChatInterfaceProps) {
+  // Track renders in development
+  useRenderTracker("ChatInterface");
+
   const router = useRouter();
   const { login } = usePrivy();
   const [messageCount, setMessageCount] = useState(session?.messageCount || 0);
@@ -85,18 +89,27 @@ export function ChatInterface({
           const data = await response.json();
           if (data.success && data.session) {
             const serverCount = data.session.message_count;
-            console.log("[ChatInterface] ✅ Server session data:", {
-              serverCount,
-              currentLocalCount: messageCount,
-              willUpdate: serverCount !== messageCount,
-            });
             
-            // Only update if server has a different (higher) count
-            // This ensures we don't overwrite local increments that haven't synced yet
-            if (serverCount > messageCount) {
-              setMessageCount(serverCount);
-              console.log("[ChatInterface] 📊 Updated message count from server:", serverCount);
-            }
+            // Use functional update to compare against current state value
+            // This avoids stale closure issues with messageCount
+            setMessageCount((currentCount) => {
+              console.log("[ChatInterface] ✅ Server session data:", {
+                serverCount,
+                currentLocalCount: currentCount,
+                willUpdate: serverCount > currentCount,
+              });
+              
+              // Only update if server has a higher count
+              // This ensures we don't overwrite local increments that haven't synced yet
+              if (serverCount > currentCount) {
+                console.log(
+                  "[ChatInterface] 📊 Updated message count from server:",
+                  serverCount
+                );
+                return serverCount;
+              }
+              return currentCount;
+            });
           }
         } else {
           console.warn("[ChatInterface] ⚠️ Failed to fetch session data:", response.status);
@@ -402,7 +415,7 @@ export function ChatInterface({
             <h2
               className={`text-2xl font-bold ${isRomanticTheme ? "text-white" : ""}`}
             >
-              You've reached your free message limit
+              You&apos;ve reached your free message limit
             </h2>
             <p
               className={

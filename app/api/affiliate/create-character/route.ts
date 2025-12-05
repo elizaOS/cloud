@@ -8,8 +8,9 @@ import {
   anonymousSessionsService,
   organizationsService,
 } from "@/lib/services";
+import { processAffiliateImages } from "@/lib/services/affiliate-images";
 import type { ElizaCharacter } from "@/lib/types";
-import type { Organization } from "@/db/schemas/organizations";
+import type { AffiliateMetadata } from "@/lib/types/affiliate";
 import { logger } from "@/lib/utils/logger";
 
 // Custom validator for URL or base64 data URL
@@ -52,7 +53,7 @@ const CreateCharacterSchema = z.object({
           z.number(),
           z.boolean(),
           z.record(z.string(), z.unknown()),
-        ]),
+        ])
       )
       .optional(),
     secrets: z
@@ -71,6 +72,16 @@ const CreateCharacterSchema = z.object({
       twitter: z.string().optional(),
       socialContent: z.string().optional(),
       imageUrls: z.array(urlOrBase64).optional(),
+      imageBase64s: z.array(z.string()).optional(),
+      images: z
+        .array(
+          z.object({
+            type: z.enum(["url", "base64"]),
+            data: z.string(),
+          })
+        )
+        .optional(),
+      avatarBase64: z.string().optional(),
     })
     .optional(),
 });
@@ -80,7 +91,7 @@ const rateLimitMap = new Map<string, { count: number; resetAt: number }>();
 
 function checkRateLimit(
   apiKeyId: string,
-  limit = 100,
+  limit = 100
 ): { allowed: boolean; remaining: number } {
   const now = Date.now();
   const hourInMs = 60 * 60 * 1000;
@@ -140,7 +151,7 @@ export async function POST(request: NextRequest) {
           error:
             "Missing or invalid Authorization header. Expected: Bearer <api_key>",
         },
-        { status: 401 },
+        { status: 401 }
       );
     }
 
@@ -154,14 +165,14 @@ export async function POST(request: NextRequest) {
           success: false,
           error: "Invalid API key",
         },
-        { status: 401 },
+        { status: 401 }
       );
     }
 
     // 2. CHECK PERMISSIONS - Ensure API key has affiliate permissions
     if (!apiKey.permissions.includes("affiliate:create-character")) {
       logger.warn(
-        `[Affiliate API] API key ${apiKey.key_prefix} lacks affiliate permissions`,
+        `[Affiliate API] API key ${apiKey.key_prefix} lacks affiliate permissions`
       );
       return NextResponse.json(
         {
@@ -169,7 +180,7 @@ export async function POST(request: NextRequest) {
           error:
             "This API key does not have permission to create characters via affiliate API",
         },
-        { status: 403 },
+        { status: 403 }
       );
     }
 
@@ -177,7 +188,7 @@ export async function POST(request: NextRequest) {
     const rateLimit = checkRateLimit(apiKey.id);
     if (!rateLimit.allowed) {
       logger.warn(
-        `[Affiliate API] Rate limit exceeded for key ${apiKey.key_prefix}`,
+        `[Affiliate API] Rate limit exceeded for key ${apiKey.key_prefix}`
       );
       return NextResponse.json(
         {
@@ -187,7 +198,7 @@ export async function POST(request: NextRequest) {
         {
           status: 429,
           headers: { "X-RateLimit-Remaining": "0" },
-        },
+        }
       );
     }
 
@@ -205,7 +216,7 @@ export async function POST(request: NextRequest) {
           error: "Invalid request body",
           details: error instanceof z.ZodError ? error.issues : undefined,
         },
-        { status: 400 },
+        { status: 400 }
       );
     }
 
@@ -223,7 +234,7 @@ export async function POST(request: NextRequest) {
         hasSessionId: !!providedSessionId,
         hasImageUrls: !!(metadata?.imageUrls && metadata.imageUrls.length > 0),
         imageCount: metadata?.imageUrls?.length || 0,
-      },
+      }
     );
 
     // 5. GET OR CREATE AFFILIATE ORGANIZATION
@@ -232,7 +243,7 @@ export async function POST(request: NextRequest) {
     try {
       // Try to find existing affiliate organization by slug
       affiliateOrg = await organizationsService.getBySlug(
-        "affiliate-characters",
+        "affiliate-characters"
       );
 
       if (!affiliateOrg) {
@@ -249,14 +260,14 @@ export async function POST(request: NextRequest) {
     } catch (error) {
       logger.error(
         "[Affiliate API] Failed to get/create affiliate organization",
-        error,
+        error
       );
       return NextResponse.json(
         {
           success: false,
           error: "Internal server error while setting up affiliate account",
         },
-        { status: 500 },
+        { status: 500 }
       );
     }
 
@@ -283,7 +294,7 @@ export async function POST(request: NextRequest) {
           success: false,
           error: "Internal server error while creating user",
         },
-        { status: 500 },
+        { status: 500 }
       );
     }
 
@@ -310,18 +321,61 @@ export async function POST(request: NextRequest) {
       // Continue anyway - session is optional for initial character creation
     }
 
-    // 8. CREATE CHARACTER
+    // 8. PROCESS AFFILIATE IMAGES - Convert base64/external URLs to Vercel Blob
+    // This is CRITICAL to prevent Next.js Image hostname errors and token bloat
+    const tempCharacterId = randomUUID();
+    let processedImages = {
+      avatarUrl: null as string | null,
+      referenceImageUrls: [] as string[],
+      failedUploads: 0,
+    };
+
+    if (metadata) {
+      try {
+        const affiliateMetadata: AffiliateMetadata = {
+          source: metadata.source,
+          vibe: metadata.vibe,
+          backstory: metadata.backstory,
+          instagram: metadata.instagram,
+          twitter: metadata.twitter,
+          socialContent: metadata.socialContent,
+          imageUrls: metadata.imageUrls,
+          imageBase64s: metadata.imageBase64s,
+          images: metadata.images,
+          avatarBase64: metadata.avatarBase64,
+        };
+
+        processedImages = await processAffiliateImages(
+          affiliateMetadata,
+          tempCharacterId
+        );
+
+        logger.info("[Affiliate API] Processed affiliate images", {
+          avatarUrl: processedImages.avatarUrl
+            ? processedImages.avatarUrl.substring(0, 60) + "..."
+            : null,
+          referenceCount: processedImages.referenceImageUrls.length,
+          failedCount: processedImages.failedUploads,
+        });
+      } catch (error) {
+        logger.error(
+          "[Affiliate API] Failed to process affiliate images",
+          error
+        );
+      }
+    }
+
+    // 9. CREATE CHARACTER
     let createdCharacter;
     try {
-      // Resolve avatar URL: PRIORITIZE user-uploaded images from metadata.imageUrls[0]
-      // For affiliate characters (clone-your-crush), the user's uploaded photo should be the avatar
-      // Only fall back to character.avatar_url if no user images were uploaded
-      const userUploadedAvatar = metadata?.imageUrls?.[0];
-      const resolvedAvatarUrl = userUploadedAvatar || character.avatar_url || null;
+      const resolvedAvatarUrl =
+        processedImages.avatarUrl || character.avatar_url || null;
 
       if (resolvedAvatarUrl) {
         logger.info("[Affiliate API] Avatar URL resolved", {
-          source: userUploadedAvatar ? "metadata.imageUrls[0] (user upload)" : "character.avatar_url (fallback)",
+          source: processedImages.avatarUrl
+            ? "processedImages.avatarUrl (blob storage)"
+            : "character.avatar_url (fallback)",
           url: resolvedAvatarUrl.substring(0, 80) + "...",
         });
       } else {
@@ -376,7 +430,9 @@ export async function POST(request: NextRequest) {
             instagram: metadata?.instagram,
             twitter: metadata?.twitter,
             socialContent: metadata?.socialContent,
-            imageUrls: metadata?.imageUrls || [],
+            imageUrls: processedImages.referenceImageUrls.length > 0
+              ? processedImages.referenceImageUrls
+              : metadata?.imageUrls || [],
             createdAt: new Date().toISOString(),
           },
         } as Record<string, unknown>,
@@ -397,11 +453,11 @@ export async function POST(request: NextRequest) {
           error: "Failed to create character",
           details: error instanceof Error ? error.message : "Unknown error",
         },
-        { status: 500 },
+        { status: 500 }
       );
     }
 
-    // 9. INCREMENT API KEY USAGE
+    // 10. INCREMENT API KEY USAGE
     try {
       await apiKeysService.incrementUsage(apiKey.id);
     } catch (error) {
@@ -409,7 +465,7 @@ export async function POST(request: NextRequest) {
       // Non-critical, continue
     }
 
-    // 10. BUILD REDIRECT URL
+    // 11. BUILD REDIRECT URL
     // Always use /chat route - theming is now dynamic based on source param
     const baseUrl = process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000";
 
@@ -421,10 +477,10 @@ export async function POST(request: NextRequest) {
     }
 
     logger.info(
-      `[Affiliate API] Generated redirect URL for affiliate ${affiliateId}: ${redirectUrl.toString()}`,
+      `[Affiliate API] Generated redirect URL for affiliate ${affiliateId}: ${redirectUrl.toString()}`
     );
 
-    // 11. RETURN SUCCESS RESPONSE
+    // 12. RETURN SUCCESS RESPONSE
     const duration = Date.now() - startTime;
     logger.info(`[Affiliate API] ✅ Request completed in ${duration}ms`, {
       characterId: createdCharacter.id,
@@ -445,13 +501,13 @@ export async function POST(request: NextRequest) {
         headers: {
           "X-RateLimit-Remaining": rateLimit.remaining.toString(),
         },
-      },
+      }
     );
   } catch (error) {
     const duration = Date.now() - startTime;
     logger.error(
       `[Affiliate API] ❌ Request failed after ${duration}ms`,
-      error,
+      error
     );
 
     return NextResponse.json(
@@ -460,7 +516,7 @@ export async function POST(request: NextRequest) {
         error: "Internal server error",
         details: error instanceof Error ? error.message : "Unknown error",
       },
-      { status: 500 },
+      { status: 500 }
     );
   }
 }
