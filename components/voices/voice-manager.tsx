@@ -24,6 +24,12 @@ interface VoiceManagerProps {
   onCreditBalanceChange: (balance: number) => void;
 }
 
+interface PreviewState {
+  voice: Voice | null;
+  audioUrl: string | null;
+  isLoading: boolean;
+}
+
 export function VoiceManager({
   voices,
   onVoicesChange,
@@ -31,9 +37,15 @@ export function VoiceManager({
   onCreditBalanceChange,
 }: VoiceManagerProps) {
   const [isFormExpanded, setIsFormExpanded] = useState(false); // Default collapsed
-  const [previewVoice, setPreviewVoice] = useState<Voice | null>(null);
-  const [previewAudioUrl, setPreviewAudioUrl] = useState<string | null>(null);
-  const [isLoadingPreview, setIsLoadingPreview] = useState(false);
+  const [previewState, setPreviewState] = useState<PreviewState>({
+    voice: null,
+    audioUrl: null,
+    isLoading: false,
+  });
+
+  const updatePreview = (updates: Partial<PreviewState>) => {
+    setPreviewState((prev) => ({ ...prev, ...updates }));
+  };
 
   const handleVoiceCreated = (newVoice: Voice) => {
     onVoicesChange([newVoice, ...voices]);
@@ -49,8 +61,7 @@ export function VoiceManager({
   };
 
   const handlePreview = async (voice: Voice) => {
-    setPreviewVoice(voice);
-    setIsLoadingPreview(true);
+    updatePreview({ voice, isLoading: true });
 
     try {
       // Generate a sample text-to-speech to preview the voice
@@ -72,22 +83,21 @@ export function VoiceManager({
       // Convert audio stream to blob URL
       const blob = await response.blob();
       const url = URL.createObjectURL(blob);
-      setPreviewAudioUrl(url);
+      updatePreview({ audioUrl: url });
     } catch (error) {
       toast.error("Failed to load voice preview");
       console.error("Preview error:", error);
-      setPreviewVoice(null);
+      updatePreview({ voice: null });
     } finally {
-      setIsLoadingPreview(false);
+      updatePreview({ isLoading: false });
     }
   };
 
   const handleClosePreview = () => {
-    if (previewAudioUrl) {
-      URL.revokeObjectURL(previewAudioUrl);
+    if (previewState.audioUrl) {
+      URL.revokeObjectURL(previewState.audioUrl);
     }
-    setPreviewVoice(null);
-    setPreviewAudioUrl(null);
+    updatePreview({ voice: null, audioUrl: null });
   };
 
   return (
@@ -159,27 +169,27 @@ export function VoiceManager({
       )}
 
       {/* Preview Dialog */}
-      <Dialog open={!!previewVoice} onOpenChange={handleClosePreview}>
+      <Dialog open={!!previewState.voice} onOpenChange={handleClosePreview}>
         <DialogContent className="sm:max-w-[500px]">
           <DialogHeader>
-            <DialogTitle>{previewVoice?.name}</DialogTitle>
+            <DialogTitle>{previewState.voice?.name}</DialogTitle>
             <DialogDescription>
-              {previewVoice?.description || "Voice preview"}
+              {previewState.voice?.description || "Voice preview"}
             </DialogDescription>
           </DialogHeader>
 
           <div className="space-y-4">
-            {isLoadingPreview ? (
+            {previewState.isLoading ? (
               <div className="flex items-center justify-center py-8">
                 <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary" />
               </div>
-            ) : previewAudioUrl ? (
+            ) : previewState.audioUrl ? (
               <div className="p-4 rounded-lg bg-muted">
                 <p className="text-sm text-muted-foreground mb-3">
                   Preview Text: &quot;Hello! This is a preview of your custom
                   voice clone.&quot;
                 </p>
-                <VoiceAudioPlayer audioUrl={previewAudioUrl} />
+                <VoiceAudioPlayer audioUrl={previewState.audioUrl} />
               </div>
             ) : (
               <div className="text-center text-muted-foreground py-8">
@@ -187,29 +197,29 @@ export function VoiceManager({
               </div>
             )}
 
-            {previewVoice && (
+            {previewState.voice && (
               <div className="grid grid-cols-2 gap-4 text-sm">
                 <div>
                   <p className="text-muted-foreground">Clone Type</p>
                   <p className="font-medium capitalize">
-                    {previewVoice.cloneType}
+                    {previewState.voice.cloneType}
                   </p>
                 </div>
                 <div>
                   <p className="text-muted-foreground">Samples</p>
                   <p className="font-medium">
-                    {previewVoice.sampleCount} files
+                    {previewState.voice.sampleCount} files
                   </p>
                 </div>
                 <div>
                   <p className="text-muted-foreground">Times Used</p>
-                  <p className="font-medium">{previewVoice.usageCount}</p>
+                  <p className="font-medium">{previewState.voice.usageCount}</p>
                 </div>
-                {previewVoice.audioQualityScore && (
+                {previewState.voice.audioQualityScore && (
                   <div>
                     <p className="text-muted-foreground">Quality Score</p>
                     <p className="font-medium">
-                      {previewVoice.audioQualityScore}/10
+                      {previewState.voice.audioQualityScore}/10
                     </p>
                   </div>
                 )}

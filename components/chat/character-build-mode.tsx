@@ -20,23 +20,11 @@ import { MessageSquare, FileCode2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import Image from "next/image";
 import { usePrivy } from "@privy-io/react-auth";
+import { createDefaultCharacter } from "@/lib/utils/character-names";
+
 interface CharacterBuildModeProps {
   initialCharacters: ElizaCharacter[];
 }
-
-const defaultCharacter: ElizaCharacter = {
-  name: "",
-  bio: "",
-  system: "",
-  topics: [],
-  adjectives: [],
-  postExamples: [],
-  plugins: [],
-  settings: {},
-  secrets: {},
-  style: {},
-  templates: {},
-};
 
 export function CharacterBuildMode({
   initialCharacters,
@@ -58,7 +46,7 @@ export function CharacterBuildMode({
         return char;
       }
     }
-    return defaultCharacter;
+    return createDefaultCharacter();
   }, [selectedCharacterId, initialCharacters]);
 
   const [character, setCharacter] = useState<ElizaCharacter>(initialCharacter);

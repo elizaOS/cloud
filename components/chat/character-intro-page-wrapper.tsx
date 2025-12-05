@@ -28,14 +28,14 @@ export function CharacterIntroPageWrapper({
   const [isCreatingSession, setIsCreatingSession] = useState(false);
 
   // For authenticated users, go directly to chat (no session needed)
-  async function handleAuthenticatedStart() {
+  function handleAuthenticatedStart() {
     const params = new URLSearchParams();
     if (source) params.set("source", source);
     const queryString = params.toString();
     router.push(`/chat/${characterId}${queryString ? `?${queryString}` : ""}`);
   }
 
-  async function handleEmailSubmit(email: string) {
+  function handleEmailSubmit(email: string) {
     const params = new URLSearchParams();
     if (source) params.set("source", source);
 
@@ -79,9 +79,7 @@ export function CharacterIntroPageWrapper({
     }
 
     // Navigate to chat with session
-    router.push(
-      `/chat/${characterId}?session=${sessionId}&source=${source || "direct"}`,
-    );
+    router.push(`/chat/${characterId}?session=${sessionId}&source=${source || "direct"}`);
   }
 
   return (

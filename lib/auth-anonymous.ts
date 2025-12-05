@@ -12,36 +12,73 @@
  * 5. After limit, prompted to sign up
  * 6. On signup, anonymous data transfers to real account
  *
+ * Security:
+ * - httpOnly cookies prevent XSS attacks
+ * - sameSite: strict prevents CSRF attacks
+ * - IP-based abuse detection in production
+ * - Tokens hashed for logging
+ *
  * NOTE: This module is being deprecated in favor of lib/session/unified-session.ts
  * Use getOrCreateSessionUser() from @/lib/session for new code.
  */
 
 import { nanoid } from "nanoid";
+import { createHash } from "node:crypto";
 import { cookies, headers } from "next/headers";
 import { usersService, anonymousSessionsService } from "@/lib/services";
 import { db } from "@/db/client";
-import { users, anonymousSessions } from "@/db/schemas";
-import { eq, and, sql } from "drizzle-orm";
+import { users } from "@/db/schemas";
 import { logger } from "@/lib/utils/logger";
-import type { UserWithOrganization } from "@/lib/types";
+import type { UserWithOrganization, User } from "@/lib/types";
 import { migrateAnonymousSession } from "@/lib/session";
 
-// Constants
+// Constants - can be overridden via environment variables
 const ANON_SESSION_COOKIE = "eliza-anon-session";
-const ANON_SESSION_EXPIRY_DAYS = 7;
-const ANON_MESSAGE_LIMIT = 10;
-const ANON_HOURLY_LIMIT = 10;
+const ANON_SESSION_EXPIRY_DAYS = Number.parseInt(
+  process.env.ANON_SESSION_EXPIRY_DAYS || "7",
+  10
+);
+const ANON_MESSAGE_LIMIT = Number.parseInt(
+  process.env.ANON_MESSAGE_LIMIT || "10",
+  10
+);
+const ANON_HOURLY_LIMIT = Number.parseInt(
+  process.env.ANON_HOURLY_LIMIT || "10",
+  10
+);
+
+/**
+ * Type for anonymous user (no organization)
+ */
+type AnonymousUserWithOrganization = Omit<User, "organization_id"> & {
+  organization_id: null;
+  organization: null;
+};
+
+/**
+ * Hash a token for safe logging (prevents token exposure in logs)
+ */
+function hashTokenForLogging(token: string): string {
+  return createHash("sha256").update(token).digest("hex").slice(0, 8);
+}
 
 /**
  * Get client IP address from headers
+ *
+ * Priority: x-real-ip (trusted, set by Vercel/proxy) > x-forwarded-for (first IP)
+ * Note: x-forwarded-for can be spoofed by clients, x-real-ip is more trusted
  */
 async function getClientIp(): Promise<string | undefined> {
   const headersList = await headers();
-  return (
-    headersList.get("x-forwarded-for")?.split(",")[0] ||
-    headersList.get("x-real-ip") ||
-    undefined
-  );
+  const realIp = headersList.get("x-real-ip")?.trim();
+  if (realIp) {
+    return realIp;
+  }
+  const forwardedFor = headersList
+    .get("x-forwarded-for")
+    ?.split(",")[0]
+    ?.trim();
+  return forwardedFor || undefined;
 }
 
 /**
@@ -74,26 +111,27 @@ export async function getOrCreateAnonymousUser(): Promise<{
   const cookieStore = await cookies();
   const sessionToken = cookieStore.get(ANON_SESSION_COOKIE)?.value;
 
-  // Check for existing session
   if (sessionToken) {
     const session = await anonymousSessionsService.getByToken(sessionToken);
 
     if (session) {
-      // Session exists and is valid
       const user = await usersService.getById(session.user_id);
 
-      if (user && user.is_anonymous) {
-        logger.info("auth-anonymous", "Existing anonymous session found", {
+      if (user?.is_anonymous) {
+        logger.info("[auth-anonymous] Existing anonymous session found", {
           userId: user.id,
           messageCount: session.message_count,
           remaining: session.messages_limit - session.message_count,
         });
 
+        const anonymousUser: AnonymousUserWithOrganization = {
+          ...user,
+          organization_id: null,
+          organization: null,
+        };
+
         return {
-          user: {
-            ...user,
-            organization: null as any, // Anonymous users don't have orgs
-          },
+          user: anonymousUser as UserWithOrganization,
           session,
           isNew: false,
         };
@@ -101,39 +139,42 @@ export async function getOrCreateAnonymousUser(): Promise<{
     }
   }
 
-  // Create new anonymous user
   const newSessionToken = nanoid(32);
   const expiresAt = new Date(
-    Date.now() + ANON_SESSION_EXPIRY_DAYS * 24 * 60 * 60 * 1000,
+    Date.now() + ANON_SESSION_EXPIRY_DAYS * 24 * 60 * 60 * 1000
   );
   const ipAddress = await getClientIp();
   const userAgent = await getUserAgent();
 
-  // Check for IP abuse (too many sessions from same IP)
-  // Skip abuse check in development for easier testing
-  if (ipAddress && process.env.NODE_ENV === "production") {
-    const isAbuse = await anonymousSessionsService.checkIpAbuse(ipAddress);
-    if (isAbuse) {
-      throw new Error(
-        "Too many anonymous sessions from this IP address. Please sign up for continued access.",
+  if (process.env.NODE_ENV === "production") {
+    if (!ipAddress) {
+      logger.warn(
+        "[auth-anonymous] Missing IP address in production - abuse detection bypassed"
       );
+    } else {
+      const isAbuse = await anonymousSessionsService.checkIpAbuse(ipAddress);
+      if (isAbuse) {
+        const error = new Error(
+          "Too many anonymous sessions from this IP address. Please sign up for continued access."
+        );
+        error.name = "RateLimitError";
+        throw error;
+      }
     }
   }
 
-  // Create user record (no organization)
   const [newUser] = await db
     .insert(users)
     .values({
       is_anonymous: true,
       anonymous_session_id: newSessionToken,
-      organization_id: null, // No org for anonymous users
+      organization_id: null,
       is_active: true,
       expires_at: expiresAt,
       role: "member",
     })
     .returning();
 
-  // Create session record
   const newSession = await anonymousSessionsService.create({
     session_token: newSessionToken,
     user_id: newUser.id,
@@ -143,27 +184,28 @@ export async function getOrCreateAnonymousUser(): Promise<{
     messages_limit: ANON_MESSAGE_LIMIT,
   });
 
-  // Set the cookie so subsequent requests are authenticated
-  // This is valid because getOrCreateAnonymousUser is called from Route Handlers
   cookieStore.set(ANON_SESSION_COOKIE, newSessionToken, {
     httpOnly: true,
     secure: process.env.NODE_ENV === "production",
-    sameSite: "lax",
+    sameSite: "strict",
     path: "/",
     expires: expiresAt,
   });
 
-  logger.info("auth-anonymous", "Created new anonymous session and set cookie", {
+  logger.info("[auth-anonymous] Created new anonymous session", {
     userId: newUser.id,
     sessionId: newSession.id,
     expiresAt,
   });
 
+  const anonymousUser: AnonymousUserWithOrganization = {
+    ...newUser,
+    organization_id: null,
+    organization: null,
+  };
+
   return {
-    user: {
-      ...newUser,
-      organization: null as any,
-    },
+    user: anonymousUser as UserWithOrganization,
     session: newSession,
     sessionToken: newSessionToken,
     expiresAt,
@@ -182,7 +224,7 @@ export async function getOrCreateAnonymousUser(): Promise<{
  */
 export async function convertAnonymousToReal(
   anonymousUserId: string,
-  privyUserId: string,
+  privyUserId: string
 ): Promise<void> {
   logger.info("[auth-anonymous] convertAnonymousToReal called (deprecated)", {
     anonymousUserId,
@@ -218,7 +260,6 @@ export async function checkAnonymousLimit(sessionId: string): Promise<{
     throw new Error("Session not found");
   }
 
-  // Check total message limit
   if (session.message_count >= session.messages_limit) {
     return {
       allowed: false,
@@ -228,9 +269,8 @@ export async function checkAnonymousLimit(sessionId: string): Promise<{
     };
   }
 
-  // Check hourly rate limit
   const rateLimitResult = await anonymousSessionsService.checkRateLimit(
-    session.id,
+    session.id
   );
 
   if (!rateLimitResult.allowed) {
@@ -262,7 +302,7 @@ export async function getAnonymousUser(): Promise<{
   logger.debug("[getAnonymousUser] Checking for anonymous session cookie:", {
     hasCookie: !!sessionToken,
     cookieName: ANON_SESSION_COOKIE,
-    tokenPreview: sessionToken ? sessionToken.slice(0, 8) + "..." : "N/A",
+    tokenHash: sessionToken ? hashTokenForLogging(sessionToken) : "N/A",
   });
 
   if (!sessionToken) {
@@ -273,7 +313,10 @@ export async function getAnonymousUser(): Promise<{
   const session = await anonymousSessionsService.getByToken(sessionToken);
 
   if (!session) {
-    logger.debug("[getAnonymousUser] Session not found in DB for token:", sessionToken.slice(0, 8));
+    logger.debug(
+      "[getAnonymousUser] Session not found in DB for token hash:",
+      hashTokenForLogging(sessionToken)
+    );
     return null;
   }
 
@@ -296,11 +339,14 @@ export async function getAnonymousUser(): Promise<{
 
   logger.debug("[getAnonymousUser] Anonymous user found:", user.id);
 
+  const anonymousUser: AnonymousUserWithOrganization = {
+    ...user,
+    organization_id: null,
+    organization: null,
+  };
+
   return {
-    user: {
-      ...user,
-      organization: null as any,
-    },
+    user: anonymousUser as UserWithOrganization,
     session,
   };
 }

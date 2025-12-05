@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
@@ -15,7 +15,6 @@ import { DocumentList } from "./document-list";
 import { KnowledgeQuery } from "./knowledge-query";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { InfoIcon, Upload, Search, List, Bot } from "lucide-react";
-import { cn } from "@/lib/utils";
 import type { ElizaCharacter } from "@/lib/types";
 
 interface KnowledgeDocument {
@@ -37,37 +36,52 @@ interface KnowledgePageClientProps {
   initialCharacters: ElizaCharacter[];
 }
 
+interface PageState {
+  documents: KnowledgeDocument[];
+  loading: boolean;
+  error: string | null;
+  serviceAvailable: boolean;
+  activeTab: string;
+  isMounted: boolean;
+  selectedCharacterId: string | null;
+}
+
 export function KnowledgePageClient({
   initialCharacters,
 }: KnowledgePageClientProps) {
-  const [documents, setDocuments] = useState<KnowledgeDocument[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-  const [serviceAvailable, setServiceAvailable] = useState(true);
-  const [activeTab, setActiveTab] = useState("documents");
-  const [isMounted, setIsMounted] = useState(false);
-  const [selectedCharacterId, setSelectedCharacterId] = useState<string | null>(
-    initialCharacters.length > 0 ? initialCharacters[0].id! : null,
-  );
+  const [pageState, setPageState] = useState<PageState>({
+    documents: [],
+    loading: true,
+    error: null,
+    serviceAvailable: true,
+    activeTab: "documents",
+    isMounted: false,
+    selectedCharacterId: initialCharacters.length > 0 ? initialCharacters[0].id! : null,
+  });
 
-  const fetchDocuments = async () => {
+  const updatePageState = (updates: Partial<PageState>) => {
+    setPageState((prev) => ({ ...prev, ...updates }));
+  };
+
+  const fetchDocuments = useCallback(async () => {
     try {
-      setLoading(true);
-      setError(null);
+      updatePageState({ loading: true, error: null });
 
       // Include characterId in query params
       const url = new URL("/api/v1/knowledge", window.location.origin);
-      if (selectedCharacterId) {
-        url.searchParams.set("characterId", selectedCharacterId);
+      if (pageState.selectedCharacterId) {
+        url.searchParams.set("characterId", pageState.selectedCharacterId);
       }
 
       const response = await fetch(url.toString());
 
       if (response.status === 503) {
         const data = await response.json();
-        setError(data.error || "Knowledge service is not available");
-        setServiceAvailable(false);
-        setLoading(false);
+        updatePageState({
+          error: data.error || "Knowledge service is not available",
+          serviceAvailable: false,
+          loading: false,
+        });
         return;
       }
 
@@ -79,22 +93,26 @@ export function KnowledgePageClient({
       }
 
       const data = await response.json();
-      setDocuments(data.documents || []);
-      setServiceAvailable(true);
+      updatePageState({
+        documents: data.documents || [],
+        serviceAvailable: true,
+      });
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to load documents");
+      updatePageState({
+        error: err instanceof Error ? err.message : "Failed to load documents",
+      });
       console.error("Error fetching documents:", err);
     } finally {
-      setLoading(false);
+      updatePageState({ loading: false });
     }
-  };
+  }, [pageState.selectedCharacterId]);
 
   useEffect(() => {
-    if (selectedCharacterId) {
+    if (pageState.selectedCharacterId) {
       fetchDocuments();
     }
-    setIsMounted(true);
-  }, [selectedCharacterId]);
+    updatePageState({ isMounted: true });
+  }, [pageState.selectedCharacterId, fetchDocuments]);
 
   const handleUploadSuccess = () => {
     fetchDocuments();
@@ -107,8 +125,8 @@ export function KnowledgePageClient({
         `/api/v1/knowledge/${documentId}`,
         window.location.origin,
       );
-      if (selectedCharacterId) {
-        url.searchParams.set("characterId", selectedCharacterId);
+      if (pageState.selectedCharacterId) {
+        url.searchParams.set("characterId", pageState.selectedCharacterId);
       }
 
       const response = await fetch(url.toString(), {
@@ -127,43 +145,15 @@ export function KnowledgePageClient({
     }
   };
 
-  if (!serviceAvailable && !loading) {
+  if (!pageState.serviceAvailable && !pageState.loading) {
     return (
       <div className="container mx-auto py-8 space-y-4">
-        <div>
-          <h1 className="text-3xl font-bold">Knowledge Management</h1>
-          <p className="text-muted-foreground mt-2">
-            Manage your RAG knowledge base. Upload documents and query them for
-            enhanced AI responses.
-          </p>
-        </div>
-
+        <h1 className="text-2xl font-bold">Knowledge Base</h1>
         <Alert variant="destructive">
           <InfoIcon className="h-4 w-4" />
-          <AlertDescription className="space-y-2">
-            <p className="font-semibold">Knowledge service is not available</p>
-            {error && <p className="text-sm">{error}</p>}
-            <p className="text-sm mt-2">
-              The knowledge plugin may not be properly initialized. This can
-              happen if:
-            </p>
-            <ul className="text-sm list-disc list-inside space-y-1 mt-2">
-              <li>The agent runtime hasn&apos;t been initialized yet</li>
-              <li>
-                The knowledge plugin isn&apos;t loaded in the agent
-                configuration
-              </li>
-              <li>
-                Required environment variables (like OPENAI_API_KEY) are missing
-              </li>
-            </ul>
-            <p className="text-sm mt-3">
-              <strong>Tip:</strong> Try visiting the{" "}
-              <a href="/dashboard/chat" className="underline">
-                Chat
-              </a>{" "}
-              page first to initialize the runtime, then come back here.
-            </p>
+          <AlertDescription>
+            <p className="font-semibold">Service unavailable</p>
+            {pageState.error && <p className="text-sm mt-1">{pageState.error}</p>}
           </AlertDescription>
         </Alert>
       </div>
@@ -183,40 +173,25 @@ export function KnowledgePageClient({
 
         {/* Character Selector */}
         {initialCharacters.length > 0 && (
-          <Card>
-            <CardHeader>
-              <CardTitle className="text-sm font-medium flex items-center gap-2">
-                <Bot className="h-4 w-4" />
-                Select Agent
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <Select
-                value={selectedCharacterId || undefined}
-                onValueChange={setSelectedCharacterId}
-              >
-                <SelectTrigger className="w-full">
-                  <SelectValue placeholder="Select an agent..." />
-                </SelectTrigger>
-                <SelectContent>
-                  {initialCharacters.map((char) => (
-                    <SelectItem key={char.id} value={char.id!}>
-                      <div className="flex items-center gap-2">
-                        <span>{char.name}</span>
-                      </div>
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-              <p className="text-xs text-muted-foreground mt-2">
-                Knowledge documents are agent-specific. Select which
-                agent&apos;s knowledge base to manage.
-              </p>
-            </CardContent>
-          </Card>
+          <Select
+            value={pageState.selectedCharacterId || undefined}
+            onValueChange={(v) => updatePageState({ selectedCharacterId: v })}
+          >
+            <SelectTrigger className="w-full max-w-xs">
+              <Bot className="h-4 w-4 mr-2" />
+              <SelectValue placeholder="Select agent..." />
+            </SelectTrigger>
+            <SelectContent>
+              {initialCharacters.map((char) => (
+                <SelectItem key={char.id} value={char.id!}>
+                  {char.name}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
         )}
 
-        {!selectedCharacterId && initialCharacters.length > 0 && (
+        {!pageState.selectedCharacterId && initialCharacters.length > 0 && (
           <Alert>
             <InfoIcon className="h-4 w-4" />
             <AlertDescription>
@@ -228,30 +203,30 @@ export function KnowledgePageClient({
 
       <Tabs
         id="knowledge-tabs"
-        value={activeTab}
-        onValueChange={setActiveTab}
+        value={pageState.activeTab}
+        onValueChange={(v) => updatePageState({ activeTab: v })}
         className="w-full"
       >
         {/* Mobile Dropdown */}
-        {isMounted && (
+        {pageState.isMounted && (
           <div className="block md:hidden mb-4">
-            <Select value={activeTab} onValueChange={setActiveTab}>
+            <Select value={pageState.activeTab} onValueChange={(v) => updatePageState({ activeTab: v })}>
               <SelectTrigger className="w-full">
                 <SelectValue>
                   <div className="flex items-center gap-2">
-                    {activeTab === "documents" && (
+                    {pageState.activeTab === "documents" && (
                       <>
                         <List className="h-4 w-4" />
                         <span>Documents</span>
                       </>
                     )}
-                    {activeTab === "upload" && (
+                    {pageState.activeTab === "upload" && (
                       <>
                         <Upload className="h-4 w-4" />
                         <span>Upload</span>
                       </>
                     )}
-                    {activeTab === "query" && (
+                    {pageState.activeTab === "query" && (
                       <>
                         <Search className="h-4 w-4" />
                         <span>Query</span>
@@ -306,14 +281,14 @@ export function KnowledgePageClient({
               <CardTitle>Knowledge Documents</CardTitle>
             </CardHeader>
             <CardContent>
-              {error ? (
+              {pageState.error ? (
                 <Alert variant="destructive">
-                  <AlertDescription>{error}</AlertDescription>
+                  <AlertDescription>{pageState.error}</AlertDescription>
                 </Alert>
               ) : (
                 <DocumentList
-                  documents={documents}
-                  loading={loading}
+                  documents={pageState.documents}
+                  loading={pageState.loading}
                   onDelete={handleDelete}
                   onRefresh={fetchDocuments}
                 />
@@ -330,7 +305,7 @@ export function KnowledgePageClient({
             <CardContent>
               <DocumentUpload
                 onUploadSuccess={handleUploadSuccess}
-                characterId={selectedCharacterId}
+                characterId={pageState.selectedCharacterId}
               />
             </CardContent>
           </Card>
@@ -342,7 +317,7 @@ export function KnowledgePageClient({
               <CardTitle>Query Knowledge Base</CardTitle>
             </CardHeader>
             <CardContent>
-              <KnowledgeQuery characterId={selectedCharacterId} />
+              <KnowledgeQuery characterId={pageState.selectedCharacterId} />
             </CardContent>
           </Card>
         </TabsContent>

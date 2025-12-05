@@ -92,57 +92,52 @@ export class AutoTopUpService {
       `[AutoTopUp] Starting auto top-up check at ${startTime.toISOString()}`,
     );
 
-    try {
-      // Find organizations that need auto top-up
-      // Using raw SQL for numeric comparison to avoid type coercion issues
-      const orgsNeedingTopUp = await db
-        .select()
-        .from(organizations)
-        .where(
-          and(
-            eq(organizations.auto_top_up_enabled, true),
-            sql`CAST(${organizations.credit_balance} AS NUMERIC) < CAST(${organizations.auto_top_up_threshold} AS NUMERIC)`,
-          ),
-        );
-
-      console.log(
-        `[AutoTopUp] Found ${orgsNeedingTopUp.length} organizations needing auto top-up`,
+    // Find organizations that need auto top-up
+    // Using raw SQL for numeric comparison to avoid type coercion issues
+    const orgsNeedingTopUp = await db
+      .select()
+      .from(organizations)
+      .where(
+        and(
+          eq(organizations.auto_top_up_enabled, true),
+          sql`CAST(${organizations.credit_balance} AS NUMERIC) < CAST(${organizations.auto_top_up_threshold} AS NUMERIC)`,
+        ),
       );
 
-      // Process each organization
-      for (const org of orgsNeedingTopUp) {
-        try {
-          const result = await this.executeAutoTopUp(org);
-          results.push(result);
-        } catch (error) {
-          console.error(`[AutoTopUp] Error processing org ${org.id}:`, error);
-          results.push({
-            organizationId: org.id,
-            success: false,
-            error: error instanceof Error ? error.message : "Unknown error",
-          });
-        }
+    console.log(
+      `[AutoTopUp] Found ${orgsNeedingTopUp.length} organizations needing auto top-up`,
+    );
+
+    // Process each organization
+    for (const org of orgsNeedingTopUp) {
+      try {
+        const result = await this.executeAutoTopUp(org);
+        results.push(result);
+      } catch (error) {
+        console.error(`[AutoTopUp] Error processing org ${org.id}:`, error);
+        results.push({
+          organizationId: org.id,
+          success: false,
+          error: error instanceof Error ? error.message : "Unknown error",
+        });
       }
-
-      const successful = results.filter((r) => r.success).length;
-      const failed = results.filter((r) => !r.success).length;
-
-      console.log(
-        `[AutoTopUp] Completed check. Processed: ${results.length}, Successful: ${successful}, Failed: ${failed}`,
-      );
-
-      return {
-        timestamp: startTime,
-        organizationsChecked: orgsNeedingTopUp.length,
-        organizationsProcessed: results.length,
-        successful,
-        failed,
-        results,
-      };
-    } catch (error) {
-      console.error("[AutoTopUp] Critical error during check:", error);
-      throw error;
     }
+
+    const successful = results.filter((r) => r.success).length;
+    const failed = results.filter((r) => !r.success).length;
+
+    console.log(
+      `[AutoTopUp] Completed check. Processed: ${results.length}, Successful: ${successful}, Failed: ${failed}`,
+    );
+
+    return {
+      timestamp: startTime,
+      organizationsChecked: orgsNeedingTopUp.length,
+      organizationsProcessed: results.length,
+      successful,
+      failed,
+      results,
+    };
   }
 
   /**

@@ -25,10 +25,15 @@ Your response must ONLY include the <response></response> XML block.
 `;
 
 export const chatPlaygroundTemplate = `
-{{characterLore}}
-{{messageExamples}}
-{{sessionSummaries}}
-{{recentMessages}}
 {{longTermMemories}}
+
+{{characterLore}}
+
+{{messageExamples}}
+
+{{sessionSummaries}}
+
+{{conversationLog}}
+
 {{receivedMessageHeader}}
 `;

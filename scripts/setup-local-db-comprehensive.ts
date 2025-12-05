@@ -229,7 +229,7 @@ async function createEnvFile() {
 }
 
 async function main() {
-  console.log("\n=== Eliza Cloud V2 - Local Database Setup ===\n");
+  console.log("\n=== Eliza Cloud - Local Database Setup ===\n");
 
   const steps = [
     { name: "Check Docker installation", fn: checkDocker },

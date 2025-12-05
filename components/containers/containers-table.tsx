@@ -91,14 +91,27 @@ const STATUS_ICONS = {
 type SortField = "name" | "status" | "deployed" | "cpu" | "memory";
 type SortDirection = "asc" | "desc";
 
+interface TableFilters {
+  searchQuery: string;
+  statusFilter: string;
+  sortField: SortField;
+  sortDirection: SortDirection;
+}
+
+const DEFAULT_FILTERS: TableFilters = {
+  searchQuery: "",
+  statusFilter: "all",
+  sortField: "deployed",
+  sortDirection: "desc",
+};
+
 export function ContainersTable({ containers }: ContainersTableProps) {
   const router = useRouter();
   const [deleteId, setDeleteId] = useState<string | null>(null);
   const [isDeleting, setIsDeleting] = useState(false);
-  const [searchQuery, setSearchQuery] = useState("");
-  const [statusFilter, setStatusFilter] = useState<string>("all");
-  const [sortField, setSortField] = useState<SortField>("deployed");
-  const [sortDirection, setSortDirection] = useState<SortDirection>("desc");
+  
+  // Consolidated filter and sort state
+  const [filters, setFilters] = useState<TableFilters>(DEFAULT_FILTERS);
 
   const getStatusColor = (status: string): string => {
     return STATUS_COLORS[status as keyof typeof STATUS_COLORS] || "bg-gray-500";
@@ -109,25 +122,24 @@ export function ContainersTable({ containers }: ContainersTableProps) {
   };
 
   const handleSort = (field: SortField) => {
-    if (sortField === field) {
-      setSortDirection(sortDirection === "asc" ? "desc" : "asc");
-    } else {
-      setSortField(field);
-      setSortDirection("asc");
-    }
+    setFilters(prev => ({
+      ...prev,
+      sortField: field,
+      sortDirection: prev.sortField === field && prev.sortDirection === "asc" ? "desc" : "asc",
+    }));
   };
 
   const filteredAndSortedContainers = useMemo(() => {
     let filtered = containers.filter((container) => {
       const matchesSearch =
-        searchQuery === "" ||
-        container.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        filters.searchQuery === "" ||
+        container.name.toLowerCase().includes(filters.searchQuery.toLowerCase()) ||
         container.description
           ?.toLowerCase()
-          .includes(searchQuery.toLowerCase());
+          .includes(filters.searchQuery.toLowerCase());
 
       const matchesStatus =
-        statusFilter === "all" || container.status === statusFilter;
+        filters.statusFilter === "all" || container.status === filters.statusFilter;
 
       return matchesSearch && matchesStatus;
     });
@@ -135,7 +147,7 @@ export function ContainersTable({ containers }: ContainersTableProps) {
     filtered.sort((a, b) => {
       let comparison = 0;
 
-      switch (sortField) {
+      switch (filters.sortField) {
         case "name":
           comparison = a.name.localeCompare(b.name);
           break;
@@ -159,11 +171,11 @@ export function ContainersTable({ containers }: ContainersTableProps) {
           break;
       }
 
-      return sortDirection === "asc" ? comparison : -comparison;
+      return filters.sortDirection === "asc" ? comparison : -comparison;
     });
 
     return filtered;
-  }, [containers, searchQuery, statusFilter, sortField, sortDirection]);
+  }, [containers, filters]);
 
   const handleDelete = async (id: string) => {
     setIsDeleting(true);
@@ -248,13 +260,13 @@ export function ContainersTable({ containers }: ContainersTableProps) {
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-white/60" />
               <Input
                 placeholder="Search containers by name or description..."
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
+                value={filters.searchQuery}
+                onChange={(e) => setFilters(prev => ({ ...prev, searchQuery: e.target.value }))}
                 className="pl-9 rounded-none border-white/10 bg-black/40 text-white placeholder:text-white/40 focus-visible:ring-[#FF5800]/50"
                 style={{ fontFamily: "var(--font-roboto-mono)" }}
               />
             </div>
-            <Select value={statusFilter} onValueChange={setStatusFilter}>
+            <Select value={filters.statusFilter} onValueChange={(value) => setFilters(prev => ({ ...prev, statusFilter: value }))}>
               <SelectTrigger
                 className="w-full sm:w-[180px] rounded-none border-white/10 bg-black/40"
                 style={{ fontFamily: "var(--font-roboto-mono)" }}
@@ -274,7 +286,7 @@ export function ContainersTable({ containers }: ContainersTableProps) {
           </div>
 
           {/* Results Count */}
-          {(searchQuery || statusFilter !== "all") && (
+          {(filters.searchQuery || filters.statusFilter !== "all") && (
             <div
               className="text-sm text-white/60"
               style={{ fontFamily: "var(--font-roboto-mono)" }}

@@ -26,9 +26,8 @@ export function BuildPageClient({
   } | null>(null);
   const [isLoadingSession, setIsLoadingSession] = useState(!isAuthenticated);
 
-  // Initialize store with characters and entity ID
-  const { setAvailableCharacters, initializeEntityId, setSelectedCharacterId } =
-    useChatStore();
+  // Initialize store with characters
+  const { setAvailableCharacters, setSelectedCharacterId } = useChatStore();
 
   useSetPageHeader({
     title: "Build",
@@ -47,19 +46,12 @@ export function BuildPageClient({
     }));
 
     setAvailableCharacters(characters);
-    initializeEntityId();
-
+    
     // Set selected character from URL if provided
     if (initialCharacterId) {
       setSelectedCharacterId(initialCharacterId);
     }
-  }, [
-    initialCharacters,
-    initialCharacterId,
-    setAvailableCharacters,
-    initializeEntityId,
-    setSelectedCharacterId,
-  ]);
+  }, [initialCharacters, initialCharacterId, setAvailableCharacters, setSelectedCharacterId]);
 
   // Initialize anonymous session for unauthenticated users
   useEffect(() => {
