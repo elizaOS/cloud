@@ -71,6 +71,13 @@ export * from "./conversations";
 export * from "./container-quota";
 export * from "./memory";
 
+// ============================================
+// App Domain Services
+// ============================================
+export { appsService } from "./apps";
+export { appAnalyticsService } from "./app-analytics";
+export { appSignupTrackingService } from "./app-signup-tracking";
+
 // AWS Infrastructure services
 export * from "./ecr";
 export * from "./cloudformation";

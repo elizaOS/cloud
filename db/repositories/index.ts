@@ -70,3 +70,9 @@ export * from "./agents/memories";
 // ============================================
 export * from "./conversations";
 export * from "./generations";
+
+// ============================================
+// App Domain
+// ============================================
+export * from "./eliza-room-characters";
+export * from "./apps";
