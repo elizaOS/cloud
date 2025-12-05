@@ -20,6 +20,9 @@ import {
   SearchIcon,
   ShieldIcon,
   X,
+  Coins,
+  Sparkles,
+  TrendingUp,
 } from "lucide-react";
 import { useEffect, useState } from "react";
 
@@ -130,6 +133,30 @@ export default function ApiExplorerPage() {
     }
   };
 
+  // Pricing display helpers
+  const formatPrice = (pricing: ApiEndpoint["pricing"]) => {
+    if (!pricing) return null;
+    if (pricing.isFree) return "Free";
+    if (pricing.isVariable && pricing.estimatedRange) {
+      return `$${pricing.estimatedRange.min.toFixed(3)} - $${pricing.estimatedRange.max.toFixed(2)}`;
+    }
+    return `$${pricing.cost.toFixed(pricing.cost < 0.01 ? 4 : 2)}`;
+  };
+
+  const getPricingIcon = (pricing: ApiEndpoint["pricing"]) => {
+    if (!pricing) return null;
+    if (pricing.isFree) return <Sparkles className="h-4 w-4 text-emerald-400" />;
+    if (pricing.isVariable) return <TrendingUp className="h-4 w-4 text-amber-400" />;
+    return <Coins className="h-4 w-4 text-[#FF5800]" />;
+  };
+
+  const getPricingStyle = (pricing: ApiEndpoint["pricing"]) => {
+    if (!pricing) return "";
+    if (pricing.isFree) return "bg-emerald-500/10 text-emerald-400 border-emerald-500/30";
+    if (pricing.isVariable) return "bg-amber-500/10 text-amber-400 border-amber-500/30";
+    return "bg-[#FF5800]/10 text-[#FF5800] border-[#FF5800]/30";
+  };
+
   return (
     <div className="w-full px-4 pb-8 lg:px-8">
       {/* Main Content */}
@@ -143,7 +170,7 @@ export default function ApiExplorerPage() {
 
           <BrandTabsContent value="endpoints" className="mt-0">
             {selectedEndpoint ? (
-              <div className="flex flex-col space-y-6">
+              <div className="flex flex-col space-y-6 max-w-4xl">
                 <div className="flex items-center justify-between shrink-0">
                   <BrandButton
                     variant="ghost"
@@ -154,6 +181,20 @@ export default function ApiExplorerPage() {
                     ← Back to endpoints
                   </BrandButton>
                   <div className="flex items-center gap-2 flex-wrap">
+                    {/* Pricing Badge in Header */}
+                    {selectedEndpoint.pricing && (
+                      <div className={`flex items-center gap-1.5 rounded-none border px-2.5 py-1 ${getPricingStyle(selectedEndpoint.pricing)}`}>
+                        {getPricingIcon(selectedEndpoint.pricing)}
+                        <span className="text-xs font-semibold">
+                          {formatPrice(selectedEndpoint.pricing)}
+                        </span>
+                        {!selectedEndpoint.pricing.isFree && (
+                          <span className="text-[10px] opacity-70">
+                            /{selectedEndpoint.pricing.unit}
+                          </span>
+                        )}
+                      </div>
+                    )}
                     <span className={getMethodColor(selectedEndpoint.method)}>
                       {selectedEndpoint.method}
                     </span>
