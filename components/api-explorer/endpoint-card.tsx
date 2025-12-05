@@ -20,11 +20,11 @@ function formatPrice(pricing: ApiEndpoint["pricing"]) {
   return `$${pricing.cost.toFixed(pricing.cost < 0.01 ? 4 : 2)}`;
 }
 
-function getPricingBadgeStyle(pricing: ApiEndpoint["pricing"]) {
-  if (!pricing) return "bg-white/5 text-white/50 border-white/10";
-  if (pricing.isFree) return "bg-emerald-500/10 text-emerald-400 border-emerald-500/30";
-  if (pricing.isVariable) return "bg-amber-500/10 text-amber-400 border-amber-500/30";
-  return "bg-[#FF5800]/10 text-[#FF5800] border-[#FF5800]/30";
+function getPricingTextStyle(pricing: ApiEndpoint["pricing"]) {
+  if (!pricing) return "text-white/50";
+  if (pricing.isFree) return "text-emerald-400";
+  if (pricing.isVariable) return "text-amber-400";
+  return "text-[#FF5800]";
 }
 
 export function EndpointCard({
@@ -82,10 +82,10 @@ export function EndpointCard({
           </code>
         </div>
 
-        {/* Pricing Badge */}
+        {/* Pricing */}
         {endpoint.pricing && (
           <div className="flex items-center gap-2">
-            <div className={`flex items-center gap-1.5 rounded-none border px-2.5 py-1.5 ${getPricingBadgeStyle(endpoint.pricing)}`}>
+            <div className={`flex items-center gap-1.5 ${getPricingTextStyle(endpoint.pricing)}`}>
               {endpoint.pricing.isFree ? (
                 <Sparkles className="h-3.5 w-3.5" />
               ) : (
