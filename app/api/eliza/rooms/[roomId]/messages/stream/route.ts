@@ -112,6 +112,8 @@ export async function POST(
 
     // Step 4.5: Check if this is an affiliate character and switch to ASSISTANT mode
     // Affiliate characters need ASSISTANT mode for image generation capability
+    // The image generation action's validate function ensures images are only generated
+    // when explicitly requested (e.g., "send me a pic", "generate an image")
     if (characterId && agentModeConfig.mode === AgentMode.CHAT) {
       try {
         const character = await charactersService.getById(characterId);

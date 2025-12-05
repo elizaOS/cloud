@@ -93,20 +93,20 @@ export function AuthButton() {
               <Settings className="h-4 w-4 text-white/60" />
               Settings
             </Link>
-          </div>
+      </div>
 
           {/* Logout */}
           <div className="border-t border-white/10 py-1">
-            <button
+      <button
               onClick={() => {
                 setIsOpen(false);
                 logout();
               }}
               className="flex w-full items-center gap-3 px-4 py-2.5 text-sm text-red-400 transition-colors hover:bg-white/5 hover:text-red-300"
-            >
-              <LogOut className="h-4 w-4" />
+      >
+        <LogOut className="h-4 w-4" />
               Sign Out
-            </button>
+      </button>
           </div>
         </div>
       )}

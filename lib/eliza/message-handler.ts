@@ -613,14 +613,14 @@ export class MessageHandler {
           // Generate title from the conversation context
           const title = await generateRoomTitle(context || userText);
 
-          // Update room with the generated title
-          await db.execute(
-            sql`UPDATE rooms SET name = ${title} WHERE id = ${roomId}::uuid`,
-          );
+        // Update room with the generated title
+        await db.execute(
+          sql`UPDATE rooms SET name = ${title} WHERE id = ${roomId}::uuid`,
+        );
 
-          logger.info(
-            `[MessageHandler] Generated and saved room title: ${title}`,
-          );
+        logger.info(
+          `[MessageHandler] Generated and saved room title: ${title}`,
+        );
         } else {
           logger.debug(
             `[MessageHandler] Room has ${count} messages, waiting for 4+ to generate title`,

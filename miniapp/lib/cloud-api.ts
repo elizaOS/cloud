@@ -55,12 +55,20 @@ interface Chat {
   messageCount: number;
 }
 
+interface MessageAttachment {
+  id: string;
+  url: string;
+  title?: string;
+  contentType?: string;
+}
+
 interface Message {
   id: string;
   content: string;
   role: "user" | "assistant";
   createdAt: string;
   metadata?: Record<string, unknown>;
+  attachments?: MessageAttachment[];
 }
 
 interface User {
@@ -358,13 +366,14 @@ export async function sendMessage(
   roomId: string,
   text: string,
   callbacks: StreamCallbacks,
-  model?: string
+  model?: string,
+  attachments?: MessageAttachment[]
 ): Promise<void> {
   const response = await fetch(`${API_BASE}/stream/${roomId}`, {
     method: "POST",
     headers: getAuthHeaders(),
     credentials: "include",
-    body: JSON.stringify({ text, model }),
+    body: JSON.stringify({ text, model, attachments }),
   });
 
   if (!response.ok) {
@@ -418,11 +427,27 @@ export async function sendMessage(
         } else if (eventType === "message") {
           if (data.type === "user") {
             // User message confirmation
+            // Extract attachments if present (user may have uploaded images)
+            const userAttachments: MessageAttachment[] = [];
+            if (data.content?.attachments && Array.isArray(data.content.attachments)) {
+              for (const att of data.content.attachments) {
+                if (att.url && typeof att.url === "string") {
+                  userAttachments.push({
+                    id: att.id || `att-${Date.now()}`,
+                    url: att.url,
+                    title: att.title,
+                    contentType: att.contentType || "image",
+                  });
+                }
+              }
+            }
+            
             const userMsg: Message = {
               id: data.id,
               content: data.content?.text || "",
               role: "user",
               createdAt: new Date(data.createdAt).toISOString(),
+              attachments: userAttachments.length > 0 ? userAttachments : undefined,
             };
             callbacks.onUserMessage?.(userMsg);
           } else if (data.type === "thinking") {
@@ -431,13 +456,42 @@ export async function sendMessage(
           } else if (data.isAgent || data.type === "agent") {
             // Agent response
             const responseText = data.content?.text || "";
+            
+            // Debug: Log raw content to trace attachment parsing
+            console.log("[cloud-api] Agent response content:", JSON.stringify(data.content, null, 2));
+            
+            // Extract attachments (images) from the response
+            const attachments: MessageAttachment[] = [];
+            if (data.content?.attachments && Array.isArray(data.content.attachments)) {
+              console.log("[cloud-api] Found attachments:", data.content.attachments.length);
+              for (const att of data.content.attachments) {
+                if (att.url && typeof att.url === "string") {
+                  attachments.push({
+                    id: att.id || `att-${Date.now()}`,
+                    url: att.url,
+                    title: att.title,
+                    contentType: att.contentType || "image",
+                  });
+                }
+              }
+            } else {
+              console.log("[cloud-api] No attachments found in response");
+            }
 
             const agentMsg: Message = {
               id: data.id,
               content: responseText,
               role: "assistant",
               createdAt: new Date(data.createdAt || Date.now()).toISOString(),
+              attachments: attachments.length > 0 ? attachments : undefined,
             };
+            
+            console.log("[cloud-api] Parsed agent message:", {
+              hasAttachments: !!agentMsg.attachments,
+              attachmentCount: agentMsg.attachments?.length || 0,
+              contentPreview: agentMsg.content.substring(0, 50),
+            });
+            
             callbacks.onComplete?.(agentMsg, { tokens: 0, cost: 0 });
           }
         } else if (eventType === "error") {
@@ -523,6 +577,7 @@ export type {
   Chat,
   CreditPack,
   Message,
+  MessageAttachment,
   Organization,
   Pagination,
   Transaction,
