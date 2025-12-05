@@ -22,4 +22,3 @@ export function getProvider(): AIProvider {
   }
   return providerInstance;
 }
-
