@@ -180,7 +180,7 @@ export class MessageHandler {
 
     // 5. Track usage and credits (if not anonymous)
     if (!this.userContext.isAnonymous && usage) {
-      await this.trackUsage(usage);
+      await this.trackUsage(usage, options.characterId, roomId);
     }
 
     // 6. Handle anonymous session tracking
@@ -189,6 +189,7 @@ export class MessageHandler {
       hasSessionToken: !!this.userContext.sessionToken,
       sessionTokenPreview: this.userContext.sessionToken?.slice(0, 8) + "...",
       userId: this.userContext.userId,
+          character_id: options.characterId || null,
     });
     if (this.userContext.isAnonymous && this.userContext.sessionToken) {
       await this.incrementAnonymousMessageCount();
@@ -339,7 +340,7 @@ export class MessageHandler {
    * Deduct credits for message processing
    * Note: Token usage tracking is now handled by MODEL_USED events in plugin-assistant
    */
-  private async trackUsage(usage: MessageResult["usage"]): Promise<void> {
+  private async trackUsage(usage: MessageResult["usage"], characterId?: string, roomId?: string): Promise<void> {
     if (!usage || !this.userContext.organizationId) return;
 
     try {
@@ -363,12 +364,29 @@ export class MessageHandler {
           inputTokens: usage.inputTokens,
           outputTokens: usage.outputTokens,
           userId: this.userContext.userId,
+          character_id: characterId || null,
         },
       });
 
-      // Note: Usage records are created by MODEL_USED event listener in plugin-assistant
-      // No need to duplicate that here
-
+      // Create usage record with character_id for proper attribution
+      const { usageService } = await import("@/lib/services");
+      await usageService.create({
+        organization_id: this.userContext.organizationId,
+        user_id: this.userContext.userId,
+        api_key_id: null,
+        type: "eliza",
+        model,
+        provider,
+        input_tokens: usage.inputTokens || 0,
+        output_tokens: usage.outputTokens || 0,
+        input_cost: String(costResult.inputCost),
+        output_cost: String(costResult.outputCost),
+        is_successful: true,
+        metadata: {
+          character_id: characterId || null,
+          room_id: roomId || null,
+        },
+      });
       // Check if credits are running low
       if (deductResult.newBalance < 1.0) {
         logger.warn(
@@ -377,7 +395,7 @@ export class MessageHandler {
       }
 
       logger.info(
-        `[MessageHandler] Deducted credits - tokens: ${usage.inputTokens}/${usage.outputTokens}, cost: ${costResult.totalCost}, balance: ${deductResult.newBalance}`,
+        `[MessageHandler] Deducted credits and created usage record - tokens: ${usage.inputTokens}/${usage.outputTokens}, cost: ${costResult.totalCost}, character: ${characterId || 'none'}, balance: ${deductResult.newBalance}`,
       );
     } catch (error) {
       logger.error("[MessageHandler] Credit deduction error:", error);

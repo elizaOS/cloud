@@ -20,6 +20,7 @@ interface SendMessageOptions {
   entityId: string;
   text: string;
   model?: string; // Optional model selection
+  characterId?: string; // Character/agent ID for billing attribution
   sessionToken?: string; // Anonymous session token (from URL)
   onMessage: (message: StreamingMessage) => void;
   onError?: (error: string) => void;
@@ -35,6 +36,7 @@ export async function sendStreamingMessage({
   entityId,
   text,
   model,
+  characterId,
   sessionToken,
   onMessage,
   onError,
@@ -53,6 +55,7 @@ export async function sendStreamingMessage({
         entityId,
         text,
         ...(model && { model }), // Include model if provided
+        ...(characterId && { characterId }), // Include characterId for billing attribution
         // Also include in body as backup
         ...(sessionToken && { sessionToken }),
       }),

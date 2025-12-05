@@ -575,6 +575,51 @@ export class UsageRecordsRepository {
       totalCount: row.totalCount,
     }));
   }
+
+  /**
+   * Get daily cost totals by character_id from metadata for agent pricing chart
+   * This extracts character_id from the JSONB metadata field and groups costs by agent
+   */
+  async getDailyCostsByCharacter(
+    organizationId: string,
+    startDate: Date,
+    endDate: Date,
+  ): Promise<
+    Array<{
+      characterId: string | null;
+      date: string;
+      cost: number;
+      requests: number;
+    }>
+  > {
+    const result = await db
+      .select({
+        characterId: sql<string | null>`${usageRecords.metadata}->>'character_id'`,
+        date: sql<string>`date_trunc('day', ${usageRecords.created_at})::date::text`,
+        cost: sql<number>`coalesce(sum(${usageRecords.input_cost} + ${usageRecords.output_cost}), 0)::numeric`,
+        requests: sql<number>`count(*)::int`,
+      })
+      .from(usageRecords)
+      .where(
+        and(
+          eq(usageRecords.organization_id, organizationId),
+          sql`${usageRecords.created_at} >= ${startDate}`,
+          sql`${usageRecords.created_at} <= ${endDate}`,
+        ),
+      )
+      .groupBy(
+        sql`${usageRecords.metadata}->>'character_id'`,
+        sql`date_trunc('day', ${usageRecords.created_at})`,
+      )
+      .orderBy(sql`date_trunc('day', ${usageRecords.created_at})`);
+
+    return result.map((row) => ({
+      characterId: row.characterId,
+      date: row.date,
+      cost: Number(row.cost || 0),
+      requests: row.requests,
+    }));
+  }
 }
 
 // Export singleton instance

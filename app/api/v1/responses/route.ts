@@ -88,6 +88,7 @@ interface AISdkRequest {
     | "none"
     | { type: "function"; function: { name: string } };
   stream?: boolean;
+  character_id?: string;
   // ... other AI SDK specific fields
 }
 
@@ -263,6 +264,7 @@ async function handlePOST(req: NextRequest) {
 
     // 2. Parse AI SDK request
     const aiSdkRequest: AISdkRequest = await req.json();
+    const characterId = aiSdkRequest.character_id;
 
     // 3. Transform to OpenAI format
     const request = transformAISdkToOpenAI(aiSdkRequest);
@@ -546,6 +548,7 @@ async function handlePOST(req: NextRequest) {
         provider,
         startTime,
         request.messages,
+        characterId,
       );
     } else {
       return handleNonStreamingResponse(
@@ -555,6 +558,7 @@ async function handlePOST(req: NextRequest) {
         normalizedModel,
         provider,
         startTime,
+        characterId,
       );
     }
   } catch (error) {
@@ -619,6 +623,7 @@ async function handleNonStreamingResponse(
   model: string,
   provider: string,
   startTime: number,
+  characterId?: string,
 ) {
   // Parse response
   const data: OpenAIChatResponse = await providerResponse.json();
@@ -681,6 +686,9 @@ async function handleNonStreamingResponse(
           input_cost: String(inputCost),
           output_cost: String(outputCost),
           is_successful: true,
+          metadata: {
+            character_id: characterId || null,
+          },
         });
 
         if (apiKey) {
@@ -741,6 +749,7 @@ function handleStreamingResponse(
   provider: string,
   startTime: number,
   messages: Array<{ role: string; content: string | object }>,
+  characterId?: string,
 ) {
   let totalTokens = 0;
   let inputTokens = 0;
@@ -927,6 +936,9 @@ function handleStreamingResponse(
             input_cost: String(inputCost),
             output_cost: String(outputCost),
             is_successful: true,
+            metadata: {
+              character_id: characterId || null,
+            },
           });
 
           if (apiKey) {

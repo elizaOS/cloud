@@ -22,16 +22,12 @@ export default async function MyAgentsPage() {
     const anonSessionCookie = cookieStore.get("eliza-anon-session");
 
     if (anonSessionCookie?.value && user.privy_user_id) {
-      logger.info("[MyAgents] Found anonymous session cookie, attempting migration", {
-        userId: user.id,
-        sessionToken: anonSessionCookie.value.slice(0, 8) + "...",
-      });
-
       const { anonymousSessionsService } = await import("@/lib/services");
       const anonSession = await anonymousSessionsService.getByToken(anonSessionCookie.value);
 
       if (anonSession && !anonSession.converted_at) {
-        logger.info("[MyAgents] Found unconverted session, migrating...", {
+        logger.info("[MyAgents] Found unconverted anonymous session, migrating...", {
+          userId: user.id,
           sessionId: anonSession.id,
           anonymousUserId: anonSession.user_id,
         });
@@ -41,6 +37,9 @@ export default async function MyAgentsPage() {
 
         logger.info("[MyAgents] Migration completed successfully");
       }
+
+      // Always delete the cookie after checking - either migration completed or session already converted/invalid
+      cookieStore.delete("eliza-anon-session");
     }
   } catch (error) {
     logger.error("[MyAgents] Migration check failed:", error);

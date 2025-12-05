@@ -36,7 +36,7 @@ export async function POST(
     // Step 1: Parse request body FIRST (needed for session token check)
     const { roomId } = await ctx.params;
     const body = await request.json();
-    const { entityId, text, model, sessionToken, agentMode } = body;
+    const { entityId, text, model, sessionToken, agentMode, characterId: requestCharacterId } = body;
 
     if (!roomId || !entityId || !text?.trim()) {
       return new Response(
@@ -156,6 +156,38 @@ export async function POST(
       }
     }
 
+    // CHAT mode: Use characterId from request body as fallback for billing attribution
+    // This ensures usage is properly attributed even if room-character mapping doesn't exist
+    if (!characterId && requestCharacterId && agentModeConfig.mode === AgentMode.CHAT) {
+      characterId = requestCharacterId;
+      logger.info(
+        `[Stream] CHAT mode - Using characterId from request body for billing: ${characterId}`,
+      );
+
+      // Create room-character association for future messages
+      if (!roomCharacter) {
+        try {
+          await elizaRoomCharactersRepository.create({
+            room_id: roomId,
+            character_id: characterId,
+            user_id: userContext.userId,
+          });
+          logger.info(
+            `[Stream] CHAT mode - Created room-character association: room ${roomId} → character ${characterId}`,
+          );
+        } catch (error) {
+          // Ignore duplicate key errors - another request may have created it
+          const msg = error instanceof Error ? error.message.toLowerCase() : String(error).toLowerCase();
+          if (!msg.includes("duplicate key") && !msg.includes("unique constraint")) {
+            logger.error(
+              `[Stream] CHAT mode - Failed to create room-character association:`,
+              error,
+            );
+          }
+        }
+      }
+    }
+
     logger.info(
       `[Stream] Room ${roomId} - Character lookup:`,
       characterId
@@ -230,6 +262,7 @@ export async function POST(
             text,
             model,
             agentModeConfig,
+            characterId,
           });
 
           // Extract content - the full Content object is now stored in memory

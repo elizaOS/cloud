@@ -33,7 +33,8 @@ async function handlePOST(req: NextRequest) {
       await requireAuthOrApiKeyWithOrg(req);
 
     // 2. Parse request (already in OpenAI format!)
-    const request: OpenAIChatRequest = await req.json();
+    const request: OpenAIChatRequest & { character_id?: string } = await req.json();
+    const characterId = request.character_id;
 
     // Log detailed message breakdown
     const systemMessages = request.messages.filter(
@@ -240,6 +241,7 @@ async function handlePOST(req: NextRequest) {
         startTime,
         request.messages,
         session_token,
+        characterId,
       );
     } else {
       return handleNonStreamingResponse(
@@ -250,6 +252,7 @@ async function handlePOST(req: NextRequest) {
         provider,
         startTime,
         session_token,
+        characterId,
       );
     }
   } catch (error) {
@@ -296,6 +299,7 @@ async function handleNonStreamingResponse(
   provider: string,
   startTime: number,
   session_token?: string,
+  characterId?: string,
 ) {
   // Parse response
   const data: OpenAIChatResponse = await providerResponse.json();
@@ -361,6 +365,9 @@ async function handleNonStreamingResponse(
           input_cost: String(inputCost),
           output_cost: String(outputCost),
           is_successful: true,
+          metadata: {
+            character_id: characterId || null,
+          },
         });
 
         if (apiKey) {
@@ -415,6 +422,7 @@ function handleStreamingResponse(
   startTime: number,
   messages: Array<{ role: string; content: string | object }>,
   session_token?: string,
+  characterId?: string,
 ) {
   let totalTokens = 0;
   let inputTokens = 0;
@@ -542,6 +550,9 @@ function handleStreamingResponse(
           input_cost: String(inputCost),
           output_cost: String(outputCost),
           is_successful: true,
+          metadata: {
+            character_id: characterId || null,
+          },
         });
 
         if (apiKey) {

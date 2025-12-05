@@ -91,16 +91,12 @@ export default async function ElizaPage({ searchParams }: PageProps) {
       const anonSessionCookie = cookieStore.get("eliza-anon-session");
 
       if (anonSessionCookie?.value) {
-        logger.info("[Dashboard Chat] Found anonymous session cookie, attempting migration", {
-          userId: user.id,
-          sessionToken: anonSessionCookie.value.slice(0, 8) + "...",
-        });
-
         const { anonymousSessionsService } = await import("@/lib/services");
         const anonSession = await anonymousSessionsService.getByToken(anonSessionCookie.value);
 
         if (anonSession && !anonSession.converted_at) {
-          logger.info("[Dashboard Chat] Found unconverted session, migrating...", {
+          logger.info("[Dashboard Chat] Found unconverted anonymous session, migrating...", {
+            userId: user.id,
             sessionId: anonSession.id,
             anonymousUserId: anonSession.user_id,
           });
@@ -110,6 +106,9 @@ export default async function ElizaPage({ searchParams }: PageProps) {
 
           logger.info("[Dashboard Chat] Migration completed successfully");
         }
+
+        // Always delete the cookie after checking - either migration completed or session already converted/invalid
+        cookieStore.delete("eliza-anon-session");
       }
     } catch (error) {
       logger.error("[Dashboard Chat] Migration check failed:", error);

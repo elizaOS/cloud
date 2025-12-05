@@ -59,7 +59,7 @@ async function handlePOST(req: NextRequest) {
     }
 
     const body = await req.json();
-    const { messages, id }: { messages: UIMessage[]; id?: string } = body;
+    const { messages, id, character_id }: { messages: UIMessage[]; id?: string; character_id?: string } = body;
 
     const selectedModel = id || "gpt-4o";
     const provider = getProviderFromModel(selectedModel);
@@ -280,6 +280,9 @@ async function handlePOST(req: NextRequest) {
             input_cost: String(inputCost),
             output_cost: String(outputCost),
             is_successful: true,
+            metadata: {
+              character_id: character_id || null,
+            },
           });
 
           if (apiKey || isAnonymous) {
@@ -341,6 +344,9 @@ async function handlePOST(req: NextRequest) {
                 is_successful: false,
                 error_message:
                   error instanceof Error ? error.message : "Unknown error",
+                metadata: {
+                  character_id: character_id || null,
+                },
               });
 
               if (apiKey) {

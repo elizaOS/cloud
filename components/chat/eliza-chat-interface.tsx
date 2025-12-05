@@ -611,6 +611,7 @@ export function ElizaChatInterface({ onMessageSent }: ElizaChatInterfaceProps) {
         entityId: entityId,
         text: messageText,
         model: selectedModelId, // Pass selected model from tier
+        characterId: selectedCharacterId || undefined, // Pass character for billing attribution
         sessionToken: anonymousSessionToken || undefined, // Pass session token for anonymous users
         onMessage: handleStreamMessage,
         onError: (errorMsg) => {

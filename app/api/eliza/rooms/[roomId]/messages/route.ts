@@ -342,6 +342,10 @@ export async function POST(
         input_cost: String(inputCost),
         output_cost: String(outputCost),
         is_successful: true,
+        metadata: {
+          character_id: characterId || null,
+          room_id: roomId,
+        },
       });
 
       // Create generation record if using API key
@@ -388,6 +392,10 @@ export async function POST(
           input_cost: String(0),
           output_cost: String(0),
           is_successful: false,
+          metadata: {
+            character_id: characterId || null,
+            room_id: roomId,
+          },
           error_message:
             error instanceof Error ? error.message : "Unknown error",
         });

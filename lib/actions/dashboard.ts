@@ -7,7 +7,7 @@ import {
   listContainers,
   apiKeysService,
 } from "@/lib/services";
-import { elizaRoomCharactersRepository } from "@/db/repositories";
+import { elizaRoomCharactersRepository, usageRecordsRepository } from "@/db/repositories";
 import { agentDiscoveryService } from "@/lib/services/agent-discovery";
 import { cache as cacheClient } from "@/lib/cache/client";
 import { CacheKeys, CacheStaleTTL } from "@/lib/cache/keys";
@@ -18,6 +18,16 @@ export interface AgentStats {
   messageCount: number;
   deploymentStatus: "deployed" | "stopped" | "draft";
   lastActiveAt: Date | null;
+}
+
+export interface AgentPricingDataPoint {
+  date: string;
+  [agentId: string]: number | string;
+}
+
+export interface AgentPricingData {
+  data: AgentPricingDataPoint[];
+  agents: Array<{ id: string; name: string }>;
 }
 
 export interface DashboardData {
@@ -170,3 +180,106 @@ export const getDashboardData = cache(async (): Promise<DashboardData> => {
 
   return data;
 });
+
+/**
+ * Get agent pricing data for the dashboard chart
+ * This shows daily costs broken down by agent over the past 90 days
+ * Uses character_id from usage record metadata to properly attribute costs to agents
+ * Only includes agents with non-zero usage
+ */
+export async function getAgentPricingData(): Promise<AgentPricingData> {
+  const user = await requireAuthWithOrg();
+  const organizationId = user.organization_id!;
+
+  // Get the date range (last 90 days)
+  const endDate = new Date();
+  const startDate = new Date();
+  startDate.setDate(startDate.getDate() - 90);
+
+  // Fetch user's characters (agents)
+  const userCharacters = await charactersService.listByUser(user.id);
+
+  if (userCharacters.length === 0) {
+    return { data: [], agents: [] };
+  }
+
+  // Get daily costs grouped by character_id from metadata
+  const dailyCostsByCharacter = await usageRecordsRepository.getDailyCostsByCharacter(
+    organizationId,
+    startDate,
+    endDate,
+  );
+
+  // Build agent list from user's characters
+  const agentList = userCharacters.map((char) => ({
+    id: char.id,
+    name: char.name,
+  }));
+
+  // Create a Set of valid agent IDs for quick lookup
+  const validAgentIds = new Set(agentList.map((a) => a.id));
+
+  // Track total cost per agent to filter out zero-usage agents
+  const agentTotalCosts = new Map<string, number>();
+  agentList.forEach((agent) => agentTotalCosts.set(agent.id, 0));
+  agentTotalCosts.set("_other", 0);
+
+  // Group costs by date
+  const dateMap = new Map<string, AgentPricingDataPoint>();
+
+  // Process each cost entry
+  for (const cost of dailyCostsByCharacter) {
+    const dateKey = cost.date;
+    
+    // Initialize the date entry if not exists
+    if (!dateMap.has(dateKey)) {
+      const point: AgentPricingDataPoint = { date: dateKey };
+      // Initialize all agents with 0 cost
+      agentList.forEach((agent) => {
+        point[agent.id] = 0;
+      });
+      // Add "Other" for unattributed costs
+      point["_other"] = 0;
+      dateMap.set(dateKey, point);
+    }
+
+    const point = dateMap.get(dateKey)!;
+    
+    // Attribute cost to the correct agent or "Other"
+    if (cost.characterId && validAgentIds.has(cost.characterId)) {
+      point[cost.characterId] = (point[cost.characterId] as number) + cost.cost;
+      agentTotalCosts.set(
+        cost.characterId,
+        (agentTotalCosts.get(cost.characterId) || 0) + cost.cost
+      );
+    } else {
+      // Unattributed costs (no character_id or character not owned by user)
+      point["_other"] = (point["_other"] as number) + cost.cost;
+      agentTotalCosts.set("_other", (agentTotalCosts.get("_other") || 0) + cost.cost);
+    }
+  }
+
+  // Filter out agents with zero total cost
+  const activeAgents = agentList.filter((agent) => {
+    const totalCost = agentTotalCosts.get(agent.id) || 0;
+    return totalCost > 0;
+  });
+
+  // Check if we have any "Other" costs to show
+  const hasOtherCosts = (agentTotalCosts.get("_other") || 0) > 0;
+  
+  // Final agent list - only include agents with usage
+  const finalAgentList = hasOtherCosts
+    ? [...activeAgents, { id: "_other", name: "Other / Unattributed" }]
+    : activeAgents;
+
+  // Convert map to sorted array
+  const data = Array.from(dateMap.values()).sort(
+    (a, b) => new Date(a.date).getTime() - new Date(b.date).getTime(),
+  );
+
+  return {
+    data,
+    agents: finalAgentList,
+  };
+}
