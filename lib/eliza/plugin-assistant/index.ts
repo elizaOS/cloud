@@ -121,7 +121,7 @@ Keep response SHORT (1-2 sentences) if image was generated.
 // Helper functions for response ID tracking
 async function getLatestResponseId(
   runtime: IAgentRuntime,
-  roomId: string,
+  roomId: string
 ): Promise<string | null> {
   const key = buildResponseCacheKey(runtime.agentId, roomId);
   return (await runtime.getCache<string>(key)) ?? null;
@@ -130,7 +130,7 @@ async function getLatestResponseId(
 async function setLatestResponseId(
   runtime: IAgentRuntime,
   roomId: string,
-  responseId: string,
+  responseId: string
 ): Promise<void> {
   if (!responseId || typeof responseId !== "string") {
     logger.error("[setLatestResponseId] Invalid responseId:", responseId);
@@ -139,7 +139,7 @@ async function setLatestResponseId(
 
   const key = buildResponseCacheKey(runtime.agentId, roomId);
   logger.debug(
-    `[setLatestResponseId] Setting cache: ${key}, responseId: ${responseId.substring(0, 8)}`,
+    `[setLatestResponseId] Setting cache: ${key}, responseId: ${responseId.substring(0, 8)}`
   );
 
   try {
@@ -153,7 +153,7 @@ async function setLatestResponseId(
 
 async function clearLatestResponseId(
   runtime: IAgentRuntime,
-  roomId: string,
+  roomId: string
 ): Promise<void> {
   const key = buildResponseCacheKey(runtime.agentId, roomId);
   logger.debug(`[clearLatestResponseId] Deleting cache key: ${key}`);
@@ -203,7 +203,7 @@ function isBase64DataUrl(url: string): boolean {
  * This is CRITICAL for preventing token limit exhaustion
  */
 function sanitizeAttachment(
-  attachment: Record<string, unknown>,
+  attachment: Record<string, unknown>
 ): Record<string, unknown> | null {
   if (!attachment) return null;
 
@@ -214,19 +214,16 @@ function sanitizeAttachment(
   // We don't want to store base64 in memory as it bloats tokens
   if (url && isBase64DataUrl(url)) {
     logger.warn(
-      "[ElizaAssistant] ⚠️ Base64 URL detected in attachment - skipping to prevent token bloat",
+      "[ElizaAssistant] ⚠️ Base64 URL detected in attachment - skipping to prevent token bloat"
     );
     // Return null to skip this attachment - it was already displayed to user
     return null;
   }
 
   // Also skip placeholder URLs that aren't valid
-  if (
-    url &&
-    (url.startsWith("[") || url === "" || !url.startsWith("http"))
-  ) {
+  if (url && (url.startsWith("[") || url === "" || !url.startsWith("http"))) {
     logger.warn(
-      "[ElizaAssistant] ⚠️ Invalid URL detected in attachment - skipping",
+      "[ElizaAssistant] ⚠️ Invalid URL detected in attachment - skipping"
     );
     return null;
   }
@@ -239,7 +236,7 @@ function sanitizeAttachment(
  * IMPORTANT: Sanitizes attachments to prevent base64 data from bloating context
  */
 function extractAttachments(
-  actionResults: Array<{ data?: { attachments?: unknown[] } }>,
+  actionResults: Array<{ data?: { attachments?: unknown[] } }>
 ): unknown[] {
   return actionResults
     .flatMap((result) => result.data?.attachments ?? [])
@@ -255,7 +252,7 @@ async function executeProviders(
   runtime: IAgentRuntime,
   message: Memory,
   plannedProviders: string[],
-  currentState: State,
+  currentState: State
 ): Promise<State> {
   if (plannedProviders.length === 0) {
     return currentState;
@@ -263,7 +260,7 @@ async function executeProviders(
 
   logger.debug(
     "[ElizaAssistant] Executing providers:",
-    JSON.stringify(plannedProviders),
+    JSON.stringify(plannedProviders)
   );
   const providerState = await runtime.composeState(message, [
     ...plannedProviders,
@@ -287,7 +284,7 @@ async function executeActions(
   plannedActions: string[],
   plan: ParsedPlan | null,
   currentState: State,
-  callback: HandlerCallback,
+  callback: HandlerCallback
 ): Promise<State> {
   if (plannedActions.length === 0) {
     return currentState;
@@ -295,7 +292,7 @@ async function executeActions(
 
   logger.debug(
     "[ElizaAssistant] Executing actions:",
-    JSON.stringify(plannedActions),
+    JSON.stringify(plannedActions)
   );
 
   const actionResponse: Memory = {
@@ -317,16 +314,25 @@ async function executeActions(
   const wrappedCallback: HandlerCallback = async (content) => {
     // Capture attachments from action callbacks
     if (content.attachments && Array.isArray(content.attachments)) {
-      const existingAttachments = actionAttachmentCache.get(message.roomId as string) || [];
-      
+      const existingAttachments =
+        actionAttachmentCache.get(message.roomId as string) || [];
+
       // Only add attachments with valid HTTP URLs (not base64)
       for (const att of content.attachments) {
-        const attachment = att as { url?: string; rawUrl?: string; id?: string; title?: string; contentType?: string };
+        const attachment = att as {
+          url?: string;
+          rawUrl?: string;
+          id?: string;
+          title?: string;
+          contentType?: string;
+        };
         const url = attachment.url;
-        
-        logger.info(`[ElizaAssistant] 📎 Processing attachment: id=${attachment.id}, url=${url?.substring(0, 50)}...`);
-        
-        if (url && typeof url === 'string' && url.startsWith('http')) {
+
+        logger.info(
+          `[ElizaAssistant] 📎 Processing attachment: id=${attachment.id}, url=${url?.substring(0, 50)}...`
+        );
+
+        if (url && typeof url === "string" && url.startsWith("http")) {
           // Create a clean attachment object for storage (remove rawUrl to save space)
           const cleanAttachment = {
             id: attachment.id,
@@ -335,16 +341,22 @@ async function executeActions(
             contentType: attachment.contentType,
           };
           existingAttachments.push(cleanAttachment);
-          logger.info(`[ElizaAssistant] ✅ Captured valid attachment for storage: ${url.substring(0, 80)}...`);
+          logger.info(
+            `[ElizaAssistant] ✅ Captured valid attachment for storage: ${url.substring(0, 80)}...`
+          );
         } else {
-          logger.info(`[ElizaAssistant] ⏭️ Skipping non-HTTP attachment (likely base64)`);
+          logger.info(
+            `[ElizaAssistant] ⏭️ Skipping non-HTTP attachment (likely base64)`
+          );
         }
       }
-      
+
       actionAttachmentCache.set(message.roomId as string, existingAttachments);
-      logger.info(`[ElizaAssistant] 📊 Total cached attachments for room: ${existingAttachments.length}`);
+      logger.info(
+        `[ElizaAssistant] 📊 Total cached attachments for room: ${existingAttachments.length}`
+      );
     }
-    
+
     // Pass through to the original callback for real-time display
     return callback(content);
   };
@@ -353,7 +365,7 @@ async function executeActions(
     message,
     [actionResponse],
     currentState,
-    wrappedCallback,
+    wrappedCallback
   );
 
   // Refresh state to get action results
@@ -375,7 +387,7 @@ function getAndClearCachedAttachments(roomId: string): unknown[] {
  */
 async function generateResponseWithRetry(
   runtime: IAgentRuntime,
-  prompt: string,
+  prompt: string
 ): Promise<{ text: string; thought: string }> {
   let retries = 0;
   let responseContent = "";
@@ -409,11 +421,11 @@ async function runEvaluatorsWithTimeout(
   message: Memory,
   state: State,
   responseMemory: Memory,
-  callback: HandlerCallback,
+  callback: HandlerCallback
 ): Promise<void> {
   if (typeof runtime.evaluate !== "function") {
     logger.debug(
-      "[ElizaAssistant] runtime.evaluate not available - skipping evaluators",
+      "[ElizaAssistant] runtime.evaluate not available - skipping evaluators"
     );
     return;
   }
@@ -429,16 +441,16 @@ async function runEvaluatorsWithTimeout(
         async (content) => {
           logger.debug(
             "[ElizaAssistant] Evaluator callback:",
-            JSON.stringify(content),
+            JSON.stringify(content)
           );
           return callback ? callback(content) : [];
         },
-        [responseMemory],
+        [responseMemory]
       ),
       new Promise<void>((_, reject) => {
         setTimeout(() => {
           reject(
-            new Error(`Evaluators timed out after ${EVALUATOR_TIMEOUT_MS}ms`),
+            new Error(`Evaluators timed out after ${EVALUATOR_TIMEOUT_MS}ms`)
           );
         }, EVALUATOR_TIMEOUT_MS);
       }),
@@ -461,7 +473,7 @@ const messageReceivedHandler = async ({
   const responseId = v4();
 
   logger.info(
-    `[AssistantPlugin] Handling message for agent: ${runtime.agentId}, room: ${message.roomId}`,
+    `[AssistantPlugin] Handling message for agent: ${runtime.agentId}, room: ${message.roomId}`
   );
   logger.debug(`[AssistantPlugin] MESSAGE RECEIVED:`, JSON.stringify(message));
 
@@ -479,21 +491,31 @@ const messageReceivedHandler = async ({
 
     // PHASE 1: Check if this is an affiliate character BEFORE composing state
     const characterSettings = runtime.character.settings;
-    const earlyAffiliateData = characterSettings?.affiliateData as Record<string, unknown> | undefined;
-    const isAffiliateChat = !!(earlyAffiliateData && Object.keys(earlyAffiliateData).length > 0);
-    
+    const earlyAffiliateData = characterSettings?.affiliateData as
+      | Record<string, unknown>
+      | undefined;
+    const isAffiliateChat = !!(
+      earlyAffiliateData && Object.keys(earlyAffiliateData).length > 0
+    );
+
     // Debug: Log what we found for affiliate detection
-    logger.info(`[ElizaAssistant] 🔍 Affiliate Detection: char=${runtime.character.name}, hasSettings=${!!characterSettings}, hasAffiliateData=${!!earlyAffiliateData}, affiliateKeys=${earlyAffiliateData ? Object.keys(earlyAffiliateData).join(',') : 'none'}, isAffiliateChat=${isAffiliateChat}`);
-    
-    logger.info(`[ElizaAssistant] Processing message for ${runtime.character.name}, isAffiliate: ${isAffiliateChat}`);
-    
+    logger.info(
+      `[ElizaAssistant] 🔍 Affiliate Detection: char=${runtime.character.name}, hasSettings=${!!characterSettings}, hasAffiliateData=${!!earlyAffiliateData}, affiliateKeys=${earlyAffiliateData ? Object.keys(earlyAffiliateData).join(",") : "none"}, isAffiliateChat=${isAffiliateChat}`
+    );
+
+    logger.info(
+      `[ElizaAssistant] Processing message for ${runtime.character.name}, isAffiliate: ${isAffiliateChat}`
+    );
+
     // Use MINIMAL providers for affiliate chats to avoid token overflow
     // Affiliate chats don't need conversation history - just generate image + short text
-    const providers = isAffiliateChat 
-      ? ["CHARACTER", "ACTIONS"]  // Minimal for affiliate - no history!
+    const providers = isAffiliateChat
+      ? ["CHARACTER", "ACTIONS"] // Minimal for affiliate - no history!
       : ["SHORT_TERM_MEMORY", "ACTIONS", "CHARACTER", "affiliateContext"];
-    
-    logger.debug(`[ElizaAssistant] Composing state with providers: ${providers.join(", ")}`);
+
+    logger.debug(
+      `[ElizaAssistant] Composing state with providers: ${providers.join(", ")}`
+    );
     const initialState = await runtime.composeState(message, providers);
 
     console.log("*** INITIAL STATE ***\n", initialState);
@@ -531,7 +553,7 @@ const messageReceivedHandler = async ({
 
     let plan = parseKeyValueXml(planningResponse) as ParsedPlan | null;
     let shouldRespondNow = canRespondImmediately(plan);
-    
+
     // For affiliate chats, ensure GENERATE_IMAGE action is included but keep the original plan text
     if (isAffiliateChat && plan) {
       logger.info("[ElizaAssistant] 🔴 AFFILIATE - Ensuring image generation");
@@ -539,15 +561,23 @@ const messageReceivedHandler = async ({
       // Add GENERATE_IMAGE to actions if not already present, but preserve other plan data
       const existingActions = plan.actions || "";
       if (!existingActions.includes("GENERATE_IMAGE")) {
-        plan.actions = existingActions ? `${existingActions}, GENERATE_IMAGE` : "GENERATE_IMAGE";
+        plan.actions = existingActions
+          ? `${existingActions}, GENERATE_IMAGE`
+          : "GENERATE_IMAGE";
       }
       plan.canRespondNow = "NO";
     } else if (isAffiliateChat && !plan) {
-      plan = { thought: "Generating image for user", canRespondNow: "NO", actions: "GENERATE_IMAGE" };
+      plan = {
+        thought: "Generating image for user",
+        canRespondNow: "NO",
+        actions: "GENERATE_IMAGE",
+      };
       shouldRespondNow = false;
     }
 
-    logger.info(`[ElizaAssistant] Plan - respond: ${shouldRespondNow}, affiliate: ${isAffiliateChat}`);
+    logger.info(
+      `[ElizaAssistant] Plan - respond: ${shouldRespondNow}, affiliate: ${isAffiliateChat}`
+    );
 
     let responseContent = "";
     let thought = "";
@@ -565,8 +595,20 @@ const messageReceivedHandler = async ({
         const plannedProviders = parsePlannedItems(plan?.providers);
         const plannedActions = parsePlannedItems(plan?.actions);
 
-        updatedState = await executeProviders(runtime, message, plannedProviders, updatedState);
-        updatedState = await executeActions(runtime, message, plannedActions, plan, updatedState, callback);
+        updatedState = await executeProviders(
+          runtime,
+          message,
+          plannedProviders,
+          updatedState
+        );
+        updatedState = await executeActions(
+          runtime,
+          message,
+          plannedActions,
+          plan,
+          updatedState,
+          callback
+        );
       }
 
       // Generate final response
@@ -579,10 +621,15 @@ const messageReceivedHandler = async ({
 
       const responsePrompt = composePromptFromState({
         state: updatedState,
-        template: runtime.character.templates?.messageHandlerTemplate || messageHandlerTemplate,
+        template:
+          runtime.character.templates?.messageHandlerTemplate ||
+          messageHandlerTemplate,
       });
 
-      const responseResult = await generateResponseWithRetry(runtime, responsePrompt);
+      const responseResult = await generateResponseWithRetry(
+        runtime,
+        responsePrompt
+      );
       responseContent = responseResult.text;
       thought = responseResult.thought;
     }
@@ -593,11 +640,11 @@ const messageReceivedHandler = async ({
     // Check if this is still the latest response ID for this room
     const currentResponseId = await getLatestResponseId(
       runtime,
-      message.roomId,
+      message.roomId
     );
     if (currentResponseId !== responseId) {
       logger.info(
-        `Response discarded - newer message being processed for agent: ${runtime.agentId}, room: ${message.roomId}`,
+        `Response discarded - newer message being processed for agent: ${runtime.agentId}, room: ${message.roomId}`
       );
       return;
     }
@@ -610,36 +657,44 @@ const messageReceivedHandler = async ({
     // 2. Cached attachments (captured from action callbacks)
     const actionResults = await runtime.getActionResults(message.id as UUID);
     const actionResultAttachments = extractAttachments(actionResults);
-    const cachedAttachments = getAndClearCachedAttachments(message.roomId as string);
-    
-    logger.info(`[ElizaAssistant] 📊 Raw attachment sources: actionResults=${actionResults?.length || 0}, extracted=${actionResultAttachments.length}, cached=${cachedAttachments.length}`);
-    
+    const cachedAttachments = getAndClearCachedAttachments(
+      message.roomId as string
+    );
+
+    logger.info(
+      `[ElizaAssistant] 📊 Raw attachment sources: actionResults=${actionResults?.length || 0}, extracted=${actionResultAttachments.length}, cached=${cachedAttachments.length}`
+    );
+
     // Merge attachments, preferring cached ones (which have already been validated)
     // Use a Map to dedupe by attachment ID
     const attachmentMap = new Map<string, unknown>();
-    
+
     // First add action result attachments
     for (const att of actionResultAttachments) {
       const attachment = att as { id?: string; url?: string };
       if (attachment.id) {
         attachmentMap.set(attachment.id, att);
-        logger.info(`[ElizaAssistant] 📎 Added action result attachment: ${attachment.id}, url=${attachment.url?.substring(0, 50)}...`);
+        logger.info(
+          `[ElizaAssistant] 📎 Added action result attachment: ${attachment.id}, url=${attachment.url?.substring(0, 50)}...`
+        );
       }
     }
-    
+
     // Then add/override with cached attachments (these are validated HTTP URLs)
     for (const att of cachedAttachments) {
       const attachment = att as { id?: string; url?: string };
       if (attachment.id) {
         attachmentMap.set(attachment.id, att);
-        logger.info(`[ElizaAssistant] 📎 Added/overrode with cached attachment: ${attachment.id}, url=${attachment.url?.substring(0, 50)}...`);
+        logger.info(
+          `[ElizaAssistant] 📎 Added/overrode with cached attachment: ${attachment.id}, url=${attachment.url?.substring(0, 50)}...`
+        );
       }
     }
-    
+
     const attachments = Array.from(attachmentMap.values());
 
     logger.info(
-      `[ElizaAssistant] ✅ Final attachments count: ${attachments.length}`,
+      `[ElizaAssistant] ✅ Final attachments count: ${attachments.length}`
     );
 
     // Create response memory with attachments if any
@@ -652,11 +707,15 @@ const messageReceivedHandler = async ({
 
     if (attachments.length > 0) {
       content.attachments = attachments;
-      logger.info(`[ElizaAssistant] ✅ Including ${attachments.length} attachment(s) in response`);
+      logger.info(
+        `[ElizaAssistant] ✅ Including ${attachments.length} attachment(s) in response`
+      );
       // Log each attachment for debugging
       for (const att of attachments) {
         const a = att as { id?: string; url?: string; contentType?: string };
-        logger.info(`[ElizaAssistant] 📎 Attachment: id=${a.id}, url=${a.url?.substring(0, 80)}..., type=${a.contentType}`);
+        logger.info(
+          `[ElizaAssistant] 📎 Attachment: id=${a.id}, url=${a.url?.substring(0, 80)}..., type=${a.contentType}`
+        );
       }
     } else {
       logger.info(`[ElizaAssistant] ⚠️ No attachments to include in response`);
@@ -691,12 +750,12 @@ const messageReceivedHandler = async ({
       message,
       initialState,
       responseMemory,
-      callback,
+      callback
     );
   } catch (error) {
     const errorMessage = error instanceof Error ? error.message : String(error);
     logger.error(
-      `[AssistantPlugin] Error in workflow handler: ${errorMessage}`,
+      `[AssistantPlugin] Error in workflow handler: ${errorMessage}`
     );
     throw error;
   }
@@ -721,7 +780,7 @@ const events = {
   [EventType.MESSAGE_SENT]: [
     async (payload: MessagePayload) => {
       logger.debug(
-        `[AssistantPlugin] Message sent: ${payload.message.content.text}`,
+        `[AssistantPlugin] Message sent: ${payload.message.content.text}`
       );
     },
   ],
