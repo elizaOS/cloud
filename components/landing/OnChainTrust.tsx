@@ -7,24 +7,6 @@ import MicropaymentNetwork from "./MicropaymentNetwork";
 import Image from "next/image";
 import { ReactFlowProvider } from "@xyflow/react";
 
-const agents = [
-  {
-    name: "Eliza",
-    description: "Your default AI Companion",
-    address: "0xA9E3...C14",
-  },
-  {
-    name: "Eliza",
-    description: "Your default AI Companion",
-    address: "0xA9E3...C14",
-  },
-  {
-    name: "Eliza",
-    description: "Your default AI Companion",
-    address: "0xA9E3...C14",
-  },
-];
-
 export default function OnChainTrust() {
   return (
     <section className="relative bg-[#0A0A0A] py-12 md:py-16 lg:py-24 overflow-hidden">
@@ -69,8 +51,9 @@ export default function OnChainTrust() {
                 color: "#FFFFFF",
               }}
             >
-              EVERY AGENT HAS A VERIFIABLE ON-CHAIN IDENTITY — ENABLING
-              PROVENANCE, REPUTATION, AND SECURE INTERACTIONS.
+              AGENTS HAVE WALLETS.
+              <br />
+              THEY CAN PAY AND GET PAID.
             </h2>
 
             <p
@@ -82,9 +65,7 @@ export default function OnChainTrust() {
                 color: "#858585",
               }}
             >
-              Through the x402 standard, agents can also send and receive
-              micropayments instantly — powering the world&apos;s first open
-              agent economy.
+              Every agent has a verifiable on-chain identity (ERC-8004).
             </p>
           </div>
 
@@ -191,18 +172,6 @@ export default function OnChainTrust() {
               })}
             </div>
 
-            <p
-              className="mt-4 md:mt-6 font-normal text-sm md:text-base"
-              style={{
-                fontFamily: "var(--font-geist-mono)",
-                lineHeight: "1.5",
-                letterSpacing: "-0.003em",
-                color: "#858585",
-              }}
-            >
-              Every agent on Eliza Cloud has a verifiable on-chain identity,
-              anchored to ERC-8004.
-            </p>
           </div>
 
           {/* Right: Network visualization */}
@@ -210,20 +179,7 @@ export default function OnChainTrust() {
             corners={false}
             className="flex min-h-[400px] items-center justify-center rounded-sm"
           >
-            <div className="w-full text-center">
-              <p
-                className="mb-6 md:mb-8 font-normal text-sm md:text-base"
-                style={{
-                  fontFamily: "var(--font-geist-mono)",
-                  lineHeight: "1.5",
-                  letterSpacing: "-0.003em",
-                  color: "#858585",
-                }}
-              >
-                Agents can also send and receive micropayments instantly.
-              </p>
-
-              {/* Floating Network Animation */}
+            <div className="w-full">
               <ReactFlowProvider>
                 <MicropaymentNetwork />
               </ReactFlowProvider>

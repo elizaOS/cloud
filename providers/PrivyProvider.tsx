@@ -126,7 +126,7 @@ function PrivyAuthWrapper({ children }: { children: React.ReactNode }) {
     }
   }, [ready, authenticated, user, getAccessToken]);
 
-  return <>{children}</>;
+  return children;
 }
 
 export default function PrivyProvider({

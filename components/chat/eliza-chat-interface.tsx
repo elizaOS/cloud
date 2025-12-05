@@ -13,14 +13,15 @@ import {
   Plus,
   Copy,
   Check,
+  Zap,
+  Sparkles,
+  Crown,
 } from "lucide-react";
 import { ElizaAvatar } from "./eliza-avatar";
-import { EmptyChatState } from "./empty-chat-state";
 import { KnowledgeDrawer } from "./knowledge-drawer";
 import { useAudioRecorder } from "./hooks/use-audio-recorder";
 import { useAudioPlayer } from "./hooks/use-audio-player";
 import { useModelTier } from "./hooks/use-model-tier";
-import { Zap, Sparkles, Crown } from "lucide-react";
 import { sendStreamingMessage } from "@/hooks/use-streaming-message";
 import type { StreamingMessage } from "@/hooks/use-streaming-message";
 import { toast } from "sonner";
@@ -40,6 +41,8 @@ import {
   DropdownMenuContent,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import { useRenderTracker } from "@/lib/debug/render-tracker";
+import { usePrivy } from "@privy-io/react-auth";
 
 interface Message {
   id: string;
@@ -67,11 +70,26 @@ interface ElizaChatInterfaceProps {
   onMessageSent?: () => void | Promise<void>;
 }
 
+interface CustomVoice {
+  id: string;
+  elevenlabsVoiceId: string;
+  name: string;
+  cloneType: string;
+}
+
+const tierIcons: Record<string, React.ReactNode> = {
+  fast: <Zap className="h-3.5 w-3.5" />,
+  pro: <Sparkles className="h-3.5 w-3.5" />,
+  ultra: <Crown className="h-3.5 w-3.5" />,
+};
+
 export function ElizaChatInterface({ onMessageSent }: ElizaChatInterfaceProps) {
+  // Track renders in development
+  useRenderTracker("ElizaChatInterface");
+
   // Use chat store for room and character management
   const {
     roomId,
-    entityId,
     loadRooms,
     createRoom: createRoomInStore,
     selectedCharacterId,
@@ -80,6 +98,10 @@ export function ElizaChatInterface({ onMessageSent }: ElizaChatInterfaceProps) {
     setPendingMessage,
     anonymousSessionToken,
   } = useChatStore();
+  
+  // Check authentication status for features that require it
+  const { authenticated } = usePrivy();
+  
   const [messages, setMessages] = useState<Message[]>([]);
   const [agentInfo, setAgentInfo] = useState<AgentInfo | null>(null);
   const [inputText, setInputText] = useState("");
@@ -92,32 +114,34 @@ export function ElizaChatInterface({ onMessageSent }: ElizaChatInterfaceProps) {
     (char) => char.id === selectedCharacterId,
   );
   const characterName = selectedCharacter?.name || agentInfo?.name || "Agent";
-  const [isLoading, setIsLoading] = useState(false);
-  const [isInitializing, setIsInitializing] = useState(false);
-  const [isLoadingMessages, setIsLoadingMessages] = useState(false);
+  
+  // Consolidated loading states
+  const [loadingState, setLoadingState] = useState({
+    isSending: false,
+    isInitializing: false,
+    isLoadingMessages: false,
+    isProcessingSTT: false,
+  });
+  
   const [error, setError] = useState<string | null>(null);
   const scrollAreaRef = useRef<HTMLDivElement>(null);
   const thinkingTimeoutRef = useRef<NodeJS.Timeout | null>(null);
-  const [autoPlayTTS, setAutoPlayTTS] = useState(false);
-  const [currentPlayingId, setCurrentPlayingId] = useState<string | null>(null);
-  const [isProcessingSTT, setIsProcessingSTT] = useState(false);
+  
+  const [audioState, setAudioState] = useState<{
+    autoPlayTTS: boolean;
+    currentPlayingId: string | null;
+    selectedVoiceId: string | null;
+    customVoices: CustomVoice[];
+  }>(() => ({
+    autoPlayTTS: false,
+    currentPlayingId: null,
+    selectedVoiceId: typeof window !== "undefined" 
+      ? localStorage.getItem("eliza-selected-voice-id") 
+      : null,
+    customVoices: [],
+  }));
+  
   const messageAudioUrls = useRef<Map<string, string>>(new Map());
-  const [customVoices, setCustomVoices] = useState<
-    Array<{
-      id: string;
-      elevenlabsVoiceId: string;
-      name: string;
-      cloneType: string;
-    }>
-  >([]);
-  const [selectedVoiceId, setSelectedVoiceId] = useState<string | null>(() => {
-    // Load voice selection from localStorage on mount
-    if (typeof window !== "undefined") {
-      const saved = localStorage.getItem("eliza-selected-voice-id");
-      return saved;
-    }
-    return null;
-  });
   const [copiedMessageId, setCopiedMessageId] = useState<string | null>(null);
 
   // Clear audio cache when voice changes (so messages regenerate with new voice)
@@ -125,21 +149,15 @@ export function ElizaChatInterface({ onMessageSent }: ElizaChatInterfaceProps) {
     if (messageAudioUrls.current.size > 0) {
       messageAudioUrls.current.clear();
     }
-  }, [selectedVoiceId]);
+  }, [audioState.selectedVoiceId]);
 
   const recorder = useAudioRecorder();
   const player = useAudioPlayer();
 
   const { selectedTier, selectedModelId, tiers, setTier, isLoading: isLoadingModels } = useModelTier();
 
-  const tierIcons = {
-    fast: <Zap className="h-3.5 w-3.5" />,
-    pro: <Sparkles className="h-3.5 w-3.5" />,
-    ultra: <Crown className="h-3.5 w-3.5" />,
-  };
-
   const loadMessages = useCallback(async (targetRoomId: string) => {
-    setIsLoadingMessages(true);
+    setLoadingState(prev => ({ ...prev, isLoadingMessages: true }));
     try {
       const response = await fetch(`/api/eliza/rooms/${targetRoomId}`);
       if (response.ok) {
@@ -148,13 +166,11 @@ export function ElizaChatInterface({ onMessageSent }: ElizaChatInterfaceProps) {
         if (data.agent) {
           setAgentInfo(data.agent);
         }
-        // Note: We don't update selectedCharacterId here anymore
-        // Character selection is controlled by the header dropdown
       }
     } catch (err) {
       console.error("Error loading messages:", err);
     } finally {
-      setIsLoadingMessages(false);
+      setLoadingState(prev => ({ ...prev, isLoadingMessages: false }));
     }
   }, []);
 
@@ -167,7 +183,7 @@ export function ElizaChatInterface({ onMessageSent }: ElizaChatInterfaceProps) {
       setMessages([]);
       setAgentInfo(null);
       setError(null);
-      setIsLoadingMessages(false);
+      setLoadingState(prev => ({ ...prev, isLoadingMessages: false }));
     }
   }, [roomId, loadMessages]);
 
@@ -175,7 +191,7 @@ export function ElizaChatInterface({ onMessageSent }: ElizaChatInterfaceProps) {
     async (characterId?: string | null) => {
       const charIdToUse =
         characterId !== undefined ? characterId : selectedCharacterId;
-      setIsInitializing(true);
+      setLoadingState(prev => ({ ...prev, isInitializing: true }));
       setError(null);
       try {
         // Use store's createRoom which handles the API call
@@ -194,23 +210,20 @@ export function ElizaChatInterface({ onMessageSent }: ElizaChatInterfaceProps) {
         console.error("[ElizaChat] Error creating room:", err);
         throw err; // Re-throw so caller can handle
       } finally {
-        setIsInitializing(false);
+        setLoadingState(prev => ({ ...prev, isInitializing: false }));
       }
     },
     [createRoomInStore, loadMessages, selectedCharacterId],
   );
 
-  // Note: Room and character initialization is now handled by URL params
-  // via ElizaPageClient, no need to create room automatically here
-
-  // Check for pending message from landing page and auto-send it
+  // Handle pending message from landing page
   useEffect(() => {
     // Guard: Only process if we have a pending message and not already processing
     if (
       !pendingMessage ||
       isPendingMessageProcessingRef.current ||
-      isLoading ||
-      isInitializing
+      loadingState.isSending ||
+      loadingState.isInitializing
     ) {
       return;
     }
@@ -245,7 +258,7 @@ export function ElizaChatInterface({ onMessageSent }: ElizaChatInterfaceProps) {
     }
 
     // If we have a roomId and a pending message in ref (after room creation), send it
-    if (roomId && pendingMessageToSendRef.current && !isLoadingMessages) {
+    if (roomId && pendingMessageToSendRef.current && !loadingState.isLoadingMessages) {
       const messageToSend = pendingMessageToSendRef.current;
       console.log("[ElizaChat] Auto-sending pending message:", messageToSend);
 
@@ -264,19 +277,12 @@ export function ElizaChatInterface({ onMessageSent }: ElizaChatInterfaceProps) {
       }, 500);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [roomId, isLoading, isInitializing, pendingMessage, isLoadingMessages]);
+  }, [roomId, loadingState.isSending, loadingState.isInitializing, pendingMessage, loadingState.isLoadingMessages]);
 
   const generateSpeech = useCallback(
     async (text: string, messageId: string) => {
       try {
-        // Use selectedVoiceId directly (callback will recreate when it changes)
-        const currentVoiceId = selectedVoiceId;
-        const voiceName = currentVoiceId
-          ? customVoices.find((v) => v.elevenlabsVoiceId === currentVoiceId)
-              ?.name || "Custom Voice"
-          : "Default Voice";
-
-        // Build request body - IMPORTANT: Only add voiceId if we actually have one
+        const currentVoiceId = audioState.selectedVoiceId;
         const requestBody: { text: string; voiceId?: string } = { text };
         if (currentVoiceId) {
           requestBody.voiceId = currentVoiceId;
@@ -296,8 +302,8 @@ export function ElizaChatInterface({ onMessageSent }: ElizaChatInterfaceProps) {
         const audioUrl = URL.createObjectURL(audioBlob);
         messageAudioUrls.current.set(messageId, audioUrl);
 
-        if (autoPlayTTS) {
-          setCurrentPlayingId(messageId);
+        if (audioState.autoPlayTTS) {
+          setAudioState(prev => ({ ...prev, currentPlayingId: messageId }));
           await player.playAudio(audioUrl);
         }
 
@@ -307,27 +313,34 @@ export function ElizaChatInterface({ onMessageSent }: ElizaChatInterfaceProps) {
         toast.error("Failed to generate speech");
       }
     },
-    [autoPlayTTS, player, selectedVoiceId, customVoices],
+    [audioState.autoPlayTTS, audioState.selectedVoiceId, player],
   );
 
-  // Load custom voices on mount
+  // Load custom voices on mount (only for authenticated users)
   useEffect(() => {
+    // Only fetch custom voices for authenticated users
+    // This API requires authentication and will return 401 for anonymous users
+    if (!authenticated) {
+      return;
+    }
+
     const fetchCustomVoices = async () => {
       try {
         const response = await fetch("/api/elevenlabs/voices/user");
         if (response.ok) {
           const data = await response.json();
           if (data.success && Array.isArray(data.voices)) {
-            setCustomVoices(data.voices);
+            setAudioState(prev => ({ ...prev, customVoices: data.voices }));
           }
         }
+        // Silently ignore 401 errors - user may not have voice features
       } catch (error) {
         console.error("Failed to load custom voices:", error);
       }
     };
 
     fetchCustomVoices();
-  }, []);
+  }, [authenticated]);
 
   const handleVoiceInput = useCallback(() => {
     if (recorder.isRecording) {
@@ -344,9 +357,9 @@ export function ElizaChatInterface({ onMessageSent }: ElizaChatInterfaceProps) {
   useEffect(() => {
     const processAudioBlob = async () => {
       // Guard: Don't process if no audio blob or already processing
-      if (!recorder.audioBlob || isProcessingSTT) return;
+      if (!recorder.audioBlob || loadingState.isProcessingSTT) return;
 
-      setIsProcessingSTT(true);
+      setLoadingState(prev => ({ ...prev, isProcessingSTT: true }));
 
       try {
         // Ensure the blob is in proper audio format (fix Safari/macOS video/webm issue)
@@ -370,10 +383,8 @@ export function ElizaChatInterface({ onMessageSent }: ElizaChatInterfaceProps) {
           throw new Error(error.error || "Failed to transcribe audio");
         }
 
-        // Parse response - API returns { transcript, duration_ms }
-        const { transcript, duration_ms } = await response.json();
+        const { transcript } = await response.json();
 
-        // Validate transcript
         if (!transcript || transcript.trim().length === 0) {
           toast.error("No speech detected. Please try again.");
           console.warn("[ElizaChat STT] Empty transcript received");
@@ -390,18 +401,18 @@ export function ElizaChatInterface({ onMessageSent }: ElizaChatInterfaceProps) {
       } finally {
         // Cleanup: Clear recording and reset processing state
         recorder.clearRecording();
-        setIsProcessingSTT(false);
+        setLoadingState(prev => ({ ...prev, isProcessingSTT: false }));
       }
     };
 
     processAudioBlob();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [recorder.audioBlob, isProcessingSTT, recorder, roomId]);
+  }, [recorder.audioBlob, loadingState.isProcessingSTT, recorder, roomId]);
 
   // Auto-generate TTS for new agent messages (only if autoPlayTTS is enabled)
   useEffect(() => {
     // Only generate TTS if auto-play is enabled
-    if (!autoPlayTTS) return;
+    if (!audioState.autoPlayTTS) return;
 
     const newAgentMessages = messages.filter(
       (msg) =>
@@ -415,7 +426,7 @@ export function ElizaChatInterface({ onMessageSent }: ElizaChatInterfaceProps) {
         generateSpeech(msg.content.text, msg.id).catch(console.error);
       }
     });
-  }, [messages, generateSpeech, autoPlayTTS]);
+  }, [messages, generateSpeech, audioState.autoPlayTTS]);
 
   // Handle streaming messages from the single endpoint
   const handleStreamMessage = useCallback((messageData: StreamingMessage) => {
@@ -503,27 +514,21 @@ export function ElizaChatInterface({ onMessageSent }: ElizaChatInterfaceProps) {
     }
   }, []);
 
-  // Auto-scroll to bottom when messages change
+  // Auto-scroll to bottom when messages change (with delayed scroll for late-loading content)
   useEffect(() => {
     scrollToBottom();
-  }, [messages, scrollToBottom]);
-
-  // Additional scroll after a delay to handle late-loading content
-  useEffect(() => {
-    const timer = setTimeout(() => {
-      scrollToBottom();
-    }, 100);
+    const timer = setTimeout(() => scrollToBottom(), 100);
     return () => clearTimeout(timer);
   }, [messages, scrollToBottom]);
 
   const sendMessage = async (textOverride?: string) => {
     const messageText = textOverride?.trim() || inputText.trim();
-    if (!messageText || isLoading) return;
+    if (!messageText || loadingState.isSending) return;
 
     if (!textOverride) {
       setInputText("");
     }
-    setIsLoading(true);
+    setLoadingState(prev => ({ ...prev, isSending: true }));
     setError(null);
 
     try {
@@ -596,7 +601,6 @@ export function ElizaChatInterface({ onMessageSent }: ElizaChatInterfaceProps) {
       // Stream the response using single endpoint
       await sendStreamingMessage({
         roomId: currentRoomId,
-        entityId: entityId,
         text: messageText,
         model: selectedModelId, // Pass selected model from tier
         sessionToken: anonymousSessionToken || undefined, // Pass session token for anonymous users
@@ -643,7 +647,7 @@ export function ElizaChatInterface({ onMessageSent }: ElizaChatInterfaceProps) {
         thinkingTimeoutRef.current = null;
       }
     } finally {
-      setIsLoading(false);
+      setLoadingState(prev => ({ ...prev, isSending: false }));
     }
   };
 
@@ -720,7 +724,7 @@ export function ElizaChatInterface({ onMessageSent }: ElizaChatInterfaceProps) {
     }
   };
 
-  if (isInitializing) {
+  if (loadingState.isInitializing) {
     return (
       <div className="flex h-full w-full items-center justify-center">
         <div className="text-center space-y-3">
@@ -755,7 +759,7 @@ export function ElizaChatInterface({ onMessageSent }: ElizaChatInterfaceProps) {
                 </div>
               )}
 
-              {isLoadingMessages && (
+              {loadingState.isLoadingMessages && (
                 <div className="flex flex-col items-center justify-center h-full text-center py-12 space-y-6">
                   <ElizaAvatar
                     avatarUrl={agentInfo?.avatarUrl}
@@ -805,36 +809,26 @@ export function ElizaChatInterface({ onMessageSent }: ElizaChatInterfaceProps) {
                 </div>
               )}
 
-              {!isLoadingMessages && messages.length === 0 && !error && (
-                <>
-                  {!roomId ? (
-                    <EmptyChatState
-                      agentName={agentInfo?.name}
-                      agentAvatar={agentInfo?.avatarUrl}
-                      selectedCharacterId={selectedCharacterId}
-                    />
-                  ) : (
-                    <div className="flex flex-col items-center justify-center h-full text-center py-12">
-                      <ElizaAvatar
-                        avatarUrl={agentInfo?.avatarUrl}
-                        name={agentInfo?.name}
-                        className="h-16 w-16 mb-4"
-                        fallbackClassName="bg-muted"
-                        iconClassName="h-8 w-8 text-muted-foreground"
-                      />
-                      <h3 className="text-lg font-semibold mb-2">
-                        Start a conversation
-                      </h3>
-                      <p className="text-sm text-muted-foreground max-w-md">
-                        Ask me anything about AI, development, or how elizaOS
-                        can help you build intelligent agents.
-                      </p>
-                    </div>
-                  )}
-                </>
+              {!loadingState.isLoadingMessages && messages.length === 0 && !error && (
+                <div className="flex flex-col items-center justify-center h-full text-center py-12">
+                  <ElizaAvatar
+                    avatarUrl={agentInfo?.avatarUrl}
+                    name={characterName}
+                    className="h-16 w-16 mb-4"
+                    fallbackClassName="bg-muted"
+                    iconClassName="h-8 w-8 text-muted-foreground"
+                  />
+                  <h3 className="text-lg font-semibold mb-2">
+                    Start a conversation
+                  </h3>
+                  <p className="text-sm text-muted-foreground max-w-md">
+                    Ask me anything about AI, development, or how elizaOS
+                    can help you build intelligent agents.
+                  </p>
+                </div>
               )}
 
-              {!isLoadingMessages &&
+              {!loadingState.isLoadingMessages &&
                 messages.map((message, index) => {
                   const isThinking = message.id.startsWith("thinking-");
                   return (
@@ -953,19 +947,19 @@ export function ElizaChatInterface({ onMessageSent }: ElizaChatInterfaceProps) {
                                           );
                                         if (url) {
                                           if (
-                                            currentPlayingId === message.id &&
+                                            audioState.currentPlayingId === message.id &&
                                             player.isPlaying
                                           ) {
                                             player.stopAudio();
-                                            setCurrentPlayingId(null);
+                                            setAudioState(prev => ({ ...prev, currentPlayingId: null }));
                                           } else {
-                                            setCurrentPlayingId(message.id);
+                                            setAudioState(prev => ({ ...prev, currentPlayingId: message.id }));
                                             player.playAudio(url);
                                           }
                                         }
                                       }}
                                     >
-                                      {currentPlayingId === message.id &&
+                                      {audioState.currentPlayingId === message.id &&
                                       player.isPlaying ? (
                                         <Square className="h-3.5 w-3.5 text-white/50" />
                                       ) : (
@@ -1032,7 +1026,7 @@ export function ElizaChatInterface({ onMessageSent }: ElizaChatInterfaceProps) {
             {/* Text Input Box - Prominent standalone */}
             <div className="relative rounded-lg border border-white/[0.08] bg-white/[0.02] overflow-hidden transition-colors focus-within:border-white/[0.15] focus-within:bg-white/[0.03]">
               {/* Robot Eye Visor Scanner - Animated line on top edge with randomness - Only show when waiting for agent */}
-              {isLoading && (
+              {loadingState.isSending && (
                 <div className="absolute top-0 left-0 right-0 h-[2px] overflow-hidden pointer-events-none z-10">
                   {/* Primary scanner */}
                   <div
@@ -1074,11 +1068,9 @@ export function ElizaChatInterface({ onMessageSent }: ElizaChatInterfaceProps) {
                 placeholder={
                   recorder.isRecording
                     ? "Recording... Click stop when done"
-                    : roomId
-                      ? "Type your message..."
-                      : "Ask me anything..."
+                    : "Type your message..."
                 }
-                disabled={isLoading || recorder.isRecording}
+                disabled={loadingState.isSending || recorder.isRecording}
                 className="w-full bg-transparent px-4 py-3 text-[15px] text-white placeholder:text-white/40 focus:outline-none disabled:opacity-50 resize-none leading-relaxed"
                 style={{
                   minHeight: "44px",
@@ -1154,12 +1146,12 @@ export function ElizaChatInterface({ onMessageSent }: ElizaChatInterfaceProps) {
                             </Label>
                             <Switch
                               id="auto-tts-pop"
-                              checked={autoPlayTTS}
-                              onCheckedChange={setAutoPlayTTS}
+                              checked={audioState.autoPlayTTS}
+                              onCheckedChange={(checked) => setAudioState(prev => ({ ...prev, autoPlayTTS: checked }))}
                             />
                           </div>
 
-                          {customVoices.length > 0 && (
+                          {audioState.customVoices.length > 0 && (
                             <div className="space-y-2">
                               <Label
                                 htmlFor="voice-select-pop"
@@ -1168,11 +1160,11 @@ export function ElizaChatInterface({ onMessageSent }: ElizaChatInterfaceProps) {
                                 Voice Selection
                               </Label>
                               <Select
-                                value={selectedVoiceId || "default"}
+                                value={audioState.selectedVoiceId || "default"}
                                 onValueChange={(value) => {
                                   const newVoiceId =
                                     value === "default" ? null : value;
-                                  setSelectedVoiceId(newVoiceId);
+                                  setAudioState(prev => ({ ...prev, selectedVoiceId: newVoiceId }));
 
                                   if (typeof window !== "undefined") {
                                     if (newVoiceId) {
@@ -1188,7 +1180,7 @@ export function ElizaChatInterface({ onMessageSent }: ElizaChatInterfaceProps) {
                                   }
 
                                   const voiceName = newVoiceId
-                                    ? customVoices.find(
+                                    ? audioState.customVoices.find(
                                         (v) =>
                                           v.elevenlabsVoiceId === newVoiceId,
                                       )?.name || "Custom"
@@ -1207,7 +1199,7 @@ export function ElizaChatInterface({ onMessageSent }: ElizaChatInterfaceProps) {
                                   <SelectItem value="default">
                                     Default Voice
                                   </SelectItem>
-                                  {customVoices.map((voice) => (
+                                  {audioState.customVoices.map((voice) => (
                                     <SelectItem
                                       key={voice.id}
                                       value={voice.elevenlabsVoiceId}
@@ -1236,7 +1228,7 @@ export function ElizaChatInterface({ onMessageSent }: ElizaChatInterfaceProps) {
                   type="button"
                   variant="ghost"
                   size="icon"
-                  disabled={isLoading || !roomId}
+                  disabled={loadingState.isSending}
                   onClick={handleVoiceInput}
                   className="h-9 w-9 rounded-lg border border-white/[0.08] bg-white/[0.02] hover:bg-white/[0.06] disabled:opacity-40 transition-colors"
                 >
@@ -1250,15 +1242,14 @@ export function ElizaChatInterface({ onMessageSent }: ElizaChatInterfaceProps) {
                 <Button
                   type="submit"
                   disabled={
-                    isLoading ||
-                    !roomId ||
+                    loadingState.isSending ||
                     !inputText.trim() ||
                     recorder.isRecording
                   }
                   size="icon"
                   className="h-9 w-9 rounded-lg bg-[#FF5800]/20 border border-[#FF5800]/30 hover:bg-[#FF5800]/30 disabled:opacity-40 transition-colors"
                 >
-                  {isLoading ? (
+                  {loadingState.isSending ? (
                     <Loader2 className="h-4 w-4 animate-spin text-[#FF5800]" />
                   ) : (
                     <Send className="h-4 w-4 text-[#FF5800]" />
@@ -1272,3 +1263,4 @@ export function ElizaChatInterface({ onMessageSent }: ElizaChatInterfaceProps) {
     </div>
   );
 }
+

@@ -1,6 +1,6 @@
 import { db } from "@/db/client";
 import { anonymousSessions, type AnonymousSession } from "@/db/schemas";
-import { eq, and, lt, gte } from "drizzle-orm";
+import { eq, and, lt, gte, sql } from "drizzle-orm";
 
 /**
  * Anonymous Sessions Repository
@@ -20,8 +20,8 @@ export class AnonymousSessionsRepository {
         and(
           eq(anonymousSessions.session_token, sessionToken),
           eq(anonymousSessions.is_active, true),
-          gte(anonymousSessions.expires_at, new Date()),
-        ),
+          gte(anonymousSessions.expires_at, new Date())
+        )
       )
       .limit(1);
 
@@ -70,27 +70,26 @@ export class AnonymousSessionsRepository {
   }
 
   /**
-   * Increment message count for a session
+   * Increment message count for a session using atomic update
    * Returns updated session
+   *
+   * Uses SQL increment to prevent race conditions when multiple
+   * requests try to increment simultaneously.
    */
   async incrementMessageCount(sessionId: string): Promise<AnonymousSession> {
-    // Get current session first
-    const current = await db.query.anonymousSessions.findFirst({
-      where: eq(anonymousSessions.id, sessionId),
-    });
-
-    if (!current) {
-      throw new Error("Session not found");
-    }
-
+    // Use atomic increment to prevent race conditions
     const [session] = await db
       .update(anonymousSessions)
       .set({
-        message_count: current.message_count + 1,
+        message_count: sql`${anonymousSessions.message_count} + 1`,
         last_message_at: new Date(),
       })
       .where(eq(anonymousSessions.id, sessionId))
       .returning();
+
+    if (!session) {
+      throw new Error("Session not found");
+    }
 
     return session;
   }
@@ -98,55 +97,53 @@ export class AnonymousSessionsRepository {
   /**
    * Increment hourly message count (for rate limiting)
    * Resets hourly counter if hour has passed
+   *
+   * Uses atomic operations where possible to minimize race conditions.
    */
   async incrementHourlyCount(
-    sessionId: string,
+    sessionId: string
   ): Promise<{ allowed: boolean; remaining: number }> {
-    const session = await db.query.anonymousSessions.findFirst({
-      where: eq(anonymousSessions.id, sessionId),
-    });
-
-    if (!session) {
-      throw new Error("Session not found");
-    }
-
+    const hourlyLimit = Number.parseInt(
+      process.env.ANON_HOURLY_LIMIT || "10",
+      10
+    );
     const now = new Date();
     const oneHourAgo = new Date(now.getTime() - 60 * 60 * 1000);
 
-    // Check if we need to reset hourly counter
-    const needsReset =
-      !session.hourly_reset_at || session.hourly_reset_at < oneHourAgo;
-
-    if (needsReset) {
-      // Reset counter
-      const [updated] = await db
-        .update(anonymousSessions)
-        .set({
-          hourly_message_count: 1,
-          hourly_reset_at: now,
-          last_message_at: now,
-        })
-        .where(eq(anonymousSessions.id, sessionId))
-        .returning();
-
-      return { allowed: true, remaining: 9 }; // Assuming 10 messages per hour limit
-    }
-
-    // Check if limit reached (10 messages per hour)
-    const hourlyLimit = 10;
-    if (session.hourly_message_count >= hourlyLimit) {
-      return { allowed: false, remaining: 0 };
-    }
-
-    // Increment counter
+    // Use a single atomic update with conditional logic
+    // This resets the counter if the hour has passed, otherwise increments
     const [updated] = await db
       .update(anonymousSessions)
       .set({
-        hourly_message_count: session.hourly_message_count + 1,
+        hourly_message_count: sql`
+          CASE 
+            WHEN ${anonymousSessions.hourly_reset_at} IS NULL 
+              OR ${anonymousSessions.hourly_reset_at} < ${oneHourAgo}
+            THEN 1
+            ELSE ${anonymousSessions.hourly_message_count} + 1
+          END
+        `,
+        hourly_reset_at: sql`
+          CASE 
+            WHEN ${anonymousSessions.hourly_reset_at} IS NULL 
+              OR ${anonymousSessions.hourly_reset_at} < ${oneHourAgo}
+            THEN ${now}
+            ELSE ${anonymousSessions.hourly_reset_at}
+          END
+        `,
         last_message_at: now,
       })
       .where(eq(anonymousSessions.id, sessionId))
       .returning();
+
+    if (!updated) {
+      throw new Error("Session not found");
+    }
+
+    // Check if limit exceeded after update
+    if (updated.hourly_message_count > hourlyLimit) {
+      return { allowed: false, remaining: 0 };
+    }
 
     return {
       allowed: true,
@@ -156,43 +153,39 @@ export class AnonymousSessionsRepository {
 
   /**
    * Track token usage (for analytics, not billing)
+   * Uses atomic increment to prevent race conditions.
    */
   async addTokenUsage(sessionId: string, tokens: number): Promise<void> {
-    const current = await db.query.anonymousSessions.findFirst({
-      where: eq(anonymousSessions.id, sessionId),
-    });
-
-    if (!current) {
-      throw new Error("Session not found");
-    }
-
-    await db
+    const result = await db
       .update(anonymousSessions)
       .set({
-        total_tokens_used: current.total_tokens_used + tokens,
+        total_tokens_used: sql`${anonymousSessions.total_tokens_used} + ${tokens}`,
       })
-      .where(eq(anonymousSessions.id, sessionId));
+      .where(eq(anonymousSessions.id, sessionId))
+      .returning({ id: anonymousSessions.id });
+
+    if (result.length === 0) {
+      throw new Error("Session not found");
+    }
   }
 
   /**
    * Mark that user was prompted to sign up
+   * Uses atomic increment to prevent race conditions.
    */
   async incrementSignupPrompt(sessionId: string): Promise<void> {
-    const current = await db.query.anonymousSessions.findFirst({
-      where: eq(anonymousSessions.id, sessionId),
-    });
-
-    if (!current) {
-      throw new Error("Session not found");
-    }
-
-    await db
+    const result = await db
       .update(anonymousSessions)
       .set({
         signup_prompted_at: new Date(),
-        signup_prompt_count: current.signup_prompt_count + 1,
+        signup_prompt_count: sql`${anonymousSessions.signup_prompt_count} + 1`,
       })
-      .where(eq(anonymousSessions.id, sessionId));
+      .where(eq(anonymousSessions.id, sessionId))
+      .returning({ id: anonymousSessions.id });
+
+    if (result.length === 0) {
+      throw new Error("Session not found");
+    }
   }
 
   /**
@@ -242,8 +235,8 @@ export class AnonymousSessionsRepository {
       .where(
         and(
           eq(anonymousSessions.ip_address, ipAddress),
-          eq(anonymousSessions.is_active, true),
-        ),
+          eq(anonymousSessions.is_active, true)
+        )
       );
   }
 

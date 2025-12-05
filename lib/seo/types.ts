@@ -44,3 +44,4 @@ export interface StructuredDataOptions {
 export type MetadataGenerator = (
   options: PageMetadataOptions | DynamicMetadataOptions,
 ) => Metadata;
+

@@ -120,9 +120,6 @@ export function VideoPreview({ video }: VideoPreviewProps) {
             ) : null}
           </div>
         </div>
-        <p className="text-xs md:text-sm font-mono text-[#858585]">
-          The most recent render appears here with metadata and quick actions.
-        </p>
       </div>
 
       <div className="relative z-10 flex-1 min-h-0 pb-0 mt-4 md:mt-6">
