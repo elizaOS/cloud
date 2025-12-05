@@ -674,8 +674,79 @@ Your response should include the valid XML block and nothing else.`;
 export const generateImageAction = {
   name: "GENERATE_IMAGE",
   description:
-    "Generate and display an AI image. Use when user asks to create, generate, show, or visualize an image.",
-  validate: async (_runtime: IAgentRuntime) => {
+    "Generate and display an AI image. Use ONLY when user explicitly asks to create, generate, show, draw, or visualize an image.",
+  validate: async (_runtime: IAgentRuntime, message: Memory) => {
+    // Only validate if the user's message explicitly requests image generation
+    const text = message?.content?.text?.toLowerCase() || "";
+    
+    // Keywords that indicate explicit image request
+    const imageRequestKeywords = [
+      // Explicit generation requests
+      "generate image",
+      "generate a image",
+      "generate an image",
+      "create image",
+      "create a image", 
+      "create an image",
+      "make image",
+      "make a image",
+      "make an image",
+      "draw",
+      "visualize",
+      "illustrate",
+      "can you draw",
+      "could you draw",
+      // Picture/photo/image requests
+      "show me a picture",
+      "show me an image",
+      "send me a picture",
+      "send me an image",
+      "send a picture",
+      "send an image",
+      "send a pic",
+      "send pic",
+      "send a photo",
+      "send photo",
+      "show me a pic",
+      "picture of",
+      "image of",
+      "what does .* look like",
+      "show me what",
+      // Selfie/personal image requests (for companion-style apps)
+      "send selfie",
+      "send a selfie",
+      "send me a selfie",
+      "take a selfie",
+      "show me yourself",
+      "show yourself",
+      "let me see you",
+      "what do you look like",
+      "show me how you look",
+      "can i see you",
+      "want to see you",
+      "see what you look like",
+      "pic of you",
+      "picture of you",
+      "photo of you",
+      "your picture",
+      "your photo",
+    ];
+    
+    // Check if any keyword matches
+    const hasImageRequest = imageRequestKeywords.some(keyword => {
+      if (keyword.includes(".*")) {
+        const regex = new RegExp(keyword, "i");
+        return regex.test(text);
+      }
+      return text.includes(keyword);
+    });
+    
+    if (!hasImageRequest) {
+      logger.debug(`[GENERATE_IMAGE] Validation failed - message doesn't request image: "${text.substring(0, 50)}..."`);
+      return false;
+    }
+    
+    logger.info(`[GENERATE_IMAGE] Validation passed - user requested image generation`);
     return true;
   },
   handler: async (

@@ -4,6 +4,7 @@ import {
   AlertCircle,
   Bot,
   ChevronLeft,
+  ImageIcon,
   Loader2,
   Menu,
   MessageSquare,
@@ -27,6 +28,7 @@ import {
   getChat,
   listChats,
   type Message,
+  type MessageAttachment,
   sendMessage,
 } from "@/lib/cloud-api";
 import { useAuth } from "@/lib/use-auth";
@@ -49,9 +51,13 @@ export default function ChatPage() {
   const [streamingContent, setStreamingContent] = useState("");
   const [isThinking, setIsThinking] = useState(false);
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [selectedImage, setSelectedImage] = useState<string | null>(null);
+  const [selectedImageFile, setSelectedImageFile] = useState<File | null>(null);
+  const [imageModalUrl, setImageModalUrl] = useState<string | null>(null);
 
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   // Auto-scroll to bottom
   const scrollToBottom = () => {
@@ -79,6 +85,17 @@ export default function ChatPage() {
         getChat(agentId, chatId),
         listChats(agentId, { limit: 20 }),
       ]);
+      
+      // Debug: Log loaded messages to check for attachments
+      console.log("[Chat] Loaded messages from API:", chatData.messages.map(m => ({
+        id: m.id,
+        role: m.role,
+        hasAttachments: !!m.attachments,
+        attachmentCount: m.attachments?.length || 0,
+        attachments: m.attachments,
+        contentPreview: m.content.substring(0, 50),
+      })));
+      
       setAgent(agentData);
       setMessages(chatData.messages);
       setChatHistory(historyData.chats);
@@ -111,34 +128,50 @@ export default function ChatPage() {
 
   // Send message
   const handleSend = async () => {
-    if (!input.trim() || sending) return;
+    if ((!input.trim() && !selectedImage) || sending) return;
 
     const messageText = input.trim();
+    const imageToSend = selectedImage;
+    
     setInput("");
+    clearSelectedImage();
     setSending(true);
     setError(null);
     setStreamingContent("");
     setIsThinking(false);
 
-    // Add user message optimistically
+    // Add user message optimistically (with image if selected)
+    const userAttachments: MessageAttachment[] = imageToSend
+      ? [{ id: `img-${Date.now()}`, url: imageToSend, contentType: "image" }]
+      : [];
+    
     const userMessage: Message = {
       id: `temp-${Date.now()}`,
-      content: messageText,
+      content: messageText || (imageToSend ? "[Image]" : ""),
       role: "user",
       createdAt: new Date().toISOString(),
+      attachments: userAttachments.length > 0 ? userAttachments : undefined,
     };
     setMessages((prev) => [...prev, userMessage]);
 
     try {
-      await sendMessage(chatId, messageText, {
-        onStart: () => {
-          // Connection established - show thinking indicator
-          setIsThinking(true);
-        },
+      // Pass attachments to the streaming endpoint for image uploads
+      await sendMessage(
+        chatId, 
+        messageText || "What do you see in this image?", 
+        {
+          onStart: () => {
+            // Connection established - show thinking indicator
+            setIsThinking(true);
+          },
         onUserMessage: (msg) => {
-          // Update user message with actual ID
+          // Update user message with actual ID, but preserve local attachments
+          // (server may not include attachments in confirmation)
           setMessages((prev) =>
-            prev.map((m) => (m.id === userMessage.id ? { ...msg } : m))
+            prev.map((m) => (m.id === userMessage.id ? { 
+              ...msg, 
+              attachments: msg.attachments || m.attachments,
+            } : m))
           );
         },
         onThinking: () => {
@@ -152,16 +185,32 @@ export default function ChatPage() {
           setStreamingContent((prev) => prev + chunk);
         },
         onComplete: (msg) => {
+          console.log("[Chat] onComplete received:", {
+            id: msg.id,
+            hasAttachments: !!msg.attachments,
+            attachmentCount: msg.attachments?.length || 0,
+            attachments: msg.attachments,
+            contentPreview: msg.content.substring(0, 100),
+          });
           setIsThinking(false);
           setStreamingContent("");
           setMessages((prev) => [...prev, msg]);
+          // Refresh chat history to show updated title (generated after 4+ messages)
+          listChats(agentId, { limit: 20 }).then((historyData) => {
+            setChatHistory(historyData.chats);
+          }).catch(() => {
+            // Non-critical, ignore errors
+          });
         },
         onError: (err) => {
           setError(err);
           setIsThinking(false);
           setStreamingContent("");
         },
-      });
+      },
+      undefined, // model
+      userAttachments.length > 0 ? userAttachments : undefined // attachments
+    );
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to send message");
       // Remove optimistic message on error
@@ -179,6 +228,50 @@ export default function ChatPage() {
       e.preventDefault();
       handleSend();
     }
+  };
+
+  // Handle image selection
+  const handleImageSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      // Check file size (max 5MB)
+      if (file.size > 5 * 1024 * 1024) {
+        setError("Image must be less than 5MB");
+        return;
+      }
+      
+      // Check file type
+      if (!file.type.startsWith("image/")) {
+        setError("Please select an image file");
+        return;
+      }
+
+      setSelectedImageFile(file);
+      const reader = new FileReader();
+      reader.onload = (event) => {
+        setSelectedImage(event.target?.result as string);
+      };
+      reader.readAsDataURL(file);
+    }
+  };
+
+  // Clear selected image
+  const clearSelectedImage = () => {
+    setSelectedImage(null);
+    setSelectedImageFile(null);
+    if (fileInputRef.current) {
+      fileInputRef.current.value = "";
+    }
+  };
+
+  // Open image in modal
+  const openImageModal = (url: string) => {
+    setImageModalUrl(url);
+  };
+
+  // Close image modal
+  const closeImageModal = () => {
+    setImageModalUrl(null);
   };
 
   // Format chat title - use name if available, otherwise last message preview
@@ -338,7 +431,7 @@ export default function ChatPage() {
               className="flex w-full items-center justify-center gap-2 rounded-lg py-2.5 text-sm text-white/60 transition-colors hover:text-white"
             >
               <ChevronLeft className="h-4 w-4" />
-              Back to Characters
+              Back to Friends
             </Link>
           </div>
         </div>
@@ -383,7 +476,7 @@ export default function ChatPage() {
         {/* Messages */}
         <div className="flex-1 overflow-y-auto px-4 py-4">
           <div className="mx-auto max-w-2xl space-y-4">
-            {messages.length === 0 && !streamingContent && (
+            {messages.length === 0 && !streamingContent && !isThinking && (
               <div className="flex flex-col items-center justify-center py-12 text-center">
                 <div className="flex h-16 w-16 items-center justify-center overflow-hidden rounded-full bg-pink-500/20">
                   {agent?.avatarUrl ? (
@@ -399,7 +492,7 @@ export default function ChatPage() {
                   )}
                 </div>
                 <p className="mt-4 text-sm text-white/60">
-                  Start a conversation with {agent?.name}
+                  Send the first message to {agent?.name}
                 </p>
               </div>
             )}
@@ -433,7 +526,28 @@ export default function ChatPage() {
                       : "bg-white/10 text-white"
                   }`}
                 >
-                  <p className="whitespace-pre-wrap text-sm">{message.content}</p>
+                  {/* Display attachments (images) */}
+                  {message.attachments && message.attachments.length > 0 && (
+                    <div className="mb-2 flex flex-wrap gap-2">
+                      {message.attachments.map((attachment) => (
+                        <button
+                          key={attachment.id}
+                          onClick={() => openImageModal(attachment.url)}
+                          className="relative overflow-hidden rounded-lg focus:outline-none focus:ring-2 focus:ring-pink-500"
+                        >
+                          <img
+                            src={attachment.url}
+                            alt={attachment.title || "Image"}
+                            className="max-h-48 max-w-full rounded-lg object-cover hover:opacity-90 transition-opacity"
+                          />
+                        </button>
+                      ))}
+                    </div>
+                  )}
+                  {/* Display text content */}
+                  {message.content && message.content !== "[Image]" && (
+                    <p className="whitespace-pre-wrap text-sm">{message.content}</p>
+                  )}
                 </div>
                 {message.role === "user" && (
                   <div className="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-lg bg-white/10">
@@ -509,31 +623,95 @@ export default function ChatPage() {
 
         {/* Input */}
         <div className="border-t border-white/5 px-4 py-3">
-          <div className="mx-auto flex max-w-2xl gap-2">
-            <textarea
-              ref={inputRef}
-              value={input}
-              onChange={(e) => setInput(e.target.value)}
-              onKeyDown={handleKeyPress}
-              placeholder="Type a message..."
-              rows={1}
-              disabled={sending}
-              className="flex-1 resize-none rounded-lg border border-white/10 bg-white/5 px-4 py-2 text-sm text-white placeholder-white/40 focus:border-pink-500 focus:outline-none disabled:opacity-50"
-            />
-            <button
-              onClick={handleSend}
-              disabled={!input.trim() || sending}
-              className="flex items-center justify-center rounded-lg bg-pink-500 px-4 py-2 text-white transition-colors hover:bg-pink-600 disabled:opacity-50"
-            >
-              {sending ? (
-                <Loader2 className="h-4 w-4 animate-spin" />
-              ) : (
-                <Send className="h-4 w-4" />
-              )}
-            </button>
+          <div className="mx-auto max-w-2xl">
+            {/* Selected image preview */}
+            {selectedImage && (
+              <div className="mb-2 flex items-start gap-2">
+                <div className="relative">
+                  <img
+                    src={selectedImage}
+                    alt="Selected"
+                    className="h-20 w-20 rounded-lg object-cover"
+                  />
+                  <button
+                    onClick={clearSelectedImage}
+                    className="absolute -right-1 -top-1 flex h-5 w-5 items-center justify-center rounded-full bg-red-500 text-white hover:bg-red-600"
+                  >
+                    <X className="h-3 w-3" />
+                  </button>
+                </div>
+                <span className="text-xs text-white/40">
+                  {selectedImageFile?.name}
+                </span>
+              </div>
+            )}
+            
+            <div className="flex gap-2">
+              {/* Hidden file input */}
+              <input
+                ref={fileInputRef}
+                type="file"
+                accept="image/*"
+                onChange={handleImageSelect}
+                className="hidden"
+              />
+              
+              {/* Image upload button */}
+              <button
+                onClick={() => fileInputRef.current?.click()}
+                disabled={sending}
+                className="flex items-center justify-center rounded-lg border border-white/10 bg-white/5 px-3 py-2 text-white/60 transition-colors hover:bg-white/10 hover:text-white disabled:opacity-50"
+                title="Upload image"
+              >
+                <ImageIcon className="h-4 w-4" />
+              </button>
+              
+              <textarea
+                ref={inputRef}
+                value={input}
+                onChange={(e) => setInput(e.target.value)}
+                onKeyDown={handleKeyPress}
+                placeholder="Type a message..."
+                rows={1}
+                disabled={sending}
+                className="flex-1 resize-none rounded-lg border border-white/10 bg-white/5 px-4 py-2 text-sm text-white placeholder-white/40 focus:border-pink-500 focus:outline-none disabled:opacity-50"
+              />
+              <button
+                onClick={handleSend}
+                disabled={(!input.trim() && !selectedImage) || sending}
+                className="flex items-center justify-center rounded-lg bg-pink-500 px-4 py-2 text-white transition-colors hover:bg-pink-600 disabled:opacity-50"
+              >
+                {sending ? (
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                ) : (
+                  <Send className="h-4 w-4" />
+                )}
+              </button>
+            </div>
           </div>
         </div>
       </div>
+
+      {/* Image modal for viewing full-size images */}
+      {imageModalUrl && (
+        <div
+          className="fixed inset-0 z-[100] flex items-center justify-center bg-black/90 p-4"
+          onClick={closeImageModal}
+        >
+          <button
+            onClick={closeImageModal}
+            className="absolute right-4 top-4 flex h-10 w-10 items-center justify-center rounded-full bg-white/10 text-white hover:bg-white/20"
+          >
+            <X className="h-6 w-6" />
+          </button>
+          <img
+            src={imageModalUrl}
+            alt="Full size"
+            className="max-h-[90vh] max-w-[90vw] rounded-lg object-contain"
+            onClick={(e) => e.stopPropagation()}
+          />
+        </div>
+      )}
     </div>
   );
 }

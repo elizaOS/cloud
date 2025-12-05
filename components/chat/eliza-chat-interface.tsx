@@ -830,7 +830,7 @@ export function ElizaChatInterface({ onMessageSent, character }: ElizaChatInterf
                     iconClassName="h-8 w-8 text-muted-foreground"
                   />
                   <h3 className="text-lg font-semibold mb-2">
-                    Start a conversation with {characterName}
+                    Send the first message to {characterName}
                   </h3>
                   <p className="text-sm text-muted-foreground max-w-md">
                     {(() => {

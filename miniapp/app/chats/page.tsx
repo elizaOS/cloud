@@ -86,10 +86,7 @@ export default function ChatsPage() {
       {/* Header */}
       <div className="mb-8 flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold text-white">My Characters</h1>
-          <p className="mt-1 text-sm text-white/60">
-            Chat with your AI companions
-          </p>
+          <h1 className="text-2xl font-bold text-white">My Friends</h1>
         </div>
         <button
           onClick={handleCreate}
@@ -101,7 +98,7 @@ export default function ChatsPage() {
           ) : (
             <Plus className="h-4 w-4" />
           )}
-          <span>New Character</span>
+          <span>New Friend</span>
         </button>
       </div>
 
@@ -124,7 +121,7 @@ export default function ChatsPage() {
       {!loading && agents.length === 0 && (
         <div className="flex flex-col items-center justify-center rounded-lg border border-dashed border-white/10 py-16">
           <Bot className="h-12 w-12 text-white/20" />
-          <p className="mt-4 text-sm text-white/60">No characters yet</p>
+          <p className="mt-4 text-sm text-white/60">No friends yet</p>
           <button
             onClick={handleCreate}
             disabled={creating}
@@ -135,7 +132,7 @@ export default function ChatsPage() {
             ) : (
               <Plus className="h-4 w-4" />
             )}
-            <span>Create your first character</span>
+            <span>Create your first friend</span>
           </button>
         </div>
       )}
@@ -151,32 +148,32 @@ export default function ChatsPage() {
             >
               {/* Agent Image */}
               <div className="relative aspect-square w-full overflow-hidden bg-gradient-to-br from-pink-500/20 to-purple-500/20">
-                {agent.avatarUrl ? (
-                  <Image
-                    src={agent.avatarUrl}
-                    alt={agent.name}
-                    fill
+                  {agent.avatarUrl ? (
+                    <Image
+                      src={agent.avatarUrl}
+                      alt={agent.name}
+                      fill
                     className="object-cover transition-transform duration-300 group-hover:scale-105"
-                  />
-                ) : (
-                  <div className="flex h-full w-full items-center justify-center">
+                    />
+                  ) : (
+                    <div className="flex h-full w-full items-center justify-center">
                     <Bot className="h-16 w-16 text-pink-400/50" />
-                  </div>
-                )}
+                    </div>
+                  )}
                 {/* Gradient overlay */}
                 <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent" />
-              </div>
+                </div>
 
               {/* Content - overlaid on bottom */}
               <div className="absolute bottom-0 left-0 right-0 p-4">
-                <h3 className="truncate text-lg font-semibold text-white">
-                  {agent.name}
-                </h3>
+                  <h3 className="truncate text-lg font-semibold text-white">
+                    {agent.name}
+                  </h3>
                 <p className="mt-1 line-clamp-2 text-sm text-white/70">
-                  {Array.isArray(agent.bio) ? agent.bio[0] : agent.bio}
-                </p>
-              </div>
-            </Link>
+                    {Array.isArray(agent.bio) ? agent.bio[0] : agent.bio}
+                  </p>
+                </div>
+              </Link>
           ))}
         </div>
       )}
@@ -184,7 +181,7 @@ export default function ChatsPage() {
       {/* Pagination info */}
       {pagination && pagination.totalCount > 0 && (
         <p className="mt-6 text-center text-sm text-white/40">
-          Showing {agents.length} of {pagination.totalCount} characters
+          Showing {agents.length} of {pagination.totalCount} friends
         </p>
       )}
     </div>

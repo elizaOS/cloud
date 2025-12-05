@@ -123,17 +123,40 @@ export async function GET(
       .orderBy(asc(memoryTable.createdAt))
       .limit(limit);
     
-    const response = NextResponse.json({
-      success: true,
-      messages: messages.map((msg) => ({
+    // Transform messages and extract attachments
+    const transformedMessages = messages.map((msg) => {
+      const content = msg.content as { 
+        text?: string; 
+        attachments?: Array<{
+          id: string;
+          url: string;
+          title?: string;
+          contentType?: string;
+        }>;
+      } | string;
+      
+      const textContent = typeof content === 'string' 
+        ? content 
+        : content?.text || '';
+      
+      // Extract attachments from content if present
+      const attachments = typeof content === 'object' && content?.attachments 
+        ? content.attachments.filter(att => att.url && typeof att.url === 'string')
+        : undefined;
+      
+      return {
         id: msg.id,
-        content: typeof msg.content === 'string' 
-          ? msg.content 
-          : (msg.content as { text?: string })?.text || '',
-        role: msg.entityId === agentId ? 'assistant' : 'user',
+        content: textContent,
+        role: msg.entityId === agentId ? 'assistant' as const : 'user' as const,
         createdAt: msg.createdAt,
         metadata: msg.metadata,
-      })),
+        attachments: attachments && attachments.length > 0 ? attachments : undefined,
+      };
+    });
+    
+    const response = NextResponse.json({
+      success: true,
+      messages: transformedMessages,
       chat: {
         id: chatId,
         agentId,
