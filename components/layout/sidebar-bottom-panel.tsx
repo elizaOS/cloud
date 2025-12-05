@@ -19,29 +19,6 @@ interface SidebarBottomPanelProps {
 export function SidebarBottomPanel({ className }: SidebarBottomPanelProps) {
   const { ready, authenticated, user, logout } = usePrivy();
   const router = useRouter();
-  const pathname = usePathname();
-  const { creditBalance, isLoading: loadingCredits } = useCredits();
-
-  // Get user display info
-  const getUserName = () => {
-    if (user?.google?.name) return user.google.name;
-    if (user?.email?.address) return user.email.address.split("@")[0];
-    if (user?.wallet?.address)
-      return `${user.wallet.address.slice(0, 6)}...${user.wallet.address.slice(-4)}`;
-    return "User";
-  };
-
-  const getUserIdentifier = () => {
-    if (user?.email?.address) return user.email.address;
-    if (user?.wallet?.address)
-      return `${user.wallet.address.slice(0, 6)}...${user.wallet.address.slice(-4)}`;
-    return "";
-  };
-
-  const onSignOut = async () => {
-    await logout();
-    router.push("/");
-  };
 
   // If not authenticated, show sign up/login CTA
   if (!ready || !authenticated || !user) {
