@@ -38,7 +38,7 @@ export async function POST(
     // Step 1: Parse request body FIRST (needed for session token check and agent mode)
     const { roomId } = await ctx.params;
     const body = await request.json();
-    const { text, model, agentMode, sessionToken } = body;
+    const { text, model, agentMode, sessionToken, attachments } = body;
 
     if (!roomId || !text?.trim()) {
       return new Response(
@@ -214,7 +214,7 @@ export async function POST(
           sendEvent("message", {
             id: `user-${Date.now()}`,
             entityId: userContext.userId,
-            content: { text },
+            content: { text, attachments: attachments || undefined },
             createdAt: Date.now(),
             isAgent: false,
             type: "user",
@@ -237,6 +237,7 @@ export async function POST(
             text,
             model,
             agentModeConfig,
+            attachments,
           });
 
           // Extract content - the full Content object is now stored in memory

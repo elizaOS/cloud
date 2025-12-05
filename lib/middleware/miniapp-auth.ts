@@ -11,7 +11,7 @@ import { miniappAuthSessionsService } from "@/lib/services/miniapp-auth-sessions
 import { usersService } from "@/lib/services";
 import type { UserWithOrganization } from "@/lib/types";
 
-interface MiniappAuthResult {
+type MiniappAuthResult = {
   success: true;
   user: UserWithOrganization;
 } | {

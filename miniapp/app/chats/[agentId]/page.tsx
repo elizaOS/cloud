@@ -59,7 +59,7 @@ export default function AgentChatsPage() {
           onClick={() => router.push("/chats")}
           className="text-sm text-white/60 hover:text-white"
         >
-          Back to characters
+          Back to friends
         </button>
       </div>
     );

@@ -160,10 +160,10 @@ export default function ChatPage() {
         chatId, 
         messageText || "What do you see in this image?", 
         {
-          onStart: () => {
-            // Connection established - show thinking indicator
-            setIsThinking(true);
-          },
+        onStart: () => {
+          // Connection established - show thinking indicator
+          setIsThinking(true);
+        },
         onUserMessage: (msg) => {
           // Update user message with actual ID, but preserve local attachments
           // (server may not include attachments in confirmation)
@@ -535,6 +535,7 @@ export default function ChatPage() {
                           onClick={() => openImageModal(attachment.url)}
                           className="relative overflow-hidden rounded-lg focus:outline-none focus:ring-2 focus:ring-pink-500"
                         >
+                          {/* eslint-disable-next-line @next/next/no-img-element */}
                           <img
                             src={attachment.url}
                             alt={attachment.title || "Image"}
@@ -546,7 +547,7 @@ export default function ChatPage() {
                   )}
                   {/* Display text content */}
                   {message.content && message.content !== "[Image]" && (
-                    <p className="whitespace-pre-wrap text-sm">{message.content}</p>
+                  <p className="whitespace-pre-wrap text-sm">{message.content}</p>
                   )}
                 </div>
                 {message.role === "user" && (
@@ -628,6 +629,7 @@ export default function ChatPage() {
             {selectedImage && (
               <div className="mb-2 flex items-start gap-2">
                 <div className="relative">
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
                   <img
                     src={selectedImage}
                     alt="Selected"
@@ -666,30 +668,30 @@ export default function ChatPage() {
                 <ImageIcon className="h-4 w-4" />
               </button>
               
-              <textarea
-                ref={inputRef}
-                value={input}
-                onChange={(e) => setInput(e.target.value)}
-                onKeyDown={handleKeyPress}
-                placeholder="Type a message..."
-                rows={1}
-                disabled={sending}
-                className="flex-1 resize-none rounded-lg border border-white/10 bg-white/5 px-4 py-2 text-sm text-white placeholder-white/40 focus:border-pink-500 focus:outline-none disabled:opacity-50"
-              />
-              <button
-                onClick={handleSend}
+            <textarea
+              ref={inputRef}
+              value={input}
+              onChange={(e) => setInput(e.target.value)}
+              onKeyDown={handleKeyPress}
+              placeholder="Type a message..."
+              rows={1}
+              disabled={sending}
+              className="flex-1 resize-none rounded-lg border border-white/10 bg-white/5 px-4 py-2 text-sm text-white placeholder-white/40 focus:border-pink-500 focus:outline-none disabled:opacity-50"
+            />
+            <button
+              onClick={handleSend}
                 disabled={(!input.trim() && !selectedImage) || sending}
-                className="flex items-center justify-center rounded-lg bg-pink-500 px-4 py-2 text-white transition-colors hover:bg-pink-600 disabled:opacity-50"
-              >
-                {sending ? (
-                  <Loader2 className="h-4 w-4 animate-spin" />
-                ) : (
-                  <Send className="h-4 w-4" />
-                )}
-              </button>
-            </div>
+              className="flex items-center justify-center rounded-lg bg-pink-500 px-4 py-2 text-white transition-colors hover:bg-pink-600 disabled:opacity-50"
+            >
+              {sending ? (
+                <Loader2 className="h-4 w-4 animate-spin" />
+              ) : (
+                <Send className="h-4 w-4" />
+              )}
+            </button>
           </div>
         </div>
+      </div>
       </div>
 
       {/* Image modal for viewing full-size images */}
@@ -704,6 +706,7 @@ export default function ChatPage() {
           >
             <X className="h-6 w-6" />
           </button>
+          {/* eslint-disable-next-line @next/next/no-img-element */}
           <img
             src={imageModalUrl}
             alt="Full size"
