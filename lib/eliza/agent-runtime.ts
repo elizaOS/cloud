@@ -53,9 +53,7 @@ class AgentRuntimeManager {
       "[AgentRuntime] Creating default runtime with system context (will be cached)",
     );
     this.systemRuntimePromise = (async () => {
-      const systemContext = userContextService.createSystemContext(
-        AgentMode.CHAT,
-      );
+      const systemContext = userContextService.createSystemContext(AgentMode.CHAT);
       const runtime = await runtimeFactory.createRuntimeForUser(systemContext);
       this.cachedSystemRuntime = runtime;
       this.systemRuntimePromise = null;
