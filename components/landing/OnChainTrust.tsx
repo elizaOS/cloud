@@ -7,24 +7,6 @@ import MicropaymentNetwork from "./MicropaymentNetwork";
 import Image from "next/image";
 import { ReactFlowProvider } from "@xyflow/react";
 
-const agents = [
-  {
-    name: "Eliza",
-    description: "Your default AI Companion",
-    address: "0xA9E3...C14",
-  },
-  {
-    name: "Eliza",
-    description: "Your default AI Companion",
-    address: "0xA9E3...C14",
-  },
-  {
-    name: "Eliza",
-    description: "Your default AI Companion",
-    address: "0xA9E3...C14",
-  },
-];
-
 export default function OnChainTrust() {
   return (
     <section className="relative bg-[#0A0A0A] py-12 md:py-16 lg:py-24 overflow-hidden">

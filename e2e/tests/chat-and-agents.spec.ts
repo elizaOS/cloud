@@ -13,8 +13,8 @@ test.describe("Chat Interface", () => {
   test.beforeEach(async ({ page }) => {
     await page.context().clearCookies();
     await page.goto(`${BASE_URL}/dashboard/chat`);
-    await page.waitForLoadState("networkidle");
-    await page.waitForTimeout(3000); // Wait for chat to initialize
+    await page.waitForLoadState("domcontentloaded");
+    await page.waitForTimeout(5000); // Wait for chat to initialize
   });
 
   test("chat interface loads with input area", async ({ page }) => {

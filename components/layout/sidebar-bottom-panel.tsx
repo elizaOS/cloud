@@ -57,7 +57,9 @@ export function SidebarBottomPanel({ className }: SidebarBottomPanelProps) {
 
         <div className="relative z-10 px-3 py-3">
           <div className="flex flex-col gap-2">
-            <p className="text-[10px] text-white/40 mb-1">Sign up for full access</p>
+            <p className="text-[10px] text-white/40 mb-1">
+              Sign up for full access
+            </p>
 
             <button
               onClick={() => router.push("/login")}

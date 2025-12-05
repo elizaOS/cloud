@@ -128,7 +128,7 @@ export default function RootLayout({
               <DebugProvider>
                 {children}
               </DebugProvider>
-                <Toaster
+              <Toaster
                 richColors
                 theme="dark"
                 position="top-right"

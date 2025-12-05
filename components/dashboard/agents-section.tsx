@@ -9,6 +9,7 @@ import * as React from "react";
 import {
   BrandButton,
   LockOnButton,
+  CornerBrackets,
 } from "@/components/brand";
 import {
   Tooltip,
@@ -16,7 +17,7 @@ import {
   TooltipTrigger,
 } from "@/components/ui/tooltip";
 import { cn } from "@/lib/utils";
-import { Bot, Plus, Sparkles, HelpCircle, MessageSquare, Clock, Rocket, Terminal, Copy, Check, Zap, BookOpen, ExternalLink } from "lucide-react";
+import { Bot, Plus, Sparkles, HelpCircle, Clock, Rocket, Terminal, Copy, Check, Zap, BookOpen, ExternalLink } from "lucide-react";
 import Image from "next/image";
 import Link from "next/link";
 import { Badge } from "@/components/ui/badge";
@@ -127,12 +128,15 @@ function GettingStartedSection() {
   };
 
   return (
-    <div className="relative overflow-hidden rounded-xl border border-white/10 bg-gradient-to-br from-[#FF5800]/5 via-black/40 to-purple-900/10 p-6">
+    <div className="relative overflow-hidden border border-white/10 bg-gradient-to-br from-[#FF5800]/5 via-black/40 to-purple-900/10 p-6">
+      <div className="pointer-events-none absolute inset-0 z-10">
+        <CornerBrackets size="md" color="#E1E1E1" />
+      </div>
       {/* Background decoration */}
       <div className="absolute top-0 right-0 w-64 h-64 bg-[#FF5800]/5 rounded-full blur-3xl -translate-y-1/2 translate-x-1/2" />
       <div className="absolute bottom-0 left-0 w-48 h-48 bg-purple-600/5 rounded-full blur-3xl translate-y-1/2 -translate-x-1/2" />
       
-      <div className="relative z-10">
+      <div className="relative z-0">
         {/* Header */}
         <div className="flex items-center gap-3 mb-5">
           <div className="p-2.5 rounded-lg bg-[#FF5800]/10 border border-[#FF5800]/20">
@@ -242,7 +246,10 @@ function AgentCard({ agent }: { agent: Agent }) {
 
   return (
     <Link href={`/dashboard/chat?characterId=${agent.id}`} className="block h-full">
-      <div className="group relative h-full overflow-hidden rounded-xl border border-white/10 bg-black/40 transition-all duration-300 hover:border-[#FF5800]/50 hover:shadow-lg hover:shadow-[#FF5800]/10 hover:-translate-y-1">
+      <div className="group relative h-full overflow-hidden border border-white/10 bg-black/40 transition-all duration-300 hover:border-[#FF5800]/50 hover:shadow-lg hover:shadow-[#FF5800]/10 hover:-translate-y-1">
+        <div className="pointer-events-none absolute inset-0 z-10">
+          <CornerBrackets size="md" color="#E1E1E1" hoverColor="#FF5800" />
+        </div>
         {/* Avatar Section - Large prominent image */}
         <div className={cn(
           "relative h-36 w-full overflow-hidden",
@@ -274,7 +281,7 @@ function AgentCard({ agent }: { agent: Agent }) {
           <div className="absolute inset-x-0 bottom-0 h-16 bg-gradient-to-t from-black/80 to-transparent" />
           
           {/* Status badges */}
-          <div className="absolute top-2 right-2 flex gap-1.5">
+          <div className="absolute top-2 right-2 z-20 flex gap-1.5">
             {isDeployed && (
               <Badge className="bg-emerald-500/90 text-[10px] px-2 py-0.5 backdrop-blur-sm border-0">
                 <div className="h-1.5 w-1.5 rounded-full bg-white animate-pulse mr-1" />
@@ -303,10 +310,6 @@ function AgentCard({ agent }: { agent: Agent }) {
           
           {/* Stats */}
           <div className="flex items-center gap-3 pt-2 border-t border-white/5 text-[11px] text-white/40">
-            <span className="flex items-center gap-1">
-              <MessageSquare className="h-3 w-3" />
-              {agent.stats?.roomCount ?? 0}
-            </span>
             {agent.stats?.lastActiveAt && (
               <span className="flex items-center gap-1 truncate">
                 <Clock className="h-3 w-3 flex-shrink-0" />
@@ -330,8 +333,11 @@ function AgentsEmptyState() {
   return (
     <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
       {/* Empty state card styled like an agent card */}
-      <div className="relative overflow-hidden rounded-xl border border-dashed border-white/20 bg-black/20 h-full min-h-[240px]">
-        <div className="absolute inset-0 flex flex-col items-center justify-center p-6 text-center">
+      <div className="relative overflow-hidden border border-dashed border-white/20 bg-black/20 h-full min-h-[240px]">
+        <div className="pointer-events-none absolute inset-0 z-10">
+          <CornerBrackets size="md" color="#E1E1E1" />
+        </div>
+        <div className="relative z-0 flex flex-col items-center justify-center p-6 text-center h-full">
           <div className="p-4 rounded-full bg-[#FF5800]/10 border border-[#FF5800]/20 mb-4">
             <Bot className="h-8 w-8 text-[#FF5800]" />
           </div>
@@ -373,8 +379,11 @@ export function AgentsSectionSkeleton() {
   return (
     <div className="space-y-6">
       {/* Getting Started Skeleton */}
-      <div className="rounded-xl border border-white/10 bg-black/20 p-6">
-        <div className="flex items-center gap-3 mb-5">
+      <div className="relative border border-white/10 bg-black/20 p-6">
+        <div className="pointer-events-none absolute inset-0 z-10">
+          <CornerBrackets size="md" color="#E1E1E1" />
+        </div>
+        <div className="relative z-0 flex items-center gap-3 mb-5">
           <div className="h-10 w-10 rounded-lg bg-white/10 animate-pulse" />
           <div className="space-y-2">
             <div className="h-5 w-32 bg-white/10 animate-pulse rounded" />
@@ -401,8 +410,11 @@ export function AgentsSectionSkeleton() {
         {[...Array(4)].map((_, index) => (
           <div 
             key={index} 
-            className="rounded-xl border border-white/10 bg-black/40 overflow-hidden"
+            className="relative border border-white/10 bg-black/40 overflow-hidden"
           >
+            <div className="pointer-events-none absolute inset-0 z-10">
+              <CornerBrackets size="md" color="#E1E1E1" />
+            </div>
             {/* Avatar area skeleton */}
             <div className="h-36 w-full bg-gradient-to-br from-white/5 to-white/[0.02] animate-pulse" />
             
@@ -414,7 +426,6 @@ export function AgentsSectionSkeleton() {
                 <div className="h-3 w-2/3 bg-white/10 animate-pulse rounded" />
               </div>
               <div className="flex items-center gap-3 pt-2 border-t border-white/5">
-                <div className="h-3 w-12 bg-white/10 animate-pulse rounded" />
                 <div className="h-3 w-20 bg-white/10 animate-pulse rounded" />
               </div>
             </div>

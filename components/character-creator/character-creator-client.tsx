@@ -120,7 +120,8 @@ export function CharacterCreatorClient({
   const handleNewCharacter = useCallback(() => {
     setCharacter(createDefaultCharacter());
     setSelectedId(null);
-    toast.success("New character created");
+    // Reset hasAutoInitialized so the useEffect can trigger a new auto-initialization
+    setHasAutoInitialized(false);
   }, []);
 
   // Initialize a blank character in database for BUILD mode

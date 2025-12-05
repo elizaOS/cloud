@@ -236,6 +236,7 @@ export function CharacterIntroPage({
                         : "bg-gradient-to-r from-primary to-primary/80 hover:from-primary/90 hover:to-primary/70"
                     }`}
                     onClick={handleStartChat}
+                    disabled={isAnyLoading}
                   >
                     <MessageCircle className="w-5 h-5 mr-2" />
                     Start Chatting (Free)
@@ -250,7 +251,6 @@ export function CharacterIntroPage({
               </div>
             </CardContent>
           </Card>
-
         </motion.div>
       </div>
 
