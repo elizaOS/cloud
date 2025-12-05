@@ -1,10 +1,12 @@
 /**
  * Header Component
+ * Memoized to prevent unnecessary re-renders from parent state changes
  */
 
 "use client";
 
-import { Menu, LogIn, Settings } from "lucide-react";
+import { memo, useCallback } from "react";
+import { Menu, LogIn } from "lucide-react";
 import { usePrivy } from "@privy-io/react-auth";
 import { BrandButton } from "@/components/brand";
 import UserMenu from "./user-menu";
@@ -16,13 +18,18 @@ interface HeaderProps {
   isAnonymous?: boolean;
 }
 
-export default function Header({
+function HeaderComponent({
   onToggleSidebar,
   children,
   isAnonymous = false,
 }: HeaderProps) {
   const { pageInfo } = usePageHeader();
   const { login } = usePrivy();
+
+  // Memoize login handler to prevent unnecessary re-renders
+  const handleLogin = useCallback(() => {
+    login();
+  }, [login]);
 
   return (
     <header className="flex h-16 items-center justify-between border-b border-white/10 bg-black/40 px-4 md:px-6">
@@ -61,7 +68,7 @@ export default function Header({
           <BrandButton
             variant="primary"
             size="sm"
-            onClick={login}
+            onClick={handleLogin}
             className="gap-2"
           >
             <LogIn className="h-4 w-4" />
@@ -77,3 +84,7 @@ export default function Header({
     </header>
   );
 }
+
+// Memoize the header to prevent re-renders when parent state changes
+const Header = memo(HeaderComponent);
+export default Header;

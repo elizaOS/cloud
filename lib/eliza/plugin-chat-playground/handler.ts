@@ -23,7 +23,7 @@ import {
   clearLatestResponseId,
   isResponseStillValid,
 } from "../shared/utils/response-tracking";
-import { runEvaluatorsWithTimeout } from "../shared/utils/helpers";
+import { cleanPrompt, runEvaluatorsWithTimeout } from "../shared/utils/helpers";
 import type { ParsedResponse } from "../shared/utils/parsers";
 import type { MessageReceivedHandlerParams } from "../shared/types";
 
@@ -98,7 +98,8 @@ export async function handleMessage({
       "[ChatPlayground] Composing state with providers including MCP",
     );
     const state = await runtime.composeState(message, [
-      "SHORT_TERM_MEMORY", // Recent conversation
+      "SUMMARIZED_CONTEXT",
+      "RECENT_MESSAGES",
       "LONG_TERM_MEMORY", // User facts and knowledge
       "CHARACTER",
       "MCP", // MCP tools and resources - now guaranteed to be fresh
@@ -134,24 +135,23 @@ export async function handleMessage({
       return;
     }
 
-    logger.debug("*** CHAT PLAYGROUND STATE ***", JSON.stringify(state));
-
     // Compose system prompt
     const originalSystemPrompt = runtime.character.system;
-    const composedSystemPrompt = composePromptFromState({
+    const composedSystemPromptRaw = composePromptFromState({
       state,
       template: chatPlaygroundSystemPrompt,
     });
+    const composedSystemPrompt = cleanPrompt(composedSystemPromptRaw);
     runtime.character.system = composedSystemPrompt;
 
     // Compose user prompt
-    const prompt = composePromptFromState({
+    const promptRaw = composePromptFromState({
       state,
       template:
         runtime.character.templates?.chatPlaygroundTemplate ||
         chatPlaygroundTemplate,
     });
-
+    const prompt = cleanPrompt(promptRaw);
     logger.debug(
       "*** CHAT PLAYGROUND SYSTEM PROMPT ***\n",
       runtime.character.system,

@@ -58,10 +58,10 @@ export function SidebarNavigationSection({
     if (!section.title) return "#FF5800"; // Default orange
 
     switch (section.title.toLowerCase()) {
+      case "agents":
+        return "#0B35F1"; // Blue - AI/Agents
       case "generation studio":
         return "#FF5800"; // Orange - Creative/Generation
-      case "agent development":
-        return "#0B35F1"; // Blue - AI/Development
       case "infrastructure":
         return "#22C55E"; // Green - System/Infrastructure
       default:

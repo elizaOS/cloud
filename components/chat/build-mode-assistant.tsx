@@ -33,6 +33,14 @@ interface Message {
   timestamp: number;
 }
 
+// Quick prompts defined outside component to avoid recreation
+const QUICK_PROMPTS = [
+  "Add personality traits",
+  "Improve the bio",
+  "Add conversation examples",
+  "Refine writing style",
+] as const;
+
 export function BuildModeAssistant({
   character,
   onCharacterUpdate,
@@ -46,13 +54,6 @@ export function BuildModeAssistant({
   const [messages, setMessages] = useState<Message[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [builderRoomId, setBuilderRoomId] = useState<string>("");
-
-  const [quickPrompts] = useState<string[]>([
-    "Add personality traits",
-    "Improve the bio",
-    "Add conversation examples",
-    "Refine writing style",
-  ]);
 
   // Determine if this is an existing character
   const isEditMode = !!(character.name && character.bio);
@@ -108,7 +109,9 @@ export function BuildModeAssistant({
     };
 
     initializeBuilderRoom();
-  }, [character.id, userId]);
+    // character.name is used in the title but we primarily identify rooms by character.id
+    // Re-running on name change is safe and ensures the title stays current
+  }, [character.id, character.name, userId]);
 
   // Load persisted messages when room is initialized
   useEffect(() => {
@@ -233,7 +236,8 @@ Tell me about your vision!`;
 
       return () => clearTimeout(timer);
     }
-  }, [builderRoomId, messages.length, isEditMode]);
+    // Including character fields used in the welcome message
+  }, [builderRoomId, messages.length, isEditMode, character.name, character.bio, character.adjectives, character.topics]);
 
   // Send message to ElizaOS stream endpoint with BUILD workflow
   const sendElizaMessage = async (text: string) => {
@@ -251,24 +255,19 @@ Tell me about your vision!`;
     setMessages((prev) => [...prev, userMessage]);
 
     try {
-      const response = await fetch(
-        `/api/eliza/rooms/${builderRoomId}/messages/stream`,
-        {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            roomId: builderRoomId,
-            entityId: userId,
-            text,
-            agentMode: {
-              mode: AgentMode.BUILD,
-              metadata: {
-                targetCharacterId: character.id,
-              },
+      const response = await fetch(`/api/eliza/rooms/${builderRoomId}/messages/stream`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          text,
+          agentMode: {
+            mode: AgentMode.BUILD,
+            metadata: {
+              targetCharacterId: character.id,
             },
-          }),
-        },
-      );
+          },
+        }),
+      });
 
       if (!response.ok) {
         throw new Error(`HTTP error! status: ${response.status}`);
@@ -440,7 +439,7 @@ Tell me about your vision!`;
       scrollToBottom();
     }, 100);
     return () => clearTimeout(timer);
-  }, [messages, scrollToBottom, onCharacterUpdate]);
+  }, [messages, scrollToBottom]);
 
   // Extract and apply character updates in real-time
   useEffect(() => {
@@ -451,10 +450,7 @@ Tell me about your vision!`;
       lastMessage.role === "assistant" &&
       lastMessage.id !== "welcome"
     ) {
-      const content = lastMessage.parts
-        .filter((part) => part.type === "text")
-        .map((part) => (part as { text: string }).text)
-        .join("");
+      const content = lastMessage.content;
 
       const jsonMatch = content.match(/```json\n([\s\S]*?)(\n```|$)/);
       if (jsonMatch) {
@@ -491,7 +487,8 @@ Tell me about your vision!`;
         }
       }
     }
-  }, [messages, scrollToBottom]);
+    // Note: If onCharacterUpdate causes too many re-runs, wrap it in useCallback in the parent
+  }, [messages, onCharacterUpdate]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -546,10 +543,10 @@ Tell me about your vision!`;
                   fallbackClassName="bg-[#FF5800]"
                 />
                 <h3 className="text-base font-semibold mb-1 text-white font-[family-name:var(--font-roboto-flex)]">
-                  Start Building Your Character
+                  What would you like to create?
                 </h3>
                 <p className="text-sm text-white/60 max-w-md font-[family-name:var(--font-roboto-flex)]">
-                  Describe your character and I&apos;ll help you create it
+                  Describe your character idea and I&apos;ll help bring it to life
                 </p>
               </div>
             )}
@@ -820,7 +817,7 @@ Tell me about your vision!`;
                 </button>
               </>
             ) : (
-              quickPrompts.map((prompt, index) => (
+              QUICK_PROMPTS.map((prompt, index) => (
                 <button
                   key={index}
                   onClick={() => setInputText(prompt)}

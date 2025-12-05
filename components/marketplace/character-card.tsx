@@ -21,6 +21,7 @@ import {
   getCategoryColor,
 } from "@/lib/constants/character-categories";
 import { formatDistanceToNow } from "date-fns";
+import { isDiceBearAvatar } from "@/lib/utils/default-avatar";
 
 interface CharacterCardProps {
   character: ExtendedCharacter;
@@ -57,6 +58,7 @@ export function CharacterCard({
                 alt={character.name}
                 fill
                 className="object-cover"
+                unoptimized={isDiceBearAvatar(character.avatarUrl)}
               />
             ) : (
               <Bot className="h-6 w-6 text-muted-foreground" />
@@ -148,6 +150,7 @@ export function CharacterCard({
               alt={character.name}
               fill
               className="object-cover"
+              unoptimized={isDiceBearAvatar(character.avatarUrl)}
             />
           ) : (
             <Bot className="h-20 w-20 text-muted-foreground" />

@@ -6,8 +6,6 @@ import { useSetPageHeader } from "@/components/layout/page-header-context";
 export function ImagePageClient() {
   useSetPageHeader({
     title: "Image Studio",
-    description:
-      "Create stunning AI-powered images with advanced controls and settings",
   });
 
   return (

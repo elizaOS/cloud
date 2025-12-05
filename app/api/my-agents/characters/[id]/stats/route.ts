@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireAuth } from "@/lib/auth";
-import { myAgentsService } from "@/lib/services/my-agents";
+import { myAgentsService } from "@/lib/services";
 import { logger } from "@/lib/utils/logger";
 
 export const dynamic = "force-dynamic";

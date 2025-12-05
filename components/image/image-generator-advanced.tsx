@@ -59,6 +59,7 @@ const SIZE_PRESETS = [
 ];
 
 export function ImageGeneratorAdvanced() {
+  // Form state
   const [prompt, setPrompt] = useState("");
   const [settings, setSettings] = useState<ImageGenerationSettings>({
     width: 1024,
@@ -66,24 +67,46 @@ export function ImageGeneratorAdvanced() {
     steps: 30,
     guidanceScale: 7.5,
   });
-  const [currentImage, setCurrentImage] = useState<GeneratedImage | null>(null);
-  const [currentImages, setCurrentImages] = useState<GeneratedImage[]>([]);
-  const [currentImageIndex, setCurrentImageIndex] = useState<number>(0);
   const [numImages, setNumImages] = useState<number>(1);
-  const [carouselApi, setCarouselApi] = useState<CarouselApi | undefined>(
-    undefined
-  );
-  const [imageHistory, setImageHistory] = useState<GeneratedImage[]>([]);
-  const [isLoading, setIsLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  const [activeTab, setActiveTab] = useState("generate");
-  const [isFullscreenOpen, setIsFullscreenOpen] = useState(false);
+  
+  // Consolidated image state - current batch and selection
+  const [imageState, setImageState] = useState<{
+    currentImage: GeneratedImage | null;
+    currentImages: GeneratedImage[];
+    currentIndex: number;
+    history: GeneratedImage[];
+  }>({
+    currentImage: null,
+    currentImages: [],
+    currentIndex: 0,
+    history: [],
+  });
+  
+  // Carousel API (external ref)
+  const [carouselApi, setCarouselApi] = useState<CarouselApi | undefined>(undefined);
+  
+  // Consolidated request state
+  const [requestState, setRequestState] = useState<{
+    isLoading: boolean;
+    error: string | null;
+  }>({
+    isLoading: false,
+    error: null,
+  });
+  
+  // Consolidated UI state
+  const [uiState, setUiState] = useState<{
+    activeTab: string;
+    isFullscreenOpen: boolean;
+  }>({
+    activeTab: "generate",
+    isFullscreenOpen: false,
+  });
 
   const handleGenerate = async () => {
     if (!prompt.trim()) return;
 
-    setIsLoading(true);
-    setError(null);
+    setRequestState({ isLoading: true, error: null });
 
     try {
       const response = await fetch("/api/v1/generate-image", {
@@ -126,10 +149,13 @@ export function ImageGeneratorAdvanced() {
           .filter((g: GeneratedImage) => Boolean(g.url));
 
         if (generatedBatch.length > 0) {
-          setCurrentImages(generatedBatch);
-          setCurrentImage(generatedBatch[0]);
-          setCurrentImageIndex(0);
-          setImageHistory((prev) => [...generatedBatch, ...prev].slice(0, 12));
+          setImageState(prev => ({
+            ...prev,
+            currentImages: generatedBatch,
+            currentImage: generatedBatch[0],
+            currentIndex: 0,
+            history: [...generatedBatch, ...prev.history].slice(0, 12),
+          }));
         }
       } else if (data.image) {
         // Backward compatibility: single image response
@@ -145,15 +171,18 @@ export function ImageGeneratorAdvanced() {
           settings: { ...settings },
         };
 
-        setCurrentImages([newImage]);
-        setCurrentImage(newImage);
-        setCurrentImageIndex(0);
-        setImageHistory((prev) => [newImage, ...prev].slice(0, 12));
+        setImageState(prev => ({
+          ...prev,
+          currentImages: [newImage],
+          currentImage: newImage,
+          currentIndex: 0,
+          history: [newImage, ...prev.history].slice(0, 12),
+        }));
       }
     } catch (err) {
-      setError(err instanceof Error ? err.message : "An error occurred");
+      setRequestState(prev => ({ ...prev, error: err instanceof Error ? err.message : "An error occurred" }));
     } finally {
-      setIsLoading(false);
+      setRequestState(prev => ({ ...prev, isLoading: false }));
     }
   };
 
@@ -178,16 +207,21 @@ export function ImageGeneratorAdvanced() {
     if (!carouselApi) return;
     const onSelect = () => {
       const idx = carouselApi.selectedScrollSnap();
-      setCurrentImageIndex(idx);
-      const img = currentImages[idx];
-      if (img) setCurrentImage(img);
+      const img = imageState.currentImages[idx];
+      if (img) {
+        setImageState(prev => ({
+          ...prev,
+          currentIndex: idx,
+          currentImage: img,
+        }));
+      }
     };
     carouselApi.on("select", onSelect);
     onSelect();
     return () => {
       carouselApi.off("select", onSelect);
     };
-  }, [carouselApi, currentImages]);
+  }, [carouselApi, imageState.currentImages]);
 
   return (
     <div className="flex flex-col lg:flex-row gap-4 md:gap-6 w-full h-full">
@@ -204,9 +238,6 @@ export function ImageGeneratorAdvanced() {
                   Image Studio
                 </h3>
               </div>
-              <p className="text-xs md:text-sm font-mono text-[#858585]">
-                Create stunning AI-generated images with advanced controls
-              </p>
             </div>
             {/* Prompt Input */}
             <div className="space-y-3">
@@ -254,18 +285,8 @@ export function ImageGeneratorAdvanced() {
                     }`}
                   >
                     <div className="flex flex-col items-center">
-                      <span className="text-[10px] font-mono font-medium leading-tight">
+                      <span className="text-[10px] font-mono font-medium leading-tight py-2">
                         {preset.label}
-                      </span>
-                      <span
-                        className={`text-[9px] font-mono leading-tight ${
-                          settings.width === preset.width &&
-                          settings.height === preset.height
-                            ? "text-[#FF5800]/80"
-                            : "text-white/60"
-                        }`}
-                      >
-                        {preset.width}×{preset.height}
                       </span>
                     </div>
                   </button>
@@ -305,9 +326,6 @@ export function ImageGeneratorAdvanced() {
                     step={5}
                     className="w-full [&_[role=slider]]:bg-[#FF5800] [&_[role=slider]]:border-[#FF5800]"
                   />
-                  <p className="text-[10px] font-mono text-white/50">
-                    More steps = higher quality (slower)
-                  </p>
                 </div>
 
                 {/* Guidance Scale */}
@@ -330,9 +348,6 @@ export function ImageGeneratorAdvanced() {
                     step={0.5}
                     className="w-full [&_[role=slider]]:bg-[#FF5800] [&_[role=slider]]:border-[#FF5800]"
                   />
-                  <p className="text-[10px] font-mono text-white/50">
-                    Higher = more prompt adherence
-                  </p>
                 </div>
 
                 {/* Images */}
@@ -353,9 +368,6 @@ export function ImageGeneratorAdvanced() {
                     step={1}
                     className="w-full [&_[role=slider]]:bg-[#FF5800] [&_[role=slider]]:border-[#FF5800]"
                   />
-                  <p className="text-[10px] font-mono text-white/50">
-                    Generate up to 4 images at once
-                  </p>
                 </div>
               </div>
             </div>
@@ -366,7 +378,7 @@ export function ImageGeneratorAdvanced() {
             <button
               type="button"
               onClick={handleGenerate}
-              disabled={isLoading || !prompt.trim()}
+              disabled={requestState.isLoading || !prompt.trim()}
               className="relative bg-[#e1e1e1] px-4 py-3 overflow-hidden hover:bg-white transition-colors disabled:opacity-50 disabled:cursor-not-allowed w-full"
             >
               <div
@@ -377,7 +389,7 @@ export function ImageGeneratorAdvanced() {
                 }}
               />
               <span className="relative z-10 text-black font-mono font-medium text-sm md:text-base flex items-center justify-center gap-2">
-                {isLoading ? (
+                {requestState.isLoading ? (
                   <>
                     <Loader2 className="h-5 w-5 animate-spin" />
                     Generating...
@@ -398,8 +410,8 @@ export function ImageGeneratorAdvanced() {
       <div className="flex-1 space-y-4">
         <BrandTabs
           id="image-generator-tabs"
-          value={activeTab}
-          onValueChange={setActiveTab}
+          value={uiState.activeTab}
+          onValueChange={(value) => setUiState(prev => ({ ...prev, activeTab: value }))}
           className="w-full"
         >
           <BrandTabsList className="w-full max-w-md">
@@ -413,37 +425,40 @@ export function ImageGeneratorAdvanced() {
             <BrandTabsTrigger value="history" className="gap-1 md:gap-2 flex-1">
               <History className="h-3 md:h-4 w-3 md:w-4" />
               <span className="text-xs md:text-sm">
-                History ({imageHistory.length})
+                History ({imageState.history.length})
               </span>
             </BrandTabsTrigger>
           </BrandTabsList>
 
           {/* Preview Tab */}
           <BrandTabsContent value="generate" className="mt-3 md:mt-4">
-            {error && (
+            {requestState.error && (
               <div className="border border-rose-500/40 bg-rose-500/10 p-3 md:p-4 mb-4">
                 <p className="text-xs md:text-sm font-mono text-rose-400 font-medium">
-                  {error}
+                  {requestState.error}
                 </p>
               </div>
             )}
 
-            {currentImage ? (
+            {imageState.currentImage ? (
               <>
-                {currentImages.length > 1 && (
+                {imageState.currentImages.length > 1 && (
                   <div className="mb-4 grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-2 md:gap-3">
-                    {currentImages.map((img, idx) => (
+                    {imageState.currentImages.map((img, idx) => (
                       <button
                         key={img.id}
                         onClick={() => {
-                          setCurrentImageIndex(idx);
-                          setCurrentImage(img);
+                          setImageState(prev => ({
+                            ...prev,
+                            currentIndex: idx,
+                            currentImage: img,
+                          }));
                           if (carouselApi) {
                             carouselApi.scrollTo(idx);
                           }
                         }}
                         className={`group relative block overflow-hidden border ${
-                          idx === currentImageIndex
+                          idx === imageState.currentIndex
                             ? "border-[#FF5800] ring-2 ring-[#FF5800]/40"
                             : "border-white/10"
                         }`}
@@ -467,11 +482,11 @@ export function ImageGeneratorAdvanced() {
                 <BrandCard className="relative overflow-hidden">
                   <CornerBrackets size="md" className="opacity-50" />
                   <div className="relative z-10 p-0">
-                    {currentImages.length > 1 ? (
+                    {imageState.currentImages.length > 1 ? (
                       <div className="relative w-full bg-black/40">
                         <Carousel setApi={setCarouselApi} className="w-full">
                           <CarouselContent>
-                            {currentImages.map((img) => (
+                            {imageState.currentImages.map((img) => (
                               <CarouselItem key={img.id}>
                                 <div className="relative w-full h-[300px] md:h-[400px] lg:h-[500px] bg-black/40">
                                   <Image
@@ -492,8 +507,8 @@ export function ImageGeneratorAdvanced() {
                     ) : (
                       <div className="relative w-full h-[300px] md:h-[400px] lg:h-[500px] bg-black/40">
                         <Image
-                          src={currentImage.url}
-                          alt={currentImage.prompt}
+                          src={imageState.currentImage.url}
+                          alt={imageState.currentImage.prompt}
                           fill
                           className="object-contain"
                           unoptimized
@@ -504,22 +519,22 @@ export function ImageGeneratorAdvanced() {
                     <div className="p-3 md:p-4 lg:p-6 space-y-3 md:space-y-4">
                       <div className="space-y-2">
                         <p className="text-xs md:text-sm font-mono font-medium leading-relaxed text-white break-words">
-                          {currentImage.prompt}
+                          {imageState.currentImage.prompt}
                         </p>
                         <div className="flex items-center gap-2 text-xs text-white/60 flex-wrap">
                           <span className="bg-white/10 px-2 py-0.5 text-xs font-mono text-white whitespace-nowrap">
-                            {currentImage.settings.width}×
-                            {currentImage.settings.height}
+                            {imageState.currentImage.settings.width}×
+                            {imageState.currentImage.settings.height}
                           </span>
                           <span className="bg-white/10 px-2 py-0.5 text-xs font-mono text-white whitespace-nowrap">
-                            {currentImage.settings.steps} steps
+                            {imageState.currentImage.settings.steps} steps
                           </span>
                           <span className="bg-white/10 px-2 py-0.5 text-xs font-mono text-white whitespace-nowrap">
-                            CFG {currentImage.settings.guidanceScale}
+                            CFG {imageState.currentImage.settings.guidanceScale}
                           </span>
-                          {currentImages.length > 1 && (
+                          {imageState.currentImages.length > 1 && (
                             <span className="bg-[#FF580020] border border-[#FF5800]/40 px-2 py-0.5 text-xs font-mono text-[#FF5800] whitespace-nowrap">
-                              {currentImageIndex + 1}/{currentImages.length}
+                              {imageState.currentIndex + 1}/{imageState.currentImages.length}
                             </span>
                           )}
                         </div>
@@ -530,7 +545,7 @@ export function ImageGeneratorAdvanced() {
                           type="button"
                           onClick={() =>
                             handleDownload(
-                              currentImages[currentImageIndex] ?? currentImage
+                              imageState.currentImages[imageState.currentIndex] ?? imageState.currentImage
                             )
                           }
                           className="px-3 py-2 border border-white/20 bg-transparent text-white hover:bg-white/5 transition-colors flex items-center justify-center gap-1 md:gap-2"
@@ -554,7 +569,7 @@ export function ImageGeneratorAdvanced() {
                         </button>
                         <button
                           type="button"
-                          onClick={() => setIsFullscreenOpen(true)}
+                          onClick={() => setUiState(prev => ({ ...prev, isFullscreenOpen: true }))}
                           className="px-3 py-2 border border-white/20 bg-transparent text-white hover:bg-white/5 transition-colors flex items-center justify-center gap-1 md:gap-2"
                         >
                           <Maximize2 className="h-3 md:h-4 w-3 md:w-4" />
@@ -565,7 +580,7 @@ export function ImageGeneratorAdvanced() {
                   </div>
                 </BrandCard>
               </>
-            ) : isLoading ? (
+            ) : requestState.isLoading ? (
               <div className="animate-in fade-in duration-500">
                 <EnhancedLoading />
               </div>
@@ -594,17 +609,20 @@ export function ImageGeneratorAdvanced() {
 
           {/* History Tab */}
           <BrandTabsContent value="history" className="mt-3 md:mt-4">
-            {imageHistory.length > 0 ? (
+            {imageState.history.length > 0 ? (
               <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3 md:gap-4">
-                {imageHistory.map((image) => (
+                {imageState.history.map((image) => (
                   <div
                     key={image.id}
                     className="group cursor-pointer overflow-hidden p-0 border border-white/10 hover:border-[#FF5800]/50 transition-colors"
                     onClick={() => {
-                      setCurrentImage(image);
-                      setCurrentImages([image]);
-                      setCurrentImageIndex(0);
-                      setActiveTab("generate");
+                      setImageState(prev => ({
+                        ...prev,
+                        currentImage: image,
+                        currentImages: [image],
+                        currentIndex: 0,
+                      }));
+                      setUiState(prev => ({ ...prev, activeTab: "generate" }));
                     }}
                   >
                     <div className="relative aspect-square w-full bg-black/40">
@@ -648,22 +666,22 @@ export function ImageGeneratorAdvanced() {
       </div>
 
       {/* Fullscreen Image Modal */}
-      <Dialog open={isFullscreenOpen} onOpenChange={setIsFullscreenOpen}>
+      <Dialog open={uiState.isFullscreenOpen} onOpenChange={(open) => setUiState(prev => ({ ...prev, isFullscreenOpen: open }))}>
         <DialogContent
           className="!max-w-[99vw] !max-h-[99vh] !w-[99vw] !h-[99vh] p-0 bg-black/80 border-white/10 sm:!max-w-[99vw] md:!max-w-[99vw] lg:!max-w-[99vw]"
           showCloseButton={false}
         >
           <div className="relative w-full h-full flex items-center justify-center p-1">
-            {currentImage && (
+            {imageState.currentImage && (
               <>
                 <div className="relative w-full h-full flex items-center justify-center">
                   <Image
                     src={
-                      currentImages[currentImageIndex]?.url ?? currentImage.url
+                      imageState.currentImages[imageState.currentIndex]?.url ?? imageState.currentImage.url
                     }
                     alt={
-                      currentImages[currentImageIndex]?.prompt ??
-                      currentImage.prompt
+                      imageState.currentImages[imageState.currentIndex]?.prompt ??
+                      imageState.currentImage.prompt
                     }
                     width={3000}
                     height={3000}
@@ -680,48 +698,51 @@ export function ImageGeneratorAdvanced() {
                 {/* Image info overlay */}
                 <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/90 via-black/50 to-transparent p-3 md:p-4 lg:p-6 space-y-2 md:space-y-3">
                   <p className="text-xs md:text-sm font-mono text-white/90 leading-relaxed max-w-3xl break-words">
-                    {currentImages[currentImageIndex]?.prompt ??
-                      currentImage.prompt}
+                    {imageState.currentImages[imageState.currentIndex]?.prompt ??
+                      imageState.currentImage.prompt}
                   </p>
                   <div className="flex items-center gap-2 text-xs flex-wrap">
                     <span className="bg-white/10 px-2 py-1 font-mono text-white whitespace-nowrap">
-                      {currentImages[currentImageIndex]?.settings.width ??
-                        currentImage.settings.width}
+                      {imageState.currentImages[imageState.currentIndex]?.settings.width ??
+                        imageState.currentImage.settings.width}
                       ×
-                      {currentImages[currentImageIndex]?.settings.height ??
-                        currentImage.settings.height}
+                      {imageState.currentImages[imageState.currentIndex]?.settings.height ??
+                        imageState.currentImage.settings.height}
                     </span>
                     <span className="bg-white/10 px-2 py-1 font-mono text-white whitespace-nowrap">
-                      {currentImages[currentImageIndex]?.settings.steps ??
-                        currentImage.settings.steps}{" "}
+                      {imageState.currentImages[imageState.currentIndex]?.settings.steps ??
+                        imageState.currentImage.settings.steps}{" "}
                       steps
                     </span>
                     <span className="bg-white/10 px-2 py-1 font-mono text-white whitespace-nowrap">
                       CFG{" "}
-                      {currentImages[currentImageIndex]?.settings
-                        .guidanceScale ?? currentImage.settings.guidanceScale}
+                      {imageState.currentImages[imageState.currentIndex]?.settings
+                        .guidanceScale ?? imageState.currentImage.settings.guidanceScale}
                     </span>
-                    {currentImages.length > 1 && (
+                    {imageState.currentImages.length > 1 && (
                       <span className="bg-[#FF580020] border border-[#FF5800]/40 px-2 py-1 font-mono text-[#FF5800] whitespace-nowrap">
-                        {currentImageIndex + 1}/{currentImages.length}
+                        {imageState.currentIndex + 1}/{imageState.currentImages.length}
                       </span>
                     )}
                   </div>
 
                   {/* Navigation buttons for multiple images */}
-                  {currentImages.length > 1 && (
+                  {imageState.currentImages.length > 1 && (
                     <div className="flex items-center gap-2 pt-2 flex-wrap">
                       <button
                         type="button"
                         onClick={() => {
                           const newIndex =
-                            currentImageIndex > 0
-                              ? currentImageIndex - 1
-                              : currentImages.length - 1;
-                          setCurrentImageIndex(newIndex);
-                          setCurrentImage(currentImages[newIndex]);
+                            imageState.currentIndex > 0
+                              ? imageState.currentIndex - 1
+                              : imageState.currentImages.length - 1;
+                          setImageState(prev => ({
+                            ...prev,
+                            currentIndex: newIndex,
+                            currentImage: prev.currentImages[newIndex],
+                          }));
                         }}
-                        disabled={currentImages.length <= 1}
+                        disabled={imageState.currentImages.length <= 1}
                         className="px-3 py-2 border border-white/20 bg-black/60 text-white hover:bg-white/5 transition-colors disabled:opacity-50"
                       >
                         <span className="text-xs font-mono">Previous</span>
@@ -730,13 +751,16 @@ export function ImageGeneratorAdvanced() {
                         type="button"
                         onClick={() => {
                           const newIndex =
-                            currentImageIndex < currentImages.length - 1
-                              ? currentImageIndex + 1
+                            imageState.currentIndex < imageState.currentImages.length - 1
+                              ? imageState.currentIndex + 1
                               : 0;
-                          setCurrentImageIndex(newIndex);
-                          setCurrentImage(currentImages[newIndex]);
+                          setImageState(prev => ({
+                            ...prev,
+                            currentIndex: newIndex,
+                            currentImage: prev.currentImages[newIndex],
+                          }));
                         }}
-                        disabled={currentImages.length <= 1}
+                        disabled={imageState.currentImages.length <= 1}
                         className="px-3 py-2 border border-white/20 bg-black/60 text-white hover:bg-white/5 transition-colors disabled:opacity-50"
                       >
                         <span className="text-xs font-mono">Next</span>
@@ -746,7 +770,7 @@ export function ImageGeneratorAdvanced() {
                         className="px-3 py-2 border border-white/20 bg-black/60 text-white hover:bg-white/5 transition-colors ml-auto flex items-center gap-2"
                         onClick={() =>
                           handleDownload(
-                            currentImages[currentImageIndex] ?? currentImage
+                            imageState.currentImages[imageState.currentIndex] ?? imageState.currentImage!
                           )
                         }
                       >

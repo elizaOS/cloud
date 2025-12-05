@@ -25,10 +25,10 @@ import {
   generationsService,
   conversationsService,
   memoryService,
-  agentService,
   agentDiscoveryService,
   containersService,
 } from "@/lib/services";
+import { agentService } from "@/lib/services/agents/agents";
 import { streamText } from "ai";
 import { gateway } from "@ai-sdk/gateway";
 import {

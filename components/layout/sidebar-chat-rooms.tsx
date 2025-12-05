@@ -79,22 +79,23 @@ export function SidebarChatRooms() {
 
     try {
       await deleteRoom(roomId);
-
-      // If deleted room was selected, clear URL params
-      if (roomId === selectedRoomId) {
-        const params = new URLSearchParams(searchParams.toString());
-        params.delete("roomId");
-        const newUrl = params.toString()
-          ? `/dashboard/chat?${params.toString()}`
-          : "/dashboard/chat";
-        router.push(newUrl);
-      }
-
-      toast.success("Conversation deleted");
     } catch (error) {
       console.error("Error deleting room:", error);
       toast.error("Failed to delete conversation");
+      return;
     }
+
+    // If deleted room was selected, clear URL params
+    if (roomId === selectedRoomId) {
+      const params = new URLSearchParams(searchParams.toString());
+      params.delete("roomId");
+      const newUrl = params.toString()
+        ? `/dashboard/chat?${params.toString()}`
+        : "/dashboard/chat";
+      router.push(newUrl);
+    }
+
+    toast.success("Conversation deleted");
   };
 
   const getCharacterName = (room: typeof rooms[0]) => {

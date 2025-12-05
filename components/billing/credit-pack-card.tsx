@@ -60,23 +60,9 @@ export function CreditPackCard({
           </div>
         </div>
 
-        <div className="space-y-2">
-          <div className="flex items-center gap-2 text-sm text-white">
-            <Check className="h-4 w-4 text-[#FF5800]" />
-            <span>${creditsValue.toFixed(2)} balance</span>
-          </div>
-          <div className="flex items-center gap-2 text-sm text-white">
-            <Check className="h-4 w-4 text-[#FF5800]" />
-            <span>One-time purchase</span>
-          </div>
-          <div className="flex items-center gap-2 text-sm text-white">
-            <Check className="h-4 w-4 text-[#FF5800]" />
-            <span>Never expires</span>
-          </div>
-          <div className="flex items-center gap-2 text-sm text-white">
-            <Check className="h-4 w-4 text-[#FF5800]" />
-            <span>Instant activation</span>
-          </div>
+        <div className="flex items-center gap-2 text-sm text-white/60">
+          <Check className="h-4 w-4 text-[#FF5800]" />
+          <span>Never expires</span>
         </div>
 
         <div className="pt-4 border-t border-white/10">
