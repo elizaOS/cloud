@@ -41,8 +41,6 @@ export function AnalyticsPageClient({
 }: AnalyticsPageClientProps) {
   useSetPageHeader({
     title: "Analytics",
-    description:
-      "Deep visibility into request throughput, spend efficiency, and credit runway",
   });
 
   const analyticsTabs: TabItem[] = [
@@ -189,16 +187,8 @@ export function AnalyticsPageClient({
           <BrandCard className="relative">
             <CornerBrackets size="sm" className="opacity-50" />
             <div className="relative z-10 space-y-4">
-              <div>
-                <h3 className="text-base font-semibold text-white">Controls</h3>
-                <p className="text-sm text-white/60 mt-2">
-                  Adjust the aggregation cadence and time range to refocus the
-                  analytics surface. All widgets update in real time.
-                </p>
-              </div>
-              <div className="border-t border-white/10 pt-6">
-                <AnalyticsFilters />
-              </div>
+              <h3 className="text-base font-semibold text-white">Filters</h3>
+              <AnalyticsFilters />
             </div>
           </BrandCard>
 
@@ -209,21 +199,11 @@ export function AnalyticsPageClient({
           <BrandCard className="relative">
             <CornerBrackets size="sm" className="opacity-50" />
             <div className="relative z-10 space-y-4">
-              <div>
-                <h3 className="text-base font-semibold text-white">
-                  Usage visibility
-                </h3>
-                <p className="text-sm text-white/60 mt-2">
-                  Overlay throughput, spend, and reliability in a unified
-                  timeline to expose trend shifts instantly.
-                </p>
-              </div>
-              <div className="border-t border-white/10 pt-6">
-                <UsageChart
-                  data={data.timeSeriesData}
-                  granularity={data.filters.granularity}
-                />
-              </div>
+              <h3 className="text-base font-semibold text-white">Usage</h3>
+              <UsageChart
+                data={data.timeSeriesData}
+                granularity={data.filters.granularity}
+              />
             </div>
           </BrandCard>
 

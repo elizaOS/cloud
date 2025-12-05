@@ -1,0 +1,22 @@
+# Test results
+test-results/
+test-reports/
+
+# Synpress cache
+.cache-synpress/
+
+# Temp files
+.temp/
+
+# Environment variables
+.env
+.env.local
+
+# Screenshots and videos from failed tests
+*.png
+*.webm
+*.zip
+
+
+
+

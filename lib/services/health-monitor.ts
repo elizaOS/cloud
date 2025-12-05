@@ -260,10 +260,7 @@ export async function monitorAllContainers(
 
     return results;
   } catch (error) {
-    console.error(
-      "Container health monitoring failed",
-      error instanceof Error ? error.message : String(error),
-    );
+    console.error("Health check failed:", error);
     throw error;
   }
 }

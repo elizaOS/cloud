@@ -44,6 +44,12 @@ function formatTimestamp(timestamp: number): string {
   return new Date(timestamp).toLocaleDateString();
 }
 
+interface OperationState {
+  deletingRoomId: string | null;
+  isCreatingRoom: boolean;
+  loadingRoomId: string | null;
+}
+
 export function ChatSidebar({
   className,
   isOpen = false,
@@ -62,9 +68,16 @@ export function ChatSidebar({
     selectedCharacterId,
     availableCharacters,
   } = useChatStore();
-  const [deletingRoomId, setDeletingRoomId] = useState<string | null>(null);
-  const [isCreatingRoom, setIsCreatingRoom] = useState(false);
-  const [loadingRoomId, setLoadingRoomId] = useState<string | null>(null);
+  
+  const [operationState, setOperationState] = useState<OperationState>({
+    deletingRoomId: null,
+    isCreatingRoom: false,
+    loadingRoomId: null,
+  });
+
+  const updateOperation = (updates: Partial<OperationState>) => {
+    setOperationState((prev) => ({ ...prev, ...updates }));
+  };
 
   // Filter rooms by selected character
   const filteredRooms = useMemo(() => {
@@ -97,9 +110,9 @@ export function ChatSidebar({
   }, [loadRooms]);
 
   const handleNewChat = async () => {
-    if (isCreatingRoom) return; // Prevent double-clicking
+    if (operationState.isCreatingRoom) return; // Prevent double-clicking
 
-    setIsCreatingRoom(true);
+    updateOperation({ isCreatingRoom: true });
     try {
       // Create room with currently selected character
       const newRoomId = await createRoom(selectedCharacterId);
@@ -113,14 +126,16 @@ export function ChatSidebar({
         }
         router.push(`/dashboard/chat?${params.toString()}`);
       }
+    } catch (error) {
+      console.error("Error creating room:", error);
     } finally {
-      setIsCreatingRoom(false);
+      updateOperation({ isCreatingRoom: false });
     }
   };
 
   const handleSelectRoom = (selectedRoomId: string) => {
     // Show loading state on the button
-    setLoadingRoomId(selectedRoomId);
+    updateOperation({ loadingRoomId: selectedRoomId });
     setRoomId(selectedRoomId);
     // Update URL with selected room ID and current character
     const params = new URLSearchParams();
@@ -133,19 +148,19 @@ export function ChatSidebar({
 
   // Clear loading state when roomId changes
   useEffect(() => {
-    if (roomId && loadingRoomId && roomId === loadingRoomId) {
+    if (roomId && operationState.loadingRoomId && roomId === operationState.loadingRoomId) {
       // Small delay to show the loading state
       const timer = setTimeout(() => {
-        setLoadingRoomId(null);
+        updateOperation({ loadingRoomId: null });
       }, 300);
       return () => clearTimeout(timer);
     }
-  }, [roomId, loadingRoomId]);
+  }, [roomId, operationState.loadingRoomId]);
 
   const handleDeleteRoom = async (roomIdToDelete: string) => {
-    setDeletingRoomId(roomIdToDelete);
+    updateOperation({ deletingRoomId: roomIdToDelete });
     await deleteRoom(roomIdToDelete);
-    setDeletingRoomId(null);
+    updateOperation({ deletingRoomId: null });
 
     // If the deleted room was the current room, clear URL params
     if (roomId === roomIdToDelete) {
@@ -243,11 +258,11 @@ export function ChatSidebar({
             {/* New Chat Button */}
             <BrandButton
               onClick={handleNewChat}
-              disabled={isCreatingRoom}
+              disabled={operationState.isCreatingRoom}
               size="sm"
               className="flex-shrink-0 h-7 px-2 text-xs"
             >
-              {isCreatingRoom ? (
+              {operationState.isCreatingRoom ? (
                 <Loader2 className="h-3.5 w-3.5 animate-spin" />
               ) : (
                 <>
@@ -268,8 +283,8 @@ export function ChatSidebar({
           ) : (
             <div className="space-y-0.5">
               {filteredRooms.map((room) => {
-                const isDeleting = deletingRoomId === room.id;
-                const isLoading = loadingRoomId === room.id;
+                const isDeleting = operationState.deletingRoomId === room.id;
+                const isLoading = operationState.loadingRoomId === room.id;
                 return (
                   <div
                     key={room.id}

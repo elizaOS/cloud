@@ -1,67 +1,58 @@
 "use client";
 
 import { useState } from "react";
-import {
-  Bot,
-  Image as ImageIcon,
-  Video,
-  Sparkles,
-  ArrowUp,
-  Paperclip,
-  Mic,
-} from "lucide-react";
-import { Badge } from "@/components/ui/badge";
-import { Textarea } from "@/components/ui/textarea";
-import {
-  BrandTabsResponsive,
-  BrandTabsContent,
-  HUDContainer,
-  BrandButton,
-  PromptCardGrid,
-} from "@/components/brand";
-import type { TabItem } from "@/components/brand";
-import { useChatStore } from "@/stores/chat-store";
+import { Copy, Check, Terminal, Rocket, Code2, ArrowRight } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { HUDContainer, BrandButton } from "@/components/brand";
 import { useRouter } from "next/navigation";
 
 const TopHero = () => {
-  const [chatInput, setChatInput] = useState("");
-  const [activeTab, setActiveTab] = useState("agent");
-  const setPendingMessage = useChatStore((state) => state.setPendingMessage);
+  const [activeOS, setActiveOS] = useState<"unix" | "windows">("unix");
+  const [copied, setCopied] = useState<string | null>(null);
   const router = useRouter();
 
-  const heroTabs: TabItem[] = [
-    { value: "agent", label: "Agent", icon: <Bot className="h-4 w-4" /> },
-    { value: "image", label: "Image", icon: <ImageIcon className="h-4 w-4" /> },
-    { value: "video", label: "Video", icon: <Video className="h-4 w-4" /> },
+  const commands = {
+    unix: {
+      create: "npx elizaos create my-agent",
+      deploy: "npx elizaos deploy",
+    },
+    windows: {
+      create: "npx elizaos create my-agent",
+      deploy: "npx elizaos deploy",
+    },
+  };
+
+  const handleCopy = async (command: string, key: string) => {
+    await navigator.clipboard.writeText(command);
+    setCopied(key);
+    setTimeout(() => setCopied(null), 2000);
+  };
+
+  const handleGetStarted = () => {
+    router.push("/login?intent=signup");
+  };
+
+  const steps = [
     {
-      value: "pro-studio",
-      label: "Pro Studio",
-      icon: <Sparkles className="h-4 w-4" />,
-      disabled: true,
+      icon: <Terminal className="h-5 w-5" />,
+      title: "Create",
+      description: "Scaffold a new agent project with one command",
+    },
+    {
+      icon: <Code2 className="h-5 w-5" />,
+      title: "Develop",
+      description: "Build locally with the full ElizaOS runtime",
+    },
+    {
+      icon: <Rocket className="h-5 w-5" />,
+      title: "Deploy",
+      description: "Ship to production with zero DevOps",
     },
   ];
 
-  const handleFreeChatSubmit = () => {
-    if (!chatInput.trim()) return;
-
-    // Store the message in Zustand for auto-sending in chat
-    setPendingMessage(chatInput.trim());
-    
-    // Redirect to Eliza chat (anonymous users will be created automatically)
-    router.push("/dashboard/chat");
-  };
-
-  const handleChatKeyPress = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
-    // Submit on Cmd/Ctrl + Enter
-    if ((e.metaKey || e.ctrlKey) && e.key === "Enter") {
-      e.preventDefault();
-      handleFreeChatSubmit();
-    }
-  };
-
   return (
     <section
-      className="w-full py-12 md:py-20 lg:py-32 relative overflow-hidden"
+      className="w-full py-16 md:py-24 lg:py-32 relative overflow-hidden"
       style={{ backgroundColor: "#0A0A0A" }}
     >
       {/* Background gradient + grid */}
@@ -71,174 +62,177 @@ const TopHero = () => {
       </div>
 
       <div className="container mx-auto px-4 md:px-6 relative z-10">
-        <div className="mx-auto max-w-6xl text-center">
+        <div className="mx-auto max-w-5xl text-center">
+          {/* Headline */}
           <h1
-            className="mb-6 text-2xl sm:text-3xl md:text-4xl lg:text-5xl xl:text-6xl font-normal tracking-tight relative z-10"
+            className="mb-6 text-3xl sm:text-4xl md:text-5xl lg:text-6xl xl:text-7xl font-normal tracking-tight relative z-10"
             style={{ textShadow: "0 2px 10px rgba(0,0,0,0.5)" }}
           >
-            <span className="inline-flex items-center justify-center gap-2 sm:gap-3 md:gap-4">
+            <span className="inline-flex items-center justify-center gap-3 md:gap-4">
               <span
-                className="inline-block w-1.5 h-1.5 sm:w-2 sm:h-2 rounded-full flex-shrink-0"
+                className="inline-block w-2 h-2 md:w-2.5 md:h-2.5 rounded-full flex-shrink-0"
                 style={{ backgroundColor: "#FF5800" }}
               />
               <span>
-                Build <span className="font-bold">AI agents</span> in seconds
+                Ship <span className="font-bold">agents</span>,
               </span>
             </span>
+            <br />
+            <span className="text-white/60">not infrastructure</span>
           </h1>
 
+          {/* Subhead */}
           <p
-            className="mb-8 text-sm sm:text-base md:text-base lg:text-lg xl:text-xl text-muted-foreground mx-auto relative z-10 px-4"
+            className="mb-10 md:mb-12 text-base sm:text-lg md:text-xl lg:text-2xl text-white/70 mx-auto relative z-10 px-4 max-w-3xl"
             style={{ textShadow: "0 1px 8px rgba(0,0,0,0.4)" }}
           >
-            Eliza is your complete AI development platform.
+            ElizaOS Cloud handles deployment so you can focus on building.
+            <br />
+            <span className="text-white/50">Open source. Zero lock-in.</span>
           </p>
 
-          <BrandTabsResponsive
-            id="hero-tabs"
-            tabs={heroTabs}
-            value={activeTab}
-            onValueChange={setActiveTab}
-            className="relative z-10"
-          >
-            <BrandTabsContent value="agent">
-              <div className="relative mx-auto max-w-5xl">
-                {/* HUD-style container with corner decorations */}
-                <HUDContainer>
-                  {/* Text input area */}
-                  <Textarea
-                    value={chatInput}
-                    onChange={(e) => setChatInput(e.target.value)}
-                    onKeyDown={handleChatKeyPress}
-                    placeholder="Try asking: How do I build an AI agent? (No signup required)"
-                    className="min-h-[150px] bg-transparent border-0 resize-none focus-visible:ring-0 text-white placeholder:text-white/40 p-4 pr-32 w-full"
-                  />
+          {/* Terminal Display */}
+          <div className="relative mx-auto max-w-3xl mb-10 md:mb-12">
+            <HUDContainer>
+              {/* OS Tabs */}
+              <div className="flex border-b border-white/10">
+                <button
+                  onClick={() => setActiveOS("unix")}
+                  className={`px-4 py-2.5 text-xs sm:text-sm font-mono uppercase tracking-wider transition-colors ${
+                    activeOS === "unix"
+                      ? "text-white border-b-2 border-[#FF5800]"
+                      : "text-white/50 hover:text-white/70"
+                  }`}
+                >
+                  macOS / Linux
+                </button>
+                <button
+                  onClick={() => setActiveOS("windows")}
+                  className={`px-4 py-2.5 text-xs sm:text-sm font-mono uppercase tracking-wider transition-colors ${
+                    activeOS === "windows"
+                      ? "text-white border-b-2 border-[#FF5800]"
+                      : "text-white/50 hover:text-white/70"
+                  }`}
+                >
+                  Windows
+                </button>
+              </div>
 
-                  {/* Icon buttons overlaid on bottom right inside box */}
-                  <div className="absolute bottom-4 right-4 flex gap-2">
-                    <BrandButton
-                      variant="icon"
-                      disabled
-                      className="opacity-50 cursor-not-allowed"
-                    >
-                      <Paperclip className="h-5 w-5" />
-                    </BrandButton>
-                    <BrandButton
-                      variant="icon"
-                      disabled
-                      className="opacity-50 cursor-not-allowed"
-                    >
-                      <Mic className="h-5 w-5" />
-                    </BrandButton>
-                    <BrandButton
-                      variant="icon-primary"
-                      onClick={handleFreeChatSubmit}
-                      disabled={!chatInput.trim()}
-                    >
-                      <ArrowUp
-                        className="h-8 w-8"
-                        style={{ color: "#FF5800" }}
-                      />
-                    </BrandButton>
+              {/* Terminal Content */}
+              <div className="p-4 md:p-6 space-y-4 font-mono text-left">
+                {/* Create command */}
+                <div className="group">
+                  <div className="flex items-center gap-2 text-white/50 text-xs mb-1">
+                    <span># Create a new agent</span>
                   </div>
-                </HUDContainer>
-
-                {/* Prompt example cards */}
-                <PromptCardGrid
-                  prompts={[
-                    "Create an agent to manage my social media strategy and to generate marketing assets.",
-                    "Build a customer support agent that answers questions from our knowledge base.",
-                    "Design an AI assistant to help with email drafting and meeting scheduling.",
-                  ]}
-                  onPromptClick={(prompt) => setChatInput(prompt)}
-                />
-              </div>
-            </BrandTabsContent>
-
-            <BrandTabsContent value="image">
-              <div className="relative mx-auto max-w-5xl">
-                {/* HUD-style container with corner decorations */}
-                <HUDContainer>
-                  {/* Text input area */}
-                  <Textarea
-                    placeholder="Describe the image you want to generate..."
-                    className="min-h-[150px] bg-transparent border-0 resize-none focus-visible:ring-0 text-white placeholder:text-white/40 p-4 pr-32 w-full"
-                  />
-
-                  {/* Icon buttons overlaid on bottom right inside box */}
-                  <div className="absolute bottom-4 right-4 flex gap-2">
-                    <BrandButton variant="icon">
-                      <Paperclip className="h-5 w-5" />
-                    </BrandButton>
-                    <BrandButton variant="icon">
-                      <Mic className="h-5 w-5" />
-                    </BrandButton>
-                    <BrandButton variant="icon-primary">
-                      <ArrowUp
-                        className="h-8 w-8"
-                        style={{ color: "#FF5800" }}
-                      />
-                    </BrandButton>
+                  <div className="flex items-center justify-between gap-2 bg-white/5 rounded px-3 py-2.5">
+                    <div className="flex items-center gap-2 min-w-0 overflow-x-auto">
+                      <span style={{ color: "#FF5800" }}>▸</span>
+                      <code className="text-sm sm:text-base text-white whitespace-nowrap">
+                        {commands[activeOS].create}
+                      </code>
+                    </div>
+                    <button
+                      onClick={() =>
+                        handleCopy(commands[activeOS].create, "create")
+                      }
+                      className="shrink-0 p-1.5 text-white/40 hover:text-white transition-colors"
+                      aria-label="Copy command"
+                    >
+                      {copied === "create" ? (
+                        <Check className="h-4 w-4 text-green-500" />
+                      ) : (
+                        <Copy className="h-4 w-4" />
+                      )}
+                    </button>
                   </div>
-                </HUDContainer>
+                </div>
 
-                {/* Prompt example cards */}
-                <PromptCardGrid
-                  prompts={[
-                    "Generate a photorealistic image of a futuristic city at sunset.",
-                    "Create an artistic portrait with vibrant colors and abstract elements.",
-                    "Design a modern logo for a tech startup with clean lines.",
-                  ]}
-                  onPromptClick={(prompt) => setChatInput(prompt)}
-                />
-              </div>
-            </BrandTabsContent>
-
-            <BrandTabsContent value="video">
-              <div className="relative mx-auto max-w-5xl">
-                {/* HUD-style container with corner decorations */}
-                <HUDContainer>
-                  {/* Text input area */}
-                  <Textarea
-                    placeholder="Describe the video you want to create..."
-                    className="min-h-[150px] bg-transparent border-0 resize-none focus-visible:ring-0 text-white placeholder:text-white/40 p-4 pr-32 w-full"
-                  />
-
-                  {/* Icon buttons overlaid on bottom right inside box */}
-                  <div className="absolute bottom-4 right-4 flex gap-2">
-                    <BrandButton variant="icon">
-                      <Paperclip className="h-5 w-5" />
-                    </BrandButton>
-                    <BrandButton variant="icon">
-                      <Mic className="h-5 w-5" />
-                    </BrandButton>
-                    <BrandButton variant="icon-primary">
-                      <ArrowUp
-                        className="h-8 w-8"
-                        style={{ color: "#FF5800" }}
-                      />
-                    </BrandButton>
+                {/* Deploy command */}
+                <div className="group">
+                  <div className="flex items-center gap-2 text-white/50 text-xs mb-1">
+                    <span># Deploy to the cloud</span>
                   </div>
-                </HUDContainer>
-
-                {/* Prompt example cards */}
-                <PromptCardGrid
-                  prompts={[
-                    "Create a short promotional video for a new product launch.",
-                    "Generate an animated explainer video for my SaaS platform.",
-                    "Edit my raw footage into a professional social media reel.",
-                  ]}
-                  onPromptClick={(prompt) => setChatInput(prompt)}
-                />
+                  <div className="flex items-center justify-between gap-2 bg-white/5 rounded px-3 py-2.5">
+                    <div className="flex items-center gap-2 min-w-0 overflow-x-auto">
+                      <span style={{ color: "#FF5800" }}>▸</span>
+                      <code className="text-sm sm:text-base text-white whitespace-nowrap">
+                        {commands[activeOS].deploy}
+                      </code>
+                    </div>
+                    <button
+                      onClick={() =>
+                        handleCopy(commands[activeOS].deploy, "deploy")
+                      }
+                      className="shrink-0 p-1.5 text-white/40 hover:text-white transition-colors"
+                      aria-label="Copy command"
+                    >
+                      {copied === "deploy" ? (
+                        <Check className="h-4 w-4 text-green-500" />
+                      ) : (
+                        <Copy className="h-4 w-4" />
+                      )}
+                    </button>
+                  </div>
+                </div>
               </div>
-            </BrandTabsContent>
+            </HUDContainer>
+          </div>
 
-            <BrandTabsContent value="pro-studio">
-              <div className="text-center text-muted-foreground">
-                <p>Professional studio features coming soon</p>
+          {/* CTAs */}
+          <div className="flex flex-col sm:flex-row items-center justify-center gap-4 mb-16 md:mb-20">
+            <BrandButton
+              variant="primary"
+              size="lg"
+              onClick={handleGetStarted}
+              className="min-w-[180px]"
+            >
+              Get Started
+              <ArrowRight className="ml-2 h-4 w-4" />
+            </BrandButton>
+            <Button
+              variant="outline"
+              size="lg"
+              className="min-w-[180px] border-white/20 text-white hover:bg-white/5 hover:text-white"
+              asChild
+            >
+              <a
+                href="https://elizaos.ai/docs"
+                target="_blank"
+                rel="noopener noreferrer"
+              >
+                View Documentation
+              </a>
+            </Button>
+          </div>
+
+          {/* Journey Steps */}
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6 md:gap-8 max-w-4xl mx-auto">
+            {steps.map((step, index) => (
+              <div key={step.title} className="relative group">
+                {/* Connector line */}
+                {index < steps.length - 1 && (
+                  <div className="hidden md:block absolute top-6 left-[calc(50%+2rem)] w-[calc(100%-4rem)] h-px bg-gradient-to-r from-white/20 to-transparent" />
+                )}
+
+                <div className="flex flex-col items-center text-center p-4">
+                  <div
+                    className="w-12 h-12 rounded-lg flex items-center justify-center mb-4 transition-colors"
+                    style={{
+                      backgroundColor: "rgba(255, 88, 0, 0.1)",
+                      border: "1px solid rgba(255, 88, 0, 0.3)",
+                    }}
+                  >
+                    <div style={{ color: "#FF5800" }}>{step.icon}</div>
+                  </div>
+                  <h3 className="text-lg font-semibold text-white mb-2">
+                    {step.title}
+                  </h3>
+                  <p className="text-sm text-white/60">{step.description}</p>
+                </div>
               </div>
-            </BrandTabsContent>
-          </BrandTabsResponsive>
+            ))}
+          </div>
         </div>
       </div>
     </section>

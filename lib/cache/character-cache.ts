@@ -16,30 +16,22 @@ export async function invalidateCharacterCache(
     `[Character Cache] Invalidating all caches for character ${characterId}`,
   );
 
-  try {
-    await Promise.all([
-      // Invalidate agent character data cache
-      agentStateCache.invalidateCharacterData(characterId),
+  await Promise.all([
+    // Invalidate agent character data cache
+    agentStateCache.invalidateCharacterData(characterId),
 
-      // Invalidate marketplace character cache
-      marketplaceCache.invalidateCharacter(characterId),
+    // Invalidate marketplace character cache
+    marketplaceCache.invalidateCharacter(characterId),
 
-      // Invalidate room-character mappings (rooms using this character)
-      // Note: We can't easily know all rooms for a character without a DB query,
-      // so we'd need to invalidate based on pattern if this becomes critical
-      // For now, room caches have shorter TTLs (10 minutes) and will refresh naturally
-    ]);
+    // Invalidate room-character mappings (rooms using this character)
+    // Note: We can't easily know all rooms for a character without a DB query,
+    // so we'd need to invalidate based on pattern if this becomes critical
+    // For now, room caches have shorter TTLs (10 minutes) and will refresh naturally
+  ]);
 
-    logger.info(
-      `[Character Cache] Successfully invalidated caches for character ${characterId}`,
-    );
-  } catch (error) {
-    logger.error(
-      `[Character Cache] Error invalidating caches for character ${characterId}:`,
-      error,
-    );
-    throw error;
-  }
+  logger.info(
+    `[Character Cache] Successfully invalidated caches for character ${characterId}`,
+  );
 }
 
 /**

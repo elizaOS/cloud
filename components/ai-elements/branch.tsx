@@ -5,7 +5,7 @@ import { cn } from "@/lib/utils";
 import type { UIMessage } from "ai";
 import { ChevronLeftIcon, ChevronRightIcon } from "lucide-react";
 import type { ComponentProps, HTMLAttributes, ReactElement } from "react";
-import { createContext, useContext, useEffect, useMemo, useState } from "react";
+import { createContext, useCallback, useContext, useEffect, useMemo, useState } from "react";
 
 type BranchContextType = {
   currentBranch: number;
@@ -42,31 +42,35 @@ export const Branch = ({
   const [currentBranch, setCurrentBranch] = useState(defaultBranch);
   const [branches, setBranches] = useState<ReactElement[]>([]);
 
-  const handleBranchChange = (newBranch: number) => {
+  const handleBranchChange = useCallback((newBranch: number) => {
     setCurrentBranch(newBranch);
     onBranchChange?.(newBranch);
-  };
+  }, [onBranchChange]);
 
-  const goToPrevious = () => {
-    const newBranch =
-      currentBranch > 0 ? currentBranch - 1 : branches.length - 1;
-    handleBranchChange(newBranch);
-  };
+  const goToPrevious = useCallback(() => {
+    setCurrentBranch((prev) => {
+      const newBranch = prev > 0 ? prev - 1 : branches.length - 1;
+      onBranchChange?.(newBranch);
+      return newBranch;
+    });
+  }, [branches.length, onBranchChange]);
 
-  const goToNext = () => {
-    const newBranch =
-      currentBranch < branches.length - 1 ? currentBranch + 1 : 0;
-    handleBranchChange(newBranch);
-  };
+  const goToNext = useCallback(() => {
+    setCurrentBranch((prev) => {
+      const newBranch = prev < branches.length - 1 ? prev + 1 : 0;
+      onBranchChange?.(newBranch);
+      return newBranch;
+    });
+  }, [branches.length, onBranchChange]);
 
-  const contextValue: BranchContextType = {
+  const contextValue = useMemo<BranchContextType>(() => ({
     currentBranch,
     totalBranches: branches.length,
     goToPrevious,
     goToNext,
     branches,
     setBranches,
-  };
+  }), [currentBranch, branches, goToPrevious, goToNext]);
 
   return (
     <BranchContext.Provider value={contextValue}>

@@ -29,8 +29,8 @@ export function JsonEditorStyled({
     try {
       const parsed = JSON.parse(value);
       onChange(parsed as ElizaCharacter);
-    } catch (err) {
-      // Error is handled by parent
+    } catch {
+      // Invalid JSON - parent component handles validation
     }
   };
 

@@ -210,6 +210,22 @@ export class AgentLoader {
       ...elizaCharacter.settings,
     };
 
+    // Debug: Log affiliate data in settings
+    if (settings.affiliateData) {
+      console.log(
+        `[AgentLoader] 🔍 Character "${elizaCharacter.name}" has affiliateData:`,
+        JSON.stringify(settings.affiliateData, null, 2).substring(0, 500),
+      );
+    } else {
+      console.log(
+        `[AgentLoader] ⚠️ Character "${elizaCharacter.name}" has NO affiliateData in settings`,
+      );
+      console.log(
+        `[AgentLoader] elizaCharacter.settings keys:`,
+        elizaCharacter.settings ? Object.keys(elizaCharacter.settings) : "none",
+      );
+    }
+
     // Build Character object
     // Use the character's own ID for proper database isolation
     const character: Character = {

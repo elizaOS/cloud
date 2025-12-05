@@ -4,7 +4,7 @@ import { BrandCard, CornerBrackets } from "@/components/brand";
 import type { UserWithOrganization } from "@/lib/types";
 import { Plus, Copy, Trash2, Loader2, Eye, EyeOff, X } from "lucide-react";
 import { toast } from "sonner";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
@@ -30,21 +30,58 @@ interface ApiKey {
   updated_at: string;
 }
 
+interface ModalState {
+  showCreateModal: boolean;
+  showKeyModal: boolean;
+  newlyCreatedKey: string | null;
+}
+
+interface OperationState {
+  loading: boolean;
+  creating: boolean;
+  deletingKeyId: string | null;
+}
+
+interface FormState {
+  name: string;
+  description: string;
+}
+
 export function ApisTab({ user }: ApisTabProps) {
   const [apiKeys, setApiKeys] = useState<ApiKey[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [showCreateModal, setShowCreateModal] = useState(false);
-  const [showKeyModal, setShowKeyModal] = useState(false);
-  const [newlyCreatedKey, setNewlyCreatedKey] = useState<string | null>(null);
-  const [deletingKeyId, setDeletingKeyId] = useState<string | null>(null);
-  const [creating, setCreating] = useState(false);
+  
+  const [modalState, setModalState] = useState<ModalState>({
+    showCreateModal: false,
+    showKeyModal: false,
+    newlyCreatedKey: null,
+  });
+  
+  const [operationState, setOperationState] = useState<OperationState>({
+    loading: true,
+    creating: false,
+    deletingKeyId: null,
+  });
+  
+  const [formState, setFormState] = useState<FormState>({
+    name: "",
+    description: "",
+  });
 
-  const [newKeyName, setNewKeyName] = useState("");
-  const [newKeyDescription, setNewKeyDescription] = useState("");
+  const updateModal = (updates: Partial<ModalState>) => {
+    setModalState((prev) => ({ ...prev, ...updates }));
+  };
 
-  const fetchApiKeys = async () => {
+  const updateOperation = (updates: Partial<OperationState>) => {
+    setOperationState((prev) => ({ ...prev, ...updates }));
+  };
+
+  const updateForm = (updates: Partial<FormState>) => {
+    setFormState((prev) => ({ ...prev, ...updates }));
+  };
+
+  const fetchApiKeys = useCallback(async () => {
     try {
-      setLoading(true);
+      updateOperation({ loading: true });
       const response = await fetch("/api/v1/api-keys");
 
       if (!response.ok) {
@@ -57,34 +94,33 @@ export function ApisTab({ user }: ApisTabProps) {
       console.error("Error fetching API keys:", error);
       toast.error("Failed to load API keys");
     } finally {
-      setLoading(false);
+      updateOperation({ loading: false });
     }
-  };
+  }, []);
 
   useEffect(() => {
     fetchApiKeys();
-  }, []);
+  }, [fetchApiKeys]);
 
   const handleCreateNewKey = () => {
-    setNewKeyName("");
-    setNewKeyDescription("");
-    setShowCreateModal(true);
+    updateForm({ name: "", description: "" });
+    updateModal({ showCreateModal: true });
   };
 
   const handleCreateSubmit = async () => {
-    if (!newKeyName.trim()) {
+    if (!formState.name.trim()) {
       toast.error("API key name is required");
       return;
     }
 
     try {
-      setCreating(true);
+      updateOperation({ creating: true });
       const response = await fetch("/api/v1/api-keys", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          name: newKeyName.trim(),
-          description: newKeyDescription.trim() || undefined,
+          name: formState.name.trim(),
+          description: formState.description.trim() || undefined,
           permissions: [],
           rate_limit: 1000,
         }),
@@ -97,9 +133,11 @@ export function ApisTab({ user }: ApisTabProps) {
 
       const data = await response.json();
 
-      setNewlyCreatedKey(data.plainKey);
-      setShowCreateModal(false);
-      setShowKeyModal(true);
+      updateModal({
+        newlyCreatedKey: data.plainKey,
+        showCreateModal: false,
+        showKeyModal: true,
+      });
 
       await fetchApiKeys();
 
@@ -110,7 +148,7 @@ export function ApisTab({ user }: ApisTabProps) {
         error instanceof Error ? error.message : "Failed to create API key",
       );
     } finally {
-      setCreating(false);
+      updateOperation({ creating: false });
     }
   };
 
@@ -124,10 +162,10 @@ export function ApisTab({ user }: ApisTabProps) {
   };
 
   const handleCopyFullKey = async () => {
-    if (!newlyCreatedKey) return;
+    if (!modalState.newlyCreatedKey) return;
 
     try {
-      await navigator.clipboard.writeText(newlyCreatedKey);
+      await navigator.clipboard.writeText(modalState.newlyCreatedKey);
       toast.success("Full API key copied to clipboard");
     } catch (error) {
       toast.error("Failed to copy API key");
@@ -144,7 +182,7 @@ export function ApisTab({ user }: ApisTabProps) {
     }
 
     try {
-      setDeletingKeyId(keyId);
+      updateOperation({ deletingKeyId: keyId });
 
       const response = await fetch(`/api/v1/api-keys/${keyId}`, {
         method: "DELETE",
@@ -164,7 +202,7 @@ export function ApisTab({ user }: ApisTabProps) {
         error instanceof Error ? error.message : "Failed to delete API key",
       );
     } finally {
-      setDeletingKeyId(null);
+      updateOperation({ deletingKeyId: null });
     }
   };
 
@@ -227,7 +265,7 @@ export function ApisTab({ user }: ApisTabProps) {
 
           {/* API Keys Table */}
           <div className="w-full">
-            {loading ? (
+            {operationState.loading ? (
               <div className="flex items-center justify-center p-8 border border-brand-surface">
                 <Loader2 className="h-6 w-6 animate-spin text-[#FF5800]" />
               </div>
@@ -351,10 +389,10 @@ export function ApisTab({ user }: ApisTabProps) {
                           onClick={() =>
                             handleDeleteKey(apiKey.id, apiKey.name)
                           }
-                          disabled={deletingKeyId === apiKey.id}
+                          disabled={operationState.deletingKeyId === apiKey.id}
                           className="flex-1 px-4 py-2 border border-[#EB4335]/40 bg-[#EB4335]/10 hover:bg-[#EB4335]/20 transition-colors disabled:opacity-50 flex items-center justify-center gap-2"
                         >
-                          {deletingKeyId === apiKey.id ? (
+                          {operationState.deletingKeyId === apiKey.id ? (
                             <>
                               <Loader2 className="h-4 w-4 animate-spin text-[#EB4335]" />
                               <span className="text-xs font-mono text-[#EB4335]">
@@ -476,11 +514,11 @@ export function ApisTab({ user }: ApisTabProps) {
                             onClick={() =>
                               handleDeleteKey(apiKey.id, apiKey.name)
                             }
-                            disabled={deletingKeyId === apiKey.id}
+                            disabled={operationState.deletingKeyId === apiKey.id}
                             className="px-3 py-2 border border-[#EB4335]/40 bg-[#EB4335]/10 hover:bg-[#EB4335]/20 transition-colors disabled:opacity-50 group"
                             title="Delete API key"
                           >
-                            {deletingKeyId === apiKey.id ? (
+                            {operationState.deletingKeyId === apiKey.id ? (
                               <Loader2 className="h-4 w-4 text-[#EB4335] animate-spin" />
                             ) : (
                               <Trash2 className="h-4 w-4 text-[#EB4335] group-hover:scale-110 transition-transform" />
@@ -498,7 +536,7 @@ export function ApisTab({ user }: ApisTabProps) {
       </BrandCard>
 
       {/* Create Key Modal */}
-      {showCreateModal && (
+      {modalState.showCreateModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4">
           <div className="relative bg-[#0a0a0a] border border-brand-surface p-4 sm:p-6 w-full max-w-md">
             <CornerBrackets size="sm" className="opacity-50" />
@@ -510,7 +548,7 @@ export function ApisTab({ user }: ApisTabProps) {
                 </h3>
                 <button
                   type="button"
-                  onClick={() => setShowCreateModal(false)}
+                  onClick={() => updateModal({ showCreateModal: false })}
                   className="text-white/60 hover:text-white transition-colors"
                 >
                   <X className="h-5 w-5" />
@@ -523,8 +561,8 @@ export function ApisTab({ user }: ApisTabProps) {
                     Name <span className="text-red-500">*</span>
                   </Label>
                   <Input
-                    value={newKeyName}
-                    onChange={(e) => setNewKeyName(e.target.value)}
+                    value={formState.name}
+                    onChange={(e) => updateForm({ name: e.target.value })}
                     placeholder="My API Key"
                     className="bg-transparent border-[#303030] text-white"
                   />
@@ -535,8 +573,8 @@ export function ApisTab({ user }: ApisTabProps) {
                     Description (optional)
                   </Label>
                   <Textarea
-                    value={newKeyDescription}
-                    onChange={(e) => setNewKeyDescription(e.target.value)}
+                    value={formState.description}
+                    onChange={(e) => updateForm({ description: e.target.value })}
                     placeholder="Used for production deployment"
                     className="bg-transparent border-[#303030] text-white min-h-[80px] resize-none"
                   />
@@ -546,9 +584,9 @@ export function ApisTab({ user }: ApisTabProps) {
               <div className="flex flex-col sm:flex-row gap-4 justify-end pt-4">
                 <button
                   type="button"
-                  onClick={() => setShowCreateModal(false)}
+                  onClick={() => updateModal({ showCreateModal: false })}
                   className="px-4 py-2.5 border border-[#303030] text-white hover:bg-white/5 transition-colors order-2 sm:order-1 w-full sm:w-auto"
-                  disabled={creating}
+                  disabled={operationState.creating}
                 >
                   <span className="font-mono text-sm whitespace-nowrap">
                     Cancel
@@ -557,7 +595,7 @@ export function ApisTab({ user }: ApisTabProps) {
                 <button
                   type="button"
                   onClick={handleCreateSubmit}
-                  disabled={creating || !newKeyName.trim()}
+                  disabled={operationState.creating || !formState.name.trim()}
                   className="relative bg-[#e1e1e1] px-4 py-2.5 overflow-hidden hover:bg-white transition-colors disabled:opacity-50 disabled:cursor-not-allowed order-1 sm:order-2 w-full sm:w-auto"
                 >
                   <div
@@ -568,7 +606,7 @@ export function ApisTab({ user }: ApisTabProps) {
                     }}
                   />
                   <span className="relative z-10 text-black font-mono font-medium text-sm flex items-center justify-center gap-2 whitespace-nowrap">
-                    {creating ? (
+                    {operationState.creating ? (
                       <>
                         <Loader2 className="h-4 w-4 animate-spin flex-shrink-0" />
                         Creating...
@@ -585,7 +623,7 @@ export function ApisTab({ user }: ApisTabProps) {
       )}
 
       {/* Show Full Key Modal */}
-      {showKeyModal && newlyCreatedKey && (
+      {modalState.showKeyModal && modalState.newlyCreatedKey && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4">
           <div className="relative bg-[#0a0a0a] border border-brand-surface p-4 sm:p-6 w-full max-w-2xl">
             <CornerBrackets size="sm" className="opacity-50" />
@@ -598,8 +636,7 @@ export function ApisTab({ user }: ApisTabProps) {
                 <button
                   type="button"
                   onClick={() => {
-                    setShowKeyModal(false);
-                    setNewlyCreatedKey(null);
+                    updateModal({ showKeyModal: false, newlyCreatedKey: null });
                   }}
                   className="text-white/60 hover:text-white transition-colors"
                 >
@@ -622,7 +659,7 @@ export function ApisTab({ user }: ApisTabProps) {
                   <div className="flex flex-col sm:flex-row gap-2">
                     <div className="flex-1 bg-[rgba(10,10,10,0.75)] border border-brand-surface p-3">
                       <p className="text-xs sm:text-sm text-white/80 font-mono break-all">
-                        {newlyCreatedKey}
+                        {modalState.newlyCreatedKey}
                       </p>
                     </div>
                     <button
@@ -644,8 +681,7 @@ export function ApisTab({ user }: ApisTabProps) {
                 <button
                   type="button"
                   onClick={() => {
-                    setShowKeyModal(false);
-                    setNewlyCreatedKey(null);
+                    updateModal({ showKeyModal: false, newlyCreatedKey: null });
                   }}
                   className="relative bg-[#e1e1e1] px-6 py-3 overflow-hidden hover:bg-white transition-colors w-full sm:w-auto"
                 >

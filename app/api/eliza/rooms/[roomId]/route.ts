@@ -78,54 +78,100 @@ export async function GET(
     const characterId = roomData.room.agentId || undefined;
 
     if (characterId) {
-    logger.info(
+      logger.info(
         "[Eliza Room API] Loading room with character:",
         characterId,
-    );
+      );
     } else {
       logger.info("[Eliza Room API] Loading room with default character");
     }
 
-    // Format messages for response
-    const simple = roomData.messages.map((msg) => {
-        let parsedContent: unknown = msg.content;
-        try {
-          if (typeof msg.content === "string")
+    // Format messages for response with deduplication
+    const mapped = roomData.messages.map((msg) => {
+      let parsedContent: unknown = msg.content;
+      try {
+        if (typeof msg.content === "string")
           parsedContent = JSON.parse(msg.content as string);
-        } catch {
-          parsedContent = msg.content;
-        }
-        
-        // Debug: Log attachment info for agent messages
-        const content = parsedContent as { text?: string; attachments?: unknown[]; source?: string };
-        if (content?.source === "agent" && content?.attachments) {
-          logger.info(`[Eliza Room API] 📎 Message ${msg.id?.substring(0, 8)} has ${content.attachments.length} attachment(s)`);
-        }
-        
-        return {
-          id: msg.id,
-          entityId: msg.entityId,
-          agentId: msg.agentId,
-          content: parsedContent,
+      } catch {
+        parsedContent = msg.content;
+      }
+
+      const content = parsedContent as { text?: string; attachments?: unknown[]; source?: string };
+
+      // Debug: Log attachment info for agent messages
+      if (content?.source === "agent" && content?.attachments) {
+        logger.info(`[Eliza Room API] 📎 Message ${msg.id?.substring(0, 8)} has ${content.attachments.length} attachment(s)`);
+      }
+
+      // CRITICAL: Determine isAgent based on content.source field (most reliable)
+      // Fallback to entityId comparison for backward compatibility
+      const isAgentBySource = content?.source === "agent";
+      const isAgentByEntityId = msg.entityId === msg.agentId;
+      const isAgent = content?.source ? isAgentBySource : isAgentByEntityId;
+
+      return {
+        id: msg.id,
+        entityId: msg.entityId,
+        agentId: msg.agentId,
+        content: parsedContent,
         createdAt: msg.createdAt || Date.now(),
-          isAgent: msg.entityId === msg.agentId,
-        };
+        isAgent,
+      };
     });
+
+    // Deduplicate messages: Remove duplicate agent responses that might have been
+    // stored twice (once by action callback, once by handler). Keep the one with
+    // attachments or the first one if both/neither have attachments.
+    const seenTexts = new Map<string, { index: number; hasAttachments: boolean; isAgent: boolean }>();
+    const indicesToRemove = new Set<number>();
+
+    mapped.forEach((msg, index) => {
+      const content = msg.content as { text?: string; attachments?: unknown[] };
+      const text = content?.text?.trim();
+      if (!text) return;
+
+      // Create a key based on text and approximate timestamp (within 5 seconds)
+      const timeWindow = Math.floor(msg.createdAt / 5000);
+      const key = `${text}:${timeWindow}`;
+
+      const existing = seenTexts.get(key);
+      if (existing) {
+        const currentHasAttachments = Array.isArray(content?.attachments) && content.attachments.length > 0;
+
+        if (currentHasAttachments && !existing.hasAttachments) {
+          indicesToRemove.add(existing.index);
+          seenTexts.set(key, { index, hasAttachments: currentHasAttachments, isAgent: msg.isAgent });
+        } else if (msg.isAgent && !existing.isAgent) {
+          indicesToRemove.add(existing.index);
+          seenTexts.set(key, { index, hasAttachments: currentHasAttachments, isAgent: msg.isAgent });
+        } else {
+          indicesToRemove.add(index);
+        }
+      } else {
+        const hasAttachments = Array.isArray(content?.attachments) && content.attachments.length > 0;
+        seenTexts.set(key, { index, hasAttachments, isAgent: msg.isAgent });
+      }
+    });
+
+    const simple = mapped
+      .filter((_, index) => !indicesToRemove.has(index))
+      .sort((a, b) => a.createdAt - b.createdAt);
+
+    if (indicesToRemove.size > 0) {
+      logger.info(`[Eliza Room API] 🧹 Removed ${indicesToRemove.size} duplicate message(s)`);
+    }
 
     // Get agent display info from database (no runtime needed!)
     let agentInfo: { id: string; name: string; avatarUrl?: string } | null = null;
-    
+
     if (characterId) {
-      // Try to get agent info from agents table
       agentInfo = await agentsService.getDisplayInfo(characterId);
     }
-    
-    // If no agent info found, try the room's agentId
+
     if (!agentInfo && roomData.room.agentId) {
       agentInfo = await agentsService.getDisplayInfo(roomData.room.agentId);
     }
-    
-    // Fallback to default values if agent not found in DB
+
     if (!agentInfo) {
       agentInfo = {
         id: characterId || roomData.room.agentId || "default",

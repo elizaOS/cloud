@@ -50,7 +50,7 @@ export default function ApiExplorerPage() {
   useSetPageHeader({
     title: "API Explorer",
     description:
-      "Interactive API documentation and testing interface for Eliza Cloud V2",
+      "Interactive API documentation and testing interface for Eliza Cloud",
   });
 
   const [selectedEndpoint, setSelectedEndpoint] = useState<ApiEndpoint | null>(
@@ -212,17 +212,6 @@ export default function ApiExplorerPage() {
                       className="w-full rounded-none border border-white/10 bg-black/40 px-3 py-2 pl-10 text-sm text-white placeholder:text-white/40 focus:outline-none focus:ring-1 focus:ring-[#FF5800] focus:border-[#FF5800]"
                     />
                   </div>
-                </div>
-              </BrandCard>
-
-              <BrandCard className="relative shrink-0">
-                <CornerBrackets size="sm" className="opacity-50" />
-
-                <div className="relative z-10">
-                  <AuthManager
-                    authToken={authToken}
-                    onTokenChange={setAuthToken}
-                  />
                 </div>
               </BrandCard>
 
