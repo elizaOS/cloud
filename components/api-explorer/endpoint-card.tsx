@@ -1,7 +1,7 @@
 "use client";
 
 import { type ApiEndpoint } from "@/lib/swagger/endpoint-discovery";
-import { ChevronRight } from "lucide-react";
+import { ChevronRight, Coins, Sparkles } from "lucide-react";
 import { BrandCard } from "@/components/brand";
 
 interface EndpointCardProps {
@@ -9,6 +9,22 @@ interface EndpointCardProps {
   onSelect: (endpoint: ApiEndpoint) => void;
   getMethodColor: (method: string) => string;
   getCategoryIcon: (category: string) => React.ReactNode;
+}
+
+function formatPrice(pricing: ApiEndpoint["pricing"]) {
+  if (!pricing) return null;
+  if (pricing.isFree) return "Free";
+  if (pricing.isVariable && pricing.estimatedRange) {
+    return `$${pricing.estimatedRange.min.toFixed(3)} - $${pricing.estimatedRange.max.toFixed(2)}`;
+  }
+  return `$${pricing.cost.toFixed(pricing.cost < 0.01 ? 4 : 2)}`;
+}
+
+function getPricingBadgeStyle(pricing: ApiEndpoint["pricing"]) {
+  if (!pricing) return "bg-white/5 text-white/50 border-white/10";
+  if (pricing.isFree) return "bg-emerald-500/10 text-emerald-400 border-emerald-500/30";
+  if (pricing.isVariable) return "bg-amber-500/10 text-amber-400 border-amber-500/30";
+  return "bg-[#FF5800]/10 text-[#FF5800] border-[#FF5800]/30";
 }
 
 export function EndpointCard({
@@ -65,6 +81,32 @@ export function EndpointCard({
             {endpoint.path}
           </code>
         </div>
+
+        {/* Pricing Badge */}
+        {endpoint.pricing && (
+          <div className="flex items-center gap-2">
+            <div className={`flex items-center gap-1.5 rounded-none border px-2.5 py-1.5 ${getPricingBadgeStyle(endpoint.pricing)}`}>
+              {endpoint.pricing.isFree ? (
+                <Sparkles className="h-3.5 w-3.5" />
+              ) : (
+                <Coins className="h-3.5 w-3.5" />
+              )}
+              <span className="text-xs font-semibold">
+                {formatPrice(endpoint.pricing)}
+              </span>
+              {!endpoint.pricing.isFree && (
+                <span className="text-[10px] opacity-70">
+                  /{endpoint.pricing.unit}
+                </span>
+              )}
+            </div>
+            {endpoint.pricing.isVariable && !endpoint.pricing.isFree && (
+              <span className="text-[10px] text-white/40 italic">
+                varies by usage
+              </span>
+            )}
+          </div>
+        )}
 
         <div className="flex items-center justify-between border-t border-white/5 pt-4 mt-4">
           <div className="flex gap-4 text-xs text-white/40 font-mono">
