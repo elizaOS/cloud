@@ -3,7 +3,9 @@ import {
   type UserCharacter,
   type NewUserCharacter,
 } from "@/db/repositories";
+import { agentsRepository } from "@/db/repositories/agents/agents";
 import type { ElizaCharacter } from "@/lib/types";
+import type { Agent } from "@elizaos/core";
 
 export class CharactersService {
   async getById(id: string): Promise<UserCharacter | undefined> {
@@ -55,7 +57,26 @@ export class CharactersService {
   }
 
   async create(data: NewUserCharacter): Promise<UserCharacter> {
-    return await userCharactersRepository.create(data);
+    // Create the character in user_characters table
+    const character = await userCharactersRepository.create(data);
+
+    // Also create the agent in the ElizaOS agents table
+    const agent: Partial<Agent> = {
+      id: character.id as `${string}-${string}-${string}-${string}-${string}`,
+      name: character.name,
+      username: character.username ?? undefined,
+      bio: character.bio,
+      system: character.system ?? undefined,
+      enabled: true,
+      settings: character.settings as Record<
+        string,
+        string | number | boolean | Record<string, string | number | boolean>
+      >,
+    };
+
+    await agentsRepository.create(agent);
+
+    return character;
   }
 
   async update(
