@@ -21,35 +21,47 @@ interface GeneralTabProps {
   user: UserWithOrganization;
 }
 
+interface FormState {
+  fullName: string;
+  nickname: string;
+  workFunction: string;
+  preferences: string;
+  responseNotifications: boolean;
+  emailNotifications: boolean;
+  saving: boolean;
+}
+
 export function GeneralTab({ user }: GeneralTabProps) {
   const router = useRouter();
-  const [fullName, setFullName] = useState(user.name || "");
-  const [nickname, setNickname] = useState(user.nickname || "");
-  const [workFunction, setWorkFunction] = useState(user.work_function || "");
-  const [preferences, setPreferences] = useState(user.preferences || "");
-  const [responseNotifications, setResponseNotifications] = useState(
-    user.response_notifications ?? true,
-  );
-  const [emailNotifications, setEmailNotifications] = useState(
-    user.email_notifications ?? true,
-  );
-  const [saving, setSaving] = useState(false);
+  const [formState, setFormState] = useState<FormState>({
+    fullName: user.name || "",
+    nickname: user.nickname || "",
+    workFunction: user.work_function || "",
+    preferences: user.preferences || "",
+    responseNotifications: user.response_notifications ?? true,
+    emailNotifications: user.email_notifications ?? true,
+    saving: false,
+  });
+
+  const updateForm = (updates: Partial<FormState>) => {
+    setFormState((prev) => ({ ...prev, ...updates }));
+  };
 
   const handleSave = async () => {
-    if (saving) return;
-    setSaving(true);
+    if (formState.saving) return;
+    updateForm({ saving: true });
 
     try {
       const response = await fetch("/api/v1/user", {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          name: fullName,
-          nickname,
-          work_function: workFunction,
-          preferences,
-          response_notifications: responseNotifications,
-          email_notifications: emailNotifications,
+          name: formState.fullName,
+          nickname: formState.nickname,
+          work_function: formState.workFunction,
+          preferences: formState.preferences,
+          response_notifications: formState.responseNotifications,
+          email_notifications: formState.emailNotifications,
         }),
       });
 
@@ -67,7 +79,7 @@ export function GeneralTab({ user }: GeneralTabProps) {
         error instanceof Error ? error.message : "Failed to save settings",
       );
     } finally {
-      setSaving(false);
+      updateForm({ saving: false });
     }
   };
 
@@ -99,13 +111,13 @@ export function GeneralTab({ user }: GeneralTabProps) {
                 {/* Avatar */}
                 <div className="flex items-center justify-center bg-[rgba(255,88,0,0.25)] px-2 py-2 min-w-[36px]">
                   <span className="text-white text-sm font-normal">
-                    {getInitials(fullName || "DR")}
+                    {getInitials(formState.fullName || "DR")}
                   </span>
                 </div>
                 {/* Input */}
                 <Input
-                  value={fullName}
-                  onChange={(e) => setFullName(e.target.value)}
+                  value={formState.fullName}
+                  onChange={(e) => updateForm({ fullName: e.target.value })}
                   className="flex-1 bg-transparent border-[#303030] text-white"
                   placeholder="Enter your full name"
                 />
@@ -118,8 +130,8 @@ export function GeneralTab({ user }: GeneralTabProps) {
                 What should we call you?
               </Label>
               <Input
-                value={nickname}
-                onChange={(e) => setNickname(e.target.value)}
+                value={formState.nickname}
+                onChange={(e) => updateForm({ nickname: e.target.value })}
                 className="bg-transparent border-[#303030] text-white"
                 placeholder="Diogo"
               />
@@ -131,7 +143,7 @@ export function GeneralTab({ user }: GeneralTabProps) {
             <Label className="text-white font-mono text-sm md:text-base">
               What best describes your work?
             </Label>
-            <Select value={workFunction} onValueChange={setWorkFunction}>
+            <Select value={formState.workFunction} onValueChange={(v) => updateForm({ workFunction: v })}>
               <SelectTrigger className="bg-transparent border-[#303030] text-white data-[placeholder]:text-white/60">
                 <SelectValue placeholder="Select your work function" />
               </SelectTrigger>
@@ -163,8 +175,8 @@ export function GeneralTab({ user }: GeneralTabProps) {
               </span>
             </p>
             <Textarea
-              value={preferences}
-              onChange={(e) => setPreferences(e.target.value)}
+              value={formState.preferences}
+              onChange={(e) => updateForm({ preferences: e.target.value })}
               className="bg-transparent border-[#303030] text-white min-h-[80px] resize-none"
               placeholder="e.g. when learning new concepts, I find analogies particularly helpful"
             />
@@ -174,7 +186,7 @@ export function GeneralTab({ user }: GeneralTabProps) {
           <button
             type="button"
             onClick={handleSave}
-            disabled={saving}
+            disabled={formState.saving}
             className="relative bg-[#e1e1e1] px-4 py-2.5 overflow-hidden group hover:bg-white transition-colors disabled:opacity-50 disabled:cursor-not-allowed w-full md:w-auto"
           >
             {/* Pattern overlay */}
@@ -186,7 +198,7 @@ export function GeneralTab({ user }: GeneralTabProps) {
               }}
             />
             <span className="relative z-10 text-black font-mono font-medium text-sm md:text-base whitespace-nowrap">
-              {saving ? "Saving..." : "Save changes"}
+              {formState.saving ? "Saving..." : "Save changes"}
             </span>
           </button>
         </div>
@@ -208,8 +220,8 @@ export function GeneralTab({ user }: GeneralTabProps) {
                 for long-running tasks like too calls, and research.
               </p>
               <Switch
-                checked={responseNotifications}
-                onCheckedChange={setResponseNotifications}
+                checked={formState.responseNotifications}
+                onCheckedChange={(checked) => updateForm({ responseNotifications: checked })}
                 className="data-[state=checked]:bg-[#FF5800] flex-shrink-0"
               />
             </div>
@@ -226,8 +238,8 @@ export function GeneralTab({ user }: GeneralTabProps) {
                 response.
               </p>
               <Switch
-                checked={emailNotifications}
-                onCheckedChange={setEmailNotifications}
+                checked={formState.emailNotifications}
+                onCheckedChange={(checked) => updateForm({ emailNotifications: checked })}
                 className="data-[state=checked]:bg-[#FF5800] flex-shrink-0"
               />
             </div>

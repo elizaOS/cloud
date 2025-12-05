@@ -70,11 +70,6 @@ export function ContainersSection({
               </TooltipContent>
             </Tooltip>
           </div>
-          <p className="text-white/40 mt-0.5 text-xs">
-            {runningContainers.length > 0
-              ? `${runningContainers.length} running`
-              : "Deploy agents to the cloud"}
-          </p>
         </div>
         {containers.length > 0 && (
           <BrandButton variant="outline" asChild size="sm" className="h-8 text-xs">

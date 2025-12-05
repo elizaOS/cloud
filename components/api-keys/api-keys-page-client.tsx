@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useState } from "react";
 import { Plus, Copy } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
@@ -27,7 +27,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
-import { BrandButton, BrandCard, CornerBrackets } from "@/components/brand";
+import { BrandButton } from "@/components/brand";
 
 interface ApiKeysPageClientProps {
   keys: ApiKeyDisplay[];
@@ -88,8 +88,6 @@ export function ApiKeysPageClient({ keys, summary }: ApiKeysPageClientProps) {
 
   useSetPageHeader({
     title: "API Keys",
-    description:
-      "Securely manage programmatic access to the Eliza Cloud platform",
     actions: (
       <BrandButton
         variant="primary"
@@ -102,12 +100,6 @@ export function ApiKeysPageClient({ keys, summary }: ApiKeysPageClientProps) {
       </BrandButton>
     ),
   });
-
-  const permissionsPreview = useMemo(() => {
-    return permissionGroups.flatMap((group) =>
-      group.permissions.slice(0, 2).map((permission) => permission.label),
-    );
-  }, []);
 
   const handleCreateKey = async () => {
     setIsCreating(true);
@@ -495,92 +487,21 @@ export function ApiKeysPageClient({ keys, summary }: ApiKeysPageClientProps) {
         </Dialog>
       )}
 
-      <div className="grid gap-6 lg:grid-cols-[2fr_1fr]">
-        <div className="space-y-6">
-          {hasKeys ? (
-            <ApiKeysTable
-              keys={keys}
-              onCopyKey={(id) => {
-                const key = keys.find((k) => k.id === id);
-                if (key) handleCopyKey(key.keyPrefix);
-              }}
-              onDisableKey={handleDisableKey}
-              onDeleteKey={handleDeleteKey}
-              onRegenerateKey={handleRegenerateKey}
-            />
-          ) : (
-            <ApiKeyEmptyState onCreateKey={() => setCreateDialogOpen(true)} />
-          )}
-        </div>
-
-        <aside className="space-y-6">
-          <BrandCard className="relative">
-            <CornerBrackets size="sm" className="opacity-50" />
-            <div className="relative z-10 space-y-4">
-              <h3 className="text-base font-semibold text-white">
-                Best practices
-              </h3>
-              <div className="space-y-4 text-sm text-white/60">
-                <div>
-                  <p className="font-medium text-white">Rotate regularly</p>
-                  <p>Re-issue keys every 60-90 days to reduce exposure risk.</p>
-                </div>
-                <div>
-                  <p className="font-medium text-white">Keep secrets secure</p>
-                  <p>
-                    Store key values in your secret manager, not in source
-                    control.
-                  </p>
-                </div>
-                <div>
-                  <p className="font-medium text-white">Scope intentionally</p>
-                  <p>
-                    Use permission presets to limit access to only what each
-                    integration needs.
-                  </p>
-                </div>
-              </div>
-            </div>
-          </BrandCard>
-
-          <BrandCard className="relative">
-            <CornerBrackets size="sm" className="opacity-50" />
-            <div className="relative z-10 space-y-3">
-              <h3 className="text-base font-semibold text-white">
-                Quick reference
-              </h3>
-              <div className="space-y-3 text-sm text-white/60">
-                <p>
-                  API keys are prefixed for safe sharing. The full secret is
-                  visible only once after creation.
-                </p>
-                <p>
-                  Need to collaborate? Invite teammates from the organization
-                  settings to share access.
-                </p>
-                <div className="flex items-center gap-2">
-                  <span className="w-1.5 h-1.5 rounded-full bg-[#FF5800]" />
-                  <p className="text-xs uppercase tracking-wide text-white/50">
-                    Example scopes
-                  </p>
-                </div>
-                <div className="flex flex-wrap gap-2">
-                  {permissionsPreview.map((scope) => (
-                    <span
-                      key={scope}
-                      className="rounded-none border border-dashed border-white/20 px-3 py-1 text-xs font-medium text-white/60"
-                    >
-                      {scope}
-                    </span>
-                  ))}
-                  <span className="rounded-none border border-dashed border-white/20 px-3 py-1 text-xs font-medium text-white/50">
-                    + more
-                  </span>
-                </div>
-              </div>
-            </div>
-          </BrandCard>
-        </aside>
+      <div className="space-y-6">
+        {hasKeys ? (
+          <ApiKeysTable
+            keys={keys}
+            onCopyKey={(id) => {
+              const key = keys.find((k) => k.id === id);
+              if (key) handleCopyKey(key.keyPrefix);
+            }}
+            onDisableKey={handleDisableKey}
+            onDeleteKey={handleDeleteKey}
+            onRegenerateKey={handleRegenerateKey}
+          />
+        ) : (
+          <ApiKeyEmptyState onCreateKey={() => setCreateDialogOpen(true)} />
+        )}
       </div>
     </div>
   );

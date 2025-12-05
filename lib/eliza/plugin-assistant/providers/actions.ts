@@ -7,8 +7,6 @@ import type {
 } from "@elizaos/core";
 import {
   addHeader,
-  composeActionExamples,
-  formatActionNames,
   formatActions,
 } from "@elizaos/core";
 

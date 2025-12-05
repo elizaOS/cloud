@@ -36,29 +36,68 @@ interface ContainerLogsViewerProps {
   containerName: string;
 }
 
+interface LogsState {
+  logs: LogEntry[];
+  loading: boolean;
+  error: string | null;
+  infoMessage: string | null;
+}
+
+interface StreamingState {
+  autoRefresh: boolean;
+  useStreaming: boolean;
+  isStreaming: boolean;
+}
+
+interface FilterState {
+  level: string;
+  searchQuery: string;
+}
+
 export function ContainerLogsViewer({
   containerId,
   containerName,
 }: ContainerLogsViewerProps) {
-  const [logs, setLogs] = useState<LogEntry[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-  const [infoMessage, setInfoMessage] = useState<string | null>(null);
-  const [level, setLevel] = useState<string>("all");
-  const [autoRefresh, setAutoRefresh] = useState(false);
-  const [useStreaming, setUseStreaming] = useState(true);
-  const [isStreaming, setIsStreaming] = useState(false);
-  const [searchQuery, setSearchQuery] = useState("");
+  const [logsState, setLogsState] = useState<LogsState>({
+    logs: [],
+    loading: true,
+    error: null,
+    infoMessage: null,
+  });
+  
+  const [streamingState, setStreamingState] = useState<StreamingState>({
+    autoRefresh: false,
+    useStreaming: true,
+    isStreaming: false,
+  });
+  
+  const [filterState, setFilterState] = useState<FilterState>({
+    level: "all",
+    searchQuery: "",
+  });
+
+  const updateLogs = (updates: Partial<LogsState>) => {
+    setLogsState((prev) => ({ ...prev, ...updates }));
+  };
+
+  const updateStreaming = (updates: Partial<StreamingState>) => {
+    setStreamingState((prev) => ({ ...prev, ...updates }));
+  };
+
+  const updateFilter = (updates: Partial<FilterState>) => {
+    setFilterState((prev) => ({ ...prev, ...updates }));
+  };
+
   const scrollRef = useRef<HTMLDivElement>(null);
   const eventSourceRef = useRef<EventSource | null>(null);
   const abortControllerRef = useRef<AbortController | null>(null);
 
   const fetchLogs = useCallback(async () => {
     try {
-      setLoading(true);
+      updateLogs({ loading: true });
       const params = new URLSearchParams({
         limit: "100",
-        ...(level !== "all" && { level }),
+        ...(filterState.level !== "all" && { level: filterState.level }),
       });
 
       const response = await fetch(
@@ -71,20 +110,26 @@ export function ContainerLogsViewer({
 
       const data = await response.json();
       if (data.success) {
-        setLogs(data.data.logs || []);
-        setInfoMessage(data.data.message || null);
-        setError(null);
+        updateLogs({
+          logs: data.data.logs || [],
+          infoMessage: data.data.message || null,
+          error: null,
+        });
       } else {
-        setError(data.error || "Failed to load logs");
-        setInfoMessage(null);
+        updateLogs({
+          error: data.error || "Failed to load logs",
+          infoMessage: null,
+        });
       }
     } catch (err) {
       console.error("Error fetching logs:", err);
-      setError(err instanceof Error ? err.message : "Failed to load logs");
+      updateLogs({
+        error: err instanceof Error ? err.message : "Failed to load logs",
+      });
     } finally {
-      setLoading(false);
+      updateLogs({ loading: false });
     }
-  }, [containerId, level]);
+  }, [containerId, filterState.level]);
 
   const startStreaming = useCallback(() => {
     // Close existing connection
@@ -93,7 +138,7 @@ export function ContainerLogsViewer({
     }
 
     const params = new URLSearchParams({
-      ...(level !== "all" && { level }),
+      ...(filterState.level !== "all" && { level: filterState.level }),
     });
 
     const eventSource = new EventSource(
@@ -102,8 +147,8 @@ export function ContainerLogsViewer({
 
     eventSource.onopen = () => {
       console.log("Log stream connected");
-      setIsStreaming(true);
-      setError(null);
+      updateStreaming({ isStreaming: true });
+      updateLogs({ error: null });
     };
 
     eventSource.onmessage = (event) => {
@@ -111,23 +156,23 @@ export function ContainerLogsViewer({
         const parsed = JSON.parse(event.data);
 
         if (parsed.type === "log") {
-          setLogs((prevLogs) => {
+          setLogsState((prev) => {
             const newLog = parsed.data;
             // Check if log already exists
-            const exists = prevLogs.some(
+            const exists = prev.logs.some(
               (log) =>
                 log.timestamp === newLog.timestamp &&
                 log.message === newLog.message,
             );
-            if (exists) return prevLogs;
+            if (exists) return prev;
 
             // Add new log and keep only last 500 logs
-            const updated = [newLog, ...prevLogs];
-            return updated.slice(0, 500);
+            const updated = [newLog, ...prev.logs];
+            return { ...prev, logs: updated.slice(0, 500) };
           });
         } else if (parsed.type === "error") {
           console.error("Stream error:", parsed.message);
-          setError(parsed.message);
+          updateLogs({ error: parsed.message });
         }
       } catch (err) {
         console.error("Error parsing stream data:", err);
@@ -136,26 +181,25 @@ export function ContainerLogsViewer({
 
     eventSource.onerror = (err) => {
       console.error("EventSource error:", err);
-      setIsStreaming(false);
+      updateStreaming({ isStreaming: false });
       eventSource.close();
 
       // Fallback to polling
-      if (useStreaming) {
+      if (streamingState.useStreaming) {
         console.log("Streaming failed, falling back to polling");
-        setUseStreaming(false);
-        setAutoRefresh(true);
+        updateStreaming({ useStreaming: false, autoRefresh: true });
       }
     };
 
     eventSourceRef.current = eventSource;
-  }, [containerId, level, useStreaming]);
+  }, [containerId, filterState.level, streamingState.useStreaming]);
 
   const stopStreaming = useCallback(() => {
     if (eventSourceRef.current) {
       eventSourceRef.current.close();
       eventSourceRef.current = null;
     }
-    setIsStreaming(false);
+    updateStreaming({ isStreaming: false });
   }, []);
 
   // Initial load
@@ -165,11 +209,11 @@ export function ContainerLogsViewer({
 
   // Handle streaming vs polling
   useEffect(() => {
-    if (autoRefresh && useStreaming) {
+    if (streamingState.autoRefresh && streamingState.useStreaming) {
       // Start streaming
       startStreaming();
       return () => stopStreaming();
-    } else if (autoRefresh && !useStreaming) {
+    } else if (streamingState.autoRefresh && !streamingState.useStreaming) {
       // Fallback to polling
       const interval = setInterval(fetchLogs, 5000);
       return () => clearInterval(interval);
@@ -177,7 +221,7 @@ export function ContainerLogsViewer({
       // Stop streaming if auto-refresh is off
       stopStreaming();
     }
-  }, [autoRefresh, useStreaming, startStreaming, stopStreaming, fetchLogs]);
+  }, [streamingState.autoRefresh, streamingState.useStreaming, startStreaming, stopStreaming, fetchLogs]);
 
   // Cleanup on unmount
   useEffect(() => {
@@ -221,7 +265,7 @@ export function ContainerLogsViewer({
   };
 
   const downloadLogs = () => {
-    const logsText = logs
+    const logsText = logsState.logs
       .map((log) => {
         const timestamp = new Date(log.timestamp).toISOString();
         const metadata = log.metadata
@@ -243,7 +287,7 @@ export function ContainerLogsViewer({
   };
 
   const copyAllLogs = async () => {
-    const logsText = logs
+    const logsText = logsState.logs
       .map((log) => {
         const timestamp = new Date(log.timestamp).toISOString();
         const metadata = log.metadata
@@ -265,9 +309,9 @@ export function ContainerLogsViewer({
     toast.success("Log line copied");
   };
 
-  const filteredLogs = logs.filter((log) => {
-    if (!searchQuery) return true;
-    const searchLower = searchQuery.toLowerCase();
+  const filteredLogs = logsState.logs.filter((log) => {
+    if (!filterState.searchQuery) return true;
+    const searchLower = filterState.searchQuery.toLowerCase();
     return (
       log.message.toLowerCase().includes(searchLower) ||
       log.level.toLowerCase().includes(searchLower) ||
@@ -302,18 +346,18 @@ export function ContainerLogsViewer({
             <BrandButton
               variant="outline"
               size="sm"
-              onClick={() => setAutoRefresh(!autoRefresh)}
+              onClick={() => updateStreaming({ autoRefresh: !streamingState.autoRefresh })}
               title={
-                autoRefresh
-                  ? isStreaming
+                streamingState.autoRefresh
+                  ? streamingState.isStreaming
                     ? "Streaming (click to stop)"
                     : "Polling (click to stop)"
                   : "Start auto-refresh"
               }
             >
-              {isStreaming ? (
+              {streamingState.isStreaming ? (
                 <Wifi className="h-4 w-4" />
-              ) : autoRefresh ? (
+              ) : streamingState.autoRefresh ? (
                 <RefreshCw className="h-4 w-4 animate-spin" />
               ) : (
                 <WifiOff className="h-4 w-4" />
@@ -323,7 +367,7 @@ export function ContainerLogsViewer({
               variant="outline"
               size="sm"
               onClick={copyAllLogs}
-              disabled={logs.length === 0}
+              disabled={logsState.logs.length === 0}
               title="Copy all logs"
             >
               <Copy className="h-4 w-4" />
@@ -332,7 +376,7 @@ export function ContainerLogsViewer({
               variant="outline"
               size="sm"
               onClick={downloadLogs}
-              disabled={logs.length === 0}
+              disabled={logsState.logs.length === 0}
               title="Download logs"
             >
               <Download className="h-4 w-4" />
@@ -346,13 +390,13 @@ export function ContainerLogsViewer({
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-white/60" />
             <Input
               placeholder="Search logs..."
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
+              value={filterState.searchQuery}
+              onChange={(e) => updateFilter({ searchQuery: e.target.value })}
               className="pl-9 rounded-none border-white/10 bg-black/40 text-white placeholder:text-white/40 focus-visible:ring-[#FF5800]/50"
               style={{ fontFamily: "var(--font-roboto-mono)" }}
             />
           </div>
-          <Select value={level} onValueChange={setLevel}>
+          <Select value={filterState.level} onValueChange={(v) => updateFilter({ level: v })}>
             <SelectTrigger
               className="w-full sm:w-[140px] rounded-none border-white/10 bg-black/40"
               style={{ fontFamily: "var(--font-roboto-mono)" }}
@@ -369,39 +413,39 @@ export function ContainerLogsViewer({
           </Select>
         </div>
 
-        {(searchQuery || level !== "all") &&
-          filteredLogs.length < logs.length && (
+        {(filterState.searchQuery || filterState.level !== "all") &&
+          filteredLogs.length < logsState.logs.length && (
             <div
               className="text-sm text-white/60 mt-2"
               style={{ fontFamily: "var(--font-roboto-mono)" }}
             >
-              Showing {filteredLogs.length} of {logs.length} logs
+              Showing {filteredLogs.length} of {logsState.logs.length} logs
             </div>
           )}
 
         <div>
-          {loading && logs.length === 0 ? (
+          {logsState.loading && logsState.logs.length === 0 ? (
             <div className="space-y-2">
               <Skeleton className="h-8 w-full rounded-none" />
               <Skeleton className="h-8 w-full rounded-none" />
               <Skeleton className="h-8 w-full rounded-none" />
             </div>
-          ) : error ? (
+          ) : logsState.error ? (
             <div className="text-center py-8">
               <div className="mb-4">
                 <p
                   className="text-red-400 font-medium mb-2"
                   style={{ fontFamily: "var(--font-roboto-mono)" }}
                 >
-                  {error.includes("not been deployed")
+                  {logsState.error.includes("not been deployed")
                     ? "Container Not Yet Deployed"
-                    : error.includes("not found")
+                    : logsState.error.includes("not found")
                       ? "Container Logs Not Found"
                       : "Error Loading Logs"}
                 </p>
-                <p className="text-sm text-white/60">{error}</p>
+                <p className="text-sm text-white/60">{logsState.error}</p>
               </div>
-              {!error.includes("not been deployed") && (
+              {!logsState.error.includes("not been deployed") && (
                 <BrandButton
                   variant="outline"
                   size="sm"
@@ -413,13 +457,13 @@ export function ContainerLogsViewer({
                 </BrandButton>
               )}
             </div>
-          ) : logs.length === 0 ? (
+          ) : logsState.logs.length === 0 ? (
             <div className="text-center py-8">
               <div className="space-y-2">
                 <p className="text-white/60">
-                  {infoMessage || "No logs available for this container"}
+                  {logsState.infoMessage || "No logs available for this container"}
                 </p>
-                {!infoMessage && (
+                {!logsState.infoMessage && (
                   <p className="text-xs text-white/50">
                     Logs may take a few moments to appear after deployment
                   </p>
@@ -444,8 +488,7 @@ export function ContainerLogsViewer({
                 variant="outline"
                 size="sm"
                 onClick={() => {
-                  setSearchQuery("");
-                  setLevel("all");
+                  updateFilter({ searchQuery: "", level: "all" });
                 }}
                 className="mt-4"
               >
@@ -514,12 +557,12 @@ export function ContainerLogsViewer({
               </div>
             </ScrollArea>
           )}
-          {(autoRefresh || isStreaming) && (
+          {(streamingState.autoRefresh || streamingState.isStreaming) && (
             <div
               className="flex items-center justify-center gap-2 mt-2 text-xs text-white/60"
               style={{ fontFamily: "var(--font-roboto-mono)" }}
             >
-              {isStreaming ? (
+              {streamingState.isStreaming ? (
                 <>
                   <Wifi className="h-3 w-3 text-green-500" />
                   <span className="text-green-500">Live streaming enabled</span>

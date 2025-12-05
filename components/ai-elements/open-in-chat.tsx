@@ -13,7 +13,7 @@ import {
   ExternalLinkIcon,
   MessageCircleIcon,
 } from "lucide-react";
-import { type ComponentProps, createContext, useContext } from "react";
+import { type ComponentProps, createContext, useContext, useMemo } from "react";
 
 const providers = {
   github: {
@@ -195,11 +195,14 @@ export type OpenInProps = ComponentProps<typeof DropdownMenu> & {
   query: string;
 };
 
-export const OpenIn = ({ query, ...props }: OpenInProps) => (
-  <OpenInContext.Provider value={{ query }}>
-    <DropdownMenu {...props} />
-  </OpenInContext.Provider>
-);
+export const OpenIn = ({ query, ...props }: OpenInProps) => {
+  const contextValue = useMemo(() => ({ query }), [query]);
+  return (
+    <OpenInContext.Provider value={contextValue}>
+      <DropdownMenu {...props} />
+    </OpenInContext.Provider>
+  );
+};
 
 export type OpenInContentProps = ComponentProps<typeof DropdownMenuContent>;
 

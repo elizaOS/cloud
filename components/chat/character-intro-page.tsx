@@ -8,8 +8,6 @@ import { Card, CardContent } from "@/components/ui/card";
 import {
   Sparkles,
   MessageCircle,
-  Lock,
-  CheckCircle,
   Heart,
 } from "lucide-react";
 import type { UserCharacter } from "@/db/schemas";
@@ -69,11 +67,8 @@ export function CharacterIntroPage({
 
   const handleEmailSubmit = async (email: string) => {
     setIsLoading(true);
-    try {
-      await onEmailSubmit(email);
-    } finally {
-      setIsLoading(false);
-    }
+    await onEmailSubmit(email);
+    setIsLoading(false);
   };
 
   const handleSkip = () => {
@@ -241,10 +236,12 @@ export function CharacterIntroPage({
                         : "bg-gradient-to-r from-primary to-primary/80 hover:from-primary/90 hover:to-primary/70"
                     }`}
                     onClick={handleStartChat}
+                    disabled={isAnyLoading}
                   >
                     <MessageCircle className="w-5 h-5 mr-2" />
                     Start Chatting (Free)
                   </Button>
+
                   <p
                     className={`text-sm ${isCustomTheme ? "text-white/50" : "text-muted-foreground"}`}
                   >
@@ -254,105 +251,6 @@ export function CharacterIntroPage({
               </div>
             </CardContent>
           </Card>
-
-          {/* Features Grid */}
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.6, duration: 0.4 }}
-            className="grid md:grid-cols-3 gap-4 mb-8"
-          >
-            {[
-              {
-                icon: Sparkles,
-                title: "Personalized",
-                desc: "AI that matches your chosen personality",
-              },
-              {
-                icon: MessageCircle,
-                title: "Natural Chat",
-                desc: "Conversations that feel real and engaging",
-              },
-              {
-                icon: Lock,
-                title: "Private",
-                desc: "Your conversations stay between you and your AI",
-              },
-            ].map(({ icon: Icon, title, desc }) => (
-              <Card
-                key={title}
-                className={
-                  isCustomTheme
-                    ? "border-white/10 bg-white/[0.02] backdrop-blur-xl"
-                    : ""
-                }
-              >
-                <CardContent className="p-6 text-center">
-                  <div
-                    className={`inline-flex items-center justify-center w-12 h-12 rounded-full mb-4 ${
-                      isCustomTheme
-                        ? "bg-[rgba(var(--theme-primary),0.1)]"
-                        : "bg-primary/10"
-                    }`}
-                  >
-                    <Icon
-                      className={`w-6 h-6 ${
-                        isCustomTheme
-                          ? "text-[rgb(var(--theme-primary-light))]"
-                          : "text-primary"
-                      }`}
-                    />
-                  </div>
-                  <h3
-                    className={`font-semibold mb-2 ${isCustomTheme ? "text-white" : ""}`}
-                  >
-                    {title}
-                  </h3>
-                  <p
-                    className={`text-sm ${isCustomTheme ? "text-white/60" : "text-muted-foreground"}`}
-                  >
-                    {desc}
-                  </p>
-                </CardContent>
-              </Card>
-            ))}
-          </motion.div>
-
-          {/* How It Works */}
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            transition={{ delay: 0.8, duration: 0.4 }}
-            className="text-center space-y-4"
-          >
-            <h3
-              className={`text-xl font-semibold ${isCustomTheme ? "text-white" : ""}`}
-            >
-              How It Works
-            </h3>
-            <div
-              className={`flex flex-col md:flex-row items-center justify-center gap-6 text-sm ${
-                isCustomTheme ? "text-white/60" : "text-muted-foreground"
-              }`}
-            >
-              {[
-                "Enter your email (optional)",
-                "Start chatting immediately",
-                "Upgrade anytime for more",
-              ].map((text) => (
-                <div key={text} className="flex items-center gap-2">
-                  <CheckCircle
-                    className={`w-5 h-5 ${
-                      isCustomTheme
-                        ? "text-[rgb(var(--theme-primary-light))]"
-                        : "text-primary"
-                    }`}
-                  />
-                  <span>{text}</span>
-                </div>
-              ))}
-            </div>
-          </motion.div>
         </motion.div>
       </div>
 
