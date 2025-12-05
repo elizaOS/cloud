@@ -5,7 +5,7 @@
   "scripts": {
     "postinstall": "find node_modules -path '*/thread-stream/test' -type d -exec rm -rf {} + 2>/dev/null || true; find node_modules -path '*/thread-stream/bench.js' -delete 2>/dev/null || true; find node_modules -path '*/thread-stream/LICENSE' -delete 2>/dev/null || true; find node_modules -path '*/thread-stream/README.md' -delete 2>/dev/null || true",
     "dev": "next dev --turbopack",
-    "build": "next build --turbopack",
+    "build": "next build",
     "start": "next start",
     "lint": "eslint",
     "lint:fix": "eslint --fix",
@@ -32,7 +32,11 @@
     "mcp:inspector": "bunx @modelcontextprotocol/inspector@latest",
     "test:discord": "tsx scripts/test-discord-service.ts",
     "test:auto-top-up-email": "tsx scripts/debug-auto-top-up-email.ts",
-    "test:security-headers": "bash scripts/test-security-headers.sh"
+    "test:security-headers": "bash scripts/test-security-headers.sh",
+    "test:e2e": "playwright test --config=e2e/playwright.config.ts",
+    "test:e2e:wallet:local": "playwright test wallet-login-local --config=e2e/playwright.config.ts --project=chromium",
+    "test:e2e:pages": "playwright test all-pages --config=e2e/playwright.config.ts --project=chromium",
+    "test:e2e:login": "playwright test social-login --config=e2e/playwright.config.ts --project=chromium"
   },
   "dependencies": {
     "@ai-sdk/gateway": "^2.0.18",
@@ -158,12 +162,15 @@
   "devDependencies": {
     "@elizaos/cli": "^1.6.4",
     "@eslint/eslintrc": "^3.3.3",
+    "@playwright/test": "^1.57.0",
+    "@synthetixio/synpress": "^4.1.1",
     "@types/node": "^24.10.1",
     "@types/pg": "^8.15.6",
     "@types/react": "^19.2.7",
     "@types/react-dom": "^19.2.3",
     "@types/react-syntax-highlighter": "^15.5.13",
     "@types/uuid": "^10.0.0",
+    "@welldone-software/why-did-you-render": "^10.0.1",
     "desm": "^1.3.1",
     "drizzle-kit": "^0.31.7",
     "eslint": "^9.39.0",

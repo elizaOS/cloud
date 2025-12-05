@@ -72,6 +72,18 @@ interface VoiceStudioAdvancedProps {
   onCreditBalanceChange: (balance: number) => void;
 }
 
+interface PreviewState {
+  voice: Voice | null;
+  audioUrl: string | null;
+  isLoading: boolean;
+}
+
+interface OperationState {
+  deleteDialogVoice: Voice | null;
+  isDeleting: boolean;
+  isRefreshing: boolean;
+}
+
 export function VoiceStudioAdvanced({
   initialVoices,
   creditBalance,
@@ -82,18 +94,30 @@ export function VoiceStudioAdvanced({
   const [selectedVoice, setSelectedVoice] = useState<Voice | null>(
     voices[0] || null
   );
-  const [previewVoice, setPreviewVoice] = useState<Voice | null>(null);
-  const [previewAudioUrl, setPreviewAudioUrl] = useState<string | null>(null);
-  const [isLoadingPreview, setIsLoadingPreview] = useState(false);
-  const [deleteDialogVoice, setDeleteDialogVoice] = useState<Voice | null>(
-    null
-  );
-  const [isDeleting, setIsDeleting] = useState(false);
-  const [isRefreshing, setIsRefreshing] = useState(false);
+  
+  const [previewState, setPreviewState] = useState<PreviewState>({
+    voice: null,
+    audioUrl: null,
+    isLoading: false,
+  });
+  
+  const [operationState, setOperationState] = useState<OperationState>({
+    deleteDialogVoice: null,
+    isDeleting: false,
+    isRefreshing: false,
+  });
+
+  const updatePreview = (updates: Partial<PreviewState>) => {
+    setPreviewState((prev) => ({ ...prev, ...updates }));
+  };
+
+  const updateOperation = (updates: Partial<OperationState>) => {
+    setOperationState((prev) => ({ ...prev, ...updates }));
+  };
 
   // Manual refresh function
   const manualRefresh = useCallback(async () => {
-    setIsRefreshing(true);
+    updateOperation({ isRefreshing: true });
     try {
       const response = await fetch("/api/elevenlabs/voices/user");
       if (response.ok) {
@@ -107,7 +131,7 @@ export function VoiceStudioAdvanced({
       toast.error("Failed to refresh voices");
       console.error("Refresh error:", error);
     } finally {
-      setIsRefreshing(false);
+      updateOperation({ isRefreshing: false });
     }
   }, []);
 
@@ -151,8 +175,7 @@ export function VoiceStudioAdvanced({
       return;
     }
 
-    setPreviewVoice(voice);
-    setIsLoadingPreview(true);
+    updatePreview({ voice, isLoading: true });
 
     try {
       const response = await fetch("/api/elevenlabs/tts", {
@@ -171,7 +194,7 @@ export function VoiceStudioAdvanced({
 
       const blob = await response.blob();
       const url = URL.createObjectURL(blob);
-      setPreviewAudioUrl(url);
+      updatePreview({ audioUrl: url });
     } catch (error) {
       // Check for service unavailable
       if (
@@ -187,14 +210,14 @@ export function VoiceStudioAdvanced({
         );
       }
       console.error("Preview error:", error);
-      setPreviewVoice(null);
+      updatePreview({ voice: null });
     } finally {
-      setIsLoadingPreview(false);
+      updatePreview({ isLoading: false });
     }
   };
 
   const handleDelete = async (voice: Voice) => {
-    setIsDeleting(true);
+    updateOperation({ isDeleting: true });
     try {
       const response = await fetch(`/api/elevenlabs/voices/${voice.id}`, {
         method: "DELETE",
@@ -207,13 +230,13 @@ export function VoiceStudioAdvanced({
       if (selectedVoice?.id === voice.id) {
         setSelectedVoice(voices[0] || null);
       }
-      setDeleteDialogVoice(null);
+      updateOperation({ deleteDialogVoice: null });
     } catch (error) {
       toast.error(
         error instanceof Error ? error.message : "Failed to delete voice"
       );
     } finally {
-      setIsDeleting(false);
+      updateOperation({ isDeleting: false });
     }
   };
 
@@ -309,10 +332,10 @@ export function VoiceStudioAdvanced({
                 <button
                   type="button"
                   onClick={manualRefresh}
-                  disabled={isRefreshing}
+                  disabled={operationState.isRefreshing}
                   className="px-3 py-2 border border-white/20 bg-transparent text-white hover:bg-white/5 transition-colors disabled:opacity-50 flex-shrink-0"
                 >
-                  {isRefreshing ? (
+                  {operationState.isRefreshing ? (
                     <Loader2 className="h-3 w-3 animate-spin" />
                   ) : (
                     <span className="text-xs font-mono">Refresh</span>
@@ -516,7 +539,7 @@ export function VoiceStudioAdvanced({
                                     size="sm"
                                     onClick={(e) => {
                                       e.stopPropagation();
-                                      setDeleteDialogVoice(voice);
+                                      updateOperation({ deleteDialogVoice: voice });
                                     }}
                                     className="h-8 px-2 text-rose-400 hover:text-rose-400 hover:bg-rose-500/10"
                                   >
@@ -625,35 +648,34 @@ export function VoiceStudioAdvanced({
 
       {/* Preview Dialog */}
       <Dialog
-        open={!!previewVoice}
+        open={!!previewState.voice}
         onOpenChange={() => {
-          if (previewAudioUrl) {
-            URL.revokeObjectURL(previewAudioUrl);
+          if (previewState.audioUrl) {
+            URL.revokeObjectURL(previewState.audioUrl);
           }
-          setPreviewVoice(null);
-          setPreviewAudioUrl(null);
+          updatePreview({ voice: null, audioUrl: null });
         }}
       >
         <DialogContent className="sm:max-w-[500px]">
           <DialogHeader>
-            <DialogTitle>{previewVoice?.name}</DialogTitle>
+            <DialogTitle>{previewState.voice?.name}</DialogTitle>
             <DialogDescription>
-              {previewVoice?.description || "Voice preview"}
+              {previewState.voice?.description || "Voice preview"}
             </DialogDescription>
           </DialogHeader>
 
           <div className="space-y-4">
-            {isLoadingPreview ? (
+            {previewState.isLoading ? (
               <div className="flex items-center justify-center py-8">
                 <Loader2 className="h-8 w-8 animate-spin text-[#FF5800]" />
               </div>
-            ) : previewAudioUrl ? (
+            ) : previewState.audioUrl ? (
               <div className="p-4 rounded-none bg-black/40 border border-white/10">
                 <p className="text-sm text-white/60 mb-3">
                   Preview Text: &ldquo;Hello! This is a preview of your custom
                   voice clone.&rdquo;
                 </p>
-                <VoiceAudioPlayer audioUrl={previewAudioUrl} />
+                <VoiceAudioPlayer audioUrl={previewState.audioUrl} />
               </div>
             ) : (
               <div className="text-center text-white/60 py-8">
@@ -666,28 +688,28 @@ export function VoiceStudioAdvanced({
 
       {/* Delete Confirmation */}
       <AlertDialog
-        open={!!deleteDialogVoice}
-        onOpenChange={() => setDeleteDialogVoice(null)}
+        open={!!operationState.deleteDialogVoice}
+        onOpenChange={() => updateOperation({ deleteDialogVoice: null })}
       >
         <AlertDialogContent>
           <AlertDialogHeader>
             <AlertDialogTitle>Delete Voice Clone?</AlertDialogTitle>
             <AlertDialogDescription>
               Are you sure you want to delete &ldquo;
-              {deleteDialogVoice?.name}&rdquo;? This action cannot be undone and
+              {operationState.deleteDialogVoice?.name}&rdquo;? This action cannot be undone and
               the voice will be permanently removed.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel disabled={isDeleting}>Cancel</AlertDialogCancel>
+            <AlertDialogCancel disabled={operationState.isDeleting}>Cancel</AlertDialogCancel>
             <AlertDialogAction
               onClick={() =>
-                deleteDialogVoice && handleDelete(deleteDialogVoice)
+                operationState.deleteDialogVoice && handleDelete(operationState.deleteDialogVoice)
               }
-              disabled={isDeleting}
+              disabled={operationState.isDeleting}
               className="bg-destructive hover:bg-destructive/90"
             >
-              {isDeleting ? "Deleting..." : "Delete Voice"}
+              {operationState.isDeleting ? "Deleting..." : "Delete Voice"}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

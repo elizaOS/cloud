@@ -1,4 +1,27 @@
-// Export all services
+/**
+ * Service Layer - Business Logic
+ * 
+ * Architecture Overview:
+ * 
+ * 1. **Character Services** (lib/services/characters/)
+ *    - User-created character definitions (user_characters table)
+ *    - Marketplace, templates, CRUD operations
+ * 
+ * 2. **Deployment Services** (lib/services/deployments/)
+ *    - Character deployment discovery
+ *    - Infrastructure lifecycle
+ * 
+ * 3. **Agent Services** (lib/services/agents/)
+ *    - Runtime agent operations (agents table - ElizaOS)
+ *    - Rooms, messages, conversations
+ * 
+ * 4. **Core Platform Services** (lib/services/)
+ *    - Organizations, users, credits, etc.
+ */
+
+// ============================================
+// Core Platform Services
+// ============================================
 export * from "./organizations";
 export * from "./users";
 export * from "./user-sessions";
@@ -10,27 +33,52 @@ export * from "./credits";
 export * from "./usage";
 export { usageQuotasService } from "./usage-quotas";
 export type { CreateQuotaParams, QuotaCheckResult } from "./usage-quotas";
+export * from "./provider-health";
+export * from "./analytics";
+
+// ============================================
+// Character Domain Services
+// ============================================
+export * from "./characters";
+export { 
+  charactersService,
+  characterMarketplaceService,
+} from "./characters";
+
+// ============================================
+// Deployment Domain Services
+// ============================================
+export * from "./deployments";
+export {
+  characterDeploymentDiscoveryService,
+  deploymentDiscoveryService,
+} from "./deployments";
+
+// ============================================
+// Agent Runtime Services (ElizaOS)
+// ============================================
+export * from "./agents/agents";
+export * from "./agents/rooms";
+export { agentsService, agentService } from "./agents/agents";
+export { roomsService } from "./agents/rooms";
+
+// ============================================
+// Infrastructure Services
+// ============================================
+export * from "./containers";
 export * from "./generations";
 export * from "./conversations";
-export * from "./characters";
-export * from "./provider-health";
-export * from "./containers";
-export * from "./analytics";
 export * from "./container-quota";
 export * from "./memory";
-export * from "./agents";
-export * from "./agent-discovery";
 
 // AWS Infrastructure services
 export * from "./ecr";
 export * from "./cloudformation";
 export * from "./alb-priority-manager";
 
-// Marketplace services (public)
-export * from "./marketplace";
-
-// My Agents services (private)
-export * from "./my-agents";
+// ============================================
+// External Integration Services
+// ============================================
 
 // Voice services
 export { voiceCloningService } from "./voice-cloning";
@@ -59,3 +107,14 @@ export type {
   AgentStatusResponse,
   AgentEventResponse,
 } from "./agent-monitoring";
+
+// ============================================
+// Backward Compatibility (Deprecated)
+// Will be removed in future version
+// ============================================
+/** @deprecated Use characterMarketplaceService instead */
+export { characterMarketplaceService as marketplaceService } from "./characters";
+/** @deprecated Use characterMarketplaceService instead */
+export { characterMarketplaceService as myAgentsService } from "./characters";
+/** @deprecated Use characterDeploymentDiscoveryService instead */
+export { characterDeploymentDiscoveryService as agentDiscoveryService } from "./deployments";

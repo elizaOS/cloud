@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { marketplaceService } from "@/lib/services/marketplace";
+import { marketplaceService } from "@/lib/services";
 import { logger } from "@/lib/utils/logger";
 import { z } from "zod";
 import type { CategoryId, SortBy, SortOrder } from "@/lib/types/marketplace";

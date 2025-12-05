@@ -50,15 +50,13 @@ function getStatusStyles(status: ApiKeyDisplay["status"]) {
 
 function formatDate(value?: string | null) {
   if (!value) return "—";
-  try {
-    return new Date(value).toLocaleDateString(undefined, {
-      month: "short",
-      day: "numeric",
-      year: "numeric",
-    });
-  } catch {
-    return "—";
-  }
+  const date = new Date(value);
+  if (isNaN(date.getTime())) return "—";
+  return date.toLocaleDateString(undefined, {
+    month: "short",
+    day: "numeric",
+    year: "numeric",
+  });
 }
 
 export function ApiKeysTable({

@@ -55,28 +55,24 @@ export default function Footer() {
           <div className="flex flex-col items-start gap-4 md:items-end">
             <nav className="flex flex-col gap-3 md:text-right">
               <a
-                href="#company"
+                href="https://elizaos.ai/docs"
+                target="_blank"
+                rel="noopener noreferrer"
                 className="text-base text-white transition-colors hover:text-[#FF5800]"
               >
-                Company
+                Docs
               </a>
               <a
-                href="#resources"
+                href="/privacy-policy"
                 className="text-base text-white transition-colors hover:text-[#FF5800]"
               >
-                Resources
+                Privacy
               </a>
               <a
-                href="#community"
+                href="/terms-of-service"
                 className="text-base text-white transition-colors hover:text-[#FF5800]"
               >
-                Community
-              </a>
-              <a
-                href="#policy"
-                className="text-base text-white transition-colors hover:text-[#FF5800]"
-              >
-                Policy
+                Terms
               </a>
             </nav>
 

@@ -104,6 +104,7 @@ export function AvatarUpload({
       >
         {value ? (
           <>
+            {/* eslint-disable-next-line @next/next/no-img-element -- Handles blob URLs from file uploads which don't work with next/image */}
             <img
               src={value}
               alt={name || "Avatar"}

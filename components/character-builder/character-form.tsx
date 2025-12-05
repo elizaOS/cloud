@@ -6,6 +6,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { X, Plus } from "lucide-react";
 import type { ElizaCharacter } from "@/lib/types";
 import { AvatarUpload } from "@/components/character-builder/avatar-upload";
+import { AvatarGenerator } from "@/components/character-creator/avatar-generator";
 import {
   BrandTabs,
   BrandTabsList,
@@ -366,19 +367,43 @@ export function CharacterForm({ character, onChange }: CharacterFormProps) {
 
           {/* Advanced Tab */}
           <BrandTabsContent value="advanced" className="space-y-6">
-            <div className="flex flex-col items-center justify-center space-y-4 py-6">
+            {/* Avatar Section */}
+            <div className="space-y-4">
               <label className="text-xs font-medium text-white/70 uppercase tracking-wide">
                 Avatar
               </label>
-              <AvatarUpload
-                value={character.avatarUrl}
-                onChange={(url) => updateField("avatarUrl", url)}
-                name={character.name || "Character"}
-                size="lg"
+              
+              {/* Avatar Generator - Quick styles and AI generation */}
+              <AvatarGenerator
+                characterName={character.name || "Character"}
+                characterDescription={
+                  typeof character.bio === "string"
+                    ? character.bio
+                    : character.bio?.join(" ") || ""
+                }
+                currentAvatarUrl={character.avatarUrl || character.avatar_url}
+                onAvatarChange={(url) => updateField("avatarUrl", url)}
               />
-              <p className="text-xs text-white/40 text-center max-w-xs">
-                Upload a custom avatar for your character (max 5MB)
-              </p>
+
+              {/* Divider */}
+              <div className="flex items-center gap-4 py-2">
+                <div className="flex-1 h-px bg-white/10" />
+                <span className="text-xs text-white/40">or upload custom</span>
+                <div className="flex-1 h-px bg-white/10" />
+              </div>
+
+              {/* Manual Upload */}
+              <div className="flex flex-col items-center space-y-2">
+                <AvatarUpload
+                  value={character.avatarUrl || character.avatar_url}
+                  onChange={(url) => updateField("avatarUrl", url)}
+                  name={character.name || "Character"}
+                  size="sm"
+                />
+                <p className="text-xs text-white/40 text-center max-w-xs">
+                  Upload a custom image (max 5MB)
+                </p>
+              </div>
             </div>
 
             <div className="rounded-none bg-black/40 border border-white/10 p-4">

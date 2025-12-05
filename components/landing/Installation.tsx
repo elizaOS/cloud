@@ -126,8 +126,7 @@ export default function Installation() {
                   color: "#858585",
                 }}
               >
-                ELIZA CLOUD RUNS YOUR CONTAINERS ON HIGH-PERFORMANCE
-                INFRASTRUCTURE WITH BUILT-IN LOGS AND METRICS.
+                HIGH-PERFORMANCE INFRASTRUCTURE. BUILT-IN LOGS + METRICS.
               </p>
               <span
                 className="hidden sm:inline-block w-2 h-2 rounded-full shrink-0"

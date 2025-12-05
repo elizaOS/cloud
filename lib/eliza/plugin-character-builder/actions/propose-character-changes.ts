@@ -119,7 +119,8 @@ export const proposeCharacterChangesAction = {
       );
 
       state = await runtime.composeState(message, [
-        "SHORT_TERM_MEMORY",
+        "SUMMARIZED_CONTEXT",
+        "RECENT_MESSAGES",
         "CURRENT_CHARACTER",
         "CHARACTER_GUIDE",
       ]);
