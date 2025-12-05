@@ -74,7 +74,9 @@ class AbuseDetectionService {
       if (!allowed) {
         logger.warn("[AbuseDetection] Signup blocked", {
           context: {
-            email: context.email ? `${context.email.slice(0, 3)}***` : undefined,
+            email: context.email
+              ? `${context.email.slice(0, 3)}***`
+              : undefined,
             ipAddress: context.ipAddress,
             hasFingerprint: !!context.fingerprint,
           },
@@ -85,21 +87,30 @@ class AbuseDetectionService {
 
       return {
         allowed,
-        reason: allowed ? undefined : `Suspicious activity detected: ${flags.join(", ")}`,
+        reason: allowed
+          ? undefined
+          : `Suspicious activity detected: ${flags.join(", ")}`,
         riskScore,
         flags,
       };
     } catch (error) {
       logger.error("[AbuseDetection] Error checking signup abuse:", error);
+
+      // SECURITY FIX: Fail closed instead of open
+      // When abuse detection fails, we should be cautious and flag the attempt
+      // This prevents attackers from exploiting error conditions to bypass checks
       return {
-        allowed: true,
-        riskScore: 0,
-        flags: [],
+        allowed: false,
+        reason: "Abuse check temporarily unavailable. Please try again.",
+        riskScore: 100,
+        flags: ["abuse_check_error"],
       };
     }
   }
 
-  private async checkEmailAbuse(email: string): Promise<{ flags: string[]; riskScore: number }> {
+  private async checkEmailAbuse(
+    email: string
+  ): Promise<{ flags: string[]; riskScore: number }> {
     const flags: string[] = [];
     let riskScore = 0;
 
@@ -128,7 +139,9 @@ class AbuseDetectionService {
     return { flags, riskScore };
   }
 
-  private async checkIpAbuse(ipAddress: string): Promise<{ flags: string[]; riskScore: number }> {
+  private async checkIpAbuse(
+    ipAddress: string
+  ): Promise<{ flags: string[]; riskScore: number }> {
     const flags: string[] = [];
     let riskScore = 0;
 
@@ -160,7 +173,9 @@ class AbuseDetectionService {
     return { flags, riskScore };
   }
 
-  private async checkFingerprintAbuse(fingerprint: string): Promise<{ flags: string[]; riskScore: number }> {
+  private async checkFingerprintAbuse(
+    fingerprint: string
+  ): Promise<{ flags: string[]; riskScore: number }> {
     const flags: string[] = [];
     let riskScore = 0;
 
@@ -252,10 +267,14 @@ class AbuseDetectionService {
       if (signupContext.ipAddress || signupContext.fingerprint) {
         const conditions = [];
         if (signupContext.ipAddress) {
-          conditions.push(sql`${organizations.settings}->>'signup_ip' = ${signupContext.ipAddress}`);
+          conditions.push(
+            sql`${organizations.settings}->>'signup_ip' = ${signupContext.ipAddress}`
+          );
         }
         if (signupContext.fingerprint) {
-          conditions.push(sql`${organizations.settings}->>'signup_fingerprint' = ${signupContext.fingerprint}`);
+          conditions.push(
+            sql`${organizations.settings}->>'signup_fingerprint' = ${signupContext.fingerprint}`
+          );
         }
 
         const [result] = await db
