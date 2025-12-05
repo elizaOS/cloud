@@ -370,7 +370,7 @@ async function ensureBlobUrl(
         logger.info(`[GENERATE_IMAGE] ✅ Uploaded Fal.ai image to our storage: ${ourUrl}`);
         return ourUrl;
       } catch (error) {
-        logger.error("[GENERATE_IMAGE] ❌ Failed to upload Fal.ai URL to our storage:", error);
+        logger.error("[GENERATE_IMAGE] ❌ Failed to upload Fal.ai URL to our storage:", error instanceof Error ? error.message : String(error));
         // Return null to prevent exposing Fal.ai URL
         return null;
       }
