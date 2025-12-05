@@ -6,6 +6,7 @@ import { ThemeProvider } from "@/components/theme/theme-provider";
 import { Toaster } from "sonner";
 import NextTopLoader from "nextjs-toploader";
 import PrivyProvider from "@/providers/PrivyProvider";
+import DebugProvider from "@/components/debug/debug-provider";
 
 const robotoMono = Roboto_Mono({
   variable: "--font-roboto-mono",
@@ -122,7 +123,9 @@ export default function RootLayout({
             disableTransitionOnChange
           >
             <NextTopLoader showSpinner={false} color="#FF5800" />
-            {children}
+            <DebugProvider>
+              {children}
+            </DebugProvider>
             <Toaster
               richColors
               theme="dark"

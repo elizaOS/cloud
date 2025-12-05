@@ -199,63 +199,55 @@ export async function syncUserFromPrivy(
     const pendingInvite = await invitesService.findPendingInviteByEmail(email);
 
     if (pendingInvite) {
-      try {
-        const newUser = await usersService.create({
-          privy_user_id: privyUserId,
-          email: email || null,
-          email_verified: !!email,
-          wallet_address: walletAddress || null,
-          wallet_chain_type: walletChainType || null,
-          wallet_verified: walletVerified,
-          name,
-          organization_id: pendingInvite.organization_id,
-          role: pendingInvite.invited_role,
-          is_active: true,
+      const newUser = await usersService.create({
+        privy_user_id: privyUserId,
+        email: email || null,
+        email_verified: !!email,
+        wallet_address: walletAddress || null,
+        wallet_chain_type: walletChainType || null,
+        wallet_verified: walletVerified,
+        name,
+        organization_id: pendingInvite.organization_id,
+        role: pendingInvite.invited_role,
+        is_active: true,
+      });
+
+      const { organizationInvitesRepository } =
+        await import("@/db/repositories");
+      await organizationInvitesRepository.markAsAccepted(
+        pendingInvite.id,
+        newUser.id,
+      );
+
+      const userWithOrg = await usersService.getByPrivyId(privyUserId);
+
+      if (!userWithOrg) {
+        throw new Error(
+          `Failed to fetch newly created user ${privyUserId} after accepting invite`,
+        );
+      }
+
+      // Log to Discord (fire-and-forget)
+      discordService
+        .logUserSignup({
+          userId: userWithOrg.id,
+          privyUserId: userWithOrg.privy_user_id!,
+          email: userWithOrg.email || null,
+          name: userWithOrg.name || null,
+          walletAddress: userWithOrg.wallet_address || null,
+          organizationId: userWithOrg.organization?.id || "",
+          organizationName: userWithOrg.organization?.name || "",
+          role: userWithOrg.role,
+          isNewOrganization: false,
+        })
+        .catch((error) => {
+          console.error(
+            "[PrivySync] Failed to log signup to Discord:",
+            error,
+          );
         });
 
-        const { organizationInvitesRepository } =
-          await import("@/db/repositories");
-        await organizationInvitesRepository.markAsAccepted(
-          pendingInvite.id,
-          newUser.id,
-        );
-
-        const userWithOrg = await usersService.getByPrivyId(privyUserId);
-
-        if (!userWithOrg) {
-          throw new Error(
-            `Failed to fetch newly created user ${privyUserId} after accepting invite`,
-          );
-        }
-
-        // Log to Discord (fire-and-forget)
-        discordService
-          .logUserSignup({
-            userId: userWithOrg.id,
-            privyUserId: userWithOrg.privy_user_id!,
-            email: userWithOrg.email || null,
-            name: userWithOrg.name || null,
-            walletAddress: userWithOrg.wallet_address || null,
-            organizationId: userWithOrg.organization?.id || "",
-            organizationName: userWithOrg.organization?.name || "",
-            role: userWithOrg.role,
-            isNewOrganization: false,
-          })
-          .catch((error) => {
-            console.error(
-              "[PrivySync] Failed to log signup to Discord:",
-              error,
-            );
-          });
-
-        return userWithOrg;
-      } catch (error) {
-        console.error(
-          `Failed to create user from invite for ${privyUserId}:`,
-          error,
-        );
-        throw error;
-      }
+      return userWithOrg;
     }
   }
 

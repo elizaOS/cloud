@@ -14,6 +14,7 @@ import { ElizaChatInterface } from "./eliza-chat-interface";
 import { useChatStore } from "@/stores/chat-store";
 import type { AffiliateTheme } from "@/lib/config/affiliate-themes";
 import { getThemeCSSVariables } from "@/lib/config/affiliate-themes";
+import { useRenderTracker } from "@/lib/debug/render-tracker";
 
 /**
  * Unified Chat Interface Component with Dynamic Theming
@@ -56,17 +57,27 @@ export function ChatInterface({
   sessionTokenFromUrl,
   theme,
 }: ChatInterfaceProps) {
+  // Track renders in development
+  useRenderTracker("ChatInterface");
+
   const router = useRouter();
   const { login } = usePrivy();
   const [messageCount, setMessageCount] = useState(session?.messageCount || 0);
   const [isLoadingSessionData, setIsLoadingSessionData] = useState(false);
-  const { setSelectedCharacterId, setAnonymousSessionToken, loadRooms, rooms, setRoomId, roomId } = useChatStore();
+  const {
+    setSelectedCharacterId,
+    setAnonymousSessionToken,
+    loadRooms,
+    rooms,
+    setRoomId,
+    roomId,
+  } = useChatStore();
   const isAnonymous = !user && !!session;
-  
+
   // Use refs for initialization tracking to avoid re-renders and infinite loops
   const roomInitializedRef = useRef(false);
   const roomInitializingRef = useRef(false);
-  
+
   // CRITICAL: Fetch the LATEST session data from server on mount and when token changes
   // This ensures the message count is accurate after page reload, not stale from SSR props
   useEffect(() => {
@@ -78,28 +89,44 @@ export function ChatInterface({
     const fetchLatestSessionData = async () => {
       setIsLoadingSessionData(true);
       try {
-        console.log("[ChatInterface] 🔄 Fetching latest session data from server...");
-        const response = await fetch(`/api/anonymous-session?token=${sessionTokenFromUrl}`);
-        
+        console.log(
+          "[ChatInterface] 🔄 Fetching latest session data from server..."
+        );
+        const response = await fetch(
+          `/api/anonymous-session?token=${sessionTokenFromUrl}`
+        );
+
         if (response.ok) {
           const data = await response.json();
           if (data.success && data.session) {
             const serverCount = data.session.message_count;
-            console.log("[ChatInterface] ✅ Server session data:", {
-              serverCount,
-              currentLocalCount: messageCount,
-              willUpdate: serverCount !== messageCount,
-            });
             
-            // Only update if server has a different (higher) count
-            // This ensures we don't overwrite local increments that haven't synced yet
-            if (serverCount > messageCount) {
-              setMessageCount(serverCount);
-              console.log("[ChatInterface] 📊 Updated message count from server:", serverCount);
-            }
+            // Use functional update to compare against current state value
+            // This avoids stale closure issues with messageCount
+            setMessageCount((currentCount) => {
+              console.log("[ChatInterface] ✅ Server session data:", {
+                serverCount,
+                currentLocalCount: currentCount,
+                willUpdate: serverCount > currentCount,
+              });
+              
+              // Only update if server has a higher count
+              // This ensures we don't overwrite local increments that haven't synced yet
+              if (serverCount > currentCount) {
+                console.log(
+                  "[ChatInterface] 📊 Updated message count from server:",
+                  serverCount
+                );
+                return serverCount;
+              }
+              return currentCount;
+            });
           }
         } else {
-          console.warn("[ChatInterface] ⚠️ Failed to fetch session data:", response.status);
+          console.warn(
+            "[ChatInterface] ⚠️ Failed to fetch session data:",
+            response.status
+          );
         }
       } catch (error) {
         console.error("[ChatInterface] ❌ Error fetching session data:", error);
@@ -111,27 +138,38 @@ export function ChatInterface({
     // Fetch immediately on mount
     fetchLatestSessionData();
   }, [sessionTokenFromUrl, user]); // Only re-run if token changes or auth state changes
-  
+
   // Callback to sync message count when a message is sent successfully
   // This is called from ElizaChatInterface after a successful message
   // NOTE: The actual increment happens server-side in message-handler.ts
   // This callback just fetches the latest count to update the UI
   const onMessageSent = useCallback(async () => {
     if (isAnonymous && sessionTokenFromUrl) {
-      console.log("[ChatInterface] 📊 Message sent, fetching latest count for token:", sessionTokenFromUrl.slice(0, 8) + "...");
+      console.log(
+        "[ChatInterface] 📊 Message sent, fetching latest count for token:",
+        sessionTokenFromUrl.slice(0, 8) + "..."
+      );
 
       try {
-        const response = await fetch(`/api/anonymous-session?token=${sessionTokenFromUrl}`);
+        const response = await fetch(
+          `/api/anonymous-session?token=${sessionTokenFromUrl}`
+        );
 
         if (response.ok) {
           const data = await response.json();
           if (data.success && data.session) {
             const serverCount = data.session.message_count;
-            console.log("[ChatInterface] ✅ Fetched latest count from server:", serverCount);
+            console.log(
+              "[ChatInterface] ✅ Fetched latest count from server:",
+              serverCount
+            );
             setMessageCount(serverCount);
           }
         } else {
-          console.warn("[ChatInterface] ⚠️ Failed to fetch session data:", response.status);
+          console.warn(
+            "[ChatInterface] ⚠️ Failed to fetch session data:",
+            response.status
+          );
         }
       } catch (error) {
         console.error("[ChatInterface] ❌ Error fetching session data:", error);
@@ -160,34 +198,39 @@ export function ChatInterface({
   const themeStyles = getThemeCSSVariables(theme);
 
   // Convert RGB string to usable CSS color format
-  const rgbToColor = (rgb: string) => `rgb(${rgb.replace(/ /g, ', ')})`;
-  const rgbToColorAlpha = (rgb: string, alpha: number) => `rgba(${rgb.replace(/ /g, ', ')}, ${alpha})`;
+  const rgbToColor = (rgb: string) => `rgb(${rgb.replace(/ /g, ", ")})`;
+  const rgbToColorAlpha = (rgb: string, alpha: number) =>
+    `rgba(${rgb.replace(/ /g, ", ")}, ${alpha})`;
 
   // Pre-computed theme colors for inline styles (romantic theme - pink)
-  const themeColors = isRomanticTheme ? {
-    primary: rgbToColor(theme.colors.primary),
-    primaryLight: rgbToColor(theme.colors.primaryLight),
-    accent: rgbToColor(theme.colors.accent),
-    primaryAlpha15: rgbToColorAlpha(theme.colors.primary, 0.15),
-    primaryAlpha10: rgbToColorAlpha(theme.colors.primary, 0.1),
-    primaryAlpha20: rgbToColorAlpha(theme.colors.primary, 0.2),
-    primaryAlpha30: rgbToColorAlpha(theme.colors.primary, 0.3),
-    accentAlpha10: rgbToColorAlpha(theme.colors.accent, 0.1),
-    gradient: `linear-gradient(135deg, ${rgbToColor(theme.colors.primary)}, ${rgbToColor(theme.colors.gradientTo)})`,
-  } : null;
+  const themeColors = isRomanticTheme
+    ? {
+        primary: rgbToColor(theme.colors.primary),
+        primaryLight: rgbToColor(theme.colors.primaryLight),
+        accent: rgbToColor(theme.colors.accent),
+        primaryAlpha15: rgbToColorAlpha(theme.colors.primary, 0.15),
+        primaryAlpha10: rgbToColorAlpha(theme.colors.primary, 0.1),
+        primaryAlpha20: rgbToColorAlpha(theme.colors.primary, 0.2),
+        primaryAlpha30: rgbToColorAlpha(theme.colors.primary, 0.3),
+        accentAlpha10: rgbToColorAlpha(theme.colors.accent, 0.1),
+        gradient: `linear-gradient(135deg, ${rgbToColor(theme.colors.primary)}, ${rgbToColor(theme.colors.gradientTo)})`,
+      }
+    : null;
 
   // Pre-computed theme colors for edad theme (warm amber/gold)
-  const edadColors = isEdadTheme ? {
-    primary: rgbToColor(theme.colors.primary),
-    primaryLight: rgbToColor(theme.colors.primaryLight),
-    accent: rgbToColor(theme.colors.accent),
-    primaryAlpha15: rgbToColorAlpha(theme.colors.primary, 0.15),
-    primaryAlpha10: rgbToColorAlpha(theme.colors.primary, 0.1),
-    primaryAlpha20: rgbToColorAlpha(theme.colors.primary, 0.2),
-    primaryAlpha30: rgbToColorAlpha(theme.colors.primary, 0.3),
-    accentAlpha10: rgbToColorAlpha(theme.colors.accent, 0.1),
-    gradient: `linear-gradient(135deg, ${rgbToColor(theme.colors.primary)}, ${rgbToColor(theme.colors.gradientTo)})`,
-  } : null;
+  const edadColors = isEdadTheme
+    ? {
+        primary: rgbToColor(theme.colors.primary),
+        primaryLight: rgbToColor(theme.colors.primaryLight),
+        accent: rgbToColor(theme.colors.accent),
+        primaryAlpha15: rgbToColorAlpha(theme.colors.primary, 0.15),
+        primaryAlpha10: rgbToColorAlpha(theme.colors.primary, 0.1),
+        primaryAlpha20: rgbToColorAlpha(theme.colors.primary, 0.2),
+        primaryAlpha30: rgbToColorAlpha(theme.colors.primary, 0.3),
+        accentAlpha10: rgbToColorAlpha(theme.colors.accent, 0.1),
+        gradient: `linear-gradient(135deg, ${rgbToColor(theme.colors.primary)}, ${rgbToColor(theme.colors.gradientTo)})`,
+      }
+    : null;
 
   // Unified active theme colors (for romantic or edad themes)
   const activeColors = themeColors || edadColors;
@@ -198,22 +241,35 @@ export function ChatInterface({
       themeId: theme.id,
       isRomanticTheme,
       hasSession: !!session,
-      sessionDetails: session ? {
-        messageCount: session.messageCount,
-        messagesLimit: session.messagesLimit,
-        messagesRemaining: session.messagesRemaining,
-      } : "NO SESSION PROP",
+      sessionDetails: session
+        ? {
+            messageCount: session.messageCount,
+            messagesLimit: session.messagesLimit,
+            messagesRemaining: session.messagesRemaining,
+          }
+        : "NO SESSION PROP",
       hasUser: !!user,
       userDetails: user ? { id: user.id, name: user.name } : "NO USER PROP",
       isAnonymous,
       messagesRemaining,
       shouldShowBanner: isAnonymous && !shouldShowPaywall,
       source,
-      reason: user ? "USER IS LOGGED IN VIA PRIVY - No banner for authenticated users" 
-             : !session ? "SESSION PROP IS MISSING - Check page.tsx Case B logic"
-             : "ANONYMOUS USER WITH SESSION - Banner should show",
+      reason: user
+        ? "USER IS LOGGED IN VIA PRIVY - No banner for authenticated users"
+        : !session
+          ? "SESSION PROP IS MISSING - Check page.tsx Case B logic"
+          : "ANONYMOUS USER WITH SESSION - Banner should show",
     });
-  }, [theme.id, isRomanticTheme, session, user, isAnonymous, messagesRemaining, source, shouldShowPaywall]);
+  }, [
+    theme.id,
+    isRomanticTheme,
+    session,
+    user,
+    isAnonymous,
+    messagesRemaining,
+    source,
+    shouldShowPaywall,
+  ]);
 
   // CRITICAL: Set the selected character ID so ElizaChatInterface knows which character to use
   useEffect(() => {
@@ -225,7 +281,10 @@ export function ChatInterface({
   useEffect(() => {
     if (sessionTokenFromUrl && !user) {
       setAnonymousSessionToken(sessionTokenFromUrl);
-      console.log("[ChatInterface] Set anonymous session token in store:", sessionTokenFromUrl.slice(0, 8) + "...");
+      console.log(
+        "[ChatInterface] Set anonymous session token in store:",
+        sessionTokenFromUrl.slice(0, 8) + "..."
+      );
     }
   }, [sessionTokenFromUrl, user, setAnonymousSessionToken]);
 
@@ -237,42 +296,60 @@ export function ChatInterface({
     if (roomInitializedRef.current || roomInitializingRef.current) {
       return;
     }
-    
+
     // Skip if we already have a room selected
     if (roomId) {
       roomInitializedRef.current = true;
       return;
     }
-    
+
     // Skip if no character ID
     if (!character.id) {
       return;
     }
-    
+
     const initializeRoom = async () => {
       roomInitializingRef.current = true;
-      
+
       const currentEntityId = useChatStore.getState().entityId;
-      console.log("[ChatInterface] 🔄 Initializing room for character:", character.id, "entityId:", currentEntityId);
-      
+      console.log(
+        "[ChatInterface] 🔄 Initializing room for character:",
+        character.id,
+        "entityId:",
+        currentEntityId
+      );
+
       try {
         // Load rooms (this uses internal deduplication)
         await loadRooms(true);
-        
+
         // Get the current rooms from store
         const currentRooms = useChatStore.getState().rooms;
-        console.log("[ChatInterface] Loaded rooms:", currentRooms.length, "rooms:", currentRooms.map(r => ({ id: r.id, characterId: r.characterId })));
-        
+        console.log(
+          "[ChatInterface] Loaded rooms:",
+          currentRooms.length,
+          "rooms:",
+          currentRooms.map((r) => ({ id: r.id, characterId: r.characterId }))
+        );
+
         // Find an existing room for this character
-        const existingRoom = currentRooms.find(room => room.characterId === character.id);
-        
+        const existingRoom = currentRooms.find(
+          (room) => room.characterId === character.id
+        );
+
         if (existingRoom) {
-          console.log("[ChatInterface] ✅ Found existing room:", existingRoom.id);
+          console.log(
+            "[ChatInterface] ✅ Found existing room:",
+            existingRoom.id
+          );
           setRoomId(existingRoom.id);
         } else {
-          console.log("[ChatInterface] No existing room found for character:", character.id);
+          console.log(
+            "[ChatInterface] No existing room found for character:",
+            character.id
+          );
         }
-        
+
         // Mark as initialized so we don't try again
         roomInitializedRef.current = true;
       } catch (error) {
@@ -283,7 +360,7 @@ export function ChatInterface({
         roomInitializingRef.current = false;
       }
     };
-    
+
     initializeRoom();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [character.id]); // Only depend on character.id - other deps are stable or accessed via refs/getState
@@ -295,14 +372,20 @@ export function ChatInterface({
     // Only set cookie if we have a session token AND user is NOT authenticated
     // (authenticated users don't need the anonymous session cookie)
     if (sessionTokenFromUrl && !user) {
-      console.log("[ChatInterface] Setting anonymous session cookie from URL:", sessionTokenFromUrl.slice(0, 8) + "...");
+      console.log(
+        "[ChatInterface] Setting anonymous session cookie from URL:",
+        sessionTokenFromUrl.slice(0, 8) + "..."
+      );
 
       // Store in localStorage as backup (httpOnly cookies can't be read by JS)
       try {
         localStorage.setItem("eliza-anon-session-token", sessionTokenFromUrl);
         console.log("[ChatInterface] ✅ Session token stored in localStorage");
       } catch (e) {
-        console.warn("[ChatInterface] Failed to store session in localStorage:", e);
+        console.warn(
+          "[ChatInterface] Failed to store session in localStorage:",
+          e
+        );
       }
 
       fetch("/api/set-anonymous-session", {
@@ -313,21 +396,21 @@ export function ChatInterface({
         .then(async (res) => {
           if (res.ok) {
             console.log(
-              "[ChatInterface] ✅ Anonymous session cookie set successfully",
+              "[ChatInterface] ✅ Anonymous session cookie set successfully"
             );
           } else {
             const errorData = await res.json().catch(() => ({}));
             console.error(
               "[ChatInterface] ❌ Failed to set session cookie:",
               res.status,
-              errorData,
+              errorData
             );
           }
         })
         .catch((err) => {
           console.error(
             "[ChatInterface] ❌ Error setting session cookie:",
-            err,
+            err
           );
         });
     }
@@ -337,7 +420,7 @@ export function ChatInterface({
     // Track affiliate source
     if (source) {
       console.log(
-        `[Analytics] User from ${source} started chatting with ${character.name}`,
+        `[Analytics] User from ${source} started chatting with ${character.name}`
       );
     }
   }, [source, character.name]);
@@ -345,7 +428,7 @@ export function ChatInterface({
   const handleUpgrade = () => {
     toast.info("Redirecting to signup...");
     router.push(
-      `/login?redirect=/chat/${character.id}&session=${session?.token}`,
+      `/login?redirect=/chat/${character.id}&session=${session?.token}`
     );
   };
 
@@ -360,7 +443,6 @@ export function ChatInterface({
       toast.error("Failed to open signup. Please try again.");
     }
   };
-  
 
   // Paywall view with theme support
   if (shouldShowPaywall) {
@@ -402,7 +484,7 @@ export function ChatInterface({
             <h2
               className={`text-2xl font-bold ${isRomanticTheme ? "text-white" : ""}`}
             >
-              You've reached your free message limit
+              You&apos;ve reached your free message limit
             </h2>
             <p
               className={
@@ -597,27 +679,44 @@ export function ChatInterface({
       <style jsx global>{`
         /* Romantic theme - pink gradients and styling */
         .romantic-theme {
-          background: 
-            radial-gradient(ellipse at top, rgba(219, 39, 119, 0.15), transparent 50%),
-            radial-gradient(ellipse at bottom, rgba(147, 51, 234, 0.1), transparent 50%),
+          background:
+            radial-gradient(
+              ellipse at top,
+              rgba(219, 39, 119, 0.15),
+              transparent 50%
+            ),
+            radial-gradient(
+              ellipse at bottom,
+              rgba(147, 51, 234, 0.1),
+              transparent 50%
+            ),
             black !important;
         }
-        
+
         /* Animated pulse background */
         .romantic-theme::before {
           content: "";
           position: fixed;
           inset: 0;
           z-index: -1;
-          background: radial-gradient(ellipse at center, rgba(219, 39, 119, 0.08), transparent 70%);
+          background: radial-gradient(
+            ellipse at center,
+            rgba(219, 39, 119, 0.08),
+            transparent 70%
+          );
           animation: pulse 4s ease-in-out infinite;
         }
-        
+
         @keyframes pulse {
-          0%, 100% { opacity: 0.5; }
-          50% { opacity: 1; }
+          0%,
+          100% {
+            opacity: 0.5;
+          }
+          50% {
+            opacity: 1;
+          }
         }
-        
+
         /* Chat bubble styling for romantic theme */
         .romantic-theme .chat-theme-romantic [data-role="assistant"] {
           background: rgba(255, 255, 255, 0.05) !important;
@@ -625,46 +724,58 @@ export function ChatInterface({
           border-radius: 18px 18px 18px 4px !important;
           backdrop-filter: blur(10px);
         }
-        
+
         .romantic-theme .chat-theme-romantic [data-role="user"] {
-          background: linear-gradient(135deg, rgba(219, 39, 119, 0.9), rgba(244, 114, 182, 0.9)) !important;
+          background: linear-gradient(
+            135deg,
+            rgba(219, 39, 119, 0.9),
+            rgba(244, 114, 182, 0.9)
+          ) !important;
           border: 1px solid rgba(255, 255, 255, 0.2) !important;
           border-radius: 18px 18px 4px 18px !important;
         }
-        
+
         /* Send button pink styling */
         .romantic-theme button[type="submit"] {
-          background: linear-gradient(135deg, rgb(219, 39, 119), rgb(244, 114, 182)) !important;
+          background: linear-gradient(
+            135deg,
+            rgb(219, 39, 119),
+            rgb(244, 114, 182)
+          ) !important;
           border: none !important;
           box-shadow: 0 4px 12px rgba(219, 39, 119, 0.4) !important;
         }
-        
+
         .romantic-theme button[type="submit"]:hover:not(:disabled) {
-          background: linear-gradient(135deg, rgb(244, 114, 182), rgb(219, 39, 119)) !important;
+          background: linear-gradient(
+            135deg,
+            rgb(244, 114, 182),
+            rgb(219, 39, 119)
+          ) !important;
           transform: translateY(-1px);
         }
-        
+
         /* Input styling */
         .romantic-theme form {
           border: 1px solid rgba(219, 39, 119, 0.25) !important;
           border-radius: 16px !important;
           background: rgba(255, 255, 255, 0.03) !important;
         }
-        
+
         .romantic-theme form:focus-within {
           border-color: rgba(219, 39, 119, 0.5) !important;
           box-shadow: 0 0 20px rgba(219, 39, 119, 0.15) !important;
         }
-        
+
         /* Scrollbar */
         .romantic-theme ::-webkit-scrollbar-thumb {
           background: rgba(219, 39, 119, 0.3) !important;
         }
-        
+
         .romantic-theme ::-webkit-scrollbar-thumb:hover {
           background: rgba(219, 39, 119, 0.5) !important;
         }
-        
+
         /* Voice button */
         .romantic-theme button[type="button"] {
           color: rgb(244, 114, 182) !important;
@@ -682,8 +793,16 @@ export function ChatInterface({
         /* Edad theme - warm amber gradients and styling */
         .edad-theme {
           background:
-            radial-gradient(ellipse at top, rgba(245, 158, 11, 0.15), transparent 50%),
-            radial-gradient(ellipse at bottom, rgba(217, 119, 6, 0.1), transparent 50%),
+            radial-gradient(
+              ellipse at top,
+              rgba(245, 158, 11, 0.15),
+              transparent 50%
+            ),
+            radial-gradient(
+              ellipse at bottom,
+              rgba(217, 119, 6, 0.1),
+              transparent 50%
+            ),
             black !important;
         }
 
@@ -693,7 +812,11 @@ export function ChatInterface({
           position: fixed;
           inset: 0;
           z-index: -1;
-          background: radial-gradient(ellipse at center, rgba(245, 158, 11, 0.08), transparent 70%);
+          background: radial-gradient(
+            ellipse at center,
+            rgba(245, 158, 11, 0.08),
+            transparent 70%
+          );
           animation: pulse 4s ease-in-out infinite;
         }
 
@@ -706,20 +829,32 @@ export function ChatInterface({
         }
 
         .edad-theme .chat-theme-edad [data-role="user"] {
-          background: linear-gradient(135deg, rgba(245, 158, 11, 0.9), rgba(251, 191, 36, 0.9)) !important;
+          background: linear-gradient(
+            135deg,
+            rgba(245, 158, 11, 0.9),
+            rgba(251, 191, 36, 0.9)
+          ) !important;
           border: 1px solid rgba(255, 255, 255, 0.2) !important;
           border-radius: 18px 18px 4px 18px !important;
         }
 
         /* Send button amber styling */
         .edad-theme button[type="submit"] {
-          background: linear-gradient(135deg, rgb(245, 158, 11), rgb(251, 191, 36)) !important;
+          background: linear-gradient(
+            135deg,
+            rgb(245, 158, 11),
+            rgb(251, 191, 36)
+          ) !important;
           border: none !important;
           box-shadow: 0 4px 12px rgba(245, 158, 11, 0.4) !important;
         }
 
         .edad-theme button[type="submit"]:hover:not(:disabled) {
-          background: linear-gradient(135deg, rgb(251, 191, 36), rgb(245, 158, 11)) !important;
+          background: linear-gradient(
+            135deg,
+            rgb(251, 191, 36),
+            rgb(245, 158, 11)
+          ) !important;
           transform: translateY(-1px);
         }
 

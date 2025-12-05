@@ -2,7 +2,6 @@
 
 import React, { useCallback, useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
-import { Progress } from "@/components/ui/progress";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
   Select,
@@ -16,7 +15,6 @@ import { MONTHLY_CREDIT_CAP } from "@/lib/pricing-constants";
 import {
   CheckCircle2,
   Clock4,
-  History,
   Loader2,
   Sparkles,
   BarChart3,
@@ -32,9 +30,7 @@ import type {
 } from "./types";
 import {
   BrandCard,
-  BrandButton,
   CornerBrackets,
-  SectionLabel,
 } from "@/components/brand";
 
 const THUMBNAIL_FALLBACKS = [
@@ -159,16 +155,8 @@ export function VideoPageClient({
   const [statusMessage, setStatusMessage] = useState<string | null>(null);
 
   useSetPageHeader({
-    title: "Video Generation Studio",
-    description:
-      "Generate stunning clips, iterate on creative directions, and keep an eye on usage — all in one streamlined workspace.",
+    title: "Video Studio",
   });
-
-  const creditsUsed = usageStats.monthlyCredits;
-  const creditProgress = Math.min(
-    100,
-    Math.round((creditsUsed / MONTHLY_CREDIT_CAP) * 100),
-  );
 
   const selectedPreset = useMemo(() => {
     return (
@@ -520,95 +508,20 @@ export function VideoPageClient({
 
       {/* Activity Tab Content */}
       <TabsContent value="activity" className="mt-0">
-        <section className="grid grid-cols-1 lg:grid-cols-2 gap-4 md:gap-6">
-          <BrandCard className="relative">
-            <CornerBrackets size="sm" className="opacity-50" />
-
-            <div className="relative z-10 space-y-4 md:space-y-6">
-              <div className="flex items-center gap-2">
-                <div className="w-2 h-2 rounded-full bg-[#FF5800]" />
-                <h3 className="text-sm md:text-base lg:text-lg font-mono font-bold text-[#e1e1e1] uppercase">
-                  Capacity overview
-                </h3>
-              </div>
-              <p className="text-xs md:text-sm font-mono text-[#858585]">
-                Track your render capacity and plan ahead as we connect live
-                credits.
-              </p>
-
-              <div className="grid gap-3 md:gap-4 grid-cols-1 sm:grid-cols-3">
-                <div className="border border-white/10 bg-black/40 p-3 md:p-4">
-                  <p className="text-xs font-mono uppercase tracking-wide text-white/50">
-                    Monthly credits used
-                  </p>
-                  <p className="mt-2 text-xl md:text-2xl font-mono font-semibold text-white">
-                    {creditsUsed}
-                  </p>
-                  <p className="text-xs font-mono text-white/50">
-                    of {MONTHLY_CREDIT_CAP}
-                  </p>
-                </div>
-                <div className="border border-white/10 bg-black/40 p-3 md:p-4">
-                  <p className="text-xs font-mono uppercase tracking-wide text-white/50">
-                    Remaining renders
-                  </p>
-                  <p className="mt-2 text-xl md:text-2xl font-mono font-semibold text-white">
-                    {Math.max(MONTHLY_CREDIT_CAP - creditsUsed, 0)}
-                  </p>
-                  <p className="text-xs font-mono text-white/50">
-                    Estimated based on current mix
-                  </p>
-                </div>
-                <div className="border border-white/10 bg-black/40 p-3 md:p-4">
-                  <p className="text-xs font-mono uppercase tracking-wide text-white/50">
-                    Fastest turnaround
-                  </p>
-                  <p className="mt-2 text-xl md:text-2xl font-mono font-semibold text-white">
-                    {Math.max(usageStats.averageDuration - 1.3, 2).toFixed(0)}s
-                  </p>
-                  <p className="text-xs font-mono text-white/50">
-                    Using speed-optimized models
-                  </p>
-                </div>
-              </div>
-
-              <div className="space-y-3">
-                <div className="flex items-center justify-between text-xs md:text-sm">
-                  <span className="font-mono text-white/60">Monthly spend</span>
-                  <span className="font-mono font-medium text-white">
-                    {creditProgress}%
-                  </span>
-                </div>
-                <Progress value={creditProgress} className="h-2 bg-white/10">
-                  <div
-                    className="h-full bg-[#FF5800] transition-all"
-                    style={{ width: `${creditProgress}%` }}
-                  />
-                </Progress>
-                <p className="text-xs font-mono text-white/50">
-                  Budget resets on the 1st of every month. Reach out if you need
-                  a larger allocation.
-                </p>
-              </div>
-            </div>
-          </BrandCard>
-
+        <section className="max-w-2xl">
           <BrandCard
             className="relative flex h-full flex-col"
             id="recent-renders"
           >
             <CornerBrackets size="sm" className="opacity-50" />
 
-            <div className="relative z-10 space-y-2 mb-4 md:mb-6">
+            <div className="relative z-10 mb-4">
               <div className="flex items-center gap-2">
                 <div className="w-2 h-2 rounded-full bg-[#FF5800]" />
-                <h3 className="text-sm md:text-base lg:text-lg font-mono font-bold text-[#e1e1e1] uppercase">
+                <h3 className="text-sm md:text-base font-mono font-bold text-[#e1e1e1] uppercase">
                   Recent renders
                 </h3>
               </div>
-              <p className="text-xs md:text-sm font-mono text-[#858585]">
-                A quick snapshot of your latest generation attempts.
-              </p>
             </div>
 
             <div className="relative z-10 flex-1 space-y-3 md:space-y-4 overflow-y-auto max-h-[600px]">

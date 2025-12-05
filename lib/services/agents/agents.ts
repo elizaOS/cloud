@@ -74,27 +74,17 @@ class AgentsService {
    * Returns agent info without spinning up runtime
    */
   async getById(agentId: string): Promise<AgentInfo | null> {
-    try {
-      // TODO: Add caching here
-      const agent = await agentsRepository.findById(agentId);
-      return agent;
-    } catch (error) {
-      logger.error(`[Agents Service] Error getting agent ${agentId}:`, error);
-      throw error;
-    }
+    // TODO: Add caching here
+    const agent = await agentsRepository.findById(agentId);
+    return agent;
   }
 
   /**
    * Get multiple agents by IDs
    */
   async getByIds(agentIds: string[]): Promise<AgentInfo[]> {
-    try {
-      if (agentIds.length === 0) return [];
-      return await agentsRepository.findByIds(agentIds);
-    } catch (error) {
-      logger.error(`[Agents Service] Error getting agents:`, error);
-      throw error;
-    }
+    if (agentIds.length === 0) return [];
+    return await agentsRepository.findByIds(agentIds);
   }
 
   /**
@@ -118,37 +108,22 @@ class AgentsService {
     name: string;
     avatarUrl?: string;
   } | null> {
-    try {
-      return await agentsRepository.getDisplayInfo(agentId);
-    } catch (error) {
-      logger.error(`[Agents Service] Error getting agent display info:`, error);
-      return null;
-    }
+    return await agentsRepository.getDisplayInfo(agentId);
   }
 
   /**
    * Get agent name
    */
   async getName(agentId: string): Promise<string | null> {
-    try {
-      const agent = await this.getById(agentId);
-      return agent?.name || null;
-    } catch (error) {
-      logger.error(`[Agents Service] Error getting agent name:`, error);
-      return null;
-    }
+    const agent = await this.getById(agentId);
+    return agent?.name || null;
   }
 
   /**
    * Get agent avatar URL
    */
   async getAvatarUrl(agentId: string): Promise<string | undefined> {
-    try {
-      return await agentsRepository.getAvatarUrl(agentId);
-    } catch (error) {
-      logger.error(`[Agents Service] Error getting agent avatar:`, error);
-      return undefined;
-    }
+    return await agentsRepository.getAvatarUrl(agentId);
   }
 
   // ============================================
@@ -162,34 +137,29 @@ class AgentsService {
    * @returns Room ID
    */
   async getOrCreateRoom(entityId: string, agentId: string): Promise<string> {
-    try {
-      // Use repository to check for existing rooms
-      const { participantsRepository } = await import("@/db/repositories");
-      const existingRoomIds =
-        await participantsRepository.findRoomsByEntityId(entityId);
+    // Use repository to check for existing rooms
+    const { participantsRepository } = await import("@/db/repositories");
+    const existingRoomIds =
+      await participantsRepository.findRoomsByEntityId(entityId);
 
-      if (existingRoomIds && existingRoomIds.length > 0) {
-        logger.debug(
-          `[Agents Service] Found existing room ${existingRoomIds[0]} for entity ${entityId}`,
-        );
-        return existingRoomIds[0];
-      }
-
-      const room = await roomsService.createRoom({
-        agentId,
-        entityId,
-        source: "chat",
-        type: "DM",
-      });
-
-      logger.info(
-        `[Agents Service] Created new room ${room.id} for entity ${entityId}`,
+    if (existingRoomIds && existingRoomIds.length > 0) {
+      logger.debug(
+        `[Agents Service] Found existing room ${existingRoomIds[0]} for entity ${entityId}`,
       );
-      return room.id;
-    } catch (error) {
-      logger.error("[Agents Service] Error getting/creating room:", error);
-      throw error;
+      return existingRoomIds[0];
     }
+
+    const room = await roomsService.createRoom({
+      agentId,
+      entityId,
+      source: "chat",
+      type: "DM",
+    });
+
+    logger.info(
+      `[Agents Service] Created new room ${room.id} for entity ${entityId}`,
+    );
+    return room.id;
   }
 
   /**

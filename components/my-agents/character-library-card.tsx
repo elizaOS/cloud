@@ -46,15 +46,11 @@ export function CharacterLibraryCard({
     router.push(`/dashboard/character-creator?id=${character.id}`);
   }, [router, character.id]);
 
-  const handleDuplicate = useCallback(async () => {
-    try {
-      toast.info("Duplicating character...");
-      // TODO: Implement duplicate functionality
-      // For now, just navigate to creator with character data
-      router.push(`/dashboard/character-creator`);
-    } catch (error) {
-      toast.error("Failed to duplicate character");
-    }
+  const handleDuplicate = useCallback(() => {
+    toast.info("Duplicating character...");
+    // TODO: Implement duplicate functionality
+    // For now, just navigate to creator with character data
+    router.push(`/dashboard/character-creator`);
   }, [router]);
 
   const handleExport = useCallback(() => {
@@ -82,15 +78,10 @@ export function CharacterLibraryCard({
       return;
     }
 
-    try {
-      setIsDeleting(true);
-      // TODO: Implement delete API call
-      toast.success(`Deleted ${character.name}`);
-      router.refresh();
-    } catch (error) {
-      toast.error("Failed to delete character");
-      setIsDeleting(false);
-    }
+    setIsDeleting(true);
+    // TODO: Implement delete API call
+    toast.success(`Deleted ${character.name}`);
+    router.refresh();
   }, [character.name, router]);
 
   const bio = Array.isArray(character.bio)

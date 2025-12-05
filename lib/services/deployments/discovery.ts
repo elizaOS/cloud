@@ -78,67 +78,62 @@ export class CharacterDeploymentDiscoveryService {
     filters?: CharacterDiscoveryFilters,
     includeStats: boolean = false,
   ): Promise<CharacterListResult> {
-    try {
-      // Create filter hash for caching
-      const filterHash = this.hashFilters(filters || {});
+    // Create filter hash for caching
+    const filterHash = this.hashFilters(filters || {});
 
-      // Check cache first
-      const cached = await agentStateCache.getAgentList(
-        organizationId,
-        filterHash,
-      );
-      if (cached) {
-        logger.debug(
-          `[Character Discovery] Cache hit for org ${organizationId}`,
-        );
-        return {
-          characters: cached as DiscoveredCharacterInfo[],
-          total: cached.length,
-          cached: true,
-        };
-      }
-
+    // Check cache first
+    const cached = await agentStateCache.getAgentList(
+      organizationId,
+      filterHash,
+    );
+    if (cached) {
       logger.debug(
-        `[Character Discovery] Cache miss, fetching for org ${organizationId}`,
+        `[Character Discovery] Cache hit for org ${organizationId}`,
       );
-
-      // Fetch characters and containers in parallel
-      const [characters, containers] = await Promise.all([
-        this.fetchCharacters(organizationId, userId, filters),
-        this.fetchContainers(organizationId),
-      ]);
-
-      // Build character info with deployment status
-      const characterInfos = await Promise.all(
-        characters.map((char) =>
-          this.buildCharacterInfo(char, containers, includeStats),
-        ),
-      );
-
-      // Filter by deployment status if requested
-      let filteredCharacters = characterInfos;
-      if (filters?.deployed !== undefined) {
-        filteredCharacters = characterInfos.filter((c) =>
-          filters.deployed ? c.status === "deployed" : c.status !== "deployed",
-        );
-      }
-
-      // Cache the result
-      await agentStateCache.setAgentList(
-        organizationId,
-        filterHash,
-        filteredCharacters,
-      );
-
       return {
-        characters: filteredCharacters,
-        total: filteredCharacters.length,
-        cached: false,
+        characters: cached as DiscoveredCharacterInfo[],
+        total: cached.length,
+        cached: true,
       };
-    } catch (error) {
-      logger.error("[Character Discovery] Error listing characters:", error);
-      throw error;
     }
+
+    logger.debug(
+      `[Character Discovery] Cache miss, fetching for org ${organizationId}`,
+    );
+
+    // Fetch characters and containers in parallel
+    const [characters, containers] = await Promise.all([
+      this.fetchCharacters(organizationId, userId, filters),
+      this.fetchContainers(organizationId),
+    ]);
+
+    // Build character info with deployment status
+    const characterInfos = await Promise.all(
+      characters.map((char) =>
+        this.buildCharacterInfo(char, containers, includeStats),
+      ),
+    );
+
+    // Filter by deployment status if requested
+    let filteredCharacters = characterInfos;
+    if (filters?.deployed !== undefined) {
+      filteredCharacters = characterInfos.filter((c) =>
+        filters.deployed ? c.status === "deployed" : c.status !== "deployed",
+      );
+    }
+
+    // Cache the result
+    await agentStateCache.setAgentList(
+      organizationId,
+      filterHash,
+      filteredCharacters,
+    );
+
+    return {
+      characters: filteredCharacters,
+      total: filteredCharacters.length,
+      cached: false,
+    };
   }
 
   /**

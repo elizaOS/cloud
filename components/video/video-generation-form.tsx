@@ -73,10 +73,6 @@ export function VideoGenerationForm({
               Generate a video
             </h3>
           </div>
-          <p className="text-xs md:text-sm font-mono text-[#858585]">
-            Describe the scene you have in mind, choose the model preset, and
-            submit to send a generation job to the Fal runtime.
-          </p>
           {errorMessage ? (
             <p
               className="text-xs md:text-sm font-mono text-rose-400 bg-rose-500/10 border border-rose-500/40 p-2"
@@ -167,10 +163,6 @@ export function VideoGenerationForm({
                 </span>
               </div>
             </div>
-            <p className="text-xs font-mono leading-relaxed">
-              Advanced controls for seed, duration, and motion strength will
-              surface here as soon as the generation API exposes them.
-            </p>
           </div>
 
           <div className="grid gap-2">
@@ -188,9 +180,6 @@ export function VideoGenerationForm({
               value={referenceUrl}
               onChange={(event) => onReferenceChange(event.target.value)}
             />
-            <p className="text-xs font-mono text-white/50">
-              Paste a reference image URL to anchor motion or framing.
-            </p>
           </div>
         </div>
 
@@ -225,10 +214,6 @@ export function VideoGenerationForm({
             {statusMessage ? (
               <p className="text-white/80">{statusMessage}</p>
             ) : null}
-            <p>
-              Your balance updates as renders finish—wire this panel to your
-              usage service during backend integration.
-            </p>
           </div>
         </div>
       </form>

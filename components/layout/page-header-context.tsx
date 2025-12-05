@@ -5,6 +5,7 @@ import {
   useContext,
   useState,
   useEffect,
+  useMemo,
   type ReactNode,
   type DependencyList,
 } from "react";
@@ -27,8 +28,10 @@ const PageHeaderContext = createContext<PageHeaderContextValue | undefined>(
 export function PageHeaderProvider({ children }: { children: ReactNode }) {
   const [pageInfo, setPageInfo] = useState<PageHeaderInfo | null>(null);
 
+  const contextValue = useMemo(() => ({ pageInfo, setPageInfo }), [pageInfo]);
+
   return (
-    <PageHeaderContext.Provider value={{ pageInfo, setPageInfo }}>
+    <PageHeaderContext.Provider value={contextValue}>
       {children}
     </PageHeaderContext.Provider>
   );

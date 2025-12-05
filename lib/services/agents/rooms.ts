@@ -58,26 +58,21 @@ export class RoomsService {
     limit = 50,
     afterTimestamp?: number,
   ): Promise<RoomWithMessages | null> {
-    try {
-      const [room, messages, participantIds] = await Promise.all([
-        roomsRepository.findById(roomId),
-        memoriesRepository.findMessages(roomId, { limit, afterTimestamp }),
-        participantsRepository.getEntityIdsByRoomId(roomId),
-      ]);
+    const [room, messages, participantIds] = await Promise.all([
+      roomsRepository.findById(roomId),
+      memoriesRepository.findMessages(roomId, { limit, afterTimestamp }),
+      participantsRepository.getEntityIdsByRoomId(roomId),
+    ]);
 
-      if (!room) {
-        return null;
-      }
-
-      return {
-        room,
-        messages: messages.reverse(), // Reverse to get chronological order
-        participants: participantIds,
-      };
-    } catch (error) {
-      logger.error(`[Rooms Service] Error getting room ${roomId}:`, error);
-      throw error;
+    if (!room) {
+      return null;
     }
+
+    return {
+      room,
+      messages: messages.reverse(), // Reverse to get chronological order
+      participants: participantIds,
+    };
   }
 
   /**
@@ -88,25 +83,17 @@ export class RoomsService {
    * @returns Room previews sorted by most recent activity
    */
   async getRoomsForEntity(entityId: string): Promise<RoomPreview[]> {
-    try {
-      // Single query: participants → rooms → last message
-      const roomsWithPreview = await roomsRepository.findRoomsWithPreviewForEntity(entityId);
+    // Single query: participants → rooms → last message
+    const roomsWithPreview = await roomsRepository.findRoomsWithPreviewForEntity(entityId);
 
-      // Transform to API response format
-      return roomsWithPreview.map(room => ({
-        id: room.id,
-        title: room.name || undefined,
-        characterId: room.characterId || undefined,
-        lastTime: room.lastMessageTime?.getTime() || room.createdAt?.getTime(),
-        lastText: room.lastMessageText?.substring(0, 100) || undefined,
-      }));
-    } catch (error) {
-      logger.error(
-        `[Rooms Service] Error getting rooms for entity ${entityId}:`,
-        error,
-      );
-      throw error;
-    }
+    // Transform to API response format
+    return roomsWithPreview.map(room => ({
+      id: room.id,
+      title: room.name || undefined,
+      characterId: room.characterId || undefined,
+      lastTime: room.lastMessageTime?.getTime() || room.createdAt?.getTime(),
+      lastText: room.lastMessageText?.substring(0, 100) || undefined,
+    }));
   }
 
   /**
@@ -120,78 +107,73 @@ export class RoomsService {
   async createRoom(input: CreateRoomInput): Promise<Room> {
     const roomId = input.id || uuidv4();
 
-    try {
-      // If no agentId, just create the room (no entity/participant needed yet)
-      if (!input.agentId) {
-        const room = await roomsRepository.create({
+    // If no agentId, just create the room (no entity/participant needed yet)
+    if (!input.agentId) {
+      const room = await roomsRepository.create({
+        id: roomId,
+        agentId: input.agentId,
+        source: input.source || "web",
+        type: input.type || "DM",
+        name: input.name,
+        metadata: input.metadata,
+      });
+      
+      logger.info(
+        `[Rooms Service] Created room ${roomId} for entity ${input.entityId} (no agent yet)`,
+      );
+      return room;
+    }
+
+    // Use transaction when creating room + entity + participant
+    // This ensures atomic creation - if any step fails, all are rolled back
+    const room = await db.transaction(async (tx) => {
+      // 1. Create the room
+      const [newRoom] = await tx
+        .insert(roomTable)
+        .values({
           id: roomId,
           agentId: input.agentId,
           source: input.source || "web",
           type: input.type || "DM",
           name: input.name,
           metadata: input.metadata,
+          createdAt: new Date(),
+        })
+        .returning();
+
+      // 2. Ensure entity exists (upsert-like behavior)
+      // First check if entity exists
+      const existingEntity = await tx
+        .select({ id: entityTable.id })
+        .from(entityTable)
+        .where(eq(entityTable.id, input.entityId))
+        .limit(1);
+
+      if (existingEntity.length === 0) {
+        // Entity doesn't exist, create it
+        await tx.insert(entityTable).values({
+          id: input.entityId,
+          agentId: input.agentId,
+          names: [input.entityId],
+          createdAt: new Date(),
         });
-        
-        logger.info(
-          `[Rooms Service] Created room ${roomId} for entity ${input.entityId} (no agent yet)`,
-        );
-        return room;
       }
 
-      // Use transaction when creating room + entity + participant
-      // This ensures atomic creation - if any step fails, all are rolled back
-      const room = await db.transaction(async (tx) => {
-        // 1. Create the room
-        const [newRoom] = await tx
-          .insert(roomTable)
-          .values({
-            id: roomId,
-            agentId: input.agentId,
-            source: input.source || "web",
-            type: input.type || "DM",
-            name: input.name,
-            metadata: input.metadata,
-            createdAt: new Date(),
-          })
-          .returning();
+      // 3. Create participant (link entity to room)
+      // Use ON CONFLICT DO NOTHING to handle race conditions
+      await tx.execute(sql`
+        INSERT INTO ${participantTable} (id, entity_id, room_id, agent_id, created_at)
+        VALUES (${uuidv4()}, ${input.entityId}::uuid, ${roomId}::uuid, ${input.agentId}::uuid, NOW())
+        ON CONFLICT (entity_id, room_id) DO NOTHING
+      `);
 
-        // 2. Ensure entity exists (upsert-like behavior)
-        // First check if entity exists
-        const existingEntity = await tx
-          .select({ id: entityTable.id })
-          .from(entityTable)
-          .where(eq(entityTable.id, input.entityId))
-          .limit(1);
+      return newRoom;
+    });
 
-        if (existingEntity.length === 0) {
-          // Entity doesn't exist, create it
-          await tx.insert(entityTable).values({
-            id: input.entityId,
-            agentId: input.agentId,
-            names: [input.entityId],
-            createdAt: new Date(),
-          });
-        }
-
-        // 3. Create participant (link entity to room)
-        // Use ON CONFLICT DO NOTHING to handle race conditions
-        await tx.execute(sql`
-          INSERT INTO ${participantTable} (id, entity_id, room_id, agent_id, created_at)
-          VALUES (${uuidv4()}, ${input.entityId}::uuid, ${roomId}::uuid, ${input.agentId}::uuid, NOW())
-          ON CONFLICT (entity_id, room_id) DO NOTHING
-        `);
-
-        return newRoom;
-      });
-
-      logger.info(
-        `[Rooms Service] Created room ${roomId} for entity ${input.entityId} with agent ${input.agentId}`,
-      );
-      return room;
-    } catch (error) {
-      logger.error("[Rooms Service] Error creating room:", error);
-      throw error;
-    }
+    logger.info(
+      `[Rooms Service] Created room ${roomId} for entity ${input.entityId} with agent ${input.agentId}`,
+    );
+    return room;
   }
 
   /**
@@ -201,38 +183,25 @@ export class RoomsService {
     roomId: string,
     metadata: Record<string, unknown>,
   ): Promise<void> {
-    try {
-      await roomsRepository.updateMetadata(roomId, metadata);
-    } catch (error) {
-      logger.error(
-        `[Rooms Service] Error updating room ${roomId} metadata:`,
-        error,
-      );
-      throw error;
-    }
+    await roomsRepository.updateMetadata(roomId, metadata);
   }
 
   /**
    * Delete room and all related data
    */
   async deleteRoom(roomId: string): Promise<void> {
-    try {
-      logger.info(`[Rooms Service] Deleting room ${roomId}`);
+    logger.info(`[Rooms Service] Deleting room ${roomId}`);
 
-      // Delete in order: messages, participants, then room
-      // (CASCADE should handle most of this, but explicit is better)
-      await Promise.all([
-        memoriesRepository.deleteMessages(roomId),
-        participantsRepository.deleteByRoomId(roomId),
-      ]);
+    // Delete in order: messages, participants, then room
+    // (CASCADE should handle most of this, but explicit is better)
+    await Promise.all([
+      memoriesRepository.deleteMessages(roomId),
+      participantsRepository.deleteByRoomId(roomId),
+    ]);
 
-      await roomsRepository.delete(roomId);
+    await roomsRepository.delete(roomId);
 
-      logger.info(`[Rooms Service] Successfully deleted room ${roomId}`);
-    } catch (error) {
-      logger.error(`[Rooms Service] Error deleting room ${roomId}:`, error);
-      throw error;
-    }
+    logger.info(`[Rooms Service] Successfully deleted room ${roomId}`);
   }
 
   /**
@@ -244,34 +213,26 @@ export class RoomsService {
     participantCount: number;
     lastMessage?: { time: number; text: string };
   } | null> {
-    try {
-      const [room, messageCount, participantCount, lastMessage] = await Promise.all([
-        roomsRepository.findById(roomId),
-        memoriesRepository.countMessages(roomId),
-        participantsRepository.countByRoomId(roomId),
-        memoriesRepository.findLastMessageForRoom(roomId),
-      ]);
+    const [room, messageCount, participantCount, lastMessage] = await Promise.all([
+      roomsRepository.findById(roomId),
+      memoriesRepository.countMessages(roomId),
+      participantsRepository.countByRoomId(roomId),
+      memoriesRepository.findLastMessageForRoom(roomId),
+    ]);
 
-      if (!room) {
-        return null;
-      }
-
-      return {
-        roomId: room.id,
-        messageCount,
-        participantCount,
-        lastMessage: lastMessage ? {
-          time: lastMessage.createdAt || Date.now(),
-          text: ((lastMessage.content?.text as string) || "").substring(0, 100),
-        } : undefined,
-      };
-    } catch (error) {
-      logger.error(
-        `[Rooms Service] Error getting room summary ${roomId}:`,
-        error,
-      );
-      throw error;
+    if (!room) {
+      return null;
     }
+
+    return {
+      roomId: room.id,
+      messageCount,
+      participantCount,
+      lastMessage: lastMessage ? {
+        time: lastMessage.createdAt || Date.now(),
+        text: ((lastMessage.content?.text as string) || "").substring(0, 100),
+      } : undefined,
+    };
   }
 
   /**
@@ -297,46 +258,30 @@ export class RoomsService {
     entityId: string,
     agentId: string,
   ): Promise<void> {
-    try {
-      // Ensure entity exists
-      await entitiesRepository.create({
-        id: entityId,
-        agentId,
-        names: [entityId],
-      });
+    // Ensure entity exists
+    await entitiesRepository.create({
+      id: entityId,
+      agentId,
+      names: [entityId],
+    });
 
-      // Add as participant
-      await participantsRepository.create({
-        roomId,
-        entityId,
-        agentId,
-      });
+    // Add as participant
+    await participantsRepository.create({
+      roomId,
+      entityId,
+      agentId,
+    });
 
-      logger.info(
-        `[Rooms Service] Added participant ${entityId} to room ${roomId}`,
-      );
-    } catch (error) {
-      logger.error(
-        `[Rooms Service] Error adding participant to room ${roomId}:`,
-        error,
-      );
-      throw error;
-    }
+    logger.info(
+      `[Rooms Service] Added participant ${entityId} to room ${roomId}`,
+    );
   }
 
   /**
    * Get rooms by agent (for analytics)
    */
   async getRoomsByAgent(agentId: string, limit = 50): Promise<Room[]> {
-    try {
-      return await roomsRepository.findByAgentId(agentId, limit);
-    } catch (error) {
-      logger.error(
-        `[Rooms Service] Error getting rooms for agent ${agentId}:`,
-        error,
-      );
-      throw error;
-    }
+    return await roomsRepository.findByAgentId(agentId, limit);
   }
 }
 

@@ -28,6 +28,9 @@ import {
   executeProviders,
   executeActions,
   cleanPrompt,
+  getAndClearCachedAttachments,
+  hasActionSentResponse,
+  clearActionResponseFlag,
 } from "../shared/utils/helpers";
 import {
   parsePlannedItems,
@@ -35,7 +38,6 @@ import {
   type ParsedPlan,
 } from "../shared/utils/parsers";
 import type { MessageReceivedHandlerParams } from "../shared/types";
-import { State } from "@aws-sdk/client-cloudwatch-logs";
 
 /**
  * Chat Assistant Workflow Handler
@@ -81,21 +83,49 @@ export async function handleMessage({
     logger.debug("[ChatAssistant] Saving message to memory");
     await runtime.createMemory(message, "messages");
 
-    // PHASE 1: Compose initial state with memory providers
-    logger.info(
-      `[ChatAssistant] Processing message for character: ${runtime.character.name} (ID: ${runtime.character.id})`,
+    // PHASE 1: Check if this is an affiliate character BEFORE composing state
+    const characterSettings = runtime.character.settings;
+    const earlyAffiliateData = characterSettings?.affiliateData as
+      | Record<string, unknown>
+      | undefined;
+    const isAffiliateChat = !!(
+      earlyAffiliateData && Object.keys(earlyAffiliateData).length > 0
     );
 
-    const initialState = await runtime.composeState(message, [
-      "SUMMARIZED_CONTEXT",
-      "RECENT_MESSAGES",
-      "LONG_TERM_MEMORY",
-      "AVAILABLE_DOCUMENTS",
-      "PROVIDERS",
-      "MCP",
-      "ACTIONS",
-      "CHARACTER",
-    ]);
+    // Debug: Log full affiliate detection info
+    logger.info(
+      `[ChatAssistant] 🔍 Affiliate Detection: char=${runtime.character.name}, hasSettings=${!!characterSettings}, hasAffiliateData=${!!earlyAffiliateData}, affiliateKeys=${earlyAffiliateData ? Object.keys(earlyAffiliateData).join(",") : "none"}, isAffiliateChat=${isAffiliateChat}`,
+    );
+    if (earlyAffiliateData) {
+      logger.info(
+        `[ChatAssistant] 📋 Affiliate data: vibe=${earlyAffiliateData.vibe}, source=${earlyAffiliateData.source}, imageUrls=${Array.isArray(earlyAffiliateData.imageUrls) ? earlyAffiliateData.imageUrls.length : 0}`,
+      );
+    }
+
+    logger.info(
+      `[ChatAssistant] Processing message for character: ${runtime.character.name} (ID: ${runtime.character.id}), isAffiliate: ${isAffiliateChat}`,
+    );
+
+    // Use MINIMAL providers for affiliate chats to avoid token overflow
+    // Affiliate chats focus on generating images + short text
+    const providers = isAffiliateChat
+      ? ["CHARACTER", "ACTIONS", "affiliateContext"]
+      : [
+          "SUMMARIZED_CONTEXT",
+          "RECENT_MESSAGES",
+          "LONG_TERM_MEMORY",
+          "AVAILABLE_DOCUMENTS",
+          "PROVIDERS",
+          "MCP",
+          "ACTIONS",
+          "CHARACTER",
+          "affiliateContext",
+        ];
+
+    logger.debug(
+      `[ChatAssistant] Composing state with providers: ${providers.join(", ")}`,
+    );
+    const initialState = await runtime.composeState(message, providers);
 
     // PHASE 2: Planning - Determine which providers/actions to use
     logger.info("[ChatAssistant] Phase 1: Planning");
@@ -127,11 +157,34 @@ export async function handleMessage({
 
     logger.debug("*** PLANNING RESPONSE ***\n", planningResponse);
 
-    const plan = parseKeyValueXml(planningResponse) as ParsedPlan | null;
-    const shouldRespondNow = canRespondImmediately(plan);
+    let plan = parseKeyValueXml(planningResponse) as ParsedPlan | null;
+    let shouldRespondNow = canRespondImmediately(plan);
+
+    // For affiliate chats, ensure GENERATE_IMAGE action is included
+    if (isAffiliateChat && plan) {
+      logger.info(
+        "[ChatAssistant] AFFILIATE - Ensuring image generation action",
+      );
+      shouldRespondNow = false;
+      // Add GENERATE_IMAGE to actions if not already present
+      const existingActions = plan.actions || "";
+      if (!existingActions.includes("GENERATE_IMAGE")) {
+        plan.actions = existingActions
+          ? `${existingActions}, GENERATE_IMAGE`
+          : "GENERATE_IMAGE";
+      }
+      plan.canRespondNow = "NO";
+    } else if (isAffiliateChat && !plan) {
+      plan = {
+        thought: "Generating image for user",
+        canRespondNow: "NO",
+        actions: "GENERATE_IMAGE",
+      };
+      shouldRespondNow = false;
+    }
 
     logger.info(
-      `[ChatAssistant] Plan - canRespondNow: ${shouldRespondNow}, thought: ${plan?.thought}`,
+      `[ChatAssistant] Plan - canRespondNow: ${shouldRespondNow}, thought: ${plan?.thought}, isAffiliate: ${isAffiliateChat}`,
     );
 
     let responseContent = "";
@@ -174,16 +227,52 @@ export async function handleMessage({
           updatedState,
         );
 
-        // We need to send the empty callback to actions, we wanna check the action results.
-        // Not callback from the actions.
-        // Then do llm call to summarize the action results in phase 4.
+        // Execute actions with callback to enable real-time streaming and attachment capture
         updatedState = await executeActions(
           runtime,
           message,
           plannedActions,
           plan,
           updatedState,
+          callback,
         );
+
+        // Check if an action already sent a complete response
+        // If so, skip generating another response to avoid duplicates
+        const actionAlreadyResponded = hasActionSentResponse(message.roomId as string);
+        if (actionAlreadyResponded) {
+          logger.info(
+            "[ChatAssistant] ⏭️ Action already sent response - skipping final response generation",
+          );
+          clearActionResponseFlag(message.roomId as string);
+          
+          // Clear any cached attachments (they were already sent via the wrapped callback)
+          getAndClearCachedAttachments(message.roomId as string);
+
+          // Clean up response ID and restore system prompt
+          await clearLatestResponseId(runtime, message.roomId);
+          runtime.character.system = originalSystemPrompt;
+
+          logger.info(
+            `[ChatAssistant] Run ${runId.substring(0, 8)} completed (action-handled response)`,
+          );
+
+          const endTime = Date.now();
+          await runtime.emitEvent(EventType.RUN_ENDED, {
+            runtime,
+            runId,
+            messageId: message.id,
+            roomId: message.roomId,
+            entityId: message.entityId,
+            startTime,
+            status: "completed",
+            endTime,
+            duration: endTime - startTime,
+            source: "chatAssistantWorkflow",
+          });
+
+          return; // Exit early - action already handled the response
+        }
       } else {
         logger.info(
           "[ChatAssistant] Short-circuit: Responding with existing context",
@@ -241,13 +330,41 @@ export async function handleMessage({
     // Clean up the response ID
     await clearLatestResponseId(runtime, message.roomId);
 
-    // Extract attachments from action results
+    // Extract attachments from multiple sources:
+    // 1. Action results (stored by runtime)
+    // 2. Cached attachments (captured from action callbacks)
     const actionResults = await runtime.getActionResults(message.id as UUID);
-    const attachments = extractAttachments(actionResults);
+    const actionResultAttachments = extractAttachments(actionResults);
+    const cachedAttachments = getAndClearCachedAttachments(
+      message.roomId as string,
+    );
 
     logger.info(
-      `[ChatAssistant] Action results: ${JSON.stringify(actionResults)}`,
+      `[ChatAssistant] Attachment sources: actionResults=${actionResults?.length || 0}, extracted=${actionResultAttachments.length}, cached=${cachedAttachments.length}`,
     );
+
+    // Merge attachments, preferring cached ones (which have already been validated)
+    // Use a Map to dedupe by attachment ID
+    const attachmentMap = new Map<string, unknown>();
+
+    // First add action result attachments
+    for (const att of actionResultAttachments) {
+      const attachment = att as { id?: string; url?: string };
+      if (attachment.id) {
+        attachmentMap.set(attachment.id, att);
+      }
+    }
+
+    // Then add/override with cached attachments (these are validated HTTP URLs)
+    for (const att of cachedAttachments) {
+      const attachment = att as { id?: string; url?: string };
+      if (attachment.id) {
+        attachmentMap.set(attachment.id, att);
+      }
+    }
+
+    const attachments = Array.from(attachmentMap.values());
+    logger.info(`[ChatAssistant] Final attachments count: ${attachments.length}`);
 
     // Build response content
     const content: Record<string, unknown> = {

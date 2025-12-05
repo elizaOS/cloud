@@ -1,7 +1,7 @@
 /**
  * API Endpoint Discovery System
  *
- * Catalogs available API endpoints from the Eliza Cloud V2 API
+ * Catalogs available API endpoints from the Eliza Cloud API
  * for automatic documentation and testing in API Explorer
  */
 
@@ -50,7 +50,7 @@ export interface ApiEndpoint {
 }
 
 /**
- * Complete catalog of Eliza Cloud V2 API endpoints
+ * Complete catalog of Eliza Cloud API endpoints
  */
 export const API_ENDPOINTS: ApiEndpoint[] = [
   // Image Generation

@@ -14,37 +14,46 @@ interface JsonEditorProps {
   hideActions?: boolean;
 }
 
+interface EditorState {
+  jsonText: string;
+  isValid: boolean;
+  error: string | null;
+  isSaving: boolean;
+}
+
 export function JsonEditor({
   character,
   onChange,
   onSave,
   hideActions = false,
 }: JsonEditorProps) {
-  const [jsonText, setJsonText] = useState("");
-  const [isValid, setIsValid] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-  const [isSaving, setIsSaving] = useState(false);
+  const [editorState, setEditorState] = useState<EditorState>({
+    jsonText: "",
+    isValid: true,
+    error: null,
+    isSaving: false,
+  });
+
+  const updateEditor = (updates: Partial<EditorState>) => {
+    setEditorState((prev) => ({ ...prev, ...updates }));
+  };
 
   useEffect(() => {
-    setJsonText(JSON.stringify(character, null, 2));
+    updateEditor({ jsonText: JSON.stringify(character, null, 2) });
   }, [character]);
 
   const handleJsonChange = (value: string) => {
-    setJsonText(value);
-
     try {
       const parsed = JSON.parse(value);
-      setIsValid(true);
-      setError(null);
+      updateEditor({ jsonText: value, isValid: true, error: null });
       onChange(parsed as ElizaCharacter);
     } catch (err) {
-      setIsValid(false);
-      setError((err as Error).message);
+      updateEditor({ jsonText: value, isValid: false, error: (err as Error).message });
     }
   };
 
   const handleExport = () => {
-    const blob = new Blob([jsonText], { type: "application/json" });
+    const blob = new Blob([editorState.jsonText], { type: "application/json" });
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a");
     a.href = url;
@@ -57,12 +66,12 @@ export function JsonEditor({
   };
 
   const handleSave = async () => {
-    if (!isValid) {
+    if (!editorState.isValid) {
       toast.error("Cannot save invalid JSON");
       return;
     }
 
-    setIsSaving(true);
+    updateEditor({ isSaving: true });
     try {
       await onSave();
       toast.success("Character saved successfully!");
@@ -70,7 +79,7 @@ export function JsonEditor({
       toast.error("Failed to save character");
       console.error("Save error:", error);
     } finally {
-      setIsSaving(false);
+      updateEditor({ isSaving: false });
     }
   };
 
@@ -81,7 +90,7 @@ export function JsonEditor({
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2">
               <h3 className="text-lg font-bold text-white">Character JSON</h3>
-              {isValid ? (
+              {editorState.isValid ? (
                 <CheckCircle className="h-5 w-5 text-green-400" />
               ) : (
                 <AlertCircle className="h-5 w-5 text-rose-400" />
@@ -92,7 +101,7 @@ export function JsonEditor({
                 variant="outline"
                 size="sm"
                 onClick={handleExport}
-                disabled={!isValid}
+                disabled={!editorState.isValid}
               >
                 <Download className="mr-2 h-4 w-4" />
                 Export
@@ -101,35 +110,35 @@ export function JsonEditor({
                 variant="primary"
                 size="sm"
                 onClick={handleSave}
-                disabled={!isValid || isSaving}
+                disabled={!editorState.isValid || editorState.isSaving}
               >
                 <Save className="mr-2 h-4 w-4" />
-                {isSaving ? "Saving..." : "Save"}
+                {editorState.isSaving ? "Saving..." : "Save"}
               </BrandButton>
             </div>
           </div>
-          {error && (
+          {editorState.error && (
             <p className="mt-2 text-sm text-rose-400">
-              <strong>Error:</strong> {error}
+              <strong>Error:</strong> {editorState.error}
             </p>
           )}
         </div>
       )}
-      {hideActions && error && (
+      {hideActions && editorState.error && (
         <div className="flex-shrink-0 border-b border-white/10 p-4">
           <div className="flex items-center gap-2">
             <AlertCircle className="h-5 w-5 text-rose-400" />
             <p className="text-sm text-rose-400">
-              <strong>Error:</strong> {error}
+              <strong>Error:</strong> {editorState.error}
             </p>
           </div>
         </div>
       )}
       <div className="flex-1 overflow-hidden">
         <MonacoJsonEditor
-          value={jsonText}
+          value={editorState.jsonText}
           onChange={handleJsonChange}
-          isValid={isValid}
+          isValid={editorState.isValid}
         />
       </div>
     </div>

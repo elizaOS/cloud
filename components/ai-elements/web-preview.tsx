@@ -16,7 +16,7 @@ import {
 import { cn } from "@/lib/utils";
 import { ChevronDownIcon } from "lucide-react";
 import type { ComponentProps, ReactNode } from "react";
-import { createContext, useContext, useEffect, useState } from "react";
+import { createContext, useCallback, useContext, useEffect, useMemo, useState } from "react";
 
 export type WebPreviewContextValue = {
   url: string;
@@ -50,17 +50,17 @@ export const WebPreview = ({
   const [url, setUrl] = useState(defaultUrl);
   const [consoleOpen, setConsoleOpen] = useState(false);
 
-  const handleUrlChange = (newUrl: string) => {
+  const handleUrlChange = useCallback((newUrl: string) => {
     setUrl(newUrl);
     onUrlChange?.(newUrl);
-  };
+  }, [onUrlChange]);
 
-  const contextValue: WebPreviewContextValue = {
+  const contextValue = useMemo<WebPreviewContextValue>(() => ({
     url,
     setUrl: handleUrlChange,
     consoleOpen,
     setConsoleOpen,
-  };
+  }), [url, handleUrlChange, consoleOpen]);
 
   return (
     <WebPreviewContext.Provider value={contextValue}>

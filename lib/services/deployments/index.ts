@@ -1,13 +1,15 @@
 /**
  * Deployment Services
  * 
- * This directory contains services related to character deployments:
- * - Character → Container → Agent lifecycle
- * - Deployment discovery and status tracking
- * - Infrastructure management
+ * Services for managing character deployments and infrastructure discovery.
  */
 
-export * from "./discovery";
 export {
-  characterDeploymentDiscoveryService as deploymentDiscoveryService,
+  characterDeploymentDiscoveryService,
+  deploymentDiscoveryService,
+  type CharacterDiscoveryFilters,
+  type DiscoveredCharacterInfo,
+  type CharacterListResult,
+  type AgentStats,
 } from "./discovery";
+
