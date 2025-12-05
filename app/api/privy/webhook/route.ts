@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { headers, cookies } from "next/headers";
 import crypto from "crypto";
-import { syncUserFromPrivy } from "@/lib/privy-sync";
+import { syncUserFromPrivy, type SyncOptions } from "@/lib/privy-sync";
 import { convertAnonymousToReal } from "@/lib/auth-anonymous";
 import { anonymousSessionsService } from "@/lib/services";
 
@@ -79,13 +79,27 @@ export async function POST(request: NextRequest) {
 
     console.log("Received Privy webhook:", payload.type);
 
+    // Extract IP address from headers (for abuse tracking)
+    const forwardedFor = headersList.get("x-forwarded-for");
+    const realIp = headersList.get("x-real-ip");
+    const ipAddress = forwardedFor?.split(",")[0]?.trim() || realIp || undefined;
+    const userAgent = headersList.get("user-agent") || undefined;
+
     // Handle different webhook events
     switch (payload.type) {
       case "user.created":
       case "user.linked_account":
       case "user.authenticated": {
+        // Build sync options with signup context
+        const syncOptions: SyncOptions = {
+          signupContext: {
+            ipAddress,
+            userAgent,
+          },
+        };
+
         // Sync user on creation, linking new account, or authentication
-        const user = await syncUserFromPrivy(payload.user);
+        const user = await syncUserFromPrivy(payload.user, syncOptions);
         console.log("User synced via webhook:", user.id);
 
         // Check for anonymous session cookie and migrate data

@@ -46,3 +46,7 @@ export { paymentMethodsService } from "./payment-methods";
 export { purchasesService, PURCHASE_LIMITS } from "./purchases";
 export { autoTopUpService, AUTO_TOP_UP_LIMITS } from "./auto-top-up";
 export { invoicesService } from "./invoices";
+
+// Abuse detection
+export { abuseDetectionService } from "./abuse-detection";
+export type { AbuseCheckResult, SignupContext } from "./abuse-detection";
