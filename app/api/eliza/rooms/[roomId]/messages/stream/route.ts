@@ -1,5 +1,5 @@
-import { NextRequest } from "next/server";
-import { organizationsService } from "@/lib/services";
+import type { NextRequest } from "next/server";
+import { organizationsService, charactersService } from "@/lib/services";
 import { requireAuthOrApiKey } from "@/lib/auth";
 import { getAnonymousUser, checkAnonymousLimit } from "@/lib/auth-anonymous";
 import { logger } from "@/lib/utils/logger";
@@ -28,12 +28,12 @@ export const maxDuration = 60;
  */
 export async function POST(
   request: NextRequest,
-  ctx: { params: Promise<{ roomId: string }> },
+  ctx: { params: Promise<{ roomId: string }> }
 ) {
   const encoder = new TextEncoder();
 
   try {
-    // Step 1: Parse request body FIRST (needed for session token check)
+    // Step 1: Parse request body FIRST (needed for session token check and agent mode)
     const { roomId } = await ctx.params;
     const body = await request.json();
     const { entityId, text, model, sessionToken, agentMode } = body;
@@ -41,17 +41,17 @@ export async function POST(
     if (!roomId || !entityId || !text?.trim()) {
       return new Response(
         JSON.stringify({ error: "Missing required fields" }),
-        { status: 400, headers: { "Content-Type": "application/json" } },
+        { status: 400, headers: { "Content-Type": "application/json" } }
       );
     }
 
     // Validate agentMode if provided, default to CHAT
-    let agentModeConfig: AgentModeConfig | undefined;
+    let agentModeConfig: AgentModeConfig;
     if (agentMode) {
       if (!isValidAgentModeConfig(agentMode)) {
         return new Response(
           JSON.stringify({ error: "Invalid agent mode configuration" }),
-          { status: 400, headers: { "Content-Type": "application/json" } },
+          { status: 400, headers: { "Content-Type": "application/json" } }
         );
       }
       agentModeConfig = agentMode;
@@ -59,7 +59,7 @@ export async function POST(
     } else {
       // Default to CHAT mode
       agentModeConfig = { mode: AgentMode.CHAT };
-      logger.info(`[Stream] No agent mode specified, defaulting to CHAT`);
+      logger.info("[Stream] No agent mode specified, defaulting to CHAT");
     }
 
     if (model) {
@@ -68,19 +68,18 @@ export async function POST(
 
     // Step 2: Authentication & Context Building (pass body for session token check)
     logger.info(
-      "[Stream] 📊 Session token from body:",
-      sessionToken ? sessionToken.slice(0, 8) + "..." : "N/A",
+      `[Stream] 📊 Session token from body: ${sessionToken ? `${sessionToken.slice(0, 8)}...` : "N/A"}`
     );
     const userContext = await authenticateAndBuildContext(
       request,
       agentModeConfig.mode,
-      { sessionToken },
+      { sessionToken }
     );
 
     logger.info("[Stream] 📊 UserContext after auth:", {
       isAnonymous: userContext.isAnonymous,
       hasSessionToken: !!userContext.sessionToken,
-      sessionTokenPreview: userContext.sessionToken?.slice(0, 8) + "...",
+      sessionTokenPreview: `${userContext.sessionToken?.slice(0, 8)}...`,
       userId: userContext.userId,
     });
 
@@ -92,7 +91,7 @@ export async function POST(
         const errorMessage =
           limitCheck.reason === "message_limit"
             ? `You've reached your free message limit (${limitCheck.limit} messages). Sign up to continue!`
-            : `Hourly rate limit reached. Wait an hour or sign up for unlimited access.`;
+            : "Hourly rate limit reached. Wait an hour or sign up for unlimited access.";
 
         return new Response(
           JSON.stringify({
@@ -100,7 +99,7 @@ export async function POST(
             requiresSignup: true,
             reason: limitCheck.reason,
           }),
-          { status: 429, headers: { "Content-Type": "application/json" } },
+          { status: 429, headers: { "Content-Type": "application/json" } }
         );
       }
     }
@@ -110,6 +109,33 @@ export async function POST(
       await elizaRoomCharactersRepository.findByRoomId(roomId);
     let characterId = roomCharacter?.character_id || undefined;
 
+    // Step 4.5: Check if this is an affiliate character and switch to ASSISTANT mode
+    // Affiliate characters need ASSISTANT mode for image generation capability
+    if (characterId && agentModeConfig.mode === AgentMode.CHAT) {
+      try {
+        const character = await charactersService.getById(characterId);
+        if (character) {
+          const characterData = character.character_data as
+            | Record<string, unknown>
+            | undefined;
+          const affiliateData = characterData?.affiliate as
+            | Record<string, unknown>
+            | undefined;
+
+          if (affiliateData && Object.keys(affiliateData).length > 0) {
+            logger.info(
+              `[Stream] 🎭 Detected affiliate character - switching to ASSISTANT mode for image generation`
+            );
+            agentModeConfig = { mode: AgentMode.ASSISTANT };
+            // CRITICAL: Also update userContext so runtime loads correct plugins
+            userContext.agentMode = AgentMode.ASSISTANT;
+          }
+        }
+      } catch (error) {
+        logger.error("[Stream] Failed to check affiliate status:", error);
+      }
+    }
+
     // For BUILD mode, use the targetCharacterId from agent mode metadata
     // This ensures we're editing the correct character, not the default
     if (
@@ -118,7 +144,7 @@ export async function POST(
     ) {
       characterId = agentModeConfig.metadata.targetCharacterId as string;
       logger.info(
-        `[Stream] BUILD mode - Using character from metadata: ${characterId}`,
+        `[Stream] BUILD mode - Using character from metadata: ${characterId}`
       );
 
       // Ensure room-character association exists for build mode
@@ -132,12 +158,12 @@ export async function POST(
             user_id: userContext.userId,
           });
           logger.info(
-            `[Stream] BUILD mode - Created room-character association: room ${roomId} → character ${characterId}`,
+            `[Stream] BUILD mode - Created room-character association: room ${roomId} → character ${characterId}`
           );
         } catch (error) {
           logger.error(
-            `[Stream] BUILD mode - Failed to create room-character association:`,
-            error,
+            "[Stream] BUILD mode - Failed to create room-character association:",
+            error
           );
         }
       } else if (roomCharacter && roomCharacter.character_id !== characterId) {
@@ -145,12 +171,12 @@ export async function POST(
         try {
           await elizaRoomCharactersRepository.update(roomId, characterId);
           logger.info(
-            `[Stream] BUILD mode - Updated room-character association: room ${roomId} → character ${characterId}`,
+            `[Stream] BUILD mode - Updated room-character association: room ${roomId} → character ${characterId}`
           );
         } catch (error) {
           logger.error(
-            `[Stream] BUILD mode - Failed to update room-character association:`,
-            error,
+            "[Stream] BUILD mode - Failed to update room-character association:",
+            error
           );
         }
       }
@@ -158,9 +184,7 @@ export async function POST(
 
     logger.info(
       `[Stream] Room ${roomId} - Character lookup:`,
-      characterId
-        ? `Using character ${characterId}`
-        : "Using default character",
+      characterId ? `Using character ${characterId}` : "Using default character"
     );
 
     // Step 5: Apply model preferences if provided
@@ -172,10 +196,10 @@ export async function POST(
       logger.info(`[Stream] User selected model: ${model}`);
     } else if (userContext.modelPreferences) {
       logger.info(
-        `[Stream] Using stored model preferences: ${userContext.modelPreferences.smallModel} / ${userContext.modelPreferences.largeModel}`,
+        `[Stream] Using stored model preferences: ${userContext.modelPreferences.smallModel} / ${userContext.modelPreferences.largeModel}`
       );
     } else {
-      logger.info(`[Stream] No model preference set, using defaults`);
+      logger.info("[Stream] No model preference set, using defaults");
     }
 
     // Apply character if specified
@@ -284,7 +308,7 @@ export async function POST(
           if (result.usage && !userContext.isAnonymous) {
             // This is just for the warning event, actual credit deduction happened in MessageHandler
             const remainingCredits = await checkUserCredits(
-              userContext.organizationId,
+              userContext.organizationId
             );
             if (remainingCredits < 1.0) {
               sendEvent("warning", {
@@ -322,7 +346,7 @@ export async function POST(
       JSON.stringify({
         error: error instanceof Error ? error.message : "Request failed",
       }),
-      { status: 500, headers: { "Content-Type": "application/json" } },
+      { status: 500, headers: { "Content-Type": "application/json" } }
     );
   }
 }
@@ -342,7 +366,7 @@ export async function POST(
 async function authenticateAndBuildContext(
   request: NextRequest,
   agentMode: AgentMode,
-  body?: { sessionToken?: string },
+  body?: { sessionToken?: string }
 ) {
   const headerToken = request.headers.get("X-Anonymous-Session");
   const bodyToken = body?.sessionToken;
@@ -350,7 +374,7 @@ async function authenticateAndBuildContext(
 
   logger.info("[Stream Auth] Starting authentication", {
     hasSessionToken: !!anonymousSessionToken,
-    tokenPreview: anonymousSessionToken?.slice(0, 8) + "...",
+    tokenPreview: anonymousSessionToken ? `${anonymousSessionToken.slice(0, 8)}...` : "N/A",
   });
 
   // CRITICAL: ALWAYS try Privy auth FIRST, regardless of session token
@@ -385,7 +409,7 @@ async function authenticateAndBuildContext(
 
   // Try provided session token first
   if (anonymousSessionToken) {
-    logger.info("[Stream] 🔑 Session token provided in request:", anonymousSessionToken.slice(0, 8) + "...");
+    logger.info(`[Stream] 🔑 Session token provided in request: ${anonymousSessionToken.slice(0, 8)}...`);
 
     const session = await anonymousSessionsService.getByToken(anonymousSessionToken);
 
@@ -419,6 +443,7 @@ async function authenticateAndBuildContext(
           logger.info("[Stream] ✅ Using session from provided token:", {
             sessionId: session.id,
             userId: user.id,
+            sessionToken: `${session.session_token.slice(0, 8)}...`,
             messageCount: session.message_count,
           });
           return await userContextService.buildContext({
@@ -432,12 +457,10 @@ async function authenticateAndBuildContext(
         }
       }
     } else {
-      logger.warn("[Stream] ⚠️ Session not found for provided token:", anonymousSessionToken.slice(0, 8) + "...");
+      logger.warn(`[Stream] ⚠️ Session not found for provided token: ${anonymousSessionToken.slice(0, 8)}...`);
     }
 
-    logger.warn(
-      "[Stream] ⚠️ Provided session token invalid or converted, falling back to cookie",
-    );
+    logger.warn("[Stream] ⚠️ Provided session token invalid or converted, falling back to cookie");
   }
 
   // Fall back to cookie
@@ -453,12 +476,13 @@ async function authenticateAndBuildContext(
     };
     logger.info("[Stream] Created anonymous user:", {
       userId: anonData.user.id,
-      sessionToken: anonData.session!.session_token.slice(0, 8) + "...",
+      sessionToken: `${anonData.session?.session_token.slice(0, 8)}...`,
     });
   } else {
     logger.info("[Stream] Anonymous user found via cookie:", {
       userId: anonData.user.id,
-      messageCount: anonData.session!.message_count,
+      sessionToken: `${anonData.session?.session_token.slice(0, 8)}...`,
+      messageCount: anonData.session?.message_count,
     });
   }
 
