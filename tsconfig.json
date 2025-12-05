@@ -37,6 +37,15 @@
   ],
   "exclude": [
     "node_modules",
-    "scripts/**/*"
+    "scripts/**/*",
+    ".next/**/*",
+    "miniapp/.next/**/*",
+    "out/**/*",
+    "build/**/*",
+    "dist/**/*",
+    ".turbo/**/*",
+    "coverage/**/*",
+    "*.config.js",
+    "*.config.mjs"
   ]
 }

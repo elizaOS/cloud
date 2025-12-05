@@ -112,7 +112,7 @@ export class ParticipantsRepository {
         entityId: input.entityId,
         agentId: input.agentId,
         roomState: input.roomState,
-        joinedAt: new Date(),
+        createdAt: new Date(),
       })
       .returning();
 

@@ -25,7 +25,7 @@ import {
 import type { ExtendedCharacter } from "@/lib/types/my-agents";
 import { getCategoryIcon } from "@/lib/constants/character-categories";
 import { formatDistanceToNow } from "date-fns";
-import { isDiceBearAvatar } from "@/lib/utils/default-avatar";
+import { isBuiltInAvatar, ensureAvatarUrl } from "@/lib/utils/default-avatar";
 
 interface CharacterDetailsModalProps {
   character: ExtendedCharacter | null;
@@ -57,17 +57,13 @@ export function CharacterDetailsModal({
         <DialogHeader>
           <DialogTitle className="flex items-center gap-3">
             <div className="relative flex items-center justify-center w-12 h-12 rounded-full bg-gradient-to-br from-primary/20 to-secondary/20 overflow-hidden">
-              {character.avatarUrl ? (
-                <Image
-                  src={character.avatarUrl}
-                  alt={character.name}
-                  fill
-                  className="rounded-full object-cover"
-                  unoptimized={isDiceBearAvatar(character.avatarUrl)}
-                />
-              ) : (
-                <Bot className="h-6 w-6" />
-              )}
+              <Image
+                src={ensureAvatarUrl(character.avatarUrl)}
+                alt={character.name}
+                fill
+                className="rounded-full object-cover"
+                unoptimized={!isBuiltInAvatar(character.avatarUrl)}
+              />
             </div>
             <div className="flex-1">
               <div className="font-semibold text-xl">{character.name}</div>

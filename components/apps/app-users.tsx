@@ -15,10 +15,6 @@ export function AppUsers({ appId }: AppUsersProps) {
   const [isLoading, setIsLoading] = useState(true);
   const [users, setUsers] = useState<any[]>([]);
 
-  useEffect(() => {
-    fetchUsers();
-  }, [appId]);
-
   const fetchUsers = async () => {
     setIsLoading(true);
     try {
@@ -34,6 +30,11 @@ export function AppUsers({ appId }: AppUsersProps) {
       setIsLoading(false);
     }
   };
+
+  useEffect(() => {
+    fetchUsers();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [appId]);
 
   if (isLoading) {
     return (

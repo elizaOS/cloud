@@ -66,8 +66,19 @@ interface AgentInfo {
   avatarUrl?: string;
 }
 
+interface CharacterData {
+  id: string;
+  name: string;
+  character_data?: {
+    bio?: string | string[];
+    personality?: string;
+    description?: string;
+  };
+}
+
 interface ElizaChatInterfaceProps {
   onMessageSent?: () => void | Promise<void>;
+  character?: CharacterData;
 }
 
 interface CustomVoice {
@@ -83,7 +94,7 @@ const tierIcons: Record<string, React.ReactNode> = {
   ultra: <Crown className="h-3.5 w-3.5" />,
 };
 
-export function ElizaChatInterface({ onMessageSent }: ElizaChatInterfaceProps) {
+export function ElizaChatInterface({ onMessageSent, character }: ElizaChatInterfaceProps) {
   // Track renders in development
   useRenderTracker("ElizaChatInterface");
 
@@ -109,11 +120,11 @@ export function ElizaChatInterface({ onMessageSent }: ElizaChatInterfaceProps) {
   const pendingMessageToSendRef = useRef<string | null>(null);
   const isCreatingRoomRef = useRef(false);
 
-  // Get character name from store
+  // Get character name from prop (preferred), store, or agentInfo
   const selectedCharacter = availableCharacters.find(
     (char) => char.id === selectedCharacterId,
   );
-  const characterName = selectedCharacter?.name || agentInfo?.name || "Agent";
+  const characterName = character?.name || selectedCharacter?.name || agentInfo?.name || "Agent";
   
   // Consolidated loading states
   const [loadingState, setLoadingState] = useState({
@@ -819,11 +830,33 @@ export function ElizaChatInterface({ onMessageSent }: ElizaChatInterfaceProps) {
                     iconClassName="h-8 w-8 text-muted-foreground"
                   />
                   <h3 className="text-lg font-semibold mb-2">
-                    Start a conversation
+                    Start a conversation with {characterName}
                   </h3>
                   <p className="text-sm text-muted-foreground max-w-md">
-                    Ask me anything about AI, development, or how elizaOS
-                    can help you build intelligent agents.
+                    {(() => {
+                      // Get character description from character data
+                      const charData = character?.character_data;
+                      // Check for personality traits first (stored in bio)
+                      if (charData?.bio) {
+                        const bioArray = Array.isArray(charData.bio) ? charData.bio : [charData.bio];
+                        // Look for personality line first, then use first bio line
+                        const personalityLine = bioArray.find(line => 
+                          typeof line === 'string' && line.toLowerCase().includes('personality')
+                        );
+                        if (personalityLine) {
+                          // Remove "Personality traits: " prefix for cleaner display
+                          return personalityLine.replace(/^personality traits?:\s*/i, '');
+                        }
+                        return bioArray[0];
+                      }
+                      if (charData?.personality) {
+                        return charData.personality;
+                      }
+                      if (charData?.description) {
+                        return charData.description;
+                      }
+                      return `Say hello to ${characterName}!`;
+                    })()}
                   </p>
                 </div>
               )}

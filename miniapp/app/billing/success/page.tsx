@@ -1,0 +1,77 @@
+"use client";
+
+import { CheckCircle2, Loader2 } from "lucide-react";
+import { useRouter, useSearchParams } from "next/navigation";
+import { Suspense, useEffect, useState } from "react";
+
+function BillingSuccessContent() {
+  const router = useRouter();
+  const searchParams = useSearchParams();
+  const sessionId = searchParams.get("session_id");
+
+  const [countdown, setCountdown] = useState(3);
+
+  useEffect(() => {
+    // Countdown to redirect
+    const timer = setInterval(() => {
+      setCountdown((prev) => {
+        if (prev <= 1) {
+          clearInterval(timer);
+          router.push("/settings");
+          return 0;
+        }
+        return prev - 1;
+      });
+    }, 1000);
+
+    return () => clearInterval(timer);
+  }, [router]);
+
+  return (
+    <div className="flex min-h-screen flex-col items-center justify-center bg-[#050109] p-4">
+      <div className="w-full max-w-md rounded-xl border border-white/10 bg-white/5 p-8 text-center">
+        <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-green-500/20">
+          <CheckCircle2 className="h-8 w-8 text-green-400" />
+        </div>
+        <h1 className="text-2xl font-bold text-white">Payment Successful!</h1>
+        <p className="mt-3 text-white/60">
+          Your credits have been added to your account.
+        </p>
+
+        {sessionId && (
+          <p className="mt-2 text-xs text-white/40">
+            Transaction ID: {sessionId.slice(0, 20)}...
+          </p>
+        )}
+
+        <div className="mt-6 text-sm text-white/50">
+          Redirecting to settings in {countdown}...
+        </div>
+
+        <button
+          onClick={() => router.push("/settings")}
+          className="mt-4 rounded-lg bg-pink-500 px-6 py-2 text-sm font-medium text-white hover:bg-pink-600"
+        >
+          Go to Settings Now
+        </button>
+      </div>
+    </div>
+  );
+}
+
+export default function BillingSuccessPage() {
+  return (
+    <Suspense
+      fallback={
+        <div className="flex min-h-screen flex-col items-center justify-center bg-[#050109] p-4">
+          <div className="w-full max-w-md rounded-xl border border-white/10 bg-white/5 p-8 text-center">
+            <Loader2 className="mx-auto h-8 w-8 animate-spin text-pink-400" />
+          </div>
+        </div>
+      }
+    >
+      <BillingSuccessContent />
+    </Suspense>
+  );
+}
+

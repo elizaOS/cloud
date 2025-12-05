@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import Link from "next/link";
+import Image from "next/image";
 import { App } from "@/db/schemas";
 import {
   Activity,
@@ -63,9 +64,11 @@ export function AppsTable({ apps }: AppsTableProps) {
             {/* App Icon/Logo */}
             <div className="flex-shrink-0">
               {app.logo_url ? (
-                <img
+                <Image
                   src={app.logo_url}
                   alt={app.name}
+                  width={48}
+                  height={48}
                   className="w-12 h-12 rounded-lg object-cover"
                 />
               ) : (

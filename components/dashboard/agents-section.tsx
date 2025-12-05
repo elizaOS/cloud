@@ -22,7 +22,7 @@ import Image from "next/image";
 import Link from "next/link";
 import { Badge } from "@/components/ui/badge";
 import { formatDistanceToNow } from "date-fns";
-import { isDiceBearAvatar } from "@/lib/utils/default-avatar";
+import { isBuiltInAvatar, ensureAvatarUrl } from "@/lib/utils/default-avatar";
 
 interface AgentStats {
   roomCount: number;
@@ -252,30 +252,15 @@ function AgentCard({ agent }: { agent: Agent }) {
         </div>
         {/* Avatar Section - Large prominent image */}
         <div className={cn(
-          "relative h-36 w-full overflow-hidden",
-          !agent.avatarUrl && `bg-gradient-to-br ${gradientColor}`
+          "relative h-36 w-full overflow-hidden"
         )}>
-          {agent.avatarUrl ? (
-            <Image
-              src={agent.avatarUrl}
-              alt={agent.name}
-              fill
-              className="object-cover transition-transform duration-500 group-hover:scale-110"
-              unoptimized={isDiceBearAvatar(agent.avatarUrl)}
-            />
-          ) : (
-            <div className="absolute inset-0 flex items-center justify-center">
-              {/* Default avatar with initial */}
-              <div className="relative">
-                <div className="absolute inset-0 bg-white/10 rounded-full blur-xl scale-150" />
-                <div className="relative h-20 w-20 rounded-full bg-white/10 backdrop-blur-sm border border-white/20 flex items-center justify-center">
-                  <span className="text-3xl font-bold text-white/90">
-                    {agent.name.charAt(0).toUpperCase()}
-                  </span>
-                </div>
-              </div>
-            </div>
-          )}
+          <Image
+            src={ensureAvatarUrl(agent.avatarUrl)}
+            alt={agent.name}
+            fill
+            className="object-cover transition-transform duration-500 group-hover:scale-110"
+            unoptimized={!isBuiltInAvatar(agent.avatarUrl)}
+          />
           
           {/* Gradient overlay at bottom */}
           <div className="absolute inset-x-0 bottom-0 h-16 bg-gradient-to-t from-black/80 to-transparent" />

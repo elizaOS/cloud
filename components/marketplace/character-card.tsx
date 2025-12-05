@@ -21,7 +21,7 @@ import {
   getCategoryColor,
 } from "@/lib/constants/character-categories";
 import { formatDistanceToNow } from "date-fns";
-import { isDiceBearAvatar } from "@/lib/utils/default-avatar";
+import { isBuiltInAvatar, ensureAvatarUrl } from "@/lib/utils/default-avatar";
 
 interface CharacterCardProps {
   character: ExtendedCharacter;
@@ -52,17 +52,13 @@ export function CharacterCard({
         <CardContent className="p-3 flex items-center gap-4">
           {/* Avatar - Small icon */}
           <div className="relative h-12 w-12 flex-shrink-0 rounded-lg overflow-hidden bg-gradient-to-br from-primary/20 to-secondary/20 flex items-center justify-center">
-            {character.avatarUrl ? (
-              <Image
-                src={character.avatarUrl}
-                alt={character.name}
-                fill
-                className="object-cover"
-                unoptimized={isDiceBearAvatar(character.avatarUrl)}
-              />
-            ) : (
-              <Bot className="h-6 w-6 text-muted-foreground" />
-            )}
+            <Image
+              src={ensureAvatarUrl(character.avatarUrl)}
+              alt={character.name}
+              fill
+              className="object-cover"
+              unoptimized={!isBuiltInAvatar(character.avatarUrl)}
+            />
           </div>
 
           {/* Info */}
@@ -144,17 +140,13 @@ export function CharacterCard({
       <CardContent className="p-0 h-full flex flex-col">
         {/* Character Avatar/Header */}
         <div className="relative h-48 flex-shrink-0 bg-gradient-to-br from-primary/20 to-secondary/20 flex items-center justify-center rounded-t-xl overflow-hidden">
-          {character.avatarUrl ? (
-            <Image
-              src={character.avatarUrl}
-              alt={character.name}
-              fill
-              className="object-cover"
-              unoptimized={isDiceBearAvatar(character.avatarUrl)}
-            />
-          ) : (
-            <Bot className="h-20 w-20 text-muted-foreground" />
-          )}
+          <Image
+            src={ensureAvatarUrl(character.avatarUrl)}
+            alt={character.name}
+            fill
+            className="object-cover"
+            unoptimized={!isBuiltInAvatar(character.avatarUrl)}
+          />
 
           {/* Status Badges */}
           <div className="absolute top-2 right-2 flex gap-2">

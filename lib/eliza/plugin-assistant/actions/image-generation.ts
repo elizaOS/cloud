@@ -353,7 +353,30 @@ async function ensureBlobUrl(
   userId?: string,
 ): Promise<string | null> {
   if (!isBase64DataUrl(imageUrl)) {
-    // Already a proper URL (e.g., from fal.ai CDN), return as-is
+    // Check if it's a Fal.ai URL - if so, upload to our storage
+    const { isFalAiUrl, ensureElizaCloudUrl } = await import("@/lib/blob");
+    
+    if (isFalAiUrl(imageUrl)) {
+      logger.info("[GENERATE_IMAGE] Fal.ai URL detected, uploading to our storage...");
+      try {
+        const timestamp = Date.now();
+        const ourUrl = await ensureElizaCloudUrl(imageUrl, {
+          filename: `generated-${timestamp}.png`,
+          folder: "images",
+          userId: userId || "system",
+          contentType: "image/png",
+          fallbackToOriginal: false, // Don't fallback - we want to hide Fal.ai URLs
+        });
+        logger.info(`[GENERATE_IMAGE] ✅ Uploaded Fal.ai image to our storage: ${ourUrl}`);
+        return ourUrl;
+      } catch (error) {
+        logger.error("[GENERATE_IMAGE] ❌ Failed to upload Fal.ai URL to our storage:", error);
+        // Return null to prevent exposing Fal.ai URL
+        return null;
+      }
+    }
+    
+    // Already a proper URL from our storage or other source, return as-is
     logger.info("[GENERATE_IMAGE] Image URL is already a valid HTTP URL, using directly");
     return imageUrl;
   }

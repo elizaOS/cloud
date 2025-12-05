@@ -79,7 +79,17 @@ export default defineConfig({
         viewport: { width: 1280, height: 720 },
       },
       // Only ignore the full wallet test (requires MetaMask), allow local wallet test
-      testIgnore: /wallet-login\.spec\.ts$/,
+      testIgnore: [/wallet-login\.spec\.ts$/, /miniapp.*\.spec\.ts$/],
+    },
+
+    // Miniapp integration tests
+    {
+      name: "miniapp",
+      use: {
+        ...devices["Desktop Chrome"],
+        viewport: { width: 1280, height: 720 },
+      },
+      testMatch: /miniapp.*\.spec\.ts$/,
     },
 
     // Cleanup project

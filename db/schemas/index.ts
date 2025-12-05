@@ -6,6 +6,7 @@ export * from "./user-sessions";
 export * from "./anonymous-sessions";
 export * from "./api-keys";
 export * from "./cli-auth-sessions";
+export * from "./miniapp-auth-sessions";
 export * from "./usage-records";
 export * from "./usage-quotas";
 export * from "./credit-transactions";

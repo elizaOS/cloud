@@ -1,4 +1,4 @@
-import { test, expect } from "@playwright/test";
+import { test, expect, type Page, type ConsoleMessage } from "@playwright/test";
 
 /**
  * Comprehensive Page Tests
@@ -10,7 +10,7 @@ import { test, expect } from "@playwright/test";
 const BASE_URL = process.env.PLAYWRIGHT_BASE_URL ?? "http://localhost:3000";
 
 // Helper to check page loads without critical errors
-async function verifyPageLoads(page: ReturnType<typeof test.info>["page"], url: string, pageName: string) {
+async function verifyPageLoads(page: Page, url: string, pageName: string) {
   const response = await page.goto(url, { waitUntil: "domcontentloaded" });
   
   // Check response status
@@ -29,7 +29,7 @@ async function verifyPageLoads(page: ReturnType<typeof test.info>["page"], url: 
   
   // Check for JavaScript errors in console
   const consoleErrors: string[] = [];
-  page.on("console", (msg) => {
+  page.on("console", (msg: ConsoleMessage) => {
     if (msg.type() === "error") {
       consoleErrors.push(msg.text());
     }
