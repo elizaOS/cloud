@@ -20,5 +20,5 @@ export function DashboardPageWrapper({
     [userName],
   );
 
-  return <>{children}</>;
+  return children;
 }

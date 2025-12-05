@@ -38,8 +38,8 @@ export function SignupPromptBanner({
       return {
         icon: Zap,
         iconColor: "#FF5800",
-        title: "Only 2 messages left!",
-        description: "Sign up now to keep chatting without limits.",
+        title: "2 messages left",
+        description: "Sign up to continue",
         bgColor: "bg-[#FF5800]/10",
         borderColor: "border-[#FF5800]/30",
         urgent: true,
@@ -48,8 +48,8 @@ export function SignupPromptBanner({
       return {
         icon: Clock,
         iconColor: "#FF5800",
-        title: `${remaining} free messages remaining`,
-        description: "Create a free account to unlock unlimited access.",
+        title: `${remaining} messages left`,
+        description: "Sign up for unlimited",
         bgColor: "bg-[#FF5800]/5",
         borderColor: "border-[#FF5800]/20",
         urgent: false,
@@ -59,8 +59,7 @@ export function SignupPromptBanner({
         icon: Sparkles,
         iconColor: "#6366F1",
         title: "Enjoying Eliza?",
-        description:
-          "Sign up for free to save your conversations and unlock all features.",
+        description: "Sign up to save chats",
         bgColor: "bg-indigo-500/5",
         borderColor: "border-indigo-500/20",
         urgent: false,

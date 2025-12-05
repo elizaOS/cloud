@@ -9,7 +9,7 @@ import {
 import { Progress } from "@/components/ui/progress";
 import { cn } from "@/lib/utils";
 import type { LanguageModelUsage } from "ai";
-import { type ComponentProps, createContext, useContext } from "react";
+import { type ComponentProps, createContext, useContext, useMemo } from "react";
 import { estimateCost, type ModelId } from "tokenlens";
 
 const PERCENT_MAX = 100;
@@ -45,18 +45,20 @@ export const Context = ({
   usage,
   modelId,
   ...props
-}: ContextProps) => (
-  <ContextContext.Provider
-    value={{
-      usedTokens,
-      maxTokens,
-      usage,
-      modelId,
-    }}
-  >
-    <HoverCard closeDelay={0} openDelay={0} {...props} />
-  </ContextContext.Provider>
-);
+}: ContextProps) => {
+  const contextValue = useMemo(() => ({
+    usedTokens,
+    maxTokens,
+    usage,
+    modelId,
+  }), [usedTokens, maxTokens, usage, modelId]);
+
+  return (
+    <ContextContext.Provider value={contextValue}>
+      <HoverCard closeDelay={0} openDelay={0} {...props} />
+    </ContextContext.Provider>
+  );
+};
 
 const ContextIcon = () => {
   const { usedTokens, maxTokens } = useContextValue();

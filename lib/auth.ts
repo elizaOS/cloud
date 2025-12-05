@@ -58,8 +58,7 @@ async function ensureUserHasApiKey(
       is_active: true,
     });
   } catch (error) {
-    console.error(`[Auth] Error ensuring API key for user ${userId}:`, error);
-    throw error;
+    console.error("[Auth] Failed to ensure user has API key:", error);
   }
 }
 

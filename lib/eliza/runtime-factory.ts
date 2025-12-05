@@ -117,6 +117,8 @@ export class RuntimeFactory {
       );
     }
 
+    console.log("NEW RUNTIME CREATION");
+
     // 6. Create runtime with everything configured upfront
     const runtime = new AgentRuntime({
       character: {
@@ -138,44 +140,11 @@ export class RuntimeFactory {
     // 9. Initialize runtime
     await this.initializeRuntime(runtime, character, agentId);
 
-    // Debug: Check if MCP service was registered and wait for it to connect
-    const mcpService = runtime.getService("mcp");
-    if (mcpService) {
-      elizaLogger.success(
-        "[RuntimeFactory] MCP service successfully registered and available",
-      );
-
-      // Wait for MCP initialization to complete
-      if (typeof (mcpService as any).waitForInitialization === "function") {
-        elizaLogger.info(
-          "[RuntimeFactory] Waiting for MCP service to finish connecting...",
-        );
-        await (mcpService as any).waitForInitialization();
-        elizaLogger.info(
-          "[RuntimeFactory] MCP service initialization complete",
-        );
-      }
-
-      // Check if servers are connected
-      const servers = (mcpService as any).getServers?.();
-      if (servers) {
-        elizaLogger.info(
-          `[RuntimeFactory] MCP servers status: ${JSON.stringify(servers.map((s: any) => ({ name: s.name, status: s.status, toolCount: s.tools?.length || 0 })))}`,
-        );
-      }
-      // Check provider data
-      const providerData = (mcpService as any).getProviderData?.();
-      const serverKeys = providerData?.data?.mcp
-        ? Object.keys(providerData.data.mcp)
-        : [];
-      elizaLogger.info(
-        `[RuntimeFactory] MCP provider has ${serverKeys.length} server(s): ${JSON.stringify(serverKeys)}`,
-      );
-    } else {
-      elizaLogger.error(
-        "[RuntimeFactory] MCP service NOT found after initialization!",
-      );
-    }
+    // 10. Wait for MCP service if plugin was loaded
+    // Why: Assistant mode requires MCP service to work at full capacity
+    // Where: Only runs if @elizaos/plugin-mcp is in the plugins list
+    // What: Polls until service is available, then waits for initialization
+    await this.waitForMcpServiceIfNeeded(runtime, filteredPlugins);
 
     elizaLogger.success(
       "[RuntimeFactory] Runtime created successfully for user",
@@ -552,6 +521,140 @@ export class RuntimeFactory {
         child: () => globalAny.logger!,
       };
     }
+  }
+
+  /**
+   * Wait for MCP service to be available and initialized if the plugin was loaded
+   * 
+   * Why: Assistant mode requires MCP service for full capabilities
+   * When: Only if @elizaos/plugin-mcp is in the loaded plugins list
+   * What: Polls for service availability (2s timeout), then waits for initialization
+   */
+  private async waitForMcpServiceIfNeeded(
+    runtime: AgentRuntime,
+    plugins: Plugin[],
+  ): Promise<void> {
+    // Check if MCP plugin was loaded
+    const hasMcpPlugin = this.isMcpPluginLoaded(plugins);
+    
+    if (!hasMcpPlugin) {
+      elizaLogger.info(
+        "[RuntimeFactory] MCP plugin not loaded, skipping service check",
+      );
+      return;
+    }
+
+    elizaLogger.info(
+      "[RuntimeFactory] MCP plugin loaded, waiting for service to become available...",
+    );
+
+    // Poll for service availability (it registers asynchronously during runtime.initialize())
+    const mcpService = await this.pollForMcpService(runtime);
+
+    if (!mcpService) {
+      elizaLogger.error(
+        "[RuntimeFactory] MCP service NOT available after 2s - assistant mode will have limited capabilities!",
+      );
+      return;
+    }
+
+    // Service is available, now wait for it to finish connecting to MCP servers
+    await this.waitForMcpInitialization(mcpService);
+    
+    // Log final status
+    this.logMcpServiceStatus(mcpService);
+  }
+
+  /**
+   * Check if MCP plugin is in the loaded plugins list
+   * 
+   * Where: Checks plugin names for @elizaos/plugin-mcp
+   */
+  private isMcpPluginLoaded(plugins: Plugin[]): boolean {
+    return plugins.some((p) => p.name === "mcp");
+  }
+
+  /**
+   * Poll for MCP service to become available
+   * 
+   * Why: Service registers asynchronously, not immediately available after runtime.initialize()
+   * What: Checks every 100ms for up to 2000ms (2s)
+   */
+  private async pollForMcpService(
+    runtime: AgentRuntime,
+  ): Promise<any | null> {
+    const maxAttempts = 40; // 40 attempts * 100ms = 4000ms (4s)
+    const pollInterval = 100; // ms
+
+    for (let attempt = 1; attempt <= maxAttempts; attempt++) {
+      const service = runtime.getService("mcp");
+      
+      if (service) {
+        elizaLogger.success(
+          `[RuntimeFactory] MCP service became available after ${attempt * pollInterval}ms`,
+        );
+        return service;
+      }
+
+      // Wait before next attempt
+      await new Promise((resolve) => setTimeout(resolve, pollInterval));
+    }
+
+    return null;
+  }
+
+  /**
+   * Wait for MCP service to finish connecting to configured MCP servers
+   * 
+   * Why: Service needs to establish connections before tools are available
+   * What: Calls waitForInitialization() if the method exists
+   */
+  private async waitForMcpInitialization(mcpService: any): Promise<void> {
+    if (typeof mcpService.waitForInitialization !== "function") {
+      elizaLogger.warn(
+        "[RuntimeFactory] MCP service does not have waitForInitialization method",
+      );
+      return;
+    }
+
+    elizaLogger.info(
+      "[RuntimeFactory] Waiting for MCP service to finish connecting to servers...",
+    );
+
+    await mcpService.waitForInitialization();
+
+    elizaLogger.success(
+      "[RuntimeFactory] MCP service initialization complete",
+    );
+  }
+
+  /**
+   * Log MCP service status for debugging
+   * 
+   * What: Logs connected servers and available tools
+   */
+  private logMcpServiceStatus(mcpService: any): void {
+    // Log server connection status
+    const servers = mcpService.getServers?.();
+    if (servers) {
+      const serverStatus = servers.map((s: any) => ({
+        name: s.name,
+        status: s.status,
+        toolCount: s.tools?.length || 0,
+      }));
+      elizaLogger.info(
+        `[RuntimeFactory] MCP servers: ${JSON.stringify(serverStatus)}`,
+      );
+    }
+
+    // Log provider data
+    const providerData = mcpService.getProviderData?.();
+    const serverKeys = providerData?.data?.mcp
+      ? Object.keys(providerData.data.mcp)
+      : [];
+    elizaLogger.info(
+      `[RuntimeFactory] MCP provider has ${serverKeys.length} server(s): ${JSON.stringify(serverKeys)}`,
+    );
   }
 }
 

@@ -11,24 +11,38 @@ interface VoiceAudioPlayerProps {
   className?: string;
 }
 
+interface PlayerState {
+  isPlaying: boolean;
+  currentTime: number;
+  duration: number;
+  volume: number;
+  isMuted: boolean;
+}
+
 export function VoiceAudioPlayer({
   audioUrl,
   className,
 }: VoiceAudioPlayerProps) {
-  const [isPlaying, setIsPlaying] = useState(false);
-  const [currentTime, setCurrentTime] = useState(0);
-  const [duration, setDuration] = useState(0);
-  const [volume, setVolume] = useState(1);
-  const [isMuted, setIsMuted] = useState(false);
+  const [playerState, setPlayerState] = useState<PlayerState>({
+    isPlaying: false,
+    currentTime: 0,
+    duration: 0,
+    volume: 1,
+    isMuted: false,
+  });
   const audioRef = useRef<HTMLAudioElement>(null);
+
+  const updatePlayer = (updates: Partial<PlayerState>) => {
+    setPlayerState((prev) => ({ ...prev, ...updates }));
+  };
 
   useEffect(() => {
     const audio = audioRef.current;
     if (!audio) return;
 
-    const handleTimeUpdate = () => setCurrentTime(audio.currentTime);
-    const handleDurationChange = () => setDuration(audio.duration);
-    const handleEnded = () => setIsPlaying(false);
+    const handleTimeUpdate = () => updatePlayer({ currentTime: audio.currentTime });
+    const handleDurationChange = () => updatePlayer({ duration: audio.duration });
+    const handleEnded = () => updatePlayer({ isPlaying: false });
 
     audio.addEventListener("timeupdate", handleTimeUpdate);
     audio.addEventListener("durationchange", handleDurationChange);
@@ -45,12 +59,12 @@ export function VoiceAudioPlayer({
     const audio = audioRef.current;
     if (!audio) return;
 
-    if (isPlaying) {
+    if (playerState.isPlaying) {
       audio.pause();
     } else {
       audio.play();
     }
-    setIsPlaying(!isPlaying);
+    updatePlayer({ isPlaying: !playerState.isPlaying });
   };
 
   const handleSeek = (value: number[]) => {
@@ -58,7 +72,7 @@ export function VoiceAudioPlayer({
     if (!audio) return;
 
     audio.currentTime = value[0];
-    setCurrentTime(value[0]);
+    updatePlayer({ currentTime: value[0] });
   };
 
   const handleVolumeChange = (value: number[]) => {
@@ -67,20 +81,19 @@ export function VoiceAudioPlayer({
 
     const newVolume = value[0];
     audio.volume = newVolume;
-    setVolume(newVolume);
-    setIsMuted(newVolume === 0);
+    updatePlayer({ volume: newVolume, isMuted: newVolume === 0 });
   };
 
   const toggleMute = () => {
     const audio = audioRef.current;
     if (!audio) return;
 
-    if (isMuted) {
-      audio.volume = volume || 0.5;
-      setIsMuted(false);
+    if (playerState.isMuted) {
+      audio.volume = playerState.volume || 0.5;
+      updatePlayer({ isMuted: false });
     } else {
       audio.volume = 0;
-      setIsMuted(true);
+      updatePlayer({ isMuted: true });
     }
   };
 
@@ -102,7 +115,7 @@ export function VoiceAudioPlayer({
         onClick={togglePlay}
         className="h-8 w-8"
       >
-        {isPlaying ? (
+        {playerState.isPlaying ? (
           <Pause className="h-4 w-4" />
         ) : (
           <Play className="h-4 w-4" />
@@ -111,17 +124,17 @@ export function VoiceAudioPlayer({
 
       <div className="flex items-center gap-2 flex-1 min-w-0">
         <span className="text-xs text-muted-foreground whitespace-nowrap">
-          {formatTime(currentTime)}
+          {formatTime(playerState.currentTime)}
         </span>
         <Slider
-          value={[currentTime]}
-          max={duration || 100}
+          value={[playerState.currentTime]}
+          max={playerState.duration || 100}
           step={0.1}
           onValueChange={handleSeek}
           className="flex-1"
         />
         <span className="text-xs text-muted-foreground whitespace-nowrap">
-          {formatTime(duration)}
+          {formatTime(playerState.duration)}
         </span>
       </div>
 
@@ -132,14 +145,14 @@ export function VoiceAudioPlayer({
           onClick={toggleMute}
           className="h-8 w-8"
         >
-          {isMuted ? (
+          {playerState.isMuted ? (
             <VolumeX className="h-4 w-4" />
           ) : (
             <Volume2 className="h-4 w-4" />
           )}
         </Button>
         <Slider
-          value={[isMuted ? 0 : volume]}
+          value={[playerState.isMuted ? 0 : playerState.volume]}
           max={1}
           step={0.01}
           onValueChange={handleVolumeChange}

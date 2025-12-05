@@ -1,11 +1,11 @@
 /**
  * Parser Utilities
  *
- * Functions for parsing LLM responses and extracting structured data.
+ * Types and functions for parsing LLM responses.
  */
 
 /**
- * Parsed plan structure from planning phase
+ * Parsed plan from planning phase
  */
 export interface ParsedPlan {
   canRespondNow?: string;
@@ -16,7 +16,7 @@ export interface ParsedPlan {
 }
 
 /**
- * Parsed response structure from response phase
+ * Parsed response from LLM
  */
 export interface ParsedResponse {
   thought?: string;
@@ -27,9 +27,7 @@ export interface ParsedResponse {
  * Parse planned items (providers or actions) from XML response
  * Handles both array and comma-separated string formats
  */
-export function parsePlannedItems(
-  items: string | string[] | undefined,
-): string[] {
+export function parsePlannedItems(items: string | string[] | undefined): string[] {
   if (!items) return [];
 
   const itemArray = Array.isArray(items)
@@ -48,3 +46,4 @@ export function canRespondImmediately(plan: ParsedPlan | null): boolean {
     plan?.canRespondNow === "true"
   );
 }
+

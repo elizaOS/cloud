@@ -101,19 +101,14 @@ export class VercelGatewayProvider implements AIProvider {
       messageCount: request.messages.length,
     });
 
-    try {
-      return await this.fetchWithTimeout(`${this.baseUrl}/chat/completions`, {
-        method: "POST",
-        headers: {
-          Authorization: `Bearer ${this.apiKey}`,
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify(request),
-      });
-    } catch (error) {
-      logger.error("[Vercel Gateway] Request failed", error);
-      throw error;
-    }
+    return await this.fetchWithTimeout(`${this.baseUrl}/chat/completions`, {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${this.apiKey}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify(request),
+    });
   }
 
   async embeddings(request: OpenAIEmbeddingsRequest): Promise<Response> {
@@ -122,46 +117,31 @@ export class VercelGatewayProvider implements AIProvider {
       inputType: Array.isArray(request.input) ? "array" : "string",
     });
 
-    try {
-      return await this.fetchWithTimeout(`${this.baseUrl}/embeddings`, {
-        method: "POST",
-        headers: {
-          Authorization: `Bearer ${this.apiKey}`,
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify(request),
-      });
-    } catch (error) {
-      logger.error("[Vercel Gateway] Embeddings request failed", error);
-      throw error;
-    }
+    return await this.fetchWithTimeout(`${this.baseUrl}/embeddings`, {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${this.apiKey}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify(request),
+    });
   }
 
   async listModels(): Promise<Response> {
-    try {
-      return await this.fetchWithTimeout(`${this.baseUrl}/models`, {
-        method: "GET",
-        headers: {
-          Authorization: `Bearer ${this.apiKey}`,
-        },
-      });
-    } catch (error) {
-      logger.error("[Vercel Gateway] List models failed", error);
-      throw error;
-    }
+    return await this.fetchWithTimeout(`${this.baseUrl}/models`, {
+      method: "GET",
+      headers: {
+        Authorization: `Bearer ${this.apiKey}`,
+      },
+    });
   }
 
   async getModel(model: string): Promise<Response> {
-    try {
-      return await this.fetchWithTimeout(`${this.baseUrl}/models/${model}`, {
-        method: "GET",
-        headers: {
-          Authorization: `Bearer ${this.apiKey}`,
-        },
-      });
-    } catch (error) {
-      logger.error("[Vercel Gateway] Get model failed", error);
-      throw error;
-    }
+    return await this.fetchWithTimeout(`${this.baseUrl}/models/${model}`, {
+      method: "GET",
+      headers: {
+        Authorization: `Bearer ${this.apiKey}`,
+      },
+    });
   }
 }

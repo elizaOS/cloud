@@ -15,6 +15,8 @@ export function CreditBalanceDisplay() {
         setCreditBalance(balance);
       } catch (error) {
         console.error("Failed to fetch credit balance:", error);
+        // Set to null to indicate error state rather than showing misleading "0.00"
+        setCreditBalance(null);
       } finally {
         setLoading(false);
       }

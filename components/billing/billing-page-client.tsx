@@ -64,17 +64,9 @@ export function BillingPageClient({
     <div className="space-y-8">
       <div className="rounded-lg border bg-card p-6">
         <div className="flex items-center justify-between">
-          <div>
-            <h3 className="text-lg font-semibold">Current Balance</h3>
-            <p className="text-sm text-muted-foreground">
-              Available balance in your account
-            </p>
-          </div>
-          <div className="text-right">
-            <div className="text-3xl font-bold">
-              ${Number(currentCredits).toFixed(2)}
-            </div>
-            <div className="text-sm text-muted-foreground">USD</div>
+          <h3 className="text-lg font-semibold">Balance</h3>
+          <div className="text-3xl font-bold">
+            ${Number(currentCredits).toFixed(2)}
           </div>
         </div>
       </div>

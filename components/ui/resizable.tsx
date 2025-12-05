@@ -76,16 +76,19 @@ export function ResizablePanelGroup({
     });
   }, []);
 
+  const contextValue = React.useMemo(
+    () => ({
+      direction,
+      panels,
+      setPanelSize,
+      registerPanel,
+      unregisterPanel,
+    }),
+    [direction, panels, setPanelSize, registerPanel, unregisterPanel],
+  );
+
   return (
-    <ResizablePanelGroupContext.Provider
-      value={{
-        direction,
-        panels,
-        setPanelSize,
-        registerPanel,
-        unregisterPanel,
-      }}
-    >
+    <ResizablePanelGroupContext.Provider value={contextValue}>
       <div
         className={cn(
           "flex h-full w-full",
