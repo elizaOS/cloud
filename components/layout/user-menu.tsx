@@ -27,14 +27,14 @@ import {
   User,
 } from "lucide-react";
 import { useRouter } from "next/navigation";
-import { useCreditsStream } from "@/hooks/use-credits-stream";
+import { useCredits } from "@/providers/CreditsProvider";
 import { useChatStore } from "@/stores/chat-store";
 
 export default function UserMenu() {
   const { ready, authenticated, user } = usePrivy();
   const { logout } = useLogout();
   const router = useRouter();
-  const { creditBalance, isLoading: loadingCredits } = useCreditsStream();
+  const { creditBalance, isLoading: loadingCredits } = useCredits();
   const { clearChatData } = useChatStore();
 
   // Loading state

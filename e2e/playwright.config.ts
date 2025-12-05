@@ -101,7 +101,7 @@ export default defineConfig({
   webServer: {
     command: "bun run dev",
     url: baseURL,
-    reuseExistingServer: !process.env.CI,
+    reuseExistingServer: true, // Always reuse existing server if running
     timeout: 120000,
     stdout: "pipe",
     stderr: "pipe",

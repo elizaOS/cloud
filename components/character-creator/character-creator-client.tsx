@@ -26,26 +26,13 @@ import {
   CornerBrackets,
 } from "@/components/brand";
 import { BuildModeAssistant } from "@/components/chat/build-mode-assistant";
+import { createDefaultCharacter } from "@/lib/utils/character-names";
 
 interface CharacterCreatorClientProps {
   initialCharacters: ElizaCharacter[];
   initialCharacterId?: string;
   userId: string;
 }
-
-const defaultCharacter: ElizaCharacter = {
-  name: "",
-  bio: "",
-  system: "",
-  topics: [],
-  adjectives: [],
-  postExamples: [],
-  plugins: [],
-  settings: {},
-  secrets: {},
-  style: {},
-  templates: {},
-};
 
 export function CharacterCreatorClient({
   initialCharacters,
@@ -62,13 +49,14 @@ export function CharacterCreatorClient({
         return char;
       }
     }
-    return defaultCharacter;
+    return createDefaultCharacter();
   });
 
   const [selectedId, setSelectedId] = useState<string | null>(
     initialCharacterId || null,
   );
   const [showAssistant, setShowAssistant] = useState(true);
+  const [hasAutoInitialized, setHasAutoInitialized] = useState(false);
   const [isInitializingCharacter, setIsInitializingCharacter] = useState(false);
 
   const handleCharacterUpdate = useCallback(
@@ -130,7 +118,7 @@ export function CharacterCreatorClient({
   );
 
   const handleNewCharacter = useCallback(() => {
-    setCharacter(defaultCharacter);
+    setCharacter(createDefaultCharacter());
     setSelectedId(null);
     toast.success("New character created");
   }, []);
@@ -141,22 +129,12 @@ export function CharacterCreatorClient({
 
     setIsInitializingCharacter(true);
     try {
-      // Create a minimal character record with a temporary name
-      const tempCharacter: ElizaCharacter = {
-        name: `New Character ${Date.now()}`,
-        bio: "Character being created with AI assistance",
-        system: "",
-        topics: [],
-        adjectives: [],
-        postExamples: [],
-        plugins: [],
-        settings: {},
-        secrets: {},
-        style: {},
-        templates: {},
-      };
+      // Create a character with a random friendly name and auto-generated avatar
+      const newCharacter = createDefaultCharacter();
+      // Add a default bio for build mode
+      newCharacter.bio = "Character being created with AI assistance";
 
-      const saved = await createCharacter(tempCharacter);
+      const saved = await createCharacter(newCharacter);
 
       if (saved.id) {
         setCharacter(saved);
@@ -171,13 +149,6 @@ export function CharacterCreatorClient({
       setIsInitializingCharacter(false);
     }
   }, [isInitializingCharacter]);
-
-  // Auto-initialize character when entering with no existing character
-  useEffect(() => {
-    if (!selectedId && showAssistant && !isInitializingCharacter) {
-      initializeBlankCharacter();
-    }
-  }, [selectedId, showAssistant, isInitializingCharacter, initializeBlankCharacter]);
 
   // Refresh character data from database
   const handleCharacterRefresh = useCallback(async () => {
@@ -195,11 +166,17 @@ export function CharacterCreatorClient({
     }
   }, [selectedId]);
 
+  // Auto-initialize a blank character when entering the creator for the first time
+  useEffect(() => {
+    if (!selectedId && !hasAutoInitialized && !isInitializingCharacter && showAssistant) {
+      setHasAutoInitialized(true);
+      initializeBlankCharacter();
+    }
+  }, [selectedId, hasAutoInitialized, isInitializingCharacter, showAssistant, initializeBlankCharacter]);
+
   useSetPageHeader(
     {
       title: "Character Creator",
-      description:
-        "Create and customize AI agent characters with personality, knowledge, and style",
       actions: (
         <div className="flex items-center gap-3">
           <Select
@@ -284,9 +261,14 @@ export function CharacterCreatorClient({
               <BrandCard className="relative flex h-full flex-col">
                 <CornerBrackets size="sm" className="opacity-50" />
                 <div className="relative z-10 flex-1 flex flex-col items-center justify-center p-8 text-center">
-                  <div className="animate-pulse text-white/60">
-                    Initializing character...
+                  <div className="animate-pulse">
+                    <div className="w-12 h-12 rounded-full bg-white/10 mx-auto mb-4" />
+                    <div className="h-4 w-32 bg-white/10 rounded mx-auto mb-2" />
+                    <div className="h-3 w-48 bg-white/10 rounded mx-auto" />
                   </div>
+                  <p className="text-white/60 mt-4">
+                    Initializing character...
+                  </p>
                 </div>
               </BrandCard>
             )

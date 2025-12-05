@@ -1,7 +1,7 @@
 "use client";
 
 import { useMemo } from "react";
-import { Loader2, Sparkles, Timer } from "lucide-react";
+import { Loader2, Timer } from "lucide-react";
 
 import { Input } from "@/components/ui/input";
 import {
@@ -141,28 +141,12 @@ export function VideoGenerationForm({
             </Select>
           </div>
 
-          <div className="grid gap-3 border border-dashed border-white/10 bg-black/40 p-3 md:p-4 text-xs md:text-sm text-white/60">
-            <div className="flex items-center gap-2 text-xs font-mono font-semibold uppercase tracking-wide text-white/70">
-              <Sparkles className="h-4 w-4 text-[#FF5800]" />
-              Model insights
-            </div>
-            <div className="grid gap-2 bg-black/60 border border-white/10 p-2 md:p-3">
-              <div className="flex items-center justify-between text-xs font-mono text-white/60">
-                <span>Resolution</span>
-                <span className="font-medium text-white">
-                  {activeModel.dimensions}
-                </span>
-              </div>
-              <div className="flex items-center justify-between text-xs font-mono text-white/60">
-                <span className="flex items-center gap-2">
-                  <Timer className="h-4 w-4 text-[#FF5800]" />
-                  Est. duration
-                </span>
-                <span className="font-medium text-white">
-                  {activeModel.durationEstimate}
-                </span>
-              </div>
-            </div>
+          <div className="flex items-center gap-4 text-xs font-mono text-white/50 border-t border-white/5 pt-3">
+            <span>{activeModel.dimensions}</span>
+            <span className="flex items-center gap-1">
+              <Timer className="h-3 w-3" />
+              {activeModel.durationEstimate}
+            </span>
           </div>
 
           <div className="grid gap-2">

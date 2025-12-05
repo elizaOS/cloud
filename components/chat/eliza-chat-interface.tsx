@@ -13,13 +13,15 @@ import {
   Plus,
   Copy,
   Check,
+  Zap,
+  Sparkles,
+  Crown,
 } from "lucide-react";
 import { ElizaAvatar } from "./eliza-avatar";
 import { KnowledgeDrawer } from "./knowledge-drawer";
 import { useAudioRecorder } from "./hooks/use-audio-recorder";
 import { useAudioPlayer } from "./hooks/use-audio-player";
 import { useModelTier } from "./hooks/use-model-tier";
-import { Zap, Sparkles, Crown } from "lucide-react";
 import { sendStreamingMessage } from "@/hooks/use-streaming-message";
 import type { StreamingMessage } from "@/hooks/use-streaming-message";
 import { toast } from "sonner";
@@ -40,6 +42,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { useRenderTracker } from "@/lib/debug/render-tracker";
+import { usePrivy } from "@privy-io/react-auth";
 
 interface Message {
   id: string;
@@ -67,6 +70,19 @@ interface ElizaChatInterfaceProps {
   onMessageSent?: () => void | Promise<void>;
 }
 
+interface CustomVoice {
+  id: string;
+  elevenlabsVoiceId: string;
+  name: string;
+  cloneType: string;
+}
+
+const tierIcons: Record<string, React.ReactNode> = {
+  fast: <Zap className="h-3.5 w-3.5" />,
+  pro: <Sparkles className="h-3.5 w-3.5" />,
+  ultra: <Crown className="h-3.5 w-3.5" />,
+};
+
 export function ElizaChatInterface({ onMessageSent }: ElizaChatInterfaceProps) {
   // Track renders in development
   useRenderTracker("ElizaChatInterface");
@@ -82,6 +98,10 @@ export function ElizaChatInterface({ onMessageSent }: ElizaChatInterfaceProps) {
     setPendingMessage,
     anonymousSessionToken,
   } = useChatStore();
+  
+  // Check authentication status for features that require it
+  const { authenticated } = usePrivy();
+  
   const [messages, setMessages] = useState<Message[]>([]);
   const [agentInfo, setAgentInfo] = useState<AgentInfo | null>(null);
   const [inputText, setInputText] = useState("");
@@ -107,13 +127,6 @@ export function ElizaChatInterface({ onMessageSent }: ElizaChatInterfaceProps) {
   const scrollAreaRef = useRef<HTMLDivElement>(null);
   const thinkingTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   
-  // Consolidated audio state
-  interface CustomVoice {
-    id: string;
-    elevenlabsVoiceId: string;
-    name: string;
-    cloneType: string;
-  }
   const [audioState, setAudioState] = useState<{
     autoPlayTTS: boolean;
     currentPlayingId: string | null;
@@ -143,12 +156,6 @@ export function ElizaChatInterface({ onMessageSent }: ElizaChatInterfaceProps) {
 
   const { selectedTier, selectedModelId, tiers, setTier, isLoading: isLoadingModels } = useModelTier();
 
-  const tierIcons = {
-    fast: <Zap className="h-3.5 w-3.5" />,
-    pro: <Sparkles className="h-3.5 w-3.5" />,
-    ultra: <Crown className="h-3.5 w-3.5" />,
-  };
-
   const loadMessages = useCallback(async (targetRoomId: string) => {
     setLoadingState(prev => ({ ...prev, isLoadingMessages: true }));
     try {
@@ -159,8 +166,6 @@ export function ElizaChatInterface({ onMessageSent }: ElizaChatInterfaceProps) {
         if (data.agent) {
           setAgentInfo(data.agent);
         }
-        // Note: We don't update selectedCharacterId here anymore
-        // Character selection is controlled by the header dropdown
       }
     } catch (err) {
       console.error("Error loading messages:", err);
@@ -211,10 +216,7 @@ export function ElizaChatInterface({ onMessageSent }: ElizaChatInterfaceProps) {
     [createRoomInStore, loadMessages, selectedCharacterId],
   );
 
-  // Note: Room and character initialization is now handled by URL params
-  // via ElizaPageClient, no need to create room automatically here
-
-  // Check for pending message from landing page and auto-send it
+  // Handle pending message from landing page
   useEffect(() => {
     // Guard: Only process if we have a pending message and not already processing
     if (
@@ -280,14 +282,7 @@ export function ElizaChatInterface({ onMessageSent }: ElizaChatInterfaceProps) {
   const generateSpeech = useCallback(
     async (text: string, messageId: string) => {
       try {
-        // Use selectedVoiceId directly (callback will recreate when it changes)
         const currentVoiceId = audioState.selectedVoiceId;
-        const voiceName = currentVoiceId
-          ? audioState.customVoices.find((v) => v.elevenlabsVoiceId === currentVoiceId)
-              ?.name || "Custom Voice"
-          : "Default Voice";
-
-        // Build request body - IMPORTANT: Only add voiceId if we actually have one
         const requestBody: { text: string; voiceId?: string } = { text };
         if (currentVoiceId) {
           requestBody.voiceId = currentVoiceId;
@@ -318,11 +313,17 @@ export function ElizaChatInterface({ onMessageSent }: ElizaChatInterfaceProps) {
         toast.error("Failed to generate speech");
       }
     },
-    [audioState.autoPlayTTS, audioState.selectedVoiceId, audioState.customVoices, player],
+    [audioState.autoPlayTTS, audioState.selectedVoiceId, player],
   );
 
-  // Load custom voices on mount
+  // Load custom voices on mount (only for authenticated users)
   useEffect(() => {
+    // Only fetch custom voices for authenticated users
+    // This API requires authentication and will return 401 for anonymous users
+    if (!authenticated) {
+      return;
+    }
+
     const fetchCustomVoices = async () => {
       try {
         const response = await fetch("/api/elevenlabs/voices/user");
@@ -332,13 +333,14 @@ export function ElizaChatInterface({ onMessageSent }: ElizaChatInterfaceProps) {
             setAudioState(prev => ({ ...prev, customVoices: data.voices }));
           }
         }
+        // Silently ignore 401 errors - user may not have voice features
       } catch (error) {
         console.error("Failed to load custom voices:", error);
       }
     };
 
     fetchCustomVoices();
-  }, []);
+  }, [authenticated]);
 
   const handleVoiceInput = useCallback(() => {
     if (recorder.isRecording) {
@@ -381,10 +383,8 @@ export function ElizaChatInterface({ onMessageSent }: ElizaChatInterfaceProps) {
           throw new Error(error.error || "Failed to transcribe audio");
         }
 
-        // Parse response - API returns { transcript, duration_ms }
-        const { transcript, duration_ms } = await response.json();
+        const { transcript } = await response.json();
 
-        // Validate transcript
         if (!transcript || transcript.trim().length === 0) {
           toast.error("No speech detected. Please try again.");
           console.warn("[ElizaChat STT] Empty transcript received");
@@ -514,16 +514,10 @@ export function ElizaChatInterface({ onMessageSent }: ElizaChatInterfaceProps) {
     }
   }, []);
 
-  // Auto-scroll to bottom when messages change
+  // Auto-scroll to bottom when messages change (with delayed scroll for late-loading content)
   useEffect(() => {
     scrollToBottom();
-  }, [messages, scrollToBottom]);
-
-  // Additional scroll after a delay to handle late-loading content
-  useEffect(() => {
-    const timer = setTimeout(() => {
-      scrollToBottom();
-    }, 100);
+    const timer = setTimeout(() => scrollToBottom(), 100);
     return () => clearTimeout(timer);
   }, [messages, scrollToBottom]);
 
@@ -1269,3 +1263,4 @@ export function ElizaChatInterface({ onMessageSent }: ElizaChatInterfaceProps) {
     </div>
   );
 }
+
