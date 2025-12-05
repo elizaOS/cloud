@@ -11,3 +11,5 @@ CHECK ("credit_balance" >= 0);
 COMMENT ON CONSTRAINT "credit_balance_non_negative" ON "organizations" IS 
 'Prevents negative credit balances as a second line of defense against race conditions. Application-level locking via SELECT FOR UPDATE is the primary protection.';
 
+
+
