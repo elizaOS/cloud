@@ -2,7 +2,6 @@
 
 import { useState, useCallback, useEffect } from "react";
 import { useRouter } from "next/navigation";
-import { AiAssistant } from "./ai-assistant";
 import { JsonEditor } from "./json-editor";
 import { CharacterForm } from "@/components/character-builder";
 import {
@@ -70,7 +69,8 @@ export function CharacterCreatorClient({
     initialCharacterId || null,
   );
   const [showAssistant, setShowAssistant] = useState(true);
-  const [useBuildMode, setUseBuildMode] = useState(false);
+  const [useBuildMode, setUseBuildMode] = useState(!!initialCharacterId);
+  const [hasAutoInitialized, setHasAutoInitialized] = useState(false);
   const [isInitializingCharacter, setIsInitializingCharacter] = useState(false);
 
   const handleCharacterUpdate = useCallback(
@@ -193,6 +193,14 @@ export function CharacterCreatorClient({
     }
   }, [selectedId]);
 
+  // Auto-initialize a blank character when entering the creator for the first time
+  useEffect(() => {
+    if (!selectedId && !hasAutoInitialized && !isInitializingCharacter && showAssistant) {
+      setHasAutoInitialized(true);
+      initializeBlankCharacter();
+    }
+  }, [selectedId, hasAutoInitialized, isInitializingCharacter, showAssistant, initializeBlankCharacter]);
+
   useSetPageHeader(
     {
       title: "Character Creator",
@@ -283,27 +291,14 @@ export function CharacterCreatorClient({
             <BrandCard className="relative flex h-full flex-col">
               <CornerBrackets size="sm" className="opacity-50" />
               <div className="relative z-10 flex-1 flex flex-col items-center justify-center p-8 text-center">
-                <h2 className="text-2xl font-bold text-white mb-4">
-                  Start Building Your Character
-                </h2>
-                <p className="text-white/60 mb-8 max-w-md">
-                  Chat with our AI assistant to design your character step by
-                  step. The assistant will help you define personality,
-                  knowledge, and capabilities.
-                </p>
-                <BrandButton
-                  variant="primary"
-                  onClick={initializeBlankCharacter}
-                  disabled={isInitializingCharacter}
-                  className="px-8"
-                >
-                  {isInitializingCharacter
-                    ? "Initializing..."
-                    : "Start Chat Builder"}
-                </BrandButton>
-                <div className="mt-6 text-sm text-white/40">
-                  Or use the traditional editor →
+                <div className="animate-pulse">
+                  <div className="w-12 h-12 rounded-full bg-white/10 mx-auto mb-4" />
+                  <div className="h-4 w-32 bg-white/10 rounded mx-auto mb-2" />
+                  <div className="h-3 w-48 bg-white/10 rounded mx-auto" />
                 </div>
+                <p className="text-white/60 mt-4">
+                  Initializing chat builder...
+                </p>
               </div>
             </BrandCard>
           ) : (

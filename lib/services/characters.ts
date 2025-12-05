@@ -137,7 +137,7 @@ export class CharactersService {
         ? {
             affiliateData: {
               ...affiliateData,
-              lore: loreData, // Include lore for full social media content
+              lore: loreData,
             },
           }
         : {}),
@@ -148,7 +148,7 @@ export class CharactersService {
       `[CharactersService] mergedSettings.affiliateData:`,
       mergedSettings.affiliateData ? "present" : "absent",
     );
-    
+
     return {
       id: character.id,
       name: character.name,

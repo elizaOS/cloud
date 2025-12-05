@@ -57,7 +57,7 @@ export function CharacterIntroPageWrapper({
         const response = await fetch("/api/affiliate/create-session", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ 
+          body: JSON.stringify({
             characterId,
             source: source || "direct",
           }),

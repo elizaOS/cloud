@@ -7,8 +7,13 @@
 
 import * as React from "react";
 import { BrandCard, BrandButton } from "@/components/brand";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 import { cn } from "@/lib/utils";
-import { Terminal, Server, Plus } from "lucide-react";
+import { Terminal, Server, HelpCircle } from "lucide-react";
 import Link from "next/link";
 import { ContainersTable } from "@/components/containers/containers-table";
 import { ContainersSkeleton } from "@/components/containers/containers-skeleton";
@@ -41,22 +46,38 @@ export function ContainersSection({
   const runningContainers = containers.filter((c) => c.status === "running");
 
   return (
-    <div className={cn("space-y-6", className)}>
+    <div className={cn("space-y-4", className)}>
       {/* Section Header */}
       <div className="flex items-center justify-between">
         <div>
-          <h2 className="text-2xl font-bold text-white flex items-center gap-2">
-            Containers
-            <span className="text-lg text-white/40">({containers.length})</span>
-          </h2>
-          <p className="text-white/60 mt-1">
+          <div className="flex items-center gap-2">
+            <h2 className="text-xl font-semibold text-white">Containers</h2>
+            <span className="text-sm text-white/30">({containers.length})</span>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <button
+                  type="button"
+                  className="text-white/20 hover:text-white/50 transition-colors"
+                >
+                  <HelpCircle className="h-3.5 w-3.5" />
+                </button>
+              </TooltipTrigger>
+              <TooltipContent
+                side="right"
+                className="max-w-[180px] text-xs bg-zinc-900 text-white/80 border border-white/10"
+              >
+                Cloud-hosted ElizaOS instances running 24/7.
+              </TooltipContent>
+            </Tooltip>
+          </div>
+          <p className="text-white/40 mt-0.5 text-xs">
             {runningContainers.length > 0
-              ? `${runningContainers.length} running container${runningContainers.length !== 1 ? "s" : ""}`
-              : "Deploy ElizaOS containers"}
+              ? `${runningContainers.length} running`
+              : "Deploy agents to the cloud"}
           </p>
         </div>
         {containers.length > 0 && (
-          <BrandButton variant="outline" asChild>
+          <BrandButton variant="outline" asChild size="sm" className="h-8 text-xs">
             <Link href="/dashboard/containers">View All</Link>
           </BrandButton>
         )}
@@ -76,50 +97,33 @@ export function ContainersSection({
 function ContainersEmptyState() {
   return (
     <BrandCard className="relative border-dashed">
-      <div className="relative z-10 text-center py-12 space-y-4">
+      <div className="relative z-10 text-center py-6 space-y-3">
         <div className="flex justify-center">
-          <div className="p-6 rounded-full bg-blue-500/10 border border-blue-500/20">
-            <Server className="h-12 w-12 text-blue-400" />
+          <div className="p-3 rounded-lg bg-blue-500/10 border border-blue-500/20">
+            <Server className="h-6 w-6 text-blue-400" />
           </div>
         </div>
         <div>
-          <h3 className="text-xl font-bold text-white mb-2">
-            No containers deployed
+          <h3 className="text-base font-medium text-white mb-1">
+            No containers
           </h3>
-          <p className="text-white/60 max-w-md mx-auto mb-6">
-            Deploy your first ElizaOS container using the CLI to get started
+          <p className="text-xs text-white/50 max-w-xs mx-auto">
+            Deploy via CLI
           </p>
         </div>
 
         {/* CLI Instructions */}
-        <div className="max-w-2xl mx-auto">
-          <div className="bg-black/60 border border-white/10 p-6 rounded-none font-mono text-sm text-left space-y-3">
-            <div className="flex items-center gap-2 text-[#FF5800] mb-4">
-              <Terminal className="h-4 w-4" />
-              <span className="font-sans font-semibold">Quick Start</span>
-            </div>
-
-            <div>
-              <div className="text-white/50 mb-1 font-sans text-xs">
-                # Install ElizaOS CLI
-              </div>
-              <div className="text-white">bun install -g @elizaos/cli</div>
-            </div>
-
-            <div>
-              <div className="text-white/50 mb-1 font-sans text-xs">
-                # Deploy your project
-              </div>
-              <div className="text-white/70">cd your-elizaos-project</div>
-              <div className="text-white">elizaos deploy</div>
-            </div>
+        <div className="max-w-md mx-auto">
+          <div className="bg-black/40 border border-white/10 p-3 rounded-lg font-mono text-xs text-left space-y-1.5">
+            <div className="text-white/40">$ bun install -g @elizaos/cli</div>
+            <div className="text-white/70">$ elizaos deploy</div>
           </div>
         </div>
 
-        <div className="pt-4">
-          <BrandButton variant="outline" asChild>
+        <div className="pt-1">
+          <BrandButton variant="outline" asChild size="sm" className="h-8 text-xs">
             <Link href="/dashboard/containers">
-              <Terminal className="h-4 w-4 mr-2" />
+              <Terminal className="h-3.5 w-3.5 mr-1.5" />
               Learn More
             </Link>
           </BrandButton>
