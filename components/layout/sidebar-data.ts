@@ -14,6 +14,7 @@ import {
   Puzzle,
 } from "lucide-react";
 import type { ComponentType } from "react";
+import type { FeatureFlag } from "@/lib/config/feature-flags";
 
 export interface SidebarItem {
   id: string;
@@ -22,7 +23,8 @@ export interface SidebarItem {
   icon: ComponentType<{ className?: string }>;
   badge?: string | number;
   isNew?: boolean;
-  freeAllowed?: boolean; // Whether anonymous users can access this
+  freeAllowed?: boolean;
+  featureFlag?: FeatureFlag;
 }
 
 export interface SidebarSection {
@@ -63,7 +65,8 @@ export const sidebarSections: SidebarSection[] = [
         label: "Creator",
         href: "/dashboard/character-creator",
         icon: UserCog,
-        freeAllowed: false, // Requires signup
+        freeAllowed: false,
+        featureFlag: "characterBuilder",
       },
       {
         id: "api-explorer",
@@ -96,14 +99,16 @@ export const sidebarSections: SidebarSection[] = [
         label: "Voices",
         href: "/dashboard/voices",
         icon: Mic,
-        freeAllowed: false, // Requires signup
+        freeAllowed: false,
+        featureFlag: "voiceCloning",
       },
       {
         id: "gallery",
         label: "Gallery",
         href: "/dashboard/gallery",
         icon: LayersIcon,
-        freeAllowed: false, // Requires signup
+        freeAllowed: false,
+        featureFlag: "gallery",
       },
     ],
   },
@@ -115,14 +120,16 @@ export const sidebarSections: SidebarSection[] = [
         label: "Containers",
         href: "/dashboard/containers",
         icon: Server,
-        freeAllowed: false, // Requires signup
+        freeAllowed: false,
+        featureFlag: "containers",
       },
       {
         id: "mcps",
         label: "MCPs",
         href: "/dashboard/mcps",
         icon: Puzzle,
-        freeAllowed: false, // Requires signup
+        freeAllowed: false,
+        featureFlag: "mcp",
         isNew: true,
       },
     ],
