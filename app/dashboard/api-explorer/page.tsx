@@ -23,6 +23,7 @@ import {
   MicIcon,
   SearchIcon,
   ShieldIcon,
+  X,
 } from "lucide-react";
 import { useEffect, useState } from "react";
 
@@ -54,7 +55,7 @@ export default function ApiExplorerPage() {
   });
 
   const [selectedEndpoint, setSelectedEndpoint] = useState<ApiEndpoint | null>(
-    null,
+    null
   );
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedCategory, setSelectedCategory] = useState<string>("All");
@@ -73,7 +74,7 @@ export default function ApiExplorerPage() {
   useEffect(() => {
     try {
       const spec = generateOpenAPISpec(
-        process.env.NEXT_PUBLIC_API_URL || "http://localhost:3000",
+        process.env.NEXT_PUBLIC_API_URL || "http://localhost:3000"
       );
       setOpenApiSpec(spec);
     } catch {
@@ -149,132 +150,6 @@ export default function ApiExplorerPage() {
       </button>
 
       {/* Sidebar */}
-      <aside
-        className={cn(
-          "transition-all duration-300 ease-in-out shrink-0",
-          // Desktop behavior
-          "lg:sticky lg:top-0 lg:self-start",
-          isSidebarCollapsed ? "hidden lg:block lg:w-16" : "lg:w-80 xl:w-96",
-          // Mobile behavior - fixed overlay
-          "fixed lg:relative inset-0 lg:inset-auto z-40 lg:z-auto",
-          showMobileSidebar
-            ? "translate-x-0"
-            : "-translate-x-full lg:translate-x-0",
-          "bg-black/95 lg:bg-transparent backdrop-blur-sm lg:backdrop-blur-none",
-          "w-full sm:w-96 lg:w-80 xl:w-96",
-        )}
-      >
-        <div
-          className={cn(
-            "flex flex-col gap-4 h-full lg:h-[calc(100vh-8rem)] p-4 lg:p-0 overflow-y-auto",
-            isSidebarCollapsed && "lg:items-center",
-          )}
-        >
-          {/* Mobile Close Button & Desktop Collapse Toggle */}
-          <div className="flex items-center justify-between shrink-0">
-            {/* Mobile Close Button */}
-            <button
-              onClick={() => setShowMobileSidebar(false)}
-              className="lg:hidden flex items-center gap-2 px-4 py-2 rounded-none border border-white/10 bg-black/40 hover:bg-white/5 text-white/60 hover:text-white transition-colors"
-            >
-              <ChevronLeftIcon className="h-5 w-5" />
-              <span className="text-sm font-medium">Close</span>
-            </button>
-
-            {/* Desktop Collapse Toggle */}
-            <button
-              onClick={() => setIsSidebarCollapsed(!isSidebarCollapsed)}
-              className="hidden lg:flex items-center justify-center w-12 h-12 rounded-none border border-white/10 bg-black/40 hover:bg-white/5 text-white/60 hover:text-white transition-colors ml-auto shrink-0"
-              title={isSidebarCollapsed ? "Expand sidebar" : "Collapse sidebar"}
-            >
-              {isSidebarCollapsed ? (
-                <ChevronRightIcon className="h-5 w-5" />
-              ) : (
-                <ChevronLeftIcon className="h-5 w-5" />
-              )}
-            </button>
-          </div>
-
-          {!isSidebarCollapsed && (
-            <>
-              <BrandCard className="relative shrink-0">
-                <CornerBrackets size="sm" className="opacity-50" />
-
-                <div className="relative z-10 space-y-4">
-                  <SectionLabel>Browse APIs</SectionLabel>
-
-                  <div className="relative">
-                    <SearchIcon className="absolute left-3 top-3 h-4 w-4 text-white/40 pointer-events-none" />
-                    <input
-                      placeholder="Search endpoints..."
-                      value={searchQuery}
-                      onChange={(e) => setSearchQuery(e.target.value)}
-                      className="w-full rounded-none border border-white/10 bg-black/40 px-3 py-2 pl-10 text-sm text-white placeholder:text-white/40 focus:outline-none focus:ring-1 focus:ring-[#FF5800] focus:border-[#FF5800]"
-                    />
-                  </div>
-                </div>
-              </BrandCard>
-
-              <BrandCard className="relative shrink-0">
-                <CornerBrackets size="sm" className="opacity-50" />
-
-                <div className="relative z-10">
-                  <AuthManager
-                    authToken={authToken}
-                    onTokenChange={setAuthToken}
-                  />
-                </div>
-              </BrandCard>
-
-              <div className="relative lg:flex-1 lg:min-h-0 overflow-hidden">
-                <BrandCard className="relative lg:h-full">
-                  <CornerBrackets size="sm" className="opacity-50" />
-
-                  <div className="relative z-10 lg:h-full flex flex-col">
-                    <div className="space-y-3 pb-3 shrink-0">
-                      <div className="flex items-center gap-2">
-                        <span className="w-1.5 h-1.5 rounded-full bg-[#FF5800]" />
-                        <h3 className="text-xs font-semibold uppercase text-white/50 tracking-wider">
-                          Categories
-                        </h3>
-                      </div>
-                    </div>
-
-                    <div className="flex-1 overflow-y-auto overflow-x-hidden lg:pr-2 -mr-2">
-                      <div className="space-y-1 pb-4">
-                        {categories.map((category) => (
-                          <button
-                            key={category}
-                            onClick={() => {
-                              setSelectedCategory(category);
-                              // Close mobile sidebar after selection
-                              setShowMobileSidebar(false);
-                            }}
-                            className={cn(
-                              "flex w-full items-center gap-2 rounded-none px-3 py-2.5 text-left text-sm transition-all border-l-2",
-                              selectedCategory === category
-                                ? "bg-white/10 text-white border-[#FF5800]"
-                                : "text-white/60 border-transparent hover:bg-white/5 hover:text-white",
-                            )}
-                          >
-                            {category !== "All" && getCategoryIcon(category)}
-                            <span className="flex-1 truncate">{category}</span>
-                            <span className="rounded-none bg-[#FF580020] px-2 py-0.5 text-[10px] font-semibold text-[#FF5800] border border-[#FF580040] shrink-0">
-                              {category === "All"
-                                ? API_ENDPOINTS.length
-                                : getEndpointsByCategory(category).length}
-                            </span>
-                          </button>
-                        ))}
-                      </div>
-                    </div>
-                  </div>
-                </BrandCard>
-              </div>
-            </>
-          )}
-        </div>
-      </aside>
 
       {/* Main Content */}
       <main className="flex-1 min-w-0 w-full lg:w-auto flex flex-col pb-12">
@@ -341,15 +216,21 @@ export default function ApiExplorerPage() {
                       ({filteredEndpoints.length})
                     </span>
                   </h2>
-                  {searchQuery && (
-                    <BrandButton
-                      variant="outline"
-                      size="sm"
-                      onClick={() => setSearchQuery("")}
-                    >
-                      Clear search
-                    </BrandButton>
-                  )}
+                  <div className="relative">
+                    <SearchIcon className="absolute left-3 top-3 h-4 w-4 text-white/40 pointer-events-none" />
+                    <input
+                      placeholder="Search endpoints..."
+                      value={searchQuery}
+                      onChange={(e) => setSearchQuery(e.target.value)}
+                      className="w-full  rounded-none border border-white/10 bg-black/40 px-3 py-2 pl-10 pr-10 text-sm text-white placeholder:text-white/40 focus:outline-none focus:ring-1 focus:ring-[#FF5800] focus:border-[#FF5800]"
+                    />
+                    {searchQuery && (
+                      <X
+                        className="absolute right-3 top-3 h-4 w-4  text-white cursor-pointer transition-colors"
+                        onClick={() => setSearchQuery("")}
+                      />
+                    )}
+                  </div>
                 </div>
 
                 {filteredEndpoints.length === 0 ? (
@@ -409,7 +290,7 @@ export default function ApiExplorerPage() {
                     onClick={() => {
                       if (openApiSpec) {
                         navigator.clipboard.writeText(
-                          JSON.stringify(openApiSpec, null, 2),
+                          JSON.stringify(openApiSpec, null, 2)
                         );
                         toast({
                           message: "OpenAPI spec copied to clipboard",
