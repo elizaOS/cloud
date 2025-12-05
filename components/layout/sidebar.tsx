@@ -1,12 +1,13 @@
 /**
  * Main Sidebar Navigation Component
+ * Memoized to prevent unnecessary re-renders from parent state changes
  */
 
 "use client";
 
 import Link from "next/link";
 import Image from "next/image";
-import { useState, useEffect } from "react";
+import { useState, useEffect, memo, useCallback } from "react";
 import { X } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { SidebarNavigationSection } from "./sidebar-section";
@@ -20,7 +21,7 @@ interface SidebarProps {
   onToggle?: () => void;
 }
 
-export default function Sidebar({
+function SidebarComponent({
   className,
   isOpen = false,
   onToggle,
@@ -37,13 +38,22 @@ export default function Sidebar({
     return () => window.removeEventListener("resize", checkScreenSize);
   }, []);
 
+  // Memoize toggle handler
+  const handleBackdropClick = useCallback(() => {
+    onToggle?.();
+  }, [onToggle]);
+
+  const handleCloseClick = useCallback(() => {
+    onToggle?.();
+  }, [onToggle]);
+
   return (
     <>
       {/* Mobile Backdrop */}
       {isMobile && isOpen && (
         <div
           className="fixed inset-0 z-40 bg-black/50 md:hidden"
-          onClick={onToggle}
+          onClick={handleBackdropClick}
         />
       )}
 
@@ -78,7 +88,7 @@ export default function Sidebar({
           {/* Mobile Close Button */}
           {isMobile && onToggle && (
             <button
-              onClick={onToggle}
+              onClick={handleCloseClick}
               className="rounded-none p-2 hover:bg-white/10 focus:bg-white/10 focus:outline-none relative z-10 transition-colors"
               aria-label="Close navigation"
             >
@@ -102,3 +112,7 @@ export default function Sidebar({
     </>
   );
 }
+
+// Memoize the sidebar to prevent re-renders when parent state changes
+const Sidebar = memo(SidebarComponent);
+export default Sidebar;

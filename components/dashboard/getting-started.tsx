@@ -45,9 +45,9 @@ export function GettingStarted({
   const steps: OnboardingStep[] = [
     {
       id: "create-agent",
-      title: "Create agent",
-      description: "Build your first AI character",
-      tooltip: "Customize personality, knowledge, and capabilities.",
+      title: "Create",
+      description: "Build an agent",
+      tooltip: "Customize personality and knowledge",
       icon: <Bot className="h-5 w-5" />,
       href: "/dashboard/character-creator",
       buttonText: "Create",
@@ -55,19 +55,19 @@ export function GettingStarted({
     },
     {
       id: "connect-model",
-      title: "Add API key",
-      description: "Connect to AI models",
-      tooltip: "Required to power your agents.",
+      title: "Add Key",
+      description: "Connect LLM",
+      tooltip: "Required for agent inference",
       icon: <Plug className="h-5 w-5" />,
       href: "/dashboard/api-keys",
-      buttonText: "Add Key",
+      buttonText: "Add",
       completed: hasApiKey,
     },
     {
       id: "test-agent",
-      title: "Test agent",
-      description: "Chat with your creation",
-      tooltip: "Verify responses before deploying.",
+      title: "Test",
+      description: "Chat with agent",
+      tooltip: "Verify before deploying",
       icon: <MessageSquare className="h-5 w-5" />,
       href: "/dashboard/chat",
       buttonText: "Chat",
@@ -85,16 +85,11 @@ export function GettingStarted({
   return (
     <section className={cn("space-y-4", className)}>
       <div className="flex items-center justify-between">
-        <div>
-          <div className="flex items-center gap-3">
-            <h2 className="text-xl font-semibold text-white">Get Started</h2>
-            <span className="text-xs text-white/40 bg-white/5 px-2 py-0.5 rounded">
-              {completedCount}/{steps.length}
-            </span>
-          </div>
-          <p className="text-white/40 mt-0.5 text-xs">
-            Build and deploy AI agents
-          </p>
+        <div className="flex items-center gap-3">
+          <h2 className="text-xl font-semibold text-white">Get Started</h2>
+          <span className="text-xs text-white/40 bg-white/5 px-2 py-0.5 rounded">
+            {completedCount}/{steps.length}
+          </span>
         </div>
       </div>
 

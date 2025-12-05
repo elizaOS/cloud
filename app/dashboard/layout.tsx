@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, Profiler, type ProfilerOnRenderCallback } from "react";
+import { useState, useEffect, useCallback, Profiler, type ProfilerOnRenderCallback } from "react";
 import { usePrivy } from "@privy-io/react-auth";
 import { useRouter, usePathname } from "next/navigation";
 import { Loader2 } from "lucide-react";
@@ -38,6 +38,11 @@ export default function DashboardLayout({
   const { ready, authenticated } = usePrivy();
   const router = useRouter();
   const pathname = usePathname();
+
+  // Memoize toggle callback to prevent child re-renders
+  const handleToggleSidebar = useCallback(() => {
+    setSidebarOpen((prev) => !prev);
+  }, []);
 
   // Check if current path allows free access
   const isFreeModePath = FREE_MODE_PATHS.some((path) =>
@@ -102,7 +107,7 @@ export default function DashboardLayout({
         <Profiler id="Sidebar" onRender={onRenderCallback || (() => {})}>
           <Sidebar
             isOpen={sidebarOpen}
-            onToggle={() => setSidebarOpen(!sidebarOpen)}
+            onToggle={handleToggleSidebar}
           />
         </Profiler>
 
@@ -111,7 +116,7 @@ export default function DashboardLayout({
           {/* Header - pass auth state for signup button */}
           <Profiler id="Header" onRender={onRenderCallback || (() => {})}>
             <Header
-              onToggleSidebar={() => setSidebarOpen(!sidebarOpen)}
+              onToggleSidebar={handleToggleSidebar}
               isAnonymous={!authenticated}
             />
           </Profiler>

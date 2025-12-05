@@ -36,17 +36,14 @@ const TopHero = () => {
     {
       icon: <Terminal className="h-5 w-5" />,
       title: "Create",
-      description: "Scaffold a new agent project with one command",
     },
     {
       icon: <Code2 className="h-5 w-5" />,
       title: "Develop",
-      description: "Build locally with the full ElizaOS runtime",
     },
     {
       icon: <Rocket className="h-5 w-5" />,
       title: "Deploy",
-      description: "Ship to production with zero DevOps",
     },
   ];
 
@@ -87,8 +84,6 @@ const TopHero = () => {
             style={{ textShadow: "0 1px 8px rgba(0,0,0,0.4)" }}
           >
             ElizaOS Cloud handles deployment so you can focus on building.
-            <br />
-            <span className="text-white/50">Open source. Zero lock-in.</span>
           </p>
 
           {/* Terminal Display */}
@@ -217,7 +212,7 @@ const TopHero = () => {
 
                 <div className="flex flex-col items-center text-center p-4">
                   <div
-                    className="w-12 h-12 rounded-lg flex items-center justify-center mb-4 transition-colors"
+                    className="w-12 h-12 rounded-lg flex items-center justify-center mb-3 transition-colors"
                     style={{
                       backgroundColor: "rgba(255, 88, 0, 0.1)",
                       border: "1px solid rgba(255, 88, 0, 0.3)",
@@ -225,10 +220,9 @@ const TopHero = () => {
                   >
                     <div style={{ color: "#FF5800" }}>{step.icon}</div>
                   </div>
-                  <h3 className="text-lg font-semibold text-white mb-2">
+                  <h3 className="text-lg font-semibold text-white">
                     {step.title}
                   </h3>
-                  <p className="text-sm text-white/60">{step.description}</p>
                 </div>
               </div>
             ))}

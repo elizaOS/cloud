@@ -12,7 +12,7 @@ import {
 
 interface PageHeaderInfo {
   title: string;
-  description: string;
+  description?: string;
   actions?: ReactNode;
 }
 

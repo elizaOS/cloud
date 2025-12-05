@@ -6,6 +6,7 @@ import { ThemeProvider } from "@/components/theme/theme-provider";
 import { Toaster } from "sonner";
 import NextTopLoader from "nextjs-toploader";
 import PrivyProvider from "@/providers/PrivyProvider";
+import { CreditsProvider } from "@/providers/CreditsProvider";
 import DebugProvider from "@/components/debug/debug-provider";
 
 const robotoMono = Roboto_Mono({
@@ -116,32 +117,34 @@ export default function RootLayout({
         className={`${robotoMono.variable} ${robotoFlex.variable} ${geistMono.variable} antialiased`}
       >
         <PrivyProvider>
-          <ThemeProvider
-            attribute="class"
-            defaultTheme="system"
-            enableSystem
-            disableTransitionOnChange
-          >
-            <NextTopLoader showSpinner={false} color="#FF5800" />
-            <DebugProvider>
-              {children}
-            </DebugProvider>
-            <Toaster
-              richColors
-              theme="dark"
-              position="top-right"
-              toastOptions={{
-                style: {
-                  background: "rgba(0, 0, 0, 0.8)",
-                  border: "1px solid rgba(255, 255, 255, 0.1)",
-                  color: "white",
-                  backdropFilter: "blur(12px)",
-                  borderRadius: "0px",
-                },
-                className: "font-mono",
-              }}
-            />
-          </ThemeProvider>
+          <CreditsProvider>
+            <ThemeProvider
+              attribute="class"
+              defaultTheme="system"
+              enableSystem
+              disableTransitionOnChange
+            >
+              <NextTopLoader showSpinner={false} color="#FF5800" />
+              <DebugProvider>
+                {children}
+              </DebugProvider>
+                <Toaster
+                richColors
+                theme="dark"
+                position="top-right"
+                toastOptions={{
+                  style: {
+                    background: "rgba(0, 0, 0, 0.8)",
+                    border: "1px solid rgba(255, 255, 255, 0.1)",
+                    color: "white",
+                    backdropFilter: "blur(12px)",
+                    borderRadius: "0px",
+                  },
+                  className: "font-mono",
+                }}
+              />
+            </ThemeProvider>
+          </CreditsProvider>
         </PrivyProvider>
         <Analytics />
       </body>

@@ -21,6 +21,7 @@ import Image from "next/image";
 import Link from "next/link";
 import { Badge } from "@/components/ui/badge";
 import { formatDistanceToNow } from "date-fns";
+import { isDiceBearAvatar } from "@/lib/utils/default-avatar";
 
 interface AgentStats {
   roomCount: number;
@@ -137,19 +138,16 @@ function GettingStartedSection() {
           <div className="p-2.5 rounded-lg bg-[#FF5800]/10 border border-[#FF5800]/20">
             <Zap className="h-5 w-5 text-[#FF5800]" />
           </div>
-          <div>
-            <h3 className="text-lg font-semibold text-white">Getting Started</h3>
-            <p className="text-sm text-white/50">Build and deploy agents with the CLI</p>
-          </div>
+          <h3 className="text-lg font-semibold text-white">Quick Start</h3>
         </div>
 
         {/* CLI Commands */}
         <div className="grid gap-4 sm:grid-cols-2">
           {/* Create Command */}
-          <div className="group relative rounded-lg border border-white/10 bg-black/30 p-4 hover:border-[#FF5800]/30 transition-colors">
-            <div className="flex items-center gap-2 mb-3">
+          <div className="group relative rounded-lg border border-white/10 bg-black/30 p-3 hover:border-[#FF5800]/30 transition-colors">
+            <div className="flex items-center gap-2 mb-2">
               <Terminal className="h-4 w-4 text-[#FF5800]" />
-              <span className="text-sm font-medium text-white">Create an Agent</span>
+              <span className="text-sm font-medium text-white">Create</span>
             </div>
             <div className="flex items-center gap-2">
               <code className="flex-1 px-3 py-2 rounded bg-black/50 text-sm font-mono text-emerald-400 border border-white/5">
@@ -167,14 +165,13 @@ function GettingStartedSection() {
                 )}
               </button>
             </div>
-            <p className="mt-2 text-xs text-white/40">Scaffold a new agent project locally</p>
           </div>
 
           {/* Deploy Command */}
-          <div className="group relative rounded-lg border border-white/10 bg-black/30 p-4 hover:border-[#FF5800]/30 transition-colors">
-            <div className="flex items-center gap-2 mb-3">
+          <div className="group relative rounded-lg border border-white/10 bg-black/30 p-3 hover:border-[#FF5800]/30 transition-colors">
+            <div className="flex items-center gap-2 mb-2">
               <Rocket className="h-4 w-4 text-purple-400" />
-              <span className="text-sm font-medium text-white">Deploy to Cloud</span>
+              <span className="text-sm font-medium text-white">Deploy</span>
             </div>
             <div className="flex items-center gap-2">
               <code className="flex-1 px-3 py-2 rounded bg-black/50 text-sm font-mono text-purple-400 border border-white/5">
@@ -192,7 +189,6 @@ function GettingStartedSection() {
                 )}
               </button>
             </div>
-            <p className="mt-2 text-xs text-white/40">Deploy your agent to elizaOS cloud</p>
           </div>
         </div>
 
@@ -258,6 +254,7 @@ function AgentCard({ agent }: { agent: Agent }) {
               alt={agent.name}
               fill
               className="object-cover transition-transform duration-500 group-hover:scale-110"
+              unoptimized={isDiceBearAvatar(agent.avatarUrl)}
             />
           ) : (
             <div className="absolute inset-0 flex items-center justify-center">
