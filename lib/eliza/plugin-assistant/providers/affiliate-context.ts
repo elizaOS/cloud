@@ -145,10 +145,10 @@ export const affiliateContextProvider: Provider = {
   get: async (runtime: IAgentRuntime, message: Memory, state?: State) => {
     try {
       const character = runtime.character;
-      
+
       // Get affiliate data from character settings
       const affiliate = character.settings?.affiliateData as Record<string, unknown> | undefined;
-      
+
       if (!affiliate) {
         return {
           values: { affiliateContext: "" },
@@ -163,27 +163,30 @@ export const affiliateContextProvider: Provider = {
       const source = affiliate.source as string | undefined;
       const instagram = affiliate.instagram as string | undefined;
       const twitter = affiliate.twitter as string | undefined;
-      const socialContent = affiliate.socialContent as string | undefined;
       const imageUrls = (affiliate.imageUrls as string[] | undefined) || [];
-      
-      // Build context with strong personality instructions
+
+      // Build context with strong personality instructions (CONCISE to save tokens)
       const contextLines: string[] = [];
-      
-      // Add vibe-specific personality instructions (CONCISE to save tokens)
+
+      // Add vibe-specific personality instructions
       if (vibe && VIBE_PERSONALITIES[vibe]) {
         const vibeConfig = VIBE_PERSONALITIES[vibe];
-        contextLines.push(`[VIBE: ${vibe.toUpperCase()}] ${vibeConfig.description}`);
+        contextLines.push(
+          `[VIBE: ${vibe.toUpperCase()}] ${vibeConfig.description}`,
+        );
         contextLines.push(`Style: ${vibeConfig.behaviors.slice(0, 3).join("; ")}`);
         contextLines.push(``);
       }
-      
+
       // Add backstory (CONCISE - first 200 chars only)
       if (backstory && backstory.trim()) {
         const shortBackstory = backstory.trim().slice(0, 200);
-        contextLines.push(`[Backstory] ${shortBackstory}${backstory.length > 200 ? '...' : ''}`);
+        contextLines.push(
+          `[Backstory] ${shortBackstory}${backstory.length > 200 ? "..." : ""}`,
+        );
         contextLines.push(``);
       }
-      
+
       // AFFILIATE MODE: Conversational instructions
       // Detect affiliate character by any of these: source, affiliateId, or vibe
       const affiliateId = affiliate?.affiliateId as string | undefined;
@@ -202,18 +205,19 @@ export const affiliateContextProvider: Provider = {
         contextLines.push(`- Example: "Just took this for you 😘 What do you think?" NOT "I taste like trouble"`);
         contextLines.push(``);
       }
-      
+
       // Extract social media handles - prefer metadata, fallback to bio parsing
       let instagramHandle = instagram;
       let twitterHandle = twitter;
 
       if (!instagramHandle || !twitterHandle) {
         const bio = character.bio;
-        const bioText = Array.isArray(bio) ? bio.join(" ") : (bio || "");
+        const bioText = Array.isArray(bio) ? bio.join(" ") : bio || "";
 
         if (!instagramHandle) {
-          const instagramMatch = bioText.match(/Instagram[:\s]*\(@?([a-zA-Z0-9._]+)\)/i) ||
-                                bioText.match(/Instagram:\s*@?([a-zA-Z0-9._]+)/i);
+          const instagramMatch =
+            bioText.match(/Instagram[:\s]*\(@?([a-zA-Z0-9._]+)\)/i) ||
+            bioText.match(/Instagram:\s*@?([a-zA-Z0-9._]+)/i);
           if (instagramMatch) instagramHandle = instagramMatch[1];
         }
 
@@ -245,7 +249,7 @@ export const affiliateContextProvider: Provider = {
       }
 
       const contextText = contextLines.join("\n");
-      
+
       return {
         values: { affiliateContext: contextText },
         data: {
@@ -256,7 +260,6 @@ export const affiliateContextProvider: Provider = {
           isAffiliateCharacter,
           instagram: instagramHandle,
           twitter: twitterHandle,
-          socialContent,
           imageUrls,
           hasImages: imageUrls.length > 0,
           contextLength: contextText.length,

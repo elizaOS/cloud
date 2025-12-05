@@ -8,6 +8,18 @@ import {
 
 export const elizaRoomCharactersRepository = {
   /**
+   * Count rooms for a specific user
+   */
+  async countByUserId(userId: string): Promise<number> {
+    const result = await db
+      .select({ count: count() })
+      .from(elizaRoomCharactersTable)
+      .where(eq(elizaRoomCharactersTable.user_id, userId));
+
+    return result[0]?.count ?? 0;
+  },
+
+  /**
    * Count rooms for a specific character
    */
   async countByCharacterId(characterId: string): Promise<number> {

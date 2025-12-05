@@ -4,12 +4,13 @@ import { anonymousSessionsService, usersService } from "@/lib/services";
 import { logger } from "@/lib/utils/logger";
 import { db } from "@/db/client";
 import { users } from "@/db/schemas";
+import { sql } from "drizzle-orm";
 
 const ANON_SESSION_COOKIE = "eliza-anon-session";
 
 /**
  * POST /api/set-anonymous-session
- * 
+ *
  * Sets the anonymous session cookie when a user arrives with a session token.
  * This is a PUBLIC endpoint - no authentication required.
  * This is necessary because the affiliate API creates the session server-side,
@@ -90,11 +91,11 @@ export async function POST(request: NextRequest) {
           .returning();
 
         // Update the session to point to the real user
-        await db.execute`
-          UPDATE anonymous_sessions 
-          SET user_id = ${newUser.id} 
+        await db.execute(sql`
+          UPDATE anonymous_sessions
+          SET user_id = ${newUser.id}
           WHERE id = ${session.id}
-        `;
+        `);
 
         user = newUser;
         logger.info("[Set Session] Created anonymous user:", newUser.id);
@@ -137,10 +138,10 @@ export async function POST(request: NextRequest) {
   } catch (error) {
     logger.error("[Set Session] Unexpected error:", error);
     return NextResponse.json(
-      { 
-        error: "Internal server error", 
+      {
+        error: "Internal server error",
         code: "INTERNAL_ERROR",
-        details: error instanceof Error ? error.message : "Unknown error"
+        details: error instanceof Error ? error.message : "Unknown error",
       },
       { status: 500 }
     );

@@ -42,14 +42,16 @@ class AgentRuntimeManager {
     if (this.cachedSystemRuntime) {
       return this.cachedSystemRuntime;
     }
-    
+
     // If already creating, wait for that promise
     if (this.systemRuntimePromise) {
       return this.systemRuntimePromise;
     }
-    
+
     // Create new runtime and cache it
-    logger.info("[AgentRuntime] Creating default runtime with system context (will be cached)");
+    logger.info(
+      "[AgentRuntime] Creating default runtime with system context (will be cached)",
+    );
     this.systemRuntimePromise = (async () => {
       const systemContext = userContextService.createSystemContext(AgentMode.CHAT);
       const runtime = await runtimeFactory.createRuntimeForUser(systemContext);
@@ -57,7 +59,7 @@ class AgentRuntimeManager {
       this.systemRuntimePromise = null;
       return runtime;
     })();
-    
+
     return this.systemRuntimePromise;
   }
 
