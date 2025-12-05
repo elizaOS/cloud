@@ -20,6 +20,7 @@ export * from "./user-characters";
 export * from "./user-voices";
 export * from "./containers";
 export * from "./alb-priorities";
+export * from "./apps";
 export * from "./relations";
 export * from "./eliza";
 export * from "./eliza-room-characters";

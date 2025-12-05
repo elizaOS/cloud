@@ -12,6 +12,7 @@ import {
   Mic,
   Store,
   Puzzle,
+  Grid3x3,
 } from "lucide-react";
 import type { ComponentType } from "react";
 
@@ -111,6 +112,14 @@ export const sidebarSections: SidebarSection[] = [
     title: "Infrastructure",
     items: [
       {
+        id: "apps",
+        label: "Apps",
+        href: "/dashboard/apps",
+        icon: Grid3x3,
+        freeAllowed: false, // Requires signup
+        isNew: true,
+      },
+      {
         id: "containers",
         label: "Containers",
         href: "/dashboard/containers",
@@ -123,7 +132,6 @@ export const sidebarSections: SidebarSection[] = [
         href: "/dashboard/mcps",
         icon: Puzzle,
         freeAllowed: false, // Requires signup
-        isNew: true,
       },
     ],
   },
