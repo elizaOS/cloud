@@ -50,3 +50,12 @@ export { invoicesService } from "./invoices";
 // Abuse detection
 export { abuseDetectionService } from "./abuse-detection";
 export type { AbuseCheckResult, SignupContext } from "./abuse-detection";
+
+// Agent monitoring
+export { agentMonitoringService } from "./agent-monitoring";
+export type {
+  AgentStatus,
+  AgentLogEntry,
+  AgentStatusResponse,
+  AgentEventResponse,
+} from "./agent-monitoring";

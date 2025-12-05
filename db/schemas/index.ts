@@ -23,3 +23,4 @@ export * from "./alb-priorities";
 export * from "./relations";
 export * from "./eliza";
 export * from "./eliza-room-characters";
+export * from "./agent-events";
