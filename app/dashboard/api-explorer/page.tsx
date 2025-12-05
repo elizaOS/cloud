@@ -8,18 +8,14 @@ import {
   BrandTabsList,
   BrandTabsTrigger,
   CornerBrackets,
-  SectionLabel,
 } from "@/components/brand";
 import { toast } from "@/lib/utils/toast-adapter";
 import {
   ActivityIcon,
   AudioLinesIcon,
   BookIcon,
-  ChevronLeftIcon,
-  ChevronRightIcon,
   DatabaseIcon,
   KeyIcon,
-  MenuIcon,
   MicIcon,
   SearchIcon,
   ShieldIcon,
@@ -42,7 +38,7 @@ import {
 import { ApiTester } from "@/components/api-explorer/api-tester";
 import { AuthManager } from "@/components/api-explorer/auth-manager";
 import { EndpointCard } from "@/components/api-explorer/endpoint-card";
-import { SchemaViewer } from "@/components/api-explorer/schema-viewer";
+
 import { OpenApiViewer } from "@/components/api-explorer/openapi-viewer";
 import { useSetPageHeader } from "@/components/layout/page-header-context";
 import { cn } from "@/lib/utils";
@@ -71,8 +67,6 @@ export default function ApiExplorerPage() {
   const [selectedCategory, setSelectedCategory] = useState<string>("All");
   const [openApiSpec, setOpenApiSpec] = useState<OpenAPISpec | null>(null);
   const [authToken, setAuthToken] = useState<string>("");
-  const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
-  const [showMobileSidebar, setShowMobileSidebar] = useState(false);
 
   const categories = ["All", ...getAvailableCategories()];
   const filteredEndpoints = searchQuery
@@ -137,34 +131,13 @@ export default function ApiExplorerPage() {
   };
 
   return (
-    <div className="relative flex flex-col lg:flex-row w-full gap-6 px-4 pb-8 lg:px-8">
-      {/* Mobile Backdrop Overlay */}
-      {showMobileSidebar && (
-        <div
-          className="lg:hidden fixed inset-0 bg-black/60 backdrop-blur-sm z-30"
-          onClick={() => setShowMobileSidebar(false)}
-        />
-      )}
-
-      {/* Mobile Sidebar Toggle Button */}
-      <button
-        onClick={() => setShowMobileSidebar(!showMobileSidebar)}
-        className="lg:hidden fixed bottom-6 right-6 z-50 flex items-center justify-center w-14 h-14 rounded-full border-2 border-[#FF5800] bg-black shadow-lg shadow-[#FF5800]/20 text-white hover:bg-[#FF5800] transition-colors"
-        title={showMobileSidebar ? "Hide filters" : "Show filters"}
-      >
-        {showMobileSidebar ? (
-          <ChevronRightIcon className="h-6 w-6" />
-        ) : (
-          <MenuIcon className="h-6 w-6" />
-        )}
-      </button>
-
+    <div className="w-full px-4 pb-8 lg:px-8">
       {/* Main Content */}
-      <main className="flex-1 min-w-0 w-full lg:w-auto flex flex-col pb-12">
+      <main className="w-full flex flex-col pb-12">
         <BrandTabs defaultValue="endpoints" className="flex flex-col">
           <BrandTabsList className="w-full justify-start shrink-0 mb-6">
             <BrandTabsTrigger value="endpoints">Endpoints</BrandTabsTrigger>
-            <BrandTabsTrigger value="schemas">Schemas</BrandTabsTrigger>
+            <BrandTabsTrigger value="auth">Authentication</BrandTabsTrigger>
             <BrandTabsTrigger value="openapi">OpenAPI Spec</BrandTabsTrigger>
           </BrandTabsList>
 
@@ -215,6 +188,33 @@ export default function ApiExplorerPage() {
               </div>
             ) : (
               <div className="flex flex-col space-y-6">
+                {/* Category Filter Bar */}
+                <div className="flex flex-wrap gap-2">
+                  {categories.map((category) => (
+                    <button
+                      key={category}
+                      onClick={() => {
+                        setSelectedCategory(category);
+                        setSearchQuery("");
+                      }}
+                      className={cn(
+                        "flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium transition-all rounded-none border",
+                        selectedCategory === category
+                          ? "bg-[#FF5800]/20 text-[#FF5800] border-[#FF5800]/40"
+                          : "text-white/60 hover:bg-white/5 hover:text-white border-white/10"
+                      )}
+                    >
+                      {getCategoryIcon(category)}
+                      <span>{category}</span>
+                      <span className="text-[10px] opacity-50">
+                        ({category === "All"
+                          ? API_ENDPOINTS.length
+                          : getEndpointsByCategory(category).length})
+                      </span>
+                    </button>
+                  ))}
+                </div>
+
                 <div className="flex flex-col gap-4">
                     <div className="flex items-center justify-between shrink-0 flex-wrap gap-4">
                       <h2 className="text-xl font-semibold text-white flex items-center">
@@ -280,9 +280,17 @@ export default function ApiExplorerPage() {
             )}
           </BrandTabsContent>
 
-          <BrandTabsContent value="schemas" className="mt-0">
-            <SchemaViewer spec={openApiSpec} />
+          <BrandTabsContent value="auth" className="mt-0">
+            <div className="max-w-2xl">
+              <BrandCard className="relative">
+                <CornerBrackets size="sm" className="opacity-50" />
+                <div className="relative z-10">
+                  <AuthManager authToken={authToken} onTokenChange={setAuthToken} />
+                </div>
+              </BrandCard>
+            </div>
           </BrandTabsContent>
+
 
           <BrandTabsContent value="openapi" className="mt-0">
             <BrandCard className="relative">
