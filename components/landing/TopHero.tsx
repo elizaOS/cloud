@@ -83,42 +83,18 @@ const TopHero = () => {
             className="mb-10 md:mb-12 text-base sm:text-lg md:text-xl lg:text-2xl text-white/70 mx-auto relative z-10 px-4 max-w-3xl"
             style={{ textShadow: "0 1px 8px rgba(0,0,0,0.4)" }}
           >
-            ElizaOS Cloud handles deployment so you can focus on building.
+            Deploy to production in one command. Open source. Zero lock-in.
           </p>
 
           {/* Terminal Display */}
           <div className="relative mx-auto max-w-3xl mb-10 md:mb-12">
             <HUDContainer>
-              {/* OS Tabs */}
-              <div className="flex border-b border-white/10">
-                <button
-                  onClick={() => setActiveOS("unix")}
-                  className={`px-4 py-2.5 text-xs sm:text-sm font-mono uppercase tracking-wider transition-colors ${
-                    activeOS === "unix"
-                      ? "text-white border-b-2 border-[#FF5800]"
-                      : "text-white/50 hover:text-white/70"
-                  }`}
-                >
-                  macOS / Linux
-                </button>
-                <button
-                  onClick={() => setActiveOS("windows")}
-                  className={`px-4 py-2.5 text-xs sm:text-sm font-mono uppercase tracking-wider transition-colors ${
-                    activeOS === "windows"
-                      ? "text-white border-b-2 border-[#FF5800]"
-                      : "text-white/50 hover:text-white/70"
-                  }`}
-                >
-                  Windows
-                </button>
-              </div>
-
               {/* Terminal Content */}
               <div className="p-4 md:p-6 space-y-4 font-mono text-left">
                 {/* Create command */}
                 <div className="group">
                   <div className="flex items-center gap-2 text-white/50 text-xs mb-1">
-                    <span># Create a new agent</span>
+                    <span># create</span>
                   </div>
                   <div className="flex items-center justify-between gap-2 bg-white/5 rounded px-3 py-2.5">
                     <div className="flex items-center gap-2 min-w-0 overflow-x-auto">
@@ -146,7 +122,7 @@ const TopHero = () => {
                 {/* Deploy command */}
                 <div className="group">
                   <div className="flex items-center gap-2 text-white/50 text-xs mb-1">
-                    <span># Deploy to the cloud</span>
+                    <span># deploy</span>
                   </div>
                   <div className="flex items-center justify-between gap-2 bg-white/5 rounded px-3 py-2.5">
                     <div className="flex items-center gap-2 min-w-0 overflow-x-auto">
@@ -196,7 +172,7 @@ const TopHero = () => {
                 target="_blank"
                 rel="noopener noreferrer"
               >
-                View Documentation
+                Docs
               </a>
             </Button>
           </div>
