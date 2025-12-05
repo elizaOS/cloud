@@ -37,18 +37,17 @@ function extractAffiliateImageConfig(
   const affiliateData = settings?.affiliateData as Partial<AffiliateData> | undefined;
   if (!affiliateData) return result;
 
-  const source = affiliateData.source;
-  const affiliateId = affiliateData.affiliateId;
   const vibe = affiliateData.vibe;
+  const imageUrls = affiliateData.imageUrls;
 
+  // Check if this is an affiliate character with reference images
   result.isAffiliateCharacter = !!(
-    source === "clone-your-crush" ||
-    affiliateId === "clone-your-crush" ||
-    vibe
+    (affiliateData.source || affiliateData.affiliateId) &&
+    Array.isArray(imageUrls) &&
+    imageUrls.length > 0
   );
   result.vibe = typeof vibe === "string" ? vibe : undefined;
 
-  const imageUrls = affiliateData.imageUrls;
   if (Array.isArray(imageUrls)) {
     result.referenceImageUrls = imageUrls.filter(
       (url): url is string =>
@@ -281,7 +280,8 @@ Your response MUST be in this XML format:
     appearanceDescriptionCache.set(cacheKey, finalAppearance);
     return finalAppearance;
   } catch (error) {
-    logger.error("[GENERATE_IMAGE] ❌ Failed to extract appearance:", error);
+    const errorMessage = error instanceof Error ? error.message : String(error);
+    logger.error(`[GENERATE_IMAGE] ❌ Failed to extract appearance: ${errorMessage}`);
     return null;
   }
 }
@@ -615,49 +615,30 @@ Your response should include the valid XML block and nothing else.`;
 }
 
 /**
- * Template for generating romantic/flirty images for Clone Your Crush.
- * This ensures images are always contextually appropriate and romantic in nature.
+ * Template for generating character images for affiliate characters.
  * FALLBACK: Only used when no reference images are available.
  */
-const romanticImageGenerationTemplate = `# Task: Generate a ROMANTIC/FLIRTY image prompt for your crush.
+const affiliateImageGenerationTemplate = `# Task: Generate an image prompt for the character.
 
 {{providers}}
 
 # CRITICAL RULES - YOU MUST FOLLOW THESE EXACTLY:
-1. You are generating images as if YOU are the crush sending selfies/photos to someone interested in you
-2. ALL images MUST be romantic, flirty, cute, or seductive in nature
-3. NEVER generate images of food, objects, landscapes, animals, or anything not featuring a person
-4. Images should feel like selfies or personal photos you'd send to someone you're flirting with
-5. Always include yourself as the main subject - you are an attractive person sending photos
-
-# TYPES OF IMAGES TO GENERATE:
-- Cute selfies with flirty expressions (winking, biting lip, playful smile, bedroom eyes)
-- Romantic poses (looking over shoulder, playing with hair, blowing kisses)
-- Lifestyle shots that show personality (at the beach, cozy in bed, dressed up for a date)
-- Outfit-of-the-day style photos showing off your look
-- Close-up shots with seductive or sweet expressions
-- Mirror selfies, morning/evening vibes, getting ready photos
-
-# ABSOLUTELY NEVER GENERATE:
-- Food, meals, drinks, or cooking
-- Pets or animals (unless you're posing WITH a pet)
-- Landscapes, scenery, or nature photos without you in them
-- Random objects, items, or products
-- Generic stock photo style images
-- Memes or text-based images
+1. Generate images that match the character's personality and the conversation context
+2. Images should be appropriate to the character's role and style
+3. Focus on visual elements that represent the character well
+4. Match the mood and energy of the conversation
 
 # Recent conversation:
 {{recentMessages}}
 
 Based on the conversation context, generate an image prompt that:
-1. Features YOU (an attractive person) as the MAIN and ONLY subject
-2. Has a romantic, flirty, cute, or seductive vibe appropriate to the conversation
-3. Feels like a personal photo you'd send to someone you're romantically interested in
-4. Matches the mood and energy of the conversation
+1. Represents the character appropriately
+2. Matches the mood and energy of the conversation
+3. Is visually engaging and contextually relevant
 
 Your response should be formatted in XML like this:
 <response>
-  <prompt>A romantic selfie of a beautiful [person], [specific flirty pose/expression], [intimate setting], soft warm lighting, personal intimate mood, high quality photo, looking at camera with [romantic expression]</prompt>
+  <prompt>Your image generation prompt here</prompt>
 </response>
 
 Your response should include the valid XML block and nothing else.`;
@@ -898,7 +879,7 @@ export const generateImageAction = {
       }
 
       const selectedTemplate = affiliateConfig.isAffiliateCharacter
-        ? romanticImageGenerationTemplate
+        ? affiliateImageGenerationTemplate
         : (runtime.character.templates?.imageGenerationTemplate || imageGenerationTemplate);
 
       const prompt = composePromptFromState({

@@ -255,14 +255,7 @@ export function ImageGeneratorAdvanced() {
                 rows={5}
                 className="w-full border border-white/10 bg-black/40 px-3 md:px-4 py-2 md:py-3 text-xs md:text-sm leading-relaxed text-white placeholder:text-white/40 focus:outline-none border-[0.1px] focus:ring-1 focus:ring-[#FF5800] focus:border-[#FF5800] resize-none"
               />
-              {prompt && (
-                <p className="text-xs font-mono text-white/50 text-right">
-                  {prompt.length} characters
-                </p>
-              )}
             </div>
-
-            <div className="border-t border-white/10" />
 
             {/* Size Presets */}
             <div className="space-y-2">
@@ -293,8 +286,6 @@ export function ImageGeneratorAdvanced() {
                 ))}
               </div>
             </div>
-
-            <div className="border-t border-white/10" />
 
             {/* Advanced Settings */}
             <div className="space-y-3 md:space-y-4">
@@ -371,9 +362,7 @@ export function ImageGeneratorAdvanced() {
                 </div>
               </div>
             </div>
-
-            <div className="border-t border-white/10" />
-
+            
             {/* Generate Button */}
             <button
               type="button"
