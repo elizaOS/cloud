@@ -1,31 +1,40 @@
 import { NextResponse } from "next/server";
-import { agentRuntime } from "@/lib/eliza/agent-runtime";
-import type { UUID, Agent } from "@elizaos/core";
 import { requireAuthOrApiKey } from "@/lib/auth";
 import { getAnonymousUser } from "@/lib/auth-anonymous";
 import type { NextRequest } from "next/server";
-import { elizaRoomCharactersRepository } from "@/db/repositories";
+import { roomsService } from "@/lib/services/agents/rooms";
+import { agentsService } from "@/lib/services/agents/agents";
 import { logger } from "@/lib/utils/logger";
-import { db } from "@/db/client";
-import { sql } from "drizzle-orm";
-import { connectionCache } from "@/lib/cache/connection-cache";
+import type { Memory } from "@elizaos/core";
 
-// GET /api/eliza/rooms/[roomId] - Get room details and messages
+/**
+ * GET /api/eliza/rooms/[roomId] - Get room details and messages
+ * 
+ * Pure database operation - no runtime needed
+ * Uses agentsService to get agent display info
+ * Requires the authenticated user to be a participant of the room
+ */
 export async function GET(
   request: NextRequest,
   ctx: { params: Promise<{ roomId: string }> },
 ) {
   try {
-    // Support both authenticated and anonymous users
+    // Get authenticated user ID
+    let userId: string;
+    
     try {
-      await requireAuthOrApiKey(request);
-    } catch (error) {
+      const authResult = await requireAuthOrApiKey(request);
+      userId = authResult.user.id;
+    } catch {
       // Fallback to anonymous user
       const anonData = await getAnonymousUser();
       if (!anonData) {
         // Create new anonymous session if none exists
         const { getOrCreateAnonymousUser } = await import("@/lib/auth-anonymous");
-        await getOrCreateAnonymousUser();
+        const newAnonData = await getOrCreateAnonymousUser();
+        userId = newAnonData.user.id;
+      } else {
+        userId = anonData.user.id;
       }
     }
 
@@ -40,76 +49,136 @@ export async function GET(
       );
     }
 
-    // Look up character for this room FIRST
-    let characterId: string | undefined;
-    try {
-      const roomCharacter =
-        await elizaRoomCharactersRepository.findByRoomId(roomId);
-      if (roomCharacter) {
-        characterId = roomCharacter.character_id;
-        logger.info(
-          "[Eliza Room API] 📖 Loading room with character:",
-          characterId,
-        );
-      } else {
-        logger.info("[Eliza Room API] 📖 Loading room with default Eliza");
-      }
-    } catch (err) {
+    // Access control: verify user is a participant of the room
+    const hasAccess = await roomsService.hasAccess(roomId, userId);
+    if (!hasAccess) {
       logger.warn(
-        "[Eliza Room API] Failed to get character for room:",
-        roomId,
-        err,
+        `[Eliza Room API] Access denied: User ${userId} attempted to access room ${roomId}`,
+      );
+      return NextResponse.json(
+        { error: "You don't have permission to access this room" },
+        { status: 403 },
       );
     }
 
-    // Create character-specific runtime (or default if no character)
-    const runtime = characterId
-      ? await agentRuntime.getRuntimeForCharacter(characterId)
-      : await agentRuntime.getRuntime();
-
-    logger.info(
-      "[Eliza Room API] 🎭 Using runtime for character:",
-      runtime.character.name,
+    // Use rooms service to get room with messages (pure DB query)
+    const roomData = await roomsService.getRoomWithMessages(
+      roomId,
+      limit ? parseInt(limit) : 50,
     );
 
-    const rawMessages = await runtime.getMemories({
-      tableName: "messages",
-      roomId: roomId as UUID,
-      count: limit ? parseInt(limit) : 50,
-      unique: false,
+    if (!roomData) {
+      return NextResponse.json(
+        { error: "Room not found" },
+        { status: 404 },
+      );
+    }
+
+    // Get character ID from room agentId (single source of truth)
+    const characterId = roomData.room.agentId || undefined;
+
+    if (characterId) {
+      logger.info(
+        "[Eliza Room API] Loading room with character:",
+        characterId,
+      );
+    } else {
+      logger.info("[Eliza Room API] Loading room with default character");
+    }
+
+    // Format messages for response with deduplication
+    const mapped = roomData.messages.map((msg) => {
+      let parsedContent: unknown = msg.content;
+      try {
+        if (typeof msg.content === "string")
+          parsedContent = JSON.parse(msg.content as string);
+      } catch {
+        parsedContent = msg.content;
+      }
+
+      const content = parsedContent as { text?: string; attachments?: unknown[]; source?: string };
+
+      // Debug: Log attachment info for agent messages
+      if (content?.source === "agent" && content?.attachments) {
+        logger.info(`[Eliza Room API] 📎 Message ${msg.id?.substring(0, 8)} has ${content.attachments.length} attachment(s)`);
+      }
+
+      // CRITICAL: Determine isAgent based on content.source field (most reliable)
+      // Fallback to entityId comparison for backward compatibility
+      const isAgentBySource = content?.source === "agent";
+      const isAgentByEntityId = msg.entityId === msg.agentId;
+      const isAgent = content?.source ? isAgentBySource : isAgentByEntityId;
+
+      return {
+        id: msg.id,
+        entityId: msg.entityId,
+        agentId: msg.agentId,
+        content: parsedContent,
+        createdAt: msg.createdAt || Date.now(),
+        isAgent,
+      };
     });
 
-    const simple = rawMessages
-      .map((msg) => {
-        let parsedContent: unknown = msg.content;
-        try {
-          if (typeof msg.content === "string")
-            parsedContent = JSON.parse(msg.content);
-        } catch {
-          parsedContent = msg.content;
+    // Deduplicate messages: Remove duplicate agent responses that might have been
+    // stored twice (once by action callback, once by handler). Keep the one with
+    // attachments or the first one if both/neither have attachments.
+    const seenTexts = new Map<string, { index: number; hasAttachments: boolean; isAgent: boolean }>();
+    const indicesToRemove = new Set<number>();
+
+    mapped.forEach((msg, index) => {
+      const content = msg.content as { text?: string; attachments?: unknown[] };
+      const text = content?.text?.trim();
+      if (!text) return;
+
+      // Create a key based on text and approximate timestamp (within 5 seconds)
+      const timeWindow = Math.floor(msg.createdAt / 5000);
+      const key = `${text}:${timeWindow}`;
+
+      const existing = seenTexts.get(key);
+      if (existing) {
+        const currentHasAttachments = Array.isArray(content?.attachments) && content.attachments.length > 0;
+
+        if (currentHasAttachments && !existing.hasAttachments) {
+          indicesToRemove.add(existing.index);
+          seenTexts.set(key, { index, hasAttachments: currentHasAttachments, isAgent: msg.isAgent });
+        } else if (msg.isAgent && !existing.isAgent) {
+          indicesToRemove.add(existing.index);
+          seenTexts.set(key, { index, hasAttachments: currentHasAttachments, isAgent: msg.isAgent });
+        } else {
+          indicesToRemove.add(index);
         }
-        
-        // Debug: Log attachment info for agent messages
-        const content = parsedContent as { text?: string; attachments?: unknown[]; source?: string };
-        if (content?.source === "agent" && content?.attachments) {
-          logger.info(`[Eliza Room API] 📎 Message ${msg.id?.substring(0, 8)} has ${content.attachments.length} attachment(s)`);
-        }
-        
-        return {
-          id: msg.id,
-          entityId: msg.entityId,
-          agentId: msg.agentId,
-          content: parsedContent,
-          createdAt: (msg as { createdAt: number }).createdAt,
-          isAgent: msg.entityId === msg.agentId,
-        };
-      })
+      } else {
+        const hasAttachments = Array.isArray(content?.attachments) && content.attachments.length > 0;
+        seenTexts.set(key, { index, hasAttachments, isAgent: msg.isAgent });
+      }
+    });
+
+    const simple = mapped
+      .filter((_, index) => !indicesToRemove.has(index))
       .sort((a, b) => a.createdAt - b.createdAt);
 
-    // Get agent info from the runtime we already created
-    const agent = await runtime.getAgent(runtime.agentId);
-    const avatarUrl = agent?.settings?.avatarUrl as string | undefined;
-    const agentName = agent?.name;
+    if (indicesToRemove.size > 0) {
+      logger.info(`[Eliza Room API] 🧹 Removed ${indicesToRemove.size} duplicate message(s)`);
+    }
+
+    // Get agent display info from database (no runtime needed!)
+    let agentInfo: { id: string; name: string; avatarUrl?: string } | null = null;
+
+    if (characterId) {
+      agentInfo = await agentsService.getDisplayInfo(characterId);
+    }
+
+    if (!agentInfo && roomData.room.agentId) {
+      agentInfo = await agentsService.getDisplayInfo(roomData.room.agentId);
+    }
+
+    if (!agentInfo) {
+      agentInfo = {
+        id: characterId || roomData.room.agentId || "default",
+        name: "Eliza",
+        avatarUrl: undefined,
+      };
+    }
 
     return NextResponse.json(
       {
@@ -118,11 +187,7 @@ export async function GET(
         messages: simple,
         count: simple.length,
         characterId,
-        agent: {
-          id: agent?.id,
-          name: agentName,
-          avatarUrl,
-        },
+        agent: agentInfo,
       },
       { headers: { "Cache-Control": "no-store" } },
     );
@@ -138,18 +203,33 @@ export async function GET(
   }
 }
 
-// DELETE /api/eliza/rooms/[roomId] - Delete a room and all related data
+/**
+ * DELETE /api/eliza/rooms/[roomId] - Delete a room and all related data
+ * 
+ * Pure database operation - no runtime needed
+ * Requires the authenticated user to be a participant of the room
+ */
 export async function DELETE(
   request: NextRequest,
   ctx: { params: Promise<{ roomId: string }> },
 ) {
   try {
-    // Support both authenticated and anonymous users
+    // Get authenticated user ID
+    let userId: string;
+    
     try {
-      await requireAuthOrApiKey(request);
-    } catch (error) {
+      const authResult = await requireAuthOrApiKey(request);
+      userId = authResult.user.id;
+    } catch {
       // Fallback to anonymous user
-      await getAnonymousUser();
+      const anonData = await getAnonymousUser();
+      if (!anonData) {
+        return NextResponse.json(
+          { error: "Authentication required" },
+          { status: 401 },
+        );
+      }
+      userId = anonData.user.id;
     }
 
     const { roomId } = await ctx.params;
@@ -161,41 +241,22 @@ export async function DELETE(
       );
     }
 
-    logger.info("[Eliza Room API] Deleting room:", roomId);
-
-    // Delete character mapping first (if exists)
-    try {
-      await elizaRoomCharactersRepository.delete(roomId);
-      logger.debug(
-        "[Eliza Room API] Deleted character mapping for room:",
-        roomId,
-      );
-    } catch (err) {
+    // Access control: verify user is a participant of the room
+    const hasAccess = await roomsService.hasAccess(roomId, userId);
+    if (!hasAccess) {
       logger.warn(
-        "[Eliza Room API] No character mapping to delete:",
-        roomId,
-        err,
+        `[Eliza Room API] Access denied: User ${userId} attempted to delete room ${roomId}`,
+      );
+      return NextResponse.json(
+        { error: "You don't have permission to delete this room" },
+        { status: 403 },
       );
     }
 
-    // Clear connection cache for this room
-    try {
-      // The connectionCache might have entries for this room
-      // We'll let it naturally expire or clear by roomId if the cache supports it
-      logger.debug(
-        "[Eliza Room API] Cleared connection cache for room:",
-        roomId,
-      );
-    } catch (err) {
-      logger.warn("[Eliza Room API] Failed to clear connection cache:", err);
-    }
+    logger.info("[Eliza Room API] Deleting room:", roomId, "by user:", userId);
 
-    // Delete the room from database (CASCADE will handle related records)
-    // This will automatically delete:
-    // - memories (messages) associated with the room
-    // - participants in the room
-    // - any other related records with CASCADE constraints
-    await db.execute(sql`DELETE FROM rooms WHERE id = ${roomId}::uuid`);
+    // Use rooms service to delete room and all related data
+    await roomsService.deleteRoom(roomId);
 
     logger.info("[Eliza Room API] ✓ Room deleted successfully:", roomId);
 

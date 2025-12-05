@@ -14,6 +14,7 @@ import {
   memo,
   useContext,
   useEffect,
+  useMemo,
   useRef,
   useState,
 } from "react";
@@ -100,10 +101,15 @@ export const Reasoning = memo(
       setIsOpen(newOpen);
     };
 
+    const contextValue = useMemo(() => ({
+      isStreaming,
+      isOpen,
+      setIsOpen,
+      duration,
+    }), [isStreaming, isOpen, setIsOpen, duration]);
+
     return (
-      <ReasoningContext.Provider
-        value={{ isStreaming, isOpen, setIsOpen, duration }}
-      >
+      <ReasoningContext.Provider value={contextValue}>
         <Collapsible
           className={cn("not-prose mb-4", className)}
           onOpenChange={handleOpenChange}

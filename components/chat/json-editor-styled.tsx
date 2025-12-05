@@ -30,7 +30,14 @@ export function JsonEditorStyled({
       const parsed = JSON.parse(value);
       onChange(parsed as ElizaCharacter);
     } catch (err) {
-      // Error is handled by parent
+      // Invalid JSON - parent component handles validation
+      // Only catch to prevent crash while user is typing
+      if (err instanceof SyntaxError) {
+        // Expected error during typing, parent handles validation
+        return;
+      }
+      // Re-throw unexpected errors
+      throw err;
     }
   };
 

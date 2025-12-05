@@ -35,21 +35,46 @@ interface GeneratedImage {
   text: string;
 }
 
+interface FormState {
+  prompt: string;
+  numImages: number;
+  aspectRatio: AspectRatio;
+  stylePreset: StylePreset;
+}
+
+interface GenerationState {
+  images: GeneratedImage[];
+  isLoading: boolean;
+  error: string | null;
+}
+
 export function ImageGenerator() {
-  const [prompt, setPrompt] = useState("");
-  const [images, setImages] = useState<GeneratedImage[]>([]);
-  const [isLoading, setIsLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  const [numImages, setNumImages] = useState(1);
-  const [aspectRatio, setAspectRatio] = useState<AspectRatio>("1:1");
-  const [stylePreset, setStylePreset] = useState<StylePreset>("none");
+  const [formState, setFormState] = useState<FormState>({
+    prompt: "",
+    numImages: 1,
+    aspectRatio: "1:1",
+    stylePreset: "none",
+  });
+  
+  const [generationState, setGenerationState] = useState<GenerationState>({
+    images: [],
+    isLoading: false,
+    error: null,
+  });
+
+  const updateForm = (updates: Partial<FormState>) => {
+    setFormState((prev) => ({ ...prev, ...updates }));
+  };
+
+  const updateGeneration = (updates: Partial<GenerationState>) => {
+    setGenerationState((prev) => ({ ...prev, ...updates }));
+  };
 
   const handleGenerate = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!prompt.trim()) return;
+    if (!formState.prompt.trim()) return;
 
-    setIsLoading(true);
-    setError(null);
+    updateGeneration({ isLoading: true, error: null });
 
     try {
       const response = await fetch("/api/v1/generate-image", {
@@ -58,10 +83,10 @@ export function ImageGenerator() {
           "Content-Type": "application/json",
         },
         body: JSON.stringify({
-          prompt,
-          numImages,
-          aspectRatio,
-          stylePreset: stylePreset !== "none" ? stylePreset : undefined,
+          prompt: formState.prompt,
+          numImages: formState.numImages,
+          aspectRatio: formState.aspectRatio,
+          stylePreset: formState.stylePreset !== "none" ? formState.stylePreset : undefined,
         }),
       });
 
@@ -80,12 +105,12 @@ export function ImageGenerator() {
           url: img.url,
           text: img.text || "",
         }));
-        setImages(processedImages);
+        updateGeneration({ images: processedImages });
       }
     } catch (err) {
-      setError(err instanceof Error ? err.message : "An error occurred");
+      updateGeneration({ error: err instanceof Error ? err.message : "An error occurred" });
     } finally {
-      setIsLoading(false);
+      updateGeneration({ isLoading: false });
     }
   };
 
@@ -99,46 +124,46 @@ export function ImageGenerator() {
   };
 
   const handleGenerateAnother = () => {
-    setImages([]);
+    updateGeneration({ images: [] });
   };
 
   return (
     <div className="space-y-8 w-full">
       <PromptInput
-        prompt={prompt}
-        onPromptChange={setPrompt}
+        prompt={formState.prompt}
+        onPromptChange={(v) => updateForm({ prompt: v })}
         onSubmit={handleGenerate}
-        isLoading={isLoading}
-        numImages={numImages}
-        onNumImagesChange={setNumImages}
-        aspectRatio={aspectRatio}
-        onAspectRatioChange={setAspectRatio}
-        stylePreset={stylePreset}
-        onStylePresetChange={setStylePreset}
+        isLoading={generationState.isLoading}
+        numImages={formState.numImages}
+        onNumImagesChange={(v) => updateForm({ numImages: v })}
+        aspectRatio={formState.aspectRatio}
+        onAspectRatioChange={(v) => updateForm({ aspectRatio: v })}
+        stylePreset={formState.stylePreset}
+        onStylePresetChange={(v) => updateForm({ stylePreset: v })}
       />
 
-      {error && (
+      {generationState.error && (
         <div className="rounded-xl border-2 border-destructive bg-destructive/10 px-6 py-4 animate-in fade-in slide-in-from-top-4 duration-300">
-          <p className="text-sm text-destructive font-medium">{error}</p>
+          <p className="text-sm text-destructive font-medium">{generationState.error}</p>
         </div>
       )}
 
-      {isLoading ? (
+      {generationState.isLoading ? (
         <LoadingState />
-      ) : images.length > 0 ? (
+      ) : generationState.images.length > 0 ? (
         <div className="space-y-6">
           <div
-            className={`grid gap-6 ${images.length === 1 ? "grid-cols-1" : "grid-cols-1 md:grid-cols-2"}`}
+            className={`grid gap-6 ${generationState.images.length === 1 ? "grid-cols-1" : "grid-cols-1 md:grid-cols-2"}`}
           >
-            {images.map((img, index) => (
+            {generationState.images.map((img, index) => (
               <ImageDisplay
                 key={index}
                 imageUrl={img.image}
-                prompt={prompt}
+                prompt={formState.prompt}
                 generatedText={img.text}
                 onDownload={() => handleDownload(img.image, index)}
                 onGenerateAnother={handleGenerateAnother}
-                showGenerateAnother={index === images.length - 1}
+                showGenerateAnother={index === generationState.images.length - 1}
               />
             ))}
           </div>

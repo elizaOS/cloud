@@ -10,7 +10,7 @@ import { characterBuilderPlugin } from "./plugin-character-builder";
 import { charactersService } from "@/lib/services/characters";
 import type { ElizaCharacter } from "@/lib/types";
 import defaultAgent from "./agent";
-import { getElizaCloudApiUrl, getDefaultModels } from "./config";
+import { getElizaCloudApiUrl } from "./config";
 import { AgentMode, AGENT_MODE_PLUGINS } from "./agent-mode-types";
 
 /**
@@ -69,10 +69,23 @@ export class AgentLoader {
     // Build full character with environment settings
     const character = this.buildCharacter(elizaCharacter);
 
+    // Auto-switch to ASSISTANT mode if character has plugin-mcp
+    // This ensures the assistant plugin is loaded alongside MCP support
+    let effectiveAgentMode = agentMode;
+    if (
+      (elizaCharacter.plugins || []).includes("@elizaos/plugin-mcp") &&
+      agentMode !== AgentMode.ASSISTANT
+    ) {
+      console.log(
+        `[AgentLoader] Character has plugin-mcp, switching from ${agentMode} to ${AgentMode.ASSISTANT} mode`,
+      );
+      effectiveAgentMode = AgentMode.ASSISTANT;
+    }
+
     // Resolve plugins based on AgentMode + character-specific plugins
     const plugins = await this.resolvePlugins(
-      agentMode,
-      elizaCharacter.plugins || []
+      effectiveAgentMode,
+      elizaCharacter.plugins || [],
     );
 
     return { character, plugins };
@@ -196,6 +209,22 @@ export class AgentLoader {
       // Merge any other custom settings from character
       ...elizaCharacter.settings,
     };
+
+    // Debug: Log affiliate data in settings
+    if (settings.affiliateData) {
+      console.log(
+        `[AgentLoader] 🔍 Character "${elizaCharacter.name}" has affiliateData:`,
+        JSON.stringify(settings.affiliateData, null, 2).substring(0, 500),
+      );
+    } else {
+      console.log(
+        `[AgentLoader] ⚠️ Character "${elizaCharacter.name}" has NO affiliateData in settings`,
+      );
+      console.log(
+        `[AgentLoader] elizaCharacter.settings keys:`,
+        elizaCharacter.settings ? Object.keys(elizaCharacter.settings) : "none",
+      );
+    }
 
     // Build Character object
     // Use the character's own ID for proper database isolation

@@ -4,6 +4,7 @@ import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Bot } from "lucide-react";
 import { cn } from "@/lib/utils";
 import Image from "next/image";
+import { isDiceBearAvatar } from "@/lib/utils/default-avatar";
 
 interface ElizaAvatarProps {
   avatarUrl?: string;
@@ -45,6 +46,7 @@ export function ElizaAvatar({
             animate ? "animate-pulse" : "",
           )}
           sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
+          unoptimized={isDiceBearAvatar(avatarUrl)}
         />
       ) : null}
       <AvatarFallback

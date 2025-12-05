@@ -13,10 +13,33 @@ interface MembersTabProps {
   user: UserWithOrganization;
 }
 
+interface OrganizationMember {
+  id: string;
+  user_id: string;
+  organization_id: string;
+  role: string;
+  user?: {
+    id: string;
+    email: string;
+    name: string | null;
+    avatar_url: string | null;
+  };
+  created_at: string;
+}
+
+interface OrganizationInvite {
+  id: string;
+  email: string;
+  role: string;
+  status: string;
+  expires_at: string;
+  created_at: string;
+}
+
 export function MembersTab({ user }: MembersTabProps) {
   const [isInviteDialogOpen, setIsInviteDialogOpen] = useState(false);
-  const [members, setMembers] = useState<any[]>([]);
-  const [invites, setInvites] = useState<any[]>([]);
+  const [members, setMembers] = useState<OrganizationMember[]>([]);
+  const [invites, setInvites] = useState<OrganizationInvite[]>([]);
   const [isLoadingMembers, setIsLoadingMembers] = useState(true);
   const [isLoadingInvites, setIsLoadingInvites] = useState(true);
 
@@ -189,23 +212,21 @@ export function MembersTab({ user }: MembersTabProps) {
 
       {/* Pending Invites */}
       {canManageMembers && (
-        <>
-          <div className="pt-4 md:pt-6 border-t border-white/10">
-            <h3 className="text-base md:text-lg font-mono font-semibold mb-3 md:mb-4 text-white">
-              Pending Invitations
-            </h3>
-            {isLoadingInvites ? (
-              <div className="flex items-center justify-center py-8">
-                <Loader2 className="h-6 w-6 animate-spin text-[#FF5800]" />
-              </div>
-            ) : (
-              <PendingInvitesList
-                invites={invites}
-                onRevoke={handleRevokeInvite}
-              />
-            )}
-          </div>
-        </>
+        <div className="pt-4 md:pt-6 border-t border-white/10">
+          <h3 className="text-base md:text-lg font-mono font-semibold mb-3 md:mb-4 text-white">
+            Pending Invitations
+          </h3>
+          {isLoadingInvites ? (
+            <div className="flex items-center justify-center py-8">
+              <Loader2 className="h-6 w-6 animate-spin text-[#FF5800]" />
+            </div>
+          ) : (
+            <PendingInvitesList
+              invites={invites}
+              onRevoke={handleRevokeInvite}
+            />
+          )}
+        </div>
       )}
 
       {/* Invite Member Dialog */}

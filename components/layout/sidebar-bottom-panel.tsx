@@ -10,7 +10,7 @@ import { useRouter, usePathname } from "next/navigation";
 import { UserPlus, LogIn, Settings, LogOut, Loader2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { CornerBrackets } from "@/components/brand";
-import { useCreditsStream } from "@/hooks/use-credits-stream";
+import { useCredits } from "@/providers/CreditsProvider";
 
 interface SidebarBottomPanelProps {
   className?: string;
@@ -20,7 +20,7 @@ export function SidebarBottomPanel({ className }: SidebarBottomPanelProps) {
   const { ready, authenticated, user, logout } = usePrivy();
   const router = useRouter();
   const pathname = usePathname();
-  const { creditBalance, isLoading: loadingCredits } = useCreditsStream();
+  const { creditBalance, isLoading: loadingCredits } = useCredits();
 
   // Get user display info
   const getUserName = () => {
@@ -57,7 +57,9 @@ export function SidebarBottomPanel({ className }: SidebarBottomPanelProps) {
 
         <div className="relative z-10 px-3 py-3">
           <div className="flex flex-col gap-2">
-            <p className="text-[10px] text-white/40 mb-1">Sign up for full access</p>
+            <p className="text-[10px] text-white/40 mb-1">
+              Sign up for full access
+            </p>
 
             <button
               onClick={() => router.push("/login")}

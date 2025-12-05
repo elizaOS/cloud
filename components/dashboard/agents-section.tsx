@@ -1,16 +1,15 @@
 /**
  * Agents Section Component
- * Displays user's agents in a card grid layout
+ * Displays user's agents in a card grid layout with Getting Started guide
  */
 
 "use client";
 
 import * as React from "react";
 import {
-  BrandCard,
-  CornerBrackets,
   BrandButton,
   LockOnButton,
+  CornerBrackets,
 } from "@/components/brand";
 import {
   Tooltip,
@@ -18,11 +17,12 @@ import {
   TooltipTrigger,
 } from "@/components/ui/tooltip";
 import { cn } from "@/lib/utils";
-import { Bot, Plus, Sparkles, HelpCircle, MessageSquare, Clock, Rocket } from "lucide-react";
+import { Bot, Plus, Sparkles, HelpCircle, Clock, Rocket, Terminal, Copy, Check, Zap, BookOpen, ExternalLink } from "lucide-react";
 import Image from "next/image";
 import Link from "next/link";
 import { Badge } from "@/components/ui/badge";
 import { formatDistanceToNow } from "date-fns";
+import { isDiceBearAvatar } from "@/lib/utils/default-avatar";
 
 interface AgentStats {
   roomCount: number;
@@ -50,14 +50,18 @@ export function AgentsSection({ agents, className }: AgentsSectionProps) {
   // Show max 4 agents on dashboard (2x2 grid)
   const displayAgents = agents.slice(0, 4);
   const hasMore = agents.length > 4;
+  const showGettingStarted = agents.length < 3;
 
   return (
-    <div className={cn("space-y-4", className)}>
+    <div className={cn("space-y-6", className)}>
+      {/* Getting Started - Show when user has few agents */}
+      {showGettingStarted && <GettingStartedSection />}
+
       {/* Section Header */}
       <div className="flex items-center justify-between">
         <div>
           <div className="flex items-center gap-2">
-            <h2 className="text-xl font-semibold text-white">Agents</h2>
+            <h2 className="text-xl font-semibold text-white">Your Agents</h2>
             <span className="text-sm text-white/30">({agents.length})</span>
             <Tooltip>
               <TooltipTrigger asChild>
@@ -76,9 +80,6 @@ export function AgentsSection({ agents, className }: AgentsSectionProps) {
               </TooltipContent>
             </Tooltip>
           </div>
-          <p className="text-white/40 mt-0.5 text-xs">
-            {agents.length > 0 ? "Manage your agents" : "Create your first agent"}
-          </p>
         </div>
         <LockOnButton
           onClick={() => (window.location.href = "/dashboard/my-agents")}
@@ -93,7 +94,7 @@ export function AgentsSection({ agents, className }: AgentsSectionProps) {
         <AgentsEmptyState />
       ) : (
         <>
-          <div className="grid gap-4 md:grid-cols-2 auto-rows-fr">
+          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
             {displayAgents.map((agent) => (
               <AgentCard key={agent.id} agent={agent} />
             ))}
@@ -115,85 +116,212 @@ export function AgentsSection({ agents, className }: AgentsSectionProps) {
   );
 }
 
-// Individual Agent Card
-function AgentCard({ agent }: { agent: Agent }) {
-  const bioText = Array.isArray(agent.bio) ? agent.bio[0] : agent.bio;
-  const isDeployed = agent.stats?.deploymentStatus === "deployed";
-  const isStopped = agent.stats?.deploymentStatus === "stopped";
+// Getting Started Section with CLI commands
+function GettingStartedSection() {
+  const [copiedCreate, setCopiedCreate] = React.useState(false);
+  const [copiedDeploy, setCopiedDeploy] = React.useState(false);
+
+  const copyToClipboard = (text: string, setCopied: (v: boolean) => void) => {
+    navigator.clipboard.writeText(text);
+    setCopied(true);
+    setTimeout(() => setCopied(false), 2000);
+  };
 
   return (
-    <Link href={`/dashboard/chat?characterId=${agent.id}`} className="block h-full">
-      <div className="group relative h-full overflow-hidden rounded-lg border border-white/10 bg-gradient-to-r from-white/[0.04] to-transparent transition-all duration-300 hover:border-[#FF5800]/50 hover:shadow-lg hover:shadow-[#FF5800]/10 p-4">
-        <div className="flex items-start gap-4 h-full">
-          {/* Avatar - Left side icon */}
-          <div className="relative h-16 w-16 flex-shrink-0 rounded-lg overflow-hidden bg-gradient-to-br from-[#FF5800]/20 to-orange-700/10 border border-white/10">
-            {agent.avatarUrl ? (
-              <Image
-                src={agent.avatarUrl}
-                alt={agent.name}
-                fill
-                className="object-cover transition-transform duration-300 group-hover:scale-110"
-              />
-            ) : (
-              <div className="h-full w-full flex items-center justify-center">
-                <Bot className="h-8 w-8 text-white/40" />
-              </div>
-            )}
-            {/* Status indicator dot */}
-            {isDeployed && (
-              <div className="absolute -top-1 -right-1 h-3 w-3 rounded-full bg-green-500 border-2 border-black" />
-            )}
+    <div className="relative overflow-hidden border border-white/10 bg-gradient-to-br from-[#FF5800]/5 via-black/40 to-purple-900/10 p-6">
+      <div className="pointer-events-none absolute inset-0 z-10">
+        <CornerBrackets size="md" color="#E1E1E1" />
+      </div>
+      {/* Background decoration */}
+      <div className="absolute top-0 right-0 w-64 h-64 bg-[#FF5800]/5 rounded-full blur-3xl -translate-y-1/2 translate-x-1/2" />
+      <div className="absolute bottom-0 left-0 w-48 h-48 bg-purple-600/5 rounded-full blur-3xl translate-y-1/2 -translate-x-1/2" />
+      
+      <div className="relative z-0">
+        {/* Header */}
+        <div className="flex items-center gap-3 mb-5">
+          <div className="p-2.5 rounded-lg bg-[#FF5800]/10 border border-[#FF5800]/20">
+            <Zap className="h-5 w-5 text-[#FF5800]" />
+          </div>
+          <h3 className="text-lg font-semibold text-white">Quick Start</h3>
+        </div>
+
+        {/* CLI Commands */}
+        <div className="grid gap-4 sm:grid-cols-2">
+          {/* Create Command */}
+          <div className="group relative rounded-lg border border-white/10 bg-black/30 p-3 hover:border-[#FF5800]/30 transition-colors">
+            <div className="flex items-center gap-2 mb-2">
+              <Terminal className="h-4 w-4 text-[#FF5800]" />
+              <span className="text-sm font-medium text-white">Create</span>
+            </div>
+            <div className="flex items-center gap-2">
+              <code className="flex-1 px-3 py-2 rounded bg-black/50 text-sm font-mono text-emerald-400 border border-white/5">
+                npx elizaos create
+              </code>
+              <button
+                type="button"
+                onClick={() => copyToClipboard("npx elizaos create", setCopiedCreate)}
+                className="p-2 rounded hover:bg-white/5 transition-colors text-white/40 hover:text-white"
+              >
+                {copiedCreate ? (
+                  <Check className="h-4 w-4 text-emerald-400" />
+                ) : (
+                  <Copy className="h-4 w-4" />
+                )}
+              </button>
+            </div>
           </div>
 
-          {/* Content - Right side */}
-          <div className="flex-1 min-w-0 flex flex-col">
-            {/* Name & Status */}
-            <div className="flex items-center gap-2 mb-1">
-              <h3 className="font-semibold text-white truncate group-hover:text-[#FF5800] transition-colors">
-                {agent.name}
-              </h3>
-              {isDeployed && (
-                <Badge className="bg-green-600/80 text-[10px] px-1.5 py-0 h-4">
-                  <Rocket className="h-2.5 w-2.5 mr-0.5" />
-                  Live
-                </Badge>
-              )}
-              {isStopped && (
-                <Badge variant="secondary" className="text-[10px] px-1.5 py-0 h-4 bg-yellow-600/30 text-yellow-400/80">
-                  Stopped
-                </Badge>
-              )}
+          {/* Deploy Command */}
+          <div className="group relative rounded-lg border border-white/10 bg-black/30 p-3 hover:border-[#FF5800]/30 transition-colors">
+            <div className="flex items-center gap-2 mb-2">
+              <Rocket className="h-4 w-4 text-purple-400" />
+              <span className="text-sm font-medium text-white">Deploy</span>
             </div>
-            
-            {/* Bio - Fixed 1 line to make room for stats */}
-            <p className="text-xs text-white/50 line-clamp-1 leading-relaxed">
-              {bioText}
-            </p>
-            
-            {/* Stats row - Always at bottom */}
-            <div className="flex items-center gap-3 mt-auto pt-2 text-[11px] text-white/40">
-              <span className="flex items-center gap-1">
-                <MessageSquare className="h-3 w-3" />
-                {agent.stats?.roomCount ?? 0} chats
-              </span>
-              {agent.stats?.lastActiveAt && (
-                <span className="flex items-center gap-1">
-                  <Clock className="h-3 w-3" />
-                  {formatDistanceToNow(new Date(agent.stats.lastActiveAt), { addSuffix: true })}
-                </span>
-              )}
-              {agent.category && (
-                <span className="flex items-center gap-1 ml-auto text-white/30">
-                  {agent.category}
-                </span>
-              )}
+            <div className="flex items-center gap-2">
+              <code className="flex-1 px-3 py-2 rounded bg-black/50 text-sm font-mono text-purple-400 border border-white/5">
+                npx elizaos deploy
+              </code>
+              <button
+                type="button"
+                onClick={() => copyToClipboard("npx elizaos deploy", setCopiedDeploy)}
+                className="p-2 rounded hover:bg-white/5 transition-colors text-white/40 hover:text-white"
+              >
+                {copiedDeploy ? (
+                  <Check className="h-4 w-4 text-emerald-400" />
+                ) : (
+                  <Copy className="h-4 w-4" />
+                )}
+              </button>
             </div>
           </div>
         </div>
 
-        {/* Corner accent */}
-        <div className="absolute top-0 right-0 w-6 h-6 overflow-hidden">
-          <div className="absolute -top-3 -right-3 w-6 h-6 bg-gradient-to-bl from-[#FF5800]/20 to-transparent rotate-45" />
+        {/* Quick links */}
+        <div className="flex items-center gap-4 mt-5 pt-4 border-t border-white/5">
+          <a
+            href="https://elizaos.ai/docs"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="inline-flex items-center gap-1.5 text-xs text-white/50 hover:text-[#FF5800] transition-colors"
+          >
+            <BookOpen className="h-3.5 w-3.5" />
+            Documentation
+            <ExternalLink className="h-3 w-3" />
+          </a>
+          <Link
+            href="/dashboard/character-creator"
+            className="inline-flex items-center gap-1.5 text-xs text-white/50 hover:text-[#FF5800] transition-colors"
+          >
+            <Sparkles className="h-3.5 w-3.5" />
+            Create in Browser
+          </Link>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// Generate a consistent color based on agent name
+function getAgentColor(name: string): string {
+  const colors = [
+    "from-[#FF5800] to-orange-700",
+    "from-purple-500 to-indigo-700",
+    "from-emerald-500 to-teal-700",
+    "from-blue-500 to-cyan-700",
+    "from-pink-500 to-rose-700",
+    "from-amber-500 to-yellow-700",
+    "from-violet-500 to-purple-700",
+    "from-cyan-500 to-blue-700",
+  ];
+  const index = name.split("").reduce((acc, char) => acc + char.charCodeAt(0), 0) % colors.length;
+  return colors[index];
+}
+
+// Individual Agent Card - Full card style with prominent avatar
+function AgentCard({ agent }: { agent: Agent }) {
+  const bioText = Array.isArray(agent.bio) ? agent.bio[0] : agent.bio;
+  const isDeployed = agent.stats?.deploymentStatus === "deployed";
+  const isStopped = agent.stats?.deploymentStatus === "stopped";
+  const gradientColor = getAgentColor(agent.name);
+
+  return (
+    <Link href={`/dashboard/chat?characterId=${agent.id}`} className="block h-full">
+      <div className="group relative h-full overflow-hidden border border-white/10 bg-black/40 transition-all duration-300 hover:border-[#FF5800]/50 hover:shadow-lg hover:shadow-[#FF5800]/10 hover:-translate-y-1">
+        <div className="pointer-events-none absolute inset-0 z-10">
+          <CornerBrackets size="md" color="#E1E1E1" hoverColor="#FF5800" />
+        </div>
+        {/* Avatar Section - Large prominent image */}
+        <div className={cn(
+          "relative h-36 w-full overflow-hidden",
+          !agent.avatarUrl && `bg-gradient-to-br ${gradientColor}`
+        )}>
+          {agent.avatarUrl ? (
+            <Image
+              src={agent.avatarUrl}
+              alt={agent.name}
+              fill
+              className="object-cover transition-transform duration-500 group-hover:scale-110"
+              unoptimized={isDiceBearAvatar(agent.avatarUrl)}
+            />
+          ) : (
+            <div className="absolute inset-0 flex items-center justify-center">
+              {/* Default avatar with initial */}
+              <div className="relative">
+                <div className="absolute inset-0 bg-white/10 rounded-full blur-xl scale-150" />
+                <div className="relative h-20 w-20 rounded-full bg-white/10 backdrop-blur-sm border border-white/20 flex items-center justify-center">
+                  <span className="text-3xl font-bold text-white/90">
+                    {agent.name.charAt(0).toUpperCase()}
+                  </span>
+                </div>
+              </div>
+            </div>
+          )}
+          
+          {/* Gradient overlay at bottom */}
+          <div className="absolute inset-x-0 bottom-0 h-16 bg-gradient-to-t from-black/80 to-transparent" />
+          
+          {/* Status badges */}
+          <div className="absolute top-2 right-2 z-20 flex gap-1.5">
+            {isDeployed && (
+              <Badge className="bg-emerald-500/90 text-[10px] px-2 py-0.5 backdrop-blur-sm border-0">
+                <div className="h-1.5 w-1.5 rounded-full bg-white animate-pulse mr-1" />
+                Live
+              </Badge>
+            )}
+            {isStopped && (
+              <Badge className="bg-amber-500/80 text-[10px] px-2 py-0.5 backdrop-blur-sm border-0 text-black">
+                Stopped
+              </Badge>
+            )}
+          </div>
+        </div>
+
+        {/* Content Section */}
+        <div className="p-4 space-y-2">
+          {/* Name */}
+          <h3 className="font-semibold text-white truncate group-hover:text-[#FF5800] transition-colors">
+            {agent.name}
+          </h3>
+          
+          {/* Bio */}
+          <p className="text-xs text-white/50 line-clamp-2 leading-relaxed min-h-[2rem]">
+            {bioText || "No description yet"}
+          </p>
+          
+          {/* Stats */}
+          <div className="flex items-center gap-3 pt-2 border-t border-white/5 text-[11px] text-white/40">
+            {agent.stats?.lastActiveAt && (
+              <span className="flex items-center gap-1 truncate">
+                <Clock className="h-3 w-3 flex-shrink-0" />
+                {formatDistanceToNow(new Date(agent.stats.lastActiveAt), { addSuffix: true })}
+              </span>
+            )}
+            {agent.category && (
+              <span className="ml-auto text-white/30 truncate">
+                {agent.category}
+              </span>
+            )}
+          </div>
         </div>
       </div>
     </Link>
@@ -203,86 +331,102 @@ function AgentCard({ agent }: { agent: Agent }) {
 // Empty State
 function AgentsEmptyState() {
   return (
-    <BrandCard className="relative border-dashed">
-      <CornerBrackets size="md" className="opacity-30" />
-      <div className="relative z-10 text-center py-8 space-y-3">
-        <div className="flex justify-center">
-          <div className="p-4 rounded-lg bg-[#FF5800]/10 border border-[#FF5800]/20">
+    <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+      {/* Empty state card styled like an agent card */}
+      <div className="relative overflow-hidden border border-dashed border-white/20 bg-black/20 h-full min-h-[240px]">
+        <div className="pointer-events-none absolute inset-0 z-10">
+          <CornerBrackets size="md" color="#E1E1E1" />
+        </div>
+        <div className="relative z-0 flex flex-col items-center justify-center p-6 text-center h-full">
+          <div className="p-4 rounded-full bg-[#FF5800]/10 border border-[#FF5800]/20 mb-4">
             <Bot className="h-8 w-8 text-[#FF5800]" />
           </div>
-        </div>
-        <div>
           <h3 className="text-base font-medium text-white mb-1">
             No agents yet
           </h3>
-          <p className="text-xs text-white/50 max-w-xs mx-auto">
-            Create an agent or browse the marketplace
+          <p className="text-xs text-white/50 mb-4">
+            Create your first agent to get started
           </p>
-        </div>
-        <div className="flex gap-2 justify-center pt-2">
-          <BrandButton
-            onClick={() =>
-              (window.location.href = "/dashboard/character-creator")
-            }
-            size="sm"
-            className="h-8 text-xs"
-          >
-            <Plus className="h-3.5 w-3.5" />
-            Create
-          </BrandButton>
-          <BrandButton
-            onClick={() => (window.location.href = "/marketplace")}
-            variant="outline"
-            size="sm"
-            className="h-8 text-xs"
-          >
-            <Sparkles className="h-3.5 w-3.5" />
-            Marketplace
-          </BrandButton>
+          <div className="flex gap-2">
+            <BrandButton
+              onClick={() =>
+                (window.location.href = "/dashboard/character-creator")
+              }
+              size="sm"
+              className="h-8 text-xs"
+            >
+              <Plus className="h-3.5 w-3.5" />
+              Create
+            </BrandButton>
+            <BrandButton
+              onClick={() => (window.location.href = "/marketplace")}
+              variant="outline"
+              size="sm"
+              className="h-8 text-xs"
+            >
+              <Sparkles className="h-3.5 w-3.5" />
+              Browse
+            </BrandButton>
+          </div>
         </div>
       </div>
-    </BrandCard>
+    </div>
   );
 }
 
-// Skeleton Loader
+// Skeleton Loader - matches new card style
 export function AgentsSectionSkeleton() {
   return (
     <div className="space-y-6">
-      {/* Section Header Skeleton */}
-      <div className="flex items-center justify-between">
-        <div>
-          <div className="h-8 w-48 bg-white/10 animate-pulse rounded" />
-          <div className="h-4 w-64 bg-white/10 animate-pulse rounded mt-2" />
+      {/* Getting Started Skeleton */}
+      <div className="relative border border-white/10 bg-black/20 p-6">
+        <div className="pointer-events-none absolute inset-0 z-10">
+          <CornerBrackets size="md" color="#E1E1E1" />
         </div>
-        <div className="h-10 w-32 bg-white/10 animate-pulse rounded" />
+        <div className="relative z-0 flex items-center gap-3 mb-5">
+          <div className="h-10 w-10 rounded-lg bg-white/10 animate-pulse" />
+          <div className="space-y-2">
+            <div className="h-5 w-32 bg-white/10 animate-pulse rounded" />
+            <div className="h-3 w-48 bg-white/10 animate-pulse rounded" />
+          </div>
+        </div>
+        <div className="grid gap-4 sm:grid-cols-2">
+          <div className="h-24 rounded-lg bg-white/5 animate-pulse" />
+          <div className="h-24 rounded-lg bg-white/5 animate-pulse" />
+        </div>
       </div>
 
-      {/* Agents Grid Skeleton */}
-      <div className="grid gap-4 md:grid-cols-2 auto-rows-fr">
+      {/* Section Header Skeleton */}
+      <div className="flex items-center justify-between">
+        <div className="flex items-center gap-2">
+          <div className="h-7 w-28 bg-white/10 animate-pulse rounded" />
+          <div className="h-5 w-8 bg-white/10 animate-pulse rounded" />
+        </div>
+        <div className="h-9 w-20 bg-white/10 animate-pulse rounded" />
+      </div>
+
+      {/* Agents Grid Skeleton - Card style */}
+      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
         {[...Array(4)].map((_, index) => (
           <div 
             key={index} 
-            className="rounded-lg border border-white/10 bg-gradient-to-r from-white/[0.04] to-transparent p-4 h-[120px]"
+            className="relative border border-white/10 bg-black/40 overflow-hidden"
           >
-            <div className="flex items-start gap-4">
-              {/* Avatar skeleton */}
-              <div className="h-16 w-16 flex-shrink-0 rounded-lg bg-white/10 animate-pulse" />
-              
-              {/* Content skeleton */}
-              <div className="flex-1 min-w-0 space-y-2">
-                <div className="flex items-center gap-2">
-                  <div className="h-5 w-24 bg-white/10 animate-pulse rounded" />
-                  <div className="h-4 w-16 bg-white/10 animate-pulse rounded" />
-                </div>
-                <div className="space-y-1.5">
-                  <div className="h-3 w-full bg-white/10 animate-pulse rounded" />
-                  <div className="h-3 w-3/4 bg-white/10 animate-pulse rounded" />
-                </div>
-                <div className="flex items-center gap-2 pt-1">
-                  <div className="h-3 w-3 bg-white/10 animate-pulse rounded" />
-                  <div className="h-2 w-16 bg-white/10 animate-pulse rounded" />
-                </div>
+            <div className="pointer-events-none absolute inset-0 z-10">
+              <CornerBrackets size="md" color="#E1E1E1" />
+            </div>
+            {/* Avatar area skeleton */}
+            <div className="h-36 w-full bg-gradient-to-br from-white/5 to-white/[0.02] animate-pulse" />
+            
+            {/* Content skeleton */}
+            <div className="p-4 space-y-3">
+              <div className="h-5 w-3/4 bg-white/10 animate-pulse rounded" />
+              <div className="space-y-1.5">
+                <div className="h-3 w-full bg-white/10 animate-pulse rounded" />
+                <div className="h-3 w-2/3 bg-white/10 animate-pulse rounded" />
+              </div>
+              <div className="flex items-center gap-3 pt-2 border-t border-white/5">
+                <div className="h-3 w-20 bg-white/10 animate-pulse rounded" />
               </div>
             </div>
           </div>

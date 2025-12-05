@@ -54,39 +54,61 @@ interface UploadedFile {
   id: string;
 }
 
+interface VoiceSettings {
+  stability: number;
+  similarityBoost: number;
+  style: number;
+  useSpeakerBoost: boolean;
+}
+
+interface FormData {
+  name: string;
+  description: string;
+  cloneType: "instant" | "professional";
+}
+
+const DEFAULT_SETTINGS: VoiceSettings = {
+  stability: 0.5,
+  similarityBoost: 0.75,
+  style: 0,
+  useSpeakerBoost: true,
+};
+
+const DEFAULT_FORM_DATA: FormData = {
+  name: "",
+  description: "",
+  cloneType: "instant",
+};
+
 export function VoiceCloneForm({
   creditBalance,
   onSuccess,
   onCreditBalanceChange,
 }: VoiceCloneFormProps) {
-  const [name, setName] = useState("");
-  const [description, setDescription] = useState("");
-  const [cloneType, setCloneType] = useState<"instant" | "professional">(
-    "instant",
-  );
+  // Form data consolidated
+  const [formData, setFormData] = useState<FormData>(DEFAULT_FORM_DATA);
+  // Advanced settings consolidated
+  const [settings, setSettings] = useState<VoiceSettings>(DEFAULT_SETTINGS);
+  // File state
   const [files, setFiles] = useState<UploadedFile[]>([]);
-  const [isUploading, setIsUploading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  const [isDragging, setIsDragging] = useState(false);
-  const [professionalVoiceCount, setProfessionalVoiceCount] = useState<
-    number | null
-  >(null);
-
-  // Advanced settings
-  const [stability, setStability] = useState(0.5);
-  const [similarityBoost, setSimilarityBoost] = useState(0.75);
-  const [style, setStyle] = useState(0);
-  const [useSpeakerBoost, setUseSpeakerBoost] = useState(true);
-
-  const fileInputRef = useRef<HTMLInputElement>(null);
-  const recorder = useAudioRecorder();
   const [recordings, setRecordings] = useState<
     Array<{ blob: Blob; id: string; duration: number }>
   >([]);
   const [recordingName, setRecordingName] = useState("");
+  // UI state
+  const [isUploading, setIsUploading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [isDragging, setIsDragging] = useState(false);
+  // Async data
+  const [professionalVoiceCount, setProfessionalVoiceCount] = useState<
+    number | null
+  >(null);
+
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const recorder = useAudioRecorder();
 
   const cost =
-    cloneType === "instant"
+    formData.cloneType === "instant"
       ? VOICE_CLONE_INSTANT_COST
       : VOICE_CLONE_PROFESSIONAL_COST;
   const hasEnoughCredits = Number(creditBalance) >= cost;
@@ -225,7 +247,7 @@ export function VoiceCloneForm({
     setError(null);
 
     // Validation
-    if (!name.trim()) {
+    if (!formData.name.trim()) {
       setError("Voice name is required");
       return;
     }
@@ -245,32 +267,24 @@ export function VoiceCloneForm({
     setIsUploading(true);
 
     try {
-      const formData = new FormData();
-      formData.append("name", name.trim());
-      formData.append("cloneType", cloneType);
-      if (description.trim()) {
-        formData.append("description", description.trim());
+      const submitData = new FormData();
+      submitData.append("name", formData.name.trim());
+      submitData.append("cloneType", formData.cloneType);
+      if (formData.description.trim()) {
+        submitData.append("description", formData.description.trim());
       }
 
       // Add advanced settings
-      formData.append(
-        "settings",
-        JSON.stringify({
-          stability,
-          similarityBoost,
-          style,
-          useSpeakerBoost,
-        }),
-      );
+      submitData.append("settings", JSON.stringify(settings));
 
       // Add files
       files.forEach((f, index) => {
-        formData.append(`file${index + 1}`, f.file);
+        submitData.append(`file${index + 1}`, f.file);
       });
 
       const response = await fetch("/api/elevenlabs/voices/clone", {
         method: "POST",
-        body: formData,
+        body: submitData,
       });
 
       const data = await response.json();
@@ -287,13 +301,13 @@ export function VoiceCloneForm({
       }
 
       // Show appropriate success message based on clone type
-      if (cloneType === "professional") {
+      if (formData.cloneType === "professional") {
         toast.success(
-          `Voice "${name}" is being created. Professional cloning takes 30-60 minutes. Check back later!`,
+          `Voice "${formData.name}" is being created. Professional cloning takes 30-60 minutes. Check back later!`,
           { duration: 10000 },
         );
       } else {
-        toast.success(`Voice "${name}" created successfully and ready to use!`);
+        toast.success(`Voice "${formData.name}" created successfully and ready to use!`);
       }
 
       // Update credit balance
@@ -302,14 +316,9 @@ export function VoiceCloneForm({
       }
 
       // Reset form
-      setName("");
-      setDescription("");
+      setFormData(DEFAULT_FORM_DATA);
+      setSettings(DEFAULT_SETTINGS);
       setFiles([]);
-      setCloneType("instant");
-      setStability(0.5);
-      setSimilarityBoost(0.75);
-      setStyle(0);
-      setUseSpeakerBoost(true);
 
       // Notify parent
       onSuccess(data.voice);
@@ -367,8 +376,8 @@ export function VoiceCloneForm({
             <Input
               id="name"
               placeholder="My Voice"
-              value={name}
-              onChange={(e) => setName(e.target.value)}
+              value={formData.name}
+              onChange={(e) => setFormData((prev) => ({ ...prev, name: e.target.value }))}
               disabled={isUploading}
               required
               className="border-white/10 bg-black/40 text-white placeholder:text-white/40 focus:ring-1 focus:ring-[#FF5800] focus:border-[#FF5800]"
@@ -386,8 +395,8 @@ export function VoiceCloneForm({
             <Textarea
               id="description"
               placeholder="A clone of my voice for content creation"
-              value={description}
-              onChange={(e) => setDescription(e.target.value)}
+              value={formData.description}
+              onChange={(e) => setFormData((prev) => ({ ...prev, description: e.target.value }))}
               disabled={isUploading}
               rows={3}
               className="border-white/10 bg-black/40 text-white placeholder:text-white/40 focus:ring-1 focus:ring-[#FF5800] focus:border-[#FF5800]"
@@ -407,11 +416,11 @@ export function VoiceCloneForm({
             <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
               <button
                 type="button"
-                onClick={() => setCloneType("instant")}
+                onClick={() => setFormData((prev) => ({ ...prev, cloneType: "instant" }))}
                 disabled={isUploading}
                 className={cn(
                   "relative border p-3 text-left transition-all",
-                  cloneType === "instant"
+                  formData.cloneType === "instant"
                     ? "border-[#FF5800] bg-[#FF580010]"
                     : "border-white/10 hover:border-white/30 hover:bg-white/5",
                 )}
@@ -442,11 +451,11 @@ export function VoiceCloneForm({
 
               <button
                 type="button"
-                onClick={() => setCloneType("professional")}
+                onClick={() => setFormData((prev) => ({ ...prev, cloneType: "professional" }))}
                 disabled={isUploading}
                 className={cn(
                   "relative border p-3 text-left transition-all",
-                  cloneType === "professional"
+                  formData.cloneType === "professional"
                     ? "border-[#FF5800] bg-[#FF580010]"
                     : "border-white/10 hover:border-white/30 hover:bg-white/5",
                 )}
@@ -776,15 +785,15 @@ export function VoiceCloneForm({
                 <div className="space-y-2">
                   <div className="flex items-center justify-between">
                     <label className="text-xs font-medium text-white/70 uppercase tracking-wide">
-                      Stability: {stability.toFixed(2)}
+                      Stability: {settings.stability.toFixed(2)}
                     </label>
                   </div>
                   <Slider
-                    value={[stability]}
+                    value={[settings.stability]}
                     min={0}
                     max={1}
                     step={0.01}
-                    onValueChange={(v) => setStability(v[0])}
+                    onValueChange={(v) => setSettings((prev) => ({ ...prev, stability: v[0] }))}
                     disabled={isUploading}
                   />
                   <p className="text-xs text-muted-foreground">
@@ -794,14 +803,14 @@ export function VoiceCloneForm({
 
                 <div className="space-y-2">
                   <label className="text-xs font-medium text-white/70 uppercase tracking-wide">
-                    Similarity Boost: {similarityBoost.toFixed(2)}
+                    Similarity Boost: {settings.similarityBoost.toFixed(2)}
                   </label>
                   <Slider
-                    value={[similarityBoost]}
+                    value={[settings.similarityBoost]}
                     min={0}
                     max={1}
                     step={0.01}
-                    onValueChange={(v) => setSimilarityBoost(v[0])}
+                    onValueChange={(v) => setSettings((prev) => ({ ...prev, similarityBoost: v[0] }))}
                     disabled={isUploading}
                   />
                   <p className="text-xs text-muted-foreground">
@@ -811,14 +820,14 @@ export function VoiceCloneForm({
 
                 <div className="space-y-2">
                   <label className="text-xs font-medium text-white/70 uppercase tracking-wide">
-                    Style: {style.toFixed(2)}
+                    Style: {settings.style.toFixed(2)}
                   </label>
                   <Slider
-                    value={[style]}
+                    value={[settings.style]}
                     min={0}
                     max={1}
                     step={0.01}
-                    onValueChange={(v) => setStyle(v[0])}
+                    onValueChange={(v) => setSettings((prev) => ({ ...prev, style: v[0] }))}
                     disabled={isUploading}
                   />
                   <p className="text-xs text-muted-foreground">

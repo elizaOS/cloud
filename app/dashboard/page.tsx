@@ -4,10 +4,6 @@ import { generatePageMetadata, ROUTE_METADATA } from "@/lib/seo";
 import { getDashboardData } from "@/lib/actions/dashboard";
 import { DashboardPageWrapper } from "@/components/dashboard/dashboard-page-wrapper";
 import {
-  OverviewMetrics,
-  OverviewMetricsSkeleton,
-} from "@/components/dashboard/overview-metrics";
-import {
   AgentsSection,
   AgentsSectionSkeleton,
 } from "@/components/dashboard/agents-section";
@@ -32,7 +28,6 @@ export default async function DashboardPage() {
   const data = await getDashboardData();
 
   const { hasAgents, hasApiKey, hasChatHistory } = data.onboarding;
-  const hasActivity = data.stats.totalGenerations > 0;
 
   return (
     <DashboardPageWrapper userName={data.user.name.split(" ")[0] || "User"}>
@@ -53,19 +48,6 @@ export default async function DashboardPage() {
               <AgentsSection agents={data.agents} />
             </Suspense>
           </section>
-
-          {hasActivity && (
-            <section>
-              <Suspense fallback={<OverviewMetricsSkeleton />}>
-                <OverviewMetrics
-                  totalGenerations={data.stats.totalGenerations}
-                  apiCalls24h={data.stats.apiCalls24h}
-                  imageGenerations={data.stats.imageGenerations}
-                  videoRenders={data.stats.videoGenerations}
-                />
-              </Suspense>
-            </section>
-          )}
 
           <section>
             <Suspense fallback={<ContainersSectionSkeleton />}>
