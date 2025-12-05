@@ -17,6 +17,7 @@ import {
   userCharacters,
   elizaRoomCharactersTable,
 } from "@/db/schemas";
+import { participantTable } from "@/db/schemas/eliza";
 import type { AnonymousSession } from "@/db/schemas";
 import { eq, and, sql } from "drizzle-orm";
 import { logger } from "@/lib/utils/logger";
@@ -207,7 +208,8 @@ export async function getOrCreateSessionUser(
     tokenSources?.header ||
     tokenSources?.body ||
     tokenSources?.query ||
-    (request?.headers.get("X-Anonymous-Session") || null);
+    request?.headers.get("X-Anonymous-Session") ||
+    null;
 
   if (providedToken) {
     logger.debug(
@@ -219,10 +221,13 @@ export async function getOrCreateSessionUser(
     if (session) {
       const sessionUser = await usersService.getById(session.user_id);
       if (sessionUser && sessionUser.is_anonymous) {
-        logger.info(`${logPrefix} Valid anonymous session from provided token`, {
-          userId: sessionUser.id,
-          messageCount: session.message_count,
-        });
+        logger.info(
+          `${logPrefix} Valid anonymous session from provided token`,
+          {
+            userId: sessionUser.id,
+            messageCount: session.message_count,
+          }
+        );
 
         return buildAnonymousSessionUser(sessionUser, session, providedToken);
       }
@@ -275,7 +280,10 @@ async function buildAnonymousSessionUser(
     sessionToken: token,
     messageCount: session.message_count,
     messagesLimit: session.messages_limit,
-    messagesRemaining: Math.max(0, session.messages_limit - session.message_count),
+    messagesRemaining: Math.max(
+      0,
+      session.messages_limit - session.message_count
+    ),
     metadata: {
       ipAddress: session.ip_address || undefined,
       userAgent: session.user_agent || undefined,
@@ -299,8 +307,9 @@ async function createNewAnonymousSession(): Promise<SessionUser> {
   const clientInfo = await getClientInfo();
 
   if (clientInfo.ipAddress && process.env.NODE_ENV === "production") {
-    const isAbuse =
-      await anonymousSessionsService.checkIpAbuse(clientInfo.ipAddress);
+    const isAbuse = await anonymousSessionsService.checkIpAbuse(
+      clientInfo.ipAddress
+    );
     if (isAbuse) {
       throw new Error(
         "Too many anonymous sessions from this IP. Please sign up."
@@ -414,7 +423,10 @@ export async function incrementSessionMessageCount(
   return {
     allowed: true,
     newCount: updatedSession.message_count,
-    remaining: Math.max(0, session.messages_limit - updatedSession.message_count),
+    remaining: Math.max(
+      0,
+      session.messages_limit - updatedSession.message_count
+    ),
   };
 }
 
@@ -593,11 +605,11 @@ export async function migrateAnonymousSession(
 
       mergedData.roomMappingsTransferred = roomCharResult.length;
 
-      await tx.execute(sql`
-        UPDATE participants
-        SET "entityId" = ${realUser.id}::uuid
-        WHERE "entityId" = ${anonymousUserId}::uuid
-      `);
+      // Update participants using Drizzle ORM (safer than raw SQL)
+      await tx
+        .update(participantTable)
+        .set({ entityId: realUser.id })
+        .where(eq(participantTable.entityId, anonymousUserId));
 
       if (anonSession && targetOrgId) {
         await tx
@@ -661,7 +673,8 @@ export function shouldPromptSignup(sessionUser: SessionUser): {
 
   if (sessionUser.metadata.expiresAt) {
     const hoursRemaining =
-      (sessionUser.metadata.expiresAt.getTime() - Date.now()) / (1000 * 60 * 60);
+      (sessionUser.metadata.expiresAt.getTime() - Date.now()) /
+      (1000 * 60 * 60);
     if (hoursRemaining < 24) {
       return { shouldPrompt: true, reason: "session_expiring" };
     }
@@ -673,7 +686,9 @@ export function shouldPromptSignup(sessionUser: SessionUser): {
 /**
  * Get session summary for debugging
  */
-export function getSessionDebugInfo(sessionUser: SessionUser): Record<string, unknown> {
+export function getSessionDebugInfo(
+  sessionUser: SessionUser
+): Record<string, unknown> {
   return {
     userId: sessionUser.userId,
     isAnonymous: sessionUser.isAnonymous,
