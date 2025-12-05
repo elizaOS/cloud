@@ -30,8 +30,12 @@ import {
   UploadIcon,
   FileAudioIcon,
   XCircleIcon,
+  Coins,
+  Sparkles,
+  Info,
+  TrendingUp,
 } from "lucide-react";
-import { type ApiEndpoint } from "@/lib/swagger/endpoint-discovery";
+import { type ApiEndpoint, type EndpointPricing } from "@/lib/swagger/endpoint-discovery";
 import { getApiBaseUrl } from "@/lib/config/client-env";
 import { toast } from "@/lib/utils/toast-adapter";
 import { cn } from "@/lib/utils";
@@ -542,14 +546,68 @@ export function ApiTester({
     );
   };
 
+  // Pricing display helper functions
+  const formatPriceDisplay = (pricing: EndpointPricing | undefined) => {
+    if (!pricing) return null;
+    if (pricing.isFree) return "Free";
+    if (pricing.isVariable && pricing.estimatedRange) {
+      return `$${pricing.estimatedRange.min.toFixed(3)} - $${pricing.estimatedRange.max.toFixed(2)}`;
+    }
+    return `$${pricing.cost.toFixed(pricing.cost < 0.01 ? 4 : 2)}`;
+  };
+
   return (
     <div className="space-y-6">
+      {/* Pricing Information Card */}
+      {endpoint.pricing && (
+        <Card className="border-border/60 bg-background/60 rounded-none overflow-hidden">
+          <div className={`h-1 w-full ${endpoint.pricing.isFree ? 'bg-emerald-500' : endpoint.pricing.isVariable ? 'bg-amber-500' : 'bg-[#FF5800]'}`} />
+          <CardContent className="pt-4">
+            <div className="flex items-start justify-between gap-4">
+              <div className="flex items-center gap-3">
+                <div className={`p-2.5 rounded-lg ${endpoint.pricing.isFree ? 'bg-emerald-500/10' : endpoint.pricing.isVariable ? 'bg-amber-500/10' : 'bg-[#FF5800]/10'}`}>
+                  {endpoint.pricing.isFree ? (
+                    <Sparkles className={`h-5 w-5 text-emerald-400`} />
+                  ) : endpoint.pricing.isVariable ? (
+                    <TrendingUp className={`h-5 w-5 text-amber-400`} />
+                  ) : (
+                    <Coins className={`h-5 w-5 text-[#FF5800]`} />
+                  )}
+                </div>
+                <div>
+                  <div className="flex items-center gap-2">
+                    <span className={`text-xl font-bold ${endpoint.pricing.isFree ? 'text-emerald-400' : endpoint.pricing.isVariable ? 'text-amber-400' : 'text-[#FF5800]'}`}>
+                      {formatPriceDisplay(endpoint.pricing)}
+                    </span>
+                    {!endpoint.pricing.isFree && (
+                      <span className="text-sm text-muted-foreground">
+                        per {endpoint.pricing.unit}
+                      </span>
+                    )}
+                  </div>
+                  {endpoint.pricing.description && (
+                    <p className="text-sm text-muted-foreground mt-0.5">
+                      {endpoint.pricing.description}
+                    </p>
+                  )}
+                </div>
+              </div>
+              {endpoint.pricing.isVariable && !endpoint.pricing.isFree && (
+                <div className="flex items-center gap-1.5 px-2.5 py-1 bg-amber-500/10 border border-amber-500/20 rounded-md">
+                  <Info className="h-3.5 w-3.5 text-amber-400" />
+                  <span className="text-xs text-amber-400 font-medium">Variable pricing</span>
+                </div>
+              )}
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
       <div className="flex flex-col gap-3 sm:flex-row">
         <Button
           onClick={executeTest}
           disabled={isLoading}
-          className="flex-1 gap-2 bg-[#471E08] text-[#FF5800] hover:bg-[#5A2610] active:bg-[#6B2E18] border-0"
-           
+          className="gap-2 bg-[#471E08] text-[#FF5800] hover:bg-[#5A2610] active:bg-[#6B2E18] border-0"
         >
           {isLoading ? (
             <LoaderIcon className="h-4 w-4 animate-spin" />
