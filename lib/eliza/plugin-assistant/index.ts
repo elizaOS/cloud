@@ -34,7 +34,7 @@ const messageReceivedHandler = async ({
   callback,
 }: MessageReceivedHandlerParams): Promise<void> => {
   logger.info(
-    `[AssistantPlugin] Handling message for agent: ${runtime.agentId}, room: ${message.roomId}`,
+    `[AssistantPlugin] Handling message for agent: ${runtime.agentId}, room: ${message.roomId}`
   );
   logger.debug(`[AssistantPlugin] MESSAGE RECEIVED:`, JSON.stringify(message));
 
@@ -47,7 +47,7 @@ const messageReceivedHandler = async ({
   } catch (error) {
     const errorMessage = error instanceof Error ? error.message : String(error);
     logger.error(
-      `[AssistantPlugin] Error in workflow handler: ${errorMessage}`,
+      `[AssistantPlugin] Error in workflow handler: ${errorMessage}`
     );
     throw error;
   }
@@ -72,7 +72,7 @@ const events = {
   [EventType.MESSAGE_SENT]: [
     async (payload: MessagePayload) => {
       logger.debug(
-        `[AssistantPlugin] Message sent: ${payload.message.content.text}`,
+        `[AssistantPlugin] Message sent: ${payload.message.content.text}`
       );
     },
   ],

@@ -2,7 +2,7 @@
 
 # Test script to verify base64 image storage in affiliate API
 
-API_KEY="eliza_b1eb140047ea31d9c1783b29ceade064a5594c8a6e12b2844050477fc047da61"
+API_KEY=process.env.TEST_API_KEY
 BASE_URL="http://localhost:3000"
 
 # Small 1x1 red pixel PNG as base64 (for testing)

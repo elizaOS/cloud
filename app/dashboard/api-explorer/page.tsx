@@ -8,21 +8,18 @@ import {
   BrandTabsList,
   BrandTabsTrigger,
   CornerBrackets,
-  SectionLabel,
 } from "@/components/brand";
 import { toast } from "@/lib/utils/toast-adapter";
 import {
   ActivityIcon,
   AudioLinesIcon,
   BookIcon,
-  ChevronLeftIcon,
-  ChevronRightIcon,
   DatabaseIcon,
   KeyIcon,
-  MenuIcon,
   MicIcon,
   SearchIcon,
   ShieldIcon,
+  X,
 } from "lucide-react";
 import { useEffect, useState } from "react";
 
@@ -41,10 +38,20 @@ import {
 import { ApiTester } from "@/components/api-explorer/api-tester";
 import { AuthManager } from "@/components/api-explorer/auth-manager";
 import { EndpointCard } from "@/components/api-explorer/endpoint-card";
-import { SchemaViewer } from "@/components/api-explorer/schema-viewer";
+
 import { OpenApiViewer } from "@/components/api-explorer/openapi-viewer";
 import { useSetPageHeader } from "@/components/layout/page-header-context";
 import { cn } from "@/lib/utils";
+
+const categoryDescriptions: Record<string, string> = {
+  All: "Explore the complete set of API endpoints available in the Eliza platform. Use these endpoints to build agents, manage memory, and integrate AI capabilities into your applications.",
+  Authentication: "Securely authenticate users and manage access tokens. These endpoints handle login, registration, and session management.",
+  Agents: "Create, configure, and manage your AI agents. Control their behavior, personality, and interaction styles.",
+  Memories: "Access and manipulate agent memory systems. Store, retrieve, and search through long-term and short-term memories.",
+  Documents: "Upload and process documents for RAG (Retrieval-Augmented Generation). Manage the knowledge base your agents use.",
+  Chat: "Interact with agents via chat interfaces. Send messages and receive streaming responses.",
+  Usage: "Track API usage, quotas, and billing information.",
+};
 
 export default function ApiExplorerPage() {
   useSetPageHeader({
@@ -54,14 +61,12 @@ export default function ApiExplorerPage() {
   });
 
   const [selectedEndpoint, setSelectedEndpoint] = useState<ApiEndpoint | null>(
-    null,
+    null
   );
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedCategory, setSelectedCategory] = useState<string>("All");
   const [openApiSpec, setOpenApiSpec] = useState<OpenAPISpec | null>(null);
   const [authToken, setAuthToken] = useState<string>("");
-  const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
-  const [showMobileSidebar, setShowMobileSidebar] = useState(false);
 
   const categories = ["All", ...getAvailableCategories()];
   const filteredEndpoints = searchQuery
@@ -73,7 +78,7 @@ export default function ApiExplorerPage() {
   useEffect(() => {
     try {
       const spec = generateOpenAPISpec(
-        process.env.NEXT_PUBLIC_API_URL || "http://localhost:3000",
+        process.env.NEXT_PUBLIC_API_URL || "http://localhost:3000"
       );
       setOpenApiSpec(spec);
     } catch {
@@ -126,151 +131,13 @@ export default function ApiExplorerPage() {
   };
 
   return (
-    <div className="relative flex flex-col lg:flex-row w-full gap-6 px-4 pb-8 lg:px-8">
-      {/* Mobile Backdrop Overlay */}
-      {showMobileSidebar && (
-        <div
-          className="lg:hidden fixed inset-0 bg-black/60 backdrop-blur-sm z-30"
-          onClick={() => setShowMobileSidebar(false)}
-        />
-      )}
-
-      {/* Mobile Sidebar Toggle Button */}
-      <button
-        onClick={() => setShowMobileSidebar(!showMobileSidebar)}
-        className="lg:hidden fixed bottom-6 right-6 z-50 flex items-center justify-center w-14 h-14 rounded-full border-2 border-[#FF5800] bg-black shadow-lg shadow-[#FF5800]/20 text-white hover:bg-[#FF5800] transition-colors"
-        title={showMobileSidebar ? "Hide filters" : "Show filters"}
-      >
-        {showMobileSidebar ? (
-          <ChevronRightIcon className="h-6 w-6" />
-        ) : (
-          <MenuIcon className="h-6 w-6" />
-        )}
-      </button>
-
-      {/* Sidebar */}
-      <aside
-        className={cn(
-          "transition-all duration-300 ease-in-out shrink-0",
-          // Desktop behavior
-          "lg:sticky lg:top-0 lg:self-start",
-          isSidebarCollapsed ? "hidden lg:block lg:w-16" : "lg:w-80 xl:w-96",
-          // Mobile behavior - fixed overlay
-          "fixed lg:relative inset-0 lg:inset-auto z-40 lg:z-auto",
-          showMobileSidebar
-            ? "translate-x-0"
-            : "-translate-x-full lg:translate-x-0",
-          "bg-black/95 lg:bg-transparent backdrop-blur-sm lg:backdrop-blur-none",
-          "w-full sm:w-96 lg:w-80 xl:w-96",
-        )}
-      >
-        <div
-          className={cn(
-            "flex flex-col gap-4 h-full lg:h-[calc(100vh-8rem)] p-4 lg:p-0 overflow-y-auto",
-            isSidebarCollapsed && "lg:items-center",
-          )}
-        >
-          {/* Mobile Close Button & Desktop Collapse Toggle */}
-          <div className="flex items-center justify-between shrink-0">
-            {/* Mobile Close Button */}
-            <button
-              onClick={() => setShowMobileSidebar(false)}
-              className="lg:hidden flex items-center gap-2 px-4 py-2 rounded-none border border-white/10 bg-black/40 hover:bg-white/5 text-white/60 hover:text-white transition-colors"
-            >
-              <ChevronLeftIcon className="h-5 w-5" />
-              <span className="text-sm font-medium">Close</span>
-            </button>
-
-            {/* Desktop Collapse Toggle */}
-            <button
-              onClick={() => setIsSidebarCollapsed(!isSidebarCollapsed)}
-              className="hidden lg:flex items-center justify-center w-12 h-12 rounded-none border border-white/10 bg-black/40 hover:bg-white/5 text-white/60 hover:text-white transition-colors ml-auto shrink-0"
-              title={isSidebarCollapsed ? "Expand sidebar" : "Collapse sidebar"}
-            >
-              {isSidebarCollapsed ? (
-                <ChevronRightIcon className="h-5 w-5" />
-              ) : (
-                <ChevronLeftIcon className="h-5 w-5" />
-              )}
-            </button>
-          </div>
-
-          {!isSidebarCollapsed && (
-            <>
-              <BrandCard className="relative shrink-0">
-                <CornerBrackets size="sm" className="opacity-50" />
-
-                <div className="relative z-10 space-y-4">
-                  <SectionLabel>Browse APIs</SectionLabel>
-
-                  <div className="relative">
-                    <SearchIcon className="absolute left-3 top-3 h-4 w-4 text-white/40 pointer-events-none" />
-                    <input
-                      placeholder="Search endpoints..."
-                      value={searchQuery}
-                      onChange={(e) => setSearchQuery(e.target.value)}
-                      className="w-full rounded-none border border-white/10 bg-black/40 px-3 py-2 pl-10 text-sm text-white placeholder:text-white/40 focus:outline-none focus:ring-1 focus:ring-[#FF5800] focus:border-[#FF5800]"
-                    />
-                  </div>
-                </div>
-              </BrandCard>
-
-              <div className="relative lg:flex-1 lg:min-h-0 overflow-hidden">
-                <BrandCard className="relative lg:h-full">
-                  <CornerBrackets size="sm" className="opacity-50" />
-
-                  <div className="relative z-10 lg:h-full flex flex-col">
-                    <div className="space-y-3 pb-3 shrink-0">
-                      <div className="flex items-center gap-2">
-                        <span className="w-1.5 h-1.5 rounded-full bg-[#FF5800]" />
-                        <h3 className="text-xs font-semibold uppercase text-white/50 tracking-wider">
-                          Categories
-                        </h3>
-                      </div>
-                    </div>
-
-                    <div className="flex-1 overflow-y-auto overflow-x-hidden lg:pr-2 -mr-2">
-                      <div className="space-y-1 pb-4">
-                        {categories.map((category) => (
-                          <button
-                            key={category}
-                            onClick={() => {
-                              setSelectedCategory(category);
-                              // Close mobile sidebar after selection
-                              setShowMobileSidebar(false);
-                            }}
-                            className={cn(
-                              "flex w-full items-center gap-2 rounded-none px-3 py-2.5 text-left text-sm transition-all border-l-2",
-                              selectedCategory === category
-                                ? "bg-white/10 text-white border-[#FF5800]"
-                                : "text-white/60 border-transparent hover:bg-white/5 hover:text-white",
-                            )}
-                          >
-                            {category !== "All" && getCategoryIcon(category)}
-                            <span className="flex-1 truncate">{category}</span>
-                            <span className="rounded-none bg-[#FF580020] px-2 py-0.5 text-[10px] font-semibold text-[#FF5800] border border-[#FF580040] shrink-0">
-                              {category === "All"
-                                ? API_ENDPOINTS.length
-                                : getEndpointsByCategory(category).length}
-                            </span>
-                          </button>
-                        ))}
-                      </div>
-                    </div>
-                  </div>
-                </BrandCard>
-              </div>
-            </>
-          )}
-        </div>
-      </aside>
-
+    <div className="w-full px-4 pb-8 lg:px-8">
       {/* Main Content */}
-      <main className="flex-1 min-w-0 w-full lg:w-auto flex flex-col pb-12">
+      <main className="w-full flex flex-col pb-12">
         <BrandTabs defaultValue="endpoints" className="flex flex-col">
           <BrandTabsList className="w-full justify-start shrink-0 mb-6">
             <BrandTabsTrigger value="endpoints">Endpoints</BrandTabsTrigger>
-            <BrandTabsTrigger value="schemas">Schemas</BrandTabsTrigger>
+            <BrandTabsTrigger value="auth">Authentication</BrandTabsTrigger>
             <BrandTabsTrigger value="openapi">OpenAPI Spec</BrandTabsTrigger>
           </BrandTabsList>
 
@@ -320,25 +187,66 @@ export default function ApiExplorerPage() {
                 </BrandCard>
               </div>
             ) : (
-              <div className="flex flex-col space-y-5">
-                <div className="flex items-center justify-between shrink-0">
-                  <h2 className="text-xl font-semibold text-white">
-                    {selectedCategory === "All"
-                      ? "All Endpoints"
-                      : selectedCategory}
-                    <span className="ml-2 text-sm font-normal text-white/50">
-                      ({filteredEndpoints.length})
-                    </span>
-                  </h2>
-                  {searchQuery && (
-                    <BrandButton
-                      variant="outline"
-                      size="sm"
-                      onClick={() => setSearchQuery("")}
+              <div className="flex flex-col space-y-6">
+                {/* Category Filter Bar */}
+                <div className="flex flex-wrap gap-2">
+                  {categories.map((category) => (
+                    <button
+                      key={category}
+                      onClick={() => {
+                        setSelectedCategory(category);
+                        setSearchQuery("");
+                      }}
+                      className={cn(
+                        "flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium transition-all rounded-none border",
+                        selectedCategory === category
+                          ? "bg-[#FF5800]/20 text-[#FF5800] border-[#FF5800]/40"
+                          : "text-white/60 hover:bg-white/5 hover:text-white border-white/10"
+                      )}
                     >
-                      Clear search
-                    </BrandButton>
-                  )}
+                      {getCategoryIcon(category)}
+                      <span>{category}</span>
+                      <span className="text-[10px] opacity-50">
+                        ({category === "All"
+                          ? API_ENDPOINTS.length
+                          : getEndpointsByCategory(category).length})
+                      </span>
+                    </button>
+                  ))}
+                </div>
+
+                <div className="flex flex-col gap-4">
+                    <div className="flex items-center justify-between shrink-0 flex-wrap gap-4">
+                      <h2 className="text-xl font-semibold text-white flex items-center">
+                        {selectedCategory === "All"
+                          ? "All Endpoints"
+                          : selectedCategory}
+                        <span className="ml-2 text-sm font-normal text-white/50">
+                          ({filteredEndpoints.length})
+                        </span>
+                      </h2>
+                      <div className="relative w-full sm:w-72">
+                        <SearchIcon className="absolute left-3 top-3 h-4 w-4 text-white/40 pointer-events-none" />
+                        <input
+                          placeholder="Search endpoints..."
+                          value={searchQuery}
+                          onChange={(e) => setSearchQuery(e.target.value)}
+                          className="w-full rounded-none border border-white/10 bg-black/40 px-3 py-2 pl-10 pr-10 text-sm text-white placeholder:text-white/40 focus:outline-none focus:ring-1 focus:ring-[#FF5800] focus:border-[#FF5800]"
+                        />
+                        {searchQuery && (
+                          <X
+                            className="absolute right-3 top-3 h-4 w-4 text-white cursor-pointer transition-colors hover:text-[#FF5800]"
+                            onClick={() => setSearchQuery("")}
+                          />
+                        )}
+                      </div>
+                    </div>
+                    
+                    {!searchQuery && (
+                        <p className="text-white/60 max-w-4xl text-sm leading-relaxed">
+                            {categoryDescriptions[selectedCategory] || `Browse and test ${selectedCategory} endpoints.`}
+                        </p>
+                    )}
                 </div>
 
                 {filteredEndpoints.length === 0 ? (
@@ -372,9 +280,17 @@ export default function ApiExplorerPage() {
             )}
           </BrandTabsContent>
 
-          <BrandTabsContent value="schemas" className="mt-0">
-            <SchemaViewer spec={openApiSpec} />
+          <BrandTabsContent value="auth" className="mt-0">
+            <div className="max-w-2xl">
+              <BrandCard className="relative">
+                <CornerBrackets size="sm" className="opacity-50" />
+                <div className="relative z-10">
+                  <AuthManager authToken={authToken} onTokenChange={setAuthToken} />
+                </div>
+              </BrandCard>
+            </div>
           </BrandTabsContent>
+
 
           <BrandTabsContent value="openapi" className="mt-0">
             <BrandCard className="relative">
@@ -398,7 +314,7 @@ export default function ApiExplorerPage() {
                     onClick={() => {
                       if (openApiSpec) {
                         navigator.clipboard.writeText(
-                          JSON.stringify(openApiSpec, null, 2),
+                          JSON.stringify(openApiSpec, null, 2)
                         );
                         toast({
                           message: "OpenAPI spec copied to clipboard",
