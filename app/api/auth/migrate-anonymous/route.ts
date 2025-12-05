@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { cookies } from "next/headers";
 import { requireAuth } from "@/lib/auth";
-import { convertAnonymousToReal } from "@/lib/auth-anonymous";
+import { migrateAnonymousSession } from "@/lib/session";
 import { anonymousSessionsService } from "@/lib/services";
 import { logger } from "@/lib/utils/logger";
 
@@ -94,20 +94,25 @@ export async function POST(request: NextRequest) {
       messageCount: anonSession.message_count,
     });
 
-    await convertAnonymousToReal(anonSession.user_id, user.privy_user_id);
+    const migrationResult = await migrateAnonymousSession(
+      anonSession.user_id,
+      user.privy_user_id
+    );
 
-    logger.info("[Migrate Anonymous] Migration completed successfully");
+    logger.info("[Migrate Anonymous] Migration completed", migrationResult);
 
-    // 5. Clear the anonymous session cookie
-    cookieStore.delete(ANON_SESSION_COOKIE);
+    // Cookie is cleared by migrateAnonymousSession, but ensure it's cleared here too
+    try {
+      cookieStore.delete(ANON_SESSION_COOKIE);
+    } catch {
+      // May fail if not in request context
+    }
 
     return NextResponse.json({
       success: true,
       message: "Anonymous data migrated successfully",
       migrated: true,
-      details: {
-        messageCount: anonSession.message_count,
-      },
+      details: migrationResult.mergedData,
     });
   } catch (error) {
     logger.error("[Migrate Anonymous] Error during migration:", error);

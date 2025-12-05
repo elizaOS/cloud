@@ -2,8 +2,9 @@ import { NextRequest, NextResponse } from "next/server";
 import { headers, cookies } from "next/headers";
 import crypto from "crypto";
 import { syncUserFromPrivy, type SyncOptions } from "@/lib/privy-sync";
-import { convertAnonymousToReal } from "@/lib/auth-anonymous";
+import { migrateAnonymousSession } from "@/lib/session";
 import { anonymousSessionsService } from "@/lib/services";
+import { logger } from "@/lib/utils/logger";
 
 // Verify webhook signature from Privy using their recommended method
 async function verifyWebhookSignature(
@@ -107,8 +108,9 @@ export async function POST(request: NextRequest) {
         const anonSessionToken = cookieStore.get("eliza-anon-session")?.value;
 
         if (anonSessionToken) {
-          console.log(
-            "Anonymous session detected during signup, initiating migration...",
+          logger.info(
+            "[Privy Webhook] Anonymous session detected, initiating migration...",
+            { tokenPreview: anonSessionToken.slice(0, 8) + "..." }
           );
 
           try {
@@ -116,25 +118,28 @@ export async function POST(request: NextRequest) {
               await anonymousSessionsService.getByToken(anonSessionToken);
 
             if (anonSession) {
-              // Migrate anonymous data to real account
-              await convertAnonymousToReal(
+              const migrationResult = await migrateAnonymousSession(
                 anonSession.user_id,
-                payload.user.id,
+                payload.user.id
               );
 
-              console.log(
-                "Successfully migrated anonymous user to real account",
+              logger.info(
+                "[Privy Webhook] Migration completed",
                 {
+                  success: migrationResult.success,
                   anonymousUserId: anonSession.user_id,
                   realUserId: user.id,
                   privyUserId: payload.user.id,
-                  messageCount: anonSession.message_count,
-                },
+                  ...migrationResult.mergedData,
+                }
+              );
+            } else {
+              logger.debug(
+                "[Privy Webhook] Anonymous session token not found in DB"
               );
             }
           } catch (migrationError) {
-            // Log error but don't fail the webhook
-            console.error("Error migrating anonymous user:", migrationError);
+            logger.error("[Privy Webhook] Migration failed:", migrationError);
           }
         }
 

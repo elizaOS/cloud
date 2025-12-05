@@ -11,23 +11,20 @@
  * 4. User gets 10 free messages (tracked per session, NOT via credits)
  * 5. After limit, prompted to sign up
  * 6. On signup, anonymous data transfers to real account
+ *
+ * NOTE: This module is being deprecated in favor of lib/session/unified-session.ts
+ * Use getOrCreateSessionUser() from @/lib/session for new code.
  */
 
 import { nanoid } from "nanoid";
 import { cookies, headers } from "next/headers";
 import { usersService, anonymousSessionsService } from "@/lib/services";
 import { db } from "@/db/client";
-import {
-  users,
-  conversations,
-  anonymousSessions,
-  organizations,
-  userCharacters,
-  elizaRoomCharactersTable,
-} from "@/db/schemas";
+import { users, anonymousSessions } from "@/db/schemas";
 import { eq, and, sql } from "drizzle-orm";
 import { logger } from "@/lib/utils/logger";
 import type { UserWithOrganization } from "@/lib/types";
+import { migrateAnonymousSession } from "@/lib/session";
 
 // Constants
 const ANON_SESSION_COOKIE = "eliza-anon-session";
@@ -177,8 +174,8 @@ export async function getOrCreateAnonymousUser(): Promise<{
 /**
  * Convert anonymous user to real authenticated user
  *
- * Called during Privy webhook when user signs up.
- * Transfers all chat history and data to the new real account.
+ * @deprecated Use migrateAnonymousSession from @/lib/session instead.
+ * This function is kept for backwards compatibility.
  *
  * @param anonymousUserId - ID of anonymous user to convert
  * @param privyUserId - Privy user ID of new authenticated user
@@ -187,247 +184,22 @@ export async function convertAnonymousToReal(
   anonymousUserId: string,
   privyUserId: string,
 ): Promise<void> {
-  logger.info("auth-anonymous", "Starting anonymous to real user conversion", {
+  logger.info("[auth-anonymous] convertAnonymousToReal called (deprecated)", {
     anonymousUserId,
     privyUserId,
+    note: "Use migrateAnonymousSession from @/lib/session instead",
   });
 
-  await db.transaction(async (tx) => {
-    // 1. Get the anonymous user - try with is_anonymous flag first
-    let [anonUser] = await tx
-      .select()
-      .from(users)
-      .where(and(eq(users.id, anonymousUserId), eq(users.is_anonymous, true)))
-      .limit(1);
+  const result = await migrateAnonymousSession(anonymousUserId, privyUserId);
 
-    // Fallback: Also check for affiliate users that might not have is_anonymous flag set correctly
-    // These have placeholder emails like "affiliate-xxx@anonymous.elizacloud.ai"
-    if (!anonUser) {
-      [anonUser] = await tx
-        .select()
-        .from(users)
-        .where(
-          and(
-            eq(users.id, anonymousUserId),
-            sql`${users.email} LIKE 'affiliate-%@anonymous.elizacloud.ai'`,
-            sql`${users.privy_user_id} IS NULL`
-          )
-        )
-        .limit(1);
-      
-      if (anonUser) {
-        logger.info("auth-anonymous", "Found affiliate user without is_anonymous flag", {
-          userId: anonUser.id,
-          email: anonUser.email,
-        });
-      }
-    }
-
-    if (!anonUser) {
-      throw new Error("Anonymous user not found");
-    }
-
-    // 2. Check if real user already exists (created by Privy webhook)
-    const [realUser] = await tx
-      .select()
-      .from(users)
-      .where(eq(users.privy_user_id, privyUserId))
-      .limit(1);
-
-    let targetUserId: string;
-    let targetOrgId: string | null;
-
-    if (!realUser) {
-      // Real user doesn't exist yet - create organization and convert in-place
-
-      // Generate unique organization slug
-      const orgSlug = `user-${privyUserId.slice(-8)}-${Math.random().toString(36).slice(2, 8)}`;
-
-      // Create organization for the user
-      const [organization] = await tx
-        .insert(organizations)
-        .values({
-          name: `${anonUser.name || "User"}'s Organization`,
-          slug: orgSlug,
-          credit_balance: "5.00", // $5 initial credits
-        })
-        .returning();
-
-      logger.info("auth-anonymous", "Created organization for converted user", {
-        organizationId: organization.id,
-        userId: anonymousUserId,
-        creditBalance: organization.credit_balance,
-      });
-
-      // Update anonymous user to become real user with organization
-      await tx
-        .update(users)
-        .set({
-          privy_user_id: privyUserId,
-          is_anonymous: false,
-          anonymous_session_id: null,
-          expires_at: null,
-          organization_id: organization.id,
-          role: "owner",
-          updated_at: new Date(),
-        })
-        .where(eq(users.id, anonymousUserId));
-
-      targetUserId = anonymousUserId;
-      targetOrgId = organization.id;
-
-      logger.info(
-        "auth-anonymous",
-        "Converted anonymous user to real user (in-place)",
-        {
-          userId: anonymousUserId,
-          privyUserId,
-          organizationId: organization.id,
-        },
-      );
-
-      // Update user_characters to point to the new organization (user_id stays the same)
-      const charResult = await tx
-        .update(userCharacters)
-        .set({
-          organization_id: organization.id,
-          updated_at: new Date(),
-        })
-        .where(eq(userCharacters.user_id, anonymousUserId))
-        .returning({ id: userCharacters.id, name: userCharacters.name });
-
-      if (charResult.length > 0) {
-        logger.info("auth-anonymous", "Updated characters with new organization", {
-          userId: anonymousUserId,
-          organizationId: organization.id,
-          characterCount: charResult.length,
-          characters: charResult.map(c => ({ id: c.id, name: c.name })),
-        });
-      }
-    } else {
-      // Real user exists - transfer data from anonymous to real user
-      targetUserId = realUser.id;
-      targetOrgId = realUser.organization_id;
-
-      // Transfer conversations
-      const conversationResult = await tx
-        .update(conversations)
-        .set({
-          user_id: realUser.id,
-          organization_id: realUser.organization_id,
-          updated_at: new Date(),
-        })
-        .where(eq(conversations.user_id, anonymousUserId))
-        .returning();
-
-      logger.info(
-        "auth-anonymous",
-        "Transferred conversations from anonymous to real user",
-        {
-          anonymousUserId,
-          realUserId: realUser.id,
-          conversationCount: conversationResult.length,
-        },
-      );
-
-      // Transfer user_characters ownership
-      const charResult = await tx
-        .update(userCharacters)
-        .set({
-          user_id: realUser.id,
-          organization_id: realUser.organization_id,
-          updated_at: new Date(),
-        })
-        .where(eq(userCharacters.user_id, anonymousUserId))
-        .returning({ id: userCharacters.id, name: userCharacters.name });
-
-      if (charResult.length > 0) {
-        logger.info("auth-anonymous", "Transferred characters to real user", {
-          anonymousUserId,
-          realUserId: realUser.id,
-          characterCount: charResult.length,
-          characters: charResult.map(c => ({ id: c.id, name: c.name })),
-        });
-      }
-
-      // Transfer eliza_room_characters mappings
-      const roomCharResult = await tx
-        .update(elizaRoomCharactersTable)
-        .set({
-          user_id: realUser.id,
-          updated_at: new Date(),
-        })
-        .where(eq(elizaRoomCharactersTable.user_id, anonymousUserId))
-        .returning({ room_id: elizaRoomCharactersTable.room_id });
-
-      if (roomCharResult.length > 0) {
-        logger.info("auth-anonymous", "Transferred room-character mappings to real user", {
-          anonymousUserId,
-          realUserId: realUser.id,
-          mappingCount: roomCharResult.length,
-        });
-      }
-
-      // Transfer participants (update entityId to point to real user)
-      // Note: entityId in participants is typically a stringToUuid of the entityId string
-      // We need to update any participants that reference the anonymous user's entity
-      await tx.execute(sql`
-        UPDATE participants 
-        SET "entityId" = ${realUser.id}::uuid
-        WHERE "entityId" = ${anonymousUserId}::uuid
-      `);
-
-      logger.info("auth-anonymous", "Updated participant entityIds", {
-        anonymousUserId,
-        realUserId: realUser.id,
-      });
-
-      // Delete anonymous user (cascade will clean up sessions)
-      await tx.delete(users).where(eq(users.id, anonymousUserId));
-
-      logger.info(
-        "auth-anonymous",
-        "Deleted anonymous user after data transfer",
-        {
-          anonymousUserId,
-        },
-      );
-    }
-
-    // 3. Mark session as converted (use transaction context)
-    const [session] = await tx
-      .select()
-      .from(anonymousSessions)
-      .where(eq(anonymousSessions.user_id, anonymousUserId))
-      .limit(1);
-
-    if (session) {
-      await tx
-        .update(anonymousSessions)
-        .set({
-          converted_at: new Date(),
-          is_active: false,
-        })
-        .where(eq(anonymousSessions.id, session.id));
-
-      logger.info("auth-anonymous", "Marked session as converted", {
-        sessionId: session.id,
-      });
-    }
-  });
-
-  // 4. Clear anonymous cookie (only works when called from a request context)
-  try {
-    const cookieStore = await cookies();
-    cookieStore.delete(ANON_SESSION_COOKIE);
-  } catch {
-    // Cookie deletion may fail if not in request context (e.g., webhook)
-    logger.debug("auth-anonymous", "Could not delete cookie (likely not in request context)");
+  if (!result.success) {
+    throw new Error("Migration failed");
   }
 
-  logger.info("auth-anonymous", "Successfully converted anonymous user", {
+  logger.info("[auth-anonymous] Migration completed via unified session", {
     anonymousUserId,
     privyUserId,
+    ...result.mergedData,
   });
 }
 
