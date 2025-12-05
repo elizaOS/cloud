@@ -132,18 +132,6 @@ export async function POST(
 
     // For authenticated users: Check credit balance BEFORE processing
     if (!isAnonymous) {
-      const estimatedInputTokens = estimateTokens(text);
-      const estimatedOutputTokens = 100;
-      const model = "gpt-4o";
-      const provider = getProviderFromModel(model);
-
-      const { totalCost: estimatedCost } = await calculateCost(
-        model,
-        provider,
-        estimatedInputTokens,
-        estimatedOutputTokens,
-      );
-
       if (!user.organization_id) {
         return NextResponse.json(
           { error: "Organization required for authenticated users" },
@@ -162,16 +150,49 @@ export async function POST(
         );
       }
 
-      if (Number(org.credit_balance) < estimatedCost) {
-        logger.warn("[Eliza Messages API] Insufficient credits", {
+      const balance = Number(org.credit_balance) || 0;
+
+      // STRICT CHECK: Block users with zero or negative balance immediately
+      if (balance <= 0) {
+        logger.warn("[Eliza Messages API] Zero or negative balance", {
           organizationId: user.organization_id,
-          required: estimatedCost,
           balance: org.credit_balance,
         });
         return NextResponse.json(
           {
             error: "Insufficient balance",
-            details: `Required: ${estimatedCost}, Available: ${org.credit_balance}`,
+            details: `Your credit balance is $${balance.toFixed(2)}. Please add credits to continue.`,
+          },
+          { status: 402 },
+        );
+      }
+
+      // Also check against estimated cost for users with positive but low balance
+      const estimatedInputTokens = estimateTokens(text);
+      const estimatedOutputTokens = 100;
+      const model = "gpt-4o";
+      const provider = getProviderFromModel(model);
+
+      const { totalCost: estimatedCost } = await calculateCost(
+        model,
+        provider,
+        estimatedInputTokens,
+        estimatedOutputTokens,
+      );
+
+      // Ensure minimum cost of $0.01 to prevent bypass with 0-cost calculations
+      const effectiveEstimatedCost = Math.max(estimatedCost, 0.01);
+
+      if (balance < effectiveEstimatedCost) {
+        logger.warn("[Eliza Messages API] Insufficient credits", {
+          organizationId: user.organization_id,
+          required: effectiveEstimatedCost,
+          balance: balance,
+        });
+        return NextResponse.json(
+          {
+            error: "Insufficient balance",
+            details: `Required: $${effectiveEstimatedCost.toFixed(4)}, Available: $${balance.toFixed(2)}`,
           },
           { status: 402 },
         );
@@ -275,123 +296,120 @@ export async function POST(
       }
     })();
 
-    // Always deduct credits for Eliza messages
-    // If we don't have usage data, estimate based on text length
+    // Deduct credits for authenticated users only
+    // Anonymous users get free usage (tracked separately)
     const effectiveUsage = usage || {
       inputTokens: Math.ceil(text.length / 4),
-      outputTokens: 100, // Rough estimate for response
+      outputTokens: 100,
       model: "gpt-4o",
     };
 
-    logger.debug(
-      `[Eliza Messages API] Effective usage for billing:`,
-      effectiveUsage,
-    );
-
-    try {
-      const model = effectiveUsage.model || "gpt-4o";
-      const provider = getProviderFromModel(model);
-
-      // Calculate costs
-      const { inputCost, outputCost, totalCost } = await calculateCost(
-        model,
-        provider,
-        effectiveUsage.inputTokens || 0,
-        effectiveUsage.outputTokens || 0,
+    if (!isAnonymous && user.organization_id) {
+      logger.debug(
+        `[Eliza Messages API] Effective usage for billing:`,
+        effectiveUsage,
       );
 
-      // Deduct credits
-      const deductionResult = await creditsService.deductCredits({
-        organizationId: user.organization_id!,
-        amount: totalCost,
-        description: `Eliza chat completion: ${model}`,
-        metadata: { user_id: user.id },
-      });
+      try {
+        const model = effectiveUsage.model || "gpt-4o";
+        const provider = getProviderFromModel(model);
 
-      if (!deductionResult.success) {
-        // CRITICAL: This should rarely happen since we checked credits before processing
-        // But it can happen if credits were spent elsewhere between check and now
-        logger.error(
-          "[Eliza Messages API] CRITICAL: Failed to deduct credits after message processing - race condition detected",
-          {
-            organizationId: user.organization_id!,
-            cost: String(totalCost),
-            balance: deductionResult.newBalance,
-            messageId: message.id,
-          },
-        );
-        // Message has already been processed, so we return it but flag the billing issue
-        // This should trigger an alert for manual review
-      }
-
-      // Create usage record
-      const usageRecord = await usageService.create({
-        organization_id: user.organization_id!!,
-        user_id: user.id,
-        api_key_id: apiKey?.id || null,
-        type: "eliza",
-        model,
-        provider,
-        input_tokens: effectiveUsage.inputTokens || 0,
-        output_tokens: effectiveUsage.outputTokens || 0,
-        input_cost: String(inputCost),
-        output_cost: String(outputCost),
-        is_successful: true,
-      });
-
-      // Create generation record if using API key
-      if (apiKey) {
-        await generationsService.create({
-          organization_id: user.organization_id!!,
-          user_id: user.id,
-          api_key_id: apiKey.id,
-          type: "eliza",
+        const { inputCost, outputCost, totalCost } = await calculateCost(
           model,
           provider,
-          prompt: text,
-          status: "completed",
-          tokens:
-            (effectiveUsage.inputTokens || 0) +
-            (effectiveUsage.outputTokens || 0),
-          cost: String(totalCost),
-          credits: String(totalCost),
-          usage_record_id: usageRecord.id,
-          completed_at: new Date(),
+          effectiveUsage.inputTokens || 0,
+          effectiveUsage.outputTokens || 0,
+        );
+
+        const deductionResult = await creditsService.deductCredits({
+          organizationId: user.organization_id,
+          amount: totalCost,
+          description: `Eliza chat completion: ${model}`,
+          metadata: { user_id: user.id },
         });
-      }
 
-      logger.debug(
-        `[Eliza Messages API] Cost charged: $${totalCost.toFixed(4)} (Input: $${inputCost.toFixed(4)}, Output: $${outputCost.toFixed(4)}), New balance: $${deductionResult.newBalance.toFixed(2)}`,
-      );
-    } catch (error) {
-      logger.error(
-        "[Eliza Messages API] Error deducting credits or tracking usage:",
-        error,
-      );
+        if (!deductionResult.success) {
+          logger.error(
+            "[Eliza Messages API] CRITICAL: Failed to deduct credits after message processing - race condition detected",
+            {
+              organizationId: user.organization_id,
+              cost: String(totalCost),
+              balance: deductionResult.newBalance,
+              messageId: message.id,
+            },
+          );
+        }
 
-      // Still create an unsuccessful usage record for tracking
-      try {
-        await usageService.create({
-          organization_id: user.organization_id!!,
+        const usageRecord = await usageService.create({
+          organization_id: user.organization_id,
           user_id: user.id,
           api_key_id: apiKey?.id || null,
           type: "eliza",
-          model: effectiveUsage.model || "gpt-4o",
-          provider: getProviderFromModel(effectiveUsage.model || "gpt-4o"),
+          model,
+          provider,
           input_tokens: effectiveUsage.inputTokens || 0,
           output_tokens: effectiveUsage.outputTokens || 0,
-          input_cost: String(0),
-          output_cost: String(0),
-          is_successful: false,
-          error_message:
-            error instanceof Error ? error.message : "Unknown error",
+          input_cost: String(inputCost),
+          output_cost: String(outputCost),
+          is_successful: true,
         });
-      } catch (usageError) {
-        logger.error(
-          "[Eliza Messages API] Error creating usage record:",
-          usageError,
+
+        if (apiKey) {
+          await generationsService.create({
+            organization_id: user.organization_id,
+            user_id: user.id,
+            api_key_id: apiKey.id,
+            type: "eliza",
+            model,
+            provider,
+            prompt: text,
+            status: "completed",
+            tokens:
+              (effectiveUsage.inputTokens || 0) +
+              (effectiveUsage.outputTokens || 0),
+            cost: String(totalCost),
+            credits: String(totalCost),
+            usage_record_id: usageRecord.id,
+            completed_at: new Date(),
+          });
+        }
+
+        logger.debug(
+          `[Eliza Messages API] Cost charged: $${totalCost.toFixed(4)} (Input: $${inputCost.toFixed(4)}, Output: $${outputCost.toFixed(4)}), New balance: $${deductionResult.newBalance.toFixed(2)}`,
         );
+      } catch (error) {
+        logger.error(
+          "[Eliza Messages API] Error deducting credits or tracking usage:",
+          error,
+        );
+
+        try {
+          await usageService.create({
+            organization_id: user.organization_id,
+            user_id: user.id,
+            api_key_id: apiKey?.id || null,
+            type: "eliza",
+            model: effectiveUsage.model || "gpt-4o",
+            provider: getProviderFromModel(effectiveUsage.model || "gpt-4o"),
+            input_tokens: effectiveUsage.inputTokens || 0,
+            output_tokens: effectiveUsage.outputTokens || 0,
+            input_cost: String(0),
+            output_cost: String(0),
+            is_successful: false,
+            error_message:
+              error instanceof Error ? error.message : "Unknown error",
+          });
+        } catch (usageError) {
+          logger.error(
+            "[Eliza Messages API] Error creating usage record:",
+            usageError,
+          );
+        }
       }
+    } else if (isAnonymous && anonymousSession) {
+      const totalTokens = (effectiveUsage.inputTokens || 0) + (effectiveUsage.outputTokens || 0);
+      await anonymousSessionsService.addTokenUsage(anonymousSession.id, totalTokens);
+      logger.debug(`[Eliza Messages API] Anonymous user token usage tracked: ${totalTokens} tokens`);
     }
 
     // Increment message count AFTER successful message creation (for anonymous users)

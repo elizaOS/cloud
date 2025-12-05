@@ -160,12 +160,24 @@ export class RoomsService {
       }
 
       // 3. Create participant (link entity to room)
-      // Use ON CONFLICT DO NOTHING to handle race conditions
-      await tx.execute(sql`
-        INSERT INTO ${participantTable} (id, entity_id, room_id, agent_id, created_at)
-        VALUES (${uuidv4()}, ${input.entityId}::uuid, ${roomId}::uuid, ${input.agentId}::uuid, NOW())
-        ON CONFLICT (entity_id, room_id) DO NOTHING
-      `);
+      // Check if participant already exists to avoid duplicates
+      const existingParticipant = await tx
+        .select({ id: participantTable.id })
+        .from(participantTable)
+        .where(
+          sql`${participantTable.entityId} = ${input.entityId}::uuid AND ${participantTable.roomId} = ${roomId}::uuid`
+        )
+        .limit(1);
+
+      if (existingParticipant.length === 0) {
+        await tx.insert(participantTable).values({
+          id: uuidv4(),
+          entityId: input.entityId,
+          roomId: roomId,
+          agentId: input.agentId,
+          createdAt: new Date(),
+        });
+      }
 
       return newRoom;
     });

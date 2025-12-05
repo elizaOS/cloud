@@ -5,8 +5,10 @@ import {
   type ModelTier,
   type ModelTierConfig,
   MODEL_TIER_LIST,
+  MODEL_TIERS,
   DEFAULT_MODEL_TIER,
   getModelIdFromTier,
+  getTierDisplayInfo,
   isValidModelTier,
   STORAGE_KEY,
 } from "@/lib/models";
@@ -38,6 +40,8 @@ function getServerSnapshot(): ModelTier {
 interface UseModelTierResult {
   selectedTier: ModelTier;
   selectedModelId: string;
+  selectedConfig: ModelTierConfig;
+  displayInfo: ReturnType<typeof getTierDisplayInfo>;
   tiers: ModelTierConfig[];
   setTier: (tier: ModelTier) => void;
   isLoading: boolean;
@@ -54,10 +58,14 @@ export function useModelTier(): UseModelTierResult {
   }, []);
 
   const selectedModelId = useMemo(() => getModelIdFromTier(selectedTier), [selectedTier]);
+  const selectedConfig = useMemo(() => MODEL_TIERS[selectedTier], [selectedTier]);
+  const displayInfo = useMemo(() => getTierDisplayInfo(selectedTier), [selectedTier]);
 
   return {
     selectedTier,
     selectedModelId,
+    selectedConfig,
+    displayInfo,
     tiers: MODEL_TIER_LIST,
     setTier,
     isLoading: false,
