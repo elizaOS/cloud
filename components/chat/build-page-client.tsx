@@ -28,7 +28,7 @@ export function BuildPageClient({
   } | null>(null);
   const [isLoadingSession, setIsLoadingSession] = useState(!isAuthenticated);
   const [showWarning, setShowWarning] = useState(false);
-  const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false); 
+  const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
 
   const router = useRouter();
   const pathname = usePathname();
@@ -120,6 +120,19 @@ export function BuildPageClient({
     document.addEventListener("click", handleClick, true);
     return () => document.removeEventListener("click", handleClick, true);
   }, [hasUnsavedChanges, pathname]);
+
+  useEffect(() => {
+    if (!hasUnsavedChanges) return;
+
+    const handleBeforeUnload = (e: BeforeUnloadEvent) => {
+      e.preventDefault();
+      e.returnValue = "";
+      return "";
+    };
+
+    window.addEventListener("beforeunload", handleBeforeUnload);
+    return () => window.removeEventListener("beforeunload", handleBeforeUnload);
+  }, [hasUnsavedChanges]);
 
   const handleConfirmLeave = () => {
     setShowWarning(false);
