@@ -674,79 +674,72 @@ Your response should include the valid XML block and nothing else.`;
 export const generateImageAction = {
   name: "GENERATE_IMAGE",
   description:
-    "Generate and display an AI image. Use ONLY when user explicitly asks to create, generate, show, draw, or visualize an image.",
+    "Generate an AI image. ONLY use when user EXPLICITLY requests an image/picture/photo/selfie. NEVER use for normal conversation, greetings, questions, or text responses.",
+  similes: [
+    "CREATE_IMAGE",
+    "DRAW_IMAGE", 
+    "SHOW_IMAGE",
+    "SEND_PICTURE",
+    "TAKE_SELFIE",
+  ],
   validate: async (_runtime: IAgentRuntime, message: Memory) => {
-    // Only validate if the user's message explicitly requests image generation
+    // STRICT validation - only trigger for EXPLICIT image requests
     const text = message?.content?.text?.toLowerCase() || "";
     
-    // Keywords that indicate explicit image request
+    // Must contain one of these EXPLICIT image request phrases
     const imageRequestKeywords = [
-      // Explicit generation requests
+      // Direct image generation requests
       "generate image",
-      "generate a image",
       "generate an image",
       "create image",
-      "create a image", 
       "create an image",
-      "make image",
-      "make a image",
       "make an image",
-      "draw",
-      "visualize",
-      "illustrate",
-      "can you draw",
-      "could you draw",
-      // Picture/photo/image requests
-      "show me a picture",
-      "show me an image",
-      "send me a picture",
-      "send me an image",
-      "send a picture",
-      "send an image",
+      "draw me",
+      "draw a",
+      "draw an",
+      // Picture/photo/selfie requests
+      "send me a pic",
       "send a pic",
       "send pic",
+      "send me a picture",
+      "send a picture",
+      "send me a photo",
       "send a photo",
       "send photo",
-      "show me a pic",
-      "picture of",
-      "image of",
-      "what does .* look like",
-      "show me what",
-      // Selfie/personal image requests (for companion-style apps)
       "send selfie",
       "send a selfie",
       "send me a selfie",
       "take a selfie",
+      "take selfie",
+      // Show me requests (must be specific)
+      "show me a picture",
+      "show me a pic",
+      "show me a photo",
       "show me yourself",
       "show yourself",
       "let me see you",
+      // What do you look like
       "what do you look like",
       "show me how you look",
       "can i see you",
       "want to see you",
-      "see what you look like",
       "pic of you",
       "picture of you",
       "photo of you",
       "your picture",
       "your photo",
+      "your selfie",
     ];
     
     // Check if any keyword matches
-    const hasImageRequest = imageRequestKeywords.some(keyword => {
-      if (keyword.includes(".*")) {
-        const regex = new RegExp(keyword, "i");
-        return regex.test(text);
-      }
-      return text.includes(keyword);
-    });
+    const hasImageRequest = imageRequestKeywords.some(keyword => text.includes(keyword));
     
     if (!hasImageRequest) {
-      logger.debug(`[GENERATE_IMAGE] Validation failed - message doesn't request image: "${text.substring(0, 50)}..."`);
+      logger.debug(`[GENERATE_IMAGE] Skipped - no explicit image request in: "${text.substring(0, 50)}..."`);
       return false;
     }
     
-    logger.info(`[GENERATE_IMAGE] Validation passed - user requested image generation`);
+    logger.info(`[GENERATE_IMAGE] Triggered - user explicitly requested image`);
     return true;
   },
   handler: async (
@@ -1104,11 +1097,12 @@ export const generateImageAction = {
       logger.info(`[GENERATE_IMAGE] 📎 Preparing callback with ${displayAttachments.length} attachment(s)`);
       logger.info(`[GENERATE_IMAGE] 📎 Attachment details: id=${attachmentId}, url=${persistentUrl.substring(0, 80)}..., startsWithHttp=${persistentUrl.startsWith('http')}`);
 
+      // For non-affiliate characters, just show the image without unnecessary text
       const responseContent = {
         attachments: displayAttachments,
         thought: `Generated an image based on: "${imagePrompt}"`,
         actions: ["GENERATE_IMAGE"],
-        text: imagePrompt,
+        text: "", // No text needed - the image speaks for itself
       };
 
       logger.info(`[GENERATE_IMAGE] 📤 Invoking callback with responseContent...`);
@@ -1128,18 +1122,18 @@ export const generateImageAction = {
         : []; // Empty - image was shown to user but not stored in memory
 
       return {
-        text: "Generated image",
+        text: "", // No unnecessary text in action result
         values: {
           success: true,
           imageGenerated: true,
-          imageUrl: imageUrl || rawImageUrl, // Use raw as fallback for return value
+          imageUrl: imageUrl || rawImageUrl,
           prompt: imagePrompt,
         },
         data: {
           actionName: "GENERATE_IMAGE",
-          imageUrl: imageUrl || undefined, // Only include if valid
+          imageUrl: imageUrl || undefined,
           prompt: imagePrompt,
-          attachments: storageAttachments, // CRITICAL: Only valid URLs, never base64
+          attachments: storageAttachments,
         },
         success: true,
       };
