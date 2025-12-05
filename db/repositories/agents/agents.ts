@@ -7,6 +7,7 @@
 import { db } from "@/db/client";
 import { agentTable } from "@/db/schemas/eliza";
 import { eq, inArray } from "drizzle-orm";
+import type { Agent } from "@elizaos/core";
 
 /**
  * Agent info returned from database
@@ -81,6 +82,46 @@ export class AgentsRepository {
       .limit(1);
 
     return result.length > 0;
+  }
+
+  /**
+   * Create a new agent
+   * Returns true if successful, false if agent with same ID already exists
+   */
+  async create(agent: Partial<Agent>): Promise<boolean> {
+    try {
+      // Check for existing agent with the same ID only (names can be duplicated)
+      if (agent.id) {
+        const existing = await db
+          .select({ id: agentTable.id })
+          .from(agentTable)
+          .where(eq(agentTable.id, agent.id))
+          .limit(1);
+
+        if (existing.length > 0) {
+          console.warn(
+            `Attempted to create an agent with a duplicate ID. ID: ${agent.id}`,
+          );
+          return false;
+        }
+      }
+
+      await db.transaction(async (tx) => {
+        await tx.insert(agentTable).values({
+          ...agent,
+          createdAt: new Date(agent.createdAt || Date.now()),
+          updatedAt: new Date(agent.updatedAt || Date.now()),
+        });
+      });
+
+      console.debug(`Agent created successfully: ${agent.id}`);
+      return true;
+    } catch (error) {
+      console.error(
+        `Error creating agent: ${error instanceof Error ? error.message : String(error)}, agentId: ${agent.id}`,
+      );
+      return false;
+    }
   }
 
   /**
