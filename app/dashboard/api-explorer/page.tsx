@@ -170,7 +170,7 @@ export default function ApiExplorerPage() {
 
           <BrandTabsContent value="endpoints" className="mt-0">
             {selectedEndpoint ? (
-              <div className="flex flex-col space-y-6">
+              <div className="flex flex-col space-y-6 max-w-4xl">
                 <div className="flex items-center justify-between shrink-0">
                   <BrandButton
                     variant="ghost"
