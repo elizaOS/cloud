@@ -770,7 +770,7 @@ export function ImageGeneratorAdvanced() {
                         className="px-3 py-2 border border-white/20 bg-black/60 text-white hover:bg-white/5 transition-colors ml-auto flex items-center gap-2"
                         onClick={() =>
                           handleDownload(
-                            currentImages[currentImageIndex] ?? currentImage
+                            imageState.currentImages[imageState.currentIndex] ?? imageState.currentImage!
                           )
                         }
                       >

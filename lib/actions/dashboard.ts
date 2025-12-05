@@ -94,7 +94,7 @@ async function fetchDashboardDataInternal(
   
   if (characterIds.length > 0) {
     try {
-      const statsMap = await agentDiscoveryService.getAgentStatisticsBatch(characterIds);
+      const statsMap = await agentDiscoveryService.getCharacterStatisticsBatch(characterIds);
       statsMap.forEach((stats, id) => {
         agentStatsMap.set(id, {
           roomCount: stats.roomCount,
