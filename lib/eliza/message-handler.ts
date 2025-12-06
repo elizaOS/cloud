@@ -19,8 +19,7 @@ import {
 import { connectionCache } from "@/lib/cache/connection-cache";
 import type { UserContext } from "./user-context";
 import { logger } from "@/lib/utils/logger";
-import { creditsService, anonymousSessionsService } from "@/lib/services";
-import { calculateCost, getProviderFromModel } from "@/lib/pricing";
+import { anonymousSessionsService } from "@/lib/services";
 import { discordService } from "@/lib/services/discord";
 import { db } from "@/db/client";
 import { sql } from "drizzle-orm";
@@ -69,14 +68,12 @@ export interface MessageOptions {
  *    - Providers inject context (recent messages, facts, etc.)
  *    - Actions/evaluators process the message
  *    - Callback stores agent's response
+ *    - Note: Credit deduction and usage tracking handled by plugin-elizacloud
  * 
- * 4. trackUsage()
- *    - Deducts credits from organization
- *    - Creates usage records
- * 
- * 5. handleSideEffects()
+ * 4. handleSideEffects()
  *    - Discord integration (fire-and-forget)
  *    - Room title generation (fire-and-forget)
+ *    - Anonymous session tracking (if applicable)
  */
 export class MessageHandler {
   constructor(
@@ -212,12 +209,8 @@ export class MessageHandler {
       },
     );
 
-    // 6. Track usage and credits (if not anonymous)
-    if (!this.userContext.isAnonymous && usage) {
-      await this.trackUsage(usage);
-    }
-
-    // 7. Handle anonymous session tracking
+    // 6. Handle anonymous session tracking (if applicable)
+    // Note: Credit deduction handled by plugin-elizacloud and API routes
     logger.info("[MessageHandler] 📊 Checking anonymous session tracking:", {
       isAnonymous: this.userContext.isAnonymous,
       hasSessionToken: !!this.userContext.sessionToken,
@@ -236,7 +229,7 @@ export class MessageHandler {
       });
     }
 
-    // 8. Fire-and-forget side effects (Discord, room title generation)
+    // 7. Fire-and-forget side effects (Discord, room title generation)
     this.handleSideEffects(
       roomId,
       text,
@@ -678,56 +671,6 @@ export class MessageHandler {
         source: content.source || "agent",
       },
     };
-  }
-
-  /**
-   * Deduct credits for message processing
-   * Note: Token usage tracking is now handled by MODEL_USED events in plugin-assistant
-   */
-  private async trackUsage(usage: MessageResult["usage"]): Promise<void> {
-    if (!usage || !this.userContext.organizationId) return;
-
-    try {
-      const model = usage.model || "gpt-4o";
-      const provider = getProviderFromModel(model);
-      const costResult = await calculateCost(
-        model,
-        provider,
-        usage.inputTokens,
-        usage.outputTokens,
-      );
-
-      // Deduct credits from organization balance
-      const deductResult = await creditsService.deductCredits({
-        organizationId: this.userContext.organizationId,
-        amount: costResult.totalCost,
-        description: "Eliza chat message",
-        metadata: {
-          model,
-          provider,
-          inputTokens: usage.inputTokens,
-          outputTokens: usage.outputTokens,
-          userId: this.userContext.userId,
-        },
-      });
-
-      // Note: Usage records are created by MODEL_USED event listener in plugin-assistant
-      // No need to duplicate that here
-
-      // Check if credits are running low
-      if (deductResult.newBalance < 1.0) {
-        logger.warn(
-          `[MessageHandler] Low credits for org ${this.userContext.organizationId}: ${deductResult.newBalance}`,
-        );
-      }
-
-      logger.info(
-        `[MessageHandler] Deducted credits - tokens: ${usage.inputTokens}/${usage.outputTokens}, cost: ${costResult.totalCost}, balance: ${deductResult.newBalance}`,
-      );
-    } catch (error) {
-      logger.error("[MessageHandler] Credit deduction error:", error);
-      // Don't fail the message if credit deduction fails
-    }
   }
 
   /**
