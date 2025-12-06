@@ -3,6 +3,7 @@
 import {
   AlertCircle,
   Bot,
+  Gift,
   Loader2,
   Plus,
 } from "lucide-react";
@@ -11,6 +12,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useState } from "react";
 
+import { ShareModal } from "@/components/share-modal";
 import {
   type Agent,
   createAgent,
@@ -27,6 +29,7 @@ export default function ChatsPage() {
   const [loading, setLoading] = useState(true);
   const [creating, setCreating] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [shareModalOpen, setShareModalOpen] = useState(false);
 
   // Redirect to home if not authenticated
   useEffect(() => {
@@ -39,15 +42,10 @@ export default function ChatsPage() {
   const fetchAgents = useCallback(async () => {
     setLoading(true);
     setError(null);
-    try {
-      const result = await listAgents();
-      setAgents(result.agents);
-      setPagination(result.pagination);
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to load agents");
-    } finally {
-      setLoading(false);
-    }
+    const result = await listAgents();
+    setAgents(result.agents);
+    setPagination(result.pagination);
+    setLoading(false);
   }, []);
 
   useEffect(() => {
@@ -60,17 +58,13 @@ export default function ChatsPage() {
   const handleCreate = async () => {
     setCreating(true);
     setError(null);
-    try {
-      const agent = await createAgent({
-        name: "New Agent",
-        bio: "A helpful AI assistant.",
-      });
-      // Navigate to chat with the new agent
-      router.push(`/chats/${agent.id}`);
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to create agent");
-      setCreating(false);
-    }
+    const agent = await createAgent({
+      name: "New Agent",
+      bio: "A helpful AI assistant.",
+    });
+    // Navigate to chat with the new agent
+    router.push(`/chats/${agent.id}`);
+    setCreating(false);
   };
 
   if (!ready || !authenticated) {
@@ -88,19 +82,30 @@ export default function ChatsPage() {
         <div>
           <h1 className="text-2xl font-bold text-white">My Friends</h1>
         </div>
-        <button
-          onClick={handleCreate}
-          disabled={creating}
-          className="flex items-center gap-2 rounded-lg bg-pink-500 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-pink-600 disabled:opacity-50"
-        >
-          {creating ? (
-            <Loader2 className="h-4 w-4 animate-spin" />
-          ) : (
-            <Plus className="h-4 w-4" />
-          )}
-          <span>New Friend</span>
-        </button>
+        <div className="flex items-center gap-3">
+          <button
+            onClick={() => setShareModalOpen(true)}
+            className="flex items-center gap-2 rounded-lg bg-gradient-to-r from-pink-500/20 to-purple-500/20 border border-pink-500/30 px-4 py-2 text-sm font-medium text-pink-400 transition-colors hover:from-pink-500/30 hover:to-purple-500/30"
+          >
+            <Gift className="h-4 w-4" />
+            <span>Earn Credits</span>
+          </button>
+          <button
+            onClick={handleCreate}
+            disabled={creating}
+            className="flex items-center gap-2 rounded-lg bg-pink-500 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-pink-600 disabled:opacity-50"
+          >
+            {creating ? (
+              <Loader2 className="h-4 w-4 animate-spin" />
+            ) : (
+              <Plus className="h-4 w-4" />
+            )}
+            <span>New Friend</span>
+          </button>
+        </div>
       </div>
+
+      <ShareModal isOpen={shareModalOpen} onClose={() => setShareModalOpen(false)} />
 
       {/* Error */}
       {error && (

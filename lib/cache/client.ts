@@ -1,12 +1,25 @@
+/**
+ * Redis-based cache client with stale-while-revalidate support and circuit breaker.
+ */
+
 import { Redis } from "@upstash/redis";
 import { logger } from "@/lib/utils/logger";
 
+/**
+ * Cached value wrapper with metadata for stale-while-revalidate.
+ */
 interface CachedValue<T> {
+  /** The cached data. */
   data: T;
+  /** Timestamp when the value was cached. */
   cachedAt: number;
+  /** Timestamp when the value becomes stale. */
   staleAt: number;
 }
 
+/**
+ * Redis cache client with circuit breaker, stale-while-revalidate, and error handling.
+ */
 export class CacheClient {
   private redis: Redis | null = null;
   private enabled: boolean | null = null;
@@ -71,57 +84,59 @@ export class CacheClient {
     }
   }
 
+  /**
+   * Gets a value from cache.
+   *
+   * @param key - Cache key.
+   * @returns Cached value or null if not found or invalid.
+   */
   async get<T>(key: string): Promise<T | null> {
     this.initialize();
     if (!this.enabled || !this.redis || this.isCircuitOpen()) return null;
 
-    try {
-      const start = Date.now();
-      const value = await this.redis.get<string>(key);
-      const duration = Date.now() - start;
+    const start = Date.now();
+    const value = await this.redis.get<string>(key);
+    const duration = Date.now() - start;
 
-      if (value === null || value === undefined) {
-        this.logMetric(key, "miss", duration);
-        return null;
-      }
-
-      // Check for corrupted cache values
-      if (typeof value === "string" && value === "[object Object]") {
-        logger.warn(
-          `[Cache] Corrupted cache value detected for key ${key}, deleting`,
-        );
-        this.del(key).catch(() => {}); // Fire-and-forget
-        return null;
-      }
-
-      // Parse JSON string back to object
-      let parsed: T;
-      try {
-        parsed = typeof value === "string" ? JSON.parse(value) : value;
-      } catch {
-        logger.warn(
-          `[Cache] Failed to parse cached value for key ${key}, deleting`,
-        );
-        this.del(key).catch(() => {}); // Fire-and-forget
-        return null;
-      }
-
-      if (!this.isValidCacheValue(parsed)) {
-        logger.warn(`[Cache] Invalid cached value for key ${key}, deleting`);
-        this.del(key).catch(() => {}); // Fire-and-forget
-        return null;
-      }
-
-      this.resetFailures();
-      this.logMetric(key, "hit", duration);
-      return parsed;
-    } catch (error) {
-      this.recordFailure();
-      logger.error(`[Cache] Error getting key ${key}:`, error);
+    if (value === null || value === undefined) {
+      this.logMetric(key, "miss", duration);
       return null;
     }
+
+    // Check for corrupted cache values
+    if (typeof value === "string" && value === "[object Object]") {
+      logger.warn(
+        `[Cache] Corrupted cache value detected for key ${key}, deleting`,
+      );
+      await this.del(key);
+      return null;
+    }
+
+    // Parse JSON string back to object
+    const parsed: T =
+      typeof value === "string" ? JSON.parse(value) : value;
+
+    if (!this.isValidCacheValue(parsed)) {
+      logger.warn(`[Cache] Invalid cached value for key ${key}, deleting`);
+      await this.del(key);
+      return null;
+    }
+
+    this.resetFailures();
+    this.logMetric(key, "hit", duration);
+    return parsed;
   }
 
+  /**
+   * Gets a value from cache with stale-while-revalidate support.
+   *
+   * Returns stale data immediately if available, then revalidates in the background.
+   *
+   * @param key - Cache key.
+   * @param staleTTL - Time in seconds before data is considered stale.
+   * @param revalidate - Function to fetch fresh data.
+   * @returns Cached value (stale or fresh) or null.
+   */
   async getWithSWR<T>(
     key: string,
     staleTTL: number,
@@ -132,160 +147,134 @@ export class CacheClient {
       return await revalidate();
     }
 
-    try {
-      const start = Date.now();
-      const value = await this.redis.get<string>(key);
-      const duration = Date.now() - start;
+    const start = Date.now();
+    const value = await this.redis.get<string>(key);
+    const duration = Date.now() - start;
 
-      if (value === null || value === undefined) {
-        this.logMetric(key, "miss", duration);
-        const fresh = await revalidate();
-        if (fresh !== null) {
-          this.set(
-            key,
-            {
-              data: fresh,
-              cachedAt: Date.now(),
-              staleAt: Date.now() + staleTTL * 1000,
-            } as CachedValue<T>,
-            staleTTL * 2,
-          ).catch(() => {});
-        }
-        return fresh;
+    if (value === null || value === undefined) {
+      this.logMetric(key, "miss", duration);
+      const fresh = await revalidate();
+      if (fresh !== null) {
+        await this.set(
+          key,
+          {
+            data: fresh,
+            cachedAt: Date.now(),
+            staleAt: Date.now() + staleTTL * 1000,
+          } as CachedValue<T>,
+          staleTTL * 2,
+        );
       }
+      return fresh;
+    }
 
-      let parsed: CachedValue<T>;
-      try {
-        const raw = typeof value === "string" ? JSON.parse(value) : value;
-        parsed = raw as CachedValue<T>;
-      } catch {
-        const fresh = await revalidate();
-        if (fresh !== null) {
-          this.set(
-            key,
-            {
-              data: fresh,
-              cachedAt: Date.now(),
-              staleAt: Date.now() + staleTTL * 1000,
-            } as CachedValue<T>,
-            staleTTL * 2,
-          ).catch(() => {});
-        }
-        return fresh;
-      }
+    const raw = typeof value === "string" ? JSON.parse(value) : value;
+    const parsed = raw as CachedValue<T>;
 
-      const now = Date.now();
-      const isStale = now > parsed.staleAt;
+    const now = Date.now();
+    const isStale = now > parsed.staleAt;
 
-      if (isStale) {
-        this.logMetric(key, "stale", duration);
+    if (isStale) {
+      this.logMetric(key, "stale", duration);
 
-        // Return stale data immediately
-        const staleData = parsed.data;
+      // Return stale data immediately
+      const staleData = parsed.data;
 
-        // MEMORY LEAK FIX: Implement queue size limit and timeout
-        // Check queue size before adding new revalidation
-        if (this.revalidationQueue.size >= this.MAX_REVALIDATION_QUEUE_SIZE) {
-          logger.warn(
-            `[Cache] Revalidation queue full (${this.revalidationQueue.size}/${this.MAX_REVALIDATION_QUEUE_SIZE}). ` +
-              `Skipping background revalidation for key: ${key}`,
-          );
-          return staleData;
-        }
-
-        // Revalidate in background (deduplicated)
-        if (!this.revalidationQueue.has(key)) {
-          // Create timeout promise
-          const timeoutPromise = new Promise<T | null>((_, reject) => {
-            setTimeout(
-              () => reject(new Error("Revalidation timeout")),
-              this.REVALIDATION_TIMEOUT_MS,
-            );
-          });
-
-          // Race revalidation against timeout
-          const revalidationPromise = Promise.race([
-            revalidate(),
-            timeoutPromise,
-          ])
-            .then((fresh) => {
-              if (fresh !== null) {
-                return this.set(
-                  key,
-                  {
-                    data: fresh,
-                    cachedAt: Date.now(),
-                    staleAt: Date.now() + staleTTL * 1000,
-                  } as CachedValue<T>,
-                  staleTTL * 2,
-                );
-              }
-            })
-            .catch((error) => {
-              logger.error(
-                `[Cache] Revalidation failed for key ${key}:`,
-                error,
-              );
-            })
-            .finally(() => {
-              this.revalidationQueue.delete(key);
-            });
-
-          this.revalidationQueue.set(key, revalidationPromise);
-        }
-
+      // MEMORY LEAK FIX: Implement queue size limit and timeout
+      // Check queue size before adding new revalidation
+      if (this.revalidationQueue.size >= this.MAX_REVALIDATION_QUEUE_SIZE) {
+        logger.warn(
+          `[Cache] Revalidation queue full (${this.revalidationQueue.size}/${this.MAX_REVALIDATION_QUEUE_SIZE}). ` +
+            `Skipping background revalidation for key: ${key}`,
+        );
         return staleData;
       }
 
-      this.logMetric(key, "hit", duration);
-      this.resetFailures();
-      return parsed.data;
-    } catch (error) {
-      this.recordFailure();
-      logger.error(`[Cache] Error in getWithSWR for key ${key}:`, error);
-      return await revalidate();
+      // Revalidate in background (deduplicated)
+      if (!this.revalidationQueue.has(key)) {
+        // Create timeout promise
+        const timeoutPromise = new Promise<T | null>((_, reject) => {
+          setTimeout(
+            () => reject(new Error("Revalidation timeout")),
+            this.REVALIDATION_TIMEOUT_MS,
+          );
+        });
+
+        // Race revalidation against timeout
+        const revalidationPromise = Promise.race([
+          revalidate(),
+          timeoutPromise,
+        ])
+          .then((fresh) => {
+            if (fresh !== null) {
+              return this.set(
+                key,
+                {
+                  data: fresh,
+                  cachedAt: Date.now(),
+                  staleAt: Date.now() + staleTTL * 1000,
+                } as CachedValue<T>,
+                staleTTL * 2,
+              );
+            }
+          })
+          .finally(() => {
+            this.revalidationQueue.delete(key);
+          });
+
+        this.revalidationQueue.set(key, revalidationPromise);
+      }
+
+      return staleData;
     }
+
+    this.logMetric(key, "hit", duration);
+    this.resetFailures();
+    return parsed.data;
   }
 
+  /**
+   * Sets a value in cache with TTL.
+   *
+   * @param key - Cache key.
+   * @param value - Value to cache (must be JSON-serializable).
+   * @param ttlSeconds - Time to live in seconds.
+   */
   async set<T>(key: string, value: T, ttlSeconds: number): Promise<void> {
     this.initialize();
     if (!this.enabled || !this.redis || this.isCircuitOpen()) return;
 
-    try {
-      if (!this.isValidCacheValue(value)) {
-        logger.error(`[Cache] Attempted to cache invalid value for key ${key}`);
-        return;
-      }
-
-      // Always serialize to JSON string before storing
-      const serialized =
-        typeof value === "string" ? value : JSON.stringify(value);
-
-      const start = Date.now();
-      await this.redis.setex(key, ttlSeconds, serialized);
-
-      this.resetFailures();
-      logger.debug(`[Cache] SET: ${key} (TTL: ${ttlSeconds}s)`);
-      this.logMetric(key, "set", Date.now() - start);
-    } catch (error) {
-      this.recordFailure();
-      logger.error(`[Cache] Error setting key ${key}:`, error);
+    if (!this.isValidCacheValue(value)) {
+      logger.error(`[Cache] Attempted to cache invalid value for key ${key}`);
+      return;
     }
+
+    // Always serialize to JSON string before storing
+    const serialized =
+      typeof value === "string" ? value : JSON.stringify(value);
+
+    const start = Date.now();
+    await this.redis.setex(key, ttlSeconds, serialized);
+
+    this.resetFailures();
+    logger.debug(`[Cache] SET: ${key} (TTL: ${ttlSeconds}s)`);
+    this.logMetric(key, "set", Date.now() - start);
   }
 
+  /**
+   * Deletes a key from cache.
+   *
+   * @param key - Cache key to delete.
+   */
   async del(key: string): Promise<void> {
     this.initialize();
     if (!this.enabled || !this.redis) return;
 
-    try {
-      const start = Date.now();
-      await this.redis.del(key);
+    const start = Date.now();
+    await this.redis.del(key);
 
-      logger.debug(`[Cache] DEL: ${key}`);
-      this.logMetric(key, "del", Date.now() - start);
-    } catch (error) {
-      logger.error(`[Cache] Error deleting key ${key}:`, error);
-    }
+    logger.debug(`[Cache] DEL: ${key}`);
+    this.logMetric(key, "del", Date.now() - start);
   }
 
   /**
@@ -308,79 +297,81 @@ export class CacheClient {
     this.initialize();
     if (!this.enabled || !this.redis) return;
 
-    try {
-      const start = Date.now();
-      let cursor: string | number = 0;
-      let totalDeleted = 0;
-      let iterations = 0;
+    const start = Date.now();
+    let cursor: string | number = 0;
+    let totalDeleted = 0;
+    let iterations = 0;
 
-      do {
-        // PERFORMANCE FIX: Limit iterations to prevent unbounded scans
-        if (iterations >= maxIterations) {
-          logger.warn(
-            `[Cache] DEL_PATTERN reached max iterations (${maxIterations}) for pattern ${pattern}. ` +
-              `Deleted ${totalDeleted} keys so far. Pattern may match too many keys. Consider narrowing the pattern.`,
-          );
-          break;
-        }
-
-        // Use SCAN instead of KEYS to avoid blocking Redis
-        const result: [string | number, string[]] = await this.redis.scan(
-          cursor,
-          {
-            match: pattern,
-            count: batchSize,
-          },
+    do {
+      // PERFORMANCE FIX: Limit iterations to prevent unbounded scans
+      if (iterations >= maxIterations) {
+        logger.warn(
+          `[Cache] DEL_PATTERN reached max iterations (${maxIterations}) for pattern ${pattern}. ` +
+            `Deleted ${totalDeleted} keys so far. Pattern may match too many keys. Consider narrowing the pattern.`,
         );
+        break;
+      }
 
-        // result is [nextCursor, keys]
-        // Upstash Redis returns cursor as string or number
-        cursor =
-          typeof result[0] === "string"
-            ? Number.parseInt(result[0], 10)
-            : result[0];
-        const keys = result[1];
+      // Use SCAN instead of KEYS to avoid blocking Redis
+      const result: [string | number, string[]] = await this.redis.scan(
+        cursor,
+        {
+          match: pattern,
+          count: batchSize,
+        },
+      );
 
-        if (keys.length > 0) {
-          await this.redis.del(...keys);
-          totalDeleted += keys.length;
-          logger.debug(
-            `[Cache] DEL_PATTERN iteration ${++iterations}: deleted ${keys.length} keys (total: ${totalDeleted})`,
-          );
-        }
+      // result is [nextCursor, keys]
+      // Upstash Redis returns cursor as string or number
+      cursor =
+        typeof result[0] === "string"
+          ? Number.parseInt(result[0], 10)
+          : result[0];
+      const keys = result[1];
 
-        // Small delay to avoid overwhelming Redis
-        if (cursor !== 0) {
-          await new Promise((resolve) => setTimeout(resolve, 10));
-        }
-      } while (cursor !== 0 && iterations < maxIterations);
-
-      const duration = Date.now() - start;
-
-      if (totalDeleted === 0) {
-        logger.debug(`[Cache] DEL_PATTERN: ${pattern} (no keys found)`);
-      } else {
-        logger.info(
-          `[Cache] DEL_PATTERN: ${pattern} (deleted ${totalDeleted} keys in ${duration}ms, ${iterations} iterations)`,
+      if (keys.length > 0) {
+        await this.redis.del(...keys);
+        totalDeleted += keys.length;
+        logger.debug(
+          `[Cache] DEL_PATTERN iteration ${++iterations}: deleted ${keys.length} keys (total: ${totalDeleted})`,
         );
       }
 
-      this.logMetric(pattern, "del_pattern", duration);
-    } catch (error) {
-      logger.error(`[Cache] Error deleting pattern ${pattern}:`, error);
+      // Small delay to avoid overwhelming Redis
+      if (cursor !== 0) {
+        await new Promise((resolve) => setTimeout(resolve, 10));
+      }
+    } while (cursor !== 0 && iterations < maxIterations);
+
+    const duration = Date.now() - start;
+
+    if (totalDeleted === 0) {
+      logger.debug(`[Cache] DEL_PATTERN: ${pattern} (no keys found)`);
+    } else {
+      logger.info(
+        `[Cache] DEL_PATTERN: ${pattern} (deleted ${totalDeleted} keys in ${duration}ms, ${iterations} iterations)`,
+      );
     }
+
+    this.logMetric(pattern, "del_pattern", duration);
   }
 
+  /**
+   * Gets multiple values from cache in a single operation.
+   *
+   * @param keys - Array of cache keys.
+   * @returns Array of cached values (null for misses).
+   */
   async mget<T>(keys: string[]): Promise<Array<T | null>> {
     this.initialize();
     if (!this.enabled || !this.redis) return keys.map(() => null);
 
-    try {
-      const start = Date.now();
-      const values = await this.redis.mget<string[]>(...keys);
+    const start = Date.now();
+    const values = await this.redis.mget<string[]>(...keys);
 
-      // Parse each JSON string value
-      const parsed = values.map((value, index) => {
+    // Parse each JSON string value
+    const parsed = await Promise.all(
+      values.map(async (value, index) => {
         if (value === null || value === undefined) return null;
 
         // Check for corrupted values
@@ -388,34 +379,22 @@ export class CacheClient {
           logger.warn(
             `[Cache] Corrupted cache value in mget for key ${keys[index]}, skipping`,
           );
-          this.del(keys[index]).catch(() => {});
+          await this.del(keys[index]);
           return null;
         }
 
-        try {
-          return typeof value === "string" ? JSON.parse(value) : value;
-        } catch (parseError) {
-          logger.warn(
-            `[Cache] Failed to parse value in mget for key ${keys[index]}`,
-            parseError,
-          );
-          this.del(keys[index]).catch(() => {});
-          return null;
-        }
-      });
+        return typeof value === "string" ? JSON.parse(value) : value;
+      }),
+    );
 
-      const hitCount = parsed.filter((v) => v !== null).length;
-      logger.debug(`[Cache] MGET: ${keys.length} keys (${hitCount} hits)`);
-      this.logMetric("mget", "hit", Date.now() - start, {
-        keys: keys.length,
-        hits: hitCount,
-      });
+    const hitCount = parsed.filter((v) => v !== null).length;
+    logger.debug(`[Cache] MGET: ${keys.length} keys (${hitCount} hits)`);
+    this.logMetric("mget", "hit", Date.now() - start, {
+      keys: keys.length,
+      hits: hitCount,
+    });
 
-      return parsed;
-    } catch (error) {
-      logger.error("[Cache] Error in mget:", error);
-      return keys.map(() => null);
-    }
+    return parsed;
   }
 
   private isCircuitOpen(): boolean {

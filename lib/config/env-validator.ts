@@ -1,17 +1,27 @@
 /**
  * Environment Variable Validation
- * Validates required environment variables on application startup
+ *
+ * Validates required environment variables on application startup.
  */
 
+/**
+ * Error information for a validation failure.
+ */
 export interface EnvValidationError {
   variable: string;
   message: string;
   required: boolean;
 }
 
+/**
+ * Result of environment validation.
+ */
 export interface EnvValidationResult {
+  /** Whether all required variables are valid. */
   valid: boolean;
+  /** List of validation errors. */
   errors: EnvValidationError[];
+  /** List of validation warnings. */
   warnings: EnvValidationError[];
 }
 
@@ -86,7 +96,9 @@ const ENV_VARS = {
 } as const;
 
 /**
- * Validate all environment variables
+ * Validates all environment variables.
+ *
+ * @returns Validation result with errors and warnings.
  */
 export function validateEnvironment(): EnvValidationResult {
   const errors: EnvValidationError[] = [];
@@ -147,8 +159,11 @@ export function validateEnvironment(): EnvValidationResult {
 }
 
 /**
- * Validate environment and throw if invalid
- * Use this on application startup
+ * Validates environment and throws if invalid.
+ *
+ * Use this on application startup. Logs warnings and throws on errors.
+ *
+ * @throws Error if environment validation fails.
  */
 export function requireValidEnvironment(): void {
   const result = validateEnvironment();
@@ -186,7 +201,10 @@ export function requireValidEnvironment(): void {
 }
 
 /**
- * Check if a specific feature is configured
+ * Checks if a specific feature is configured.
+ *
+ * @param feature - Feature name ("containers", "stripe", "blob", "ai").
+ * @returns True if the feature is configured.
  */
 export function isFeatureConfigured(feature: string): boolean {
   switch (feature) {
@@ -213,7 +231,9 @@ export function isFeatureConfigured(feature: string): boolean {
 }
 
 /**
- * Get list of configured features
+ * Gets a list of all configured features.
+ *
+ * @returns Array of configured feature names.
  */
 export function getConfiguredFeatures(): string[] {
   const features = ["containers", "stripe", "blob", "ai"];
@@ -221,7 +241,9 @@ export function getConfiguredFeatures(): string[] {
 }
 
 /**
- * Log configuration status on startup
+ * Logs configuration status on startup.
+ *
+ * Prints which features are enabled/disabled.
  */
 export function logConfigurationStatus(): void {
   console.log("📋 Feature Configuration Status:");

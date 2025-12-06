@@ -1,3 +1,13 @@
+/**
+ * Eliza chat interface component providing full-featured chat functionality.
+ * Supports text and voice messages, streaming responses, knowledge base integration,
+ * model tier selection, audio playback, and room management.
+ *
+ * @param props - Chat interface configuration
+ * @param props.onMessageSent - Optional callback when a message is sent
+ * @param props.character - Optional character data for the chat session
+ */
+
 "use client";
 
 import { useState, useEffect, useRef, useCallback } from "react";
@@ -81,12 +91,7 @@ interface ElizaChatInterfaceProps {
   character?: CharacterData;
 }
 
-interface CustomVoice {
-  id: string;
-  elevenlabsVoiceId: string;
-  name: string;
-  cloneType: string;
-}
+import type { Voice as CustomVoice } from "@/components/voices/types";
 
 const tierIcons: Record<string, React.ReactNode> = {
   fast: <Zap className="h-3.5 w-3.5" />,

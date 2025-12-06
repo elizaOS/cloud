@@ -1,3 +1,7 @@
+/**
+ * Server actions for dashboard data.
+ */
+
 "use server";
 
 import { requireAuthWithOrg } from "@/lib/auth";
@@ -13,13 +17,23 @@ import { cache as cacheClient } from "@/lib/cache/client";
 import { CacheKeys, CacheStaleTTL } from "@/lib/cache/keys";
 import { cache } from "react";
 
+/**
+ * Statistics for an agent/character.
+ */
 export interface AgentStats {
+  /** Number of rooms this agent is in. */
   roomCount: number;
+  /** Total number of messages sent by this agent. */
   messageCount: number;
+  /** Current deployment status. */
   deploymentStatus: "deployed" | "stopped" | "draft";
+  /** Timestamp of last activity. */
   lastActiveAt: Date | null;
 }
 
+/**
+ * Complete dashboard data for a user's organization.
+ */
 export interface DashboardData {
   user: {
     name: string;
@@ -61,7 +75,12 @@ export interface DashboardData {
   }>;
 }
 
-// Internal function to fetch dashboard data (not cached at React level)
+/**
+ * Internal function to fetch dashboard data (not cached at React level).
+ *
+ * @param user - Authenticated user with organization.
+ * @returns Dashboard data including stats, agents, and containers.
+ */
 async function fetchDashboardDataInternal(
   user: Awaited<ReturnType<typeof requireAuthWithOrg>>,
 ): Promise<DashboardData> {
@@ -93,19 +112,15 @@ async function fetchDashboardDataInternal(
   const agentStatsMap = new Map<string, AgentStats>();
   
   if (characterIds.length > 0) {
-    try {
-      const statsMap = await agentDiscoveryService.getCharacterStatisticsBatch(characterIds);
-      statsMap.forEach((stats, id) => {
-        agentStatsMap.set(id, {
-          roomCount: stats.roomCount,
-          messageCount: stats.messageCount,
-          deploymentStatus: stats.status,
-          lastActiveAt: stats.lastActiveAt,
-        });
+    const statsMap = await agentDiscoveryService.getCharacterStatisticsBatch(characterIds);
+    statsMap.forEach((stats, id) => {
+      agentStatsMap.set(id, {
+        roomCount: stats.roomCount,
+        messageCount: stats.messageCount,
+        deploymentStatus: stats.status,
+        lastActiveAt: stats.lastActiveAt,
       });
-    } catch (error) {
-      console.warn("[Dashboard] Failed to fetch agent stats:", error);
-    }
+    });
   }
 
   return {
@@ -152,7 +167,13 @@ async function fetchDashboardDataInternal(
   };
 }
 
-// React-cached version for request deduplication
+/**
+ * Gets dashboard data for the current user's organization.
+ *
+ * Uses React cache for request deduplication and stale-while-revalidate caching.
+ *
+ * @returns Dashboard data including stats, agents, and containers.
+ */
 export const getDashboardData = cache(async (): Promise<DashboardData> => {
   const user = await requireAuthWithOrg();
   const organizationId = user.organization_id!;

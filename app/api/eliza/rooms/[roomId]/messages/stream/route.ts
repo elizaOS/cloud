@@ -1,5 +1,5 @@
 import type { NextRequest } from "next/server";
-import { organizationsService, charactersService } from "@/lib/services";
+import { organizationsService, charactersService, appCreditsService } from "@/lib/services";
 import { requireAuthOrApiKey } from "@/lib/auth";
 import { getAnonymousUser, checkAnonymousLimit } from "@/lib/auth-anonymous";
 import { logger } from "@/lib/utils/logger";
@@ -38,7 +38,10 @@ export async function POST(
     // Step 1: Parse request body FIRST (needed for session token check and agent mode)
     const { roomId } = await ctx.params;
     const body = await request.json();
-    const { text, model, agentMode, sessionToken, attachments } = body;
+    const { text, model, agentMode, sessionToken, attachments, appId: bodyAppId } = body;
+    
+    // App ID can come from body OR X-App-Id header (miniapp proxy uses header)
+    const appId = bodyAppId || request.headers.get("X-App-Id");
 
     if (!roomId || !text?.trim()) {
       return new Response(
@@ -75,7 +78,7 @@ export async function POST(
     const userContext = await authenticateAndBuildContext(
       request,
       agentModeConfig.mode,
-      { sessionToken }
+      { sessionToken, appId }
     );
 
     logger.info("[Stream] 📊 UserContext after auth:", {
@@ -106,6 +109,42 @@ export async function POST(
       }
     }
 
+    // Step 3.5: App credit balance check (miniapp billing)
+    // Only check if app has monetization enabled - otherwise user uses org credits
+    if (userContext.appId) {
+      const monetizationSettings = await appCreditsService.getMonetizationSettings(userContext.appId);
+      
+      // Only enforce app-specific credit check if monetization is enabled
+      if (monetizationSettings?.monetizationEnabled) {
+        // Estimate minimum cost (actual cost calculated after processing)
+        const MINIMUM_MESSAGE_COST = 0.001; // $0.001 minimum to ensure some balance exists
+        
+        const balanceCheck = await appCreditsService.checkBalance(
+          userContext.appId,
+          userContext.userId,
+          MINIMUM_MESSAGE_COST
+        );
+
+        if (!balanceCheck.sufficient) {
+          logger.warn("[Stream] Insufficient app credits", {
+            appId: userContext.appId,
+            userId: userContext.userId,
+            balance: balanceCheck.balance,
+            required: MINIMUM_MESSAGE_COST,
+          });
+
+          return new Response(
+            JSON.stringify({
+              error: "Insufficient credits",
+              details: `Your balance ($${balanceCheck.balance.toFixed(2)}) is too low. Please purchase more credits to continue.`,
+              requiresPurchase: true,
+            }),
+            { status: 402, headers: { "Content-Type": "application/json" } }
+          );
+        }
+      }
+    }
+
     // Step 4: Get character assignment for room from agentId (single source of truth)
     const room = await roomsRepository.findById(roomId);
     let characterId: string | undefined = room?.agentId || undefined;
@@ -115,27 +154,23 @@ export async function POST(
     // The image generation action's validate function ensures images are only generated
     // when explicitly requested (e.g., "send me a pic", "generate an image")
     if (characterId && agentModeConfig.mode === AgentMode.CHAT) {
-      try {
-        const character = await charactersService.getById(characterId);
-        if (character) {
-          const characterData = character.character_data as
-            | Record<string, unknown>
-            | undefined;
-          const affiliateData = characterData?.affiliate as
-            | Record<string, unknown>
-            | undefined;
+      const character = await charactersService.getById(characterId);
+      if (character) {
+        const characterData = character.character_data as
+          | Record<string, unknown>
+          | undefined;
+        const affiliateData = characterData?.affiliate as
+          | Record<string, unknown>
+          | undefined;
 
-          if (affiliateData && Object.keys(affiliateData).length > 0) {
-            logger.info(
-              `[Stream] 🎭 Detected affiliate character - switching to ASSISTANT mode for image generation`
-            );
-            agentModeConfig = { mode: AgentMode.ASSISTANT };
-            // CRITICAL: Also update userContext so runtime loads correct plugins
-            userContext.agentMode = AgentMode.ASSISTANT;
-          }
+        if (affiliateData && Object.keys(affiliateData).length > 0) {
+          logger.info(
+            `[Stream] 🎭 Detected affiliate character - switching to ASSISTANT mode for image generation`
+          );
+          agentModeConfig = { mode: AgentMode.ASSISTANT };
+          // CRITICAL: Also update userContext so runtime loads correct plugins
+          userContext.agentMode = AgentMode.ASSISTANT;
         }
-      } catch (error) {
-        logger.error("[Stream] Failed to check affiliate status:", error);
       }
     }
 
@@ -152,17 +187,10 @@ export async function POST(
 
       // Update room agentId for build mode (proper column, not metadata)
       if (characterId && room && room.agentId !== characterId) {
-        try {
-          await roomsRepository.update(roomId, { agentId: characterId });
-          logger.info(
-            `[Stream] BUILD mode - Updated room agentId: room ${roomId} → agent ${characterId}`
-          );
-        } catch (error) {
-          logger.error(
-            `[Stream] BUILD mode - Failed to update room agentId:`,
-            error
-          );
-        }
+        await roomsRepository.update(roomId, { agentId: characterId });
+        logger.info(
+          `[Stream] BUILD mode - Updated room agentId: room ${roomId} → agent ${characterId}`
+        );
       }
     }
 
@@ -350,7 +378,7 @@ export async function POST(
 async function authenticateAndBuildContext(
   request: NextRequest,
   agentMode: AgentMode,
-  body?: { sessionToken?: string }
+  body?: { sessionToken?: string; appId?: string }
 ) {
   const headerToken = request.headers.get("X-Anonymous-Session");
   const bodyToken = body?.sessionToken;
@@ -386,6 +414,7 @@ async function authenticateAndBuildContext(
       ...authResult,
       isAnonymous: false,
       agentMode,
+      appId: body?.appId,
     });
   } catch (error) {
     logger.info(
@@ -454,6 +483,7 @@ async function authenticateAndBuildContext(
             anonymousSession: session,
             isAnonymous: true,
             agentMode,
+            appId: body?.appId,
           });
         } else {
           logger.warn(
@@ -501,6 +531,7 @@ async function authenticateAndBuildContext(
     anonymousSession: anonData.session!,
     isAnonymous: true,
     agentMode,
+    appId: body?.appId,
   });
 }
 

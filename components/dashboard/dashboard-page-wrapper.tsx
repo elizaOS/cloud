@@ -1,3 +1,12 @@
+/**
+ * Dashboard page wrapper that sets page header context.
+ * Provides consistent header title and description across dashboard pages.
+ *
+ * @param props - Dashboard wrapper configuration
+ * @param props.userName - User's name to display in header description
+ * @param props.children - Page content to render
+ */
+
 "use client";
 
 import { type ReactNode } from "react";

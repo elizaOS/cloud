@@ -81,7 +81,7 @@ async function authenticateUser(req: NextRequest): Promise<AuthContext> {
     const anonymousUser: UserWithOrganization = {
       ...anonData.user,
       organization_id: null,
-      organization: null as unknown as UserWithOrganization["organization"],
+      organization: null,
     };
 
     return {

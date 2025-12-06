@@ -61,7 +61,13 @@ export class DuplicateContainerNameError extends Error {
   }
 }
 
+/**
+ * Repository for container deployment database operations.
+ */
 export class ContainersRepository {
+  /**
+   * Lists all containers for an organization.
+   */
   async listByOrganization(organizationId: string): Promise<Container[]> {
     return await db
       .select()
@@ -70,6 +76,9 @@ export class ContainersRepository {
       .orderBy(desc(containers.created_at));
   }
 
+  /**
+   * Finds a container by ID within an organization.
+   */
   async findById(
     id: string,
     organizationId: string,
@@ -88,6 +97,9 @@ export class ContainersRepository {
     return results[0] || null;
   }
 
+  /**
+   * Finds the most recent container for a character.
+   */
   async findByCharacterId(characterId: string): Promise<Container | null> {
     const results = await db
       .select()
@@ -99,6 +111,9 @@ export class ContainersRepository {
     return results[0] || null;
   }
 
+  /**
+   * Finds containers for multiple characters.
+   */
   async findByCharacterIds(characterIds: string[]): Promise<Container[]> {
     if (characterIds.length === 0) {
       return [];
@@ -111,6 +126,9 @@ export class ContainersRepository {
       .orderBy(desc(containers.created_at));
   }
 
+  /**
+   * Creates a new container record.
+   */
   async create(data: NewContainer): Promise<Container> {
     const [container] = await db
       .insert(containers)
@@ -123,6 +141,9 @@ export class ContainersRepository {
     return container;
   }
 
+  /**
+   * Updates an existing container.
+   */
   async update(
     id: string,
     organizationId: string,
@@ -145,6 +166,9 @@ export class ContainersRepository {
     return updated || null;
   }
 
+  /**
+   * Deletes a container by ID.
+   */
   async delete(id: string, organizationId: string): Promise<boolean> {
     const results = await db
       .delete(containers)
@@ -159,6 +183,9 @@ export class ContainersRepository {
     return results.length > 0;
   }
 
+  /**
+   * Updates container status and optional error message.
+   */
   async updateStatus(
     id: string,
     status: ContainerStatus,
@@ -177,6 +204,9 @@ export class ContainersRepository {
     return updated || null;
   }
 
+  /**
+   * Updates the last health check timestamp for a container.
+   */
   async updateHealthCheck(id: string): Promise<Container | null> {
     const [updated] = await db
       .update(containers)
@@ -191,8 +221,10 @@ export class ContainersRepository {
   }
 
   /**
-   * Check quota without creating a container (read-only check)
-   * Note: This has a small race condition window but is useful for pre-flight checks
+   * Checks container quota without creating a container (read-only check).
+   * 
+   * Note: This has a small race condition window but is useful for pre-flight checks.
+   * Use createWithQuotaCheck for atomic quota enforcement.
    */
   async checkQuota(organizationId: string): Promise<QuotaCheckResult> {
     // Get organization details
@@ -239,9 +271,10 @@ export class ContainersRepository {
   }
 
   /**
-   * Atomically check quota and create container in a transaction
-   * This prevents race conditions where multiple concurrent requests
-   * could bypass quota limits.
+   * Atomically checks quota and creates container in a transaction.
+   * 
+   * Prevents race conditions where multiple concurrent requests could bypass quota limits.
+   * Uses row-level locking (FOR UPDATE) to ensure atomicity.
    */
   async createWithQuotaCheck(
     data: NewContainer,
@@ -311,6 +344,9 @@ export class ContainersRepository {
     }
   }
 
+  /**
+   * Creates a container with quota check and credit deduction in a single transaction.
+   */
   async createContainerWithCreditDeduction(
     containerData: NewContainer,
     userId: string,
@@ -364,5 +400,7 @@ export class ContainersRepository {
   }
 }
 
-// Export singleton instance
+/**
+ * Singleton instance of ContainersRepository.
+ */
 export const containersRepository = new ContainersRepository();

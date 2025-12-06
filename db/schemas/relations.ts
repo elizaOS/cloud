@@ -6,6 +6,8 @@ import { conversations, conversationMessages } from "./conversations";
 import { userCharacters } from "./user-characters";
 import { apps, appUsers, appAnalytics } from "./apps";
 import { apiKeys } from "./api-keys";
+import { appCreditBalances } from "./app-credit-balances";
+import { appEarnings, appEarningsTransactions } from "./app-earnings";
 
 export const organizationsRelations = relations(organizations, ({ many }) => ({
   users: many(users),
@@ -90,6 +92,8 @@ export const appsRelations = relations(apps, ({ one, many }) => ({
   }),
   users: many(appUsers),
   analytics: many(appAnalytics),
+  creditBalances: many(appCreditBalances),
+  earningsTransactions: many(appEarningsTransactions),
 }));
 
 export const appUsersRelations = relations(appUsers, ({ one }) => ({
@@ -107,5 +111,41 @@ export const appAnalyticsRelations = relations(appAnalytics, ({ one }) => ({
   app: one(apps, {
     fields: [appAnalytics.app_id],
     references: [apps.id],
+  }),
+}));
+
+// App Credit Balances Relations
+export const appCreditBalancesRelations = relations(appCreditBalances, ({ one }) => ({
+  app: one(apps, {
+    fields: [appCreditBalances.app_id],
+    references: [apps.id],
+  }),
+  user: one(users, {
+    fields: [appCreditBalances.user_id],
+    references: [users.id],
+  }),
+  organization: one(organizations, {
+    fields: [appCreditBalances.organization_id],
+    references: [organizations.id],
+  }),
+}));
+
+// App Earnings Relations
+export const appEarningsRelations = relations(appEarnings, ({ one }) => ({
+  app: one(apps, {
+    fields: [appEarnings.app_id],
+    references: [apps.id],
+  }),
+}));
+
+// App Earnings Transactions Relations
+export const appEarningsTransactionsRelations = relations(appEarningsTransactions, ({ one }) => ({
+  app: one(apps, {
+    fields: [appEarningsTransactions.app_id],
+    references: [apps.id],
+  }),
+  user: one(users, {
+    fields: [appEarningsTransactions.user_id],
+    references: [users.id],
   }),
 }));

@@ -1,3 +1,8 @@
+/**
+ * On-chain trust section component for the landing page.
+ * Displays blockchain trust features, micropayment network visualization, and trust indicators.
+ */
+
 "use client";
 
 import { Button } from "@/components/ui/button";

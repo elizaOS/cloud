@@ -15,8 +15,18 @@ interface AppAnalyticsProps {
 export function AppAnalytics({ appId }: AppAnalyticsProps) {
   const [isLoading, setIsLoading] = useState(true);
   const [period, setPeriod] = useState<"hourly" | "daily" | "monthly">("daily");
-  const [analytics, setAnalytics] = useState<any[]>([]);
-  const [totalStats, setTotalStats] = useState<any>(null);
+  const [analytics, setAnalytics] = useState<Array<{
+    period_start: string;
+    total_requests: number;
+    unique_users: number;
+    new_users: number;
+    total_cost: string;
+  }>>([]);
+  const [totalStats, setTotalStats] = useState<{
+    totalRequests: number;
+    totalUsers: number;
+    totalCreditsUsed: string;
+  } | null>(null);
 
   const fetchAnalytics = async () => {
     setIsLoading(true);
@@ -63,7 +73,7 @@ export function AppAnalytics({ appId }: AppAnalyticsProps) {
     <div className="space-y-6">
       {/* Period Selector */}
       <div className="flex justify-end">
-        <Select value={period} onValueChange={(v: any) => setPeriod(v)}>
+        <Select value={period} onValueChange={(v: "hourly" | "daily" | "monthly") => setPeriod(v)}>
           <SelectTrigger className="w-[180px]">
             <SelectValue />
           </SelectTrigger>

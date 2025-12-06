@@ -1,5 +1,7 @@
 import sgMail from "@sendgrid/mail";
 import nodemailer from "nodemailer";
+import type { Transporter } from "nodemailer";
+import type SMTPTransport from "nodemailer/lib/smtp-transport";
 import { logger } from "@/lib/utils/logger";
 import type {
   EmailOptions,
@@ -14,7 +16,7 @@ import type {
 class EmailService {
   private initialized = false;
   private fromEmail: string | null = null;
-  private smtpTransporter: any = null;
+  private smtpTransporter: Transporter<SMTPTransport.SentMessageInfo> | null = null;
   private useSmtp = false;
 
   private initialize(): void {
@@ -67,58 +69,46 @@ class EmailService {
       return false;
     }
 
-    try {
-      if (this.useSmtp) {
-        await this.smtpTransporter.sendMail({
-          from: options.from || this.fromEmail!,
-          to: options.to,
-          subject: options.subject,
-          text: options.text,
-          html: options.html,
-          replyTo: options.replyTo,
-          attachments: options.attachments?.map((att) => ({
-            filename: att.filename,
-            content: Buffer.from(att.content, "base64"),
-            contentType: att.type,
-          })),
-        });
+    if (this.useSmtp && this.smtpTransporter) {
+      await this.smtpTransporter.sendMail({
+        from: options.from || this.fromEmail!,
+        to: options.to,
+        subject: options.subject,
+        text: options.text,
+        html: options.html,
+        replyTo: options.replyTo,
+        attachments: options.attachments?.map((att) => ({
+          filename: att.filename,
+          content: Buffer.from(att.content, "base64"),
+          contentType: att.type,
+        })),
+      });
 
-        logger.info("[EmailService] Email sent via SMTP", {
-          to: options.to,
-          subject: options.subject,
-        });
-
-        return true;
-      } else {
-        const msg = {
-          to: options.to,
-          from: options.from || this.fromEmail!,
-          subject: options.subject,
-          text: options.text,
-          html: options.html,
-          replyTo: options.replyTo,
-          attachments: options.attachments,
-        };
-
-        await sgMail.send(msg);
-
-        logger.info("[EmailService] Email sent via API", {
-          to: options.to,
-          subject: options.subject,
-        });
-
-        return true;
-      }
-    } catch (error: any) {
-      logger.error("[EmailService] Failed to send email", {
-        method: this.useSmtp ? "SMTP" : "API",
-        error: error.message,
-        code: error.code,
+      logger.info("[EmailService] Email sent via SMTP", {
         to: options.to,
         subject: options.subject,
       });
 
-      return false;
+      return true;
+    } else {
+      const msg = {
+        to: options.to,
+        from: options.from || this.fromEmail!,
+        subject: options.subject,
+        text: options.text,
+        html: options.html,
+        replyTo: options.replyTo,
+        attachments: options.attachments,
+      };
+
+      await sgMail.send(msg);
+
+      logger.info("[EmailService] Email sent via API", {
+        to: options.to,
+        subject: options.subject,
+      });
+
+      return true;
     }
   }
 

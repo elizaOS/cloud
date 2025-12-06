@@ -1,3 +1,14 @@
+/**
+ * My Agents view component displaying user's characters with filtering and search.
+ * Supports grid/list views, infinite scrolling, and character actions.
+ *
+ * @param props - My Agents view configuration
+ * @param props.onSelectCharacter - Callback when character is selected for chat
+ * @param props.onCloneCharacter - Callback when character is cloned
+ * @param props.isCollapsed - Whether view is collapsed
+ * @param props.onToggleCollapse - Callback to toggle collapse state
+ */
+
 "use client";
 
 import { useState, useCallback } from "react";

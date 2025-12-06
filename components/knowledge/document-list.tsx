@@ -23,20 +23,7 @@ import {
 import { Loader2, Trash2, RefreshCw, FileText } from "lucide-react";
 import { formatDistanceToNow } from "date-fns";
 
-interface KnowledgeDocument {
-  id: string;
-  content: {
-    text: string;
-  };
-  createdAt: number;
-  metadata?: {
-    fileName?: string;
-    fileSize?: number;
-    uploadedBy?: string;
-    uploadedAt?: number;
-    originalFilename?: string;
-  };
-}
+import type { KnowledgeDocument } from "@/lib/types/knowledge";
 
 interface DocumentListProps {
   documents: KnowledgeDocument[];

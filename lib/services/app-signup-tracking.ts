@@ -171,16 +171,20 @@ export class AppSignupTrackingService {
       }
 
       // Award bonus credits to the app's organization
-      // This would typically integrate with your credits/billing system
+      const { creditsService } = await import("./credits");
+      await creditsService.addCredits({
+        organizationId: app.organization_id,
+        amount: bonusAmount,
+        description: "App signup referral bonus",
+        metadata: { appId, userId, type: "app_signup_bonus" },
+      });
+
       logger.info("Referral bonus awarded", {
         appId,
         userId,
         bonusAmount,
         organizationId: app.organization_id,
       });
-
-      // TODO: Implement actual credit award through credits service
-      // await creditsService.addCredits(app.organization_id, bonusAmount, "referral_bonus", { appId, userId });
     } catch (error) {
       logger.error("Failed to award referral bonus:", error);
     }

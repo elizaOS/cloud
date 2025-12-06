@@ -20,20 +20,26 @@ import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
 import { useCallback, useEffect, useRef, useState } from "react";
 
+import { OutOfCreditsPrompt } from "@/components/out-of-credits-prompt";
 import {
   type AgentDetails,
   type Chat,
   createChat,
   getAgent,
+  getBilling,
   getChat,
   listChats,
   type Message,
   type MessageAttachment,
   sendMessage,
 } from "@/lib/cloud-api";
+import { useRenderTracking } from "@/lib/dev/render-tracking";
 import { useAuth } from "@/lib/use-auth";
 
-export default function ChatPage() {
+function ChatPage() {
+  // Development: Track renders for this complex component
+  useRenderTracking("ChatPage", { threshold: 10 });
+
   const router = useRouter();
   const params = useParams();
   const agentId = params.agentId as string;
@@ -54,6 +60,8 @@ export default function ChatPage() {
   const [selectedImage, setSelectedImage] = useState<string | null>(null);
   const [selectedImageFile, setSelectedImageFile] = useState<File | null>(null);
   const [imageModalUrl, setImageModalUrl] = useState<string | null>(null);
+  const [creditBalance, setCreditBalance] = useState<number | null>(null);
+  const [showLowCredits, setShowLowCredits] = useState(false);
 
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
@@ -79,31 +87,30 @@ export default function ChatPage() {
   const fetchData = useCallback(async () => {
     setLoading(true);
     setError(null);
-    try {
-      const [agentData, chatData, historyData] = await Promise.all([
-        getAgent(agentId),
-        getChat(agentId, chatId),
-        listChats(agentId, { limit: 20 }),
-      ]);
-      
-      // Debug: Log loaded messages to check for attachments
-      console.log("[Chat] Loaded messages from API:", chatData.messages.map(m => ({
-        id: m.id,
-        role: m.role,
-        hasAttachments: !!m.attachments,
-        attachmentCount: m.attachments?.length || 0,
-        attachments: m.attachments,
-        contentPreview: m.content.substring(0, 50),
-      })));
-      
-      setAgent(agentData);
-      setMessages(chatData.messages);
-      setChatHistory(historyData.chats);
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to load chat");
-    } finally {
-      setLoading(false);
+    const [agentData, chatData, historyData, billingData] = await Promise.all([
+      getAgent(agentId),
+      getChat(agentId, chatId),
+      listChats(agentId, { limit: 20 }),
+      getBilling().catch(() => null),
+    ]);
+    })));
+    
+    setAgent(agentData);
+    setMessages(chatData.messages);
+    setChatHistory(historyData.chats);
+    
+    if (billingData) {
+      // Use app-specific credits if monetization is enabled, otherwise use org credits
+      let balance: number;
+      if (billingData.appBilling?.monetizationEnabled && billingData.appBilling.creditBalance !== undefined) {
+        balance = billingData.appBilling.creditBalance;
+      } else {
+        balance = parseFloat(billingData.billing.creditBalance);
+      }
+      setCreditBalance(balance);
+      setShowLowCredits(balance < 0.5);
     }
+    setLoading(false);
   }, [agentId, chatId]);
 
   useEffect(() => {
@@ -115,15 +122,10 @@ export default function ChatPage() {
   // Create new chat
   const handleNewChat = async () => {
     setCreatingChat(true);
-    try {
-      const newChat = await createChat(agentId);
-      setSidebarOpen(false);
-      router.push(`/chats/${agentId}/${newChat.id}`);
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to create chat");
-    } finally {
-      setCreatingChat(false);
-    }
+    const newChat = await createChat(agentId);
+    setSidebarOpen(false);
+    router.push(`/chats/${agentId}/${newChat.id}`);
+    setCreatingChat(false);
   };
 
   // Send message
@@ -154,72 +156,62 @@ export default function ChatPage() {
     };
     setMessages((prev) => [...prev, userMessage]);
 
-    try {
-      // Pass attachments to the streaming endpoint for image uploads
-      await sendMessage(
-        chatId, 
-        messageText || "What do you see in this image?", 
-        {
-        onStart: () => {
-          // Connection established - show thinking indicator
-          setIsThinking(true);
-        },
-        onUserMessage: (msg) => {
-          // Update user message with actual ID, but preserve local attachments
-          // (server may not include attachments in confirmation)
-          setMessages((prev) =>
-            prev.map((m) => (m.id === userMessage.id ? { 
-              ...msg, 
-              attachments: msg.attachments || m.attachments,
-            } : m))
-          );
-        },
-        onThinking: () => {
-          // Agent is thinking/processing
-          setIsThinking(true);
-          setStreamingContent("");
-        },
-        onChunk: (chunk) => {
-          // Receiving streamed content
-          setIsThinking(false);
-          setStreamingContent((prev) => prev + chunk);
-        },
-        onComplete: (msg) => {
-          console.log("[Chat] onComplete received:", {
-            id: msg.id,
-            hasAttachments: !!msg.attachments,
-            attachmentCount: msg.attachments?.length || 0,
-            attachments: msg.attachments,
-            contentPreview: msg.content.substring(0, 100),
-          });
-          setIsThinking(false);
-          setStreamingContent("");
-          setMessages((prev) => [...prev, msg]);
-          // Refresh chat history to show updated title (generated after 4+ messages)
-          listChats(agentId, { limit: 20 }).then((historyData) => {
-            setChatHistory(historyData.chats);
-          }).catch(() => {
-            // Non-critical, ignore errors
-          });
-        },
-        onError: (err) => {
-          setError(err);
-          setIsThinking(false);
-          setStreamingContent("");
-        },
+    // Pass attachments to the streaming endpoint for image uploads
+    await sendMessage(
+      chatId, 
+      messageText || "What do you see in this image?", 
+      {
+      onStart: () => {
+        // Connection established - show thinking indicator
+        setIsThinking(true);
       },
-      undefined, // model
-      userAttachments.length > 0 ? userAttachments : undefined // attachments
-    );
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to send message");
-      // Remove optimistic message on error
-      setMessages((prev) => prev.filter((m) => m.id !== userMessage.id));
-      setIsThinking(false);
-    } finally {
-      setSending(false);
-      inputRef.current?.focus();
-    }
+      onUserMessage: (msg) => {
+        // Update user message with actual ID, but preserve local attachments
+        // (server may not include attachments in confirmation)
+        setMessages((prev) =>
+          prev.map((m) => (m.id === userMessage.id ? { 
+            ...msg, 
+            attachments: msg.attachments || m.attachments,
+          } : m))
+        );
+      },
+      onThinking: () => {
+        // Agent is thinking/processing
+        setIsThinking(true);
+        setStreamingContent("");
+      },
+      onChunk: (chunk) => {
+        // Receiving streamed content
+        setIsThinking(false);
+        setStreamingContent((prev) => prev + chunk);
+      },
+      onComplete: (msg) => {
+        setIsThinking(false);
+        setStreamingContent("");
+        setMessages((prev) => [...prev, msg]);
+        // Refresh chat history to show updated title (generated after 4+ messages)
+        listChats(agentId, { limit: 20 }).then((historyData) => {
+          setChatHistory(historyData.chats);
+        }).catch(() => {
+          // Non-critical, ignore errors
+        });
+      },
+      onError: (err) => {
+        setError(err);
+        setIsThinking(false);
+        setStreamingContent("");
+        // Check if error is credit-related
+        if (err.toLowerCase().includes("credit") || err.toLowerCase().includes("insufficient") || err.toLowerCase().includes("balance")) {
+          setShowLowCredits(true);
+          setCreditBalance(0);
+        }
+      },
+    },
+    undefined, // model
+    userAttachments.length > 0 ? userAttachments : undefined // attachments
+  );
+    setSending(false);
+    inputRef.current?.focus();
   };
 
   // Handle key press
@@ -622,6 +614,18 @@ export default function ChatPage() {
           </div>
         </div>
 
+        {/* Low credits prompt */}
+        {showLowCredits && (
+          <div className="border-t border-white/5 px-4 py-3">
+            <div className="mx-auto max-w-2xl">
+              <OutOfCreditsPrompt
+                currentBalance={creditBalance ?? 0}
+                onClose={() => setShowLowCredits(false)}
+              />
+            </div>
+          </div>
+        )}
+
         {/* Input */}
         <div className="border-t border-white/5 px-4 py-3">
           <div className="mx-auto max-w-2xl">
@@ -718,3 +722,10 @@ export default function ChatPage() {
     </div>
   );
 }
+
+// Enable why-did-you-render tracking for this component
+if (process.env.NODE_ENV === "development") {
+  (ChatPage as React.FC & { whyDidYouRender?: boolean }).whyDidYouRender = true;
+}
+
+export default ChatPage;

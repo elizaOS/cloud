@@ -30,22 +30,29 @@ export class CharactersService {
     options?: {
       limit?: number;
       includeTemplates?: boolean;
+      source?: "cloud" | "miniapp";
     },
   ): Promise<UserCharacter[]> {
+    const source = options?.source ?? "cloud";
+    
     // If templates are requested, get them separately
     if (options?.includeTemplates) {
       const [userChars, templates] = await Promise.all([
-        userCharactersRepository.listByUser(userId),
+        userCharactersRepository.listByUser(userId, source),
         userCharactersRepository.listTemplates(),
       ]);
       return [...userChars, ...templates];
     }
 
-    return await userCharactersRepository.listByUser(userId);
+    return await userCharactersRepository.listByUser(userId, source);
   }
 
-  async listByOrganization(organizationId: string): Promise<UserCharacter[]> {
-    return await userCharactersRepository.listByOrganization(organizationId);
+  async listByOrganization(
+    organizationId: string,
+    options?: { source?: "cloud" | "miniapp" },
+  ): Promise<UserCharacter[]> {
+    const source = options?.source ?? "cloud";
+    return await userCharactersRepository.listByOrganization(organizationId, source);
   }
 
   async listPublic(): Promise<UserCharacter[]> {

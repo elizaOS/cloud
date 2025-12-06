@@ -1,3 +1,15 @@
+/**
+ * Getting started component displaying onboarding steps for new users.
+ * Shows progress through creating agents, setting up API keys, and starting chats.
+ * Tracks completion state and provides navigation to each step.
+ *
+ * @param props - Getting started configuration
+ * @param props.hasAgents - Whether user has created agents
+ * @param props.hasApiKey - Whether user has created API keys
+ * @param props.hasChatHistory - Whether user has chat history
+ * @param props.className - Additional CSS classes
+ */
+
 "use client";
 
 import * as React from "react";

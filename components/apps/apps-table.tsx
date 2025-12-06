@@ -1,3 +1,12 @@
+/**
+ * Apps table component displaying user's applications with actions.
+ * Shows app details, status, and provides actions for settings, API keys, and deletion.
+ * Supports copying app IDs to clipboard.
+ *
+ * @param props - Apps table configuration
+ * @param props.apps - Array of app objects to display
+ */
+
 "use client";
 
 import { useState } from "react";

@@ -31,6 +31,42 @@ interface GlobalWithEliza {
 
 const globalAny = globalThis as GlobalWithEliza;
 
+/**
+ * MCP Server configuration type for transformation
+ */
+interface McpServerConfigInput {
+  url?: string;
+  type?: string;
+  command?: string;
+  args?: string[];
+  env?: Record<string, string>;
+  cwd?: string;
+  timeout?: number;
+  timeoutInMillis?: number;
+}
+
+interface McpSettingsInput {
+  servers?: Record<string, McpServerConfigInput>;
+  maxRetries?: number;
+}
+
+/**
+ * MCP Service interface for runtime interaction
+ */
+interface McpServiceInterface {
+  waitForInitialization?(): Promise<void>;
+  getServers?(): Array<{
+    name: string;
+    status: string;
+    tools?: unknown[];
+  }>;
+  getProviderData?(): {
+    data?: {
+      mcp?: Record<string, unknown>;
+    };
+  };
+}
+
 export class RuntimeFactory {
   private static instance: RuntimeFactory;
 
@@ -165,17 +201,17 @@ export class RuntimeFactory {
    * Pathnames (starting with /) get the baseUrl prepended
    * Full URLs are left unchanged
    */
-  private transformMcpSettings(mcpSettings: any): any {
+  private transformMcpSettings(mcpSettings: McpSettingsInput): McpSettingsInput {
     if (!mcpSettings?.servers) {
       return mcpSettings;
     }
 
     const baseUrl = process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000";
     
-    const transformedServers: Record<string, any> = {};
+    const transformedServers: Record<string, McpServerConfigInput> = {};
     
     for (const [serverId, serverConfig] of Object.entries(mcpSettings.servers)) {
-      const config = serverConfig as any;
+      const config = serverConfig;
       transformedServers[serverId] = {
         ...config,
         // If URL starts with /, prepend baseUrl; otherwise use as-is
@@ -582,7 +618,7 @@ export class RuntimeFactory {
    */
   private async pollForMcpService(
     runtime: AgentRuntime,
-  ): Promise<any | null> {
+  ): Promise<McpServiceInterface | null> {
     const maxAttempts = 40; // 40 attempts * 100ms = 4000ms (4s)
     const pollInterval = 100; // ms
 
@@ -609,7 +645,7 @@ export class RuntimeFactory {
    * Why: Service needs to establish connections before tools are available
    * What: Calls waitForInitialization() if the method exists
    */
-  private async waitForMcpInitialization(mcpService: any): Promise<void> {
+  private async waitForMcpInitialization(mcpService: McpServiceInterface): Promise<void> {
     if (typeof mcpService.waitForInitialization !== "function") {
       elizaLogger.warn(
         "[RuntimeFactory] MCP service does not have waitForInitialization method",
@@ -633,11 +669,11 @@ export class RuntimeFactory {
    * 
    * What: Logs connected servers and available tools
    */
-  private logMcpServiceStatus(mcpService: any): void {
+  private logMcpServiceStatus(mcpService: McpServiceInterface): void {
     // Log server connection status
     const servers = mcpService.getServers?.();
     if (servers) {
-      const serverStatus = servers.map((s: any) => ({
+      const serverStatus = servers.map((s) => ({
         name: s.name,
         status: s.status,
         toolCount: s.tools?.length || 0,

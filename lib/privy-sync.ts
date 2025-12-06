@@ -240,12 +240,6 @@ export async function syncUserFromPrivy(
           role: userWithOrg.role,
           isNewOrganization: false,
         })
-        .catch((error) => {
-          console.error(
-            "[PrivySync] Failed to log signup to Discord:",
-            error,
-          );
-        });
 
       return userWithOrg;
     }
@@ -341,14 +335,7 @@ export async function syncUserFromPrivy(
               `User with email ${email} already exists with different Privy ID: ${existingUser.privy_user_id}`,
             );
             // Clean up orphaned org and throw - this is a data integrity issue
-            try {
-              await organizationsService.delete(organization.id);
-            } catch (cleanupError) {
-              console.error(
-                "Failed to clean up orphaned organization:",
-                cleanupError,
-              );
-            }
+            await organizationsService.delete(organization.id);
             throw new Error(
               `Email ${email} is already registered with a different account`,
             );
@@ -359,14 +346,7 @@ export async function syncUserFromPrivy(
 
       if (existingUser) {
         // Clean up the orphaned organization we just created
-        try {
-          await organizationsService.delete(organization.id);
-        } catch (cleanupError) {
-          console.error(
-            "Failed to clean up orphaned organization:",
-            cleanupError,
-          );
-        }
+        await organizationsService.delete(organization.id);
         return existingUser;
       }
 
@@ -374,14 +354,7 @@ export async function syncUserFromPrivy(
       console.error(
         `Duplicate key error but user ${privyUserId} not found after ${maxRetries} retries - cleaning up and rethrowing`,
       );
-      try {
-        await organizationsService.delete(organization.id);
-      } catch (cleanupError) {
-        console.error(
-          "Failed to clean up orphaned organization:",
-          cleanupError,
-        );
-      }
+      await organizationsService.delete(organization.id);
     }
     // Not a duplicate key error or couldn't find the existing user - rethrow
     console.error(
@@ -406,8 +379,6 @@ export async function syncUserFromPrivy(
       userName: name || "there",
       organizationName: userWithOrg.organization?.name || "",
       creditBalance: Number(userWithOrg.organization?.credit_balance || 0),
-    }).catch((error) => {
-      console.error("[PrivySync] Failed to send welcome email:", error);
     });
   } else {
     console.warn("[PrivySync] No email available for welcome email", {
@@ -429,16 +400,9 @@ export async function syncUserFromPrivy(
       role: userWithOrg.role,
       isNewOrganization: true,
     })
-    .catch((error) => {
-      console.error("[PrivySync] Failed to log signup to Discord:", error);
-    });
 
   // Auto-generate default API key for new user (fire-and-forget)
-  ensureUserHasApiKey(userWithOrg.id, userWithOrg.organization?.id || "").catch(
-    (error) => {
-      console.error("[PrivySync] Failed to create default API key:", error);
-    },
-  );
+  void ensureUserHasApiKey(userWithOrg.id, userWithOrg.organization?.id || "");
 
   return userWithOrg;
 }
@@ -496,12 +460,8 @@ async function queueWelcomeEmail(data: {
   organizationName: string;
   creditBalance: number;
 }): Promise<void> {
-  try {
-    await emailService.sendWelcomeEmail({
-      ...data,
-      dashboardUrl: `${process.env.NEXT_PUBLIC_APP_URL}/dashboard`,
-    });
-  } catch (error) {
-    console.error("[PrivySync] Error sending welcome email:", error);
-  }
+  await emailService.sendWelcomeEmail({
+    ...data,
+    dashboardUrl: `${process.env.NEXT_PUBLIC_APP_URL}/dashboard`,
+  });
 }

@@ -24,6 +24,22 @@ interface Agent {
   };
 }
 
+/**
+ * A single message in a conversation example
+ */
+interface MessageExampleMessage {
+  name: string;
+  content: {
+    text: string;
+    action?: string;
+  };
+}
+
+/**
+ * A conversation example (array of messages)
+ */
+type MessageExampleConversation = MessageExampleMessage[];
+
 interface AgentDetails extends Agent {
   topics: string[];
   adjectives: string[];
@@ -32,13 +48,13 @@ interface AgentDetails extends Agent {
     chat?: string[];
     post?: string[];
   };
-  settings: Record<string, unknown>;
+  settings: Record<string, string | number | boolean | Record<string, string | number | boolean>>;
   knowledge: string[];
-  messageExamples: unknown[];
+  messageExamples: MessageExampleConversation[];
   postExamples: string[];
   plugins: string[];
   isTemplate: boolean;
-  characterData: Record<string, unknown>;
+  characterData: Record<string, string | number | boolean | string[] | Record<string, string | number | boolean>>;
 }
 
 interface Chat {
@@ -95,6 +111,20 @@ interface Billing {
   autoTopUpAmount: string | null;
   billingEmail: string | null;
   hasPaymentMethod: boolean;
+}
+
+export interface AppBilling {
+  appId: string;
+  appName: string;
+  monetizationEnabled: boolean;
+  creditBalance?: number;
+  totalPurchased?: number;
+  totalSpent?: number;
+  inferenceMarkupPercentage?: number;
+  useOrgBalance?: boolean;
+  createdBy?: {
+    organizationId: string;
+  };
 }
 
 interface UsageSummary {
@@ -228,7 +258,7 @@ export async function createAgent(data: {
     chat?: string[];
     post?: string[];
   };
-  settings?: Record<string, unknown>;
+  settings?: Record<string, string | number | boolean | Record<string, string | number | boolean>>;
   isPublic?: boolean;
 }): Promise<Agent> {
   const response = await fetchApi<{
@@ -255,13 +285,13 @@ export async function updateAgent(
       chat?: string[];
       post?: string[];
     };
-    settings: Record<string, unknown>;
+    settings: Record<string, string | number | boolean | Record<string, string | number | boolean>>;
     knowledge: string[];
-    messageExamples: unknown[];
+    messageExamples: MessageExampleConversation[];
     postExamples: string[];
     plugins: string[];
     isPublic: boolean;
-    characterData: Record<string, unknown>;
+    characterData: Record<string, string | number | boolean | string[] | Record<string, string | number | boolean>>;
   }>
 ): Promise<Agent> {
   const response = await fetchApi<{
@@ -418,8 +448,7 @@ export async function sendMessage(
 
       if (!eventData) continue;
 
-      try {
-        const data = JSON.parse(eventData);
+      const data = JSON.parse(eventData);
 
         // Handle ElizaOS stream format
         if (eventType === "connected") {
@@ -457,13 +486,9 @@ export async function sendMessage(
             // Agent response
             const responseText = data.content?.text || "";
             
-            // Debug: Log raw content to trace attachment parsing
-            console.log("[cloud-api] Agent response content:", JSON.stringify(data.content, null, 2));
-            
             // Extract attachments (images) from the response
             const attachments: MessageAttachment[] = [];
             if (data.content?.attachments && Array.isArray(data.content.attachments)) {
-              console.log("[cloud-api] Found attachments:", data.content.attachments.length);
               for (const att of data.content.attachments) {
                 if (att.url && typeof att.url === "string") {
                   attachments.push({
@@ -474,8 +499,6 @@ export async function sendMessage(
                   });
                 }
               }
-            } else {
-              console.log("[cloud-api] No attachments found in response");
             }
 
             const agentMsg: Message = {
@@ -485,9 +508,6 @@ export async function sendMessage(
               createdAt: new Date(data.createdAt || Date.now()).toISOString(),
               attachments: attachments.length > 0 ? attachments : undefined,
             };
-            
-            console.log("[cloud-api] Parsed agent message:", {
-              hasAttachments: !!agentMsg.attachments,
               attachmentCount: agentMsg.attachments?.length || 0,
               contentPreview: agentMsg.content.substring(0, 50),
             });
@@ -499,9 +519,6 @@ export async function sendMessage(
         } else if (eventType === "done") {
           // Stream complete
         }
-      } catch {
-        // Ignore parse errors for incomplete chunks
-      }
     }
   }
 }
@@ -514,18 +531,21 @@ export async function getBilling(): Promise<{
   billing: Billing;
   usage: { currentMonth: UsageSummary };
   recentTransactions: Transaction[];
+  appBilling?: AppBilling;
 }> {
   const response = await fetchApi<{
     success: boolean;
     billing: Billing;
     usage: { currentMonth: UsageSummary };
     recentTransactions: Transaction[];
+    appBilling?: AppBilling;
   }>("/billing");
 
   return {
     billing: response.billing,
     usage: response.usage,
     recentTransactions: response.recentTransactions,
+    appBilling: response.appBilling,
   };
 }
 
@@ -564,6 +584,99 @@ export async function createCheckoutSession(params: {
   });
 
   return { sessionId: response.sessionId, url: response.url };
+}
+
+// ============================================
+// Referrals & Rewards
+// ============================================
+
+interface ReferralInfo {
+  code: string;
+  shareUrl: string;
+  stats: {
+    totalReferrals: number;
+    totalEarnings: number;
+    signupEarnings: number;
+    qualifiedEarnings: number;
+    commissionEarnings: number;
+  };
+  rewards: {
+    signupBonus: number;
+    referredBonus: number;
+    qualifiedBonus: number;
+    commissionRate: number;
+  };
+}
+
+interface ShareStatus {
+  x: { claimed: boolean; amount: number };
+  farcaster: { claimed: boolean; amount: number };
+  telegram: { claimed: boolean; amount: number };
+  discord: { claimed: boolean; amount: number };
+}
+
+interface RewardsStatus {
+  sharing: {
+    status: ShareStatus;
+    totalEarnings: number;
+    availableToday: number;
+  };
+  referrals: {
+    code: string | null;
+    totalReferrals: number;
+    totalEarnings: number;
+    signupEarnings: number;
+    qualifiedEarnings: number;
+    commissionEarnings: number;
+  };
+  rewardRates: {
+    shareX: number;
+    shareFarcaster: number;
+    shareTelegram: number;
+    shareDiscord: number;
+    signupBonus: number;
+    referredBonus: number;
+    qualifiedBonus: number;
+    commissionRate: number;
+  };
+}
+
+export async function getReferralInfo(): Promise<ReferralInfo> {
+  const response = await fetchApi<{ success: boolean; referral: ReferralInfo }>("/referral");
+  return response.referral;
+}
+
+export async function applyReferralCode(code: string): Promise<{ success: boolean; message: string; bonusAmount?: number }> {
+  return fetchApi<{ success: boolean; message: string; bonusAmount?: number }>("/referral/apply", {
+    method: "POST",
+    body: JSON.stringify({ code }),
+  });
+}
+
+export async function getRewardsStatus(): Promise<RewardsStatus> {
+  const response = await fetchApi<{ success: boolean; rewards: RewardsStatus }>("/rewards");
+  return response.rewards;
+}
+
+export async function claimShareReward(
+  platform: "x" | "farcaster" | "telegram" | "discord",
+  shareType: "app_share" | "character_share" | "invite_share",
+  shareUrl?: string
+): Promise<{ success: boolean; message: string; amount?: number; alreadyAwarded?: boolean }> {
+  return fetchApi<{ success: boolean; message: string; amount?: number; alreadyAwarded?: boolean }>("/rewards/share", {
+    method: "POST",
+    body: JSON.stringify({ platform, shareType, shareUrl }),
+  });
+}
+
+/**
+ * Qualify a referral by notifying that the user has linked a social account.
+ * Awards the referrer their qualified bonus if this user was referred.
+ */
+export async function qualifyReferral(): Promise<{ success: boolean; qualified: boolean; bonusAwarded?: number }> {
+  return fetchApi<{ success: boolean; qualified: boolean; bonusAwarded?: number }>("/referral/qualify", {
+    method: "POST",
+  });
 }
 
 // ============================================

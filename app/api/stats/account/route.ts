@@ -3,6 +3,12 @@ import { requireAuthWithOrg } from "@/lib/auth";
 import { generationsService, usageService } from "@/lib/services";
 import { withRateLimit, RateLimitPresets } from "@/lib/middleware/rate-limit";
 
+/**
+ * GET /api/stats/account
+ * Gets account statistics including generations and API call metrics.
+ *
+ * @returns Statistics for generations (all-time) and API calls (24h).
+ */
 async function handleGET() {
   try {
     const user = await requireAuthWithOrg();

@@ -6,6 +6,13 @@ import type { CategoryId, SortBy, SortOrder } from "@/lib/types/marketplace";
 
 export const dynamic = "force-dynamic";
 
+/**
+ * GET /api/marketplace/characters
+ * Searches and filters marketplace characters with pagination and sorting.
+ *
+ * @param request - Request with query parameters for search, filters, sorting, and pagination.
+ * @returns Paginated character results with optional statistics.
+ */
 export async function GET(request: NextRequest) {
   try {
     const user = await requireAuthWithOrg();
@@ -63,6 +70,7 @@ export async function GET(request: NextRequest) {
         myCharacters,
         public: publicChars,
         featured,
+        source: "cloud", // Only show cloud-created agents in marketplace
       },
       sortOptions: {
         sortBy,

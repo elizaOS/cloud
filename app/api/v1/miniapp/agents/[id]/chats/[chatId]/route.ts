@@ -42,6 +42,11 @@ async function verifyAccess(
     return { allowed: false, error: "Agent not found", status: 404 };
   }
   
+  // Verify this is a miniapp agent - miniapp API can only access miniapp-created agents
+  if (character.source !== "miniapp") {
+    return { allowed: false, error: "Agent not found", status: 404 };
+  }
+  
   if (character.user_id !== userId && character.organization_id !== organizationId && !character.is_public) {
     return { allowed: false, error: "Access denied", status: 403 };
   }

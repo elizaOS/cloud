@@ -5,6 +5,14 @@ import { logger } from "@/lib/utils/logger";
 
 export const dynamic = "force-dynamic";
 
+/**
+ * POST /api/my-agents/characters/[id]/track-interaction
+ * Tracks an interaction event for a user's character.
+ *
+ * @param request - The Next.js request object.
+ * @param params - Route parameters containing the character ID.
+ * @returns Updated interaction count.
+ */
 export async function POST(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> },

@@ -1,6 +1,7 @@
 "use client";
 
 import { ThemeProvider } from "@/components/theme-provider";
+import { DevProvider } from "@/lib/dev/dev-provider";
 
 /**
  * Providers for the miniapp
@@ -10,5 +11,10 @@ import { ThemeProvider } from "@/components/theme-provider";
  * This avoids needing to register miniapp domains with Privy.
  */
 export function Providers({ children }: { children: React.ReactNode }) {
-  return <ThemeProvider>{children}</ThemeProvider>;
+  return (
+    <ThemeProvider>
+      {/* DevProvider initializes why-did-you-render and render tracking in development */}
+      <DevProvider>{children}</DevProvider>
+    </ThemeProvider>
+  );
 }

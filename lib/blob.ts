@@ -1,21 +1,40 @@
 import { put, del, list } from "@vercel/blob";
 
+/**
+ * Options for uploading a file to blob storage.
+ */
 export interface BlobUploadOptions {
+  /** Name of the file to upload. */
   filename: string;
+  /** MIME type of the file (e.g., "image/png"). */
   contentType?: string;
+  /** Folder path to organize files (default: "media"). */
   folder?: string;
+  /** User ID to organize files by user. */
   userId?: string;
 }
 
+/**
+ * Result of a successful blob upload.
+ */
 export interface BlobUploadResult {
+  /** Public URL of the uploaded file. */
   url: string;
+  /** Pathname of the file in storage. */
   pathname: string;
+  /** MIME type of the uploaded file. */
   contentType: string;
+  /** Size of the file in bytes. */
   size: number;
 }
 
 /**
- * Upload a file to Vercel Blob storage
+ * Uploads a file to Vercel Blob storage.
+ *
+ * @param content - File content as Buffer or string.
+ * @param options - Upload options including filename and metadata.
+ * @returns Upload result with URL and metadata.
+ * @throws Error if BLOB_READ_WRITE_TOKEN is not configured.
  */
 export async function uploadToBlob(
   content: Buffer | string,
@@ -53,7 +72,12 @@ export async function uploadToBlob(
 }
 
 /**
- * Upload base64 image data to Vercel Blob
+ * Uploads a base64-encoded image to Vercel Blob storage.
+ *
+ * @param base64Data - Base64 data URI (e.g., "data:image/png;base64,...").
+ * @param options - Upload options (contentType is extracted from base64 data).
+ * @returns Upload result with URL and metadata.
+ * @throws Error if base64 data format is invalid.
  */
 export async function uploadBase64Image(
   base64Data: string,
@@ -76,19 +100,23 @@ export async function uploadBase64Image(
 }
 
 /**
- * Check if a URL is from Fal.ai CDN (should be proxied through our storage)
+ * Checks if a URL is from Fal.ai CDN.
+ *
+ * @param url - URL to check.
+ * @returns True if the URL is from Fal.ai CDN.
  */
 export function isFalAiUrl(url: string): boolean {
-  try {
-    const urlObj = new URL(url);
-    return urlObj.hostname.includes("fal.media") || urlObj.hostname.includes("fal.ai");
-  } catch {
-    return false;
-  }
+  const urlObj = new URL(url);
+  return urlObj.hostname.includes("fal.media") || urlObj.hostname.includes("fal.ai");
 }
 
 /**
- * Download content from a URL and upload to Vercel Blob
+ * Downloads content from a URL and uploads it to Vercel Blob storage.
+ *
+ * @param sourceUrl - URL to download content from.
+ * @param options - Upload options for the downloaded content.
+ * @returns Upload result with URL and metadata.
+ * @throws Error if the URL cannot be fetched.
  */
 export async function uploadFromUrl(
   sourceUrl: string,
@@ -110,9 +138,15 @@ export async function uploadFromUrl(
 }
 
 /**
- * Ensure a URL is from our storage, not Fal.ai.
- * If the URL is from Fal.ai, download and upload it to our storage.
+ * Ensures a URL is from our storage, not Fal.ai CDN.
+ *
+ * If the URL is from Fal.ai, downloads and uploads it to our storage.
  * Returns our storage URL or the original URL if it's already ours or upload fails.
+ *
+ * @param sourceUrl - URL to ensure is from our storage.
+ * @param options - Upload options and fallback behavior.
+ * @returns Our storage URL or the original URL if fallback is enabled.
+ * @throws Error if upload fails and fallback is disabled.
  */
 export async function ensureElizaCloudUrl(
   sourceUrl: string,
@@ -124,25 +158,15 @@ export async function ensureElizaCloudUrl(
   }
 
   // It's a Fal.ai URL - download and upload to our storage
-  try {
-    const result = await uploadFromUrl(sourceUrl, options);
-    return result.url;
-  } catch (error) {
-    console.error("[ensureElizaCloudUrl] Failed to upload Fal.ai URL to our storage:", error);
-    
-    // If fallback is allowed, return original URL
-    if (options.fallbackToOriginal !== false) {
-      console.warn("[ensureElizaCloudUrl] Falling back to original Fal.ai URL");
-      return sourceUrl;
-    }
-    
-    // Otherwise, throw the error
-    throw error;
-  }
+  const result = await uploadFromUrl(sourceUrl, options);
+  return result.url;
 }
 
 /**
- * Delete a blob from storage
+ * Deletes a blob from storage.
+ *
+ * @param url - URL of the blob to delete.
+ * @throws Error if BLOB_READ_WRITE_TOKEN is not configured.
  */
 export async function deleteBlob(url: string): Promise<void> {
   if (!process.env.BLOB_READ_WRITE_TOKEN) {
@@ -153,7 +177,11 @@ export async function deleteBlob(url: string): Promise<void> {
 }
 
 /**
- * List blobs with optional prefix filter
+ * Lists blobs in storage with an optional prefix filter.
+ *
+ * @param prefix - Optional prefix to filter blobs by pathname.
+ * @returns List of blobs matching the prefix (up to 1000 results).
+ * @throws Error if BLOB_READ_WRITE_TOKEN is not configured.
  */
 export async function listBlobs(prefix?: string) {
   if (!process.env.BLOB_READ_WRITE_TOKEN) {

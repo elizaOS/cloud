@@ -1,11 +1,22 @@
 /**
- * Reusable Chat Input Component
- * HUD-styled input matching landing page design
+ * Chat input component with HUD-styled design matching the landing page.
+ * Supports text input, voice recording, and loading states with animated scanner effect.
+ *
+ * @param props - Chat input configuration
+ * @param props.value - Current input value
+ * @param props.onChange - Callback when input value changes
+ * @param props.onSubmit - Callback when form is submitted (Enter key or send button)
+ * @param props.onVoiceInput - Optional callback for voice input button
+ * @param props.isLoading - Whether a request is in progress (shows loading animation)
+ * @param props.isRecording - Whether voice recording is active
+ * @param props.disabled - Whether input is disabled
+ * @param props.placeholder - Placeholder text for the input
+ * @param props.className - Additional CSS classes
  */
 
 "use client";
 
-import { FormEvent } from "react";
+import { SyntheticEvent } from "react";
 import { Mic, Send, Square, Loader2 } from "lucide-react";
 import { HUDContainer, BrandButton } from "@/components/brand";
 import { cn } from "@/lib/utils";
@@ -13,7 +24,7 @@ import { cn } from "@/lib/utils";
 interface ChatInputProps {
   value: string;
   onChange: (value: string) => void;
-  onSubmit: (e: FormEvent) => void;
+  onSubmit: (e: SyntheticEvent) => void;
   onVoiceInput?: () => void;
   isLoading?: boolean;
   isRecording?: boolean;
@@ -36,7 +47,7 @@ export function ChatInput({
   const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
     if (e.key === "Enter" && !e.shiftKey) {
       e.preventDefault();
-      onSubmit(e as any);
+      onSubmit(e);
     }
   };
 

@@ -13,7 +13,10 @@ const setDefaultPaymentMethodSchema = z.object({
 
 /**
  * POST /api/payment-methods/set-default
- * Set a payment method as the default for the organization
+ * Sets a payment method as the default for the organization.
+ *
+ * @param req - Request body containing paymentMethodId.
+ * @returns Success status.
  */
 async function handleSetDefaultPaymentMethod(req: NextRequest) {
   try {

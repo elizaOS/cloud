@@ -3,6 +3,15 @@ import { requireAuthWithOrg } from "@/lib/auth";
 import { invitesService } from "@/lib/services";
 import { withRateLimit, RateLimitPresets } from "@/lib/middleware/rate-limit";
 
+/**
+ * DELETE /api/organizations/invites/[inviteId]
+ * Revokes an organization invitation.
+ * Requires owner or admin role.
+ *
+ * @param request - The Next.js request object.
+ * @param context - Route context containing the invite ID parameter.
+ * @returns Success status.
+ */
 async function handleDELETE(
   request: NextRequest,
   context?: { params: Promise<{ inviteId: string }> },

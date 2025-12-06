@@ -9,6 +9,12 @@ import {
 import type { InferSelectModel, InferInsertModel } from "drizzle-orm";
 import { organizations } from "./organizations";
 
+/**
+ * Users table schema.
+ * 
+ * Stores user accounts with support for both authenticated (Privy) and anonymous users.
+ * Anonymous users are tracked via session cookies and have limited functionality.
+ */
 export const users = pgTable(
   "users",
   {

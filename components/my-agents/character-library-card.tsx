@@ -1,3 +1,12 @@
+/**
+ * Character library card component displaying character information and actions.
+ * Supports grid and list view modes with test, edit, duplicate, download, and delete actions.
+ *
+ * @param props - Character card configuration
+ * @param props.character - Character data to display
+ * @param props.viewMode - Display mode: "grid" or "list"
+ */
+
 "use client";
 
 import { useState, useCallback } from "react";

@@ -274,12 +274,7 @@ export class PurchasesService {
             amount,
             paymentIntent.id,
             paymentMethodId,
-          ).catch((error) => {
-            console.error(
-              `[PurchasesService] Failed to send purchase confirmation email:`,
-              error,
-            );
-          });
+          );
         } catch (error) {
           // Log error but don't fail the purchase - webhook will add credits as backup
           console.error(

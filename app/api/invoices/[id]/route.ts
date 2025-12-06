@@ -3,6 +3,15 @@ import { requireAuthWithOrg } from "@/lib/auth";
 import { invoicesService } from "@/lib/services";
 import { withRateLimit, RateLimitPresets } from "@/lib/middleware/rate-limit";
 
+/**
+ * GET /api/invoices/[id]
+ * Gets a specific invoice by ID.
+ * Verifies the invoice belongs to the user's organization.
+ *
+ * @param req - The Next.js request object.
+ * @param context - Route context containing the invoice ID parameter.
+ * @returns Formatted invoice details or error if not found/unauthorized.
+ */
 async function handleGetInvoice(
   req: NextRequest,
   context: { params: Promise<{ id: string }> },

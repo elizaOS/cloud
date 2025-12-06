@@ -21,6 +21,8 @@ import type { NextRequest } from "next/server";
 import { roomsRepository } from "@/db/repositories";
 import { db } from "@/db/client";
 import { sql } from "drizzle-orm";
+import type { UserWithOrganization, ApiKey } from "@/lib/types";
+import type { AnonymousSession } from "@/db/schemas";
 
 export const maxDuration = 60;
 
@@ -31,10 +33,10 @@ export async function POST(
 ) {
   try {
     // Support both authenticated and anonymous users
-    let user: any;
-    let apiKey: any = undefined;
+    let user: UserWithOrganization;
+    let apiKey: ApiKey | undefined = undefined;
     let isAnonymous = false;
-    let anonymousSession: any = null;
+    let anonymousSession: AnonymousSession | null = null;
 
     try {
       const authResult = await requireAuthOrApiKey(request);
@@ -239,11 +241,12 @@ export async function POST(
     (async () => {
       try {
         // Get Discord thread ID from room metadata
-        const roomData = await db.execute<{ metadata: any }>(
+        const roomData = await db.execute<{ metadata: Record<string, unknown> | null }>(
           sql`SELECT metadata FROM rooms WHERE id = ${roomId}::uuid LIMIT 1`,
         );
 
-        const threadId = roomData.rows[0]?.metadata?.discordThreadId;
+        const metadata = roomData.rows[0]?.metadata;
+        const threadId = metadata && typeof metadata === 'object' ? (metadata as Record<string, unknown>).discordThreadId as string | undefined : undefined;
 
         if (threadId) {
           // Send user message

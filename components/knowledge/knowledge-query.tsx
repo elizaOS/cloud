@@ -9,12 +9,7 @@ import { Loader2, Search, FileText } from "lucide-react";
 import { Slider } from "@/components/ui/slider";
 import { Label } from "@/components/ui/label";
 
-interface QueryResult {
-  id: string;
-  content: string;
-  similarity: number;
-  metadata?: Record<string, unknown>;
-}
+import type { QueryResult } from "@/lib/types/knowledge";
 
 interface KnowledgeQueryProps {
   characterId: string | null;

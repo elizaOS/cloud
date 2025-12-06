@@ -1,3 +1,20 @@
+/**
+ * Character grid component displaying characters in grid or list view.
+ * Supports infinite scrolling with intersection observer and loading states.
+ *
+ * @param props - Character grid configuration
+ * @param props.characters - Array of characters to display
+ * @param props.view - Display mode: "grid" or "list"
+ * @param props.isLoading - Whether initial data is loading
+ * @param props.isLoadingMore - Whether more data is being loaded
+ * @param props.hasMore - Whether more characters are available
+ * @param props.error - Error message if loading failed
+ * @param props.onLoadMore - Callback to load more characters
+ * @param props.onStartChat - Callback when chat button is clicked
+ * @param props.onCloneCharacter - Callback when clone button is clicked
+ * @param props.onViewDetails - Callback when details button is clicked
+ */
+
 "use client";
 
 import { useEffect, useRef } from "react";

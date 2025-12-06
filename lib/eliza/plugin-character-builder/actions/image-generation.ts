@@ -3,6 +3,7 @@ import {
   type ActionExample,
   composePromptFromState,
   type HandlerCallback,
+  type HandlerOptions,
   type IAgentRuntime,
   type Memory,
   ModelType,
@@ -49,7 +50,7 @@ export const generateImageAction = {
     runtime: IAgentRuntime,
     message: Memory,
     state: State,
-    _options: any,
+    _options: HandlerOptions | undefined,
     callback: HandlerCallback,
     responses?: Memory[],
   ): Promise<ActionResult> => {
@@ -118,20 +119,16 @@ export const generateImageAction = {
 
       // Determine file extension from URL or default to png
       const getFileExtension = (url: string): string => {
-        try {
-          const urlPath = new URL(url).pathname;
-          const extension = urlPath.split(".").pop()?.toLowerCase();
-          // Common image extensions
-          if (
-            extension &&
-            ["png", "jpg", "jpeg", "gif", "webp", "bmp"].includes(extension)
-          ) {
-            return extension;
-          }
-          // Extension not in allowed list, fall through to default
-        } catch (e) {
-          // URL parsing failed (malformed URL), fall back to png
+        const urlPath = new URL(url).pathname;
+        const extension = urlPath.split(".").pop()?.toLowerCase();
+        // Common image extensions
+        if (
+          extension &&
+          ["png", "jpg", "jpeg", "gif", "webp", "bmp"].includes(extension)
+        ) {
+          return extension;
         }
+        // Extension not in allowed list, fall through to default
         return "png"; // Default fallback for invalid/unknown extensions
       };
 

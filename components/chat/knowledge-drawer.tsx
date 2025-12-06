@@ -16,20 +16,7 @@ import { DocumentUpload } from "@/components/knowledge/document-upload";
 import { DocumentList } from "@/components/knowledge/document-list";
 import { KnowledgeQuery } from "@/components/knowledge/knowledge-query";
 
-interface KnowledgeDocument {
-  id: string;
-  content: {
-    text: string;
-  };
-  createdAt: number;
-  metadata?: {
-    fileName?: string;
-    fileSize?: number;
-    uploadedBy?: string;
-    uploadedAt?: number;
-    originalFilename?: string;
-  };
-}
+import type { KnowledgeDocument } from "@/lib/types/knowledge";
 
 interface KnowledgeDrawerProps {
   characterId?: string | null;

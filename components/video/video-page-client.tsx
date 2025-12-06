@@ -1,3 +1,9 @@
+/**
+ * Video generation page client component.
+ * Handles video generation form, preview, usage tracking, and credit management.
+ * Supports multiple video models and displays generation history.
+ */
+
 "use client";
 
 import React, { useCallback, useEffect, useMemo, useState } from "react";

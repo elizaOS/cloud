@@ -11,11 +11,12 @@
 import { NextRequest, NextResponse } from "next/server";
 import { appsService, apiKeysService } from "@/lib/services";
 import { logger } from "@/lib/utils/logger";
+import type { App, ApiKey } from "@/lib/types";
 
 export interface AppAuthContext {
   appId: string;
-  app: any;
-  apiKey: any;
+  app: App;
+  apiKey: ApiKey;
   origin: string;
 }
 
@@ -176,9 +177,7 @@ export async function requireAppAuth(
   await apiKeysService.incrementUsage(authResult.apiKey.id);
 
   // Track app usage (async, don't wait)
-  appsService.incrementUsage(authResult.appId, "0.00").catch((error) => {
-    logger.error("Failed to track app usage:", error);
-  });
+  void appsService.incrementUsage(authResult.appId, "0.00");
 
   // Call the handler with validated context
   return handler(authResult);

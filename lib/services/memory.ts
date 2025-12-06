@@ -81,60 +81,44 @@ export class MemoryService {
     organizationId: string,
     roomId: string,
   ): Promise<boolean> {
-    try {
-      const result = await db
-        .select({ exists: participantTable.roomId })
-        .from(participantTable)
-        .innerJoin(users, eq(participantTable.entityId, users.id))
-        .where(
-          and(
-            eq(participantTable.roomId, roomId),
-            eq(users.organization_id, organizationId),
-          ),
-        )
-        .limit(1);
+    const result = await db
+      .select({ exists: participantTable.roomId })
+      .from(participantTable)
+      .innerJoin(users, eq(participantTable.entityId, users.id))
+      .where(
+        and(
+          eq(participantTable.roomId, roomId),
+          eq(users.organization_id, organizationId),
+        ),
+      )
+      .limit(1);
 
-      return result.length > 0;
-    } catch (error) {
-      logger.error(
-        `[Memory Service] Failed to check room ownership for org ${organizationId}, room ${roomId}:`,
-        error,
-      );
-      return false;
-    }
+    return result.length > 0;
   }
 
   private async getRoomIdsForOrganization(
     organizationId: string,
   ): Promise<Set<string>> {
-    try {
-      logger.info(
-        `[Memory Service] getRoomIdsForOrganization called for org: ${organizationId}`,
-      );
+    logger.info(
+      `[Memory Service] getRoomIdsForOrganization called for org: ${organizationId}`,
+    );
 
-      const results = await db
-        .selectDistinct({ roomId: participantTable.roomId })
-        .from(participantTable)
-        .innerJoin(users, eq(participantTable.entityId, users.id))
-        .where(eq(users.organization_id, organizationId));
+    const results = await db
+      .selectDistinct({ roomId: participantTable.roomId })
+      .from(participantTable)
+      .innerJoin(users, eq(participantTable.entityId, users.id))
+      .where(eq(users.organization_id, organizationId));
 
-      logger.info(
-        `[Memory Service] Query returned ${results.length} results:`,
-        JSON.stringify(results, null, 2),
-      );
+    logger.info(
+      `[Memory Service] Query returned ${results.length} results:`,
+      JSON.stringify(results, null, 2),
+    );
 
-      const roomIds = new Set(results.map((r) => r.roomId));
-      logger.info(
-        `[Memory Service] Found ${roomIds.size} rooms for organization ${organizationId}: ${Array.from(roomIds).join(", ")}`,
-      );
-      return roomIds;
-    } catch (error) {
-      logger.error(
-        `[Memory Service] Failed to get room IDs for organization ${organizationId}:`,
-        error,
-      );
-      return new Set();
-    }
+    const roomIds = new Set(results.map((r) => r.roomId));
+    logger.info(
+      `[Memory Service] Found ${roomIds.size} rooms for organization ${organizationId}: ${Array.from(roomIds).join(", ")}`,
+    );
+    return roomIds;
   }
 
   async saveMemory(input: SaveMemoryInput): Promise<SaveMemoryResult> {

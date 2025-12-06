@@ -29,6 +29,13 @@ type ReasoningContextValue = {
 
 const ReasoningContext = createContext<ReasoningContextValue | null>(null);
 
+/**
+ * Hook to access reasoning context.
+ * Must be used within a Reasoning component.
+ *
+ * @returns Reasoning context value
+ * @throws Error if used outside Reasoning component
+ */
 const useReasoning = () => {
   const context = useContext(ReasoningContext);
   if (!context) {
@@ -37,6 +44,17 @@ const useReasoning = () => {
   return context;
 };
 
+/**
+ * Collapsible reasoning display component showing AI thinking process.
+ * Auto-closes after streaming completes and displays duration.
+ *
+ * @param props - Reasoning component props
+ * @param props.isStreaming - Whether reasoning is currently streaming
+ * @param props.open - Controlled open state
+ * @param props.defaultOpen - Default open state (uncontrolled)
+ * @param props.onOpenChange - Callback when open state changes
+ * @param props.duration - Reasoning duration in milliseconds
+ */
 export type ReasoningProps = ComponentProps<typeof Collapsible> & {
   isStreaming?: boolean;
   open?: boolean;

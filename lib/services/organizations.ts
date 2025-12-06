@@ -1,3 +1,7 @@
+/**
+ * Organizations service for managing organization data and credit balances.
+ */
+
 import {
   organizationsRepository,
   type Organization,
@@ -6,6 +10,9 @@ import {
 import { cache } from "@/lib/cache/client";
 import { CacheKeys, CacheTTL } from "@/lib/cache/keys";
 
+/**
+ * Service for organization operations with caching support.
+ */
 export class OrganizationsService {
   async getById(id: string): Promise<Organization | undefined> {
     // Try cache first for org balance queries (used heavily in Eliza chat)

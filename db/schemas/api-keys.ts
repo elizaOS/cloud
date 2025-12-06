@@ -13,6 +13,12 @@ import type { InferSelectModel, InferInsertModel } from "drizzle-orm";
 import { organizations } from "./organizations";
 import { users } from "./users";
 
+/**
+ * API keys table schema.
+ * 
+ * Stores API keys for programmatic access. Keys are hashed for security
+ * and can have expiration dates and usage limits.
+ */
 export const apiKeys = pgTable(
   "api_keys",
   {

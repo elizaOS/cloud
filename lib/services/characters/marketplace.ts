@@ -330,6 +330,7 @@ export class CharacterMarketplaceService {
       view_count: 0,
       interaction_count: 0,
       popularity_score: 0,
+      source: "cloud", // Cloned from cloud dashboard
     };
 
     const clonedCharacter = await userCharactersRepository.create(clonedData);

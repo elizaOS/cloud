@@ -49,19 +49,10 @@ import {
   SectionLabel,
 } from "@/components/brand";
 
-interface Voice {
-  id: string;
-  elevenlabsVoiceId: string;
-  name: string;
-  description: string | null;
-  cloneType: "instant" | "professional";
-  sampleCount: number;
-  usageCount: number;
-  isActive: boolean;
-  createdAt: Date | string;
-  lastUsedAt?: Date | string | null;
-  audioQualityScore?: string | null;
-  totalAudioDurationSeconds?: number | null;
+import type { Voice as BaseVoice } from "./types";
+
+// Extended Voice type with additional fields for studio
+interface Voice extends BaseVoice {
   status?: "processing" | "completed" | "failed";
   jobId?: string;
 }

@@ -51,15 +51,11 @@ function isValidBase64Image(base64String: string): { valid: boolean; mimeType?: 
     return { valid: true, mimeType };
   }
 
-  try {
-    const buffer = Buffer.from(base64String, 'base64');
-    if (buffer.length === 0) {
-      return { valid: false, error: "Invalid base64 encoding" };
-    }
-    return { valid: true, mimeType: "image/jpeg" };
-  } catch {
+  const buffer = Buffer.from(base64String, 'base64');
+  if (buffer.length === 0) {
     return { valid: false, error: "Invalid base64 encoding" };
   }
+  return { valid: true, mimeType: "image/jpeg" };
 }
 
 function base64ToDataUrl(base64String: string): { base64DataUrl: string; mimeType: string } {

@@ -1,17 +1,19 @@
 /**
- * useDedupedFetch - Deduplicated Data Fetching Hook
+ * Deduplicated data fetching hook that prevents duplicate API calls.
  * 
- * This hook prevents duplicate API calls by:
- * 1. Deduplicating concurrent requests to the same endpoint
- * 2. Caching responses for a configurable TTL
- * 3. Providing stale-while-revalidate behavior
- * 4. Tracking in-flight requests to prevent race conditions
+ * Features:
+ * - Deduplicates concurrent requests to the same endpoint
+ * - Caches responses with configurable TTL
+ * - Stale-while-revalidate behavior
+ * - Tracks in-flight requests to prevent race conditions
  * 
- * Usage:
- *   const { data, error, isLoading, refetch } = useDedupedFetch<MyType>(
- *     '/api/my-endpoint',
- *     { revalidateOnFocus: true, dedupingInterval: 2000 }
- *   );
+ * @example
+ * ```ts
+ * const { data, error, isLoading, refetch } = useDedupedFetch<MyType>(
+ *   '/api/my-endpoint',
+ *   { revalidateOnFocus: true, dedupingInterval: 2000 }
+ * );
+ * ```
  */
 
 import { useState, useEffect, useRef, useCallback, useMemo } from "react";
@@ -25,36 +27,48 @@ const DEFAULT_DEDUPING_INTERVAL = 2000; // 2 seconds
 const DEFAULT_CACHE_TTL = 30000; // 30 seconds
 const DEFAULT_STALE_TTL = 60000; // 60 seconds (serve stale while revalidating)
 
+/**
+ * Configuration options for useDedupedFetch.
+ */
 interface UseDedupedFetchOptions {
-  /** How long to dedupe identical requests (ms) */
+  /** Deduplication window duration in milliseconds. */
   dedupingInterval?: number;
-  /** How long to cache fresh data (ms) */
+  /** Cache TTL for fresh data in milliseconds. */
   cacheTTL?: number;
-  /** How long stale data can be served while revalidating (ms) */
+  /** Maximum age for stale data while revalidating in milliseconds. */
   staleTTL?: number;
-  /** Revalidate when window regains focus */
+  /** Whether to revalidate when window regains focus. */
   revalidateOnFocus?: boolean;
-  /** Revalidate when network reconnects */
+  /** Whether to revalidate when network reconnects. */
   revalidateOnReconnect?: boolean;
-  /** Skip the initial fetch (for conditional fetching) */
+  /** Skip the initial fetch for conditional fetching. */
   skip?: boolean;
-  /** Fetch options (headers, method, body, etc.) */
+  /** Fetch API options (headers, method, body, etc.). */
   fetchOptions?: RequestInit;
-  /** Transform the response before caching */
+  /** Transform function applied to response data before caching. */
   transform?: <T>(data: T) => T;
 }
 
+/**
+ * Return value from useDedupedFetch hook.
+ */
 interface UseDedupedFetchResult<T> {
+  /** Cached or fetched data. */
   data: T | null;
+  /** Error if fetch failed. */
   error: Error | null;
+  /** Whether initial fetch is in progress. */
   isLoading: boolean;
+  /** Whether background revalidation is in progress. */
   isValidating: boolean;
+  /** Force a revalidation of the data. */
   refetch: () => Promise<void>;
+  /** Optimistically update the cached data. */
   mutate: (data: T | ((prev: T | null) => T)) => void;
 }
 
 /**
- * Generate a cache key for a request
+ * Generates a cache key for a request based on URL and options.
  */
 function getCacheKey(url: string, options?: RequestInit): string {
   const method = options?.method || "GET";
@@ -63,7 +77,11 @@ function getCacheKey(url: string, options?: RequestInit): string {
 }
 
 /**
- * Deduplicated fetch hook
+ * Deduplicated fetch hook with caching and request deduplication.
+ * 
+ * @param url - The URL to fetch, or null to skip fetching.
+ * @param options - Configuration options for caching and revalidation.
+ * @returns Hook result with data, loading state, and control functions.
  */
 export function useDedupedFetch<T>(
   url: string | null,
@@ -135,23 +153,15 @@ export function useDedupedFetch<T>(
       const inFlight = inFlightRequests.get(cacheKey);
       if (inFlight && !forceRevalidate) {
         console.debug(`[useDedupedFetch] Joining in-flight request to ${url}`);
-        try {
-          const response = await inFlight;
-          const responseData = await response.clone().json();
-          const transformedData = transform ? transform(responseData) : responseData;
-          
-          if (mountedRef.current) {
-            setData(transformedData as T);
-            setIsLoading(false);
-            setIsValidating(false);
-            setError(null);
-          }
-        } catch (err) {
-          if (mountedRef.current) {
-            setError(err instanceof Error ? err : new Error(String(err)));
-            setIsLoading(false);
-            setIsValidating(false);
-          }
+        const response = await inFlight;
+        const responseData = await response.clone().json();
+        const transformedData = transform ? transform(responseData) : responseData;
+        
+        if (mountedRef.current) {
+          setData(transformedData as T);
+          setIsLoading(false);
+          setIsValidating(false);
+          setError(null);
         }
         return;
       }
@@ -173,54 +183,40 @@ export function useDedupedFetch<T>(
       }
       setIsValidating(true);
 
-      try {
-        // Create the fetch promise and store it for deduplication
-        const fetchPromise = fetch(url, {
-          ...fetchOptions,
-          signal: abortController.signal,
-        });
-        
-        inFlightRequests.set(cacheKey, fetchPromise);
+      // Create the fetch promise and store it for deduplication
+      const fetchPromise = fetch(url, {
+        ...fetchOptions,
+        signal: abortController.signal,
+      });
+      
+      inFlightRequests.set(cacheKey, fetchPromise);
 
-        const response = await fetchPromise;
-        
-        // Remove from in-flight after response received
-        inFlightRequests.delete(cacheKey);
+      const response = await fetchPromise;
+      
+      // Remove from in-flight after response received
+      inFlightRequests.delete(cacheKey);
 
-        if (!response.ok) {
-          throw new Error(`HTTP ${response.status}: ${response.statusText}`);
-        }
-
-        const responseData = await response.json();
-        const transformedData = transform ? transform(responseData) : responseData;
-
-        // Update cache
-        requestCache.set(cacheKey, {
-          data: transformedData,
-          timestamp: now,
-          expiresAt: now + cacheTTL,
-        });
-
-        if (mountedRef.current) {
-          setData(transformedData as T);
-          setError(null);
-          setIsLoading(false);
-          setIsValidating(false);
-        }
-      } catch (err) {
+      if (!response.ok) {
         // Remove from in-flight on error
         inFlightRequests.delete(cacheKey);
+        throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+      }
 
-        if (err instanceof Error && err.name === "AbortError") {
-          // Request was cancelled - ignore
-          return;
-        }
+      const responseData = await response.json();
+      const transformedData = transform ? transform(responseData) : responseData;
 
-        if (mountedRef.current) {
-          setError(err instanceof Error ? err : new Error(String(err)));
-          setIsLoading(false);
-          setIsValidating(false);
-        }
+      // Update cache
+      requestCache.set(cacheKey, {
+        data: transformedData,
+        timestamp: now,
+        expiresAt: now + cacheTTL,
+      });
+
+      if (mountedRef.current) {
+        setData(transformedData as T);
+        setError(null);
+        setIsLoading(false);
+        setIsValidating(false);
       }
     },
     [url, cacheKey, skip, dedupingInterval, cacheTTL, staleTTL, fetchOptions, transform, data]
@@ -307,14 +303,17 @@ export function useDedupedFetch<T>(
 }
 
 /**
- * Clear the entire request cache
+ * Clears the entire request cache.
  */
 export function clearFetchCache(): void {
   requestCache.clear();
 }
 
 /**
- * Invalidate a specific cache key
+ * Invalidates a specific cache entry by URL and options.
+ * 
+ * @param url - The URL to invalidate.
+ * @param options - Optional fetch options used to generate cache key.
  */
 export function invalidateFetchCache(url: string, options?: RequestInit): void {
   const cacheKey = getCacheKey(url, options);
@@ -322,7 +321,12 @@ export function invalidateFetchCache(url: string, options?: RequestInit): void {
 }
 
 /**
- * Prefetch a URL and cache the result
+ * Prefetches a URL and caches the result.
+ * 
+ * @param url - The URL to prefetch.
+ * @param options - Optional fetch options.
+ * @param cacheTTL - Cache TTL in milliseconds.
+ * @returns The fetched data.
  */
 export async function prefetch<T>(
   url: string,

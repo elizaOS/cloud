@@ -3,6 +3,13 @@ import { requireAuthWithOrg } from "@/lib/auth";
 import { invoicesService } from "@/lib/services";
 import { withRateLimit, RateLimitPresets } from "@/lib/middleware/rate-limit";
 
+/**
+ * GET /api/invoices/list
+ * Lists all invoices for the authenticated user's organization.
+ *
+ * @param req - The Next.js request object.
+ * @returns Array of formatted invoices with metadata.
+ */
 async function handleListInvoices(req: NextRequest) {
   try {
     const user = await requireAuthWithOrg();

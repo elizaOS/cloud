@@ -1,6 +1,11 @@
 /**
- * Header Component
- * Memoized to prevent unnecessary re-renders from parent state changes
+ * Application header component with navigation and user menu.
+ * Memoized to prevent unnecessary re-renders from parent state changes.
+ *
+ * @param props - Header configuration
+ * @param props.onToggleSidebar - Callback to toggle mobile sidebar visibility
+ * @param props.children - Additional content to render in header
+ * @param props.isAnonymous - Whether user is anonymous (shows sign up button instead of user menu)
  */
 
 "use client";

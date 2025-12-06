@@ -60,9 +60,10 @@ interface ChatState {
   rooms: RoomItem[];
   roomId: string | null;
   isLoadingRooms: boolean;
-  entityId: string;
   availableCharacters: Character[];
   selectedCharacterId: string | null;
+  pendingMessage: string | null;
+  anonymousSessionToken: string | null;
 
   // Actions
   setRooms: (rooms: RoomItem[]) => void;
@@ -70,10 +71,12 @@ interface ChatState {
   setIsLoadingRooms: (isLoading: boolean) => void;
   setAvailableCharacters: (characters: Character[]) => void;
   setSelectedCharacterId: (characterId: string | null) => void;
-  loadRooms: () => Promise<void>;
+  setPendingMessage: (message: string | null) => void;
+  setAnonymousSessionToken: (token: string | null) => void;
+  loadRooms: (force?: boolean) => Promise<void>;
   createRoom: (characterId?: string | null) => Promise<string | null>;
   deleteRoom: (roomId: string) => Promise<void>;
-  initializeEntityId: () => void;
+  clearChatData: () => void;
 }
 ```
 

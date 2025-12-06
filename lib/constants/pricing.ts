@@ -38,7 +38,11 @@ export const CONTAINER_LIMITS = {
 } as const;
 
 /**
- * Get max containers allowed for an organization
+ * Gets the maximum number of containers allowed for an organization.
+ *
+ * @param creditBalance - Organization credit balance in USD.
+ * @param orgSettings - Optional organization settings with custom limit.
+ * @returns Maximum number of containers allowed.
  */
 export function getMaxContainersForOrg(
   creditBalance: number,

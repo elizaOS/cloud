@@ -1,3 +1,14 @@
+/**
+ * API tester component for testing API endpoints interactively.
+ * Supports request/response testing, audio input, parameter configuration,
+ * response visualization, and credit cost display.
+ *
+ * @param props - API tester configuration
+ * @param props.endpoint - API endpoint configuration to test
+ * @param props.authToken - Authentication token for API requests
+ * @param props.refreshCredits - Optional callback to refresh credit balance after request
+ */
+
 "use client";
 
 import { useState, useEffect } from "react";

@@ -341,6 +341,12 @@ const mcpDefinitions = [
   },
 ];
 
+/**
+ * GET /api/mcp/list
+ * Lists all available MCP server definitions with their tools and capabilities.
+ *
+ * @returns Array of MCP server definitions with categories and metadata.
+ */
 export async function GET() {
   return NextResponse.json({
     mcps: mcpDefinitions,

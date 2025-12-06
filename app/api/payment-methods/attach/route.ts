@@ -13,7 +13,10 @@ const attachPaymentMethodSchema = z.object({
 
 /**
  * POST /api/payment-methods/attach
- * Attach a payment method to the organization's Stripe customer
+ * Attaches a payment method to the organization's Stripe customer.
+ *
+ * @param req - Request body containing paymentMethodId (Stripe payment method ID).
+ * @returns Success status.
  */
 async function handleAttachPaymentMethod(req: NextRequest) {
   try {

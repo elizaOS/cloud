@@ -6,6 +6,13 @@ import type { CategoryId, SortBy, SortOrder } from "@/lib/types/my-agents";
 
 export const dynamic = "force-dynamic";
 
+/**
+ * GET /api/my-agents/characters
+ * Searches and filters user's own characters with pagination and sorting.
+ *
+ * @param request - Request with query parameters for search, filters, sorting, and pagination.
+ * @returns Paginated character results with optional statistics.
+ */
 export async function GET(request: NextRequest) {
   try {
     const user = await requireAuthWithOrg();
@@ -52,6 +59,7 @@ export async function GET(request: NextRequest) {
         category,
         hasVoice,
         deployed,
+        source: "cloud", // Only show cloud-created agents in main dashboard
       },
       sortOptions: {
         sortBy,

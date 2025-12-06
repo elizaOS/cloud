@@ -59,27 +59,23 @@ export function useAuth(): AuthState {
 
   // Fetch user info from Cloud API - defined before the useEffect that uses it
   const fetchUserInfo = useCallback(async (token: string) => {
-    try {
-      const response = await fetch("/api/proxy/user", {
-        headers: {
-          Authorization: `Bearer ${token}`,
-        },
-      });
+    const response = await fetch("/api/proxy/user", {
+      headers: {
+        Authorization: `Bearer ${token}`,
+      },
+    });
 
-      if (response.ok) {
-        const data = await response.json();
-        setUser({
-          id: data.user.id,
-          email: data.user.email,
-          name: data.user.name,
-          avatar: data.user.avatar,
-        });
-      } else {
-        // Token might be invalid, clear auth state
-        clearAuth();
-      }
-    } catch (error) {
-      console.error("Failed to fetch user info:", error);
+    if (response.ok) {
+      const data = await response.json();
+      setUser({
+        id: data.user.id,
+        email: data.user.email,
+        name: data.user.name,
+        avatar: data.user.avatar,
+      });
+    } else {
+      // Token might be invalid, clear auth state
+      clearAuth();
     }
   }, [clearAuth]);
 
@@ -143,38 +139,33 @@ export function useAuth(): AuthState {
 
   // Start the login flow
   const login = useCallback(async () => {
-    try {
-      // Get the callback URL for this miniapp
-      const callbackUrl = `${window.location.origin}/auth/callback`;
+    // Get the callback URL for this miniapp
+    const callbackUrl = `${window.location.origin}/auth/callback`;
 
-      // Create a session on Cloud
-      const response = await fetch(`${CLOUD_URL}/api/auth/miniapp-session`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          callbackUrl,
-          appId: "miniapp",
-        }),
-      });
+    // Create a session on Cloud
+    const response = await fetch(`${CLOUD_URL}/api/auth/miniapp-session`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        callbackUrl,
+        appId: "miniapp",
+      }),
+    });
 
-      if (!response.ok) {
-        throw new Error("Failed to create auth session");
-      }
-
-      const { loginUrl } = await response.json();
-
-      // Redirect to Cloud for authentication
-      // The loginUrl might be relative - ensure it's absolute
-      const absoluteLoginUrl = loginUrl.startsWith("http") 
-        ? loginUrl 
-        : `${CLOUD_URL}${loginUrl}`;
-      window.location.href = absoluteLoginUrl;
-    } catch (error) {
-      console.error("Login failed:", error);
-      throw error;
+    if (!response.ok) {
+      throw new Error("Failed to create auth session");
     }
+
+    const { loginUrl } = await response.json();
+
+    // Redirect to Cloud for authentication
+    // The loginUrl might be relative - ensure it's absolute
+    const absoluteLoginUrl = loginUrl.startsWith("http") 
+      ? loginUrl 
+      : `${CLOUD_URL}${loginUrl}`;
+    window.location.href = absoluteLoginUrl;
   }, []);
 
   // Logout

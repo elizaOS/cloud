@@ -1,3 +1,7 @@
+/**
+ * Credits service for managing organization credit balances and transactions.
+ */
+
 import {
   creditTransactionsRepository,
   creditPacksRepository,
@@ -19,7 +23,9 @@ import { CacheInvalidation } from "@/lib/cache/invalidation";
 import { invalidateOrganizationCache } from "@/lib/cache/organizations-cache";
 import { userSessionsService } from "./user-sessions";
 
-// Parameter types for consistent API signatures
+/**
+ * Parameters for adding credits to an organization.
+ */
 export interface AddCreditsParams {
   organizationId: string;
   amount: number;
@@ -28,15 +34,27 @@ export interface AddCreditsParams {
   stripePaymentIntentId?: string;
 }
 
+/**
+ * Parameters for deducting credits from an organization.
+ */
 export interface DeductCreditsParams {
+  /** Organization ID. */
   organizationId: string;
+  /** Amount to deduct in USD. */
   amount: number;
+  /** Description of the deduction. */
   description: string;
+  /** Optional metadata. */
   metadata?: Record<string, unknown>;
+  /** Optional session token for tracking. */
   session_token?: string;
+  /** Optional tokens consumed for usage tracking. */
   tokens_consumed?: number;
 }
 
+/**
+ * Service for managing credits, transactions, and credit packs.
+ */
 export class CreditsService {
   // Credit Transactions
   async getTransactionById(id: string): Promise<CreditTransaction | undefined> {
@@ -189,12 +207,7 @@ export class CreditsService {
       })
       .then(async (result) => {
         // Invalidate organization cache since balance changed
-        invalidateOrganizationCache(organizationId).catch((error) => {
-          console.error(
-            "[CreditsService] Failed to invalidate org cache:",
-            error,
-          );
-        });
+        await invalidateOrganizationCache(organizationId);
         return result;
       });
 
@@ -280,54 +293,28 @@ export class CreditsService {
       .then(async (result) => {
         // Invalidate organization cache if balance changed
         if (result.success) {
-          invalidateOrganizationCache(organizationId).catch((error) => {
-            console.error(
-              "[CreditsService] Failed to invalidate org cache:",
-              error,
-            );
-          });
-        }
-        if (result.success) {
+          await invalidateOrganizationCache(organizationId);
           // Invalidate balance cache immediately after successful deduction
           await CacheInvalidation.onCreditMutation(organizationId);
 
           // Track session usage if session_token is provided
           if (session_token) {
-            userSessionsService
-              .trackUsage({
-                session_token,
-                credits_used: amount,
-                requests_made: 1,
-                tokens_consumed: tokens_consumed || 0,
-              })
-              .catch((error) => {
-                console.error(
-                  "[CreditsService] Failed to track session usage:",
-                  error,
-                );
-              });
+            await userSessionsService.trackUsage({
+              session_token,
+              credits_used: amount,
+              requests_made: 1,
+              tokens_consumed: tokens_consumed || 0,
+            });
           }
 
           // Check if auto top-up should be triggered
-          this.checkAndTriggerAutoTopUp(
+          await this.checkAndTriggerAutoTopUp(
             organizationId,
             result.newBalance,
-          ).catch((error) => {
-            console.error(
-              "[CreditsService] Failed to check auto top-up:",
-              error,
-            );
-          });
+          );
 
           // Queue low credits email
-          this.queueLowCreditsEmail(organizationId, result.newBalance).catch(
-            (error) => {
-              console.error(
-                "[CreditsService] Failed to queue low credits email:",
-                error,
-              );
-            },
-          );
+          await this.queueLowCreditsEmail(organizationId, result.newBalance);
         }
         return result;
       });
@@ -341,93 +328,77 @@ export class CreditsService {
     organizationId: string,
     newBalance: number,
   ): Promise<void> {
-    try {
-      // Get organization details
-      const org = await organizationsRepository.findById(organizationId);
-      if (!org) {
-        return;
-      }
-
-      // Check if auto top-up is enabled
-      if (!org.auto_top_up_enabled) {
-        return;
-      }
-
-      const threshold = Number(org.auto_top_up_threshold || 0);
-
-      // Check if balance is below threshold
-      if (newBalance >= threshold) {
-        return;
-      }
-
-      console.log(
-        `[CreditsService] Auto top-up triggered: balance $${newBalance.toFixed(2)} < threshold $${threshold.toFixed(2)}`,
-      );
-
-      // Import auto top-up service dynamically to avoid circular dependency
-      const { autoTopUpService } = await import("./auto-top-up");
-
-      // Execute auto top-up asynchronously (don't block the main operation)
-      autoTopUpService.executeAutoTopUp(org).catch((error) => {
-        console.error(
-          `[CreditsService] Auto top-up execution failed for org ${organizationId}:`,
-          error,
-        );
-      });
-    } catch (error) {
-      console.error(
-        `[CreditsService] Error checking auto top-up for org ${organizationId}:`,
-        error,
-      );
+    // Get organization details
+    const org = await organizationsRepository.findById(organizationId);
+    if (!org) {
+      return;
     }
+
+    // Check if auto top-up is enabled
+    if (!org.auto_top_up_enabled) {
+      return;
+    }
+
+    const threshold = Number(org.auto_top_up_threshold || 0);
+
+    // Check if balance is below threshold
+    if (newBalance >= threshold) {
+      return;
+    }
+
+    console.log(
+      `[CreditsService] Auto top-up triggered: balance $${newBalance.toFixed(2)} < threshold $${threshold.toFixed(2)}`,
+    );
+
+    // Import auto top-up service dynamically to avoid circular dependency
+    const { autoTopUpService } = await import("./auto-top-up");
+
+    // Execute auto top-up
+    await autoTopUpService.executeAutoTopUp(org);
   }
 
   private async queueLowCreditsEmail(
     organizationId: string,
     currentBalance: number,
   ): Promise<void> {
-    try {
-      const threshold = parseInt(
-        process.env.LOW_CREDITS_THRESHOLD || "1000",
-        10,
-      );
+    const threshold = parseInt(
+      process.env.LOW_CREDITS_THRESHOLD || "1000",
+      10,
+    );
 
-      if (currentBalance <= 0 || currentBalance > threshold) {
-        return;
-      }
+    if (currentBalance <= 0 || currentBalance > threshold) {
+      return;
+    }
 
-      const canSend = await canSendLowCreditsEmail(organizationId);
-      if (!canSend) {
-        return;
-      }
+    const canSend = await canSendLowCreditsEmail(organizationId);
+    if (!canSend) {
+      return;
+    }
 
-      const { organizationsService } = await import("./organizations");
-      const org = await organizationsService.getById(organizationId);
-      if (!org) {
-        return;
-      }
+    const { organizationsService } = await import("./organizations");
+    const org = await organizationsService.getById(organizationId);
+    if (!org) {
+      return;
+    }
 
-      const recipientEmail = org.billing_email;
-      if (!recipientEmail) {
-        console.warn("[CreditsService] No billing email for organization", {
-          organizationId,
-        });
-        return;
-      }
-
-      const sent = await emailService.sendLowCreditsEmail({
-        email: recipientEmail,
-        organizationName: org.name,
-        currentBalance,
-        threshold,
-        billingUrl: `${process.env.NEXT_PUBLIC_APP_URL}/dashboard/billing`,
+    const recipientEmail = org.billing_email;
+    if (!recipientEmail) {
+      console.warn("[CreditsService] No billing email for organization", {
+        organizationId,
       });
+      return;
+    }
 
-      if (sent) {
-        await markLowCreditsEmailSent(organizationId);
-      }
-    } catch (error) {
-      console.error("[CreditsService] Error sending low credits email:", error);
+    const sent = await emailService.sendLowCreditsEmail({
+      email: recipientEmail,
+      organizationName: org.name,
+      currentBalance,
+      threshold,
+      billingUrl: `${process.env.NEXT_PUBLIC_APP_URL}/dashboard/billing`,
+    });
+
+    if (sent) {
+      await markLowCreditsEmailSent(organizationId);
     }
   }
 
@@ -487,12 +458,7 @@ export class CreditsService {
       })
       .then(async (result) => {
         // Invalidate organization cache since balance changed
-        invalidateOrganizationCache(organizationId).catch((error) => {
-          console.error(
-            "[CreditsService] Failed to invalidate org cache:",
-            error,
-          );
-        });
+        await invalidateOrganizationCache(organizationId);
         return result;
       });
   }

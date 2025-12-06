@@ -13,12 +13,27 @@ export {
 // COST CALCULATION INTERFACES & FUNCTIONS
 // =============================================================================
 
+/**
+ * Breakdown of costs for a model request.
+ */
 export interface CostBreakdown {
+  /** Cost for input tokens in USD. */
   inputCost: number;
+  /** Cost for output tokens in USD. */
   outputCost: number;
+  /** Total cost (input + output) in USD. */
   totalCost: number;
 }
 
+/**
+ * Calculates the cost for a model request based on token usage.
+ *
+ * @param model - Model identifier (e.g., "gpt-4o-mini").
+ * @param provider - Provider name (e.g., "openai").
+ * @param inputTokens - Number of input tokens.
+ * @param outputTokens - Number of output tokens.
+ * @returns Cost breakdown with input, output, and total costs.
+ */
 export async function calculateCost(
   model: string,
   provider: string,
@@ -56,6 +71,14 @@ export async function calculateCost(
   };
 }
 
+/**
+ * Gets fallback pricing when model pricing is not found in database.
+ *
+ * @param model - Model identifier.
+ * @param inputTokens - Number of input tokens.
+ * @param outputTokens - Number of output tokens.
+ * @returns Cost breakdown using fallback pricing.
+ */
 function getFallbackPricing(
   model: string,
   inputTokens: number,
@@ -88,6 +111,14 @@ function getFallbackPricing(
   };
 }
 
+/**
+ * Extracts the provider name from a model identifier.
+ *
+ * Supports both prefixed format ("openai/gpt-4o-mini") and non-prefixed format ("gpt-4o-mini").
+ *
+ * @param model - Model identifier.
+ * @returns Provider name (defaults to "openai" if unknown).
+ */
 export function getProviderFromModel(model: string): string {
   // Handle provider-prefixed format: "openai/gpt-4o-mini" or "anthropic/claude-3"
   if (model.includes("/")) {
@@ -104,8 +135,10 @@ export function getProviderFromModel(model: string): string {
 }
 
 /**
- * Normalize model name by removing provider prefix if present
- * "openai/gpt-4o-mini" -> "gpt-4o-mini"
+ * Normalizes a model name by removing the provider prefix if present.
+ *
+ * @param model - Model identifier (e.g., "openai/gpt-4o-mini" or "gpt-4o-mini").
+ * @returns Model name without provider prefix (e.g., "gpt-4o-mini").
  */
 export function normalizeModelName(model: string): string {
   if (model.includes("/")) {
@@ -116,18 +149,25 @@ export function normalizeModelName(model: string): string {
 }
 
 /**
- * Estimate token count from text (rough approximation)
- * Average: 1 token ≈ 4 characters
+ * Estimates token count from text using a rough approximation.
+ *
+ * Uses the average ratio of 1 token ≈ 4 characters.
+ *
+ * @param text - Text to estimate tokens for.
+ * @returns Estimated number of tokens.
  */
 export function estimateTokens(text: string): number {
   return Math.ceil(text.length / 4);
 }
 
 /**
- * Estimate cost for a chat request before making the API call
- * Used for pre-flight credit checking
+ * Estimates the cost for a chat request before making the API call.
  *
- * Note: content can be string or multimodal (arrays with text/images)
+ * Used for pre-flight credit checking. Handles both string and multimodal content.
+ *
+ * @param model - Model identifier.
+ * @param messages - Array of messages with role and content (string or multimodal object).
+ * @returns Estimated cost in USD with a 50% safety buffer.
  */
 export async function estimateRequestCost(
   model: string,
