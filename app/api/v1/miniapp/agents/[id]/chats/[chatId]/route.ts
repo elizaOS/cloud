@@ -243,18 +243,17 @@ export async function GET(
         }
       }
 
-      // Debug log to understand content structure
-      logger.info("[Miniapp API] Message content structure", {
-        msgId: msg.id,
-        entityId: msg.entityId,
-        agentIdFromUrl: agentId,
-        isAgent: msg.entityId === agentId,
-        rawContentType: typeof rawContent,
-        rawContentSample: JSON.stringify(rawContent)?.substring(0, 800),
-        metadataSample: JSON.stringify(msg.metadata)?.substring(0, 300),
-        parsedContentKeys: typeof content === "object" && content ? Object.keys(content) : [],
-        extractedText: textContent ? textContent.substring(0, 100) : "(EMPTY - extraction failed)",
-      });
+      // Debug log to understand content structure (only in development or when DEBUG_MESSAGE_PARSING is enabled)
+      if (process.env.NODE_ENV !== "production" || process.env.DEBUG_MESSAGE_PARSING === "true") {
+        logger.debug("[Miniapp API] Message content structure", {
+          msgId: msg.id,
+          entityId: msg.entityId,
+          isAgent: msg.entityId === agentId,
+          rawContentType: typeof rawContent,
+          parsedContentKeys: typeof content === "object" && content ? Object.keys(content) : [],
+          extractedText: textContent ? textContent.substring(0, 100) : "(EMPTY - extraction failed)",
+        });
+      }
 
       // Extract attachments from content if present
       const attachments: MessageAttachment[] | undefined =

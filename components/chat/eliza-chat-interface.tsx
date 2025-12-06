@@ -328,8 +328,17 @@ export function ElizaChatInterface({
             console.log(
               "[ElizaChat] Room creation already in progress, waiting...",
             );
-            await new Promise((resolve) => setTimeout(resolve, 1000));
-            currentRoomId = roomId; // Use the room that was just created
+            // Wait for room creation with proper retry mechanism instead of fixed timeout
+            const maxWaitTime = 10000; // 10 seconds max
+            const pollInterval = 100; // Check every 100ms
+            let waitedTime = 0;
+            
+            while (!roomId && isCreatingRoomRef.current && waitedTime < maxWaitTime) {
+              await new Promise((resolve) => setTimeout(resolve, pollInterval));
+              waitedTime += pollInterval;
+            }
+            
+            currentRoomId = roomId;
             if (!currentRoomId) {
               setError("Room creation timed out");
               setLoadingState(prev => ({ ...prev, isSending: false }));
