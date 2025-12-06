@@ -21,18 +21,7 @@ export const metadata: Metadata = {
         : siteConfig.url,
   ),
   description: siteConfig.description,
-  keywords: [
-    "AI character",
-    "AI companion",
-    "virtual character",
-    "AI chat",
-    "create character",
-    "AI conversation",
-    "virtual companion",
-    "AI relationship",
-    "chatbot",
-    "AI chat",
-  ],
+  keywords: siteConfig.keywords,
   authors: [
     {
       name: siteConfig.author.name,
@@ -46,7 +35,7 @@ export const metadata: Metadata = {
     url: siteConfig.url,
     title: siteConfig.name,
     description: siteConfig.description,
-    siteName: siteConfig.author.name,
+    siteName: siteConfig.name,
     images: [
       {
         url: siteConfig.ogImage,
@@ -64,8 +53,8 @@ export const metadata: Metadata = {
     creator: siteConfig.author.twitter,
   },
   icons: {
-    icon: "/favicon.svg",
-    apple: "/apple-touch-icon.png",
+    icon: siteConfig.icons.favicon,
+    apple: siteConfig.icons.appleTouchIcon,
   },
 };
 
