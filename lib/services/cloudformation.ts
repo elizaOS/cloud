@@ -627,6 +627,10 @@ export class CloudFormationService {
           reason: event.ResourceStatusReason || "No reason provided",
           status: event.ResourceStatus || "Unknown",
         }));
+    } catch (error) {
+      console.error("Failed to get stack failure details", { stackName, error });
+      return [];
+    }
   }
 
   /**

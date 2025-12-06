@@ -93,7 +93,10 @@ function CharacterCreatorSection() {
     if (cached) {
       const { savedAt: _savedAt, ...formData } = cached as CachedFormData;
       void _savedAt;
-      setFormState(prev => ({ ...prev, ...formData }));
+      // Defer state update to avoid cascading renders
+      queueMicrotask(() => {
+        setFormState(prev => ({ ...prev, ...formData }));
+      });
     }
     isHydratedRef.current = true;
   }, []);

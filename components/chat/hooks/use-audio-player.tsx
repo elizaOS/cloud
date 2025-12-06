@@ -13,7 +13,7 @@ export interface UseAudioPlayerReturn {
   error: string | null;
   playAudio: (audioBlob: Blob | string) => Promise<void>;
   pauseAudio: () => void;
-  resumeAudio: () => void;
+  resumeAudio: () => Promise<void>;
   stopAudio: () => void;
   seekTo: (time: number) => void;
 }
@@ -118,10 +118,25 @@ export function useAudioPlayer(): UseAudioPlayerReturn {
     }
   }, []);
 
-  const resumeAudio = useCallback(() => {
+  const resumeAudio = useCallback(async () => {
     if (audioRef.current?.paused) {
-      await audioRef.current.play();
-      setIsPlaying(true);
+      try {
+        await audioRef.current.play();
+        setIsPlaying(true);
+      } catch (err) {
+        if (err instanceof Error) {
+          if (err.name === "NotAllowedError") {
+            setError(
+              "Audio playback not allowed. Please interact with the page first.",
+            );
+          } else {
+            setError("Failed to resume audio. Please try again.");
+          }
+        } else {
+          setError("Failed to resume audio. Please try again.");
+        }
+        setIsPlaying(false);
+      }
     }
   }, []);
 

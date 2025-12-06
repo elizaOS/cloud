@@ -300,10 +300,12 @@ export function ChatInterface({
   };
 
   const handleSignup = async () => {
-    // Open Privy login modal
-    await login();
-    toast.success("Welcome! Your chat is now unlimited.");
-    // Page will refresh after successful auth via Privy
+    try {
+      // Open Privy login modal
+      await login();
+      toast.success("Welcome! Your chat is now unlimited.");
+      // Page will refresh after successful auth via Privy
+    } catch (error) {
       console.error("[ChatInterface] Signup error:", error);
       toast.error("Failed to open signup. Please try again.");
     }

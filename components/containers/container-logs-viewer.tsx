@@ -205,7 +205,10 @@ export function ContainerLogsViewer({
 
   // Initial load
   useEffect(() => {
-    fetchLogs();
+    // Use setTimeout to avoid synchronous setState in effect
+    setTimeout(() => {
+      fetchLogs();
+    }, 0);
   }, [fetchLogs]);
 
   // Handle streaming vs polling
@@ -220,7 +223,10 @@ export function ContainerLogsViewer({
       return () => clearInterval(interval);
     } else {
       // Stop streaming if auto-refresh is off
-      stopStreaming();
+      // Use setTimeout to avoid synchronous setState in effect
+      setTimeout(() => {
+        stopStreaming();
+      }, 0);
     }
   }, [streamingState.autoRefresh, streamingState.useStreaming, startStreaming, stopStreaming, fetchLogs]);
 

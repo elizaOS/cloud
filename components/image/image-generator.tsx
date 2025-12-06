@@ -5,7 +5,7 @@
 
 "use client";
 
-import { useState } from "react";
+import { useState, useCallback } from "react";
 import { PromptInput } from "./prompt-input";
 import { ImageDisplay } from "./image-display";
 import { EmptyState } from "./empty-state";
@@ -122,14 +122,15 @@ export function ImageGenerator() {
     updateGeneration({ isLoading: false });
   };
 
-  const handleDownload = (imageData: string, index: number) => {
+  const handleDownload = useCallback((imageData: string, index: number) => {
     const link = document.createElement("a");
     link.href = imageData;
-    link.download = `eliza-generated-${Date.now()}-${index + 1}.png`;
+    const timestamp = Date.now();
+    link.download = `eliza-generated-${timestamp}-${index + 1}.png`;
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
-  };
+  }, []);
 
   const handleGenerateAnother = () => {
     updateGeneration({ images: [] });

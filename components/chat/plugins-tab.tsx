@@ -118,12 +118,7 @@ export function PluginsTab({ character, onChange }: PluginsTabProps) {
   const mcpSettings = getCurrentMcpSettings();
   const enabledServers = Object.keys(mcpSettings.servers || {});
 
-  // Load registry on mount
-  useEffect(() => {
-    fetchRegistry();
-  }, []);
-
-  const fetchRegistry = async () => {
+  const fetchRegistry = useCallback(async () => {
     setIsLoading(true);
     const response = await fetch("/api/mcp/registry");
     if (!response.ok) throw new Error("Failed to fetch registry");
@@ -132,7 +127,15 @@ export function PluginsTab({ character, onChange }: PluginsTabProps) {
     setRegistry(data.registry || []);
     setCategories(data.categories || []);
     setIsLoading(false);
-  };
+  }, []);
+
+  // Load registry on mount
+  useEffect(() => {
+    // Use queueMicrotask to defer execution and avoid synchronous setState
+    queueMicrotask(() => {
+      fetchRegistry();
+    });
+  }, [fetchRegistry]);
 
   // Check if an MCP is enabled
   const isMcpEnabled = (mcpId: string): boolean => {

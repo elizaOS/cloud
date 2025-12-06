@@ -11,7 +11,7 @@
 
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { Download, Save, AlertCircle, CheckCircle } from "lucide-react";
 import { toast } from "sonner";
 import type { ElizaCharacter } from "@/lib/types";
@@ -45,13 +45,16 @@ export function JsonEditor({
     isSaving: false,
   });
 
-  const updateEditor = (updates: Partial<EditorState>) => {
+  const updateEditor = useCallback((updates: Partial<EditorState>) => {
     setEditorState((prev) => ({ ...prev, ...updates }));
-  };
+  }, []);
 
   useEffect(() => {
-    updateEditor({ jsonText: JSON.stringify(character, null, 2) });
-  }, [character]);
+    // Use queueMicrotask to defer execution and avoid synchronous setState
+    queueMicrotask(() => {
+      updateEditor({ jsonText: JSON.stringify(character, null, 2) });
+    });
+  }, [character, updateEditor]);
 
   const handleJsonChange = (value: string) => {
     try {

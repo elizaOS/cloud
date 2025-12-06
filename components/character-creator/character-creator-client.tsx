@@ -163,8 +163,11 @@ export function CharacterCreatorClient({
   // Auto-initialize a blank character when entering the creator for the first time
   useEffect(() => {
     if (!selectedId && !hasAutoInitialized && !isInitializingCharacter && showAssistant) {
-      setHasAutoInitialized(true);
-      initializeBlankCharacter();
+      // Use setTimeout to avoid synchronous setState in effect
+      setTimeout(() => {
+        setHasAutoInitialized(true);
+        initializeBlankCharacter();
+      }, 0);
     }
   }, [selectedId, hasAutoInitialized, isInitializingCharacter, showAssistant, initializeBlankCharacter]);
 

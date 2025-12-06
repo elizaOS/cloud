@@ -52,12 +52,8 @@ export async function POST(request: NextRequest) {
 
     // Also check request body for token (in case cookie is not available)
     if (!sessionToken) {
-      try {
-        const body = await request.json().catch(() => ({}));
-        sessionToken = body.sessionToken;
-      } catch {
-        // No body or invalid JSON - that's okay
-      }
+      const body = await request.json().catch(() => ({}));
+      sessionToken = body.sessionToken;
     }
 
     if (!sessionToken) {
@@ -118,11 +114,7 @@ export async function POST(request: NextRequest) {
     logger.info("[Migrate Anonymous] Migration completed", migrationResult);
 
     // Cookie is cleared by migrateAnonymousSession, but ensure it's cleared here too
-    try {
-      cookieStore.delete(ANON_SESSION_COOKIE);
-    } catch {
-      // May fail if not in request context
-    }
+    cookieStore.delete(ANON_SESSION_COOKIE);
 
     return NextResponse.json({
       success: true,

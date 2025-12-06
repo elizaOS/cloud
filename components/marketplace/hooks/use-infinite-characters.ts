@@ -157,9 +157,12 @@ export function useInfiniteCharacters({
 
   // Initial fetch and filter change handling
   useEffect(() => {
-    setPage(1);
-    fetchPage(1, false);
-  }, [filterKey]); // eslint-disable-line react-hooks/exhaustive-deps
+    // Use queueMicrotask to defer execution and avoid synchronous setState
+    queueMicrotask(() => {
+      setPage(1);
+      fetchPage(1, false);
+    });
+  }, [filterKey, fetchPage]);  
 
   // Cleanup on unmount
   useEffect(() => {

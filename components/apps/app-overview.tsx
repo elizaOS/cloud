@@ -69,8 +69,11 @@ export function AppOverview({ app, showApiKey }: AppOverviewProps) {
 
   useEffect(() => {
     if (showApiKey) {
-      setDisplayApiKey(showApiKey);
-      setShowKey(true);
+      // Use setTimeout to avoid synchronous setState in effect
+      setTimeout(() => {
+        setDisplayApiKey(showApiKey);
+        setShowKey(true);
+      }, 0);
       const timer = setTimeout(() => {
         setDisplayApiKey("");
         setShowKey(false);
