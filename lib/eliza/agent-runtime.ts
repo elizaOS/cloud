@@ -56,13 +56,11 @@ class AgentRuntime {
     // Create system context for the operation
     const systemContext = userContextService.createSystemContext(AgentMode.CHAT);
     
-    // Get runtime and ElizaOS instance
+    // Get runtime (plugins loaded based on agentMode)
     const runtime = await runtimeFactory.createRuntimeForUser(systemContext);
-    const elizaOS = runtimeFactory.getElizaOS();
 
-    // Send message
+    // Send message via plugin event handlers
     const result = await sendMessageWithSideEffects(
-      elizaOS,
       runtime,
       stringToUuid(roomId) as UUID,
       stringToUuid(entityId) as UUID,
@@ -84,17 +82,10 @@ class AgentRuntime {
       createdAt: result.userMessage.createdAt || Date.now(),
     };
 
-    // Extract usage if available
-    const usageData = (result.result as Record<string, unknown>)?.usage as
-      | { inputTokens?: number; outputTokens?: number; model?: string }
-      | undefined;
-    const usage = usageData
-      ? {
-          inputTokens: usageData.inputTokens || 0,
-          outputTokens: usageData.outputTokens || 0,
-          model: usageData.model || "eliza-agent",
-        }
-      : undefined;
+    // Note: Usage tracking is handled by MODEL_USED events in plugin-elizacloud,
+    // which routes through the billing gateway. Usage isn't passed through the callback,
+    // so this will always be undefined. Kept for interface compatibility.
+    const usage = undefined;
 
     return {
       message: agentMessage,

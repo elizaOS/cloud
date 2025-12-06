@@ -27,7 +27,8 @@ export const maxDuration = 60;
  * Single-endpoint streaming architecture:
  * - Receives message via POST
  * - Streams back thinking indicator and agent response via SSE
- * - Uses core ElizaOS.sendMessage() for iso behavior (server/serverless)
+ * - Uses runtime.emitEvent(MESSAGE_RECEIVED) to trigger plugin handlers
+ * - Plugin-specific handlers (assistant, chat-playground, character-builder) process based on mode
  * - All processing happens in same container (no cross-container issues!)
  * - Simple, fast, and works perfectly on serverless
  *
@@ -251,12 +252,10 @@ export async function POST(
     logger.info(`[Stream] Set characterId in userContext: ${characterId}`);
   }
 
-  // Step 6: Create runtime and get ElizaOS instance
+  // Step 6: Create runtime for user (plugins loaded based on agentMode)
   // Wrap in try-catch to handle runtime creation errors before stream starts
-  let elizaOS;
   let agentRuntime;
   try {
-    elizaOS = runtimeFactory.getElizaOS();
     agentRuntime = await runtimeFactory.createRuntimeForUser(userContext);
   } catch (error) {
     logger.error("[Stream] Failed to create runtime:", error);
@@ -323,16 +322,20 @@ export async function POST(
           type: "thinking",
         });
 
-        // STEP 2: Process message using ElizaOS
+        // STEP 2: Process message via plugin event handlers
         logger.info("[Stream] Processing message via sendMessageWithSideEffects...");
         const result = await sendMessageWithSideEffects(
-          elizaOS,
           agentRuntime,
           roomId as UUID,
           stringToUuid(userContext.entityId) as UUID,
-          { text, source: "client_chat" },
+          {
+            text,
+            attachments: attachments || [],
+            source: "client_chat",
+          },
           userContext,
           characterId,
+          agentModeConfig,
         );
 
         // Extract response from result
