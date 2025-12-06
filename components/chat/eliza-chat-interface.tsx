@@ -134,18 +134,22 @@ export function ElizaChatInterface({
   const isPendingMessageProcessingRef = useRef(false);
   const pendingMessageToSendRef = useRef<string | null>(null);
   const isCreatingRoomRef = useRef(false);
+  // Promise-based room creation tracking to avoid race conditions
+  const roomCreationPromiseRef = useRef<Promise<string | null> | null>(null);
   // Ref to hold sendMessage function - avoids TDZ error when used in effects before definition
-  const sendMessageRef = useRef<((textOverride?: string) => Promise<void>) | null>(null);
+  const sendMessageRef = useRef<
+    ((textOverride?: string) => Promise<void>) | null
+  >(null);
 
   // Get character name from prop (preferred), store, or agentInfo (memoized)
   const selectedCharacter = useMemo(
     () => availableCharacters.find((char) => char.id === selectedCharacterId),
-    [availableCharacters, selectedCharacterId],
+    [availableCharacters, selectedCharacterId]
   );
   const characterName = useMemo(
     () =>
       character?.name || selectedCharacter?.name || agentInfo?.name || "Agent",
-    [character?.name, selectedCharacter?.name, agentInfo?.name],
+    [character?.name, selectedCharacter?.name, agentInfo?.name]
   );
 
   // Consolidated loading states
@@ -183,6 +187,16 @@ export function ElizaChatInterface({
       messageAudioUrls.current.clear();
     }
   }, [audioState.selectedVoiceId]);
+
+  // Cleanup thinkingTimeoutRef on unmount to prevent memory leaks
+  useEffect(() => {
+    return () => {
+      if (thinkingTimeoutRef.current) {
+        clearTimeout(thinkingTimeoutRef.current);
+        thinkingTimeoutRef.current = null;
+      }
+    };
+  }, []);
 
   const recorder = useAudioRecorder();
   const player = useAudioPlayer();
@@ -242,7 +256,7 @@ export function ElizaChatInterface({
       // New rooms are empty - skip loading to avoid race with optimistic messages
       return newRoomId;
     },
-    [createRoomInStore, selectedCharacterId],
+    [createRoomInStore, selectedCharacterId]
   );
 
   const handleStreamMessage = useCallback((messageData: StreamingMessage) => {
@@ -250,7 +264,7 @@ export function ElizaChatInterface({
       // Handle agent response - remove thinking indicator
       if (messageData.type === "agent") {
         const withoutThinking = prev.filter(
-          (m) => !m.id.startsWith("thinking-"),
+          (m) => !m.id.startsWith("thinking-")
         );
 
         // Clear thinking timeout
@@ -266,7 +280,7 @@ export function ElizaChatInterface({
 
         // Remove temp messages
         const filtered = withoutThinking.filter(
-          (m) => !m.id.startsWith("temp-"),
+          (m) => !m.id.startsWith("temp-")
         );
 
         return [...filtered, messageData];
@@ -275,7 +289,7 @@ export function ElizaChatInterface({
       // Handle thinking indicator
       if (messageData.type === "thinking") {
         const withoutThinking = prev.filter(
-          (m) => !m.id.startsWith("thinking-"),
+          (m) => !m.id.startsWith("thinking-")
         );
         return [...withoutThinking, messageData];
       }
@@ -286,7 +300,7 @@ export function ElizaChatInterface({
         const tempIndex = prev.findIndex(
           (m) =>
             m.id.startsWith("temp-") &&
-            m.content.text === messageData.content.text,
+            m.content.text === messageData.content.text
         );
 
         if (tempIndex !== -1) {
@@ -323,45 +337,47 @@ export function ElizaChatInterface({
         let currentRoomId = roomId;
         if (!currentRoomId) {
           console.log("[ElizaChat] No room selected, creating new room...");
-          // Prevent duplicate room creation attempts
-          if (isCreatingRoomRef.current) {
+
+          // If room creation is already in progress, await the existing promise
+          if (isCreatingRoomRef.current && roomCreationPromiseRef.current) {
             console.log(
-              "[ElizaChat] Room creation already in progress, waiting...",
+              "[ElizaChat] Room creation already in progress, awaiting..."
             );
-            // Wait for room creation with proper retry mechanism instead of fixed timeout
-            const maxWaitTime = 10000; // 10 seconds max
-            const pollInterval = 100; // Check every 100ms
-            let waitedTime = 0;
-            
-            while (!roomId && isCreatingRoomRef.current && waitedTime < maxWaitTime) {
-              await new Promise((resolve) => setTimeout(resolve, pollInterval));
-              waitedTime += pollInterval;
-            }
-            
-            currentRoomId = roomId;
-            if (!currentRoomId) {
-              setError("Room creation timed out");
-              setLoadingState(prev => ({ ...prev, isSending: false }));
+            const existingRoomId = await roomCreationPromiseRef.current;
+            if (!existingRoomId) {
+              setError("Room creation failed");
+              setLoadingState((prev) => ({ ...prev, isSending: false }));
               return;
             }
+            currentRoomId = existingRoomId;
+            console.log(
+              "[ElizaChat] Got room from existing creation:",
+              currentRoomId
+            );
           } else {
+            // Start new room creation and store the promise
             isCreatingRoomRef.current = true;
-            try {
-              const newRoomId = await createRoom(selectedCharacterId);
-              isCreatingRoomRef.current = false;
-              if (!newRoomId) {
-                setError("Room creation returned empty ID");
-                setLoadingState(prev => ({ ...prev, isSending: false }));
-                return;
-              }
-              currentRoomId = newRoomId;
-              console.log("[ElizaChat] Created new room:", newRoomId);
-            } catch (err) {
-              isCreatingRoomRef.current = false;
-              setError(err instanceof Error ? err.message : "Failed to create room");
-              setLoadingState(prev => ({ ...prev, isSending: false }));
+            roomCreationPromiseRef.current = createRoom(selectedCharacterId)
+              .then((newRoomId) => {
+                isCreatingRoomRef.current = false;
+                roomCreationPromiseRef.current = null;
+                return newRoomId;
+              })
+              .catch((err) => {
+                isCreatingRoomRef.current = false;
+                roomCreationPromiseRef.current = null;
+                console.error("[ElizaChat] Room creation error:", err);
+                return null;
+              });
+
+            const newRoomId = await roomCreationPromiseRef.current;
+            if (!newRoomId) {
+              setError("Room creation returned empty ID");
+              setLoadingState((prev) => ({ ...prev, isSending: false }));
               return;
             }
+            currentRoomId = newRoomId;
+            console.log("[ElizaChat] Created new room:", newRoomId);
           }
         }
 
@@ -381,10 +397,10 @@ export function ElizaChatInterface({
         // Safety timeout: remove thinking indicator after 30 seconds if no response
         thinkingTimeoutRef.current = setTimeout(() => {
           setMessages((prev) =>
-            prev.filter((m) => !m.id.startsWith("thinking-")),
+            prev.filter((m) => !m.id.startsWith("thinking-"))
           );
           console.warn(
-            "[Chat] Thinking indicator timeout - agent took too long to respond",
+            "[Chat] Thinking indicator timeout - agent took too long to respond"
           );
         }, 30000);
 
@@ -403,8 +419,8 @@ export function ElizaChatInterface({
               prev.filter(
                 (msg) =>
                   msg.id !== tempUserMessage.id &&
-                  !msg.id.startsWith("thinking-"),
-              ),
+                  !msg.id.startsWith("thinking-")
+              )
             );
             if (thinkingTimeoutRef.current) {
               clearTimeout(thinkingTimeoutRef.current);
@@ -423,14 +439,14 @@ export function ElizaChatInterface({
         setError(err instanceof Error ? err.message : "Failed to send message");
         console.error("Error sending message:", err);
         toast.error(
-          err instanceof Error ? err.message : "Failed to send message",
+          err instanceof Error ? err.message : "Failed to send message"
         );
         // Remove temp and thinking messages on error
         setMessages((prev) =>
           prev.filter(
             (msg) =>
-              !msg.id.startsWith("temp-") && !msg.id.startsWith("thinking-"),
-          ),
+              !msg.id.startsWith("temp-") && !msg.id.startsWith("thinking-")
+          )
         );
         if (thinkingTimeoutRef.current) {
           clearTimeout(thinkingTimeoutRef.current);
@@ -450,7 +466,7 @@ export function ElizaChatInterface({
       handleStreamMessage,
       loadRooms,
       onMessageSent,
-    ],
+    ]
   );
 
   // Handle pending message from landing page
@@ -467,7 +483,7 @@ export function ElizaChatInterface({
     // If no roomId exists, create one first
     if (!roomId) {
       console.log(
-        "[ElizaChat] Pending message found but no room - creating room first",
+        "[ElizaChat] Pending message found but no room - creating room first"
       );
       isPendingMessageProcessingRef.current = true;
 
@@ -483,7 +499,10 @@ export function ElizaChatInterface({
           console.log("[ElizaChat] Room created for pending message");
         })
         .catch((err) => {
-          console.error("[ElizaChat] Failed to create room for pending message:", err);
+          console.error(
+            "[ElizaChat] Failed to create room for pending message:",
+            err
+          );
           isPendingMessageProcessingRef.current = false;
         });
       return;
@@ -567,7 +586,7 @@ export function ElizaChatInterface({
         throw error;
       }
     },
-    [player], // Only player is needed, audioState values accessed via refs
+    [player] // Only player is needed, audioState values accessed via refs
   );
 
   // Load custom voices on mount (only for authenticated users)
@@ -641,7 +660,7 @@ export function ElizaChatInterface({
 
       if (!transcript || transcript.trim().length === 0) {
         recorder.clearRecording();
-        setLoadingState(prev => ({ ...prev, isProcessingSTT: false }));
+        setLoadingState((prev) => ({ ...prev, isProcessingSTT: false }));
         toast.error("No speech detected. Please try again.");
         console.warn("[ElizaChat STT] Empty transcript received");
         return;
@@ -650,10 +669,10 @@ export function ElizaChatInterface({
       // Auto-send the transcribed message (will create room if needed)
       // Use ref to avoid TDZ - sendMessage is defined later in the component
       await sendMessageRef.current?.(transcript);
-      
+
       // Cleanup: Clear recording and reset processing state
       recorder.clearRecording();
-      setLoadingState(prev => ({ ...prev, isProcessingSTT: false }));
+      setLoadingState((prev) => ({ ...prev, isProcessingSTT: false }));
     };
 
     processAudioBlob();
@@ -668,7 +687,7 @@ export function ElizaChatInterface({
       (msg) =>
         msg.isAgent &&
         !msg.id.startsWith("thinking-") &&
-        !messageAudioUrls.current.has(msg.id),
+        !messageAudioUrls.current.has(msg.id)
     );
 
     newAgentMessages.forEach((msg) => {
@@ -680,13 +699,12 @@ export function ElizaChatInterface({
 
   // Handle streaming messages from the single endpoint
 
-
   // Robust scroll to bottom function
   const scrollToBottom = useCallback((smooth = false) => {
     if (scrollAreaRef.current) {
       // ScrollArea wraps content in a viewport div with data-radix-scroll-area-viewport
       const viewport = scrollAreaRef.current.querySelector(
-        "[data-radix-scroll-area-viewport]",
+        "[data-radix-scroll-area-viewport]"
       );
       if (viewport) {
         // Use requestAnimationFrame to ensure DOM has updated
@@ -741,14 +759,14 @@ export function ElizaChatInterface({
       url: string;
       title?: string;
       contentType: string;
-    }>,
+    }>
   ) => {
     // Check if there are image attachments
     const imageAttachment = attachments?.find(
       (att) =>
         att.contentType === "IMAGE" ||
         att.contentType === "image" ||
-        att.contentType.startsWith("image/"),
+        att.contentType.startsWith("image/")
     );
 
     if (imageAttachment) {
@@ -868,13 +886,13 @@ export function ElizaChatInterface({
                           const personalityLine = bioArray.find(
                             (line) =>
                               typeof line === "string" &&
-                              line.toLowerCase().includes("personality"),
+                              line.toLowerCase().includes("personality")
                           );
                           if (personalityLine) {
                             // Remove "Personality traits: " prefix for cleaner display
                             return personalityLine.replace(
                               /^personality traits?:\s*/i,
-                              "",
+                              ""
                             );
                           }
                           return bioArray[0];
@@ -969,7 +987,7 @@ export function ElizaChatInterface({
                                             );
                                           }
                                           return null;
-                                        },
+                                        }
                                       )}
                                     </div>
                                   )}
@@ -987,7 +1005,7 @@ export function ElizaChatInterface({
                                       copyToClipboard(
                                         message.content.text,
                                         message.id,
-                                        message.content.attachments,
+                                        message.content.attachments
                                       )
                                     }
                                     title="Copy message"
@@ -1006,7 +1024,7 @@ export function ElizaChatInterface({
                                       onClick={() => {
                                         const url =
                                           messageAudioUrls.current.get(
-                                            message.id,
+                                            message.id
                                           );
                                         if (url) {
                                           if (
@@ -1063,7 +1081,7 @@ export function ElizaChatInterface({
                                 copyToClipboard(
                                   message.content.text,
                                   message.id,
-                                  message.content.attachments,
+                                  message.content.attachments
                                 )
                               }
                               title="Copy message"
@@ -1186,7 +1204,9 @@ export function ElizaChatInterface({
                               </span>
                             )}
                           </div>
-                          <span className="text-[10px] text-white/40 font-mono">{tier.modelId}</span>
+                          <span className="text-[10px] text-white/40 font-mono">
+                            {tier.modelId}
+                          </span>
                         </div>
                       </div>
                     </SelectItem>
@@ -1256,11 +1276,11 @@ export function ElizaChatInterface({
                                     if (newVoiceId) {
                                       localStorage.setItem(
                                         "eliza-selected-voice-id",
-                                        newVoiceId,
+                                        newVoiceId
                                       );
                                     } else {
                                       localStorage.removeItem(
-                                        "eliza-selected-voice-id",
+                                        "eliza-selected-voice-id"
                                       );
                                     }
                                   }
@@ -1268,7 +1288,7 @@ export function ElizaChatInterface({
                                   const voiceName = newVoiceId
                                     ? audioState.customVoices.find(
                                         (v) =>
-                                          v.elevenlabsVoiceId === newVoiceId,
+                                          v.elevenlabsVoiceId === newVoiceId
                                       )?.name || "Custom"
                                     : "Default";
 
