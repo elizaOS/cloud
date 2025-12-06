@@ -268,9 +268,7 @@ export async function POST(
     );
   }
 
-  // Step 6.5: Verify room agentId matches runtime agentId
-  // Room should already have correct agentId from POST /api/eliza/rooms
-  // This sync handles legacy rooms or edge cases where they don't match
+  // Sync room agentId with runtime (handles legacy rooms)
   const runtimeAgentId = agentRuntime.agentId;
   if (room && room.agentId !== runtimeAgentId) {
     logger.warn(

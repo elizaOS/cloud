@@ -236,10 +236,7 @@ export function ElizaChatInterface({
         throw new Error("Failed to create room");
       }
 
-      // Don't load messages for new room - it's always empty
-      // Loading would cause a race condition that overwrites optimistic temp messages
-      // and briefly shows "Send the first message" empty state
-
+      // New rooms are empty - skip loading to avoid race with optimistic messages
       return newRoomId;
     },
     [createRoomInStore, selectedCharacterId],
@@ -311,6 +308,7 @@ export function ElizaChatInterface({
     loadingState.isLoadingMessages,
     createRoom,
     setPendingMessage,
+    sendMessage,
   ]);
 
   // Extract stable values from audioState to prevent callback recreation
@@ -447,7 +445,7 @@ export function ElizaChatInterface({
     };
 
     processAudioBlob();
-  }, [recorder.audioBlob, loadingState.isProcessingSTT, recorder]);
+  }, [recorder.audioBlob, loadingState.isProcessingSTT, recorder, sendMessage]);
 
   // Auto-generate TTS for new agent messages (only if autoPlayTTS is enabled)
   useEffect(() => {
@@ -561,129 +559,143 @@ export function ElizaChatInterface({
     return () => clearTimeout(timer);
   }, [messages, scrollToBottom]); // scrollToBottom is stable
 
-  const sendMessage = async (textOverride?: string) => {
-    const messageText = textOverride?.trim() || inputText.trim();
-    if (!messageText || loadingState.isSending) return;
+  const sendMessage = useCallback(
+    async (textOverride?: string) => {
+      const messageText = textOverride?.trim() || inputText.trim();
+      if (!messageText || loadingState.isSending) return;
 
-    if (!textOverride) {
-      setInputText("");
-    }
-    setLoadingState((prev) => ({ ...prev, isSending: true }));
-    setError(null);
+      if (!textOverride) {
+        setInputText("");
+      }
+      setLoadingState((prev) => ({ ...prev, isSending: true }));
+      setError(null);
 
-    try {
-      // If no room exists, create one first
-      let currentRoomId = roomId;
-      if (!currentRoomId) {
-        console.log("[ElizaChat] No room selected, creating new room...");
-        // Prevent duplicate room creation attempts
-        if (isCreatingRoomRef.current) {
-          console.log(
-            "[ElizaChat] Room creation already in progress, waiting...",
-          );
-          await new Promise((resolve) => setTimeout(resolve, 1000));
-          currentRoomId = roomId; // Use the room that was just created
-          if (!currentRoomId) {
-            setError("Room creation timed out");
-            setLoadingState(prev => ({ ...prev, isSending: false }));
-            return;
-          }
-        } else {
-          isCreatingRoomRef.current = true;
-          try {
-            const newRoomId = await createRoom(selectedCharacterId);
-            isCreatingRoomRef.current = false;
-            if (!newRoomId) {
-              setError("Room creation returned empty ID");
+      try {
+        // If no room exists, create one first
+        let currentRoomId = roomId;
+        if (!currentRoomId) {
+          console.log("[ElizaChat] No room selected, creating new room...");
+          // Prevent duplicate room creation attempts
+          if (isCreatingRoomRef.current) {
+            console.log(
+              "[ElizaChat] Room creation already in progress, waiting...",
+            );
+            await new Promise((resolve) => setTimeout(resolve, 1000));
+            currentRoomId = roomId; // Use the room that was just created
+            if (!currentRoomId) {
+              setError("Room creation timed out");
               setLoadingState(prev => ({ ...prev, isSending: false }));
               return;
             }
-            currentRoomId = newRoomId;
-            console.log("[ElizaChat] Created new room:", newRoomId);
-          } catch (err) {
-            isCreatingRoomRef.current = false;
-            setError(err instanceof Error ? err.message : "Failed to create room");
-            setLoadingState(prev => ({ ...prev, isSending: false }));
-            return;
+          } else {
+            isCreatingRoomRef.current = true;
+            try {
+              const newRoomId = await createRoom(selectedCharacterId);
+              isCreatingRoomRef.current = false;
+              if (!newRoomId) {
+                setError("Room creation returned empty ID");
+                setLoadingState(prev => ({ ...prev, isSending: false }));
+                return;
+              }
+              currentRoomId = newRoomId;
+              console.log("[ElizaChat] Created new room:", newRoomId);
+            } catch (err) {
+              isCreatingRoomRef.current = false;
+              setError(err instanceof Error ? err.message : "Failed to create room");
+              setLoadingState(prev => ({ ...prev, isSending: false }));
+              return;
+            }
           }
         }
-      }
 
-      // Add optimistic temp user message
-      const clientMessageId = `temp-${Date.now()}`;
-      const now = Date.now();
-      const tempUserMessage: Message = {
-        id: clientMessageId,
-        content: { text: messageText },
-        isAgent: false,
-        createdAt: now,
-      };
-      setMessages((prev) => [...prev, tempUserMessage]);
-      // Clear loading state immediately so chat interface shows right away
-      setLoadingState((prev) => ({ ...prev, isLoadingMessages: false }));
+        // Add optimistic temp user message
+        const clientMessageId = `temp-${Date.now()}`;
+        const now = Date.now();
+        const tempUserMessage: Message = {
+          id: clientMessageId,
+          content: { text: messageText },
+          isAgent: false,
+          createdAt: now,
+        };
+        setMessages((prev) => [...prev, tempUserMessage]);
+        // Clear loading state immediately so chat interface shows right away
+        setLoadingState((prev) => ({ ...prev, isLoadingMessages: false }));
 
-      // Safety timeout: remove thinking indicator after 30 seconds if no response
-      thinkingTimeoutRef.current = setTimeout(() => {
-        setMessages((prev) =>
-          prev.filter((m) => !m.id.startsWith("thinking-")),
-        );
-        console.warn(
-          "[Chat] Thinking indicator timeout - agent took too long to respond",
-        );
-      }, 30000);
-
-      // Stream the response using single endpoint
-      await sendStreamingMessage({
-        roomId: currentRoomId,
-        text: messageText,
-        model: selectedModelId, // Pass selected model from tier
-        sessionToken: anonymousSessionToken || undefined, // Pass session token for anonymous users
-        onMessage: handleStreamMessage,
-        onError: (errorMsg) => {
-          setError(errorMsg);
-          toast.error(errorMsg);
-          // Remove temp and thinking messages on error
+        // Safety timeout: remove thinking indicator after 30 seconds if no response
+        thinkingTimeoutRef.current = setTimeout(() => {
           setMessages((prev) =>
-            prev.filter(
-              (msg) =>
-                msg.id !== tempUserMessage.id &&
-                !msg.id.startsWith("thinking-"),
-            ),
+            prev.filter((m) => !m.id.startsWith("thinking-")),
           );
-          if (thinkingTimeoutRef.current) {
-            clearTimeout(thinkingTimeoutRef.current);
-            thinkingTimeoutRef.current = null;
-          }
-        },
-        onComplete: () => {
-          loadRooms();
-          // Notify parent that a message was sent successfully (for anonymous message counting)
-          if (onMessageSent) {
-            onMessageSent();
-          }
-        },
-      });
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to send message");
-      console.error("Error sending message:", err);
-      toast.error(
-        err instanceof Error ? err.message : "Failed to send message",
-      );
-      // Remove temp and thinking messages on error
-      setMessages((prev) =>
-        prev.filter(
-          (msg) =>
-            !msg.id.startsWith("temp-") && !msg.id.startsWith("thinking-"),
-        ),
-      );
-      if (thinkingTimeoutRef.current) {
-        clearTimeout(thinkingTimeoutRef.current);
-        thinkingTimeoutRef.current = null;
+          console.warn(
+            "[Chat] Thinking indicator timeout - agent took too long to respond",
+          );
+        }, 30000);
+
+        // Stream the response using single endpoint
+        await sendStreamingMessage({
+          roomId: currentRoomId,
+          text: messageText,
+          model: selectedModelId, // Pass selected model from tier
+          sessionToken: anonymousSessionToken || undefined, // Pass session token for anonymous users
+          onMessage: handleStreamMessage,
+          onError: (errorMsg) => {
+            setError(errorMsg);
+            toast.error(errorMsg);
+            // Remove temp and thinking messages on error
+            setMessages((prev) =>
+              prev.filter(
+                (msg) =>
+                  msg.id !== tempUserMessage.id &&
+                  !msg.id.startsWith("thinking-"),
+              ),
+            );
+            if (thinkingTimeoutRef.current) {
+              clearTimeout(thinkingTimeoutRef.current);
+              thinkingTimeoutRef.current = null;
+            }
+          },
+          onComplete: () => {
+            loadRooms();
+            // Notify parent that a message was sent successfully (for anonymous message counting)
+            if (onMessageSent) {
+              onMessageSent();
+            }
+          },
+        });
+      } catch (err) {
+        setError(err instanceof Error ? err.message : "Failed to send message");
+        console.error("Error sending message:", err);
+        toast.error(
+          err instanceof Error ? err.message : "Failed to send message",
+        );
+        // Remove temp and thinking messages on error
+        setMessages((prev) =>
+          prev.filter(
+            (msg) =>
+              !msg.id.startsWith("temp-") && !msg.id.startsWith("thinking-"),
+          ),
+        );
+        if (thinkingTimeoutRef.current) {
+          clearTimeout(thinkingTimeoutRef.current);
+          thinkingTimeoutRef.current = null;
+        }
+      } finally {
+        setLoadingState((prev) => ({ ...prev, isSending: false }));
       }
-    } finally {
-      setLoadingState((prev) => ({ ...prev, isSending: false }));
-    }
-  };
+    },
+    [
+      inputText,
+      loadingState.isSending,
+      roomId,
+      createRoom,
+      selectedCharacterId,
+      selectedModelId,
+      anonymousSessionToken,
+      handleStreamMessage,
+      loadRooms,
+      onMessageSent,
+    ],
+  );
 
   const formatTimestamp = (timestamp: number): string => {
     const date = new Date(timestamp);
