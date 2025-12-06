@@ -3,6 +3,13 @@ import { requireAuth } from "@/lib/auth";
 import { getElevenLabsService } from "@/lib/services/elevenlabs";
 import { logger } from "@/lib/utils/logger";
 
+/**
+ * GET /api/elevenlabs/voices
+ * Lists all public/premade ElevenLabs voices available for text-to-speech.
+ * Filters out custom cloned or generated voices.
+ *
+ * @returns Array of public voice objects.
+ */
 export async function GET() {
   try {
     // Authenticate user

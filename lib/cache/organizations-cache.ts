@@ -32,35 +32,29 @@ export async function getCachedOrganization(
 ): Promise<Organization | undefined> {
   const cacheKey = buildCacheKey(organizationId);
 
-  try {
-    // Try to get from cache first
-    const cached = await cache.get<Organization>(cacheKey);
+  // Try to get from cache first
+  const cached = await cache.get<Organization>(cacheKey);
 
-    if (cached) {
-      logger.debug(`[OrgCache] Cache hit for org ${organizationId}`);
-      return cached;
-    }
-
-    // Cache miss: fetch from database
-    logger.debug(
-      `[OrgCache] Cache miss for org ${organizationId}, fetching from DB`,
-    );
-    const org = await organizationsService.getById(organizationId);
-
-    // Cache the result (even if undefined, to prevent repeated failed lookups)
-    if (org) {
-      await cache.set(cacheKey, org, CACHE_TTL_SECONDS);
-      logger.debug(
-        `[OrgCache] Cached org ${organizationId} for ${CACHE_TTL_SECONDS}s`,
-      );
-    }
-
-    return org;
-  } catch (error) {
-    // Cache failure should not break the application - fall back to direct DB access
-    logger.error(`[OrgCache] Cache error for org ${organizationId}:`, error);
-    return await organizationsService.getById(organizationId);
+  if (cached) {
+    logger.debug(`[OrgCache] Cache hit for org ${organizationId}`);
+    return cached;
   }
+
+  // Cache miss: fetch from database
+  logger.debug(
+    `[OrgCache] Cache miss for org ${organizationId}, fetching from DB`,
+  );
+  const org = await organizationsService.getById(organizationId);
+
+  // Cache the result (even if undefined, to prevent repeated failed lookups)
+  if (org) {
+    await cache.set(cacheKey, org, CACHE_TTL_SECONDS);
+    logger.debug(
+      `[OrgCache] Cached org ${organizationId} for ${CACHE_TTL_SECONDS}s`,
+    );
+  }
+
+  return org;
 }
 
 /**
@@ -74,15 +68,8 @@ export async function invalidateOrganizationCache(
 ): Promise<void> {
   const cacheKey = buildCacheKey(organizationId);
 
-  try {
-    await cache.del(cacheKey);
-    logger.debug(`[OrgCache] Invalidated cache for org ${organizationId}`);
-  } catch (error) {
-    logger.error(
-      `[OrgCache] Failed to invalidate cache for org ${organizationId}:`,
-      error,
-    );
-  }
+  await cache.del(cacheKey);
+  logger.debug(`[OrgCache] Invalidated cache for org ${organizationId}`);
 }
 
 /**
@@ -95,15 +82,11 @@ export async function invalidateOrganizationsCacheBatch(
 ): Promise<void> {
   if (organizationIds.length === 0) return;
 
-  try {
-    const cacheKeys = organizationIds.map(buildCacheKey);
-    await Promise.all(cacheKeys.map((key) => cache.del(key)));
-    logger.debug(
-      `[OrgCache] Invalidated cache for ${organizationIds.length} orgs`,
-    );
-  } catch (error) {
-    logger.error(`[OrgCache] Failed to batch invalidate caches:`, error);
-  }
+  const cacheKeys = organizationIds.map(buildCacheKey);
+  await Promise.all(cacheKeys.map((key) => cache.del(key)));
+  logger.debug(
+    `[OrgCache] Invalidated cache for ${organizationIds.length} orgs`,
+  );
 }
 
 /**
@@ -117,18 +100,14 @@ export async function warmOrganizationCache(
 ): Promise<void> {
   if (organizations.length === 0) return;
 
-  try {
-    await Promise.all(
-      organizations.map((org) =>
-        cache.set(buildCacheKey(org.id), org, CACHE_TTL_SECONDS),
-      ),
-    );
-    logger.debug(
-      `[OrgCache] Pre-warmed cache for ${organizations.length} orgs`,
-    );
-  } catch (error) {
-    logger.error(`[OrgCache] Failed to warm cache:`, error);
-  }
+  await Promise.all(
+    organizations.map((org) =>
+      cache.set(buildCacheKey(org.id), org, CACHE_TTL_SECONDS),
+    ),
+  );
+  logger.debug(
+    `[OrgCache] Pre-warmed cache for ${organizations.length} orgs`,
+  );
 }
 
 /**

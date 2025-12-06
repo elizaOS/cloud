@@ -5,6 +5,13 @@ import { logger } from "@/lib/utils/logger";
 
 export const dynamic = "force-dynamic";
 
+/**
+ * GET /api/my-agents/categories
+ * Gets all available character categories for the user's agents.
+ *
+ * @param request - The Next.js request object.
+ * @returns Array of categories with character counts.
+ */
 export async function GET(request: NextRequest) {
   try {
     const user = await requireAuthWithOrg();

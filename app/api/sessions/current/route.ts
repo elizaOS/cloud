@@ -3,6 +3,11 @@ import { requireAuthWithOrg } from "@/lib/auth";
 import { userSessionsService } from "@/lib/services";
 import { withRateLimit, RateLimitPresets } from "@/lib/middleware/rate-limit";
 
+/**
+ * Gets statistics for the current user session.
+ *
+ * @returns JSON response with credits used, requests made, and tokens consumed.
+ */
 async function handleGET() {
   try {
     const user = await requireAuthWithOrg();

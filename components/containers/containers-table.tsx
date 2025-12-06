@@ -48,21 +48,7 @@ import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import Link from "next/link";
 
-interface Container {
-  id: string;
-  name: string;
-  description: string | null;
-  status: string;
-  ecs_service_arn: string | null;
-  load_balancer_url: string | null;
-  port: number;
-  desired_count: number;
-  cpu: number;
-  memory: number;
-  last_deployed_at: Date | null;
-  created_at: Date;
-  error_message: string | null;
-}
+import type { Container } from "@/db/repositories/containers";
 
 interface ContainersTableProps {
   containers: Container[];

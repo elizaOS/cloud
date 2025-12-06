@@ -32,6 +32,13 @@ export default async function ChatPage({
     notFound();
   }
 
+  // Cloud chat page only works with cloud-created agents (including affiliates)
+  // Miniapp agents have their own chat interface
+  if (character.source !== "cloud") {
+    logger.warn(`[Chat Page] Character ${characterId} is not a cloud agent (source: ${character.source})`);
+    notFound();
+  }
+
   // 2. DYNAMIC THEME RESOLUTION
   const characterData = character.character_data as
     | Record<string, unknown>
@@ -141,26 +148,22 @@ export default async function ChatPage({
       privyUserId: user!.privy_user_id,
     });
 
-    try {
-      const anonSession = await anonymousSessionsService.getByToken(sessionId);
+    const anonSession = await anonymousSessionsService.getByToken(sessionId);
 
-      if (anonSession && !anonSession.converted_at) {
-        logger.info(`[Chat Page] Found unconverted anonymous session, migrating...`, {
-          sessionId: anonSession.id,
-          anonymousUserId: anonSession.user_id,
-        });
+    if (anonSession && !anonSession.converted_at) {
+      logger.info(`[Chat Page] Found unconverted anonymous session, migrating...`, {
+        sessionId: anonSession.id,
+        anonymousUserId: anonSession.user_id,
+      });
 
-        const { convertAnonymousToReal } = await import("@/lib/auth-anonymous");
-        await convertAnonymousToReal(anonSession.user_id, user!.privy_user_id);
+      const { convertAnonymousToReal } = await import("@/lib/auth-anonymous");
+      await convertAnonymousToReal(anonSession.user_id, user!.privy_user_id);
 
-        logger.info(`[Chat Page] Migration completed successfully`);
-      } else if (anonSession?.converted_at) {
-        logger.info(`[Chat Page] Session already converted`, { sessionId });
-      } else {
-        logger.warn(`[Chat Page] Session not found for token`, { sessionId: sessionId.slice(0, 8) + "..." });
-      }
-    } catch (error) {
-      logger.error(`[Chat Page] Migration failed:`, error);
+      logger.info(`[Chat Page] Migration completed successfully`);
+    } else if (anonSession?.converted_at) {
+      logger.info(`[Chat Page] Session already converted`, { sessionId });
+    } else {
+      logger.warn(`[Chat Page] Session not found for token`, { sessionId: sessionId.slice(0, 8) + "..." });
     }
   }
 

@@ -240,13 +240,7 @@ export class AutoTopUpService {
           currentBalance,
           newBalance,
           paymentIntent.id,
-        ).catch((error) => {
-          console.error(
-            `[AutoTopUp] EXCEPTION in queueAutoTopUpSuccessEmail for org ${organizationId}:`,
-            error,
-          );
-          console.error(`[AutoTopUp] Error stack:`, error.stack);
-        });
+        );
 
         // Note: Credits are added by webhook handler to avoid race conditions
         // We just return the expected new balance here for logging
@@ -331,12 +325,7 @@ export class AutoTopUpService {
       });
 
       // Send email notification
-      this.queueAutoTopUpDisabledEmail(org, reason).catch((error) => {
-        console.error(
-          `[AutoTopUp] Failed to send disabled email for org ${organizationId}:`,
-          error,
-        );
-      });
+      void this.queueAutoTopUpDisabledEmail(org, reason);
     } catch (error) {
       console.error(
         `[AutoTopUp] Failed to disable auto top-up for org ${organizationId}:`,

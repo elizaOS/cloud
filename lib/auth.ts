@@ -40,26 +40,22 @@ async function ensureUserHasApiKey(
     return;
   }
 
-  try {
-    // Check if user already has an API key
-    const existingKeys =
-      await apiKeysService.listByOrganization(organizationId);
-    const userHasKey = existingKeys.some((key) => key.user_id === userId);
+  // Check if user already has an API key
+  const existingKeys =
+    await apiKeysService.listByOrganization(organizationId);
+  const userHasKey = existingKeys.some((key) => key.user_id === userId);
 
-    if (userHasKey) {
-      return; // User already has a key
-    }
-
-    // Create default API key for existing user
-    await apiKeysService.create({
-      user_id: userId,
-      organization_id: organizationId,
-      name: "Default API Key",
-      is_active: true,
-    });
-  } catch (error) {
-    console.error("[Auth] Failed to ensure user has API key:", error);
+  if (userHasKey) {
+    return; // User already has a key
   }
+
+  // Create default API key for existing user
+  await apiKeysService.create({
+    user_id: userId,
+    organization_id: organizationId,
+    name: "Default API Key",
+    is_active: true,
+  });
 }
 
 export type AuthResult = {
@@ -105,48 +101,35 @@ export const getCurrentUser = cache(
       // Just-in-time sync: If user doesn't exist, fetch from Privy and create
       // This handles race conditions where webhooks haven't fired yet
       if (!user) {
-        try {
-          // Fetch full user data from Privy API
-          const privyUser = await privyClient.getUser(verifiedClaims.userId);
+        // Fetch full user data from Privy API
+        const privyUser = await privyClient.getUser(verifiedClaims.userId);
 
-          if (privyUser) {
-            // Import the sync logic from webhook
-            const { syncUserFromPrivy } = await import("./privy-sync");
-            // Type cast needed because Privy SDK types don't match our simplified interface
-            user = await syncUserFromPrivy(
-              privyUser as unknown as {
-                id: string;
-                email?: { address: string };
-                name?: string | null;
-                linkedAccounts?: Array<Record<string, unknown>>;
-              },
-            );
-          }
-        } catch (syncError) {
-          console.error("Failed to sync user just-in-time:", syncError);
-          // User authentication is valid but we couldn't create them locally
-          // This is a critical error - webhooks might be broken
-          return null;
+        if (privyUser) {
+          // Import the sync logic from webhook
+          const { syncUserFromPrivy } = await import("./privy-sync");
+          // Type cast needed because Privy SDK types don't match our simplified interface
+          user = await syncUserFromPrivy(
+            privyUser as unknown as {
+              id: string;
+              email?: { address: string };
+              name?: string | null;
+              linkedAccounts?: Array<Record<string, unknown>>;
+            },
+          );
         }
       }
 
       // Create or get user session for authenticated users with organizations
       if (user && user.organization_id) {
-        try {
-          await userSessionsService.getOrCreateSession({
-            user_id: user.id,
-            organization_id: user.organization_id,
-            session_token: authToken.value,
-          });
-        } catch (sessionError) {
-          console.error("Failed to create/get user session:", sessionError);
-        }
+        await userSessionsService.getOrCreateSession({
+          user_id: user.id,
+          organization_id: user.organization_id,
+          session_token: authToken.value,
+        });
 
         // Ensure user has an API key for agent runtime (fire-and-forget)
         // This handles existing users who registered before API key auto-generation
-        ensureUserHasApiKey(user.id, user.organization_id).catch((error) => {
-          console.error("[Auth] Failed to ensure user has API key:", error);
-        });
+        void ensureUserHasApiKey(user.id, user.organization_id);
       }
 
       return user ?? null;
@@ -399,13 +382,8 @@ export async function requireAuthOrApiKeyWithOrg(request: NextRequest): Promise<
  * Verify a Privy auth token directly (for API routes)
  */
 export async function verifyPrivyToken(token: string) {
-  try {
-    const user = await privyClient.verifyAuthToken(token);
-    return user;
-  } catch (error) {
-    console.error("Error verifying Privy token:", error);
-    return null;
-  }
+  const user = await privyClient.verifyAuthToken(token);
+  return user;
 }
 
 /**

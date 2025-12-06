@@ -7,6 +7,7 @@
 import { appsRepository, type AppAnalytics, type NewAppAnalytics } from "@/db/repositories/apps";
 import { usageRecordsRepository } from "@/db/repositories/usage-records";
 import { logger } from "@/lib/utils/logger";
+import type { App } from "@/lib/types";
 
 export class AppAnalyticsService {
   /**
@@ -124,7 +125,7 @@ export class AppAnalyticsService {
    */
   calculateAppPricing(params: {
     baseCost: number;
-    app: any;
+    app: App;
   }): {
     baseCost: number;
     markup: number;

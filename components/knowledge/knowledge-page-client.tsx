@@ -1,3 +1,11 @@
+/**
+ * Knowledge page client component for managing knowledge documents and queries.
+ * Provides tabs for uploading documents, viewing document lists, and querying knowledge base.
+ *
+ * @param props - Knowledge page configuration
+ * @param props.initialCharacters - Initial list of characters for document association
+ */
+
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
@@ -17,20 +25,7 @@ import { Alert, AlertDescription } from "@/components/ui/alert";
 import { InfoIcon, Upload, Search, List, Bot } from "lucide-react";
 import type { ElizaCharacter } from "@/lib/types";
 
-interface KnowledgeDocument {
-  id: string;
-  content: {
-    text: string;
-  };
-  createdAt: number;
-  metadata?: {
-    fileName?: string;
-    fileSize?: number;
-    uploadedBy?: string;
-    uploadedAt?: number;
-    originalFilename?: string;
-  };
-}
+import type { KnowledgeDocument } from "@/lib/types/knowledge";
 
 interface KnowledgePageClientProps {
   initialCharacters: ElizaCharacter[];

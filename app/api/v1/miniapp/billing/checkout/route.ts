@@ -49,6 +49,8 @@ const checkoutRequestSchema = z
       .optional(),
     successUrl: z.string().url("Invalid success URL"),
     cancelUrl: z.string().url("Invalid cancel URL"),
+    // Optional app ID for app-specific credit purchases (monetization)
+    appId: z.string().uuid().optional(),
   })
   .refine((data) => data.creditPackId || data.amount, {
     message: "Either creditPackId or amount must be provided",
@@ -89,14 +91,26 @@ export async function POST(request: NextRequest) {
       return addCorsHeaders(response, corsResult.origin);
     }
 
-    const { creditPackId, amount, successUrl, cancelUrl } =
+    const { creditPackId, amount, successUrl, cancelUrl, appId: bodyAppId } =
       validationResult.data;
+
+    // App ID can come from body OR X-App-Id header (proxy adds header automatically)
+    const headerAppId = request.headers.get("X-App-Id");
+    const appId = bodyAppId || headerAppId || undefined;
 
     let lineItems: Stripe.Checkout.SessionCreateParams.LineItem[];
     let creditsAmount: number;
     let sessionMetadata: Record<string, string>;
 
     const organizationId = user.organization_id;
+
+    // Determine if this is an app-specific purchase
+    const isAppPurchase = !!appId;
+    const purchaseSource = isAppPurchase ? "miniapp_app" : "miniapp";
+    
+    if (isAppPurchase) {
+      logger.info("[Miniapp Billing] App-specific checkout", { appId, headerAppId, bodyAppId });
+    }
 
     if (creditPackId) {
       const creditPack = await creditsService.getCreditPackById(creditPackId);
@@ -121,16 +135,25 @@ export async function POST(request: NextRequest) {
         credit_pack_id: creditPackId,
         credits: creditPack.credits.toString(),
         type: "credit_pack",
-        source: "miniapp",
+        source: purchaseSource,
+        ...(appId && { app_id: appId }),
       };
     } else if (amount) {
+      // For app purchases, customize the product name to show app context
+      const productName = isAppPurchase 
+        ? "App Credits Top-up" 
+        : "Account Balance Top-up";
+      const productDescription = isAppPurchase
+        ? `Add $${amount.toFixed(2)} credits to your app balance`
+        : `Add $${amount.toFixed(2)} to your account balance`;
+
       lineItems = [
         {
           price_data: {
             currency: STRIPE_CURRENCY,
             product_data: {
-              name: "Account Balance Top-up",
-              description: `Add $${amount.toFixed(2)} to your account balance`,
+              name: productName,
+              description: productDescription,
             },
             unit_amount: Math.round(amount * 100),
           },
@@ -143,7 +166,8 @@ export async function POST(request: NextRequest) {
         user_id: user.id,
         credits: amount.toFixed(2),
         type: "custom_amount",
-        source: "miniapp",
+        source: purchaseSource,
+        ...(appId && { app_id: appId }),
       };
     } else {
       const response = NextResponse.json(
@@ -201,6 +225,8 @@ export async function POST(request: NextRequest) {
       credits: creditsAmount,
       userId: user.id,
       organizationId,
+      appId: appId || null,
+      isAppPurchase,
     });
 
     const response = NextResponse.json({

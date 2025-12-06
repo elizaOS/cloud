@@ -46,30 +46,25 @@ export function UsageTab({ user, onTabChange }: UsageTabProps) {
 
   useEffect(() => {
     const fetchDailyBurn = async () => {
-      try {
-        setLoading(true);
+      setLoading(true);
 
-        const response = await fetch("/api/credits/transactions?hours=24");
+      const response = await fetch("/api/credits/transactions?hours=24");
 
-        if (!response.ok) {
-          throw new Error("Failed to fetch transactions");
-        }
-
-        const data = await response.json();
-
-        interface Transaction {
-          amount: string | number;
-        }
-        const burn = (data.transactions || [] as Transaction[])
-          .filter((t: Transaction) => Number(t.amount) < 0)
-          .reduce((sum: number, t: Transaction) => sum + Math.abs(Number(t.amount)), 0);
-
-        setDailyBurn(burn);
-      } catch (error) {
-        console.error("Error fetching daily burn:", error);
-      } finally {
-        setLoading(false);
+      if (!response.ok) {
+        throw new Error("Failed to fetch transactions");
       }
+
+      const data = await response.json();
+
+      interface Transaction {
+        amount: string | number;
+      }
+      const burn = (data.transactions || [] as Transaction[])
+        .filter((t: Transaction) => Number(t.amount) < 0)
+        .reduce((sum: number, t: Transaction) => sum + Math.abs(Number(t.amount)), 0);
+
+      setDailyBurn(burn);
+      setLoading(false);
     };
 
     fetchDailyBurn();
@@ -77,25 +72,20 @@ export function UsageTab({ user, onTabChange }: UsageTabProps) {
 
   useEffect(() => {
     const fetchSessionStats = async () => {
-      try {
-        setSessionLoading(true);
+      setSessionLoading(true);
 
-        const response = await fetch("/api/sessions/current");
+      const response = await fetch("/api/sessions/current");
 
-        if (!response.ok) {
-          throw new Error("Failed to fetch session stats");
-        }
-
-        const data = await response.json();
-
-        if (data.success && data.data) {
-          setSessionStats(data.data);
-        }
-      } catch (error) {
-        console.error("Error fetching session stats:", error);
-      } finally {
-        setSessionLoading(false);
+      if (!response.ok) {
+        throw new Error("Failed to fetch session stats");
       }
+
+      const data = await response.json();
+
+      if (data.success && data.data) {
+        setSessionStats(data.data);
+      }
+      setSessionLoading(false);
     };
 
     fetchSessionStats();
@@ -107,25 +97,20 @@ export function UsageTab({ user, onTabChange }: UsageTabProps) {
 
   useEffect(() => {
     const fetchQuotaUsage = async () => {
-      try {
-        setQuotaLoading(true);
+      setQuotaLoading(true);
 
-        const response = await fetch("/api/quotas/usage");
+      const response = await fetch("/api/quotas/usage");
 
-        if (!response.ok) {
-          throw new Error("Failed to fetch quota usage");
-        }
-
-        const data = await response.json();
-
-        if (data.success && data.data) {
-          setQuotaUsage(data.data);
-        }
-      } catch (error) {
-        console.error("Error fetching quota usage:", error);
-      } finally {
-        setQuotaLoading(false);
+      if (!response.ok) {
+        throw new Error("Failed to fetch quota usage");
       }
+
+      const data = await response.json();
+
+      if (data.success && data.data) {
+        setQuotaUsage(data.data);
+      }
+      setQuotaLoading(false);
     };
 
     fetchQuotaUsage();

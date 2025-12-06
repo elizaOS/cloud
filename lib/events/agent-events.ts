@@ -75,9 +75,7 @@ class AgentEventEmitter {
     };
 
     // Fire-and-forget: don't await Redis operations
-    this.publishEvent(roomId, event).catch((err) =>
-      logger.error("[Agent Events] Failed to emit response_started:", err),
-    );
+    void this.publishEvent(roomId, event);
   }
 
   async emitResponseChunk(
@@ -119,9 +117,7 @@ class AgentEventEmitter {
     };
 
     // Fire-and-forget: don't await Redis operations
-    this.publishEvent(roomId, event).catch((err) =>
-      logger.error("[Agent Events] Failed to emit response_complete:", err),
-    );
+    void this.publishEvent(roomId, event);
   }
 
   async emitError(roomId: string, error: Error): Promise<void> {

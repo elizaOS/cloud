@@ -85,16 +85,10 @@ function LoginPageContent() {
     }
 
     setLoadingButton("email");
-    try {
-      await sendCode({ email });
-      toast.success("Verification code sent to your email");
-      setShowCodeInput(true);
-    } catch (error) {
-      console.error("Error sending code:", error);
-      toast.error("Failed to send verification code");
-    } finally {
-      setLoadingButton(null);
-    }
+    await sendCode({ email });
+    toast.success("Verification code sent to your email");
+    setShowCodeInput(true);
+    setLoadingButton(null);
   };
 
   const handleVerifyCode = async (e: React.FormEvent) => {
@@ -106,17 +100,10 @@ function LoginPageContent() {
     }
 
     setLoadingButton("verify");
-    try {
-      await loginWithCode({ code });
-      toast.success("Email verified! Setting up your account...");
-      // Privy will auto-redirect to dashboard via our useEffect
-    } catch (error) {
-      console.error("Error verifying code:", error);
-      toast.error("Invalid verification code. Please try again.");
-      setCode("");
-    } finally {
-      setLoadingButton(null);
-    }
+    await loginWithCode({ code });
+    toast.success("Email verified! Setting up your account...");
+    // Privy will auto-redirect to dashboard via our useEffect
+    setLoadingButton(null);
   };
 
   const handleOAuthLogin = async (

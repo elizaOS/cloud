@@ -1,3 +1,8 @@
+/**
+ * Footer component for the landing page.
+ * Displays navigation links, social links, and branding with decorative background image.
+ */
+
 "use client";
 
 import { Github } from "lucide-react";

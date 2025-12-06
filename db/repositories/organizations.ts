@@ -9,19 +9,31 @@ import type { CreditTransaction } from "../schemas/credit-transactions";
 
 export type { Organization, NewOrganization };
 
+/**
+ * Repository for organization database operations.
+ */
 export class OrganizationsRepository {
+  /**
+   * Finds an organization by ID.
+   */
   async findById(id: string): Promise<Organization | undefined> {
     return await db.query.organizations.findFirst({
       where: eq(organizations.id, id),
     });
   }
 
+  /**
+   * Finds an organization by slug.
+   */
   async findBySlug(slug: string): Promise<Organization | undefined> {
     return await db.query.organizations.findFirst({
       where: eq(organizations.slug, slug),
     });
   }
 
+  /**
+   * Finds an organization by Stripe customer ID.
+   */
   async findByStripeCustomerId(
     stripeCustomerId: string,
   ): Promise<Organization | undefined> {
@@ -30,6 +42,9 @@ export class OrganizationsRepository {
     });
   }
 
+  /**
+   * Finds an organization with associated users.
+   */
   async findWithUsers(id: string) {
     return await db.query.organizations.findFirst({
       where: eq(organizations.id, id),
@@ -39,6 +54,9 @@ export class OrganizationsRepository {
     });
   }
 
+  /**
+   * Creates a new organization.
+   */
   async create(data: NewOrganization): Promise<Organization> {
     const [organization] = await db
       .insert(organizations)
@@ -47,6 +65,9 @@ export class OrganizationsRepository {
     return organization;
   }
 
+  /**
+   * Updates an existing organization.
+   */
   async update(
     id: string,
     data: Partial<NewOrganization>,
@@ -62,6 +83,11 @@ export class OrganizationsRepository {
     return updated;
   }
 
+  /**
+   * Updates organization credit balance atomically.
+   * 
+   * @throws Error if organization not found or balance would go negative.
+   */
   async updateCreditBalance(
     organizationId: string,
     amount: number,
@@ -96,10 +122,20 @@ export class OrganizationsRepository {
     return result;
   }
 
+  /**
+   * Deletes an organization by ID.
+   */
   async delete(id: string): Promise<void> {
     await db.delete(organizations).where(eq(organizations.id, id));
   }
 
+  /**
+   * Deducts credits from organization balance and creates a transaction record.
+   * 
+   * Performs both operations atomically in a transaction.
+   * 
+   * @throws Error if organization not found or insufficient balance.
+   */
   async deductCreditsWithTransaction(
     organizationId: string,
     amount: number,
@@ -157,5 +193,7 @@ export class OrganizationsRepository {
   }
 }
 
-// Export singleton instance
+/**
+ * Singleton instance of OrganizationsRepository.
+ */
 export const organizationsRepository = new OrganizationsRepository();

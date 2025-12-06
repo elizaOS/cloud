@@ -36,6 +36,7 @@ import type { NextRequest } from "next/server";
 import type {
   OpenAIChatRequest,
   OpenAIChatResponse,
+  OpenAIChatMessage,
 } from "@/lib/providers/types";
 import type { UserWithOrganization } from "@/lib/types";
 
@@ -124,9 +125,10 @@ function transformAISdkToOpenAI(aiSdkRequest: AISdkRequest): OpenAIChatRequest {
             }
             // Also handle "input_image" -> "image_url" if needed
             if (part.type === "input_image" && "image" in part) {
+              const imagePart = part as { type: string; image: string };
               return {
                 type: "image_url",
-                image_url: { url: (part as any).image },
+                image_url: { url: imagePart.image },
               };
             }
           }
@@ -184,7 +186,8 @@ function transformOpenAIToAISdk(openAIResponse: OpenAIChatResponse): object {
         ];
       } else if (Array.isArray(message.content)) {
         // Already array (multimodal)
-        content = (message.content as any[]).map((part: any) =>
+        type ContentPart = string | { text?: string; [key: string]: unknown };
+        content = (message.content as ContentPart[]).map((part) =>
           typeof part === "string"
             ? { type: "output_text", text: part, annotations: [] }
             : { type: "output_text", text: part.text || "", annotations: [] },
@@ -210,8 +213,8 @@ function transformOpenAIToAISdk(openAIResponse: OpenAIChatResponse): object {
         // Include tool calls if present
         ...(message.tool_calls ? { tool_calls: message.tool_calls } : {}),
         // Include function call if present (legacy)
-        ...((message as any).function_call
-          ? { function_call: (message as any).function_call }
+        ...("function_call" in message && message.function_call
+          ? { function_call: message.function_call }
           : {}),
       };
     }), // OpenAI: "choices" -> AI SDK: "output" with flattened structure
@@ -223,8 +226,8 @@ function transformOpenAIToAISdk(openAIResponse: OpenAIChatResponse): object {
         }
       : undefined,
     // Preserve any provider metadata
-    ...((openAIResponse as any).provider_metadata
-      ? { provider_metadata: (openAIResponse as any).provider_metadata }
+    ...("provider_metadata" in openAIResponse && openAIResponse.provider_metadata
+      ? { provider_metadata: openAIResponse.provider_metadata }
       : {}),
   };
 }
@@ -269,14 +272,18 @@ async function handlePOST(req: NextRequest) {
 
     // Log detailed message breakdown
     const systemMessages = request.messages.filter(
-      (msg: any) => msg.role === "system",
+      (msg) => msg.role === "system",
     );
     const userMessages = request.messages.filter(
-      (msg: any) => msg.role === "user",
+      (msg) => msg.role === "user",
     );
     const assistantMessages = request.messages.filter(
-      (msg: any) => msg.role === "assistant",
+      (msg) => msg.role === "assistant",
     );
+
+    // Helper to get content as string for logging
+    const getContentString = (content: OpenAIChatMessage["content"]): string => 
+      typeof content === "string" ? content : JSON.stringify(content);
 
     logger.info("[Responses API] 📝 PROMPT BREAKDOWN", {
       model: request.model,
@@ -286,35 +293,17 @@ async function handlePOST(req: NextRequest) {
         user: userMessages.length,
         assistant: assistantMessages.length,
       },
-      systemPrompts: systemMessages.map((msg: any) => ({
-        content:
-          typeof msg.content === "string"
-            ? msg.content
-            : JSON.stringify(msg.content),
-        length:
-          typeof msg.content === "string"
-            ? msg.content.length
-            : JSON.stringify(msg.content).length,
+      systemPrompts: systemMessages.map((msg) => ({
+        content: getContentString(msg.content),
+        length: getContentString(msg.content).length,
       })),
-      userPrompts: userMessages.map((msg: any) => ({
-        content:
-          typeof msg.content === "string"
-            ? msg.content
-            : JSON.stringify(msg.content),
-        length:
-          typeof msg.content === "string"
-            ? msg.content.length
-            : JSON.stringify(msg.content).length,
+      userPrompts: userMessages.map((msg) => ({
+        content: getContentString(msg.content),
+        length: getContentString(msg.content).length,
       })),
-      assistantResponses: assistantMessages.map((msg: any) => ({
-        content:
-          typeof msg.content === "string"
-            ? msg.content
-            : JSON.stringify(msg.content),
-        length:
-          typeof msg.content === "string"
-            ? msg.content.length
-            : JSON.stringify(msg.content).length,
+      assistantResponses: assistantMessages.map((msg) => ({
+        content: getContentString(msg.content),
+        length: getContentString(msg.content).length,
       })),
     });
 
@@ -732,6 +721,22 @@ async function handleNonStreamingResponse(
   return Response.json(aiSdkResponse);
 }
 
+// Type for streaming response choices
+interface StreamingChoice {
+  index: number;
+  delta: {
+    role?: string;
+    content?: string;
+    tool_calls?: Array<{
+      id: string;
+      type: "function";
+      function: { name: string; arguments: string };
+    }>;
+    function_call?: { name: string; arguments: string };
+  };
+  finish_reason: string | null;
+}
+
 // Handle streaming response
 function handleStreamingResponse(
   providerResponse: Response,
@@ -803,7 +808,7 @@ function handleStreamingResponse(
                 model: parsed.model,
                 object: parsed.object,
                 output: parsed.choices
-                  ? parsed.choices.map((choice: any) => {
+                  ? parsed.choices.map((choice: StreamingChoice) => {
                       // For streaming, delta contains the incremental content
                       const delta = choice.delta || {};
                       const content = delta.content

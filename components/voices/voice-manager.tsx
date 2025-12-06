@@ -1,3 +1,14 @@
+/**
+ * Voice manager component for creating, previewing, and managing voice clones.
+ * Supports voice creation, deletion, preview playback, and credit balance management.
+ *
+ * @param props - Voice manager configuration
+ * @param props.voices - Array of voice objects to manage
+ * @param props.onVoicesChange - Callback when voices array changes
+ * @param props.creditBalance - Current credit balance
+ * @param props.onCreditBalanceChange - Callback when credit balance changes
+ */
+
 "use client";
 
 import { useState } from "react";

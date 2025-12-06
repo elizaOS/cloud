@@ -165,55 +165,50 @@ async function getOrExtractAppearanceDescription(
 
   logger.info(`[GENERATE_IMAGE] 🔬 Extracting appearance using VISION MODEL from ${config.referenceImageUrls.length} reference images...`);
 
-  try {
-    const imageUrls = config.referenceImageUrls.slice(0, 4);
-    const appearanceDescriptions: string[] = [];
-    const detectedGenders: string[] = [];
+  const imageUrls = config.referenceImageUrls.slice(0, 4);
+  const appearanceDescriptions: string[] = [];
+  const detectedGenders: string[] = [];
 
-    for (let i = 0; i < imageUrls.length; i++) {
-      const imageUrl = imageUrls[i];
-      logger.info(`[GENERATE_IMAGE] 🔍 Analyzing reference image ${i + 1}/${imageUrls.length} with vision model...`);
+  for (let i = 0; i < imageUrls.length; i++) {
+    const imageUrl = imageUrls[i];
+    logger.info(`[GENERATE_IMAGE] 🔍 Analyzing reference image ${i + 1}/${imageUrls.length} with vision model...`);
 
-      try {
-        const visionResult = await runtime.useModel(ModelType.IMAGE_DESCRIPTION, {
-          imageUrl: imageUrl,
-          prompt: appearanceExtractionPrompt,
-        });
+    const visionResult = await runtime.useModel(ModelType.IMAGE_DESCRIPTION, {
+      imageUrl: imageUrl,
+      prompt: appearanceExtractionPrompt,
+    });
 
-        if (visionResult) {
-          let descriptionText = "";
-          if (typeof visionResult === "string") {
-            descriptionText = visionResult;
-          } else if (typeof visionResult === "object" && "description" in visionResult) {
-            descriptionText = (visionResult as { description: string }).description;
-          }
+    if (visionResult) {
+      let descriptionText = "";
+      if (typeof visionResult === "string") {
+        descriptionText = visionResult;
+      } else if (typeof visionResult === "object" && "description" in visionResult) {
+        descriptionText = (visionResult as { description: string }).description;
+      }
 
-          if (descriptionText) {
-            const parsed = parseKeyValueXml(descriptionText);
-            let appearance = parsed?.appearance || descriptionText;
-            const gender = parsed?.gender?.toLowerCase()?.trim();
+      if (descriptionText) {
+        const parsed = parseKeyValueXml(descriptionText);
+        let appearance = parsed?.appearance || descriptionText;
+        const gender = parsed?.gender?.toLowerCase()?.trim();
 
-            if (gender === "woman" || gender === "man") {
-              detectedGenders.push(gender);
-              logger.info(`[GENERATE_IMAGE] 👤 Image ${i + 1} detected gender: ${gender}`);
-            }
-
-            if (appearance && typeof appearance === "string" && appearance.length > 20) {
-              if (!appearance.toLowerCase().startsWith("woman") && !appearance.toLowerCase().startsWith("man") &&
-                  !appearance.toLowerCase().startsWith("young woman") && !appearance.toLowerCase().startsWith("young man")) {
-                if (gender) {
-                  appearance = `${gender}, ${appearance}`;
-                }
-              }
-              logger.info(`[GENERATE_IMAGE] ✅ Image ${i + 1} appearance: "${appearance.substring(0, 80)}..."`);
-              appearanceDescriptions.push(appearance);
-            }
-          }
+        if (gender === "woman" || gender === "man") {
+          detectedGenders.push(gender);
+          logger.info(`[GENERATE_IMAGE] 👤 Image ${i + 1} detected gender: ${gender}`);
         }
-      } catch (imgError) {
-        logger.warn(`[GENERATE_IMAGE] ⚠️ Failed to analyze image ${i + 1}: ${imgError instanceof Error ? imgError.message : String(imgError)}`);
+
+        if (appearance && typeof appearance === "string" && appearance.length > 20) {
+          if (!appearance.toLowerCase().startsWith("woman") && !appearance.toLowerCase().startsWith("man") &&
+              !appearance.toLowerCase().startsWith("young woman") && !appearance.toLowerCase().startsWith("young man")) {
+            if (gender) {
+              appearance = `${gender}, ${appearance}`;
+            }
+          }
+          logger.info(`[GENERATE_IMAGE] ✅ Image ${i + 1} appearance: "${appearance.substring(0, 80)}..."`);
+          appearanceDescriptions.push(appearance);
+        }
       }
     }
+  }
 
     const dominantGender = detectedGenders.length > 0
       ? (detectedGenders.filter(g => g === "woman").length >= detectedGenders.filter(g => g === "man").length ? "woman" : "man")
@@ -279,11 +274,6 @@ Your response MUST be in this XML format:
     logger.info(`[GENERATE_IMAGE] ✅ Final combined appearance: "${finalAppearance.substring(0, 120)}..."`);
     appearanceDescriptionCache.set(cacheKey, finalAppearance);
     return finalAppearance;
-  } catch (error) {
-    const errorMessage = error instanceof Error ? error.message : String(error);
-    logger.error(`[GENERATE_IMAGE] ❌ Failed to extract appearance: ${errorMessage}`);
-    return null;
-  }
 }
 
 interface AppearanceGenerationConfig {
@@ -358,22 +348,16 @@ async function ensureBlobUrl(
     
     if (isFalAiUrl(imageUrl)) {
       logger.info("[GENERATE_IMAGE] Fal.ai URL detected, uploading to our storage...");
-      try {
-        const timestamp = Date.now();
-        const ourUrl = await ensureElizaCloudUrl(imageUrl, {
-          filename: `generated-${timestamp}.png`,
-          folder: "images",
-          userId: userId || "system",
-          contentType: "image/png",
-          fallbackToOriginal: false, // Don't fallback - we want to hide Fal.ai URLs
-        });
-        logger.info(`[GENERATE_IMAGE] ✅ Uploaded Fal.ai image to our storage: ${ourUrl}`);
-        return ourUrl;
-      } catch (error) {
-        logger.error("[GENERATE_IMAGE] ❌ Failed to upload Fal.ai URL to our storage:", error instanceof Error ? error.message : String(error));
-        // Return null to prevent exposing Fal.ai URL
-        return null;
-      }
+      const timestamp = Date.now();
+      const ourUrl = await ensureElizaCloudUrl(imageUrl, {
+        filename: `generated-${timestamp}.png`,
+        folder: "images",
+        userId: userId || "system",
+        contentType: "image/png",
+        fallbackToOriginal: false, // Don't fallback - we want to hide Fal.ai URLs
+      });
+      logger.info(`[GENERATE_IMAGE] ✅ Uploaded Fal.ai image to our storage: ${ourUrl}`);
+      return ourUrl;
     }
     
     // Already a proper URL from our storage or other source, return as-is
@@ -385,45 +369,17 @@ async function ensureBlobUrl(
     "[GENERATE_IMAGE] Converting base64 to blob storage to prevent token bloat",
   );
 
-  const maxRetries = 3;
-  let lastError: Error | null = null;
+  const timestamp = Date.now();
+  const result = await uploadBase64Image(imageUrl, {
+    filename: `generated-${timestamp}.png`,
+    folder: "images",
+    userId: userId || "system",
+  });
 
-  for (let attempt = 1; attempt <= maxRetries; attempt++) {
-    try {
-      const timestamp = Date.now();
-      const result = await uploadBase64Image(imageUrl, {
-        filename: `generated-${timestamp}.png`,
-        folder: "images",
-        userId: userId || "system",
-      });
-
-      logger.info(
-        `[GENERATE_IMAGE] ✅ Successfully uploaded to blob (attempt ${attempt}): ${result.url}`,
-      );
-      return result.url;
-    } catch (error) {
-      lastError = error instanceof Error ? error : new Error(String(error));
-      logger.warn(
-        `[GENERATE_IMAGE] ⚠️ Blob upload attempt ${attempt}/${maxRetries} failed:`,
-        lastError.message,
-      );
-
-      if (attempt < maxRetries) {
-        // Exponential backoff: 500ms, 1000ms, 2000ms
-        const delay = 500 * Math.pow(2, attempt - 1);
-        logger.info(`[GENERATE_IMAGE] Retrying in ${delay}ms...`);
-        await new Promise((resolve) => setTimeout(resolve, delay));
-      }
-    }
-  }
-
-  logger.error(
-    "[GENERATE_IMAGE] ❌ All blob upload attempts failed:",
-    lastError?.message,
+  logger.info(
+    `[GENERATE_IMAGE] ✅ Successfully uploaded to blob: ${result.url}`,
   );
-  // Return null - the image was already shown to the user via the callback
-  // We don't store it in memory to avoid token bloat
-  return null;
+  return result.url;
 }
 
 /**
@@ -864,14 +820,8 @@ export const generateImageAction = {
           const rawImageUrl = imageResponse[0].url;
           logger.info(`[GENERATE_IMAGE] ✅ Generated synthetic image successfully`);
 
-          let blobUrl: string | null = null;
-          try {
-            blobUrl = await ensureBlobUrl(rawImageUrl);
-            logger.info(`[GENERATE_IMAGE] 📦 Uploaded to blob: ${blobUrl?.substring(0, 60)}...`);
-          } catch (err: unknown) {
-            const errorMessage = err instanceof Error ? err.message : String(err);
-            logger.warn(`[GENERATE_IMAGE] ⚠️ Blob upload failed: ${errorMessage}`);
-          }
+          const blobUrl = await ensureBlobUrl(rawImageUrl);
+          logger.info(`[GENERATE_IMAGE] 📦 Uploaded to blob: ${blobUrl?.substring(0, 60)}...`);
 
           const finalImageUrl = blobUrl || rawImageUrl;
           const hasValidUrl = finalImageUrl.startsWith("http");
@@ -902,20 +852,16 @@ export const generateImageAction = {
             : "Hey! 😊 I'd love to get to know you better. Tell me something about yourself!";
 
           let caption = defaultCaption;
-          try {
-            const captionResponse = await runtime.useModel(ModelType.TEXT_LARGE, {
-              prompt: captionPrompt,
-            });
-            const parsedCaption = parseKeyValueXml(captionResponse);
-            if (parsedCaption?.caption && parsedCaption.caption.length > 10) {
-              caption = parsedCaption.caption;
-              // Ensure it's not too short/quote-like - if less than 30 chars, it's probably a one-liner
-              if (caption.length < 30 && !caption.includes("?")) {
-                caption = `${caption} What do you think? 😊`;
-              }
+          const captionResponse = await runtime.useModel(ModelType.TEXT_LARGE, {
+            prompt: captionPrompt,
+          });
+          const parsedCaption = parseKeyValueXml(captionResponse);
+          if (parsedCaption?.caption && parsedCaption.caption.length > 10) {
+            caption = parsedCaption.caption;
+            // Ensure it's not too short/quote-like - if less than 30 chars, it's probably a one-liner
+            if (caption.length < 30 && !caption.includes("?")) {
+              caption = `${caption} What do you think? 😊`;
             }
-          } catch {
-            logger.warn("[GENERATE_IMAGE] Failed to generate caption, using vibe-specific default");
           }
 
           logger.info(`[GENERATE_IMAGE] 💬 Caption: "${caption}"`);
@@ -1032,17 +978,10 @@ export const generateImageAction = {
       logger.info(`[GENERATE_IMAGE] Attempting to upload to blob storage...`);
       
       let blobUrl: string | null = null;
-      let blobError: string | null = null;
-      
-      try {
-        // userId property does not exist on IAgentRuntime. If needed, update ensureBlobUrl to not require userId,
-        // or retrieve from runtime.agentConfig, session, or another source if necessary.
-        blobUrl = await ensureBlobUrl(rawImageUrl);
-        logger.info(`[GENERATE_IMAGE] Blob upload result: ${blobUrl ? blobUrl.substring(0, 80) + '...' : 'FAILED'}`);
-      } catch (err) {
-        blobError = err instanceof Error ? err.message : String(err);
-        logger.error(`[GENERATE_IMAGE] ❌ Blob upload threw error:`, blobError);
-      }
+      // userId property does not exist on IAgentRuntime. If needed, update ensureBlobUrl to not require userId,
+      // or retrieve from runtime.agentConfig, session, or another source if necessary.
+      blobUrl = await ensureBlobUrl(rawImageUrl);
+      logger.info(`[GENERATE_IMAGE] Blob upload result: ${blobUrl ? blobUrl.substring(0, 80) + '...' : 'FAILED'}`);
 
       // If blob upload failed, we still show the image to user but don't store URL in memory
       const imageUrl = blobUrl || "";
@@ -1052,20 +991,16 @@ export const generateImageAction = {
 
       // Determine file extension from URL or default to png
       const getFileExtension = (url: string): string => {
-        try {
-          const urlPath = new URL(url).pathname;
-          const extension = urlPath.split(".").pop()?.toLowerCase();
-          // Common image extensions
-          if (
-            extension &&
-            ["png", "jpg", "jpeg", "gif", "webp", "bmp"].includes(extension)
-          ) {
-            return extension;
-          }
-          // Extension not in allowed list, fall through to default
-        } catch {
-          // URL parsing failed (malformed URL), fall back to png
+        const urlPath = new URL(url).pathname;
+        const extension = urlPath.split(".").pop()?.toLowerCase();
+        // Common image extensions
+        if (
+          extension &&
+          ["png", "jpg", "jpeg", "gif", "webp", "bmp"].includes(extension)
+        ) {
+          return extension;
         }
+        // Extension not in allowed list, fall through to default
         return "png"; // Default fallback for invalid/unknown extensions
       };
 

@@ -13,6 +13,12 @@ import {
 import { sql } from "drizzle-orm";
 import type { InferSelectModel, InferInsertModel } from "drizzle-orm";
 
+/**
+ * Organizations table schema.
+ * 
+ * Represents a billing organization that can contain multiple users.
+ * Manages credit balance, billing settings, and usage quotas.
+ */
 export const organizations = pgTable(
   "organizations",
   {

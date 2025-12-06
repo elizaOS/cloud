@@ -25,20 +25,7 @@ import { Play, Trash2, Edit, ExternalLink } from "lucide-react";
 import { formatDistanceToNow } from "date-fns";
 import { toast } from "sonner";
 
-interface Voice {
-  id: string;
-  elevenlabsVoiceId: string;
-  name: string;
-  description: string | null;
-  cloneType: "instant" | "professional";
-  sampleCount: number;
-  usageCount: number;
-  isActive: boolean;
-  createdAt: Date | string;
-  lastUsedAt: Date | string | null;
-  audioQualityScore: string | null;
-  totalAudioDurationSeconds: number | null;
-}
+import type { Voice } from "./types";
 
 interface VoiceCardProps {
   voice: Voice;

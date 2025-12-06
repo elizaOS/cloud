@@ -1,3 +1,9 @@
+/**
+ * Router section component displaying an interactive React Flow diagram.
+ * Shows agent routing architecture with custom nodes and edges.
+ * Includes resize handler for responsive viewport fitting.
+ */
+
 "use client";
 
 import React, { useEffect } from "react";
@@ -16,6 +22,9 @@ import { SectionLabel, BrandCard } from "@/components/brand";
 import Image from "next/image";
 import { useReactFlow } from "@xyflow/react";
 
+/**
+ * Resize handler component that fits the React Flow view on window resize.
+ */
 function ResizeHandler() {
   const { fitView } = useReactFlow();
   useEffect(() => {
@@ -26,7 +35,20 @@ function ResizeHandler() {
   return null;
 }
 
-const CustomNode = ({ data, sourcePosition, targetPosition }: any) => {
+interface CustomNodeData {
+  label?: string;
+  icon?: React.ReactNode;
+  borderColor?: string;
+  glowColor?: string;
+}
+
+interface CustomNodeProps {
+  data: CustomNodeData;
+  sourcePosition?: Position;
+  targetPosition?: Position;
+}
+
+const CustomNode = ({ data, sourcePosition, targetPosition }: CustomNodeProps) => {
   const glowColor = data.glowColor || "#316AFF";
   const isIconOnly = data.icon && !data.label;
 
@@ -549,8 +571,8 @@ const RouterSection = () => {
                     animation: `router-dot-bounce ${dot.duration}s ease-in-out infinite`,
                     animationDelay: `${dot.delay}s`,
                     boxShadow: `0 0 ${Math.max(6, dot.size * 3)}px rgba(255, 122, 26, 0.75)`,
-                    ["--dot-amplitude" as any]: `${dot.amplitude}px`,
-                  }}
+                    "--dot-amplitude": `${dot.amplitude}px`,
+                  } as React.CSSProperties}
                 />
               ))}
             </div>

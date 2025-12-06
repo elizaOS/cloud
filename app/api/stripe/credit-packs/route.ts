@@ -1,6 +1,13 @@
 import { NextResponse } from "next/server";
 import { creditsService } from "@/lib/services";
 
+/**
+ * GET /api/stripe/credit-packs
+ * Lists all active credit packs available for purchase.
+ * Public endpoint - no authentication required.
+ *
+ * @returns Array of active credit packs with pricing and credit amounts.
+ */
 export async function GET() {
   try {
     const creditPacks = await creditsService.listActiveCreditPacks();

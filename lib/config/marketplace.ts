@@ -1,8 +1,12 @@
 /**
  * Marketplace Configuration
- * Centralized configuration for marketplace features
+ *
+ * Centralized configuration for marketplace features including scoring, caching, and pagination.
  */
 
+/**
+ * Marketplace configuration constants.
+ */
 export const MARKETPLACE_CONFIG = {
   /**
    * Popularity scoring weights

@@ -2,6 +2,7 @@
 
 import { BrandCard, CornerBrackets } from "@/components/brand";
 import type { UserWithOrganization } from "@/lib/types";
+import type { ApiKey } from "@/db/schemas/api-keys";
 import { Plus, Copy, Trash2, Loader2, Eye, EyeOff, X } from "lucide-react";
 import { toast } from "sonner";
 import { useState, useEffect, useCallback } from "react";
@@ -11,23 +12,6 @@ import { Textarea } from "@/components/ui/textarea";
 
 interface ApisTabProps {
   user: UserWithOrganization;
-}
-
-interface ApiKey {
-  id: string;
-  name: string;
-  description: string | null;
-  key_prefix: string;
-  organization_id: string;
-  user_id: string;
-  permissions: string[];
-  rate_limit: number;
-  is_active: boolean;
-  usage_count: number;
-  expires_at: string | null;
-  last_used_at: string | null;
-  created_at: string;
-  updated_at: string;
 }
 
 interface ModalState {
@@ -80,22 +64,16 @@ export function ApisTab({ user }: ApisTabProps) {
   };
 
   const fetchApiKeys = useCallback(async () => {
-    try {
-      updateOperation({ loading: true });
-      const response = await fetch("/api/v1/api-keys");
+    updateOperation({ loading: true });
+    const response = await fetch("/api/v1/api-keys");
 
-      if (!response.ok) {
-        throw new Error("Failed to fetch API keys");
-      }
-
-      const data = await response.json();
-      setApiKeys(data.keys || []);
-    } catch (error) {
-      console.error("Error fetching API keys:", error);
-      toast.error("Failed to load API keys");
-    } finally {
-      updateOperation({ loading: false });
+    if (!response.ok) {
+      throw new Error("Failed to fetch API keys");
     }
+
+    const data = await response.json();
+    setApiKeys(data.keys || []);
+    updateOperation({ loading: false });
   }, []);
 
   useEffect(() => {
@@ -113,63 +91,47 @@ export function ApisTab({ user }: ApisTabProps) {
       return;
     }
 
-    try {
-      updateOperation({ creating: true });
-      const response = await fetch("/api/v1/api-keys", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          name: formState.name.trim(),
-          description: formState.description.trim() || undefined,
-          permissions: [],
-          rate_limit: 1000,
-        }),
-      });
+    updateOperation({ creating: true });
+    const response = await fetch("/api/v1/api-keys", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        name: formState.name.trim(),
+        description: formState.description.trim() || undefined,
+        permissions: [],
+        rate_limit: 1000,
+      }),
+    });
 
-      if (!response.ok) {
-        const error = await response.json();
-        throw new Error(error.error || "Failed to create API key");
-      }
-
-      const data = await response.json();
-
-      updateModal({
-        newlyCreatedKey: data.plainKey,
-        showCreateModal: false,
-        showKeyModal: true,
-      });
-
-      await fetchApiKeys();
-
-      toast.success("API key created successfully");
-    } catch (error) {
-      console.error("Error creating API key:", error);
-      toast.error(
-        error instanceof Error ? error.message : "Failed to create API key",
-      );
-    } finally {
-      updateOperation({ creating: false });
+    if (!response.ok) {
+      const error = await response.json();
+      throw new Error(error.error || "Failed to create API key");
     }
+
+    const data = await response.json();
+
+    updateModal({
+      newlyCreatedKey: data.plainKey,
+      showCreateModal: false,
+      showKeyModal: true,
+    });
+
+    await fetchApiKeys();
+
+    toast.success("API key created successfully");
+    updateOperation({ creating: false });
   };
 
   const handleCopyKey = async (keyPrefix: string) => {
-    try {
-      await navigator.clipboard.writeText(keyPrefix);
-      toast.success("API key prefix copied to clipboard");
-    } catch (error) {
-      toast.error("Failed to copy API key");
-    }
+    await navigator.clipboard.writeText(keyPrefix);
+    toast.success("API key prefix copied to clipboard");
   };
 
   const handleCopyFullKey = async () => {
     if (!modalState.newlyCreatedKey) return;
 
-    try {
-      await navigator.clipboard.writeText(modalState.newlyCreatedKey);
-      toast.success("Full API key copied to clipboard");
-    } catch (error) {
-      toast.error("Failed to copy API key");
-    }
+    await navigator.clipboard.writeText(modalState.newlyCreatedKey);
+    toast.success("Full API key copied to clipboard");
   };
 
   const handleDeleteKey = async (keyId: string, keyName: string) => {
@@ -181,29 +143,21 @@ export function ApisTab({ user }: ApisTabProps) {
       return;
     }
 
-    try {
-      updateOperation({ deletingKeyId: keyId });
+    updateOperation({ deletingKeyId: keyId });
 
-      const response = await fetch(`/api/v1/api-keys/${keyId}`, {
-        method: "DELETE",
-      });
+    const response = await fetch(`/api/v1/api-keys/${keyId}`, {
+      method: "DELETE",
+    });
 
-      if (!response.ok) {
-        const error = await response.json();
-        throw new Error(error.error || "Failed to delete API key");
-      }
-
-      setApiKeys(apiKeys.filter((key) => key.id !== keyId));
-
-      toast.success("API key deleted successfully");
-    } catch (error) {
-      console.error("Error deleting API key:", error);
-      toast.error(
-        error instanceof Error ? error.message : "Failed to delete API key",
-      );
-    } finally {
-      updateOperation({ deletingKeyId: null });
+    if (!response.ok) {
+      const error = await response.json();
+      throw new Error(error.error || "Failed to delete API key");
     }
+
+    setApiKeys(apiKeys.filter((key) => key.id !== keyId));
+
+    toast.success("API key deleted successfully");
+    updateOperation({ deletingKeyId: null });
   };
 
   return (

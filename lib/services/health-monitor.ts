@@ -362,12 +362,7 @@ export function startHealthMonitoring(
   }, intervalMs);
 
   // Also run immediately on startup
-  monitorAllContainers().catch((error) => {
-    console.error(
-      "Initial health check failed",
-      error instanceof Error ? error.message : String(error),
-    );
-  });
+  void monitorAllContainers();
 
   return interval;
 }

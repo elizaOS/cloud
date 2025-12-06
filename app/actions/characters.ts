@@ -7,7 +7,10 @@ import type { ElizaCharacter, NewUserCharacter } from "@/lib/types";
 import { revalidatePath } from "next/cache";
 
 /**
- * Upload a character avatar
+ * Uploads a character avatar image to blob storage.
+ *
+ * @param formData - Form data containing the avatar file.
+ * @returns Success status with the uploaded URL, or error details.
  */
 export async function uploadCharacterAvatar(formData: FormData) {
   try {
@@ -39,7 +42,11 @@ export async function uploadCharacterAvatar(formData: FormData) {
 }
 
 /**
- * Create a new character
+ * Creates a new character for the authenticated user's organization.
+ *
+ * @param elizaCharacter - The character data to create.
+ * @returns The created character in Eliza format.
+ * @throws If the user is not authenticated or doesn't have an organization.
  */
 export async function createCharacter(elizaCharacter: ElizaCharacter) {
   const user = await requireAuthWithOrg();
@@ -67,6 +74,7 @@ export async function createCharacter(elizaCharacter: ElizaCharacter) {
     avatar_url: elizaCharacter.avatarUrl ?? null,
     is_template: false,
     is_public: false,
+    source: "cloud", // Created from main Eliza Cloud dashboard
   };
 
   const character = await charactersService.create(newCharacter);
@@ -93,7 +101,12 @@ export async function createCharacter(elizaCharacter: ElizaCharacter) {
 }
 
 /**
- * Update an existing character
+ * Updates an existing character owned by the authenticated user.
+ *
+ * @param characterId - The ID of the character to update.
+ * @param elizaCharacter - The updated character data.
+ * @returns The updated character in Eliza format.
+ * @throws If the character is not found or access is denied.
  */
 export async function updateCharacter(
   characterId: string,
@@ -137,7 +150,11 @@ export async function updateCharacter(
 }
 
 /**
- * Delete a character
+ * Deletes a character owned by the authenticated user.
+ *
+ * @param characterId - The ID of the character to delete.
+ * @returns Success status.
+ * @throws If the character is not found or access is denied.
  */
 export async function deleteCharacter(characterId: string) {
   const user = await requireAuthWithOrg();
@@ -153,7 +170,9 @@ export async function deleteCharacter(characterId: string) {
 }
 
 /**
- * List all characters for the current user
+ * Lists all characters owned by the authenticated user.
+ *
+ * @returns Array of characters in Eliza format (excludes templates).
  */
 export async function listCharacters() {
   const user = await requireAuthWithOrg();
@@ -166,7 +185,11 @@ export async function listCharacters() {
 }
 
 /**
- * Get a specific character
+ * Gets a specific character owned by the authenticated user.
+ *
+ * @param characterId - The ID of the character to retrieve.
+ * @returns The character in Eliza format.
+ * @throws If the character is not found.
  */
 export async function getCharacter(characterId: string) {
   const user = await requireAuthWithOrg();

@@ -1,3 +1,12 @@
+/**
+ * Analytics page client component displaying usage metrics, cost insights, and projections.
+ * Includes charts, breakdowns by provider and model, and export functionality.
+ *
+ * @param props - Analytics page configuration
+ * @param props.data - Enhanced analytics data including usage and cost metrics
+ * @param props.projectionsData - Projected usage and cost data
+ */
+
 "use client";
 
 import { format } from "date-fns";

@@ -3,6 +3,13 @@ import { requireAuthWithOrg } from "@/lib/auth";
 import { usageQuotasService } from "@/lib/services";
 import { withRateLimit, RateLimitPresets } from "@/lib/middleware/rate-limit";
 
+/**
+ * POST /api/quotas/limits
+ * Creates a new usage quota limit for the organization.
+ *
+ * @param req - Request body with quota_type, credits_limit, and optional model_name.
+ * @returns Created quota configuration.
+ */
 async function handlePOST(req: NextRequest) {
   try {
     const user = await requireAuthWithOrg();
@@ -68,6 +75,12 @@ async function handlePOST(req: NextRequest) {
   }
 }
 
+/**
+ * GET /api/quotas/limits
+ * Gets all active quota limits for the organization.
+ *
+ * @returns Array of active quota configurations.
+ */
 async function handleGET() {
   try {
     const user = await requireAuthWithOrg();

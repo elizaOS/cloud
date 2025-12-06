@@ -309,36 +309,29 @@ export async function runEvaluatorsWithTimeout(
 
   logger.debug("[runEvaluatorsWithTimeout] Running evaluators");
 
-  try {
-    await Promise.race([
-      runtime.evaluate(
-        message,
-        { ...state },
-        true, // shouldRespondToMessage
-        async (content) => {
-          logger.debug(
-            "[runEvaluatorsWithTimeout] Evaluator callback:",
-            JSON.stringify(content),
-          );
-          return callback ? callback(content) : [];
-        },
-        [responseMemory],
-      ),
-      new Promise<void>((_, reject) => {
-        setTimeout(() => {
-          reject(
-            new Error(`Evaluators timed out after ${EVALUATOR_TIMEOUT_MS}ms`),
-          );
-        }, EVALUATOR_TIMEOUT_MS);
-      }),
-    ]);
-    logger.debug(
-      "[runEvaluatorsWithTimeout] Evaluators completed successfully",
-    );
-  } catch (error) {
-    const errorMessage = error instanceof Error ? error.message : String(error);
-    logger.error(
-      `[runEvaluatorsWithTimeout] Error in evaluators: ${errorMessage}`,
-    );
-  }
+  await Promise.race([
+    runtime.evaluate(
+      message,
+      { ...state },
+      true, // shouldRespondToMessage
+      async (content) => {
+        logger.debug(
+          "[runEvaluatorsWithTimeout] Evaluator callback:",
+          JSON.stringify(content),
+        );
+        return callback ? callback(content) : [];
+      },
+      [responseMemory],
+    ),
+    new Promise<void>((_, reject) => {
+      setTimeout(() => {
+        reject(
+          new Error(`Evaluators timed out after ${EVALUATOR_TIMEOUT_MS}ms`),
+        );
+      }, EVALUATOR_TIMEOUT_MS);
+    }),
+  ]);
+  logger.debug(
+    "[runEvaluatorsWithTimeout] Evaluators completed successfully",
+  );
 }

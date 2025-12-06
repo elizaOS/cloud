@@ -1,3 +1,7 @@
+/**
+ * Server actions for analytics data.
+ */
+
 "use server";
 
 import { requireAuthWithOrg } from "@/lib/auth";
@@ -9,6 +13,9 @@ import {
   type TimeGranularity,
 } from "@/lib/services";
 
+/**
+ * Filters for analytics queries.
+ */
 export interface AnalyticsFilters {
   startDate?: Date;
   endDate?: Date;
@@ -17,6 +24,12 @@ export interface AnalyticsFilters {
   providerFilter?: string;
 }
 
+/**
+ * Gets analytics data for the current user's organization.
+ *
+ * @param filters - Optional filters for date range, granularity, and model/provider.
+ * @returns Analytics data including stats, time series, user breakdown, and cost trending.
+ */
 export async function getAnalyticsData(filters: AnalyticsFilters = {}) {
   const user = await requireAuthWithOrg();
   const organizationId = user.organization_id!;

@@ -120,42 +120,34 @@ export class DistributedLockService {
     const lockId = uuidv4();
     const key = `agent:room:${roomId}:lock`;
 
-    try {
-      // Try to acquire lock using SET NX (set if not exists) with expiry
-      const acquired = await this.redis.set(key, lockId, {
-        nx: true, // Only set if key doesn't exist
-        px: ttl, // TTL in milliseconds
-      });
+    // Try to acquire lock using SET NX (set if not exists) with expiry
+    const acquired = await this.redis.set(key, lockId, {
+      nx: true, // Only set if key doesn't exist
+      px: ttl, // TTL in milliseconds
+    });
 
-      if (!acquired) {
-        logger.debug(
-          `[Distributed Locks] Failed to acquire lock for ${roomId} - already locked`,
-        );
-        return null;
-      }
-
+    if (!acquired) {
       logger.debug(
-        `[Distributed Locks] Acquired lock ${lockId} for ${roomId} (TTL: ${ttl}ms)`,
-      );
-
-      return {
-        lockId,
-        roomId,
-        expiresAt: new Date(Date.now() + ttl),
-        release: async () => {
-          await this.releaseRoomLock(roomId, lockId);
-        },
-        extend: async (ms) => {
-          await this.extendLock(roomId, lockId, ms);
-        },
-      };
-    } catch (error) {
-      logger.error(
-        `[Distributed Locks] Error acquiring lock for ${roomId}:`,
-        error,
+        `[Distributed Locks] Failed to acquire lock for ${roomId} - already locked`,
       );
       return null;
     }
+
+    logger.debug(
+      `[Distributed Locks] Acquired lock ${lockId} for ${roomId} (TTL: ${ttl}ms)`,
+    );
+
+    return {
+      lockId,
+      roomId,
+      expiresAt: new Date(Date.now() + ttl),
+      release: async () => {
+        await this.releaseRoomLock(roomId, lockId);
+      },
+      extend: async (ms) => {
+        await this.extendLock(roomId, lockId, ms);
+      },
+    };
   }
 
   /**
@@ -171,27 +163,19 @@ export class DistributedLockService {
 
     const key = `agent:room:${roomId}:lock`;
 
-    try {
-      // Only release if we own the lock (check lockId matches)
-      const currentLockId = await this.redis.get(key);
+    // Only release if we own the lock (check lockId matches)
+    const currentLockId = await this.redis.get(key);
 
-      if (currentLockId !== lockId) {
-        logger.warn(
-          `[Distributed Locks] Cannot release lock ${lockId} for ${roomId} - not owned or expired`,
-        );
-        return false;
-      }
-
-      await this.redis.del(key);
-      logger.debug(`[Distributed Locks] Released lock ${lockId} for ${roomId}`);
-      return true;
-    } catch (error) {
-      logger.error(
-        `[Distributed Locks] Error releasing lock for ${roomId}:`,
-        error,
+    if (currentLockId !== lockId) {
+      logger.warn(
+        `[Distributed Locks] Cannot release lock ${lockId} for ${roomId} - not owned or expired`,
       );
       return false;
     }
+
+    await this.redis.del(key);
+    logger.debug(`[Distributed Locks] Released lock ${lockId} for ${roomId}`);
+    return true;
   }
 
   /**
@@ -212,41 +196,33 @@ export class DistributedLockService {
 
     const key = `agent:room:${roomId}:lock`;
 
-    try {
-      // Verify ownership
-      const currentLockId = await this.redis.get(key);
+    // Verify ownership
+    const currentLockId = await this.redis.get(key);
 
-      if (currentLockId !== lockId) {
-        logger.warn(
-          `[Distributed Locks] Cannot extend lock ${lockId} for ${roomId} - not owned or expired`,
-        );
-        return false;
-      }
-
-      // Get current TTL
-      const ttl = await this.redis.pttl(key);
-      if (ttl <= 0) {
-        logger.warn(
-          `[Distributed Locks] Cannot extend lock ${lockId} for ${roomId} - already expired`,
-        );
-        return false;
-      }
-
-      // Set new TTL (current + extension)
-      const newTtl = ttl + ms;
-      await this.redis.pexpire(key, newTtl);
-
-      logger.debug(
-        `[Distributed Locks] Extended lock ${lockId} for ${roomId} by ${ms}ms (new TTL: ${newTtl}ms)`,
-      );
-      return true;
-    } catch (error) {
-      logger.error(
-        `[Distributed Locks] Error extending lock for ${roomId}:`,
-        error,
+    if (currentLockId !== lockId) {
+      logger.warn(
+        `[Distributed Locks] Cannot extend lock ${lockId} for ${roomId} - not owned or expired`,
       );
       return false;
     }
+
+    // Get current TTL
+    const ttl = await this.redis.pttl(key);
+    if (ttl <= 0) {
+      logger.warn(
+        `[Distributed Locks] Cannot extend lock ${lockId} for ${roomId} - already expired`,
+      );
+      return false;
+    }
+
+    // Set new TTL (current + extension)
+    const newTtl = ttl + ms;
+    await this.redis.pexpire(key, newTtl);
+
+    logger.debug(
+      `[Distributed Locks] Extended lock ${lockId} for ${roomId} by ${ms}ms (new TTL: ${newTtl}ms)`,
+    );
+    return true;
   }
 
   /**
@@ -261,16 +237,8 @@ export class DistributedLockService {
 
     const key = `agent:room:${roomId}:lock`;
 
-    try {
-      const lockId = await this.redis.get(key);
-      return lockId !== null;
-    } catch (error) {
-      logger.error(
-        `[Distributed Locks] Error checking lock for ${roomId}:`,
-        error,
-      );
-      return false;
-    }
+    const lockId = await this.redis.get(key);
+    return lockId !== null;
   }
 
   /**
@@ -287,21 +255,13 @@ export class DistributedLockService {
 
     const key = `agent:room:${roomId}:lock`;
 
-    try {
-      const lockId = await this.redis.get<string>(key);
-      if (!lockId) {
-        return null;
-      }
-
-      const ttl = await this.redis.pttl(key);
-      return { lockId, ttl };
-    } catch (error) {
-      logger.error(
-        `[Distributed Locks] Error getting lock info for ${roomId}:`,
-        error,
-      );
+    const lockId = await this.redis.get<string>(key);
+    if (!lockId) {
       return null;
     }
+
+    const ttl = await this.redis.pttl(key);
+    return { lockId, ttl };
   }
 
   /**
@@ -316,17 +276,9 @@ export class DistributedLockService {
 
     const key = `agent:room:${roomId}:lock`;
 
-    try {
-      await this.redis.del(key);
-      logger.info(`[Distributed Locks] Force released lock for ${roomId}`);
-      return true;
-    } catch (error) {
-      logger.error(
-        `[Distributed Locks] Error force releasing lock for ${roomId}:`,
-        error,
-      );
-      return false;
-    }
+    await this.redis.del(key);
+    logger.info(`[Distributed Locks] Force released lock for ${roomId}`);
+    return true;
   }
 
   /**

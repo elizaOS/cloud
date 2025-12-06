@@ -8,19 +8,33 @@ import {
 
 export type { ProviderHealth, NewProviderHealth };
 
+/**
+ * Repository for provider health monitoring database operations.
+ */
 export class ProviderHealthRepository {
+  /**
+   * Lists all provider health records, ordered by last checked time.
+   */
   async listAll(): Promise<ProviderHealth[]> {
     return await db.query.providerHealth.findMany({
       orderBy: desc(providerHealth.last_checked),
     });
   }
 
+  /**
+   * Finds provider health record by provider name.
+   */
   async findByProvider(provider: string): Promise<ProviderHealth | undefined> {
     return await db.query.providerHealth.findFirst({
       where: eq(providerHealth.provider, provider),
     });
   }
 
+  /**
+   * Creates or updates a provider health record.
+   * 
+   * Updates existing record if found, otherwise creates a new one.
+   */
   async createOrUpdate(data: NewProviderHealth): Promise<ProviderHealth> {
     const existing = await this.findByProvider(data.provider);
 
@@ -40,6 +54,9 @@ export class ProviderHealthRepository {
     return created;
   }
 
+  /**
+   * Updates provider health status and metrics.
+   */
   async updateStatus(
     provider: string,
     status: string,
@@ -61,5 +78,7 @@ export class ProviderHealthRepository {
   }
 }
 
-// Export singleton instance
+/**
+ * Singleton instance of ProviderHealthRepository.
+ */
 export const providerHealthRepository = new ProviderHealthRepository();

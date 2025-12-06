@@ -11,12 +11,12 @@ import type { InferSelectModel, InferInsertModel } from "drizzle-orm";
 import { users } from "./users";
 
 /**
- * Anonymous Sessions Table
- *
+ * Anonymous sessions table schema.
+ * 
  * Tracks anonymous/free user sessions for rate limiting and usage tracking.
  * Each anonymous user gets their own session with individual limits.
- *
- * Key Features:
+ * 
+ * Features:
  * - Session-based tracking (not org-based)
  * - Individual message limits per session
  * - Automatic expiration after 7 days

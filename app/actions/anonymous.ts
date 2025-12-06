@@ -6,8 +6,10 @@ import { cookies } from "next/headers";
 const ANON_SESSION_COOKIE = "eliza-anon-session";
 
 /**
- * Server action to get or create anonymous user
- * This is needed because cookie setting can only happen in Server Actions
+ * Gets or creates an anonymous user session.
+ * Sets an HTTP-only cookie if a new session is created.
+ *
+ * @returns The anonymous user result with session token and expiration if new.
  */
 export async function getOrCreateAnonymousUserAction() {
   const result = await getOrCreateAnonymousUser();

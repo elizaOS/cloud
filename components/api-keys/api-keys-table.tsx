@@ -1,3 +1,15 @@
+/**
+ * API keys table component displaying API keys with status, expiration, and actions.
+ * Supports copying, disabling, deleting, and regenerating keys.
+ *
+ * @param props - API keys table configuration
+ * @param props.keys - Array of API key display objects
+ * @param props.onCopyKey - Callback when key is copied
+ * @param props.onDisableKey - Callback when key is disabled
+ * @param props.onDeleteKey - Callback when key is deleted
+ * @param props.onRegenerateKey - Callback when key is regenerated
+ */
+
 import {
   DropdownMenu,
   DropdownMenuContent,

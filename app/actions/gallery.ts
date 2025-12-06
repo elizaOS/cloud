@@ -25,7 +25,10 @@ export interface GalleryItem {
 }
 
 /**
- * List all media for the current user
+ * Lists all completed media items for the authenticated user's organization.
+ *
+ * @param options - Optional filters for type, limit, and pagination offset.
+ * @returns Array of gallery items with metadata.
  */
 export async function listUserMedia(options?: {
   type?: "image" | "video";
@@ -66,7 +69,11 @@ export async function listUserMedia(options?: {
 }
 
 /**
- * Delete a media item from the gallery
+ * Deletes a media item from the gallery and blob storage.
+ *
+ * @param generationId - The ID of the generation/media item to delete.
+ * @returns True if deletion was successful.
+ * @throws If the media is not found or access is denied.
  */
 export async function deleteMedia(generationId: string): Promise<boolean> {
   const user = await requireAuthWithOrg();
@@ -99,7 +106,9 @@ export async function deleteMedia(generationId: string): Promise<boolean> {
 }
 
 /**
- * Get media statistics for the current user
+ * Gets media statistics for the authenticated user.
+ *
+ * @returns Statistics including total images, videos, and total file size.
  */
 export async function getUserMediaStats(): Promise<{
   totalImages: number;

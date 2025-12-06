@@ -67,6 +67,16 @@ interface PluginsTabProps {
   onSave?: () => Promise<void>;
 }
 
+/**
+ * Type guard to check if a value is a valid McpSettings object
+ */
+function isMcpSettings(value: unknown): value is McpSettings {
+  if (typeof value !== "object" || value === null) return false;
+  const obj = value as Record<string, unknown>;
+  if (typeof obj.servers !== "object" || obj.servers === null) return false;
+  return true;
+}
+
 const iconMap: Record<string, typeof Puzzle> = {
   puzzle: Puzzle,
   clock: Clock,
@@ -89,14 +99,18 @@ export function PluginsTab({ character, onChange }: PluginsTabProps) {
 
     if (typeof mcpSetting === "string") {
       try {
-        return JSON.parse(mcpSetting);
+        const parsed: unknown = JSON.parse(mcpSetting);
+        if (isMcpSettings(parsed)) {
+          return parsed;
+        }
+        return { servers: {} };
       } catch {
         return { servers: {} };
       }
     }
 
-    if (typeof mcpSetting === "object" && mcpSetting !== null) {
-      return mcpSetting as unknown as McpSettings;
+    if (isMcpSettings(mcpSetting)) {
+      return mcpSetting;
     }
 
     return { servers: {} };

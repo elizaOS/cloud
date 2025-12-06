@@ -1,5 +1,9 @@
 /**
- * Sidebar Navigation Section Component
+ * Sidebar navigation section component with collapsible functionality.
+ * Persists open/closed state to localStorage and provides color-coded sections.
+ *
+ * @param props - Sidebar section configuration
+ * @param props.section - Section data including title, items, and metadata
  */
 
 "use client";

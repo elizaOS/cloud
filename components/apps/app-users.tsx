@@ -3,9 +3,17 @@
 import { useState, useEffect } from "react";
 import { BrandCard, CornerBrackets } from "@/components/brand";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
-import { Badge } from "@/components/ui/badge";
 import { Loader2, Users as UsersIcon, DollarSign, Activity } from "lucide-react";
 import { formatDistanceToNow } from "date-fns";
+
+interface AppUser {
+  id: string;
+  user_id: string;
+  total_requests: number;
+  total_credits_used: string;
+  first_seen_at: string;
+  last_seen_at: string;
+}
 
 interface AppUsersProps {
   appId: string;
@@ -13,22 +21,17 @@ interface AppUsersProps {
 
 export function AppUsers({ appId }: AppUsersProps) {
   const [isLoading, setIsLoading] = useState(true);
-  const [users, setUsers] = useState<any[]>([]);
+  const [users, setUsers] = useState<AppUser[]>([]);
 
   const fetchUsers = async () => {
     setIsLoading(true);
-    try {
-      const response = await fetch(`/api/v1/apps/${appId}/users?limit=50`);
-      const data = await response.json();
-      
-      if (data.success) {
-        setUsers(data.users);
-      }
-    } catch (error) {
-      console.error("Failed to fetch users:", error);
-    } finally {
-      setIsLoading(false);
+    const response = await fetch(`/api/v1/apps/${appId}/users?limit=50`);
+    const data = await response.json();
+    
+    if (data.success) {
+      setUsers(data.users);
     }
+    setIsLoading(false);
   };
 
   useEffect(() => {
@@ -86,19 +89,9 @@ export function AppUsers({ appId }: AppUsersProps) {
                 </Avatar>
 
                 <div className="flex-1 min-w-0">
-                  <div className="flex items-center gap-2 mb-1">
-                    <p className="text-white font-medium truncate">
+                  <p className="text-white font-medium truncate mb-1">
                       User {appUser.user_id.substring(0, 8)}
                     </p>
-                    {appUser.referral_code_used && (
-                      <Badge
-                        variant="outline"
-                        className="bg-purple-500/10 text-purple-400 border-purple-500/20"
-                      >
-                        Referred
-                      </Badge>
-                    )}
-                  </div>
                   <div className="flex items-center gap-4 text-sm text-white/60">
                     <span className="flex items-center gap-1">
                       <Activity className="h-3 w-3" />

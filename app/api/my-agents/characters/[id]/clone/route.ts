@@ -5,6 +5,14 @@ import { logger } from "@/lib/utils/logger";
 
 export const dynamic = "force-dynamic";
 
+/**
+ * POST /api/my-agents/characters/[id]/clone
+ * Clones a character from the user's agents to create a new copy.
+ *
+ * @param request - Request body with optional name and makePublic flag.
+ * @param params - Route parameters containing the character ID to clone.
+ * @returns Cloned character details.
+ */
 export async function POST(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> },

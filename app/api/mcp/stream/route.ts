@@ -38,6 +38,14 @@ function formatSSE(data: SSEMessage): string {
   return `data: ${JSON.stringify(data)}\n\n`;
 }
 
+/**
+ * GET /api/mcp/stream?eventType=xxx&resourceId=xxx
+ * Server-Sent Events endpoint for streaming real-time updates for agents, credits, or containers.
+ * Implements exponential backoff and connection limits per organization.
+ *
+ * @param request - Request with eventType and resourceId query parameters.
+ * @returns SSE stream with real-time updates and heartbeat events.
+ */
 export async function GET(request: NextRequest) {
   try {
     const auth = await requireAuthOrApiKey(request);

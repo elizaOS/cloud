@@ -5,23 +5,38 @@ import { type Organization } from "../schemas/organizations";
 
 export type { User, NewUser };
 
+/**
+ * User with associated organization data.
+ */
 export interface UserWithOrganization extends User {
   organization: Organization | null;
 }
 
+/**
+ * Repository for user database operations.
+ */
 export class UsersRepository {
+  /**
+   * Finds a user by ID.
+   */
   async findById(id: string): Promise<User | undefined> {
     return await db.query.users.findFirst({
       where: eq(users.id, id),
     });
   }
 
+  /**
+   * Finds a user by email address.
+   */
   async findByEmail(email: string): Promise<User | undefined> {
     return await db.query.users.findFirst({
       where: eq(users.email, email),
     });
   }
 
+  /**
+   * Finds a user by Privy user ID with organization data.
+   */
   async findByPrivyIdWithOrganization(
     privyUserId: string,
   ): Promise<UserWithOrganization | undefined> {
@@ -52,6 +67,9 @@ export class UsersRepository {
     }
   }
 
+  /**
+   * Finds a user by ID with organization data.
+   */
   async findWithOrganization(
     userId: string,
   ): Promise<UserWithOrganization | undefined> {
@@ -65,6 +83,9 @@ export class UsersRepository {
     return user as UserWithOrganization | undefined;
   }
 
+  /**
+   * Finds a user by email with organization data.
+   */
   async findByEmailWithOrganization(
     email: string,
   ): Promise<UserWithOrganization | undefined> {
@@ -78,12 +99,18 @@ export class UsersRepository {
     return user as UserWithOrganization | undefined;
   }
 
+  /**
+   * Finds a user by wallet address (case-insensitive).
+   */
   async findByWalletAddress(walletAddress: string): Promise<User | undefined> {
     return await db.query.users.findFirst({
       where: eq(users.wallet_address, walletAddress.toLowerCase()),
     });
   }
 
+  /**
+   * Finds a user by wallet address with organization data.
+   */
   async findByWalletAddressWithOrganization(
     walletAddress: string,
   ): Promise<UserWithOrganization | undefined> {
@@ -97,17 +124,26 @@ export class UsersRepository {
     return user as UserWithOrganization | undefined;
   }
 
+  /**
+   * Lists all users in an organization.
+   */
   async listByOrganization(organizationId: string): Promise<User[]> {
     return await db.query.users.findMany({
       where: eq(users.organization_id, organizationId),
     });
   }
 
+  /**
+   * Creates a new user.
+   */
   async create(data: NewUser): Promise<User> {
     const [user] = await db.insert(users).values(data).returning();
     return user;
   }
 
+  /**
+   * Updates an existing user.
+   */
   async update(id: string, data: Partial<NewUser>): Promise<User | undefined> {
     const [updated] = await db
       .update(users)
@@ -120,10 +156,15 @@ export class UsersRepository {
     return updated;
   }
 
+  /**
+   * Deletes a user by ID.
+   */
   async delete(id: string): Promise<void> {
     await db.delete(users).where(eq(users.id, id));
   }
 }
 
-// Export singleton instance
+/**
+ * Singleton instance of UsersRepository.
+ */
 export const usersRepository = new UsersRepository();

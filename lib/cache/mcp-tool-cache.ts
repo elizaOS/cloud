@@ -44,7 +44,7 @@ const TOOL_CACHE_TTLS: Record<string, number> = {
 };
 
 interface CachedToolResult {
-  result: any;
+  result: unknown;
   cachedAt: number;
   ttl: number;
 }
@@ -59,9 +59,9 @@ interface CachedToolResult {
  */
 export async function getCachedToolResult(
   toolName: string,
-  params: any,
+  params: unknown,
   organizationId: string,
-): Promise<any | null> {
+): Promise<unknown | null> {
   // Check if this tool should be cached
   const ttl = TOOL_CACHE_TTLS[toolName];
   if (!ttl || ttl === 0) {
@@ -70,28 +70,23 @@ export async function getCachedToolResult(
 
   const cacheKey = buildToolCacheKey(toolName, params, organizationId);
 
-  try {
-    const cached = await cache.get<CachedToolResult>(cacheKey);
+  const cached = await cache.get<CachedToolResult>(cacheKey);
 
-    if (!cached) {
-      logger.debug(`[MCPToolCache] Cache miss: ${toolName}`);
-      return null;
-    }
-
-    // Verify TTL (belt-and-suspenders approach)
-    const age = Date.now() - cached.cachedAt;
-    if (age > cached.ttl * 1000) {
-      logger.debug(`[MCPToolCache] Cache expired: ${toolName}`);
-      await cache.del(cacheKey); // Clean up expired entry
-      return null;
-    }
-
-    logger.debug(`[MCPToolCache] Cache hit: ${toolName} (age: ${age}ms)`);
-    return cached.result;
-  } catch (error) {
-    logger.error(`[MCPToolCache] Cache read error for ${toolName}:`, error);
-    return null; // Fail open - don't break on cache errors
+  if (!cached) {
+    logger.debug(`[MCPToolCache] Cache miss: ${toolName}`);
+    return null;
   }
+
+  // Verify TTL (belt-and-suspenders approach)
+  const age = Date.now() - cached.cachedAt;
+  if (age > cached.ttl * 1000) {
+    logger.debug(`[MCPToolCache] Cache expired: ${toolName}`);
+    await cache.del(cacheKey); // Clean up expired entry
+    return null;
+  }
+
+  logger.debug(`[MCPToolCache] Cache hit: ${toolName} (age: ${age}ms)`);
+  return cached.result;
 }
 
 /**
@@ -104,9 +99,9 @@ export async function getCachedToolResult(
  */
 export async function setCachedToolResult(
   toolName: string,
-  params: any,
+  params: unknown,
   organizationId: string,
-  result: any,
+  result: unknown,
 ): Promise<void> {
   // Check if this tool should be cached
   const ttl = TOOL_CACHE_TTLS[toolName];
@@ -116,19 +111,14 @@ export async function setCachedToolResult(
 
   const cacheKey = buildToolCacheKey(toolName, params, organizationId);
 
-  try {
-    const cachedValue: CachedToolResult = {
-      result,
-      cachedAt: Date.now(),
-      ttl,
-    };
+  const cachedValue: CachedToolResult = {
+    result,
+    cachedAt: Date.now(),
+    ttl,
+  };
 
-    await cache.set(cacheKey, cachedValue, ttl);
-    logger.debug(`[MCPToolCache] Cached result: ${toolName} (TTL: ${ttl}s)`);
-  } catch (error) {
-    logger.error(`[MCPToolCache] Cache write error for ${toolName}:`, error);
-    // Don't throw - cache failures should not break the application
-  }
+  await cache.set(cacheKey, cachedValue, ttl);
+  logger.debug(`[MCPToolCache] Cached result: ${toolName} (TTL: ${ttl}s)`);
 }
 
 /**
@@ -142,26 +132,19 @@ export async function setCachedToolResult(
 export async function invalidateToolCache(
   toolName: string,
   organizationId: string,
-  params?: any,
+  params?: unknown,
 ): Promise<void> {
-  try {
-    if (params) {
-      // Invalidate specific cache entry
-      const cacheKey = buildToolCacheKey(toolName, params, organizationId);
-      await cache.del(cacheKey);
-      logger.debug(`[MCPToolCache] Invalidated specific cache: ${toolName}`);
-    } else {
-      // Invalidate all cache entries for this tool and org (pattern-based)
-      // Note: This requires scanning keys, which can be slow
-      // For now, we'll skip this optimization and rely on TTL expiration
-      logger.debug(
-        `[MCPToolCache] Skipping pattern-based invalidation for ${toolName}`,
-      );
-    }
-  } catch (error) {
-    logger.error(
-      `[MCPToolCache] Cache invalidation error for ${toolName}:`,
-      error,
+  if (params) {
+    // Invalidate specific cache entry
+    const cacheKey = buildToolCacheKey(toolName, params, organizationId);
+    await cache.del(cacheKey);
+    logger.debug(`[MCPToolCache] Invalidated specific cache: ${toolName}`);
+  } else {
+    // Invalidate all cache entries for this tool and org (pattern-based)
+    // Note: This requires scanning keys, which can be slow
+    // For now, we'll skip this optimization and rely on TTL expiration
+    logger.debug(
+      `[MCPToolCache] Skipping pattern-based invalidation for ${toolName}`,
     );
   }
 }
@@ -194,7 +177,7 @@ export async function getToolCacheStats(toolName?: string): Promise<{
  */
 function buildToolCacheKey(
   toolName: string,
-  params: any,
+  params: unknown,
   organizationId: string,
 ): string {
   // Hash params to create stable, compact key
@@ -207,28 +190,22 @@ function buildToolCacheKey(
  * Create stable hash of tool parameters
  * Ensures same params always produce same cache key
  */
-function hashParams(params: any): string {
-  try {
-    // Sort object keys for consistent hashing
-    const sortedParams = sortObjectKeys(params);
-    const jsonString = JSON.stringify(sortedParams);
+function hashParams(params: unknown): string {
+  // Sort object keys for consistent hashing
+  const sortedParams = sortObjectKeys(params);
+  const jsonString = JSON.stringify(sortedParams);
 
-    // Use SHA-256 but only take first 16 chars for brevity
-    return createHash("sha256")
-      .update(jsonString)
-      .digest("hex")
-      .substring(0, 16);
-  } catch (error) {
-    logger.error("[MCPToolCache] Param hashing error:", error);
-    // Fallback to timestamp-based key (won't cache effectively but won't break)
-    return Date.now().toString();
-  }
+  // Use SHA-256 but only take first 16 chars for brevity
+  return createHash("sha256")
+    .update(jsonString)
+    .digest("hex")
+    .substring(0, 16);
 }
 
 /**
  * Recursively sort object keys for consistent hashing
  */
-function sortObjectKeys(obj: any): any {
+function sortObjectKeys(obj: unknown): unknown {
   if (obj === null || typeof obj !== "object") {
     return obj;
   }
@@ -237,11 +214,11 @@ function sortObjectKeys(obj: any): any {
     return obj.map(sortObjectKeys);
   }
 
-  const sorted: any = {};
-  Object.keys(obj)
+  const sorted: Record<string, unknown> = {};
+  Object.keys(obj as Record<string, unknown>)
     .sort()
     .forEach((key) => {
-      sorted[key] = sortObjectKeys(obj[key]);
+      sorted[key] = sortObjectKeys((obj as Record<string, unknown>)[key]);
     });
 
   return sorted;

@@ -1,5 +1,15 @@
+/**
+ * Model tier definitions and utilities for AI model selection.
+ */
+
+/**
+ * Available model tiers.
+ */
 export type ModelTier = "fast" | "pro" | "ultra";
 
+/**
+ * Configuration for a model tier.
+ */
 export interface ModelTierConfig {
   id: ModelTier;
   name: string;
@@ -40,10 +50,22 @@ export const MODEL_TIER_LIST: ModelTierConfig[] = [
 
 export const DEFAULT_MODEL_TIER: ModelTier = "pro";
 
+/**
+ * Gets the model ID for a given tier.
+ *
+ * @param tier - Model tier.
+ * @returns Model ID string.
+ */
 export function getModelIdFromTier(tier: ModelTier): string {
   return MODEL_TIERS[tier]?.modelId ?? MODEL_TIERS[DEFAULT_MODEL_TIER].modelId;
 }
 
+/**
+ * Gets the tier for a given model ID.
+ *
+ * @param modelId - Model ID string.
+ * @returns Model tier or null if not found.
+ */
 export function getTierFromModelId(modelId: string): ModelTier | null {
   for (const [tier, config] of Object.entries(MODEL_TIERS)) {
     if (config.modelId === modelId) {
@@ -53,6 +75,12 @@ export function getTierFromModelId(modelId: string): ModelTier | null {
   return null;
 }
 
+/**
+ * Type guard to check if a string is a valid model tier.
+ *
+ * @param tier - String to check.
+ * @returns True if the string is a valid model tier.
+ */
 export function isValidModelTier(tier: string): tier is ModelTier {
   return tier in MODEL_TIERS;
 }

@@ -3205,7 +3205,13 @@ const mcpHandler = createMcpHandler(
   { basePath: "/api" },
 );
 
-// Manual authentication wrapper using AsyncLocalStorage
+/**
+ * Handles MCP protocol requests (GET, POST, DELETE).
+ * Authenticates requests and applies rate limiting before forwarding to MCP handler.
+ *
+ * @param req - The Next.js request object.
+ * @returns MCP protocol response or authentication/rate limit error.
+ */
 async function handleRequest(req: NextRequest) {
   try {
     // Authenticate request

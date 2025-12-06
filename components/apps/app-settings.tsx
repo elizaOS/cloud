@@ -21,7 +21,7 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
-import { Loader2, Trash2, Key, Plus, X, Save } from "lucide-react";
+import { Loader2, Trash2, Plus, X, Save } from "lucide-react";
 import { toast } from "sonner";
 
 interface AppSettingsProps {
@@ -31,7 +31,6 @@ interface AppSettingsProps {
 export function AppSettings({ app }: AppSettingsProps) {
   const router = useRouter();
   const [isLoading, setIsLoading] = useState(false);
-  const [isRegenerating, setIsRegenerating] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
 
   const [allowedOrigins, setAllowedOrigins] = useState<string[]>(
@@ -46,93 +45,43 @@ export function AppSettings({ app }: AppSettingsProps) {
     website_url: app.website_url || "",
     contact_email: app.contact_email || "",
     is_active: app.is_active,
-    rate_limit_per_minute: app.rate_limit_per_minute,
-    rate_limit_per_hour: app.rate_limit_per_hour,
   });
 
   const handleSave = async () => {
     setIsLoading(true);
-    try {
-      const response = await fetch(`/api/v1/apps/${app.id}`, {
-        method: "PUT",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          ...formData,
-          allowed_origins: allowedOrigins,
-        }),
-      });
+    const response = await fetch(`/api/v1/apps/${app.id}`, {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        ...formData,
+        allowed_origins: allowedOrigins,
+      }),
+    });
 
-      if (!response.ok) {
-        const error = await response.json();
-        throw new Error(error.error || "Failed to update app");
-      }
-
-      toast.success("App updated successfully");
-      router.refresh();
-    } catch (error) {
-      console.error("Error updating app:", error);
-      toast.error("Failed to update app", {
-        description: error instanceof Error ? error.message : "Please try again",
-      });
-    } finally {
-      setIsLoading(false);
+    if (!response.ok) {
+      const error = await response.json();
+      throw new Error(error.error || "Failed to update app");
     }
-  };
 
-  const handleRegenerateApiKey = async () => {
-    setIsRegenerating(true);
-    try {
-      const response = await fetch(`/api/v1/apps/${app.id}/regenerate-api-key`, {
-        method: "POST",
-      });
-
-      if (!response.ok) {
-        const error = await response.json();
-        throw new Error(error.error || "Failed to regenerate API key");
-      }
-
-      const data = await response.json();
-      
-      // Show the new API key in an alert
-      toast.success("API key regenerated", {
-        description: "Your new API key has been generated. Make sure to save it!",
-      });
-
-      // Redirect to overview tab with the new API key
-      router.push(`/dashboard/apps/${app.id}?showApiKey=${data.apiKey}&tab=overview`);
-      router.refresh();
-    } catch (error) {
-      console.error("Error regenerating API key:", error);
-      toast.error("Failed to regenerate API key", {
-        description: error instanceof Error ? error.message : "Please try again",
-      });
-    } finally {
-      setIsRegenerating(false);
-    }
+    toast.success("App updated successfully");
+    router.refresh();
+    setIsLoading(false);
   };
 
   const handleDelete = async () => {
     setIsDeleting(true);
-    try {
-      const response = await fetch(`/api/v1/apps/${app.id}`, {
-        method: "DELETE",
-      });
+    const response = await fetch(`/api/v1/apps/${app.id}`, {
+      method: "DELETE",
+    });
 
-      if (!response.ok) {
-        const error = await response.json();
-        throw new Error(error.error || "Failed to delete app");
-      }
-
-      toast.success("App deleted successfully");
-      router.push("/dashboard/apps");
-      router.refresh();
-    } catch (error) {
-      console.error("Error deleting app:", error);
-      toast.error("Failed to delete app", {
-        description: error instanceof Error ? error.message : "Please try again",
-      });
-      setIsDeleting(false);
+    if (!response.ok) {
+      const error = await response.json();
+      throw new Error(error.error || "Failed to delete app");
     }
+
+    toast.success("App deleted successfully");
+    router.push("/dashboard/apps");
+    router.refresh();
   };
 
   const addOrigin = () => {
@@ -243,11 +192,9 @@ export function AppSettings({ app }: AppSettingsProps) {
         <CornerBrackets className="opacity-20" />
         <div className="relative z-10 space-y-4">
           <div>
-            <h2 className="text-xl font-semibold text-white">
-              Allowed Origins (URL Whitelist)
-            </h2>
+            <h2 className="text-xl font-semibold text-white">Allowed Origins</h2>
             <p className="text-sm text-white/60 mt-1">
-              Specify which domains can make requests with your API key
+              API requests are only accepted from these domains
             </p>
           </div>
 
@@ -291,48 +238,6 @@ export function AppSettings({ app }: AppSettingsProps) {
         </div>
       </BrandCard>
 
-      {/* Rate Limits */}
-      <BrandCard>
-        <CornerBrackets className="opacity-20" />
-        <div className="relative z-10 space-y-4">
-          <h2 className="text-xl font-semibold text-white">Rate Limits</h2>
-
-          <div className="grid gap-4 md:grid-cols-2">
-            <div>
-              <Label htmlFor="rate_limit_per_minute">Per Minute</Label>
-              <Input
-                id="rate_limit_per_minute"
-                type="number"
-                value={formData.rate_limit_per_minute || ""}
-                onChange={(e) =>
-                  setFormData({
-                    ...formData,
-                    rate_limit_per_minute: parseInt(e.target.value),
-                  })
-                }
-                placeholder="60"
-              />
-            </div>
-
-            <div>
-              <Label htmlFor="rate_limit_per_hour">Per Hour</Label>
-              <Input
-                id="rate_limit_per_hour"
-                type="number"
-                value={formData.rate_limit_per_hour || ""}
-                onChange={(e) =>
-                  setFormData({
-                    ...formData,
-                    rate_limit_per_hour: parseInt(e.target.value),
-                  })
-                }
-                placeholder="1000"
-              />
-            </div>
-          </div>
-        </div>
-      </BrandCard>
-
       {/* Save Button */}
       <div className="flex justify-end">
         <Button
@@ -358,64 +263,13 @@ export function AppSettings({ app }: AppSettingsProps) {
       <BrandCard>
         <CornerBrackets className="opacity-20" />
         <div className="relative z-10 space-y-4">
-          <h2 className="text-xl font-semibold text-white text-red-400">
-            Danger Zone
-          </h2>
-
-          <div className="space-y-3">
-            <div className="flex items-center justify-between p-4 bg-red-500/10 rounded-lg border border-red-500/20">
-              <div>
-                <p className="font-semibold text-white">Regenerate API Key</p>
-                <p className="text-xs text-white/60 mt-1">
-                  This will invalidate the current API key. Your app will stop working
-                  until you update it.
-                </p>
-              </div>
-              <AlertDialog>
-                <AlertDialogTrigger asChild>
-                  <Button
-                    variant="outline"
-                    className="border-red-500/20 text-red-400 hover:bg-red-500/10"
-                    disabled={isRegenerating}
-                  >
-                    {isRegenerating ? (
-                      <Loader2 className="h-4 w-4 animate-spin" />
-                    ) : (
-                      <>
-                        <Key className="h-4 w-4 mr-2" />
-                        Regenerate
-                      </>
-                    )}
-                  </Button>
-                </AlertDialogTrigger>
-                <AlertDialogContent>
-                  <AlertDialogHeader>
-                    <AlertDialogTitle>Regenerate API Key?</AlertDialogTitle>
-                    <AlertDialogDescription>
-                      This action will immediately invalidate your current API key. Your app
-                      will stop working until you update it with the new key. This cannot be
-                      undone.
-                    </AlertDialogDescription>
-                  </AlertDialogHeader>
-                  <AlertDialogFooter>
-                    <AlertDialogCancel>Cancel</AlertDialogCancel>
-                    <AlertDialogAction
-                      onClick={handleRegenerateApiKey}
-                      className="bg-red-600 hover:bg-red-700"
-                    >
-                      Regenerate API Key
-                    </AlertDialogAction>
-                  </AlertDialogFooter>
-                </AlertDialogContent>
-              </AlertDialog>
-            </div>
+          <h2 className="text-xl font-semibold text-red-400">Danger Zone</h2>
 
             <div className="flex items-center justify-between p-4 bg-red-500/10 rounded-lg border border-red-500/20">
               <div>
                 <p className="font-semibold text-white">Delete App</p>
                 <p className="text-xs text-white/60 mt-1">
-                  Permanently delete this app and all associated data. This cannot be
-                  undone.
+                Permanently delete this app and all associated data
                 </p>
               </div>
               <AlertDialog>
@@ -439,9 +293,9 @@ export function AppSettings({ app }: AppSettingsProps) {
                   <AlertDialogHeader>
                     <AlertDialogTitle>Delete App?</AlertDialogTitle>
                     <AlertDialogDescription>
-                      This action cannot be undone. This will permanently delete the app
-                      <strong className="text-white"> {app.name}</strong> and remove all
-                      associated data including analytics and user tracking.
+                    This action cannot be undone. This will permanently delete
+                    <strong className="text-white"> {app.name}</strong> and all
+                    associated data.
                     </AlertDialogDescription>
                   </AlertDialogHeader>
                   <AlertDialogFooter>
@@ -455,11 +309,9 @@ export function AppSettings({ app }: AppSettingsProps) {
                   </AlertDialogFooter>
                 </AlertDialogContent>
               </AlertDialog>
-            </div>
           </div>
         </div>
       </BrandCard>
     </div>
   );
 }
-

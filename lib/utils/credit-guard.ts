@@ -168,21 +168,16 @@ export async function executeWithCreditGuard<T>({
   } catch (error) {
     // CRITICAL: Refund credits on any failure
     if (creditsDeducted && deductedAmount > 0) {
-      try {
-        await creditsService.refundCredits({
-          organizationId,
-          amount: deductedAmount,
-          description: `${description} (refund - failed)`,
-          metadata: {
-            ...metadata,
-            error: error instanceof Error ? error.message : "Unknown error",
-            generation_id: generationId,
-          },
-        });
-      } catch (refundError) {
-        console.error("[CreditGuard] Failed to refund credits:", refundError);
-        // Log to monitoring system in production
-      }
+      await creditsService.refundCredits({
+        organizationId,
+        amount: deductedAmount,
+        description: `${description} (refund - failed)`,
+        metadata: {
+          ...metadata,
+          error: error instanceof Error ? error.message : "Unknown error",
+          generation_id: generationId,
+        },
+      });
     }
 
     return {

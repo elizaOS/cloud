@@ -79,72 +79,65 @@ export function useCreditsStream(): UseCreditsStreamResult {
       return;
     }
 
-    try {
-      const response = await fetch("/api/credits/balance", {
-        cache: "no-store",
-        headers: {
-          "Cache-Control": "no-cache, no-store, must-revalidate",
-          Pragma: "no-cache",
-        },
-      });
+    const response = await fetch("/api/credits/balance", {
+      cache: "no-store",
+      headers: {
+        "Cache-Control": "no-cache, no-store, must-revalidate",
+        Pragma: "no-cache",
+      },
+    });
 
-      if (!response.ok) {
-        // Handle 401 Unauthorized specifically
-        if (response.status === 401) {
-          authErrorCountRef.current++;
-          
-          // Log only on first error to avoid console spam
-          if (authErrorCountRef.current === 1) {
-            console.warn("[useCreditsStream] Unauthorized - user may need to re-authenticate");
-          }
-          
-          // Stop polling after too many auth errors
-          if (authErrorCountRef.current >= MAX_AUTH_ERRORS) {
-            console.warn("[useCreditsStream] Too many auth errors, pausing polling");
-            stopPolling();
-          }
-          
-          if (isMountedRef.current) {
-            setError("Unauthorized");
-            setIsConnected(false);
-            setCreditBalance(null);
-          }
-          return;
+    if (!response.ok) {
+      // Handle 401 Unauthorized specifically
+      if (response.status === 401) {
+        authErrorCountRef.current++;
+        
+        // Log only on first error to avoid console spam
+        if (authErrorCountRef.current === 1) {
+          console.warn("[useCreditsStream] Unauthorized - user may need to re-authenticate");
         }
         
-        throw new Error(`Failed to fetch balance: ${response.statusText}`);
+        // Stop polling after too many auth errors
+        if (authErrorCountRef.current >= MAX_AUTH_ERRORS) {
+          console.warn("[useCreditsStream] Too many auth errors, pausing polling");
+          stopPolling();
+        }
+        
+        if (isMountedRef.current) {
+          setError("Unauthorized");
+          setIsConnected(false);
+          setCreditBalance(null);
+        }
+        if (isMountedRef.current) {
+          setIsLoading(false);
+        }
+        return;
       }
+      
+      throw new Error(`Failed to fetch balance: ${response.statusText}`);
+    }
 
-      // Reset auth error count on success
-      authErrorCountRef.current = 0;
+    // Reset auth error count on success
+    authErrorCountRef.current = 0;
 
-      const data = await response.json();
-      const balance = Number(data.balance);
+    const data = await response.json();
+    const balance = Number(data.balance);
 
-      if (isMountedRef.current) {
-        setCreditBalance(balance);
-        setLastUpdate(new Date());
-        setIsConnected(true);
-        setError(null);
+    if (isMountedRef.current) {
+      setCreditBalance(balance);
+      setLastUpdate(new Date());
+      setIsConnected(true);
+      setError(null);
 
-        broadcastChannelRef.current?.postMessage({
-          type: "credit-update",
-          balance,
-          timestamp: new Date().toISOString(),
-        });
-      }
-    } catch (err) {
-      if (isMountedRef.current) {
-        setError(
-          err instanceof Error ? err.message : "Failed to fetch balance",
-        );
-        setIsConnected(false);
-        console.error("[useCreditsStream] Error fetching balance:", err);
-      }
-    } finally {
-      if (isMountedRef.current) {
-        setIsLoading(false);
-      }
+      broadcastChannelRef.current?.postMessage({
+        type: "credit-update",
+        balance,
+        timestamp: new Date().toISOString(),
+      });
+    }
+    
+    if (isMountedRef.current) {
+      setIsLoading(false);
     }
   }, [authenticated, stopPolling]);
 

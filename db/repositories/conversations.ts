@@ -16,17 +16,29 @@ export type {
   NewConversationMessage,
 };
 
+/**
+ * Conversation with associated messages.
+ */
 export interface ConversationWithMessages extends Conversation {
   messages: ConversationMessage[];
 }
 
+/**
+ * Repository for conversation database operations.
+ */
 export class ConversationsRepository {
+  /**
+   * Finds a conversation by ID.
+   */
   async findById(id: string): Promise<Conversation | undefined> {
     return await db.query.conversations.findFirst({
       where: eq(conversations.id, id),
     });
   }
 
+  /**
+   * Finds a conversation with all associated messages.
+   */
   async findWithMessages(
     id: string,
   ): Promise<ConversationWithMessages | undefined> {
@@ -42,6 +54,9 @@ export class ConversationsRepository {
     return conversation as ConversationWithMessages | undefined;
   }
 
+  /**
+   * Lists conversations for a user.
+   */
   async listByUser(userId: string, limit?: number): Promise<Conversation[]> {
     return await db.query.conversations.findMany({
       where: eq(conversations.user_id, userId),
@@ -50,6 +65,9 @@ export class ConversationsRepository {
     });
   }
 
+  /**
+   * Lists conversations for an organization.
+   */
   async listByOrganization(
     organizationId: string,
     limit?: number,
@@ -61,6 +79,9 @@ export class ConversationsRepository {
     });
   }
 
+  /**
+   * Creates a new conversation.
+   */
   async create(data: NewConversation): Promise<Conversation> {
     const [conversation] = await db
       .insert(conversations)
@@ -69,6 +90,9 @@ export class ConversationsRepository {
     return conversation;
   }
 
+  /**
+   * Updates an existing conversation.
+   */
   async update(
     id: string,
     data: Partial<NewConversation>,
@@ -84,11 +108,16 @@ export class ConversationsRepository {
     return updated;
   }
 
+  /**
+   * Deletes a conversation by ID.
+   */
   async delete(id: string): Promise<void> {
     await db.delete(conversations).where(eq(conversations.id, id));
   }
 
-  // Message operations
+  /**
+   * Adds a message to a conversation.
+   */
   async addMessage(data: NewConversationMessage): Promise<ConversationMessage> {
     const [message] = await db
       .insert(conversationMessages)
@@ -97,6 +126,9 @@ export class ConversationsRepository {
     return message;
   }
 
+  /**
+   * Gets all messages for a conversation, ordered by sequence number.
+   */
   async getMessages(conversationId: string): Promise<ConversationMessage[]> {
     return await db.query.conversationMessages.findMany({
       where: eq(conversationMessages.conversation_id, conversationId),
@@ -104,6 +136,9 @@ export class ConversationsRepository {
     });
   }
 
+  /**
+   * Gets the next sequence number for a conversation.
+   */
   async getNextSequenceNumber(conversationId: string): Promise<number> {
     const lastMessage = await db.query.conversationMessages.findFirst({
       where: eq(conversationMessages.conversation_id, conversationId),
@@ -113,6 +148,11 @@ export class ConversationsRepository {
     return lastMessage ? lastMessage.sequence_number + 1 : 1;
   }
 
+  /**
+   * Adds a message with automatic sequence number and updates conversation stats.
+   * 
+   * Performs all operations atomically in a transaction.
+   */
   async addMessageWithSequence(
     conversationId: string,
     data: Omit<NewConversationMessage, "sequence_number" | "conversation_id">,
@@ -157,5 +197,7 @@ export class ConversationsRepository {
   }
 }
 
-// Export singleton instance
+/**
+ * Singleton instance of ConversationsRepository.
+ */
 export const conversationsRepository = new ConversationsRepository();

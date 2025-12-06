@@ -78,12 +78,6 @@ class UnifiedCreditEventEmitter {
     if (useRedis) {
       redisCreditEventEmitter
         .subscribeToCreditUpdates(organizationId, handler)
-        .catch((error) => {
-          logger.error(
-            "[Credit Events] Failed to create Redis subscription:",
-            error,
-          );
-        });
 
       // Return sync unsubscribe function
       return () => {

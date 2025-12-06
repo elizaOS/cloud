@@ -503,9 +503,10 @@ export class CloudFormationService {
         const response = await this.client.send(command);
         console.log(`✅ Stack update initiated for ${stackName}`);
         return response.StackId!;
-      } catch (updateError: any) {
+      } catch (updateError) {
         // Handle "No updates to perform" case gracefully
-        if (updateError.message?.includes("No updates are to be performed")) {
+        const errorWithMessage = updateError as Error & { message?: string };
+        if (errorWithMessage.message?.includes("No updates are to be performed")) {
           console.log(`ℹ️ No updates needed for stack ${stackName}`);
           return stackName;
         }

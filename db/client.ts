@@ -7,15 +7,33 @@ import type { NodePgDatabase } from "drizzle-orm/node-postgres";
 import type { NeonDatabase } from "drizzle-orm/neon-serverless";
 import ws from "ws";
 
+/**
+ * Union type for supported database drivers.
+ */
 type Database = NodePgDatabase<typeof schema> | NeonDatabase<typeof schema>;
 
 let _db: Database | null = null;
 
+/**
+ * Checks if a database URL is for Neon serverless.
+ * 
+ * @param url - Database connection URL.
+ * @returns True if URL contains neon.tech or neon.database domain.
+ */
 function isNeonDatabase(url: string): boolean {
-  // Check if the URL is a Neon database (contains neon.tech domain)
   return url.includes("neon.tech") || url.includes("neon.database");
 }
 
+/**
+ * Gets or creates the database connection instance.
+ * 
+ * Automatically selects the appropriate driver based on DATABASE_URL:
+ * - Neon serverless driver for production (neon.tech domains)
+ * - Node PostgreSQL driver for local development
+ * 
+ * @returns Initialized database instance.
+ * @throws Error if DATABASE_URL is not set.
+ */
 function getDb() {
   if (!_db) {
     const databaseUrl = process.env.DATABASE_URL;
@@ -27,8 +45,7 @@ function getDb() {
     }
 
     if (isNeonDatabase(databaseUrl)) {
-      // Production: Use Neon serverless driver with WebSocket support
-      // Configure WebSocket for Node.js environment
+      // Configure WebSocket for Node.js environment (Neon requires WebSocket)
       if (typeof WebSocket === "undefined") {
         neonConfig.webSocketConstructor = ws;
       }
@@ -36,7 +53,7 @@ function getDb() {
       const pool = new NeonPool({ connectionString: databaseUrl });
       _db = drizzleNeon(pool, { schema }) as Database;
     } else {
-      // Local development: Use regular PostgreSQL driver
+      // Local development: Use standard PostgreSQL driver
       const pool = new PgPool({ connectionString: databaseUrl });
       _db = drizzleNode(pool, { schema }) as Database;
     }
@@ -45,6 +62,12 @@ function getDb() {
   return _db;
 }
 
+/**
+ * Database proxy that lazily initializes the connection on first access.
+ * 
+ * This ensures the database is only initialized when actually used,
+ * preventing connection errors during module import.
+ */
 export const db = new Proxy({} as Database, {
   get: (_, prop) => {
     const database = getDb();

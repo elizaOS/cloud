@@ -6,6 +6,8 @@
 import { apiKeysService } from "@/lib/services";
 import { logger } from "@/lib/utils/logger";
 import type { AgentMode } from "./agent-mode-types";
+import type { UserWithOrganization, ApiKey } from "@/lib/types";
+import type { AnonymousSession } from "@/db/schemas";
 
 export interface UserContext {
   // Core identity
@@ -33,6 +35,9 @@ export interface UserContext {
   // User details
   name?: string;
   email?: string;
+
+  // App monetization context (for miniapp billing)
+  appId?: string;
 }
 
 export class UserContextService {
@@ -50,17 +55,19 @@ export class UserContextService {
    * Single point for all user-related data retrieval
    */
   async buildContext(authResult: {
-    user: any;
-    apiKey?: any;
+    user: UserWithOrganization;
+    apiKey?: ApiKey;
     isAnonymous?: boolean;
-    anonymousSession?: any;
+    anonymousSession?: AnonymousSession;
     agentMode: AgentMode;
+    appId?: string;
   }): Promise<UserContext> {
     if (authResult.isAnonymous && authResult.anonymousSession) {
       return this.buildAnonymousContext(
         authResult.user,
         authResult.anonymousSession,
         authResult.agentMode,
+        authResult.appId,
       );
     }
 
@@ -88,7 +95,7 @@ export class UserContextService {
 
     return {
       userId: authResult.user.id,
-      entityId: entityId, // Clear mapping: entityId === userId
+      entityId: entityId,
       organizationId: authResult.user.organization_id,
       agentMode: authResult.agentMode,
       apiKey,
@@ -96,6 +103,7 @@ export class UserContextService {
       modelPreferences: authResult.user.model_preferences,
       name: authResult.user.name,
       email: authResult.user.email,
+      appId: authResult.appId,
     };
   }
 
@@ -150,12 +158,11 @@ export class UserContextService {
    * Uses a shared runtime with limited capabilities
    */
   private buildAnonymousContext(
-    user: any,
-    session: any,
+    user: UserWithOrganization,
+    session: AnonymousSession,
     agentMode: AgentMode,
+    appId?: string,
   ): UserContext {
-    // Anonymous users get a shared runtime with limited access
-    // For anonymous users, we still use the user object but mark as anonymous
     const entityId = session.id || user.id;
 
     logger.info(
@@ -164,14 +171,15 @@ export class UserContextService {
 
     return {
       userId: user.id || "anonymous",
-      entityId: entityId, // Use session ID or user ID as entity
+      entityId: entityId,
       organizationId: user.organization_id || "public",
       agentMode,
-      apiKey: process.env.SHARED_ELIZAOS_API_KEY || "", // Shared key for anonymous or empty
+      apiKey: process.env.SHARED_ELIZAOS_API_KEY || "",
       isAnonymous: true,
       sessionToken: session.session_token,
       name: user.name || "Anonymous",
       email: user.email,
+      appId,
     };
   }
 

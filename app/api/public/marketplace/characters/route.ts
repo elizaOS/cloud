@@ -53,6 +53,14 @@ const PublicMarketplaceQuerySchema = z.object({
 
 export const dynamic = "force-dynamic";
 
+/**
+ * GET /api/public/marketplace/characters
+ * Public endpoint for searching marketplace characters without authentication.
+ * Implements rate limiting and query parameter validation.
+ *
+ * @param request - Request with query parameters for search, filters, sorting, and pagination.
+ * @returns Paginated character results with optional statistics.
+ */
 export async function GET(request: NextRequest) {
   try {
     const ip =
@@ -99,6 +107,7 @@ export async function GET(request: NextRequest) {
         template: params.template,
         featured: params.featured,
         public: true,
+        source: "cloud", // Only show cloud-created agents in public marketplace
       },
       sortOptions: {
         sortBy: params.sortBy,

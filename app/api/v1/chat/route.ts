@@ -19,19 +19,18 @@ import { logger } from "@/lib/utils/logger";
 import { withRateLimit, RateLimitPresets } from "@/lib/middleware/rate-limit";
 import type { NextRequest } from "next/server";
 import { NextResponse } from "next/server";
+import type { UserWithOrganization, ApiKey } from "@/lib/types";
+import type { AnonymousSession } from "@/db/schemas";
 
 export const maxDuration = 60;
 
 async function handlePOST(req: NextRequest) {
   try {
-    let user: any;
-    let apiKey: any = undefined;
+    let user: UserWithOrganization;
+    let apiKey: ApiKey | undefined = undefined;
     let authMethod: "session" | "api_key" | "anonymous";
     let isAnonymous = false;
-    type AnonymousSessionType = NonNullable<
-      Awaited<ReturnType<typeof getAnonymousUser>>
-    >["session"];
-    let anonymousSession: AnonymousSessionType | null = null;
+    let anonymousSession: AnonymousSession | null = null;
 
     // Try authenticated user first
     try {

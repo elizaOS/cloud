@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { requireAuthWithOrg } from "@/lib/auth";
+import { requireAuthOrApiKeyWithOrg } from "@/lib/auth";
 import { appsService } from "@/lib/services";
 import { logger } from "@/lib/utils/logger";
 
@@ -12,7 +12,7 @@ export async function GET(
   { params }: { params: Promise<{ id: string }> },
 ) {
   try {
-    const user = await requireAuthWithOrg();
+    const { user } = await requireAuthOrApiKeyWithOrg(request);
     const { id } = await params;
     const { searchParams } = new URL(request.url);
 

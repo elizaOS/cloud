@@ -38,20 +38,13 @@ export function AccountTab({ user, onTabChange }: AccountTabProps) {
 
   useEffect(() => {
     const fetchStats = async () => {
-      try {
-        const response = await fetch("/api/stats/account");
-        const data = await response.json();
+      const response = await fetch("/api/stats/account");
+      const data = await response.json();
 
-        if (data.success) {
-          setStats(data.data);
-        } else {
-          console.error("Failed to fetch stats:", data.error);
-        }
-      } catch (error) {
-        console.error("Error fetching stats:", error);
-      } finally {
-        setIsLoadingStats(false);
+      if (data.success) {
+        setStats(data.data);
       }
+      setIsLoadingStats(false);
     };
 
     fetchStats();
@@ -61,38 +54,27 @@ export function AccountTab({ user, onTabChange }: AccountTabProps) {
     if (isCopying) return;
     setIsCopying(true);
 
-    try {
-      await navigator.clipboard.writeText(user.organization_id || "");
-      toast.success("Organization ID copied to clipboard");
-    } catch (error) {
-      toast.error("Failed to copy Organization ID");
-    } finally {
-      setTimeout(() => setIsCopying(false), 1000);
-    }
+    await navigator.clipboard.writeText(user.organization_id || "");
+    toast.success("Organization ID copied to clipboard");
+    setTimeout(() => setIsCopying(false), 1000);
   };
 
   const handleLogout = async () => {
     if (isLoggingOut) return;
     setIsLoggingOut(true);
 
-    try {
-      // Clear chat data (rooms, entityId, localStorage)
-      clearChatData();
+    // Clear chat data (rooms, entityId, localStorage)
+    clearChatData();
 
-      await fetch("/api/auth/logout", {
-        method: "POST",
-      });
+    await fetch("/api/auth/logout", {
+      method: "POST",
+    });
 
-      await privyLogout();
+    await privyLogout();
 
-      toast.success("Logged out successfully");
+    toast.success("Logged out successfully");
 
-      window.location.href = "/";
-    } catch (error) {
-      console.error("Logout error:", error);
-      toast.error("Failed to logout");
-      setIsLoggingOut(false);
-    }
+    window.location.href = "/";
   };
 
   const handleContactSupport = () => {

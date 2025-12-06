@@ -62,6 +62,15 @@ export async function GET(
       return addCorsHeaders(response, corsResult.origin);
     }
     
+    // Verify this is a miniapp agent - miniapp API can only access miniapp-created agents
+    if (character.source !== "miniapp") {
+      const response = NextResponse.json(
+        { success: false, error: "Agent not found" },
+        { status: 404 }
+      );
+      return addCorsHeaders(response, corsResult.origin);
+    }
+    
     if (character.user_id !== user.id && character.organization_id !== user.organization_id) {
       const response = NextResponse.json(
         { success: false, error: "Access denied" },
@@ -215,6 +224,15 @@ export async function POST(
     const character = await charactersService.getById(agentId);
     
     if (!character) {
+      const response = NextResponse.json(
+        { success: false, error: "Agent not found" },
+        { status: 404 }
+      );
+      return addCorsHeaders(response, corsResult.origin);
+    }
+    
+    // Verify this is a miniapp agent - miniapp API can only access miniapp-created agents
+    if (character.source !== "miniapp") {
       const response = NextResponse.json(
         { success: false, error: "Agent not found" },
         { status: 404 }

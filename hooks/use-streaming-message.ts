@@ -1,5 +1,8 @@
 "use client";
 
+/**
+ * Streaming message structure from SSE events.
+ */
 export interface StreamingMessage {
   id: string;
   entityId: string;
@@ -15,21 +18,32 @@ export interface StreamingMessage {
   type: "user" | "agent" | "thinking" | "error";
 }
 
+/**
+ * Options for sending a streaming message.
+ */
 interface SendMessageOptions {
+  /** Room ID where the message is sent. */
   roomId: string;
+  /** Message text content. */
   text: string;
-  model?: string; // Optional model selection
-  sessionToken?: string; // Anonymous session token (from URL)
+  /** Optional model selection override. */
+  model?: string;
+  /** Anonymous session token from URL (for unauthenticated users). */
+  sessionToken?: string;
+  /** Callback invoked for each streamed message chunk. */
   onMessage: (message: StreamingMessage) => void;
+  /** Optional error callback. */
   onError?: (error: string) => void;
+  /** Optional completion callback. */
   onComplete?: () => void;
 }
 
 /**
- * Send a message and stream the response via SSE
- * Single endpoint handles everything - no cross-container issues!
+ * Sends a message and streams the response via Server-Sent Events (SSE).
  * 
- * NOTE: entityId is now derived from authenticated user on the server
+ * The entityId is derived from the authenticated user on the server.
+ * 
+ * @param options - Message sending options including callbacks.
  */
 export async function sendStreamingMessage({
   roomId,
@@ -40,78 +54,67 @@ export async function sendStreamingMessage({
   onError,
   onComplete,
 }: SendMessageOptions): Promise<void> {
-  try {
-    const response = await fetch(`/api/eliza/rooms/${roomId}/messages/stream`, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        // Include session token as header for anonymous users
-        // This ensures session tracking works even if the cookie race condition occurs
-        ...(sessionToken && { "X-Anonymous-Session": sessionToken }),
-      },
-      body: JSON.stringify({
-        text,
-        ...(model && { model }), // Include model if provided
-        // Also include in body as backup
-        ...(sessionToken && { sessionToken }),
-      }),
-    });
+  const response = await fetch(`/api/eliza/rooms/${roomId}/messages/stream`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      // Include session token as header for anonymous users
+      // This ensures session tracking works even if the cookie race condition occurs
+      ...(sessionToken && { "X-Anonymous-Session": sessionToken }),
+    },
+    body: JSON.stringify({
+      text,
+      ...(model && { model }), // Include model if provided
+      // Also include in body as backup
+      ...(sessionToken && { sessionToken }),
+    }),
+  });
 
-    if (!response.ok) {
-      const errorData = await response.json().catch(() => ({}));
-      throw new Error(errorData.error || "Failed to send message");
+  if (!response.ok) {
+    const errorData = await response.json();
+    throw new Error(errorData.error || "Failed to send message");
+  }
+
+  if (!response.body) {
+    throw new Error("No response body");
+  }
+
+  const reader = response.body.getReader();
+  const decoder = new TextDecoder();
+  let buffer = "";
+
+  while (true) {
+    const { done, value } = await reader.read();
+
+    if (done) {
+      break;
     }
 
-    if (!response.body) {
-      throw new Error("No response body");
-    }
+    buffer += decoder.decode(value, { stream: true });
 
-    const reader = response.body.getReader();
-    const decoder = new TextDecoder();
-    let buffer = "";
+    // Process complete SSE messages
+    const lines = buffer.split("\n\n");
+    buffer = lines.pop() || ""; // Keep incomplete message in buffer
 
-    while (true) {
-      const { done, value } = await reader.read();
+    for (const line of lines) {
+      if (!line.trim()) continue;
 
-      if (done) {
-        break;
-      }
+      // Parse SSE format: "event: type\ndata: {...}"
+      const eventMatch = line.match(/^event: (.+)\n/);
+      const dataMatch = line.match(/data: (.+)$/m);
 
-      buffer += decoder.decode(value, { stream: true });
+      if (!dataMatch) continue;
 
-      // Process complete SSE messages
-      const lines = buffer.split("\n\n");
-      buffer = lines.pop() || ""; // Keep incomplete message in buffer
+      const data = JSON.parse(dataMatch[1]);
+      const eventType = eventMatch ? eventMatch[1] : "message";
 
-      for (const line of lines) {
-        if (!line.trim()) continue;
-
-        // Parse SSE format: "event: type\ndata: {...}"
-        const eventMatch = line.match(/^event: (.+)\n/);
-        const dataMatch = line.match(/data: (.+)$/m);
-
-        if (!dataMatch) continue;
-
-        try {
-          const data = JSON.parse(dataMatch[1]);
-          const eventType = eventMatch ? eventMatch[1] : "message";
-
-          if (eventType === "message") {
-            onMessage(data);
-          } else if (eventType === "error") {
-            onError?.(data.message || "Unknown error");
-          } else if (eventType === "done") {
-            onComplete?.();
-          }
-        } catch (parseError) {
-          console.error("[Streaming] Parse error:", parseError);
-        }
+      if (eventType === "message") {
+        onMessage(data);
+      } else if (eventType === "error") {
+        onError?.(data.message || "Unknown error");
+      } else if (eventType === "done") {
+        onComplete?.();
       }
     }
-  } catch (error) {
-    console.error("[Streaming] Error:", error);
-    onError?.(
-      error instanceof Error ? error.message : "Failed to send message",
-    );
   }
 }

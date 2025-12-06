@@ -49,7 +49,10 @@ export async function GET(request: NextRequest) {
     const result = await myAgentsService.searchCharacters({
       userId: user.id,
       organizationId: user.organization_id,
-      filters: { search },
+      filters: { 
+        search,
+        source: "miniapp", // Only show miniapp-created agents
+      },
       sortOptions: { sortBy: "newest", order: "desc" },
       pagination: { page, limit },
       includeStats: true,
@@ -154,6 +157,7 @@ export async function POST(request: NextRequest) {
       character_data: {},
       is_template: false,
       is_public: data.isPublic ?? false,
+      source: "miniapp", // Mark as created from miniapp
     });
     
     logger.info("[Miniapp API] Created agent", { 

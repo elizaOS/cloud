@@ -1,3 +1,8 @@
+/**
+ * Image generator component with prompt input, aspect ratio, and style preset options.
+ * Handles image generation state and displays generated images.
+ */
+
 "use client";
 
 import { useState } from "react";
@@ -6,6 +11,9 @@ import { ImageDisplay } from "./image-display";
 import { EmptyState } from "./empty-state";
 import { LoadingState } from "./loading-state";
 
+/**
+ * Supported aspect ratios for image generation.
+ */
 export type AspectRatio =
   | "1:1"
   | "16:9"
@@ -14,6 +22,10 @@ export type AspectRatio =
   | "3:4"
   | "21:9"
   | "9:21";
+
+/**
+ * Style presets for image generation.
+ */
 export type StylePreset =
   | "none"
   | "photographic"

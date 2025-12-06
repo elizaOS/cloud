@@ -1,3 +1,12 @@
+/**
+ * Billing page client component for purchasing credit packs.
+ * Displays available credit packs and handles Stripe checkout session creation.
+ *
+ * @param props - Billing page configuration
+ * @param props.creditPacks - Array of available credit packs
+ * @param props.currentCredits - User's current credit balance
+ */
+
 "use client";
 
 import { useState } from "react";
@@ -27,34 +36,28 @@ export function BillingPageClient({
   const [loading, setLoading] = useState<string | null>(null);
 
   const handlePurchase = async (creditPackId: string) => {
-    try {
-      setLoading(creditPackId);
+    setLoading(creditPackId);
 
-      const response = await fetch("/api/stripe/create-checkout-session", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({ creditPackId }),
-      });
+    const response = await fetch("/api/stripe/create-checkout-session", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({ creditPackId }),
+    });
 
-      if (!response.ok) {
-        throw new Error("Failed to create checkout session");
-      }
-
-      const { url } = await response.json();
-
-      if (!url) {
-        throw new Error("No checkout URL returned");
-      }
-
-      window.location.href = url;
-    } catch (error) {
-      console.error("Purchase error:", error);
-      toast.error("Failed to initiate purchase. Please try again.");
-    } finally {
-      setLoading(null);
+    if (!response.ok) {
+      throw new Error("Failed to create checkout session");
     }
+
+    const { url } = await response.json();
+
+    if (!url) {
+      throw new Error("No checkout URL returned");
+    }
+
+    window.location.href = url;
+    setLoading(null);
   };
 
   // Determine which pack is popular (middle one)
