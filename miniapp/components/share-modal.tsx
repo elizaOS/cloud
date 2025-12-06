@@ -13,10 +13,8 @@ import {
 import { useCallback, useEffect, useState } from "react";
 import { toast } from "sonner";
 
+import { siteConfig } from "@/app/config";
 import { claimShareReward, getReferralInfo, getRewardsStatus } from "@/lib/cloud-api";
-
-// Default share text - makes it clear what the app is
-const DEFAULT_SHARE_TEXT = "I'm chatting with AI friends on Eliza! Create your own AI companion 🤖✨";
 
 // Platform icons as simple components
 function XIcon({ className }: { className?: string }) {
@@ -158,7 +156,7 @@ export function ShareModal({ isOpen, onClose, shareContent }: ShareModalProps) {
       return;
     }
 
-    const text = shareContent?.text || DEFAULT_SHARE_TEXT;
+    const text = shareContent?.text || siteConfig.sharing.defaultText;
     const url = shareContent?.url || shareUrl;
     
     // Claim reward immediately (server-side tracking)
@@ -190,7 +188,7 @@ export function ShareModal({ isOpen, onClose, shareContent }: ShareModalProps) {
       return;
     }
 
-    const text = shareContent?.text || DEFAULT_SHARE_TEXT;
+    const text = shareContent?.text || siteConfig.sharing.defaultText;
     const url = shareContent?.url || shareUrl;
     
     // Claim reward immediately (server-side tracking)
