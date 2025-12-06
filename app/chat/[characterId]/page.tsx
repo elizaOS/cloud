@@ -106,7 +106,7 @@ export default async function ChatPage({
     // Otherwise, use cookie-based session (read-only check)
     const existingSession = await getAnonymousUser();
 
-    if (!existingSession) {
+    if (!existingSession || !existingSession.session) {
       // No session exists - redirect to API route to create one
       // The API route will set the cookie and redirect back here
       const returnUrl = `/chat/${characterId}${source ? `?source=${source}` : ""}`;
@@ -117,14 +117,14 @@ export default async function ChatPage({
     const { user: anonUser, session: cookieSession } = existingSession;
 
     const messagesRemaining =
-      cookieSession!.messages_limit - cookieSession!.message_count;
-    const shouldShowSignupPrompt = cookieSession!.message_count >= 1; // Show after first message
+      cookieSession.messages_limit - cookieSession.message_count;
+    const shouldShowSignupPrompt = cookieSession.message_count >= 1; // Show after first message
 
     logger.info(
       `[Chat Page] Anonymous session from cookie with theme ${theme.id}`,
       {
         userId: anonUser.id,
-        messageCount: cookieSession!.message_count,
+        messageCount: cookieSession.message_count,
         messagesRemaining,
       },
     );
@@ -133,35 +133,35 @@ export default async function ChatPage({
       <ChatInterface
         character={character}
         session={{
-          id: cookieSession!.id,
-          token: cookieSession!.session_token,
-          userId: cookieSession!.user_id,
-          messageCount: cookieSession!.message_count,
-          messagesLimit: cookieSession!.messages_limit,
+          id: cookieSession.id,
+          token: cookieSession.session_token,
+          userId: cookieSession.user_id,
+          messageCount: cookieSession.message_count,
+          messagesLimit: cookieSession.messages_limit,
           messagesRemaining,
         }}
         showSignupPrompt={shouldShowSignupPrompt}
         source={source}
-        sessionTokenFromUrl={cookieSession!.session_token}
+        sessionTokenFromUrl={cookieSession.session_token}
         theme={theme}
       />
     );
   }
 
-  // Case C: Authenticated user
+  // Case C: Authenticated user (user is guaranteed to exist here)
   logger.info(
-    `[Chat Page] Authenticated user ${user!.id} accessing character ${characterId} with theme ${theme.id}`,
+    `[Chat Page] Authenticated user ${user.id} accessing character ${characterId} with theme ${theme.id}`,
   );
 
   // CRITICAL: If authenticated user has a session token in URL, migrate the anonymous session data
   // This handles the case where user was already authenticated when redirected from affiliate
-  if (sessionId && user!.privy_user_id) {
+  if (sessionId && user.privy_user_id) {
     logger.info(
       `[Chat Page] Authenticated user with session token - triggering server-side migration`,
       {
         sessionId,
-        userId: user!.id,
-        privyUserId: user!.privy_user_id,
+        userId: user.id,
+        privyUserId: user.privy_user_id,
       },
     );
 
@@ -177,7 +177,7 @@ export default async function ChatPage({
       );
 
       const { convertAnonymousToReal } = await import("@/lib/auth-anonymous");
-      await convertAnonymousToReal(anonSession.user_id, user!.privy_user_id);
+      await convertAnonymousToReal(anonSession.user_id, user.privy_user_id);
 
       logger.info(`[Chat Page] Migration completed successfully`);
     } else if (anonSession?.converted_at) {
@@ -192,7 +192,7 @@ export default async function ChatPage({
   // CLAIM AFFILIATE CHARACTER
   // If this is an affiliate-created character owned by an anonymous user,
   // automatically transfer ownership to the authenticated user
-  if (user!.organization_id) {
+  if (user.organization_id) {
     const claimCheck =
       await charactersService.isClaimableAffiliateCharacter(characterId);
 
@@ -201,15 +201,15 @@ export default async function ChatPage({
         `[Chat Page] 🎯 Detected claimable affiliate character, initiating transfer...`,
         {
           characterId,
-          userId: user!.id,
+          userId: user.id,
           previousOwnerId: claimCheck.ownerId,
         },
       );
 
       const claimResult = await charactersService.claimAffiliateCharacter(
         characterId,
-        user!.id,
-        user!.organization_id,
+        user.id,
+        user.organization_id,
       );
 
       if (claimResult.success) {
@@ -223,9 +223,9 @@ export default async function ChatPage({
             <ChatInterface
               character={updatedCharacter}
               user={{
-                id: user!.id,
-                name: user!.name || undefined,
-                email: user!.email || undefined,
+                id: user.id,
+                name: user.name || undefined,
+                email: user.email || undefined,
               }}
               source={source}
               theme={theme}
@@ -244,9 +244,9 @@ export default async function ChatPage({
     <ChatInterface
       character={character}
       user={{
-        id: user!.id,
-        name: user!.name || undefined,
-        email: user!.email || undefined,
+        id: user.id,
+        name: user.name || undefined,
+        email: user.email || undefined,
       }}
       source={source}
       theme={theme}

@@ -1,9 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { cookies, headers } from "next/headers";
 import { nanoid } from "nanoid";
-import { db } from "@/db/client";
-import { users } from "@/db/schemas";
 import { anonymousSessionsService } from "@/lib/services";
+import { createAnonymousUserAndSession } from "@/lib/services/anonymous-session-creator";
 import { logger } from "@/lib/utils/logger";
 
 const ANON_SESSION_COOKIE = "eliza-anon-session";
@@ -34,10 +33,28 @@ async function getUserAgent(): Promise<string | undefined> {
   return headersList.get("user-agent") || undefined;
 }
 
+/**
+ * Validates that a return URL is safe (prevents open redirect attacks).
+ * Only allows relative URLs starting with / (but not //).
+ */
+function isValidReturnUrl(url: string): boolean {
+  // Only allow relative URLs starting with /
+  // Reject // to prevent protocol-relative URLs like //malicious-site.com
+  return url.startsWith('/') && !url.startsWith('//');
+}
+
 export async function GET(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url);
-    const returnUrl = searchParams.get("returnUrl") || "/";
+    const rawReturnUrl = searchParams.get("returnUrl") || "/";
+    
+    // Validate returnUrl to prevent open redirect attacks
+    const returnUrl = isValidReturnUrl(rawReturnUrl) ? rawReturnUrl : "/";
+    if (rawReturnUrl !== returnUrl) {
+      logger.warn("[create-anonymous-session] Invalid returnUrl rejected", { 
+        returnUrl: rawReturnUrl.slice(0, 100) 
+      });
+    }
 
     const newSessionToken = nanoid(32);
     const expiresAt = new Date(
@@ -64,25 +81,12 @@ export async function GET(request: NextRequest) {
       }
     }
 
-    const [newUser] = await db
-      .insert(users)
-      .values({
-        is_anonymous: true,
-        anonymous_session_id: newSessionToken,
-        organization_id: null,
-        is_active: true,
-        expires_at: expiresAt,
-        role: "member",
-      })
-      .returning();
-
-    const newSession = await anonymousSessionsService.create({
-      session_token: newSessionToken,
-      user_id: newUser.id,
-      expires_at: expiresAt,
-      ip_address: ipAddress,
-      user_agent: userAgent,
-      messages_limit: ANON_MESSAGE_LIMIT,
+    const { newUser, newSession } = await createAnonymousUserAndSession({
+      sessionToken: newSessionToken,
+      expiresAt,
+      ipAddress,
+      userAgent,
+      messagesLimit: ANON_MESSAGE_LIMIT,
     });
 
     const cookieStore = await cookies();
@@ -94,15 +98,15 @@ export async function GET(request: NextRequest) {
       expires: expiresAt,
     });
 
-    logger.info("[create-anonymous-session] Created new anonymous session", {
-      userId: newUser.id,
-      sessionId: newSession.id,
-      expiresAt,
-    });
-
     return NextResponse.redirect(new URL(returnUrl, request.url));
   } catch (error) {
     logger.error("[create-anonymous-session] Error creating session:", error);
+    
+    // Handle specific error types with appropriate redirects
+    if (error instanceof Error && error.name === "RateLimitError") {
+      return NextResponse.redirect(new URL("/login?error=rate_limit", request.url));
+    }
+    
     return NextResponse.redirect(new URL("/login?error=session_error", request.url));
   }
 }
