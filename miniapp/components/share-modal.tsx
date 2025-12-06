@@ -232,7 +232,7 @@ export function ShareModal({ isOpen, onClose, shareContent }: ShareModalProps) {
         {/* Header */}
         <div className="flex items-center justify-between px-6 py-4 border-b border-white/10">
           <div className="flex items-center gap-2">
-            <Gift className="h-5 w-5 text-pink-500" />
+            <Gift className="h-5 w-5 text-brand" />
             <h2 className="text-lg font-semibold text-white">Share & Earn</h2>
           </div>
           <button
@@ -246,7 +246,7 @@ export function ShareModal({ isOpen, onClose, shareContent }: ShareModalProps) {
 
         {loading ? (
           <div className="flex items-center justify-center py-16">
-            <Loader2 className="h-8 w-8 animate-spin text-pink-500" />
+            <Loader2 className="h-8 w-8 animate-spin text-brand" />
           </div>
         ) : error ? (
           <div className="p-6 text-center space-y-4">
@@ -261,7 +261,7 @@ export function ShareModal({ isOpen, onClose, shareContent }: ShareModalProps) {
         ) : (
           <div className="p-6 space-y-5">
             {/* Stats - Always show, with zero state */}
-            <div className="flex items-center justify-center gap-6 p-4 rounded-xl bg-gradient-to-r from-pink-500/10 to-purple-500/10 border border-pink-500/20">
+            <div className="flex items-center justify-center gap-6 p-4 rounded-xl bg-gradient-to-r from-brand/10 to-accent-brand/10 border border-brand/20">
               <div className="text-center">
                 <p className="text-2xl font-bold text-white">{stats?.totalReferrals || 0}</p>
                 <p className="text-xs text-white/60">Referrals</p>
@@ -304,11 +304,11 @@ export function ShareModal({ isOpen, onClose, shareContent }: ShareModalProps) {
                         ? "bg-emerald-500/10 border-emerald-500/30"
                         : claiming === "x"
                         ? "bg-white/5 border-white/10 opacity-60 cursor-not-allowed"
-                        : "bg-white/5 border-white/10 hover:bg-white/10 hover:border-pink-500/30 hover:scale-[1.02] active:scale-[0.98]"
+                        : "bg-white/5 border-white/10 hover:bg-white/10 hover:border-brand/30 hover:scale-[1.02] active:scale-[0.98]"
                     }`}
                   >
                     {claiming === "x" ? (
-                      <Loader2 className="h-6 w-6 animate-spin text-pink-400" />
+                      <Loader2 className="h-6 w-6 animate-spin text-brand-400" />
                     ) : shareStatus?.x.claimed ? (
                       <>
                         <div className="flex items-center gap-1.5">
@@ -337,11 +337,11 @@ export function ShareModal({ isOpen, onClose, shareContent }: ShareModalProps) {
                         ? "bg-emerald-500/10 border-emerald-500/30"
                         : claiming === "farcaster"
                         ? "bg-white/5 border-white/10 opacity-60 cursor-not-allowed"
-                        : "bg-white/5 border-white/10 hover:bg-white/10 hover:border-purple-500/30 hover:scale-[1.02] active:scale-[0.98]"
+                        : "bg-white/5 border-white/10 hover:bg-white/10 hover:border-accent-brand/30 hover:scale-[1.02] active:scale-[0.98]"
                     }`}
                   >
                     {claiming === "farcaster" ? (
-                      <Loader2 className="h-6 w-6 animate-spin text-purple-400" />
+                      <Loader2 className="h-6 w-6 animate-spin text-accent-brand-400" />
                     ) : shareStatus?.farcaster.claimed ? (
                       <>
                         <div className="flex items-center gap-1.5">
@@ -397,7 +397,7 @@ export function ShareModal({ isOpen, onClose, shareContent }: ShareModalProps) {
               className={`flex items-center justify-center gap-2 w-full px-4 py-3.5 rounded-xl font-medium transition-all ${
                 linkCopied
                   ? "bg-emerald-500/20 border border-emerald-500/30 text-emerald-400"
-                  : "bg-gradient-to-r from-pink-500 to-purple-600 text-white hover:opacity-90 hover:scale-[1.01] active:scale-[0.99]"
+                  : "bg-gradient-to-r from-brand to-accent-brand-600 text-white hover:opacity-90 hover:scale-[1.01] active:scale-[0.99]"
               }`}
             >
               {linkCopied ? (
