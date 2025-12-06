@@ -1,6 +1,6 @@
 /**
  * App Signup Tracking Service
- * 
+ *
  * Tracks user signups that come through apps via affiliate codes or direct referrals
  */
 
@@ -43,7 +43,10 @@ export class AppSignupTrackingService {
       }
 
       // Create or update app user record
-      const existingAppUser = await appsRepository.findAppUser(appId, data.userId);
+      const existingAppUser = await appsRepository.findAppUser(
+        appId,
+        data.userId,
+      );
 
       if (existingAppUser) {
         // User already exists for this app, just update metadata
@@ -189,4 +192,3 @@ export class AppSignupTrackingService {
 
 // Export singleton instance
 export const appSignupTrackingService = new AppSignupTrackingService();
-

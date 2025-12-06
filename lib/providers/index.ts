@@ -16,7 +16,9 @@ export function getProvider(): AIProvider {
   if (!providerInstance) {
     const apiKey = process.env.AI_GATEWAY_API_KEY;
     if (!apiKey) {
-      throw new Error("VERCEL_AI_GATEWAY_API_KEY environment variable is required");
+      throw new Error(
+        "VERCEL_AI_GATEWAY_API_KEY environment variable is required",
+      );
     }
     providerInstance = new VercelGatewayProvider(apiKey);
   }

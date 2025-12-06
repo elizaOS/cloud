@@ -1,6 +1,12 @@
 "use client";
 
-import { useState, useEffect, useCallback, Profiler, type ProfilerOnRenderCallback } from "react";
+import {
+  useState,
+  useEffect,
+  useCallback,
+  Profiler,
+  type ProfilerOnRenderCallback,
+} from "react";
 import { usePrivy } from "@privy-io/react-auth";
 import { useRouter, usePathname } from "next/navigation";
 import { Loader2 } from "lucide-react";
@@ -105,10 +111,7 @@ export default function DashboardLayout({
       <div className="flex h-screen w-full bg-[#0A0A0A]">
         {/* Sidebar */}
         <Profiler id="Sidebar" onRender={onRenderCallback || (() => {})}>
-          <Sidebar
-            isOpen={sidebarOpen}
-            onToggle={handleToggleSidebar}
-          />
+          <Sidebar isOpen={sidebarOpen} onToggle={handleToggleSidebar} />
         </Profiler>
 
         {/* Main Content */}
@@ -123,7 +126,10 @@ export default function DashboardLayout({
 
           {/* Main Content Area */}
           <main className="flex-1 overflow-y-auto bg-[#0A0A0A]">
-            <Profiler id="Dashboard-Main" onRender={onRenderCallback || (() => {})}>
+            <Profiler
+              id="Dashboard-Main"
+              onRender={onRenderCallback || (() => {})}
+            >
               <div className="h-full px-2 py-3 md:px-6 md:py-6">{children}</div>
             </Profiler>
           </main>

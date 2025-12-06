@@ -35,7 +35,10 @@ import {
   Info,
   TrendingUp,
 } from "lucide-react";
-import { type ApiEndpoint, type EndpointPricing } from "@/lib/swagger/endpoint-discovery";
+import {
+  type ApiEndpoint,
+  type EndpointPricing,
+} from "@/lib/swagger/endpoint-discovery";
 import { getApiBaseUrl } from "@/lib/config/client-env";
 import { toast } from "@/lib/utils/toast-adapter";
 import { cn } from "@/lib/utils";
@@ -561,11 +564,15 @@ export function ApiTester({
       {/* Pricing Information Card */}
       {endpoint.pricing && (
         <Card className="border-border/60 bg-background/60 rounded-none overflow-hidden">
-          <div className={`h-1 w-full ${endpoint.pricing.isFree ? 'bg-emerald-500' : endpoint.pricing.isVariable ? 'bg-amber-500' : 'bg-[#FF5800]'}`} />
+          <div
+            className={`h-1 w-full ${endpoint.pricing.isFree ? "bg-emerald-500" : endpoint.pricing.isVariable ? "bg-amber-500" : "bg-[#FF5800]"}`}
+          />
           <CardContent className="pt-4">
             <div className="flex items-start justify-between gap-4">
               <div className="flex items-center gap-3">
-                <div className={`p-2.5 rounded-lg ${endpoint.pricing.isFree ? 'bg-emerald-500/10' : endpoint.pricing.isVariable ? 'bg-amber-500/10' : 'bg-[#FF5800]/10'}`}>
+                <div
+                  className={`p-2.5 rounded-lg ${endpoint.pricing.isFree ? "bg-emerald-500/10" : endpoint.pricing.isVariable ? "bg-amber-500/10" : "bg-[#FF5800]/10"}`}
+                >
                   {endpoint.pricing.isFree ? (
                     <Sparkles className={`h-5 w-5 text-emerald-400`} />
                   ) : endpoint.pricing.isVariable ? (
@@ -576,7 +583,9 @@ export function ApiTester({
                 </div>
                 <div>
                   <div className="flex items-center gap-2">
-                    <span className={`text-xl font-bold ${endpoint.pricing.isFree ? 'text-emerald-400' : endpoint.pricing.isVariable ? 'text-amber-400' : 'text-[#FF5800]'}`}>
+                    <span
+                      className={`text-xl font-bold ${endpoint.pricing.isFree ? "text-emerald-400" : endpoint.pricing.isVariable ? "text-amber-400" : "text-[#FF5800]"}`}
+                    >
                       {formatPriceDisplay(endpoint.pricing)}
                     </span>
                     {!endpoint.pricing.isFree && (
@@ -595,7 +604,9 @@ export function ApiTester({
               {endpoint.pricing.isVariable && !endpoint.pricing.isFree && (
                 <div className="flex items-center gap-1.5 px-2.5 py-1 bg-amber-500/10 border border-amber-500/20 rounded-md">
                   <Info className="h-3.5 w-3.5 text-amber-400" />
-                  <span className="text-xs text-amber-400 font-medium">Variable pricing</span>
+                  <span className="text-xs text-amber-400 font-medium">
+                    Variable pricing
+                  </span>
                 </div>
               )}
             </div>

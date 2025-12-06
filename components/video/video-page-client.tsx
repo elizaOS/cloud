@@ -28,10 +28,7 @@ import type {
   VideoModelOption,
   VideoUsageSummary,
 } from "./types";
-import {
-  BrandCard,
-  CornerBrackets,
-} from "@/components/brand";
+import { BrandCard, CornerBrackets } from "@/components/brand";
 
 const THUMBNAIL_FALLBACKS = [
   "https://images.unsplash.com/photo-1526318472351-c75fcf07015d?auto=format&fit=crop&w=1600&q=80",

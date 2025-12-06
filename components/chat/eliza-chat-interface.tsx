@@ -94,7 +94,10 @@ const tierIcons: Record<string, React.ReactNode> = {
   ultra: <Crown className="h-3.5 w-3.5" />,
 };
 
-export function ElizaChatInterface({ onMessageSent, character }: ElizaChatInterfaceProps) {
+export function ElizaChatInterface({
+  onMessageSent,
+  character,
+}: ElizaChatInterfaceProps) {
   // Track renders in development
   useRenderTracker("ElizaChatInterface");
 
@@ -109,10 +112,10 @@ export function ElizaChatInterface({ onMessageSent, character }: ElizaChatInterf
     setPendingMessage,
     anonymousSessionToken,
   } = useChatStore();
-  
+
   // Check authentication status for features that require it
   const { authenticated } = usePrivy();
-  
+
   const [messages, setMessages] = useState<Message[]>([]);
   const [agentInfo, setAgentInfo] = useState<AgentInfo | null>(null);
   const [inputText, setInputText] = useState("");
@@ -124,8 +127,9 @@ export function ElizaChatInterface({ onMessageSent, character }: ElizaChatInterf
   const selectedCharacter = availableCharacters.find(
     (char) => char.id === selectedCharacterId,
   );
-  const characterName = character?.name || selectedCharacter?.name || agentInfo?.name || "Agent";
-  
+  const characterName =
+    character?.name || selectedCharacter?.name || agentInfo?.name || "Agent";
+
   // Consolidated loading states
   const [loadingState, setLoadingState] = useState({
     isSending: false,
@@ -133,11 +137,11 @@ export function ElizaChatInterface({ onMessageSent, character }: ElizaChatInterf
     isLoadingMessages: false,
     isProcessingSTT: false,
   });
-  
+
   const [error, setError] = useState<string | null>(null);
   const scrollAreaRef = useRef<HTMLDivElement>(null);
   const thinkingTimeoutRef = useRef<NodeJS.Timeout | null>(null);
-  
+
   const [audioState, setAudioState] = useState<{
     autoPlayTTS: boolean;
     currentPlayingId: string | null;
@@ -146,12 +150,13 @@ export function ElizaChatInterface({ onMessageSent, character }: ElizaChatInterf
   }>(() => ({
     autoPlayTTS: false,
     currentPlayingId: null,
-    selectedVoiceId: typeof window !== "undefined" 
-      ? localStorage.getItem("eliza-selected-voice-id") 
-      : null,
+    selectedVoiceId:
+      typeof window !== "undefined"
+        ? localStorage.getItem("eliza-selected-voice-id")
+        : null,
     customVoices: [],
   }));
-  
+
   const messageAudioUrls = useRef<Map<string, string>>(new Map());
   const [copiedMessageId, setCopiedMessageId] = useState<string | null>(null);
 
@@ -165,10 +170,16 @@ export function ElizaChatInterface({ onMessageSent, character }: ElizaChatInterf
   const recorder = useAudioRecorder();
   const player = useAudioPlayer();
 
-  const { selectedTier, selectedModelId, tiers, setTier, isLoading: isLoadingModels } = useModelTier();
+  const {
+    selectedTier,
+    selectedModelId,
+    tiers,
+    setTier,
+    isLoading: isLoadingModels,
+  } = useModelTier();
 
   const loadMessages = useCallback(async (targetRoomId: string) => {
-    setLoadingState(prev => ({ ...prev, isLoadingMessages: true }));
+    setLoadingState((prev) => ({ ...prev, isLoadingMessages: true }));
     try {
       const response = await fetch(`/api/eliza/rooms/${targetRoomId}`);
       if (response.ok) {
@@ -181,7 +192,7 @@ export function ElizaChatInterface({ onMessageSent, character }: ElizaChatInterf
     } catch (err) {
       console.error("Error loading messages:", err);
     } finally {
-      setLoadingState(prev => ({ ...prev, isLoadingMessages: false }));
+      setLoadingState((prev) => ({ ...prev, isLoadingMessages: false }));
     }
   }, []);
 
@@ -194,7 +205,7 @@ export function ElizaChatInterface({ onMessageSent, character }: ElizaChatInterf
       setMessages([]);
       setAgentInfo(null);
       setError(null);
-      setLoadingState(prev => ({ ...prev, isLoadingMessages: false }));
+      setLoadingState((prev) => ({ ...prev, isLoadingMessages: false }));
     }
   }, [roomId, loadMessages]);
 
@@ -202,7 +213,7 @@ export function ElizaChatInterface({ onMessageSent, character }: ElizaChatInterf
     async (characterId?: string | null) => {
       const charIdToUse =
         characterId !== undefined ? characterId : selectedCharacterId;
-      setLoadingState(prev => ({ ...prev, isInitializing: true }));
+      setLoadingState((prev) => ({ ...prev, isInitializing: true }));
       setError(null);
       try {
         // Use store's createRoom which handles the API call
@@ -221,7 +232,7 @@ export function ElizaChatInterface({ onMessageSent, character }: ElizaChatInterf
         console.error("[ElizaChat] Error creating room:", err);
         throw err; // Re-throw so caller can handle
       } finally {
-        setLoadingState(prev => ({ ...prev, isInitializing: false }));
+        setLoadingState((prev) => ({ ...prev, isInitializing: false }));
       }
     },
     [createRoomInStore, loadMessages, selectedCharacterId],
@@ -269,7 +280,11 @@ export function ElizaChatInterface({ onMessageSent, character }: ElizaChatInterf
     }
 
     // If we have a roomId and a pending message in ref (after room creation), send it
-    if (roomId && pendingMessageToSendRef.current && !loadingState.isLoadingMessages) {
+    if (
+      roomId &&
+      pendingMessageToSendRef.current &&
+      !loadingState.isLoadingMessages
+    ) {
       const messageToSend = pendingMessageToSendRef.current;
       console.log("[ElizaChat] Auto-sending pending message:", messageToSend);
 
@@ -288,7 +303,13 @@ export function ElizaChatInterface({ onMessageSent, character }: ElizaChatInterf
       }, 500);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [roomId, loadingState.isSending, loadingState.isInitializing, pendingMessage, loadingState.isLoadingMessages]);
+  }, [
+    roomId,
+    loadingState.isSending,
+    loadingState.isInitializing,
+    pendingMessage,
+    loadingState.isLoadingMessages,
+  ]);
 
   const generateSpeech = useCallback(
     async (text: string, messageId: string) => {
@@ -314,7 +335,7 @@ export function ElizaChatInterface({ onMessageSent, character }: ElizaChatInterf
         messageAudioUrls.current.set(messageId, audioUrl);
 
         if (audioState.autoPlayTTS) {
-          setAudioState(prev => ({ ...prev, currentPlayingId: messageId }));
+          setAudioState((prev) => ({ ...prev, currentPlayingId: messageId }));
           await player.playAudio(audioUrl);
         }
 
@@ -341,7 +362,7 @@ export function ElizaChatInterface({ onMessageSent, character }: ElizaChatInterf
         if (response.ok) {
           const data = await response.json();
           if (data.success && Array.isArray(data.voices)) {
-            setAudioState(prev => ({ ...prev, customVoices: data.voices }));
+            setAudioState((prev) => ({ ...prev, customVoices: data.voices }));
           }
         }
         // Silently ignore 401 errors - user may not have voice features
@@ -370,7 +391,7 @@ export function ElizaChatInterface({ onMessageSent, character }: ElizaChatInterf
       // Guard: Don't process if no audio blob or already processing
       if (!recorder.audioBlob || loadingState.isProcessingSTT) return;
 
-      setLoadingState(prev => ({ ...prev, isProcessingSTT: true }));
+      setLoadingState((prev) => ({ ...prev, isProcessingSTT: true }));
 
       try {
         // Ensure the blob is in proper audio format (fix Safari/macOS video/webm issue)
@@ -412,7 +433,7 @@ export function ElizaChatInterface({ onMessageSent, character }: ElizaChatInterf
       } finally {
         // Cleanup: Clear recording and reset processing state
         recorder.clearRecording();
-        setLoadingState(prev => ({ ...prev, isProcessingSTT: false }));
+        setLoadingState((prev) => ({ ...prev, isProcessingSTT: false }));
       }
     };
 
@@ -539,7 +560,7 @@ export function ElizaChatInterface({ onMessageSent, character }: ElizaChatInterf
     if (!textOverride) {
       setInputText("");
     }
-    setLoadingState(prev => ({ ...prev, isSending: true }));
+    setLoadingState((prev) => ({ ...prev, isSending: true }));
     setError(null);
 
     try {
@@ -658,7 +679,7 @@ export function ElizaChatInterface({ onMessageSent, character }: ElizaChatInterf
         thinkingTimeoutRef.current = null;
       }
     } finally {
-      setLoadingState(prev => ({ ...prev, isSending: false }));
+      setLoadingState((prev) => ({ ...prev, isSending: false }));
     }
   };
 
@@ -820,46 +841,55 @@ export function ElizaChatInterface({ onMessageSent, character }: ElizaChatInterf
                 </div>
               )}
 
-              {!loadingState.isLoadingMessages && messages.length === 0 && !error && (
-                <div className="flex flex-col items-center justify-center h-full text-center py-12">
-                  <ElizaAvatar
-                    avatarUrl={agentInfo?.avatarUrl}
-                    name={characterName}
-                    className="h-16 w-16 mb-4"
-                    fallbackClassName="bg-muted"
-                    iconClassName="h-8 w-8 text-muted-foreground"
-                  />
-                  <h3 className="text-lg font-semibold mb-2">
-                    Send the first message to {characterName}
-                  </h3>
-                  <p className="text-sm text-muted-foreground max-w-md">
-                    {(() => {
-                      // Get character description from character data
-                      const charData = character?.character_data;
-                      // Check for personality traits first (stored in bio)
-                      if (charData?.bio) {
-                        const bioArray = Array.isArray(charData.bio) ? charData.bio : [charData.bio];
-                        // Look for personality line first, then use first bio line
-                        const personalityLine = bioArray.find(line => 
-                          typeof line === 'string' && line.toLowerCase().includes('personality')
-                        );
-                        if (personalityLine) {
-                          // Remove "Personality traits: " prefix for cleaner display
-                          return personalityLine.replace(/^personality traits?:\s*/i, '');
+              {!loadingState.isLoadingMessages &&
+                messages.length === 0 &&
+                !error && (
+                  <div className="flex flex-col items-center justify-center h-full text-center py-12">
+                    <ElizaAvatar
+                      avatarUrl={agentInfo?.avatarUrl}
+                      name={characterName}
+                      className="h-16 w-16 mb-4"
+                      fallbackClassName="bg-muted"
+                      iconClassName="h-8 w-8 text-muted-foreground"
+                    />
+                    <h3 className="text-lg font-semibold mb-2">
+                      Send the first message to {characterName}
+                    </h3>
+                    <p className="text-sm text-muted-foreground max-w-md">
+                      {(() => {
+                        // Get character description from character data
+                        const charData = character?.character_data;
+                        // Check for personality traits first (stored in bio)
+                        if (charData?.bio) {
+                          const bioArray = Array.isArray(charData.bio)
+                            ? charData.bio
+                            : [charData.bio];
+                          // Look for personality line first, then use first bio line
+                          const personalityLine = bioArray.find(
+                            (line) =>
+                              typeof line === "string" &&
+                              line.toLowerCase().includes("personality"),
+                          );
+                          if (personalityLine) {
+                            // Remove "Personality traits: " prefix for cleaner display
+                            return personalityLine.replace(
+                              /^personality traits?:\s*/i,
+                              "",
+                            );
+                          }
+                          return bioArray[0];
                         }
-                        return bioArray[0];
-                      }
-                      if (charData?.personality) {
-                        return charData.personality;
-                      }
-                      if (charData?.description) {
-                        return charData.description;
-                      }
-                      return `Say hello to ${characterName}!`;
-                    })()}
-                  </p>
-                </div>
-              )}
+                        if (charData?.personality) {
+                          return charData.personality;
+                        }
+                        if (charData?.description) {
+                          return charData.description;
+                        }
+                        return `Say hello to ${characterName}!`;
+                      })()}
+                    </p>
+                  </div>
+                )}
 
               {!loadingState.isLoadingMessages &&
                 messages.map((message, index) => {
@@ -980,20 +1010,27 @@ export function ElizaChatInterface({ onMessageSent, character }: ElizaChatInterf
                                           );
                                         if (url) {
                                           if (
-                                            audioState.currentPlayingId === message.id &&
+                                            audioState.currentPlayingId ===
+                                              message.id &&
                                             player.isPlaying
                                           ) {
                                             player.stopAudio();
-                                            setAudioState(prev => ({ ...prev, currentPlayingId: null }));
+                                            setAudioState((prev) => ({
+                                              ...prev,
+                                              currentPlayingId: null,
+                                            }));
                                           } else {
-                                            setAudioState(prev => ({ ...prev, currentPlayingId: message.id }));
+                                            setAudioState((prev) => ({
+                                              ...prev,
+                                              currentPlayingId: message.id,
+                                            }));
                                             player.playAudio(url);
                                           }
                                         }
                                       }}
                                     >
-                                      {audioState.currentPlayingId === message.id &&
-                                      player.isPlaying ? (
+                                      {audioState.currentPlayingId ===
+                                        message.id && player.isPlaying ? (
                                         <Square className="h-3.5 w-3.5 text-white/50" />
                                       ) : (
                                         <Volume2 className="h-3.5 w-3.5 text-white/50 hover:text-white/80" />
@@ -1096,7 +1133,8 @@ export function ElizaChatInterface({ onMessageSent, character }: ElizaChatInterf
                 onInput={(e) => {
                   const target = e.target as HTMLTextAreaElement;
                   target.style.height = "44px";
-                  target.style.height = Math.min(target.scrollHeight, 140) + "px";
+                  target.style.height =
+                    Math.min(target.scrollHeight, 140) + "px";
                 }}
                 placeholder={
                   recorder.isRecording
@@ -1119,7 +1157,7 @@ export function ElizaChatInterface({ onMessageSent, character }: ElizaChatInterf
                 value={selectedTier}
                 onValueChange={(value) => {
                   setTier(value as "fast" | "pro" | "ultra");
-                  const tier = tiers.find(t => t.id === value);
+                  const tier = tiers.find((t) => t.id === value);
                   if (tier) {
                     toast.success(`Model: ${tier.name}`);
                   }
@@ -1130,7 +1168,7 @@ export function ElizaChatInterface({ onMessageSent, character }: ElizaChatInterf
                   <SelectValue placeholder="Select model">
                     <span className="flex items-center gap-2">
                       {tierIcons[selectedTier]}
-                      {tiers.find(t => t.id === selectedTier)?.name || "Pro"}
+                      {tiers.find((t) => t.id === selectedTier)?.name || "Pro"}
                     </span>
                   </SelectValue>
                 </SelectTrigger>
@@ -1141,7 +1179,9 @@ export function ElizaChatInterface({ onMessageSent, character }: ElizaChatInterf
                         {tierIcons[tier.id]}
                         <div className="flex flex-col">
                           <span className="font-medium">{tier.name}</span>
-                          <span className="text-xs text-muted-foreground">{tier.description}</span>
+                          <span className="text-xs text-muted-foreground">
+                            {tier.description}
+                          </span>
                         </div>
                       </div>
                     </SelectItem>
@@ -1180,7 +1220,12 @@ export function ElizaChatInterface({ onMessageSent, character }: ElizaChatInterf
                             <Switch
                               id="auto-tts-pop"
                               checked={audioState.autoPlayTTS}
-                              onCheckedChange={(checked) => setAudioState(prev => ({ ...prev, autoPlayTTS: checked }))}
+                              onCheckedChange={(checked) =>
+                                setAudioState((prev) => ({
+                                  ...prev,
+                                  autoPlayTTS: checked,
+                                }))
+                              }
                             />
                           </div>
 
@@ -1197,7 +1242,10 @@ export function ElizaChatInterface({ onMessageSent, character }: ElizaChatInterf
                                 onValueChange={(value) => {
                                   const newVoiceId =
                                     value === "default" ? null : value;
-                                  setAudioState(prev => ({ ...prev, selectedVoiceId: newVoiceId }));
+                                  setAudioState((prev) => ({
+                                    ...prev,
+                                    selectedVoiceId: newVoiceId,
+                                  }));
 
                                   if (typeof window !== "undefined") {
                                     if (newVoiceId) {
@@ -1296,4 +1344,3 @@ export function ElizaChatInterface({ onMessageSent, character }: ElizaChatInterf
     </div>
   );
 }
-

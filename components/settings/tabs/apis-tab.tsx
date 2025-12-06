@@ -49,19 +49,19 @@ interface FormState {
 
 export function ApisTab({ user }: ApisTabProps) {
   const [apiKeys, setApiKeys] = useState<ApiKey[]>([]);
-  
+
   const [modalState, setModalState] = useState<ModalState>({
     showCreateModal: false,
     showKeyModal: false,
     newlyCreatedKey: null,
   });
-  
+
   const [operationState, setOperationState] = useState<OperationState>({
     loading: true,
     creating: false,
     deletingKeyId: null,
   });
-  
+
   const [formState, setFormState] = useState<FormState>({
     name: "",
     description: "",
@@ -514,7 +514,9 @@ export function ApisTab({ user }: ApisTabProps) {
                             onClick={() =>
                               handleDeleteKey(apiKey.id, apiKey.name)
                             }
-                            disabled={operationState.deletingKeyId === apiKey.id}
+                            disabled={
+                              operationState.deletingKeyId === apiKey.id
+                            }
                             className="px-3 py-2 border border-[#EB4335]/40 bg-[#EB4335]/10 hover:bg-[#EB4335]/20 transition-colors disabled:opacity-50 group"
                             title="Delete API key"
                           >
@@ -574,7 +576,9 @@ export function ApisTab({ user }: ApisTabProps) {
                   </Label>
                   <Textarea
                     value={formState.description}
-                    onChange={(e) => updateForm({ description: e.target.value })}
+                    onChange={(e) =>
+                      updateForm({ description: e.target.value })
+                    }
                     placeholder="Used for production deployment"
                     className="bg-transparent border-[#303030] text-white min-h-[80px] resize-none"
                   />

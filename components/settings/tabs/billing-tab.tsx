@@ -206,7 +206,8 @@ export function BillingTab({ user }: BillingTabProps) {
                       className="absolute inset-0 opacity-20 bg-repeat pointer-events-none"
                       style={{
                         backgroundImage: `url(/assets/settings/pattern-6px-flip.png)`,
-                        backgroundSize: "2.915576934814453px 2.915576934814453px",
+                        backgroundSize:
+                          "2.915576934814453px 2.915576934814453px",
                       }}
                     />
                     {isProcessingCheckout ? (

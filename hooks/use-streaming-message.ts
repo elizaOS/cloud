@@ -28,7 +28,7 @@ interface SendMessageOptions {
 /**
  * Send a message and stream the response via SSE
  * Single endpoint handles everything - no cross-container issues!
- * 
+ *
  * NOTE: entityId is now derived from authenticated user on the server
  */
 export async function sendStreamingMessage({

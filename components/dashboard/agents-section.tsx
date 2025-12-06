@@ -6,18 +6,27 @@
 "use client";
 
 import * as React from "react";
-import {
-  BrandButton,
-  LockOnButton,
-  CornerBrackets,
-} from "@/components/brand";
+import { BrandButton, LockOnButton, CornerBrackets } from "@/components/brand";
 import {
   Tooltip,
   TooltipContent,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
 import { cn } from "@/lib/utils";
-import { Bot, Plus, Sparkles, HelpCircle, Clock, Rocket, Terminal, Copy, Check, Zap, BookOpen, ExternalLink } from "lucide-react";
+import {
+  Bot,
+  Plus,
+  Sparkles,
+  HelpCircle,
+  Clock,
+  Rocket,
+  Terminal,
+  Copy,
+  Check,
+  Zap,
+  BookOpen,
+  ExternalLink,
+} from "lucide-react";
 import Image from "next/image";
 import Link from "next/link";
 import { Badge } from "@/components/ui/badge";
@@ -103,7 +112,12 @@ export function AgentsSection({ agents, className }: AgentsSectionProps) {
           {/* View All Link */}
           {hasMore && (
             <div className="flex justify-center">
-              <BrandButton variant="ghost" asChild size="sm" className="text-xs h-8">
+              <BrandButton
+                variant="ghost"
+                asChild
+                size="sm"
+                className="text-xs h-8"
+              >
                 <Link href="/dashboard/my-agents">
                   View all ({agents.length})
                 </Link>
@@ -135,7 +149,7 @@ function GettingStartedSection() {
       {/* Background decoration */}
       <div className="absolute top-0 right-0 w-64 h-64 bg-[#FF5800]/5 rounded-full blur-3xl -translate-y-1/2 translate-x-1/2" />
       <div className="absolute bottom-0 left-0 w-48 h-48 bg-purple-600/5 rounded-full blur-3xl translate-y-1/2 -translate-x-1/2" />
-      
+
       <div className="relative z-0">
         {/* Header */}
         <div className="flex items-center gap-3 mb-5">
@@ -159,7 +173,9 @@ function GettingStartedSection() {
               </code>
               <button
                 type="button"
-                onClick={() => copyToClipboard("npx elizaos create", setCopiedCreate)}
+                onClick={() =>
+                  copyToClipboard("npx elizaos create", setCopiedCreate)
+                }
                 className="p-2 rounded hover:bg-white/5 transition-colors text-white/40 hover:text-white"
               >
                 {copiedCreate ? (
@@ -183,7 +199,9 @@ function GettingStartedSection() {
               </code>
               <button
                 type="button"
-                onClick={() => copyToClipboard("npx elizaos deploy", setCopiedDeploy)}
+                onClick={() =>
+                  copyToClipboard("npx elizaos deploy", setCopiedDeploy)
+                }
                 className="p-2 rounded hover:bg-white/5 transition-colors text-white/40 hover:text-white"
               >
                 {copiedDeploy ? (
@@ -233,7 +251,9 @@ function getAgentColor(name: string): string {
     "from-violet-500 to-purple-700",
     "from-cyan-500 to-blue-700",
   ];
-  const index = name.split("").reduce((acc, char) => acc + char.charCodeAt(0), 0) % colors.length;
+  const index =
+    name.split("").reduce((acc, char) => acc + char.charCodeAt(0), 0) %
+    colors.length;
   return colors[index];
 }
 
@@ -245,15 +265,16 @@ function AgentCard({ agent }: { agent: Agent }) {
   const gradientColor = getAgentColor(agent.name);
 
   return (
-    <Link href={`/dashboard/chat?characterId=${agent.id}`} className="block h-full">
+    <Link
+      href={`/dashboard/chat?characterId=${agent.id}`}
+      className="block h-full"
+    >
       <div className="group relative h-full overflow-hidden border border-white/10 bg-black/40 transition-all duration-300 hover:border-[#FF5800]/50 hover:shadow-lg hover:shadow-[#FF5800]/10 hover:-translate-y-1">
         <div className="pointer-events-none absolute inset-0 z-10">
           <CornerBrackets size="md" color="#E1E1E1" hoverColor="#FF5800" />
         </div>
         {/* Avatar Section - Large prominent image */}
-        <div className={cn(
-          "relative h-36 w-full overflow-hidden"
-        )}>
+        <div className={cn("relative h-36 w-full overflow-hidden")}>
           <Image
             src={ensureAvatarUrl(agent.avatarUrl)}
             alt={agent.name}
@@ -261,10 +282,10 @@ function AgentCard({ agent }: { agent: Agent }) {
             className="object-cover transition-transform duration-500 group-hover:scale-110"
             unoptimized={!isBuiltInAvatar(agent.avatarUrl)}
           />
-          
+
           {/* Gradient overlay at bottom */}
           <div className="absolute inset-x-0 bottom-0 h-16 bg-gradient-to-t from-black/80 to-transparent" />
-          
+
           {/* Status badges */}
           <div className="absolute top-2 right-2 z-20 flex gap-1.5">
             {isDeployed && (
@@ -287,18 +308,20 @@ function AgentCard({ agent }: { agent: Agent }) {
           <h3 className="font-semibold text-white truncate group-hover:text-[#FF5800] transition-colors">
             {agent.name}
           </h3>
-          
+
           {/* Bio */}
           <p className="text-xs text-white/50 line-clamp-2 leading-relaxed min-h-[2rem]">
             {bioText || "No description yet"}
           </p>
-          
+
           {/* Stats */}
           <div className="flex items-center gap-3 pt-2 border-t border-white/5 text-[11px] text-white/40">
             {agent.stats?.lastActiveAt && (
               <span className="flex items-center gap-1 truncate">
                 <Clock className="h-3 w-3 flex-shrink-0" />
-                {formatDistanceToNow(new Date(agent.stats.lastActiveAt), { addSuffix: true })}
+                {formatDistanceToNow(new Date(agent.stats.lastActiveAt), {
+                  addSuffix: true,
+                })}
               </span>
             )}
             {agent.category && (
@@ -393,8 +416,8 @@ export function AgentsSectionSkeleton() {
       {/* Agents Grid Skeleton - Card style */}
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
         {[...Array(4)].map((_, index) => (
-          <div 
-            key={index} 
+          <div
+            key={index}
             className="relative border border-white/10 bg-black/40 overflow-hidden"
           >
             <div className="pointer-events-none absolute inset-0 z-10">
@@ -402,7 +425,7 @@ export function AgentsSectionSkeleton() {
             </div>
             {/* Avatar area skeleton */}
             <div className="h-36 w-full bg-gradient-to-br from-white/5 to-white/[0.02] animate-pulse" />
-            
+
             {/* Content skeleton */}
             <div className="p-4 space-y-3">
               <div className="h-5 w-3/4 bg-white/10 animate-pulse rounded" />

@@ -4,7 +4,12 @@
  */
 
 export { roomsRepository } from "./rooms";
-export type { Room, RoomWithPreview, CreateRoomInput, UpdateRoomInput } from "./rooms";
+export type {
+  Room,
+  RoomWithPreview,
+  CreateRoomInput,
+  UpdateRoomInput,
+} from "./rooms";
 
 export { participantsRepository } from "./participants";
 export type { CreateParticipantInput } from "./participants";

@@ -1,12 +1,16 @@
 /**
  * Miniapp Auth Sessions Repository
- * 
+ *
  * Database operations for miniapp authentication sessions.
  */
 
 import { eq, and, gt, isNull } from "drizzle-orm";
 import { db } from "@/db/client";
-import { miniappAuthSessions, type MiniappAuthSession, type NewMiniappAuthSession } from "@/db/schemas/miniapp-auth-sessions";
+import {
+  miniappAuthSessions,
+  type MiniappAuthSession,
+  type NewMiniappAuthSession,
+} from "@/db/schemas/miniapp-auth-sessions";
 
 class MiniappAuthSessionsRepository {
   /**
@@ -35,15 +39,17 @@ class MiniappAuthSessionsRepository {
   /**
    * Get active (non-expired, pending) session by session_id
    */
-  async getActiveSession(sessionId: string): Promise<MiniappAuthSession | null> {
+  async getActiveSession(
+    sessionId: string,
+  ): Promise<MiniappAuthSession | null> {
     const [session] = await db
       .select()
       .from(miniappAuthSessions)
       .where(
         and(
           eq(miniappAuthSessions.session_id, sessionId),
-          gt(miniappAuthSessions.expires_at, new Date())
-        )
+          gt(miniappAuthSessions.expires_at, new Date()),
+        ),
       )
       .limit(1);
     return session || null;
@@ -57,7 +63,7 @@ class MiniappAuthSessionsRepository {
     userId: string,
     organizationId: string,
     authToken: string,
-    authTokenHash: string
+    authTokenHash: string,
   ): Promise<MiniappAuthSession | null> {
     const [session] = await db
       .update(miniappAuthSessions)
@@ -72,8 +78,8 @@ class MiniappAuthSessionsRepository {
       .where(
         and(
           eq(miniappAuthSessions.session_id, sessionId),
-          eq(miniappAuthSessions.status, "pending")
-        )
+          eq(miniappAuthSessions.status, "pending"),
+        ),
       )
       .returning();
     return session || null;
@@ -82,19 +88,30 @@ class MiniappAuthSessionsRepository {
   /**
    * Get and clear auth token (one-time retrieval for security)
    */
-  async getAndClearAuthToken(sessionId: string): Promise<{ authToken: string; userId: string; organizationId: string } | null> {
+  async getAndClearAuthToken(
+    sessionId: string,
+  ): Promise<{
+    authToken: string;
+    userId: string;
+    organizationId: string;
+  } | null> {
     const [session] = await db
       .select()
       .from(miniappAuthSessions)
       .where(
         and(
           eq(miniappAuthSessions.session_id, sessionId),
-          eq(miniappAuthSessions.status, "authenticated")
-        )
+          eq(miniappAuthSessions.status, "authenticated"),
+        ),
       )
       .limit(1);
 
-    if (!session || !session.auth_token || !session.user_id || !session.organization_id) {
+    if (
+      !session ||
+      !session.auth_token ||
+      !session.user_id ||
+      !session.organization_id
+    ) {
       return null;
     }
 
@@ -118,15 +135,17 @@ class MiniappAuthSessionsRepository {
   /**
    * Verify an auth token against stored hash
    */
-  async verifyAuthToken(authTokenHash: string): Promise<{ userId: string; organizationId: string } | null> {
+  async verifyAuthToken(
+    authTokenHash: string,
+  ): Promise<{ userId: string; organizationId: string } | null> {
     const [session] = await db
       .select()
       .from(miniappAuthSessions)
       .where(
         and(
           eq(miniappAuthSessions.auth_token_hash, authTokenHash),
-          gt(miniappAuthSessions.expires_at, new Date())
-        )
+          gt(miniappAuthSessions.expires_at, new Date()),
+        ),
       )
       .limit(1);
 
@@ -149,12 +168,12 @@ class MiniappAuthSessionsRepository {
       .where(
         and(
           gt(new Date(), miniappAuthSessions.expires_at),
-          isNull(miniappAuthSessions.user_id)
-        )
+          isNull(miniappAuthSessions.user_id),
+        ),
       );
     return result.rowCount || 0;
   }
 }
 
-export const miniappAuthSessionsRepository = new MiniappAuthSessionsRepository();
-
+export const miniappAuthSessionsRepository =
+  new MiniappAuthSessionsRepository();

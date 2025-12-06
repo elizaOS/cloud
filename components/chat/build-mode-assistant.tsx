@@ -237,7 +237,15 @@ Tell me about your vision!`;
       return () => clearTimeout(timer);
     }
     // Including character fields used in the welcome message
-  }, [builderRoomId, messages.length, isEditMode, character.name, character.bio, character.adjectives, character.topics]);
+  }, [
+    builderRoomId,
+    messages.length,
+    isEditMode,
+    character.name,
+    character.bio,
+    character.adjectives,
+    character.topics,
+  ]);
 
   // Send message to ElizaOS stream endpoint with BUILD workflow
   const sendElizaMessage = async (text: string) => {
@@ -255,19 +263,22 @@ Tell me about your vision!`;
     setMessages((prev) => [...prev, userMessage]);
 
     try {
-      const response = await fetch(`/api/eliza/rooms/${builderRoomId}/messages/stream`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          text,
-          agentMode: {
-            mode: AgentMode.BUILD,
-            metadata: {
-              targetCharacterId: character.id,
+      const response = await fetch(
+        `/api/eliza/rooms/${builderRoomId}/messages/stream`,
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            text,
+            agentMode: {
+              mode: AgentMode.BUILD,
+              metadata: {
+                targetCharacterId: character.id,
+              },
             },
-          },
-        }),
-      });
+          }),
+        },
+      );
 
       if (!response.ok) {
         throw new Error(`HTTP error! status: ${response.status}`);
@@ -410,7 +421,7 @@ Tell me about your vision!`;
   const scrollToBottom = useCallback((smooth = false) => {
     if (scrollAreaRef.current) {
       const viewport = scrollAreaRef.current.querySelector(
-        "[data-radix-scroll-area-viewport]"
+        "[data-radix-scroll-area-viewport]",
       );
       if (viewport) {
         // Use requestAnimationFrame to ensure DOM has updated
@@ -462,7 +473,7 @@ Tell me about your vision!`;
         } catch {
           try {
             const fieldMatches = jsonText.matchAll(
-              /"(\w+)":\s*("(?:[^"\\]|\\.)*"|true|false|null|\d+(?:\.\d+)?|\[[^\]]*\])/g
+              /"(\w+)":\s*("(?:[^"\\]|\\.)*"|true|false|null|\d+(?:\.\d+)?|\[[^\]]*\])/g,
             );
             const partialUpdates: Record<string, unknown> = {};
 
@@ -546,7 +557,8 @@ Tell me about your vision!`;
                   What would you like to create?
                 </h3>
                 <p className="text-sm text-white/60 max-w-md font-[family-name:var(--font-roboto-flex)]">
-                  Describe your character idea and I&apos;ll help bring it to life
+                  Describe your character idea and I&apos;ll help bring it to
+                  life
                 </p>
               </div>
             )}
@@ -568,7 +580,9 @@ Tell me about your vision!`;
                       {/* Agent Name Row with Avatar */}
                       <div className="flex items-center gap-2">
                         <ElizaAvatar
-                          avatarUrl={character.avatarUrl || character.avatar_url}
+                          avatarUrl={
+                            character.avatarUrl || character.avatar_url
+                          }
                           name={character.name || "Build Assistant"}
                           className="flex-shrink-0 w-4 h-4"
                           iconClassName="h-3 w-3"

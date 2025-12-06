@@ -169,11 +169,22 @@ export function CharacterCreatorClient({
 
   // Auto-initialize a blank character when entering the creator for the first time
   useEffect(() => {
-    if (!selectedId && !hasAutoInitialized && !isInitializingCharacter && showAssistant) {
+    if (
+      !selectedId &&
+      !hasAutoInitialized &&
+      !isInitializingCharacter &&
+      showAssistant
+    ) {
       setHasAutoInitialized(true);
       initializeBlankCharacter();
     }
-  }, [selectedId, hasAutoInitialized, isInitializingCharacter, showAssistant, initializeBlankCharacter]);
+  }, [
+    selectedId,
+    hasAutoInitialized,
+    isInitializingCharacter,
+    showAssistant,
+    initializeBlankCharacter,
+  ]);
 
   useSetPageHeader(
     {

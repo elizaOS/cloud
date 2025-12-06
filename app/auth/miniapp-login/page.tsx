@@ -13,7 +13,12 @@ import {
 import { Button } from "@/components/ui/button";
 import { Loader2, CheckCircle2, AlertCircle } from "lucide-react";
 
-type Status = "loading" | "waiting_auth" | "completing" | "redirecting" | "error";
+type Status =
+  | "loading"
+  | "waiting_auth"
+  | "completing"
+  | "redirecting"
+  | "error";
 
 function MiniappLoginContent() {
   const { authenticated, login, ready } = usePrivy();
@@ -38,7 +43,7 @@ function MiniappLoginContent() {
         {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-        }
+        },
       );
 
       if (!response.ok) {
@@ -57,7 +62,9 @@ function MiniappLoginContent() {
       console.error("Error completing miniapp login:", error);
       setStatus("error");
       setErrorMessage(
-        error instanceof Error ? error.message : "Failed to complete authentication"
+        error instanceof Error
+          ? error.message
+          : "Failed to complete authentication",
       );
     }
   }, [sessionId]);
@@ -114,7 +121,11 @@ function MiniappLoginContent() {
             <CardDescription>{errorMessage}</CardDescription>
           </CardHeader>
           <CardContent>
-            <Button onClick={() => window.close()} variant="outline" className="w-full">
+            <Button
+              onClick={() => window.close()}
+              variant="outline"
+              className="w-full"
+            >
               Close Window
             </Button>
           </CardContent>
@@ -167,7 +178,9 @@ function MiniappLoginContent() {
               <CheckCircle2 className="h-6 w-6 text-green-500" />
             </div>
             <CardTitle>Authentication Complete!</CardTitle>
-            <CardDescription>Redirecting you back to the app...</CardDescription>
+            <CardDescription>
+              Redirecting you back to the app...
+            </CardDescription>
           </CardHeader>
           <CardContent>
             <div className="flex items-center justify-center">

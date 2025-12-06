@@ -1,16 +1,20 @@
 /**
  * GET /api/v1/miniapp/user
- * 
+ *
  * Returns the current authenticated user's info for miniapp consumption.
  * Supports both API key and session authentication.
  */
 
 import { NextRequest, NextResponse } from "next/server";
 import { requireAuthOrApiKeyWithOrg } from "@/lib/auth";
-import { addCorsHeaders, validateOrigin, createPreflightResponse } from "@/lib/middleware/cors-apps";
-import { 
-  checkMiniappRateLimit, 
-  createRateLimitErrorResponse, 
+import {
+  addCorsHeaders,
+  validateOrigin,
+  createPreflightResponse,
+} from "@/lib/middleware/cors-apps";
+import {
+  checkMiniappRateLimit,
+  createRateLimitErrorResponse,
   addRateLimitInfoToResponse,
   MINIAPP_RATE_LIMITS,
 } from "@/lib/middleware/miniapp-rate-limit";
@@ -23,16 +27,22 @@ export async function OPTIONS(request: NextRequest) {
 
 export async function GET(request: NextRequest) {
   const corsResult = await validateOrigin(request);
-  
+
   // Rate limiting
-  const rateLimitResult = await checkMiniappRateLimit(request, MINIAPP_RATE_LIMITS);
+  const rateLimitResult = await checkMiniappRateLimit(
+    request,
+    MINIAPP_RATE_LIMITS,
+  );
   if (!rateLimitResult.allowed) {
-    return createRateLimitErrorResponse(rateLimitResult, corsResult.origin ?? undefined);
+    return createRateLimitErrorResponse(
+      rateLimitResult,
+      corsResult.origin ?? undefined,
+    );
   }
-  
+
   try {
     const { user } = await requireAuthOrApiKeyWithOrg(request);
-    
+
     const response = NextResponse.json({
       success: true,
       user: {
@@ -51,27 +61,27 @@ export async function GET(request: NextRequest) {
         creditBalance: user.organization?.credit_balance,
       },
     });
-    
+
     addRateLimitInfoToResponse(response, rateLimitResult);
     return addCorsHeaders(response, corsResult.origin);
   } catch (error) {
     logger.error("[Miniapp API] Error getting user", { error });
-    
-    const status = error instanceof Error && error.message.includes("Unauthorized") 
-      ? 401 
-      : error instanceof Error && error.message.includes("Forbidden")
-        ? 403
-        : 500;
-    
+
+    const status =
+      error instanceof Error && error.message.includes("Unauthorized")
+        ? 401
+        : error instanceof Error && error.message.includes("Forbidden")
+          ? 403
+          : 500;
+
     const response = NextResponse.json(
       {
         success: false,
         error: error instanceof Error ? error.message : "Failed to get user",
       },
-      { status }
+      { status },
     );
-    
+
     return addCorsHeaders(response, corsResult.origin);
   }
 }
-

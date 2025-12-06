@@ -14,7 +14,7 @@ export async function GET(request: NextRequest) {
     // Parse search filters
     const search = searchParams.get("search") || undefined;
     const category = searchParams.get("category") as CategoryId | undefined;
-    
+
     // Boolean filters - only set if explicitly "true"
     const hasVoice = searchParams.get("hasVoice") === "true" ? true : undefined;
     const deployed = searchParams.get("deployed") === "true" ? true : undefined;
@@ -27,7 +27,7 @@ export async function GET(request: NextRequest) {
     const page = Math.max(1, parseInt(searchParams.get("page") || "1", 10));
     const limit = Math.min(
       50,
-      Math.max(1, parseInt(searchParams.get("limit") || "20", 10))
+      Math.max(1, parseInt(searchParams.get("limit") || "20", 10)),
     );
 
     const includeStats = searchParams.get("includeStats") === "true";
@@ -71,9 +71,8 @@ export async function GET(request: NextRequest) {
   } catch (error) {
     logger.error("[My Agents API] Error searching characters:", error);
 
-    const status = error instanceof Error && error.message.includes("auth")
-      ? 401
-      : 500;
+    const status =
+      error instanceof Error && error.message.includes("auth") ? 401 : 500;
 
     return NextResponse.json(
       {
@@ -83,7 +82,7 @@ export async function GET(request: NextRequest) {
             ? error.message
             : "Failed to search characters",
       },
-      { status }
+      { status },
     );
   }
 }

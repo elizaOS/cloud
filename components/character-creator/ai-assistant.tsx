@@ -4,7 +4,16 @@ import { useState, useRef, useEffect } from "react";
 import { useChat } from "@ai-sdk/react";
 import { DefaultChatTransport } from "ai";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { User, Send, Sparkles, Copy, Check, Loader2, Mic, Square } from "lucide-react";
+import {
+  User,
+  Send,
+  Sparkles,
+  Copy,
+  Check,
+  Loader2,
+  Mic,
+  Square,
+} from "lucide-react";
 import type { ElizaCharacter } from "@/lib/types";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
@@ -472,7 +481,8 @@ Tell me about your vision, and I'll help you craft a detailed character definiti
                 onInput={(e) => {
                   const target = e.target as HTMLTextAreaElement;
                   target.style.height = "44px";
-                  target.style.height = Math.min(target.scrollHeight, 140) + "px";
+                  target.style.height =
+                    Math.min(target.scrollHeight, 140) + "px";
                 }}
                 placeholder="Describe your character or ask for help..."
                 disabled={isLoading}

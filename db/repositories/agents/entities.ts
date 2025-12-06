@@ -152,7 +152,13 @@ export class EntitiesRepository {
    * Find entity by name (useful for lookups)
    */
   async findByName(agentId: string, name: string): Promise<Entity | null> {
-    const result = await db.execute<{ id: string; agent_id: string; names: string[]; metadata: Record<string, unknown> | null; created_at: Date }>(sql`
+    const result = await db.execute<{
+      id: string;
+      agent_id: string;
+      names: string[];
+      metadata: Record<string, unknown> | null;
+      created_at: Date;
+    }>(sql`
       SELECT *
       FROM ${entityTable}
       WHERE agent_id = ${agentId}::uuid
@@ -180,7 +186,13 @@ export class EntitiesRepository {
     namePattern: string,
     limit = 10,
   ): Promise<Entity[]> {
-    const result = await db.execute<{ id: string; agent_id: string; names: string[]; metadata: Record<string, unknown> | null; created_at: Date }>(sql`
+    const result = await db.execute<{
+      id: string;
+      agent_id: string;
+      names: string[];
+      metadata: Record<string, unknown> | null;
+      created_at: Date;
+    }>(sql`
       SELECT *
       FROM ${entityTable}
       WHERE agent_id = ${agentId}::uuid
@@ -191,15 +203,17 @@ export class EntitiesRepository {
       LIMIT ${limit}
     `);
 
-    return result.rows.map(row => ({
-      id: row.id as UUID,
-      agentId: row.agent_id as UUID,
-      names: row.names,
-      metadata: row.metadata || undefined,
-      createdAt: row.created_at.getTime(),
-    } as Entity));
+    return result.rows.map(
+      (row) =>
+        ({
+          id: row.id as UUID,
+          agentId: row.agent_id as UUID,
+          names: row.names,
+          metadata: row.metadata || undefined,
+          createdAt: row.created_at.getTime(),
+        }) as Entity,
+    );
   }
 }
 
 export const entitiesRepository = new EntitiesRepository();
-

@@ -136,29 +136,31 @@ async function handlePOST(request: NextRequest) {
     // Upload video to Vercel Blob (required - we don't expose Fal.ai URLs)
     let blobUrl: string;
     let blobFileSize: bigint | null = null;
-    
+
     const fileExtension =
       data.video.content_type?.split("/")[1] ||
       data.video.file_name?.split(".").pop() ||
       "mp4";
-    
+
     try {
       // Always upload to our storage - videos come from Fal.ai
       if (!isFalAiUrl(data.video.url)) {
         // If for some reason it's not a Fal.ai URL, log a warning but still upload
-        console.warn(`[VIDEO GENERATION] Unexpected non-Fal.ai URL: ${data.video.url}`);
+        console.warn(
+          `[VIDEO GENERATION] Unexpected non-Fal.ai URL: ${data.video.url}`,
+        );
       }
-      
+
       const uploadResult = await uploadFromUrl(data.video.url, {
         filename: `${generationId}.${fileExtension}`,
         contentType: data.video.content_type || "video/mp4",
         folder: "videos",
         userId: user.id,
       });
-      
+
       blobUrl = uploadResult.url;
       blobFileSize = BigInt(uploadResult.size);
-      
+
       console.log(
         `[VIDEO GENERATION] Uploaded to Vercel Blob: ${blobUrl} (${blobFileSize.toString()} bytes)`,
       );

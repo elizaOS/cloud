@@ -15,7 +15,7 @@ import { users } from "./users";
 
 /**
  * Apps Table
- * 
+ *
  * Represents third-party applications that integrate with the Eliza Cloud platform.
  * Apps can embed agents, use the API, and track their usage and users.
  */
@@ -23,12 +23,12 @@ export const apps = pgTable(
   "apps",
   {
     id: uuid("id").defaultRandom().primaryKey(),
-    
+
     // App identification
     name: text("name").notNull(),
     description: text("description"),
     slug: text("slug").notNull().unique(), // URL-friendly identifier
-    
+
     // App owner
     organization_id: uuid("organization_id")
       .notNull()
@@ -36,24 +36,24 @@ export const apps = pgTable(
     created_by_user_id: uuid("created_by_user_id")
       .notNull()
       .references(() => users.id, { onDelete: "cascade" }),
-    
+
     // App URL and security
     app_url: text("app_url").notNull(), // Primary app URL
     allowed_origins: jsonb("allowed_origins")
       .$type<string[]>()
       .notNull()
       .default([]), // URL whitelist for CORS/security
-    
+
     // API Key for this app (generated automatically)
     api_key_id: uuid("api_key_id").unique(), // References api_keys table
-    
+
     // Affiliate tracking
     affiliate_code: text("affiliate_code").unique(), // Optional affiliate code
     referral_bonus_credits: numeric("referral_bonus_credits", {
       precision: 10,
       scale: 2,
     }).default("0.00"), // Credits awarded for referrals
-    
+
     // Usage tracking
     total_requests: integer("total_requests").default(0).notNull(),
     total_users: integer("total_users").default(0).notNull(), // Users signed up through this app
@@ -61,7 +61,7 @@ export const apps = pgTable(
       precision: 10,
       scale: 2,
     }).default("0.00"),
-    
+
     // LLM Usage pricing (can override organization defaults)
     custom_pricing_enabled: boolean("custom_pricing_enabled")
       .default(false)
@@ -70,7 +70,7 @@ export const apps = pgTable(
       precision: 5,
       scale: 2,
     }).default("0.00"), // % markup on LLM costs
-    
+
     // App features/permissions
     features_enabled: jsonb("features_enabled")
       .$type<{
@@ -90,11 +90,11 @@ export const apps = pgTable(
         agents: false,
         embedding: false,
       }),
-    
+
     // Rate limiting
     rate_limit_per_minute: integer("rate_limit_per_minute").default(60),
     rate_limit_per_hour: integer("rate_limit_per_hour").default(1000),
-    
+
     // App metadata
     logo_url: text("logo_url"),
     website_url: text("website_url"),
@@ -103,11 +103,11 @@ export const apps = pgTable(
       .$type<Record<string, unknown>>()
       .default({})
       .notNull(),
-    
+
     // Status
     is_active: boolean("is_active").default(true).notNull(),
     is_approved: boolean("is_approved").default(true).notNull(), // For app review process
-    
+
     // Timestamps
     created_at: timestamp("created_at").notNull().defaultNow(),
     updated_at: timestamp("updated_at").notNull().defaultNow(),
@@ -127,38 +127,38 @@ export const apps = pgTable(
 
 /**
  * App Users Table
- * 
+ *
  * Tracks users who have signed up or used the platform through a specific app.
  */
 export const appUsers = pgTable(
   "app_users",
   {
     id: uuid("id").defaultRandom().primaryKey(),
-    
+
     app_id: uuid("app_id")
       .notNull()
       .references(() => apps.id, { onDelete: "cascade" }),
     user_id: uuid("user_id")
       .notNull()
       .references(() => users.id, { onDelete: "cascade" }),
-    
+
     // Tracking info
     signup_source: text("signup_source"), // How they signed up (direct, affiliate, etc.)
     referral_code_used: text("referral_code_used"), // If they used a referral code
     ip_address: text("ip_address"),
     user_agent: text("user_agent"),
-    
+
     // Usage stats for this user in this app
     total_requests: integer("total_requests").default(0).notNull(),
     total_credits_used: numeric("total_credits_used", {
       precision: 10,
       scale: 2,
     }).default("0.00"),
-    
+
     // Timestamps
     first_seen_at: timestamp("first_seen_at").notNull().defaultNow(),
     last_seen_at: timestamp("last_seen_at").notNull().defaultNow(),
-    
+
     // Metadata
     metadata: jsonb("metadata")
       .$type<Record<string, unknown>>()
@@ -179,30 +179,30 @@ export const appUsers = pgTable(
 
 /**
  * App Analytics Table
- * 
+ *
  * Daily/hourly aggregated analytics for each app.
  */
 export const appAnalytics = pgTable(
   "app_analytics",
   {
     id: uuid("id").defaultRandom().primaryKey(),
-    
+
     app_id: uuid("app_id")
       .notNull()
       .references(() => apps.id, { onDelete: "cascade" }),
-    
+
     // Time period
     period_start: timestamp("period_start").notNull(),
     period_end: timestamp("period_end").notNull(),
     period_type: text("period_type").notNull(), // 'hourly', 'daily', 'monthly'
-    
+
     // Metrics
     total_requests: integer("total_requests").default(0).notNull(),
     successful_requests: integer("successful_requests").default(0).notNull(),
     failed_requests: integer("failed_requests").default(0).notNull(),
     unique_users: integer("unique_users").default(0).notNull(),
     new_users: integer("new_users").default(0).notNull(),
-    
+
     // Cost metrics
     total_input_tokens: integer("total_input_tokens").default(0).notNull(),
     total_output_tokens: integer("total_output_tokens").default(0).notNull(),
@@ -213,17 +213,17 @@ export const appAnalytics = pgTable(
       precision: 10,
       scale: 2,
     }).default("0.00"),
-    
+
     // Feature usage breakdown
     chat_requests: integer("chat_requests").default(0).notNull(),
     image_requests: integer("image_requests").default(0).notNull(),
     video_requests: integer("video_requests").default(0).notNull(),
     voice_requests: integer("voice_requests").default(0).notNull(),
     agent_requests: integer("agent_requests").default(0).notNull(),
-    
+
     // Average metrics
     avg_response_time_ms: integer("avg_response_time_ms"),
-    
+
     created_at: timestamp("created_at").notNull().defaultNow(),
   },
   (table) => ({
@@ -250,4 +250,3 @@ export type AppUser = InferSelectModel<typeof appUsers>;
 export type NewAppUser = InferInsertModel<typeof appUsers>;
 export type AppAnalytics = InferSelectModel<typeof appAnalytics>;
 export type NewAppAnalytics = InferInsertModel<typeof appAnalytics>;
-

@@ -171,7 +171,6 @@ export default function OnChainTrust() {
                 );
               })}
             </div>
-
           </div>
 
           {/* Right: Network visualization */}

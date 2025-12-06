@@ -1,23 +1,23 @@
 /**
  * Repository Layer - Database Access
- * 
+ *
  * Clear Domain Separation:
- * 
+ *
  * 1. **Characters** (user_characters table)
  *    - User-created character definitions/templates
  *    - Marketplace items (public/private characters)
  *    - Repository: userCharactersRepository
- * 
+ *
  * 2. **Agents** (agents table - ElizaOS framework)
  *    - Running agent instances (DO NOT MODIFY - framework dependency)
  *    - Created when characters are deployed
  *    - Repository: agentsRepository
- * 
+ *
  * 3. **Deployments** (containers table)
  *    - Infrastructure for running agents (ECS/Docker)
  *    - Links characters to deployed agent instances
  *    - Repository: containersRepository
- * 
+ *
  * 4. **ElizaOS Tables** (rooms, memories, participants, etc.)
  *    - Framework-managed conversation data
  *    - DO NOT MODIFY - ElizaOS manages these

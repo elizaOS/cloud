@@ -1,6 +1,6 @@
 /**
  * Default Avatar Selection from Built-in Avatars
- * 
+ *
  * Uses a curated set of character avatars instead of external services.
  * All avatars are stored locally in /public/avatars/
  */
@@ -11,7 +11,7 @@
  */
 export const CHARACTER_AVATARS = [
   "/avatars/codementor.png",
-  "/avatars/comedybot.png", 
+  "/avatars/comedybot.png",
   "/avatars/creativespark.png",
   "/avatars/gamemaster.png",
   "/avatars/historyscholar.png",
@@ -43,14 +43,14 @@ export type AvatarStyle = "random" | "eliza";
 /**
  * Generate a default avatar URL for a new character.
  * Randomly selects from the curated CHARACTER_AVATARS list.
- * 
+ *
  * @param name - The character name (used for deterministic selection if needed)
  * @param options - Optional configuration
  * @returns A local avatar URL from /public/avatars/
  */
 export function generateDefaultAvatarUrl(
   name?: string,
-  _options: { style?: AvatarStyle } = {}
+  _options: { style?: AvatarStyle } = {},
 ): string {
   // Use the name to create a deterministic but seemingly random selection
   // This ensures the same name always gets the same avatar
@@ -59,7 +59,7 @@ export function generateDefaultAvatarUrl(
     const index = hash % CHARACTER_AVATARS.length;
     return CHARACTER_AVATARS[index];
   }
-  
+
   // Truly random selection if no name provided
   const randomIndex = Math.floor(Math.random() * CHARACTER_AVATARS.length);
   return CHARACTER_AVATARS[randomIndex];
@@ -72,7 +72,7 @@ function simpleHash(str: string): number {
   let hash = 0;
   for (let i = 0; i < str.length; i++) {
     const char = str.charCodeAt(i);
-    hash = ((hash << 5) - hash) + char;
+    hash = (hash << 5) - hash + char;
     hash = hash & hash; // Convert to 32-bit integer
   }
   return Math.abs(hash);
@@ -92,7 +92,10 @@ export function getFallbackAvatarUrl(): string {
  */
 export function isBuiltInAvatar(url: string | null | undefined): boolean {
   if (!url) return false;
-  return url.startsWith("/avatars/") || ALL_AVATARS.some(avatar => url.includes(avatar));
+  return (
+    url.startsWith("/avatars/") ||
+    ALL_AVATARS.some((avatar) => url.includes(avatar))
+  );
 }
 
 /**
@@ -110,14 +113,30 @@ export function isDiceBearAvatar(url: string | null | undefined): boolean {
 /**
  * Get available avatar options for UI selection
  */
-export function getAvailableAvatarStyles(): Array<{ id: string; name: string; url: string }> {
+export function getAvailableAvatarStyles(): Array<{
+  id: string;
+  name: string;
+  url: string;
+}> {
   return [
     { id: "codementor", name: "Code Mentor", url: "/avatars/codementor.png" },
     { id: "comedybot", name: "Comedy Bot", url: "/avatars/comedybot.png" },
-    { id: "creativespark", name: "Creative Spark", url: "/avatars/creativespark.png" },
+    {
+      id: "creativespark",
+      name: "Creative Spark",
+      url: "/avatars/creativespark.png",
+    },
     { id: "gamemaster", name: "Game Master", url: "/avatars/gamemaster.png" },
-    { id: "historyscholar", name: "History Scholar", url: "/avatars/historyscholar.png" },
-    { id: "mysticoracle", name: "Mystic Oracle", url: "/avatars/mysticoracle.png" },
+    {
+      id: "historyscholar",
+      name: "History Scholar",
+      url: "/avatars/historyscholar.png",
+    },
+    {
+      id: "mysticoracle",
+      name: "Mystic Oracle",
+      url: "/avatars/mysticoracle.png",
+    },
     { id: "eliza", name: "Eliza", url: "/avatars/eliza.png" },
     { id: "amara", name: "Amara", url: "/avatars/amara.png" },
     { id: "luna", name: "Luna", url: "/avatars/luna.png" },
@@ -127,7 +146,7 @@ export function getAvailableAvatarStyles(): Array<{ id: string; name: string; ur
 
 /**
  * Ensure a character has an avatar URL, using the fallback if needed.
- * 
+ *
  * @param avatarUrl - The character's current avatar URL (may be null/undefined/empty)
  * @returns A valid avatar URL (either the original or the fallback)
  */

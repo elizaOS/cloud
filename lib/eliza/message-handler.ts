@@ -65,10 +65,10 @@ export class MessageHandler {
    */
   async process(options: MessageOptions): Promise<MessageResult> {
     const { roomId, text, attachments, agentModeConfig } = options;
-    
+
     // IMPORTANT: Always use the authenticated user's ID as entityId
     const entityId = this.userContext.userId;
-    
+
     // Use provided agent mode config or default to CHAT mode
     const modeConfig = agentModeConfig || DEFAULT_AGENT_MODE;
 
@@ -199,7 +199,9 @@ export class MessageHandler {
       await this.incrementAnonymousMessageCount();
     } else {
       logger.info("[MessageHandler] ℹ️ Skipping message count increment:", {
-        reason: !this.userContext.isAnonymous ? "Not anonymous user" : "No session token",
+        reason: !this.userContext.isAnonymous
+          ? "Not anonymous user"
+          : "No session token",
         isAnonymous: this.userContext.isAnonymous,
         hasSessionToken: !!this.userContext.sessionToken,
       });
@@ -272,9 +274,18 @@ export class MessageHandler {
         );
       } catch (agentEntityError) {
         // Ignore duplicate key errors - entity already exists
-        const msg = agentEntityError instanceof Error ? agentEntityError.message : String(agentEntityError);
-        if (!msg.toLowerCase().includes("duplicate") && !msg.toLowerCase().includes("unique constraint")) {
-          elizaLogger.error("[MessageHandler] Failed to ensure agent entity:", msg);
+        const msg =
+          agentEntityError instanceof Error
+            ? agentEntityError.message
+            : String(agentEntityError);
+        if (
+          !msg.toLowerCase().includes("duplicate") &&
+          !msg.toLowerCase().includes("unique constraint")
+        ) {
+          elizaLogger.error(
+            "[MessageHandler] Failed to ensure agent entity:",
+            msg,
+          );
         }
       }
 
@@ -441,9 +452,11 @@ export class MessageHandler {
       sessionTokenPreview: this.userContext.sessionToken?.slice(0, 8) + "...",
       isAnonymous: this.userContext.isAnonymous,
     });
-    
+
     if (!this.userContext.sessionToken) {
-      logger.warn("[MessageHandler] ⚠️ No session token, skipping message count increment");
+      logger.warn(
+        "[MessageHandler] ⚠️ No session token, skipping message count increment",
+      );
       return;
     }
 
@@ -460,15 +473,19 @@ export class MessageHandler {
       });
 
       if (sessions.rows.length > 0) {
-        const updatedSession = await anonymousSessionsService.incrementMessageCount(
-          sessions.rows[0].id,
-        );
+        const updatedSession =
+          await anonymousSessionsService.incrementMessageCount(
+            sessions.rows[0].id,
+          );
         logger.info("[MessageHandler] ✅ Message count incremented:", {
           sessionId: sessions.rows[0].id,
           newCount: updatedSession?.message_count,
         });
       } else {
-        logger.warn("[MessageHandler] ⚠️ No session found for token:", this.userContext.sessionToken?.slice(0, 8) + "...");
+        logger.warn(
+          "[MessageHandler] ⚠️ No session found for token:",
+          this.userContext.sessionToken?.slice(0, 8) + "...",
+        );
       }
     } catch (error) {
       logger.error(
@@ -613,14 +630,14 @@ export class MessageHandler {
           // Generate title from the conversation context
           const title = await generateRoomTitle(context || userText);
 
-        // Update room with the generated title
-        await db.execute(
-          sql`UPDATE rooms SET name = ${title} WHERE id = ${roomId}::uuid`,
-        );
+          // Update room with the generated title
+          await db.execute(
+            sql`UPDATE rooms SET name = ${title} WHERE id = ${roomId}::uuid`,
+          );
 
-        logger.info(
-          `[MessageHandler] Generated and saved room title: ${title}`,
-        );
+          logger.info(
+            `[MessageHandler] Generated and saved room title: ${title}`,
+          );
         } else {
           logger.debug(
             `[MessageHandler] Room has ${count} messages, waiting for 4+ to generate title`,

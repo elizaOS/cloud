@@ -174,10 +174,10 @@ export const affiliateContextProvider: Provider = {
       if (vibe && VIBE_PERSONALITIES[vibe]) {
         const vibeConfig = VIBE_PERSONALITIES[vibe];
         contextLines.push(
-          `[VIBE: ${vibe.toUpperCase()}] ${vibeConfig.description}`
+          `[VIBE: ${vibe.toUpperCase()}] ${vibeConfig.description}`,
         );
         contextLines.push(
-          `Style: ${vibeConfig.behaviors.slice(0, 3).join("; ")}`
+          `Style: ${vibeConfig.behaviors.slice(0, 3).join("; ")}`,
         );
         contextLines.push(``);
       }
@@ -186,7 +186,7 @@ export const affiliateContextProvider: Provider = {
       if (backstory && backstory.trim()) {
         const shortBackstory = backstory.trim().slice(0, 200);
         contextLines.push(
-          `[Backstory] ${shortBackstory}${backstory.length > 200 ? "..." : ""}`
+          `[Backstory] ${shortBackstory}${backstory.length > 200 ? "..." : ""}`,
         );
         contextLines.push(``);
       }
@@ -203,19 +203,19 @@ export const affiliateContextProvider: Provider = {
       if (isAffiliateCharacter) {
         contextLines.push(`[CONVERSATION STYLE]`);
         contextLines.push(
-          `- Talk TO the user, not AT them. This is a real conversation, not a monologue.`
+          `- Talk TO the user, not AT them. This is a real conversation, not a monologue.`,
         );
         contextLines.push(
-          `- Ask questions, show curiosity about them, respond to what they said.`
+          `- Ask questions, show curiosity about them, respond to what they said.`,
         );
         contextLines.push(
-          `- Be warm, engaging, and human. Use natural conversational flow.`
+          `- Be warm, engaging, and human. Use natural conversational flow.`,
         );
         contextLines.push(
-          `- When sharing an image, react naturally like you're sharing a selfie with a friend.`
+          `- When sharing an image, react naturally like you're sharing a selfie with a friend.`,
         );
         contextLines.push(
-          `- Example: "Just took this for you 😘 What do you think?" NOT "I taste like trouble"`
+          `- Example: "Just took this for you 😘 What do you think?" NOT "I taste like trouble"`,
         );
         contextLines.push(``);
       }
@@ -253,7 +253,7 @@ export const affiliateContextProvider: Provider = {
       // Add reference photos info if available (for image generation context)
       if (imageUrls.length > 0) {
         contextLines.push(
-          `[Reference Photos] ${imageUrls.length} photo(s) available`
+          `[Reference Photos] ${imageUrls.length} photo(s) available`,
         );
       }
 
@@ -287,7 +287,7 @@ export const affiliateContextProvider: Provider = {
       const errMsg = error instanceof Error ? error.message : String(error);
       runtime.logger?.error(
         "[Affiliate Context Provider] Failed to load affiliate context:",
-        errMsg
+        errMsg,
       );
       return {
         values: { affiliateContext: "" },
